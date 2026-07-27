@@ -53,7 +53,7 @@ struct CqmomContinuousMomentRateResult
                                                                                    double time, const PhaseSpaceVelocity& velocity,
                                                                                    const QmomOptions& qmom_options = {});
 
-[[nodiscard]] CqmomContinuousMomentRateResult evaluate_trusted_cqmom_continuous_moment_rates(const CqmomLeanCase& lean_case, double time,
-                                                                                             const PhaseSpaceVelocity& velocity);
+[[nodiscard]] CqmomContinuousMomentRateResult evaluate_cqmom_continuous_moment_rates(const CqmomLeanCase& lean_case, double time,
+                                                                                     const PhaseSpaceVelocity& velocity);
 
 } // namespace qmomkit::internal

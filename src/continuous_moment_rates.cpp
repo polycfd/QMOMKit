@@ -101,7 +101,7 @@ void validate_qmom_rate_request(const std::vector<double>& moments, const double
     }
 }
 
-void validate_trusted_cqmom_rate_request(const CqmomLeanCase& lean_case, const double time, const PhaseSpaceVelocity& velocity)
+void validate_cqmom_rate_request(const CqmomLeanCase& lean_case, const double time, const PhaseSpaceVelocity& velocity)
 {
     if (!std::isfinite(time))
     {
@@ -202,12 +202,12 @@ QmomContinuousMomentRateResult evaluate_qmom_continuous_moment_rates(const std::
         ContinuousMomentRateStatus::success, quadrature.status, ""};
 }
 
-CqmomContinuousMomentRateResult evaluate_trusted_cqmom_continuous_moment_rates(const CqmomLeanCase& lean_case, const double time,
-                                                                               const PhaseSpaceVelocity& velocity)
+CqmomContinuousMomentRateResult evaluate_cqmom_continuous_moment_rates(const CqmomLeanCase& lean_case, const double time,
+                                                                       const PhaseSpaceVelocity& velocity)
 {
     try
     {
-        validate_trusted_cqmom_rate_request(lean_case, time, velocity);
+        validate_cqmom_rate_request(lean_case, time, velocity);
     }
     catch (const std::exception& error)
     {

@@ -228,7 +228,7 @@ void test_qmom_failure_paths()
     assert(thrown.message.find("velocity model failed") != std::string::npos);
 }
 
-void test_trusted_cqmom_identity_ordering_and_independent_composition()
+void test_cqmom_identity_ordering_and_independent_composition()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -239,7 +239,7 @@ void test_trusted_cqmom_identity_ordering_and_independent_composition()
     { return std::vector<double>{0.25 * coordinate[0], -0.5 * coordinate[1]}; };
 
     const qmomkit::internal::CqmomContinuousMomentRateResult result =
-        qmomkit::internal::evaluate_trusted_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
+        qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
 
     assert(result.ok());
     assert(result.rates.has_value());
@@ -249,7 +249,7 @@ void test_trusted_cqmom_identity_ordering_and_independent_composition()
     assert(result.rates->values.front() == 0.0);
 }
 
-void test_trusted_cqmom_non_identity_ordering_and_global_terminal_weights()
+void test_cqmom_non_identity_ordering_and_global_terminal_weights()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -260,7 +260,7 @@ void test_trusted_cqmom_non_identity_ordering_and_global_terminal_weights()
     { return std::vector<double>{0.2 + coordinate[1], -0.1 * coordinate[0]}; };
 
     const qmomkit::internal::CqmomContinuousMomentRateResult result =
-        qmomkit::internal::evaluate_trusted_cqmom_continuous_moment_rates(lean_case, 0.5, velocity);
+        qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.5, velocity);
     const qmomkit::CqmomResult quadrature = qmomkit::internal::compute_trusted_cqmom(lean_case);
     assert(quadrature.ok());
     const std::vector<double> expected = qmomkit::internal::reconstruct_continuous_moment_rates(
@@ -273,7 +273,7 @@ void test_trusted_cqmom_non_identity_ordering_and_global_terminal_weights()
     assert_vector_near(result.rates->values, expected, 1.0e-11);
 }
 
-void test_trusted_cqmom_zero_velocity_and_adaptive_terminal_arrays()
+void test_cqmom_zero_velocity_and_adaptive_terminal_arrays()
 {
     {
         const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -285,7 +285,7 @@ void test_trusted_cqmom_zero_velocity_and_adaptive_terminal_arrays()
         { return std::vector<double>(coordinate.size(), 0.0); };
 
         const qmomkit::internal::CqmomContinuousMomentRateResult result =
-            qmomkit::internal::evaluate_trusted_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
+            qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
 
         assert(result.ok());
         assert(result.rates.has_value());
@@ -308,7 +308,7 @@ void test_trusted_cqmom_zero_velocity_and_adaptive_terminal_arrays()
         assert(quadrature.quadrature.weights().size() == 3);
 
         const qmomkit::internal::CqmomContinuousMomentRateResult result =
-            qmomkit::internal::evaluate_trusted_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
+            qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
 
         assert(result.ok());
         assert(result.rates.has_value());
@@ -317,7 +317,7 @@ void test_trusted_cqmom_zero_velocity_and_adaptive_terminal_arrays()
     }
 }
 
-void test_trusted_cqmom_failure_paths()
+void test_cqmom_failure_paths()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -325,7 +325,7 @@ void test_trusted_cqmom_failure_paths()
     invalid_values.front() = -1.0;
     const qmomkit::CqmomLeanCase invalid_case{qmomkit::CqmomMomentData{layout, invalid_values}};
 
-    const qmomkit::internal::CqmomContinuousMomentRateResult inversion_failure = qmomkit::internal::evaluate_trusted_cqmom_continuous_moment_rates(
+    const qmomkit::internal::CqmomContinuousMomentRateResult inversion_failure = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(
         invalid_case, 0.0, [](double, const std::vector<double>& coordinate) { return std::vector<double>(coordinate.size(), 0.0); });
     assert(!inversion_failure.ok());
     assert(inversion_failure.status == qmomkit::internal::ContinuousMomentRateStatus::inversion_failed);
@@ -336,25 +336,25 @@ void test_trusted_cqmom_failure_paths()
     const qmomkit::CqmomLeanCase valid_case{
         cqmom_moment_data_from_terminals(layout, {0.2, 0.3, 0.1, 0.4}, {{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}})};
 
-    const qmomkit::internal::CqmomContinuousMomentRateResult wrong_size = qmomkit::internal::evaluate_trusted_cqmom_continuous_moment_rates(
+    const qmomkit::internal::CqmomContinuousMomentRateResult wrong_size = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(
         valid_case, 0.0, [](double, const std::vector<double>&) { return std::vector<double>{1.0}; });
     assert(!wrong_size.ok());
     assert(wrong_size.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
     assert(wrong_size.message == "Phase-space velocity callback returned the wrong dimension.");
 
     const qmomkit::internal::CqmomContinuousMomentRateResult non_finite =
-        qmomkit::internal::evaluate_trusted_cqmom_continuous_moment_rates(valid_case, 0.0,
-                                                                          [](double, const std::vector<double>& coordinate)
-                                                                          {
-                                                                              std::vector<double> value(coordinate.size(), 0.0);
-                                                                              value.front() = std::numeric_limits<double>::quiet_NaN();
-                                                                              return value;
-                                                                          });
+        qmomkit::internal::evaluate_cqmom_continuous_moment_rates(valid_case, 0.0,
+                                                                  [](double, const std::vector<double>& coordinate)
+                                                                  {
+                                                                      std::vector<double> value(coordinate.size(), 0.0);
+                                                                      value.front() = std::numeric_limits<double>::quiet_NaN();
+                                                                      return value;
+                                                                  });
     assert(!non_finite.ok());
     assert(non_finite.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
     assert(non_finite.message == "Phase-space velocity callback returned a non-finite value.");
 
-    const qmomkit::internal::CqmomContinuousMomentRateResult thrown = qmomkit::internal::evaluate_trusted_cqmom_continuous_moment_rates(
+    const qmomkit::internal::CqmomContinuousMomentRateResult thrown = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(
         valid_case, 0.0, [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("CQMOM velocity model failed"); });
     assert(!thrown.ok());
     assert(thrown.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
@@ -380,7 +380,7 @@ void test_new_evaluators_do_not_record_native_node_rhs_counters()
         const qmomkit::internal::QmomContinuousMomentRateResult qmom_result =
             qmomkit::internal::evaluate_qmom_continuous_moment_rates(qmom_moments, 2, 0.0, qmom_velocity);
         const qmomkit::internal::CqmomContinuousMomentRateResult cqmom_result =
-            qmomkit::internal::evaluate_trusted_cqmom_continuous_moment_rates(cqmom_case, 0.0, cqmom_velocity);
+            qmomkit::internal::evaluate_cqmom_continuous_moment_rates(cqmom_case, 0.0, cqmom_velocity);
         assert(qmom_result.ok());
         assert(cqmom_result.ok());
     }
@@ -397,10 +397,10 @@ int main()
     test_qmom_two_node_distinct_velocities_and_independent_composition();
     test_qmom_zero_and_linear_velocity();
     test_qmom_failure_paths();
-    test_trusted_cqmom_identity_ordering_and_independent_composition();
-    test_trusted_cqmom_non_identity_ordering_and_global_terminal_weights();
-    test_trusted_cqmom_zero_velocity_and_adaptive_terminal_arrays();
-    test_trusted_cqmom_failure_paths();
+    test_cqmom_identity_ordering_and_independent_composition();
+    test_cqmom_non_identity_ordering_and_global_terminal_weights();
+    test_cqmom_zero_velocity_and_adaptive_terminal_arrays();
+    test_cqmom_failure_paths();
     test_new_evaluators_do_not_record_native_node_rhs_counters();
     return 0;
 }

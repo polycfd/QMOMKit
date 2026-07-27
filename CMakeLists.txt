@@ -21,6 +21,7 @@ add_library(
     src/conditional_moments.cpp
     src/conditioning_path.cpp
     src/configuration.cpp
+    src/continuous_moment_rates.cpp
     src/distributions.cpp
     src/internal/linear_algebra.cpp
     src/internal/vandermonde.cpp

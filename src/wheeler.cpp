@@ -284,7 +284,10 @@ Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_
 
     if (has_negative_recurrence_b(coefficients.b))
     {
-        return one_node_result(moments, QuadratureStatus::not_realizable, "Moment sequence has negative recurrence b.");
+        const double minimum_b = *std::min_element(coefficients.b.begin(), coefficients.b.end());
+
+        return one_node_result(moments, QuadratureStatus::not_realizable,
+                               "Moment sequence has negative recurrence b = " + std::to_string(minimum_b) + ".");
     }
 
     for (std::size_t n1 = n; n1 > 0; --n1)

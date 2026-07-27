@@ -1,0 +1,8 @@
+[phase_space]
+node_counts = 1
+
+[qmom]
+adaptive = yes
+
+[moments]
+values = 1.0, 0.0

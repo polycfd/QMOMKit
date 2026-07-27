@@ -1,0 +1,5 @@
+[phase_space]
+node_counts = 1
+
+[qmom]
+adaptive = false

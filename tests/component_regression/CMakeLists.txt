@@ -1,0 +1,24 @@
+qmomkit_add_ctest(
+    component_regression_moment_source
+    component_regression_moment_source
+    component_regression
+    moment_source.cpp
+)
+qmomkit_add_ctest(
+    component_regression_node_advection
+    component_regression_node_advection
+    component_regression
+    node_advection.cpp
+)
+qmomkit_add_ctest(
+    component_regression_transport_integrator
+    component_regression_transport_integrator
+    component_regression
+    transport_integrator.cpp
+)
+qmomkit_add_ctest(
+    component_regression_cqmom_compute_failures
+    component_regression_cqmom_compute_failures
+    component_regression
+    cqmom_compute_failures.cpp
+)

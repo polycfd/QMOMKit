@@ -1,0 +1,6 @@
+[phase_space]
+names = xi
+node_counts = 2
+
+[moments]
+values = 1.0, 0.8, 2.8, 4.4

@@ -1,0 +1,11 @@
+[phase_space]
+names = xi
+node_counts = 2
+
+[initial]
+type = distribution
+family = lognormal
+number_density = 2.5
+maximum_order = 3
+mu_log = -0.2
+sigma_log = 0.4

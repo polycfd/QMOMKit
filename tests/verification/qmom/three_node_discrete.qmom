@@ -1,0 +1,9 @@
+[phase_space]
+names = xi
+node_counts = 3
+
+[qmom]
+adaptive = false
+
+[moments]
+values = 1.0, 0.92, 2.918, 4.6682, 12.73298, 24.252482

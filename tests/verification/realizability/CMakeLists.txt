@@ -1,0 +1,1 @@
+qmomkit_add_ctest(test_realizability_analytical verification_realizability_analytical verification realizability_analytical.cpp)

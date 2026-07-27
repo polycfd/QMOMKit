@@ -1,0 +1,1 @@
+qmomkit_add_ctest(test_distributions_analytical verification_distributions_analytical verification distributions_analytical.cpp)

@@ -1,0 +1,410 @@
+#include "qmomkit/output.hpp"
+
+#include "qmomkit/moment_reconstruction.hpp"
+
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace
+{
+
+[[nodiscard]] std::filesystem::path temporary_output_path(const std::string& stem)
+{
+    std::filesystem::path path = std::filesystem::temp_directory_path() / (stem + ".txt");
+    std::filesystem::remove(path);
+    return path;
+}
+
+[[nodiscard]] std::string read_text_file(const std::filesystem::path& path)
+{
+    std::ifstream input(path);
+    assert(input);
+    std::ostringstream contents;
+    contents << input.rdbuf();
+    return contents.str();
+}
+
+[[nodiscard]] std::string format_double(const double value)
+{
+    std::ostringstream output;
+    output << std::setprecision(17) << value;
+    return output.str();
+}
+
+[[nodiscard]] std::string cqmom_label(const qmomkit::MultiIndex& index)
+{
+    std::ostringstream label;
+    label << "M[";
+    for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
+    {
+        if (dimension != 0)
+        {
+            label << ',';
+        }
+        label << index[dimension];
+    }
+    label << ']';
+    return label.str();
+}
+
+template <class Function> void assert_throws_invalid_argument(Function&& function)
+{
+    bool threw = false;
+    try
+    {
+        function();
+    }
+    catch (const std::invalid_argument&)
+    {
+        threw = true;
+    }
+    assert(threw);
+}
+
+template <class Function> void assert_throws_invalid_argument_message(Function&& function, const std::string& expected_message)
+{
+    bool threw = false;
+    try
+    {
+        function();
+    }
+    catch (const std::invalid_argument& error)
+    {
+        threw = true;
+        assert(error.what() == expected_message);
+    }
+    assert(threw);
+}
+
+void assert_near(const double actual, const double expected, const double tolerance)
+{
+    assert(std::abs(actual - expected) <= tolerance);
+}
+
+[[nodiscard]] std::vector<double> raw_moments_from_grid(const qmomkit::PhaseSpaceHierarchy& hierarchy, const std::vector<std::size_t>& extents,
+                                                        const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas)
+{
+    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat_moment = 0; flat_moment < moments.size(); ++flat_moment)
+    {
+        const qmomkit::MultiIndex moment_index = qmomkit::unflatten_multi_index(flat_moment, extents);
+        double value = 0.0;
+        for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(hierarchy))
+        {
+            const std::size_t flat_node = hierarchy.flatten_node_index(node_index);
+            double contribution = weights[flat_node];
+            for (std::size_t dimension = 0; dimension < hierarchy.number_of_dimensions(); ++dimension)
+            {
+                contribution *= std::pow(abscissas[dimension][flat_node], static_cast<int>(moment_index[dimension]));
+            }
+            value += contribution;
+        }
+        moments[flat_moment] = value;
+    }
+    return moments;
+}
+
+void test_qmom_all_moments()
+{
+    const std::filesystem::path path = temporary_output_path("qmomkit_qmom_all_moments");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(path, 4);
+        writer.write(0.0, qmomkit::MomentSet({1.0, 1.0 / 3.0, 2.5, -4.0}));
+        writer.write(0.1, qmomkit::MomentSet({2.0, 4.0, 6.0, 8.0}));
+    }
+
+    const std::string expected = "# time M[0] M[1] M[2] M[3]\n" + format_double(0.0) + " " + format_double(1.0) + " " + format_double(1.0 / 3.0) +
+                                 " " + format_double(2.5) + " " + format_double(-4.0) + "\n" + format_double(0.1) + " " + format_double(2.0) + " " +
+                                 format_double(4.0) + " " + format_double(6.0) + " " + format_double(8.0) + "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_qmom_selected_moments()
+{
+    const std::filesystem::path path = temporary_output_path("qmomkit_qmom_selected_moments");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(path, std::vector<std::size_t>{3, 1});
+        writer.write(0.25, qmomkit::MomentSet({10.0, 20.0, 30.0, 40.0}));
+    }
+
+    const std::string expected = "# time M[3] M[1]\n" + format_double(0.25) + " " + format_double(40.0) + " " + format_double(20.0) + "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_cqmom_all_moments()
+{
+    const std::filesystem::path path = temporary_output_path("qmomkit_cqmom_all_moments");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, {2, 3});
+        writer.write(0.0, qmomkit::RawMomentTensor{{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}});
+    }
+
+    const std::string expected = "# time M[0,0] M[0,1] M[0,2] M[1,0] M[1,1] M[1,2]\n" + format_double(0.0) + " " + format_double(1.0) + " " +
+                                 format_double(2.0) + " " + format_double(3.0) + " " + format_double(4.0) + " " + format_double(5.0) + " " +
+                                 format_double(6.0) + "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_cqmom_selected_moments()
+{
+    const std::filesystem::path path = temporary_output_path("qmomkit_cqmom_selected_moments");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, {2, 3}, {{1, 2}, {0, 1}});
+        writer.write(0.5, qmomkit::RawMomentTensor{{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}});
+    }
+
+    const std::string expected = "# time M[1,2] M[0,1]\n" + format_double(0.5) + " " + format_double(6.0) + " " + format_double(2.0) + "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_cqmom_moment_data_default_moments()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    std::vector<double> values;
+    values.reserve(layout.required_indices.size());
+    for (std::size_t index = 0; index < layout.required_indices.size(); ++index)
+    {
+        values.push_back(10.0 + static_cast<double>(index));
+    }
+
+    const std::filesystem::path path = temporary_output_path("qmomkit_cqmom_moment_data_default_moments");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, layout);
+        writer.write(0.75, qmomkit::CqmomMomentData{layout, values});
+    }
+
+    std::string expected = "# time";
+    for (const qmomkit::MultiIndex& moment_index : layout.required_indices)
+    {
+        expected += " " + cqmom_label(moment_index);
+    }
+    expected += "\n" + format_double(0.75);
+    for (const double value : values)
+    {
+        expected += " " + format_double(value);
+    }
+    expected += "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_requested_cqmom_moments_are_reconstructed_from_quadrature()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
+    const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, {}});
+    assert(result.ok());
+
+    const qmomkit::RawMomentRequest request{{{1, 0}, {0, 2}, {1, 1}}};
+    const qmomkit::SelectedRawMomentResult reconstructed = qmomkit::reconstruct_raw_moments(result.quadrature, request);
+    const std::filesystem::path path = temporary_output_path("qmomkit_requested_cqmom_moments");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, request);
+        writer.write(0.875, result.quadrature);
+    }
+
+    const std::string expected = "# time M[1,0] M[0,2] M[1,1]\n" + format_double(0.875) + " " + format_double(reconstructed.values[0]) + " " +
+                                 format_double(reconstructed.values[1]) + " " + format_double(reconstructed.values[2]) + "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_requested_cqmom_moments_preserve_duplicate_columns()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
+    const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, {}});
+    assert(result.ok());
+
+    const qmomkit::RawMomentRequest request{{{1, 0}, {1, 0}, {0, 0}}};
+    const qmomkit::SelectedRawMomentResult reconstructed = qmomkit::reconstruct_raw_moments(result.quadrature, request);
+    const std::filesystem::path path = temporary_output_path("qmomkit_requested_cqmom_duplicate_moments");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, request);
+        writer.write(1.0, result.quadrature);
+    }
+
+    const std::string expected = "# time M[1,0] M[1,0] M[0,0]\n" + format_double(1.0) + " " + format_double(reconstructed.values[0]) + " " +
+                                 format_double(reconstructed.values[1]) + " " + format_double(reconstructed.values[2]) + "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_cqmom_moment_data_writer_rejects_layout_mismatch()
+{
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2, 2}));
+    const qmomkit::CqmomMomentLayout wrong_layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2, 1}));
+
+    const std::filesystem::path path = temporary_output_path("qmomkit_cqmom_moment_data_layout_mismatch");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, layout);
+        assert_throws_invalid_argument_message(
+            [&writer, &wrong_layout]
+            { writer.write(0.0, qmomkit::CqmomMomentData{wrong_layout, std::vector<double>(wrong_layout.required_indices.size(), 1.0)}); },
+            "CQMOM moment data output layout does not match the writer layout.");
+    }
+    std::filesystem::remove(path);
+}
+
+void test_requested_cqmom_writer_rejects_rank_mismatch()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
+    const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, {}});
+    assert(result.ok());
+
+    const std::filesystem::path path = temporary_output_path("qmomkit_requested_cqmom_rank_mismatch");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, qmomkit::RawMomentRequest{{{1}}});
+        assert_throws_invalid_argument([&writer, &result] { writer.write(0.0, result.quadrature); });
+    }
+    std::filesystem::remove(path);
+}
+
+void test_writer_rejects_mismatched_inputs()
+{
+    const std::filesystem::path qmom_path = temporary_output_path("qmomkit_qmom_invalid_moments");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(qmom_path, 2);
+        assert_throws_invalid_argument([&writer] { writer.write(0.0, qmomkit::MomentSet({1.0})); });
+    }
+    std::filesystem::remove(qmom_path);
+
+    const std::filesystem::path cqmom_path = temporary_output_path("qmomkit_cqmom_invalid_moments");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(cqmom_path, {2, 2});
+        assert_throws_invalid_argument([&writer] { writer.write(0.0, qmomkit::RawMomentTensor{{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}); });
+    }
+    std::filesystem::remove(cqmom_path);
+}
+
+void test_qmom_quadrature_output()
+{
+    const std::filesystem::path path = temporary_output_path("qmomkit_qmom_quadrature");
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, 3);
+        writer.write(0.0, qmomkit::QmomResult{{-1.0, 0.5, 2.0}, {0.25, 0.5, 0.25}});
+    }
+
+    const std::string expected = "# time w0 x0 w1 x1 w2 x2\n" + format_double(0.0) + " " + format_double(0.25) + " " + format_double(-1.0) + " " +
+                                 format_double(0.5) + " " + format_double(0.5) + " " + format_double(0.25) + " " + format_double(2.0) + "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_quadrature_1d_output()
+{
+    const std::filesystem::path path = temporary_output_path("qmomkit_quadrature_1d");
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, 2);
+        writer.write(0.125, qmomkit::Quadrature1D{{-0.75, 1.25}, {0.4, 0.6}});
+    }
+
+    const std::string expected = "# time w0 x0 w1 x1\n" + format_double(0.125) + " " + format_double(0.4) + " " + format_double(-0.75) + " " +
+                                 format_double(0.6) + " " + format_double(1.25) + "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_cqmom_quadrature_output()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.28, 0.07, 0.52, 0.13};
+    const std::vector<std::vector<double>> abscissas{{-0.75, -0.75, 1.25, 1.25}, {0.2, 1.4, 0.2, 1.4}};
+    const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, {}});
+
+    assert(result.ok());
+    for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(hierarchy))
+    {
+        const std::size_t flat_node = hierarchy.flatten_node_index(node_index);
+        assert_near(result.quadrature.weights()[flat_node], weights[flat_node], 1.0e-12);
+        assert_near(result.quadrature.abscissas()[0][flat_node], abscissas[0][flat_node], 1.0e-12);
+        assert_near(result.quadrature.abscissas()[1][flat_node], abscissas[1][flat_node], 1.0e-12);
+    }
+
+    const std::filesystem::path path = temporary_output_path("qmomkit_cqmom_quadrature");
+    {
+        qmomkit::QuadratureWriter writer =
+            qmomkit::QuadratureWriter::for_cqmom(path, result.quadrature.number_of_dimensions(), result.quadrature.total_nodes());
+        writer.write(0.5, result.quadrature);
+    }
+
+    std::string expected = "# time w0 x0_0 x1_0 w1 x0_1 x1_1 w2 x0_2 x1_2 w3 x0_3 x1_3\n" + format_double(0.5);
+    for (std::size_t node = 0; node < result.quadrature.total_nodes(); ++node)
+    {
+        expected += " " + format_double(result.quadrature.weights()[node]);
+        for (std::size_t dimension = 0; dimension < result.quadrature.number_of_dimensions(); ++dimension)
+        {
+            expected += " " + format_double(result.quadrature.abscissas()[dimension][node]);
+        }
+    }
+    expected += "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_quadrature_writer_rejects_mismatched_inputs()
+{
+    const std::filesystem::path qmom_path = temporary_output_path("qmomkit_qmom_invalid_quadrature");
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(qmom_path, 2);
+        assert_throws_invalid_argument([&writer] { writer.write(0.0, qmomkit::QmomResult{{1.0}, {1.0}}); });
+    }
+    std::filesystem::remove(qmom_path);
+
+    const std::filesystem::path cqmom_path = temporary_output_path("qmomkit_cqmom_invalid_quadrature");
+    {
+        const qmomkit::PhaseSpaceHierarchy hierarchy({2});
+        const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {{4}, {1.0, 0.0, 1.0, 0.0}}, {}, {}});
+        assert(result.ok());
+
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(cqmom_path, 2, 2);
+        assert_throws_invalid_argument([&writer, &result] { writer.write(0.0, result.quadrature); });
+    }
+    std::filesystem::remove(cqmom_path);
+}
+
+} // namespace
+
+int main()
+{
+    test_qmom_all_moments();
+    test_qmom_selected_moments();
+    test_cqmom_all_moments();
+    test_cqmom_selected_moments();
+    test_cqmom_moment_data_default_moments();
+    test_requested_cqmom_moments_are_reconstructed_from_quadrature();
+    test_requested_cqmom_moments_preserve_duplicate_columns();
+    test_cqmom_moment_data_writer_rejects_layout_mismatch();
+    test_requested_cqmom_writer_rejects_rank_mismatch();
+    test_writer_rejects_mismatched_inputs();
+    test_qmom_quadrature_output();
+    test_quadrature_1d_output();
+    test_cqmom_quadrature_output();
+    test_quadrature_writer_rejects_mismatched_inputs();
+    return 0;
+}

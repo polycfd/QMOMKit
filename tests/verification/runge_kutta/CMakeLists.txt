@@ -1,0 +1,2 @@
+qmomkit_add_ctest(test_runge_kutta_analytical verification_runge_kutta_analytical verification runge_kutta_analytical.cpp)
+qmomkit_add_ctest(test_runge_kutta_convergence verification_runge_kutta_convergence verification runge_kutta_convergence.cpp)

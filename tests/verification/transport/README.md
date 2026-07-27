@@ -1,0 +1,469 @@
+# Complete Transport-Integrator Analytical Verification
+
+These cases verify the public transport integrator as a complete path:
+configuration loading, QMOM/CQMOM inversion, continuous operator calls,
+raw-moment reconstruction, source operator calls, repeated moment/quadrature
+representation changes, diagnostics, and transport-scheme behavior for
+`strang`, `cd`, and `dc`. They are automated analytical tests that complement
+the user-facing transport examples under `examples/qmom_1d_continuous_breakage/`
+and `examples/cqmom_transport/`.
+
+All initial QMOMKit cases are loaded from `.qmom` files through the public
+configuration API. Configuration may define the initial numerical setup and the
+transport operator ordering scheme (`strang`, `cd`, or `dc`). Operator
+coefficients, exact references, timestep plans, RK23/SSP-RK3 options, and
+tolerances live in `transport_analytical.cpp` because the current configuration
+format does not define physics callbacks, model coefficients, timestep plans, or
+detailed integration controls.
+
+## Commuting QMOM
+
+Configuration: `commuting_qmom.qmom`
+
+The one-dimensional continuous operator is:
+
+```text
+dxi/dt = a xi,  a = 0.2
+```
+
+so each raw moment satisfies `dm_k/dt = k a m_k` during the continuous part.
+The source operator is diagonal:
+
+```text
+dm_k/dt = -lambda_k m_k
+lambda_k = 0.05 k
+lambda_0 = 0
+```
+
+Both moment-space actions are diagonal, so they commute. The exact combined
+solution is:
+
+```text
+m_k(t) = exp((k a - lambda_k) t) m_k(0)
+```
+
+The test runs one complete step, a multi-step run to `T = 0.24`, and a
+refinement sequence with `dt = 0.12, 0.06, 0.03`. The refinement isolates
+ordinary RK/source integration error because the transport composition itself
+has no commuting-operator error. The residual refinement behavior is expected
+to be approximately third order because the remaining visible error is
+dominated by the SSP-RK3 source update rather than by transport composition.
+
+## QMOM Transport Failure Propagation
+
+Configuration: `qmom_transport_failures.qmom`
+
+This case checks how QMOM transport reports velocity-callback failures and
+source-step failures. The configured moment set is realizable; the continuous
+failures are caused only by user callback mistakes:
+
+- returning a velocity vector with the wrong dimension;
+- returning a non-finite velocity value.
+
+Both failures should stop during the first continuous half-step. The verifier
+checks that `TransportStatus::continuous_failed`,
+`TransportStage::first_continuous_half_step`, and
+`NodeAdvectionStatus::velocity_failed` are reported, that the velocity-callback
+message is preserved in transport diagnostics, and that no source or later
+reconstruction stage is reported as completed. The returned moments are checked
+against the input moments to document that a failed continuous substep is not a
+valid final transport state.
+
+The same case also verifies adaptive RK23 minimum-step propagation. It uses a
+finite, dimensionally valid, deliberately stiff velocity field and RK23 options
+with `initial_step = max_step = 0.04` and `min_step = 0.02`. The first Strang
+continuous half-step rejects the trial step, but the configured minimum step
+prevents retrying at the smaller step size. The verifier checks
+`NodeAdvectionStatus::integration_failed`,
+`AdaptiveRk23Status::step_size_underflow`, rejected-step counts, unchanged
+time, and the public message `RK23 required a step smaller than min_step.`
+
+The QMOM case also verifies post-source reconstruction failure. A finite,
+correctly sized source callback drives `m0` negative during the discontinuous
+source step. The source update succeeds, but the evolved moments are no longer
+realizable as a QMOM quadrature. The verifier checks
+`TransportStatus::inversion_failed`, `TransportStage::post_source_inversion`,
+the non-success post-source QMOM status, the successful source diagnostics, a
+realizability-oriented message, and that the second continuous half-step is not
+reported as completed.
+
+Configuration: `qmom_transport_inversion_failures.qmom`
+
+This companion case verifies initial inversion failure propagation through the
+same public QMOM transport workflow. The input moments are finite and loaded
+successfully, but `m0 < 0`, so the moment sequence is not realizable before
+transport can begin. The verifier checks that transport reports
+`TransportStatus::inversion_failed`, identifies
+`TransportStage::initial_inversion`, preserves the QMOM realizability message,
+does not advance time, and does not report source or reconstruction stages as
+completed.
+
+## Noncommuting QMOM
+
+Configuration: `noncommuting_qmom.qmom`
+
+The continuous operator is constant translation:
+
+```text
+dxi/dt = b,  b = 0.45
+```
+
+For moments `u = [m0, m1, m2, m3]^T`, this gives the lower-bidiagonal action:
+
+```text
+dm0/dt = 0
+dm1/dt = b m0
+dm2/dt = 2 b m1
+dm3/dt = 3 b m2
+```
+
+The source operator is:
+
+```text
+dm_k/dt = -gamma k m_k,  gamma = 0.17
+```
+
+With matrices `A` for translation and `B = diag(0, -gamma, -2 gamma,
+-3 gamma)`, the commutator is nonzero because the diagonal source rates differ
+across the subdiagonal couplings in `A`.
+
+The exact reference is the closed-form exponential of the lower-bidiagonal
+matrix `A + B`. The verifier represents each component as a finite sum of
+exponentials:
+
+```text
+m_k(t) = sum_{r=0}^k c_{k,r} exp(-gamma r t)
+```
+
+and computes the coefficients recursively from the subdiagonal entries
+`k b`. This reference does not call QMOMKit RK solvers, inversion,
+transport, or an external numerical library.
+
+The convergence study uses `T = 1.2` and:
+
+```text
+dt = 0.3, 0.15, 0.075, 0.0375, 0.01875
+```
+
+The error norm is the scaled infinity norm over all configured moments:
+
+```text
+max_k |computed_k - exact_k| / max(1, |exact_k|)
+```
+
+The finest refinement pairs are required to approach second order. RK23 is run
+with tight tolerances and small maximum step, and the source operator is a
+third-order SSP-RK3 update, so the tested range is chosen to keep the
+second-order composition error visible. The observed order should approach
+two on the finest refinement pairs.
+
+The same noncommuting manufactured case also verifies `cd` and `dc` as
+first-order operator orderings. Those schemes are expected to approach first
+order under refinement and to differ from each other at finite timestep,
+documenting that the public scheme option is active rather than ignored.
+
+## Commuting CQMOM 2D
+
+Configuration: `commuting_cqmom_2d.qmom`
+
+This compact optional case verifies the same complete transport path for a
+two-dimensional CQMOM state with non-identity conditioning order. The
+continuous operator is diagonal:
+
+```text
+dx/dt = 0.16 x
+dy/dt = -0.11 y
+```
+
+and the source operator is:
+
+```text
+dM_ij/dt = -0.025 (i + j) M_ij
+```
+
+The exact solution is:
+
+```text
+M_ij(t) = exp((0.16 i - 0.11 j - 0.025 (i + j)) t) M_ij(0)
+```
+
+## Adaptive CQMOM State 2D
+
+Configuration: `commuting_cqmom_state_adaptive_2d.qmom`
+
+This case uses the same diagonal continuous operator with a zero CQMOM source
+callback through the recommended configured CQMOM workflow: `load_cqmom(...)`,
+`CqmomCase::initial_state()`, and `advance_transport_cqmom(CqmomState, ...)`.
+The hierarchy has
+`node_counts = 2, 2`, which is the maximum branch capacity. With
+`adaptive_branch_counts = true` and adaptive QMOM enabled, reconstruction
+determines the active branch counts and may return ragged terminal storage with
+fewer than four terminal nodes. The verifier checks that adaptive ragged
+quadrature is preserved while the reconstructed full moments follow the
+continuous analytical reference above with the source term omitted.
+
+## CQMOM-Native Source Callback
+
+Configuration: `cqmom_native_source.qmom`
+
+This case verifies the public CQMOM physics callback workflow:
+
+```text
+load_cqmom(...)
+    -> CqmomCase
+    -> compute_cqmom(...)
+    -> CqmomCase::initial_state()
+    -> CqmomState
+    -> advance_transport_cqmom(...)
+    -> CqmomMomentSource
+```
+
+The configuration is a fixed 2D independent-product quadrature with
+`conditioning_order = {0,1}`. The callback uses only the public
+`CqmomSourceContext` API. On the first invocation it checks:
+
+- `context.size()` is the expected number of transported CQMOM moments;
+- `context.index(i)` follows the explicit phase-space multi-index order
+  `{0,0}`, `{1,0}`, `{2,0}`, `{3,0}`, `{0,1}`, `{0,2}`, `{0,3}`, `{1,1}`,
+  `{1,2}`, `{1,3}`;
+- `context.value(i)` matches the corresponding initial transported moment;
+- `context.hierarchy()` reports the configured hierarchy.
+
+The returned rate is ordered exactly like the context:
+
+```text
+dM_alpha/dt = gamma M_alpha + B_alpha
+```
+
+where `gamma = -0.12` and `B_alpha` is constructed analytically from source
+rates on the known terminal weights. Because this source changes only terminal
+weights on the same support, the final state remains representable by the same
+2D quadrature support. The verifier compares the reconstructed final moments
+against the exact one-step SSP-RK3 update for this affine linear source.
+
+## Combined CQMOM Continuous And Native Source
+
+Configuration: `cqmom_combined_native_source.qmom`
+
+This case verifies the complete public CQMOM state transport workflow with both
+physics callbacks active in the same macro step:
+
+```text
+load_cqmom(...)
+    -> CqmomCase
+    -> compute_cqmom(...)
+    -> CqmomCase::initial_state()
+    -> CqmomState
+    -> advance_transport_cqmom(...)
+```
+
+The continuous velocity is the same diagonal 2D field used by the commuting
+CQMOM case:
+
+```text
+dx/dt = 0.16 x
+dy/dt = -0.11 y
+```
+
+so a moment `M_ij` is multiplied by `exp((0.16 i - 0.11 j) tau)` over a
+continuous substep of length `tau`. The native source callback applies a
+non-zero diagonal moment source:
+
+```text
+dM_ij/dt = gamma M_ij
+gamma = -0.09
+```
+
+The default scheme is Strang splitting, so the analytical split reference for
+one macro step is:
+
+```text
+M_ij(dt) = exp(L_ij dt/2) P(gamma dt) exp(L_ij dt/2) M_ij(0)
+L_ij = 0.16 i - 0.11 j
+P(z) = 1 + z + z^2/2 + z^3/6
+```
+
+`P(z)` is the exact one-step polynomial for the SSP-RK3 source update applied
+by the transport framework. The source callback checks that its first context
+contains the moments after the initial continuous half-step, with the same
+explicit multi-index ordering documented in the source-only case. A failure
+there indicates that the public callback received stale values, reordered
+indices, or rates that would be mapped back to the wrong transported moments.
+
+## CQMOM-Native Source Callback Failures
+
+Configuration: `cqmom_native_source_failures.qmom`
+
+This case uses the same public `CqmomState` transport workflow as the
+successful CQMOM-native source case, but supplies invalid user callbacks:
+
+- a callback returning the wrong number of rate values;
+- a callback returning `NaN`;
+- a callback returning infinity.
+
+These mistakes simulate common physics-callback failures: forgetting that one
+rate is required per `CqmomSourceContext` entry, or producing an invalid
+floating-point derivative. Each case must fail during the discontinuous source
+step, report `TransportStatus::source_failed`, preserve a source diagnostic
+message, and avoid silently proceeding to post-source reconstruction.
+
+`CqmomMomentSource` has no explicit "reject this candidate" return type.
+Source rejection in this public callback workflow is therefore represented by
+invalid returned data or by transport failure. Generic SSP-RK3 accept/reject
+predicates exist in source update options, but they are not returned by the
+`CqmomMomentSource` callback and are not duplicated here.
+
+## CQMOM Transport Failure Propagation
+
+Configuration: `cqmom_transport_failures.qmom`
+
+This case checks how CQMOM state transport reports failures through:
+
+```text
+load_cqmom(...)
+    -> CqmomCase
+    -> CqmomCase::initial_state()
+    -> CqmomState
+    -> advance_transport_cqmom(...)
+```
+
+The continuous-callback failures mirror the QMOM case, but through the
+recommended `CqmomState` workflow and the CQMOM-native source callback
+signature. The verifier checks that wrong-dimension and non-finite velocity
+returns are reported as continuous transport failures during the first
+continuous half-step, with meaningful diagnostic messages and no later-stage
+success diagnostics.
+
+The CQMOM case also repeats the RK23 minimum-step failure through
+`CqmomState`. The velocity callback is valid and finite, so users should see a
+continuous transport failure caused by RK23 `step_size_underflow`, with
+rejected-step diagnostics preserved and no source or reconstruction stages
+reported as completed.
+
+The post-source reconstruction failure uses a finite, correctly sized
+`CqmomMomentSource` callback that drives `M[0,0]` negative. The source update
+therefore succeeds, but the following CQMOM reconstruction is not physically
+realizable. The verifier checks that transport reports
+`TransportStatus::inversion_failed`, identifies
+`TransportStage::post_source_inversion`, preserves the successful source
+diagnostics, records CQMOM diagnostics for the failed inversion, and stops
+before the second continuous half-step.
+
+The same valid configuration also drives dense and explicit lean public
+workflow failure checks:
+
+- `verification_transport_cqmom_dense_transport_failures` loads a
+  `CqmomDenseCase` with `load_cqmom_dense(...)` and calls the dense
+  raw-moment transport API;
+- `verification_transport_cqmom_lean_transport_failures` loads a
+  `CqmomLeanCase` with `load_cqmom_lean(...)`, wraps its required moments in
+  `CqmomLeanTransportState`, and calls the explicit lean transport API.
+
+Dense transport represents users that intentionally own a full rectangular raw
+moment tensor. Explicit lean transport represents expert users that own only
+the required recursive CQMOM moment subset. For equivalent deterministic
+velocity, source, and post-source reconstruction failures, these workflows
+should report the same high-level status, failed stage, preserved diagnostics,
+and useful messages as the default `CqmomState` workflow. The tests do not
+require identical internal diagnostic details because the public state
+representations differ.
+
+Configuration: `cqmom_transport_inversion_failures.qmom`
+
+This companion case verifies initial CQMOM inversion failure propagation
+through the normal `CqmomState` workflow. The configuration loads finite
+moments with `M[0,0] < 0`, so the initial recursive CQMOM reconstruction is
+not realizable. The verifier checks that transport distinguishes this from
+continuous or source failure, reports `TransportStage::initial_inversion`,
+preserves CQMOM diagnostics and a realizability message, does not advance
+time, and does not report later stages as completed.
+
+The companion dense and explicit lean cases,
+`verification_transport_cqmom_dense_transport_inversion_failures` and
+`verification_transport_cqmom_lean_transport_inversion_failures`, reuse the
+same invalid configured moments through their public transport entry points.
+They document that all CQMOM transport workflows reject an initially
+unreconstructable moment state before invoking continuous or source callbacks.
+
+## Running
+
+Configure and build the standalone test project first:
+
+```bash
+cd tests
+cmake -S . -B build \
+    -DCMAKE_PREFIX_PATH="../install"
+cmake --build build
+```
+
+Run individual cases:
+
+```bash
+ctest --test-dir build -R verification_transport_commuting_qmom --output-on-failure
+ctest --test-dir build -R verification_transport_qmom_transport_failures --output-on-failure
+ctest --test-dir build -R verification_transport_qmom_transport_inversion_failures --output-on-failure
+ctest --test-dir build -R verification_transport_noncommuting_convergence --output-on-failure
+ctest --test-dir build -R verification_transport_commuting_cqmom_2d --output-on-failure
+ctest --test-dir build -R verification_transport_commuting_cqmom_state_adaptive_2d --output-on-failure
+ctest --test-dir build -R verification_transport_cqmom_native_source --output-on-failure
+ctest --test-dir build -R verification_transport_cqmom_combined_native_source --output-on-failure
+ctest --test-dir build -R verification_transport_cqmom_native_source_failures --output-on-failure
+ctest --test-dir build -R verification_transport_cqmom_transport_failures --output-on-failure
+ctest --test-dir build -R verification_transport_cqmom_transport_inversion_failures --output-on-failure
+```
+
+Run all complete transport-integrator analytical cases:
+
+```bash
+ctest --test-dir build -R verification_transport_ --output-on-failure
+```
+
+The verifier reports final exact and computed moments, maximum absolute moment
+error, scaled moment error, zeroth-moment error, final reconstruction error,
+and a refinement table with observed orders for convergence cases.
+
+## Machine-Readable Output
+
+The verifier can optionally write a whitespace-delimited text table:
+
+```bash
+mkdir -p tests/verification/transport/output
+
+./build/transport_analytical_verification \
+  verification/transport/commuting_qmom.qmom \
+  commuting_qmom \
+  --output verification/transport/output/commuting_qmom_refinement.txt
+
+./build/transport_analytical_verification \
+  verification/transport/noncommuting_qmom.qmom \
+  noncommuting_qmom \
+  --output verification/transport/output/noncommuting_qmom_refinement.txt
+```
+
+The output directory under `tests/verification/transport/output/` is ignored by
+Git. Generated files are manual-analysis artifacts, not authoritative fixtures,
+and are not committed by default.
+
+The same files can be generated into the build tree with:
+
+```bash
+cmake --build build --target generate_transport_verification_outputs
+```
+
+The file format uses `std::setprecision(17)` and one row per refinement:
+
+```text
+case dt step_count final_time error_norm observed_order zeroth_moment_error reconstruction_error retry_count success
+```
+
+`error_norm` is the scaled infinity norm defined above. `observed_order` is:
+
+```text
+p = log(e_h / e_{h/2}) / log(2)
+```
+
+The first refinement row has `observed_order = nan` because there is no coarser
+row in that table. `reconstruction_error` is the scaled final quadrature
+reconstruction error. The generated rows are written from the same `RunSummary`
+values used by the verifier's assertions; there is no separate hard-coded
+results table.

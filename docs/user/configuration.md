@@ -712,6 +712,16 @@ a commented header line and whitespace-separated columns. QMOMKit-native
 example output uses `.txt` filenames. Use CSV only for custom application data
 that is not written through the QMOMKit output helpers.
 
+CQMOM quadrature output uses one row per active terminal node:
+
+```text
+time node_index path_0 ... weight x0 ...
+```
+
+Multiple rows may share one time value, and adaptive CQMOM may write a different
+number of rows at different output times. Group rows by `time` to recover each
+saved terminal quadrature.
+
 Moment output records native integer-order raw moments. Generalized moments
 with real exponents are evaluated by caller code from a valid quadrature result
 and are not part of the standard writer output.

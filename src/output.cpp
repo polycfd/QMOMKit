@@ -111,9 +111,9 @@ namespace
     return "x" + std::to_string(node);
 }
 
-[[nodiscard]] std::string cqmom_abscissa_label(const std::size_t dimension, const std::size_t node)
+[[nodiscard]] std::string cqmom_abscissa_label(const std::size_t dimension)
 {
-    return "x" + std::to_string(dimension) + "_" + std::to_string(node);
+    return "x" + std::to_string(dimension);
 }
 
 [[nodiscard]] std::vector<std::string> qmom_quadrature_labels(const std::size_t node_count)
@@ -133,26 +133,24 @@ namespace
     return labels;
 }
 
-[[nodiscard]] std::vector<std::string> cqmom_quadrature_labels(const std::size_t dimension_count, const std::size_t node_count)
+[[nodiscard]] std::vector<std::string> cqmom_quadrature_labels(const std::size_t dimension_count)
 {
     if (dimension_count == 0)
     {
         throw std::invalid_argument("CQMOM quadrature output requires at least one phase-space dimension.");
     }
-    if (node_count == 0)
-    {
-        throw std::invalid_argument("CQMOM quadrature output requires at least one terminal node.");
-    }
 
     std::vector<std::string> labels;
-    labels.reserve(node_count * (dimension_count + 1));
-    for (std::size_t node = 0; node < node_count; ++node)
+    labels.reserve(2 * dimension_count + 2);
+    labels.push_back("node_index");
+    for (std::size_t level = 0; level < dimension_count; ++level)
     {
-        labels.push_back(weight_label(node));
-        for (std::size_t dimension = 0; dimension < dimension_count; ++dimension)
-        {
-            labels.push_back(cqmom_abscissa_label(dimension, node));
-        }
+        labels.push_back("path_" + std::to_string(level));
+    }
+    labels.push_back("weight");
+    for (std::size_t dimension = 0; dimension < dimension_count; ++dimension)
+    {
+        labels.push_back(cqmom_abscissa_label(dimension));
     }
     return labels;
 }
@@ -369,9 +367,9 @@ QuadratureWriter QuadratureWriter::for_qmom(const std::filesystem::path& path, c
     return QuadratureWriter(path, QuadratureLayout::qmom, 1, node_count, qmom_quadrature_labels(node_count));
 }
 
-QuadratureWriter QuadratureWriter::for_cqmom(const std::filesystem::path& path, const std::size_t dimension_count, const std::size_t node_count)
+QuadratureWriter QuadratureWriter::for_cqmom(const std::filesystem::path& path, const std::size_t dimension_count)
 {
-    return QuadratureWriter(path, QuadratureLayout::cqmom, dimension_count, node_count, cqmom_quadrature_labels(dimension_count, node_count));
+    return QuadratureWriter(path, QuadratureLayout::cqmom, dimension_count, 0, cqmom_quadrature_labels(dimension_count));
 }
 
 QuadratureWriter::QuadratureWriter(const std::filesystem::path& path, const QuadratureLayout layout, const std::size_t dimension_count,
@@ -471,30 +469,62 @@ void QuadratureWriter::write(const double time, const CqmomQuadrature& quadratur
     {
         throw std::invalid_argument("CQMOM quadrature output dimension count does not match the writer dimension count.");
     }
-    if (quadrature.total_nodes() != node_count_ || quadrature.weights().size() != node_count_)
+    const std::size_t node_count = quadrature.weights().size();
+    if (node_count == 0)
     {
-        throw std::invalid_argument("CQMOM quadrature output node count does not match the writer node count.");
+        throw std::invalid_argument("CQMOM quadrature output requires at least one active terminal node.");
     }
     if (quadrature.abscissas().size() != dimension_count_)
     {
         throw std::invalid_argument("CQMOM quadrature output abscissa dimension count is inconsistent.");
     }
-
-    std::vector<double> values;
-    values.reserve(node_count_ * (dimension_count_ + 1));
-    for (std::size_t node = 0; node < node_count_; ++node)
+    if (quadrature.total_nodes() != node_count)
     {
+        throw std::invalid_argument("CQMOM quadrature output terminal-node storage is inconsistent.");
+    }
+    if (quadrature.terminal_paths().size() != node_count)
+    {
+        throw std::invalid_argument("CQMOM quadrature output requires one terminal path per active terminal node.");
+    }
+    if (!internal::all_finite(quadrature.weights()))
+    {
+        throw std::invalid_argument("CQMOM quadrature output weights must be finite.");
+    }
+    for (const std::vector<double>& dimension_abscissas : quadrature.abscissas())
+    {
+        if (dimension_abscissas.size() != node_count)
+        {
+            throw std::invalid_argument("CQMOM quadrature output abscissa node count is inconsistent.");
+        }
+        if (!internal::all_finite(dimension_abscissas))
+        {
+            throw std::invalid_argument("CQMOM quadrature output abscissas must be finite.");
+        }
+    }
+
+    for (std::size_t node = 0; node < node_count; ++node)
+    {
+        const ConditioningPath& path = quadrature.terminal_paths()[node];
+        if (path.size() != dimension_count_)
+        {
+            throw std::invalid_argument("CQMOM quadrature output terminal path depth does not match the writer dimension count.");
+        }
+        (void)recursive_path_to_node_index(quadrature.hierarchy(), path);
+
+        std::vector<double> values;
+        values.reserve(2 * dimension_count_ + 2);
+        values.push_back(static_cast<double>(node));
+        for (std::size_t level = 0; level < dimension_count_; ++level)
+        {
+            values.push_back(static_cast<double>(path.node_index_at_level(level)));
+        }
         values.push_back(quadrature.weights()[node]);
         for (std::size_t dimension = 0; dimension < dimension_count_; ++dimension)
         {
-            if (quadrature.abscissas()[dimension].size() != node_count_)
-            {
-                throw std::invalid_argument("CQMOM quadrature output abscissa node count is inconsistent.");
-            }
             values.push_back(quadrature.abscissas()[dimension][node]);
         }
+        write_row(time, values);
     }
-    write_row(time, values);
 }
 
 } // namespace qmomkit

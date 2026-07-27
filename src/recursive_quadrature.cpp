@@ -879,17 +879,46 @@ std::vector<MultiIndex> enumerate_quadrature_node_multi_indices(const PhaseSpace
     return indices;
 }
 
+namespace
+{
+
+[[nodiscard]] ConditioningPath phase_space_node_index_to_path(const PhaseSpaceHierarchy& hierarchy, const MultiIndex& node_index)
+{
+    std::vector<std::size_t> path(hierarchy.number_of_dimensions(), 0);
+    const std::vector<std::size_t>& conditioning_order = hierarchy.conditioning_order();
+    for (std::size_t level = 0; level < conditioning_order.size(); ++level)
+    {
+        path[level] = node_index.at(conditioning_order[level]);
+    }
+    return ConditioningPath(std::move(path));
+}
+
+[[nodiscard]] std::vector<ConditioningPath> rectangular_terminal_paths(const PhaseSpaceHierarchy& hierarchy)
+{
+    std::vector<ConditioningPath> paths;
+    paths.reserve(hierarchy.total_nodes());
+    for (const MultiIndex& node_index : enumerate_quadrature_node_multi_indices(hierarchy))
+    {
+        paths.push_back(phase_space_node_index_to_path(hierarchy, node_index));
+    }
+    return paths;
+}
+
+} // namespace
+
 namespace internal
 {
 
 RecursiveQuadrature::RecursiveQuadrature(PhaseSpaceHierarchy hierarchy)
     : hierarchy_(std::move(hierarchy)), weights_(hierarchy_.total_nodes(), 0.0),
-      abscissas_(hierarchy_.number_of_dimensions(), std::vector<double>(hierarchy_.total_nodes(), 0.0))
+      abscissas_(hierarchy_.number_of_dimensions(), std::vector<double>(hierarchy_.total_nodes(), 0.0)),
+      terminal_paths_(rectangular_terminal_paths(hierarchy_))
 {
 }
 
 RecursiveQuadrature::RecursiveQuadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights, std::vector<std::vector<double>> abscissas)
-    : hierarchy_(std::move(hierarchy)), weights_(std::move(weights)), abscissas_(std::move(abscissas))
+    : hierarchy_(std::move(hierarchy)), weights_(std::move(weights)), abscissas_(std::move(abscissas)),
+      terminal_paths_(rectangular_terminal_paths(hierarchy_))
 {
     if (weights_.size() != hierarchy_.total_nodes())
     {
@@ -1010,6 +1039,8 @@ void RecursiveQuadrature::set_adaptive_branch_counts_enabled(const bool enabled)
         rectangular_storage_ = false;
         weights_.clear();
         abscissas_.assign(number_of_dimensions(), {});
+        terminal_paths_.clear();
+        terminal_node_ids_.clear();
     }
 }
 

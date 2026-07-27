@@ -1,7 +1,7 @@
 #include "../verification_helpers.hpp"
 #include "qmomkit/configuration.hpp"
-#include "qmomkit/output.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
+#include "qmomkit/output.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -24,7 +24,7 @@ constexpr double tolerance = 1.0e-13;
 struct ParsedOutput
 {
     std::vector<std::string> header_tokens;
-    std::vector<double> values;
+    std::vector<std::vector<double>> rows;
 };
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::QmomCase>& configured)
@@ -85,25 +85,25 @@ ParsedOutput read_output_table(const std::filesystem::path& path)
     QMOMKIT_VERIFY_CHECK(input.good());
 
     std::string header_line;
-    std::string data_line;
     QMOMKIT_VERIFY_CHECK(static_cast<bool>(std::getline(input, header_line)));
-    QMOMKIT_VERIFY_CHECK(static_cast<bool>(std::getline(input, data_line)));
 
     // Output files are documented as whitespace-delimited text with a commented
     // header, not CSV. CQMOM labels contain commas inside multi-indices, so the
     // row-level check focuses on data separation rather than label spelling.
     QMOMKIT_VERIFY_CHECK(header_line.rfind("# ", 0) == 0);
-    QMOMKIT_VERIFY_CHECK(data_line.find(',') == std::string::npos);
 
-    std::string trailing_line;
-    QMOMKIT_VERIFY_CHECK(!static_cast<bool>(std::getline(input, trailing_line)));
-
-    ParsedOutput output{tokenize_header(header_line), tokenize_data(data_line)};
-    QMOMKIT_VERIFY_CHECK(output.header_tokens.size() == output.values.size() + 1);
+    ParsedOutput output{tokenize_header(header_line), {}};
+    std::string data_line;
+    while (std::getline(input, data_line))
+    {
+        QMOMKIT_VERIFY_CHECK(data_line.find(',') == std::string::npos);
+        output.rows.push_back(tokenize_data(data_line));
+        QMOMKIT_VERIFY_CHECK(output.header_tokens.size() == output.rows.back().size() + 1);
+    }
+    QMOMKIT_VERIFY_CHECK(!output.rows.empty());
     QMOMKIT_VERIFY_CHECK(output.header_tokens.size() >= 2);
     QMOMKIT_VERIFY_CHECK(output.header_tokens[0] == "#");
     QMOMKIT_VERIFY_CHECK(output.header_tokens[1] == "time");
-    QMOMKIT_VERIFY_NEAR(output.values[0], output_time, tolerance);
     return output;
 }
 
@@ -161,7 +161,7 @@ void write_cqmom_outputs(const qmomkit::OutputOptions& options, const std::strin
     }
     if (options.write_quadrature)
     {
-        auto writer = qmomkit::QuadratureWriter::for_cqmom(output_path(options, stem, "quadrature"), 2, result.quadrature.weights().size());
+        auto writer = qmomkit::QuadratureWriter::for_cqmom(output_path(options, stem, "quadrature"), 2);
         writer.write(output_time, result.quadrature);
     }
 }
@@ -190,6 +190,8 @@ double analytical_product_moment(const qmomkit::MultiIndex& index)
 void verify_qmom_moment_output(const std::filesystem::path& path, const qmomkit::MomentSet& moments)
 {
     const ParsedOutput output = read_output_table(path);
+    QMOMKIT_VERIFY_CHECK(output.rows.size() == 1);
+    QMOMKIT_VERIFY_NEAR(output.rows[0][0], output_time, tolerance);
 
     std::vector<std::string> labels;
     for (std::size_t order = 0; order < moments.size(); ++order)
@@ -202,13 +204,15 @@ void verify_qmom_moment_output(const std::filesystem::path& path, const qmomkit:
     // public MomentSet order, preceded by the caller-supplied time.
     for (std::size_t order = 0; order < moments.size(); ++order)
     {
-        QMOMKIT_VERIFY_NEAR(output.values[order + 1], moments.values()[order], tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[0][order + 1], moments.values()[order], tolerance);
     }
 }
 
 void verify_qmom_quadrature_output(const std::filesystem::path& path, const qmomkit::QmomResult& result)
 {
     const ParsedOutput output = read_output_table(path);
+    QMOMKIT_VERIFY_CHECK(output.rows.size() == 1);
+    QMOMKIT_VERIFY_NEAR(output.rows[0][0], output_time, tolerance);
     const std::size_t node_count = result.weights.size();
 
     std::vector<std::string> labels;
@@ -223,14 +227,16 @@ void verify_qmom_quadrature_output(const std::filesystem::path& path, const qmom
     // weight immediately followed by its abscissa.
     for (std::size_t node = 0; node < node_count; ++node)
     {
-        QMOMKIT_VERIFY_NEAR(output.values[1 + 2 * node], result.weights[node], tolerance);
-        QMOMKIT_VERIFY_NEAR(output.values[1 + 2 * node + 1], result.abscissas[node], tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[0][1 + 2 * node], result.weights[node], tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[0][1 + 2 * node + 1], result.abscissas[node], tolerance);
     }
 }
 
 void verify_cqmom_moment_output(const std::filesystem::path& path)
 {
     const ParsedOutput output = read_output_table(path);
+    QMOMKIT_VERIFY_CHECK(output.rows.size() == 1);
+    QMOMKIT_VERIFY_NEAR(output.rows[0][0], output_time, tolerance);
     const std::vector<qmomkit::MultiIndex> requested_moments{{1, 1}, {0, 0}, {2, 0}, {0, 1}};
     verify_header_labels(output, {"M[1,1]", "M[0,0]", "M[2,0]", "M[0,1]"});
 
@@ -238,7 +244,7 @@ void verify_cqmom_moment_output(const std::filesystem::path& path)
     // quadrature, independent of QMOMKit's reconstruction routines.
     for (std::size_t moment = 0; moment < requested_moments.size(); ++moment)
     {
-        QMOMKIT_VERIFY_NEAR(output.values[moment + 1], analytical_product_moment(requested_moments[moment]), tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[0][moment + 1], analytical_product_moment(requested_moments[moment]), tolerance);
     }
 }
 
@@ -247,24 +253,21 @@ void verify_cqmom_quadrature_output(const std::filesystem::path& path, const qmo
     const ParsedOutput output = read_output_table(path);
     const std::size_t node_count = quadrature.weights().size();
 
-    std::vector<std::string> labels;
-    for (std::size_t node = 0; node < node_count; ++node)
-    {
-        labels.push_back("w" + std::to_string(node));
-        labels.push_back("x0_" + std::to_string(node));
-        labels.push_back("x1_" + std::to_string(node));
-    }
-    verify_header_labels(output, labels);
+    verify_header_labels(output, {"node_index", "path_0", "path_1", "weight", "x0", "x1"});
+    QMOMKIT_VERIFY_CHECK(output.rows.size() == node_count);
 
     // CQMOM quadrature output is terminal-node oriented: for each public
-    // terminal node, write its weight followed by coordinates in phase-space
-    // dimension order.
+    // terminal node, write one row with its terminal path, weight, and
+    // coordinates in phase-space dimension order.
     for (std::size_t node = 0; node < node_count; ++node)
     {
-        const std::size_t offset = 1 + 3 * node;
-        QMOMKIT_VERIFY_NEAR(output.values[offset], quadrature.weights()[node], tolerance);
-        QMOMKIT_VERIFY_NEAR(output.values[offset + 1], quadrature.abscissas()[0][node], tolerance);
-        QMOMKIT_VERIFY_NEAR(output.values[offset + 2], quadrature.abscissas()[1][node], tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][0], output_time, tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][1], static_cast<double>(node), 0.0);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][2], static_cast<double>(quadrature.terminal_paths()[node].node_index_at_level(0)), 0.0);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][3], static_cast<double>(quadrature.terminal_paths()[node].node_index_at_level(1)), 0.0);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][4], quadrature.weights()[node], tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][5], quadrature.abscissas()[0][node], tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][6], quadrature.abscissas()[1][node], tolerance);
     }
 }
 

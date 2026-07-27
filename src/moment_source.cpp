@@ -1,6 +1,7 @@
 #include "qmomkit/moment_source.hpp"
 
 #include "internal/cqmom_validation.hpp"
+#include "internal/discontinuous_moment_rates.hpp"
 #include "internal/numeric_utils.hpp"
 
 #include <algorithm>
@@ -124,18 +125,6 @@ void validate_cqmom_boundary_rate(const CqmomMomentRate& rate, const std::size_t
         {"CQMOM boundary contribution rate values must match the source context size.", "CQMOM boundary contribution rate values must be finite."});
 }
 
-void validate_cqmom_stage_state(const std::vector<double>& state, const CqmomMomentLayout& layout)
-{
-    if (state.size() != layout.required_indices.size())
-    {
-        throw std::invalid_argument("CQMOM source stage values must match the fixed layout size.");
-    }
-    if (!internal::all_finite(state))
-    {
-        throw std::invalid_argument("CQMOM source stage values must be finite.");
-    }
-}
-
 [[nodiscard]] std::invalid_argument boundary_callback_error(const std::exception& error)
 {
     return std::invalid_argument(std::string("Moment-boundary contribution callback failed: ") + error.what());
@@ -144,6 +133,34 @@ void validate_cqmom_stage_state(const std::vector<double>& state, const CqmomMom
 [[nodiscard]] std::invalid_argument cqmom_boundary_callback_error(const std::exception& error)
 {
     return std::invalid_argument(std::string("CQMOM boundary contribution callback failed: ") + error.what());
+}
+
+[[nodiscard]] std::invalid_argument rhs_error_from_qmom_rate_result(const internal::QmomDiscontinuousMomentRateResult& result)
+{
+    if (result.status == internal::DiscontinuousMomentRateStatus::invalid_rate &&
+        result.message == "Moment-source callback rate values must match the moment state size.")
+    {
+        return std::invalid_argument("RHS returned a vector with the wrong size.");
+    }
+    if (result.status == internal::DiscontinuousMomentRateStatus::invalid_rate &&
+        result.message == "Moment-source callback rate values must be finite.")
+    {
+        return std::invalid_argument("RHS returned a non-finite value.");
+    }
+    return std::invalid_argument(result.message);
+}
+
+[[nodiscard]] MomentSource source_rhs_from_rate_evaluator(const MomentSource& source)
+{
+    return [source](const double stage_time, const std::vector<double>& state)
+    {
+        internal::QmomDiscontinuousMomentRateResult rate = internal::evaluate_qmom_discontinuous_moment_rates(stage_time, state, source);
+        if (!rate.ok())
+        {
+            throw rhs_error_from_qmom_rate_result(rate);
+        }
+        return std::move(rate.rates);
+    };
 }
 
 void validate_request(const std::vector<double>& moments, const double t, const double time_step, const MomentSource& source,
@@ -279,11 +296,13 @@ void validate_moment_data_request(const CqmomMomentData& moments, const double t
         // vector size/finite values instead of rebuilding CQMOM metadata.
         const auto rhs = [&layout, &source](const double stage_time, const std::vector<double>& state)
         {
-            validate_cqmom_stage_state(state, layout);
-            const CqmomSourceContext context{layout.hierarchy, layout.required_indices, state};
-            CqmomMomentRate rate = source(stage_time, context);
-            validate_rate(rate, context.size());
-            return rate.values;
+            internal::CqmomDiscontinuousMomentRateResult rate =
+                internal::evaluate_cqmom_discontinuous_moment_rates(stage_time, CqmomMomentData{layout, state}, source);
+            if (!rate.ok())
+            {
+                throw std::invalid_argument(rate.message);
+            }
+            return std::move(rate.rates->values);
         };
 
         SspRk3Result step = ssp_rk3_step(moments.values, t, time_step, rhs, options.ssp_rk3_options);
@@ -340,7 +359,7 @@ MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& 
 
     try
     {
-        const SspRk3Result step = ssp_rk3_step(moments, t, time_step, source, options.ssp_rk3_options);
+        const SspRk3Result step = ssp_rk3_step(moments, t, time_step, source_rhs_from_rate_evaluator(source), options.ssp_rk3_options);
         const MomentSourceUpdateStatus status = status_from_ssp_rk3(step.status);
         const MomentSourceUpdateDiagnostics diagnostics = diagnostics_from_ssp_rk3(step, status);
         const std::string message = diagnostics.message;

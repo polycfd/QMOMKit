@@ -176,13 +176,11 @@ int main()
         }
         if (output_options.write_quadrature)
         {
-            qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "initial_quadrature.txt", cqmom.quadrature.number_of_dimensions(),
-                                                 cqmom.quadrature.weights().size())
+            qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "initial_quadrature.txt", cqmom.quadrature.number_of_dimensions())
                 .write(initial_time, cqmom.quadrature);
 
             qmomkit::QuadratureWriter quadrature_history_writer = qmomkit::QuadratureWriter::for_cqmom(
-                output_options.directory / "quadrature_history.txt", quadrature_history.front().second.number_of_dimensions(),
-                quadrature_history.front().second.weights().size());
+                output_options.directory / "quadrature_history.txt", quadrature_history.front().second.number_of_dimensions());
             for (const auto& [history_time, history_quadrature] : quadrature_history)
             {
                 quadrature_history_writer.write(history_time, history_quadrature);

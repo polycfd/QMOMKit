@@ -28,6 +28,20 @@ void print_multi_index(const qmomkit::MultiIndex& order)
     std::cout << ']';
 }
 
+void print_path(const qmomkit::ConditioningPath& path)
+{
+    std::cout << '[';
+    for (std::size_t level = 0; level < path.size(); ++level)
+    {
+        if (level > 0)
+        {
+            std::cout << ',';
+        }
+        std::cout << path.node_index_at_level(level);
+    }
+    std::cout << ']';
+}
+
 void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentResult& moments)
 {
     std::cout << label << '\n';
@@ -46,24 +60,23 @@ void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentR
 
 void print_quadrature(const qmomkit::CqmomQuadrature& quadrature)
 {
-    std::cout << "node  weight";
+    std::cout << "node  path       weight";
     for (std::size_t dimension = 0; dimension < quadrature.number_of_dimensions(); ++dimension)
     {
         std::cout << "          x" << dimension;
     }
     std::cout << '\n';
 
-    std::size_t node = 0;
-    for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(quadrature.hierarchy()))
+    for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
     {
-        const std::vector<double> coordinates = quadrature.node(node_index);
-        std::cout << node << "     " << quadrature.weight(node_index);
-        for (const double coordinate : coordinates)
+        std::cout << node << "     ";
+        print_path(quadrature.terminal_paths()[node]);
+        std::cout << "   " << quadrature.weights()[node];
+        for (std::size_t dimension = 0; dimension < quadrature.number_of_dimensions(); ++dimension)
         {
-            std::cout << "   " << coordinate;
+            std::cout << "   " << quadrature.abscissas()[dimension][node];
         }
         std::cout << '\n';
-        ++node;
     }
 }
 

@@ -2,6 +2,7 @@
 
 #include "internal/cqmom_validation.hpp"
 #include "internal/numeric_utils.hpp"
+#include "qmomkit/moment_rates.hpp"
 
 #include <cmath>
 #include <exception>
@@ -145,3 +146,42 @@ CqmomDiscontinuousMomentRateResult evaluate_cqmom_discontinuous_moment_rates(con
 }
 
 } // namespace qmomkit::internal
+
+namespace qmomkit
+{
+namespace
+{
+
+[[nodiscard]] DiscontinuousMomentRateStatus to_public_status(const internal::DiscontinuousMomentRateStatus status)
+{
+    switch (status)
+    {
+    case internal::DiscontinuousMomentRateStatus::success:
+        return DiscontinuousMomentRateStatus::success;
+    case internal::DiscontinuousMomentRateStatus::invalid_input:
+        return DiscontinuousMomentRateStatus::invalid_input;
+    case internal::DiscontinuousMomentRateStatus::source_failed:
+        return DiscontinuousMomentRateStatus::source_failed;
+    case internal::DiscontinuousMomentRateStatus::invalid_rate:
+        return DiscontinuousMomentRateStatus::invalid_rate;
+    }
+    return DiscontinuousMomentRateStatus::invalid_input;
+}
+
+} // namespace
+
+QmomDiscontinuousMomentRateResult evaluate_qmom_discontinuous_moment_rates(const double time, const std::vector<double>& moments,
+                                                                           const MomentSource& source)
+{
+    internal::QmomDiscontinuousMomentRateResult result = internal::evaluate_qmom_discontinuous_moment_rates(time, moments, source);
+    return QmomDiscontinuousMomentRateResult{std::move(result.rates), to_public_status(result.status), std::move(result.message)};
+}
+
+CqmomDiscontinuousMomentRateResult evaluate_cqmom_discontinuous_moment_rates(const double time, const CqmomMomentData& moments,
+                                                                             const CqmomMomentSource& source)
+{
+    internal::CqmomDiscontinuousMomentRateResult result = internal::evaluate_cqmom_discontinuous_moment_rates(time, moments, source);
+    return CqmomDiscontinuousMomentRateResult{std::move(result.rates), to_public_status(result.status), std::move(result.message)};
+}
+
+} // namespace qmomkit

@@ -1,4 +1,5 @@
 #include <qmomkit/qmomkit.hpp>
+#include <vector>
 
 int main()
 {
@@ -10,6 +11,23 @@ int main()
         return 1;
     }
     if (result.weights.size() != 2 || result.abscissas.size() != 2)
+    {
+        return 1;
+    }
+
+    const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinate)
+    { return std::vector<double>{0.0 * coordinate.front()}; };
+    const qmomkit::QmomContinuousMomentRateResult continuous_rates =
+        qmomkit::evaluate_qmom_continuous_moment_rates(moments.values(), 2, 0.0, velocity);
+    if (!continuous_rates.ok() || continuous_rates.rates.size() != moments.values().size())
+    {
+        return 1;
+    }
+
+    const qmomkit::MomentSource source = [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); };
+    const qmomkit::QmomDiscontinuousMomentRateResult discontinuous_rates =
+        qmomkit::evaluate_qmom_discontinuous_moment_rates(0.0, moments.values(), source);
+    if (!discontinuous_rates.ok() || discontinuous_rates.rates.size() != moments.values().size())
     {
         return 1;
     }

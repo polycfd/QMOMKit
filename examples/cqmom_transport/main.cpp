@@ -31,7 +31,7 @@ int main()
             cqmom_transport::print_configuration_errors(output_configured.errors);
             return 1;
         }
-        const auto node_advection_configured = qmomkit::config::load_node_advection_scheme(configuration_file);
+        const auto node_advection_configured = qmomkit::config::load_node_advection_options(configuration_file);
         if (!node_advection_configured.ok())
         {
             cqmom_transport::print_configuration_errors(node_advection_configured.errors);
@@ -63,7 +63,8 @@ int main()
 
         // User-facing transport controls live in CqmomStateTransportOptions.
         qmomkit::CqmomStateTransportOptions transport_options;
-        transport_options.node_options.scheme = *node_advection_configured.value;
+        transport_options.node_options = *node_advection_configured.value;
+        std::cout << qmomkit::format_node_advection_options(transport_options.node_options);
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
 

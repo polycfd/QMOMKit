@@ -75,8 +75,11 @@ The same file also uses `[time_integration.node_advection]` to select the
 continuous node-trajectory integrator. The shipped configuration chooses
 `scheme = ssp_rk3` for fixed-stage, predictable node motion; use
 `scheme = adaptive_rk23` when adaptive trajectory error control is desired.
-This choice does not change the Strang/CD/DC transport ordering or the
-SSP-RK3 source update.
+RK23 controls can be supplied under
+`[time_integration.node_advection.rk23]`; omitted values retain the
+`AdaptiveRk23Options` defaults. The executable prints the effective
+node-advection settings at startup. This choice does not change the
+Strang/CD/DC transport ordering or the SSP-RK3 source update.
 
 The default CQMOM hierarchy is `node_counts = 2, 2`, meaning:
 

@@ -43,6 +43,12 @@ int main()
         qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(output_configured.errors);
         return 1;
     }
+    const auto node_advection_configured = qmomkit::config::load_node_advection_options(configuration_file);
+    if (!node_advection_configured.ok())
+    {
+        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(node_advection_configured.errors);
+        return 1;
+    }
 
     const qmomkit::QmomCase qmom_case = *configured.value;
     const qmomkit::OutputOptions output_options = *output_configured.value;
@@ -87,7 +93,7 @@ int main()
     const std::vector<double> initial_abscissas = quadrature.abscissas;
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_continuous_breakage_mc_initialization::continuous_velocity();
     const qmomkit::MomentSource source = qmom_1d_continuous_breakage_mc_initialization::binary_fragmentation_source();
-    qmomkit::NodeAdvectionOptions node_options;
+    qmomkit::NodeAdvectionOptions node_options = *node_advection_configured.value;
     qmomkit::MomentSourceUpdateOptions source_options;
     std::optional<qmomkit::MomentWriter> moment_history_writer;
     std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;

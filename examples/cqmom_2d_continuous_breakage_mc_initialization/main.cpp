@@ -35,6 +35,12 @@ int main()
             cqmom_2d_continuous_breakage::print_configuration_errors(output_configured.errors);
             return 1;
         }
+        const auto node_advection_configured = qmomkit::config::load_node_advection_options(configuration_file);
+        if (!node_advection_configured.ok())
+        {
+            cqmom_2d_continuous_breakage::print_configuration_errors(node_advection_configured.errors);
+            return 1;
+        }
         const qmomkit::OutputOptions output_options = *output_configured.value;
 
         const std::optional<std::string> configuration_text = cqmom_2d_continuous_breakage::read_configuration_text(configuration_file);
@@ -114,6 +120,7 @@ int main()
         const qmomkit::CqmomMomentSource source = cqmom_2d_continuous_breakage::binary_fragmentation_source();
 
         qmomkit::CqmomStateTransportOptions transport_options;
+        transport_options.node_options = *node_advection_configured.value;
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
 

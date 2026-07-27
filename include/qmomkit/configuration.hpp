@@ -156,6 +156,9 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Parse optional node-advection scheme configuration. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(std::string_view text, std::string source_name = "<string>");
 
+/** Parse optional node-advection configuration, including RK23 controls. */
+[[nodiscard]] ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(std::string_view text, std::string source_name = "<string>");
+
 /** Parse optional output configuration. */
 [[nodiscard]] ConfigurationResult<OutputOptions> parse_output_options(std::string_view text, std::string source_name = "<string>");
 
@@ -176,5 +179,8 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 
 /** Load and parse node-advection scheme configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionScheme> load_node_advection_scheme(const std::filesystem::path& filename);
+
+/** Load and parse node-advection configuration from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<NodeAdvectionOptions> load_node_advection_options(const std::filesystem::path& filename);
 
 } // namespace qmomkit::config

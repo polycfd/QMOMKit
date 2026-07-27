@@ -40,6 +40,13 @@ constexpr std::string_view transport_scheme_key = "time_integration.scheme";
 constexpr std::string_view node_advection_section = "time_integration.node_advection";
 constexpr std::string_view node_advection_key_prefix = "time_integration.node_advection.";
 constexpr std::string_view node_advection_scheme_key = "time_integration.node_advection.scheme";
+constexpr std::string_view rk23_section = "time_integration.node_advection.rk23";
+constexpr std::string_view rk23_relative_tolerance_key = "time_integration.node_advection.rk23.relative_tolerance";
+constexpr std::string_view rk23_absolute_tolerance_key = "time_integration.node_advection.rk23.absolute_tolerance";
+constexpr std::string_view rk23_initial_step_key = "time_integration.node_advection.rk23.initial_step";
+constexpr std::string_view rk23_max_step_key = "time_integration.node_advection.rk23.max_step";
+constexpr std::string_view rk23_min_step_key = "time_integration.node_advection.rk23.min_step";
+constexpr std::string_view rk23_max_steps_key = "time_integration.node_advection.rk23.max_steps";
 constexpr std::string_view output_section = "output";
 constexpr std::string_view output_key_prefix = "output.";
 
@@ -464,6 +471,57 @@ bool parse_required_size(ParsedFile& parsed, const std::string& key, const std::
     return true;
 }
 
+bool parse_optional_positive_double(ParsedFile& parsed, const std::string& key, const std::string& source_name, double& value)
+{
+    const Entry* entry = find_entry(parsed, key);
+    if (entry == nullptr)
+    {
+        return true;
+    }
+    double parsed_value = 0.0;
+    if (!parse_double(entry->value, parsed_value) || parsed_value <= 0.0)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line, key + " must be a positive finite number.");
+        return false;
+    }
+    value = parsed_value;
+    return true;
+}
+
+bool parse_optional_positive_double(ParsedFile& parsed, const std::string& key, const std::string& source_name, std::optional<double>& value)
+{
+    const Entry* entry = find_entry(parsed, key);
+    if (entry == nullptr)
+    {
+        return true;
+    }
+    double parsed_value = 0.0;
+    if (!parse_double(entry->value, parsed_value) || parsed_value <= 0.0)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line, key + " must be a positive finite number.");
+        return false;
+    }
+    value = parsed_value;
+    return true;
+}
+
+bool parse_optional_positive_size(ParsedFile& parsed, const std::string& key, const std::string& source_name, std::size_t& value)
+{
+    const Entry* entry = find_entry(parsed, key);
+    if (entry == nullptr)
+    {
+        return true;
+    }
+    std::size_t parsed_value = 0;
+    if (!parse_size(entry->value, parsed_value) || parsed_value == 0)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line, key + " must be a positive integer.");
+        return false;
+    }
+    value = parsed_value;
+    return true;
+}
+
 std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, const std::string& key_prefix, const std::string& source_name)
 {
     const Entry* family_entry = require_entry(parsed, key_prefix + ".family", source_name);
@@ -616,6 +674,12 @@ void append_time_integration_allowed_keys(std::vector<std::string>& allowed)
 {
     allowed.push_back(std::string(transport_scheme_key));
     allowed.push_back(std::string(node_advection_scheme_key));
+    allowed.push_back(std::string(rk23_relative_tolerance_key));
+    allowed.push_back(std::string(rk23_absolute_tolerance_key));
+    allowed.push_back(std::string(rk23_initial_step_key));
+    allowed.push_back(std::string(rk23_max_step_key));
+    allowed.push_back(std::string(rk23_min_step_key));
+    allowed.push_back(std::string(rk23_max_steps_key));
     allowed.push_back("time_integration.realizability.check_mode");
     allowed.push_back("time_integration.realizability.accept_boundary");
     allowed.push_back("time_integration.realizability.support");
@@ -642,7 +706,7 @@ std::vector<std::string> with_runtime_allowed_keys(std::vector<std::string> allo
 
 std::vector<std::string> time_integration_sections()
 {
-    return {"time_integration", "time_integration.realizability", "time_integration.node_advection"};
+    return {"time_integration", "time_integration.realizability", "time_integration.node_advection", "time_integration.node_advection.rk23"};
 }
 
 void reject_unknown_qmom_sections(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
@@ -973,6 +1037,15 @@ bool is_node_advection_key(const std::string& key)
     return key.rfind(std::string(node_advection_key_prefix), 0) == 0;
 }
 
+const std::vector<std::string>& node_advection_allowed_keys()
+{
+    static const std::vector<std::string> allowed{std::string(node_advection_scheme_key),   std::string(rk23_relative_tolerance_key),
+                                                  std::string(rk23_absolute_tolerance_key), std::string(rk23_initial_step_key),
+                                                  std::string(rk23_max_step_key),           std::string(rk23_min_step_key),
+                                                  std::string(rk23_max_steps_key)};
+    return allowed;
+}
+
 std::optional<RealizabilityCheckMode> parse_realizability_check_mode_value(ParsedFile& parsed, const Entry& entry, const std::string& key,
                                                                            const std::string& source_name)
 {
@@ -1060,6 +1133,54 @@ std::optional<NodeAdvectionScheme> parse_node_advection_scheme_value(ParsedFile&
     return std::nullopt;
 }
 
+std::optional<NodeAdvectionOptions> parse_node_advection_options_from_parsed(ParsedFile& parsed, const std::string& source_name)
+{
+    for (const auto& item : parsed.scalars)
+    {
+        if (!is_node_advection_key(item.first))
+        {
+            continue;
+        }
+        const std::vector<std::string>& allowed = node_advection_allowed_keys();
+        if (std::find(allowed.begin(), allowed.end(), item.first) == allowed.end())
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
+        }
+    }
+
+    NodeAdvectionOptions options;
+    const Entry* scheme = find_entry(parsed, std::string(node_advection_scheme_key));
+    if (scheme != nullptr)
+    {
+        const std::optional<NodeAdvectionScheme> parsed_scheme = parse_node_advection_scheme_value(parsed, *scheme, source_name);
+        if (parsed_scheme.has_value())
+        {
+            options.scheme = *parsed_scheme;
+        }
+    }
+
+    parse_optional_positive_double(parsed, std::string(rk23_relative_tolerance_key), source_name, options.rk23_options.relative_tolerance);
+    parse_optional_positive_double(parsed, std::string(rk23_absolute_tolerance_key), source_name, options.rk23_options.absolute_tolerance);
+    parse_optional_positive_double(parsed, std::string(rk23_initial_step_key), source_name, options.rk23_options.initial_step);
+    parse_optional_positive_double(parsed, std::string(rk23_max_step_key), source_name, options.rk23_options.max_step);
+    parse_optional_positive_double(parsed, std::string(rk23_min_step_key), source_name, options.rk23_options.min_step);
+    parse_optional_positive_size(parsed, std::string(rk23_max_steps_key), source_name, options.rk23_options.max_steps);
+
+    const Entry* min_step = find_entry(parsed, std::string(rk23_min_step_key));
+    const Entry* max_step = find_entry(parsed, std::string(rk23_max_step_key));
+    if (min_step != nullptr && max_step != nullptr && parsed.errors.empty() && options.rk23_options.min_step > options.rk23_options.max_step)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, min_step->line,
+                  "time_integration.node_advection.rk23.min_step must not exceed max_step.");
+    }
+
+    if (!parsed.errors.empty())
+    {
+        return std::nullopt;
+    }
+    return options;
+}
+
 std::optional<CqmomDiagnosticLevel> parse_cqmom_diagnostic_level_value(ParsedFile& parsed, const Entry& entry, const std::string& source_name)
 {
     if (entry.value == "detailed")
@@ -1145,13 +1266,9 @@ void validate_optional_transport_scheme(ParsedFile& parsed, const std::string& s
     }
 }
 
-void validate_optional_node_advection_scheme(ParsedFile& parsed, const std::string& source_name)
+void validate_optional_node_advection_options(ParsedFile& parsed, const std::string& source_name)
 {
-    const Entry* entry = find_entry(parsed, std::string(node_advection_scheme_key));
-    if (entry != nullptr)
-    {
-        static_cast<void>(parse_node_advection_scheme_value(parsed, *entry, source_name));
-    }
+    static_cast<void>(parse_node_advection_options_from_parsed(parsed, source_name));
 }
 
 void validate_optional_cqmom_diagnostic_level(ParsedFile& parsed, const std::string& source_name)
@@ -1171,7 +1288,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
     reject_unknown_cqmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
-    validate_optional_node_advection_scheme(parsed, source_name);
+    validate_optional_node_advection_options(parsed, source_name);
     std::optional<CqmomDiagnosticLevel> diagnostic_level = parse_cqmom_diagnostic_level(parsed, source_name);
     std::optional<VandermondeSolver> vandermonde_solver = parse_vandermonde_solver(parsed, source_name);
     validate_format_version(parsed, source_name);
@@ -1401,7 +1518,7 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(
     reject_unknown_qmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
-    validate_optional_node_advection_scheme(parsed, source_name);
+    validate_optional_node_advection_options(parsed, source_name);
     validate_format_version(parsed, source_name);
     validate_optional_qmom_phase_space(parsed, source_name);
     if (!parsed.moments.empty())
@@ -1483,7 +1600,7 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
     reject_unknown_cqmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
-    validate_optional_node_advection_scheme(parsed, source_name);
+    validate_optional_node_advection_options(parsed, source_name);
     validate_optional_cqmom_diagnostic_level(parsed, source_name);
     validate_optional_vandermonde_solver(parsed, source_name);
     validate_format_version(parsed, source_name);
@@ -1656,7 +1773,7 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     reject_unknown_qmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
-    validate_optional_node_advection_scheme(parsed, source_name);
+    validate_optional_node_advection_options(parsed, source_name);
     validate_format_version(parsed, source_name);
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
     if (!parsed.moments.empty())
@@ -1795,7 +1912,8 @@ ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::s
     }
     for (const auto& item : parsed.sections)
     {
-        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section)
+        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
+            item.first != rk23_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
@@ -1866,7 +1984,8 @@ ConfigurationResult<TransportScheme> parse_transport_scheme(const std::string_vi
 
     for (const auto& item : parsed.sections)
     {
-        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section)
+        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
+            item.first != rk23_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
@@ -1902,17 +2021,18 @@ ConfigurationResult<TransportScheme> parse_transport_scheme(const std::string_vi
     return {scheme, {}};
 }
 
-ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(const std::string_view text, std::string source_name)
+ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
     if (!parsed.errors.empty())
     {
-        return failure_result<NodeAdvectionScheme>(std::move(parsed));
+        return failure_result<NodeAdvectionOptions>(std::move(parsed));
     }
 
     for (const auto& item : parsed.sections)
     {
-        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section)
+        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
+            item.first != rk23_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
@@ -1923,30 +2043,30 @@ ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(const std::
         {
             continue;
         }
-        if (item.first == std::string(transport_scheme_key) || item.first == std::string(node_advection_scheme_key) ||
-            is_realizability_key(item.first))
+        if (item.first == std::string(transport_scheme_key) || is_node_advection_key(item.first) || is_realizability_key(item.first))
         {
             continue;
         }
         add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
     }
 
-    NodeAdvectionScheme scheme = NodeAdvectionScheme::ssp_rk3;
-    const Entry* entry = find_entry(parsed, std::string(node_advection_scheme_key));
-    if (entry != nullptr)
-    {
-        const std::optional<NodeAdvectionScheme> parsed_scheme = parse_node_advection_scheme_value(parsed, *entry, source_name);
-        if (parsed_scheme.has_value())
-        {
-            scheme = *parsed_scheme;
-        }
-    }
+    const std::optional<NodeAdvectionOptions> options = parse_node_advection_options_from_parsed(parsed, source_name);
 
-    if (!parsed.errors.empty())
+    if (!parsed.errors.empty() || !options.has_value())
     {
-        return failure_result<NodeAdvectionScheme>(std::move(parsed));
+        return failure_result<NodeAdvectionOptions>(std::move(parsed));
     }
-    return {scheme, {}};
+    return {*options, {}};
+}
+
+ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(const std::string_view text, std::string source_name)
+{
+    ConfigurationResult<NodeAdvectionOptions> options = parse_node_advection_options(text, std::move(source_name));
+    if (!options.ok())
+    {
+        return {std::nullopt, std::move(options.errors)};
+    }
+    return {options.value->scheme, {}};
 }
 
 ConfigurationResult<OutputOptions> parse_output_options(const std::string_view text, std::string source_name)
@@ -2085,16 +2205,26 @@ ConfigurationResult<OutputOptions> load_output_options(const std::filesystem::pa
     return parse_output_options(contents.str(), filename.string());
 }
 
-ConfigurationResult<NodeAdvectionScheme> load_node_advection_scheme(const std::filesystem::path& filename)
+ConfigurationResult<NodeAdvectionOptions> load_node_advection_options(const std::filesystem::path& filename)
 {
     std::ifstream input(filename);
     if (!input)
     {
-        return file_failure<NodeAdvectionScheme>(filename);
+        return file_failure<NodeAdvectionOptions>(filename);
     }
     std::ostringstream contents;
     contents << input.rdbuf();
-    return parse_node_advection_scheme(contents.str(), filename.string());
+    return parse_node_advection_options(contents.str(), filename.string());
+}
+
+ConfigurationResult<NodeAdvectionScheme> load_node_advection_scheme(const std::filesystem::path& filename)
+{
+    ConfigurationResult<NodeAdvectionOptions> options = load_node_advection_options(filename);
+    if (!options.ok())
+    {
+        return {std::nullopt, std::move(options.errors)};
+    }
+    return {options.value->scheme, {}};
 }
 
 } // namespace qmomkit::config

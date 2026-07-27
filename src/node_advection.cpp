@@ -8,6 +8,8 @@
 #include <cmath>
 #include <cstddef>
 #include <exception>
+#include <iomanip>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -289,6 +291,18 @@ struct IntegratedNodes
     return IntegratedNodes{abscissas, NodeAdvectionStatus::invalid_input, diagnostics, diagnostics.message};
 }
 
+[[nodiscard]] const char* scheme_name(const NodeAdvectionScheme scheme)
+{
+    switch (scheme)
+    {
+    case NodeAdvectionScheme::ssp_rk3:
+        return "ssp_rk3";
+    case NodeAdvectionScheme::adaptive_rk23:
+        return "adaptive_rk23";
+    }
+    return "unknown";
+}
+
 } // namespace
 
 QmomNodeAdvectionResult advance_nodes(const Quadrature1D& quadrature, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
@@ -369,6 +383,54 @@ CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, const 
                                                                       quadrature.adaptive_branch_counts_enabled(),
                                                                       quadrature.has_rectangular_storage(), quadrature.terminal_paths()),
                                     NodeAdvectionStatus::success, integrated.diagnostics, ""};
+}
+
+std::string format_node_advection_options(const NodeAdvectionOptions& options)
+{
+    std::ostringstream output;
+    output << std::setprecision(17);
+    output << "Node advection settings:\n";
+    output << "  scheme = " << scheme_name(options.scheme) << '\n';
+
+    if (options.scheme != NodeAdvectionScheme::adaptive_rk23)
+    {
+        return output.str();
+    }
+
+    output << "  rk23.relative_tolerance = " << options.rk23_options.relative_tolerance << '\n';
+    output << "  rk23.absolute_tolerance = " << options.rk23_options.absolute_tolerance << '\n';
+    output << "  rk23.initial_step = ";
+    if (options.rk23_options.initial_step.has_value())
+    {
+        output << *options.rk23_options.initial_step;
+    }
+    else
+    {
+        output << "automatic";
+    }
+    output << '\n';
+    output << "  rk23.max_step = ";
+    if (options.rk23_options.max_step > 0.0)
+    {
+        output << options.rk23_options.max_step;
+    }
+    else
+    {
+        output << "full integration interval";
+    }
+    output << '\n';
+    output << "  rk23.min_step = ";
+    if (options.rk23_options.min_step > 0.0)
+    {
+        output << options.rk23_options.min_step;
+    }
+    else
+    {
+        output << "machine-dependent automatic minimum";
+    }
+    output << '\n';
+    output << "  rk23.max_steps = " << options.rk23_options.max_steps << '\n';
+    return output.str();
 }
 
 } // namespace qmomkit

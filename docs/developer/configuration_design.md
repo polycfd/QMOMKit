@@ -256,7 +256,7 @@ tensor entries follow phase-space dimension order.
 Configuration may include optional runtime settings that are useful to drivers:
 
 - transport scheme selection;
-- node-advection scheme selection;
+- node-advection scheme selection and RK23 controls;
 - output options;
 - runtime realizability policy.
 
@@ -266,12 +266,26 @@ install callbacks, run transport, write output, or define a physical model.
 Transport scheme configuration maps to `TransportScheme`. If omitted, the
 parsed scheme defaults to `TransportScheme::strang`.
 
-Node-advection scheme configuration maps to `NodeAdvectionScheme`. It lives
+Node-advection configuration maps to `NodeAdvectionOptions`. The scheme lives
 under `[time_integration.node_advection]` so it is not confused with
-`[time_integration] scheme`, which controls operator splitting. If omitted,
-the parsed node-advection scheme defaults to `NodeAdvectionScheme::ssp_rk3`.
-Applications can assign the parsed value to `NodeAdvectionOptions::scheme` in
-direct C++ transport options. This configuration choice affects only
+`[time_integration] scheme`, which controls operator splitting. RK23 controls
+live under `[time_integration.node_advection.rk23]` and map directly to
+`AdaptiveRk23Options`:
+
+```text
+relative_tolerance
+absolute_tolerance
+initial_step
+max_step
+min_step
+max_steps
+```
+
+The parser default-constructs `NodeAdvectionOptions` and only overwrites keys
+that are present, so configuration parsing does not duplicate
+`AdaptiveRk23Options` defaults. If omitted, the parsed node-advection scheme
+defaults to `NodeAdvectionScheme::ssp_rk3`. Applications can assign the parsed
+object directly to transport options. This configuration choice affects only
 continuous quadrature-node trajectories; it does not configure moment-source
 integration, realizability policies, or transport splitting.
 
@@ -343,8 +357,10 @@ Public configuration capabilities include:
 - `create_qmom_case(...)`, `create_cqmom_dense_case(...)`, and
   `create_cqmom_lean_case(...)`;
 - `parse_transport_scheme(...)`;
+- `parse_node_advection_options(...)` and
+  `load_node_advection_options(...)`;
 - `parse_node_advection_scheme(...)` and
-  `load_node_advection_scheme(...)`;
+  `load_node_advection_scheme(...)` compatibility helpers;
 - `parse_realizability_policy(...)`;
 - `parse_output_options(...)` and `load_output_options(...)`;
 - `ConfigurationResult<T>`, `ConfigurationError`, and

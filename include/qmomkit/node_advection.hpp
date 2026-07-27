@@ -106,4 +106,9 @@ struct CqmomNodeAdvectionResult
 [[nodiscard]] CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, double t, double time_step,
                                                      const PhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options = {});
 
+/**
+ * Format effective node-advection settings for startup logs or diagnostics.
+ */
+[[nodiscard]] std::string format_node_advection_options(const NodeAdvectionOptions& options);
+
 } // namespace qmomkit

@@ -1278,6 +1278,16 @@ void test_node_advection_scheme_defaults_and_parses_values()
     qmomkit::NodeAdvectionOptions default_options;
     assert(default_options.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
 
+    const auto omitted_options = qmomkit::config::parse_node_advection_options(qmom_text);
+    assert(omitted_options.ok());
+    assert(omitted_options.value->scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
+    assert_near(omitted_options.value->rk23_options.relative_tolerance, default_options.rk23_options.relative_tolerance);
+    assert_near(omitted_options.value->rk23_options.absolute_tolerance, default_options.rk23_options.absolute_tolerance);
+    assert(!omitted_options.value->rk23_options.initial_step.has_value());
+    assert_near(omitted_options.value->rk23_options.max_step, default_options.rk23_options.max_step);
+    assert_near(omitted_options.value->rk23_options.min_step, default_options.rk23_options.min_step);
+    assert(omitted_options.value->rk23_options.max_steps == default_options.rk23_options.max_steps);
+
     const auto omitted = qmomkit::config::parse_node_advection_scheme(qmom_text);
     assert(omitted.ok());
     assert(*omitted.value == qmomkit::NodeAdvectionScheme::ssp_rk3);
@@ -1307,6 +1317,44 @@ scheme = adaptive_rk23
     assert(*alongside_transport_scheme.value == qmomkit::NodeAdvectionScheme::adaptive_rk23);
 }
 
+void test_node_advection_options_parse_rk23_controls()
+{
+    const auto parsed = qmomkit::config::parse_node_advection_options(R"(
+[time_integration]
+scheme = cd
+
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-8
+absolute_tolerance = 1.0e-11
+initial_step = 0.02
+max_step = 0.04
+min_step = 0.001
+max_steps = 123
+)");
+    assert(parsed.ok());
+    assert(parsed.value->scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert_near(parsed.value->rk23_options.relative_tolerance, 1.0e-8);
+    assert_near(parsed.value->rk23_options.absolute_tolerance, 1.0e-11);
+    assert(parsed.value->rk23_options.initial_step.has_value());
+    assert_near(*parsed.value->rk23_options.initial_step, 0.02);
+    assert_near(parsed.value->rk23_options.max_step, 0.04);
+    assert_near(parsed.value->rk23_options.min_step, 0.001);
+    assert(parsed.value->rk23_options.max_steps == 123);
+
+    const auto scheme_only = qmomkit::config::parse_node_advection_scheme(R"(
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+max_step = 0.1
+)");
+    assert(scheme_only.ok());
+    assert(*scheme_only.value == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+}
+
 void test_node_advection_scheme_rejects_invalid_values()
 {
     const auto invalid = qmomkit::config::parse_node_advection_scheme(R"(
@@ -1323,6 +1371,58 @@ stage_count = 3
 )");
     assert(!unknown_time_key.ok());
     assert(has_error(unknown_time_key, ConfigurationErrorCode::unknown_entry));
+}
+
+void test_node_advection_options_reject_invalid_rk23_controls()
+{
+    const auto zero_relative = qmomkit::config::parse_node_advection_options(R"(
+[time_integration.node_advection.rk23]
+relative_tolerance = 0.0
+)");
+    assert(!zero_relative.ok());
+    assert(has_error(zero_relative, ConfigurationErrorCode::invalid_value));
+    assert(has_message_fragment(zero_relative, "relative_tolerance"));
+    assert(has_message_fragment(zero_relative, "positive finite"));
+
+    const auto nonfinite_absolute = qmomkit::config::parse_node_advection_options(R"(
+[time_integration.node_advection.rk23]
+absolute_tolerance = nan
+)");
+    assert(!nonfinite_absolute.ok());
+    assert(has_error(nonfinite_absolute, ConfigurationErrorCode::invalid_value));
+    assert(has_message_fragment(nonfinite_absolute, "absolute_tolerance"));
+
+    const auto zero_initial_step = qmomkit::config::parse_node_advection_options(R"(
+[time_integration.node_advection.rk23]
+initial_step = 0.0
+)");
+    assert(!zero_initial_step.ok());
+    assert(has_error(zero_initial_step, ConfigurationErrorCode::invalid_value));
+    assert(has_message_fragment(zero_initial_step, "initial_step"));
+
+    const auto zero_max_steps = qmomkit::config::parse_node_advection_options(R"(
+[time_integration.node_advection.rk23]
+max_steps = 0
+)");
+    assert(!zero_max_steps.ok());
+    assert(has_error(zero_max_steps, ConfigurationErrorCode::invalid_value));
+    assert(has_message_fragment(zero_max_steps, "max_steps"));
+
+    const auto min_exceeds_max = qmomkit::config::parse_node_advection_options(R"(
+[time_integration.node_advection.rk23]
+min_step = 0.2
+max_step = 0.1
+)");
+    assert(!min_exceeds_max.ok());
+    assert(has_error(min_exceeds_max, ConfigurationErrorCode::invalid_value));
+    assert(has_message_fragment(min_exceeds_max, "min_step must not exceed max_step"));
+
+    const auto unknown_rk23_key = qmomkit::config::parse_node_advection_options(R"(
+[time_integration.node_advection.rk23]
+growth_limit = 2.0
+)");
+    assert(!unknown_rk23_key.ok());
+    assert(has_error(unknown_rk23_key, ConfigurationErrorCode::unknown_entry));
 }
 
 void test_output_options_default_to_disabled()
@@ -1444,6 +1544,9 @@ scheme = dc
 [time_integration.node_advection]
 scheme = ssp_rk3
 
+[time_integration.node_advection.rk23]
+max_step = 0.1
+
 [moments]
 values = 1.0, 0.0
 )");
@@ -1458,6 +1561,10 @@ scheme = cd
 
 [time_integration.node_advection]
 scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-8
+absolute_tolerance = 1.0e-10
 
 [moments]
 extents = 2, 2
@@ -2060,8 +2167,14 @@ void test_file_loading_and_file_failure()
 
     {
         std::ofstream output(filename);
-        output << "[time_integration.node_advection]\nscheme = adaptive_rk23\n";
+        output << "[time_integration.node_advection]\nscheme = adaptive_rk23\n"
+                  "[time_integration.node_advection.rk23]\nmax_step = 0.05\n";
     }
+    const auto node_advection_options = qmomkit::config::load_node_advection_options(filename);
+    assert(node_advection_options.ok());
+    assert(node_advection_options.value->scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert_near(node_advection_options.value->rk23_options.max_step, 0.05);
+
     const auto node_advection_scheme = qmomkit::config::load_node_advection_scheme(filename);
     assert(node_advection_scheme.ok());
     assert(*node_advection_scheme.value == qmomkit::NodeAdvectionScheme::adaptive_rk23);
@@ -2110,7 +2223,9 @@ int main()
     test_scheme_defaults_and_parses_values();
     test_scheme_rejects_invalid_values();
     test_node_advection_scheme_defaults_and_parses_values();
+    test_node_advection_options_parse_rk23_controls();
     test_node_advection_scheme_rejects_invalid_values();
+    test_node_advection_options_reject_invalid_rk23_controls();
     test_output_options_default_to_disabled();
     test_output_options_parse_enabled_fields();
     test_output_options_reject_invalid_values();

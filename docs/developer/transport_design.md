@@ -221,6 +221,13 @@ Adaptive RK23 may take internal accepted and rejected trial steps to reach the
 requested end time. It is useful when QMOMKit should control trajectory
 accuracy inside a larger transport macro step.
 
+Configuration-driven drivers load the full `NodeAdvectionOptions` object from
+`[time_integration.node_advection]` and the nested
+`[time_integration.node_advection.rk23]` section. Startup reporting should use
+the shared node-advection formatter so fixed-step runs report only the active
+scheme, while RK23 runs also report effective tolerances, automatic step-size
+controls, and the maximum internal accepted-step count.
+
 Node advection does not perform realizability checks. It moves already
 reconstructed quadrature coordinates and preserves weights; realizability is
 checked through quadrature inversion or caller-supplied moment-state policies

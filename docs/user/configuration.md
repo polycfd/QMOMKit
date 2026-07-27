@@ -72,7 +72,7 @@ through public types and options rather than through text sections:
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a dense tensor representation from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
-| transport options | `[time_integration]` and optional runtime realizability policy | set `QmomTransportOptions`, `CqmomStateTransportOptions`, source-update options, and realizability policies in C++ |
+| transport options | `[time_integration]`, `[time_integration.node_advection]`, and optional runtime realizability policy | set `QmomTransportOptions`, `CqmomStateTransportOptions`, `NodeAdvectionOptions`, source-update options, and realizability policies in C++ |
 | output choices | `[output]` directory, enabled outputs, and cadence | create and call `MomentWriter` or `QuadratureWriter` from the surrounding driver |
 
 This mapping is meant to orient application integration, not replace the public
@@ -229,7 +229,7 @@ The main sections are:
 - `[cqmom]`: CQMOM-specific reconstruction options.
 - `[time_integration]`: transport operator-ordering choices.
 - `[time_integration.node_advection]`: optional continuous node-trajectory
-  integration scheme.
+  integration scheme and RK23 controls.
 - `[time_integration.realizability]`: optional runtime realizability policy.
 - `[output]`: optional output directory, enabled outputs, and cadence.
 
@@ -297,8 +297,8 @@ evolving `CqmomState` used by optional CQMOM transport. QMOM transport is also
 optional and advances raw moment vectors rather than a `QmomState`. Use
 `load_cqmom_dense(...)` only when an application deliberately chooses the
 explicit dense representation workflow. Optional output settings are loaded
-separately with `load_output_options(...)`; optional node-advection scheme
-settings are loaded with `load_node_advection_scheme(...)`.
+separately with `load_output_options(...)`; optional node-advection settings
+are loaded with `load_node_advection_options(...)`.
 
 ## QMOM Configuration
 
@@ -644,6 +644,46 @@ the timestep and predictable callback cost is important; use adaptive RK23 when
 internal trajectory error estimation is part of the desired numerical control.
 Both choices integrate continuous quadrature-node trajectories; they do not
 change source integration, realizability policy, or transport splitting.
+
+When `scheme = adaptive_rk23`, optional controls live under the nested RK23
+section:
+
+```text
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-7
+absolute_tolerance = 1.0e-10
+initial_step = 1.0e-4
+max_step = 1.0e-2
+min_step = 1.0e-12
+max_steps = 200000
+```
+
+Supported RK23 keys are:
+
+```text
+relative_tolerance
+absolute_tolerance
+initial_step
+max_step
+min_step
+max_steps
+```
+
+If omitted, these keys retain the C++ `AdaptiveRk23Options` defaults:
+`relative_tolerance = 1.0e-6`, `absolute_tolerance = 1.0e-9`,
+`initial_step = automatic`, `max_step = full integration interval`,
+`min_step = machine-dependent automatic minimum`, and
+`max_steps = 100000`. Explicit tolerances and step sizes must be positive
+finite numbers, and `min_step` must not exceed `max_step` when both are
+provided. `max_steps` must be a positive integer.
+
+Drivers can print `format_node_advection_options(...)` at startup to report
+the effective scheme and controls. For fixed-step node advection, that summary
+reports the selected scheme only; it does not imply that RK23 tolerances are
+active.
 
 The configuration file stores runtime numerical choices and the initial
 numerical setup. Your application still provides the continuous velocity and

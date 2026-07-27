@@ -144,6 +144,12 @@ realizability checks. Its accuracy is controlled by the timestep chosen by the
 caller. Realizability remains a property of reconstructed moments and later
 quadrature inversions, not of the coordinate trajectory step itself.
 
+Configuration-driven drivers can load the complete node-advection controls
+with `qmomkit::config::load_node_advection_options(...)`. For RK23,
+`NodeAdvectionOptions::rk23_options` carries scalar relative and absolute
+tolerances, optional initial step size, maximum step size, minimum step size,
+and maximum internal accepted steps.
+
 ## Moment Source Terms
 
 Moment sources represent internal or volumetric changes that act directly on
@@ -610,6 +616,29 @@ Accepted values are:
 ssp_rk3
 adaptive_rk23
 ```
+
+Adaptive RK23 controls are configured in a nested section:
+
+```text
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-7
+absolute_tolerance = 1.0e-10
+initial_step = 1.0e-4
+max_step = 1.0e-2
+min_step = 1.0e-12
+max_steps = 200000
+```
+
+Omitted RK23 keys keep the `AdaptiveRk23Options` defaults:
+`relative_tolerance = 1.0e-6`, `absolute_tolerance = 1.0e-9`,
+`initial_step = automatic`, `max_step = full integration interval`,
+`min_step = machine-dependent automatic minimum`, and
+`max_steps = 100000`. Startup summaries in the transport examples report the
+effective node-advection scheme and controls. For fixed-step schemes, the
+summary reports only the selected scheme.
 
 Output can be requested with:
 

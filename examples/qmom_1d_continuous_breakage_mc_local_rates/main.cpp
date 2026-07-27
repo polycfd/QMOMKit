@@ -9,9 +9,9 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace
@@ -19,127 +19,6 @@ namespace
 constexpr double initial_time = 0.0;
 constexpr double final_time = 1.0;
 constexpr double time_step = 0.01;
-
-class ContinuousRateFailure : public std::runtime_error
-{
-public:
-    ContinuousRateFailure(const double time, const qmomkit::ContinuousMomentRateStatus status, const qmomkit::QmomStatus inversion_status,
-                          std::string message)
-        : std::runtime_error(message.empty() ? "continuous moment-rate evaluation failed" : std::move(message)), time_(time), status_(status),
-          inversion_status_(inversion_status)
-    {
-    }
-
-    [[nodiscard]] double time() const noexcept
-    {
-        return time_;
-    }
-
-    [[nodiscard]] qmomkit::ContinuousMomentRateStatus status() const noexcept
-    {
-        return status_;
-    }
-
-    [[nodiscard]] qmomkit::QmomStatus inversion_status() const noexcept
-    {
-        return inversion_status_;
-    }
-
-private:
-    double time_ = 0.0;
-    qmomkit::ContinuousMomentRateStatus status_ = qmomkit::ContinuousMomentRateStatus::success;
-    qmomkit::QmomStatus inversion_status_ = qmomkit::QmomStatus::success;
-};
-
-class DiscontinuousRateFailure : public std::runtime_error
-{
-public:
-    DiscontinuousRateFailure(const double time, const qmomkit::DiscontinuousMomentRateStatus status, std::string message)
-        : std::runtime_error(message.empty() ? "discontinuous moment-rate evaluation failed" : std::move(message)), time_(time), status_(status)
-    {
-    }
-
-    [[nodiscard]] double time() const noexcept
-    {
-        return time_;
-    }
-
-    [[nodiscard]] qmomkit::DiscontinuousMomentRateStatus status() const noexcept
-    {
-        return status_;
-    }
-
-private:
-    double time_ = 0.0;
-    qmomkit::DiscontinuousMomentRateStatus status_ = qmomkit::DiscontinuousMomentRateStatus::success;
-};
-
-[[nodiscard]] bool qmom_inversion_succeeds(const std::vector<double>& candidate, const std::size_t node_count,
-                                           const qmomkit::QmomOptions& qmom_options)
-{
-    const qmomkit::QmomResult inversion = qmomkit::compute_qmom(qmomkit::MomentSet(candidate), node_count, qmom_options);
-    return inversion.ok();
-}
-
-[[nodiscard]] qmomkit::SspRk3Options make_application_stage_policy(const std::size_t node_count, const qmomkit::QmomOptions& qmom_options)
-{
-    qmomkit::SspRk3Options options;
-
-    // This example uses successful QMOM inversion as one application-selected
-    // stage and final acceptance policy. That keeps later continuous-rate calls
-    // on invertible moment states, but it is not built into the rate evaluators
-    // and is not a universal definition of acceptability. A spatial solver
-    // might add bounds, limiting, or other coefficient-level checks here.
-    options.stage_accept = [node_count, qmom_options](qmomkit::SspRk3Stage, const std::vector<double>& candidate)
-    { return qmom_inversion_succeeds(candidate, node_count, qmom_options); };
-
-    return options;
-}
-
-[[nodiscard]] std::optional<std::vector<double>> run_local_ssp_step(const std::vector<double>& moments, const double time,
-                                                                    const double requested_time_step, const qmomkit::OdeRhs& rhs,
-                                                                    const qmomkit::SspRk3Options& options, const std::string& operation)
-{
-    try
-    {
-        const qmomkit::SspRk3Result step = qmomkit::ssp_rk3_step(moments, time, requested_time_step, rhs, options);
-        if (!step.ok())
-        {
-            qmom_1d_continuous_breakage_mc_local_rates::print_ssp_failure(step, operation, requested_time_step);
-            return std::nullopt;
-        }
-        return step.state;
-    }
-    catch (const ContinuousRateFailure& error)
-    {
-        qmom_1d_continuous_breakage_mc_local_rates::print_continuous_rate_failure(operation, error.time(), error.status(), error.inversion_status(),
-                                                                                  error.what());
-    }
-    catch (const DiscontinuousRateFailure& error)
-    {
-        qmom_1d_continuous_breakage_mc_local_rates::print_discontinuous_rate_failure(operation, error.time(), error.status(), error.what());
-    }
-    catch (const std::exception& error)
-    {
-        std::cerr << "SSP-RK3 step threw while integrating " << operation << ":\n";
-        std::cerr << "  message: " << error.what() << '\n';
-        std::cerr << "  requested time step: " << requested_time_step << '\n';
-    }
-    return std::nullopt;
-}
-
-[[nodiscard]] std::optional<qmomkit::Quadrature1D> reconstruct_for_output(const std::vector<double>& moments, const std::size_t node_count,
-                                                                          const qmomkit::QmomOptions& qmom_options, const double time)
-{
-    const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet(moments), node_count, qmom_options);
-    if (!result.ok())
-    {
-        std::cerr << "QMOM inversion for quadrature output failed at t = " << time << ": " << result.message << '\n';
-        std::cerr << "  QmomStatus: " << qmom_1d_continuous_breakage_mc_local_rates::to_string(result.status) << '\n';
-        return std::nullopt;
-    }
-    return qmomkit::Quadrature1D{result.abscissas, result.weights};
-}
 
 } // namespace
 
@@ -215,34 +94,49 @@ int main()
     // the surrounding application code advance it.
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_continuous_breakage_mc_local_rates::continuous_velocity();
     const qmomkit::MomentSource source = qmom_1d_continuous_breakage_mc_local_rates::binary_fragmentation_source();
-    const qmomkit::SspRk3Options rate_step_options = make_application_stage_policy(qmom_case.node_count, qmom_case.options);
 
-    // The continuous local-rate API returns an instantaneous raw-moment rate.
-    // It inverts the supplied moments, evaluates the phase-space velocity at
-    // quadrature nodes, and reconstructs moment rates. It does not advance
-    // time; this example converts a failed public result into the RHS failure
-    // mechanism used by the application-owned SSP-RK3 step.
+    const auto moments_are_invertible = [&](const std::vector<double>& candidate)
+    { return qmomkit::compute_qmom(qmomkit::MomentSet(candidate), qmom_case.node_count, qmom_case.options).ok(); };
+
+    qmomkit::SspRk3Options rate_step_options;
+    // Reject a tentative SSP-RK3 state if QMOM cannot reconstruct a
+    // quadrature from its moments. This example keeps the default SSP-RK3
+    // retry controls, so a rejected state fails the substep. A CG/DG solver
+    // may apply additional limiters or admissibility checks.
+    rate_step_options.stage_accept = [&](qmomkit::SspRk3Stage, const std::vector<double>& candidate) { return moments_are_invertible(candidate); };
+
+    // QMOMKit returns the instantaneous raw-moment rate dM/dt.
+    // The application remains responsible for advancing the moments in time.
+
+    // Continuous phase-space advection rate
     const qmomkit::OdeRhs continuous_rhs = [&](const double stage_time, const std::vector<double>& stage_moments)
     {
         const qmomkit::QmomContinuousMomentRateResult rates =
             qmomkit::evaluate_qmom_continuous_moment_rates(stage_moments, qmom_case.node_count, stage_time, velocity, qmom_case.options);
         if (!rates.ok())
         {
-            throw ContinuousRateFailure(stage_time, rates.status, rates.inversion_status, rates.message);
+            std::ostringstream message;
+            message << "Continuous moment-rate evaluation failed at t = " << stage_time
+                    << ": continuous-rate status = " << qmom_1d_continuous_breakage_mc_local_rates::to_string(rates.status)
+                    << ", QmomStatus = " << qmom_1d_continuous_breakage_mc_local_rates::to_string(rates.inversion_status)
+                    << ", message = " << rates.message;
+            throw std::runtime_error(message.str());
         }
         return rates.rates;
     };
 
-    // The discontinuous local-rate API calls a source model that already
-    // returns raw-moment rates. No quadrature inversion is part of this rate
-    // evaluation; the application still owns the RK stages and failure
-    // propagation around it.
+    // Discontinuous phase-space source rate
+    // The source callback already returns raw-moment rates, so this evaluation does not require a QMOM inversion.
     const qmomkit::OdeRhs source_rhs = [&](const double stage_time, const std::vector<double>& stage_moments)
     {
         const qmomkit::QmomDiscontinuousMomentRateResult rates = qmomkit::evaluate_qmom_discontinuous_moment_rates(stage_time, stage_moments, source);
         if (!rates.ok())
         {
-            throw DiscontinuousRateFailure(stage_time, rates.status, rates.message);
+            std::ostringstream message;
+            message << "Discontinuous moment-rate evaluation failed at t = " << stage_time
+                    << ": discontinuous-rate status = " << qmom_1d_continuous_breakage_mc_local_rates::to_string(rates.status)
+                    << ", message = " << rates.message;
+            throw std::runtime_error(message.str());
         }
         return rates.rates;
     };
@@ -266,45 +160,78 @@ int main()
         const double current_step = std::min(time_step, final_time - time);
         const double half_step = 0.5 * current_step;
 
-        // QMOMKit supplies local rates; this driver owns the SSP-RK3 substeps.
-        // A finite-element code could use the same RHS adapters inside a
-        // coefficient-level time integrator at each spatial quadrature point.
-        //
-        // The established continuous/source sequence is:
-        //   continuous half-step -> discontinuous full step -> continuous half-step.
-        // Each accepted substep updates the application-owned moment vector.
-        std::optional<std::vector<double>> updated =
-            run_local_ssp_step(moments, time, half_step, continuous_rhs, rate_step_options, "the first continuous local-rate half-step");
-        if (!updated.has_value())
+        // Advance one time step:
+        //   1. continuous evolution over dt/2,
+        //   2. discontinuous source evolution over dt,
+        //   3. continuous evolution over dt/2.
+        qmomkit::SspRk3Result first_continuous;
+        try
         {
+            first_continuous = qmomkit::ssp_rk3_step(moments, time, half_step, continuous_rhs, rate_step_options);
+        }
+        catch (const std::exception& error)
+        {
+            std::cerr << "First continuous local-rate half-step failed: " << error.what() << '\n';
             return 1;
         }
-        moments = std::move(*updated);
+        if (!first_continuous.ok())
+        {
+            std::cerr << "First continuous local-rate half-step failed: SSP-RK3 status = "
+                      << qmom_1d_continuous_breakage_mc_local_rates::to_string(first_continuous.status) << ", retries = " << first_continuous.retries
+                      << ", attempted time step = " << first_continuous.time_step_used << '\n';
+            return 1;
+        }
+        moments = first_continuous.state;
 
-        updated = run_local_ssp_step(moments, time + half_step, current_step, source_rhs, rate_step_options, "the discontinuous local source step");
-        if (!updated.has_value())
+        qmomkit::SspRk3Result source_update;
+        try
         {
+            source_update = qmomkit::ssp_rk3_step(moments, time + half_step, current_step, source_rhs, rate_step_options);
+        }
+        catch (const std::exception& error)
+        {
+            std::cerr << "Discontinuous local source step failed: " << error.what() << '\n';
             return 1;
         }
-        moments = std::move(*updated);
+        if (!source_update.ok())
+        {
+            std::cerr << "Discontinuous local source step failed: SSP-RK3 status = "
+                      << qmom_1d_continuous_breakage_mc_local_rates::to_string(source_update.status) << ", retries = " << source_update.retries
+                      << ", attempted time step = " << source_update.time_step_used << '\n';
+            return 1;
+        }
+        moments = source_update.state;
 
-        updated =
-            run_local_ssp_step(moments, time + half_step, half_step, continuous_rhs, rate_step_options, "the second continuous local-rate half-step");
-        if (!updated.has_value())
+        qmomkit::SspRk3Result second_continuous;
+        try
         {
+            second_continuous = qmomkit::ssp_rk3_step(moments, time + half_step, half_step, continuous_rhs, rate_step_options);
+        }
+        catch (const std::exception& error)
+        {
+            std::cerr << "Second continuous local-rate half-step failed: " << error.what() << '\n';
             return 1;
         }
-        moments = std::move(*updated);
+        if (!second_continuous.ok())
+        {
+            std::cerr << "Second continuous local-rate half-step failed: SSP-RK3 status = "
+                      << qmom_1d_continuous_breakage_mc_local_rates::to_string(second_continuous.status)
+                      << ", retries = " << second_continuous.retries << ", attempted time step = " << second_continuous.time_step_used << '\n';
+            return 1;
+        }
+        moments = second_continuous.state;
         time += current_step;
 
         // Moments remain the evolved state. Reconstruct quadrature only when
         // weights and abscissas are needed for output.
-        const std::optional<qmomkit::Quadrature1D> output_quadrature = reconstruct_for_output(moments, qmom_case.node_count, qmom_case.options, time);
-        if (!output_quadrature.has_value())
+        const qmomkit::QmomResult output_quadrature = qmomkit::compute_qmom(qmomkit::MomentSet(moments), qmom_case.node_count, qmom_case.options);
+        if (!output_quadrature.ok())
         {
+            std::cerr << "QMOM inversion for quadrature output failed at t = " << time << ": " << output_quadrature.message << '\n';
+            std::cerr << "  QmomStatus: " << qmom_1d_continuous_breakage_mc_local_rates::to_string(output_quadrature.status) << '\n';
             return 1;
         }
-        quadrature = *output_quadrature;
+        quadrature = qmomkit::Quadrature1D{output_quadrature.abscissas, output_quadrature.weights};
 
         if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
         {

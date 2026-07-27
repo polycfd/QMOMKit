@@ -36,14 +36,6 @@ void print_common_run_summary(std::ostream& stream, std::string_view workflow, c
 
 void print_moments(std::ostream& stream, std::string_view label, const std::vector<double>& moments);
 
-void print_continuous_rate_failure(std::string_view operation, double time, qmomkit::ContinuousMomentRateStatus status,
-                                   qmomkit::QmomStatus inversion_status, std::string_view message);
-
-void print_discontinuous_rate_failure(std::string_view operation, double time, qmomkit::DiscontinuousMomentRateStatus status,
-                                      std::string_view message);
-
-void print_ssp_failure(const qmomkit::SspRk3Result& result, std::string_view operation, double requested_time_step);
-
 [[nodiscard]] OutputFiles open_output_files(const qmomkit::OutputOptions& output_options, double initial_time,
                                             const std::vector<double>& initial_moments, const qmomkit::Quadrature1D& initial_quadrature);
 

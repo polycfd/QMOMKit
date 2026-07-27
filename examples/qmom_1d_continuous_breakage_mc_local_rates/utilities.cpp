@@ -1,7 +1,6 @@
 #include "utilities.hpp"
 
 #include <cstddef>
-#include <exception>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -101,34 +100,6 @@ void print_moments(std::ostream& stream, const std::string_view label, const std
     {
         stream << "M" << order << " = " << moments[order] << '\n';
     }
-}
-
-void print_continuous_rate_failure(const std::string_view operation, const double time, const qmomkit::ContinuousMomentRateStatus status,
-                                   const qmomkit::QmomStatus inversion_status, const std::string_view message)
-{
-    std::cerr << "Continuous-rate failure during " << operation << ":\n";
-    std::cerr << "  continuous-rate status: " << to_string(status) << '\n';
-    std::cerr << "  underlying QmomStatus: " << to_string(inversion_status) << '\n';
-    std::cerr << "  message: " << message << '\n';
-    std::cerr << "  current simulation time: " << time << '\n';
-}
-
-void print_discontinuous_rate_failure(const std::string_view operation, const double time, const qmomkit::DiscontinuousMomentRateStatus status,
-                                      const std::string_view message)
-{
-    std::cerr << "Discontinuous-rate failure during " << operation << ":\n";
-    std::cerr << "  discontinuous-rate status: " << to_string(status) << '\n';
-    std::cerr << "  message: " << message << '\n';
-    std::cerr << "  current simulation time: " << time << '\n';
-}
-
-void print_ssp_failure(const qmomkit::SspRk3Result& result, const std::string_view operation, const double requested_time_step)
-{
-    std::cerr << "SSP-RK3 step failed while integrating " << operation << ":\n";
-    std::cerr << "  SSP-RK3 status: " << to_string(result.status) << '\n';
-    std::cerr << "  retries: " << result.retries << '\n';
-    std::cerr << "  requested time step: " << requested_time_step << '\n';
-    std::cerr << "  attempted or accepted time step: " << result.time_step_used << '\n';
 }
 
 OutputFiles open_output_files(const qmomkit::OutputOptions& output_options, const double initial_time, const std::vector<double>& initial_moments,

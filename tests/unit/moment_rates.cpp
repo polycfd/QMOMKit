@@ -108,6 +108,12 @@ void test_public_qmom_continuous_rates_and_status_mapping()
     assert(velocity_failed.status == qmomkit::ContinuousMomentRateStatus::velocity_failed);
     assert(velocity_failed.inversion_status == qmomkit::QmomStatus::success);
     assert(velocity_failed.message == "Phase-space velocity callback returned the wrong dimension.");
+
+    const qmomkit::QmomContinuousMomentRateResult invalid_input = qmomkit::evaluate_qmom_continuous_moment_rates({}, 1, 0.0, velocity);
+    assert(!invalid_input.ok());
+    assert(invalid_input.status == qmomkit::ContinuousMomentRateStatus::invalid_input);
+    assert(invalid_input.inversion_status == qmomkit::QmomStatus::invalid_input);
+    assert(invalid_input.rates.empty());
 }
 
 void test_public_cqmom_continuous_rates_preserve_layout_and_status()
@@ -145,6 +151,15 @@ void test_public_cqmom_continuous_rates_preserve_layout_and_status()
     assert(velocity_failed.status == qmomkit::ContinuousMomentRateStatus::velocity_failed);
     assert(velocity_failed.inversion_status == qmomkit::CqmomStatus::success);
     assert(velocity_failed.message == "Phase-space velocity callback returned a non-finite value.");
+
+    qmomkit::CqmomLeanCase malformed_case = lean_case;
+    malformed_case.moments.values.pop_back();
+    const qmomkit::CqmomContinuousMomentRateResult invalid_input =
+        qmomkit::evaluate_cqmom_continuous_moment_rates(malformed_case, 0.0, zero_velocity);
+    assert(!invalid_input.ok());
+    assert(invalid_input.status == qmomkit::ContinuousMomentRateStatus::invalid_input);
+    assert(invalid_input.inversion_status == qmomkit::CqmomStatus::invalid_input);
+    assert(!invalid_input.rates.has_value());
 }
 
 void test_public_cqmom_continuous_rates_preserve_adaptive_layout()
@@ -186,6 +201,23 @@ void test_public_qmom_discontinuous_rates_and_status_mapping()
     assert(!invalid_rate.ok());
     assert(invalid_rate.status == qmomkit::DiscontinuousMomentRateStatus::invalid_rate);
     assert(invalid_rate.message == "Moment-source callback rate values must match the moment state size.");
+
+    const qmomkit::QmomDiscontinuousMomentRateResult non_finite_rate =
+        qmomkit::evaluate_qmom_discontinuous_moment_rates(0.0, moments,
+                                                          [](double, const std::vector<double>& state)
+                                                          {
+                                                              std::vector<double> rates(state.size(), 0.0);
+                                                              rates.back() = std::numeric_limits<double>::infinity();
+                                                              return rates;
+                                                          });
+    assert(!non_finite_rate.ok());
+    assert(non_finite_rate.status == qmomkit::DiscontinuousMomentRateStatus::invalid_rate);
+    assert(non_finite_rate.message == "Moment-source callback rate values must be finite.");
+
+    const qmomkit::QmomDiscontinuousMomentRateResult invalid_input = qmomkit::evaluate_qmom_discontinuous_moment_rates(0.0, {}, {});
+    assert(!invalid_input.ok());
+    assert(invalid_input.status == qmomkit::DiscontinuousMomentRateStatus::invalid_input);
+    assert(invalid_input.rates.empty());
 
     const qmomkit::QmomDiscontinuousMomentRateResult source_failed = qmomkit::evaluate_qmom_discontinuous_moment_rates(
         0.0, moments, [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("source failed"); });
@@ -234,6 +266,23 @@ void test_public_cqmom_discontinuous_rates_preserve_layout_and_status()
     assert(!invalid_rate.ok());
     assert(invalid_rate.status == qmomkit::DiscontinuousMomentRateStatus::invalid_rate);
     assert(!invalid_rate.rates.has_value());
+
+    const qmomkit::CqmomDiscontinuousMomentRateResult non_finite_rate =
+        qmomkit::evaluate_cqmom_discontinuous_moment_rates(0.0, moments,
+                                                           [](double, const qmomkit::CqmomSourceContext& context)
+                                                           {
+                                                               std::vector<double> rates(context.size(), 0.0);
+                                                               rates.front() = std::numeric_limits<double>::quiet_NaN();
+                                                               return qmomkit::CqmomMomentRate{rates};
+                                                           });
+    assert(!non_finite_rate.ok());
+    assert(non_finite_rate.status == qmomkit::DiscontinuousMomentRateStatus::invalid_rate);
+    assert(!non_finite_rate.rates.has_value());
+
+    const qmomkit::CqmomDiscontinuousMomentRateResult invalid_input = qmomkit::evaluate_cqmom_discontinuous_moment_rates(0.0, moments, {});
+    assert(!invalid_input.ok());
+    assert(invalid_input.status == qmomkit::DiscontinuousMomentRateStatus::invalid_input);
+    assert(!invalid_input.rates.has_value());
 
     const qmomkit::CqmomDiscontinuousMomentRateResult source_failed =
         qmomkit::evaluate_cqmom_discontinuous_moment_rates(0.0, moments, [](double, const qmomkit::CqmomSourceContext&) -> qmomkit::CqmomMomentRate

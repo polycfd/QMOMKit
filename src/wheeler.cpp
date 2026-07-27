@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <iomanip>
 #include <limits>
 #include <numeric>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -286,8 +288,10 @@ Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_
     {
         const double minimum_b = *std::min_element(coefficients.b.begin(), coefficients.b.end());
 
-        return one_node_result(moments, QuadratureStatus::not_realizable,
-                               "Moment sequence has negative recurrence b = " + std::to_string(minimum_b) + ".");
+        std::ostringstream message;
+        message << std::scientific << std::setprecision(17) << "Moment sequence has negative recurrence b = " << minimum_b << '.';
+
+        return one_node_result(moments, QuadratureStatus::not_realizable, message.str());
     }
 
     for (std::size_t n1 = n; n1 > 0; --n1)

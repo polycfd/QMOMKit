@@ -9,8 +9,10 @@
 
 #include <exception>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace qmomkit
@@ -37,6 +39,91 @@ namespace
     }
     return QmomStatus::invalid_input;
 }
+
+template <class... Ts> struct Overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+
+using CqmomCaseVariant = std::variant<CqmomDenseCase, CqmomLeanCase>;
+
+[[nodiscard]] const PhaseSpaceHierarchy& hierarchy(const CqmomCaseVariant& case_)
+{
+    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) -> const PhaseSpaceHierarchy& { return dense_case.hierarchy; },
+                                 [](const CqmomLeanCase& lean_case) -> const PhaseSpaceHierarchy& { return lean_case.moments.layout.hierarchy; }},
+                      case_);
+}
+
+[[nodiscard]] const QmomOptions& qmom_options(const CqmomCaseVariant& case_)
+{
+    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) -> const QmomOptions& { return dense_case.qmom_options; },
+                                 [](const CqmomLeanCase& lean_case) -> const QmomOptions& { return lean_case.qmom_options; }},
+                      case_);
+}
+
+[[nodiscard]] const ConditionalMomentOptions& conditional_options(const CqmomCaseVariant& case_)
+{
+    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) -> const ConditionalMomentOptions& { return dense_case.conditional_options; },
+                                 [](const CqmomLeanCase& lean_case) -> const ConditionalMomentOptions& { return lean_case.conditional_options; }},
+                      case_);
+}
+
+[[nodiscard]] bool adaptive_branch_counts(const CqmomCaseVariant& case_)
+{
+    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return dense_case.adaptive_branch_counts; },
+                                 [](const CqmomLeanCase& lean_case) { return lean_case.adaptive_branch_counts; }},
+                      case_);
+}
+
+[[nodiscard]] CqmomDiagnosticLevel diagnostic_level(const CqmomCaseVariant& case_)
+{
+    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return dense_case.diagnostic_level; },
+                                 [](const CqmomLeanCase& lean_case) { return lean_case.diagnostic_level; }},
+                      case_);
+}
+
+[[nodiscard]] VandermondeSolver vandermonde_solver(const CqmomCaseVariant& case_)
+{
+    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return dense_case.vandermonde_solver; },
+                                 [](const CqmomLeanCase& lean_case) { return lean_case.vandermonde_solver; }},
+                      case_);
+}
+
+[[nodiscard]] CqmomMomentStorage moment_storage(const CqmomCaseVariant& case_)
+{
+    return std::holds_alternative<CqmomDenseCase>(case_) ? CqmomMomentStorage::dense : CqmomMomentStorage::lean;
+}
+
+[[nodiscard]] std::string diagnostic_level_name(const CqmomDiagnosticLevel level)
+{
+    switch (level)
+    {
+    case CqmomDiagnosticLevel::none:
+        return "none";
+    case CqmomDiagnosticLevel::basic:
+        return "basic";
+    case CqmomDiagnosticLevel::detailed:
+        return "detailed";
+    }
+    return "unknown";
+}
+
+[[nodiscard]] std::string vandermonde_solver_name(const VandermondeSolver solver)
+{
+    switch (solver)
+    {
+    case VandermondeSolver::automatic:
+        return "automatic";
+    case VandermondeSolver::dense:
+        return "dense";
+    case VandermondeSolver::bjorck_pereyra:
+        return "bjorck_pereyra";
+    case VandermondeSolver::bjorck_pereyra_with_dense_fallback:
+        return "bjorck_pereyra_with_dense_fallback";
+    }
+    return "unknown";
+}
 } // namespace
 
 QmomResult compute_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options)
@@ -53,14 +140,38 @@ QmomResult compute_qmom(const QmomCase& case_)
 
 struct CqmomCase::Data
 {
-    CqmomLeanCase lean_case;
+    CqmomCaseVariant case_;
 };
 
 struct CqmomState::Data
 {
-    CqmomLeanCase lean_case;
+    CqmomCaseVariant case_;
     std::vector<CqmomActiveBranchCount> active_branch_counts;
 };
+
+std::string to_string(const CqmomMomentStorage storage)
+{
+    switch (storage)
+    {
+    case CqmomMomentStorage::lean:
+        return "lean";
+    case CqmomMomentStorage::dense:
+        return "dense";
+    }
+    return "unknown";
+}
+
+std::string format_cqmom_settings(const CqmomMomentStorage storage, const bool adaptive_branch_counts, const VandermondeSolver vandermonde_solver,
+                                  const CqmomDiagnosticLevel diagnostic_level)
+{
+    std::ostringstream output;
+    output << "CQMOM settings:\n"
+           << "  moment storage = " << to_string(storage) << '\n'
+           << "  adaptive branch counts = " << (adaptive_branch_counts ? "enabled" : "disabled") << '\n'
+           << "  Vandermonde solver = " << vandermonde_solver_name(vandermonde_solver) << '\n'
+           << "  diagnostic level = " << diagnostic_level_name(diagnostic_level) << '\n';
+    return output.str();
+}
 
 CqmomCase::CqmomCase(std::unique_ptr<Data> data) : data_(std::move(data)) {}
 
@@ -83,47 +194,60 @@ CqmomCase::~CqmomCase() = default;
 
 const PhaseSpaceHierarchy& CqmomCase::hierarchy() const noexcept
 {
-    return data_->lean_case.moments.layout.hierarchy;
+    return qmomkit::hierarchy(data_->case_);
 }
 
 const QmomOptions& CqmomCase::qmom_options() const noexcept
 {
-    return data_->lean_case.qmom_options;
+    return qmomkit::qmom_options(data_->case_);
 }
 
 const ConditionalMomentOptions& CqmomCase::conditional_options() const noexcept
 {
-    return data_->lean_case.conditional_options;
+    return qmomkit::conditional_options(data_->case_);
 }
 
 bool CqmomCase::adaptive_branch_counts() const noexcept
 {
-    return data_->lean_case.adaptive_branch_counts;
+    return qmomkit::adaptive_branch_counts(data_->case_);
 }
 
 CqmomDiagnosticLevel CqmomCase::diagnostic_level() const noexcept
 {
-    return data_->lean_case.diagnostic_level;
+    return qmomkit::diagnostic_level(data_->case_);
 }
 
 VandermondeSolver CqmomCase::vandermonde_solver() const noexcept
 {
-    return data_->lean_case.vandermonde_solver;
+    return qmomkit::vandermonde_solver(data_->case_);
+}
+
+CqmomMomentStorage CqmomCase::moment_storage() const noexcept
+{
+    return qmomkit::moment_storage(data_->case_);
 }
 
 CqmomState CqmomCase::initial_state() const
 {
-    if (!data_->lean_case.adaptive_branch_counts)
+    if (!adaptive_branch_counts())
     {
-        return internal::create_cqmom_state(data_->lean_case);
+        return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return internal::create_cqmom_state(dense_case); },
+                                     [](const CqmomLeanCase& lean_case) { return internal::create_cqmom_state(lean_case); }},
+                          data_->case_);
     }
 
-    const CqmomResult seeded = internal::compute_trusted_cqmom(data_->lean_case);
+    const CqmomResult seeded = std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return internal::compute_trusted_cqmom(dense_case); },
+                                                     [](const CqmomLeanCase& lean_case) { return internal::compute_trusted_cqmom(lean_case); }},
+                                          data_->case_);
     if (!seeded.ok())
     {
         throw std::runtime_error("CQMOM initial state active-count seeding failed: " + seeded.message);
     }
-    return internal::create_cqmom_state(data_->lean_case, internal::active_branch_counts_from_quadrature(seeded.quadrature));
+    std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(seeded.quadrature);
+    return std::visit(Overloaded{[&active_counts](const CqmomDenseCase& dense_case)
+                                 { return internal::create_cqmom_state(dense_case, active_counts); },
+                                 [&active_counts](const CqmomLeanCase& lean_case) { return internal::create_cqmom_state(lean_case, active_counts); }},
+                      data_->case_);
 }
 
 CqmomState::CqmomState(std::unique_ptr<Data> data) : data_(std::move(data)) {}
@@ -147,32 +271,37 @@ CqmomState::~CqmomState() = default;
 
 const PhaseSpaceHierarchy& CqmomState::hierarchy() const noexcept
 {
-    return data_->lean_case.moments.layout.hierarchy;
+    return qmomkit::hierarchy(data_->case_);
 }
 
 const QmomOptions& CqmomState::qmom_options() const noexcept
 {
-    return data_->lean_case.qmom_options;
+    return qmomkit::qmom_options(data_->case_);
 }
 
 const ConditionalMomentOptions& CqmomState::conditional_options() const noexcept
 {
-    return data_->lean_case.conditional_options;
+    return qmomkit::conditional_options(data_->case_);
 }
 
 bool CqmomState::adaptive_branch_counts() const noexcept
 {
-    return data_->lean_case.adaptive_branch_counts;
+    return qmomkit::adaptive_branch_counts(data_->case_);
 }
 
 CqmomDiagnosticLevel CqmomState::diagnostic_level() const noexcept
 {
-    return data_->lean_case.diagnostic_level;
+    return qmomkit::diagnostic_level(data_->case_);
 }
 
 VandermondeSolver CqmomState::vandermonde_solver() const noexcept
 {
-    return data_->lean_case.vandermonde_solver;
+    return qmomkit::vandermonde_solver(data_->case_);
+}
+
+CqmomMomentStorage CqmomState::moment_storage() const noexcept
+{
+    return qmomkit::moment_storage(data_->case_);
 }
 
 const std::vector<CqmomActiveBranchCount>& CqmomState::active_branch_counts() const noexcept
@@ -180,11 +309,68 @@ const std::vector<CqmomActiveBranchCount>& CqmomState::active_branch_counts() co
     return data_->active_branch_counts;
 }
 
+std::vector<MultiIndex> CqmomState::moment_indices() const
+{
+    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return enumerate_multi_indices(dense_case.moments.extents); },
+                                 [](const CqmomLeanCase& lean_case) { return lean_case.moments.layout.required_indices; }},
+                      data_->case_);
+}
+
+const std::vector<double>& CqmomState::moment_values() const noexcept
+{
+    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) -> const std::vector<double>& { return dense_case.moments.values; },
+                                 [](const CqmomLeanCase& lean_case) -> const std::vector<double>& { return lean_case.moments.values; }},
+                      data_->case_);
+}
+
+std::optional<double> CqmomState::moment(const MultiIndex& index) const
+{
+    return std::visit(Overloaded{[&index](const CqmomDenseCase& dense_case) -> std::optional<double>
+                                 {
+                                     if (index.size() != dense_case.moments.extents.size())
+                                     {
+                                         return std::nullopt;
+                                     }
+                                     for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
+                                     {
+                                         if (index[dimension] >= dense_case.moments.extents[dimension])
+                                         {
+                                             return std::nullopt;
+                                         }
+                                     }
+                                     return dense_case.moments.values[flatten_multi_index(index, dense_case.moments.extents)];
+                                 },
+                                 [&index](const CqmomLeanCase& lean_case) -> std::optional<double>
+                                 {
+                                     if (!lean_case.moments.contains_required_index(index))
+                                     {
+                                         return std::nullopt;
+                                     }
+                                     return lean_case.moments.moment(index);
+                                 }},
+                      data_->case_);
+}
+
 namespace internal
 {
+CqmomCase CqmomConstructionAccess::create_case(CqmomDenseCase dense_case)
+{
+    return CqmomCase(std::make_unique<CqmomCase::Data>(CqmomCase::Data{std::move(dense_case)}));
+}
+
 CqmomCase CqmomConstructionAccess::create_case(CqmomLeanCase lean_case)
 {
     return CqmomCase(std::make_unique<CqmomCase::Data>(CqmomCase::Data{std::move(lean_case)}));
+}
+
+CqmomState CqmomConstructionAccess::create_state(CqmomDenseCase dense_case)
+{
+    return CqmomState(std::make_unique<CqmomState::Data>(CqmomState::Data{std::move(dense_case), {}}));
+}
+
+CqmomState CqmomConstructionAccess::create_state(CqmomDenseCase dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts)
+{
+    return CqmomState(std::make_unique<CqmomState::Data>(CqmomState::Data{std::move(dense_case), std::move(active_branch_counts)}));
 }
 
 CqmomState CqmomConstructionAccess::create_state(CqmomLeanCase lean_case)
@@ -199,7 +385,17 @@ CqmomState CqmomConstructionAccess::create_state(CqmomLeanCase lean_case, std::v
 
 const CqmomLeanCase& CqmomConstructionAccess::state_case(const CqmomState& state)
 {
-    return state.data_->lean_case;
+    return std::get<CqmomLeanCase>(state.data_->case_);
+}
+
+const CqmomDenseCase* CqmomConstructionAccess::state_dense_case(const CqmomState& state)
+{
+    return std::get_if<CqmomDenseCase>(&state.data_->case_);
+}
+
+const CqmomLeanCase* CqmomConstructionAccess::state_lean_case(const CqmomState& state)
+{
+    return std::get_if<CqmomLeanCase>(&state.data_->case_);
 }
 
 const std::vector<CqmomActiveBranchCount>& CqmomConstructionAccess::state_active_branch_counts(const CqmomState& state)
@@ -220,6 +416,21 @@ CqmomCase create_cqmom_case(CqmomLeanCase lean_case)
     return CqmomConstructionAccess::create_case(std::move(lean_case));
 }
 
+CqmomCase create_cqmom_case(CqmomDenseCase dense_case)
+{
+    return CqmomConstructionAccess::create_case(std::move(dense_case));
+}
+
+CqmomState create_cqmom_state(CqmomDenseCase dense_case)
+{
+    return CqmomConstructionAccess::create_state(std::move(dense_case));
+}
+
+CqmomState create_cqmom_state(CqmomDenseCase dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts)
+{
+    return CqmomConstructionAccess::create_state(std::move(dense_case), std::move(active_branch_counts));
+}
+
 CqmomState create_cqmom_state(CqmomLeanCase lean_case)
 {
     return CqmomConstructionAccess::create_state(std::move(lean_case));
@@ -233,6 +444,16 @@ CqmomState create_cqmom_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBr
 const CqmomLeanCase& cqmom_state_case(const CqmomState& state)
 {
     return CqmomConstructionAccess::state_case(state);
+}
+
+const CqmomDenseCase* cqmom_state_dense_case(const CqmomState& state)
+{
+    return CqmomConstructionAccess::state_dense_case(state);
+}
+
+const CqmomLeanCase* cqmom_state_lean_case(const CqmomState& state)
+{
+    return CqmomConstructionAccess::state_lean_case(state);
 }
 
 const std::vector<CqmomActiveBranchCount>& cqmom_state_active_branch_counts(const CqmomState& state)
@@ -491,7 +712,9 @@ CqmomResult compute_trusted_cqmom(const CqmomLeanCase& lean_case, std::vector<Cq
 
 CqmomResult compute_cqmom(const CqmomCase& case_)
 {
-    return internal::compute_trusted_cqmom(case_.data_->lean_case);
+    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return internal::compute_trusted_cqmom(dense_case); },
+                                 [](const CqmomLeanCase& lean_case) { return internal::compute_trusted_cqmom(lean_case); }},
+                      case_.data_->case_);
 }
 
 } // namespace qmomkit

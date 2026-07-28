@@ -845,6 +845,19 @@ void test_cqmom_none_diagnostics_preserves_failure_context()
     assert(!result.diagnostics.front().message.empty());
 }
 
+void test_cqmom_storage_settings_format()
+{
+    assert(qmomkit::to_string(qmomkit::CqmomMomentStorage::lean) == "lean");
+    assert(qmomkit::to_string(qmomkit::CqmomMomentStorage::dense) == "dense");
+
+    const std::string formatted = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::dense, true, qmomkit::VandermondeSolver::dense,
+                                                                 qmomkit::CqmomDiagnosticLevel::detailed);
+    assert(formatted.find("moment storage = dense") != std::string::npos);
+    assert(formatted.find("adaptive branch counts = enabled") != std::string::npos);
+    assert(formatted.find("Vandermonde solver = dense") != std::string::npos);
+    assert(formatted.find("diagnostic level = detailed") != std::string::npos);
+}
+
 } // namespace
 
 int main()
@@ -883,5 +896,6 @@ int main()
     test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts();
     test_cqmom_diagnostic_levels_control_expensive_diagnostics();
     test_cqmom_none_diagnostics_preserves_failure_context();
+    test_cqmom_storage_settings_format();
     return 0;
 }

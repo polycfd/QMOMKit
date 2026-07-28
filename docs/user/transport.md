@@ -342,9 +342,16 @@ configured hierarchy.
 
 Use:
 
+- `context.time()` for the current SSP-RK source-stage time;
 - `context.size()` for the number of moment entries that need derivatives;
+- `context.moment_count()` as a synonym for that source moment count;
+- `context.dimension_count()` for the hierarchy dimension count;
+- `context.indices()` and `context.values()` for the context-ordered
+  multi-index and value arrays;
 - `context.index(i)` for the `MultiIndex` of entry `i`;
 - `context.value(i)` for the current raw moment value of entry `i`;
+- `context.position(alpha)` or `context.value(alpha)` when a source term needs
+  a particular retained moment by multi-index;
 - `context.hierarchy()` for the CQMOM hierarchy associated with the state.
 
 The returned source values correspond to the context ordering. For entry `i`,
@@ -529,7 +536,7 @@ if (!initial_quadrature.ok())
 
 qmomkit::CqmomState state = cqmom_case.initial_state();
 
-qmomkit::CqmomStateTransportOptions options;
+qmomkit::CqmomTransportOptions options;
 options.scheme = qmomkit::TransportScheme::strang;
 
 const qmomkit::CqmomMomentSource cqmom_source =
@@ -539,7 +546,7 @@ const qmomkit::CqmomMomentSource cqmom_source =
             std::vector<double>(context.size(), 0.0)};
     };
 
-const qmomkit::CqmomStateTransportResult result =
+const qmomkit::CqmomTransportResult result =
     qmomkit::advance_transport_cqmom(
         state, time, time_step, velocity, cqmom_source, options);
 
@@ -565,7 +572,7 @@ const qmomkit::CqmomMomentBoundaryContribution cqmom_boundary =
         return qmomkit::CqmomMomentRate{rate};
     };
 
-const qmomkit::CqmomStateTransportResult result_with_boundary =
+const qmomkit::CqmomTransportResult result_with_boundary =
     qmomkit::advance_transport_cqmom(
         state, time, time_step, velocity, cqmom_source, cqmom_boundary, options);
 ```
@@ -580,7 +587,7 @@ active counts associated with its ragged quadrature. Continuous node advection
 preserves those active counts.
 
 Source stages choose whether the active counts can grow. The default
-`CqmomStateTransportOptions::source_node_count_evolution` is
+`CqmomTransportOptions::source_node_count_evolution` is
 `allow_growth_to_configured_maximum`, which is appropriate for general
 sources such as breakage that may create additional structure. For zero/no-op
 sources or source models known not to increase rank, set it to
@@ -598,45 +605,22 @@ The accepted values are `preserve_active_counts` and
 `allow_growth_to_configured_maximum`. Adaptive `CqmomState` construction seeds
 active counts from the initial CQMOM inversion; if that inversion fails, state
 construction fails instead of creating a state with inconsistent adaptive
-metadata. Failed state transport returns the previous state metadata so callers
-can retry from the last accepted step.
+metadata. Failed CQMOM transport through `CqmomState` returns the previous state
+metadata so callers can retry from the last accepted step.
 
-Explicit dense and lean CQMOM transport use the same `CqmomTransportOptions`
-policy surface through `CqmomDenseTransportOptions` and
-`CqmomLeanTransportOptions`:
+`CqmomTransportOptions` contains only transport-stage policies: node advection,
+source integration, source node-count evolution, and the C/D sequencing scheme.
+CQMOM inversion policies such as Wheeler options, adaptive branch counts,
+diagnostic level, and Vandermonde solver belong to `CqmomCase` and are preserved
+by `CqmomState`. Successful CQMOM transport through `CqmomState` persists active
+adaptive topology for the next call. Explicit dense and lean case types remain
+available for static inversion, but CQMOM transport uses the storage-independent
+`CqmomState` API.
 
-```cpp
-const auto configure_cqmom_transport = [&](auto& options)
-{
-    options.qmom_options = qmom_options;
-    options.conditional_options = conditional_options;
-    options.node_options = node_options;
-    options.source_options = source_options;
-    options.adaptive_branch_counts = true;
-    options.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
-    options.vandermonde_solver = qmomkit::VandermondeSolver::automatic;
-    options.source_node_count_evolution =
-        qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    options.scheme = qmomkit::TransportScheme::strang;
-};
-
-qmomkit::CqmomDenseTransportOptions dense_options;
-qmomkit::CqmomLeanTransportOptions lean_options;
-configure_cqmom_transport(dense_options);
-configure_cqmom_transport(lean_options);
-```
-
-The explicit dense result returns a dense tensor, while the explicit lean result
-returns required CQMOM moment data, so active adaptive topology is not persisted
-between separate calls in either explicit workflow. Within one macro step,
-`source_node_count_evolution` controls post-source inversion for both explicit
-workflows. Use `CqmomState` transport when adaptive branch counts must persist
-across calls.
-
-The dense explicit source callback is still `MomentSource` over the dense raw
-moment vector. The lean and state callbacks are `CqmomMomentSource` over the
-required CQMOM moment layout. They can represent equivalent physics, but the
-callback type is not unified yet.
+For storage-independent CQMOM physics, use `CqmomMomentSource` and
+`CqmomMomentBoundaryContribution`. `CqmomSourceContext` exposes the CQMOM moment
+layout selected for transport, with the same indices, values, ordering, hierarchy,
+and lookup behavior for `CqmomState` with dense or lean moment storage.
 
 `result.ok()` identifies whether returned moments or quadrature describe an
 accepted transport step. On failure, `result.message` and `result.diagnostics`
@@ -713,7 +697,7 @@ interval = 0.1
 Configuration files do not define the velocity callback, source callback,
 boundary contribution callback, or outer time loop. Those remain application
 code. Drivers can read the scheme with the public configuration API and assign
-it to `QmomTransportOptions` or `CqmomStateTransportOptions`. See
+it to `QmomTransportOptions` or `CqmomTransportOptions`. See
 `configuration.md` for the configuration syntax and the example files under:
 
 ```text

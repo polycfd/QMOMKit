@@ -185,11 +185,174 @@ qmomkit::NodeAdvectionOptions tight_node_options()
     return options;
 }
 
-qmomkit::CqmomLeanTransportState lean_state_from_dense(const qmomkit::RawMomentTensor& moments, const qmomkit::PhaseSpaceHierarchy& hierarchy)
+} // namespace
+
+namespace qmomkit
+{
+
+struct TestLeanCqmomTransportState
+{
+    CqmomMomentData moments;
+};
+
+} // namespace qmomkit
+
+qmomkit::TestLeanCqmomTransportState lean_state_from_dense(const qmomkit::RawMomentTensor& moments, const qmomkit::PhaseSpaceHierarchy& hierarchy)
 {
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    return qmomkit::CqmomLeanTransportState{qmomkit::extract_cqmom_moments(moments, layout)};
+    return qmomkit::TestLeanCqmomTransportState{qmomkit::extract_cqmom_moments(moments, layout)};
 }
+
+namespace qmomkit
+{
+
+struct TestDenseCqmomTransportOptions : CqmomTransportOptions
+{
+    ConditionalMomentOptions conditional_options;
+    QmomOptions qmom_options;
+    bool adaptive_branch_counts = false;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
+};
+
+struct TestLeanCqmomTransportOptions : CqmomTransportOptions
+{
+    ConditionalMomentOptions conditional_options;
+    QmomOptions qmom_options;
+    bool adaptive_branch_counts = false;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
+};
+
+struct TestDenseCqmomTransportResult
+{
+    RawMomentTensor moments;
+    std::optional<CqmomQuadrature> quadrature;
+    TransportStatus status = TransportStatus::success;
+    TransportDiagnostics diagnostics;
+    double final_time = 0.0;
+    std::string message;
+
+    [[nodiscard]] bool ok() const noexcept
+    {
+        return status == TransportStatus::success;
+    }
+};
+
+struct TestLeanCqmomTransportResult
+{
+    TestLeanCqmomTransportState state;
+    std::optional<CqmomQuadrature> quadrature;
+    TransportStatus status = TransportStatus::success;
+    TransportDiagnostics diagnostics;
+    double final_time = 0.0;
+    std::string message;
+
+    [[nodiscard]] bool ok() const noexcept
+    {
+        return status == TransportStatus::success;
+    }
+};
+
+RawMomentTensor dense_moments_from_state(const CqmomState& state, const std::vector<std::size_t>& extents)
+{
+    return RawMomentTensor{extents, state.moment_values()};
+}
+
+TestDenseCqmomTransportResult advance_transport_cqmom(const RawMomentTensor& moments, const PhaseSpaceHierarchy& hierarchy, const double t,
+                                                      const double time_step, const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                      const TestDenseCqmomTransportOptions& options)
+{
+    CqmomDenseCase dense_case{hierarchy,
+                              moments,
+                              options.conditional_options,
+                              options.qmom_options,
+                              options.adaptive_branch_counts,
+                              options.diagnostic_level,
+                              options.vandermonde_solver};
+    CqmomState state = internal::create_cqmom_state(dense_case);
+    const CqmomTransportResult result =
+        advance_transport_cqmom(state, t, time_step, velocity, source, static_cast<const CqmomTransportOptions&>(options));
+    const CqmomState& result_state = result.ok() ? result.state : state;
+    return TestDenseCqmomTransportResult{dense_moments_from_state(result_state, moments.extents),
+                                         result.quadrature,
+                                         result.status,
+                                         result.diagnostics,
+                                         result.final_time,
+                                         result.message};
+}
+
+TestDenseCqmomTransportResult advance_transport_cqmom(const RawMomentTensor& moments, const PhaseSpaceHierarchy& hierarchy, const double t,
+                                                      const double time_step, const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                      const CqmomMomentBoundaryContribution& boundary, const TestDenseCqmomTransportOptions& options)
+{
+    CqmomDenseCase dense_case{hierarchy,
+                              moments,
+                              options.conditional_options,
+                              options.qmom_options,
+                              options.adaptive_branch_counts,
+                              options.diagnostic_level,
+                              options.vandermonde_solver};
+    CqmomState state = internal::create_cqmom_state(dense_case);
+    const CqmomTransportResult result =
+        advance_transport_cqmom(state, t, time_step, velocity, source, boundary, static_cast<const CqmomTransportOptions&>(options));
+    const CqmomState& result_state = result.ok() ? result.state : state;
+    return TestDenseCqmomTransportResult{dense_moments_from_state(result_state, moments.extents),
+                                         result.quadrature,
+                                         result.status,
+                                         result.diagnostics,
+                                         result.final_time,
+                                         result.message};
+}
+
+TestLeanCqmomTransportResult advance_transport_cqmom(const TestLeanCqmomTransportState& lean_state, const double t, const double time_step,
+                                                     const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                     const TestLeanCqmomTransportOptions& options = {})
+{
+    CqmomLeanCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
+                            options.diagnostic_level, options.vandermonde_solver};
+    CqmomState state = internal::create_cqmom_state(lean_case);
+    const CqmomTransportResult result =
+        advance_transport_cqmom(state, t, time_step, velocity, source, static_cast<const CqmomTransportOptions&>(options));
+    const CqmomState& result_state = result.ok() ? result.state : state;
+    return TestLeanCqmomTransportResult{TestLeanCqmomTransportState{CqmomMomentData{lean_state.moments.layout, result_state.moment_values()}},
+                                        result.quadrature,
+                                        result.status,
+                                        result.diagnostics,
+                                        result.final_time,
+                                        result.message};
+}
+
+TestLeanCqmomTransportResult advance_transport_cqmom(const TestLeanCqmomTransportState& lean_state, const double t, const double time_step,
+                                                     const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                     const CqmomMomentBoundaryContribution& boundary, const TestLeanCqmomTransportOptions& options)
+{
+    CqmomLeanCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
+                            options.diagnostic_level, options.vandermonde_solver};
+    CqmomState state = internal::create_cqmom_state(lean_case);
+    const CqmomTransportResult result =
+        advance_transport_cqmom(state, t, time_step, velocity, source, boundary, static_cast<const CqmomTransportOptions&>(options));
+    const CqmomState& result_state = result.ok() ? result.state : state;
+    return TestLeanCqmomTransportResult{TestLeanCqmomTransportState{CqmomMomentData{lean_state.moments.layout, result_state.moment_values()}},
+                                        result.quadrature,
+                                        result.status,
+                                        result.diagnostics,
+                                        result.final_time,
+                                        result.message};
+}
+
+TestLeanCqmomTransportResult advance_transport_cqmom(const TestLeanCqmomTransportState& lean_state, const double t, const double time_step,
+                                                     const PhaseSpaceVelocity& velocity, const TestLeanCqmomTransportOptions& options = {})
+{
+    const CqmomMomentSource zero_source = [](double, const CqmomSourceContext& context)
+    { return CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+    return advance_transport_cqmom(lean_state, t, time_step, velocity, zero_source, options);
+}
+
+} // namespace qmomkit
+
+namespace
+{
 
 qmomkit::CqmomCase fixed_cqmom_case()
 {
@@ -205,6 +368,17 @@ qmomkit::CqmomCase fixed_cqmom_case_with_vandermonde_solver(const char* const so
     text += solver;
     text += "\n";
     const auto parsed = qmomkit::config::parse_cqmom(text, "fixed-cqmom-case-with-vandermonde-solver");
+    assert(parsed.ok());
+    return *parsed.value;
+}
+
+qmomkit::CqmomCase fixed_cqmom_case_with_storage(const char* const storage)
+{
+    std::string text = fixed_cqmom_case_text;
+    text += "\n[cqmom]\nmoment_storage = ";
+    text += storage;
+    text += "\n";
+    const auto parsed = qmomkit::config::parse_cqmom(text, "fixed-cqmom-case-with-storage");
     assert(parsed.ok());
     return *parsed.value;
 }
@@ -296,12 +470,37 @@ qmomkit::CqmomCase adaptive_cqmom_case_from_moments(const qmomkit::RawMomentTens
     return *parsed.value;
 }
 
+qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_storage(const qmomkit::RawMomentTensor& moments, const char* const storage)
+{
+    std::string text = cqmom_case_text_from_moments(moments, true, true);
+    text += "\n[cqmom]\nmoment_storage = ";
+    text += storage;
+    text += "\n";
+    const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case-from-moments-with-storage");
+    assert(parsed.ok());
+    return *parsed.value;
+}
+
 qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_hierarchy(const qmomkit::RawMomentTensor& moments,
                                                                    const std::vector<std::size_t>& node_counts,
                                                                    const std::vector<std::size_t>& conditioning_order)
 {
     const std::string text = cqmom_case_text_from_moments_with_hierarchy(moments, node_counts, conditioning_order, true, true);
     const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case-from-moments-with-hierarchy");
+    assert(parsed.ok());
+    return *parsed.value;
+}
+
+qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_hierarchy_and_storage(const qmomkit::RawMomentTensor& moments,
+                                                                               const std::vector<std::size_t>& node_counts,
+                                                                               const std::vector<std::size_t>& conditioning_order,
+                                                                               const char* const storage)
+{
+    std::string text = cqmom_case_text_from_moments_with_hierarchy(moments, node_counts, conditioning_order, true, true);
+    text += "\n[cqmom]\nmoment_storage = ";
+    text += storage;
+    text += "\n";
+    const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case-from-moments-with-hierarchy-and-storage");
     assert(parsed.ok());
     return *parsed.value;
 }
@@ -387,6 +586,69 @@ bool active_counts_equal(const std::vector<qmomkit::CqmomActiveBranchCount>& lhs
     return true;
 }
 
+void assert_transition_diagnostics_equal(const std::vector<qmomkit::CqmomNodeCountTransition>& lhs,
+                                         const std::vector<qmomkit::CqmomNodeCountTransition>& rhs)
+{
+    assert(lhs.size() == rhs.size());
+    for (std::size_t i = 0; i < lhs.size(); ++i)
+    {
+        assert(lhs[i].stage == rhs[i].stage);
+        assert(lhs[i].conditioning_level == rhs[i].conditioning_level);
+        assert(lhs[i].parent_path == rhs[i].parent_path);
+        assert(lhs[i].phase_space_dimension == rhs[i].phase_space_dimension);
+        assert(lhs[i].configured_maximum_node_count == rhs[i].configured_maximum_node_count);
+        assert(lhs[i].active_node_count_before == rhs[i].active_node_count_before);
+        assert(lhs[i].active_node_count_after == rhs[i].active_node_count_after);
+        assert(lhs[i].node_count_evolution == rhs[i].node_count_evolution);
+        assert(lhs[i].kind == rhs[i].kind);
+        assert(lhs[i].rank_reduced == rhs[i].rank_reduced);
+        assert(lhs[i].rank_grew == rhs[i].rank_grew);
+    }
+}
+
+void assert_common_state_moments_near(const qmomkit::CqmomState& dense_state, const qmomkit::CqmomState& lean_state, const double tolerance)
+{
+    assert(dense_state.moment_storage() == qmomkit::CqmomMomentStorage::dense);
+    assert(lean_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense_state.hierarchy());
+    const qmomkit::RawMomentTensor dense_moments{dense_state.hierarchy().moment_extents(), dense_state.moment_values()};
+    const qmomkit::CqmomMomentData dense_required = qmomkit::extract_cqmom_moments(dense_moments, layout);
+    assert_vector_near(dense_required.values, lean_state.moment_values(), tolerance);
+}
+
+bool layout_contains_index(const qmomkit::CqmomMomentLayout& layout, const qmomkit::MultiIndex& index)
+{
+    return std::find(layout.required_indices.begin(), layout.required_indices.end(), index) != layout.required_indices.end();
+}
+
+void assert_dense_state_matches_reconstructed_quadrature(const qmomkit::CqmomTransportResult& result, const std::vector<std::size_t>& extents,
+                                                         const double tolerance)
+{
+    assert(result.ok());
+    assert(result.state.moment_storage() == qmomkit::CqmomMomentStorage::dense);
+    assert(result.quadrature.has_value());
+    const qmomkit::RawMomentTensor stored{extents, result.state.moment_values()};
+    const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result.quadrature, extents);
+    assert_vector_near(stored.values, reconstructed.values, tolerance);
+}
+
+bool dense_only_moment_changed(const qmomkit::RawMomentTensor& before, const qmomkit::CqmomState& after,
+                               const qmomkit::PhaseSpaceHierarchy& hierarchy, const double tolerance)
+{
+    assert(after.moment_storage() == qmomkit::CqmomMomentStorage::dense);
+    assert(before.values.size() == after.moment_values().size());
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    for (std::size_t flat = 0; flat < before.values.size(); ++flat)
+    {
+        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, before.extents);
+        if (!layout_contains_index(layout, index) && std::abs(before.values[flat] - after.moment_values()[flat]) > tolerance)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 qmomkit::CqmomMomentSource source_from_to(const qmomkit::CqmomMomentData& initial, const qmomkit::CqmomMomentData& target)
 {
     return [initial, target](double, const qmomkit::CqmomSourceContext& moments)
@@ -401,18 +663,70 @@ qmomkit::CqmomMomentSource source_from_to(const qmomkit::CqmomMomentData& initia
     };
 }
 
-qmomkit::MomentSource dense_source_from_to(const qmomkit::RawMomentTensor& initial, const qmomkit::RawMomentTensor& target)
+qmomkit::CqmomMomentSource dense_source_from_to(const qmomkit::RawMomentTensor& initial, const qmomkit::RawMomentTensor& target)
 {
-    return [initial, target](double, const std::vector<double>& moments)
+    return [initial, target](double, const qmomkit::CqmomSourceContext& moments)
     {
-        assert(moments.size() == target.values.size());
         std::vector<double> rate(moments.size(), 0.0);
         for (std::size_t i = 0; i < rate.size(); ++i)
         {
-            rate[i] = target.values[i] - initial.values[i];
+            const std::size_t flat = qmomkit::flatten_multi_index(moments.index(i), target.extents);
+            rate[i] = target.values[flat] - initial.values[flat];
         }
-        return rate;
+        return qmomkit::CqmomMomentRate{rate};
     };
+}
+
+struct SourceContextSnapshot
+{
+    bool captured = false;
+    double time = 0.0;
+    std::size_t dimension_count = 0;
+    std::vector<std::size_t> node_counts;
+    std::vector<std::size_t> conditioning_order;
+    std::vector<qmomkit::MultiIndex> indices;
+    std::vector<double> values;
+    std::vector<double> lookup_values;
+    std::optional<double> m0;
+};
+
+void capture_source_context_once(SourceContextSnapshot& snapshot, const qmomkit::CqmomSourceContext& context)
+{
+    if (snapshot.captured)
+    {
+        return;
+    }
+    snapshot.captured = true;
+    snapshot.time = context.time();
+    snapshot.dimension_count = context.dimension_count();
+    snapshot.node_counts = context.hierarchy().node_counts();
+    snapshot.conditioning_order = context.hierarchy().conditioning_order();
+    snapshot.indices = context.indices();
+    snapshot.values = context.values();
+    snapshot.lookup_values.reserve(context.size());
+    for (const qmomkit::MultiIndex& index : context.indices())
+    {
+        const std::optional<double> value = context.value(index);
+        assert(value.has_value());
+        snapshot.lookup_values.push_back(*value);
+    }
+    snapshot.m0 = context.value(qmomkit::MultiIndex(context.dimension_count(), 0));
+}
+
+void assert_source_context_snapshots_near(const SourceContextSnapshot& dense, const SourceContextSnapshot& lean, const double tolerance)
+{
+    assert(dense.captured);
+    assert(lean.captured);
+    assert(dense.time == lean.time);
+    assert(dense.dimension_count == lean.dimension_count);
+    assert(dense.node_counts == lean.node_counts);
+    assert(dense.conditioning_order == lean.conditioning_order);
+    assert(dense.indices == lean.indices);
+    assert(dense.m0.has_value());
+    assert(lean.m0.has_value());
+    assert_vector_near(dense.values, lean.values, tolerance);
+    assert_vector_near(dense.lookup_values, lean.lookup_values, tolerance);
+    assert_near(*dense.m0, *lean.m0, tolerance);
 }
 
 bool diagnostics_request_solver(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics, const std::size_t dimensions,
@@ -438,23 +752,14 @@ void compare_lean_transport_to_dense_layout_closed_source(const qmomkit::Transpo
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
-    const qmomkit::CqmomLeanTransportState state = lean_state_from_dense(moments, hierarchy);
+    const qmomkit::TestLeanCqmomTransportState state = lean_state_from_dense(moments, hierarchy);
     const auto velocity = [](double, const std::vector<double>& xi)
     {
         assert(xi.size() == 2);
         return std::vector<double>{0.2 * xi[0] + 0.1, -0.15 * xi[1] + 0.05};
     };
     constexpr double lambda = -0.35;
-    const auto dense_source = [lambda](double, const std::vector<double>& state_values)
-    {
-        std::vector<double> rate(state_values.size(), 0.0);
-        for (std::size_t i = 0; i < state_values.size(); ++i)
-        {
-            rate[i] = lambda * state_values[i];
-        }
-        return rate;
-    };
-    const auto lean_source = [lambda](double, const qmomkit::CqmomSourceContext& state_values)
+    const qmomkit::CqmomMomentSource source = [lambda](double, const qmomkit::CqmomSourceContext& state_values)
     {
         std::vector<double> rate(state_values.size(), 0.0);
         for (std::size_t i = 0; i < state_values.size(); ++i)
@@ -464,16 +769,16 @@ void compare_lean_transport_to_dense_layout_closed_source(const qmomkit::Transpo
         return qmomkit::CqmomMomentRate{rate};
     };
 
-    qmomkit::CqmomDenseTransportOptions dense_options;
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.node_options = tight_node_options();
     dense_options.scheme = scheme;
-    const qmomkit::CqmomDenseTransportResult dense =
-        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.2, velocity, dense_source, dense_options);
+    const qmomkit::TestDenseCqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.2, velocity, source, dense_options);
 
-    qmomkit::CqmomLeanTransportOptions lean_options;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.node_options = tight_node_options();
     lean_options.scheme = scheme;
-    const qmomkit::CqmomLeanTransportResult lean = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, lean_source, lean_options);
+    const qmomkit::TestLeanCqmomTransportResult lean = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, source, lean_options);
 
     assert(dense.ok());
     assert(lean.ok());
@@ -489,13 +794,12 @@ void test_explicit_dense_and_lean_adaptive_options_are_equivalent()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = adaptive_cqmom_moments();
-    const qmomkit::CqmomLeanTransportState lean_state = lean_state_from_dense(moments, hierarchy);
+    const qmomkit::TestLeanCqmomTransportState lean_state = lean_state_from_dense(moments, hierarchy);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
-    const auto dense_zero_source = [](double, const std::vector<double>& values) { return std::vector<double>(values.size(), 0.0); };
-    const auto lean_zero_source = [](double, const qmomkit::CqmomSourceContext& values)
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& values)
     { return qmomkit::CqmomMomentRate{std::vector<double>(values.size(), 0.0)}; };
 
-    qmomkit::CqmomDenseTransportOptions dense_options;
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.qmom_options = {true, 1.0e-10, 1.0e-10, 1.0e-12};
     dense_options.adaptive_branch_counts = true;
     dense_options.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
@@ -503,7 +807,7 @@ void test_explicit_dense_and_lean_adaptive_options_are_equivalent()
     dense_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     dense_options.scheme = qmomkit::TransportScheme::dc;
 
-    qmomkit::CqmomLeanTransportOptions lean_options;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.qmom_options = dense_options.qmom_options;
     lean_options.adaptive_branch_counts = dense_options.adaptive_branch_counts;
     lean_options.diagnostic_level = dense_options.diagnostic_level;
@@ -511,10 +815,10 @@ void test_explicit_dense_and_lean_adaptive_options_are_equivalent()
     lean_options.source_node_count_evolution = dense_options.source_node_count_evolution;
     lean_options.scheme = dense_options.scheme;
 
-    const qmomkit::CqmomDenseTransportResult dense =
-        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, dense_zero_source, dense_options);
-    const qmomkit::CqmomLeanTransportResult lean =
-        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, lean_zero_source, lean_options);
+    const qmomkit::TestDenseCqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, zero_source, dense_options);
+    const qmomkit::TestLeanCqmomTransportResult lean =
+        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, zero_source, lean_options);
 
     assert(dense.ok());
     assert(lean.ok());
@@ -540,23 +844,22 @@ void test_explicit_dense_and_lean_diagnostic_level_none_is_propagated()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
-    const qmomkit::CqmomLeanTransportState lean_state = lean_state_from_dense(moments, hierarchy);
+    const qmomkit::TestLeanCqmomTransportState lean_state = lean_state_from_dense(moments, hierarchy);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
-    const auto dense_zero_source = [](double, const std::vector<double>& values) { return std::vector<double>(values.size(), 0.0); };
-    const auto lean_zero_source = [](double, const qmomkit::CqmomSourceContext& values)
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& values)
     { return qmomkit::CqmomMomentRate{std::vector<double>(values.size(), 0.0)}; };
 
-    qmomkit::CqmomDenseTransportOptions dense_options;
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.diagnostic_level = qmomkit::CqmomDiagnosticLevel::none;
     dense_options.scheme = qmomkit::TransportScheme::dc;
-    qmomkit::CqmomLeanTransportOptions lean_options;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.diagnostic_level = dense_options.diagnostic_level;
     lean_options.scheme = dense_options.scheme;
 
-    const qmomkit::CqmomDenseTransportResult dense =
-        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, dense_zero_source, dense_options);
-    const qmomkit::CqmomLeanTransportResult lean =
-        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, lean_zero_source, lean_options);
+    const qmomkit::TestDenseCqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, zero_source, dense_options);
+    const qmomkit::TestLeanCqmomTransportResult lean =
+        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, zero_source, lean_options);
 
     assert(dense.ok());
     assert(lean.ok());
@@ -572,27 +875,26 @@ void test_explicit_dense_and_lean_rk23_options_are_equivalent()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
-    const qmomkit::CqmomLeanTransportState lean_state = lean_state_from_dense(moments, hierarchy);
+    const qmomkit::TestLeanCqmomTransportState lean_state = lean_state_from_dense(moments, hierarchy);
     const auto velocity = [](double, const std::vector<double>& xi)
     {
         assert(xi.size() == 2);
         return std::vector<double>{0.25, -0.1};
     };
-    const auto dense_zero_source = [](double, const std::vector<double>& values) { return std::vector<double>(values.size(), 0.0); };
-    const auto lean_zero_source = [](double, const qmomkit::CqmomSourceContext& values)
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& values)
     { return qmomkit::CqmomMomentRate{std::vector<double>(values.size(), 0.0)}; };
 
-    qmomkit::CqmomDenseTransportOptions dense_options;
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
     dense_options.node_options.rk23_options.max_step = 0.01;
     dense_options.scheme = qmomkit::TransportScheme::cd;
-    qmomkit::CqmomLeanTransportOptions lean_options;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.node_options = dense_options.node_options;
     lean_options.scheme = dense_options.scheme;
 
-    const qmomkit::CqmomDenseTransportResult dense =
-        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, velocity, dense_zero_source, dense_options);
-    const qmomkit::CqmomLeanTransportResult lean = qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, velocity, lean_zero_source, lean_options);
+    const qmomkit::TestDenseCqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, velocity, zero_source, dense_options);
+    const qmomkit::TestLeanCqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, velocity, zero_source, lean_options);
 
     assert(dense.ok());
     assert(lean.ok());
@@ -609,24 +911,23 @@ void test_explicit_dense_and_lean_source_options_are_equivalent()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
-    const qmomkit::CqmomLeanTransportState lean_state = lean_state_from_dense(moments, hierarchy);
+    const qmomkit::TestLeanCqmomTransportState lean_state = lean_state_from_dense(moments, hierarchy);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
-    const auto dense_zero_source = [](double, const std::vector<double>& values) { return std::vector<double>(values.size(), 0.0); };
-    const auto lean_zero_source = [](double, const qmomkit::CqmomSourceContext& values)
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& values)
     { return qmomkit::CqmomMomentRate{std::vector<double>(values.size(), 0.0)}; };
 
-    qmomkit::CqmomDenseTransportOptions dense_options;
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.scheme = qmomkit::TransportScheme::dc;
     dense_options.source_options.ssp_rk3_options.max_retries = 2;
     dense_options.source_options.ssp_rk3_options.accept = [](const std::vector<double>&) { return false; };
-    qmomkit::CqmomLeanTransportOptions lean_options;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.scheme = dense_options.scheme;
     lean_options.source_options = dense_options.source_options;
 
-    const qmomkit::CqmomDenseTransportResult dense =
-        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, dense_zero_source, dense_options);
-    const qmomkit::CqmomLeanTransportResult lean =
-        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, lean_zero_source, lean_options);
+    const qmomkit::TestDenseCqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, zero_source, dense_options);
+    const qmomkit::TestLeanCqmomTransportResult lean =
+        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, zero_source, lean_options);
 
     assert(!dense.ok());
     assert(!lean.ok());
@@ -638,6 +939,174 @@ void test_explicit_dense_and_lean_source_options_are_equivalent()
     assert(lean.diagnostics.source_retries == 2);
 }
 
+void test_explicit_dense_and_lean_accept_same_cqmom_native_source()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
+    const qmomkit::TestLeanCqmomTransportState lean_state = lean_state_from_dense(moments, hierarchy);
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    std::size_t inspected_context_count = 0;
+
+    const qmomkit::CqmomMomentSource source = [&](const double time, const qmomkit::CqmomSourceContext& context)
+    {
+        assert_near(time, context.time(), 1.0e-15);
+        assert(context.dimension_count() == hierarchy.number_of_dimensions());
+        if (context.indices() == lean_state.moments.layout.required_indices)
+        {
+            ++inspected_context_count;
+            assert(context.moment_count() == lean_state.moments.values.size());
+            assert(context.indices().size() == context.values().size());
+            for (std::size_t entry = 0; entry < context.size(); ++entry)
+            {
+                const qmomkit::MultiIndex& index = context.index(entry);
+                assert(index.size() == moments.extents.size());
+                for (std::size_t dimension = 0; dimension < moments.extents.size(); ++dimension)
+                {
+                    assert(index[dimension] < moments.extents[dimension]);
+                }
+                const std::optional<double> indexed_value = context.value(index);
+                assert(indexed_value.has_value());
+                assert_near(*indexed_value, context.value(entry), 1.0e-15);
+            }
+        }
+
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t entry = 0; entry < context.size(); ++entry)
+        {
+            rate[entry] = -0.05 * context.value(entry);
+        }
+        return qmomkit::CqmomMomentRate{rate};
+    };
+
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
+    dense_options.scheme = qmomkit::TransportScheme::dc;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
+    lean_options.scheme = dense_options.scheme;
+
+    const qmomkit::TestDenseCqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.25, 0.02, zero_velocity, source, dense_options);
+    const qmomkit::TestLeanCqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_state, 0.25, 0.02, zero_velocity, source, lean_options);
+
+    assert(dense.ok());
+    assert(lean.ok());
+    assert(inspected_context_count > 0);
+    assert(dense.diagnostics.source_status == lean.diagnostics.source_status);
+    assert_vector_near(lean.state.moments.values, qmomkit::extract_cqmom_moments(dense.moments, lean_state.moments.layout).values, 1.0e-11);
+}
+
+void test_explicit_dense_and_lean_accept_same_cqmom_native_boundary()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
+    const qmomkit::TestLeanCqmomTransportState lean_state = lean_state_from_dense(moments, hierarchy);
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const qmomkit::CqmomMomentSource source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+    const qmomkit::CqmomMomentBoundaryContribution boundary = [](double, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t entry = 0; entry < context.size(); ++entry)
+        {
+            rate[entry] = 0.02 * context.value(entry);
+        }
+        return qmomkit::CqmomMomentRate{rate};
+    };
+
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
+    dense_options.scheme = qmomkit::TransportScheme::dc;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
+    lean_options.scheme = dense_options.scheme;
+
+    const qmomkit::TestDenseCqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.01, zero_velocity, source, boundary, dense_options);
+    const qmomkit::TestLeanCqmomTransportResult lean =
+        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.01, zero_velocity, source, boundary, lean_options);
+
+    assert(dense.ok());
+    assert(lean.ok());
+    assert(dense.diagnostics.source_status == lean.diagnostics.source_status);
+    assert_vector_near(lean.state.moments.values, qmomkit::extract_cqmom_moments(dense.moments, lean_state.moments.layout).values, 1.0e-11);
+}
+
+void test_explicit_dense_and_lean_cqmom_native_source_failures_are_equivalent()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
+    const qmomkit::TestLeanCqmomTransportState lean_state = lean_state_from_dense(moments, hierarchy);
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const qmomkit::CqmomMomentSource bad_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size() + 1, 0.0)}; };
+
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
+    dense_options.scheme = qmomkit::TransportScheme::dc;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
+    lean_options.scheme = dense_options.scheme;
+
+    const qmomkit::TestDenseCqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, bad_source, dense_options);
+    const qmomkit::TestLeanCqmomTransportResult lean =
+        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, bad_source, lean_options);
+
+    assert(!dense.ok());
+    assert(!lean.ok());
+    assert(dense.status == qmomkit::TransportStatus::source_failed);
+    assert(lean.status == qmomkit::TransportStatus::source_failed);
+    assert(dense.diagnostics.failed_stage == qmomkit::TransportStage::discontinuous_source_step);
+    assert(lean.diagnostics.failed_stage == qmomkit::TransportStage::discontinuous_source_step);
+    assert(dense.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::source_failed);
+    assert(lean.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::source_failed);
+    assert(dense.message == lean.message);
+}
+
+void test_explicit_dense_and_lean_cqmom_native_source_invalid_values_are_equivalent()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
+    const qmomkit::TestLeanCqmomTransportState lean_state = lean_state_from_dense(moments, hierarchy);
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
+    dense_options.scheme = qmomkit::TransportScheme::dc;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
+    lean_options.scheme = dense_options.scheme;
+
+    const qmomkit::CqmomMomentSource nonfinite_source = [](double, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rate(context.size(), 0.0);
+        rate.front() = std::numeric_limits<double>::infinity();
+        return qmomkit::CqmomMomentRate{rate};
+    };
+    const qmomkit::TestDenseCqmomTransportResult dense_nonfinite =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, nonfinite_source, dense_options);
+    const qmomkit::TestLeanCqmomTransportResult lean_nonfinite =
+        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, nonfinite_source, lean_options);
+    assert(!dense_nonfinite.ok());
+    assert(!lean_nonfinite.ok());
+    assert(dense_nonfinite.status == qmomkit::TransportStatus::source_failed);
+    assert(lean_nonfinite.status == qmomkit::TransportStatus::source_failed);
+    assert(dense_nonfinite.diagnostics.failed_stage == qmomkit::TransportStage::discontinuous_source_step);
+    assert(lean_nonfinite.diagnostics.failed_stage == qmomkit::TransportStage::discontinuous_source_step);
+    assert(dense_nonfinite.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::source_failed);
+    assert(lean_nonfinite.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::source_failed);
+
+    const qmomkit::CqmomMomentSource throwing_source = [](double, const qmomkit::CqmomSourceContext&) -> qmomkit::CqmomMomentRate
+    { throw std::runtime_error("native CQMOM source failure"); };
+    const qmomkit::TestDenseCqmomTransportResult dense_throw =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, throwing_source, dense_options);
+    const qmomkit::TestLeanCqmomTransportResult lean_throw =
+        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, throwing_source, lean_options);
+    assert(!dense_throw.ok());
+    assert(!lean_throw.ok());
+    assert(dense_throw.status == qmomkit::TransportStatus::source_failed);
+    assert(lean_throw.status == qmomkit::TransportStatus::source_failed);
+    assert(dense_throw.diagnostics.failed_stage == qmomkit::TransportStage::discontinuous_source_step);
+    assert(lean_throw.diagnostics.failed_stage == qmomkit::TransportStage::discontinuous_source_step);
+    assert(dense_throw.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::source_failed);
+    assert(lean_throw.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::source_failed);
+    assert(dense_throw.message.find("native CQMOM source failure") != std::string::npos);
+    assert(lean_throw.message.find("native CQMOM source failure") != std::string::npos);
+}
+
 void test_explicit_dense_and_lean_source_node_count_evolution_is_used()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -646,33 +1115,33 @@ void test_explicit_dense_and_lean_source_node_count_evolution_is_used()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
     const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
-    const qmomkit::CqmomLeanTransportState lean_state{initial_required};
+    const qmomkit::TestLeanCqmomTransportState lean_state{initial_required};
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
 
-    qmomkit::CqmomDenseTransportOptions dense_preserve_options;
+    qmomkit::TestDenseCqmomTransportOptions dense_preserve_options;
     dense_preserve_options.qmom_options = {true, 1.0e-10, 1.0e-10, 1.0e-12};
     dense_preserve_options.adaptive_branch_counts = true;
     dense_preserve_options.scheme = qmomkit::TransportScheme::dc;
     dense_preserve_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    qmomkit::CqmomLeanTransportOptions lean_preserve_options;
+    qmomkit::TestLeanCqmomTransportOptions lean_preserve_options;
     lean_preserve_options.qmom_options = dense_preserve_options.qmom_options;
     lean_preserve_options.adaptive_branch_counts = dense_preserve_options.adaptive_branch_counts;
     lean_preserve_options.scheme = dense_preserve_options.scheme;
     lean_preserve_options.source_node_count_evolution = dense_preserve_options.source_node_count_evolution;
 
-    const qmomkit::CqmomDenseTransportResult dense_preserve = qmomkit::advance_transport_cqmom(
+    const qmomkit::TestDenseCqmomTransportResult dense_preserve = qmomkit::advance_transport_cqmom(
         initial_moments, hierarchy, 0.0, 1.0, zero_velocity, dense_source_from_to(initial_moments, target_moments), dense_preserve_options);
-    const qmomkit::CqmomLeanTransportResult lean_preserve = qmomkit::advance_transport_cqmom(
+    const qmomkit::TestLeanCqmomTransportResult lean_preserve = qmomkit::advance_transport_cqmom(
         lean_state, 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), lean_preserve_options);
 
-    qmomkit::CqmomDenseTransportOptions dense_growth_options = dense_preserve_options;
+    qmomkit::TestDenseCqmomTransportOptions dense_growth_options = dense_preserve_options;
     dense_growth_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
-    qmomkit::CqmomLeanTransportOptions lean_growth_options = lean_preserve_options;
+    qmomkit::TestLeanCqmomTransportOptions lean_growth_options = lean_preserve_options;
     lean_growth_options.source_node_count_evolution = dense_growth_options.source_node_count_evolution;
 
-    const qmomkit::CqmomDenseTransportResult dense_growth = qmomkit::advance_transport_cqmom(
+    const qmomkit::TestDenseCqmomTransportResult dense_growth = qmomkit::advance_transport_cqmom(
         initial_moments, hierarchy, 0.0, 1.0, zero_velocity, dense_source_from_to(initial_moments, target_moments), dense_growth_options);
-    const qmomkit::CqmomLeanTransportResult lean_growth =
+    const qmomkit::TestLeanCqmomTransportResult lean_growth =
         qmomkit::advance_transport_cqmom(lean_state, 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), lean_growth_options);
 
     assert(dense_preserve.ok());
@@ -758,12 +1227,13 @@ void test_adaptive_branch_specific_cqmom_case()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = adaptive_cqmom_moments();
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
-    const auto zero_source = [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); };
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& state)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(state.size(), 0.0)}; };
 
-    qmomkit::CqmomDenseTransportOptions options;
+    qmomkit::TestDenseCqmomTransportOptions options;
     options.qmom_options = {true, 1.0e-10, 1.0e-10, 1.0e-12};
     options.adaptive_branch_counts = true;
-    const qmomkit::CqmomDenseTransportResult result =
+    const qmomkit::TestDenseCqmomTransportResult result =
         qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(result.ok());
@@ -805,23 +1275,21 @@ void test_adaptive_state_continuous_transport_matches_dense()
         assert(xi.size() == 2);
         return std::vector<double>{0.15 * xi[0] + 0.05, -0.2 * xi[1] + 0.1};
     };
-    const auto dense_zero_source = [](double, const std::vector<double>& state_values) { return std::vector<double>(state_values.size(), 0.0); };
-    const auto lean_zero_source = [](double, const qmomkit::CqmomSourceContext& state_values)
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& state_values)
     { return qmomkit::CqmomMomentRate{std::vector<double>(state_values.size(), 0.0)}; };
 
-    qmomkit::CqmomDenseTransportOptions dense_options;
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.qmom_options = {true, 1.0e-10, 1.0e-10, 1.0e-12};
     dense_options.adaptive_branch_counts = true;
     dense_options.node_options = tight_node_options();
     dense_options.scheme = qmomkit::TransportScheme::cd;
-    const qmomkit::CqmomDenseTransportResult dense =
-        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.2, velocity, dense_zero_source, dense_options);
+    const qmomkit::TestDenseCqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.2, velocity, zero_source, dense_options);
 
-    qmomkit::CqmomStateTransportOptions state_options;
+    qmomkit::CqmomTransportOptions state_options;
     state_options.node_options = dense_options.node_options;
     state_options.scheme = dense_options.scheme;
-    const qmomkit::CqmomStateTransportResult transported =
-        qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, lean_zero_source, state_options);
+    const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, zero_source, state_options);
 
     assert(dense.ok());
     assert(transported.ok());
@@ -854,9 +1322,9 @@ void test_adaptive_state_source_transport_changes_active_counts()
         return qmomkit::CqmomMomentRate{rate};
     };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    const qmomkit::CqmomStateTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 1.0, zero_velocity, source, options);
+    const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 1.0, zero_velocity, source, options);
 
     assert(transported.ok());
     assert(transported.quadrature.has_value());
@@ -875,10 +1343,10 @@ void test_adaptive_state_preserves_branch_counts_across_steps()
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    qmomkit::CqmomStateTransportResult first = qmomkit::advance_transport_cqmom(case_.initial_state(), 0.0, 0.1, zero_velocity, zero_source, options);
+    qmomkit::CqmomTransportResult first = qmomkit::advance_transport_cqmom(case_.initial_state(), 0.0, 0.1, zero_velocity, zero_source, options);
     assert(first.ok());
     assert(first.quadrature.has_value());
     assert(first.quadrature->total_nodes() == 3);
@@ -886,7 +1354,7 @@ void test_adaptive_state_preserves_branch_counts_across_steps()
     assert(active_counts_contain(first.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 2));
     assert(first.diagnostics.cqmom_node_count_transitions.empty());
 
-    const qmomkit::CqmomStateTransportResult second =
+    const qmomkit::CqmomTransportResult second =
         qmomkit::advance_transport_cqmom(first.state, first.final_time, 0.1, zero_velocity, zero_source, options);
     assert(second.ok());
     assert(second.quadrature.has_value());
@@ -905,10 +1373,10 @@ void test_adaptive_state_preserved_source_can_reduce_active_counts()
     const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    const qmomkit::CqmomStateTransportResult transported =
+    const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
 
@@ -931,10 +1399,10 @@ void test_adaptive_state_source_policy_allows_growth_to_configured_maximum()
     const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     assert(options.source_node_count_evolution == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
-    const qmomkit::CqmomStateTransportResult transported =
+    const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
 
@@ -957,10 +1425,10 @@ void test_adaptive_state_preserved_source_invalidates_descendants_after_root_col
     const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    const qmomkit::CqmomStateTransportResult transported =
+    const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
 
@@ -992,10 +1460,10 @@ void test_adaptive_state_preserved_source_invalidates_grandchildren_after_second
     const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    const qmomkit::CqmomStateTransportResult transported = qmomkit::advance_transport_cqmom(
+    const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(
         adaptive_cqmom_case_from_moments_with_hierarchy(initial_moments, node_counts, conditioning_order).initial_state(), 0.0, 1.0, zero_velocity,
         source_from_to(initial_required, target_required), options);
 
@@ -1037,10 +1505,10 @@ void test_fixed_state_transport_does_not_store_adaptive_branch_counts()
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    const qmomkit::CqmomStateTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
+    const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(transported.ok());
     assert(transported.quadrature.has_value());
@@ -1062,10 +1530,10 @@ void test_adaptive_state_rejects_duplicate_active_count_metadata()
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    const qmomkit::CqmomStateTransportResult result = qmomkit::advance_transport_cqmom(bad_state, 0.0, 0.1, zero_velocity, zero_source, options);
+    const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(bad_state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::TransportStatus::inversion_failed);
@@ -1085,10 +1553,10 @@ void test_adaptive_state_rejects_missing_active_count_metadata()
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    const qmomkit::CqmomStateTransportResult result = qmomkit::advance_transport_cqmom(bad_state, 0.0, 0.1, zero_velocity, zero_source, options);
+    const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(bad_state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::TransportStatus::inversion_failed);
@@ -1106,15 +1574,15 @@ void test_adaptive_state_failure_preserves_active_counts_for_retry()
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    const qmomkit::CqmomStateTransportResult failed = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_source, options);
+    const qmomkit::CqmomTransportResult failed = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_source, options);
     assert(!failed.ok());
     assert(active_counts_equal(state.active_branch_counts(), original_counts));
     assert(active_counts_equal(failed.state.active_branch_counts(), original_counts));
 
-    const qmomkit::CqmomStateTransportResult retry = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
+    const qmomkit::CqmomTransportResult retry = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
     assert(retry.ok());
     assert(active_counts_equal(retry.state.active_branch_counts(), original_counts));
 }
@@ -1133,19 +1601,146 @@ void test_adaptive_state_post_source_failure_preserves_active_counts_for_retry()
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    const qmomkit::CqmomStateTransportResult failed =
-        qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_realizability_source, options);
+    const qmomkit::CqmomTransportResult failed = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_realizability_source, options);
     assert(!failed.ok());
     assert(failed.status == qmomkit::TransportStatus::inversion_failed);
     assert(active_counts_equal(state.active_branch_counts(), original_counts));
     assert(active_counts_equal(failed.state.active_branch_counts(), original_counts));
 
-    const qmomkit::CqmomStateTransportResult retry = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
+    const qmomkit::CqmomTransportResult retry = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
     assert(retry.ok());
     assert(active_counts_equal(retry.state.active_branch_counts(), original_counts));
+}
+
+void assert_dense_and_lean_adaptive_results_match(const qmomkit::CqmomTransportResult& dense, const qmomkit::CqmomTransportResult& lean,
+                                                  const double tolerance)
+{
+    assert(dense.ok());
+    assert(lean.ok());
+    assert(dense.state.moment_storage() == qmomkit::CqmomMomentStorage::dense);
+    assert(lean.state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    assert(dense.quadrature.has_value());
+    assert(lean.quadrature.has_value());
+    assert_cqmom_quadrature_near(*dense.quadrature, *lean.quadrature, tolerance);
+    assert(active_counts_equal(dense.state.active_branch_counts(), lean.state.active_branch_counts()));
+    assert_common_state_moments_near(dense.state, lean.state, tolerance);
+    assert(dense.diagnostics.initial_cqmom_status == lean.diagnostics.initial_cqmom_status);
+    assert(dense.diagnostics.post_source_cqmom_status == lean.diagnostics.post_source_cqmom_status);
+    assert(dense.diagnostics.source_status == lean.diagnostics.source_status);
+    assert_transition_diagnostics_equal(dense.diagnostics.cqmom_node_count_transitions, lean.diagnostics.cqmom_node_count_transitions);
+}
+
+void test_dense_and_lean_adaptive_state_active_count_persistence_are_equivalent()
+{
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
+
+    {
+        const qmomkit::CqmomCase dense_case = adaptive_cqmom_case_from_moments_with_storage(branch_specific_ragged_cqmom_moments(), "dense");
+        const qmomkit::CqmomCase lean_case = adaptive_cqmom_case_from_moments_with_storage(branch_specific_ragged_cqmom_moments(), "lean");
+        const qmomkit::CqmomState dense_initial = dense_case.initial_state();
+        const qmomkit::CqmomState lean_initial = lean_case.initial_state();
+        assert(dense_initial.moment_storage() == qmomkit::CqmomMomentStorage::dense);
+        assert(lean_initial.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+        assert(active_counts_equal(dense_initial.active_branch_counts(), lean_initial.active_branch_counts()));
+
+        qmomkit::CqmomTransportOptions options;
+        options.scheme = qmomkit::TransportScheme::dc;
+        options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+        const qmomkit::CqmomTransportResult dense_first =
+            qmomkit::advance_transport_cqmom(dense_initial, 0.0, 0.1, zero_velocity, zero_source, options);
+        const qmomkit::CqmomTransportResult lean_first =
+            qmomkit::advance_transport_cqmom(lean_initial, 0.0, 0.1, zero_velocity, zero_source, options);
+        assert_dense_and_lean_adaptive_results_match(dense_first, lean_first, 5.0e-10);
+        assert(dense_first.diagnostics.cqmom_node_count_transitions.empty());
+        assert(lean_first.diagnostics.cqmom_node_count_transitions.empty());
+
+        const qmomkit::CqmomTransportResult dense_second =
+            qmomkit::advance_transport_cqmom(dense_first.state, dense_first.final_time, 0.1, zero_velocity, zero_source, options);
+        const qmomkit::CqmomTransportResult lean_second =
+            qmomkit::advance_transport_cqmom(lean_first.state, lean_first.final_time, 0.1, zero_velocity, zero_source, options);
+        assert_dense_and_lean_adaptive_results_match(dense_second, lean_second, 5.0e-10);
+    }
+
+    const auto run_source_case = [&](const qmomkit::RawMomentTensor& initial_moments, const qmomkit::RawMomentTensor& target_moments,
+                                     const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::CqmomTransportOptions& options)
+    {
+        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+        const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
+        const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
+        const qmomkit::CqmomCase dense_case = adaptive_cqmom_case_from_moments_with_hierarchy_and_storage(initial_moments, hierarchy.node_counts(),
+                                                                                                          hierarchy.conditioning_order(), "dense");
+        const qmomkit::CqmomCase lean_case = adaptive_cqmom_case_from_moments_with_hierarchy_and_storage(initial_moments, hierarchy.node_counts(),
+                                                                                                         hierarchy.conditioning_order(), "lean");
+        const qmomkit::CqmomMomentSource source = source_from_to(initial_required, target_required);
+        const qmomkit::CqmomTransportResult dense =
+            qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 1.0, zero_velocity, source, options);
+        const qmomkit::CqmomTransportResult lean =
+            qmomkit::advance_transport_cqmom(lean_case.initial_state(), 0.0, 1.0, zero_velocity, source, options);
+        assert_dense_and_lean_adaptive_results_match(dense, lean, 5.0e-9);
+        assert_dense_state_matches_reconstructed_quadrature(dense, initial_moments.extents, 5.0e-9);
+    };
+
+    qmomkit::CqmomTransportOptions preserve_options;
+    preserve_options.scheme = qmomkit::TransportScheme::dc;
+    preserve_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+    run_source_case(branch_specific_ragged_cqmom_moments(), collapsed_branch_cqmom_moments(), qmomkit::PhaseSpaceHierarchy({2, 2}), preserve_options);
+    run_source_case(branch_specific_ragged_cqmom_moments(), root_collapsed_child_spread_cqmom_moments(), qmomkit::PhaseSpaceHierarchy({2, 2}),
+                    preserve_options);
+    run_source_case(second_level_split_3d_cqmom_moments(), second_level_collapsed_grandchild_spread_3d_cqmom_moments(),
+                    qmomkit::PhaseSpaceHierarchy({2, 2, 2}, {0, 1, 2}), preserve_options);
+
+    qmomkit::CqmomTransportOptions growth_options;
+    growth_options.scheme = qmomkit::TransportScheme::dc;
+    growth_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+    run_source_case(collapsed_branch_cqmom_moments(), branch_specific_ragged_cqmom_moments(), qmomkit::PhaseSpaceHierarchy({2, 2}), growth_options);
+
+    {
+        const qmomkit::CqmomCase dense_case = adaptive_cqmom_case_from_moments_with_storage(adaptive_cqmom_moments(), "dense");
+        const qmomkit::CqmomCase lean_case = adaptive_cqmom_case_from_moments_with_storage(adaptive_cqmom_moments(), "lean");
+        const qmomkit::CqmomState dense_state = dense_case.initial_state();
+        const qmomkit::CqmomState lean_state = lean_case.initial_state();
+        const std::vector<qmomkit::CqmomActiveBranchCount> dense_counts = dense_state.active_branch_counts();
+        const std::vector<qmomkit::CqmomActiveBranchCount> lean_counts = lean_state.active_branch_counts();
+        const auto bad_source = [](double, const qmomkit::CqmomSourceContext& moments)
+        { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size() + 1, 0.0)}; };
+        const qmomkit::CqmomTransportResult dense_failed =
+            qmomkit::advance_transport_cqmom(dense_state, 0.0, 0.1, zero_velocity, bad_source, preserve_options);
+        const qmomkit::CqmomTransportResult lean_failed =
+            qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, bad_source, preserve_options);
+        assert(!dense_failed.ok());
+        assert(!lean_failed.ok());
+        assert(dense_failed.status == lean_failed.status);
+        assert(dense_failed.diagnostics.failed_stage == lean_failed.diagnostics.failed_stage);
+        assert(active_counts_equal(dense_failed.state.active_branch_counts(), dense_counts));
+        assert(active_counts_equal(lean_failed.state.active_branch_counts(), lean_counts));
+        assert(active_counts_equal(dense_counts, lean_counts));
+        assert_vector_near(dense_failed.state.moment_values(), dense_state.moment_values(), 0.0);
+        assert_vector_near(lean_failed.state.moment_values(), lean_state.moment_values(), 0.0);
+
+        const auto bad_realizability_source = [](double, const qmomkit::CqmomSourceContext& moments)
+        {
+            std::vector<double> rate(moments.size(), 0.0);
+            rate.front() = -20.0;
+            return qmomkit::CqmomMomentRate{rate};
+        };
+        const qmomkit::CqmomTransportResult dense_post_source_failed =
+            qmomkit::advance_transport_cqmom(dense_state, 0.0, 0.1, zero_velocity, bad_realizability_source, preserve_options);
+        const qmomkit::CqmomTransportResult lean_post_source_failed =
+            qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, bad_realizability_source, preserve_options);
+        assert(!dense_post_source_failed.ok());
+        assert(!lean_post_source_failed.ok());
+        assert(dense_post_source_failed.status == lean_post_source_failed.status);
+        assert(dense_post_source_failed.diagnostics.failed_stage == lean_post_source_failed.diagnostics.failed_stage);
+        assert(active_counts_equal(dense_post_source_failed.state.active_branch_counts(), dense_counts));
+        assert(active_counts_equal(lean_post_source_failed.state.active_branch_counts(), lean_counts));
+        assert_vector_near(dense_post_source_failed.state.moment_values(), dense_state.moment_values(), 0.0);
+        assert_vector_near(lean_post_source_failed.state.moment_values(), lean_state.moment_values(), 0.0);
+    }
 }
 
 void test_adaptive_state_strang_transport_matches_dense()
@@ -1158,23 +1753,21 @@ void test_adaptive_state_strang_transport_matches_dense()
         assert(xi.size() == 2);
         return std::vector<double>{0.1 + 0.05 * xi[0], -0.08 * xi[1]};
     };
-    const auto dense_zero_source = [](double, const std::vector<double>& state_values) { return std::vector<double>(state_values.size(), 0.0); };
-    const auto lean_zero_source = [](double, const qmomkit::CqmomSourceContext& state_values)
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& state_values)
     { return qmomkit::CqmomMomentRate{std::vector<double>(state_values.size(), 0.0)}; };
 
-    qmomkit::CqmomDenseTransportOptions dense_options;
+    qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.qmom_options = {true, 1.0e-10, 1.0e-10, 1.0e-12};
     dense_options.adaptive_branch_counts = true;
     dense_options.node_options = tight_node_options();
     dense_options.scheme = qmomkit::TransportScheme::strang;
-    const qmomkit::CqmomDenseTransportResult dense =
-        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.2, velocity, dense_zero_source, dense_options);
+    const qmomkit::TestDenseCqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.2, velocity, zero_source, dense_options);
 
-    qmomkit::CqmomStateTransportOptions state_options;
+    qmomkit::CqmomTransportOptions state_options;
     state_options.node_options = dense_options.node_options;
     state_options.scheme = dense_options.scheme;
-    const qmomkit::CqmomStateTransportResult transported =
-        qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, lean_zero_source, state_options);
+    const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, zero_source, state_options);
 
     assert(dense.ok());
     assert(transported.ok());
@@ -1224,7 +1817,7 @@ void test_state_cqmom_transport_matches_lean_fixed_layout()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
-    const qmomkit::CqmomLeanTransportState lean_state = lean_state_from_dense(moments, hierarchy);
+    const qmomkit::TestLeanCqmomTransportState lean_state = lean_state_from_dense(moments, hierarchy);
     const qmomkit::CqmomState state = fixed_cqmom_case().initial_state();
     const auto velocity = [](double, const std::vector<double>& xi)
     {
@@ -1242,15 +1835,15 @@ void test_state_cqmom_transport_matches_lean_fixed_layout()
         return qmomkit::CqmomMomentRate{rate};
     };
 
-    qmomkit::CqmomStateTransportOptions state_options;
+    qmomkit::CqmomTransportOptions state_options;
     state_options.node_options = tight_node_options();
     state_options.scheme = qmomkit::TransportScheme::strang;
-    const qmomkit::CqmomStateTransportResult state_result = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, source, state_options);
+    const qmomkit::CqmomTransportResult state_result = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, source, state_options);
 
-    qmomkit::CqmomLeanTransportOptions lean_options;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.node_options = state_options.node_options;
     lean_options.scheme = state_options.scheme;
-    const qmomkit::CqmomLeanTransportResult lean_result = qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.2, velocity, source, lean_options);
+    const qmomkit::TestLeanCqmomTransportResult lean_result = qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.2, velocity, source, lean_options);
 
     assert(state_result.ok());
     assert(lean_result.ok());
@@ -1261,6 +1854,258 @@ void test_state_cqmom_transport_matches_lean_fixed_layout()
     assert(state_result.final_time == lean_result.final_time);
     assert(state_result.state.hierarchy().node_counts() == state.hierarchy().node_counts());
     assert(state_result.state.hierarchy().conditioning_order() == state.hierarchy().conditioning_order());
+}
+
+void test_configured_dense_and_lean_state_transport_are_equivalent()
+{
+    const qmomkit::CqmomCase dense_case = fixed_cqmom_case_with_storage("dense");
+    const qmomkit::CqmomCase lean_case = fixed_cqmom_case_with_storage("lean");
+    assert(dense_case.moment_storage() == qmomkit::CqmomMomentStorage::dense);
+    assert(lean_case.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+
+    const auto velocity = [](double, const std::vector<double>& xi)
+    {
+        assert(xi.size() == 2);
+        return std::vector<double>{0.15 + 0.03 * xi[0], -0.08 + 0.02 * xi[1]};
+    };
+    const qmomkit::CqmomMomentSource source = [](double, const qmomkit::CqmomSourceContext& moments)
+    {
+        std::vector<double> rate(moments.size(), 0.0);
+        for (std::size_t entry = 0; entry < moments.size(); ++entry)
+        {
+            rate[entry] = -0.04 * moments.value(entry);
+        }
+        return qmomkit::CqmomMomentRate{rate};
+    };
+
+    qmomkit::CqmomTransportOptions options;
+    options.node_options = tight_node_options();
+    options.scheme = qmomkit::TransportScheme::cd;
+
+    const qmomkit::CqmomTransportResult dense = qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, velocity, source, options);
+    const qmomkit::CqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_case.initial_state(), 0.0, 0.1, velocity, source, options);
+
+    assert(dense.ok());
+    assert(lean.ok());
+    assert(dense.quadrature.has_value());
+    assert(lean.quadrature.has_value());
+    assert(dense.diagnostics.cqmom_moment_storage == qmomkit::CqmomMomentStorage::dense);
+    assert(lean.diagnostics.cqmom_moment_storage == qmomkit::CqmomMomentStorage::lean);
+    assert_cqmom_quadrature_near(*dense.quadrature, *lean.quadrature, 5.0e-9);
+
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense_case.hierarchy());
+    const qmomkit::RawMomentTensor dense_moments{dense_case.hierarchy().moment_extents(), dense.state.moment_values()};
+    const qmomkit::CqmomMomentData dense_required = qmomkit::extract_cqmom_moments(dense_moments, layout);
+    assert_vector_near(dense_required.values, lean.state.moment_values(), 5.0e-9);
+}
+
+void test_dense_and_lean_state_source_contexts_are_identical()
+{
+    const qmomkit::CqmomCase dense_case = fixed_cqmom_case_with_storage("dense");
+    const qmomkit::CqmomCase lean_case = fixed_cqmom_case_with_storage("lean");
+    SourceContextSnapshot dense_snapshot;
+    SourceContextSnapshot lean_snapshot;
+
+    const auto make_source = [](SourceContextSnapshot& snapshot)
+    {
+        return [&snapshot](const double time, const qmomkit::CqmomSourceContext& context)
+        {
+            capture_source_context_once(snapshot, context);
+            const qmomkit::MultiIndex beta(context.dimension_count(), 0);
+            const double coupled_moment = context.value(beta).value_or(0.0);
+            std::vector<double> rate(context.size(), 0.0);
+            for (std::size_t entry = 0; entry < context.size(); ++entry)
+            {
+                const qmomkit::MultiIndex& alpha = context.index(entry);
+                double order_sum = 0.0;
+                for (const std::size_t order : alpha)
+                {
+                    order_sum += static_cast<double>(order);
+                }
+                const double coefficient = -0.015 * (1.0 + order_sum);
+                rate[entry] = coefficient * context.value(entry) + 0.0025 * coupled_moment + 0.001 * time * (1.0 + order_sum);
+            }
+            return qmomkit::CqmomMomentRate{rate};
+        };
+    };
+
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::dc;
+    constexpr double start_time = 0.125;
+    constexpr double dt = 0.02;
+
+    const qmomkit::CqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(dense_case.initial_state(), start_time, dt, zero_velocity, make_source(dense_snapshot), options);
+    const qmomkit::CqmomTransportResult lean =
+        qmomkit::advance_transport_cqmom(lean_case.initial_state(), start_time, dt, zero_velocity, make_source(lean_snapshot), options);
+
+    assert(dense.ok());
+    assert(lean.ok());
+    assert(dense.quadrature.has_value());
+    assert(lean.quadrature.has_value());
+    assert_source_context_snapshots_near(dense_snapshot, lean_snapshot, 5.0e-13);
+    assert_cqmom_quadrature_near(*dense.quadrature, *lean.quadrature, 5.0e-9);
+    assert_common_state_moments_near(dense.state, lean.state, 5.0e-9);
+    assert(dense.diagnostics.source_status == lean.diagnostics.source_status);
+    assert(dense.diagnostics.post_source_cqmom_status == lean.diagnostics.post_source_cqmom_status);
+}
+
+qmomkit::CqmomMomentSource proportional_cqmom_source(const double coefficient)
+{
+    return [coefficient](double, const qmomkit::CqmomSourceContext& moments)
+    {
+        std::vector<double> rate(moments.size(), 0.0);
+        for (std::size_t entry = 0; entry < moments.size(); ++entry)
+        {
+            rate[entry] = coefficient * moments.value(entry);
+        }
+        return qmomkit::CqmomMomentRate{rate};
+    };
+}
+
+qmomkit::CqmomCase fixed_cqmom_case_with_hierarchy_and_storage(const qmomkit::RawMomentTensor& moments,
+                                                               const std::vector<std::size_t>& conditioning_order, const char* const storage)
+{
+    std::string text = cqmom_case_text_from_moments_with_hierarchy(moments, {2, 2}, conditioning_order, false, false);
+    text += "\n[cqmom]\nmoment_storage = ";
+    text += storage;
+    text += "\n";
+    const auto parsed = qmomkit::config::parse_cqmom(text, "fixed-cqmom-case-with-hierarchy-and-storage");
+    assert(parsed.ok());
+    return *parsed.value;
+}
+
+void assert_dense_and_lean_source_results_match(const qmomkit::CqmomTransportResult& dense, const qmomkit::CqmomTransportResult& lean,
+                                                const std::vector<std::size_t>& dense_extents, const double tolerance)
+{
+    assert(dense.ok());
+    assert(lean.ok());
+    assert(dense.quadrature.has_value());
+    assert(lean.quadrature.has_value());
+    assert_cqmom_quadrature_near(*dense.quadrature, *lean.quadrature, tolerance);
+    assert_common_state_moments_near(dense.state, lean.state, tolerance);
+    assert(active_counts_equal(dense.state.active_branch_counts(), lean.state.active_branch_counts()));
+    assert(dense.status == lean.status);
+    assert(dense.diagnostics.source_status == lean.diagnostics.source_status);
+    assert(dense.diagnostics.post_source_cqmom_status == lean.diagnostics.post_source_cqmom_status);
+    assert_dense_state_matches_reconstructed_quadrature(dense, dense_extents, tolerance);
+}
+
+void test_dense_state_reconstructs_dense_only_moments_after_discontinuous_source()
+{
+    const qmomkit::RawMomentTensor initial = fixed_cqmom_moments();
+    const qmomkit::CqmomCase dense_case = fixed_cqmom_case_with_storage("dense");
+    const qmomkit::CqmomCase lean_case = fixed_cqmom_case_with_storage("lean");
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const qmomkit::CqmomMomentSource source = proportional_cqmom_source(0.35);
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::cd;
+    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+    options.source_options.ssp_rk3_options.estimate_error = true;
+    const std::size_t expected_source_state_size = qmomkit::create_cqmom_moment_layout(dense_case.hierarchy()).required_indices.size();
+    std::size_t stage_accept_calls = 0;
+    std::size_t accept_calls = 0;
+    options.source_options.ssp_rk3_options.stage_accept = [&](qmomkit::SspRk3Stage, const std::vector<double>& state)
+    {
+        ++stage_accept_calls;
+        assert(state.size() == expected_source_state_size);
+        return true;
+    };
+    options.source_options.ssp_rk3_options.accept = [&](const std::vector<double>& state)
+    {
+        ++accept_calls;
+        assert(state.size() == expected_source_state_size);
+        return true;
+    };
+
+    const qmomkit::CqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, zero_velocity, source, options);
+    const qmomkit::CqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_case.initial_state(), 0.0, 0.1, zero_velocity, source, options);
+
+    assert_dense_and_lean_source_results_match(dense, lean, initial.extents, 5.0e-10);
+    assert(dense_only_moment_changed(initial, dense.state, dense_case.hierarchy(), 1.0e-8));
+    assert(stage_accept_calls > 0);
+    assert(accept_calls > 0);
+}
+
+void test_dense_state_zero_source_keeps_full_dense_closure_consistent()
+{
+    const qmomkit::RawMomentTensor initial = fixed_cqmom_moments();
+    const qmomkit::CqmomCase dense_case = fixed_cqmom_case_with_storage("dense");
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::cd;
+    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+
+    const qmomkit::CqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, zero_velocity, zero_source, options);
+
+    assert_dense_state_matches_reconstructed_quadrature(dense, initial.extents, 5.0e-10);
+    assert_vector_near(dense.state.moment_values(), initial.values, 5.0e-10);
+}
+
+void test_dense_state_reconstructs_dense_only_moments_after_source_and_boundary()
+{
+    const qmomkit::RawMomentTensor initial = fixed_cqmom_moments();
+    const qmomkit::CqmomCase dense_case = fixed_cqmom_case_with_storage("dense");
+    const qmomkit::CqmomCase lean_case = fixed_cqmom_case_with_storage("lean");
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const qmomkit::CqmomMomentSource source = proportional_cqmom_source(0.10);
+    const qmomkit::CqmomMomentBoundaryContribution boundary = proportional_cqmom_source(0.15);
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::cd;
+    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+
+    const qmomkit::CqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, zero_velocity, source, boundary, options);
+    const qmomkit::CqmomTransportResult lean =
+        qmomkit::advance_transport_cqmom(lean_case.initial_state(), 0.0, 0.1, zero_velocity, source, boundary, options);
+
+    assert_dense_and_lean_source_results_match(dense, lean, initial.extents, 5.0e-10);
+    assert(dense_only_moment_changed(initial, dense.state, dense_case.hierarchy(), 1.0e-8));
+}
+
+void test_dense_state_reconstructs_dense_only_moments_after_repeated_source_steps()
+{
+    const qmomkit::RawMomentTensor initial = fixed_cqmom_moments();
+    const qmomkit::CqmomCase dense_case = fixed_cqmom_case_with_storage("dense");
+    const qmomkit::CqmomCase lean_case = fixed_cqmom_case_with_storage("lean");
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const qmomkit::CqmomMomentSource source = proportional_cqmom_source(0.20);
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::cd;
+    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+
+    qmomkit::CqmomTransportResult dense = qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.05, zero_velocity, source, options);
+    qmomkit::CqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_case.initial_state(), 0.0, 0.05, zero_velocity, source, options);
+    assert_dense_and_lean_source_results_match(dense, lean, initial.extents, 5.0e-10);
+
+    dense = qmomkit::advance_transport_cqmom(dense.state, dense.final_time, 0.05, zero_velocity, source, options);
+    lean = qmomkit::advance_transport_cqmom(lean.state, lean.final_time, 0.05, zero_velocity, source, options);
+    assert_dense_and_lean_source_results_match(dense, lean, initial.extents, 5.0e-10);
+    assert(dense_only_moment_changed(initial, dense.state, dense_case.hierarchy(), 1.0e-8));
+}
+
+void test_dense_state_reconstructs_dense_only_moments_with_nonidentity_conditioning_order()
+{
+    const qmomkit::RawMomentTensor initial = fixed_cqmom_moments();
+    const qmomkit::CqmomCase dense_case = fixed_cqmom_case_with_hierarchy_and_storage(initial, {1, 0}, "dense");
+    const qmomkit::CqmomCase lean_case = fixed_cqmom_case_with_hierarchy_and_storage(initial, {1, 0}, "lean");
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const qmomkit::CqmomMomentSource source = proportional_cqmom_source(0.25);
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::cd;
+    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+
+    const qmomkit::CqmomTransportResult dense =
+        qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, zero_velocity, source, options);
+    const qmomkit::CqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_case.initial_state(), 0.0, 0.1, zero_velocity, source, options);
+
+    assert_dense_and_lean_source_results_match(dense, lean, initial.extents, 5.0e-10);
+    assert(dense_only_moment_changed(initial, dense.state, dense_case.hierarchy(), 1.0e-8));
 }
 
 void test_state_cqmom_transport_preserves_vandermonde_solver_policy()
@@ -1276,9 +2121,9 @@ void test_state_cqmom_transport_preserves_vandermonde_solver_policy()
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    const qmomkit::CqmomStateTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
+    const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(transported.ok());
     assert(transported.quadrature.has_value());
@@ -1290,7 +2135,7 @@ void test_state_cqmom_transport_preserves_vandermonde_solver_policy()
 void test_state_cqmom_source_evolution_matches_lean()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const qmomkit::CqmomLeanTransportState lean_state = lean_state_from_dense(fixed_cqmom_moments(), hierarchy);
+    const qmomkit::TestLeanCqmomTransportState lean_state = lean_state_from_dense(fixed_cqmom_moments(), hierarchy);
     const qmomkit::CqmomState state = fixed_cqmom_case().initial_state();
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const auto source = [](double, const qmomkit::CqmomSourceContext& moments)
@@ -1303,13 +2148,14 @@ void test_state_cqmom_source_evolution_matches_lean()
         return qmomkit::CqmomMomentRate{rate};
     };
 
-    qmomkit::CqmomStateTransportOptions state_options;
+    qmomkit::CqmomTransportOptions state_options;
     state_options.scheme = qmomkit::TransportScheme::dc;
-    const qmomkit::CqmomStateTransportResult state_result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, source, state_options);
+    const qmomkit::CqmomTransportResult state_result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, source, state_options);
 
-    qmomkit::CqmomLeanTransportOptions lean_options;
+    qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.scheme = state_options.scheme;
-    const qmomkit::CqmomLeanTransportResult lean_result = qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, source, lean_options);
+    const qmomkit::TestLeanCqmomTransportResult lean_result =
+        qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, source, lean_options);
 
     assert(state_result.ok());
     assert(lean_result.ok());
@@ -1326,9 +2172,9 @@ void test_state_cqmom_failure_propagation_from_source_operator()
     const auto bad_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size() + 1, 0.0)}; };
 
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    const qmomkit::CqmomStateTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_source, options);
+    const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_source, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::TransportStatus::source_failed);
@@ -1340,9 +2186,9 @@ void test_state_cqmom_failure_propagation_from_source_operator()
 
 void test_state_cqmom_transport_api_does_not_expose_moments()
 {
-    static_assert(!HasPublicMomentsMember<qmomkit::CqmomStateTransportOptions>::value);
-    static_assert(!HasPublicMomentsMember<qmomkit::CqmomStateTransportResult>::value);
-    static_assert(std::is_same_v<decltype(std::declval<qmomkit::CqmomStateTransportResult&>().state), qmomkit::CqmomState>);
+    static_assert(!HasPublicMomentsMember<qmomkit::CqmomTransportOptions>::value);
+    static_assert(!HasPublicMomentsMember<qmomkit::CqmomTransportResult>::value);
+    static_assert(std::is_same_v<decltype(std::declval<qmomkit::CqmomTransportResult&>().state), qmomkit::CqmomState>);
 }
 
 void test_first_order_schemes_differ_for_noncommuting_qmom()
@@ -1435,21 +2281,21 @@ void test_cqmom_state_transport_node_advection_scheme_selection()
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
-    qmomkit::CqmomStateTransportOptions ssp_options;
+    qmomkit::CqmomTransportOptions ssp_options;
     ssp_options.scheme = qmomkit::TransportScheme::cd;
     ssp_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
-    const qmomkit::CqmomStateTransportResult ssp = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, velocity, zero_source, ssp_options);
+    const qmomkit::CqmomTransportResult ssp = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, velocity, zero_source, ssp_options);
     assert(ssp.ok());
     assert(ssp.quadrature.has_value());
     assert(ssp.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
     assert(ssp.diagnostics.first_continuous_diagnostics.step_count == 1);
     assert(ssp.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::success);
 
-    qmomkit::CqmomStateTransportOptions rk_options = ssp_options;
+    qmomkit::CqmomTransportOptions rk_options = ssp_options;
     rk_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
     rk_options.node_options.rk23_options.relative_tolerance = 1.0e-10;
     rk_options.node_options.rk23_options.absolute_tolerance = 1.0e-12;
-    const qmomkit::CqmomStateTransportResult rk = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, velocity, zero_source, rk_options);
+    const qmomkit::CqmomTransportResult rk = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, velocity, zero_source, rk_options);
     assert(rk.ok());
     assert(rk.quadrature.has_value());
     assert(rk.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
@@ -1540,10 +2386,10 @@ void test_lean_cqmom_failure_propagation_from_inversion()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomLeanTransportState state{qmomkit::CqmomMomentData{layout, std::vector<double>(layout.required_indices.size(), 0.0)}};
+    const qmomkit::TestLeanCqmomTransportState state{qmomkit::CqmomMomentData{layout, std::vector<double>(layout.required_indices.size(), 0.0)}};
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
 
-    const qmomkit::CqmomLeanTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity);
+    const qmomkit::TestLeanCqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity);
 
     assert(!result.ok());
     assert(result.status == qmomkit::TransportStatus::inversion_failed);
@@ -1555,22 +2401,22 @@ void test_lean_cqmom_transport_preserves_invalid_state_messages()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
-    qmomkit::CqmomLeanTransportState missing_values = lean_state_from_dense(moments, hierarchy);
+    qmomkit::TestLeanCqmomTransportState missing_values = lean_state_from_dense(moments, hierarchy);
     missing_values.moments.values.pop_back();
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
 
-    const qmomkit::CqmomLeanTransportResult missing = qmomkit::advance_transport_cqmom(missing_values, 0.0, 0.1, zero_velocity);
+    const qmomkit::TestLeanCqmomTransportResult missing = qmomkit::advance_transport_cqmom(missing_values, 0.0, 0.1, zero_velocity);
     assert(!missing.ok());
     assert(missing.status == qmomkit::TransportStatus::invalid_input);
-    assert(missing.message == "Lean CQMOM transport moments must match the fixed layout size.");
+    assert(missing.message == "CQMOM transport moments must match the fixed layout size.");
     assert(missing.diagnostics.message == missing.message);
 
-    qmomkit::CqmomLeanTransportState wrong_layout = lean_state_from_dense(moments, hierarchy);
+    qmomkit::TestLeanCqmomTransportState wrong_layout = lean_state_from_dense(moments, hierarchy);
     wrong_layout.moments.layout.required_indices.pop_back();
-    const qmomkit::CqmomLeanTransportResult layout = qmomkit::advance_transport_cqmom(wrong_layout, 0.0, 0.1, zero_velocity);
+    const qmomkit::TestLeanCqmomTransportResult layout = qmomkit::advance_transport_cqmom(wrong_layout, 0.0, 0.1, zero_velocity);
     assert(!layout.ok());
     assert(layout.status == qmomkit::TransportStatus::invalid_input);
-    assert(layout.message == "Lean CQMOM transport requires the fixed CQMOM moment layout.");
+    assert(layout.message == "CQMOM transport moments must match the fixed layout size.");
     assert(layout.diagnostics.message == layout.message);
 }
 
@@ -1578,13 +2424,13 @@ void test_lean_cqmom_failure_propagation_from_reconstruction()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
-    const qmomkit::CqmomLeanTransportState state = lean_state_from_dense(moments, hierarchy);
+    const qmomkit::TestLeanCqmomTransportState state = lean_state_from_dense(moments, hierarchy);
     const auto huge_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 1.0e200); };
 
-    qmomkit::CqmomLeanTransportOptions options;
+    qmomkit::TestLeanCqmomTransportOptions options;
     options.node_options.rk23_options.max_step = 1.0;
     options.scheme = qmomkit::TransportScheme::cd;
-    const qmomkit::CqmomLeanTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 1.0, huge_velocity, options);
+    const qmomkit::TestLeanCqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 1.0, huge_velocity, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::TransportStatus::moment_reconstruction_failed);
@@ -1596,14 +2442,14 @@ void test_lean_cqmom_failure_propagation_from_source_operator()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
-    const qmomkit::CqmomLeanTransportState state = lean_state_from_dense(moments, hierarchy);
+    const qmomkit::TestLeanCqmomTransportState state = lean_state_from_dense(moments, hierarchy);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const auto bad_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size() + 1, 0.0)}; };
 
-    qmomkit::CqmomLeanTransportOptions options;
+    qmomkit::TestLeanCqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    const qmomkit::CqmomLeanTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_source, options);
+    const qmomkit::TestLeanCqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_source, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::TransportStatus::source_failed);
@@ -1615,7 +2461,7 @@ void test_lean_cqmom_failure_propagation_from_post_source_inversion()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
-    const qmomkit::CqmomLeanTransportState state = lean_state_from_dense(moments, hierarchy);
+    const qmomkit::TestLeanCqmomTransportState state = lean_state_from_dense(moments, hierarchy);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const auto bad_realizability_source = [](double, const qmomkit::CqmomSourceContext& moments)
     {
@@ -1624,9 +2470,9 @@ void test_lean_cqmom_failure_propagation_from_post_source_inversion()
         return qmomkit::CqmomMomentRate{rate};
     };
 
-    qmomkit::CqmomLeanTransportOptions options;
+    qmomkit::TestLeanCqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    const qmomkit::CqmomLeanTransportResult result =
+    const qmomkit::TestLeanCqmomTransportResult result =
         qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_realizability_source, options);
 
     assert(!result.ok());
@@ -1658,6 +2504,7 @@ int main()
     test_adaptive_state_rejects_missing_active_count_metadata();
     test_adaptive_state_failure_preserves_active_counts_for_retry();
     test_adaptive_state_post_source_failure_preserves_active_counts_for_retry();
+    test_dense_and_lean_adaptive_state_active_count_persistence_are_equivalent();
     test_adaptive_state_strang_transport_matches_dense();
     test_adaptive_state_transport_reports_initial_failure();
     test_lean_cqmom_strang_matches_dense_layout_closed_source();
@@ -1667,8 +2514,19 @@ int main()
     test_explicit_dense_and_lean_diagnostic_level_none_is_propagated();
     test_explicit_dense_and_lean_rk23_options_are_equivalent();
     test_explicit_dense_and_lean_source_options_are_equivalent();
+    test_explicit_dense_and_lean_accept_same_cqmom_native_source();
+    test_explicit_dense_and_lean_accept_same_cqmom_native_boundary();
+    test_explicit_dense_and_lean_cqmom_native_source_failures_are_equivalent();
+    test_explicit_dense_and_lean_cqmom_native_source_invalid_values_are_equivalent();
     test_explicit_dense_and_lean_source_node_count_evolution_is_used();
     test_state_cqmom_transport_matches_lean_fixed_layout();
+    test_configured_dense_and_lean_state_transport_are_equivalent();
+    test_dense_and_lean_state_source_contexts_are_identical();
+    test_dense_state_reconstructs_dense_only_moments_after_discontinuous_source();
+    test_dense_state_zero_source_keeps_full_dense_closure_consistent();
+    test_dense_state_reconstructs_dense_only_moments_after_source_and_boundary();
+    test_dense_state_reconstructs_dense_only_moments_after_repeated_source_steps();
+    test_dense_state_reconstructs_dense_only_moments_with_nonidentity_conditioning_order();
     test_state_cqmom_transport_preserves_vandermonde_solver_policy();
     test_state_cqmom_source_evolution_matches_lean();
     test_state_cqmom_failure_propagation_from_source_operator();

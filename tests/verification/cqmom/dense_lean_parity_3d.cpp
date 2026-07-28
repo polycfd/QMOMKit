@@ -1,4 +1,5 @@
 #include "../verification_helpers.hpp"
+#include "internal/cqmom_case.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/recursive_quadrature.hpp"
 #include "internal/vandermonde.hpp"
@@ -1318,40 +1319,37 @@ void run_explicit_transport_parity()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {0, 1, 2});
     const qmomkit::RawMomentTensor moments = raw_moments_from_terminals(deterministic_rectangular_nodes(), hierarchy.moment_extents());
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomLeanTransportState state{qmomkit::extract_cqmom_moments(moments, layout)};
+    const qmomkit::CqmomMomentData lean_moments = qmomkit::extract_cqmom_moments(moments, layout);
 
     const auto velocity = [](double, const std::vector<double>& coordinate) { return std::vector<double>{0.03, -0.02, 0.04 + 0.01 * coordinate[0]}; };
-    const auto dense_zero_source = [](double, const std::vector<double>& values) { return std::vector<double>(values.size(), 0.0); };
-    const auto lean_zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
-    qmomkit::CqmomDenseTransportOptions dense_options;
-    dense_options.scheme = qmomkit::TransportScheme::cd;
-    dense_options.adaptive_branch_counts = true;
-    dense_options.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
-    dense_options.vandermonde_solver = qmomkit::VandermondeSolver::dense;
-    dense_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    dense_options.qmom_options.adaptive = true;
-    dense_options.qmom_options.rmin = 1.0e-12;
-    dense_options.qmom_options.eabs = 1.0e-12;
-    qmomkit::CqmomLeanTransportOptions lean_options;
-    lean_options.scheme = dense_options.scheme;
-    lean_options.adaptive_branch_counts = dense_options.adaptive_branch_counts;
-    lean_options.diagnostic_level = dense_options.diagnostic_level;
-    lean_options.vandermonde_solver = dense_options.vandermonde_solver;
-    lean_options.source_node_count_evolution = dense_options.source_node_count_evolution;
-    lean_options.qmom_options = dense_options.qmom_options;
+    qmomkit::QmomOptions qmom_options;
+    qmom_options.adaptive = true;
+    qmom_options.rmin = 1.0e-12;
+    qmom_options.eabs = 1.0e-12;
+    const qmomkit::CqmomDenseCase dense_case{
+        hierarchy, moments, {}, qmom_options, true, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::VandermondeSolver::dense};
+    const qmomkit::CqmomLeanCase lean_case{
+        lean_moments, {}, qmom_options, true, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::VandermondeSolver::dense};
+    const qmomkit::CqmomState dense_state = qmomkit::internal::create_cqmom_state(dense_case);
+    const qmomkit::CqmomState lean_state = qmomkit::internal::create_cqmom_state(lean_case);
 
-    const qmomkit::CqmomDenseTransportResult dense =
-        qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.05, velocity, dense_zero_source, dense_options);
-    const qmomkit::CqmomLeanTransportResult lean = qmomkit::advance_transport_cqmom(state, 0.0, 0.05, velocity, lean_zero_source, lean_options);
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::cd;
+    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
-    std::cout
-        << "[explicit transport parity] dense_status=" << static_cast<int>(dense.status) << " lean_status=" << static_cast<int>(lean.status)
-        << " remaining_limits=explicit active topology is one-call only; source callback types differ; runtime storage selection is not exposed\n";
+    const qmomkit::CqmomTransportResult dense = qmomkit::advance_transport_cqmom(dense_state, 0.0, 0.05, velocity, zero_source, options);
+    const qmomkit::CqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.05, velocity, zero_source, options);
+
+    std::cout << "[explicit transport parity] dense_status=" << static_cast<int>(dense.status) << " lean_status=" << static_cast<int>(lean.status)
+              << " remaining_limits=explicit active topology is one-call only; runtime storage selection is not exposed\n";
     QMOMKIT_VERIFY_CHECK(dense.status == lean.status);
     QMOMKIT_VERIFY_CHECK(dense.ok() == lean.ok());
     QMOMKIT_VERIFY_CHECK(dense.diagnostics.failed_stage == lean.diagnostics.failed_stage);
+    QMOMKIT_VERIFY_CHECK(dense.diagnostics.cqmom_moment_storage == qmomkit::CqmomMomentStorage::dense);
+    QMOMKIT_VERIFY_CHECK(lean.diagnostics.cqmom_moment_storage == qmomkit::CqmomMomentStorage::lean);
     QMOMKIT_VERIFY_CHECK(dense.diagnostics.cqmom_diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic);
     QMOMKIT_VERIFY_CHECK(lean.diagnostics.cqmom_diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic);
     QMOMKIT_VERIFY_CHECK(dense.diagnostics.cqmom_vandermonde_solver == qmomkit::VandermondeSolver::dense);
@@ -1373,11 +1371,12 @@ void run_explicit_transport_parity()
             QMOMKIT_VERIFY_CHECK(dense.quadrature->adaptive_branch_counts_enabled());
             QMOMKIT_VERIFY_CHECK(lean.quadrature->adaptive_branch_counts_enabled());
         }
-        const qmomkit::CqmomMomentData dense_common = qmomkit::extract_cqmom_moments(dense.moments, layout);
-        QMOMKIT_VERIFY_CHECK(dense_common.values.size() == lean.state.moments.values.size());
+        const qmomkit::RawMomentTensor dense_moments{moments.extents, dense.state.moment_values()};
+        const qmomkit::CqmomMomentData dense_common = qmomkit::extract_cqmom_moments(dense_moments, layout);
+        QMOMKIT_VERIFY_CHECK(dense_common.values.size() == lean.state.moment_values().size());
         for (std::size_t i = 0; i < dense_common.values.size(); ++i)
         {
-            QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE(lean.state.moments.values[i], dense_common.values[i], 5.0e-8, 5.0e-10);
+            QMOMKIT_VERIFY_ABSOLUTE_OR_RELATIVE(lean.state.moment_values()[i], dense_common.values[i], 5.0e-8, 5.0e-10);
         }
     }
 }

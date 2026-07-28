@@ -245,8 +245,8 @@ against the exact one-step SSP-RK3 update for this affine linear source.
 
 Configuration: `cqmom_combined_native_source.qmom`
 
-This case verifies the complete public CQMOM state transport workflow with both
-physics callbacks active in the same macro step:
+This case verifies complete public CQMOM transport through `CqmomState` with
+both physics callbacks active in the same macro step:
 
 ```text
 load_cqmom(...)
@@ -317,7 +317,8 @@ predicates exist in source update options, but they are not returned by the
 
 Configuration: `cqmom_transport_failures.qmom`
 
-This case checks how CQMOM state transport reports failures through:
+This case checks how CQMOM transport through `CqmomState` reports failures
+through:
 
 ```text
 load_cqmom(...)
@@ -349,24 +350,24 @@ realizable. The verifier checks that transport reports
 diagnostics, records CQMOM diagnostics for the failed inversion, and stops
 before the second continuous half-step.
 
-The same valid configuration also drives dense and explicit lean public
+The same valid configuration also drives dense-backed and lean-backed state
 workflow failure checks:
 
 - `verification_transport_cqmom_dense_transport_failures` loads a
-  `CqmomDenseCase` with `load_cqmom_dense(...)` and calls the dense
-  raw-moment transport API;
+  `CqmomDenseCase` with `load_cqmom_dense(...)` and adapts it to a dense-backed
+  `CqmomState`;
 - `verification_transport_cqmom_lean_transport_failures` loads a
-  `CqmomLeanCase` with `load_cqmom_lean(...)`, wraps its required moments in
-  `CqmomLeanTransportState`, and calls the explicit lean transport API.
+  `CqmomLeanCase` with `load_cqmom_lean(...)` and adapts it to a lean-backed
+  `CqmomState`.
 
-Dense transport represents users that intentionally own a full rectangular raw
-moment tensor. Explicit lean transport represents expert users that own only
-the required recursive CQMOM moment subset. For equivalent deterministic
-velocity, source, and post-source reconstruction failures, these workflows
-should report the same high-level status, failed stage, preserved diagnostics,
-and useful messages as the default `CqmomState` workflow. The tests do not
-require identical internal diagnostic details because the public state
-representations differ.
+`CqmomState` with dense moment storage represents users that intentionally own a
+full rectangular raw moment tensor before creating state. `CqmomState` with lean
+moment storage represents users that own only the required recursive CQMOM
+moment subset. For equivalent deterministic velocity, source, and post-source
+reconstruction failures, these workflows should report the same high-level
+status, failed stage, preserved diagnostics, and useful messages as the default
+`CqmomState` workflow. The tests do not require identical internal diagnostic
+details because the stored representations differ.
 
 Configuration: `cqmom_transport_inversion_failures.qmom`
 
@@ -378,11 +379,12 @@ continuous or source failure, reports `TransportStage::initial_inversion`,
 preserves CQMOM diagnostics and a realizability message, does not advance
 time, and does not report later stages as completed.
 
-The companion dense and explicit lean cases,
+The companion dense- and lean-storage cases,
 `verification_transport_cqmom_dense_transport_inversion_failures` and
 `verification_transport_cqmom_lean_transport_inversion_failures`, reuse the
-same invalid configured moments through their public transport entry points.
-They document that all CQMOM transport workflows reject an initially
+same invalid configured moments through `CqmomState` adapters that preserve the
+chosen storage representation. They document that CQMOM transport through
+`CqmomState` rejects an initially
 unreconstructable moment state before invoking continuous or source callbacks.
 
 ## Running

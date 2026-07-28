@@ -76,11 +76,11 @@ CQMOM transport creates a `CqmomState` with `CqmomCase::initial_state()` and
 advances it with `advance_transport_cqmom(CqmomState, ...)`.
 
 `CqmomCase` and `CqmomState` are the neutral public objects for normal CQMOM
-workflows. Normal configured workflows use required CQMOM moment data without
-asking users to choose a storage representation. `CqmomDenseCase` with
-`RawMomentTensor` and `CqmomLeanCase` with `CqmomMomentLayout` and
+workflows. Normal configured workflows default to lean moment storage and may
+select dense storage explicitly with `cqmom.moment_storage`. `CqmomDenseCase`
+with `RawMomentTensor` and `CqmomLeanCase` with `CqmomMomentLayout` and
 `CqmomMomentData` remain supported explicit representation workflows for callers
-that intentionally choose and manage a CQMOM moment representation.
+that intentionally construct static CQMOM inversion inputs directly.
 
 ### QMOM And CQMOM Terminology
 

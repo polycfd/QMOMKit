@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -169,22 +170,70 @@ void test_cqmom_source_context_exposes_moment_metadata()
 
     const qmomkit::CqmomMomentSourceUpdateResult result = qmomkit::advance_cqmom_moments_with_source(
         initial, 0.1, 0.2,
-        [&initial, &inspected_context](double, const qmomkit::CqmomSourceContext& moments)
+        [&initial, &inspected_context](const double time, const qmomkit::CqmomSourceContext& moments)
         {
-            assert(moments.size() == initial.values.size());
-            assert(moments.hierarchy().node_counts() == initial.layout.hierarchy.node_counts());
-            assert(moments.hierarchy().conditioning_order() == initial.layout.hierarchy.conditioning_order());
-            for (std::size_t i = 0; i < moments.size(); ++i)
+            assert_near(time, moments.time(), 1.0e-15);
+            if (!inspected_context)
             {
-                assert(moments.index(i) == initial.layout.required_indices[i]);
-                assert_near(moments.value(i), initial.values[i], 1.0e-15);
+                assert_near(moments.time(), 0.1, 1.0e-15);
+                assert(moments.size() == initial.values.size());
+                assert(moments.moment_count() == initial.values.size());
+                assert(moments.dimension_count() == initial.layout.hierarchy.number_of_dimensions());
+                assert(moments.hierarchy().node_counts() == initial.layout.hierarchy.node_counts());
+                assert(moments.hierarchy().conditioning_order() == initial.layout.hierarchy.conditioning_order());
+                assert(moments.indices() == initial.layout.required_indices);
+                assert(moments.values() == initial.values);
+                for (std::size_t i = 0; i < moments.size(); ++i)
+                {
+                    assert(moments.index(i) == initial.layout.required_indices[i]);
+                    assert_near(moments.value(i), initial.values[i], 1.0e-15);
+                    const std::optional<std::size_t> position = moments.position(initial.layout.required_indices[i]);
+                    assert(position.has_value());
+                    assert(*position == i);
+                    const std::optional<double> value = moments.value(initial.layout.required_indices[i]);
+                    assert(value.has_value());
+                    assert_near(*value, initial.values[i], 1.0e-15);
+                }
+                assert(!moments.position(qmomkit::MultiIndex{99, 99}).has_value());
+                assert(!moments.value(qmomkit::MultiIndex{99, 99}).has_value());
+                inspected_context = true;
             }
-            inspected_context = true;
             return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)};
         });
 
     assert(result.ok());
     assert(inspected_context);
+}
+
+void test_cqmom_source_context_validates_indices_and_values()
+{
+    const qmomkit::CqmomMomentData initial = create_moment_data();
+
+    bool rejected_mismatched_values = false;
+    try
+    {
+        static_cast<void>(qmomkit::CqmomSourceContext{0.0, initial.layout.hierarchy, initial.layout.required_indices, {1.0}});
+    }
+    catch (const std::invalid_argument& error)
+    {
+        rejected_mismatched_values = true;
+        assert(std::string(error.what()).find("indices and values") != std::string::npos);
+    }
+    assert(rejected_mismatched_values);
+
+    std::vector<qmomkit::MultiIndex> bad_indices = initial.layout.required_indices;
+    bad_indices.front().push_back(0);
+    bool rejected_bad_rank = false;
+    try
+    {
+        static_cast<void>(qmomkit::CqmomSourceContext{0.0, initial.layout.hierarchy, bad_indices, initial.values});
+    }
+    catch (const std::invalid_argument& error)
+    {
+        rejected_bad_rank = true;
+        assert(std::string(error.what()).find("dimension count") != std::string::npos);
+    }
+    assert(rejected_bad_rank);
 }
 
 void test_cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial()
@@ -393,6 +442,7 @@ int main()
     test_failure_behavior_minimum_timestep_preserves_original_state();
     test_cqmom_moment_data_zero_source_preserves_state();
     test_cqmom_source_context_exposes_moment_metadata();
+    test_cqmom_source_context_validates_indices_and_values();
     test_cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial();
     test_cqmom_moment_data_rate_size_mismatch_fails();
     test_cqmom_moment_data_non_finite_source_fails();

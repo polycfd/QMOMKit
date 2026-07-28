@@ -332,18 +332,18 @@ void run_captured_physical_regression()
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
     options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
-    const qmomkit::CqmomStateTransportResult transported =
+    const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(state, 23.022499999999706, 0.0025, zero_velocity, zero_source, options);
     QMOMKIT_VERIFY_CHECK(transported.ok());
     QMOMKIT_VERIFY_CHECK(transported.quadrature.has_value());
     QMOMKIT_VERIFY_CHECK(transported.quadrature->total_nodes() == 4);
     QMOMKIT_VERIFY_CHECK(active_count_present(transported.state.active_branch_counts(), expected_path, 1));
 
-    const qmomkit::CqmomStateTransportResult second =
+    const qmomkit::CqmomTransportResult second =
         qmomkit::advance_transport_cqmom(transported.state, transported.final_time, 0.0025, zero_velocity, zero_source, options);
     QMOMKIT_VERIFY_CHECK(second.ok());
     QMOMKIT_VERIFY_CHECK(second.quadrature.has_value());

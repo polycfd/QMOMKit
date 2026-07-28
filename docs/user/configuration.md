@@ -72,7 +72,7 @@ through public types and options rather than through text sections:
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a dense tensor representation from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
-| transport options | `[time_integration]`, `[time_integration.node_advection]`, `[time_integration.cqmom]`, and optional runtime realizability policy | set `QmomTransportOptions`, `CqmomStateTransportOptions`, `NodeAdvectionOptions`, source-update options, and realizability policies in C++ |
+| transport options | `[time_integration]`, `[time_integration.node_advection]`, `[time_integration.cqmom]`, and optional runtime realizability policy | set `QmomTransportOptions`, `CqmomTransportOptions`, `NodeAdvectionOptions`, source-update options, and realizability policies in C++ |
 | output choices | `[output]` directory, enabled outputs, and cadence | create and call `MomentWriter` or `QuadratureWriter` from the surrounding driver |
 
 This mapping is meant to orient application integration, not replace the public
@@ -179,17 +179,13 @@ from a configured independent-product initialization, `load_cqmom(...)` remains
 the most concise route to the representation-neutral `CqmomCase`.
 
 Transport is still optional. QMOM transport advances moment vectors directly
-with `advance_transport_qmom(...)`. CQMOM transport has two common forms:
+with `advance_transport_qmom(...)`. CQMOM transport advances a `CqmomState`
+created from `CqmomCase`:
 
 ```cpp
-// Representation-neutral CQMOM transport, when you have a CqmomCase:
 qmomkit::CqmomState state = cqmom_case.initial_state();
-const qmomkit::CqmomStateTransportResult next =
+const qmomkit::CqmomTransportResult next =
     qmomkit::advance_transport_cqmom(state, time, time_step, velocity, source, options);
-
-// Explicit dense CQMOM transport, when you manage RawMomentTensor directly:
-const qmomkit::CqmomDenseTransportResult dense_next =
-    qmomkit::advance_transport_cqmom(moments, hierarchy, time, time_step, velocity, source, dense_options);
 ```
 
 The `velocity`, `source`, and transport options are application code. The
@@ -558,11 +554,19 @@ validation study deliberately compares solver policies:
 
 ```text
 [cqmom]
+moment_storage = lean
 diagnostic_level = detailed|basic|none
 
 [vandermonde]
 solver = automatic
 ```
+
+`moment_storage` selects the internal raw-moment representation for
+representation-neutral `load_cqmom(...)` workflows. Supported values are `lean`
+and `dense`. If omitted, `lean` is used explicitly. The selected moment storage
+is reported by `CqmomCase::moment_storage()` and `CqmomState::moment_storage()`.
+This setting is distinct from `vandermonde.solver = dense`, which selects a
+linear solver for conditional reconstruction rather than moment storage.
 
 `diagnostic_level` controls reconstruction diagnostics. Supported values are
 `detailed`, `basic`, and `none`. If omitted, `detailed` is used.
@@ -689,9 +693,9 @@ active.
 
 ### CQMOM Source Active Counts
 
-For adaptive CQMOM state transport, source stages can either preserve the
-current branch-specific active node counts or allow branches to grow back to
-their configured maximum:
+For adaptive CQMOM transport through `CqmomState`, source stages can either
+preserve the current branch-specific active node counts or allow branches to
+grow back to their configured maximum:
 
 ```text
 [time_integration.cqmom]
@@ -706,7 +710,7 @@ allow_growth_to_configured_maximum
 ```
 
 Omission defaults to `allow_growth_to_configured_maximum`, matching the C++
-`CqmomStateTransportOptions` default for general source terms. Drivers that use
+`CqmomTransportOptions` default for general source terms. Drivers that use
 zero sources or source models known not to increase branch rank can select
 `preserve_active_counts` explicitly. Adaptive `CqmomState` initialization seeds
 current active counts from the initial inversion; malformed or inconsistent

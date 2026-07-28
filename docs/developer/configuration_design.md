@@ -140,13 +140,16 @@ PhaseSpaceHierarchy
 QmomOptions
 adaptive_branch_counts
 CqmomDiagnosticLevel
+VandermondeSolver
+CqmomMomentStorage
 CqmomCase
 ```
 
 This is the recommended user-facing loading path exposed by
-`load_cqmom(...)`. The returned `CqmomCase` stores the initialized CQMOM state
-and reconstruction policies while avoiding any distinction between analytical
-and explicit moment input in ordinary use.
+`load_cqmom(...)`. The returned `CqmomCase` stores the selected dense or lean
+moment representation and reconstruction policies while avoiding any distinction
+between analytical and explicit moment input in ordinary use. If
+`cqmom.moment_storage` is omitted, the neutral parser selects lean storage.
 
 The explicit lean representation workflow maps parsed CQMOM setup data to:
 
@@ -285,9 +288,8 @@ CQMOM state-transport source policy lives under `[time_integration.cqmom]` and
 maps to `CqmomNodeCountEvolution`. If omitted,
 `source_node_count_evolution` defaults to
 `allow_growth_to_configured_maximum`, matching the C++ transport option.
-The policy is backend-neutral: drivers that expose explicit dense and explicit
-lean CQMOM transport should assign the same parsed value to both option
-objects.
+The policy is storage-neutral and is assigned to the single
+`CqmomTransportOptions` object used by CQMOM transport through `CqmomState`.
 
 The parser default-constructs `NodeAdvectionOptions` and only overwrites keys
 that are present, so configuration parsing does not duplicate

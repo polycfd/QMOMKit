@@ -15,9 +15,14 @@ namespace qmomkit::internal
 class CqmomConstructionAccess
 {
 public:
+    [[nodiscard]] static CqmomCase create_case(CqmomDenseCase dense_case);
     [[nodiscard]] static CqmomCase create_case(CqmomLeanCase lean_case);
+    [[nodiscard]] static CqmomState create_state(CqmomDenseCase dense_case);
+    [[nodiscard]] static CqmomState create_state(CqmomDenseCase dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts);
     [[nodiscard]] static CqmomState create_state(CqmomLeanCase lean_case);
     [[nodiscard]] static CqmomState create_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts);
+    [[nodiscard]] static const CqmomDenseCase* state_dense_case(const CqmomState& state);
+    [[nodiscard]] static const CqmomLeanCase* state_lean_case(const CqmomState& state);
     [[nodiscard]] static const CqmomLeanCase& state_case(const CqmomState& state);
     [[nodiscard]] static const std::vector<CqmomActiveBranchCount>& state_active_branch_counts(const CqmomState& state);
     [[nodiscard]] static CqmomQuadrature create_quadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights,
@@ -29,9 +34,14 @@ public:
 // pass metadata that has already crossed the normal parser/API validation
 // boundary; trusted reconstruction relies on that invariant and rechecks only
 // evolving numerical values.
+[[nodiscard]] CqmomCase create_cqmom_case(CqmomDenseCase dense_case);
 [[nodiscard]] CqmomCase create_cqmom_case(CqmomLeanCase lean_case);
+[[nodiscard]] CqmomState create_cqmom_state(CqmomDenseCase dense_case);
+[[nodiscard]] CqmomState create_cqmom_state(CqmomDenseCase dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts);
 [[nodiscard]] CqmomState create_cqmom_state(CqmomLeanCase lean_case);
 [[nodiscard]] CqmomState create_cqmom_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts);
+[[nodiscard]] const CqmomDenseCase* cqmom_state_dense_case(const CqmomState& state);
+[[nodiscard]] const CqmomLeanCase* cqmom_state_lean_case(const CqmomState& state);
 [[nodiscard]] const CqmomLeanCase& cqmom_state_case(const CqmomState& state);
 [[nodiscard]] const std::vector<CqmomActiveBranchCount>& cqmom_state_active_branch_counts(const CqmomState& state);
 [[nodiscard]] CqmomResult compute_trusted_cqmom(const CqmomDenseCase& dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {});

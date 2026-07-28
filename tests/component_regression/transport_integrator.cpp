@@ -1,4 +1,5 @@
 #include "../verification/verification_helpers.hpp"
+#include "internal/cqmom_case.hpp"
 #include "qmomkit/qmomkit.hpp"
 
 #include <cmath>
@@ -131,17 +132,20 @@ void test_cqmom_case_preserves_phase_space_ordering()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
-    const auto zero_source = [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); };
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& state)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(state.size(), 0.0)}; };
     const auto velocity = [](double, const std::vector<double>& xi)
     {
         QMOMKIT_VERIFY_CHECK(xi.size() == 2);
         return std::vector<double>{0.25, -0.5};
     };
 
-    qmomkit::CqmomDenseTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.node_options = tight_node_options();
     options.scheme = qmomkit::TransportScheme::strang;
-    const qmomkit::CqmomDenseTransportResult result = qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.2, velocity, zero_source, options);
+    const qmomkit::CqmomDenseCase dense_case{hierarchy, moments, {}, {}};
+    const qmomkit::CqmomState state = qmomkit::internal::create_cqmom_state(dense_case);
+    const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, zero_source, options);
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.has_value());
     QMOMKIT_VERIFY_CHECK(result.quadrature->has_rectangular_storage());
@@ -151,7 +155,7 @@ void test_cqmom_case_preserves_phase_space_ordering()
     const qmomkit::CqmomNodeAdvectionResult direct = qmomkit::advance_nodes(initial.quadrature, 0.0, 0.2, velocity, options.node_options);
     QMOMKIT_VERIFY_CHECK(direct.ok());
     const qmomkit::RawMomentTensor expected = qmomkit::reconstruct_raw_moments(direct.quadrature, moments.extents);
-    assert_vector_near(result.moments.values, expected.values, 5.0e-9);
+    assert_vector_near(result.state.moment_values(), expected.values, 5.0e-9);
 }
 
 } // namespace

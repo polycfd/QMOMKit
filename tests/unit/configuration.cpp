@@ -728,6 +728,7 @@ void test_cqmom_case_accepts_explicit_dense_tensor()
     assert(lean.ok());
 
     const qmomkit::CqmomCase cqmom_case = *case_result.value;
+    assert(cqmom_case.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(cqmom_case.hierarchy().node_counts() == std::vector<std::size_t>({1, 1}));
     assert(cqmom_case.hierarchy().conditioning_order() == std::vector<std::size_t>({1, 0}));
     assert(cqmom_case.adaptive_branch_counts());
@@ -741,6 +742,41 @@ void test_cqmom_case_accepts_explicit_dense_tensor()
     assert(lean_compute.ok());
     assert_cqmom_quadratures_near(case_compute.quadrature, dense_compute.quadrature);
     assert_cqmom_quadratures_near(case_compute.quadrature, lean_compute.quadrature);
+}
+
+void test_cqmom_case_moment_storage_selection()
+{
+    std::string dense_text = cqmom_text;
+    dense_text += "\n[cqmom]\nmoment_storage = dense\n";
+    const auto dense_case_result = qmomkit::config::parse_cqmom(dense_text, "cqmom-dense-storage");
+    const auto explicit_dense = qmomkit::config::parse_cqmom_dense(dense_text, "cqmom-dense-storage");
+    const auto conflicting_lean = qmomkit::config::parse_cqmom_lean(dense_text, "cqmom-dense-storage");
+    assert(dense_case_result.ok());
+    assert(explicit_dense.ok());
+    assert(!conflicting_lean.ok());
+    assert(has_message_fragment(conflicting_lean, "parse_cqmom_lean requires cqmom.moment_storage = lean"));
+
+    const qmomkit::CqmomCase dense_case = *dense_case_result.value;
+    assert(dense_case.moment_storage() == qmomkit::CqmomMomentStorage::dense);
+    assert(dense_case.initial_state().moment_storage() == qmomkit::CqmomMomentStorage::dense);
+
+    std::string lean_text = cqmom_text;
+    lean_text += "\n[cqmom]\nmoment_storage = lean\n";
+    const auto lean_case_result = qmomkit::config::parse_cqmom(lean_text, "cqmom-lean-storage");
+    const auto explicit_lean = qmomkit::config::parse_cqmom_lean(lean_text, "cqmom-lean-storage");
+    const auto conflicting_dense = qmomkit::config::parse_cqmom_dense(lean_text, "cqmom-lean-storage");
+    assert(lean_case_result.ok());
+    assert(explicit_lean.ok());
+    assert(!conflicting_dense.ok());
+    assert(has_message_fragment(conflicting_dense, "parse_cqmom_dense requires cqmom.moment_storage = dense"));
+    assert(lean_case_result.value->moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    assert(lean_case_result.value->initial_state().moment_storage() == qmomkit::CqmomMomentStorage::lean);
+
+    std::string invalid_text = cqmom_text;
+    invalid_text += "\n[cqmom]\nmoment_storage = compact\n";
+    const auto invalid = qmomkit::config::parse_cqmom(invalid_text, "cqmom-invalid-storage");
+    assert(!invalid.ok());
+    assert(has_message_fragment(invalid, "cqmom.moment_storage must be lean or dense"));
 }
 
 void test_cqmom_case_initial_state_preserves_case_settings()
@@ -762,6 +798,7 @@ void test_cqmom_case_initial_state_preserves_case_settings()
     assert(state.adaptive_branch_counts() == cqmom_case.adaptive_branch_counts());
     assert(state.diagnostic_level() == cqmom_case.diagnostic_level());
     assert(state.vandermonde_solver() == cqmom_case.vandermonde_solver());
+    assert(state.moment_storage() == cqmom_case.moment_storage());
 
     const qmomkit::CqmomState copied = state;
     assert(copied.hierarchy().node_counts() == state.hierarchy().node_counts());
@@ -2254,6 +2291,7 @@ int main()
     test_cqmom_lean_case_selects_explicit_dense_tensor();
     test_cqmom_case_uses_selected_analytical_moments();
     test_cqmom_case_accepts_explicit_dense_tensor();
+    test_cqmom_case_moment_storage_selection();
     test_cqmom_case_initial_state_preserves_case_settings();
     test_cqmom_case_file_loading();
     test_cqmom_independent_product_zero_density_skips_marginal_validation();

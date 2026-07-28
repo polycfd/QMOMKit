@@ -48,21 +48,31 @@ using MomentBoundaryContribution = std::function<MomentBoundaryRate(double, cons
  * Non-owning mathematical view of the current CQMOM source state.
  *
  * Entries are ordered consistently with the derivative values expected from a
- * `CqmomMomentSource`. The context exposes only phase-space hierarchy,
- * moment multi-indices, and moment values; it does not expose the underlying
- * CQMOM moment storage representation.
+ * `CqmomMomentSource`. The context exposes the CQMOM moment layout selected for
+ * transport, along with phase-space hierarchy, stage time, moment multi-indices,
+ * and moment values. That layout is independent of the underlying dense or lean
+ * CQMOM moment storage backend.
  */
 class CqmomSourceContext
 {
 public:
+    CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values);
     CqmomSourceContext(const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values);
 
+    [[nodiscard]] double time() const noexcept;
+    [[nodiscard]] std::size_t moment_count() const noexcept;
+    [[nodiscard]] std::size_t dimension_count() const noexcept;
     [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] const std::vector<MultiIndex>& indices() const noexcept;
+    [[nodiscard]] const std::vector<double>& values() const noexcept;
     [[nodiscard]] const MultiIndex& index(std::size_t i) const;
     [[nodiscard]] double value(std::size_t i) const;
+    [[nodiscard]] std::optional<std::size_t> position(const MultiIndex& moment_index) const;
+    [[nodiscard]] std::optional<double> value(const MultiIndex& moment_index) const;
     [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
 
 private:
+    double time_ = 0.0;
     const PhaseSpaceHierarchy* hierarchy_;
     const std::vector<MultiIndex>* indices_;
     const std::vector<double>* values_;
@@ -80,7 +90,7 @@ struct CqmomMomentRate
 };
 
 /**
- * CQMOM-native source callback over required raw moments.
+ * CQMOM-native source callback over the transport CQMOM moment layout.
  *
  * The callback receives the current CQMOM source context and returns one
  * derivative value per context entry, in context order.

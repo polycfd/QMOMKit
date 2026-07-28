@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -80,6 +81,16 @@ enum class CqmomDiagnosticLevel
     basic,
     detailed
 };
+
+enum class CqmomMomentStorage
+{
+    lean,
+    dense
+};
+
+[[nodiscard]] std::string to_string(CqmomMomentStorage storage);
+[[nodiscard]] std::string format_cqmom_settings(CqmomMomentStorage storage, bool adaptive_branch_counts, VandermondeSolver vandermonde_solver,
+                                                CqmomDiagnosticLevel diagnostic_level);
 
 struct CqmomDiagnostics
 {
@@ -209,7 +220,11 @@ public:
     [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
+    [[nodiscard]] CqmomMomentStorage moment_storage() const noexcept;
     [[nodiscard]] const std::vector<CqmomActiveBranchCount>& active_branch_counts() const noexcept;
+    [[nodiscard]] std::vector<MultiIndex> moment_indices() const;
+    [[nodiscard]] const std::vector<double>& moment_values() const noexcept;
+    [[nodiscard]] std::optional<double> moment(const MultiIndex& index) const;
 
 private:
     struct Data;
@@ -244,6 +259,7 @@ public:
     [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
+    [[nodiscard]] CqmomMomentStorage moment_storage() const noexcept;
     [[nodiscard]] CqmomState initial_state() const;
 
 private:

@@ -337,11 +337,8 @@ a different physical model; it is the compact representation used for the
 moments required by the configured hierarchy and conditioning order. Normal
 configuration workflows build and hide this representation automatically.
 
-For transport, prefer the configured `CqmomState` workflow unless the
-application deliberately manages an explicit dense or lean transport state.
-`CqmomState` transport preserves the configured reconstruction policy and
-supports adaptive branch counts. Dense transport is available for callers that
-intentionally pass a full `RawMomentTensor`; explicit lean transport is
-available for callers that intentionally pass `CqmomLeanTransportState` with a
-fixed moment layout. Use `CqmomState` transport when adaptive branch counts are
-needed during transport.
+For transport, use the configured `CqmomState` workflow. `CqmomState` preserves
+the configured reconstruction policy, selected moment storage, and adaptive
+branch-count topology between successful transport calls. Dense and lean case
+types remain available for callers that intentionally manage static inversion
+inputs, but public CQMOM transport is storage-independent.

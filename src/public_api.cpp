@@ -360,6 +360,9 @@ namespace
                             to_qmom_status(diagnostics.wheeler_status),
                             diagnostics.conditional_moment_status,
                             diagnostics.conditional_moment_diagnostics,
+                            diagnostics.conditional_vandermonde_requested_solver,
+                            diagnostics.conditional_vandermonde_selected_solver,
+                            diagnostics.dense_vandermonde_fallback_occurred,
                             diagnostics.message};
 }
 
@@ -423,41 +426,7 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
 
 CqmomResult compute_cqmom(const CqmomDenseCase& dense_case)
 {
-    internal::RecursiveQuadratureResult result{
-        internal::RecursiveQuadrature(dense_case.hierarchy), internal::RecursiveQuadratureStatus::success, "", {}, {}, 0};
-    result.quadrature.set_adaptive_branch_counts_enabled(dense_case.adaptive_branch_counts);
-    std::optional<CqmomMomentData> lean_moments;
-
-    try
-    {
-        internal::validate_dense_cqmom_reconstruction_tensor(dense_case.moments, dense_case.hierarchy,
-                                                             "Raw moment extents must match the hierarchy dimension.",
-                                                             "Raw moment data size does not match its extents.", "Raw moments must be finite.",
-                                                             "Raw moment extents must contain at least 2*N orders per dimension.");
-        // Dense moments are a user-facing input representation. Internally,
-        // recursive CQMOM reconstructs from the required lean moment layout so
-        // dense and lean cases share the same numerical path.
-        const CqmomMomentLayout layout = create_cqmom_moment_layout(dense_case.hierarchy);
-        lean_moments = extract_cqmom_moments(dense_case.moments, layout);
-    }
-    catch (const std::exception& ex)
-    {
-        result.status = internal::RecursiveQuadratureStatus::invalid_input;
-        result.message = ex.what();
-    }
-    if (lean_moments.has_value())
-    {
-        result = internal::compute_recursive_quadrature_from_moment_data({dense_case.hierarchy,
-                                                                          *lean_moments,
-                                                                          dense_case.conditional_options,
-                                                                          to_wheeler_options(dense_case.qmom_options),
-                                                                          dense_case.adaptive_branch_counts,
-                                                                          dense_case.diagnostic_level,
-                                                                          dense_case.vandermonde_solver,
-                                                                          {}});
-    }
-
-    return to_cqmom_result(result, dense_case.hierarchy);
+    return internal::compute_trusted_cqmom(dense_case);
 }
 
 CqmomResult compute_cqmom(const CqmomLeanCase& lean_case)
@@ -478,6 +447,35 @@ CqmomResult compute_cqmom(const CqmomLeanCase& lean_case)
 
 namespace internal
 {
+
+CqmomResult compute_trusted_cqmom(const CqmomDenseCase& dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts)
+{
+    RecursiveQuadratureResult result{RecursiveQuadrature(dense_case.hierarchy), RecursiveQuadratureStatus::success, "", {}, {}, 0};
+    result.quadrature.set_adaptive_branch_counts_enabled(dense_case.adaptive_branch_counts);
+    std::optional<CqmomMomentData> lean_moments;
+
+    try
+    {
+        validate_dense_cqmom_reconstruction_tensor(dense_case.moments, dense_case.hierarchy, "Raw moment extents must match the hierarchy dimension.",
+                                                   "Raw moment data size does not match its extents.", "Raw moments must be finite.",
+                                                   "Raw moment extents must contain at least 2*N orders per dimension.");
+        const CqmomMomentLayout layout = create_cqmom_moment_layout(dense_case.hierarchy);
+        lean_moments = extract_cqmom_moments(dense_case.moments, layout);
+    }
+    catch (const std::exception& ex)
+    {
+        result.status = RecursiveQuadratureStatus::invalid_input;
+        result.message = ex.what();
+    }
+    if (lean_moments.has_value())
+    {
+        result = compute_recursive_quadrature_from_moment_data(
+            {dense_case.hierarchy, *lean_moments, dense_case.conditional_options, to_wheeler_options(dense_case.qmom_options),
+             dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver, std::move(active_branch_counts)});
+    }
+
+    return to_cqmom_result(result, dense_case.hierarchy);
+}
 
 CqmomResult compute_trusted_cqmom(const CqmomLeanCase& lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts)
 {

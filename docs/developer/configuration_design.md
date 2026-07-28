@@ -285,6 +285,9 @@ CQMOM state-transport source policy lives under `[time_integration.cqmom]` and
 maps to `CqmomNodeCountEvolution`. If omitted,
 `source_node_count_evolution` defaults to
 `allow_growth_to_configured_maximum`, matching the C++ transport option.
+The policy is backend-neutral: drivers that expose explicit dense and explicit
+lean CQMOM transport should assign the same parsed value to both option
+objects.
 
 The parser default-constructs `NodeAdvectionOptions` and only overwrites keys
 that are present, so configuration parsing does not duplicate

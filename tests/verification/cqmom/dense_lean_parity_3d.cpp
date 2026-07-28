@@ -288,8 +288,80 @@ void compare_diagnostics(const std::vector<qmomkit::CqmomDiagnostics>& dense, co
         QMOMKIT_VERIFY_CHECK(dense[i].adaptive_node_count_reduced == lean[i].adaptive_node_count_reduced);
         QMOMKIT_VERIFY_CHECK(dense[i].qmom_status == lean[i].qmom_status);
         QMOMKIT_VERIFY_CHECK(dense[i].conditional_moment_status == lean[i].conditional_moment_status);
+        QMOMKIT_VERIFY_CHECK(dense[i].conditional_vandermonde_requested_solver == lean[i].conditional_vandermonde_requested_solver);
+        QMOMKIT_VERIFY_CHECK(dense[i].conditional_vandermonde_selected_solver == lean[i].conditional_vandermonde_selected_solver);
+        QMOMKIT_VERIFY_CHECK(dense[i].dense_vandermonde_fallback_occurred == lean[i].dense_vandermonde_fallback_occurred);
         QMOMKIT_VERIFY_CHECK(dense[i].message == lean[i].message);
     }
+}
+
+std::vector<qmomkit::CqmomNodeCountTransition> transitions_for_stage(const std::vector<qmomkit::CqmomNodeCountTransition>& transitions,
+                                                                     const qmomkit::TransportStage stage)
+{
+    std::vector<qmomkit::CqmomNodeCountTransition> selected;
+    for (const qmomkit::CqmomNodeCountTransition& transition : transitions)
+    {
+        if (transition.stage == stage)
+        {
+            selected.push_back(transition);
+        }
+    }
+    return selected;
+}
+
+void compare_node_count_transitions(const std::vector<qmomkit::CqmomNodeCountTransition>& dense,
+                                    const std::vector<qmomkit::CqmomNodeCountTransition>& lean)
+{
+    QMOMKIT_VERIFY_CHECK(dense.size() == lean.size());
+    for (std::size_t i = 0; i < dense.size(); ++i)
+    {
+        QMOMKIT_VERIFY_CHECK(dense[i].stage == lean[i].stage);
+        QMOMKIT_VERIFY_CHECK(dense[i].conditioning_level == lean[i].conditioning_level);
+        QMOMKIT_VERIFY_CHECK(dense[i].parent_path == lean[i].parent_path);
+        QMOMKIT_VERIFY_CHECK(dense[i].phase_space_dimension == lean[i].phase_space_dimension);
+        QMOMKIT_VERIFY_CHECK(dense[i].configured_maximum_node_count == lean[i].configured_maximum_node_count);
+        QMOMKIT_VERIFY_CHECK(dense[i].active_node_count_before == lean[i].active_node_count_before);
+        QMOMKIT_VERIFY_CHECK(dense[i].active_node_count_after == lean[i].active_node_count_after);
+        QMOMKIT_VERIFY_CHECK(dense[i].node_count_evolution == lean[i].node_count_evolution);
+        QMOMKIT_VERIFY_CHECK(dense[i].kind == lean[i].kind);
+        QMOMKIT_VERIFY_CHECK(dense[i].rank_reduced == lean[i].rank_reduced);
+        QMOMKIT_VERIFY_CHECK(dense[i].rank_grew == lean[i].rank_grew);
+    }
+}
+
+bool diagnostics_request_solver(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics, const std::size_t dimensions,
+                                const qmomkit::VandermondeSolver solver)
+{
+    bool saw_conditional_branch = false;
+    for (const qmomkit::CqmomDiagnostics& diagnostic : diagnostics)
+    {
+        if (diagnostic.conditioning_level + 1 >= dimensions)
+        {
+            continue;
+        }
+        saw_conditional_branch = true;
+        if (diagnostic.conditional_vandermonde_requested_solver != solver || diagnostic.conditional_vandermonde_selected_solver != solver)
+        {
+            return false;
+        }
+    }
+    return saw_conditional_branch;
+}
+
+bool all_diagnostics_enable_adaptive_branch_counts(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics)
+{
+    if (diagnostics.empty())
+    {
+        return false;
+    }
+    for (const qmomkit::CqmomDiagnostics& diagnostic : diagnostics)
+    {
+        if (!diagnostic.adaptive_branch_counts_enabled)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 void compare_common_reconstructed_moments(const qmomkit::CqmomResult& dense, const qmomkit::CqmomResult& lean,
@@ -1255,24 +1327,52 @@ void run_explicit_transport_parity()
 
     qmomkit::CqmomDenseTransportOptions dense_options;
     dense_options.scheme = qmomkit::TransportScheme::cd;
+    dense_options.adaptive_branch_counts = true;
+    dense_options.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
+    dense_options.vandermonde_solver = qmomkit::VandermondeSolver::dense;
+    dense_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+    dense_options.qmom_options.adaptive = true;
     dense_options.qmom_options.rmin = 1.0e-12;
     dense_options.qmom_options.eabs = 1.0e-12;
     qmomkit::CqmomLeanTransportOptions lean_options;
-    lean_options.scheme = qmomkit::TransportScheme::cd;
+    lean_options.scheme = dense_options.scheme;
+    lean_options.adaptive_branch_counts = dense_options.adaptive_branch_counts;
+    lean_options.diagnostic_level = dense_options.diagnostic_level;
+    lean_options.vandermonde_solver = dense_options.vandermonde_solver;
+    lean_options.source_node_count_evolution = dense_options.source_node_count_evolution;
     lean_options.qmom_options = dense_options.qmom_options;
 
     const qmomkit::CqmomDenseTransportResult dense =
         qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.05, velocity, dense_zero_source, dense_options);
     const qmomkit::CqmomLeanTransportResult lean = qmomkit::advance_transport_cqmom(state, 0.0, 0.05, velocity, lean_zero_source, lean_options);
 
-    std::cout << "[explicit transport parity] dense_status=" << static_cast<int>(dense.status) << " lean_status=" << static_cast<int>(lean.status)
-              << " uncontrolled_options=dense exposes adaptive_branch_counts; lean transport fixes adaptive off, detailed diagnostics, automatic "
-                 "Vandermonde internally\n";
+    std::cout
+        << "[explicit transport parity] dense_status=" << static_cast<int>(dense.status) << " lean_status=" << static_cast<int>(lean.status)
+        << " remaining_limits=explicit active topology is one-call only; source callback types differ; runtime storage selection is not exposed\n";
     QMOMKIT_VERIFY_CHECK(dense.status == lean.status);
     QMOMKIT_VERIFY_CHECK(dense.ok() == lean.ok());
     QMOMKIT_VERIFY_CHECK(dense.diagnostics.failed_stage == lean.diagnostics.failed_stage);
-    if (dense.ok())
+    QMOMKIT_VERIFY_CHECK(dense.diagnostics.cqmom_diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic);
+    QMOMKIT_VERIFY_CHECK(lean.diagnostics.cqmom_diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic);
+    QMOMKIT_VERIFY_CHECK(dense.diagnostics.cqmom_vandermonde_solver == qmomkit::VandermondeSolver::dense);
+    QMOMKIT_VERIFY_CHECK(lean.diagnostics.cqmom_vandermonde_solver == qmomkit::VandermondeSolver::dense);
+    QMOMKIT_VERIFY_CHECK(all_diagnostics_enable_adaptive_branch_counts(dense.diagnostics.initial_cqmom_diagnostics));
+    QMOMKIT_VERIFY_CHECK(all_diagnostics_enable_adaptive_branch_counts(lean.diagnostics.initial_cqmom_diagnostics));
+    QMOMKIT_VERIFY_CHECK(
+        diagnostics_request_solver(dense.diagnostics.initial_cqmom_diagnostics, hierarchy.number_of_dimensions(), qmomkit::VandermondeSolver::dense));
+    QMOMKIT_VERIFY_CHECK(
+        diagnostics_request_solver(lean.diagnostics.initial_cqmom_diagnostics, hierarchy.number_of_dimensions(), qmomkit::VandermondeSolver::dense));
+    compare_node_count_transitions(transitions_for_stage(dense.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::initial_inversion),
+                                   transitions_for_stage(lean.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::initial_inversion));
+    if (dense.ok() && lean.ok())
     {
+        QMOMKIT_VERIFY_CHECK(dense.quadrature.has_value());
+        QMOMKIT_VERIFY_CHECK(lean.quadrature.has_value());
+        if (dense.quadrature.has_value() && lean.quadrature.has_value())
+        {
+            QMOMKIT_VERIFY_CHECK(dense.quadrature->adaptive_branch_counts_enabled());
+            QMOMKIT_VERIFY_CHECK(lean.quadrature->adaptive_branch_counts_enabled());
+        }
         const qmomkit::CqmomMomentData dense_common = qmomkit::extract_cqmom_moments(dense.moments, layout);
         QMOMKIT_VERIFY_CHECK(dense_common.values.size() == lean.state.moments.values.size());
         for (std::size_t i = 0; i < dense_common.values.size(); ++i)

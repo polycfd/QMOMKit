@@ -94,6 +94,8 @@ struct TransportDiagnostics
 {
     TransportScheme scheme = TransportScheme::strang;
     TransportStage failed_stage = TransportStage::none;
+    CqmomDiagnosticLevel cqmom_diagnostic_level = CqmomDiagnosticLevel::detailed;
+    VandermondeSolver cqmom_vandermonde_solver = VandermondeSolver::automatic;
     QmomStatus initial_qmom_status = QmomStatus::success;
     QmomStatus post_source_qmom_status = QmomStatus::success;
     CqmomStatus initial_cqmom_status = CqmomStatus::success;
@@ -124,14 +126,24 @@ struct QmomTransportOptions
     TransportScheme scheme = TransportScheme::strang;
 };
 
-struct CqmomDenseTransportOptions
+struct CqmomTransportOptions
 {
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
     NodeAdvectionOptions node_options;
     MomentSourceUpdateOptions source_options;
     bool adaptive_branch_counts = false;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
+    /** Source-stage rank policy for adaptive explicit transport within one
+     * macro step. Explicit dense/lean moment containers do not persist active
+     * topology between calls. */
+    CqmomNodeCountEvolution source_node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     TransportScheme scheme = TransportScheme::strang;
+};
+
+struct CqmomDenseTransportOptions : CqmomTransportOptions
+{
 };
 
 /**
@@ -146,13 +158,8 @@ struct CqmomLeanTransportState
     CqmomMomentData moments;
 };
 
-struct CqmomLeanTransportOptions
+struct CqmomLeanTransportOptions : CqmomTransportOptions
 {
-    ConditionalMomentOptions conditional_options;
-    QmomOptions qmom_options;
-    NodeAdvectionOptions node_options;
-    MomentSourceUpdateOptions source_options;
-    TransportScheme scheme = TransportScheme::strang;
 };
 
 struct CqmomStateTransportOptions
@@ -301,9 +308,11 @@ struct CqmomStateTransportResult
  * TransportScheme::strang applies
  * continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2).
  * TransportScheme::cd applies continuous(dt) -> discontinuous(dt).
- * TransportScheme::dc applies discontinuous(dt) -> continuous(dt). Adaptive
- * branch evolution is intentionally unsupported for the explicit lean
- * transport API.
+ * TransportScheme::dc applies discontinuous(dt) -> continuous(dt). When
+ * `options.adaptive_branch_counts` is enabled, active topology can constrain
+ * inversions within this macro step, but the returned lean moment state does
+ * not persist active branch counts for a later explicit call. Use CqmomState
+ * transport when adaptive topology must persist between steps.
  */
 [[nodiscard]] CqmomLeanTransportResult advance_transport_cqmom(const CqmomLeanTransportState& state, double t, double time_step,
                                                                const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
@@ -366,10 +375,11 @@ struct CqmomStateTransportResult
  * TransportScheme::strang applies
  * continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2).
  * TransportScheme::cd applies continuous(dt) -> discontinuous(dt).
- * TransportScheme::dc applies discontinuous(dt) -> continuous(dt).
- *
- * Adaptive branch evolution is intentionally unsupported for the explicit lean
- * transport API.
+ * TransportScheme::dc applies discontinuous(dt) -> continuous(dt). When
+ * `options.adaptive_branch_counts` is enabled, active topology can constrain
+ * inversions within this macro step, but the returned lean moment state does
+ * not persist active branch counts for a later explicit call. Use CqmomState
+ * transport when adaptive topology must persist between steps.
  */
 [[nodiscard]] CqmomLeanTransportResult advance_transport_cqmom(const CqmomLeanTransportState& state, double t, double time_step,
                                                                const PhaseSpaceVelocity& velocity, const CqmomLeanTransportOptions& options = {});

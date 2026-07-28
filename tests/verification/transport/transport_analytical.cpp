@@ -229,15 +229,19 @@ const char* transport_scheme_name(const qmomkit::TransportScheme scheme)
 qmomkit::CqmomDenseTransportOptions cqmom_options(const qmomkit::CqmomDenseCase& dense_case)
 {
     qmomkit::CqmomDenseTransportOptions options;
-    options.conditional_options = dense_case.conditional_options;
-    options.qmom_options = dense_case.qmom_options;
-    options.adaptive_branch_counts = dense_case.adaptive_branch_counts;
-    options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    options.node_options.rk23_options.relative_tolerance = 1.0e-12;
-    options.node_options.rk23_options.absolute_tolerance = 1.0e-14;
-    options.node_options.rk23_options.max_step = 0.01;
-    options.source_options.ssp_rk3_options.estimate_error = true;
-    options.scheme = qmomkit::TransportScheme::strang;
+    qmomkit::CqmomTransportOptions& common = options;
+    common.conditional_options = dense_case.conditional_options;
+    common.qmom_options = dense_case.qmom_options;
+    common.adaptive_branch_counts = dense_case.adaptive_branch_counts;
+    common.diagnostic_level = dense_case.diagnostic_level;
+    common.vandermonde_solver = dense_case.vandermonde_solver;
+    common.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
+    common.node_options.rk23_options.relative_tolerance = 1.0e-12;
+    common.node_options.rk23_options.absolute_tolerance = 1.0e-14;
+    common.node_options.rk23_options.max_step = 0.01;
+    common.source_options.ssp_rk3_options.estimate_error = true;
+    common.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+    common.scheme = qmomkit::TransportScheme::strang;
     return options;
 }
 
@@ -256,14 +260,19 @@ qmomkit::CqmomStateTransportOptions cqmom_state_options()
 qmomkit::CqmomLeanTransportOptions cqmom_lean_options(const qmomkit::CqmomLeanCase& lean_case)
 {
     qmomkit::CqmomLeanTransportOptions options;
-    options.conditional_options = lean_case.conditional_options;
-    options.qmom_options = lean_case.qmom_options;
-    options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    options.node_options.rk23_options.relative_tolerance = 1.0e-12;
-    options.node_options.rk23_options.absolute_tolerance = 1.0e-14;
-    options.node_options.rk23_options.max_step = 0.01;
-    options.source_options.ssp_rk3_options.estimate_error = true;
-    options.scheme = qmomkit::TransportScheme::strang;
+    qmomkit::CqmomTransportOptions& common = options;
+    common.conditional_options = lean_case.conditional_options;
+    common.qmom_options = lean_case.qmom_options;
+    common.adaptive_branch_counts = lean_case.adaptive_branch_counts;
+    common.diagnostic_level = lean_case.diagnostic_level;
+    common.vandermonde_solver = lean_case.vandermonde_solver;
+    common.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
+    common.node_options.rk23_options.relative_tolerance = 1.0e-12;
+    common.node_options.rk23_options.absolute_tolerance = 1.0e-14;
+    common.node_options.rk23_options.max_step = 0.01;
+    common.source_options.ssp_rk3_options.estimate_error = true;
+    common.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+    common.scheme = qmomkit::TransportScheme::strang;
     return options;
 }
 
@@ -302,6 +311,66 @@ bool cqmom_diagnostics_are_successful(const qmomkit::TransportDiagnostics& diagn
            diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::success && diagnostics.source_diagnostics.accepted &&
            !diagnostics.source_diagnostics.rejected && diagnostics.source_retries == 0 && diagnostics.first_reconstruction_diagnostics.success &&
            diagnostics.final_reconstruction_diagnostics.success;
+}
+
+bool cqmom_diagnostics_request_solver(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics, const std::size_t dimensions,
+                                      const qmomkit::VandermondeSolver solver)
+{
+    bool saw_conditional_branch = false;
+    for (const qmomkit::CqmomDiagnostics& diagnostic : diagnostics)
+    {
+        if (diagnostic.conditioning_level + 1 >= dimensions)
+        {
+            continue;
+        }
+        saw_conditional_branch = true;
+        if (diagnostic.conditional_vandermonde_requested_solver != solver || diagnostic.conditional_vandermonde_selected_solver != solver)
+        {
+            return false;
+        }
+    }
+    return saw_conditional_branch;
+}
+
+bool cqmom_diagnostics_enable_adaptive_branch_counts(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics)
+{
+    if (diagnostics.empty())
+    {
+        return false;
+    }
+    for (const qmomkit::CqmomDiagnostics& diagnostic : diagnostics)
+    {
+        if (!diagnostic.adaptive_branch_counts_enabled)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+void verify_helper_based_common_cqmom_policies(const std::string& case_name, const qmomkit::TransportDiagnostics& diagnostics,
+                                               const std::size_t dimensions, VerificationResult& verification)
+{
+    if (diagnostics.cqmom_diagnostic_level != qmomkit::CqmomDiagnosticLevel::basic)
+    {
+        append_failure(verification, case_name + " helper did not propagate CqmomDiagnosticLevel::basic.");
+    }
+    if (diagnostics.cqmom_vandermonde_solver != qmomkit::VandermondeSolver::dense)
+    {
+        append_failure(verification, case_name + " helper did not propagate VandermondeSolver::dense.");
+    }
+    if (!cqmom_diagnostics_enable_adaptive_branch_counts(diagnostics.initial_cqmom_diagnostics))
+    {
+        append_failure(verification, case_name + " helper did not propagate adaptive branch-count diagnostics.");
+    }
+    if (!cqmom_diagnostics_request_solver(diagnostics.initial_cqmom_diagnostics, dimensions, qmomkit::VandermondeSolver::dense))
+    {
+        append_failure(verification, case_name + " helper did not use the dense Vandermonde solver in conditional reconstruction.");
+    }
+    if (diagnostics.cqmom_node_count_transitions.empty())
+    {
+        append_failure(verification, case_name + " helper did not expose adaptive active-count transition diagnostics.");
+    }
 }
 
 std::vector<double> commuting_exact(const std::vector<double>& initial, const double elapsed)
@@ -2379,6 +2448,84 @@ void verify_cqmom_lean_initial_inversion_failure_result(const qmomkit::CqmomLean
     }
 }
 
+void verify_dense_helper_based_common_cqmom_transport(const qmomkit::CqmomDenseCase& dense_case, VerificationResult& verification)
+{
+    qmomkit::CqmomDenseCase policy_case = dense_case;
+    policy_case.qmom_options.adaptive = true;
+    policy_case.adaptive_branch_counts = true;
+    policy_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
+    policy_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
+    qmomkit::CqmomDenseTransportOptions options = cqmom_options(policy_case);
+    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto zero_source = [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 0.0); };
+    const qmomkit::CqmomDenseTransportResult result =
+        qmomkit::advance_transport_cqmom(policy_case.moments, policy_case.hierarchy, 0.0, 0.02, zero_velocity, zero_source, options);
+    if (!result.ok())
+    {
+        append_failure(verification, "helper-based dense CQMOM policy probe failed: " + result.message);
+    }
+    else
+    {
+        verify_helper_based_common_cqmom_policies("helper-based dense CQMOM", result.diagnostics, policy_case.hierarchy.number_of_dimensions(),
+                                                  verification);
+    }
+
+    RunSummary summary;
+    summary.scheme = options.scheme;
+    summary.dt = 0.02;
+    summary.steps = 1;
+    summary.final_time = result.final_time;
+    summary.retry_count = result.diagnostics.source_retries;
+    summary.success = result.ok() && result.diagnostics.cqmom_diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic &&
+                      result.diagnostics.cqmom_vandermonde_solver == qmomkit::VandermondeSolver::dense &&
+                      cqmom_diagnostics_enable_adaptive_branch_counts(result.diagnostics.initial_cqmom_diagnostics) &&
+                      cqmom_diagnostics_request_solver(result.diagnostics.initial_cqmom_diagnostics, policy_case.hierarchy.number_of_dimensions(),
+                                                       qmomkit::VandermondeSolver::dense);
+    verification.runs.push_back(summary);
+}
+
+void verify_lean_helper_based_common_cqmom_transport(const qmomkit::CqmomLeanCase& lean_case, VerificationResult& verification)
+{
+    qmomkit::CqmomLeanCase policy_case = lean_case;
+    policy_case.qmom_options.adaptive = true;
+    policy_case.adaptive_branch_counts = true;
+    policy_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
+    policy_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
+    qmomkit::CqmomLeanTransportOptions options = cqmom_lean_options(policy_case);
+    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+
+    const qmomkit::CqmomLeanTransportState state{policy_case.moments};
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+    const qmomkit::CqmomLeanTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.02, zero_velocity, zero_source, options);
+    if (!result.ok())
+    {
+        append_failure(verification, "helper-based lean CQMOM policy probe failed: " + result.message);
+    }
+    else
+    {
+        verify_helper_based_common_cqmom_policies("helper-based lean CQMOM", result.diagnostics,
+                                                  policy_case.moments.layout.hierarchy.number_of_dimensions(), verification);
+    }
+
+    RunSummary summary;
+    summary.scheme = options.scheme;
+    summary.dt = 0.02;
+    summary.steps = 1;
+    summary.final_time = result.final_time;
+    summary.retry_count = result.diagnostics.source_retries;
+    summary.success =
+        result.ok() && result.diagnostics.cqmom_diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic &&
+        result.diagnostics.cqmom_vandermonde_solver == qmomkit::VandermondeSolver::dense &&
+        cqmom_diagnostics_enable_adaptive_branch_counts(result.diagnostics.initial_cqmom_diagnostics) &&
+        cqmom_diagnostics_request_solver(result.diagnostics.initial_cqmom_diagnostics, policy_case.moments.layout.hierarchy.number_of_dimensions(),
+                                         qmomkit::VandermondeSolver::dense);
+    verification.runs.push_back(summary);
+}
+
 VerificationResult run_cqmom_transport_failures(const std::filesystem::path& configuration_path)
 {
     VerificationResult verification;
@@ -2563,6 +2710,7 @@ VerificationResult run_cqmom_dense_transport_failures(const std::filesystem::pat
         append_failure(verification, "initial dense CQMOM transport failure inversion failed: " + initial.message);
         return verification;
     }
+    verify_dense_helper_based_common_cqmom_transport(dense_case, verification);
 
     qmomkit::CqmomDenseTransportOptions options = cqmom_options(dense_case);
     options.scheme = qmomkit::TransportScheme::strang;
@@ -2662,6 +2810,7 @@ VerificationResult run_cqmom_lean_transport_failures(const std::filesystem::path
         append_failure(verification, "initial lean CQMOM transport failure inversion failed: " + initial.message);
         return verification;
     }
+    verify_lean_helper_based_common_cqmom_transport(lean_case, verification);
 
     qmomkit::CqmomLeanTransportOptions options = cqmom_lean_options(lean_case);
     options.scheme = qmomkit::TransportScheme::strang;

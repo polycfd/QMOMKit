@@ -256,6 +256,27 @@ numeric path reuse does not apply stale branch limits after a collapse or
 merge. Diagnostics report only true node-count transitions and distinguish
 reduced, grown, created, and removed branch records.
 
+Explicit dense and lean CQMOM transport share `CqmomTransportOptions` through
+their compatibility option types. The common policy surface owns conditional
+moment controls, QMOM/Wheeler controls, node-advection/RK23 controls,
+moment-source SSP-RK3 controls, adaptive branch-count enablement, CQMOM
+diagnostic level, Vandermonde solver selection, source-stage node-count
+evolution, and transport sequencing. Dense and lean explicit overloads must
+pass these fields through to the same recursive CQMOM, node-advection,
+moment-reconstruction, and source-update algorithms; accepting a public option
+and replacing it with `false`, `detailed`, `automatic`, or another aggregate
+default is a bug.
+
+Explicit dense and lean transport are still one-shot moment-container
+workflows. They can preserve active adaptive counts from initial inversion to
+post-source inversion within a single macro step, but their returned moment
+containers do not carry active topology for the next call. `CqmomState`
+transport remains the workflow that persists active branch counts across
+accepted steps. Dense explicit sources use `MomentSource` over dense tensor
+storage; lean and state sources use `CqmomMomentSource` over required CQMOM
+moment data. That source-callback mismatch is the remaining public API
+difference for a later stage.
+
 ### Source SSP-RK3
 
 Source SSP-RK3 advances raw moment vectors through moment-source updates. It is

@@ -601,6 +601,43 @@ construction fails instead of creating a state with inconsistent adaptive
 metadata. Failed state transport returns the previous state metadata so callers
 can retry from the last accepted step.
 
+Explicit dense and lean CQMOM transport use the same `CqmomTransportOptions`
+policy surface through `CqmomDenseTransportOptions` and
+`CqmomLeanTransportOptions`:
+
+```cpp
+const auto configure_cqmom_transport = [&](auto& options)
+{
+    options.qmom_options = qmom_options;
+    options.conditional_options = conditional_options;
+    options.node_options = node_options;
+    options.source_options = source_options;
+    options.adaptive_branch_counts = true;
+    options.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
+    options.vandermonde_solver = qmomkit::VandermondeSolver::automatic;
+    options.source_node_count_evolution =
+        qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+    options.scheme = qmomkit::TransportScheme::strang;
+};
+
+qmomkit::CqmomDenseTransportOptions dense_options;
+qmomkit::CqmomLeanTransportOptions lean_options;
+configure_cqmom_transport(dense_options);
+configure_cqmom_transport(lean_options);
+```
+
+The explicit dense result returns a dense tensor, while the explicit lean result
+returns required CQMOM moment data, so active adaptive topology is not persisted
+between separate calls in either explicit workflow. Within one macro step,
+`source_node_count_evolution` controls post-source inversion for both explicit
+workflows. Use `CqmomState` transport when adaptive branch counts must persist
+across calls.
+
+The dense explicit source callback is still `MomentSource` over the dense raw
+moment vector. The lean and state callbacks are `CqmomMomentSource` over the
+required CQMOM moment layout. They can represent equivalent physics, but the
+callback type is not unified yet.
+
 `result.ok()` identifies whether returned moments or quadrature describe an
 accepted transport step. On failure, `result.message` and `result.diagnostics`
 indicate whether the inversion, node advection, moment source update, or

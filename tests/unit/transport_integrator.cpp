@@ -383,6 +383,20 @@ qmomkit::CqmomCase fixed_cqmom_case_with_storage(const char* const storage)
     return *parsed.value;
 }
 
+void test_internal_cqmom_state_backend_accessors_are_explicit_and_guarded()
+{
+    const qmomkit::CqmomState dense_state = fixed_cqmom_case_with_storage("dense").initial_state();
+    const qmomkit::CqmomState lean_state = fixed_cqmom_case_with_storage("lean").initial_state();
+
+    assert(dense_state.moment_storage() == qmomkit::CqmomMomentStorage::dense);
+    assert(lean_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+
+    assert(qmomkit::internal::cqmom_state_dense_case(dense_state) != nullptr);
+    assert(qmomkit::internal::cqmom_state_lean_case(dense_state) == nullptr);
+    assert(qmomkit::internal::cqmom_state_dense_case(lean_state) == nullptr);
+    assert(qmomkit::internal::cqmom_state_lean_case(lean_state) != nullptr);
+}
+
 std::string cqmom_case_text_from_moments_with_hierarchy(const qmomkit::RawMomentTensor& moments, const std::vector<std::size_t>& node_counts,
                                                         const std::vector<std::size_t>& conditioning_order, const bool adaptive_branch_counts,
                                                         const bool adaptive_wheeler)
@@ -1521,11 +1535,13 @@ void test_fixed_state_transport_does_not_store_adaptive_branch_counts()
 void test_adaptive_state_rejects_duplicate_active_count_metadata()
 {
     const qmomkit::CqmomState good_state = adaptive_cqmom_case().initial_state();
+    assert(good_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::cqmom_state_lean_case(good_state);
+    assert(lean_case != nullptr);
     std::vector<qmomkit::CqmomActiveBranchCount> bad_counts = good_state.active_branch_counts();
     assert(!bad_counts.empty());
     bad_counts.push_back(bad_counts.front());
-    const qmomkit::CqmomState bad_state =
-        qmomkit::internal::create_cqmom_state(qmomkit::internal::cqmom_state_case(good_state), std::move(bad_counts));
+    const qmomkit::CqmomState bad_state = qmomkit::internal::create_cqmom_state(*lean_case, std::move(bad_counts));
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
@@ -1544,11 +1560,13 @@ void test_adaptive_state_rejects_duplicate_active_count_metadata()
 void test_adaptive_state_rejects_missing_active_count_metadata()
 {
     const qmomkit::CqmomState good_state = adaptive_cqmom_case().initial_state();
+    assert(good_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::cqmom_state_lean_case(good_state);
+    assert(lean_case != nullptr);
     std::vector<qmomkit::CqmomActiveBranchCount> bad_counts = good_state.active_branch_counts();
     assert(!bad_counts.empty());
     bad_counts.pop_back();
-    const qmomkit::CqmomState bad_state =
-        qmomkit::internal::create_cqmom_state(qmomkit::internal::cqmom_state_case(good_state), std::move(bad_counts));
+    const qmomkit::CqmomState bad_state = qmomkit::internal::create_cqmom_state(*lean_case, std::move(bad_counts));
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
@@ -2500,6 +2518,7 @@ int main()
     test_adaptive_state_preserved_source_invalidates_grandchildren_after_second_level_collapse();
     test_adaptive_state_initial_counts_preserve_nonidentity_conditioning_order();
     test_fixed_state_transport_does_not_store_adaptive_branch_counts();
+    test_internal_cqmom_state_backend_accessors_are_explicit_and_guarded();
     test_adaptive_state_rejects_duplicate_active_count_metadata();
     test_adaptive_state_rejects_missing_active_count_metadata();
     test_adaptive_state_failure_preserves_active_counts_for_retry();

@@ -383,11 +383,6 @@ CqmomState CqmomConstructionAccess::create_state(CqmomLeanCase lean_case, std::v
     return CqmomState(std::make_unique<CqmomState::Data>(CqmomState::Data{std::move(lean_case), std::move(active_branch_counts)}));
 }
 
-const CqmomLeanCase& CqmomConstructionAccess::state_case(const CqmomState& state)
-{
-    return std::get<CqmomLeanCase>(state.data_->case_);
-}
-
 const CqmomDenseCase* CqmomConstructionAccess::state_dense_case(const CqmomState& state)
 {
     return std::get_if<CqmomDenseCase>(&state.data_->case_);
@@ -439,11 +434,6 @@ CqmomState create_cqmom_state(CqmomLeanCase lean_case)
 CqmomState create_cqmom_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts)
 {
     return CqmomConstructionAccess::create_state(std::move(lean_case), std::move(active_branch_counts));
-}
-
-const CqmomLeanCase& cqmom_state_case(const CqmomState& state)
-{
-    return CqmomConstructionAccess::state_case(state);
 }
 
 const CqmomDenseCase* cqmom_state_dense_case(const CqmomState& state)

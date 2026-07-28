@@ -23,7 +23,6 @@ public:
     [[nodiscard]] static CqmomState create_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts);
     [[nodiscard]] static const CqmomDenseCase* state_dense_case(const CqmomState& state);
     [[nodiscard]] static const CqmomLeanCase* state_lean_case(const CqmomState& state);
-    [[nodiscard]] static const CqmomLeanCase& state_case(const CqmomState& state);
     [[nodiscard]] static const std::vector<CqmomActiveBranchCount>& state_active_branch_counts(const CqmomState& state);
     [[nodiscard]] static CqmomQuadrature create_quadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights,
                                                            std::vector<std::vector<double>> abscissas, bool adaptive_branch_counts_enabled,
@@ -42,7 +41,6 @@ public:
 [[nodiscard]] CqmomState create_cqmom_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts);
 [[nodiscard]] const CqmomDenseCase* cqmom_state_dense_case(const CqmomState& state);
 [[nodiscard]] const CqmomLeanCase* cqmom_state_lean_case(const CqmomState& state);
-[[nodiscard]] const CqmomLeanCase& cqmom_state_case(const CqmomState& state);
 [[nodiscard]] const std::vector<CqmomActiveBranchCount>& cqmom_state_active_branch_counts(const CqmomState& state);
 [[nodiscard]] CqmomResult compute_trusted_cqmom(const CqmomDenseCase& dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {});
 [[nodiscard]] CqmomResult compute_trusted_cqmom(const CqmomLeanCase& lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {});

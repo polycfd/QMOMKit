@@ -1,9 +1,10 @@
 # Installing QMOMKit
 
 This page describes the repository-local installation workflow for QMOMKit.
-The root project builds and installs the QMOMKit CMake package. Tests,
-examples, benchmarks, and the Monte Carlo companion package are standalone
-projects that use that installed package.
+The root project builds and installs the QMOMKit CMake package. Normal tests
+can be enabled in the root build so they validate the current source tree.
+Examples, benchmarks, the installed-package consumer, and the Monte Carlo
+companion package are standalone projects that use an installed package.
 
 ## Requirements
 
@@ -49,21 +50,34 @@ cmake --build build
 
 ## Build Tests
 
-The test suite is a standalone CMake project. Install QMOMKit first, then
-configure the tests against the installed package:
+Normal unit, regression, verification, and public-header tests link the current
+build-tree QMOMKit target. Installation is not required:
 
 ```bash
-cd tests
-
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH=../install
-
-cmake --build build
-ctest --test-dir build
+cmake -S . -B build-tests \
+    -DQMOMKIT_BUILD_TESTS=ON \
+    -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-tests
+ctest --test-dir build-tests --output-on-failure
 ```
 
 For more detailed test selection, such as running only unit or verification
 tests, see `tests/README.md`.
+
+The package consumer tests installation and downstream `find_package` behavior.
+It is separate from the normal correctness test suite:
+
+```bash
+cmake -S . -B build \
+    -DCMAKE_INSTALL_PREFIX="$PWD/install"
+cmake --build build --target install
+
+cmake -S tests/package_consumer \
+    -B build-package-consumer \
+    -DCMAKE_PREFIX_PATH="$PWD/install"
+cmake --build build-package-consumer
+./build-package-consumer/consumer
+```
 
 ## Build Examples
 

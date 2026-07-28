@@ -15,6 +15,7 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 option(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION "Enable internal QMOMKit performance instrumentation counters" OFF)
+option(QMOMKIT_BUILD_TESTS "Build QMOMKit tests" OFF)
 
 add_library(
     qmomkit
@@ -115,5 +116,10 @@ install(
         "${CMAKE_CURRENT_BINARY_DIR}/QMOMKitConfigVersion.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/QMOMKit
 )
+
+if(QMOMKIT_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 message(STATUS "QMOMKit build type: ${CMAKE_BUILD_TYPE}")

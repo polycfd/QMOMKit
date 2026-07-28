@@ -94,8 +94,9 @@ and Release builds and return a non-zero exit code on failure.
 
 Public-header checks verify at compile time that every public header is
 self-contained. Each `include_*.cpp` translation unit under
-`tests/public_headers/` includes one QMOMKit public header. This detects
-missing direct includes and include-order dependencies.
+`tests/public_headers/` includes one QMOMKit public header through the current
+source-tree `qmomkit` target. This detects missing direct includes and
+include-order dependencies before installation.
 
 `tests/public_headers/main.cpp` is intentionally empty apart from `main()`. It
 only permits the compile-check translation units to be linked into a CTest
@@ -215,33 +216,29 @@ tests/
 
 ## Building And Running Tests
 
-The test suite is a standalone CMake project that uses an installed QMOMKit
-package. Install QMOMKit first, then configure the tests against that
-installation:
+The normal test suite is enabled from the repository root and links the current
+build-tree QMOMKit target. Installation is not required.
 
 ```bash
-cd tests
-
-cmake -S . -B build \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_PREFIX_PATH="../install"
-
-cmake --build build
+cmake -S . -B build-tests \
+    -DQMOMKIT_BUILD_TESTS=ON \
+    -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-tests
 ```
 
 Run the complete correctness suite:
 
 ```bash
-ctest --test-dir build --output-on-failure
+ctest --test-dir build-tests --output-on-failure
 ```
 
 Run one CTest category:
 
 ```bash
-ctest --test-dir build -L unit --output-on-failure
-ctest --test-dir build -L component_regression --output-on-failure
-ctest --test-dir build -L verification --output-on-failure
-ctest --test-dir build -L public_headers --output-on-failure
+ctest --test-dir build-tests -L unit --output-on-failure
+ctest --test-dir build-tests -L component_regression --output-on-failure
+ctest --test-dir build-tests -L verification --output-on-failure
+ctest --test-dir build-tests -L public_headers --output-on-failure
 ```
 
 The labels are mutually exclusive in the current CMake configuration.
@@ -249,15 +246,15 @@ The labels are mutually exclusive in the current CMake configuration.
 Run the installed-package smoke test:
 
 ```bash
-cd package_consumer
+cmake -S . -B build \
+    -DCMAKE_INSTALL_PREFIX="$PWD/install"
+cmake --build build --target install
 
-cmake -S . -B build
-cmake --build build
-cmake --install build
-
-cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
-
-cmake --build build
+cmake -S tests/package_consumer \
+    -B build-package-consumer \
+    -DCMAKE_PREFIX_PATH="$PWD/install"
+cmake --build build-package-consumer
+./build-package-consumer/consumer
 ```
 
 This project behaves like an external user: it has no source-tree include path,
@@ -269,21 +266,21 @@ does not call `add_subdirectory`, and links only the installed
 List registered tests without running them:
 
 ```bash
-ctest --test-dir build -N
+ctest --test-dir build-tests -N
 ```
 
 Run tests whose registered CTest names match a regular expression:
 
 ```bash
-ctest --test-dir build -R <pattern> --output-on-failure
+ctest --test-dir build-tests -R <pattern> --output-on-failure
 ```
 
 For example:
 
 ```bash
-ctest --test-dir build -R verification_qmom_analytical --output-on-failure
-ctest --test-dir build -R component_regression_node_advection --output-on-failure
-ctest --test-dir build -R unit_wheeler --output-on-failure
+ctest --test-dir build-tests -R verification_qmom_analytical --output-on-failure
+ctest --test-dir build-tests -R component_regression_node_advection --output-on-failure
+ctest --test-dir build-tests -R unit_wheeler --output-on-failure
 ```
 
 ## Benchmarks

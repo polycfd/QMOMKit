@@ -194,7 +194,7 @@ Most users adapting this example change:
   initial distributions, and `[output]` settings;
 - `physics.cpp`: `continuous_velocity()`, `binary_fragmentation_source()`, and
   optional boundary exchange callbacks;
-- `main.cpp`: time controls and `CqmomStateTransportOptions`.
+- `main.cpp`: time controls and `CqmomTransportOptions`.
 
 ## Output
 

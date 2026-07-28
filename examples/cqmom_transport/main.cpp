@@ -61,9 +61,11 @@ int main()
         const qmomkit::CqmomMomentSource source = cqmom_transport::binary_fragmentation_source();
         const qmomkit::CqmomMomentBoundaryContribution boundary = cqmom_transport::injection_boundary_contribution();
 
-        // User-facing transport controls live in CqmomStateTransportOptions.
-        qmomkit::CqmomStateTransportOptions transport_options;
+        // User-facing transport controls live in CqmomTransportOptions.
+        qmomkit::CqmomTransportOptions transport_options;
         transport_options.node_options = *node_advection_configured.value;
+        std::cout << qmomkit::format_cqmom_settings(cqmom_case.moment_storage(), cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(),
+                                                    cqmom_case.diagnostic_level());
         std::cout << qmomkit::format_node_advection_options(transport_options.node_options);
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
@@ -74,7 +76,7 @@ int main()
         while (time < final_time - 1.0e-12)
         {
             const double current_step = std::min(time_step, final_time - time);
-            const qmomkit::CqmomStateTransportResult transported =
+            const qmomkit::CqmomTransportResult transported =
                 qmomkit::advance_transport_cqmom(state, time, current_step, velocity, source, boundary, transport_options);
             if (!transported.ok())
             {

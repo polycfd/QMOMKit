@@ -119,7 +119,7 @@ int main()
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_2d_continuous_breakage::continuous_velocity();
         const qmomkit::CqmomMomentSource source = cqmom_2d_continuous_breakage::binary_fragmentation_source();
 
-        qmomkit::CqmomStateTransportOptions transport_options;
+        qmomkit::CqmomTransportOptions transport_options;
         transport_options.node_options = *node_advection_configured.value;
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
@@ -130,7 +130,7 @@ int main()
         while (time < final_time - 1.0e-12)
         {
             const double current_step = std::min(time_step, final_time - time);
-            const qmomkit::CqmomStateTransportResult transported =
+            const qmomkit::CqmomTransportResult transported =
                 qmomkit::advance_transport_cqmom(state, time, current_step, velocity, source, transport_options);
             if (!transported.ok())
             {

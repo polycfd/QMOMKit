@@ -14,6 +14,7 @@
 #include <exception>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -611,6 +612,149 @@ void record_failure(internal::RecursiveQuadratureResult& result, const internal:
     return true;
 }
 
+struct ActiveBranchKey
+{
+    std::size_t conditioning_level = 0;
+    ConditioningPath parent_path;
+    std::size_t phase_space_dimension = 0;
+};
+
+[[nodiscard]] bool operator<(const ActiveBranchKey& lhs, const ActiveBranchKey& rhs) noexcept
+{
+    if (lhs.conditioning_level != rhs.conditioning_level)
+    {
+        return lhs.conditioning_level < rhs.conditioning_level;
+    }
+    if (lhs.parent_path != rhs.parent_path)
+    {
+        return lhs.parent_path < rhs.parent_path;
+    }
+    return lhs.phase_space_dimension < rhs.phase_space_dimension;
+}
+
+struct ActiveBranchTopology
+{
+    bool constrained = false;
+    std::map<ActiveBranchKey, CqmomActiveBranchCount> counts;
+};
+
+[[nodiscard]] bool path_has_prefix(const ConditioningPath& path, const ConditioningPath& prefix)
+{
+    if (prefix.size() > path.size())
+    {
+        return false;
+    }
+    for (std::size_t level = 0; level < prefix.size(); ++level)
+    {
+        if (path.node_index_at_level(level) != prefix.node_index_at_level(level))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] bool branch_limit_invalidated(const ConditioningPath& parent_path, const std::vector<ConditioningPath>& invalidated_prefixes)
+{
+    for (const ConditioningPath& prefix : invalidated_prefixes)
+    {
+        if (path_has_prefix(parent_path, prefix))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+[[nodiscard]] ActiveBranchTopology validate_active_branch_topology(const PhaseSpaceHierarchy& hierarchy, const bool adaptive_branch_counts,
+                                                                   const std::vector<CqmomActiveBranchCount>& active_branch_counts)
+{
+    ActiveBranchTopology topology;
+    if (!adaptive_branch_counts || active_branch_counts.empty())
+    {
+        return topology;
+    }
+    topology.constrained = true;
+
+    const std::size_t dimensions = hierarchy.number_of_dimensions();
+    for (const CqmomActiveBranchCount& count : active_branch_counts)
+    {
+        if (count.conditioning_level >= dimensions)
+        {
+            throw std::invalid_argument("CQMOM active branch count metadata contains a conditioning level outside the hierarchy.");
+        }
+        if (count.parent_path.size() != count.conditioning_level)
+        {
+            throw std::invalid_argument("CQMOM active branch count metadata parent path length must match its conditioning level.");
+        }
+        const std::size_t expected_dimension = hierarchy.conditioning_order()[count.conditioning_level];
+        if (count.phase_space_dimension != expected_dimension)
+        {
+            throw std::invalid_argument("CQMOM active branch count metadata phase-space dimension does not match the conditioning order.");
+        }
+        const std::size_t configured_count = hierarchy.node_count(expected_dimension);
+        if (count.configured_node_count != configured_count)
+        {
+            throw std::invalid_argument("CQMOM active branch count metadata does not match the configured hierarchy node count.");
+        }
+        if (count.active_node_count == 0 || count.active_node_count > configured_count)
+        {
+            throw std::invalid_argument("CQMOM active branch count metadata is outside the configured node-count capacity.");
+        }
+        const ActiveBranchKey key{count.conditioning_level, count.parent_path, count.phase_space_dimension};
+        if (!topology.counts.emplace(key, count).second)
+        {
+            throw std::invalid_argument("CQMOM active branch count metadata contains duplicate entries for a branch.");
+        }
+    }
+
+    std::size_t reachable_entries = 0;
+    std::vector<ConditioningPath> parents{ConditioningPath{}};
+    for (std::size_t level = 0; level < dimensions; ++level)
+    {
+        const std::size_t phase_space_dimension = hierarchy.conditioning_order()[level];
+        std::vector<ConditioningPath> children;
+        for (const ConditioningPath& parent : parents)
+        {
+            const ActiveBranchKey key{level, parent, phase_space_dimension};
+            const auto count = topology.counts.find(key);
+            if (count == topology.counts.end())
+            {
+                throw std::invalid_argument("CQMOM active branch count metadata is missing a reachable branch.");
+            }
+            ++reachable_entries;
+            for (std::size_t child = 0; child < count->second.active_node_count; ++child)
+            {
+                children.push_back(parent.with_child(child));
+            }
+        }
+        parents = std::move(children);
+    }
+    if (reachable_entries != topology.counts.size())
+    {
+        throw std::invalid_argument("CQMOM active branch count metadata contains unreachable or stale branches.");
+    }
+    return topology;
+}
+
+[[nodiscard]] std::size_t recursive_branch_node_count_limit(const ActiveBranchTopology& topology, const std::size_t conditioning_level,
+                                                            const ConditioningPath& parent_path, const std::size_t phase_space_dimension,
+                                                            const std::size_t configured_node_count,
+                                                            const std::vector<ConditioningPath>& invalidated_prefixes)
+{
+    if (!topology.constrained || branch_limit_invalidated(parent_path, invalidated_prefixes))
+    {
+        return configured_node_count;
+    }
+    const auto active = topology.counts.find(ActiveBranchKey{conditioning_level, parent_path, phase_space_dimension});
+    if (active == topology.counts.end())
+    {
+        throw std::invalid_argument("CQMOM active branch count metadata is missing a reachable branch.");
+    }
+    (void)configured_node_count;
+    return active->second.active_node_count;
+}
+
 } // namespace
 
 std::size_t product_extents(const std::vector<std::size_t>& extents)
@@ -1099,6 +1243,16 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
     {
         return result;
     }
+    ActiveBranchTopology active_topology;
+    try
+    {
+        active_topology = validate_active_branch_topology(request.hierarchy, request.adaptive_branch_counts, request.active_branch_counts);
+    }
+    catch (const std::exception& ex)
+    {
+        record_failure(result, RecursiveQuadratureStatus::invalid_input, {}, 0, ex.what());
+        return result;
+    }
     BranchMomentSlice root_slice;
     try
     {
@@ -1131,20 +1285,32 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
     std::vector<std::vector<double>> terminal_abscissas(dimensions);
     std::vector<ConditioningPath> terminal_paths;
     std::vector<std::size_t> terminal_node_ids;
+    std::vector<ConditioningPath> invalidated_active_count_prefixes;
 
     for (std::size_t level = 0; level < dimensions; ++level)
     {
         const std::size_t phase_space_dimension = request.hierarchy.conditioning_order()[level];
-        const std::size_t target_node_count = request.hierarchy.node_count(phase_space_dimension);
+        const std::size_t configured_node_count = request.hierarchy.node_count(phase_space_dimension);
         std::vector<BranchState> next_branches;
         if (level + 1 < dimensions)
         {
-            next_branches.reserve(current_branches.size() * target_node_count);
+            next_branches.reserve(current_branches.size() * configured_node_count);
         }
 
         for (const BranchState& branch : current_branches)
         {
             internal::performance::record_cqmom_branch_solve();
+            std::size_t target_node_count = configured_node_count;
+            try
+            {
+                target_node_count = recursive_branch_node_count_limit(active_topology, level, branch.path, phase_space_dimension,
+                                                                      configured_node_count, invalidated_active_count_prefixes);
+            }
+            catch (const std::exception& ex)
+            {
+                record_failure(result, RecursiveQuadratureStatus::invalid_input, branch.path, level, ex.what());
+                return result;
+            }
             RecursiveQuadratureBranchDiagnostics branch_diagnostics;
             branch_diagnostics.conditioning_level = level;
             branch_diagnostics.path = branch.path;
@@ -1176,6 +1342,14 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
                 result.diagnostics.push_back(branch_diagnostics);
                 record_failure(result, RecursiveQuadratureStatus::wheeler_failed, branch.path, level, quadrature.message);
                 return result;
+            }
+            if (active_topology.constrained && !branch_limit_invalidated(branch.path, invalidated_active_count_prefixes) &&
+                quadrature.weights.size() != target_node_count)
+            {
+                for (std::size_t child = 0; child < quadrature.weights.size(); ++child)
+                {
+                    invalidated_active_count_prefixes.push_back(branch.path.with_child(child));
+                }
             }
             if (quadrature.weights.empty() || quadrature.weights.size() != quadrature.abscissas.size() ||
                 quadrature.weights.size() > target_node_count || (!request.adaptive_branch_counts && quadrature.weights.size() != target_node_count))
@@ -1351,7 +1525,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
 
     return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
                                                                     request.wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
-                                                                    request.conditional_vandermonde_solver},
+                                                                    request.conditional_vandermonde_solver, nullptr, request.active_branch_counts},
                                                                    request.moments.layout);
 }
 
@@ -1381,7 +1555,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
 
     return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
                                                                     request.wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
-                                                                    request.conditional_vandermonde_solver},
+                                                                    request.conditional_vandermonde_solver, nullptr, request.active_branch_counts},
                                                                    request.moments.layout);
 }
 
@@ -1407,9 +1581,15 @@ RecursiveQuadratureResult compute_recursive_quadrature(const RecursiveQuadrature
         return result;
     }
 
-    return compute_recursive_quadrature_from_moment_view({request.hierarchy, CqmomMomentView(request.raw_moments), request.conditional_options,
-                                                          request.wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
-                                                          request.conditional_vandermonde_solver});
+    return compute_recursive_quadrature_from_moment_view({request.hierarchy,
+                                                          CqmomMomentView(request.raw_moments),
+                                                          request.conditional_options,
+                                                          request.wheeler_options,
+                                                          request.adaptive_branch_counts,
+                                                          request.diagnostic_level,
+                                                          request.conditional_vandermonde_solver,
+                                                          nullptr,
+                                                          {}});
 }
 
 } // namespace internal

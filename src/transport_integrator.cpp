@@ -1,5 +1,6 @@
 #include "qmomkit/transport_integrator.hpp"
 
+#include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
 #include "internal/moment_reconstruction.hpp"
@@ -11,6 +12,7 @@
 #include <cmath>
 #include <cstddef>
 #include <exception>
+#include <map>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -330,6 +332,147 @@ void record_failure_diagnostics(TransportDiagnostics& diagnostics, const Transpo
     return diagnostics;
 }
 
+struct ActiveBranchKey
+{
+    std::size_t conditioning_level = 0;
+    ConditioningPath parent_path;
+    std::size_t phase_space_dimension = 0;
+};
+
+[[nodiscard]] bool operator<(const ActiveBranchKey& lhs, const ActiveBranchKey& rhs) noexcept
+{
+    if (lhs.conditioning_level != rhs.conditioning_level)
+    {
+        return lhs.conditioning_level < rhs.conditioning_level;
+    }
+    if (lhs.parent_path != rhs.parent_path)
+    {
+        return lhs.parent_path < rhs.parent_path;
+    }
+    return lhs.phase_space_dimension < rhs.phase_space_dimension;
+}
+
+[[nodiscard]] ActiveBranchKey active_branch_key(const CqmomActiveBranchCount& count)
+{
+    return {count.conditioning_level, count.parent_path, count.phase_space_dimension};
+}
+
+[[nodiscard]] bool path_has_prefix(const ConditioningPath& path, const ConditioningPath& prefix)
+{
+    if (prefix.size() > path.size())
+    {
+        return false;
+    }
+    for (std::size_t level = 0; level < prefix.size(); ++level)
+    {
+        if (path.node_index_at_level(level) != prefix.node_index_at_level(level))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] bool has_changed_strict_ancestor(const CqmomActiveBranchCount& count,
+                                               const std::map<ActiveBranchKey, CqmomNodeCountTransitionKind>& changed_keys)
+{
+    for (const auto& [changed_key, kind] : changed_keys)
+    {
+        (void)kind;
+        if (changed_key.conditioning_level >= count.conditioning_level)
+        {
+            continue;
+        }
+        if (path_has_prefix(count.parent_path, changed_key.parent_path))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void record_cqmom_node_count_transitions(TransportDiagnostics& diagnostics, const TransportStage stage,
+                                         const std::vector<CqmomActiveBranchCount>& before_counts,
+                                         const std::vector<CqmomActiveBranchCount>& after_counts, const CqmomNodeCountEvolution node_count_evolution)
+{
+    std::map<ActiveBranchKey, CqmomActiveBranchCount> before_by_key;
+    std::map<ActiveBranchKey, CqmomActiveBranchCount> after_by_key;
+    for (const CqmomActiveBranchCount& before : before_counts)
+    {
+        before_by_key.emplace(active_branch_key(before), before);
+    }
+    for (const CqmomActiveBranchCount& after : after_counts)
+    {
+        after_by_key.emplace(active_branch_key(after), after);
+    }
+
+    std::map<ActiveBranchKey, CqmomNodeCountTransitionKind> changed_keys;
+    for (const auto& [key, before] : before_by_key)
+    {
+        const auto after = after_by_key.find(key);
+        if (after == after_by_key.end())
+        {
+            changed_keys.emplace(key, CqmomNodeCountTransitionKind::removed);
+        }
+        else if (before.active_node_count != after->second.active_node_count)
+        {
+            changed_keys.emplace(key, before.active_node_count > after->second.active_node_count ? CqmomNodeCountTransitionKind::reduced
+                                                                                                 : CqmomNodeCountTransitionKind::grew);
+        }
+    }
+    for (const auto& [key, after] : after_by_key)
+    {
+        if (before_by_key.find(key) == before_by_key.end())
+        {
+            changed_keys.emplace(key, CqmomNodeCountTransitionKind::created);
+        }
+    }
+
+    const auto append_transition = [&](const CqmomActiveBranchCount& reference, const std::optional<std::size_t> before,
+                                       const std::optional<std::size_t> after, const CqmomNodeCountTransitionKind kind)
+    {
+        CqmomNodeCountTransition transition;
+        transition.stage = stage;
+        transition.conditioning_level = reference.conditioning_level;
+        transition.parent_path = reference.parent_path;
+        transition.phase_space_dimension = reference.phase_space_dimension;
+        transition.configured_maximum_node_count = reference.configured_node_count;
+        transition.active_node_count_before = before;
+        transition.active_node_count_after = after;
+        transition.node_count_evolution = node_count_evolution;
+        transition.kind = kind;
+        transition.rank_reduced = kind == CqmomNodeCountTransitionKind::reduced || kind == CqmomNodeCountTransitionKind::removed;
+        transition.rank_grew = kind == CqmomNodeCountTransitionKind::grew || kind == CqmomNodeCountTransitionKind::created;
+        diagnostics.cqmom_node_count_transitions.push_back(std::move(transition));
+    };
+
+    for (const auto& [key, before] : before_by_key)
+    {
+        const auto after = after_by_key.find(key);
+        const bool ancestor_changed = has_changed_strict_ancestor(before, changed_keys);
+        if (after == after_by_key.end() || ancestor_changed)
+        {
+            append_transition(before, before.active_node_count, std::nullopt, CqmomNodeCountTransitionKind::removed);
+        }
+        else if (before.active_node_count > after->second.active_node_count)
+        {
+            append_transition(after->second, before.active_node_count, after->second.active_node_count, CqmomNodeCountTransitionKind::reduced);
+        }
+        else if (before.active_node_count < after->second.active_node_count)
+        {
+            append_transition(after->second, before.active_node_count, after->second.active_node_count, CqmomNodeCountTransitionKind::grew);
+        }
+    }
+    for (const auto& [key, after] : after_by_key)
+    {
+        const auto before = before_by_key.find(key);
+        if (before == before_by_key.end() || has_changed_strict_ancestor(after, changed_keys))
+        {
+            append_transition(after, std::nullopt, after.active_node_count, CqmomNodeCountTransitionKind::created);
+        }
+    }
+}
+
 } // namespace
 
 // Public QMOM overloads dispatch here; this helper applies the selected
@@ -606,12 +749,12 @@ namespace
 // Lean and CqmomState transport share this path; it applies the selected C/D
 // sequence to the fixed CQMOM moment layout and rebuilds quadrature at stage
 // boundaries.
-CqmomLeanTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanTransportState& state, const double t, const double time_step,
-                                                           const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                           const CqmomMomentBoundaryContribution* const boundary,
-                                                           const CqmomLeanTransportOptions& options, const bool adaptive_branch_counts,
-                                                           const CqmomDiagnosticLevel diagnostic_level, const VandermondeSolver vandermonde_solver,
-                                                           const CqmomMetadataTrust metadata_trust)
+CqmomLeanTransportResult advance_transport_cqmom_lean_impl(
+    const CqmomLeanTransportState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+    const CqmomMomentBoundaryContribution* const boundary, const CqmomLeanTransportOptions& options, const bool adaptive_branch_counts,
+    const CqmomDiagnosticLevel diagnostic_level, const VandermondeSolver vandermonde_solver, const CqmomMetadataTrust metadata_trust,
+    std::vector<CqmomActiveBranchCount> initial_active_branch_counts = {},
+    const CqmomNodeCountEvolution source_node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum)
 {
     internal::performance::record_transport_macro_step();
     TransportDiagnostics diagnostics;
@@ -633,18 +776,20 @@ CqmomLeanTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanTransp
         return lean_cqmom_failure(state, std::nullopt, TransportStatus::invalid_input, TransportStage::none, diagnostics, t, error.what());
     }
 
-    const auto compute_stage_cqmom = [&](const CqmomMomentData& moments)
+    const auto compute_stage_cqmom = [&](const CqmomMomentData& moments, const std::vector<CqmomActiveBranchCount>& active_branch_counts)
     {
         const CqmomLeanCase lean_case{moments,          options.conditional_options, options.qmom_options, adaptive_branch_counts,
                                       diagnostic_level, vandermonde_solver};
         if (metadata_trust == CqmomMetadataTrust::trusted_case_state)
         {
-            return internal::compute_trusted_cqmom(lean_case);
+            return internal::compute_trusted_cqmom(lean_case, active_branch_counts);
         }
         return compute_cqmom(lean_case);
     };
 
-    CqmomResult initial_quadrature = compute_stage_cqmom(state.moments);
+    std::vector<CqmomActiveBranchCount> current_active_branch_counts = std::move(initial_active_branch_counts);
+    const std::vector<CqmomActiveBranchCount> before_initial_active_branch_counts = current_active_branch_counts;
+    CqmomResult initial_quadrature = compute_stage_cqmom(state.moments, current_active_branch_counts);
     diagnostics.initial_cqmom_status = initial_quadrature.status;
     diagnostics.initial_cqmom_diagnostics = initial_quadrature.diagnostics;
     if (!initial_quadrature.ok())
@@ -652,6 +797,9 @@ CqmomLeanTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanTransp
         return lean_cqmom_failure(state, initial_quadrature.quadrature, TransportStatus::inversion_failed, TransportStage::initial_inversion,
                                   diagnostics, t, initial_quadrature.message);
     }
+    current_active_branch_counts = internal::active_branch_counts_from_quadrature(initial_quadrature.quadrature);
+    record_cqmom_node_count_transitions(diagnostics, TransportStage::initial_inversion, before_initial_active_branch_counts,
+                                        current_active_branch_counts, CqmomNodeCountEvolution::preserve_active_counts);
 
     CqmomLeanTransportState current_state = state;
     CqmomQuadrature current_quadrature = initial_quadrature.quadrature;
@@ -687,6 +835,7 @@ CqmomLeanTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanTransp
                 diagnostics.first_reconstruction_diagnostics = successful_reconstruction(current_state.moments.values.size());
             }
             current_quadrature = continuous.quadrature;
+            current_active_branch_counts = internal::active_branch_counts_from_quadrature(current_quadrature);
         }
         catch (const std::exception& error)
         {
@@ -724,10 +873,14 @@ CqmomLeanTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanTransp
         }
 
         current_state.moments = source_update.moments;
+        const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
+        const std::vector<CqmomActiveBranchCount> post_source_inversion_limits =
+            source_node_count_evolution == CqmomNodeCountEvolution::preserve_active_counts ? current_active_branch_counts
+                                                                                           : std::vector<CqmomActiveBranchCount>{};
         // Reconstruct quadrature after the moment update so CQMOM
         // realizability is checked before any later continuous stage.
         internal::performance::record_post_source_inversion();
-        CqmomResult post_source_quadrature = compute_stage_cqmom(current_state.moments);
+        CqmomResult post_source_quadrature = compute_stage_cqmom(current_state.moments, post_source_inversion_limits);
         diagnostics.post_source_cqmom_status = post_source_quadrature.status;
         diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
         if (!post_source_quadrature.ok())
@@ -737,6 +890,9 @@ CqmomLeanTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanTransp
             return false;
         }
         current_quadrature = post_source_quadrature.quadrature;
+        current_active_branch_counts = internal::active_branch_counts_from_quadrature(current_quadrature);
+        record_cqmom_node_count_transitions(diagnostics, TransportStage::post_source_inversion, before_source_active_branch_counts,
+                                            current_active_branch_counts, source_node_count_evolution);
         return true;
     };
 
@@ -794,6 +950,7 @@ static CqmomStateTransportResult advance_transport_cqmom_state_impl(const CqmomS
     // State transport reuses the lean numerical sequence and then wraps the
     // updated fixed-layout moments back into the public representation-neutral state.
     const CqmomLeanCase& lean_case = internal::cqmom_state_case(state);
+    const std::vector<CqmomActiveBranchCount>& active_branch_counts = internal::cqmom_state_active_branch_counts(state);
     const CqmomLeanTransportState transport_state{lean_case.moments};
     CqmomLeanTransportOptions lean_options;
     lean_options.conditional_options = lean_case.conditional_options;
@@ -802,15 +959,28 @@ static CqmomStateTransportResult advance_transport_cqmom_state_impl(const CqmomS
     lean_options.source_options = options.source_options;
     lean_options.scheme = options.scheme;
 
-    CqmomLeanTransportResult lean_result =
-        advance_transport_cqmom_lean_impl(transport_state, t, time_step, velocity, source, boundary, lean_options, lean_case.adaptive_branch_counts,
-                                          lean_case.diagnostic_level, lean_case.vandermonde_solver, CqmomMetadataTrust::trusted_case_state);
+    CqmomLeanTransportResult lean_result = advance_transport_cqmom_lean_impl(
+        transport_state, t, time_step, velocity, source, boundary, lean_options, lean_case.adaptive_branch_counts, lean_case.diagnostic_level,
+        lean_case.vandermonde_solver, CqmomMetadataTrust::trusted_case_state, active_branch_counts, options.source_node_count_evolution);
+
+    if (!lean_result.ok())
+    {
+        TransportDiagnostics diagnostics = neutral_cqmom_diagnostics(std::move(lean_result.diagnostics));
+        std::string message = neutral_cqmom_message(std::move(lean_result.message));
+        return CqmomStateTransportResult{
+            state, std::move(lean_result.quadrature), lean_result.status, std::move(diagnostics), lean_result.final_time, std::move(message)};
+    }
 
     CqmomLeanCase updated_case{lean_result.state.moments,        lean_case.conditional_options, lean_case.qmom_options,
                                lean_case.adaptive_branch_counts, lean_case.diagnostic_level,    lean_case.vandermonde_solver};
+    std::vector<CqmomActiveBranchCount> updated_active_branch_counts;
+    if (lean_result.quadrature.has_value())
+    {
+        updated_active_branch_counts = internal::active_branch_counts_from_quadrature(*lean_result.quadrature);
+    }
     TransportDiagnostics diagnostics = neutral_cqmom_diagnostics(std::move(lean_result.diagnostics));
     std::string message = neutral_cqmom_message(std::move(lean_result.message));
-    return CqmomStateTransportResult{internal::create_cqmom_state(std::move(updated_case)),
+    return CqmomStateTransportResult{internal::create_cqmom_state(std::move(updated_case), std::move(updated_active_branch_counts)),
                                      std::move(lean_result.quadrature),
                                      lean_result.status,
                                      std::move(diagnostics),

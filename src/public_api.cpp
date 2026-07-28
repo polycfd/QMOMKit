@@ -1,3 +1,4 @@
+#include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
 #include "internal/performance.hpp"
@@ -58,6 +59,7 @@ struct CqmomCase::Data
 struct CqmomState::Data
 {
     CqmomLeanCase lean_case;
+    std::vector<CqmomActiveBranchCount> active_branch_counts;
 };
 
 CqmomCase::CqmomCase(std::unique_ptr<Data> data) : data_(std::move(data)) {}
@@ -111,7 +113,17 @@ VandermondeSolver CqmomCase::vandermonde_solver() const noexcept
 
 CqmomState CqmomCase::initial_state() const
 {
-    return internal::create_cqmom_state(data_->lean_case);
+    if (!data_->lean_case.adaptive_branch_counts)
+    {
+        return internal::create_cqmom_state(data_->lean_case);
+    }
+
+    const CqmomResult seeded = internal::compute_trusted_cqmom(data_->lean_case);
+    if (!seeded.ok())
+    {
+        throw std::runtime_error("CQMOM initial state active-count seeding failed: " + seeded.message);
+    }
+    return internal::create_cqmom_state(data_->lean_case, internal::active_branch_counts_from_quadrature(seeded.quadrature));
 }
 
 CqmomState::CqmomState(std::unique_ptr<Data> data) : data_(std::move(data)) {}
@@ -163,6 +175,11 @@ VandermondeSolver CqmomState::vandermonde_solver() const noexcept
     return data_->lean_case.vandermonde_solver;
 }
 
+const std::vector<CqmomActiveBranchCount>& CqmomState::active_branch_counts() const noexcept
+{
+    return data_->active_branch_counts;
+}
+
 namespace internal
 {
 CqmomCase CqmomConstructionAccess::create_case(CqmomLeanCase lean_case)
@@ -172,12 +189,22 @@ CqmomCase CqmomConstructionAccess::create_case(CqmomLeanCase lean_case)
 
 CqmomState CqmomConstructionAccess::create_state(CqmomLeanCase lean_case)
 {
-    return CqmomState(std::make_unique<CqmomState::Data>(CqmomState::Data{std::move(lean_case)}));
+    return CqmomState(std::make_unique<CqmomState::Data>(CqmomState::Data{std::move(lean_case), {}}));
+}
+
+CqmomState CqmomConstructionAccess::create_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts)
+{
+    return CqmomState(std::make_unique<CqmomState::Data>(CqmomState::Data{std::move(lean_case), std::move(active_branch_counts)}));
 }
 
 const CqmomLeanCase& CqmomConstructionAccess::state_case(const CqmomState& state)
 {
     return state.data_->lean_case;
+}
+
+const std::vector<CqmomActiveBranchCount>& CqmomConstructionAccess::state_active_branch_counts(const CqmomState& state)
+{
+    return state.data_->active_branch_counts;
 }
 
 CqmomQuadrature CqmomConstructionAccess::create_quadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights,
@@ -198,9 +225,19 @@ CqmomState create_cqmom_state(CqmomLeanCase lean_case)
     return CqmomConstructionAccess::create_state(std::move(lean_case));
 }
 
+CqmomState create_cqmom_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts)
+{
+    return CqmomConstructionAccess::create_state(std::move(lean_case), std::move(active_branch_counts));
+}
+
 const CqmomLeanCase& cqmom_state_case(const CqmomState& state)
 {
     return CqmomConstructionAccess::state_case(state);
+}
+
+const std::vector<CqmomActiveBranchCount>& cqmom_state_active_branch_counts(const CqmomState& state)
+{
+    return CqmomConstructionAccess::state_active_branch_counts(state);
 }
 
 CqmomQuadrature create_cqmom_quadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights, std::vector<std::vector<double>> abscissas,
@@ -410,9 +447,14 @@ CqmomResult compute_cqmom(const CqmomDenseCase& dense_case)
     }
     if (lean_moments.has_value())
     {
-        result = internal::compute_recursive_quadrature_from_moment_data(
-            {dense_case.hierarchy, *lean_moments, dense_case.conditional_options, to_wheeler_options(dense_case.qmom_options),
-             dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver});
+        result = internal::compute_recursive_quadrature_from_moment_data({dense_case.hierarchy,
+                                                                          *lean_moments,
+                                                                          dense_case.conditional_options,
+                                                                          to_wheeler_options(dense_case.qmom_options),
+                                                                          dense_case.adaptive_branch_counts,
+                                                                          dense_case.diagnostic_level,
+                                                                          dense_case.vandermonde_solver,
+                                                                          {}});
     }
 
     return to_cqmom_result(result, dense_case.hierarchy);
@@ -421,9 +463,15 @@ CqmomResult compute_cqmom(const CqmomDenseCase& dense_case)
 CqmomResult compute_cqmom(const CqmomLeanCase& lean_case)
 {
     const PhaseSpaceHierarchy& hierarchy = lean_case.moments.layout.hierarchy;
-    const internal::RecursiveQuadratureResult result = internal::compute_recursive_quadrature_from_moment_data(
-        {hierarchy, lean_case.moments, lean_case.conditional_options, to_wheeler_options(lean_case.qmom_options), lean_case.adaptive_branch_counts,
-         lean_case.diagnostic_level, lean_case.vandermonde_solver});
+    const internal::RecursiveQuadratureResult result =
+        internal::compute_recursive_quadrature_from_moment_data({hierarchy,
+                                                                 lean_case.moments,
+                                                                 lean_case.conditional_options,
+                                                                 to_wheeler_options(lean_case.qmom_options),
+                                                                 lean_case.adaptive_branch_counts,
+                                                                 lean_case.diagnostic_level,
+                                                                 lean_case.vandermonde_solver,
+                                                                 {}});
 
     return to_cqmom_result(result, hierarchy);
 }
@@ -431,12 +479,12 @@ CqmomResult compute_cqmom(const CqmomLeanCase& lean_case)
 namespace internal
 {
 
-CqmomResult compute_trusted_cqmom(const CqmomLeanCase& lean_case)
+CqmomResult compute_trusted_cqmom(const CqmomLeanCase& lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts)
 {
     const PhaseSpaceHierarchy& hierarchy = lean_case.moments.layout.hierarchy;
     const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
         {hierarchy, lean_case.moments, lean_case.conditional_options, to_wheeler_options(lean_case.qmom_options), lean_case.adaptive_branch_counts,
-         lean_case.diagnostic_level, lean_case.vandermonde_solver});
+         lean_case.diagnostic_level, lean_case.vandermonde_solver, std::move(active_branch_counts)});
 
     return to_cqmom_result(result, hierarchy);
 }

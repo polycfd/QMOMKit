@@ -1425,6 +1425,45 @@ growth_limit = 2.0
     assert(has_error(unknown_rk23_key, ConfigurationErrorCode::unknown_entry));
 }
 
+void test_cqmom_source_node_count_evolution_defaults_and_parses_values()
+{
+    const auto omitted = qmomkit::config::parse_cqmom_source_node_count_evolution(qmom_text);
+    assert(omitted.ok());
+    assert(*omitted.value == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
+
+    const auto preserve = qmomkit::config::parse_cqmom_source_node_count_evolution(R"(
+[time_integration.cqmom]
+source_node_count_evolution = preserve_active_counts
+)");
+    assert(preserve.ok());
+    assert(*preserve.value == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
+
+    const auto growth = qmomkit::config::parse_cqmom_source_node_count_evolution(R"(
+[time_integration.cqmom]
+source_node_count_evolution = allow_growth_to_configured_maximum
+)");
+    assert(growth.ok());
+    assert(*growth.value == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
+}
+
+void test_cqmom_source_node_count_evolution_rejects_invalid_values()
+{
+    const auto invalid = qmomkit::config::parse_cqmom_source_node_count_evolution(R"(
+[time_integration.cqmom]
+source_node_count_evolution = freeze
+)");
+    assert(!invalid.ok());
+    assert(has_error(invalid, ConfigurationErrorCode::invalid_value));
+    assert(has_message_fragment(invalid, "preserve_active_counts or allow_growth_to_configured_maximum"));
+
+    const auto unknown_key = qmomkit::config::parse_cqmom_source_node_count_evolution(R"(
+[time_integration.cqmom]
+growth_limit = 2
+)");
+    assert(!unknown_key.ok());
+    assert(has_error(unknown_key, ConfigurationErrorCode::unknown_entry));
+}
+
 void test_output_options_default_to_disabled()
 {
     const auto options = qmomkit::config::parse_output_options(qmom_text);
@@ -2168,12 +2207,17 @@ void test_file_loading_and_file_failure()
     {
         std::ofstream output(filename);
         output << "[time_integration.node_advection]\nscheme = adaptive_rk23\n"
-                  "[time_integration.node_advection.rk23]\nmax_step = 0.05\n";
+                  "[time_integration.node_advection.rk23]\nmax_step = 0.05\n"
+                  "[time_integration.cqmom]\nsource_node_count_evolution = preserve_active_counts\n";
     }
     const auto node_advection_options = qmomkit::config::load_node_advection_options(filename);
     assert(node_advection_options.ok());
     assert(node_advection_options.value->scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
     assert_near(node_advection_options.value->rk23_options.max_step, 0.05);
+
+    const auto source_node_count_evolution = qmomkit::config::load_cqmom_source_node_count_evolution(filename);
+    assert(source_node_count_evolution.ok());
+    assert(*source_node_count_evolution.value == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
 
     const auto node_advection_scheme = qmomkit::config::load_node_advection_scheme(filename);
     assert(node_advection_scheme.ok());
@@ -2183,6 +2227,10 @@ void test_file_loading_and_file_failure()
     const auto missing_node_advection = qmomkit::config::load_node_advection_scheme(filename);
     assert(!missing_node_advection.ok());
     assert(has_error(missing_node_advection, ConfigurationErrorCode::file_error));
+
+    const auto missing_source_node_count_evolution = qmomkit::config::load_cqmom_source_node_count_evolution(filename);
+    assert(!missing_source_node_count_evolution.ok());
+    assert(has_error(missing_source_node_count_evolution, ConfigurationErrorCode::file_error));
 }
 
 } // namespace
@@ -2226,6 +2274,8 @@ int main()
     test_node_advection_options_parse_rk23_controls();
     test_node_advection_scheme_rejects_invalid_values();
     test_node_advection_options_reject_invalid_rk23_controls();
+    test_cqmom_source_node_count_evolution_defaults_and_parses_values();
+    test_cqmom_source_node_count_evolution_rejects_invalid_values();
     test_output_options_default_to_disabled();
     test_output_options_parse_enabled_fields();
     test_output_options_reject_invalid_values();

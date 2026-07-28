@@ -153,6 +153,16 @@ qmomkit::CqmomQuadrature captured_preceding_success_quadrature()
          qmomkit::ConditioningPath{{1, 1, 0}}});
 }
 
+std::vector<qmomkit::CqmomActiveBranchCount> captured_active_branch_counts()
+{
+    return {
+        {0, qmomkit::ConditioningPath{}, 0, 2, 2},       {1, qmomkit::ConditioningPath{{0}}, 1, 2, 2},
+        {1, qmomkit::ConditioningPath{{1}}, 1, 2, 2},    {2, qmomkit::ConditioningPath{{0, 0}}, 2, 2, 1},
+        {2, qmomkit::ConditioningPath{{0, 1}}, 2, 2, 1}, {2, qmomkit::ConditioningPath{{1, 0}}, 2, 2, 1},
+        {2, qmomkit::ConditioningPath{{1, 1}}, 2, 2, 1},
+    };
+}
+
 bool path_has_prefix(const qmomkit::ConditioningPath& path, const qmomkit::ConditioningPath& prefix)
 {
     if (prefix.size() > path.size())
@@ -244,6 +254,19 @@ void report_tree_spread(const std::string& label, const qmomkit::CqmomQuadrature
     }
 }
 
+bool active_count_present(const std::vector<qmomkit::CqmomActiveBranchCount>& counts, const qmomkit::ConditioningPath& path,
+                          const std::size_t active_node_count)
+{
+    for (const qmomkit::CqmomActiveBranchCount& count : counts)
+    {
+        if (count.parent_path == path && count.active_node_count == active_node_count)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void run_captured_physical_regression()
 {
     const qmomkit::CqmomQuadrature captured = captured_failing_terminal_quadrature();
@@ -304,6 +327,28 @@ void run_captured_physical_regression()
 
     report_tree_spread("[physical captured tree]", captured);
     report_tree_spread("[physical preceding tree]", captured_preceding_success_quadrature());
+
+    qmomkit::CqmomState state = qmomkit::internal::create_cqmom_state(lean_case, captured_active_branch_counts());
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+    qmomkit::CqmomStateTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::dc;
+    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
+
+    const qmomkit::CqmomStateTransportResult transported =
+        qmomkit::advance_transport_cqmom(state, 23.022499999999706, 0.0025, zero_velocity, zero_source, options);
+    QMOMKIT_VERIFY_CHECK(transported.ok());
+    QMOMKIT_VERIFY_CHECK(transported.quadrature.has_value());
+    QMOMKIT_VERIFY_CHECK(transported.quadrature->total_nodes() == 4);
+    QMOMKIT_VERIFY_CHECK(active_count_present(transported.state.active_branch_counts(), expected_path, 1));
+
+    const qmomkit::CqmomStateTransportResult second =
+        qmomkit::advance_transport_cqmom(transported.state, transported.final_time, 0.0025, zero_velocity, zero_source, options);
+    QMOMKIT_VERIFY_CHECK(second.ok());
+    QMOMKIT_VERIFY_CHECK(second.quadrature.has_value());
+    QMOMKIT_VERIFY_CHECK(second.quadrature->terminal_paths() == transported.quadrature->terminal_paths());
+    QMOMKIT_VERIFY_CHECK(active_count_present(second.state.active_branch_counts(), expected_path, 1));
 }
 
 } // namespace

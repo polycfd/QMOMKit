@@ -72,7 +72,7 @@ through public types and options rather than through text sections:
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a dense tensor representation from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
-| transport options | `[time_integration]`, `[time_integration.node_advection]`, and optional runtime realizability policy | set `QmomTransportOptions`, `CqmomStateTransportOptions`, `NodeAdvectionOptions`, source-update options, and realizability policies in C++ |
+| transport options | `[time_integration]`, `[time_integration.node_advection]`, `[time_integration.cqmom]`, and optional runtime realizability policy | set `QmomTransportOptions`, `CqmomStateTransportOptions`, `NodeAdvectionOptions`, source-update options, and realizability policies in C++ |
 | output choices | `[output]` directory, enabled outputs, and cadence | create and call `MomentWriter` or `QuadratureWriter` from the surrounding driver |
 
 This mapping is meant to orient application integration, not replace the public
@@ -230,6 +230,8 @@ The main sections are:
 - `[time_integration]`: transport operator-ordering choices.
 - `[time_integration.node_advection]`: optional continuous node-trajectory
   integration scheme and RK23 controls.
+- `[time_integration.cqmom]`: optional CQMOM state-transport source-stage
+  active node-count policy.
 - `[time_integration.realizability]`: optional runtime realizability policy.
 - `[output]`: optional output directory, enabled outputs, and cadence.
 
@@ -684,6 +686,32 @@ Drivers can print `format_node_advection_options(...)` at startup to report
 the effective scheme and controls. For fixed-step node advection, that summary
 reports the selected scheme only; it does not imply that RK23 tolerances are
 active.
+
+### CQMOM Source Active Counts
+
+For adaptive CQMOM state transport, source stages can either preserve the
+current branch-specific active node counts or allow branches to grow back to
+their configured maximum:
+
+```text
+[time_integration.cqmom]
+source_node_count_evolution = preserve_active_counts
+```
+
+Supported values are:
+
+```text
+preserve_active_counts
+allow_growth_to_configured_maximum
+```
+
+Omission defaults to `allow_growth_to_configured_maximum`, matching the C++
+`CqmomStateTransportOptions` default for general source terms. Drivers that use
+zero sources or source models known not to increase branch rank can select
+`preserve_active_counts` explicitly. Adaptive `CqmomState` initialization seeds
+current active counts from the initial inversion; malformed or inconsistent
+active-count metadata is rejected during transport rather than silently falling
+back to configured maxima.
 
 The configuration file stores runtime numerical choices and the initial
 numerical setup. Your application still provides the continuous velocity and

@@ -97,6 +97,23 @@ struct CqmomDiagnostics
 };
 
 /**
+ * Current active node count for one recursive CQMOM branch.
+ *
+ * `configured_node_count` is the fixed maximum from the phase-space hierarchy.
+ * `active_node_count` is the current branch-local count observed in an
+ * adaptive ragged quadrature. `parent_path` is ordered by conditioning level
+ * and has length `conditioning_level`.
+ */
+struct CqmomActiveBranchCount
+{
+    std::size_t conditioning_level = 0;
+    ConditioningPath parent_path;
+    std::size_t phase_space_dimension = 0;
+    std::size_t configured_node_count = 0;
+    std::size_t active_node_count = 0;
+};
+
+/**
  * Structural description of the raw moments required by fixed-node recursive
  * CQMOM reconstruction.
  *
@@ -189,6 +206,7 @@ public:
     [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
+    [[nodiscard]] const std::vector<CqmomActiveBranchCount>& active_branch_counts() const noexcept;
 
 private:
     struct Data;

@@ -92,6 +92,15 @@ m_alpha = sum_j W_j product_r xi_(r,j)^alpha_r
 This reconstruction is the handoff from continuous node motion back to the
 moment representation used by source evolution and later inversions.
 
+For adaptive CQMOM, the phase-space hierarchy node counts remain the
+configured maximum branch capacity throughout transport. The current active
+branch counts are separate runtime state: they are extracted from the ragged
+terminal paths of each successful adaptive CQMOM quadrature and stored on
+`CqmomState` beside the current moments. Continuous node advection preserves
+terminal paths and therefore preserves active branch topology. Moment
+reconstruction updates values only; it must not replace configured maximum
+counts with active counts or discard the active-count metadata.
+
 ## Moment Source And Boundary Contribution Design
 
 Moment source evolution advances raw moments directly:
@@ -232,6 +241,20 @@ Node advection does not perform realizability checks. It moves already
 reconstructed quadrature coordinates and preserves weights; realizability is
 checked through quadrature inversion or caller-supplied moment-state policies
 after reconstruction or source updates.
+
+For adaptive CQMOM state transport, active branch counts are part of accepted
+state metadata. `CqmomCase::initial_state()` seeds that metadata from the
+initial trusted inversion and fails state construction if the initial adaptive
+topology cannot be reconstructed. Later state inversions validate supplied
+active-count metadata strictly: there must be exactly one reachable entry per
+active branch, configured node-count metadata must match the hierarchy, active
+counts must be within configured capacity, and stale or unreachable descendant
+entries are rejected. During a source-stage inversion with preserved active
+counts, if an ancestor branch changes active count, descendant limits below the
+new branch are invalidated top-down and recomputed from configured capacity so
+numeric path reuse does not apply stale branch limits after a collapse or
+merge. Diagnostics report only true node-count transitions and distinguish
+reduced, grown, created, and removed branch records.
 
 ### Source SSP-RK3
 
@@ -561,6 +584,26 @@ a successful source update, QMOM or CQMOM inversion is attempted again; if the
 updated raw moments are not invertible under the configured reconstruction
 options, transport reports an inversion failure.
 
+Adaptive CQMOM source stages have an explicit branch-count evolution policy:
+
+- `preserve_active_counts`: post-source inversion uses the current
+  branch-specific active counts as the branch-local capacity. Adaptive Wheeler
+  may reduce a branch further, but it does not reconsider a one-node branch as
+  a two-node branch merely because the hierarchy capacity is two. Use this for
+  zero/no-op sources, continuous-only physical evolution composed through the
+  hybrid helper, and source models known not to increase quadrature rank.
+- `allow_growth_to_configured_maximum`: post-source inversion may use the
+  hierarchy's configured maximum counts and may grow active branches when the
+  source-updated moments support additional nodes. This is the default because
+  it preserves the existing general-source semantics for binary breakage and
+  other discontinuous source terms that may create additional structure.
+
+After every successful state-transport inversion, `CqmomState` is refreshed
+with the active counts extracted from the returned quadrature. Structured
+transport diagnostics record branch path, configured maximum count, active
+count before and after the stage, selected evolution policy, and whether a
+rank reduction or growth occurred.
+
 Node advection preserves weights and moves an already accepted quadrature.
 The moment reconstruction after node advection is a deterministic summation
 from the moved quadrature; it is not a separate physical source model.
@@ -674,10 +717,13 @@ the source-only overloads.
 
 `advance_transport_cqmom(const CqmomState&, ...)` is the recommended CQMOM
 transport API for configured workflows. `CqmomState` stores fixed maximum
-required moments and reconstruction policy while remaining representation
-neutral to callers. Adaptive branch topology is not stored permanently in the
-state; active branch counts are determined during reconstruction, and the
-returned `CqmomQuadrature` may contain adaptive ragged terminal storage.
+required moments, reconstruction policy, and current active branch-count
+metadata while remaining representation neutral to callers. In adaptive mode,
+the hierarchy node counts are configured maxima.
+`CqmomState::active_branch_counts()` reports the current ragged topology using
+conditioning-level parent paths. The returned `CqmomQuadrature` may contain
+adaptive ragged terminal storage, and successful state transport stores that
+topology for the next macro step.
 
 `CqmomLeanTransportOptions` and `CqmomLeanTransportResult` support the
 explicit lean representation workflow for callers that intentionally manage

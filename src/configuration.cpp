@@ -47,6 +47,8 @@ constexpr std::string_view rk23_initial_step_key = "time_integration.node_advect
 constexpr std::string_view rk23_max_step_key = "time_integration.node_advection.rk23.max_step";
 constexpr std::string_view rk23_min_step_key = "time_integration.node_advection.rk23.min_step";
 constexpr std::string_view rk23_max_steps_key = "time_integration.node_advection.rk23.max_steps";
+constexpr std::string_view cqmom_time_integration_section = "time_integration.cqmom";
+constexpr std::string_view cqmom_source_node_count_evolution_key = "time_integration.cqmom.source_node_count_evolution";
 constexpr std::string_view output_section = "output";
 constexpr std::string_view output_key_prefix = "output.";
 
@@ -680,6 +682,7 @@ void append_time_integration_allowed_keys(std::vector<std::string>& allowed)
     allowed.push_back(std::string(rk23_max_step_key));
     allowed.push_back(std::string(rk23_min_step_key));
     allowed.push_back(std::string(rk23_max_steps_key));
+    allowed.push_back(std::string(cqmom_source_node_count_evolution_key));
     allowed.push_back("time_integration.realizability.check_mode");
     allowed.push_back("time_integration.realizability.accept_boundary");
     allowed.push_back("time_integration.realizability.support");
@@ -706,7 +709,8 @@ std::vector<std::string> with_runtime_allowed_keys(std::vector<std::string> allo
 
 std::vector<std::string> time_integration_sections()
 {
-    return {"time_integration", "time_integration.realizability", "time_integration.node_advection", "time_integration.node_advection.rk23"};
+    return {"time_integration", "time_integration.realizability", "time_integration.node_advection", "time_integration.node_advection.rk23",
+            "time_integration.cqmom"};
 }
 
 void reject_unknown_qmom_sections(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
@@ -1046,6 +1050,22 @@ const std::vector<std::string>& node_advection_allowed_keys()
     return allowed;
 }
 
+std::optional<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution_value(ParsedFile& parsed, const Entry& entry,
+                                                                                     const std::string& source_name)
+{
+    if (entry.value == "preserve_active_counts")
+    {
+        return CqmomNodeCountEvolution::preserve_active_counts;
+    }
+    if (entry.value == "allow_growth_to_configured_maximum")
+    {
+        return CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+    }
+    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry.line,
+              "time_integration.cqmom.source_node_count_evolution must be preserve_active_counts or allow_growth_to_configured_maximum.");
+    return std::nullopt;
+}
+
 std::optional<RealizabilityCheckMode> parse_realizability_check_mode_value(ParsedFile& parsed, const Entry& entry, const std::string& key,
                                                                            const std::string& source_name)
 {
@@ -1271,6 +1291,15 @@ void validate_optional_node_advection_options(ParsedFile& parsed, const std::str
     static_cast<void>(parse_node_advection_options_from_parsed(parsed, source_name));
 }
 
+void validate_optional_cqmom_source_node_count_evolution(ParsedFile& parsed, const std::string& source_name)
+{
+    const Entry* entry = find_entry(parsed, std::string(cqmom_source_node_count_evolution_key));
+    if (entry != nullptr)
+    {
+        static_cast<void>(parse_cqmom_source_node_count_evolution_value(parsed, *entry, source_name));
+    }
+}
+
 void validate_optional_cqmom_diagnostic_level(ParsedFile& parsed, const std::string& source_name)
 {
     static_cast<void>(parse_cqmom_diagnostic_level(parsed, source_name));
@@ -1289,6 +1318,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     std::optional<CqmomDiagnosticLevel> diagnostic_level = parse_cqmom_diagnostic_level(parsed, source_name);
     std::optional<VandermondeSolver> vandermonde_solver = parse_vandermonde_solver(parsed, source_name);
     validate_format_version(parsed, source_name);
@@ -1519,6 +1549,7 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_format_version(parsed, source_name);
     validate_optional_qmom_phase_space(parsed, source_name);
     if (!parsed.moments.empty())
@@ -1601,6 +1632,7 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_optional_cqmom_diagnostic_level(parsed, source_name);
     validate_optional_vandermonde_solver(parsed, source_name);
     validate_format_version(parsed, source_name);
@@ -1774,6 +1806,7 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_format_version(parsed, source_name);
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
     if (!parsed.moments.empty())
@@ -1913,7 +1946,7 @@ ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::s
     for (const auto& item : parsed.sections)
     {
         if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
-            item.first != rk23_section)
+            item.first != rk23_section && item.first != cqmom_time_integration_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
@@ -1985,7 +2018,7 @@ ConfigurationResult<TransportScheme> parse_transport_scheme(const std::string_vi
     for (const auto& item : parsed.sections)
     {
         if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
-            item.first != rk23_section)
+            item.first != rk23_section && item.first != cqmom_time_integration_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
@@ -1996,7 +2029,8 @@ ConfigurationResult<TransportScheme> parse_transport_scheme(const std::string_vi
         {
             continue;
         }
-        if (item.first == std::string(transport_scheme_key) || is_realizability_key(item.first) || is_node_advection_key(item.first))
+        if (item.first == std::string(transport_scheme_key) || is_realizability_key(item.first) || is_node_advection_key(item.first) ||
+            item.first == std::string(cqmom_source_node_count_evolution_key))
         {
             continue;
         }
@@ -2032,7 +2066,7 @@ ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(const std
     for (const auto& item : parsed.sections)
     {
         if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
-            item.first != rk23_section)
+            item.first != rk23_section && item.first != cqmom_time_integration_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
@@ -2043,7 +2077,8 @@ ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(const std
         {
             continue;
         }
-        if (item.first == std::string(transport_scheme_key) || is_node_advection_key(item.first) || is_realizability_key(item.first))
+        if (item.first == std::string(transport_scheme_key) || is_node_advection_key(item.first) || is_realizability_key(item.first) ||
+            item.first == std::string(cqmom_source_node_count_evolution_key))
         {
             continue;
         }
@@ -2067,6 +2102,57 @@ ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(const std::
         return {std::nullopt, std::move(options.errors)};
     }
     return {options.value->scheme, {}};
+}
+
+ConfigurationResult<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution(const std::string_view text, std::string source_name)
+{
+    ParsedFile parsed = parse_file(text, source_name);
+    if (!parsed.errors.empty())
+    {
+        return failure_result<CqmomNodeCountEvolution>(std::move(parsed));
+    }
+
+    for (const auto& item : parsed.sections)
+    {
+        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
+            item.first != rk23_section && item.first != cqmom_time_integration_section)
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
+        }
+    }
+    for (const auto& item : parsed.scalars)
+    {
+        if (item.first.rfind("time_integration.", 0) != 0)
+        {
+            continue;
+        }
+        if (item.first == std::string(transport_scheme_key) || is_node_advection_key(item.first) || is_realizability_key(item.first))
+        {
+            continue;
+        }
+        if (item.first == std::string(cqmom_source_node_count_evolution_key))
+        {
+            continue;
+        }
+        add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
+    }
+
+    CqmomNodeCountEvolution policy = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+    const Entry* entry = find_entry(parsed, std::string(cqmom_source_node_count_evolution_key));
+    if (entry != nullptr)
+    {
+        const std::optional<CqmomNodeCountEvolution> parsed_policy = parse_cqmom_source_node_count_evolution_value(parsed, *entry, source_name);
+        if (parsed_policy.has_value())
+        {
+            policy = *parsed_policy;
+        }
+    }
+
+    if (!parsed.errors.empty())
+    {
+        return failure_result<CqmomNodeCountEvolution>(std::move(parsed));
+    }
+    return {policy, {}};
 }
 
 ConfigurationResult<OutputOptions> parse_output_options(const std::string_view text, std::string source_name)
@@ -2225,6 +2311,18 @@ ConfigurationResult<NodeAdvectionScheme> load_node_advection_scheme(const std::f
         return {std::nullopt, std::move(options.errors)};
     }
     return {options.value->scheme, {}};
+}
+
+ConfigurationResult<CqmomNodeCountEvolution> load_cqmom_source_node_count_evolution(const std::filesystem::path& filename)
+{
+    std::ifstream input(filename);
+    if (!input)
+    {
+        return file_failure<CqmomNodeCountEvolution>(filename);
+    }
+    std::ostringstream contents;
+    contents << input.rdbuf();
+    return parse_cqmom_source_node_count_evolution(contents.str(), filename.string());
 }
 
 } // namespace qmomkit::config

@@ -575,8 +575,31 @@ Here `compute_cqmom(...)` computes the initial quadrature, while
 
 Adaptive branch counts configured on the `CqmomCase` are preserved by
 `CqmomState` transport. In adaptive mode, the hierarchy node counts remain the
-maximum branch counts; active branch counts are recomputed as part of each
-CQMOM quadrature reconstruction.
+maximum branch counts; the state also retains the current branch-specific
+active counts associated with its ragged quadrature. Continuous node advection
+preserves those active counts.
+
+Source stages choose whether the active counts can grow. The default
+`CqmomStateTransportOptions::source_node_count_evolution` is
+`allow_growth_to_configured_maximum`, which is appropriate for general
+sources such as breakage that may create additional structure. For zero/no-op
+sources or source models known not to increase rank, set it to
+`preserve_active_counts` so one-node adaptive branches are not reconsidered as
+larger branches only because the configured maximum is larger.
+
+Configuration-driven drivers can read the same policy from:
+
+```text
+[time_integration.cqmom]
+source_node_count_evolution = preserve_active_counts
+```
+
+The accepted values are `preserve_active_counts` and
+`allow_growth_to_configured_maximum`. Adaptive `CqmomState` construction seeds
+active counts from the initial CQMOM inversion; if that inversion fails, state
+construction fails instead of creating a state with inconsistent adaptive
+metadata. Failed state transport returns the previous state metadata so callers
+can retry from the last accepted step.
 
 `result.ok()` identifies whether returned moments or quadrature describe an
 accepted transport step. On failure, `result.message` and `result.diagnostics`

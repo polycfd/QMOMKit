@@ -54,11 +54,40 @@ enum class TransportStatus
     source_failed
 };
 
+enum class CqmomNodeCountEvolution
+{
+    preserve_active_counts,
+    allow_growth_to_configured_maximum
+};
+
+enum class CqmomNodeCountTransitionKind
+{
+    reduced,
+    grew,
+    created,
+    removed
+};
+
 struct MomentReconstructionDiagnostics
 {
     bool success = false;
     std::size_t moment_count = 0;
     std::string message;
+};
+
+struct CqmomNodeCountTransition
+{
+    TransportStage stage = TransportStage::none;
+    std::size_t conditioning_level = 0;
+    ConditioningPath parent_path;
+    std::size_t phase_space_dimension = 0;
+    std::size_t configured_maximum_node_count = 0;
+    std::optional<std::size_t> active_node_count_before;
+    std::optional<std::size_t> active_node_count_after;
+    CqmomNodeCountEvolution node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+    CqmomNodeCountTransitionKind kind = CqmomNodeCountTransitionKind::grew;
+    bool rank_reduced = false;
+    bool rank_grew = false;
 };
 
 struct TransportDiagnostics
@@ -79,6 +108,7 @@ struct TransportDiagnostics
     MomentReconstructionDiagnostics final_reconstruction_diagnostics;
     MomentSourceUpdateStatus source_status = MomentSourceUpdateStatus::success;
     MomentSourceUpdateDiagnostics source_diagnostics;
+    std::vector<CqmomNodeCountTransition> cqmom_node_count_transitions;
     std::size_t total_node_advection_steps = 0;
     std::size_t total_node_advection_rejected_steps = 0;
     std::size_t total_node_advection_rhs_evaluations = 0;
@@ -129,6 +159,9 @@ struct CqmomStateTransportOptions
 {
     NodeAdvectionOptions node_options;
     MomentSourceUpdateOptions source_options;
+    /** Source-stage rank policy. General sources default to allowing growth;
+     * zero/no-op sources should select `preserve_active_counts`. */
+    CqmomNodeCountEvolution source_node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     TransportScheme scheme = TransportScheme::strang;
 };
 
@@ -301,6 +334,12 @@ struct CqmomStateTransportResult
  * continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2).
  * TransportScheme::cd applies continuous(dt) -> discontinuous(dt).
  * TransportScheme::dc applies discontinuous(dt) -> continuous(dt).
+ *
+ * In adaptive branch-count mode, `CqmomState` carries current branch-specific
+ * active counts separately from the hierarchy's configured maximum counts.
+ * Source stages use `CqmomStateTransportOptions::source_node_count_evolution`
+ * to decide whether post-source inversion preserves the current active counts
+ * or may grow branches back to the configured maximum.
  */
 [[nodiscard]] CqmomStateTransportResult advance_transport_cqmom(const CqmomState& state, double t, double time_step,
                                                                 const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,

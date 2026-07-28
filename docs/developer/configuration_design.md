@@ -281,6 +281,11 @@ min_step
 max_steps
 ```
 
+CQMOM state-transport source policy lives under `[time_integration.cqmom]` and
+maps to `CqmomNodeCountEvolution`. If omitted,
+`source_node_count_evolution` defaults to
+`allow_growth_to_configured_maximum`, matching the C++ transport option.
+
 The parser default-constructs `NodeAdvectionOptions` and only overwrites keys
 that are present, so configuration parsing does not duplicate
 `AdaptiveRk23Options` defaults. If omitted, the parsed node-advection scheme

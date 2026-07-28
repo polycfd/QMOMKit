@@ -280,6 +280,30 @@ void test_rk23_reports_maximum_step_count_failure()
     assert(std::isfinite(result.state[0]));
 }
 
+void test_rk23_max_step_changes_observable_diagnostics()
+{
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>(y.size(), 0.0); };
+
+    qmomkit::AdaptiveRk23Options large_step;
+    large_step.initial_step = 0.5;
+    large_step.max_step = 0.5;
+
+    qmomkit::AdaptiveRk23Options small_step;
+    small_step.initial_step = 0.1;
+    small_step.max_step = 0.1;
+
+    const qmomkit::AdaptiveRk23Result large = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, large_step);
+    const qmomkit::AdaptiveRk23Result small = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, small_step);
+
+    assert(large.status == qmomkit::AdaptiveRk23Status::success);
+    assert(small.status == qmomkit::AdaptiveRk23Status::success);
+    assert(large.accepted_steps == 2);
+    assert(small.accepted_steps >= 10);
+    assert(large.function_evaluations == 7);
+    assert(small.function_evaluations > large.function_evaluations);
+    assert_vector_near(large.state, small.state, 1.0e-15);
+}
+
 } // namespace
 
 int main()
@@ -299,6 +323,7 @@ int main()
     test_rk23_invalid_options_fail_before_loop();
     test_rk23_rejects_nonfinite_trial_state();
     test_rk23_reports_maximum_step_count_failure();
+    test_rk23_max_step_changes_observable_diagnostics();
 
     return 0;
 }

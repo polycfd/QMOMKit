@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -81,6 +82,16 @@ enum class CqmomDiagnosticLevel
     detailed
 };
 
+enum class CqmomMomentStorage
+{
+    lean,
+    dense
+};
+
+[[nodiscard]] std::string to_string(CqmomMomentStorage storage);
+[[nodiscard]] std::string format_cqmom_settings(CqmomMomentStorage storage, bool adaptive_branch_counts, VandermondeSolver vandermonde_solver,
+                                                CqmomDiagnosticLevel diagnostic_level);
+
 struct CqmomDiagnostics
 {
     std::size_t conditioning_level = 0;
@@ -93,12 +104,32 @@ struct CqmomDiagnostics
     QmomStatus qmom_status = QmomStatus::success;
     ConditionalMomentStatus conditional_moment_status = ConditionalMomentStatus::success;
     ConditionalMomentDiagnostics conditional_moment_diagnostics;
+    VandermondeSolver conditional_vandermonde_requested_solver = VandermondeSolver::automatic;
+    VandermondeSolver conditional_vandermonde_selected_solver = VandermondeSolver::dense;
+    bool dense_vandermonde_fallback_occurred = false;
     std::string message;
 };
 
 /**
- * Structural description of the raw moments required by fixed-node recursive
- * CQMOM reconstruction.
+ * Current active node count for one recursive CQMOM branch.
+ *
+ * `configured_node_count` is the fixed maximum from the phase-space hierarchy.
+ * `active_node_count` is the current branch-local count observed in an
+ * adaptive ragged quadrature. `parent_path` is ordered by conditioning level
+ * and has length `conditioning_level`.
+ */
+struct CqmomActiveBranchCount
+{
+    std::size_t conditioning_level = 0;
+    ConditioningPath parent_path;
+    std::size_t phase_space_dimension = 0;
+    std::size_t configured_node_count = 0;
+    std::size_t active_node_count = 0;
+};
+
+/**
+ * Advanced explicit-representation layout for the raw moments required by
+ * fixed-node recursive CQMOM reconstruction.
  *
  * The hierarchy owns phase-space dimensions, node counts, and conditioning
  * order. `required_indices` stores phase-space-order raw moment multi-indices
@@ -112,7 +143,8 @@ struct CqmomMomentLayout
 };
 
 /**
- * Values for the raw moments identified by a `CqmomMomentLayout`.
+ * Advanced explicit lean representation values for the raw moments identified
+ * by a `CqmomMomentLayout`.
  *
  * `values[i]` stores the raw moment for `layout.required_indices[i]`. This
  * representation stores only moments required by fixed-node recursive CQMOM
@@ -130,7 +162,7 @@ struct CqmomMomentData
 };
 
 /**
- * Dense CQMOM case for multidimensional quadrature construction.
+ * Advanced explicit dense representation for static CQMOM inversion.
  *
  * `moments` is a raw multidimensional moment tensor flattened in phase-space
  * dimension order. `hierarchy` supplies the phase-space node counts and the
@@ -150,7 +182,8 @@ struct CqmomDenseCase
 };
 
 /**
- * Lean CQMOM case for quadrature from required CQMOM moments.
+ * Advanced explicit lean representation for static CQMOM inversion from
+ * required CQMOM moments.
  *
  * `moments.layout` supplies the hierarchy, conditioning order, and required
  * phase-space-order raw moment indices. `moments.values` stores one value per
@@ -171,8 +204,9 @@ struct CqmomLeanCase
  * User-facing mutable CQMOM runtime state.
  *
  * A state owns the current CQMOM moments and reconstruction policies while
- * hiding the storage representation used internally. It is the neutral state
- * object passed through CQMOM transport workflows.
+ * hiding the storage representation used internally. Normal CQMOM transport
+ * creates this state from `CqmomCase` and passes it to
+ * `advance_transport_cqmom(...)`.
  */
 class CqmomState
 {
@@ -189,6 +223,11 @@ public:
     [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
+    [[nodiscard]] CqmomMomentStorage moment_storage() const noexcept;
+    [[nodiscard]] const std::vector<CqmomActiveBranchCount>& active_branch_counts() const noexcept;
+    [[nodiscard]] std::vector<MultiIndex> moment_indices() const;
+    [[nodiscard]] const std::vector<double>& moment_values() const noexcept;
+    [[nodiscard]] std::optional<double> moment(const MultiIndex& index) const;
 
 private:
     struct Data;
@@ -223,6 +262,7 @@ public:
     [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
+    [[nodiscard]] CqmomMomentStorage moment_storage() const noexcept;
     [[nodiscard]] CqmomState initial_state() const;
 
 private:
@@ -251,8 +291,7 @@ struct CqmomResult
 };
 
 /**
- * Construct a multidimensional CQMOM quadrature for a fixed phase-space
- * hierarchy and conditioning order.
+ * Advanced explicit dense-representation static CQMOM inversion.
  *
  * Fixed rectangular hierarchies remain the default. Adaptive branch-specific
  * node counts are enabled explicitly with `CqmomDenseCase::adaptive_branch_counts`
@@ -262,7 +301,8 @@ struct CqmomResult
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomDenseCase& dense_case);
 
 /**
- * Construct a multidimensional CQMOM quadrature from required raw moment data.
+ * Advanced explicit lean-representation static CQMOM inversion from required
+ * raw moment data.
  *
  * The required-moment layout must match the hierarchy stored in
  * `lean_case.moments.layout`. Adaptive branch-specific node counts are enabled
@@ -272,7 +312,8 @@ struct CqmomResult
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomLeanCase& lean_case);
 
 /**
- * Construct a multidimensional CQMOM quadrature from a user-facing CQMOM case.
+ * Construct a multidimensional CQMOM quadrature from the normal user-facing
+ * CQMOM case.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomCase& case_);
 

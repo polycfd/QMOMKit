@@ -72,7 +72,7 @@ through public types and options rather than through text sections:
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a dense tensor representation from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
-| transport options | `[time_integration]` and optional runtime realizability policy | set `QmomTransportOptions`, `CqmomStateTransportOptions`, source-update options, and realizability policies in C++ |
+| transport options | `[time_integration]`, `[time_integration.node_advection]`, `[time_integration.cqmom]`, and optional runtime realizability policy | set `QmomTransportOptions`, `CqmomTransportOptions`, `NodeAdvectionOptions`, source-update options, and realizability policies in C++ |
 | output choices | `[output]` directory, enabled outputs, and cadence | create and call `MomentWriter` or `QuadratureWriter` from the surrounding driver |
 
 This mapping is meant to orient application integration, not replace the public
@@ -179,17 +179,13 @@ from a configured independent-product initialization, `load_cqmom(...)` remains
 the most concise route to the representation-neutral `CqmomCase`.
 
 Transport is still optional. QMOM transport advances moment vectors directly
-with `advance_transport_qmom(...)`. CQMOM transport has two common forms:
+with `advance_transport_qmom(...)`. CQMOM transport advances a `CqmomState`
+created from `CqmomCase`:
 
 ```cpp
-// Representation-neutral CQMOM transport, when you have a CqmomCase:
 qmomkit::CqmomState state = cqmom_case.initial_state();
-const qmomkit::CqmomStateTransportResult next =
+const qmomkit::CqmomTransportResult next =
     qmomkit::advance_transport_cqmom(state, time, time_step, velocity, source, options);
-
-// Explicit dense CQMOM transport, when you manage RawMomentTensor directly:
-const qmomkit::CqmomDenseTransportResult dense_next =
-    qmomkit::advance_transport_cqmom(moments, hierarchy, time, time_step, velocity, source, dense_options);
 ```
 
 The `velocity`, `source`, and transport options are application code. The
@@ -229,7 +225,9 @@ The main sections are:
 - `[cqmom]`: CQMOM-specific reconstruction options.
 - `[time_integration]`: transport operator-ordering choices.
 - `[time_integration.node_advection]`: optional continuous node-trajectory
-  integration scheme.
+  integration scheme and RK23 controls.
+- `[time_integration.cqmom]`: optional CQMOM state-transport source-stage
+  active node-count policy.
 - `[time_integration.realizability]`: optional runtime realizability policy.
 - `[output]`: optional output directory, enabled outputs, and cadence.
 
@@ -250,17 +248,13 @@ int main()
     const auto configured =
         qmomkit::config::load_qmom("configuration.qmom");
 
-    if (!configured.ok())
+    if (!configured)
     {
-        for (const qmomkit::config::ConfigurationError& error : configured.errors)
-        {
-            std::cerr << error.source_name << ':' << error.line << ": "
-                      << error.message << '\n';
-        }
+        std::cerr << configured.error() << '\n';
         return 1;
     }
 
-    const qmomkit::QmomResult result = qmomkit::compute_qmom(*configured.value);
+    const qmomkit::QmomResult result = qmomkit::compute_qmom(configured.value());
     if (!result.ok())
     {
         std::cerr << "QMOM failed: " << result.message << '\n';
@@ -276,12 +270,12 @@ ordinary multidimensional CQMOM configurations, use `load_cqmom(...)`:
 const auto configured =
     qmomkit::config::load_cqmom("configuration.qmom");
 
-if (!configured.ok())
+if (!configured)
 {
-    // Report configured.errors, then stop.
+    // Report configured.error(), then stop.
 }
 
-const qmomkit::CqmomCase cqmom_case = *configured.value;
+const qmomkit::CqmomCase cqmom_case = configured.value();
 
 const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 if (!result.ok())
@@ -297,8 +291,8 @@ evolving `CqmomState` used by optional CQMOM transport. QMOM transport is also
 optional and advances raw moment vectors rather than a `QmomState`. Use
 `load_cqmom_dense(...)` only when an application deliberately chooses the
 explicit dense representation workflow. Optional output settings are loaded
-separately with `load_output_options(...)`; optional node-advection scheme
-settings are loaded with `load_node_advection_scheme(...)`.
+separately with `load_output_options(...)`; transport controls are loaded with
+`load_qmom_transport_options(...)` or `load_cqmom_transport_options(...)`.
 
 ## QMOM Configuration
 
@@ -556,14 +550,25 @@ validation study deliberately compares solver policies:
 
 ```text
 [cqmom]
+moment_storage = lean
 diagnostic_level = detailed|basic|none
 
 [vandermonde]
 solver = automatic
 ```
 
-`diagnostic_level` controls reconstruction diagnostics. Supported values are
-`detailed`, `basic`, and `none`. If omitted, `detailed` is used.
+`moment_storage` selects the internal raw-moment representation for
+representation-neutral `load_cqmom(...)` workflows. Supported values are `lean`
+and `dense`. If omitted, `lean` is used explicitly. The selected moment storage
+is reported by `CqmomCase::moment_storage()` and `CqmomState::moment_storage()`.
+This setting is distinct from `vandermonde.solver = dense`, which selects a
+linear solver for conditional reconstruction rather than moment storage.
+
+`diagnostic_level` controls reconstruction diagnostic retention and reporting
+only. It does not change solver selection, residual acceptance, fallback
+behavior, inversion results, transport results, or success/failure status.
+Supported values are `detailed`, `basic`, and `none`. If omitted, `detailed` is
+used.
 
 `vandermonde.solver` controls the branch-local conditional moment solve.
 Supported values are `automatic`, `dense`, `bjorck_pereyra`, and
@@ -600,6 +605,20 @@ adaptive = true
 together when you want CQMOM to accept branch-local node reduction.
 
 ## Transport Options
+
+A `.qmom` file may contain both case settings and transport settings.
+`load_qmom(...)` and `load_cqmom(...)` return only the case configuration, but
+they validate all recognized settings in the file. Transport settings must
+still be loaded into transport options explicitly.
+
+| Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
+| --- | --- | --- | --- |
+| QMOM/CQMOM inversion settings | yes | yes | no |
+| Vandermonde and CQMOM storage settings | yes | yes | no |
+| `time_integration.scheme` | yes | no | yes |
+| `time_integration.node_advection.*` | yes | no | yes |
+| `time_integration.cqmom.source_node_count_evolution` | yes | no | yes |
+| `time_integration.realizability.*` | yes | no | yes |
 
 A configuration file may select the transport operator-ordering scheme:
 
@@ -645,10 +664,78 @@ internal trajectory error estimation is part of the desired numerical control.
 Both choices integrate continuous quadrature-node trajectories; they do not
 change source integration, realizability policy, or transport splitting.
 
+When `scheme = adaptive_rk23`, optional controls live under the nested RK23
+section:
+
+```text
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-7
+absolute_tolerance = 1.0e-10
+initial_step = 1.0e-4
+max_step = 1.0e-2
+min_step = 1.0e-12
+max_steps = 200000
+```
+
+Supported RK23 keys are:
+
+```text
+relative_tolerance
+absolute_tolerance
+initial_step
+max_step
+min_step
+max_steps
+```
+
+If omitted, these keys retain the C++ `AdaptiveRk23Options` defaults:
+`relative_tolerance = 1.0e-6`, `absolute_tolerance = 1.0e-9`,
+`initial_step = automatic`, `max_step = full integration interval`,
+`min_step = machine-dependent automatic minimum`, and
+`max_steps = 100000`. Explicit tolerances and step sizes must be positive
+finite numbers, and `min_step` must not exceed `max_step` when both are
+provided. `max_steps` must be a positive integer.
+
+Drivers can print `format_node_advection_options(...)` at startup to report
+the effective scheme and controls. For fixed-step node advection, that summary
+reports the selected scheme only; it does not imply that RK23 tolerances are
+active.
+
+### CQMOM Source Active Counts
+
+For adaptive CQMOM transport through `CqmomState`, source stages can either
+preserve the current branch-specific active node counts or allow branches to
+grow back to their configured maximum:
+
+```text
+[time_integration.cqmom]
+source_node_count_evolution = preserve_active_counts
+```
+
+Supported values are:
+
+```text
+preserve_active_counts
+allow_growth_to_configured_maximum
+```
+
+Omission defaults to `allow_growth_to_configured_maximum`, matching the C++
+`CqmomTransportOptions` default for general source terms. Drivers that use
+zero sources or source models known not to increase branch rank can select
+`preserve_active_counts` explicitly. Adaptive `CqmomState` initialization seeds
+current active counts from the initial inversion; malformed or inconsistent
+active-count metadata is rejected during transport rather than silently falling
+back to configured maxima.
+
 The configuration file stores runtime numerical choices and the initial
 numerical setup. Your application still provides the continuous velocity and
-source callbacks, model coefficients, timestep plan, and detailed integrator
-controls.
+source callbacks, model coefficients, and timestep plan. Load QMOM transport
+controls with `load_qmom_transport_options(...)` and CQMOM transport controls
+with `load_cqmom_transport_options(...)`; these return complete transport
+option objects with default empty runtime callbacks.
 
 ## Output Options
 
@@ -671,6 +758,16 @@ unless your driver wires these options into writers.
 a commented header line and whitespace-separated columns. QMOMKit-native
 example output uses `.txt` filenames. Use CSV only for custom application data
 that is not written through the QMOMKit output helpers.
+
+CQMOM quadrature output uses one row per active terminal node:
+
+```text
+time node_index path_0 ... weight x0 ...
+```
+
+Multiple rows may share one time value, and adaptive CQMOM may write a different
+number of rows at different output times. Group rows by `time` to recover each
+saved terminal quadrature.
 
 Moment output records native integer-order raw moments. Generalized moments
 with real exponents are evaluated by caller code from a valid quadrature result
@@ -718,7 +815,9 @@ upper = 1.0
 Support is not inferred from a distribution family or a phase-space name.
 Configuration parsing creates the policy object; applications that want
 runtime rejection must wire the policy into the relevant time-integration
-options.
+options. Case loading validates this section when it appears, but it does not
+install realizability predicates automatically. Load the policy explicitly
+with `parse_realizability_policy(...)` before wiring those predicates.
 
 ## Practical Guidance
 
@@ -740,7 +839,8 @@ describe raw moments. `node_counts`, `conditioning_order`, and adaptive options
 describe quadrature reconstruction.
 
 Check configuration errors before computing quadrature. The public loading API
-returns structured errors with source names, line numbers, and messages.
+returns a diagnostic string through `error()` with source and line information
+when available.
 
 Check numerical statuses after loading. A valid configuration can still lead to
 a failed QMOM or CQMOM reconstruction if the requested quadrature is not

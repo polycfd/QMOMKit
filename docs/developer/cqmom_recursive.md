@@ -457,6 +457,11 @@ condition estimates, are useful for analysis and debugging but are not required
 to construct the quadrature. The CQMOM diagnostic setting on the loaded case or
 explicit representation case selects how much diagnostic work is performed:
 
+`CqmomDiagnosticLevel` controls diagnostic retention and reporting only. It does
+not alter Vandermonde solver selection, residual acceptance, dense fallback
+behavior, inversion results, active node counts, quadrature values, transport
+results, or success/failure status.
+
 - `CqmomDiagnosticLevel::detailed` preserves full diagnostic reporting. It
   provides residual norms, condition estimates, and conditioning warnings for
   branch-local conditional-moment solves when those solves are performed. These
@@ -517,16 +522,16 @@ This workflow avoids exposing dense or lean moment storage to users.
 
 `CqmomDenseCase` bundles the phase-space hierarchy, raw moment tensor,
 conditional-moment numerical options, QMOM/Wheeler options, and the adaptive
-branch-count policy. It is the explicit dense representation workflow for
-callers that intentionally use full rectangular tensor moment storage.
+branch-count policy. It is the advanced explicit dense representation workflow
+for callers that intentionally use full rectangular tensor moment storage.
 
 `CqmomLeanCase` bundles lean CQMOM moment data, the same
 conditional-moment and QMOM/Wheeler options, and the same adaptive branch-count
 and diagnostic controls. It is the public case type for callers that can
-produce required CQMOM moments directly. It is the explicit lean representation
-workflow and provides direct control over the required CQMOM moment
-representation. The dense `CqmomDenseCase` path internally selects the same
-required moment data before recursive reconstruction.
+produce required CQMOM moments directly. It is the advanced explicit lean
+representation workflow and provides direct control over the required CQMOM
+moment representation. The dense `CqmomDenseCase` path internally selects the
+same required moment data before recursive reconstruction.
 
 `CqmomMomentLayout` and `CqmomMomentData` are public data-transfer types for
 the lean CQMOM moment representation. They are not intended to expose

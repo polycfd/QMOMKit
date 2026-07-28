@@ -76,11 +76,13 @@ CQMOM transport creates a `CqmomState` with `CqmomCase::initial_state()` and
 advances it with `advance_transport_cqmom(CqmomState, ...)`.
 
 `CqmomCase` and `CqmomState` are the neutral public objects for normal CQMOM
-workflows. Normal configured workflows use required CQMOM moment data without
-asking users to choose a storage representation. `CqmomDenseCase` with
-`RawMomentTensor` and `CqmomLeanCase` with `CqmomMomentLayout` and
-`CqmomMomentData` remain supported explicit representation workflows for callers
-that intentionally choose and manage a CQMOM moment representation.
+workflows. Normal CQMOM transport creates a `CqmomState` from `CqmomCase` and
+advances it with `advance_transport_cqmom(...)`, independent of dense or lean
+storage. Normal configured workflows default to lean moment storage and may
+select dense storage explicitly with `cqmom.moment_storage`. `CqmomDenseCase`
+with `RawMomentTensor` and `CqmomLeanCase` with `CqmomMomentLayout` and
+`CqmomMomentData` remain supported advanced explicit representations for static
+inversion, specialized initialization, validation, and expert workflows.
 
 ### QMOM And CQMOM Terminology
 
@@ -99,10 +101,11 @@ implementation comments:
 | Quadrature | Discrete representation reconstructed from moments, such as weights and abscissas in `QmomResult`, `Quadrature1D`, or `CqmomQuadrature`. |
 
 `QmomCase` and `CqmomCase` are problem definitions, not moment requests.
-`CqmomDenseCase` and `CqmomLeanCase` are explicit representation workflows for
-expert callers that need to manage dense full tensors or lean required moment
-data directly. They do not replace `CqmomCase` and `CqmomState` as the normal
-representation-independent CQMOM workflow abstractions.
+`CqmomDenseCase` and `CqmomLeanCase` are advanced explicit representation
+workflows for expert callers that need to manage dense full tensors or lean
+required moment data directly. They do not replace `CqmomCase` and
+`CqmomState` as the normal representation-independent CQMOM workflow
+abstractions.
 
 Dense and lean terminology is specific to CQMOM's multidimensional moment
 storage choices. QMOM does not need dense or lean case terminology because its
@@ -143,9 +146,10 @@ find_package(QMOMKit CONFIG REQUIRED)
 target_link_libraries(my_target PRIVATE qmomkit::qmomkit)
 ```
 
-The root CMake project builds and installs only the core package. It does not
-add tests, benchmarks, examples, or Monte Carlo tooling through
-`add_subdirectory`.
+The default root CMake build builds and installs only the core package. Normal
+source-tree tests are added only when `QMOMKIT_BUILD_TESTS=ON`. Benchmarks,
+examples, installed-package consumers, and Monte Carlo tooling remain separate
+projects.
 
 ### QMOMKitMonteCarlo Companion Package
 
@@ -198,8 +202,8 @@ docs/
   `include/qmomkit/`.
 - `src/`: core library implementation files and implementation-only helper
   headers.
-- `tests/`: standalone QMOMKit package consumer with CTest unit,
-  public-header, and verification executables.
+- `tests/`: CTest unit, component regression, public-header, and verification
+  executables included by the root build when `QMOMKIT_BUILD_TESTS=ON`.
 - `tests/benchmarks/`: standalone optional benchmark consumer.
 - `tools/monte_carlo/`: standalone QMOMKitMonteCarlo companion package and
   its tests, examples, scripts, headers, and sources.
@@ -271,10 +275,10 @@ behavior. That does not make those headers public API.
 The root package is consumed through its installed CMake package:
 
 ```text
-QMOMKit
+QMOMKit install
     |
-    +-- tests
-    +-- benchmarks
+    +-- tests/package_consumer
+    +-- tests/benchmarks
     +-- examples
 
 QMOMKitMonteCarlo
@@ -282,10 +286,13 @@ QMOMKitMonteCarlo
     +-- MC examples
 ```
 
+Normal correctness tests are source-tree tests. They are enabled from the root
+build with `QMOMKIT_BUILD_TESTS=ON` and link the local `qmomkit` target.
+
 The standalone consumers use `find_package(...)` rather than building the
 source tree as a dependency:
 
-- `tests/` uses `find_package(QMOMKit CONFIG REQUIRED)`.
+- `tests/package_consumer/` uses `find_package(QMOMKit CONFIG REQUIRED)`.
 - `tests/benchmarks/` uses `find_package(QMOMKit CONFIG REQUIRED)`.
 - core examples use `find_package(QMOMKit CONFIG REQUIRED)` or the already
   available `qmomkit::qmomkit` target.
@@ -293,21 +300,20 @@ source tree as a dependency:
 - `tools/monte_carlo/` uses `find_package(QMOMKit CONFIG REQUIRED)` and
   exports its own package.
 
-This model keeps package-consumer behavior visible and prevents tests,
-benchmarks, tools, or examples from accidentally depending on uninstalled core
-build-tree details. Repository tests may add `src/` to their include path for
-focused internal validation, but downstream consumers should rely on installed
-headers and exported targets.
+This model keeps package-consumer behavior visible while ensuring ordinary
+correctness tests exercise the current source-tree implementation. Repository
+tests may add `src/` to their include path for focused internal validation, but
+downstream consumers should rely on installed headers and exported targets.
 
 ## Build Philosophy
 
 The root CMake project is the core-library/package build. It compiles the
 QMOMKit library and installs the exported CMake package.
 
-Tests, benchmarks, tools, and examples are separate CMake projects:
+Tests, benchmarks, tools, and examples are built according to their purpose:
 
-- correctness tests are ordinary CTest executables in the standalone `tests/`
-  project;
+- correctness tests are ordinary CTest executables included by the root build
+  when `QMOMKIT_BUILD_TESTS=ON`;
 - benchmarks are optional performance executables in `tests/benchmarks/`;
 - the Monte Carlo companion package is built and installed from
   `tools/monte_carlo/`;

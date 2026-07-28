@@ -1,5 +1,5 @@
 add_executable(configuration_failures_verification configuration_failures.cpp)
-target_link_libraries(configuration_failures_verification PRIVATE qmomkit::qmomkit)
+target_link_libraries(configuration_failures_verification PRIVATE qmomkit)
 
 set(configuration_failure_cases
     malformed_syntax.qmom

@@ -1,5 +1,5 @@
 add_executable(moment_source_analytical_verification moment_source_analytical.cpp)
-target_link_libraries(moment_source_analytical_verification PRIVATE qmomkit::qmomkit)
+target_link_libraries(moment_source_analytical_verification PRIVATE qmomkit)
 set(moment_source_cases
     order_dependent_relaxation_qmom order_dependent_relaxation
     common_rate_relaxation_cqmom common_rate_relaxation

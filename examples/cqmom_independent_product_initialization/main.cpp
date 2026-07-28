@@ -3,20 +3,21 @@
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
+#include <utility>
 
 int main()
 {
     const std::filesystem::path configuration_file = "configuration.qmom";
 
-    const auto configured = qmomkit::config::load_cqmom(configuration_file);
-    if (!configured.ok())
+    auto configured = qmomkit::config::load_cqmom(configuration_file);
+    if (!configured)
     {
-        std::cerr << "CQMOM configuration failed: " << configured.errors.front().message << '\n';
+        std::cerr << "CQMOM configuration failed: " << configured.error() << '\n';
         return 1;
     }
 
     // CqmomCase is the immutable configuration/problem definition.
-    const qmomkit::CqmomCase cqmom_case = *configured.value;
+    const qmomkit::CqmomCase cqmom_case = std::move(configured).value();
 
     // compute_cqmom(...) computes the initial quadrature for that case.
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);

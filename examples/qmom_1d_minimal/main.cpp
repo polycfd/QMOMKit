@@ -9,30 +9,6 @@
 #include <stdexcept>
 #include <vector>
 
-namespace
-{
-
-void print_moments(const char* label, const std::vector<double>& moments)
-{
-    std::cout << label << '\n';
-    for (std::size_t order = 0; order < moments.size(); ++order)
-    {
-        std::cout << "M" << order << " = " << moments[order] << '\n';
-    }
-}
-
-void print_quadrature(const char* label, const qmomkit::QmomResult& quadrature)
-{
-    std::cout << label << '\n';
-    std::cout << "node  weight        abscissa\n";
-    for (std::size_t node = 0; node < quadrature.weights.size(); ++node)
-    {
-        std::cout << node << "     " << quadrature.weights[node] << "   " << quadrature.abscissas[node] << '\n';
-    }
-}
-
-} // namespace
-
 int main()
 {
     const std::size_t node_count = 3;
@@ -72,7 +48,11 @@ int main()
 
     std::cout << std::setprecision(12);
     std::cout << "Minimal 1D QMOM transport example\n\n";
-    print_moments("Initial moments:", moments);
+    std::cout << "Initial moments:\n";
+    for (std::size_t order = 0; order < moments.size(); ++order)
+    {
+        std::cout << "M" << order << " = " << moments[order] << '\n';
+    }
 
     const std::filesystem::path output_directory = "output";
     std::filesystem::create_directories(output_directory);
@@ -108,9 +88,18 @@ int main()
     }
 
     std::cout << '\n';
-    print_moments("Final moments:", moments);
+    std::cout << "Final moments:\n";
+    for (std::size_t order = 0; order < moments.size(); ++order)
+    {
+        std::cout << "M" << order << " = " << moments[order] << '\n';
+    }
     std::cout << '\n';
-    print_quadrature("Final quadrature:", final_quadrature);
+    std::cout << "Final quadrature:\n";
+    std::cout << "node  weight        abscissa\n";
+    for (std::size_t node = 0; node < final_quadrature.weights.size(); ++node)
+    {
+        std::cout << node << "     " << final_quadrature.weights[node] << "   " << final_quadrature.abscissas[node] << '\n';
+    }
     std::cout << "\nOutputs written to:\n";
     std::cout << (output_directory / "moment_history.txt").string() << '\n';
     std::cout << (output_directory / "quadrature_history.txt").string() << '\n';

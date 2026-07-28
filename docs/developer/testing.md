@@ -63,17 +63,18 @@ The primary test project lives under:
 tests/
 ```
 
-It is a standalone CMake project and an installed-package consumer. The test
-project calls:
+It is included by the root CMake project when `QMOMKIT_BUILD_TESTS=ON`. Normal
+unit, component regression, verification, and public-header tests link the
+current build-tree `qmomkit` target and compile against the current source-tree
+public headers. Installation is not required for the normal correctness suite:
 
-```cmake
-find_package(QMOMKit CONFIG REQUIRED)
-target_link_libraries(... PRIVATE qmomkit::qmomkit)
+```bash
+cmake -S . -B build-tests \
+    -DQMOMKIT_BUILD_TESTS=ON \
+    -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-tests
+ctest --test-dir build-tests --output-on-failure
 ```
-
-This keeps the normal test suite close to downstream package usage. Tests are
-separate from the core library build: the repository root builds and installs
-the core QMOMKit package, while `tests/` configures against that package.
 
 The test project currently registers CTest executables through these
 subdirectories:
@@ -173,8 +174,8 @@ density.
 ### Public-Header Tests
 
 Public-header tests are compile-time interface checks. Each translation unit in
-`tests/public_headers/` includes one installed public header from
-`include/qmomkit/`.
+`tests/public_headers/` includes one current public header from
+`include/qmomkit/` through the source-tree `qmomkit` target.
 
 These tests protect the public API boundary by verifying that headers are
 self-contained and do not depend on accidental include order. The linked CTest

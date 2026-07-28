@@ -91,6 +91,11 @@ namespace
     return residual <= tolerance * scale;
 }
 
+[[nodiscard]] bool residual_validation_required(const VandermondeSolver requested_solver, const VandermondeSolver selected_solver)
+{
+    return requested_solver == VandermondeSolver::automatic || selected_solver == VandermondeSolver::bjorck_pereyra_with_dense_fallback;
+}
+
 } // namespace
 
 LinearSolveResult solve_weighted_transposed_vandermonde_bjorck_pereyra(const std::vector<double>& abscissas, const std::vector<double>& weights,
@@ -206,7 +211,7 @@ VandermondeSolveResult solve_weighted_vandermonde(const std::vector<double>& abs
         solve_weighted_transposed_vandermonde_bjorck_pereyra(abscissas, weights, rhs, options.singular_tolerance, singular_message);
     if (bjorck_pereyra.success && result_is_finite(bjorck_pereyra))
     {
-        const bool validate_residual = options.validate_residual || requested_solver == VandermondeSolver::automatic;
+        const bool validate_residual = options.validate_residual || residual_validation_required(requested_solver, selected_solver);
         if (!validate_residual)
         {
             return vandermonde_result(bjorck_pereyra, requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra, false);

@@ -807,7 +807,7 @@ void bm_cqmom_transport_workload(benchmark::State& state, const qmomkit::Transpo
     const qmomkit::PhaseSpaceVelocity velocity = velocity_model();
     const qmomkit::CqmomMomentSource source = source_model();
     const qmomkit::CqmomMomentBoundaryContribution boundary = zero_boundary_model();
-    qmomkit::CqmomStateTransportOptions options;
+    qmomkit::CqmomTransportOptions options;
     options.scheme = scheme;
     options.node_options.rk23_options.initial_step = 0.0025;
     options.node_options.rk23_options.max_step = 0.0025;
@@ -827,7 +827,7 @@ void bm_cqmom_transport_workload(benchmark::State& state, const qmomkit::Transpo
                 const double time = 0.0025 * static_cast<double>(step);
                 for (qmomkit::CqmomState& cqmom_state : states)
                 {
-                    qmomkit::CqmomStateTransportResult result =
+                    qmomkit::CqmomTransportResult result =
                         qmomkit::advance_transport_cqmom(cqmom_state, time, 0.0025, velocity, source, boundary, options);
                     if (!result.ok())
                     {

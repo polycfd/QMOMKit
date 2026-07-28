@@ -1,5 +1,5 @@
 add_executable(output_workflows_verification output_workflows.cpp)
-target_link_libraries(output_workflows_verification PRIVATE qmomkit::qmomkit)
+target_link_libraries(output_workflows_verification PRIVATE qmomkit)
 
 add_test(
     NAME verification_output_writer_workflows

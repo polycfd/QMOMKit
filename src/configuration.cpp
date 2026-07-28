@@ -40,6 +40,15 @@ constexpr std::string_view transport_scheme_key = "time_integration.scheme";
 constexpr std::string_view node_advection_section = "time_integration.node_advection";
 constexpr std::string_view node_advection_key_prefix = "time_integration.node_advection.";
 constexpr std::string_view node_advection_scheme_key = "time_integration.node_advection.scheme";
+constexpr std::string_view rk23_section = "time_integration.node_advection.rk23";
+constexpr std::string_view rk23_relative_tolerance_key = "time_integration.node_advection.rk23.relative_tolerance";
+constexpr std::string_view rk23_absolute_tolerance_key = "time_integration.node_advection.rk23.absolute_tolerance";
+constexpr std::string_view rk23_initial_step_key = "time_integration.node_advection.rk23.initial_step";
+constexpr std::string_view rk23_max_step_key = "time_integration.node_advection.rk23.max_step";
+constexpr std::string_view rk23_min_step_key = "time_integration.node_advection.rk23.min_step";
+constexpr std::string_view rk23_max_steps_key = "time_integration.node_advection.rk23.max_steps";
+constexpr std::string_view cqmom_time_integration_section = "time_integration.cqmom";
+constexpr std::string_view cqmom_source_node_count_evolution_key = "time_integration.cqmom.source_node_count_evolution";
 constexpr std::string_view output_section = "output";
 constexpr std::string_view output_key_prefix = "output.";
 
@@ -464,6 +473,57 @@ bool parse_required_size(ParsedFile& parsed, const std::string& key, const std::
     return true;
 }
 
+bool parse_optional_positive_double(ParsedFile& parsed, const std::string& key, const std::string& source_name, double& value)
+{
+    const Entry* entry = find_entry(parsed, key);
+    if (entry == nullptr)
+    {
+        return true;
+    }
+    double parsed_value = 0.0;
+    if (!parse_double(entry->value, parsed_value) || parsed_value <= 0.0)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line, key + " must be a positive finite number.");
+        return false;
+    }
+    value = parsed_value;
+    return true;
+}
+
+bool parse_optional_positive_double(ParsedFile& parsed, const std::string& key, const std::string& source_name, std::optional<double>& value)
+{
+    const Entry* entry = find_entry(parsed, key);
+    if (entry == nullptr)
+    {
+        return true;
+    }
+    double parsed_value = 0.0;
+    if (!parse_double(entry->value, parsed_value) || parsed_value <= 0.0)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line, key + " must be a positive finite number.");
+        return false;
+    }
+    value = parsed_value;
+    return true;
+}
+
+bool parse_optional_positive_size(ParsedFile& parsed, const std::string& key, const std::string& source_name, std::size_t& value)
+{
+    const Entry* entry = find_entry(parsed, key);
+    if (entry == nullptr)
+    {
+        return true;
+    }
+    std::size_t parsed_value = 0;
+    if (!parse_size(entry->value, parsed_value) || parsed_value == 0)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line, key + " must be a positive integer.");
+        return false;
+    }
+    value = parsed_value;
+    return true;
+}
+
 std::optional<DistributionSpecification> parse_distribution(ParsedFile& parsed, const std::string& key_prefix, const std::string& source_name)
 {
     const Entry* family_entry = require_entry(parsed, key_prefix + ".family", source_name);
@@ -616,6 +676,13 @@ void append_time_integration_allowed_keys(std::vector<std::string>& allowed)
 {
     allowed.push_back(std::string(transport_scheme_key));
     allowed.push_back(std::string(node_advection_scheme_key));
+    allowed.push_back(std::string(rk23_relative_tolerance_key));
+    allowed.push_back(std::string(rk23_absolute_tolerance_key));
+    allowed.push_back(std::string(rk23_initial_step_key));
+    allowed.push_back(std::string(rk23_max_step_key));
+    allowed.push_back(std::string(rk23_min_step_key));
+    allowed.push_back(std::string(rk23_max_steps_key));
+    allowed.push_back(std::string(cqmom_source_node_count_evolution_key));
     allowed.push_back("time_integration.realizability.check_mode");
     allowed.push_back("time_integration.realizability.accept_boundary");
     allowed.push_back("time_integration.realizability.support");
@@ -642,7 +709,8 @@ std::vector<std::string> with_runtime_allowed_keys(std::vector<std::string> allo
 
 std::vector<std::string> time_integration_sections()
 {
-    return {"time_integration", "time_integration.realizability", "time_integration.node_advection"};
+    return {"time_integration", "time_integration.realizability", "time_integration.node_advection", "time_integration.node_advection.rk23",
+            "time_integration.cqmom"};
 }
 
 void reject_unknown_qmom_sections(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
@@ -751,8 +819,8 @@ bool has_mixture_component_sections(const ParsedFile& parsed)
 std::vector<std::string> cqmom_explicit_allowed_keys()
 {
     return with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.conditioning_order",
-                                      "phase_space.adaptive_branch_counts", "qmom.adaptive", "cqmom.diagnostic_level", "vandermonde.solver",
-                                      "moments.extents"});
+                                      "phase_space.adaptive_branch_counts", "qmom.adaptive", "cqmom.diagnostic_level", "cqmom.moment_storage",
+                                      "vandermonde.solver", "moments.extents"});
 }
 
 std::vector<std::string> cqmom_initial_allowed_keys()
@@ -934,14 +1002,56 @@ std::optional<RawMomentTensor> parse_explicit_tensor(ParsedFile& parsed, const s
     return RawMomentTensor{std::move(extents), std::move(values)};
 }
 
+std::string format_configuration_error(const ConfigurationError& error)
+{
+    std::ostringstream message;
+    if (!error.source_name.empty())
+    {
+        message << error.source_name;
+        if (error.line != 0)
+        {
+            message << ':' << error.line;
+        }
+        message << ": ";
+    }
+    message << error.message;
+    return message.str();
+}
+
+std::string format_configuration_errors(const std::vector<ConfigurationError>& errors)
+{
+    if (errors.empty())
+    {
+        return "Configuration parsing failed.";
+    }
+    return format_configuration_error(errors.front());
+}
+
 template <class T> ConfigurationResult<T> failure_result(ParsedFile&& parsed)
 {
-    return {std::nullopt, std::move(parsed.errors)};
+    return ConfigurationResult<T>::failure(format_configuration_errors(parsed.errors));
+}
+
+template <class T> ConfigurationResult<T> failure_result(ConfigurationError error)
+{
+    return ConfigurationResult<T>::failure(format_configuration_error(error));
 }
 
 template <class T> ConfigurationResult<T> file_failure(const std::filesystem::path& filename)
 {
-    return {std::nullopt, {{ConfigurationErrorCode::file_error, filename.string(), 0, "Unable to open configuration file."}}};
+    return failure_result<T>({ConfigurationErrorCode::file_error, filename.string(), 0, "Unable to open configuration file."});
+}
+
+std::optional<std::string> read_configuration_file(const std::filesystem::path& filename)
+{
+    std::ifstream input(filename);
+    if (!input)
+    {
+        return std::nullopt;
+    }
+    std::ostringstream contents;
+    contents << input.rdbuf();
+    return contents.str();
 }
 
 struct ParsedCqmomCaseSettings
@@ -951,6 +1061,9 @@ struct ParsedCqmomCaseSettings
     bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
+    CqmomMomentStorage moment_storage = CqmomMomentStorage::lean;
+    bool moment_storage_configured = false;
+    std::size_t moment_storage_line = 0;
 };
 
 bool has_realizability_section(const ParsedFile& parsed)
@@ -968,9 +1081,89 @@ bool is_realizability_key(const std::string& key)
     return key.rfind(std::string(realizability_key_prefix), 0) == 0;
 }
 
+const std::vector<std::string>& realizability_allowed_keys()
+{
+    static const std::vector<std::string> allowed{
+        "time_integration.realizability.check_mode", "time_integration.realizability.accept_boundary",    "time_integration.realizability.support",
+        "time_integration.realizability.tolerance",  "time_integration.realizability.relative_tolerance", "time_integration.realizability.lower",
+        "time_integration.realizability.upper"};
+    return allowed;
+}
+
 bool is_node_advection_key(const std::string& key)
 {
     return key.rfind(std::string(node_advection_key_prefix), 0) == 0;
+}
+
+const std::vector<std::string>& node_advection_allowed_keys()
+{
+    static const std::vector<std::string> allowed{std::string(node_advection_scheme_key),   std::string(rk23_relative_tolerance_key),
+                                                  std::string(rk23_absolute_tolerance_key), std::string(rk23_initial_step_key),
+                                                  std::string(rk23_max_step_key),           std::string(rk23_min_step_key),
+                                                  std::string(rk23_max_steps_key)};
+    return allowed;
+}
+
+std::optional<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution_value(ParsedFile& parsed, const Entry& entry,
+                                                                                     const std::string& source_name)
+{
+    if (entry.value == "preserve_active_counts")
+    {
+        return CqmomNodeCountEvolution::preserve_active_counts;
+    }
+    if (entry.value == "allow_growth_to_configured_maximum")
+    {
+        return CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+    }
+    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry.line,
+              "time_integration.cqmom.source_node_count_evolution must be preserve_active_counts or allow_growth_to_configured_maximum.");
+    return std::nullopt;
+}
+
+std::optional<QmomOptions> parse_qmom_options_from_parsed(ParsedFile& parsed, const std::string& source_name)
+{
+    QmomOptions options;
+    const auto adaptive_entry = parsed.scalars.find("qmom.adaptive");
+    if (adaptive_entry != parsed.scalars.end())
+    {
+        if (adaptive_entry->second.value == "true")
+        {
+            options.adaptive = true;
+        }
+        else if (adaptive_entry->second.value == "false")
+        {
+            options.adaptive = false;
+        }
+        else
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, adaptive_entry->second.line,
+                      "qmom.adaptive must be true or false.");
+        }
+    }
+
+    if (!parsed.errors.empty())
+    {
+        return std::nullopt;
+    }
+    return options;
+}
+
+void reject_unknown_qmom_option_keys(ParsedFile& parsed, const std::string& source_name)
+{
+    for (const auto& item : parsed.scalars)
+    {
+        if (item.first.rfind("qmom.", 0) == 0 && item.first != "qmom.adaptive")
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
+        }
+    }
+    for (const auto& item : parsed.sections)
+    {
+        if (item.first.rfind("qmom.", 0) == 0)
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
+        }
+    }
 }
 
 std::optional<RealizabilityCheckMode> parse_realizability_check_mode_value(ParsedFile& parsed, const Entry& entry, const std::string& key,
@@ -1060,6 +1253,129 @@ std::optional<NodeAdvectionScheme> parse_node_advection_scheme_value(ParsedFile&
     return std::nullopt;
 }
 
+std::optional<NodeAdvectionOptions> parse_node_advection_options_from_parsed(ParsedFile& parsed, const std::string& source_name)
+{
+    for (const auto& item : parsed.scalars)
+    {
+        if (!is_node_advection_key(item.first))
+        {
+            continue;
+        }
+        const std::vector<std::string>& allowed = node_advection_allowed_keys();
+        if (std::find(allowed.begin(), allowed.end(), item.first) == allowed.end())
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
+        }
+    }
+
+    NodeAdvectionOptions options;
+    const Entry* scheme = find_entry(parsed, std::string(node_advection_scheme_key));
+    if (scheme != nullptr)
+    {
+        const std::optional<NodeAdvectionScheme> parsed_scheme = parse_node_advection_scheme_value(parsed, *scheme, source_name);
+        if (parsed_scheme.has_value())
+        {
+            options.scheme = *parsed_scheme;
+        }
+    }
+
+    parse_optional_positive_double(parsed, std::string(rk23_relative_tolerance_key), source_name, options.rk23_options.relative_tolerance);
+    parse_optional_positive_double(parsed, std::string(rk23_absolute_tolerance_key), source_name, options.rk23_options.absolute_tolerance);
+    parse_optional_positive_double(parsed, std::string(rk23_initial_step_key), source_name, options.rk23_options.initial_step);
+    parse_optional_positive_double(parsed, std::string(rk23_max_step_key), source_name, options.rk23_options.max_step);
+    parse_optional_positive_double(parsed, std::string(rk23_min_step_key), source_name, options.rk23_options.min_step);
+    parse_optional_positive_size(parsed, std::string(rk23_max_steps_key), source_name, options.rk23_options.max_steps);
+
+    const Entry* min_step = find_entry(parsed, std::string(rk23_min_step_key));
+    const Entry* max_step = find_entry(parsed, std::string(rk23_max_step_key));
+    if (min_step != nullptr && max_step != nullptr && parsed.errors.empty() && options.rk23_options.min_step > options.rk23_options.max_step)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, min_step->line,
+                  "time_integration.node_advection.rk23.min_step must not exceed max_step.");
+    }
+
+    if (!parsed.errors.empty())
+    {
+        return std::nullopt;
+    }
+    return options;
+}
+
+std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(ParsedFile& parsed, const std::string& source_name)
+{
+    if (!has_realizability_section(parsed))
+    {
+        return RealizabilityPolicy{};
+    }
+
+    for (const auto& item : parsed.scalars)
+    {
+        if (!is_realizability_key(item.first))
+        {
+            continue;
+        }
+        const std::vector<std::string>& allowed = realizability_allowed_keys();
+        if (std::find(allowed.begin(), allowed.end(), item.first) == allowed.end())
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
+        }
+    }
+
+    std::optional<RealizabilityCheckMode> check_mode = parse_realizability_check_mode(parsed, source_name);
+    if (!check_mode.has_value())
+    {
+        return std::nullopt;
+    }
+
+    RealizabilityPolicy policy;
+    policy.check_mode = *check_mode;
+    parse_optional_bool(parsed, "time_integration.realizability.accept_boundary", source_name, policy.accept_boundary);
+    parse_optional_double(parsed, "time_integration.realizability.tolerance", source_name, policy.options.tolerance);
+    parse_optional_bool(parsed, "time_integration.realizability.relative_tolerance", source_name, policy.options.relative_tolerance);
+    if (policy.options.tolerance <= 0.0)
+    {
+        const Entry* entry = find_entry(parsed, "time_integration.realizability.tolerance");
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
+                  "time_integration.realizability.tolerance must be positive.");
+    }
+
+    if (policy.check_mode != RealizabilityCheckMode::None || find_entry(parsed, "time_integration.realizability.support") != nullptr)
+    {
+        std::optional<MomentSupport> support = parse_moment_support(parsed, source_name);
+        if (support.has_value())
+        {
+            policy.support = *support;
+        }
+    }
+
+    if (policy.support == MomentSupport::bounded_interval)
+    {
+        double lower = 0.0;
+        double upper = 0.0;
+        const bool parsed_lower = parse_required_double(parsed, "time_integration.realizability.lower", source_name, lower);
+        const bool parsed_upper = parse_required_double(parsed, "time_integration.realizability.upper", source_name, upper);
+        if (parsed_lower && parsed_upper)
+        {
+            if (lower >= upper)
+            {
+                const Entry* entry = find_entry(parsed, "time_integration.realizability.lower");
+                add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
+                          "time_integration.realizability.lower must be less than upper.");
+            }
+            else
+            {
+                policy.interval = BoundedInterval{lower, upper};
+            }
+        }
+    }
+
+    if (!parsed.errors.empty())
+    {
+        return std::nullopt;
+    }
+    return policy;
+}
+
 std::optional<CqmomDiagnosticLevel> parse_cqmom_diagnostic_level_value(ParsedFile& parsed, const Entry& entry, const std::string& source_name)
 {
     if (entry.value == "detailed")
@@ -1086,6 +1402,30 @@ std::optional<CqmomDiagnosticLevel> parse_cqmom_diagnostic_level(ParsedFile& par
         return CqmomDiagnosticLevel::detailed;
     }
     return parse_cqmom_diagnostic_level_value(parsed, *entry, source_name);
+}
+
+std::optional<CqmomMomentStorage> parse_cqmom_moment_storage_value(ParsedFile& parsed, const Entry& entry, const std::string& source_name)
+{
+    if (entry.value == "lean")
+    {
+        return CqmomMomentStorage::lean;
+    }
+    if (entry.value == "dense")
+    {
+        return CqmomMomentStorage::dense;
+    }
+    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry.line, "cqmom.moment_storage must be lean or dense.");
+    return std::nullopt;
+}
+
+std::optional<CqmomMomentStorage> parse_cqmom_moment_storage(ParsedFile& parsed, const std::string& source_name)
+{
+    const Entry* entry = find_entry(parsed, "cqmom.moment_storage");
+    if (entry == nullptr)
+    {
+        return CqmomMomentStorage::lean;
+    }
+    return parse_cqmom_moment_storage_value(parsed, *entry, source_name);
 }
 
 std::optional<VandermondeSolver> parse_vandermonde_solver_value(ParsedFile& parsed, const Entry& entry, const std::string& source_name)
@@ -1145,18 +1485,102 @@ void validate_optional_transport_scheme(ParsedFile& parsed, const std::string& s
     }
 }
 
-void validate_optional_node_advection_scheme(ParsedFile& parsed, const std::string& source_name)
+void validate_optional_node_advection_options(ParsedFile& parsed, const std::string& source_name)
 {
-    const Entry* entry = find_entry(parsed, std::string(node_advection_scheme_key));
+    static_cast<void>(parse_node_advection_options_from_parsed(parsed, source_name));
+}
+
+void validate_optional_realizability_policy(ParsedFile& parsed, const std::string& source_name)
+{
+    static_cast<void>(parse_realizability_policy_from_parsed(parsed, source_name));
+}
+
+void validate_optional_cqmom_source_node_count_evolution(ParsedFile& parsed, const std::string& source_name)
+{
+    const Entry* entry = find_entry(parsed, std::string(cqmom_source_node_count_evolution_key));
     if (entry != nullptr)
     {
-        static_cast<void>(parse_node_advection_scheme_value(parsed, *entry, source_name));
+        static_cast<void>(parse_cqmom_source_node_count_evolution_value(parsed, *entry, source_name));
     }
+}
+
+void reject_unknown_transport_sections(ParsedFile& parsed, const std::string& source_name)
+{
+    for (const auto& item : parsed.sections)
+    {
+        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
+            item.first != rk23_section && item.first != cqmom_time_integration_section)
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
+        }
+    }
+}
+
+void reject_unknown_transport_keys(ParsedFile& parsed, const std::string& source_name)
+{
+    for (const auto& item : parsed.scalars)
+    {
+        if (item.first.rfind("time_integration.", 0) != 0)
+        {
+            continue;
+        }
+        if (item.first == std::string(transport_scheme_key) || is_realizability_key(item.first) || is_node_advection_key(item.first) ||
+            item.first == std::string(cqmom_source_node_count_evolution_key))
+        {
+            continue;
+        }
+        add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
+    }
+}
+
+std::optional<TransportScheme> parse_transport_scheme_from_parsed(ParsedFile& parsed, const std::string& source_name)
+{
+    TransportScheme scheme = TransportScheme::strang;
+    const Entry* entry = find_entry(parsed, std::string(transport_scheme_key));
+    if (entry != nullptr)
+    {
+        const std::optional<TransportScheme> parsed_scheme = parse_transport_scheme_value(parsed, *entry, source_name);
+        if (parsed_scheme.has_value())
+        {
+            scheme = *parsed_scheme;
+        }
+    }
+
+    if (!parsed.errors.empty())
+    {
+        return std::nullopt;
+    }
+    return scheme;
+}
+
+std::optional<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution_from_parsed(ParsedFile& parsed, const std::string& source_name)
+{
+    CqmomNodeCountEvolution policy = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+    const Entry* entry = find_entry(parsed, std::string(cqmom_source_node_count_evolution_key));
+    if (entry != nullptr)
+    {
+        const std::optional<CqmomNodeCountEvolution> parsed_policy = parse_cqmom_source_node_count_evolution_value(parsed, *entry, source_name);
+        if (parsed_policy.has_value())
+        {
+            policy = *parsed_policy;
+        }
+    }
+
+    if (!parsed.errors.empty())
+    {
+        return std::nullopt;
+    }
+    return policy;
 }
 
 void validate_optional_cqmom_diagnostic_level(ParsedFile& parsed, const std::string& source_name)
 {
     static_cast<void>(parse_cqmom_diagnostic_level(parsed, source_name));
+}
+
+void validate_optional_cqmom_moment_storage(ParsedFile& parsed, const std::string& source_name)
+{
+    static_cast<void>(parse_cqmom_moment_storage(parsed, source_name));
 }
 
 void validate_optional_vandermonde_solver(ParsedFile& parsed, const std::string& source_name)
@@ -1171,9 +1595,14 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
     reject_unknown_cqmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
-    validate_optional_node_advection_scheme(parsed, source_name);
+    validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_realizability_policy(parsed, source_name);
+    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     std::optional<CqmomDiagnosticLevel> diagnostic_level = parse_cqmom_diagnostic_level(parsed, source_name);
+    const Entry* moment_storage_entry = find_entry(parsed, "cqmom.moment_storage");
+    std::optional<CqmomMomentStorage> moment_storage = parse_cqmom_moment_storage(parsed, source_name);
     std::optional<VandermondeSolver> vandermonde_solver = parse_vandermonde_solver(parsed, source_name);
+    std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
     validate_format_version(parsed, source_name);
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
 
@@ -1238,25 +1667,6 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
                       "adaptive_branch_counts must be true or false.");
         }
     }
-    bool adaptive_wheeler = false;
-    const auto adaptive_wheeler_entry = parsed.scalars.find("qmom.adaptive");
-    if (adaptive_wheeler_entry != parsed.scalars.end())
-    {
-        if (adaptive_wheeler_entry->second.value == "true")
-        {
-            adaptive_wheeler = true;
-        }
-        else if (adaptive_wheeler_entry->second.value == "false")
-        {
-            adaptive_wheeler = false;
-        }
-        else
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, adaptive_wheeler_entry->second.line,
-                      "qmom.adaptive must be true or false.");
-        }
-    }
-
     if (!parsed.errors.empty())
     {
         return failure_result<ParsedCqmomCaseSettings>(std::move(parsed));
@@ -1265,15 +1675,18 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
     try
     {
         ParsedCqmomCaseSettings settings{PhaseSpaceHierarchy{std::move(node_counts), std::move(conditioning_order)},
-                                         {adaptive_wheeler},
+                                         qmom_options.value_or(QmomOptions{}),
                                          adaptive_branch_counts,
                                          diagnostic_level.value_or(CqmomDiagnosticLevel::detailed),
-                                         vandermonde_solver.value_or(VandermondeSolver::automatic)};
-        return {std::move(settings), {}};
+                                         vandermonde_solver.value_or(VandermondeSolver::automatic),
+                                         moment_storage.value_or(CqmomMomentStorage::lean),
+                                         moment_storage_entry != nullptr,
+                                         moment_storage_entry == nullptr ? 0 : moment_storage_entry->line};
+        return ConfigurationResult<ParsedCqmomCaseSettings>{std::move(settings)};
     }
     catch (const std::exception& error)
     {
-        return {std::nullopt, {{ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, error.what()}}};
+        return failure_result<ParsedCqmomCaseSettings>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, error.what()});
     }
 }
 
@@ -1283,14 +1696,13 @@ ConfigurationResult<MomentSet> initialize_moments(const InitialConditionSpecific
 {
     if (const auto* explicit_moments = std::get_if<ExplicitMomentInitialization>(&specification))
     {
-        return {explicit_moments->moments, {}};
+        return ConfigurationResult<MomentSet>{explicit_moments->moments};
     }
     if (std::holds_alternative<ExplicitTensorInitialization>(specification) ||
         std::holds_alternative<IndependentProductInitialization>(specification))
     {
-        return {std::nullopt,
-                {{ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
-                  "One-dimensional initialization cannot use a multidimensional tensor specification."}}};
+        return failure_result<MomentSet>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
+                                          "One-dimensional initialization cannot use a multidimensional tensor specification."});
     }
 
     RawMomentResult moments;
@@ -1310,24 +1722,23 @@ ConfigurationResult<MomentSet> initialize_moments(const InitialConditionSpecific
         {
             message += " Component index: " + std::to_string(moments.failed_component) + ".";
         }
-        return {std::nullopt, {{ConfigurationErrorCode::invalid_value, std::move(source_name), 0, std::move(message)}}};
+        return failure_result<MomentSet>({ConfigurationErrorCode::invalid_value, std::move(source_name), 0, std::move(message)});
     }
-    return {moments.moments, {}};
+    return ConfigurationResult<MomentSet>{moments.moments};
 }
 
 ConfigurationResult<RawMomentTensor> initialize_cqmom_dense_moments(const InitialConditionSpecification& specification, std::string source_name)
 {
     if (const auto* explicit_tensor = std::get_if<ExplicitTensorInitialization>(&specification))
     {
-        return {explicit_tensor->moments, {}};
+        return ConfigurationResult<RawMomentTensor>{explicit_tensor->moments};
     }
     if (const auto* independent_product = std::get_if<IndependentProductInitialization>(&specification))
     {
         if (!independent_product->maximum_orders.has_value())
         {
-            return {std::nullopt,
-                    {{ConfigurationErrorCode::missing_entry, std::move(source_name), 0,
-                      "initial.maximum_orders is required for dense/full tensor independent-product initialization."}}};
+            return failure_result<RawMomentTensor>({ConfigurationErrorCode::missing_entry, std::move(source_name), 0,
+                                                    "initial.maximum_orders is required for dense/full tensor independent-product initialization."});
         }
         TensorMomentResult moments = compute_raw_moments(independent_product->distribution, *independent_product->maximum_orders);
         if (!moments.ok())
@@ -1337,13 +1748,13 @@ ConfigurationResult<RawMomentTensor> initialize_cqmom_dense_moments(const Initia
             {
                 message += " Dimension index: " + std::to_string(moments.failed_dimension) + ".";
             }
-            return {std::nullopt, {{ConfigurationErrorCode::invalid_value, std::move(source_name), 0, std::move(message)}}};
+            return failure_result<RawMomentTensor>({ConfigurationErrorCode::invalid_value, std::move(source_name), 0, std::move(message)});
         }
-        return {moments.moments, {}};
+        return ConfigurationResult<RawMomentTensor>{moments.moments};
     }
-    return {std::nullopt,
-            {{ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
-              "Multidimensional initialization requires explicit tensor moments or an independent product specification."}}};
+    return failure_result<RawMomentTensor>(
+        {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
+         "Multidimensional initialization requires explicit tensor moments or an independent product specification."});
 }
 
 ConfigurationResult<CqmomMomentData> initialize_cqmom_moment_data(const InitialConditionSpecification& specification,
@@ -1354,7 +1765,7 @@ ConfigurationResult<CqmomMomentData> initialize_cqmom_moment_data(const InitialC
         const CqmomMomentLayout layout = create_cqmom_moment_layout(hierarchy);
         if (const auto* explicit_tensor = std::get_if<ExplicitTensorInitialization>(&specification))
         {
-            return {extract_cqmom_moments(explicit_tensor->moments, layout), {}};
+            return ConfigurationResult<CqmomMomentData>{extract_cqmom_moments(explicit_tensor->moments, layout)};
         }
         if (const auto* independent_product = std::get_if<IndependentProductInitialization>(&specification))
         {
@@ -1379,19 +1790,18 @@ ConfigurationResult<CqmomMomentData> initialize_cqmom_moment_data(const InitialC
                     }
                     message += "].";
                 }
-                return {std::nullopt, {{ConfigurationErrorCode::invalid_value, std::move(source_name), 0, std::move(message)}}};
+                return failure_result<CqmomMomentData>({ConfigurationErrorCode::invalid_value, std::move(source_name), 0, std::move(message)});
             }
-            return {create_cqmom_moment_data(layout, selected_moments), {}};
+            return ConfigurationResult<CqmomMomentData>{create_cqmom_moment_data(layout, selected_moments)};
         }
     }
     catch (const std::exception& error)
     {
-        return {std::nullopt, {{ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, error.what()}}};
+        return failure_result<CqmomMomentData>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, error.what()});
     }
 
-    return {std::nullopt,
-            {{ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
-              "Lean CQMOM initialization requires explicit tensor moments or an independent product specification."}}};
+    return failure_result<CqmomMomentData>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
+                                            "Lean CQMOM initialization requires explicit tensor moments or an independent product specification."});
 }
 
 ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(const std::string_view text, std::string source_name)
@@ -1401,7 +1811,9 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(
     reject_unknown_qmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
-    validate_optional_node_advection_scheme(parsed, source_name);
+    validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_realizability_policy(parsed, source_name);
+    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_format_version(parsed, source_name);
     validate_optional_qmom_phase_space(parsed, source_name);
     if (!parsed.moments.empty())
@@ -1423,7 +1835,8 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(
         {
             return failure_result<InitialConditionSpecification>(std::move(parsed));
         }
-        return {InitialConditionSpecification{ExplicitMomentInitialization{MomentSet(std::move(moments))}}, {}};
+        return ConfigurationResult<InitialConditionSpecification>{
+            InitialConditionSpecification{ExplicitMomentInitialization{MomentSet(std::move(moments))}}};
     }
 
     const Entry* type_entry = require_entry(parsed, "initial.type", source_name);
@@ -1465,7 +1878,8 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(
             return failure_result<InitialConditionSpecification>(std::move(parsed));
         }
 
-        return {InitialConditionSpecification{DistributionInitialization{*distribution, maximum_order, number_density}}, {}};
+        return ConfigurationResult<InitialConditionSpecification>{
+            InitialConditionSpecification{DistributionInitialization{*distribution, maximum_order, number_density}}};
     }
 
     std::optional<DistributionMixture> mixture = parse_mixture(parsed, source_name);
@@ -1473,7 +1887,7 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(
     {
         return failure_result<InitialConditionSpecification>(std::move(parsed));
     }
-    return {InitialConditionSpecification{MixtureInitialization{*mixture, maximum_order}}, {}};
+    return ConfigurationResult<InitialConditionSpecification>{InitialConditionSpecification{MixtureInitialization{*mixture, maximum_order}}};
 }
 
 ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition(const std::string_view text, std::string source_name)
@@ -1483,8 +1897,11 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
     reject_unknown_cqmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
-    validate_optional_node_advection_scheme(parsed, source_name);
+    validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_realizability_policy(parsed, source_name);
+    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_optional_cqmom_diagnostic_level(parsed, source_name);
+    validate_optional_cqmom_moment_storage(parsed, source_name);
     validate_optional_vandermonde_solver(parsed, source_name);
     validate_format_version(parsed, source_name);
     validate_optional_cqmom_phase_space(parsed, source_name);
@@ -1496,7 +1913,7 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
         {
             return failure_result<InitialConditionSpecification>(std::move(parsed));
         }
-        return {InitialConditionSpecification{ExplicitTensorInitialization{*tensor}}, {}};
+        return ConfigurationResult<InitialConditionSpecification>{InitialConditionSpecification{ExplicitTensorInitialization{*tensor}}};
     }
 
     const Entry* type_entry = require_entry(parsed, "initial.type", source_name);
@@ -1583,7 +2000,8 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
         return failure_result<InitialConditionSpecification>(std::move(parsed));
     }
 
-    return {InitialConditionSpecification{IndependentProductInitialization{*distribution, std::move(maximum_orders)}}, {}};
+    return ConfigurationResult<InitialConditionSpecification>{
+        InitialConditionSpecification{IndependentProductInitialization{*distribution, std::move(maximum_orders)}}};
 }
 
 ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, const std::size_t node_count,
@@ -1591,20 +2009,20 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
 {
     if (node_count == 0)
     {
-        return {std::nullopt, {{ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count must be positive."}}};
+        return failure_result<QmomCase>({ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count must be positive."});
     }
 
     ConfigurationResult<MomentSet> initialized = initialize_moments(initial_condition, source_name);
-    if (!initialized.ok())
+    if (!initialized)
     {
-        return {std::nullopt, std::move(initialized.errors)};
+        return ConfigurationResult<QmomCase>::failure(initialized.error());
     }
-    if (node_count <= std::numeric_limits<std::size_t>::max() / 2 && initialized.value->size() < 2 * node_count)
+    if (node_count <= std::numeric_limits<std::size_t>::max() / 2 && initialized.value().size() < 2 * node_count)
     {
-        return {std::nullopt,
-                {{ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, "QMOM requires at least 2 * node_count moments."}}};
+        return failure_result<QmomCase>(
+            {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, "QMOM requires at least 2 * node_count moments."});
     }
-    return {QmomCase{std::move(*initialized.value), node_count, options}, {}};
+    return ConfigurationResult<QmomCase>{QmomCase{std::move(initialized).value(), node_count, options}};
 }
 
 ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditionSpecification& initial_condition,
@@ -1612,29 +2030,27 @@ ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditi
                                                             const bool adaptive_branch_counts, std::string source_name)
 {
     ConfigurationResult<RawMomentTensor> initialized = initialize_cqmom_dense_moments(initial_condition, source_name);
-    if (!initialized.ok())
+    if (!initialized)
     {
-        return {std::nullopt, std::move(initialized.errors)};
+        return ConfigurationResult<CqmomDenseCase>::failure(initialized.error());
     }
-    if (initialized.value->extents.size() != hierarchy.number_of_dimensions())
+    if (initialized.value().extents.size() != hierarchy.number_of_dimensions())
     {
-        return {std::nullopt,
-                {{ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
-                  "CQMOM moment tensor rank must match the phase-space dimension count."}}};
+        return failure_result<CqmomDenseCase>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
+                                               "CQMOM moment tensor rank must match the phase-space dimension count."});
     }
     const std::vector<std::size_t>& node_counts = hierarchy.node_counts();
     for (std::size_t dimension = 0; dimension < node_counts.size(); ++dimension)
     {
         if (node_counts[dimension] > std::numeric_limits<std::size_t>::max() / 2 ||
-            initialized.value->extents[dimension] < 2 * node_counts[dimension])
+            initialized.value().extents[dimension] < 2 * node_counts[dimension])
         {
-            return {std::nullopt,
-                    {{ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
-                      "Each moment extent must be at least 2 * node_count for that phase-space dimension."}}};
+            return failure_result<CqmomDenseCase>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
+                                                   "Each moment extent must be at least 2 * node_count for that phase-space dimension."});
         }
     }
 
-    return {CqmomDenseCase{hierarchy, std::move(*initialized.value), {}, qmom_options, adaptive_branch_counts}, {}};
+    return ConfigurationResult<CqmomDenseCase>{CqmomDenseCase{hierarchy, std::move(initialized).value(), {}, qmom_options, adaptive_branch_counts}};
 }
 
 ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialConditionSpecification& initial_condition,
@@ -1642,11 +2058,11 @@ ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialCondition
                                                           const bool adaptive_branch_counts, std::string source_name)
 {
     ConfigurationResult<CqmomMomentData> initialized = initialize_cqmom_moment_data(initial_condition, hierarchy, std::move(source_name));
-    if (!initialized.ok())
+    if (!initialized)
     {
-        return {std::nullopt, std::move(initialized.errors)};
+        return ConfigurationResult<CqmomLeanCase>::failure(initialized.error());
     }
-    return {CqmomLeanCase{std::move(*initialized.value), {}, qmom_options, adaptive_branch_counts}, {}};
+    return ConfigurationResult<CqmomLeanCase>{CqmomLeanCase{std::move(initialized).value(), {}, qmom_options, adaptive_branch_counts}};
 }
 
 ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::string source_name)
@@ -1656,8 +2072,11 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     reject_unknown_qmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
-    validate_optional_node_advection_scheme(parsed, source_name);
+    validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_realizability_policy(parsed, source_name);
+    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_format_version(parsed, source_name);
+    std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
     if (!parsed.moments.empty())
     {
@@ -1676,53 +2095,44 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
             validate_qmom_phase_space(parsed, source_name, *node_counts_entry, node_counts);
         }
     }
-    bool adaptive = false;
-    const auto adaptive_entry = parsed.scalars.find("qmom.adaptive");
-    if (adaptive_entry != parsed.scalars.end())
-    {
-        if (adaptive_entry->second.value == "true")
-        {
-            adaptive = true;
-        }
-        else if (adaptive_entry->second.value != "false")
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, adaptive_entry->second.line,
-                      "qmom.adaptive must be true or false.");
-        }
-    }
     if (!parsed.errors.empty())
     {
         return failure_result<QmomCase>(std::move(parsed));
     }
 
     ConfigurationResult<InitialConditionSpecification> initial_condition = parse_qmom_initial_condition(text, source_name);
-    if (!initial_condition.ok())
+    if (!initial_condition)
     {
-        return {std::nullopt, std::move(initial_condition.errors)};
+        return ConfigurationResult<QmomCase>::failure(initial_condition.error());
     }
-    return create_qmom_case(*initial_condition.value, node_counts[0], {adaptive}, std::move(source_name));
+    return create_qmom_case(initial_condition.value(), node_counts[0], qmom_options.value_or(QmomOptions{}), std::move(source_name));
 }
 
 ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(const std::string_view text, std::string source_name)
 {
     ConfigurationResult<ParsedCqmomCaseSettings> settings = parse_cqmom_case_settings(text, source_name);
-    if (!settings.ok())
+    if (!settings)
     {
-        return {std::nullopt, std::move(settings.errors)};
+        return ConfigurationResult<CqmomDenseCase>::failure(settings.error());
+    }
+    if (settings.value().moment_storage_configured && settings.value().moment_storage != CqmomMomentStorage::dense)
+    {
+        return failure_result<CqmomDenseCase>({ConfigurationErrorCode::invalid_value, std::move(source_name), settings.value().moment_storage_line,
+                                               "parse_cqmom_dense requires cqmom.moment_storage = dense when moment_storage is configured."});
     }
 
     ConfigurationResult<InitialConditionSpecification> initial_condition = parse_cqmom_initial_condition(text, source_name);
-    if (!initial_condition.ok())
+    if (!initial_condition)
     {
-        return {std::nullopt, std::move(initial_condition.errors)};
+        return ConfigurationResult<CqmomDenseCase>::failure(initial_condition.error());
     }
     ConfigurationResult<CqmomDenseCase> dense_case =
-        create_cqmom_dense_case(*initial_condition.value, settings.value->hierarchy, settings.value->qmom_options,
-                                settings.value->adaptive_branch_counts, std::move(source_name));
-    if (dense_case.ok())
+        create_cqmom_dense_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
+                                settings.value().adaptive_branch_counts, std::move(source_name));
+    if (dense_case)
     {
-        dense_case.value->diagnostic_level = settings.value->diagnostic_level;
-        dense_case.value->vandermonde_solver = settings.value->vandermonde_solver;
+        dense_case.value().diagnostic_level = settings.value().diagnostic_level;
+        dense_case.value().vandermonde_solver = settings.value().vandermonde_solver;
     }
     return dense_case;
 }
@@ -1730,37 +2140,69 @@ ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(const std::string_view tex
 ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(const std::string_view text, std::string source_name)
 {
     ConfigurationResult<ParsedCqmomCaseSettings> settings = parse_cqmom_case_settings(text, source_name);
-    if (!settings.ok())
+    if (!settings)
     {
-        return {std::nullopt, std::move(settings.errors)};
+        return ConfigurationResult<CqmomLeanCase>::failure(settings.error());
+    }
+    if (settings.value().moment_storage_configured && settings.value().moment_storage != CqmomMomentStorage::lean)
+    {
+        return failure_result<CqmomLeanCase>({ConfigurationErrorCode::invalid_value, std::move(source_name), settings.value().moment_storage_line,
+                                              "parse_cqmom_lean requires cqmom.moment_storage = lean when moment_storage is configured."});
     }
 
     ConfigurationResult<InitialConditionSpecification> initial_condition = parse_cqmom_initial_condition(text, source_name);
-    if (!initial_condition.ok())
+    if (!initial_condition)
     {
-        return {std::nullopt, std::move(initial_condition.errors)};
+        return ConfigurationResult<CqmomLeanCase>::failure(initial_condition.error());
     }
     ConfigurationResult<CqmomLeanCase> lean_case =
-        create_cqmom_lean_case(*initial_condition.value, settings.value->hierarchy, settings.value->qmom_options,
-                               settings.value->adaptive_branch_counts, std::move(source_name));
-    if (lean_case.ok())
+        create_cqmom_lean_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
+                               settings.value().adaptive_branch_counts, std::move(source_name));
+    if (lean_case)
     {
-        lean_case.value->diagnostic_level = settings.value->diagnostic_level;
-        lean_case.value->vandermonde_solver = settings.value->vandermonde_solver;
+        lean_case.value().diagnostic_level = settings.value().diagnostic_level;
+        lean_case.value().vandermonde_solver = settings.value().vandermonde_solver;
     }
     return lean_case;
 }
 
 ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::string source_name)
 {
-    // The representation-neutral public CQMOM case uses the lean moment layout;
-    // dense parsing remains available through the explicit dense entry point.
-    ConfigurationResult<CqmomLeanCase> lean_case = parse_cqmom_lean(text, std::move(source_name));
-    if (!lean_case.ok())
+    ConfigurationResult<ParsedCqmomCaseSettings> settings = parse_cqmom_case_settings(text, source_name);
+    if (!settings)
     {
-        return {std::nullopt, std::move(lean_case.errors)};
+        return ConfigurationResult<CqmomCase>::failure(settings.error());
     }
-    return {qmomkit::internal::create_cqmom_case(std::move(*lean_case.value)), {}};
+
+    ConfigurationResult<InitialConditionSpecification> initial_condition = parse_cqmom_initial_condition(text, source_name);
+    if (!initial_condition)
+    {
+        return ConfigurationResult<CqmomCase>::failure(initial_condition.error());
+    }
+
+    if (settings.value().moment_storage == CqmomMomentStorage::dense)
+    {
+        ConfigurationResult<CqmomDenseCase> dense_case =
+            create_cqmom_dense_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
+                                    settings.value().adaptive_branch_counts, source_name);
+        if (!dense_case)
+        {
+            return ConfigurationResult<CqmomCase>::failure(dense_case.error());
+        }
+        dense_case.value().diagnostic_level = settings.value().diagnostic_level;
+        dense_case.value().vandermonde_solver = settings.value().vandermonde_solver;
+        return ConfigurationResult<CqmomCase>{qmomkit::internal::create_cqmom_case(std::move(dense_case).value())};
+    }
+
+    ConfigurationResult<CqmomLeanCase> lean_case = create_cqmom_lean_case(
+        initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options, settings.value().adaptive_branch_counts, source_name);
+    if (!lean_case)
+    {
+        return ConfigurationResult<CqmomCase>::failure(lean_case.error());
+    }
+    lean_case.value().diagnostic_level = settings.value().diagnostic_level;
+    lean_case.value().vandermonde_solver = settings.value().vandermonde_solver;
+    return ConfigurationResult<CqmomCase>{qmomkit::internal::create_cqmom_case(std::move(lean_case).value())};
 }
 
 ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::string_view text, std::string source_name)
@@ -1772,88 +2214,24 @@ ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::s
     }
     if (!has_realizability_section(parsed))
     {
-        return {RealizabilityPolicy{}, {}};
+        return ConfigurationResult<RealizabilityPolicy>{RealizabilityPolicy{}};
     }
 
-    for (const auto& item : parsed.scalars)
-    {
-        if (!is_realizability_key(item.first))
-        {
-            continue;
-        }
-        static const std::vector<std::string> allowed = {"time_integration.realizability.check_mode",
-                                                         "time_integration.realizability.accept_boundary",
-                                                         "time_integration.realizability.support",
-                                                         "time_integration.realizability.tolerance",
-                                                         "time_integration.realizability.relative_tolerance",
-                                                         "time_integration.realizability.lower",
-                                                         "time_integration.realizability.upper"};
-        if (std::find(allowed.begin(), allowed.end(), item.first) == allowed.end())
-        {
-            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
-        }
-    }
     for (const auto& item : parsed.sections)
     {
-        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section)
+        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
+            item.first != rk23_section && item.first != cqmom_time_integration_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
     }
 
-    std::optional<RealizabilityCheckMode> check_mode = parse_realizability_check_mode(parsed, source_name);
-    if (!check_mode.has_value())
+    const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, source_name);
+    if (!parsed.errors.empty() || !policy.has_value())
     {
         return failure_result<RealizabilityPolicy>(std::move(parsed));
     }
-
-    RealizabilityPolicy policy;
-    policy.check_mode = *check_mode;
-    parse_optional_bool(parsed, "time_integration.realizability.accept_boundary", source_name, policy.accept_boundary);
-    parse_optional_double(parsed, "time_integration.realizability.tolerance", source_name, policy.options.tolerance);
-    parse_optional_bool(parsed, "time_integration.realizability.relative_tolerance", source_name, policy.options.relative_tolerance);
-    if (policy.options.tolerance <= 0.0)
-    {
-        const Entry* entry = find_entry(parsed, "time_integration.realizability.tolerance");
-        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
-                  "time_integration.realizability.tolerance must be positive.");
-    }
-
-    if (policy.check_mode != RealizabilityCheckMode::None || find_entry(parsed, "time_integration.realizability.support") != nullptr)
-    {
-        std::optional<MomentSupport> support = parse_moment_support(parsed, source_name);
-        if (support.has_value())
-        {
-            policy.support = *support;
-        }
-    }
-
-    if (policy.support == MomentSupport::bounded_interval)
-    {
-        double lower = 0.0;
-        double upper = 0.0;
-        const bool parsed_lower = parse_required_double(parsed, "time_integration.realizability.lower", source_name, lower);
-        const bool parsed_upper = parse_required_double(parsed, "time_integration.realizability.upper", source_name, upper);
-        if (parsed_lower && parsed_upper)
-        {
-            if (lower >= upper)
-            {
-                const Entry* entry = find_entry(parsed, "time_integration.realizability.lower");
-                add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
-                          "time_integration.realizability.lower must be less than upper.");
-            }
-            else
-            {
-                policy.interval = BoundedInterval{lower, upper};
-            }
-        }
-    }
-
-    if (!parsed.errors.empty())
-    {
-        return failure_result<RealizabilityPolicy>(std::move(parsed));
-    }
-    return {policy, {}};
+    return ConfigurationResult<RealizabilityPolicy>{*policy};
 }
 
 ConfigurationResult<TransportScheme> parse_transport_scheme(const std::string_view text, std::string source_name)
@@ -1864,89 +2242,118 @@ ConfigurationResult<TransportScheme> parse_transport_scheme(const std::string_vi
         return failure_result<TransportScheme>(std::move(parsed));
     }
 
-    for (const auto& item : parsed.sections)
-    {
-        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section)
-        {
-            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
-        }
-    }
-    for (const auto& item : parsed.scalars)
-    {
-        if (item.first.rfind("time_integration.", 0) != 0)
-        {
-            continue;
-        }
-        if (item.first == std::string(transport_scheme_key) || is_realizability_key(item.first) || is_node_advection_key(item.first))
-        {
-            continue;
-        }
-        add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
-    }
+    reject_unknown_transport_sections(parsed, source_name);
+    reject_unknown_transport_keys(parsed, source_name);
+    const std::optional<TransportScheme> scheme = parse_transport_scheme_from_parsed(parsed, source_name);
 
-    TransportScheme scheme = TransportScheme::strang;
-    const Entry* entry = find_entry(parsed, std::string(transport_scheme_key));
-    if (entry != nullptr)
-    {
-        const std::optional<TransportScheme> parsed_scheme = parse_transport_scheme_value(parsed, *entry, source_name);
-        if (parsed_scheme.has_value())
-        {
-            scheme = *parsed_scheme;
-        }
-    }
-
-    if (!parsed.errors.empty())
+    if (!parsed.errors.empty() || !scheme.has_value())
     {
         return failure_result<TransportScheme>(std::move(parsed));
     }
-    return {scheme, {}};
+    return ConfigurationResult<TransportScheme>{*scheme};
 }
 
-ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(const std::string_view text, std::string source_name)
+ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
     if (!parsed.errors.empty())
     {
-        return failure_result<NodeAdvectionScheme>(std::move(parsed));
+        return failure_result<NodeAdvectionOptions>(std::move(parsed));
     }
 
-    for (const auto& item : parsed.sections)
-    {
-        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section)
-        {
-            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
-        }
-    }
-    for (const auto& item : parsed.scalars)
-    {
-        if (item.first.rfind("time_integration.", 0) != 0)
-        {
-            continue;
-        }
-        if (item.first == std::string(transport_scheme_key) || item.first == std::string(node_advection_scheme_key) ||
-            is_realizability_key(item.first))
-        {
-            continue;
-        }
-        add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
-    }
+    reject_unknown_transport_sections(parsed, source_name);
+    reject_unknown_transport_keys(parsed, source_name);
+    const std::optional<NodeAdvectionOptions> options = parse_node_advection_options_from_parsed(parsed, source_name);
 
-    NodeAdvectionScheme scheme = NodeAdvectionScheme::ssp_rk3;
-    const Entry* entry = find_entry(parsed, std::string(node_advection_scheme_key));
-    if (entry != nullptr)
+    if (!parsed.errors.empty() || !options.has_value())
     {
-        const std::optional<NodeAdvectionScheme> parsed_scheme = parse_node_advection_scheme_value(parsed, *entry, source_name);
-        if (parsed_scheme.has_value())
-        {
-            scheme = *parsed_scheme;
-        }
+        return failure_result<NodeAdvectionOptions>(std::move(parsed));
     }
+    return ConfigurationResult<NodeAdvectionOptions>{*options};
+}
 
+ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(const std::string_view text, std::string source_name)
+{
+    ConfigurationResult<NodeAdvectionOptions> options = parse_node_advection_options(text, std::move(source_name));
+    if (!options)
+    {
+        return ConfigurationResult<NodeAdvectionScheme>::failure(options.error());
+    }
+    return ConfigurationResult<NodeAdvectionScheme>{options.value().scheme};
+}
+
+ConfigurationResult<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution(const std::string_view text, std::string source_name)
+{
+    ParsedFile parsed = parse_file(text, source_name);
     if (!parsed.errors.empty())
     {
-        return failure_result<NodeAdvectionScheme>(std::move(parsed));
+        return failure_result<CqmomNodeCountEvolution>(std::move(parsed));
     }
-    return {scheme, {}};
+
+    reject_unknown_transport_sections(parsed, source_name);
+    reject_unknown_transport_keys(parsed, source_name);
+
+    const std::optional<CqmomNodeCountEvolution> policy = parse_cqmom_source_node_count_evolution_from_parsed(parsed, source_name);
+
+    if (!parsed.errors.empty() || !policy.has_value())
+    {
+        return failure_result<CqmomNodeCountEvolution>(std::move(parsed));
+    }
+    return ConfigurationResult<CqmomNodeCountEvolution>{*policy};
+}
+
+ConfigurationResult<QmomTransportOptions> parse_qmom_transport_options(const std::string_view text, std::string source_name)
+{
+    ParsedFile parsed = parse_file(text, source_name);
+    if (!parsed.errors.empty())
+    {
+        return failure_result<QmomTransportOptions>(std::move(parsed));
+    }
+
+    reject_unknown_transport_sections(parsed, source_name);
+    reject_unknown_transport_keys(parsed, source_name);
+    reject_unknown_qmom_option_keys(parsed, source_name);
+    const std::optional<TransportScheme> scheme = parse_transport_scheme_from_parsed(parsed, source_name);
+    const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
+    const std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
+
+    if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value() || !qmom_options.has_value())
+    {
+        return failure_result<QmomTransportOptions>(std::move(parsed));
+    }
+
+    QmomTransportOptions options;
+    options.scheme = *scheme;
+    options.node_options = *node_options;
+    options.qmom_options = *qmom_options;
+    return ConfigurationResult<QmomTransportOptions>{std::move(options)};
+}
+
+ConfigurationResult<CqmomTransportOptions> parse_cqmom_transport_options(const std::string_view text, std::string source_name)
+{
+    ParsedFile parsed = parse_file(text, source_name);
+    if (!parsed.errors.empty())
+    {
+        return failure_result<CqmomTransportOptions>(std::move(parsed));
+    }
+
+    reject_unknown_transport_sections(parsed, source_name);
+    reject_unknown_transport_keys(parsed, source_name);
+    const std::optional<TransportScheme> scheme = parse_transport_scheme_from_parsed(parsed, source_name);
+    const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
+    const std::optional<CqmomNodeCountEvolution> source_node_count_evolution =
+        parse_cqmom_source_node_count_evolution_from_parsed(parsed, source_name);
+
+    if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value() || !source_node_count_evolution.has_value())
+    {
+        return failure_result<CqmomTransportOptions>(std::move(parsed));
+    }
+
+    CqmomTransportOptions options;
+    options.scheme = *scheme;
+    options.node_options = *node_options;
+    options.source_node_count_evolution = *source_node_count_evolution;
+    return ConfigurationResult<CqmomTransportOptions>{std::move(options)};
 }
 
 ConfigurationResult<OutputOptions> parse_output_options(const std::string_view text, std::string source_name)
@@ -1958,7 +2365,7 @@ ConfigurationResult<OutputOptions> parse_output_options(const std::string_view t
     }
     if (!has_output_section(parsed))
     {
-        return {OutputOptions{}, {}};
+        return ConfigurationResult<OutputOptions>{OutputOptions{}};
     }
 
     static const std::vector<std::string> allowed = {"output.directory", "output.write_moments", "output.write_quadrature", "output.interval"};
@@ -2022,79 +2429,117 @@ ConfigurationResult<OutputOptions> parse_output_options(const std::string_view t
     {
         return failure_result<OutputOptions>(std::move(parsed));
     }
-    return {options, {}};
+    return ConfigurationResult<OutputOptions>{options};
 }
 
 ConfigurationResult<QmomCase> load_qmom(const std::filesystem::path& filename)
 {
-    std::ifstream input(filename);
-    if (!input)
+    std::optional<std::string> contents = read_configuration_file(filename);
+    if (!contents.has_value())
     {
         return file_failure<QmomCase>(filename);
     }
-    std::ostringstream contents;
-    contents << input.rdbuf();
-    return parse_qmom(contents.str(), filename.string());
+    return parse_qmom(*contents, filename.string());
 }
 
 ConfigurationResult<CqmomDenseCase> load_cqmom_dense(const std::filesystem::path& filename)
 {
-    std::ifstream input(filename);
-    if (!input)
+    std::optional<std::string> contents = read_configuration_file(filename);
+    if (!contents.has_value())
     {
         return file_failure<CqmomDenseCase>(filename);
     }
-    std::ostringstream contents;
-    contents << input.rdbuf();
-    return parse_cqmom_dense(contents.str(), filename.string());
+    return parse_cqmom_dense(*contents, filename.string());
 }
 
 ConfigurationResult<CqmomLeanCase> load_cqmom_lean(const std::filesystem::path& filename)
 {
-    std::ifstream input(filename);
-    if (!input)
+    std::optional<std::string> contents = read_configuration_file(filename);
+    if (!contents.has_value())
     {
         return file_failure<CqmomLeanCase>(filename);
     }
-    std::ostringstream contents;
-    contents << input.rdbuf();
-    return parse_cqmom_lean(contents.str(), filename.string());
+    return parse_cqmom_lean(*contents, filename.string());
 }
 
 ConfigurationResult<CqmomCase> load_cqmom(const std::filesystem::path& filename)
 {
-    std::ifstream input(filename);
-    if (!input)
+    std::optional<std::string> contents = read_configuration_file(filename);
+    if (!contents.has_value())
     {
         return file_failure<CqmomCase>(filename);
     }
-    std::ostringstream contents;
-    contents << input.rdbuf();
-    return parse_cqmom(contents.str(), filename.string());
+    return parse_cqmom(*contents, filename.string());
 }
 
 ConfigurationResult<OutputOptions> load_output_options(const std::filesystem::path& filename)
 {
-    std::ifstream input(filename);
-    if (!input)
+    std::optional<std::string> contents = read_configuration_file(filename);
+    if (!contents.has_value())
     {
         return file_failure<OutputOptions>(filename);
     }
-    std::ostringstream contents;
-    contents << input.rdbuf();
-    return parse_output_options(contents.str(), filename.string());
+    return parse_output_options(*contents, filename.string());
+}
+
+ConfigurationResult<NodeAdvectionOptions> load_node_advection_options(const std::filesystem::path& filename)
+{
+    std::optional<std::string> contents = read_configuration_file(filename);
+    if (!contents.has_value())
+    {
+        return file_failure<NodeAdvectionOptions>(filename);
+    }
+    return parse_node_advection_options(*contents, filename.string());
 }
 
 ConfigurationResult<NodeAdvectionScheme> load_node_advection_scheme(const std::filesystem::path& filename)
 {
-    std::ifstream input(filename);
-    if (!input)
+    ConfigurationResult<NodeAdvectionOptions> options = load_node_advection_options(filename);
+    if (!options)
     {
-        return file_failure<NodeAdvectionScheme>(filename);
+        return ConfigurationResult<NodeAdvectionScheme>::failure(options.error());
     }
-    std::ostringstream contents;
-    contents << input.rdbuf();
-    return parse_node_advection_scheme(contents.str(), filename.string());
+    return ConfigurationResult<NodeAdvectionScheme>{options.value().scheme};
+}
+
+ConfigurationResult<CqmomNodeCountEvolution> load_cqmom_source_node_count_evolution(const std::filesystem::path& filename)
+{
+    std::optional<std::string> contents = read_configuration_file(filename);
+    if (!contents.has_value())
+    {
+        return file_failure<CqmomNodeCountEvolution>(filename);
+    }
+    return parse_cqmom_source_node_count_evolution(*contents, filename.string());
+}
+
+ConfigurationResult<RealizabilityPolicy> load_realizability_policy(const std::filesystem::path& filename)
+{
+    std::optional<std::string> contents = read_configuration_file(filename);
+    if (!contents.has_value())
+    {
+        return file_failure<RealizabilityPolicy>(filename);
+    }
+    return parse_realizability_policy(*contents, filename.string());
+}
+
+ConfigurationResult<QmomTransportOptions> load_qmom_transport_options(const std::filesystem::path& filename)
+{
+    std::optional<std::string> contents = read_configuration_file(filename);
+    if (!contents.has_value())
+    {
+        return file_failure<QmomTransportOptions>(filename);
+    }
+    return parse_qmom_transport_options(*contents, filename.string());
+}
+
+ConfigurationResult<CqmomTransportOptions> load_cqmom_transport_options(const std::filesystem::path& filename)
+{
+    std::optional<std::string> contents = read_configuration_file(filename);
+    if (!contents.has_value())
+    {
+        return file_failure<CqmomTransportOptions>(filename);
+    }
+    return parse_cqmom_transport_options(*contents, filename.string());
 }
 
 } // namespace qmomkit::config

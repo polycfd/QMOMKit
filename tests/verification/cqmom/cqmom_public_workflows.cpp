@@ -58,26 +58,17 @@ void update_error(double& maximum, const double actual, const double expected)
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomDenseCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 std::vector<TerminalNode> terminal_nodes(const qmomkit::CqmomQuadrature& quadrature)
@@ -336,9 +327,9 @@ int main(const int argc, char** argv)
         return 1;
     }
 
-    const qmomkit::CqmomResult dense = qmomkit::compute_cqmom(*dense_case.value);
-    const qmomkit::CqmomResult lean = qmomkit::compute_cqmom(*lean_case.value);
-    const qmomkit::CqmomResult default_workflow = qmomkit::compute_cqmom(*default_case.value);
+    const qmomkit::CqmomResult dense = qmomkit::compute_cqmom(dense_case.value());
+    const qmomkit::CqmomResult lean = qmomkit::compute_cqmom(lean_case.value());
+    const qmomkit::CqmomResult default_workflow = qmomkit::compute_cqmom(default_case.value());
 
     VerificationResult verification;
     if (!dense.ok())
@@ -359,34 +350,34 @@ int main(const int argc, char** argv)
         return 1;
     }
 
-    if (dense_case.value->hierarchy.node_counts() != std::vector<std::size_t>({2, 2}) ||
-        dense_case.value->hierarchy.conditioning_order() != std::vector<std::size_t>({0, 1}))
+    if (dense_case.value().hierarchy.node_counts() != std::vector<std::size_t>({2, 2}) ||
+        dense_case.value().hierarchy.conditioning_order() != std::vector<std::size_t>({0, 1}))
     {
         append_failure(verification, "dense workflow did not load the expected fixed 2x2 hierarchy with conditioning_order = {0, 1}.");
     }
-    if (default_case.value->hierarchy().node_counts() != dense_case.value->hierarchy.node_counts() ||
-        default_case.value->hierarchy().conditioning_order() != dense_case.value->hierarchy.conditioning_order())
+    if (default_case.value().hierarchy().node_counts() != dense_case.value().hierarchy.node_counts() ||
+        default_case.value().hierarchy().conditioning_order() != dense_case.value().hierarchy.conditioning_order())
     {
         append_failure(verification, "default CqmomCase workflow did not preserve the dense workflow hierarchy.");
     }
-    if (lean_case.value->moments.layout.hierarchy.node_counts() != dense_case.value->hierarchy.node_counts() ||
-        lean_case.value->moments.layout.hierarchy.conditioning_order() != dense_case.value->hierarchy.conditioning_order())
+    if (lean_case.value().moments.layout.hierarchy.node_counts() != dense_case.value().hierarchy.node_counts() ||
+        lean_case.value().moments.layout.hierarchy.conditioning_order() != dense_case.value().hierarchy.conditioning_order())
     {
         append_failure(verification, "explicit lean workflow did not preserve the dense workflow hierarchy.");
     }
 
-    verify_lean_required_representation(*lean_case.value, *dense_case.value, verification);
+    verify_lean_required_representation(lean_case.value(), dense_case.value(), verification);
     verify_diagnostics("dense workflow", dense, verification);
     verify_diagnostics("explicit lean workflow", lean, verification);
     verify_diagnostics("default CqmomCase workflow", default_workflow, verification);
     verify_reference_quadrature("dense workflow", dense.quadrature, verification);
     verify_reference_quadrature("explicit lean workflow", lean.quadrature, verification);
     verify_reference_quadrature("default CqmomCase workflow", default_workflow.quadrature, verification);
-    verify_reconstructed_moments("dense workflow", dense.quadrature, dense_case.value->moments, verification);
-    verify_reconstructed_moments("explicit lean workflow", lean.quadrature, dense_case.value->moments, verification);
-    verify_reconstructed_moments("default CqmomCase workflow", default_workflow.quadrature, dense_case.value->moments, verification);
-    compare_workflows("explicit lean workflow", lean.quadrature, dense.quadrature, dense_case.value->moments.extents, verification);
-    compare_workflows("default CqmomCase workflow", default_workflow.quadrature, dense.quadrature, dense_case.value->moments.extents, verification);
+    verify_reconstructed_moments("dense workflow", dense.quadrature, dense_case.value().moments, verification);
+    verify_reconstructed_moments("explicit lean workflow", lean.quadrature, dense_case.value().moments, verification);
+    verify_reconstructed_moments("default CqmomCase workflow", default_workflow.quadrature, dense_case.value().moments, verification);
+    compare_workflows("explicit lean workflow", lean.quadrature, dense.quadrature, dense_case.value().moments.extents, verification);
+    compare_workflows("default CqmomCase workflow", default_workflow.quadrature, dense.quadrature, dense_case.value().moments.extents, verification);
 
     const bool passed = verification.passed && verification.errors.node <= tolerance && verification.errors.weight <= tolerance &&
                         verification.errors.moment <= tolerance && verification.errors.workflow_node <= tolerance &&

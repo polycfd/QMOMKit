@@ -308,9 +308,9 @@ void verify_configuration_distribution_initialization()
 
         QMOMKIT_VERIFY_CHECK(configured.ok());
         QMOMKIT_VERIFY_CHECK(direct.ok());
-        QMOMKIT_VERIFY_CHECK(configured.value->moments.size() == test_case.maximum_order + 1);
-        assert_near_relative(configured.value->moments[0], test_case.number_density, 0.0);
-        assert_moment_sets_match(configured.value->moments, direct.moments, 1.0e-13);
+        QMOMKIT_VERIFY_CHECK(configured.value().moments.size() == test_case.maximum_order + 1);
+        assert_near_relative(configured.value().moments[0], test_case.number_density, 0.0);
+        assert_moment_sets_match(configured.value().moments, direct.moments, 1.0e-13);
     }
 }
 
@@ -391,9 +391,9 @@ scale = 1.5
 
         QMOMKIT_VERIFY_CHECK(configured.ok());
         QMOMKIT_VERIFY_CHECK(direct.ok());
-        QMOMKIT_VERIFY_CHECK(configured.value->moments.size() == test_case.maximum_order + 1);
-        assert_near_relative(configured.value->moments[0], test_case.expected_density, 0.0);
-        assert_moment_sets_match(configured.value->moments, direct.moments, 1.0e-12);
+        QMOMKIT_VERIFY_CHECK(configured.value().moments.size() == test_case.maximum_order + 1);
+        assert_near_relative(configured.value().moments[0], test_case.expected_density, 0.0);
+        assert_moment_sets_match(configured.value().moments, direct.moments, 1.0e-12);
     }
 }
 
@@ -429,8 +429,8 @@ scale = 0.5
 )");
 
     QMOMKIT_VERIFY_CHECK(configured.ok());
-    assert_tensor_values(configured.value->moments, extents, expected, 1.0e-12, 1.0e-13);
-    assert_near_absolute_relative(configured.value->moments.values[0], number_density, 0.0, 0.0);
+    assert_tensor_values(configured.value().moments, extents, expected, 1.0e-12, 1.0e-13);
+    assert_near_absolute_relative(configured.value().moments.values[0], number_density, 0.0, 0.0);
 }
 
 void verify_configuration_independent_product_normal_gamma()
@@ -472,10 +472,10 @@ scale = 0.75
 )");
 
     QMOMKIT_VERIFY_CHECK(configured.ok());
-    QMOMKIT_VERIFY_CHECK(configured.value->hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
-    assert_tensor_values(configured.value->moments, extents, expected, 1.0e-12, 1.0e-12);
-    assert_near_absolute_relative(configured.value->moments.values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);
-    assert_near_absolute_relative(configured.value->moments.values[qmomkit::flatten_multi_index({1, 2}, extents)],
+    QMOMKIT_VERIFY_CHECK(configured.value().hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
+    assert_tensor_values(configured.value().moments, extents, expected, 1.0e-12, 1.0e-12);
+    assert_near_absolute_relative(configured.value().moments.values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);
+    assert_near_absolute_relative(configured.value().moments.values[qmomkit::flatten_multi_index({1, 2}, extents)],
                                   number_density * normal_raw_moment_sum(normal_mean, normal_standard_deviation, 1) *
                                       gamma_raw_moment(gamma_shape, gamma_scale, 2),
                                   1.0e-12, 1.0e-12);
@@ -519,8 +519,8 @@ scale = 2.0
 )");
 
     QMOMKIT_VERIFY_CHECK(configured.ok());
-    assert_tensor_values(configured.value->moments, extents, expected, 1.0e-11, 1.0e-12);
-    assert_near_absolute_relative(configured.value->moments.values[0], number_density, 0.0, 0.0);
+    assert_tensor_values(configured.value().moments, extents, expected, 1.0e-11, 1.0e-12);
+    assert_near_absolute_relative(configured.value().moments.values[0], number_density, 0.0, 0.0);
     QMOMKIT_VERIFY_CHECK(qmomkit::flatten_multi_index({0, 0, 1}, extents) == 1);
     QMOMKIT_VERIFY_CHECK(qmomkit::flatten_multi_index({0, 1, 0}, extents) == 3);
     QMOMKIT_VERIFY_CHECK(qmomkit::flatten_multi_index({1, 0, 0}, extents) == 9);
@@ -566,11 +566,11 @@ void verify_configuration_independent_product_dimension_sweep()
             expected[flat_index] = value;
         }
 
-        assert_tensor_values(configured.value->moments, extents, expected, 1.0e-12, 1.0e-12);
-        QMOMKIT_VERIFY_CHECK(configured.value->moments.extents.size() == dimensions);
-        assert_near_absolute_relative(configured.value->moments.values[0], number_density, 0.0, 0.0);
+        assert_tensor_values(configured.value().moments, extents, expected, 1.0e-12, 1.0e-12);
+        QMOMKIT_VERIFY_CHECK(configured.value().moments.extents.size() == dimensions);
+        assert_near_absolute_relative(configured.value().moments.values[0], number_density, 0.0, 0.0);
         qmomkit::MultiIndex last_order(dimensions, 1);
-        assert_near_absolute_relative(configured.value->moments.values[qmomkit::flatten_multi_index(last_order, extents)],
+        assert_near_absolute_relative(configured.value().moments.values[qmomkit::flatten_multi_index(last_order, extents)],
                                       expected[qmomkit::flatten_multi_index(last_order, extents)], 1.0e-12, 1.0e-12);
     }
 }

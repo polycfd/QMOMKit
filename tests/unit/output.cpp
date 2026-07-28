@@ -1,5 +1,6 @@
 #include "qmomkit/output.hpp"
 
+#include "internal/cqmom_case.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 
 #include <cassert>
@@ -8,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -104,6 +106,28 @@ void assert_near(const double actual, const double expected, const double tolera
             for (std::size_t dimension = 0; dimension < hierarchy.number_of_dimensions(); ++dimension)
             {
                 contribution *= std::pow(abscissas[dimension][flat_node], static_cast<int>(moment_index[dimension]));
+            }
+            value += contribution;
+        }
+        moments[flat_moment] = value;
+    }
+    return moments;
+}
+
+[[nodiscard]] std::vector<double> raw_moments_from_terminals(const std::vector<std::size_t>& extents, const std::vector<double>& weights,
+                                                             const std::vector<std::vector<double>>& abscissas)
+{
+    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat_moment = 0; flat_moment < moments.size(); ++flat_moment)
+    {
+        const qmomkit::MultiIndex moment_index = qmomkit::unflatten_multi_index(flat_moment, extents);
+        double value = 0.0;
+        for (std::size_t node = 0; node < weights.size(); ++node)
+        {
+            double contribution = weights[node];
+            for (std::size_t dimension = 0; dimension < extents.size(); ++dimension)
+            {
+                contribution *= std::pow(abscissas[dimension][node], static_cast<int>(moment_index[dimension]));
             }
             value += contribution;
         }
@@ -348,21 +372,72 @@ void test_cqmom_quadrature_output()
 
     const std::filesystem::path path = temporary_output_path("qmomkit_cqmom_quadrature");
     {
-        qmomkit::QuadratureWriter writer =
-            qmomkit::QuadratureWriter::for_cqmom(path, result.quadrature.number_of_dimensions(), result.quadrature.total_nodes());
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(path, result.quadrature.number_of_dimensions());
         writer.write(0.5, result.quadrature);
     }
 
-    std::string expected = "# time w0 x0_0 x1_0 w1 x0_1 x1_1 w2 x0_2 x1_2 w3 x0_3 x1_3\n" + format_double(0.5);
+    std::string expected = "# time node_index path_0 path_1 weight x0 x1\n";
     for (std::size_t node = 0; node < result.quadrature.total_nodes(); ++node)
     {
+        expected += format_double(0.5) + " " + std::to_string(node);
+        for (std::size_t level = 0; level < result.quadrature.number_of_dimensions(); ++level)
+        {
+            expected += " " + std::to_string(result.quadrature.terminal_paths()[node].node_index_at_level(level));
+        }
         expected += " " + format_double(result.quadrature.weights()[node]);
         for (std::size_t dimension = 0; dimension < result.quadrature.number_of_dimensions(); ++dimension)
         {
             expected += " " + format_double(result.quadrature.abscissas()[dimension][node]);
         }
+        expected += "\n";
     }
-    expected += "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+
+    const std::vector<double> fixed_weights{0.28, 0.07, 0.52, 0.13};
+    const std::vector<std::vector<double>> fixed_abscissas{{-0.75, -0.75, 1.25, 1.25}, {0.2, 1.4, 0.2, 1.4}};
+    const std::vector<double> fixed_moments = raw_moments_from_grid(hierarchy, extents, fixed_weights, fixed_abscissas);
+    const qmomkit::CqmomResult fixed = qmomkit::compute_cqmom({hierarchy, {extents, fixed_moments}, {}, {}});
+    assert(fixed.ok());
+
+    const std::vector<double> adaptive_weights{0.1, 0.3, 0.6};
+    const std::vector<std::vector<double>> adaptive_abscissas{{-1.0, -1.0, 1.0}, {-2.0, 2.0, 3.0}};
+    const std::vector<double> adaptive_moments = raw_moments_from_terminals(extents, adaptive_weights, adaptive_abscissas);
+    const qmomkit::QmomOptions adaptive_qmom{true, 1.0e-10, 1.0e-10, 1.0e-12};
+    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom({hierarchy, {extents, adaptive_moments}, {}, adaptive_qmom, true});
+    assert(adaptive.ok());
+    assert(adaptive.quadrature.total_nodes() == 3);
+
+    const std::filesystem::path path = temporary_output_path("qmomkit_cqmom_adaptive_quadrature_history");
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(path, 2);
+        writer.write(0.0, fixed.quadrature);
+        writer.write(0.5, adaptive.quadrature);
+    }
+
+    std::string expected = "# time node_index path_0 path_1 weight x0 x1\n";
+    for (std::size_t node = 0; node < fixed.quadrature.total_nodes(); ++node)
+    {
+        expected += format_double(0.0) + " " + std::to_string(node) + " " +
+                    std::to_string(fixed.quadrature.terminal_paths()[node].node_index_at_level(0)) + " " +
+                    std::to_string(fixed.quadrature.terminal_paths()[node].node_index_at_level(1)) + " " +
+                    format_double(fixed.quadrature.weights()[node]) + " " + format_double(fixed.quadrature.abscissas()[0][node]) + " " +
+                    format_double(fixed.quadrature.abscissas()[1][node]) + "\n";
+    }
+    for (std::size_t node = 0; node < adaptive.quadrature.total_nodes(); ++node)
+    {
+        expected += format_double(0.5) + " " + std::to_string(node) + " " +
+                    std::to_string(adaptive.quadrature.terminal_paths()[node].node_index_at_level(0)) + " " +
+                    std::to_string(adaptive.quadrature.terminal_paths()[node].node_index_at_level(1)) + " " +
+                    format_double(adaptive.quadrature.weights()[node]) + " " + format_double(adaptive.quadrature.abscissas()[0][node]) + " " +
+                    format_double(adaptive.quadrature.abscissas()[1][node]) + "\n";
+    }
     assert(read_text_file(path) == expected);
     std::filesystem::remove(path);
 }
@@ -382,10 +457,48 @@ void test_quadrature_writer_rejects_mismatched_inputs()
         const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {{4}, {1.0, 0.0, 1.0, 0.0}}, {}, {}});
         assert(result.ok());
 
-        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(cqmom_path, 2, 2);
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(cqmom_path, 2);
         assert_throws_invalid_argument([&writer, &result] { writer.write(0.0, result.quadrature); });
     }
     std::filesystem::remove(cqmom_path);
+}
+
+void test_cqmom_quadrature_writer_rejects_malformed_terminal_storage()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1});
+    const std::filesystem::path path = temporary_output_path("qmomkit_cqmom_malformed_terminal_quadrature");
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(path, 2);
+
+        const qmomkit::CqmomQuadrature empty = qmomkit::internal::create_cqmom_quadrature(hierarchy, {}, {{}, {}}, true, false, {});
+        assert_throws_invalid_argument_message([&writer, &empty] { writer.write(0.0, empty); },
+                                               "CQMOM quadrature output requires at least one active terminal node.");
+
+        const qmomkit::CqmomQuadrature missing_path = qmomkit::internal::create_cqmom_quadrature(hierarchy, {1.0}, {{-1.0}, {2.0}}, true, false, {});
+        assert_throws_invalid_argument_message([&writer, &missing_path] { writer.write(0.0, missing_path); },
+                                               "CQMOM quadrature output requires one terminal path per active terminal node.");
+
+        const qmomkit::CqmomQuadrature wrong_depth =
+            qmomkit::internal::create_cqmom_quadrature(hierarchy, {1.0}, {{-1.0}, {2.0}}, true, false, {qmomkit::ConditioningPath({0})});
+        assert_throws_invalid_argument_message([&writer, &wrong_depth] { writer.write(0.0, wrong_depth); },
+                                               "CQMOM quadrature output terminal path depth does not match the writer dimension count.");
+
+        const qmomkit::CqmomQuadrature wrong_abscissa_count =
+            qmomkit::internal::create_cqmom_quadrature(hierarchy, {1.0}, {{-1.0, 0.0}, {2.0}}, true, false, {qmomkit::ConditioningPath({0, 0})});
+        assert_throws_invalid_argument_message([&writer, &wrong_abscissa_count] { writer.write(0.0, wrong_abscissa_count); },
+                                               "CQMOM quadrature output abscissa node count is inconsistent.");
+
+        const qmomkit::CqmomQuadrature nonfinite_weight = qmomkit::internal::create_cqmom_quadrature(
+            hierarchy, {std::numeric_limits<double>::infinity()}, {{-1.0}, {2.0}}, true, false, {qmomkit::ConditioningPath({0, 0})});
+        assert_throws_invalid_argument_message([&writer, &nonfinite_weight] { writer.write(0.0, nonfinite_weight); },
+                                               "CQMOM quadrature output weights must be finite.");
+
+        const qmomkit::CqmomQuadrature nonfinite_abscissa = qmomkit::internal::create_cqmom_quadrature(
+            hierarchy, {1.0}, {{std::numeric_limits<double>::quiet_NaN()}, {2.0}}, true, false, {qmomkit::ConditioningPath({0, 0})});
+        assert_throws_invalid_argument_message([&writer, &nonfinite_abscissa] { writer.write(0.0, nonfinite_abscissa); },
+                                               "CQMOM quadrature output abscissas must be finite.");
+    }
+    std::filesystem::remove(path);
 }
 
 } // namespace
@@ -405,6 +518,8 @@ int main()
     test_qmom_quadrature_output();
     test_quadrature_1d_output();
     test_cqmom_quadrature_output();
+    test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts();
     test_quadrature_writer_rejects_mismatched_inputs();
+    test_cqmom_quadrature_writer_rejects_malformed_terminal_storage();
     return 0;
 }

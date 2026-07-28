@@ -20,7 +20,9 @@ The case documents and verifies:
 - data rows have the same number of columns as the headers;
 - moment values and quadrature values match the computed public result or an
   independent analytical product quadrature;
-- CQMOM requested moment output preserves requested multi-index order.
+- CQMOM requested moment output preserves requested multi-index order;
+- CQMOM quadrature output writes one row per active terminal node, including the
+  local terminal index, recursive path, weight, and phase-space coordinates.
 
 The writer API does not own filenames, output cadence, restart formats, or
 visualization formats. Those remain application responsibilities.

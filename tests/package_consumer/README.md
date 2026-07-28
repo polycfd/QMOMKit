@@ -20,15 +20,16 @@ or test utilities.
 From the top-level QMOMKit checkout:
 
 ```bash
-cmake -S . -B build
-cmake --build build
-cmake --install build
+cmake -S . -B build \
+  -DCMAKE_INSTALL_PREFIX="$PWD/install"
+cmake --build build --target install
 
 cmake -S tests/package_consumer \
-  -B tests/package_consumer/build \
-  -DCMAKE_PREFIX_PATH="install"
+  -B build-package-consumer \
+  -DCMAKE_PREFIX_PATH="$PWD/install"
 
-cmake --build tests/package_consumer/build
+cmake --build build-package-consumer
+./build-package-consumer/consumer
 ```
 
 This verifies that `find_package(QMOMKit CONFIG REQUIRED)` succeeds, the

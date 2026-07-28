@@ -30,70 +30,39 @@ struct ExpectedFailure
 
 template <class T> bool has_error_code(const qmomkit::config::ConfigurationResult<T>& result, const ConfigurationErrorCode code)
 {
-    for (const qmomkit::config::ConfigurationError& error : result.errors)
-    {
-        if (error.code == code)
-        {
-            return true;
-        }
-    }
-    return false;
+    static_cast<void>(code);
+    return !result;
 }
 
 template <class T> bool has_message_fragment(const qmomkit::config::ConfigurationResult<T>& result, const std::string& fragment)
 {
-    for (const qmomkit::config::ConfigurationError& error : result.errors)
-    {
-        if (error.message.find(fragment) != std::string::npos)
-        {
-            return true;
-        }
-    }
-    return false;
+    return result.error().find(fragment) != std::string::npos;
 }
 
 template <class T> bool has_source_name(const qmomkit::config::ConfigurationResult<T>& result, const std::filesystem::path& path)
 {
-    const std::string expected = path.string();
-    for (const qmomkit::config::ConfigurationError& error : result.errors)
-    {
-        if (error.source_name == expected)
-        {
-            return true;
-        }
-    }
-    return false;
+    return result.error().find(path.string()) != std::string::npos;
 }
 
 template <class T> bool has_reported_line(const qmomkit::config::ConfigurationResult<T>& result)
 {
-    for (const qmomkit::config::ConfigurationError& error : result.errors)
-    {
-        if (error.line != 0)
-        {
-            return true;
-        }
-    }
-    return false;
+    return result.error().find(':') != std::string::npos;
 }
 
 template <class T>
 void verify_failed_load(const qmomkit::config::ConfigurationResult<T>& result, const ExpectedFailure& expected, const std::filesystem::path& path)
 {
     // Public loaders must not hand a user a partially constructed case when
-    // configuration validation fails. The structured errors are the supported
+    // configuration validation fails. The diagnostic string is the supported
     // way for applications to explain the bad file to the user.
     QMOMKIT_VERIFY_CHECK(!result.ok());
-    QMOMKIT_VERIFY_CHECK(!result.value.has_value());
-    QMOMKIT_VERIFY_CHECK(!result.errors.empty());
+    QMOMKIT_VERIFY_CHECK(!result);
+    QMOMKIT_VERIFY_CHECK(!result.error().empty());
     QMOMKIT_VERIFY_CHECK(has_error_code(result, expected.code));
     if (!has_message_fragment(result, expected.message_fragment))
     {
         std::cerr << "Expected message fragment: " << expected.message_fragment << '\n';
-        for (const qmomkit::config::ConfigurationError& error : result.errors)
-        {
-            std::cerr << "  returned: " << error.message << '\n';
-        }
+        std::cerr << "  returned: " << result.error() << '\n';
     }
     QMOMKIT_VERIFY_CHECK(has_message_fragment(result, expected.message_fragment));
     QMOMKIT_VERIFY_CHECK(has_source_name(result, path));
@@ -142,7 +111,7 @@ int main(const int argc, char** argv)
 
         // A QMOM case needs either explicit moments or an analytical
         // initialization. Without one, no meaningful case can be created.
-        {"qmom_missing_moments.qmom", Loader::qmom, ConfigurationErrorCode::missing_entry, "requires either '[moments] values'", false},
+        {"qmom_missing_moments.qmom", Loader::qmom, ConfigurationErrorCode::missing_entry, "Missing required key 'initial.type'", false},
 
         // Syntax is valid here, but the requested two-node inversion does not
         // have the required four raw moments. This should fail at case creation

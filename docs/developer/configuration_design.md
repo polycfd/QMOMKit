@@ -76,13 +76,14 @@ The main parts of configuration handling are:
 - case construction: builds `QmomCase`, `CqmomCase`, or explicit
   representation `CqmomLeanCase` and `CqmomDenseCase` objects from initialized
   moments, phase-space hierarchy, and options;
-- policy extraction: parses optional transport scheme, output options, and
-  runtime realizability policy objects for drivers that choose to use them.
+- policy extraction: parses optional transport scheme, transport options,
+  output options, and runtime realizability policy objects for drivers that
+  choose to use them.
 
 The parser's private data structures should stay hidden from users and
 extension code. Successful public configuration calls return populated public
-objects with no errors, while failed calls return structured errors and no
-value.
+objects through `value()`, while failed calls return a formatted diagnostic
+string through `error()` and no value.
 
 ## QMOM And CQMOM Mapping
 
@@ -140,13 +141,16 @@ PhaseSpaceHierarchy
 QmomOptions
 adaptive_branch_counts
 CqmomDiagnosticLevel
+VandermondeSolver
+CqmomMomentStorage
 CqmomCase
 ```
 
 This is the recommended user-facing loading path exposed by
-`load_cqmom(...)`. The returned `CqmomCase` stores the initialized CQMOM state
-and reconstruction policies while avoiding any distinction between analytical
-and explicit moment input in ordinary use.
+`load_cqmom(...)`. The returned `CqmomCase` stores the selected dense or lean
+moment representation and reconstruction policies while avoiding any distinction
+between analytical and explicit moment input in ordinary use. If
+`cqmom.moment_storage` is omitted, the neutral parser selects lean storage.
 
 The explicit lean representation workflow maps parsed CQMOM setup data to:
 
@@ -256,22 +260,56 @@ tensor entries follow phase-space dimension order.
 Configuration may include optional runtime settings that are useful to drivers:
 
 - transport scheme selection;
-- node-advection scheme selection;
+- node-advection scheme selection and RK23 controls;
+- CQMOM source-stage active branch-count policy;
 - output options;
 - runtime realizability policy.
 
 These settings are parsed into public objects or enum values. They do not
 install callbacks, run transport, write output, or define a physical model.
+Case loaders validate recognized runtime settings when those settings are
+present in the same `.qmom` file, but they still return only `QmomCase` or
+`CqmomCase`.
+
+| Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
+| --- | --- | --- | --- |
+| QMOM/CQMOM inversion settings | yes | yes | no |
+| Vandermonde and CQMOM storage settings | yes | yes | no |
+| `time_integration.scheme` | yes | no | yes |
+| `time_integration.node_advection.*` | yes | no | yes |
+| `time_integration.cqmom.source_node_count_evolution` | yes | no | yes |
+| `time_integration.realizability.*` | yes | no | yes |
 
 Transport scheme configuration maps to `TransportScheme`. If omitted, the
 parsed scheme defaults to `TransportScheme::strang`.
 
-Node-advection scheme configuration maps to `NodeAdvectionScheme`. It lives
+Node-advection configuration maps to `NodeAdvectionOptions`. The scheme lives
 under `[time_integration.node_advection]` so it is not confused with
-`[time_integration] scheme`, which controls operator splitting. If omitted,
-the parsed node-advection scheme defaults to `NodeAdvectionScheme::ssp_rk3`.
-Applications can assign the parsed value to `NodeAdvectionOptions::scheme` in
-direct C++ transport options. This configuration choice affects only
+`[time_integration] scheme`, which controls operator splitting. RK23 controls
+live under `[time_integration.node_advection.rk23]` and map directly to
+`AdaptiveRk23Options`:
+
+```text
+relative_tolerance
+absolute_tolerance
+initial_step
+max_step
+min_step
+max_steps
+```
+
+CQMOM state-transport source policy lives under `[time_integration.cqmom]` and
+maps to `CqmomNodeCountEvolution`. If omitted,
+`source_node_count_evolution` defaults to
+`allow_growth_to_configured_maximum`, matching the C++ transport option.
+The policy is storage-neutral and is assigned to the single
+`CqmomTransportOptions` object used by CQMOM transport through `CqmomState`.
+
+The parser default-constructs `NodeAdvectionOptions` and only overwrites keys
+that are present, so configuration parsing does not duplicate
+`AdaptiveRk23Options` defaults. If omitted, the parsed node-advection scheme
+defaults to `NodeAdvectionScheme::ssp_rk3`. Applications can assign the parsed
+object directly to transport options. This configuration choice affects only
 continuous quadrature-node trajectories; it does not configure moment-source
 integration, realizability policies, or transport splitting.
 
@@ -292,8 +330,9 @@ Configuration APIs return:
 ConfigurationResult<T>
 ```
 
-where `value` is present only on success and `errors` contains structured
-diagnostics on failure. Each `ConfigurationError` carries:
+where `value()` is valid only on success and `error()` contains the public
+diagnostic string on failure. Internally, parser failures are still assembled
+from `ConfigurationError` records carrying:
 
 - an error code;
 - a source name;
@@ -343,9 +382,16 @@ Public configuration capabilities include:
 - `create_qmom_case(...)`, `create_cqmom_dense_case(...)`, and
   `create_cqmom_lean_case(...)`;
 - `parse_transport_scheme(...)`;
+- `parse_node_advection_options(...)` and
+  `load_node_advection_options(...)`;
 - `parse_node_advection_scheme(...)` and
-  `load_node_advection_scheme(...)`;
-- `parse_realizability_policy(...)`;
+  `load_node_advection_scheme(...)` compatibility helpers;
+- `parse_cqmom_source_node_count_evolution(...)` and
+  `load_cqmom_source_node_count_evolution(...)`;
+- `parse_qmom_transport_options(...)`, `load_qmom_transport_options(...)`,
+  `parse_cqmom_transport_options(...)`, and
+  `load_cqmom_transport_options(...)`;
+- `parse_realizability_policy(...)` and `load_realizability_policy(...)`;
 - `parse_output_options(...)` and `load_output_options(...)`;
 - `ConfigurationResult<T>`, `ConfigurationError`, and
   `ConfigurationErrorCode`.

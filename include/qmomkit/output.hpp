@@ -110,8 +110,9 @@ private:
  * Write quadrature histories as space-separated text.
  *
  * The writer is application-controlled: construction opens exactly one file,
- * writes a header, and each `write(...)` call appends one time row. The writer
- * always writes the full quadrature and does not select or filter nodes.
+ * writes a header, and each `write(...)` call appends the full quadrature. QMOM
+ * quadrature output uses one fixed-width row per call. CQMOM quadrature output
+ * uses one row per active terminal node.
  */
 class QuadratureWriter
 {
@@ -125,8 +126,8 @@ public:
     /** Write all one-dimensional nodes as w0 x0 w1 x1 ... */
     [[nodiscard]] static QuadratureWriter for_qmom(const std::filesystem::path& path, std::size_t node_count);
 
-    /** Write all terminal multidimensional nodes as w0 x0_0 x1_0 ... */
-    [[nodiscard]] static QuadratureWriter for_cqmom(const std::filesystem::path& path, std::size_t dimension_count, std::size_t node_count);
+    /** Write terminal multidimensional nodes as one row per active terminal node. */
+    [[nodiscard]] static QuadratureWriter for_cqmom(const std::filesystem::path& path, std::size_t dimension_count);
 
     /** Append one row for a one-dimensional quadrature rule. */
     void write(double time, const Quadrature1D& quadrature);
@@ -134,7 +135,7 @@ public:
     /** Append one row for a public QMOM result. */
     void write(double time, const QmomResult& quadrature);
 
-    /** Append one row for a public CQMOM quadrature. */
+    /** Append one row per active terminal node for a public CQMOM quadrature. */
     void write(double time, const CqmomQuadrature& quadrature);
 
 private:

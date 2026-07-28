@@ -128,8 +128,8 @@ struct CqmomActiveBranchCount
 };
 
 /**
- * Structural description of the raw moments required by fixed-node recursive
- * CQMOM reconstruction.
+ * Advanced explicit-representation layout for the raw moments required by
+ * fixed-node recursive CQMOM reconstruction.
  *
  * The hierarchy owns phase-space dimensions, node counts, and conditioning
  * order. `required_indices` stores phase-space-order raw moment multi-indices
@@ -143,7 +143,8 @@ struct CqmomMomentLayout
 };
 
 /**
- * Values for the raw moments identified by a `CqmomMomentLayout`.
+ * Advanced explicit lean representation values for the raw moments identified
+ * by a `CqmomMomentLayout`.
  *
  * `values[i]` stores the raw moment for `layout.required_indices[i]`. This
  * representation stores only moments required by fixed-node recursive CQMOM
@@ -161,7 +162,7 @@ struct CqmomMomentData
 };
 
 /**
- * Dense CQMOM case for multidimensional quadrature construction.
+ * Advanced explicit dense representation for static CQMOM inversion.
  *
  * `moments` is a raw multidimensional moment tensor flattened in phase-space
  * dimension order. `hierarchy` supplies the phase-space node counts and the
@@ -181,7 +182,8 @@ struct CqmomDenseCase
 };
 
 /**
- * Lean CQMOM case for quadrature from required CQMOM moments.
+ * Advanced explicit lean representation for static CQMOM inversion from
+ * required CQMOM moments.
  *
  * `moments.layout` supplies the hierarchy, conditioning order, and required
  * phase-space-order raw moment indices. `moments.values` stores one value per
@@ -202,8 +204,9 @@ struct CqmomLeanCase
  * User-facing mutable CQMOM runtime state.
  *
  * A state owns the current CQMOM moments and reconstruction policies while
- * hiding the storage representation used internally. It is the neutral state
- * object passed through CQMOM transport workflows.
+ * hiding the storage representation used internally. Normal CQMOM transport
+ * creates this state from `CqmomCase` and passes it to
+ * `advance_transport_cqmom(...)`.
  */
 class CqmomState
 {
@@ -288,8 +291,7 @@ struct CqmomResult
 };
 
 /**
- * Construct a multidimensional CQMOM quadrature for a fixed phase-space
- * hierarchy and conditioning order.
+ * Advanced explicit dense-representation static CQMOM inversion.
  *
  * Fixed rectangular hierarchies remain the default. Adaptive branch-specific
  * node counts are enabled explicitly with `CqmomDenseCase::adaptive_branch_counts`
@@ -299,7 +301,8 @@ struct CqmomResult
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomDenseCase& dense_case);
 
 /**
- * Construct a multidimensional CQMOM quadrature from required raw moment data.
+ * Advanced explicit lean-representation static CQMOM inversion from required
+ * raw moment data.
  *
  * The required-moment layout must match the hierarchy stored in
  * `lean_case.moments.layout`. Adaptive branch-specific node counts are enabled
@@ -309,7 +312,8 @@ struct CqmomResult
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomLeanCase& lean_case);
 
 /**
- * Construct a multidimensional CQMOM quadrature from a user-facing CQMOM case.
+ * Construct a multidimensional CQMOM quadrature from the normal user-facing
+ * CQMOM case.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomCase& case_);
 

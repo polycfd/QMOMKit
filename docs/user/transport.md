@@ -54,11 +54,13 @@ The two main operations are:
   and optional boundary contribution rates.
 
 For a full transport step, QMOMKit can compose these operations with a selected
-transport scheme, or your application can call the lower-level routines
-directly when it needs explicit control.
+transport scheme. Advanced applications can instead call the lower-level
+composable routines directly when they manage individual transport operations
+themselves.
 
-If a model has only continuous phase-space motion, call `advance_nodes(...)`
-and reconstruct moments as needed. If it has only moment-space evolution, call
+If a model has only continuous phase-space motion, the advanced composable
+operation is `advance_nodes(...)`, followed by moment reconstruction as needed.
+If it has only moment-space evolution, the advanced composable operation is
 `advance_moments_with_source(...)`. Use the higher-level
 `advance_transport_qmom(...)` or `advance_transport_cqmom(...)` helpers when
 you want QMOMKit to compose continuous motion and source-like moment evolution
@@ -92,8 +94,8 @@ physical meaning to those coordinates; `x`, `diameter`, `velocity`, or any
 other interpretation comes from your application and must match the
 phase-space order used elsewhere.
 
-Use `advance_nodes(...)` when you already have a quadrature and want to evolve
-only the node positions:
+Use the advanced `advance_nodes(...)` operation when you already have a
+quadrature and want to evolve only the node positions:
 
 ```cpp
 qmomkit::NodeAdvectionOptions node_options;
@@ -182,8 +184,8 @@ ordering used by your QMOM setup. CQMOM transport uses the context-specific
 callback below so multidimensional source terms can follow the configured
 CQMOM moment layout.
 
-Use `advance_moments_with_source(...)` when you want to advance only the
-moment-source part of a workflow:
+Use the advanced `advance_moments_with_source(...)` operation when you want to
+advance only the moment-source part of a workflow:
 
 ```cpp
 const qmomkit::MomentSourceUpdateResult update =
@@ -614,8 +616,9 @@ CQMOM inversion policies such as Wheeler options, adaptive branch counts,
 diagnostic level, and Vandermonde solver belong to `CqmomCase` and are preserved
 by `CqmomState`. Successful CQMOM transport through `CqmomState` persists active
 adaptive topology for the next call. Explicit dense and lean case types remain
-available for static inversion, but CQMOM transport uses the storage-independent
-`CqmomState` API.
+available for advanced static inversion and specialized initialization, but
+normal CQMOM transport uses `CqmomCase::initial_state()` and
+`advance_transport_cqmom(...)` with the storage-independent `CqmomState` API.
 
 For storage-independent CQMOM physics, use `CqmomMomentSource` and
 `CqmomMomentBoundaryContribution`. `CqmomSourceContext` exposes the CQMOM moment

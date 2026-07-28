@@ -522,16 +522,16 @@ This workflow avoids exposing dense or lean moment storage to users.
 
 `CqmomDenseCase` bundles the phase-space hierarchy, raw moment tensor,
 conditional-moment numerical options, QMOM/Wheeler options, and the adaptive
-branch-count policy. It is the explicit dense representation workflow for
-callers that intentionally use full rectangular tensor moment storage.
+branch-count policy. It is the advanced explicit dense representation workflow
+for callers that intentionally use full rectangular tensor moment storage.
 
 `CqmomLeanCase` bundles lean CQMOM moment data, the same
 conditional-moment and QMOM/Wheeler options, and the same adaptive branch-count
 and diagnostic controls. It is the public case type for callers that can
-produce required CQMOM moments directly. It is the explicit lean representation
-workflow and provides direct control over the required CQMOM moment
-representation. The dense `CqmomDenseCase` path internally selects the same
-required moment data before recursive reconstruction.
+produce required CQMOM moments directly. It is the advanced explicit lean
+representation workflow and provides direct control over the required CQMOM
+moment representation. The dense `CqmomDenseCase` path internally selects the
+same required moment data before recursive reconstruction.
 
 `CqmomMomentLayout` and `CqmomMomentData` are public data-transfer types for
 the lean CQMOM moment representation. They are not intended to expose

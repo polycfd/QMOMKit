@@ -158,35 +158,37 @@ struct CqmomMomentSourceUpdateResult
 };
 
 /**
- * Advance a raw-moment vector through a discontinuous source operator using
- * the existing SSP-RK3 integrator. Optional acceptability checks are supplied
- * through `options.ssp_rk3_options.accept`; rejected candidates use the
- * SSP-RK3 retry policy with timestep halving.
+ * Advanced composable operation: advance a raw-moment vector through a
+ * discontinuous source operator using the existing SSP-RK3 integrator.
+ * Optional acceptability checks are supplied through
+ * `options.ssp_rk3_options.accept`; rejected candidates use the SSP-RK3 retry
+ * policy with timestep halving.
  */
 [[nodiscard]] MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, double t, double time_step,
                                                                    const MomentSource& source, const MomentSourceUpdateOptions& options = {});
 
 /**
- * Advance raw moments through a generic source plus an additive phase-space
- * boundary exchange contribution using the same SSP-RK3 source-update path.
+ * Advanced composable operation: advance raw moments through a generic source
+ * plus an additive phase-space boundary exchange contribution using the same
+ * SSP-RK3 source-update path.
  */
 [[nodiscard]] MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, double t, double time_step,
                                                                    const MomentSource& source, const MomentBoundaryContribution& boundary,
                                                                    const MomentSourceUpdateOptions& options);
 
 /**
- * Advance fixed-layout CQMOM moments through a source operator using the
- * existing vector SSP-RK3 integrator. The RK stages are exposed to the CQMOM
- * source callback through `CqmomSourceContext`.
+ * Advanced composable operation: advance fixed-layout CQMOM moments through a
+ * source operator using the existing vector SSP-RK3 integrator. The RK stages
+ * are exposed to the CQMOM source callback through `CqmomSourceContext`.
  */
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
                                                                               const CqmomMomentSource& source,
                                                                               const MomentSourceUpdateOptions& options = {});
 
 /**
- * Advance fixed-layout CQMOM moments through a generic source plus an additive
- * phase-space boundary exchange contribution using the same SSP-RK3
- * source-update path.
+ * Advanced composable operation: advance fixed-layout CQMOM moments through a
+ * generic source plus an additive phase-space boundary exchange contribution
+ * using the same SSP-RK3 source-update path.
  */
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
                                                                               const CqmomMomentSource& source,

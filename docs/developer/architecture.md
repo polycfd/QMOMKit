@@ -76,11 +76,13 @@ CQMOM transport creates a `CqmomState` with `CqmomCase::initial_state()` and
 advances it with `advance_transport_cqmom(CqmomState, ...)`.
 
 `CqmomCase` and `CqmomState` are the neutral public objects for normal CQMOM
-workflows. Normal configured workflows default to lean moment storage and may
+workflows. Normal CQMOM transport creates a `CqmomState` from `CqmomCase` and
+advances it with `advance_transport_cqmom(...)`, independent of dense or lean
+storage. Normal configured workflows default to lean moment storage and may
 select dense storage explicitly with `cqmom.moment_storage`. `CqmomDenseCase`
 with `RawMomentTensor` and `CqmomLeanCase` with `CqmomMomentLayout` and
-`CqmomMomentData` remain supported explicit representation workflows for callers
-that intentionally construct static CQMOM inversion inputs directly.
+`CqmomMomentData` remain supported advanced explicit representations for static
+inversion, specialized initialization, validation, and expert workflows.
 
 ### QMOM And CQMOM Terminology
 
@@ -99,10 +101,11 @@ implementation comments:
 | Quadrature | Discrete representation reconstructed from moments, such as weights and abscissas in `QmomResult`, `Quadrature1D`, or `CqmomQuadrature`. |
 
 `QmomCase` and `CqmomCase` are problem definitions, not moment requests.
-`CqmomDenseCase` and `CqmomLeanCase` are explicit representation workflows for
-expert callers that need to manage dense full tensors or lean required moment
-data directly. They do not replace `CqmomCase` and `CqmomState` as the normal
-representation-independent CQMOM workflow abstractions.
+`CqmomDenseCase` and `CqmomLeanCase` are advanced explicit representation
+workflows for expert callers that need to manage dense full tensors or lean
+required moment data directly. They do not replace `CqmomCase` and
+`CqmomState` as the normal representation-independent CQMOM workflow
+abstractions.
 
 Dense and lean terminology is specific to CQMOM's multidimensional moment
 storage choices. QMOM does not need dense or lean case terminology because its

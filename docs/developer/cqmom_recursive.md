@@ -457,6 +457,11 @@ condition estimates, are useful for analysis and debugging but are not required
 to construct the quadrature. The CQMOM diagnostic setting on the loaded case or
 explicit representation case selects how much diagnostic work is performed:
 
+`CqmomDiagnosticLevel` controls diagnostic retention and reporting only. It does
+not alter Vandermonde solver selection, residual acceptance, dense fallback
+behavior, inversion results, active node counts, quadrature values, transport
+results, or success/failure status.
+
 - `CqmomDiagnosticLevel::detailed` preserves full diagnostic reporting. It
   provides residual norms, condition estimates, and conditioning warnings for
   branch-local conditional-moment solves when those solves are performed. These

@@ -568,8 +568,11 @@ is reported by `CqmomCase::moment_storage()` and `CqmomState::moment_storage()`.
 This setting is distinct from `vandermonde.solver = dense`, which selects a
 linear solver for conditional reconstruction rather than moment storage.
 
-`diagnostic_level` controls reconstruction diagnostics. Supported values are
-`detailed`, `basic`, and `none`. If omitted, `detailed` is used.
+`diagnostic_level` controls reconstruction diagnostic retention and reporting
+only. It does not change solver selection, residual acceptance, fallback
+behavior, inversion results, transport results, or success/failure status.
+Supported values are `detailed`, `basic`, and `none`. If omitted, `detailed` is
+used.
 
 `vandermonde.solver` controls the branch-local conditional moment solve.
 Supported values are `automatic`, `dense`, `bjorck_pereyra`, and

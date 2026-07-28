@@ -630,6 +630,24 @@ void assert_common_state_moments_near(const qmomkit::CqmomState& dense_state, co
     assert_vector_near(dense_required.values, lean_state.moment_values(), tolerance);
 }
 
+std::vector<double> common_cqmom_moment_values(const qmomkit::CqmomState& state)
+{
+    if (state.moment_storage() == qmomkit::CqmomMomentStorage::lean)
+    {
+        return state.moment_values();
+    }
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(state.hierarchy());
+    const qmomkit::RawMomentTensor dense_moments{state.hierarchy().moment_extents(), state.moment_values()};
+    return qmomkit::extract_cqmom_moments(dense_moments, layout).values;
+}
+
+void assert_common_cqmom_moments_near(const qmomkit::CqmomState& lhs, const qmomkit::CqmomState& rhs, const double tolerance)
+{
+    assert(lhs.hierarchy().node_counts() == rhs.hierarchy().node_counts());
+    assert(lhs.hierarchy().conditioning_order() == rhs.hierarchy().conditioning_order());
+    assert_vector_near(common_cqmom_moment_values(lhs), common_cqmom_moment_values(rhs), tolerance);
+}
+
 bool layout_contains_index(const qmomkit::CqmomMomentLayout& layout, const qmomkit::MultiIndex& index)
 {
     return std::find(layout.required_indices.begin(), layout.required_indices.end(), index) != layout.required_indices.end();
@@ -2150,6 +2168,117 @@ void test_state_cqmom_transport_preserves_vandermonde_solver_policy()
     assert_cqmom_quadrature_near(*transported.quadrature, initial.quadrature, 5.0e-10);
 }
 
+qmomkit::RawMomentTensor transport_vandermonde_policy_moments()
+{
+    return fixed_cqmom_moments();
+}
+
+bool cqmom_diagnostics_saw_dense_fallback(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics)
+{
+    for (const qmomkit::CqmomDiagnostics& diagnostic : diagnostics)
+    {
+        if (diagnostic.dense_vandermonde_fallback_occurred)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void test_cqmom_transport_vandermonde_policy_independent_of_diagnostic_level()
+{
+    const qmomkit::RawMomentTensor moments = transport_vandermonde_policy_moments();
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::dc;
+
+    std::optional<qmomkit::CqmomTransportResult> reference_dense;
+    std::optional<qmomkit::CqmomTransportResult> reference_lean;
+    for (const qmomkit::CqmomDiagnosticLevel level :
+         {qmomkit::CqmomDiagnosticLevel::none, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::CqmomDiagnosticLevel::detailed})
+    {
+        const qmomkit::CqmomDenseCase dense_case{
+            hierarchy, moments, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback};
+        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+        const qmomkit::CqmomLeanCase lean_case{
+            qmomkit::extract_cqmom_moments(moments, layout), {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback};
+
+        const qmomkit::CqmomTransportResult dense =
+            qmomkit::advance_transport_cqmom(qmomkit::internal::create_cqmom_state(dense_case), 0.0, 0.1, zero_velocity, zero_source, options);
+        const qmomkit::CqmomTransportResult lean =
+            qmomkit::advance_transport_cqmom(qmomkit::internal::create_cqmom_state(lean_case), 0.0, 0.1, zero_velocity, zero_source, options);
+
+        assert(dense.status == lean.status);
+        assert(dense.ok() == lean.ok());
+        assert(dense.diagnostics.failed_stage == lean.diagnostics.failed_stage);
+        assert(dense.diagnostics.initial_cqmom_status == lean.diagnostics.initial_cqmom_status);
+        assert(dense.diagnostics.post_source_cqmom_status == lean.diagnostics.post_source_cqmom_status);
+        assert(dense.quadrature.has_value() == lean.quadrature.has_value());
+        if (dense.quadrature.has_value())
+        {
+            assert_cqmom_quadrature_near(*dense.quadrature, *lean.quadrature, 1.0e-5);
+        }
+        if (dense.ok())
+        {
+            assert_common_cqmom_moments_near(dense.state, lean.state, 1.0e-5);
+        }
+        assert(active_counts_equal(dense.state.active_branch_counts(), lean.state.active_branch_counts()));
+
+        if (level == qmomkit::CqmomDiagnosticLevel::none)
+        {
+            assert(dense.diagnostics.initial_cqmom_diagnostics.empty());
+            assert(lean.diagnostics.initial_cqmom_diagnostics.empty());
+            assert(dense.diagnostics.post_source_cqmom_diagnostics.empty());
+            assert(lean.diagnostics.post_source_cqmom_diagnostics.empty());
+        }
+        else
+        {
+            assert(!cqmom_diagnostics_saw_dense_fallback(dense.diagnostics.initial_cqmom_diagnostics));
+            assert(!cqmom_diagnostics_saw_dense_fallback(lean.diagnostics.initial_cqmom_diagnostics));
+            assert(!cqmom_diagnostics_saw_dense_fallback(dense.diagnostics.post_source_cqmom_diagnostics));
+            assert(!cqmom_diagnostics_saw_dense_fallback(lean.diagnostics.post_source_cqmom_diagnostics));
+        }
+
+        if (!reference_dense.has_value())
+        {
+            reference_dense = dense;
+            reference_lean = lean;
+            continue;
+        }
+
+        assert(dense.status == reference_dense->status);
+        assert(lean.status == reference_lean->status);
+        assert(dense.ok() == reference_dense->ok());
+        assert(lean.ok() == reference_lean->ok());
+        assert(dense.diagnostics.failed_stage == reference_dense->diagnostics.failed_stage);
+        assert(lean.diagnostics.failed_stage == reference_lean->diagnostics.failed_stage);
+        assert(dense.quadrature.has_value() == reference_dense->quadrature.has_value());
+        assert(lean.quadrature.has_value() == reference_lean->quadrature.has_value());
+        if (dense.quadrature.has_value())
+        {
+            assert_cqmom_quadrature_near(*dense.quadrature, *reference_dense->quadrature, 1.0e-5);
+        }
+        if (lean.quadrature.has_value())
+        {
+            assert_cqmom_quadrature_near(*lean.quadrature, *reference_lean->quadrature, 1.0e-5);
+        }
+        if (dense.ok())
+        {
+            assert_common_cqmom_moments_near(dense.state, reference_dense->state, 1.0e-5);
+        }
+        if (lean.ok())
+        {
+            assert_common_cqmom_moments_near(lean.state, reference_lean->state, 1.0e-5);
+        }
+        assert(active_counts_equal(dense.state.active_branch_counts(), reference_dense->state.active_branch_counts()));
+        assert(active_counts_equal(lean.state.active_branch_counts(), reference_lean->state.active_branch_counts()));
+    }
+}
+
 void test_state_cqmom_source_evolution_matches_lean()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -2547,6 +2676,7 @@ int main()
     test_dense_state_reconstructs_dense_only_moments_after_repeated_source_steps();
     test_dense_state_reconstructs_dense_only_moments_with_nonidentity_conditioning_order();
     test_state_cqmom_transport_preserves_vandermonde_solver_policy();
+    test_cqmom_transport_vandermonde_policy_independent_of_diagnostic_level();
     test_state_cqmom_source_evolution_matches_lean();
     test_state_cqmom_failure_propagation_from_source_operator();
     test_state_cqmom_transport_api_does_not_expose_moments();

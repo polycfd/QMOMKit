@@ -1,122 +1,130 @@
 # AGENTS.md
 
-## Project Overview
+## Project and Priorities
 
-QMOMKit is a C++ library for quadrature-based moment methods, including
-one-dimensional QMOM, multidimensional CQMOM, recursive CQMOM, analytical
-raw-moment initialization, realizability diagnostics, and moment-transport
-components.
+QMOMKit is an application-agnostic C++ library for quadrature-based moment
+methods, including one-dimensional QMOM, multidimensional and recursive CQMOM,
+raw-moment initialization, realizability diagnostics, quadrature
+reconstruction, and moment-transport utilities.
 
-QMOMKit turns raw moments of a number density function into quadrature
+QMOMKit converts raw moments of a number density function into quadrature
 representations that can be embedded in larger simulation, validation, or
-analysis codes. It is CFD-code agnostic and application agnostic: it does not
-own meshes, cells, finite-volume or finite-element operators, MPI
-communication, boundary conditions, particle physics, or application-specific
-source models.
+analysis codes. It does not own meshes, cells, spatial discretizations, MPI
+communication, physical boundary conditions, particle models, or
+application-specific source terms.
 
-Correctness, reproducibility, maintainability, and explicit mathematical
-conventions take priority over premature optimization.
+Code clarity, algorithmic correctness, and computational efficiency are the
+three guiding principles of QMOMKit and are of the utmost priority.
 
-## Documentation Map
+Prefer the simplest implementation that satisfies the mathematical,
+performance, and API requirements. Do not introduce additional abstractions,
+namespaces, directory layers, configuration mechanisms, or dependencies
+without a concrete need.
 
-Use the documentation system as the source of truth before making changes.
+## Documentation
+
+Use the repository documentation as the source of truth before making changes.
 
 ```text
 docs/user/
-    User workflows, installation, examples, configuration, and public API use.
+    Installation, configuration, examples, supported workflows, and public API
+    usage.
 
 docs/developer/
-    Architecture, numerical conventions, algorithm design, validation,
-    testing, benchmark policy, and engineering practices.
+    Architecture, numerical conventions, algorithm design, transport,
+    validation, testing, benchmarking, and engineering practices.
 
 examples/
-    Standalone example applications that consume installed QMOMKit packages.
+    Standalone applications consuming an installed QMOMKit package.
 
 tests/
-    Standalone test projects for unit, regression, verification, public-header,
-    and package-consumer coverage.
+    Standalone unit, regression, verification, public-header,
+    package-consumer, and benchmark projects.
 
 tools/monte_carlo/
     Optional QMOMKitMonteCarlo companion package for finite-sample reference
     and validation workflows.
 
 tools/plotting/
-    Lightweight Python helpers for plotting QMOMKit-native output files.
-
-AGENTS.md
-    AI-assisted development rules for understanding and modifying QMOMKit
-    safely.
+    Lightweight plotting helpers for QMOMKit output.
 ```
 
-Do not duplicate detailed algorithm descriptions here. When a change depends
-on a specific subsystem, read the relevant `docs/developer/` page first.
+Do not duplicate detailed algorithm descriptions in this file. Before changing
+a subsystem, read its relevant developer documentation and nearby tests.
 
-## Architecture and Package Boundaries
+Documentation must describe the current design rather than development history.
+Do not preserve obsolete implementation stages, previous task instructions, or
+superseded terminology.
 
-The repository is organized around the core QMOMKit package and standalone
-consumers. The root CMake project builds and installs only the core library
-package:
+## Package and Dependency Boundaries
+
+The root CMake project builds and installs only the core library target:
 
 ```text
 qmomkit::qmomkit
 ```
 
-Tests, benchmarks, examples, and Monte Carlo tools are standalone consumers of
-installed packages. They must not become dependencies of the root core build.
+Tests, benchmarks, examples, plotting utilities, and Monte Carlo tools are
+standalone consumers. They must not become dependencies of the root core
+package.
 
-The optional Monte Carlo validation tools live under `tools/monte_carlo/` as a
-separate companion package:
+The optional Monte Carlo companion package provides:
 
 ```text
 qmomkit_monte_carlo::qmomkit_monte_carlo
 ```
 
-The companion package may depend on QMOMKit, but the core package must not
-depend on Monte Carlo headers, sources, examples, scripts, or validation-only
-machinery.
+It may depend on QMOMKit. The core QMOMKit package must not depend on Monte
+Carlo headers, implementations, examples, scripts, or validation-only
+infrastructure.
 
-The plotting helpers under `tools/plotting/` are lightweight scripts, not a
-core library dependency or package surface.
+Keep mandatory dependencies minimal. Do not add a mandatory numerical backend,
+test framework, application framework, or other third-party dependency without
+an explicit design decision.
 
-For the current package layout, exported targets, consumer model, and build
-philosophy, see `docs/developer/architecture.md`.
+Google Benchmark is permitted only in the standalone benchmark project under
+`tests/benchmarks/`. Benchmark infrastructure must not become a core runtime,
+test, example, or Monte Carlo dependency.
 
-## Configuration and Workflow Principles
+## Configuration and Supported Workflows
 
-QMOMKit configuration files use the `.qmom` extension. They describe
-phase-space structure, initial raw moments or analytical initialization data,
-and numerical options. They do not define application physics, own simulation
-loops, or expose implementation-only storage choices.
+QMOMKit configuration files use the `.qmom` extension. They describe numerical
+configuration such as phase-space structure, moment initialization, node
+counts, conditioning order, reconstruction options, and integration options.
 
-Formulation selection follows the phase-space problem:
+Configuration files must not define application physics, own simulation loops,
+or expose implementation-only storage and solver machinery.
+
+Use the formulation appropriate to the phase-space problem:
 
 ```text
-one phase-space dimension      -> QMOM
+one phase-space dimension       -> QMOM
 multiple phase-space dimensions -> CQMOM
 ```
 
-The normal configured QMOM workflow is:
+The normal configured workflows are:
 
 ```text
 load_qmom(...) -> QmomCase -> compute_qmom(...)
 ```
 
-The normal configured CQMOM workflow is:
+and
 
 ```text
-load_cqmom(...) -> CqmomCase -> compute_cqmom(...) -> CqmomState -> transport
+load_cqmom(...) -> CqmomCase -> compute_cqmom(...) -> CqmomState
 ```
 
 `CqmomCase` and `CqmomState` are the default representation-neutral CQMOM
-objects. Dense and lean CQMOM workflows are explicit advanced representations
-for callers that intentionally manage `RawMomentTensor` or required
-`CqmomMomentData`. Do not add configuration fields that leak parser internals,
-recursive storage machinery, or implementation-only solver workspaces.
+interfaces. Dense or lean moment representations are advanced interfaces for
+callers that intentionally manage their own moment storage or data transfer.
 
-For configuration mapping and extension rules, see
-`docs/developer/configuration_design.md`.
+Do not expose parser internals, recursive storage details, or solver workspaces
+through configuration or ordinary public workflows.
 
-## Public/Internal API Rules
+See `docs/developer/configuration_design.md` for configuration mapping and
+extension rules.
+
+## Public and Internal APIs
 
 Installed public headers live under:
 
@@ -124,213 +132,238 @@ Installed public headers live under:
 include/qmomkit/
 ```
 
-Core implementation files and implementation-only helpers live under:
+Implementation files and implementation-only helpers live under:
 
 ```text
 src/
 src/internal/
 ```
 
-Public headers should expose stable user-facing concepts such as requests,
-results, options, moment containers, quadrature representations, status values,
-and documented algorithm entry points. Do not expose implementation-only
-utilities, recursive assembly machinery, parser internals, solver workspaces,
-or private dense-linear-algebra details through public headers.
+Public headers must not include headers from `src/internal/`.
 
-Headers under `src/internal/` are not installed and are not public API. Public
-headers under `include/qmomkit/` should not include internal headers.
+Public APIs should expose stable mathematical and user-facing concepts,
+including:
 
-Public API changes require deliberate review, matching tests, and documentation
-updates. Update public-header tests when public headers are added, renamed, or
-given new direct dependencies.
+- requests and results;
+- options and status values;
+- diagnostics;
+- moment containers;
+- quadrature representations;
+- transport state;
+- documented algorithm entry points.
 
-## Numerical Conventions and Non-Negotiables
+Do not expose parser internals, temporary solver workspaces, private
+linear-algebra machinery, or recursive implementation details through public
+headers.
 
-Numerical convention changes are high-risk. Preserve the conventions in
-`docs/developer/numerical_conventions.md` unless the change is intentional,
-documented, tested, and validated.
+Some mathematical or data-transfer APIs may intentionally be public for
+advanced users. Such APIs should be clearly identified and documented as
+advanced rather than disguised as ordinary workflow APIs.
+
+Public API changes require deliberate review, focused tests, documentation
+updates, and corresponding public-header coverage.
+
+## Numerical Contracts
+
+Changes to numerical conventions are high-risk. Preserve the contracts in
+`docs/developer/numerical_conventions.md` unless a change is intentional,
+documented, tested, and independently validated.
 
 In particular:
 
-- QMOMKit moments are raw moments of the number density function.
-- `m_0` and `M[0,...,0]` represent total number density and are not
-  normalized away.
-- One-dimensional moments, tensor multi-indices, phase-space dimensions,
-  conditioning order, node counts, quadrature weights, and abscissas must keep
-  their documented ordering semantics.
-- Coordinate names are metadata and must not imply physical units, supports,
-  velocity meanings, particle assumptions, or application-specific behavior.
-- Realizability assumptions and status behavior must remain explicit.
-- Non-success result data is diagnostic unless a public contract says
-  otherwise.
+- Moments are raw moments of the number density function.
+- `m_0` and `M[0,...,0]` represent total number density and must not be
+  normalized away implicitly.
+- Phase-space dimension order and CQMOM conditioning order are distinct
+  concepts.
+- Moment indices, node counts, quadrature weights, abscissas, and recursive
+  branch ordering must retain their documented semantics.
+- Coordinate names are metadata. They must not impose physical units,
+  supports, particle assumptions, velocity semantics, or application-specific
+  behavior.
+- Realizability assumptions, tolerances, fallback behavior, and status
+  propagation must remain explicit.
+- Data returned with a non-success status is diagnostic unless the public
+  contract explicitly states otherwise.
+- A successful numerical result must not depend on silently relaxed tolerances
+  or suppressed failure conditions.
 
-When a mathematical convention is ambiguous, document the assumption, add or
-update tests, and point to the relevant analytical, manufactured, or validation
-case.
+When a convention is ambiguous, make the assumption explicit and support it
+with an analytical, manufactured, convergence, or independently generated
+validation case.
 
-## Transport and Time Integration Boundaries
+## Transport and Time Integration
 
-QMOMKit supports hybrid moment transport: continuous motion is represented by
-advancing quadrature nodes, while discontinuous or source-like effects are
-represented by advancing raw moments.
+QMOMKit provides numerical operations for advancing moments and quadrature
+states. Application physics enters through callbacks or caller-provided rate
+evaluators.
 
-Runtime physics enters through callbacks such as `PhaseSpaceVelocity`,
-`MomentSource`, `CqmomMomentSource`, `MomentBoundaryContribution`, and
-`CqmomMomentBoundaryContribution`. Case and State objects carry numerical setup
-and evolving moment representation; they do not store user physical models.
+Case and state objects carry numerical configuration and evolving numerical
+state. They do not store user physical models.
 
-`TransportScheme::strang` is the default second-order composition. `cd` and
-`dc` are supported first-order alternatives for comparisons, diagnostics, or
-workflows that deliberately choose a fixed operator order.
+Generic ODE utilities such as SSP-RK3 and adaptive RK23 must remain independent
+of:
 
-SSP-RK3 and adaptive RK23 are generic vector ODE utilities used by transport
-components. They must remain independent of particle shape, particle size,
-velocity dimensions, CFD meshes, and application physics.
+- particle size or shape;
+- specific phase-space coordinate meanings;
+- spatial meshes or cells;
+- finite-volume or finite-element discretizations;
+- application-specific source models.
 
-QMOMKit does not implement general PDE boundary conditions. Phase-space
-boundary exchange, such as injection, removal, nucleation, or similar moment
-rates, is represented through boundary contribution callbacks.
+QMOMKit does not implement general spatial PDE boundary conditions. Injection,
+removal, nucleation, or other phase-space boundary contributions may be
+represented through documented moment-rate callbacks.
 
-For transport design, status propagation, callback behavior, and verification
-expectations, see `docs/developer/transport_design.md`.
+Do not introduce the terms “hybrid transport,” “operator-split transport,” or
+“Strang-split transport” in code or documentation.
 
-## Code Modification Principles
+See `docs/developer/transport_design.md` for the current transport workflow,
+callback contracts, status propagation, and validation requirements.
 
-Make small, focused, reviewable changes that fit the existing architecture.
-Prefer simple runtime-flexible abstractions over hard-coded dimensions,
-hard-coded node counts, hidden global state, mutable caches, or excessive
-template metaprogramming.
+## Implementation Principles
 
-Keep implementation code close to the module that owns the behavior. Add shared
-internal utilities only when they remove real duplication across implementation
-modules and do not weaken public/internal boundaries.
+Use C++17 and follow the repository naming, formatting, and static-analysis
+conventions.
 
-Use explicit request, result, option, status, and diagnostic types for public
-algorithm behavior. Keep failure paths visible and checkable by callers.
+Make changes that are small, focused, and reviewable. Do not perform unrelated
+refactoring as part of a feature or bug fix.
 
-Follow the repository naming, formatting, and static-analysis conventions.
-Modified C++ files should be formatted with the repository `.clang-format`, and
-new code should remain compatible with `.clang-tidy`.
+Prefer:
 
-Comments should explain mathematical intent, non-obvious assumptions, and local
-constraints. Do not use comments or documentation to preserve obsolete task
-history.
+- explicit control flow over hidden behavior;
+- runtime-flexible algorithms over hard-coded phase-space dimensions;
+- existing infrastructure over parallel abstractions;
+- local implementation helpers over premature shared utilities;
+- clear data ownership over mutable global state or implicit caches;
+- straightforward C++ over excessive template metaprogramming.
 
-## Testing and Validation Expectations
+Add a shared internal utility only when it removes meaningful duplication
+across implementation modules and has a clear owner.
 
-Every code change should have tests at the level where the behavior is owned.
-Use unit tests for local contracts, option validation, indexing, status values,
-diagnostics, and failure paths.
+Public algorithm behavior should use explicit option, result, status, and
+diagnostic types where these improve the caller contract. Failure paths must
+remain visible and checkable.
 
-Choose the test location by purpose:
+Do not weaken mathematical checks merely to make a test or example pass.
+Investigate the numerical cause and preserve useful diagnostics.
 
-- `tests/unit/`: isolated function, type, option, diagnostic, indexing, and
-  failure-path contracts.
-- `tests/component_regression/`: regression-prone component interactions,
-  status propagation, and implementation behavior that should remain visible.
-- `tests/verification/`: analytical, manufactured, convergence,
-  reconstruction, or workflow checks against independent references.
-- `tests/public_headers/`: compile-time coverage that public headers are
-  self-contained and installable.
-- `tests/package_consumer/`: installed-package discovery, exported target
-  linkage, and downstream include behavior.
+Modified C++ files must be formatted with the repository `.clang-format`. New
+code must remain compatible with the repository `.clang-tidy` configuration.
 
-Numerical algorithm changes require verification against analytical,
-manufactured, convergence, reconstruction, or independently generated
-references where appropriate. A regression that only matches the previous
-implementation is not enough evidence for a scientific algorithm change.
+Comments should explain mathematical intent, non-obvious assumptions, and
+local constraints. They should not record development history or restate
+obvious code.
 
-Public API changes should preserve public-header coverage. Package, export, or
-installation changes should preserve installed-package consumer behavior.
+## Testing and Validation
 
-Validation changes should update the validation contract: reference
-construction, tolerances, error metrics, assumptions, and reproducibility data.
-Do not hide discrepancies by silently relaxing tolerances.
+Every behavioral change requires tests at the level that owns the behavior.
 
-For current testing and validation practice, see:
+Use:
+
+```text
+tests/unit/
+    Local functions, types, options, indexing, diagnostics, validation, and
+    failure paths.
+
+tests/component_regression/
+    Component interactions, status propagation, and regression-prone behavior.
+
+tests/verification/
+    Analytical, manufactured, reconstruction, convergence, and workflow
+    verification.
+
+tests/public_headers/
+    Self-contained and installable public-header coverage.
+
+tests/package_consumer/
+    Installed-package discovery, exported targets, includes, and linkage.
+
+tests/benchmarks/
+    Performance measurement only.
+```
+
+Numerical algorithm changes require evidence beyond agreement with the previous
+implementation. Validate them against analytical results, manufactured cases,
+convergence behavior, independent implementations, or independently generated
+reference data as appropriate.
+
+Do not use benchmark timings as correctness evidence.
+
+Do not hide discrepancies by silently loosening tolerances. Changes to
+tolerances, acceptance criteria, node reduction, fallback behavior, node
+ordering, or status mapping require focused tests and documented justification.
+
+Validation changes must state:
+
+- how the reference is constructed;
+- what assumptions are made;
+- which error metric is used;
+- why the tolerance is appropriate;
+- how the result can be reproduced.
+
+See:
 
 ```text
 docs/developer/testing.md
 docs/developer/validation.md
 ```
 
-## Documentation Expectations
+## Build and Installation
 
-Documentation should describe the current design, not development history.
+The root project owns and installs the core QMOMKit package.
 
-Update `docs/user/` when supported user workflows, examples, configuration
-semantics, installation behavior, or public API usage changes.
-
-Update `docs/developer/` when architecture, public/internal boundaries,
-numerical conventions, algorithms, transport behavior, testing strategy,
-validation strategy, benchmark policy, or coding practices change.
-
-Public interfaces should have concise comments that identify inputs, outputs,
-status behavior, and important assumptions. Longer explanations belong in the
-developer documentation. Local source comments should explain nearby reasoning,
-not past tasks or obsolete change steps.
-
-## Build and Dependency Principles
-
-The core QMOMKit package keeps mandatory dependencies minimal. Do not add
-mandatory third-party numerical backends or application-framework dependencies
-without an explicit design decision.
-
-The root build owns the core `qmomkit::qmomkit` package. Tests, benchmarks,
-examples, and companion tools are standalone consumers of installed packages.
-Preserve that model when changing CMake or package metadata.
-
-Root builds install the core package. Tests, examples, benchmarks,
-package-consumer checks, and companion tools should validate the installed
-package experience rather than becoming part of the root core build.
+Tests, examples, benchmarks, package-consumer checks, and companion tools
+should exercise the installed package rather than relying on private root-build
+state.
 
 Tests are plain C++ executables registered with CTest. Do not introduce a test
 framework dependency unless explicitly requested and documented.
 
-Google Benchmark is allowed only in the standalone benchmark project under
-`tests/benchmarks/`. It must not become a core runtime, test, example, or
-Monte Carlo dependency.
+Changes to CMake, installation rules, exported targets, package metadata, or
+public headers must preserve the installed downstream-consumer experience.
 
 ## Common Pitfalls
 
-Avoid these mistakes:
+Avoid:
 
-- Normalizing moments by `m_0` unless the mathematical problem explicitly uses
-  unit number density.
-- Confusing phase-space dimension order with CQMOM conditioning order.
-- Treating coordinate names as physical semantics.
-- Treating internal headers, repository tests, examples, or benchmark helpers
-  as public API.
-- Coupling the core library to Monte Carlo validation tools.
-- Adding CFD concepts, meshes, cells, boundary conditions, MPI behavior, or
-  application-specific physics to the core package.
-- Using benchmark timings as correctness or validation evidence.
-- Treating non-empty output in a failed result as a successful numerical
-  reconstruction.
-- Changing tolerances, fallback behavior, node ordering, status mapping, or
-  realizability behavior without focused tests and documentation.
+- normalizing raw moments by `m_0` without an explicit mathematical reason;
+- confusing phase-space dimension order with conditioning order;
+- assigning physical meaning based only on coordinate names;
+- hard-coding dimensions, coordinate positions, or node counts into general
+  algorithms;
+- exposing internal implementation machinery as ordinary public API;
+- coupling the core package to tests, examples, Monte Carlo tools, plotting
+  scripts, or benchmarks;
+- introducing CFD meshes, cells, MPI operations, spatial discretizations, or
+  application physics into the core library;
+- treating non-empty output from a failed result as a successful
+  reconstruction;
+- changing tolerances, fallback behavior, node ordering, status behavior, or
+  realizability rules without focused tests and documentation;
+- adding abstractions or directory structure solely for organizational
+  symmetry.
 
-## AI-Assisted Workflow
+## AI-Assisted Development Workflow
 
-Before modifying code or documentation:
+Before making substantial changes:
 
-1. Read the relevant `docs/developer/` design page and nearby tests.
-2. Identify the owning package boundary and public/internal API surface.
-3. State the intended approach for substantial changes.
+1. Read the relevant developer documentation and nearby tests.
+2. Identify the owning module, package boundary, and public API implications.
+3. Inspect existing patterns and reuse them where appropriate.
+4. State the intended implementation approach.
 
 While making changes:
 
-- Keep edits focused on the requested behavior.
-- Preserve public/internal and core/consumer boundaries.
-- Prefer existing patterns over new abstractions.
-- Add or update tests and documentation at the same ownership level as the
-  change.
-- Ask for clarification when the mathematical convention or architecture
-  boundary is genuinely ambiguous.
+- remain within the requested scope;
+- preserve public/internal and core/consumer boundaries;
+- keep mathematical assumptions explicit;
+- add or update tests at the same ownership level as the behavior;
+- update user or developer documentation when the supported design changes;
+- run the relevant formatting, build, test, and validation commands.
 
-When reporting completed work, summarize:
+When reporting completed work, include:
 
 - files modified;
 - behavior or documentation changed;
-- tests or validation commands run;
-- remaining concerns, limitations, or uncertainties.
+- tests and validation commands run;
+- any unresolved concerns, limitations, or uncertainties.

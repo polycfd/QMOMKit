@@ -40,8 +40,8 @@ qmomkit::CqmomMomentSource binary_fragmentation_source()
 {
     return [](double, const qmomkit::CqmomSourceContext& context)
     {
-        std::vector<double> derivative(context.size(), 0.0);
-        for (std::size_t index = 0; index < context.size(); ++index)
+        std::vector<double> derivative(context.moment_count(), 0.0);
+        for (std::size_t index = 0; index < context.moment_count(); ++index)
         {
             const qmomkit::MultiIndex& order = context.index(index);
             if (order.empty())
@@ -62,9 +62,9 @@ qmomkit::CqmomMomentBoundaryContribution injection_boundary_contribution()
 {
     return [](double, const qmomkit::CqmomSourceContext& context)
     {
-        std::vector<double> rate(context.size(), 0.0);
+        std::vector<double> rate(context.moment_count(), 0.0);
 
-        for (std::size_t entry = 0; entry < context.size(); ++entry)
+        for (std::size_t entry = 0; entry < context.moment_count(); ++entry)
         {
             const qmomkit::MultiIndex& order = context.index(entry);
 

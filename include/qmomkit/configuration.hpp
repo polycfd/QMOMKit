@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -37,15 +38,53 @@ struct ConfigurationError
     std::string message;
 };
 
-template <class T> struct ConfigurationResult
+template <class T> class ConfigurationResult
 {
-    std::optional<T> value;
-    std::vector<ConfigurationError> errors;
+public:
+    ConfigurationResult() = default;
+
+    ConfigurationResult(T value) : value_(std::move(value)) {}
+
+    [[nodiscard]] static ConfigurationResult failure(std::string error)
+    {
+        ConfigurationResult result;
+        result.error_ = std::move(error);
+        return result;
+    }
 
     [[nodiscard]] bool ok() const noexcept
     {
-        return value.has_value() && errors.empty();
+        return value_.has_value() && error_.empty();
     }
+
+    [[nodiscard]] explicit operator bool() const noexcept
+    {
+        return ok();
+    }
+
+    [[nodiscard]] T& value() &
+    {
+        return value_.value();
+    }
+
+    [[nodiscard]] const T& value() const&
+    {
+        return value_.value();
+    }
+
+    [[nodiscard]] T value() &&
+    {
+        return std::move(value_).value();
+    }
+
+    [[nodiscard]] const std::string& error() const noexcept
+    {
+        return error_;
+    }
+
+private:
+    std::optional<T> value_;
+    std::string error_;
 };
 
 struct ExplicitMomentInitialization
@@ -123,13 +162,13 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 [[nodiscard]] ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, std::size_t node_count,
                                                              const QmomOptions& options = {}, std::string source_name = "<initialization>");
 
-/** Create a dense CQMOM case from an already parsed initialization specification. */
+/** Advanced: create an explicit dense CQMOM case from parsed initialization. */
 [[nodiscard]] ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditionSpecification& initial_condition,
                                                                           const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
                                                                           bool adaptive_branch_counts = false,
                                                                           std::string source_name = "<initialization>");
 
-/** Create a lean CQMOM case from an already parsed initialization specification. */
+/** Advanced: create an explicit lean CQMOM case from parsed initialization. */
 [[nodiscard]] ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialConditionSpecification& initial_condition,
                                                                         const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
                                                                         bool adaptive_branch_counts = false,
@@ -138,10 +177,10 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Parse a current QMOM configuration string. */
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");
 
-/** Parse a current CQMOM configuration string into a dense CQMOM case. */
+/** Advanced: parse configuration into an explicit dense CQMOM case. */
 [[nodiscard]] ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(std::string_view text, std::string source_name = "<string>");
 
-/** Parse a current CQMOM configuration string into a lean CQMOM case. */
+/** Advanced: parse configuration into an explicit lean CQMOM case. */
 [[nodiscard]] ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(std::string_view text, std::string source_name = "<string>");
 
 /** Parse a current CQMOM configuration string into a user-facing CQMOM case. */
@@ -153,8 +192,22 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Parse optional transport scheme configuration. */
 [[nodiscard]] ConfigurationResult<TransportScheme> parse_transport_scheme(std::string_view text, std::string source_name = "<string>");
 
-/** Parse optional node-advection scheme configuration. */
+/** Compatibility helper for parsing only the node-advection scheme.
+ * Prefer `parse_node_advection_options(...)` for full node controls. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(std::string_view text, std::string source_name = "<string>");
+
+/** Parse optional node-advection configuration, including RK23 controls. */
+[[nodiscard]] ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(std::string_view text, std::string source_name = "<string>");
+
+/** Parse optional CQMOM source-stage active branch-count policy. */
+[[nodiscard]] ConfigurationResult<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution(std::string_view text,
+                                                                                                   std::string source_name = "<string>");
+
+/** Parse QMOM transport options from optional runtime configuration. */
+[[nodiscard]] ConfigurationResult<QmomTransportOptions> parse_qmom_transport_options(std::string_view text, std::string source_name = "<string>");
+
+/** Parse CQMOM transport options from optional runtime configuration. */
+[[nodiscard]] ConfigurationResult<CqmomTransportOptions> parse_cqmom_transport_options(std::string_view text, std::string source_name = "<string>");
 
 /** Parse optional output configuration. */
 [[nodiscard]] ConfigurationResult<OutputOptions> parse_output_options(std::string_view text, std::string source_name = "<string>");
@@ -162,10 +215,10 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Load and parse a QMOM configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<QmomCase> load_qmom(const std::filesystem::path& filename);
 
-/** Load and parse a CQMOM configuration into a dense CQMOM case from exactly the requested file. */
+/** Advanced: load an explicit dense CQMOM case from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<CqmomDenseCase> load_cqmom_dense(const std::filesystem::path& filename);
 
-/** Load and parse a CQMOM configuration into a lean CQMOM case from exactly the requested file. */
+/** Advanced: load an explicit lean CQMOM case from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<CqmomLeanCase> load_cqmom_lean(const std::filesystem::path& filename);
 
 /** Load and parse a CQMOM configuration into a user-facing CQMOM case from exactly the requested file. */
@@ -174,7 +227,23 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Load and parse output configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<OutputOptions> load_output_options(const std::filesystem::path& filename);
 
-/** Load and parse node-advection scheme configuration from exactly the requested file. */
+/** Compatibility helper for loading only the node-advection scheme.
+ * Prefer `load_node_advection_options(...)` for full node controls. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionScheme> load_node_advection_scheme(const std::filesystem::path& filename);
+
+/** Load and parse node-advection configuration from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<NodeAdvectionOptions> load_node_advection_options(const std::filesystem::path& filename);
+
+/** Load and parse CQMOM source-stage active branch-count policy from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<CqmomNodeCountEvolution> load_cqmom_source_node_count_evolution(const std::filesystem::path& filename);
+
+/** Load and parse runtime realizability policy configuration from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<RealizabilityPolicy> load_realizability_policy(const std::filesystem::path& filename);
+
+/** Load and parse QMOM transport options from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<QmomTransportOptions> load_qmom_transport_options(const std::filesystem::path& filename);
+
+/** Load and parse CQMOM transport options from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<CqmomTransportOptions> load_cqmom_transport_options(const std::filesystem::path& filename);
 
 } // namespace qmomkit::config

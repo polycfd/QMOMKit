@@ -22,10 +22,11 @@ struct WheelerOptions
 };
 
 /**
- * Invert a one-dimensional raw moment sequence into QMOM weights and abscissas.
+ * Low-level Wheeler inversion utility.
  *
- * The input moments must use raw moment ordering m_k at index k and must
- * contain at least 2 * max_nodes values.
+ * Most applications should use `compute_qmom(...)` with `QmomCase`. Direct
+ * Wheeler callers must provide raw moments with m_k at index k and at least
+ * 2 * max_nodes values.
  */
 [[nodiscard]] Quadrature1D compute_quadrature(const MomentSet& moments, std::size_t max_nodes, const WheelerOptions& options = {});
 

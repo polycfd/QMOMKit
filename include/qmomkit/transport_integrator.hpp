@@ -54,6 +54,20 @@ enum class TransportStatus
     source_failed
 };
 
+enum class CqmomNodeCountEvolution
+{
+    preserve_active_counts,
+    allow_growth_to_configured_maximum
+};
+
+enum class CqmomNodeCountTransitionKind
+{
+    reduced,
+    grew,
+    created,
+    removed
+};
+
 struct MomentReconstructionDiagnostics
 {
     bool success = false;
@@ -61,10 +75,28 @@ struct MomentReconstructionDiagnostics
     std::string message;
 };
 
+struct CqmomNodeCountTransition
+{
+    TransportStage stage = TransportStage::none;
+    std::size_t conditioning_level = 0;
+    ConditioningPath parent_path;
+    std::size_t phase_space_dimension = 0;
+    std::size_t configured_maximum_node_count = 0;
+    std::optional<std::size_t> active_node_count_before;
+    std::optional<std::size_t> active_node_count_after;
+    CqmomNodeCountEvolution node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+    CqmomNodeCountTransitionKind kind = CqmomNodeCountTransitionKind::grew;
+    bool rank_reduced = false;
+    bool rank_grew = false;
+};
+
 struct TransportDiagnostics
 {
     TransportScheme scheme = TransportScheme::strang;
     TransportStage failed_stage = TransportStage::none;
+    CqmomMomentStorage cqmom_moment_storage = CqmomMomentStorage::lean;
+    CqmomDiagnosticLevel cqmom_diagnostic_level = CqmomDiagnosticLevel::detailed;
+    VandermondeSolver cqmom_vandermonde_solver = VandermondeSolver::automatic;
     QmomStatus initial_qmom_status = QmomStatus::success;
     QmomStatus post_source_qmom_status = QmomStatus::success;
     CqmomStatus initial_cqmom_status = CqmomStatus::success;
@@ -79,6 +111,7 @@ struct TransportDiagnostics
     MomentReconstructionDiagnostics final_reconstruction_diagnostics;
     MomentSourceUpdateStatus source_status = MomentSourceUpdateStatus::success;
     MomentSourceUpdateDiagnostics source_diagnostics;
+    std::vector<CqmomNodeCountTransition> cqmom_node_count_transitions;
     std::size_t total_node_advection_steps = 0;
     std::size_t total_node_advection_rejected_steps = 0;
     std::size_t total_node_advection_rhs_evaluations = 0;
@@ -94,41 +127,13 @@ struct QmomTransportOptions
     TransportScheme scheme = TransportScheme::strang;
 };
 
-struct CqmomDenseTransportOptions
-{
-    ConditionalMomentOptions conditional_options;
-    QmomOptions qmom_options;
-    NodeAdvectionOptions node_options;
-    MomentSourceUpdateOptions source_options;
-    bool adaptive_branch_counts = false;
-    TransportScheme scheme = TransportScheme::strang;
-};
-
-/**
- * Lean CQMOM transport state.
- *
- * The state stores only the raw moments required by the fixed recursive CQMOM
- * layout. Quadrature is reconstructed as a transport-stage artifact and is not
- * cached in the state.
- */
-struct CqmomLeanTransportState
-{
-    CqmomMomentData moments;
-};
-
-struct CqmomLeanTransportOptions
-{
-    ConditionalMomentOptions conditional_options;
-    QmomOptions qmom_options;
-    NodeAdvectionOptions node_options;
-    MomentSourceUpdateOptions source_options;
-    TransportScheme scheme = TransportScheme::strang;
-};
-
-struct CqmomStateTransportOptions
+struct CqmomTransportOptions
 {
     NodeAdvectionOptions node_options;
     MomentSourceUpdateOptions source_options;
+    /** Source-stage rank policy. General sources default to allowing growth;
+     * zero/no-op sources should select `preserve_active_counts`. */
+    CqmomNodeCountEvolution source_node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     TransportScheme scheme = TransportScheme::strang;
 };
 
@@ -147,37 +152,7 @@ struct QmomTransportResult
     }
 };
 
-struct CqmomDenseTransportResult
-{
-    RawMomentTensor moments;
-    std::optional<CqmomQuadrature> quadrature;
-    TransportStatus status = TransportStatus::success;
-    TransportDiagnostics diagnostics;
-    double final_time = 0.0;
-    std::string message;
-
-    [[nodiscard]] bool ok() const noexcept
-    {
-        return status == TransportStatus::success;
-    }
-};
-
-struct CqmomLeanTransportResult
-{
-    CqmomLeanTransportState state;
-    std::optional<CqmomQuadrature> quadrature;
-    TransportStatus status = TransportStatus::success;
-    TransportDiagnostics diagnostics;
-    double final_time = 0.0;
-    std::string message;
-
-    [[nodiscard]] bool ok() const noexcept
-    {
-        return status == TransportStatus::success;
-    }
-};
-
-struct CqmomStateTransportResult
+struct CqmomTransportResult
 {
     CqmomState state;
     std::optional<CqmomQuadrature> quadrature;
@@ -223,72 +198,7 @@ struct CqmomStateTransportResult
                                                          const MomentBoundaryContribution& boundary, const QmomTransportOptions& options);
 
 /**
- * Advance dense multidimensional raw moments by one hybrid transport macro
- * step while preserving phase-space-dimension ordering.
- *
- * Continuous transport advects CQMOM quadrature nodes through phase-space
- * velocity, then reconstructs dense raw moments. Discontinuous transport
- * advances the dense raw-moment vector through MomentSource plus any additive
- * MomentBoundaryContribution supplied by a boundary-aware overload.
- *
- * TransportScheme::strang applies
- * continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2).
- * TransportScheme::cd applies continuous(dt) -> discontinuous(dt).
- * TransportScheme::dc applies discontinuous(dt) -> continuous(dt). In
- * first-order schemes, diagnostic "half-step" stage names refer to the
- * first/only continuous substep for backward compatibility.
- */
-[[nodiscard]] CqmomDenseTransportResult advance_transport_cqmom(const RawMomentTensor& moments, const PhaseSpaceHierarchy& hierarchy, double t,
-                                                                double time_step, const PhaseSpaceVelocity& velocity, const MomentSource& source,
-                                                                const CqmomDenseTransportOptions& options = {});
-
-/**
- * Advance dense multidimensional raw moments by one hybrid transport macro step
- * using a generic moment source plus an additive phase-space boundary exchange
- * contribution. The source and boundary rates are combined in the
- * discontinuous moment update; boundary exchange does not add a separate
- * transport stage or alter the selected TransportScheme ordering. The dense
- * workflow intentionally owns full raw-tensor storage; representation-neutral
- * CQMOM workflows should prefer the CqmomState overload.
- */
-[[nodiscard]] CqmomDenseTransportResult advance_transport_cqmom(const RawMomentTensor& moments, const PhaseSpaceHierarchy& hierarchy, double t,
-                                                                double time_step, const PhaseSpaceVelocity& velocity, const MomentSource& source,
-                                                                const MomentBoundaryContribution& boundary,
-                                                                const CqmomDenseTransportOptions& options);
-
-/**
- * Advance lean fixed-layout CQMOM moments by one hybrid transport macro step
- * using a CQMOM-native source callback.
- *
- * Continuous transport advects CQMOM quadrature nodes through phase-space
- * velocity, then reconstructs required fixed-layout moments. Discontinuous
- * transport advances those moments through CqmomMomentSource plus any additive
- * CqmomMomentBoundaryContribution supplied by a boundary-aware overload.
- *
- * TransportScheme::strang applies
- * continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2).
- * TransportScheme::cd applies continuous(dt) -> discontinuous(dt).
- * TransportScheme::dc applies discontinuous(dt) -> continuous(dt). Adaptive
- * branch evolution is intentionally unsupported for the explicit lean
- * transport API.
- */
-[[nodiscard]] CqmomLeanTransportResult advance_transport_cqmom(const CqmomLeanTransportState& state, double t, double time_step,
-                                                               const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                               const CqmomLeanTransportOptions& options = {});
-
-/**
- * Advance lean fixed-layout CQMOM moments using a CQMOM-native source callback
- * plus an additive phase-space boundary exchange contribution. Both callbacks
- * receive the representation-neutral `CqmomSourceContext`, and their rates are
- * combined in the discontinuous moment update.
- */
-[[nodiscard]] CqmomLeanTransportResult advance_transport_cqmom(const CqmomLeanTransportState& state, double t, double time_step,
-                                                               const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                               const CqmomMomentBoundaryContribution& boundary,
-                                                               const CqmomLeanTransportOptions& options);
-
-/**
- * Advance a user-facing CQMOM runtime state by one Hybrid Transport macro step.
+ * Advance a CQMOM transport state by one Hybrid Transport macro step.
  *
  * Reconstruction policies are taken from the state. The options configure only
  * transport-time controls such as node advection, source integration, and
@@ -301,10 +211,15 @@ struct CqmomStateTransportResult
  * continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2).
  * TransportScheme::cd applies continuous(dt) -> discontinuous(dt).
  * TransportScheme::dc applies discontinuous(dt) -> continuous(dt).
+ *
+ * In adaptive branch-count mode, `CqmomState` carries current branch-specific
+ * active counts separately from the hierarchy's configured maximum counts.
+ * Source stages use `CqmomTransportOptions::source_node_count_evolution` to
+ * decide whether post-source inversion preserves the current active counts or
+ * may grow branches back to the configured maximum.
  */
-[[nodiscard]] CqmomStateTransportResult advance_transport_cqmom(const CqmomState& state, double t, double time_step,
-                                                                const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                                const CqmomStateTransportOptions& options = {});
+[[nodiscard]] CqmomTransportResult advance_transport_cqmom(const CqmomState& state, double t, double time_step, const PhaseSpaceVelocity& velocity,
+                                                           const CqmomMomentSource& source, const CqmomTransportOptions& options = {});
 
 /**
  * Advance a user-facing CQMOM runtime state using a CQMOM-native source
@@ -312,27 +227,8 @@ struct CqmomStateTransportResult
  * callbacks remain runtime physics inputs and are not stored in the state. The
  * source and boundary rates are combined in the discontinuous moment update.
  */
-[[nodiscard]] CqmomStateTransportResult advance_transport_cqmom(const CqmomState& state, double t, double time_step,
-                                                                const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                                const CqmomMomentBoundaryContribution& boundary,
-                                                                const CqmomStateTransportOptions& options);
-
-/**
- * Advance lean fixed-layout CQMOM moments with a zero source callback.
- *
- * This is the same hybrid transport composition as the CQMOM-native source
- * overload, with the discontinuous moment update supplied by a zero
- * CqmomMomentSource.
- *
- * TransportScheme::strang applies
- * continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2).
- * TransportScheme::cd applies continuous(dt) -> discontinuous(dt).
- * TransportScheme::dc applies discontinuous(dt) -> continuous(dt).
- *
- * Adaptive branch evolution is intentionally unsupported for the explicit lean
- * transport API.
- */
-[[nodiscard]] CqmomLeanTransportResult advance_transport_cqmom(const CqmomLeanTransportState& state, double t, double time_step,
-                                                               const PhaseSpaceVelocity& velocity, const CqmomLeanTransportOptions& options = {});
+[[nodiscard]] CqmomTransportResult advance_transport_cqmom(const CqmomState& state, double t, double time_step, const PhaseSpaceVelocity& velocity,
+                                                           const CqmomMomentSource& source, const CqmomMomentBoundaryContribution& boundary,
+                                                           const CqmomTransportOptions& options);
 
 } // namespace qmomkit

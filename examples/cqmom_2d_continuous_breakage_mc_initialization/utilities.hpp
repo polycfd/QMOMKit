@@ -6,12 +6,13 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 namespace cqmom_2d_continuous_breakage
 {
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors);
+void print_configuration_errors(const std::string& error);
 
 void ensure_output_directory(const std::filesystem::path& path);
 

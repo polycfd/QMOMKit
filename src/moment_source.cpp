@@ -1,12 +1,12 @@
 #include "qmomkit/moment_source.hpp"
 
 #include "internal/cqmom_validation.hpp"
-#include "internal/discontinuous_moment_rates.hpp"
 #include "internal/numeric_utils.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <exception>
+#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -81,6 +81,21 @@ namespace
     return CqmomMomentSourceUpdateResult{std::move(moments), MomentSourceUpdateStatus::source_failed, diagnostics, std::move(message)};
 }
 
+void validate_source_context(const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values)
+{
+    if (indices.size() != values.size())
+    {
+        throw std::invalid_argument("CQMOM source context indices and values must have the same size.");
+    }
+    for (const MultiIndex& index : indices)
+    {
+        if (index.size() != hierarchy.number_of_dimensions())
+        {
+            throw std::invalid_argument("CQMOM source context moment indices must match the hierarchy dimension count.");
+        }
+    }
+}
+
 void validate_fixed_cqmom_moment_data(const CqmomMomentData& moments, const char* context)
 {
     internal::validate_fixed_cqmom_moment_data(moments, {std::string(context) + " requires the fixed CQMOM moment layout.",
@@ -125,6 +140,18 @@ void validate_cqmom_boundary_rate(const CqmomMomentRate& rate, const std::size_t
         {"CQMOM boundary contribution rate values must match the source context size.", "CQMOM boundary contribution rate values must be finite."});
 }
 
+void validate_cqmom_stage_state(const std::vector<double>& state, const CqmomMomentLayout& layout)
+{
+    if (state.size() != layout.required_indices.size())
+    {
+        throw std::invalid_argument("CQMOM source stage values must match the fixed layout size.");
+    }
+    if (!internal::all_finite(state))
+    {
+        throw std::invalid_argument("CQMOM source stage values must be finite.");
+    }
+}
+
 [[nodiscard]] std::invalid_argument boundary_callback_error(const std::exception& error)
 {
     return std::invalid_argument(std::string("Moment-boundary contribution callback failed: ") + error.what());
@@ -133,34 +160,6 @@ void validate_cqmom_boundary_rate(const CqmomMomentRate& rate, const std::size_t
 [[nodiscard]] std::invalid_argument cqmom_boundary_callback_error(const std::exception& error)
 {
     return std::invalid_argument(std::string("CQMOM boundary contribution callback failed: ") + error.what());
-}
-
-[[nodiscard]] std::invalid_argument rhs_error_from_qmom_rate_result(const internal::QmomDiscontinuousMomentRateResult& result)
-{
-    if (result.status == internal::DiscontinuousMomentRateStatus::invalid_rate &&
-        result.message == "Moment-source callback rate values must match the moment state size.")
-    {
-        return std::invalid_argument("RHS returned a vector with the wrong size.");
-    }
-    if (result.status == internal::DiscontinuousMomentRateStatus::invalid_rate &&
-        result.message == "Moment-source callback rate values must be finite.")
-    {
-        return std::invalid_argument("RHS returned a non-finite value.");
-    }
-    return std::invalid_argument(result.message);
-}
-
-[[nodiscard]] MomentSource source_rhs_from_rate_evaluator(const MomentSource& source)
-{
-    return [source](const double stage_time, const std::vector<double>& state)
-    {
-        internal::QmomDiscontinuousMomentRateResult rate = internal::evaluate_qmom_discontinuous_moment_rates(stage_time, state, source);
-        if (!rate.ok())
-        {
-            throw rhs_error_from_qmom_rate_result(rate);
-        }
-        return std::move(rate.rates);
-    };
 }
 
 void validate_request(const std::vector<double>& moments, const double t, const double time_step, const MomentSource& source,
@@ -296,13 +295,11 @@ void validate_moment_data_request(const CqmomMomentData& moments, const double t
         // vector size/finite values instead of rebuilding CQMOM metadata.
         const auto rhs = [&layout, &source](const double stage_time, const std::vector<double>& state)
         {
-            internal::CqmomDiscontinuousMomentRateResult rate =
-                internal::evaluate_cqmom_discontinuous_moment_rates(stage_time, CqmomMomentData{layout, state}, source);
-            if (!rate.ok())
-            {
-                throw std::invalid_argument(rate.message);
-            }
-            return std::move(rate.rates->values);
+            validate_cqmom_stage_state(state, layout);
+            const CqmomSourceContext context{stage_time, layout.hierarchy, layout.required_indices, state};
+            CqmomMomentRate rate = source(stage_time, context);
+            validate_rate(rate, context.size());
+            return rate.values;
         };
 
         SspRk3Result step = ssp_rk3_step(moments.values, t, time_step, rhs, options.ssp_rk3_options);
@@ -319,15 +316,51 @@ void validate_moment_data_request(const CqmomMomentData& moments, const double t
 
 } // namespace
 
+CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierarchy& source_hierarchy, const std::vector<MultiIndex>& indices,
+                                       const std::vector<double>& values)
+    : time_(time), hierarchy_(&source_hierarchy), indices_(&indices), values_(&values)
+{
+    if (!std::isfinite(time_))
+    {
+        throw std::invalid_argument("CQMOM source context time must be finite.");
+    }
+    validate_source_context(source_hierarchy, indices, values);
+}
+
 CqmomSourceContext::CqmomSourceContext(const PhaseSpaceHierarchy& source_hierarchy, const std::vector<MultiIndex>& indices,
                                        const std::vector<double>& values)
-    : hierarchy_(&source_hierarchy), indices_(&indices), values_(&values)
+    : CqmomSourceContext(0.0, source_hierarchy, indices, values)
 {
+}
+
+double CqmomSourceContext::time() const noexcept
+{
+    return time_;
+}
+
+std::size_t CqmomSourceContext::moment_count() const noexcept
+{
+    return values_->size();
+}
+
+std::size_t CqmomSourceContext::dimension_count() const noexcept
+{
+    return hierarchy_->number_of_dimensions();
 }
 
 std::size_t CqmomSourceContext::size() const noexcept
 {
-    return values_->size();
+    return moment_count();
+}
+
+const std::vector<MultiIndex>& CqmomSourceContext::indices() const noexcept
+{
+    return *indices_;
+}
+
+const std::vector<double>& CqmomSourceContext::values() const noexcept
+{
+    return *values_;
 }
 
 const MultiIndex& CqmomSourceContext::index(const std::size_t i) const
@@ -338,6 +371,26 @@ const MultiIndex& CqmomSourceContext::index(const std::size_t i) const
 double CqmomSourceContext::value(const std::size_t i) const
 {
     return values_->at(i);
+}
+
+std::optional<std::size_t> CqmomSourceContext::position(const MultiIndex& moment_index) const
+{
+    const auto found = std::find(indices_->begin(), indices_->end(), moment_index);
+    if (found == indices_->end())
+    {
+        return std::nullopt;
+    }
+    return static_cast<std::size_t>(std::distance(indices_->begin(), found));
+}
+
+std::optional<double> CqmomSourceContext::value(const MultiIndex& moment_index) const
+{
+    const std::optional<std::size_t> entry = position(moment_index);
+    if (!entry.has_value())
+    {
+        return std::nullopt;
+    }
+    return value(*entry);
 }
 
 const PhaseSpaceHierarchy& CqmomSourceContext::hierarchy() const noexcept
@@ -359,7 +412,7 @@ MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& 
 
     try
     {
-        const SspRk3Result step = ssp_rk3_step(moments, t, time_step, source_rhs_from_rate_evaluator(source), options.ssp_rk3_options);
+        const SspRk3Result step = ssp_rk3_step(moments, t, time_step, source, options.ssp_rk3_options);
         const MomentSourceUpdateStatus status = status_from_ssp_rk3(step.status);
         const MomentSourceUpdateDiagnostics diagnostics = diagnostics_from_ssp_rk3(step, status);
         const std::string message = diagnostics.message;

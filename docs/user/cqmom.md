@@ -37,8 +37,9 @@ internal storage choices. That description can come from a `.qmom` configuration
 file or from direct C++ setup. In either case, users name or order the
 coordinates, set the requested node counts, choose the conditioning order, and
 describe the initial moments. File-based setup builds a `CqmomCase`; direct C++
-setup can provide explicit public CQMOM case types such as `CqmomDenseCase` or
-`CqmomLeanCase`.
+setup can provide advanced explicit-representation case types such as
+`CqmomDenseCase` or `CqmomLeanCase` when the application intentionally manages
+dense or lean moment storage.
 
 ```text
 configuration file:
@@ -56,7 +57,7 @@ reconstruction:
     -> CqmomResult / CqmomQuadrature
     -> inspect / evaluate / output
 
-optional transport:
+normal optional transport:
     CqmomCase::initial_state()
     -> CqmomState
     -> advance_transport_cqmom(...)
@@ -78,11 +79,12 @@ The result is a set of weighted multidimensional nodes. Each terminal node has
 one global weight and one abscissa per phase-space dimension.
 
 `CqmomCase` is the representation-neutral immutable setup produced by the normal
-configuration loader. Explicit direct C++ workflows can instead pass
-`CqmomDenseCase` or `CqmomLeanCase` to `compute_cqmom(...)`. In all cases,
-`compute_cqmom(...)` returns quadrature; it does not return a transport state.
-`CqmomState` is created separately from `CqmomCase` only when an application
-enters the representation-neutral CQMOM transport workflow.
+configuration loader. Normal CQMOM transport creates `CqmomState` from
+`CqmomCase` and advances it with `advance_transport_cqmom(...)`, independent of
+whether the case stores moments densely or leanly. Advanced direct C++ workflows
+can instead pass `CqmomDenseCase` or `CqmomLeanCase` to `compute_cqmom(...)` for
+explicit static inversion. In all cases, `compute_cqmom(...)` returns
+quadrature; it does not return a transport state.
 
 For the usual CQMOM path, users specify the phase space, initial condition, and
 reconstruction settings. QMOMKit determines which moments are needed for the
@@ -108,17 +110,13 @@ afterward as an optional step.
 int main()
 {
     const auto configured = qmomkit::config::load_cqmom("configuration.qmom");
-    if (!configured.ok())
+    if (!configured)
     {
-        for (const qmomkit::config::ConfigurationError& error : configured.errors)
-        {
-            std::cerr << error.source_name << ':' << error.line << ": "
-                      << error.message << '\n';
-        }
+        std::cerr << configured.error() << '\n';
         return 1;
     }
 
-    const qmomkit::CqmomCase cqmom_case = *configured.value;
+    const qmomkit::CqmomCase cqmom_case = configured.value();
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     if (!result.ok())
@@ -290,10 +288,11 @@ non-negative abscissas in the corresponding dimensions.
 
 ## Advanced Representation Workflows
 
-The workflows in this section are for applications that deliberately manage
-moment storage themselves. They are useful for coupling to existing tensor
-data structures, validation references, or expert transport code. They are not
-required for configuration-driven CQMOM onboarding.
+The workflows in this section are advanced explicit dense and lean
+representations for static inversion, specialized initialization, validation,
+and expert workflows. They are for applications that deliberately manage moment
+storage themselves, and they are not required for configuration-driven CQMOM
+onboarding.
 
 ### Explicit Dense Representation Workflow
 
@@ -337,11 +336,9 @@ a different physical model; it is the compact representation used for the
 moments required by the configured hierarchy and conditioning order. Normal
 configuration workflows build and hide this representation automatically.
 
-For transport, prefer the configured `CqmomState` workflow unless the
-application deliberately manages an explicit dense or lean transport state.
-`CqmomState` transport preserves the configured reconstruction policy and
-supports adaptive branch counts. Dense transport is available for callers that
-intentionally pass a full `RawMomentTensor`; explicit lean transport is
-available for callers that intentionally pass `CqmomLeanTransportState` with a
-fixed moment layout. Use `CqmomState` transport when adaptive branch counts are
-needed during transport.
+For transport, use `CqmomCase::initial_state()` and pass the resulting
+`CqmomState` to `advance_transport_cqmom(...)`. `CqmomState` preserves the
+configured reconstruction policy, selected moment storage, and adaptive
+branch-count topology between successful transport calls. Dense and lean case
+types remain available for callers that intentionally manage static inversion
+inputs, but public CQMOM transport is storage-independent.

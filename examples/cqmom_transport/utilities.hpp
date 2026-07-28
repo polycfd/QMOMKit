@@ -4,12 +4,13 @@
 #include "qmomkit/cqmom.hpp"
 
 #include <filesystem>
+#include <string>
 #include <vector>
 
 namespace cqmom_transport
 {
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors);
+void print_configuration_errors(const std::string& error);
 
 void ensure_output_directory(const std::filesystem::path& path);
 

@@ -62,9 +62,10 @@ multidimensional `RawMomentTensor` compatibility output, advanced lean
 `CqmomQuadrature`.
 
 `QuadratureWriter` writes quadrature histories. Construction opens exactly one
-text file, writes one header row, and each `write(...)` call appends one time
-row. The writer supports one-dimensional `Quadrature1D` or `QmomResult` output
-and multidimensional `CqmomQuadrature` output.
+text file and writes one header row. For one-dimensional `Quadrature1D` or
+`QmomResult` output, each `write(...)` call appends one fixed-width time row.
+For multidimensional `CqmomQuadrature` output, each `write(...)` call appends
+one row per active terminal node.
 
 Both writers write to caller-provided paths. The public writer API does not
 choose application-level filenames. Examples may use names such as
@@ -73,9 +74,9 @@ than writer-owned conventions.
 
 Writers validate structural consistency before writing rows. Examples include
 finite time values, finite output values, matching moment counts, matching
-tensor extents, matching quadrature node counts, and matching CQMOM dimension
-counts. Invalid rows are reported through exceptions rather than silently
-truncated or reshaped.
+tensor extents, matching QMOM quadrature node counts, matching CQMOM dimension
+counts, and aligned CQMOM terminal weights, paths, and abscissas. Invalid rows
+are reported through exceptions rather than silently truncated or reshaped.
 
 ## Moment History Output
 
@@ -151,19 +152,29 @@ The writer accepts `Quadrature1D` and `QmomResult`. Callers are responsible for
 checking numerical status before writing a result object. Output helpers do not
 reinterpret a failed reconstruction as valid numerical data.
 
-For CQMOM quadrature, each terminal node is written as its accumulated terminal
-weight followed by abscissas in phase-space dimension order:
+For CQMOM quadrature, each row represents one active terminal node at one output
+time. The row contains the output time, the terminal node's local index within
+that quadrature, the recursive conditioning path, the accumulated terminal
+weight, and abscissas in phase-space dimension order:
 
 ```text
-# time w0 x0_0 x1_0 w1 x0_1 x1_1
+# time node_index path_0 path_1 weight x0 x1
 ```
 
-Here `xD_N` means the abscissa in phase-space dimension `D` for terminal node
-`N`. The terminal node order is the order exposed by
-`CqmomQuadrature::weights()` and `CqmomQuadrature::abscissas()`. Fixed
-rectangular quadratures use the public fixed hierarchy ordering. Adaptive
-ragged quadratures use the deterministic terminal ordering represented by the
-public quadrature object.
+For `D` phase-space dimensions, the writer emits `path_0` through `path_(D-1)`
+and `x0` through `x(D-1)`. `path_k` is the terminal path entry at conditioning
+level `k`; path entries retain recursive branch identity. `node_index` is local
+to the quadrature at that time and indexes the public terminal arrays.
+
+Multiple rows may share the same time value. Under adaptive CQMOM, the number
+of rows for a given time may change as active terminal node counts change.
+Fixed and adaptive CQMOM use the same terminal-node row format. Users can group
+rows by `time` to reconstruct each saved quadrature.
+
+The terminal node order is the order exposed by `CqmomQuadrature::weights()`,
+`CqmomQuadrature::abscissas()`, and `CqmomQuadrature::terminal_paths()`.
+Each output row preserves alignment across the flat terminal index, path,
+weight, and phase-space coordinates.
 
 `QuadratureWriter` always writes the full quadrature. Node selection, node
 filtering, restart files, visualization formats, checkpoints, parallel I/O, and

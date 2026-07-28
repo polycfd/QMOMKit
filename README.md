@@ -40,7 +40,7 @@ QMOMKit/
 └── README.md
 ```
 
-The main CMake project builds and installs the QMOMKit library. Examples, tests, benchmarks, and companion tools are built separately and use the installed library, following the same workflow as external applications.
+The main CMake project builds and installs the QMOMKit library. Normal tests can be enabled in that same source-tree build so they exercise the current `qmomkit` target. Examples, benchmarks, companion tools, and the installed-package consumer are built separately and use the installed library, following the same workflow as external applications.
 
 ## Installation
 
@@ -78,9 +78,23 @@ QMOMKit includes tests that check the library at several levels:
 - unit tests for local behavior and failure paths;
 - component regression tests for important interactions;
 - verification tests against analytical, manufactured, convergence, or reconstruction references;
-- public-header checks for installed include behavior;
+- public-header checks for current source-tree include behavior;
 - an installed-package smoke test that confirms another CMake project can find,
   include, and link QMOMKit.
+
+Normal unit, regression, verification, and public-header tests link the current
+build-tree QMOMKit target. Installation is not required:
+
+```bash
+cmake -S . -B build-tests \
+    -DQMOMKIT_BUILD_TESTS=ON \
+    -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-tests
+ctest --test-dir build-tests --output-on-failure
+```
+
+The package consumer under `tests/package_consumer/` tests installation and
+downstream `find_package` behavior separately.
 
 Optional standalone benchmarks and internal performance-instrumentation builds
 support performance investigations without changing the core runtime API. See
@@ -108,41 +122,6 @@ Tool documentation:
 
 - [Monte Carlo companion](docs/user/monte_carlo.md)
 - [Plotting helpers](tools/plotting/README.md)
-
-## Typical Workflows
-
-First define a QMOM or CQMOM case. You can load that setup from a `.qmom` file 
-or construct the case directly in C++ when the surrounding application already
-manages setup data.
- 
-A file-based QMOM reconstruction workflow is:
-
-```text
-load_qmom(...) -> QmomCase -> compute_qmom(...)
-```
-
-A file-based CQMOM reconstruction workflow is:
-
-```text
-load_cqmom(...) -> CqmomCase -> compute_cqmom(...)
-```
-
-Direct C++ setup enters the same reconstruction routines with `QmomCase` for
-QMOM or `CqmomCase` for CQMOM.
-
-After reconstruction, users may inspect quadrature, evaluate derived quantities,
-write output, or optionally evolve the distribution. Transport is available for
-both formulations: QMOM transport advances raw moment vectors, while normal
-CQMOM transport advances a `CqmomState` created from the case.
-Configuration files use the `.qmom` extension and describe phase-space
-structure, initial moments or analytical initialization data, and numerical
-options. They are a convenient reproducibility tool, not a requirement for using
-QMOMKit. Physics enters through user-defined callbacks.
-
-Output helpers write QMOMKit-native text tables. `MomentWriter` records native
-integer-order raw moments, while `QuadratureWriter` records reconstructed nodes
-and weights. Generalized moments with real exponents are evaluated separately
-from valid quadrature results.
 
 ## Contributing
 

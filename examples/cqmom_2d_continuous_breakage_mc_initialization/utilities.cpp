@@ -31,6 +31,20 @@ void print_multi_index(const qmomkit::MultiIndex& order)
     std::cout << ']';
 }
 
+void print_path(const qmomkit::ConditioningPath& path)
+{
+    std::cout << '[';
+    for (std::size_t level = 0; level < path.size(); ++level)
+    {
+        if (level > 0)
+        {
+            std::cout << ',';
+        }
+        std::cout << path.node_index_at_level(level);
+    }
+    std::cout << ']';
+}
+
 void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentResult& moments)
 {
     std::cout << label << '\n';
@@ -63,13 +77,13 @@ void print_moment_tensor(const qmomkit::RawMomentTensor& moments)
 
 void print_quadrature(const qmomkit::CqmomQuadrature& quadrature)
 {
-    std::cout << "node  weight          d               u\n";
-    std::size_t node = 0;
-    for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(quadrature.hierarchy()))
+    std::cout << "node  path       weight          d               u\n";
+    for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
     {
-        const std::vector<double> coordinates = quadrature.node(node_index);
-        std::cout << node << "     " << quadrature.weight(node_index) << "   " << coordinates[0] << "   " << coordinates[1] << '\n';
-        ++node;
+        std::cout << node << "     ";
+        print_path(quadrature.terminal_paths()[node]);
+        std::cout << "   " << quadrature.weights()[node] << "   " << quadrature.abscissas()[0][node] << "   " << quadrature.abscissas()[1][node]
+                  << '\n';
     }
 }
 
@@ -83,12 +97,9 @@ void print_run_metadata(const std::size_t sample_count, const unsigned long long
 
 } // namespace
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors)
+void print_configuration_errors(const std::string& error)
 {
-    for (const qmomkit::config::ConfigurationError& error : errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << error << '\n';
 }
 
 void ensure_output_directory(const std::filesystem::path& path)

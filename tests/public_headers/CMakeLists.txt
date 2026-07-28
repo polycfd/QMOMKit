@@ -24,6 +24,6 @@ add_executable(
     include_vandermonde_solver.cpp
     include_wheeler.cpp
 )
-target_link_libraries(test_public_headers PRIVATE qmomkit::qmomkit)
+target_link_libraries(test_public_headers PRIVATE qmomkit)
 add_test(NAME public_headers COMMAND test_public_headers)
 set_tests_properties(public_headers PROPERTIES LABELS public_headers)

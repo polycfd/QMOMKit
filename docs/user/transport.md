@@ -54,11 +54,13 @@ The two main operations are:
   and optional boundary contribution rates.
 
 For a full transport step, QMOMKit can compose these operations with a selected
-transport scheme, or your application can call the lower-level routines
-directly when it needs explicit control.
+transport scheme. Advanced applications can instead call the lower-level
+composable routines directly when they manage individual transport operations
+themselves.
 
-If a model has only continuous phase-space motion, call `advance_nodes(...)`
-and reconstruct moments as needed. If it has only moment-space evolution, call
+If a model has only continuous phase-space motion, the advanced composable
+operation is `advance_nodes(...)`, followed by moment reconstruction as needed.
+If it has only moment-space evolution, the advanced composable operation is
 `advance_moments_with_source(...)`. Use the higher-level
 `advance_transport_qmom(...)` or `advance_transport_cqmom(...)` helpers when
 you want QMOMKit to compose continuous motion and source-like moment evolution
@@ -92,8 +94,8 @@ physical meaning to those coordinates; `x`, `diameter`, `velocity`, or any
 other interpretation comes from your application and must match the
 phase-space order used elsewhere.
 
-Use `advance_nodes(...)` when you already have a quadrature and want to evolve
-only the node positions:
+Use the advanced `advance_nodes(...)` operation when you already have a
+quadrature and want to evolve only the node positions:
 
 ```cpp
 qmomkit::NodeAdvectionOptions node_options;
@@ -144,6 +146,12 @@ realizability checks. Its accuracy is controlled by the timestep chosen by the
 caller. Realizability remains a property of reconstructed moments and later
 quadrature inversions, not of the coordinate trajectory step itself.
 
+Configuration-driven drivers can load the complete node-advection controls
+with `qmomkit::config::load_node_advection_options(...)`. For RK23,
+`NodeAdvectionOptions::rk23_options` carries scalar relative and absolute
+tolerances, optional initial step size, maximum step size, minimum step size,
+and maximum internal accepted steps.
+
 ## Moment Source Terms
 
 Moment sources represent internal or volumetric changes that act directly on
@@ -176,8 +184,8 @@ ordering used by your QMOM setup. CQMOM transport uses the context-specific
 callback below so multidimensional source terms can follow the configured
 CQMOM moment layout.
 
-Use `advance_moments_with_source(...)` when you want to advance only the
-moment-source part of a workflow:
+Use the advanced `advance_moments_with_source(...)` operation when you want to
+advance only the moment-source part of a workflow:
 
 ```cpp
 const qmomkit::MomentSourceUpdateResult update =
@@ -336,9 +344,16 @@ configured hierarchy.
 
 Use:
 
+- `context.time()` for the current SSP-RK source-stage time;
 - `context.size()` for the number of moment entries that need derivatives;
+- `context.moment_count()` as a synonym for that source moment count;
+- `context.dimension_count()` for the hierarchy dimension count;
+- `context.indices()` and `context.values()` for the context-ordered
+  multi-index and value arrays;
 - `context.index(i)` for the `MultiIndex` of entry `i`;
 - `context.value(i)` for the current raw moment value of entry `i`;
+- `context.position(alpha)` or `context.value(alpha)` when a source term needs
+  a particular retained moment by multi-index;
 - `context.hierarchy()` for the CQMOM hierarchy associated with the state.
 
 The returned source values correspond to the context ordering. For entry `i`,
@@ -508,12 +523,12 @@ from the loaded CQMOM case:
 
 ```cpp
 const auto configured = qmomkit::config::load_cqmom("configuration.qmom");
-if (!configured.ok())
+if (!configured)
 {
-    // Report configured.errors, then stop.
+    // Report configured.error(), then stop.
 }
 
-const qmomkit::CqmomCase cqmom_case = *configured.value;
+const qmomkit::CqmomCase cqmom_case = configured.value();
 
 const qmomkit::CqmomResult initial_quadrature = qmomkit::compute_cqmom(cqmom_case);
 if (!initial_quadrature.ok())
@@ -523,7 +538,7 @@ if (!initial_quadrature.ok())
 
 qmomkit::CqmomState state = cqmom_case.initial_state();
 
-qmomkit::CqmomStateTransportOptions options;
+qmomkit::CqmomTransportOptions options;
 options.scheme = qmomkit::TransportScheme::strang;
 
 const qmomkit::CqmomMomentSource cqmom_source =
@@ -533,7 +548,7 @@ const qmomkit::CqmomMomentSource cqmom_source =
             std::vector<double>(context.size(), 0.0)};
     };
 
-const qmomkit::CqmomStateTransportResult result =
+const qmomkit::CqmomTransportResult result =
     qmomkit::advance_transport_cqmom(
         state, time, time_step, velocity, cqmom_source, options);
 
@@ -559,7 +574,7 @@ const qmomkit::CqmomMomentBoundaryContribution cqmom_boundary =
         return qmomkit::CqmomMomentRate{rate};
     };
 
-const qmomkit::CqmomStateTransportResult result_with_boundary =
+const qmomkit::CqmomTransportResult result_with_boundary =
     qmomkit::advance_transport_cqmom(
         state, time, time_step, velocity, cqmom_source, cqmom_boundary, options);
 ```
@@ -569,8 +584,46 @@ Here `compute_cqmom(...)` computes the initial quadrature, while
 
 Adaptive branch counts configured on the `CqmomCase` are preserved by
 `CqmomState` transport. In adaptive mode, the hierarchy node counts remain the
-maximum branch counts; active branch counts are recomputed as part of each
-CQMOM quadrature reconstruction.
+maximum branch counts; the state also retains the current branch-specific
+active counts associated with its ragged quadrature. Continuous node advection
+preserves those active counts.
+
+Source stages choose whether the active counts can grow. The default
+`CqmomTransportOptions::source_node_count_evolution` is
+`allow_growth_to_configured_maximum`, which is appropriate for general
+sources such as breakage that may create additional structure. For zero/no-op
+sources or source models known not to increase rank, set it to
+`preserve_active_counts` so one-node adaptive branches are not reconsidered as
+larger branches only because the configured maximum is larger.
+
+Configuration-driven drivers can read the same policy from:
+
+```text
+[time_integration.cqmom]
+source_node_count_evolution = preserve_active_counts
+```
+
+The accepted values are `preserve_active_counts` and
+`allow_growth_to_configured_maximum`. Adaptive `CqmomState` construction seeds
+active counts from the initial CQMOM inversion; if that inversion fails, state
+construction fails instead of creating a state with inconsistent adaptive
+metadata. Failed CQMOM transport through `CqmomState` returns the previous state
+metadata so callers can retry from the last accepted step.
+
+`CqmomTransportOptions` contains only transport-stage policies: node advection,
+source integration, source node-count evolution, and the C/D sequencing scheme.
+CQMOM inversion policies such as Wheeler options, adaptive branch counts,
+diagnostic level, and Vandermonde solver belong to `CqmomCase` and are preserved
+by `CqmomState`. Successful CQMOM transport through `CqmomState` persists active
+adaptive topology for the next call. Explicit dense and lean case types remain
+available for advanced static inversion and specialized initialization, but
+normal CQMOM transport uses `CqmomCase::initial_state()` and
+`advance_transport_cqmom(...)` with the storage-independent `CqmomState` API.
+
+For storage-independent CQMOM physics, use `CqmomMomentSource` and
+`CqmomMomentBoundaryContribution`. `CqmomSourceContext` exposes the CQMOM moment
+layout selected for transport, with the same indices, values, ordering, hierarchy,
+and lookup behavior for `CqmomState` with dense or lean moment storage.
 
 `result.ok()` identifies whether returned moments or quadrature describe an
 accepted transport step. On failure, `result.message` and `result.diagnostics`
@@ -611,6 +664,29 @@ ssp_rk3
 adaptive_rk23
 ```
 
+Adaptive RK23 controls are configured in a nested section:
+
+```text
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-7
+absolute_tolerance = 1.0e-10
+initial_step = 1.0e-4
+max_step = 1.0e-2
+min_step = 1.0e-12
+max_steps = 200000
+```
+
+Omitted RK23 keys keep the `AdaptiveRk23Options` defaults:
+`relative_tolerance = 1.0e-6`, `absolute_tolerance = 1.0e-9`,
+`initial_step = automatic`, `max_step = full integration interval`,
+`min_step = machine-dependent automatic minimum`, and
+`max_steps = 100000`. Startup summaries in the transport examples report the
+effective node-advection scheme and controls. For fixed-step schemes, the
+summary reports only the selected scheme.
+
 Output can be requested with:
 
 ```text
@@ -624,7 +700,7 @@ interval = 0.1
 Configuration files do not define the velocity callback, source callback,
 boundary contribution callback, or outer time loop. Those remain application
 code. Drivers can read the scheme with the public configuration API and assign
-it to `QmomTransportOptions` or `CqmomStateTransportOptions`. See
+it to `QmomTransportOptions` or `CqmomTransportOptions`. See
 `configuration.md` for the configuration syntax and the example files under:
 
 ```text

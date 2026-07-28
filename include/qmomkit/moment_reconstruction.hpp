@@ -11,26 +11,27 @@ namespace qmomkit
 {
 
 /**
- * Reconstruct one-dimensional raw moments from a successful QMOM quadrature
- * rule using the convention m_k = sum_i w_i x_i^k.
+ * Advanced composable operation: reconstruct one-dimensional raw moments from
+ * a successful QMOM quadrature rule using m_k = sum_i w_i x_i^k.
  */
 [[nodiscard]] std::vector<double> reconstruct_raw_moments(const Quadrature1D& quadrature, std::size_t moment_count);
 
 /**
- * Reconstruct multidimensional raw moments from terminal CQMOM quadrature
- * nodes using phase-space-dimension moment ordering.
+ * Advanced composable operation: reconstruct multidimensional raw moments
+ * from terminal CQMOM quadrature nodes using phase-space-dimension ordering.
  */
 [[nodiscard]] RawMomentTensor reconstruct_raw_moments(const CqmomQuadrature& quadrature, const std::vector<std::size_t>& extents);
 
 /**
- * Reconstruct selected multidimensional raw moments from terminal CQMOM
- * quadrature nodes using the exact request order and phase-space indices.
+ * Advanced composable operation: reconstruct selected multidimensional raw
+ * moments from terminal CQMOM quadrature nodes using the exact request order
+ * and phase-space indices.
  */
 [[nodiscard]] SelectedRawMomentResult reconstruct_raw_moments(const CqmomQuadrature& quadrature, const RawMomentRequest& request);
 
 /**
- * Reconstruct only the raw moments required by a fixed CQMOM moment layout
- * from terminal CQMOM quadrature nodes.
+ * Advanced composable operation: reconstruct only the raw moments required by
+ * a fixed CQMOM moment layout from terminal CQMOM quadrature nodes.
  *
  * The returned values are aligned with `layout.required_indices`, whose
  * multi-indices are ordered by phase-space dimension. Fixed rectangular and

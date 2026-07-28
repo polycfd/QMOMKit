@@ -30,19 +30,11 @@ int main(const int argc, char** argv)
     const auto configured = qmomkit::config::load_qmom(configuration_path);
     if (!configured.ok())
     {
-        for (const qmomkit::config::ConfigurationError& error : configured.errors)
-        {
-            std::cerr << error.source_name;
-            if (error.line != 0)
-            {
-                std::cerr << ':' << error.line;
-            }
-            std::cerr << ": " << error.message << '\n';
-        }
+        std::cerr << configured.error() << '\n';
         return 1;
     }
 
-    const qmomkit::verification::QmomVerificationResult result = qmomkit::verification::verify_qmom_case(*analytical_case, *configured.value);
+    const qmomkit::verification::QmomVerificationResult result = qmomkit::verification::verify_qmom_case(*analytical_case, configured.value());
     std::cout << "QMOMKit one-dimensional QMOM analytical verification\n";
     std::cout << "Configuration: " << configuration_path << '\n';
     std::cout << "Tolerance: " << std::scientific << qmomkit::verification::qmom_analytical_tolerance << " (absolute and relative)\n\n";

@@ -2,11 +2,11 @@
 
 #include "qmomkit/configuration.hpp"
 
-#include <vector>
+#include <string>
 
 namespace qmom_1d_continuous_breakage
 {
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors);
+void print_configuration_errors(const std::string& error);
 
 } // namespace qmom_1d_continuous_breakage

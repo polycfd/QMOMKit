@@ -92,6 +92,15 @@ m_alpha = sum_j W_j product_r xi_(r,j)^alpha_r
 This reconstruction is the handoff from continuous node motion back to the
 moment representation used by source evolution and later inversions.
 
+For adaptive CQMOM, the phase-space hierarchy node counts remain the
+configured maximum branch capacity throughout transport. The current active
+branch counts are separate runtime state: they are extracted from the ragged
+terminal paths of each successful adaptive CQMOM quadrature and stored on
+`CqmomState` beside the current moments. Continuous node advection preserves
+terminal paths and therefore preserves active branch topology. Moment
+reconstruction updates values only; it must not replace configured maximum
+counts with active counts or discard the active-count metadata.
+
 ## Moment Source And Boundary Contribution Design
 
 Moment source evolution advances raw moments directly:
@@ -130,18 +139,18 @@ phase-space boundary physics. It is not a PDE boundary-condition framework and
 does not introduce boundary geometry, node clipping, reflection, mesh faces, or
 finite-volume concepts.
 
-For QMOM, the vector is the one-dimensional raw moment sequence. In the
-explicit dense representation workflow, the CQMOM vector is
-`RawMomentTensor::values` using the existing tensor extents and
-phase-space-order flattening. Normal CQMOM state transport uses the
-CQMOM-native source callback over a
-`CqmomSourceContext` view of the state's current required moments; it does not
-require callers to construct a dense tensor or depend on the lean moment
-storage representation.
+For QMOM, the vector is the one-dimensional raw moment sequence. CQMOM transport
+uses the CQMOM-native source callback over a `CqmomSourceContext` view of the
+current source moments, so physical CQMOM source models do not need to depend on
+dense tensor or lean required-moment storage. Equivalent dense-backed and
+lean-backed `CqmomState` objects expose the same selected CQMOM transport moment
+layout; dense-only tensor entries remain internal unless they are part of that
+layout.
 
 The CQMOM source context exposes only:
 
 - the phase-space hierarchy;
+- the SSP-RK stage time;
 - the number of source moment entries;
 - the raw moment multi-index for each entry;
 - the raw moment value for each entry.
@@ -221,10 +230,41 @@ Adaptive RK23 may take internal accepted and rejected trial steps to reach the
 requested end time. It is useful when QMOMKit should control trajectory
 accuracy inside a larger transport macro step.
 
+Configuration-driven drivers load the full `NodeAdvectionOptions` object from
+`[time_integration.node_advection]` and the nested
+`[time_integration.node_advection.rk23]` section. Startup reporting should use
+the shared node-advection formatter so fixed-step runs report only the active
+scheme, while RK23 runs also report effective tolerances, automatic step-size
+controls, and the maximum internal accepted-step count.
+
 Node advection does not perform realizability checks. It moves already
 reconstructed quadrature coordinates and preserves weights; realizability is
 checked through quadrature inversion or caller-supplied moment-state policies
 after reconstruction or source updates.
+
+For adaptive CQMOM transport through `CqmomState`, active branch counts are part
+of accepted state metadata. `CqmomCase::initial_state()` seeds that metadata from
+the initial trusted inversion and fails state construction if the initial
+adaptive topology cannot be reconstructed. Later state inversions validate
+supplied active-count metadata strictly: there must be exactly one reachable
+entry per active branch, configured node-count metadata must match the hierarchy,
+active counts must be within configured capacity, and stale or unreachable
+descendant entries are rejected. During a source-stage inversion with preserved
+active counts, if an ancestor branch changes active count, descendant limits
+below the new branch are invalidated top-down and recomputed from configured
+capacity so numeric path reuse does not apply stale branch limits after a
+collapse or merge. Diagnostics report only true node-count transitions and
+distinguish reduced, grown, created, and removed branch records.
+
+`CqmomTransportOptions` owns transport-stage policies: node-advection/RK23
+controls, moment-source SSP-RK3 controls, source-stage node-count evolution, and
+transport sequencing. Conditional moment controls, QMOM/Wheeler controls,
+adaptive branch-count enablement, CQMOM diagnostic level, and Vandermonde solver
+selection are case-owned policies stored in `CqmomState`. Dense-backed and
+lean-backed states must pass these policies through to the same recursive
+CQMOM, node-advection, moment-reconstruction, and source-update algorithms;
+accepting a configured case policy and replacing it with `false`, `detailed`,
+`automatic`, or another aggregate default is a bug.
 
 ### Source SSP-RK3
 
@@ -554,6 +594,26 @@ a successful source update, QMOM or CQMOM inversion is attempted again; if the
 updated raw moments are not invertible under the configured reconstruction
 options, transport reports an inversion failure.
 
+Adaptive CQMOM source stages have an explicit branch-count evolution policy:
+
+- `preserve_active_counts`: post-source inversion uses the current
+  branch-specific active counts as the branch-local capacity. Adaptive Wheeler
+  may reduce a branch further, but it does not reconsider a one-node branch as
+  a two-node branch merely because the hierarchy capacity is two. Use this for
+  zero/no-op sources, continuous-only physical evolution composed through the
+  hybrid helper, and source models known not to increase quadrature rank.
+- `allow_growth_to_configured_maximum`: post-source inversion may use the
+  hierarchy's configured maximum counts and may grow active branches when the
+  source-updated moments support additional nodes. This is the default because
+  it preserves the existing general-source semantics for binary breakage and
+  other discontinuous source terms that may create additional structure.
+
+After every successful inversion during CQMOM transport through `CqmomState`,
+the returned state is refreshed with the active counts extracted from the
+returned quadrature. Structured transport diagnostics record branch path,
+configured maximum count, active count before and after the stage, selected
+evolution policy, and whether a rank reduction or growth occurred.
+
 Node advection preserves weights and moves an already accepted quadrature.
 The moment reconstruction after node advection is a deterministic summation
 from the moved quadrature; it is not a separate physical source model.
@@ -591,62 +651,25 @@ QmomTransportResult advance_transport_qmom(
     const MomentBoundaryContribution& boundary,
     const QmomTransportOptions& options);
 
-CqmomDenseTransportResult advance_transport_cqmom(
-    const RawMomentTensor& moments,
-    const PhaseSpaceHierarchy& hierarchy,
-    double t,
-    double time_step,
-    const PhaseSpaceVelocity& velocity,
-    const MomentSource& source,
-    const CqmomDenseTransportOptions& options = {});
-
-CqmomDenseTransportResult advance_transport_cqmom(
-    const RawMomentTensor& moments,
-    const PhaseSpaceHierarchy& hierarchy,
-    double t,
-    double time_step,
-    const PhaseSpaceVelocity& velocity,
-    const MomentSource& source,
-    const MomentBoundaryContribution& boundary,
-    const CqmomDenseTransportOptions& options);
-
-CqmomLeanTransportResult advance_transport_cqmom(
-    const CqmomLeanTransportState& state,
-    double t,
-    double time_step,
-    const PhaseSpaceVelocity& velocity,
-    const CqmomMomentSource& source,
-    const CqmomLeanTransportOptions& options = {});
-
-CqmomLeanTransportResult advance_transport_cqmom(
-    const CqmomLeanTransportState& state,
-    double t,
-    double time_step,
-    const PhaseSpaceVelocity& velocity,
-    const CqmomMomentSource& source,
-    const CqmomMomentBoundaryContribution& boundary,
-    const CqmomLeanTransportOptions& options);
-
-CqmomStateTransportResult advance_transport_cqmom(
+CqmomTransportResult advance_transport_cqmom(
     const CqmomState& state,
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,
     const CqmomMomentSource& source,
-    const CqmomStateTransportOptions& options = {});
+    const CqmomTransportOptions& options = {});
 
-CqmomStateTransportResult advance_transport_cqmom(
+CqmomTransportResult advance_transport_cqmom(
     const CqmomState& state,
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,
     const CqmomMomentSource& source,
     const CqmomMomentBoundaryContribution& boundary,
-    const CqmomStateTransportOptions& options);
+    const CqmomTransportOptions& options);
 ```
 
-The CQMOM source callback used by the lean and state transport APIs has the
-shape:
+The CQMOM source callback used by transport through `CqmomState` has the shape:
 
 ```cpp
 using CqmomMomentSource =
@@ -665,24 +688,39 @@ The boundary-aware transport overloads require the options argument explicitly.
 This keeps overload resolution unambiguous while preserving default options on
 the source-only overloads.
 
-`advance_transport_cqmom(const CqmomState&, ...)` is the recommended CQMOM
-transport API for configured workflows. `CqmomState` stores fixed maximum
-required moments and reconstruction policy while remaining representation
-neutral to callers. Adaptive branch topology is not stored permanently in the
-state; active branch counts are determined during reconstruction, and the
-returned `CqmomQuadrature` may contain adaptive ragged terminal storage.
+`CqmomSourceContext` exposes the CQMOM moment layout selected for transport.
+For equivalent states, dense-backed and lean-backed `CqmomState` transport must
+present identical context indices, values, ordering, hierarchy, and lookup
+behavior to `CqmomMomentSource` and `CqmomMomentBoundaryContribution`. Dense
+storage may retain additional raw tensor moments internally, but those dense-only
+entries are not part of the callback context unless they are also in the
+transport CQMOM moment layout.
 
-`CqmomLeanTransportOptions` and `CqmomLeanTransportResult` support the
-explicit lean representation workflow for callers that intentionally manage
-required CQMOM moments. This explicit lean transport API is a fixed-layout
-moment transport boundary: it does not currently expose adaptive branch-count
-evolution controls. Adaptive branch-count transport is supported through the
-recommended `CqmomState` workflow above; the explicit lean restriction is an API
-boundary, not a numerical limitation of recursive CQMOM reconstruction.
+CQMOM source callbacks update the canonical transport-layout moments. After a
+successful source-stage inversion, the accepted quadrature becomes the canonical
+branch representation for the returned state. Lean storage reconstructs the
+retained CQMOM layout from that quadrature. Dense storage reconstructs the
+complete configured dense tensor from that quadrature, including higher-order or
+mixed tensor entries that were not exposed to the source callback. Dense-only
+moments are therefore closure moments implied by the accepted quadrature, not
+independently transported source variables.
 
-`CqmomDenseTransportOptions` and `CqmomDenseTransportResult` support the
-explicit dense representation workflow for callers that intentionally manage
-full rectangular tensor moments.
+`advance_transport_cqmom(const CqmomState&, ...)` is the only public CQMOM
+transport API. `CqmomState` stores the selected dense or lean moment
+representation, reconstruction policy, and current active branch-count metadata
+while remaining representation neutral to callers. In adaptive mode, the
+hierarchy node counts are configured maxima. `CqmomState::active_branch_counts()`
+reports the current ragged topology using conditioning-level parent paths. The
+returned `CqmomQuadrature` may contain adaptive ragged terminal storage, and
+successful CQMOM transport through `CqmomState` stores that topology for the next
+macro step.
+
+`CqmomTransportOptions` contains only transport-stage policies. CQMOM inversion
+policies such as Wheeler options, conditional reconstruction options, adaptive
+branch counts, diagnostic level, and Vandermonde solver are case-owned policies
+preserved by `CqmomState`. `CqmomDenseCase` and `CqmomLeanCase` remain public
+advanced/static inversion inputs, but public CQMOM transport remains the
+storage-independent `CqmomState` API.
 
 The lower-level public helpers are:
 

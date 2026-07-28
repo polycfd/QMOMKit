@@ -1,5 +1,5 @@
 add_executable(node_advection_analytical_verification node_advection_analytical.cpp)
-target_link_libraries(node_advection_analytical_verification PRIVATE qmomkit::qmomkit)
+target_link_libraries(node_advection_analytical_verification PRIVATE qmomkit)
 foreach(case_name IN ITEMS constant_velocity linear_growth affine_evolution linear_system_2d)
     if(case_name STREQUAL affine_evolution)
         set(test_name verification_node_advection_affine)

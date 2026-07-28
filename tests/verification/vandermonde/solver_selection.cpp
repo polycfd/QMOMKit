@@ -268,10 +268,7 @@ void compare_dense_and_bp(const qmomkit::CqmomResult& dense, const qmomkit::Cqmo
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomDenseCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 } // namespace
@@ -313,12 +310,12 @@ int main(const int argc, char** argv)
             print_configuration_errors(configured);
             return 1;
         }
-        if (configured.value->vandermonde_solver != solver_case.requested_solver)
+        if (configured.value().vandermonde_solver != solver_case.requested_solver)
         {
             append_failure(verification, solver_case.name + " configuration did not load the requested solver policy.");
         }
 
-        qmomkit::CqmomDenseCase dense_case = *configured.value;
+        qmomkit::CqmomDenseCase dense_case = configured.value();
         const qmomkit::CqmomResult result = qmomkit::compute_cqmom(dense_case);
         if (!result.ok())
         {

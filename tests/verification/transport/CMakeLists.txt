@@ -1,5 +1,5 @@
 add_executable(transport_analytical_verification transport_analytical.cpp)
-target_link_libraries(transport_analytical_verification PRIVATE qmomkit::qmomkit)
+target_link_libraries(transport_analytical_verification PRIVATE qmomkit)
 foreach(case_name IN ITEMS commuting_qmom qmom_boundary_contribution qmom_transport_failures qmom_transport_inversion_failures noncommuting_qmom
                            commuting_cqmom_2d cqmom_boundary_contribution commuting_cqmom_state_adaptive_2d cqmom_native_source
                            cqmom_combined_native_source cqmom_native_source_failures

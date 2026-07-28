@@ -15,14 +15,13 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 option(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION "Enable internal QMOMKit performance instrumentation counters" OFF)
+option(QMOMKIT_BUILD_TESTS "Build QMOMKit tests" OFF)
 
 add_library(
     qmomkit
     src/conditional_moments.cpp
     src/conditioning_path.cpp
     src/configuration.cpp
-    src/continuous_moment_rates.cpp
-    src/discontinuous_moment_rates.cpp
     src/distributions.cpp
     src/internal/linear_algebra.cpp
     src/internal/vandermonde.cpp
@@ -74,7 +73,6 @@ install(
         include/qmomkit/cqmom.hpp
         include/qmomkit/distributions.hpp
         include/qmomkit/moment_set.hpp
-        include/qmomkit/moment_rates.hpp
         include/qmomkit/moment_source.hpp
         include/qmomkit/multi_index.hpp
         include/qmomkit/node_advection.hpp
@@ -118,5 +116,10 @@ install(
         "${CMAKE_CURRENT_BINARY_DIR}/QMOMKitConfigVersion.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/QMOMKit
 )
+
+if(QMOMKIT_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 message(STATUS "QMOMKit build type: ${CMAKE_BUILD_TYPE}")

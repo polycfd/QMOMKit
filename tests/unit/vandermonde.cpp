@@ -327,6 +327,25 @@ void test_wrapper_bp_fallback_uses_dense_on_repeated_nodes()
     assert(result.message == singular_message);
 }
 
+void test_bp_fallback_validates_residual_independent_of_optional_diagnostics()
+{
+    const std::vector<double> abscissas{-0.75, -0.1, 0.4, 0.9};
+    const std::vector<double> weights{0.25, 0.5, -0.75, 1.25};
+    const qmomkit::internal::DenseMatrix expected_solution = make_patterned_solution(4, 8);
+    const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected_solution);
+
+    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, singular_tolerance,
+                                                             false, -1.0};
+    const qmomkit::internal::VandermondeSolveResult result =
+        qmomkit::internal::solve_weighted_vandermonde(abscissas, weights, rhs, options, singular_message);
+
+    assert(result.success);
+    assert(result.requested_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
+    assert(result.selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
+    assert(result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::dense);
+    assert(result.dense_fallback_occurred);
+}
+
 void test_invalid_inputs_fail()
 {
     assert_singular_failure({}, {}, qmomkit::internal::DenseMatrix(0, 1), "Weighted Vandermonde system must not be empty.");
@@ -355,6 +374,7 @@ int main()
     test_small_weight_failure();
     test_zero_weight_failure();
     test_wrapper_bp_fallback_uses_dense_on_repeated_nodes();
+    test_bp_fallback_validates_residual_independent_of_optional_diagnostics();
     test_invalid_inputs_fail();
 
     return 0;

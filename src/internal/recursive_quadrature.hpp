@@ -213,6 +213,7 @@ struct RecursiveQuadratureMomentViewRequest
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
     const CqmomMomentLayout* validated_layout = nullptr;
+    std::vector<CqmomActiveBranchCount> active_branch_counts;
 };
 
 struct RecursiveQuadratureMomentDataRequest
@@ -224,6 +225,7 @@ struct RecursiveQuadratureMomentDataRequest
     bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
+    std::vector<CqmomActiveBranchCount> active_branch_counts;
 };
 
 struct RecursiveQuadratureBranchDiagnostics

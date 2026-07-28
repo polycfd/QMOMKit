@@ -48,21 +48,31 @@ using MomentBoundaryContribution = std::function<MomentBoundaryRate(double, cons
  * Non-owning mathematical view of the current CQMOM source state.
  *
  * Entries are ordered consistently with the derivative values expected from a
- * `CqmomMomentSource`. The context exposes only phase-space hierarchy,
- * moment multi-indices, and moment values; it does not expose the underlying
- * CQMOM moment storage representation.
+ * `CqmomMomentSource`. The context exposes the CQMOM moment layout selected for
+ * transport, along with phase-space hierarchy, stage time, moment multi-indices,
+ * and moment values. That layout is independent of the underlying dense or lean
+ * CQMOM moment storage backend.
  */
 class CqmomSourceContext
 {
 public:
+    CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values);
     CqmomSourceContext(const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values);
 
+    [[nodiscard]] double time() const noexcept;
+    [[nodiscard]] std::size_t moment_count() const noexcept;
+    [[nodiscard]] std::size_t dimension_count() const noexcept;
     [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] const std::vector<MultiIndex>& indices() const noexcept;
+    [[nodiscard]] const std::vector<double>& values() const noexcept;
     [[nodiscard]] const MultiIndex& index(std::size_t i) const;
     [[nodiscard]] double value(std::size_t i) const;
+    [[nodiscard]] std::optional<std::size_t> position(const MultiIndex& moment_index) const;
+    [[nodiscard]] std::optional<double> value(const MultiIndex& moment_index) const;
     [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
 
 private:
+    double time_ = 0.0;
     const PhaseSpaceHierarchy* hierarchy_;
     const std::vector<MultiIndex>* indices_;
     const std::vector<double>* values_;
@@ -80,7 +90,7 @@ struct CqmomMomentRate
 };
 
 /**
- * CQMOM-native source callback over required raw moments.
+ * CQMOM-native source callback over the transport CQMOM moment layout.
  *
  * The callback receives the current CQMOM source context and returns one
  * derivative value per context entry, in context order.
@@ -148,35 +158,37 @@ struct CqmomMomentSourceUpdateResult
 };
 
 /**
- * Advance a raw-moment vector through a discontinuous source operator using
- * the existing SSP-RK3 integrator. Optional acceptability checks are supplied
- * through `options.ssp_rk3_options.accept`; rejected candidates use the
- * SSP-RK3 retry policy with timestep halving.
+ * Advanced composable operation: advance a raw-moment vector through a
+ * discontinuous source operator using the existing SSP-RK3 integrator.
+ * Optional acceptability checks are supplied through
+ * `options.ssp_rk3_options.accept`; rejected candidates use the SSP-RK3 retry
+ * policy with timestep halving.
  */
 [[nodiscard]] MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, double t, double time_step,
                                                                    const MomentSource& source, const MomentSourceUpdateOptions& options = {});
 
 /**
- * Advance raw moments through a generic source plus an additive phase-space
- * boundary exchange contribution using the same SSP-RK3 source-update path.
+ * Advanced composable operation: advance raw moments through a generic source
+ * plus an additive phase-space boundary exchange contribution using the same
+ * SSP-RK3 source-update path.
  */
 [[nodiscard]] MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, double t, double time_step,
                                                                    const MomentSource& source, const MomentBoundaryContribution& boundary,
                                                                    const MomentSourceUpdateOptions& options);
 
 /**
- * Advance fixed-layout CQMOM moments through a source operator using the
- * existing vector SSP-RK3 integrator. The RK stages are exposed to the CQMOM
- * source callback through `CqmomSourceContext`.
+ * Advanced composable operation: advance fixed-layout CQMOM moments through a
+ * source operator using the existing vector SSP-RK3 integrator. The RK stages
+ * are exposed to the CQMOM source callback through `CqmomSourceContext`.
  */
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
                                                                               const CqmomMomentSource& source,
                                                                               const MomentSourceUpdateOptions& options = {});
 
 /**
- * Advance fixed-layout CQMOM moments through a generic source plus an additive
- * phase-space boundary exchange contribution using the same SSP-RK3
- * source-update path.
+ * Advanced composable operation: advance fixed-layout CQMOM moments through a
+ * generic source plus an additive phase-space boundary exchange contribution
+ * using the same SSP-RK3 source-update path.
  */
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
                                                                               const CqmomMomentSource& source,

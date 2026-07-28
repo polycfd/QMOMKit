@@ -108,17 +108,13 @@ afterward as an optional step.
 int main()
 {
     const auto configured = qmomkit::config::load_cqmom("configuration.qmom");
-    if (!configured.ok())
+    if (!configured)
     {
-        for (const qmomkit::config::ConfigurationError& error : configured.errors)
-        {
-            std::cerr << error.source_name << ':' << error.line << ": "
-                      << error.message << '\n';
-        }
+        std::cerr << configured.error() << '\n';
         return 1;
     }
 
-    const qmomkit::CqmomCase cqmom_case = *configured.value;
+    const qmomkit::CqmomCase cqmom_case = configured.value();
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     if (!result.ok())

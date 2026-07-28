@@ -24,12 +24,9 @@ std::ofstream open_output_file(const std::filesystem::path& path)
 
 } // namespace
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors)
+void print_configuration_errors(const std::string& error)
 {
-    for (const qmomkit::config::ConfigurationError& error : errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << error << '\n';
 }
 
 void print_common_run_summary(std::ostream& stream, const std::string_view workflow, const std::filesystem::path& configuration_file,

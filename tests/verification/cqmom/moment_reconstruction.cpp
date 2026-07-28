@@ -92,18 +92,12 @@ double analytical_qmom_moment(const std::size_t order)
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 void verify_qmom_dense_reconstruction(VerificationResult& verification)
@@ -268,7 +262,7 @@ int main(const int argc, char** argv)
         return 1;
     }
 
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(*configured.value);
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(configured.value());
     if (!cqmom.ok())
     {
         std::cerr << "Unable to compute reference CQMOM quadrature: " << cqmom.message << '\n';
@@ -278,8 +272,8 @@ int main(const int argc, char** argv)
     VerificationResult verification;
     verify_qmom_dense_reconstruction(verification);
     verify_selected_cqmom_reconstruction(cqmom.quadrature, verification);
-    verify_cqmom_required_layout_reconstruction(cqmom.quadrature, lean.value->moments.layout, verification);
-    verify_cqmom_reconstruction_failures(cqmom.quadrature, lean.value->moments.layout, verification);
+    verify_cqmom_required_layout_reconstruction(cqmom.quadrature, lean.value().moments.layout, verification);
+    verify_cqmom_reconstruction_failures(cqmom.quadrature, lean.value().moments.layout, verification);
 
     std::cout << "QMOMKit raw moment reconstruction verification\n";
     std::cout << "Configuration: " << configuration_path << '\n';

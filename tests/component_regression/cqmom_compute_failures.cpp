@@ -118,9 +118,9 @@ void verify_nonrealizable_public_workflows()
     QMOMKIT_VERIFY_CHECK(dense_case.ok());
     QMOMKIT_VERIFY_CHECK(lean_case.ok());
 
-    verify_nonrealizable_result("default CqmomCase", qmomkit::compute_cqmom(*default_case.value));
-    verify_nonrealizable_result("dense CqmomDenseCase", qmomkit::compute_cqmom(*dense_case.value));
-    verify_nonrealizable_result("lean CqmomLeanCase", qmomkit::compute_cqmom(*lean_case.value));
+    verify_nonrealizable_result("default CqmomCase", qmomkit::compute_cqmom(default_case.value()));
+    verify_nonrealizable_result("dense CqmomDenseCase", qmomkit::compute_cqmom(dense_case.value()));
+    verify_nonrealizable_result("lean CqmomLeanCase", qmomkit::compute_cqmom(lean_case.value()));
 }
 
 void verify_dense_invalid_result(const std::string& case_name, const qmomkit::CqmomResult& result, const std::string& expected_message)

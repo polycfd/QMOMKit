@@ -5,12 +5,9 @@
 namespace qmom_1d_continuous_breakage
 {
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors)
+void print_configuration_errors(const std::string& error)
 {
-    for (const qmomkit::config::ConfigurationError& error : errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << error << '\n';
 }
 
 } // namespace qmom_1d_continuous_breakage

@@ -347,14 +347,14 @@ VerificationResult verify_qmom_case(const CaseDefinition& definition, const std:
         append_failure(result, "Failed to load QMOM configuration.");
         return result;
     }
-    const qmomkit::QmomResult qmom = qmomkit::compute_qmom(*configured.value);
+    const qmomkit::QmomResult qmom = qmomkit::compute_qmom(configured.value());
     if (!qmom.ok())
     {
         append_failure(result, "Initial QMOM inversion failed: " + qmom.message);
         return result;
     }
     const qmomkit::Quadrature1D initial{qmom.abscissas, qmom.weights, qmomkit::QuadratureStatus::success, qmom.message};
-    verify_initial_qmom_state(definition, *configured.value, initial, result);
+    verify_initial_qmom_state(definition, configured.value(), initial, result);
     verify_qmom_plan(definition, initial, definition.one_step, accurate_options(), result);
     verify_qmom_plan(definition, initial, definition.multi_step, accurate_options(), result);
     if (definition.name == "linear_growth")
@@ -549,7 +549,7 @@ VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std
         append_failure(result, "Failed to load CQMOM configuration.");
         return result;
     }
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(*configured.value);
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(configured.value());
     if (!cqmom.ok())
     {
         append_failure(result, "Initial CQMOM inversion failed: " + cqmom.message);
@@ -563,9 +563,9 @@ VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std
     {
         append_failure(result, "2D linear-system case did not produce the expected adaptive ragged CQMOM quadrature.");
     }
-    verify_initial_cqmom_state(*configured.value, cqmom.quadrature, result);
-    verify_cqmom_plan(cqmom.quadrature, definition.one_step, configured.value->moments.extents, result);
-    verify_cqmom_plan(cqmom.quadrature, definition.multi_step, configured.value->moments.extents, result);
+    verify_initial_cqmom_state(configured.value(), cqmom.quadrature, result);
+    verify_cqmom_plan(cqmom.quadrature, definition.one_step, configured.value().moments.extents, result);
+    verify_cqmom_plan(cqmom.quadrature, definition.multi_step, configured.value().moments.extents, result);
     return result;
 }
 

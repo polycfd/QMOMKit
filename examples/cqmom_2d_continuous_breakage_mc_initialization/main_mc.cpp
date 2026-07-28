@@ -31,23 +31,23 @@ int main()
             return 1;
         }
 
-        const auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(*configuration_text, configuration_file.string());
-        if (!initial_condition.ok())
+        auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(*configuration_text, configuration_file.string());
+        if (!initial_condition)
         {
-            cqmom_2d_continuous_breakage::print_configuration_errors(initial_condition.errors);
+            cqmom_2d_continuous_breakage::print_configuration_errors(initial_condition.error());
             return 1;
         }
 
-        const auto output_configured = qmomkit::config::load_output_options(configuration_file);
-        if (!output_configured.ok())
+        auto output_configured = qmomkit::config::load_output_options(configuration_file);
+        if (!output_configured)
         {
-            cqmom_2d_continuous_breakage::print_configuration_errors(output_configured.errors);
+            cqmom_2d_continuous_breakage::print_configuration_errors(output_configured.error());
             return 1;
         }
-        const qmomkit::OutputOptions output_options = *output_configured.value;
+        const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
         const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-            cqmom_2d_continuous_breakage::sample_initial_distribution(*initial_condition.value);
+            cqmom_2d_continuous_breakage::sample_initial_distribution(std::move(initial_condition).value());
         if (!sampled.has_value())
         {
             return 1;

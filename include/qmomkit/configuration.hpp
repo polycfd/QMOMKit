@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -37,15 +38,53 @@ struct ConfigurationError
     std::string message;
 };
 
-template <class T> struct ConfigurationResult
+template <class T> class ConfigurationResult
 {
-    std::optional<T> value;
-    std::vector<ConfigurationError> errors;
+public:
+    ConfigurationResult() = default;
+
+    ConfigurationResult(T value) : value_(std::move(value)) {}
+
+    [[nodiscard]] static ConfigurationResult failure(std::string error)
+    {
+        ConfigurationResult result;
+        result.error_ = std::move(error);
+        return result;
+    }
 
     [[nodiscard]] bool ok() const noexcept
     {
-        return value.has_value() && errors.empty();
+        return value_.has_value() && error_.empty();
     }
+
+    [[nodiscard]] explicit operator bool() const noexcept
+    {
+        return ok();
+    }
+
+    [[nodiscard]] T& value() &
+    {
+        return value_.value();
+    }
+
+    [[nodiscard]] const T& value() const&
+    {
+        return value_.value();
+    }
+
+    [[nodiscard]] T value() &&
+    {
+        return std::move(value_).value();
+    }
+
+    [[nodiscard]] const std::string& error() const noexcept
+    {
+        return error_;
+    }
+
+private:
+    std::optional<T> value_;
+    std::string error_;
 };
 
 struct ExplicitMomentInitialization
@@ -163,6 +202,12 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 [[nodiscard]] ConfigurationResult<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution(std::string_view text,
                                                                                                    std::string source_name = "<string>");
 
+/** Parse QMOM transport options from optional runtime configuration. */
+[[nodiscard]] ConfigurationResult<QmomTransportOptions> parse_qmom_transport_options(std::string_view text, std::string source_name = "<string>");
+
+/** Parse CQMOM transport options from optional runtime configuration. */
+[[nodiscard]] ConfigurationResult<CqmomTransportOptions> parse_cqmom_transport_options(std::string_view text, std::string source_name = "<string>");
+
 /** Parse optional output configuration. */
 [[nodiscard]] ConfigurationResult<OutputOptions> parse_output_options(std::string_view text, std::string source_name = "<string>");
 
@@ -189,5 +234,14 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 
 /** Load and parse CQMOM source-stage active branch-count policy from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<CqmomNodeCountEvolution> load_cqmom_source_node_count_evolution(const std::filesystem::path& filename);
+
+/** Load and parse runtime realizability policy configuration from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<RealizabilityPolicy> load_realizability_policy(const std::filesystem::path& filename);
+
+/** Load and parse QMOM transport options from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<QmomTransportOptions> load_qmom_transport_options(const std::filesystem::path& filename);
+
+/** Load and parse CQMOM transport options from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<CqmomTransportOptions> load_cqmom_transport_options(const std::filesystem::path& filename);
 
 } // namespace qmomkit::config

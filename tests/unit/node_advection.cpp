@@ -167,7 +167,7 @@ absolute_tolerance = 1.0e-9
     quadrature.weights = {1.0};
 
     const qmomkit::QmomNodeAdvectionResult result =
-        qmomkit::advance_nodes(quadrature, 0.0, 0.2, [](double, const std::vector<double>&) { return std::vector<double>{1.0}; }, *configured.value);
+        qmomkit::advance_nodes(quadrature, 0.0, 0.2, [](double, const std::vector<double>&) { return std::vector<double>{1.0}; }, configured.value());
 
     assert(result.ok());
     assert(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);

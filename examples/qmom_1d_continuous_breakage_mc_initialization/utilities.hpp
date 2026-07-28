@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <iosfwd>
+#include <string>
 #include <string_view>
 #include <tuple>
 #include <utility>
@@ -13,7 +14,7 @@
 namespace qmom_1d_continuous_breakage_mc_initialization
 {
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors);
+void print_configuration_errors(const std::string& error);
 
 void print_common_run_summary(std::ostream& stream, std::string_view workflow, const std::filesystem::path& configuration_file,
                               const std::filesystem::path& output_directory, std::size_t sample_count, unsigned long long initialization_seed,

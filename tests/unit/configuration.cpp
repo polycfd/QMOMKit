@@ -6,7 +6,9 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -75,27 +77,22 @@ M[1,1] = 0.0
 
 template <class T> bool has_error(const qmomkit::config::ConfigurationResult<T>& result, const ConfigurationErrorCode code)
 {
-    for (const auto& error : result.errors)
-    {
-        if (error.code == code)
-        {
-            return true;
-        }
-    }
-    return false;
+    static_cast<void>(code);
+    return !result;
 }
 
 template <class T> bool has_message_fragment(const qmomkit::config::ConfigurationResult<T>& result, const std::string& fragment)
 {
-    for (const auto& error : result.errors)
-    {
-        if (error.message.find(fragment) != std::string::npos)
-        {
-            return true;
-        }
-    }
-    return false;
+    return result.error().find(fragment) != std::string::npos;
 }
+
+template <class T, class = void> struct has_public_value_member : std::false_type
+{
+};
+
+template <class T> struct has_public_value_member<T, std::void_t<decltype(std::declval<T&>().value)>> : std::true_type
+{
+};
 
 void assert_near(const double actual, const double expected)
 {
@@ -153,16 +150,49 @@ void assert_cqmom_quadratures_near(const qmomkit::CqmomQuadrature& actual, const
     }
 }
 
+struct MoveOnlyValue
+{
+    explicit MoveOnlyValue(const int input) : value(std::make_unique<int>(input)) {}
+    MoveOnlyValue(MoveOnlyValue&&) noexcept = default;
+    MoveOnlyValue& operator=(MoveOnlyValue&&) noexcept = default;
+    MoveOnlyValue(const MoveOnlyValue&) = delete;
+    MoveOnlyValue& operator=(const MoveOnlyValue&) = delete;
+
+    std::unique_ptr<int> value;
+};
+
+void test_configuration_result_api()
+{
+    qmomkit::config::ConfigurationResult<std::string> success{"moments"};
+    static_assert(!has_public_value_member<decltype(success)>::value, "ConfigurationResult must not expose a public value field.");
+    assert(success);
+    assert(success.ok());
+    assert(success.error().empty());
+    success.value() = "quadrature";
+    const auto& const_success = success;
+    assert(const_success.value() == "quadrature");
+    assert(std::move(success).value() == "quadrature");
+
+    qmomkit::config::ConfigurationResult<MoveOnlyValue> move_only{MoveOnlyValue{7}};
+    MoveOnlyValue moved = std::move(move_only).value();
+    assert(*moved.value == 7);
+
+    const auto failed = qmomkit::config::ConfigurationResult<int>::failure("configuration failed");
+    assert(!failed);
+    assert(!failed.ok());
+    assert(failed.error() == "configuration failed");
+}
+
 void test_valid_qmom_matches_programmatic_case()
 {
     const auto configured = qmomkit::config::parse_qmom(qmom_text, "qmom-test");
     assert(configured.ok());
     const qmomkit::QmomCase direct{qmomkit::MomentSet({1.0, 0.5, 0.5, 0.5}), 2, {}};
-    assert(configured.value->node_count == direct.node_count);
-    assert(configured.value->moments.values() == direct.moments.values());
-    assert(!configured.value->options.adaptive);
+    assert(configured.value().node_count == direct.node_count);
+    assert(configured.value().moments.values() == direct.moments.values());
+    assert(!configured.value().options.adaptive);
 
-    const auto configured_result = qmomkit::compute_qmom(*configured.value);
+    const auto configured_result = qmomkit::compute_qmom(configured.value());
     const auto direct_result = qmomkit::compute_qmom(direct);
     assert(configured_result.ok());
     assert(direct_result.ok());
@@ -171,7 +201,7 @@ void test_valid_qmom_matches_programmatic_case()
 
     const auto adaptive = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[qmom]\nadaptive=true\n[moments]\nvalues=1,0\n");
     assert(adaptive.ok());
-    assert(adaptive.value->options.adaptive);
+    assert(adaptive.value().options.adaptive);
 }
 
 void test_qmom_distribution_initialization_matches_direct_api()
@@ -193,10 +223,10 @@ sigma_log = 0.4
 
     const qmomkit::RawMomentResult direct = qmomkit::compute_raw_moments(qmomkit::LogNormalDistribution{-0.2, 0.4}, 5, 2.5);
     assert(direct.ok());
-    assert(configured.value->node_count == 3);
-    assert(configured.value->moments.size() == 6);
-    assert_near(configured.value->moments[0], 2.5);
-    assert_moments_near(configured.value->moments, direct.moments);
+    assert(configured.value().node_count == 3);
+    assert(configured.value().moments.size() == 6);
+    assert_near(configured.value().moments[0], 2.5);
+    assert_moments_near(configured.value().moments, direct.moments);
 
     const auto initial = qmomkit::config::parse_qmom_initial_condition(R"(
 [phase_space]
@@ -211,16 +241,16 @@ shape = 2.0
 scale = 3.0
 )");
     assert(initial.ok());
-    const auto moments = qmomkit::config::initialize_moments(*initial.value);
+    const auto moments = qmomkit::config::initialize_moments(initial.value());
     assert(moments.ok());
     const qmomkit::RawMomentResult expected = qmomkit::compute_raw_moments(qmomkit::GammaDistribution{2.0, 3.0}, 3, 4.0);
     assert(expected.ok());
-    assert_moments_near(*moments.value, expected.moments);
+    assert_moments_near(moments.value(), expected.moments);
 
-    const auto qmom_case = qmomkit::config::create_qmom_case(*initial.value, 2);
+    const auto qmom_case = qmomkit::config::create_qmom_case(initial.value(), 2);
     assert(qmom_case.ok());
-    assert(qmom_case.value->moments.size() == 4);
-    assert_near(qmom_case.value->moments[0], 4.0);
+    assert(qmom_case.value().moments.size() == 4);
+    assert_near(qmom_case.value().moments[0], 4.0);
 }
 
 void test_all_supported_distribution_families_parse()
@@ -235,8 +265,8 @@ void test_all_supported_distribution_families_parse()
         const auto configured =
             qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nnumber_density=2\n" + fields);
         assert(configured.ok());
-        assert(configured.value->moments.size() == 2);
-        assert_near(configured.value->moments[0], 2.0);
+        assert(configured.value().moments.size() == 2);
+        assert_near(configured.value().moments[0], 2.0);
     }
 }
 
@@ -267,10 +297,10 @@ sigma_log = 0.5
     const qmomkit::DistributionMixture direct{{{qmomkit::GammaDistribution{2.0, 0.4}, 1.5}, {qmomkit::LogNormalDistribution{-0.2, 0.5}, 0.8}}};
     const qmomkit::RawMomentResult expected = qmomkit::compute_raw_moments(direct, 7);
     assert(expected.ok());
-    assert(configured.value->node_count == 4);
-    assert(configured.value->moments.size() == 8);
-    assert_near(configured.value->moments[0], 2.3);
-    assert_moments_near(configured.value->moments, expected.moments);
+    assert(configured.value().node_count == 4);
+    assert(configured.value().moments.size() == 8);
+    assert_near(configured.value().moments[0], 2.3);
+    assert_moments_near(configured.value().moments, expected.moments);
 }
 
 void test_mixture_zero_density_component_is_skipped()
@@ -296,10 +326,10 @@ shape = 1.0
 scale = 2.0
 )");
     assert(configured.ok());
-    assert_near(configured.value->moments[0], 3.0);
-    assert_near(configured.value->moments[1], 6.0);
-    assert_near(configured.value->moments[2], 24.0);
-    assert_near(configured.value->moments[3], 144.0);
+    assert_near(configured.value().moments[0], 3.0);
+    assert_near(configured.value().moments[1], 6.0);
+    assert_near(configured.value().moments[2], 24.0);
+    assert_near(configured.value().moments[3], 144.0);
 }
 
 void test_valid_cqmom_matches_programmatic_case()
@@ -307,14 +337,14 @@ void test_valid_cqmom_matches_programmatic_case()
     const auto configured = qmomkit::config::parse_cqmom_dense(cqmom_text, "cqmom-test");
     assert(configured.ok());
     const qmomkit::CqmomDenseCase direct{qmomkit::PhaseSpaceHierarchy({1, 1}, {1, 0}), {{2, 2}, {1.0, 1.5, 0.5, 0.75}}, {}, {true}, true};
-    assert(configured.value->hierarchy.node_counts() == direct.hierarchy.node_counts());
-    assert(configured.value->hierarchy.conditioning_order() == direct.hierarchy.conditioning_order());
-    assert(configured.value->moments.extents == direct.moments.extents);
-    assert(configured.value->moments.values == direct.moments.values);
-    assert(configured.value->adaptive_branch_counts);
-    assert(configured.value->qmom_options.adaptive);
+    assert(configured.value().hierarchy.node_counts() == direct.hierarchy.node_counts());
+    assert(configured.value().hierarchy.conditioning_order() == direct.hierarchy.conditioning_order());
+    assert(configured.value().moments.extents == direct.moments.extents);
+    assert(configured.value().moments.values == direct.moments.values);
+    assert(configured.value().adaptive_branch_counts);
+    assert(configured.value().qmom_options.adaptive);
 
-    const auto configured_result = qmomkit::compute_cqmom(*configured.value);
+    const auto configured_result = qmomkit::compute_cqmom(configured.value());
     const auto direct_result = qmomkit::compute_cqmom(direct);
     assert(configured_result.ok());
     assert(direct_result.ok());
@@ -357,13 +387,13 @@ standard_deviation = 1.25
     const qmomkit::IndependentProductDistribution direct{{qmomkit::GammaDistribution{3.0, 0.2}, qmomkit::NormalDistribution{-0.5, 1.25}}, 2.5};
     const qmomkit::TensorMomentResult expected = qmomkit::compute_raw_moments(direct, {3, 3});
     assert(expected.ok());
-    assert(configured.value->hierarchy.node_counts() == std::vector<std::size_t>({2, 2}));
-    assert(configured.value->hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
-    assert(configured.value->adaptive_branch_counts);
-    assert(configured.value->qmom_options.adaptive);
-    assert_tensor_near(configured.value->moments, expected.moments);
-    assert_near(configured.value->moments.values[qmomkit::flatten_multi_index({0, 0}, configured.value->moments.extents)], 2.5);
-    assert(configured.value->moments.extents == std::vector<std::size_t>({4, 4}));
+    assert(configured.value().hierarchy.node_counts() == std::vector<std::size_t>({2, 2}));
+    assert(configured.value().hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
+    assert(configured.value().adaptive_branch_counts);
+    assert(configured.value().qmom_options.adaptive);
+    assert_tensor_near(configured.value().moments, expected.moments);
+    assert_near(configured.value().moments.values[qmomkit::flatten_multi_index({0, 0}, configured.value().moments.extents)], 2.5);
+    assert(configured.value().moments.extents == std::vector<std::size_t>({4, 4}));
 
     const auto initial = qmomkit::config::parse_cqmom_initial_condition(R"(
 [phase_space]
@@ -385,16 +415,16 @@ mu_log = 0.1
 sigma_log = 0.2
 )");
     assert(initial.ok());
-    const auto tensor = qmomkit::config::initialize_cqmom_dense_moments(*initial.value);
+    const auto tensor = qmomkit::config::initialize_cqmom_dense_moments(initial.value());
     const qmomkit::TensorMomentResult expected_tensor = qmomkit::compute_raw_moments(
         qmomkit::IndependentProductDistribution{{qmomkit::BetaDistribution{2.0, 5.0}, qmomkit::LogNormalDistribution{0.1, 0.2}}, 4.0}, {1, 1});
     assert(expected_tensor.ok());
     assert(tensor.ok());
-    assert_tensor_near(*tensor.value, expected_tensor.moments);
+    assert_tensor_near(tensor.value(), expected_tensor.moments);
 
-    const auto dense_case = qmomkit::config::create_cqmom_dense_case(*initial.value, qmomkit::PhaseSpaceHierarchy({1, 1}));
+    const auto dense_case = qmomkit::config::create_cqmom_dense_case(initial.value(), qmomkit::PhaseSpaceHierarchy({1, 1}));
     assert(dense_case.ok());
-    assert_tensor_near(dense_case.value->moments, expected_tensor.moments);
+    assert_tensor_near(dense_case.value().moments, expected_tensor.moments);
 }
 
 void test_lean_cqmom_initialization_matches_dense_subselection()
@@ -422,15 +452,15 @@ standard_deviation = 1.25
     assert(initial.ok());
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
-    const auto dense = qmomkit::config::initialize_cqmom_dense_moments(*initial.value);
-    const auto lean = qmomkit::config::initialize_cqmom_moment_data(*initial.value, hierarchy);
+    const auto dense = qmomkit::config::initialize_cqmom_dense_moments(initial.value());
+    const auto lean = qmomkit::config::initialize_cqmom_moment_data(initial.value(), hierarchy);
     assert(dense.ok());
     assert(lean.ok());
 
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomMomentData expected = qmomkit::extract_cqmom_moments(*dense.value, layout);
-    assert_cqmom_moments_near(*lean.value, expected);
-    assert_near(lean.value->moment({0, 0}), 2.5);
+    const qmomkit::CqmomMomentData expected = qmomkit::extract_cqmom_moments(dense.value(), layout);
+    assert_cqmom_moments_near(lean.value(), expected);
+    assert_near(lean.value().moment({0, 0}), 2.5);
 }
 
 void test_lean_cqmom_initialization_matches_example_flow()
@@ -458,7 +488,7 @@ standard_deviation = 1.25
     assert(initial.ok());
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {0, 1});
-    const auto configured = qmomkit::config::initialize_cqmom_moment_data(*initial.value, hierarchy);
+    const auto configured = qmomkit::config::initialize_cqmom_moment_data(initial.value(), hierarchy);
     assert(configured.ok());
 
     const qmomkit::IndependentProductDistribution distribution{{qmomkit::GammaDistribution{3.0, 0.2}, qmomkit::NormalDistribution{-0.5, 1.25}}, 2.5};
@@ -468,8 +498,8 @@ standard_deviation = 1.25
     assert(selected.ok());
     const qmomkit::CqmomMomentData expected = qmomkit::create_cqmom_moment_data(layout, selected);
 
-    assert_cqmom_moments_near(*configured.value, expected);
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{*configured.value});
+    assert_cqmom_moments_near(configured.value(), expected);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{configured.value()});
     assert(result.ok());
 }
 
@@ -498,22 +528,22 @@ standard_deviation = 1.25
 
     const auto initial = qmomkit::config::parse_cqmom_initial_condition(text);
     assert(initial.ok());
-    const auto* independent_product = std::get_if<qmomkit::config::IndependentProductInitialization>(&*initial.value);
+    const auto* independent_product = std::get_if<qmomkit::config::IndependentProductInitialization>(&initial.value());
     assert(independent_product != nullptr);
     assert(!independent_product->maximum_orders.has_value());
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {0, 1});
-    const auto initialized = qmomkit::config::initialize_cqmom_moment_data(*initial.value, hierarchy);
+    const auto initialized = qmomkit::config::initialize_cqmom_moment_data(initial.value(), hierarchy);
     assert(initialized.ok());
-    assert(initialized.value->layout.hierarchy.node_counts() == std::vector<std::size_t>({2, 2}));
-    assert_near(initialized.value->moment({0, 0}), 2.5);
+    assert(initialized.value().layout.hierarchy.node_counts() == std::vector<std::size_t>({2, 2}));
+    assert_near(initialized.value().moment({0, 0}), 2.5);
 
     const auto lean = qmomkit::config::parse_cqmom_lean(text);
     const auto case_result = qmomkit::config::parse_cqmom(text);
     assert(lean.ok());
     assert(case_result.ok());
-    const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(*lean.value);
-    const qmomkit::CqmomResult case_compute = qmomkit::compute_cqmom(*case_result.value);
+    const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(lean.value());
+    const qmomkit::CqmomResult case_compute = qmomkit::compute_cqmom(case_result.value());
     assert(lean_result.ok());
     assert(case_compute.ok());
     assert_cqmom_quadratures_near(case_compute.quadrature, lean_result.quadrature);
@@ -543,13 +573,13 @@ sigma_log = 0.2
     const auto initial = qmomkit::config::parse_cqmom_initial_condition(text);
     assert(initial.ok());
 
-    const auto tensor = qmomkit::config::initialize_cqmom_dense_moments(*initial.value);
+    const auto tensor = qmomkit::config::initialize_cqmom_dense_moments(initial.value());
     assert(!tensor.ok());
     assert(has_error(tensor, ConfigurationErrorCode::missing_entry));
     assert(has_message_fragment(tensor, "initial.maximum_orders"));
     assert(has_message_fragment(tensor, "dense/full tensor"));
 
-    const auto dense_case = qmomkit::config::create_cqmom_dense_case(*initial.value, qmomkit::PhaseSpaceHierarchy({1, 1}));
+    const auto dense_case = qmomkit::config::create_cqmom_dense_case(initial.value(), qmomkit::PhaseSpaceHierarchy({1, 1}));
     assert(!dense_case.ok());
     assert(has_error(dense_case, ConfigurationErrorCode::missing_entry));
     assert(has_message_fragment(dense_case, "initial.maximum_orders"));
@@ -566,12 +596,12 @@ void test_lean_cqmom_initialization_selects_explicit_dense_tensor()
     assert(initial.ok());
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1}, {1, 0});
-    const auto lean = qmomkit::config::initialize_cqmom_moment_data(*initial.value, hierarchy);
+    const auto lean = qmomkit::config::initialize_cqmom_moment_data(initial.value(), hierarchy);
     assert(lean.ok());
 
     const qmomkit::RawMomentTensor dense{{2, 2}, {1.0, 1.5, 0.5, 0.75}};
     const qmomkit::CqmomMomentData expected = qmomkit::extract_cqmom_moments(dense, qmomkit::create_cqmom_moment_layout(hierarchy));
-    assert_cqmom_moments_near(*lean.value, expected);
+    assert_cqmom_moments_near(lean.value(), expected);
 }
 
 void test_cqmom_lean_case_uses_selected_analytical_moments()
@@ -601,10 +631,10 @@ mean = -0.5
 standard_deviation = 1.25
 )");
     assert(lean.ok());
-    assert(lean.value->moments.layout.hierarchy.node_counts() == std::vector<std::size_t>({2, 2}));
-    assert(lean.value->moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({0, 1}));
-    assert(lean.value->diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic);
-    assert_near(lean.value->moments.moment({0, 0}), 2.5);
+    assert(lean.value().moments.layout.hierarchy.node_counts() == std::vector<std::size_t>({2, 2}));
+    assert(lean.value().moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({0, 1}));
+    assert(lean.value().diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic);
+    assert_near(lean.value().moments.moment({0, 0}), 2.5);
 
     const auto dense = qmomkit::config::parse_cqmom_dense(R"(
 [phase_space]
@@ -628,7 +658,7 @@ standard_deviation = 1.25
     assert(!dense.ok());
     assert(has_error(dense, ConfigurationErrorCode::invalid_configuration));
 
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(*lean.value);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(lean.value());
     assert(result.ok());
 }
 
@@ -661,12 +691,12 @@ standard_deviation = 1.25
     assert(dense.ok());
     assert(lean.ok());
 
-    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense.value->hierarchy);
-    const qmomkit::CqmomMomentData expected = qmomkit::extract_cqmom_moments(dense.value->moments, layout);
-    assert_cqmom_moments_near(lean.value->moments, expected);
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense.value().hierarchy);
+    const qmomkit::CqmomMomentData expected = qmomkit::extract_cqmom_moments(dense.value().moments, layout);
+    assert_cqmom_moments_near(lean.value().moments, expected);
 
-    const qmomkit::CqmomResult dense_result = qmomkit::compute_cqmom(*dense.value);
-    const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(*lean.value);
+    const qmomkit::CqmomResult dense_result = qmomkit::compute_cqmom(dense.value());
+    const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(lean.value());
     assert(dense_result.ok());
     assert(lean_result.ok());
     assert(dense_result.quadrature.weights().size() == lean_result.quadrature.weights().size());
@@ -684,21 +714,21 @@ void test_cqmom_lean_case_selects_explicit_dense_tensor()
 {
     const auto lean = qmomkit::config::parse_cqmom_lean(cqmom_text, "cqmom-test");
     assert(lean.ok());
-    assert(lean.value->adaptive_branch_counts);
-    assert(lean.value->qmom_options.adaptive);
+    assert(lean.value().adaptive_branch_counts);
+    assert(lean.value().qmom_options.adaptive);
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1}, {1, 0});
     const qmomkit::RawMomentTensor dense{{2, 2}, {1.0, 1.5, 0.5, 0.75}};
     const qmomkit::CqmomMomentData expected = qmomkit::extract_cqmom_moments(dense, qmomkit::create_cqmom_moment_layout(hierarchy));
-    assert_cqmom_moments_near(lean.value->moments, expected);
+    assert_cqmom_moments_near(lean.value().moments, expected);
 
     const auto initial = qmomkit::config::parse_cqmom_initial_condition(cqmom_text, "cqmom-test");
     assert(initial.ok());
-    const auto made = qmomkit::config::create_cqmom_lean_case(*initial.value, hierarchy, {true}, true);
+    const auto made = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy, {true}, true);
     assert(made.ok());
-    assert_cqmom_moments_near(made.value->moments, expected);
-    assert(made.value->adaptive_branch_counts);
-    assert(made.value->qmom_options.adaptive);
+    assert_cqmom_moments_near(made.value().moments, expected);
+    assert(made.value().adaptive_branch_counts);
+    assert(made.value().qmom_options.adaptive);
 }
 
 void test_cqmom_case_uses_selected_analytical_moments()
@@ -733,13 +763,13 @@ standard_deviation = 1.25
     assert(case_result.ok());
     assert(lean.ok());
 
-    const qmomkit::CqmomCase cqmom_case = *case_result.value;
+    const qmomkit::CqmomCase cqmom_case = case_result.value();
     assert(cqmom_case.hierarchy().node_counts() == std::vector<std::size_t>({2, 2}));
     assert(cqmom_case.hierarchy().conditioning_order() == std::vector<std::size_t>({1, 0}));
     assert(cqmom_case.diagnostic_level() == qmomkit::CqmomDiagnosticLevel::basic);
 
     const qmomkit::CqmomResult case_compute = qmomkit::compute_cqmom(cqmom_case);
-    const qmomkit::CqmomResult lean_compute = qmomkit::compute_cqmom(*lean.value);
+    const qmomkit::CqmomResult lean_compute = qmomkit::compute_cqmom(lean.value());
     assert(case_compute.ok());
     assert(lean_compute.ok());
     assert_cqmom_quadratures_near(case_compute.quadrature, lean_compute.quadrature);
@@ -754,7 +784,7 @@ void test_cqmom_case_accepts_explicit_dense_tensor()
     assert(dense.ok());
     assert(lean.ok());
 
-    const qmomkit::CqmomCase cqmom_case = *case_result.value;
+    const qmomkit::CqmomCase cqmom_case = case_result.value();
     assert(cqmom_case.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(cqmom_case.hierarchy().node_counts() == std::vector<std::size_t>({1, 1}));
     assert(cqmom_case.hierarchy().conditioning_order() == std::vector<std::size_t>({1, 0}));
@@ -762,8 +792,8 @@ void test_cqmom_case_accepts_explicit_dense_tensor()
     assert(cqmom_case.qmom_options().adaptive);
 
     const qmomkit::CqmomResult case_compute = qmomkit::compute_cqmom(cqmom_case);
-    const qmomkit::CqmomResult dense_compute = qmomkit::compute_cqmom(*dense.value);
-    const qmomkit::CqmomResult lean_compute = qmomkit::compute_cqmom(*lean.value);
+    const qmomkit::CqmomResult dense_compute = qmomkit::compute_cqmom(dense.value());
+    const qmomkit::CqmomResult lean_compute = qmomkit::compute_cqmom(lean.value());
     assert(case_compute.ok());
     assert(dense_compute.ok());
     assert(lean_compute.ok());
@@ -783,7 +813,7 @@ void test_cqmom_case_moment_storage_selection()
     assert(!conflicting_lean.ok());
     assert(has_message_fragment(conflicting_lean, "parse_cqmom_lean requires cqmom.moment_storage = lean"));
 
-    const qmomkit::CqmomCase dense_case = *dense_case_result.value;
+    const qmomkit::CqmomCase dense_case = dense_case_result.value();
     assert(dense_case.moment_storage() == qmomkit::CqmomMomentStorage::dense);
     assert(dense_case.initial_state().moment_storage() == qmomkit::CqmomMomentStorage::dense);
 
@@ -796,8 +826,8 @@ void test_cqmom_case_moment_storage_selection()
     assert(explicit_lean.ok());
     assert(!conflicting_dense.ok());
     assert(has_message_fragment(conflicting_dense, "parse_cqmom_dense requires cqmom.moment_storage = dense"));
-    assert(lean_case_result.value->moment_storage() == qmomkit::CqmomMomentStorage::lean);
-    assert(lean_case_result.value->initial_state().moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    assert(lean_case_result.value().moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    assert(lean_case_result.value().initial_state().moment_storage() == qmomkit::CqmomMomentStorage::lean);
 
     std::string invalid_text = cqmom_text;
     invalid_text += "\n[cqmom]\nmoment_storage = compact\n";
@@ -811,7 +841,7 @@ void test_cqmom_case_initial_state_preserves_case_settings()
     const auto case_result = qmomkit::config::parse_cqmom(cqmom_text, "cqmom-test");
     assert(case_result.ok());
 
-    const qmomkit::CqmomCase cqmom_case = *case_result.value;
+    const qmomkit::CqmomCase cqmom_case = case_result.value();
     const qmomkit::CqmomState state = cqmom_case.initial_state();
 
     assert(state.hierarchy().node_counts() == cqmom_case.hierarchy().node_counts());
@@ -843,15 +873,15 @@ void test_cqmom_case_file_loading()
     }
     const auto loaded = qmomkit::config::load_cqmom(filename);
     assert(loaded.ok());
-    assert(loaded.value->qmom_options().adaptive);
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(*loaded.value);
+    assert(loaded.value().qmom_options().adaptive);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(loaded.value());
     assert(result.ok());
     std::filesystem::remove(filename);
 
     const auto missing = qmomkit::config::load_cqmom(filename);
     assert(!missing.ok());
     assert(has_error(missing, ConfigurationErrorCode::file_error));
-    assert(missing.errors.front().source_name == filename.string());
+    assert(has_message_fragment(missing, filename.string()));
 
     {
         std::ofstream output(filename);
@@ -877,7 +907,7 @@ standard_deviation = 1.25
     }
     const auto lean_loaded = qmomkit::config::load_cqmom(filename);
     assert(lean_loaded.ok());
-    const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(*lean_loaded.value);
+    const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(lean_loaded.value());
     assert(lean_result.ok());
     std::filesystem::remove(filename);
 }
@@ -904,8 +934,8 @@ shape = 0.0
 scale = 1.0
 )");
     assert(configured.ok());
-    assert(configured.value->moments.extents == std::vector<std::size_t>({2, 2}));
-    for (const double value : configured.value->moments.values)
+    assert(configured.value().moments.extents == std::vector<std::size_t>({2, 2}));
+    for (const double value : configured.value().moments.values)
     {
         assert_near(value, 0.0);
     }
@@ -938,8 +968,8 @@ void assert_cqmom_adaptive_options(const bool adaptive, const bool adaptive_bran
 {
     const auto configured = qmomkit::config::parse_cqmom_dense(cqmom_adaptive_option_text(adaptive, adaptive_branch_counts));
     assert(configured.ok());
-    assert(configured.value->qmom_options.adaptive == adaptive);
-    assert(configured.value->adaptive_branch_counts == adaptive_branch_counts);
+    assert(configured.value().qmom_options.adaptive == adaptive);
+    assert(configured.value().adaptive_branch_counts == adaptive_branch_counts);
 }
 
 void test_cqmom_adaptive_options_are_independent()
@@ -962,8 +992,8 @@ M[1,0] = 3.0
 M[1,1] = 6.0
 )");
     assert(omitted_qmom_adaptive.ok());
-    assert(!omitted_qmom_adaptive.value->qmom_options.adaptive);
-    assert(omitted_qmom_adaptive.value->adaptive_branch_counts);
+    assert(!omitted_qmom_adaptive.value().qmom_options.adaptive);
+    assert(omitted_qmom_adaptive.value().adaptive_branch_counts);
 }
 
 std::string cqmom_diagnostic_level_text(const std::string& diagnostic_level)
@@ -992,19 +1022,19 @@ void test_cqmom_diagnostic_level_parses_values()
 {
     const auto omitted = qmomkit::config::parse_cqmom_dense(cqmom_diagnostic_level_text(""));
     assert(omitted.ok());
-    assert(omitted.value->diagnostic_level == qmomkit::CqmomDiagnosticLevel::detailed);
+    assert(omitted.value().diagnostic_level == qmomkit::CqmomDiagnosticLevel::detailed);
 
     const auto detailed = qmomkit::config::parse_cqmom_dense(cqmom_diagnostic_level_text("detailed"));
     assert(detailed.ok());
-    assert(detailed.value->diagnostic_level == qmomkit::CqmomDiagnosticLevel::detailed);
+    assert(detailed.value().diagnostic_level == qmomkit::CqmomDiagnosticLevel::detailed);
 
     const auto basic = qmomkit::config::parse_cqmom_dense(cqmom_diagnostic_level_text("basic"));
     assert(basic.ok());
-    assert(basic.value->diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic);
+    assert(basic.value().diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic);
 
     const auto none = qmomkit::config::parse_cqmom_dense(cqmom_diagnostic_level_text("none"));
     assert(none.ok());
-    assert(none.value->diagnostic_level == qmomkit::CqmomDiagnosticLevel::none);
+    assert(none.value().diagnostic_level == qmomkit::CqmomDiagnosticLevel::none);
 
     const auto invalid = qmomkit::config::parse_cqmom_dense(cqmom_diagnostic_level_text("verbose"));
     assert(!invalid.ok());
@@ -1039,23 +1069,23 @@ void test_cqmom_vandermonde_solver_parses_values()
 {
     const auto omitted = qmomkit::config::parse_cqmom_dense(cqmom_vandermonde_solver_text(""));
     assert(omitted.ok());
-    assert(omitted.value->vandermonde_solver == qmomkit::VandermondeSolver::automatic);
+    assert(omitted.value().vandermonde_solver == qmomkit::VandermondeSolver::automatic);
 
     const auto dense = qmomkit::config::parse_cqmom_dense(cqmom_vandermonde_solver_text("dense"));
     assert(dense.ok());
-    assert(dense.value->vandermonde_solver == qmomkit::VandermondeSolver::dense);
+    assert(dense.value().vandermonde_solver == qmomkit::VandermondeSolver::dense);
 
     const auto bp = qmomkit::config::parse_cqmom_lean(cqmom_vandermonde_solver_text("bjorck_pereyra"));
     assert(bp.ok());
-    assert(bp.value->vandermonde_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
+    assert(bp.value().vandermonde_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
 
     const auto fallback = qmomkit::config::parse_cqmom_dense(cqmom_vandermonde_solver_text("bjorck_pereyra_with_dense_fallback"));
     assert(fallback.ok());
-    assert(fallback.value->vandermonde_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
+    assert(fallback.value().vandermonde_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
 
     const auto automatic = qmomkit::config::parse_cqmom_lean(cqmom_vandermonde_solver_text("automatic"));
     assert(automatic.ok());
-    assert(automatic.value->vandermonde_solver == qmomkit::VandermondeSolver::automatic);
+    assert(automatic.value().vandermonde_solver == qmomkit::VandermondeSolver::automatic);
 
     const auto invalid = qmomkit::config::parse_cqmom_dense(cqmom_vandermonde_solver_text("structured"));
     assert(!invalid.ok());
@@ -1068,7 +1098,7 @@ void assert_cqmom_case_reports_vandermonde_solver(const std::string& configured_
     const auto parsed = qmomkit::config::parse_cqmom(cqmom_vandermonde_solver_text(configured_solver));
     assert(parsed.ok());
 
-    const qmomkit::CqmomCase cqmom_case = *parsed.value;
+    const qmomkit::CqmomCase cqmom_case = parsed.value();
     assert(cqmom_case.vandermonde_solver() == expected_solver);
 
     const qmomkit::CqmomState state = cqmom_case.initial_state();
@@ -1089,13 +1119,13 @@ void test_realizability_policy_defaults_to_disabled()
 {
     const auto policy = qmomkit::config::parse_realizability_policy(qmom_text);
     assert(policy.ok());
-    assert(policy.value->check_mode == qmomkit::RealizabilityCheckMode::None);
+    assert(policy.value().check_mode == qmomkit::RealizabilityCheckMode::None);
 
     const auto empty_section = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
 )");
     assert(empty_section.ok());
-    assert(empty_section.value->check_mode == qmomkit::RealizabilityCheckMode::None);
+    assert(empty_section.value().check_mode == qmomkit::RealizabilityCheckMode::None);
 }
 
 void test_realizability_policy_parses_check_modes()
@@ -1105,7 +1135,7 @@ void test_realizability_policy_parses_check_modes()
 check_mode = none
 )");
     assert(none.ok());
-    assert(none.value->check_mode == qmomkit::RealizabilityCheckMode::None);
+    assert(none.value().check_mode == qmomkit::RealizabilityCheckMode::None);
 
     const auto every_stage = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
@@ -1113,8 +1143,8 @@ check_mode = every_stage
 support = nonnegative
 )");
     assert(every_stage.ok());
-    assert(every_stage.value->check_mode == qmomkit::RealizabilityCheckMode::EveryStage);
-    assert(every_stage.value->support == qmomkit::MomentSupport::nonnegative);
+    assert(every_stage.value().check_mode == qmomkit::RealizabilityCheckMode::EveryStage);
+    assert(every_stage.value().support == qmomkit::MomentSupport::nonnegative);
 
     const auto final_only = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
@@ -1125,11 +1155,11 @@ tolerance = 1e-10
 relative_tolerance = false
 )");
     assert(final_only.ok());
-    assert(final_only.value->check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
-    assert(final_only.value->support == qmomkit::MomentSupport::nonnegative);
-    assert(!final_only.value->accept_boundary);
-    assert_near(final_only.value->options.tolerance, 1.0e-10);
-    assert(!final_only.value->options.relative_tolerance);
+    assert(final_only.value().check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
+    assert(final_only.value().support == qmomkit::MomentSupport::nonnegative);
+    assert(!final_only.value().accept_boundary);
+    assert_near(final_only.value().options.tolerance, 1.0e-10);
+    assert(!final_only.value().options.relative_tolerance);
 }
 
 void test_realizability_policy_parses_support_and_bounded_interval()
@@ -1140,7 +1170,7 @@ check_mode = final_only
 support = real_line
 )");
     assert(real_line.ok());
-    assert(real_line.value->support == qmomkit::MomentSupport::real_line);
+    assert(real_line.value().support == qmomkit::MomentSupport::real_line);
 
     const auto bounded = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
@@ -1150,10 +1180,10 @@ lower = -1.0
 upper = 2.0
 )");
     assert(bounded.ok());
-    assert(bounded.value->support == qmomkit::MomentSupport::bounded_interval);
-    assert(bounded.value->interval.has_value());
-    assert_near(bounded.value->interval->lower, -1.0);
-    assert_near(bounded.value->interval->upper, 2.0);
+    assert(bounded.value().support == qmomkit::MomentSupport::bounded_interval);
+    assert(bounded.value().interval.has_value());
+    assert_near(bounded.value().interval->lower, -1.0);
+    assert_near(bounded.value().interval->upper, 2.0);
 }
 
 void test_realizability_policy_rejects_invalid_values()
@@ -1276,7 +1306,7 @@ check_mode = final_only
 support = real_line
 )");
     assert(qmom_case.ok());
-    assert(qmom_case.value->moments.values() == std::vector<double>({1.0, 0.0}));
+    assert(qmom_case.value().moments.values() == std::vector<double>({1.0, 0.0}));
 
     const auto policy = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
@@ -1286,7 +1316,7 @@ support = real_line
     assert(policy.ok());
     qmomkit::SspRk3Options options;
     options.accept =
-        qmomkit::make_realizability_acceptance_predicate(*policy.value, [](const std::vector<double>& state) { return qmomkit::MomentSet(state); });
+        qmomkit::make_realizability_acceptance_predicate(policy.value(), [](const std::vector<double>& state) { return qmomkit::MomentSet(state); });
     assert(options.accept);
     assert(options.accept({1.0, 0.0, 1.0}));
 }
@@ -1324,33 +1354,33 @@ accept_boundary = false
 
     const auto qmom_case = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(runtime));
     assert(qmom_case.ok());
-    assert(qmom_case.value->node_count == 1);
-    assert(!qmom_case.value->options.adaptive);
+    assert(qmom_case.value().node_count == 1);
+    assert(!qmom_case.value().options.adaptive);
 
     const auto cqmom_case = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(runtime));
     assert(cqmom_case.ok());
-    assert(cqmom_case.value->moment_storage() == qmomkit::CqmomMomentStorage::lean);
-    assert(cqmom_case.value->diagnostic_level() == qmomkit::CqmomDiagnosticLevel::detailed);
-    assert(cqmom_case.value->initial_state().moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    assert(cqmom_case.value().moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    assert(cqmom_case.value().diagnostic_level() == qmomkit::CqmomDiagnosticLevel::detailed);
+    assert(cqmom_case.value().initial_state().moment_storage() == qmomkit::CqmomMomentStorage::lean);
 
     const auto policy = qmomkit::config::parse_realizability_policy(runtime);
     assert(policy.ok());
-    assert(policy.value->check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
-    assert(policy.value->support == qmomkit::MomentSupport::bounded_interval);
+    assert(policy.value().check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
+    assert(policy.value().support == qmomkit::MomentSupport::bounded_interval);
 
     const auto scheme = qmomkit::config::parse_transport_scheme(runtime);
     assert(scheme.ok());
-    assert(*scheme.value == qmomkit::TransportScheme::dc);
+    assert(scheme.value() == qmomkit::TransportScheme::dc);
 
     const auto node_options = qmomkit::config::parse_node_advection_options(runtime);
     assert(node_options.ok());
-    assert(node_options.value->scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
-    assert_near(node_options.value->rk23_options.relative_tolerance, 1.0e-7);
-    assert_near(node_options.value->rk23_options.max_step, 1.0e-2);
+    assert(node_options.value().scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert_near(node_options.value().rk23_options.relative_tolerance, 1.0e-7);
+    assert_near(node_options.value().rk23_options.max_step, 1.0e-2);
 
     const auto source_count_policy = qmomkit::config::parse_cqmom_source_node_count_evolution(runtime);
     assert(source_count_policy.ok());
-    assert(*source_count_policy.value == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
+    assert(source_count_policy.value() == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
 }
 
 void test_case_parsing_rejects_invalid_realizability_policy()
@@ -1414,28 +1444,28 @@ void test_scheme_defaults_and_parses_values()
 {
     const auto omitted = qmomkit::config::parse_transport_scheme(qmom_text);
     assert(omitted.ok());
-    assert(*omitted.value == qmomkit::TransportScheme::strang);
+    assert(omitted.value() == qmomkit::TransportScheme::strang);
 
     const auto strang = qmomkit::config::parse_transport_scheme(R"(
 [time_integration]
 scheme = strang
 )");
     assert(strang.ok());
-    assert(*strang.value == qmomkit::TransportScheme::strang);
+    assert(strang.value() == qmomkit::TransportScheme::strang);
 
     const auto cd = qmomkit::config::parse_transport_scheme(R"(
 [time_integration]
 scheme = cd
 )");
     assert(cd.ok());
-    assert(*cd.value == qmomkit::TransportScheme::cd);
+    assert(cd.value() == qmomkit::TransportScheme::cd);
 
     const auto dc = qmomkit::config::parse_transport_scheme(R"(
 [time_integration]
 scheme = dc
 )");
     assert(dc.ok());
-    assert(*dc.value == qmomkit::TransportScheme::dc);
+    assert(dc.value() == qmomkit::TransportScheme::dc);
 }
 
 void test_scheme_rejects_invalid_values()
@@ -1463,31 +1493,31 @@ void test_node_advection_scheme_defaults_and_parses_values()
 
     const auto omitted_options = qmomkit::config::parse_node_advection_options(qmom_text);
     assert(omitted_options.ok());
-    assert(omitted_options.value->scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
-    assert_near(omitted_options.value->rk23_options.relative_tolerance, default_options.rk23_options.relative_tolerance);
-    assert_near(omitted_options.value->rk23_options.absolute_tolerance, default_options.rk23_options.absolute_tolerance);
-    assert(!omitted_options.value->rk23_options.initial_step.has_value());
-    assert_near(omitted_options.value->rk23_options.max_step, default_options.rk23_options.max_step);
-    assert_near(omitted_options.value->rk23_options.min_step, default_options.rk23_options.min_step);
-    assert(omitted_options.value->rk23_options.max_steps == default_options.rk23_options.max_steps);
+    assert(omitted_options.value().scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
+    assert_near(omitted_options.value().rk23_options.relative_tolerance, default_options.rk23_options.relative_tolerance);
+    assert_near(omitted_options.value().rk23_options.absolute_tolerance, default_options.rk23_options.absolute_tolerance);
+    assert(!omitted_options.value().rk23_options.initial_step.has_value());
+    assert_near(omitted_options.value().rk23_options.max_step, default_options.rk23_options.max_step);
+    assert_near(omitted_options.value().rk23_options.min_step, default_options.rk23_options.min_step);
+    assert(omitted_options.value().rk23_options.max_steps == default_options.rk23_options.max_steps);
 
     const auto omitted = qmomkit::config::parse_node_advection_scheme(qmom_text);
     assert(omitted.ok());
-    assert(*omitted.value == qmomkit::NodeAdvectionScheme::ssp_rk3);
+    assert(omitted.value() == qmomkit::NodeAdvectionScheme::ssp_rk3);
 
     const auto ssp_rk3 = qmomkit::config::parse_node_advection_scheme(R"(
 [time_integration.node_advection]
 scheme = ssp_rk3
 )");
     assert(ssp_rk3.ok());
-    assert(*ssp_rk3.value == qmomkit::NodeAdvectionScheme::ssp_rk3);
+    assert(ssp_rk3.value() == qmomkit::NodeAdvectionScheme::ssp_rk3);
 
     const auto adaptive_rk23 = qmomkit::config::parse_node_advection_scheme(R"(
 [time_integration.node_advection]
 scheme = adaptive_rk23
 )");
     assert(adaptive_rk23.ok());
-    assert(*adaptive_rk23.value == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert(adaptive_rk23.value() == qmomkit::NodeAdvectionScheme::adaptive_rk23);
 
     const auto alongside_transport_scheme = qmomkit::config::parse_node_advection_scheme(R"(
 [time_integration]
@@ -1497,7 +1527,7 @@ scheme = cd
 scheme = adaptive_rk23
 )");
     assert(alongside_transport_scheme.ok());
-    assert(*alongside_transport_scheme.value == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert(alongside_transport_scheme.value() == qmomkit::NodeAdvectionScheme::adaptive_rk23);
 }
 
 void test_node_advection_options_parse_rk23_controls()
@@ -1518,14 +1548,14 @@ min_step = 0.001
 max_steps = 123
 )");
     assert(parsed.ok());
-    assert(parsed.value->scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
-    assert_near(parsed.value->rk23_options.relative_tolerance, 1.0e-8);
-    assert_near(parsed.value->rk23_options.absolute_tolerance, 1.0e-11);
-    assert(parsed.value->rk23_options.initial_step.has_value());
-    assert_near(*parsed.value->rk23_options.initial_step, 0.02);
-    assert_near(parsed.value->rk23_options.max_step, 0.04);
-    assert_near(parsed.value->rk23_options.min_step, 0.001);
-    assert(parsed.value->rk23_options.max_steps == 123);
+    assert(parsed.value().scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert_near(parsed.value().rk23_options.relative_tolerance, 1.0e-8);
+    assert_near(parsed.value().rk23_options.absolute_tolerance, 1.0e-11);
+    assert(parsed.value().rk23_options.initial_step.has_value());
+    assert_near(*parsed.value().rk23_options.initial_step, 0.02);
+    assert_near(parsed.value().rk23_options.max_step, 0.04);
+    assert_near(parsed.value().rk23_options.min_step, 0.001);
+    assert(parsed.value().rk23_options.max_steps == 123);
 
     const auto scheme_only = qmomkit::config::parse_node_advection_scheme(R"(
 [time_integration.node_advection]
@@ -1535,7 +1565,7 @@ scheme = adaptive_rk23
 max_step = 0.1
 )");
     assert(scheme_only.ok());
-    assert(*scheme_only.value == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert(scheme_only.value() == qmomkit::NodeAdvectionScheme::adaptive_rk23);
 }
 
 void test_node_advection_scheme_rejects_invalid_values()
@@ -1612,21 +1642,21 @@ void test_cqmom_source_node_count_evolution_defaults_and_parses_values()
 {
     const auto omitted = qmomkit::config::parse_cqmom_source_node_count_evolution(qmom_text);
     assert(omitted.ok());
-    assert(*omitted.value == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
+    assert(omitted.value() == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
 
     const auto preserve = qmomkit::config::parse_cqmom_source_node_count_evolution(R"(
 [time_integration.cqmom]
 source_node_count_evolution = preserve_active_counts
 )");
     assert(preserve.ok());
-    assert(*preserve.value == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
+    assert(preserve.value() == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
 
     const auto growth = qmomkit::config::parse_cqmom_source_node_count_evolution(R"(
 [time_integration.cqmom]
 source_node_count_evolution = allow_growth_to_configured_maximum
 )");
     assert(growth.ok());
-    assert(*growth.value == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
+    assert(growth.value() == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
 }
 
 void test_cqmom_source_node_count_evolution_rejects_invalid_values()
@@ -1647,23 +1677,187 @@ growth_limit = 2
     assert(has_error(unknown_key, ConfigurationErrorCode::unknown_entry));
 }
 
+void test_transport_options_loaders_parse_defaults_explicit_values_and_callbacks()
+{
+    const auto qmom_defaults = qmomkit::config::parse_qmom_transport_options("");
+    assert(qmom_defaults.ok());
+    assert(qmom_defaults.value().scheme == qmomkit::TransportScheme::strang);
+    assert(qmom_defaults.value().node_options.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
+    assert(!qmom_defaults.value().qmom_options.adaptive);
+    assert(!qmom_defaults.value().source_options.ssp_rk3_options.accept);
+    assert(!qmom_defaults.value().source_options.ssp_rk3_options.stage_accept);
+
+    const std::string qmom_runtime = R"(
+[qmom]
+adaptive = true
+
+[time_integration]
+scheme = dc
+
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-7
+max_step = 0.05
+)";
+    const auto qmom_options = qmomkit::config::parse_qmom_transport_options(qmom_runtime);
+    assert(qmom_options.ok());
+    assert(qmom_options.value().scheme == qmomkit::TransportScheme::dc);
+    assert(qmom_options.value().node_options.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert_near(qmom_options.value().node_options.rk23_options.relative_tolerance, 1.0e-7);
+    assert_near(qmom_options.value().node_options.rk23_options.max_step, 0.05);
+    assert(qmom_options.value().qmom_options.adaptive);
+    assert(!qmom_options.value().source_options.ssp_rk3_options.accept);
+    assert(!qmom_options.value().source_options.ssp_rk3_options.stage_accept);
+
+    const auto cqmom_defaults = qmomkit::config::parse_cqmom_transport_options("");
+    assert(cqmom_defaults.ok());
+    assert(cqmom_defaults.value().scheme == qmomkit::TransportScheme::strang);
+    assert(cqmom_defaults.value().node_options.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
+    assert(cqmom_defaults.value().source_node_count_evolution == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
+    assert(!cqmom_defaults.value().source_options.ssp_rk3_options.accept);
+    assert(!cqmom_defaults.value().source_options.ssp_rk3_options.stage_accept);
+
+    const std::string cqmom_runtime = R"(
+[time_integration]
+scheme = cd
+
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+absolute_tolerance = 1.0e-12
+max_step = 0.025
+
+[time_integration.cqmom]
+source_node_count_evolution = preserve_active_counts
+)";
+    const auto cqmom_options = qmomkit::config::parse_cqmom_transport_options(cqmom_runtime);
+    assert(cqmom_options.ok());
+    assert(cqmom_options.value().scheme == qmomkit::TransportScheme::cd);
+    assert(cqmom_options.value().node_options.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert_near(cqmom_options.value().node_options.rk23_options.absolute_tolerance, 1.0e-12);
+    assert_near(cqmom_options.value().node_options.rk23_options.max_step, 0.025);
+    assert(cqmom_options.value().source_node_count_evolution == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
+    assert(!cqmom_options.value().source_options.ssp_rk3_options.accept);
+    assert(!cqmom_options.value().source_options.ssp_rk3_options.stage_accept);
+
+    const std::filesystem::path filename = std::filesystem::temp_directory_path() / "qmomkit_transport_options_configuration_test.qmom";
+    {
+        std::ofstream output(filename);
+        output << cqmom_runtime;
+    }
+    const auto loaded = qmomkit::config::load_cqmom_transport_options(filename);
+    assert(loaded.ok());
+    assert(loaded.value().scheme == cqmom_options.value().scheme);
+    assert(loaded.value().node_options.scheme == cqmom_options.value().node_options.scheme);
+    assert_near(loaded.value().node_options.rk23_options.max_step, cqmom_options.value().node_options.rk23_options.max_step);
+    assert(loaded.value().source_node_count_evolution == cqmom_options.value().source_node_count_evolution);
+
+    {
+        std::ofstream output(filename);
+        output << qmom_runtime;
+    }
+    const auto loaded_qmom = qmomkit::config::load_qmom_transport_options(filename);
+    assert(loaded_qmom.ok());
+    assert(loaded_qmom.value().scheme == qmom_options.value().scheme);
+    assert(loaded_qmom.value().node_options.scheme == qmom_options.value().node_options.scheme);
+    assert(loaded_qmom.value().qmom_options.adaptive == qmom_options.value().qmom_options.adaptive);
+    std::filesystem::remove(filename);
+}
+
+void test_transport_options_loaders_reject_invalid_values()
+{
+    const auto invalid_scheme = qmomkit::config::parse_qmom_transport_options(R"(
+[time_integration]
+scheme = leapfrog
+)");
+    assert(!invalid_scheme.ok());
+    assert(has_error(invalid_scheme, ConfigurationErrorCode::invalid_value));
+
+    const auto invalid_qmom = qmomkit::config::parse_qmom_transport_options(R"(
+[qmom]
+adaptive = sometimes
+)");
+    assert(!invalid_qmom.ok());
+    assert(has_error(invalid_qmom, ConfigurationErrorCode::invalid_value));
+    assert(has_message_fragment(invalid_qmom, "qmom.adaptive"));
+
+    const auto unknown_qmom = qmomkit::config::parse_qmom_transport_options(R"(
+[qmom]
+diagnostics = true
+)");
+    assert(!unknown_qmom.ok());
+    assert(has_error(unknown_qmom, ConfigurationErrorCode::unknown_entry));
+
+    const auto invalid_node = qmomkit::config::parse_cqmom_transport_options(R"(
+[time_integration.node_advection.rk23]
+relative_tolerance = 0.0
+)");
+    assert(!invalid_node.ok());
+    assert(has_error(invalid_node, ConfigurationErrorCode::invalid_value));
+
+    const auto invalid_source_count = qmomkit::config::parse_cqmom_transport_options(R"(
+[time_integration.cqmom]
+source_node_count_evolution = freeze
+)");
+    assert(!invalid_source_count.ok());
+    assert(has_error(invalid_source_count, ConfigurationErrorCode::invalid_value));
+}
+
+void test_cqmom_transport_options_loader_result_drives_transport_path()
+{
+    const auto case_result = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(""));
+    assert(case_result.ok());
+
+    const auto configured_options = qmomkit::config::parse_cqmom_transport_options(R"(
+[time_integration]
+scheme = cd
+
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-10
+absolute_tolerance = 1.0e-12
+max_step = 0.02
+
+[time_integration.cqmom]
+source_node_count_evolution = preserve_active_counts
+)");
+    assert(configured_options.ok());
+
+    const auto velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.25); };
+    const auto source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    const qmomkit::CqmomTransportResult transported =
+        qmomkit::advance_transport_cqmom(case_result.value().initial_state(), 0.0, 0.1, velocity, source, configured_options.value());
+    assert(transported.ok());
+    assert(transported.diagnostics.scheme == qmomkit::TransportScheme::cd);
+    assert(transported.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert(transported.diagnostics.first_continuous_diagnostics.adaptive_rk23_status == qmomkit::AdaptiveRk23Status::success);
+    assert(configured_options.value().source_node_count_evolution == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
+}
+
 void test_output_options_default_to_disabled()
 {
     const auto options = qmomkit::config::parse_output_options(qmom_text);
     assert(options.ok());
-    assert(options.value->directory == std::filesystem::path("."));
-    assert(!options.value->write_moments);
-    assert(!options.value->write_quadrature);
-    assert(!options.value->interval.has_value());
+    assert(options.value().directory == std::filesystem::path("."));
+    assert(!options.value().write_moments);
+    assert(!options.value().write_quadrature);
+    assert(!options.value().interval.has_value());
 
     const auto empty_section = qmomkit::config::parse_output_options(R"(
 [output]
 )");
     assert(empty_section.ok());
-    assert(empty_section.value->directory == std::filesystem::path("."));
-    assert(!empty_section.value->write_moments);
-    assert(!empty_section.value->write_quadrature);
-    assert(!empty_section.value->interval.has_value());
+    assert(empty_section.value().directory == std::filesystem::path("."));
+    assert(!empty_section.value().write_moments);
+    assert(!empty_section.value().write_quadrature);
+    assert(!empty_section.value().interval.has_value());
 }
 
 void test_output_options_parse_enabled_fields()
@@ -1673,16 +1867,16 @@ void test_output_options_parse_enabled_fields()
 write_moments = true
 )");
     assert(moments.ok());
-    assert(moments.value->write_moments);
-    assert(!moments.value->write_quadrature);
+    assert(moments.value().write_moments);
+    assert(!moments.value().write_quadrature);
 
     const auto quadrature = qmomkit::config::parse_output_options(R"(
 [output]
 write_quadrature = true
 )");
     assert(quadrature.ok());
-    assert(!quadrature.value->write_moments);
-    assert(quadrature.value->write_quadrature);
+    assert(!quadrature.value().write_moments);
+    assert(quadrature.value().write_quadrature);
 
     const auto all_fields = qmomkit::config::parse_output_options(R"(
 [output]
@@ -1692,11 +1886,11 @@ write_quadrature = false
 interval = 0.1
 )");
     assert(all_fields.ok());
-    assert(all_fields.value->directory == std::filesystem::path("output"));
-    assert(all_fields.value->write_moments);
-    assert(!all_fields.value->write_quadrature);
-    assert(all_fields.value->interval.has_value());
-    assert_near(*all_fields.value->interval, 0.1);
+    assert(all_fields.value().directory == std::filesystem::path("output"));
+    assert(all_fields.value().write_moments);
+    assert(!all_fields.value().write_quadrature);
+    assert(all_fields.value().interval.has_value());
+    assert_near(*all_fields.value().interval, 0.1);
 }
 
 void test_output_options_reject_invalid_values()
@@ -1925,7 +2119,7 @@ interval = 0.1
 values = 1.0, 0.0
 )");
     assert(qmom.ok());
-    assert(qmom.value->moments.values() == std::vector<double>({1.0, 0.0}));
+    assert(qmom.value().moments.values() == std::vector<double>({1.0, 0.0}));
 
     const auto cqmom = qmomkit::config::parse_cqmom_dense(R"(
 [phase_space]
@@ -1952,8 +2146,8 @@ write_quadrature = true
 interval = 0.1
 )");
     assert(options.ok());
-    assert(options.value->write_moments);
-    assert(options.value->write_quadrature);
+    assert(options.value().write_moments);
+    assert(options.value().write_quadrature);
 }
 
 void test_duplicate_and_missing_entries()
@@ -2026,8 +2220,7 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
     const auto malformed = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=two\n[moments]\nvalues=1,0\n", "malformed");
     assert(!malformed.ok());
     assert(has_error(malformed, ConfigurationErrorCode::invalid_value));
-    assert(!malformed.errors.front().source_name.empty());
-    assert(malformed.errors.front().line > 0);
+    assert(has_message_fragment(malformed, "malformed:2"));
 
     const auto nonfinite = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[moments]\nvalues=1,nan\n");
     assert(!nonfinite.ok());
@@ -2231,7 +2424,7 @@ mean = 0.0
 standard_deviation = 0.0
 )");
     assert(configured.ok());
-    assert(configured.value->moments.values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
+    assert(configured.value().moments.values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
 
     const auto initial = qmomkit::config::parse_qmom_initial_condition(R"(
 [phase_space]
@@ -2244,9 +2437,9 @@ values = 3.0, 1.0, 2.0, 4.0
 type = mixture
 )");
     assert(initial.ok());
-    const auto moments = qmomkit::config::initialize_moments(*initial.value);
+    const auto moments = qmomkit::config::initialize_moments(initial.value());
     assert(moments.ok());
-    assert(moments.value->values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
+    assert(moments.value().values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
 
     const auto mixture = qmomkit::config::parse_qmom(R"(
 [phase_space]
@@ -2266,7 +2459,7 @@ shape = 0.0
 scale = 0.0
 )");
     assert(mixture.ok());
-    assert(mixture.value->moments.values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
+    assert(mixture.value().moments.values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
 
     const auto unknown_initial_key = qmomkit::config::parse_qmom(R"(
 [phase_space]
@@ -2281,7 +2474,7 @@ maximum_order = 3
 weight_fraction = 0.5
 )");
     assert(unknown_initial_key.ok());
-    assert(unknown_initial_key.value->moments.values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
+    assert(unknown_initial_key.value().moments.values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
 
     const auto malformed_ignored_component_section = qmomkit::config::parse_qmom(R"(
 [phase_space]
@@ -2296,7 +2489,7 @@ number_density = -1.0
 weight_fraction = 0.5
 )");
     assert(malformed_ignored_component_section.ok());
-    assert(malformed_ignored_component_section.value->moments.values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
+    assert(malformed_ignored_component_section.value().moments.values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
 
     const auto unrelated_unknown_section = qmomkit::config::parse_qmom(R"(
 [phase_space]
@@ -2333,7 +2526,7 @@ shape = 0.0
 scale = 0.0
 )");
     assert(cqmom.ok());
-    assert(cqmom.value->moments.values == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
+    assert(cqmom.value().moments.values == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
 }
 
 void test_configuration_format_infers_formulation_from_phase_space()
@@ -2347,7 +2540,7 @@ node_counts = 3
 values = 1.0, 0.5, 0.4, 0.35, 0.32, 0.3
 )");
     assert(qmom.ok());
-    assert(qmom.value->node_count == 3);
+    assert(qmom.value().node_count == 3);
 
     const auto cqmom = qmomkit::config::parse_cqmom_lean(R"(
 [phase_space]
@@ -2374,8 +2567,8 @@ alpha = 2.0
 beta = 3.0
 )");
     assert(cqmom.ok());
-    assert(cqmom.value->moments.layout.hierarchy.node_counts() == std::vector<std::size_t>({1, 1, 1}));
-    assert(cqmom.value->moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({0, 1, 2}));
+    assert(cqmom.value().moments.layout.hierarchy.node_counts() == std::vector<std::size_t>({1, 1, 1}));
+    assert(cqmom.value().moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({0, 1, 2}));
 
     const auto explicit_order = qmomkit::config::parse_cqmom_lean(R"(
 [phase_space]
@@ -2403,7 +2596,7 @@ alpha = 2.0
 beta = 3.0
 )");
     assert(explicit_order.ok());
-    assert(explicit_order.value->moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({2, 0, 1}));
+    assert(explicit_order.value().moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({2, 0, 1}));
 }
 
 void test_configuration_rejects_unsupported_or_ambiguous_format_fields()
@@ -2439,7 +2632,7 @@ void test_file_loading_and_file_failure()
     const auto missing = qmomkit::config::load_qmom(filename);
     assert(!missing.ok());
     assert(has_error(missing, ConfigurationErrorCode::file_error));
-    assert(missing.errors.front().source_name == filename.string());
+    assert(has_message_fragment(missing, filename.string()));
 
     {
         std::ofstream output(filename);
@@ -2447,14 +2640,14 @@ void test_file_loading_and_file_failure()
     }
     const auto loaded_cqmom = qmomkit::config::load_cqmom_lean(filename);
     assert(loaded_cqmom.ok());
-    assert(loaded_cqmom.value->moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
-    assert_near(loaded_cqmom.value->moments.moment({0, 0}), 1.0);
+    assert(loaded_cqmom.value().moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
+    assert_near(loaded_cqmom.value().moments.moment({0, 0}), 1.0);
     std::filesystem::remove(filename);
 
     const auto missing_cqmom = qmomkit::config::load_cqmom_lean(filename);
     assert(!missing_cqmom.ok());
     assert(has_error(missing_cqmom, ConfigurationErrorCode::file_error));
-    assert(missing_cqmom.errors.front().source_name == filename.string());
+    assert(has_message_fragment(missing_cqmom, filename.string()));
 
     {
         std::ofstream output(filename);
@@ -2462,10 +2655,10 @@ void test_file_loading_and_file_failure()
     }
     const auto output_options = qmomkit::config::load_output_options(filename);
     assert(output_options.ok());
-    assert(output_options.value->directory == std::filesystem::path("output"));
-    assert(output_options.value->write_moments);
-    assert(output_options.value->interval.has_value());
-    assert_near(*output_options.value->interval, 0.25);
+    assert(output_options.value().directory == std::filesystem::path("output"));
+    assert(output_options.value().write_moments);
+    assert(output_options.value().interval.has_value());
+    assert_near(*output_options.value().interval, 0.25);
     std::filesystem::remove(filename);
 
     const auto missing_output = qmomkit::config::load_output_options(filename);
@@ -2480,16 +2673,21 @@ void test_file_loading_and_file_failure()
     }
     const auto node_advection_options = qmomkit::config::load_node_advection_options(filename);
     assert(node_advection_options.ok());
-    assert(node_advection_options.value->scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
-    assert_near(node_advection_options.value->rk23_options.max_step, 0.05);
+    assert(node_advection_options.value().scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert_near(node_advection_options.value().rk23_options.max_step, 0.05);
 
     const auto source_node_count_evolution = qmomkit::config::load_cqmom_source_node_count_evolution(filename);
     assert(source_node_count_evolution.ok());
-    assert(*source_node_count_evolution.value == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
+    assert(source_node_count_evolution.value() == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
 
     const auto node_advection_scheme = qmomkit::config::load_node_advection_scheme(filename);
     assert(node_advection_scheme.ok());
-    assert(*node_advection_scheme.value == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert(node_advection_scheme.value() == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+
+    const auto transport_options = qmomkit::config::load_cqmom_transport_options(filename);
+    assert(transport_options.ok());
+    assert(transport_options.value().node_options.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert(transport_options.value().source_node_count_evolution == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
     std::filesystem::remove(filename);
 
     const auto missing_node_advection = qmomkit::config::load_node_advection_scheme(filename);
@@ -2499,6 +2697,24 @@ void test_file_loading_and_file_failure()
     const auto missing_source_node_count_evolution = qmomkit::config::load_cqmom_source_node_count_evolution(filename);
     assert(!missing_source_node_count_evolution.ok());
     assert(has_error(missing_source_node_count_evolution, ConfigurationErrorCode::file_error));
+
+    const auto missing_transport_options = qmomkit::config::load_cqmom_transport_options(filename);
+    assert(!missing_transport_options.ok());
+    assert(has_error(missing_transport_options, ConfigurationErrorCode::file_error));
+
+    {
+        std::ofstream output(filename);
+        output << "[time_integration.realizability]\ncheck_mode = final_only\nsupport = nonnegative\n";
+    }
+    const auto loaded_policy = qmomkit::config::load_realizability_policy(filename);
+    assert(loaded_policy.ok());
+    assert(loaded_policy.value().check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
+    assert(loaded_policy.value().support == qmomkit::MomentSupport::nonnegative);
+    std::filesystem::remove(filename);
+
+    const auto missing_policy = qmomkit::config::load_realizability_policy(filename);
+    assert(!missing_policy.ok());
+    assert(has_error(missing_policy, ConfigurationErrorCode::file_error));
 
     {
         std::ofstream output(filename);
@@ -2531,6 +2747,7 @@ source_node_count_evolution = freeze
 
 int main()
 {
+    test_configuration_result_api();
     test_valid_qmom_matches_programmatic_case();
     test_qmom_distribution_initialization_matches_direct_api();
     test_all_supported_distribution_families_parse();
@@ -2573,6 +2790,9 @@ int main()
     test_node_advection_options_reject_invalid_rk23_controls();
     test_cqmom_source_node_count_evolution_defaults_and_parses_values();
     test_cqmom_source_node_count_evolution_rejects_invalid_values();
+    test_transport_options_loaders_parse_defaults_explicit_values_and_callbacks();
+    test_transport_options_loaders_reject_invalid_values();
+    test_cqmom_transport_options_loader_result_drives_transport_path();
     test_output_options_default_to_disabled();
     test_output_options_parse_enabled_fields();
     test_output_options_reject_invalid_values();

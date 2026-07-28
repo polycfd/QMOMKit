@@ -521,12 +521,12 @@ from the loaded CQMOM case:
 
 ```cpp
 const auto configured = qmomkit::config::load_cqmom("configuration.qmom");
-if (!configured.ok())
+if (!configured)
 {
-    // Report configured.errors, then stop.
+    // Report configured.error(), then stop.
 }
 
-const qmomkit::CqmomCase cqmom_case = *configured.value;
+const qmomkit::CqmomCase cqmom_case = configured.value();
 
 const qmomkit::CqmomResult initial_quadrature = qmomkit::compute_cqmom(cqmom_case);
 if (!initial_quadrature.ok())

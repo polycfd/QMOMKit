@@ -97,12 +97,9 @@ void print_run_metadata(const std::size_t sample_count, const unsigned long long
 
 } // namespace
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors)
+void print_configuration_errors(const std::string& error)
 {
-    for (const qmomkit::config::ConfigurationError& error : errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << error << '\n';
 }
 
 void ensure_output_directory(const std::filesystem::path& path)

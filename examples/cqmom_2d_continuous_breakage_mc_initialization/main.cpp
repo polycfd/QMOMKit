@@ -23,39 +23,33 @@ int main()
 
     try
     {
-        const auto configured = qmomkit::config::load_cqmom(configuration_file);
-        if (!configured.ok())
+        auto output_configured = qmomkit::config::load_output_options(configuration_file);
+        if (!output_configured)
         {
-            cqmom_2d_continuous_breakage::print_configuration_errors(configured.errors);
+            cqmom_2d_continuous_breakage::print_configuration_errors(output_configured.error());
             return 1;
         }
-        const auto output_configured = qmomkit::config::load_output_options(configuration_file);
-        if (!output_configured.ok())
+        auto transport_configured = qmomkit::config::load_cqmom_transport_options(configuration_file);
+        if (!transport_configured)
         {
-            cqmom_2d_continuous_breakage::print_configuration_errors(output_configured.errors);
+            cqmom_2d_continuous_breakage::print_configuration_errors(transport_configured.error());
             return 1;
         }
-        const auto node_advection_configured = qmomkit::config::load_node_advection_options(configuration_file);
-        if (!node_advection_configured.ok())
-        {
-            cqmom_2d_continuous_breakage::print_configuration_errors(node_advection_configured.errors);
-            return 1;
-        }
-        const qmomkit::OutputOptions output_options = *output_configured.value;
+        const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
         const std::optional<std::string> configuration_text = cqmom_2d_continuous_breakage::read_configuration_text(configuration_file);
         if (!configuration_text.has_value())
             return 1;
 
-        const auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(*configuration_text, configuration_file.string());
-        if (!initial_condition.ok())
+        auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(*configuration_text, configuration_file.string());
+        if (!initial_condition)
         {
-            cqmom_2d_continuous_breakage::print_configuration_errors(initial_condition.errors);
+            cqmom_2d_continuous_breakage::print_configuration_errors(initial_condition.error());
             return 1;
         }
 
         const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-            cqmom_2d_continuous_breakage::sample_initial_distribution(*initial_condition.value);
+            cqmom_2d_continuous_breakage::sample_initial_distribution(std::move(initial_condition).value());
         if (!sampled.has_value())
             return 1;
         if (!sampled->ok())
@@ -97,13 +91,13 @@ int main()
             sampled_case_text << "] = " << sampled->moments.moments.values[flat_index] << '\n';
         }
 
-        const auto sampled_case_result = qmomkit::config::parse_cqmom(sampled_case_text.str(), "sampled-cqmom-initialization");
-        if (!sampled_case_result.ok())
+        auto sampled_case_result = qmomkit::config::parse_cqmom(sampled_case_text.str(), "sampled-cqmom-initialization");
+        if (!sampled_case_result)
         {
-            cqmom_2d_continuous_breakage::print_configuration_errors(sampled_case_result.errors);
+            cqmom_2d_continuous_breakage::print_configuration_errors(sampled_case_result.error());
             return 1;
         }
-        const qmomkit::CqmomCase cqmom_case = *sampled_case_result.value;
+        const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
 
         const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
         if (!cqmom.ok())
@@ -119,8 +113,33 @@ int main()
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_2d_continuous_breakage::continuous_velocity();
         const qmomkit::CqmomMomentSource source = cqmom_2d_continuous_breakage::binary_fragmentation_source();
 
-        qmomkit::CqmomTransportOptions transport_options;
-        transport_options.node_options = *node_advection_configured.value;
+        qmomkit::CqmomTransportOptions transport_options = std::move(transport_configured).value();
+        std::cout << "Transport scheme: ";
+        switch (transport_options.scheme)
+        {
+        case qmomkit::TransportScheme::strang:
+            std::cout << "strang";
+            break;
+        case qmomkit::TransportScheme::cd:
+            std::cout << "cd";
+            break;
+        case qmomkit::TransportScheme::dc:
+            std::cout << "dc";
+            break;
+        }
+        std::cout << '\n';
+        std::cout << qmomkit::format_node_advection_options(transport_options.node_options);
+        std::cout << "CQMOM source node-count evolution: ";
+        switch (transport_options.source_node_count_evolution)
+        {
+        case qmomkit::CqmomNodeCountEvolution::preserve_active_counts:
+            std::cout << "preserve_active_counts";
+            break;
+        case qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum:
+            std::cout << "allow_growth_to_configured_maximum";
+            break;
+        }
+        std::cout << '\n';
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
 

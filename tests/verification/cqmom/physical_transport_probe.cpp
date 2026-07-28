@@ -124,7 +124,7 @@ standard_deviation = 1.0
 )";
     const auto parsed = qmomkit::config::parse_cqmom(text, "physical_transport_probe");
     QMOMKIT_VERIFY_CHECK(parsed.ok());
-    return *parsed.value;
+    return parsed.value();
 }
 
 qmomkit::CqmomQuadrature captured_failing_terminal_quadrature()

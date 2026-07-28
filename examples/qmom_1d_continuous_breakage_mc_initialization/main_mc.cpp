@@ -19,25 +19,12 @@
 #include <utility>
 #include <vector>
 
-namespace
-{
-constexpr double initial_time = 0.0;
-constexpr double final_time = 1.0;
-constexpr double time_step = 0.01;
-
-void append_particle_snapshot(std::vector<std::tuple<double, std::size_t, double>>& history, const double time,
-                              const std::vector<qmom_1d_continuous_breakage_mc_initialization::Particle>& particles)
-{
-    for (const qmom_1d_continuous_breakage_mc_initialization::Particle& particle : particles)
-    {
-        history.emplace_back(time, particle.id, particle.diameter);
-    }
-}
-} // namespace
-
 int main()
 {
     const std::filesystem::path configuration_file = "configuration.qmom";
+    const double initial_time = 0.0;
+    const double final_time = 1.0;
+    const double time_step = 0.01;
 
     const std::optional<std::string> configuration_text = qmom_1d_continuous_breakage_mc_initialization::read_configuration_text(configuration_file);
     if (!configuration_text.has_value())
@@ -45,23 +32,23 @@ int main()
         return 1;
     }
 
-    const auto initial_condition = qmomkit::config::parse_qmom_initial_condition(*configuration_text, configuration_file.string());
-    if (!initial_condition.ok())
+    auto initial_condition = qmomkit::config::parse_qmom_initial_condition(*configuration_text, configuration_file.string());
+    if (!initial_condition)
     {
-        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(initial_condition.errors);
+        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(initial_condition.error());
         return 1;
     }
 
-    const auto output_configured = qmomkit::config::load_output_options(configuration_file);
-    if (!output_configured.ok())
+    auto output_configured = qmomkit::config::load_output_options(configuration_file);
+    if (!output_configured)
     {
-        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(output_configured.errors);
+        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(output_configured.error());
         return 1;
     }
-    const qmomkit::OutputOptions output_options = *output_configured.value;
+    const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
     const std::optional<qmom_1d_continuous_breakage_mc_initialization::SamplingSetup> sampled =
-        qmom_1d_continuous_breakage_mc_initialization::sample_initial_distribution(*initial_condition.value);
+        qmom_1d_continuous_breakage_mc_initialization::sample_initial_distribution(std::move(initial_condition).value());
     if (!sampled.has_value())
     {
         return 1;
@@ -96,7 +83,10 @@ int main()
     std::vector<std::tuple<double, std::size_t, double>> particle_history;
     if (output_options.write_moments)
     {
-        append_particle_snapshot(particle_history, initial_time, particles);
+        for (const qmom_1d_continuous_breakage_mc_initialization::Particle& particle : particles)
+        {
+            particle_history.emplace_back(initial_time, particle.id, particle.diameter);
+        }
     }
 
     std::optional<qmomkit::MomentWriter> moment_history_writer;
@@ -176,7 +166,10 @@ int main()
                 try
                 {
                     moment_history_writer->write(time, qmomkit::MomentSet(final_moments));
-                    append_particle_snapshot(particle_history, time, particles);
+                    for (const qmom_1d_continuous_breakage_mc_initialization::Particle& particle : particles)
+                    {
+                        particle_history.emplace_back(time, particle.id, particle.diameter);
+                    }
                 }
                 catch (const std::exception& error)
                 {

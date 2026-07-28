@@ -18,29 +18,29 @@ int main()
 
     try
     {
-        const auto configured = qmomkit::config::load_cqmom(configuration_file);
-        if (!configured.ok())
+        auto configured = qmomkit::config::load_cqmom(configuration_file);
+        if (!configured)
         {
-            cqmom_transport::print_configuration_errors(configured.errors);
+            cqmom_transport::print_configuration_errors(configured.error());
             return 1;
         }
 
-        const auto output_configured = qmomkit::config::load_output_options(configuration_file);
-        if (!output_configured.ok())
+        auto output_configured = qmomkit::config::load_output_options(configuration_file);
+        if (!output_configured)
         {
-            cqmom_transport::print_configuration_errors(output_configured.errors);
+            cqmom_transport::print_configuration_errors(output_configured.error());
             return 1;
         }
-        const auto node_advection_configured = qmomkit::config::load_node_advection_options(configuration_file);
-        if (!node_advection_configured.ok())
+        auto transport_configured = qmomkit::config::load_cqmom_transport_options(configuration_file);
+        if (!transport_configured)
         {
-            cqmom_transport::print_configuration_errors(node_advection_configured.errors);
+            cqmom_transport::print_configuration_errors(transport_configured.error());
             return 1;
         }
 
         // CqmomCase is the immutable configuration and problem definition.
-        const qmomkit::CqmomCase cqmom_case = *configured.value;
-        const qmomkit::OutputOptions output_options = *output_configured.value;
+        const qmomkit::CqmomCase cqmom_case = std::move(configured).value();
+        const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
         // compute_cqmom(...) computes the initial quadrature for the case.
         const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
@@ -62,11 +62,35 @@ int main()
         const qmomkit::CqmomMomentBoundaryContribution boundary = cqmom_transport::injection_boundary_contribution();
 
         // User-facing transport controls live in CqmomTransportOptions.
-        qmomkit::CqmomTransportOptions transport_options;
-        transport_options.node_options = *node_advection_configured.value;
+        qmomkit::CqmomTransportOptions transport_options = std::move(transport_configured).value();
         std::cout << qmomkit::format_cqmom_settings(cqmom_case.moment_storage(), cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(),
                                                     cqmom_case.diagnostic_level());
+        std::cout << "Transport scheme: ";
+        switch (transport_options.scheme)
+        {
+        case qmomkit::TransportScheme::strang:
+            std::cout << "strang";
+            break;
+        case qmomkit::TransportScheme::cd:
+            std::cout << "cd";
+            break;
+        case qmomkit::TransportScheme::dc:
+            std::cout << "dc";
+            break;
+        }
+        std::cout << '\n';
         std::cout << qmomkit::format_node_advection_options(transport_options.node_options);
+        std::cout << "CQMOM source node-count evolution: ";
+        switch (transport_options.source_node_count_evolution)
+        {
+        case qmomkit::CqmomNodeCountEvolution::preserve_active_counts:
+            std::cout << "preserve_active_counts";
+            break;
+        case qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum:
+            std::cout << "allow_growth_to_configured_maximum";
+            break;
+        }
+        std::cout << '\n';
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
 

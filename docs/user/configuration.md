@@ -248,17 +248,13 @@ int main()
     const auto configured =
         qmomkit::config::load_qmom("configuration.qmom");
 
-    if (!configured.ok())
+    if (!configured)
     {
-        for (const qmomkit::config::ConfigurationError& error : configured.errors)
-        {
-            std::cerr << error.source_name << ':' << error.line << ": "
-                      << error.message << '\n';
-        }
+        std::cerr << configured.error() << '\n';
         return 1;
     }
 
-    const qmomkit::QmomResult result = qmomkit::compute_qmom(*configured.value);
+    const qmomkit::QmomResult result = qmomkit::compute_qmom(configured.value());
     if (!result.ok())
     {
         std::cerr << "QMOM failed: " << result.message << '\n';
@@ -274,12 +270,12 @@ ordinary multidimensional CQMOM configurations, use `load_cqmom(...)`:
 const auto configured =
     qmomkit::config::load_cqmom("configuration.qmom");
 
-if (!configured.ok())
+if (!configured)
 {
-    // Report configured.errors, then stop.
+    // Report configured.error(), then stop.
 }
 
-const qmomkit::CqmomCase cqmom_case = *configured.value;
+const qmomkit::CqmomCase cqmom_case = configured.value();
 
 const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 if (!result.ok())
@@ -295,8 +291,8 @@ evolving `CqmomState` used by optional CQMOM transport. QMOM transport is also
 optional and advances raw moment vectors rather than a `QmomState`. Use
 `load_cqmom_dense(...)` only when an application deliberately chooses the
 explicit dense representation workflow. Optional output settings are loaded
-separately with `load_output_options(...)`; optional node-advection settings
-are loaded with `load_node_advection_options(...)`.
+separately with `load_output_options(...)`; transport controls are loaded with
+`load_qmom_transport_options(...)` or `load_cqmom_transport_options(...)`.
 
 ## QMOM Configuration
 
@@ -736,14 +732,10 @@ back to configured maxima.
 
 The configuration file stores runtime numerical choices and the initial
 numerical setup. Your application still provides the continuous velocity and
-source callbacks, model coefficients, timestep plan, and detailed integrator
-controls. Parse `time_integration.scheme` with
-`parse_transport_scheme(...)`, parse node advection with
-`parse_node_advection_options(...)` or `load_node_advection_options(...)`, and
-parse `time_integration.cqmom.source_node_count_evolution` with
-`parse_cqmom_source_node_count_evolution(...)` or
-`load_cqmom_source_node_count_evolution(...)` before assigning them to
-transport options.
+source callbacks, model coefficients, and timestep plan. Load QMOM transport
+controls with `load_qmom_transport_options(...)` and CQMOM transport controls
+with `load_cqmom_transport_options(...)`; these return complete transport
+option objects with default empty runtime callbacks.
 
 ## Output Options
 
@@ -847,7 +839,8 @@ describe raw moments. `node_counts`, `conditioning_order`, and adaptive options
 describe quadrature reconstruction.
 
 Check configuration errors before computing quadrature. The public loading API
-returns structured errors with source names, line numbers, and messages.
+returns a diagnostic string through `error()` with source and line information
+when available.
 
 Check numerical statuses after loading. A valid configuration can still lead to
 a failed QMOM or CQMOM reconstruction if the requested quadrature is not

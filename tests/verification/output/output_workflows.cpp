@@ -29,28 +29,12 @@ struct ParsedOutput
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::QmomCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name;
-        if (error.line != 0)
-        {
-            std::cerr << ':' << error.line;
-        }
-        std::cerr << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name;
-        if (error.line != 0)
-        {
-            std::cerr << ':' << error.line;
-        }
-        std::cerr << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 std::vector<std::string> tokenize_header(const std::string& line)
@@ -297,7 +281,7 @@ int main(const int argc, char** argv)
         print_configuration_errors(configured_qmom);
         return 1;
     }
-    const qmomkit::QmomResult qmom_result = qmomkit::compute_qmom(*configured_qmom.value);
+    const qmomkit::QmomResult qmom_result = qmomkit::compute_qmom(configured_qmom.value());
     QMOMKIT_VERIFY_CHECK(qmom_result.status == qmomkit::QmomStatus::success);
 
     const auto configured_cqmom = qmomkit::config::load_cqmom(cqmom_configuration);
@@ -306,19 +290,19 @@ int main(const int argc, char** argv)
         print_configuration_errors(configured_cqmom);
         return 1;
     }
-    const qmomkit::CqmomResult cqmom_result = qmomkit::compute_cqmom(*configured_cqmom.value);
+    const qmomkit::CqmomResult cqmom_result = qmomkit::compute_cqmom(configured_cqmom.value());
     QMOMKIT_VERIFY_CHECK(cqmom_result.status == qmomkit::CqmomStatus::success);
 
     const qmomkit::OutputOptions disabled_options{output_directory, false, false, std::nullopt};
-    write_qmom_outputs(disabled_options, "disabled", *configured_qmom.value, qmom_result);
+    write_qmom_outputs(disabled_options, "disabled", configured_qmom.value(), qmom_result);
     QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_moments.txt"));
     QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_quadrature.txt"));
 
     const qmomkit::OutputOptions enabled_options{output_directory, true, true, 0.5};
-    write_qmom_outputs(enabled_options, "qmom", *configured_qmom.value, qmom_result);
+    write_qmom_outputs(enabled_options, "qmom", configured_qmom.value(), qmom_result);
     write_cqmom_outputs(enabled_options, "cqmom", cqmom_result);
 
-    verify_qmom_moment_output(output_directory / "qmom_moments.txt", configured_qmom.value->moments);
+    verify_qmom_moment_output(output_directory / "qmom_moments.txt", configured_qmom.value().moments);
     verify_qmom_quadrature_output(output_directory / "qmom_quadrature.txt", qmom_result);
     verify_cqmom_moment_output(output_directory / "cqmom_moments.txt");
     verify_cqmom_quadrature_output(output_directory / "cqmom_quadrature.txt", cqmom_result.quadrature);

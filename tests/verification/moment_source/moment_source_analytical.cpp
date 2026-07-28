@@ -1,6 +1,6 @@
 #include "qmomkit/configuration.hpp"
-#include "qmomkit/moment_source.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
+#include "qmomkit/moment_source.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -350,8 +350,8 @@ VerificationResult verify_qmom_case(const CaseDefinition& definition, const std:
         return result;
     }
 
-    const std::vector<double> initial = configured.value->moments.values();
-    const qmomkit::QmomResult initial_qmom = qmomkit::compute_qmom(*configured.value);
+    const std::vector<double> initial = configured.value().moments.values();
+    const qmomkit::QmomResult initial_qmom = qmomkit::compute_qmom(configured.value());
     if (!initial_qmom.ok())
     {
         append_failure(result, "Initial QMOM inversion failed: " + initial_qmom.message);
@@ -364,8 +364,8 @@ VerificationResult verify_qmom_case(const CaseDefinition& definition, const std:
         const std::vector<double> exact = exact_qmom_moments(definition.name, initial, plan.dt * static_cast<double>(plan.steps));
         compare_vectors(evolved, exact, result.errors);
         update_error(result.errors.conservation_abs, evolved.front(), initial.front());
-        verify_qmom_reconstruction(*configured.value, evolved, result);
-        verify_qmom_reconstruction(*configured.value, exact, result);
+        verify_qmom_reconstruction(configured.value(), evolved, result);
+        verify_qmom_reconstruction(configured.value(), exact, result);
     }
     return result;
 }
@@ -401,12 +401,12 @@ VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std
         append_failure(result, "Failed to load CQMOM configuration.");
         return result;
     }
-    if (configured.value->hierarchy.conditioning_order() != std::vector<std::size_t>{1, 0} || configured.value->qmom_options.adaptive ||
-        configured.value->adaptive_branch_counts)
+    if (configured.value().hierarchy.conditioning_order() != std::vector<std::size_t>{1, 0} || configured.value().qmom_options.adaptive ||
+        configured.value().adaptive_branch_counts)
     {
         append_failure(result, "CQMOM configuration did not preserve the expected non-identity fixed settings.");
     }
-    const qmomkit::CqmomResult initial_cqmom = qmomkit::compute_cqmom(*configured.value);
+    const qmomkit::CqmomResult initial_cqmom = qmomkit::compute_cqmom(configured.value());
     if (!initial_cqmom.ok())
     {
         append_failure(result, "Initial CQMOM inversion failed: " + initial_cqmom.message);
@@ -415,12 +415,12 @@ VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std
 
     for (const TimePlan& plan : {definition.one_step, definition.multi_step})
     {
-        const std::vector<double> evolved = advance_cqmom_plan(configured.value->moments, plan, result);
-        const std::vector<double> exact = exact_common_rate(configured.value->moments, plan.dt * static_cast<double>(plan.steps));
+        const std::vector<double> evolved = advance_cqmom_plan(configured.value().moments, plan, result);
+        const std::vector<double> exact = exact_common_rate(configured.value().moments, plan.dt * static_cast<double>(plan.steps));
         compare_vectors(evolved, exact, result.errors);
-        update_error(result.errors.conservation_abs, evolved.front(), configured.value->moments.values.front());
-        verify_cqmom_reconstruction(*configured.value, evolved, result);
-        verify_cqmom_reconstruction(*configured.value, exact, result);
+        update_error(result.errors.conservation_abs, evolved.front(), configured.value().moments.values.front());
+        verify_cqmom_reconstruction(configured.value(), evolved, result);
+        verify_cqmom_reconstruction(configured.value(), exact, result);
     }
     return result;
 }
@@ -443,7 +443,7 @@ void verify_linear_coupled_convergence(const std::filesystem::path& configuratio
         append_failure(result, "Failed to load QMOM configuration for convergence check.");
         return;
     }
-    const std::vector<double> initial = configured.value->moments.values();
+    const std::vector<double> initial = configured.value().moments.values();
     const TimePlan coarse{0.0, 0.12, 4};
     const TimePlan refined{0.0, 0.06, 8};
     const std::vector<double> coarse_evolved = advance_qmom_plan(*find_case("linear_coupled"), initial, coarse, result);

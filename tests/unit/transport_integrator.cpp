@@ -358,7 +358,7 @@ qmomkit::CqmomCase fixed_cqmom_case()
 {
     const auto parsed = qmomkit::config::parse_cqmom(fixed_cqmom_case_text, "fixed-cqmom-case");
     assert(parsed.ok());
-    return *parsed.value;
+    return parsed.value();
 }
 
 qmomkit::CqmomCase fixed_cqmom_case_with_vandermonde_solver(const char* const solver)
@@ -369,7 +369,7 @@ qmomkit::CqmomCase fixed_cqmom_case_with_vandermonde_solver(const char* const so
     text += "\n";
     const auto parsed = qmomkit::config::parse_cqmom(text, "fixed-cqmom-case-with-vandermonde-solver");
     assert(parsed.ok());
-    return *parsed.value;
+    return parsed.value();
 }
 
 qmomkit::CqmomCase fixed_cqmom_case_with_storage(const char* const storage)
@@ -380,7 +380,7 @@ qmomkit::CqmomCase fixed_cqmom_case_with_storage(const char* const storage)
     text += "\n";
     const auto parsed = qmomkit::config::parse_cqmom(text, "fixed-cqmom-case-with-storage");
     assert(parsed.ok());
-    return *parsed.value;
+    return parsed.value();
 }
 
 void test_internal_cqmom_state_backend_accessors_are_explicit_and_guarded()
@@ -473,7 +473,7 @@ qmomkit::CqmomCase adaptive_cqmom_case()
     const std::string text = cqmom_case_text_from_moments(adaptive_cqmom_moments(), true, true);
     const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case");
     assert(parsed.ok());
-    return *parsed.value;
+    return parsed.value();
 }
 
 qmomkit::CqmomCase adaptive_cqmom_case_from_moments(const qmomkit::RawMomentTensor& moments)
@@ -481,7 +481,7 @@ qmomkit::CqmomCase adaptive_cqmom_case_from_moments(const qmomkit::RawMomentTens
     const std::string text = cqmom_case_text_from_moments(moments, true, true);
     const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case-from-moments");
     assert(parsed.ok());
-    return *parsed.value;
+    return parsed.value();
 }
 
 qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_storage(const qmomkit::RawMomentTensor& moments, const char* const storage)
@@ -492,7 +492,7 @@ qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_storage(const qmomkit::
     text += "\n";
     const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case-from-moments-with-storage");
     assert(parsed.ok());
-    return *parsed.value;
+    return parsed.value();
 }
 
 qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_hierarchy(const qmomkit::RawMomentTensor& moments,
@@ -502,7 +502,7 @@ qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_hierarchy(const qmomkit
     const std::string text = cqmom_case_text_from_moments_with_hierarchy(moments, node_counts, conditioning_order, true, true);
     const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case-from-moments-with-hierarchy");
     assert(parsed.ok());
-    return *parsed.value;
+    return parsed.value();
 }
 
 qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_hierarchy_and_storage(const qmomkit::RawMomentTensor& moments,
@@ -516,7 +516,7 @@ qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_hierarchy_and_storage(c
     text += "\n";
     const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case-from-moments-with-hierarchy-and-storage");
     assert(parsed.ok());
-    return *parsed.value;
+    return parsed.value();
 }
 
 bool diagnostics_contain_reduced_branch(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics)
@@ -1824,7 +1824,7 @@ void test_adaptive_state_transport_reports_initial_failure()
     bool threw = false;
     try
     {
-        static_cast<void>(parsed.value->initial_state());
+        static_cast<void>(parsed.value().initial_state());
     }
     catch (const std::runtime_error& error)
     {
@@ -2009,7 +2009,7 @@ qmomkit::CqmomCase fixed_cqmom_case_with_hierarchy_and_storage(const qmomkit::Ra
     text += "\n";
     const auto parsed = qmomkit::config::parse_cqmom(text, "fixed-cqmom-case-with-hierarchy-and-storage");
     assert(parsed.ok());
-    return *parsed.value;
+    return parsed.value();
 }
 
 void assert_dense_and_lean_source_results_match(const qmomkit::CqmomTransportResult& dense, const qmomkit::CqmomTransportResult& lean,

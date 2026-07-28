@@ -13,16 +13,12 @@
 #include <utility>
 #include <vector>
 
-namespace
-{
-constexpr double initial_time = 0.0;
-constexpr double final_time = 1.0;
-constexpr double time_step = 0.01;
-} // namespace
-
 int main()
 {
     const std::filesystem::path configuration_file = "configuration.qmom";
+    const double initial_time = 0.0;
+    const double final_time = 1.0;
+    const double time_step = 0.01;
 
     const std::optional<std::string> configuration_text = qmom_1d_continuous_breakage_mc_initialization::read_configuration_text(configuration_file);
     if (!configuration_text.has_value())
@@ -30,37 +26,37 @@ int main()
         return 1;
     }
 
-    const auto configured = qmomkit::config::load_qmom(configuration_file);
-    if (!configured.ok())
+    auto configured = qmomkit::config::load_qmom(configuration_file);
+    if (!configured)
     {
-        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(configured.errors);
+        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(configured.error());
         return 1;
     }
 
-    const auto output_configured = qmomkit::config::load_output_options(configuration_file);
-    if (!output_configured.ok())
+    auto output_configured = qmomkit::config::load_output_options(configuration_file);
+    if (!output_configured)
     {
-        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(output_configured.errors);
+        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(output_configured.error());
         return 1;
     }
-    const auto node_advection_configured = qmomkit::config::load_node_advection_options(configuration_file);
-    if (!node_advection_configured.ok())
+    auto transport_configured = qmomkit::config::load_qmom_transport_options(configuration_file);
+    if (!transport_configured)
     {
-        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(node_advection_configured.errors);
+        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(transport_configured.error());
         return 1;
     }
 
-    const qmomkit::QmomCase qmom_case = *configured.value;
-    const qmomkit::OutputOptions output_options = *output_configured.value;
-    const auto initial_condition = qmomkit::config::parse_qmom_initial_condition(*configuration_text, configuration_file.string());
-    if (!initial_condition.ok())
+    const qmomkit::QmomCase qmom_case = std::move(configured).value();
+    const qmomkit::OutputOptions output_options = std::move(output_configured).value();
+    auto initial_condition = qmomkit::config::parse_qmom_initial_condition(*configuration_text, configuration_file.string());
+    if (!initial_condition)
     {
-        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(initial_condition.errors);
+        qmom_1d_continuous_breakage_mc_initialization::print_configuration_errors(initial_condition.error());
         return 1;
     }
 
     const std::optional<qmom_1d_continuous_breakage_mc_initialization::SamplingSetup> sampled =
-        qmom_1d_continuous_breakage_mc_initialization::sample_initial_distribution(*initial_condition.value);
+        qmom_1d_continuous_breakage_mc_initialization::sample_initial_distribution(std::move(initial_condition).value());
     if (!sampled.has_value())
     {
         return 1;
@@ -93,8 +89,8 @@ int main()
     const std::vector<double> initial_abscissas = quadrature.abscissas;
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_continuous_breakage_mc_initialization::continuous_velocity();
     const qmomkit::MomentSource source = qmom_1d_continuous_breakage_mc_initialization::binary_fragmentation_source();
-    qmomkit::NodeAdvectionOptions node_options = *node_advection_configured.value;
-    qmomkit::MomentSourceUpdateOptions source_options;
+    qmomkit::QmomTransportOptions transport_options = std::move(transport_configured).value();
+    transport_options.qmom_options = sampled_case.options;
     std::optional<qmomkit::MomentWriter> moment_history_writer;
     std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;
     try
@@ -135,52 +131,17 @@ int main()
     while (time < final_time - 1.0e-12)
     {
         const double current_step = std::min(time_step, final_time - time);
-        const double half_step = 0.5 * current_step;
-
-        // Strang stage 1: continuous half-step acts on quadrature nodes.
-        const qmomkit::QmomNodeAdvectionResult first_continuous = qmomkit::advance_nodes(quadrature, time, half_step, velocity, node_options);
-        if (!first_continuous.ok())
+        const qmomkit::QmomTransportResult transported =
+            qmomkit::advance_transport_qmom(moments, sampled_case.node_count, time, current_step, velocity, source, transport_options);
+        if (!transported.ok())
         {
-            std::cerr << "First continuous half-step failed: " << first_continuous.message << '\n';
+            std::cerr << "QMOM transport failed: " << transported.message << '\n';
             return 1;
         }
 
-        quadrature = first_continuous.quadrature;
-        moments = qmomkit::reconstruct_raw_moments(quadrature, moments.size());
-
-        // Strang stage 2: discontinuous fragmentation source acts on moments.
-        const qmomkit::MomentSourceUpdateResult source_update =
-            qmomkit::advance_moments_with_source(moments, time + half_step, current_step, source, source_options);
-        if (!source_update.ok())
-        {
-            std::cerr << "Discontinuous moment source step failed: " << source_update.message << '\n';
-            return 1;
-        }
-
-        moments = source_update.moments;
-
-        // Reconstruct QMOM after the source update before advecting nodes again.
-        const qmomkit::QmomResult post_source = qmomkit::compute_qmom(qmomkit::MomentSet(moments), qmom_case.node_count, qmom_case.options);
-        if (!post_source.ok())
-        {
-            std::cerr << "Post-source QMOM inversion failed: " << post_source.message << '\n';
-            return 1;
-        }
-
-        quadrature = qmomkit::Quadrature1D{post_source.abscissas, post_source.weights};
-
-        // Strang stage 3: continuous half-step acts on the reconstructed nodes.
-        const qmomkit::QmomNodeAdvectionResult second_continuous =
-            qmomkit::advance_nodes(quadrature, time + half_step, half_step, velocity, node_options);
-        if (!second_continuous.ok())
-        {
-            std::cerr << "Second continuous half-step failed: " << second_continuous.message << '\n';
-            return 1;
-        }
-
-        quadrature = second_continuous.quadrature;
-        moments = qmomkit::reconstruct_raw_moments(quadrature, moments.size());
-        time += current_step;
+        moments = transported.moments;
+        quadrature = qmomkit::Quadrature1D{transported.quadrature.abscissas, transported.quadrature.weights};
+        time = transported.final_time;
 
         if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
         {

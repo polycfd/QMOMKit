@@ -267,34 +267,22 @@ void print_vector_comparison(const std::string& title, const std::vector<double>
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::QmomCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomDenseCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 qmomkit::QmomTransportOptions qmom_options(const qmomkit::QmomOptions& qmom_options, const double rk_relative_tolerance,
@@ -740,7 +728,7 @@ VerificationResult run_commuting_qmom(const std::filesystem::path& configuration
         return verification;
     }
 
-    const qmomkit::QmomCase& qmom_case = *configured.value;
+    const qmomkit::QmomCase& qmom_case = configured.value();
     validate_commuting_component_checks(verification, qmom_case);
     const std::vector<double> initial = qmom_case.moments.values();
     const double t0 = 0.0;
@@ -784,7 +772,7 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
         return verification;
     }
 
-    const qmomkit::QmomCase& qmom_case = *configured.value;
+    const qmomkit::QmomCase& qmom_case = configured.value();
     const std::vector<double> initial = qmom_case.moments.values();
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     qmomkit::QmomTransportOptions options = qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01, qmomkit::TransportScheme::dc);
@@ -951,7 +939,7 @@ VerificationResult run_noncommuting_qmom(const std::filesystem::path& configurat
         return verification;
     }
 
-    const qmomkit::QmomCase& qmom_case = *configured.value;
+    const qmomkit::QmomCase& qmom_case = configured.value();
     const std::vector<double> initial = qmom_case.moments.values();
     const double t0 = 0.0;
     const double final_time = 1.2;
@@ -1202,7 +1190,7 @@ VerificationResult run_qmom_transport_failures(const std::filesystem::path& conf
         return verification;
     }
 
-    const qmomkit::QmomCase& qmom_case = *configured.value;
+    const qmomkit::QmomCase& qmom_case = configured.value();
     const std::vector<double> initial = qmom_case.moments.values();
     const auto options = qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01);
     constexpr double dt = 0.08;
@@ -1322,7 +1310,7 @@ VerificationResult run_qmom_transport_inversion_failures(const std::filesystem::
         return verification;
     }
 
-    const qmomkit::QmomCase& qmom_case = *configured.value;
+    const qmomkit::QmomCase& qmom_case = configured.value();
     const std::vector<double> input = qmom_case.moments.values();
     const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(
         input, qmom_case.node_count, 0.0, 0.08, commuting_velocity, zero_qmom_source, qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01));
@@ -1678,7 +1666,7 @@ VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configura
         return verification;
     }
 
-    const qmomkit::CqmomDenseCase& dense_case = *configured.value;
+    const qmomkit::CqmomDenseCase& dense_case = configured.value();
     const qmomkit::CqmomMomentSource source = cqmom_source_for_context;
     const auto options = cqmom_options(dense_case);
     const double dt = 0.04;
@@ -1759,7 +1747,7 @@ VerificationResult run_cqmom_boundary_contribution(const std::filesystem::path& 
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = *configured.value;
+    const qmomkit::CqmomCase& cqmom_case = configured.value();
     if (cqmom_case.hierarchy().node_counts() != std::vector<std::size_t>{2, 2} ||
         cqmom_case.hierarchy().conditioning_order() != std::vector<std::size_t>{1, 0})
     {
@@ -1860,7 +1848,7 @@ VerificationResult run_cqmom_combined_native_source(const std::filesystem::path&
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = *configured.value;
+    const qmomkit::CqmomCase& cqmom_case = configured.value();
     if (cqmom_case.hierarchy().node_counts() != std::vector<std::size_t>{2, 2} ||
         cqmom_case.hierarchy().conditioning_order() != std::vector<std::size_t>{0, 1})
     {
@@ -1974,7 +1962,7 @@ VerificationResult run_cqmom_native_source(const std::filesystem::path& configur
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = *configured.value;
+    const qmomkit::CqmomCase& cqmom_case = configured.value();
     if (cqmom_case.hierarchy().node_counts() != std::vector<std::size_t>{2, 2} ||
         cqmom_case.hierarchy().conditioning_order() != std::vector<std::size_t>{0, 1})
     {
@@ -2641,7 +2629,7 @@ VerificationResult run_cqmom_transport_failures(const std::filesystem::path& con
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = *configured.value;
+    const qmomkit::CqmomCase& cqmom_case = configured.value();
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_case);
     if (!initial.ok())
     {
@@ -2770,7 +2758,7 @@ VerificationResult run_cqmom_transport_inversion_failures(const std::filesystem:
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = *configured.value;
+    const qmomkit::CqmomCase& cqmom_case = configured.value();
     qmomkit::CqmomState state = cqmom_case.initial_state();
     qmomkit::CqmomTransportOptions options = cqmom_state_options();
     options.scheme = qmomkit::TransportScheme::strang;
@@ -2806,7 +2794,7 @@ VerificationResult run_cqmom_dense_transport_failures(const std::filesystem::pat
         return verification;
     }
 
-    const qmomkit::CqmomDenseCase& dense_case = *configured.value;
+    const qmomkit::CqmomDenseCase& dense_case = configured.value();
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(dense_case);
     if (!initial.ok())
     {
@@ -2914,7 +2902,7 @@ VerificationResult run_cqmom_lean_transport_failures(const std::filesystem::path
         return verification;
     }
 
-    const qmomkit::CqmomLeanCase& lean_case = *configured.value;
+    const qmomkit::CqmomLeanCase& lean_case = configured.value();
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(lean_case);
     if (!initial.ok())
     {
@@ -3022,7 +3010,7 @@ VerificationResult run_cqmom_dense_transport_inversion_failures(const std::files
         return verification;
     }
 
-    const qmomkit::CqmomDenseCase& dense_case = *configured.value;
+    const qmomkit::CqmomDenseCase& dense_case = configured.value();
     qmomkit::TestDenseCqmomTransportOptions options = cqmom_options(dense_case);
     options.scheme = qmomkit::TransportScheme::strang;
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
@@ -3059,7 +3047,7 @@ VerificationResult run_cqmom_lean_transport_inversion_failures(const std::filesy
         return verification;
     }
 
-    const qmomkit::CqmomLeanCase& lean_case = *configured.value;
+    const qmomkit::CqmomLeanCase& lean_case = configured.value();
     qmomkit::TestLeanCqmomTransportOptions options = cqmom_lean_options(lean_case);
     options.scheme = qmomkit::TransportScheme::strang;
     const qmomkit::TestLeanCqmomTransportState state{lean_case.moments};
@@ -3145,7 +3133,7 @@ VerificationResult run_cqmom_native_source_failures(const std::filesystem::path&
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = *configured.value;
+    const qmomkit::CqmomCase& cqmom_case = configured.value();
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_case);
     if (!initial.ok())
     {
@@ -3231,7 +3219,7 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = *configured.value;
+    const qmomkit::CqmomCase& cqmom_case = configured.value();
     if (!cqmom_case.adaptive_branch_counts() || !cqmom_case.qmom_options().adaptive)
     {
         append_failure(verification, "adaptive CQMOM state verification requires adaptive_branch_counts and adaptive QMOM.");

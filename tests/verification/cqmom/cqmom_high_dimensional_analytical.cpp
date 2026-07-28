@@ -756,15 +756,7 @@ VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::Cqmo
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomDenseCase>& configured)
 {
-    for (const qmomkit::config::ConfigurationError& error : configured.errors)
-    {
-        std::cerr << error.source_name;
-        if (error.line != 0)
-        {
-            std::cerr << ':' << error.line;
-        }
-        std::cerr << ": " << error.message << '\n';
-    }
+    std::cerr << configured.error() << '\n';
 }
 
 void print_counts(const std::vector<std::size_t>& counts)
@@ -810,7 +802,7 @@ int main(const int argc, char** argv)
         return 1;
     }
 
-    const VerificationResult result = verify_case(*expected, *configured.value);
+    const VerificationResult result = verify_case(*expected, configured.value());
     const bool passed = result.passed && result.errors.node <= tolerance && result.errors.local_weight <= tolerance &&
                         result.errors.global_weight <= tolerance && result.errors.moment_relative <= tolerance;
 

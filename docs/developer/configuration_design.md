@@ -76,13 +76,14 @@ The main parts of configuration handling are:
 - case construction: builds `QmomCase`, `CqmomCase`, or explicit
   representation `CqmomLeanCase` and `CqmomDenseCase` objects from initialized
   moments, phase-space hierarchy, and options;
-- policy extraction: parses optional transport scheme, output options, and
-  runtime realizability policy objects for drivers that choose to use them.
+- policy extraction: parses optional transport scheme, transport options,
+  output options, and runtime realizability policy objects for drivers that
+  choose to use them.
 
 The parser's private data structures should stay hidden from users and
 extension code. Successful public configuration calls return populated public
-objects with no errors, while failed calls return structured errors and no
-value.
+objects through `value()`, while failed calls return a formatted diagnostic
+string through `error()` and no value.
 
 ## QMOM And CQMOM Mapping
 
@@ -329,8 +330,9 @@ Configuration APIs return:
 ConfigurationResult<T>
 ```
 
-where `value` is present only on success and `errors` contains structured
-diagnostics on failure. Each `ConfigurationError` carries:
+where `value()` is valid only on success and `error()` contains the public
+diagnostic string on failure. Internally, parser failures are still assembled
+from `ConfigurationError` records carrying:
 
 - an error code;
 - a source name;
@@ -384,7 +386,12 @@ Public configuration capabilities include:
   `load_node_advection_options(...)`;
 - `parse_node_advection_scheme(...)` and
   `load_node_advection_scheme(...)` compatibility helpers;
-- `parse_realizability_policy(...)`;
+- `parse_cqmom_source_node_count_evolution(...)` and
+  `load_cqmom_source_node_count_evolution(...)`;
+- `parse_qmom_transport_options(...)`, `load_qmom_transport_options(...)`,
+  `parse_cqmom_transport_options(...)`, and
+  `load_cqmom_transport_options(...)`;
+- `parse_realizability_policy(...)` and `load_realizability_policy(...)`;
 - `parse_output_options(...)` and `load_output_options(...)`;
 - `ConfigurationResult<T>`, `ConfigurationError`, and
   `ConfigurationErrorCode`.

@@ -1039,6 +1039,15 @@ bool is_realizability_key(const std::string& key)
     return key.rfind(std::string(realizability_key_prefix), 0) == 0;
 }
 
+const std::vector<std::string>& realizability_allowed_keys()
+{
+    static const std::vector<std::string> allowed{
+        "time_integration.realizability.check_mode", "time_integration.realizability.accept_boundary",    "time_integration.realizability.support",
+        "time_integration.realizability.tolerance",  "time_integration.realizability.relative_tolerance", "time_integration.realizability.lower",
+        "time_integration.realizability.upper"};
+    return allowed;
+}
+
 bool is_node_advection_key(const std::string& key)
 {
     return key.rfind(std::string(node_advection_key_prefix), 0) == 0;
@@ -1204,6 +1213,81 @@ std::optional<NodeAdvectionOptions> parse_node_advection_options_from_parsed(Par
     return options;
 }
 
+std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(ParsedFile& parsed, const std::string& source_name)
+{
+    if (!has_realizability_section(parsed))
+    {
+        return RealizabilityPolicy{};
+    }
+
+    for (const auto& item : parsed.scalars)
+    {
+        if (!is_realizability_key(item.first))
+        {
+            continue;
+        }
+        const std::vector<std::string>& allowed = realizability_allowed_keys();
+        if (std::find(allowed.begin(), allowed.end(), item.first) == allowed.end())
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
+        }
+    }
+
+    std::optional<RealizabilityCheckMode> check_mode = parse_realizability_check_mode(parsed, source_name);
+    if (!check_mode.has_value())
+    {
+        return std::nullopt;
+    }
+
+    RealizabilityPolicy policy;
+    policy.check_mode = *check_mode;
+    parse_optional_bool(parsed, "time_integration.realizability.accept_boundary", source_name, policy.accept_boundary);
+    parse_optional_double(parsed, "time_integration.realizability.tolerance", source_name, policy.options.tolerance);
+    parse_optional_bool(parsed, "time_integration.realizability.relative_tolerance", source_name, policy.options.relative_tolerance);
+    if (policy.options.tolerance <= 0.0)
+    {
+        const Entry* entry = find_entry(parsed, "time_integration.realizability.tolerance");
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
+                  "time_integration.realizability.tolerance must be positive.");
+    }
+
+    if (policy.check_mode != RealizabilityCheckMode::None || find_entry(parsed, "time_integration.realizability.support") != nullptr)
+    {
+        std::optional<MomentSupport> support = parse_moment_support(parsed, source_name);
+        if (support.has_value())
+        {
+            policy.support = *support;
+        }
+    }
+
+    if (policy.support == MomentSupport::bounded_interval)
+    {
+        double lower = 0.0;
+        double upper = 0.0;
+        const bool parsed_lower = parse_required_double(parsed, "time_integration.realizability.lower", source_name, lower);
+        const bool parsed_upper = parse_required_double(parsed, "time_integration.realizability.upper", source_name, upper);
+        if (parsed_lower && parsed_upper)
+        {
+            if (lower >= upper)
+            {
+                const Entry* entry = find_entry(parsed, "time_integration.realizability.lower");
+                add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
+                          "time_integration.realizability.lower must be less than upper.");
+            }
+            else
+            {
+                policy.interval = BoundedInterval{lower, upper};
+            }
+        }
+    }
+
+    if (!parsed.errors.empty())
+    {
+        return std::nullopt;
+    }
+    return policy;
+}
+
 std::optional<CqmomDiagnosticLevel> parse_cqmom_diagnostic_level_value(ParsedFile& parsed, const Entry& entry, const std::string& source_name)
 {
     if (entry.value == "detailed")
@@ -1318,6 +1402,11 @@ void validate_optional_node_advection_options(ParsedFile& parsed, const std::str
     static_cast<void>(parse_node_advection_options_from_parsed(parsed, source_name));
 }
 
+void validate_optional_realizability_policy(ParsedFile& parsed, const std::string& source_name)
+{
+    static_cast<void>(parse_realizability_policy_from_parsed(parsed, source_name));
+}
+
 void validate_optional_cqmom_source_node_count_evolution(ParsedFile& parsed, const std::string& source_name)
 {
     const Entry* entry = find_entry(parsed, std::string(cqmom_source_node_count_evolution_key));
@@ -1350,6 +1439,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_realizability_policy(parsed, source_name);
     validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     std::optional<CqmomDiagnosticLevel> diagnostic_level = parse_cqmom_diagnostic_level(parsed, source_name);
     const Entry* moment_storage_entry = find_entry(parsed, "cqmom.moment_storage");
@@ -1586,6 +1676,7 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_realizability_policy(parsed, source_name);
     validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_format_version(parsed, source_name);
     validate_optional_qmom_phase_space(parsed, source_name);
@@ -1669,6 +1760,7 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_realizability_policy(parsed, source_name);
     validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_optional_cqmom_diagnostic_level(parsed, source_name);
     validate_optional_cqmom_moment_storage(parsed, source_name);
@@ -1844,6 +1936,7 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_realizability_policy(parsed, source_name);
     validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_format_version(parsed, source_name);
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
@@ -2001,24 +2094,6 @@ ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::s
         return {RealizabilityPolicy{}, {}};
     }
 
-    for (const auto& item : parsed.scalars)
-    {
-        if (!is_realizability_key(item.first))
-        {
-            continue;
-        }
-        static const std::vector<std::string> allowed = {"time_integration.realizability.check_mode",
-                                                         "time_integration.realizability.accept_boundary",
-                                                         "time_integration.realizability.support",
-                                                         "time_integration.realizability.tolerance",
-                                                         "time_integration.realizability.relative_tolerance",
-                                                         "time_integration.realizability.lower",
-                                                         "time_integration.realizability.upper"};
-        if (std::find(allowed.begin(), allowed.end(), item.first) == allowed.end())
-        {
-            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
-        }
-    }
     for (const auto& item : parsed.sections)
     {
         if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
@@ -2028,59 +2103,12 @@ ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::s
         }
     }
 
-    std::optional<RealizabilityCheckMode> check_mode = parse_realizability_check_mode(parsed, source_name);
-    if (!check_mode.has_value())
+    const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, source_name);
+    if (!parsed.errors.empty() || !policy.has_value())
     {
         return failure_result<RealizabilityPolicy>(std::move(parsed));
     }
-
-    RealizabilityPolicy policy;
-    policy.check_mode = *check_mode;
-    parse_optional_bool(parsed, "time_integration.realizability.accept_boundary", source_name, policy.accept_boundary);
-    parse_optional_double(parsed, "time_integration.realizability.tolerance", source_name, policy.options.tolerance);
-    parse_optional_bool(parsed, "time_integration.realizability.relative_tolerance", source_name, policy.options.relative_tolerance);
-    if (policy.options.tolerance <= 0.0)
-    {
-        const Entry* entry = find_entry(parsed, "time_integration.realizability.tolerance");
-        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
-                  "time_integration.realizability.tolerance must be positive.");
-    }
-
-    if (policy.check_mode != RealizabilityCheckMode::None || find_entry(parsed, "time_integration.realizability.support") != nullptr)
-    {
-        std::optional<MomentSupport> support = parse_moment_support(parsed, source_name);
-        if (support.has_value())
-        {
-            policy.support = *support;
-        }
-    }
-
-    if (policy.support == MomentSupport::bounded_interval)
-    {
-        double lower = 0.0;
-        double upper = 0.0;
-        const bool parsed_lower = parse_required_double(parsed, "time_integration.realizability.lower", source_name, lower);
-        const bool parsed_upper = parse_required_double(parsed, "time_integration.realizability.upper", source_name, upper);
-        if (parsed_lower && parsed_upper)
-        {
-            if (lower >= upper)
-            {
-                const Entry* entry = find_entry(parsed, "time_integration.realizability.lower");
-                add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
-                          "time_integration.realizability.lower must be less than upper.");
-            }
-            else
-            {
-                policy.interval = BoundedInterval{lower, upper};
-            }
-        }
-    }
-
-    if (!parsed.errors.empty())
-    {
-        return failure_result<RealizabilityPolicy>(std::move(parsed));
-    }
-    return {policy, {}};
+    return {*policy, {}};
 }
 
 ConfigurationResult<TransportScheme> parse_transport_scheme(const std::string_view text, std::string source_name)

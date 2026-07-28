@@ -260,11 +260,24 @@ Configuration may include optional runtime settings that are useful to drivers:
 
 - transport scheme selection;
 - node-advection scheme selection and RK23 controls;
+- CQMOM source-stage active branch-count policy;
 - output options;
 - runtime realizability policy.
 
 These settings are parsed into public objects or enum values. They do not
 install callbacks, run transport, write output, or define a physical model.
+Case loaders validate recognized runtime settings when those settings are
+present in the same `.qmom` file, but they still return only `QmomCase` or
+`CqmomCase`.
+
+| Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
+| --- | --- | --- | --- |
+| QMOM/CQMOM inversion settings | yes | yes | no |
+| Vandermonde and CQMOM storage settings | yes | yes | no |
+| `time_integration.scheme` | yes | no | yes |
+| `time_integration.node_advection.*` | yes | no | yes |
+| `time_integration.cqmom.source_node_count_evolution` | yes | no | yes |
+| `time_integration.realizability.*` | yes | no | yes |
 
 Transport scheme configuration maps to `TransportScheme`. If omitted, the
 parsed scheme defaults to `TransportScheme::strang`.

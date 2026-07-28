@@ -610,6 +610,20 @@ together when you want CQMOM to accept branch-local node reduction.
 
 ## Transport Options
 
+A `.qmom` file may contain both case settings and transport settings.
+`load_qmom(...)` and `load_cqmom(...)` return only the case configuration, but
+they validate all recognized settings in the file. Transport settings must
+still be loaded into transport options explicitly.
+
+| Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
+| --- | --- | --- | --- |
+| QMOM/CQMOM inversion settings | yes | yes | no |
+| Vandermonde and CQMOM storage settings | yes | yes | no |
+| `time_integration.scheme` | yes | no | yes |
+| `time_integration.node_advection.*` | yes | no | yes |
+| `time_integration.cqmom.source_node_count_evolution` | yes | no | yes |
+| `time_integration.realizability.*` | yes | no | yes |
+
 A configuration file may select the transport operator-ordering scheme:
 
 ```text
@@ -723,7 +737,13 @@ back to configured maxima.
 The configuration file stores runtime numerical choices and the initial
 numerical setup. Your application still provides the continuous velocity and
 source callbacks, model coefficients, timestep plan, and detailed integrator
-controls.
+controls. Parse `time_integration.scheme` with
+`parse_transport_scheme(...)`, parse node advection with
+`parse_node_advection_options(...)` or `load_node_advection_options(...)`, and
+parse `time_integration.cqmom.source_node_count_evolution` with
+`parse_cqmom_source_node_count_evolution(...)` or
+`load_cqmom_source_node_count_evolution(...)` before assigning them to
+transport options.
 
 ## Output Options
 
@@ -803,7 +823,9 @@ upper = 1.0
 Support is not inferred from a distribution family or a phase-space name.
 Configuration parsing creates the policy object; applications that want
 runtime rejection must wire the policy into the relevant time-integration
-options.
+options. Case loading validates this section when it appears, but it does not
+install realizability predicates automatically. Load the policy explicitly
+with `parse_realizability_policy(...)` before wiring those predicates.
 
 ## Practical Guidance
 

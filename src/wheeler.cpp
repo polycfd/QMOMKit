@@ -260,7 +260,11 @@ Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_
         {
             if (coefficients.sigma(k, k) < -sigma_tolerance)
             {
-                return one_node_result(moments, QuadratureStatus::not_realizable, "Adaptive Wheeler recurrence has a negative sigma diagonal.");
+                std::ostringstream message;
+                message << std::scientific << std::setprecision(17) << "Adaptive Wheeler recurrence has a negative sigma diagonal: "
+                        << "sigma(" << k << ", " << k << ") = " << coefficients.sigma(k, k) << ", tolerance = " << sigma_tolerance << '.';
+
+                return one_node_result(moments, QuadratureStatus::not_realizable, message.str());
             }
             if (std::abs(coefficients.sigma(k, k)) <= sigma_tolerance)
             {

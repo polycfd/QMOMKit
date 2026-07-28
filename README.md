@@ -123,41 +123,6 @@ Tool documentation:
 - [Monte Carlo companion](docs/user/monte_carlo.md)
 - [Plotting helpers](tools/plotting/README.md)
 
-## Typical Workflows
-
-First define a QMOM or CQMOM case. You can load that setup from a `.qmom` file 
-or construct the case directly in C++ when the surrounding application already
-manages setup data.
- 
-A file-based QMOM reconstruction workflow is:
-
-```text
-load_qmom(...) -> QmomCase -> compute_qmom(...)
-```
-
-A file-based CQMOM reconstruction workflow is:
-
-```text
-load_cqmom(...) -> CqmomCase -> compute_cqmom(...)
-```
-
-Direct C++ setup enters the same reconstruction routines with `QmomCase` for
-QMOM or `CqmomCase` for CQMOM.
-
-After reconstruction, users may inspect quadrature, evaluate derived quantities,
-write output, or optionally evolve the distribution. Transport is available for
-both formulations: QMOM transport advances raw moment vectors, while normal
-CQMOM transport advances a `CqmomState` created from the case.
-Configuration files use the `.qmom` extension and describe phase-space
-structure, initial moments or analytical initialization data, and numerical
-options. They are a convenient reproducibility tool, not a requirement for using
-QMOMKit. Physics enters through user-defined callbacks.
-
-Output helpers write QMOMKit-native text tables. `MomentWriter` records native
-integer-order raw moments, while `QuadratureWriter` records reconstructed nodes
-and weights. Generalized moments with real exponents are evaluated separately
-from valid quadrature results.
-
 ## Contributing
 
 Contributions to improve and extend QMOMKit are welcome. Before contributing, read the relevant documentation, preserve public interfaces and numerical conventions, add tests or verification cases at the right level, and update documentation when behavior changes.

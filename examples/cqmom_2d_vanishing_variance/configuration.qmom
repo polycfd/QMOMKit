@@ -1,0 +1,29 @@
+[phase_space]
+names = d, u
+node_counts = 2, 3
+conditioning_order = 0, 1
+adaptive_branch_counts = true
+
+[qmom]
+adaptive = true
+
+[initial]
+type = independent_product
+number_density = 1.0
+maximum_orders = 7, 7
+
+[initial.dimension.0]
+family = normal
+mean = 2.0
+standard_deviation = 0.5
+
+[initial.dimension.1]
+family = normal
+mean = 1.0
+standard_deviation = 1.0
+
+[output]
+directory = output
+write_moments = true
+write_quadrature = true
+interval = 0.1

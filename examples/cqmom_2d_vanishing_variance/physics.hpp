@@ -3,13 +3,11 @@
 #include "qmomkit/moment_source.hpp"
 #include "qmomkit/node_advection.hpp"
 
-namespace cqmom_2d_continuous_breakage
+namespace cqmom_2d_vanishing_variance
 {
-
-constexpr double fragmentation_rate = 0.0;
 
 [[nodiscard]] qmomkit::PhaseSpaceVelocity continuous_velocity();
 
-[[nodiscard]] qmomkit::CqmomMomentSource binary_fragmentation_source();
+[[nodiscard]] qmomkit::CqmomMomentSource zero_moment_source();
 
-} // namespace cqmom_2d_continuous_breakage
+} // namespace cqmom_2d_vanishing_variance

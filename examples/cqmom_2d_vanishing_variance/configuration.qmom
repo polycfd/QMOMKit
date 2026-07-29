@@ -1,8 +1,11 @@
 [phase_space]
 names = d, u
-node_counts = 2, 3
+node_counts = 2, 2
 conditioning_order = 0, 1
 adaptive_branch_counts = true
+
+[time_integration.cqmom]
+source_node_count_evolution = preserve_active_counts
 
 [qmom]
 adaptive = true
@@ -10,7 +13,6 @@ adaptive = true
 [initial]
 type = independent_product
 number_density = 1.0
-maximum_orders = 7, 7
 
 [initial.dimension.0]
 family = normal
@@ -26,4 +28,4 @@ standard_deviation = 1.0
 directory = output
 write_moments = true
 write_quadrature = true
-interval = 0.1
+interval = 1.0

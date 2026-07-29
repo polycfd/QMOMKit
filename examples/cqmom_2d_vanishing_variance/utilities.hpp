@@ -1,15 +1,14 @@
 #pragma once
 
-#include "qmomkit/configuration.hpp"
 #include "qmomkit/cqmom.hpp"
-#include "qmomkit/distributions.hpp"
+#include "qmomkit/moment_reconstruction.hpp"
 
-#include <cstddef>
 #include <filesystem>
 #include <string>
+#include <utility>
 #include <vector>
 
-namespace cqmom_2d_continuous_breakage
+namespace cqmom_2d_vanishing_variance
 {
 
 void print_configuration_errors(const std::string& error);
@@ -17,11 +16,9 @@ void print_configuration_errors(const std::string& error);
 void ensure_output_directory(const std::filesystem::path& path);
 
 void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,
-                          const qmomkit::CqmomQuadrature& final_quadrature, const std::filesystem::path& output_directory, std::size_t sample_count,
-                          unsigned long long initialization_seed, double time_step, double final_time, bool wrote_moments, bool wrote_quadrature);
+                          const std::vector<std::pair<double, qmomkit::CqmomQuadrature>>& quadrature_history,
+                          const qmomkit::CqmomQuadrature& final_quadrature, const std::filesystem::path& output_directory,
+                          const std::vector<std::size_t>& conditioning_order, double time_step, double final_time, bool wrote_moments,
+                          bool wrote_quadrature);
 
-void print_monte_carlo_result_summary(const qmomkit::RawMomentTensor& initial_moments, const qmomkit::RawMomentTensor& final_moments,
-                                      const std::filesystem::path& output_directory, std::size_t final_particle_count, std::size_t sample_count,
-                                      unsigned long long initialization_seed, double time_step, double final_time, bool wrote_moments);
-
-} // namespace cqmom_2d_continuous_breakage
+} // namespace cqmom_2d_vanishing_variance

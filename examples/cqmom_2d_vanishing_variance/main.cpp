@@ -1,16 +1,11 @@
 #include "physics.hpp"
 #include "qmomkit/qmomkit.hpp"
-#include "sampling.hpp"
 #include "utilities.hpp"
 
 #include <algorithm>
 #include <exception>
 #include <filesystem>
-#include <iomanip>
 #include <iostream>
-#include <optional>
-#include <sstream>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -18,87 +13,31 @@ int main()
 {
     const std::filesystem::path configuration_file = "configuration.qmom";
     const double initial_time = 0.0;
-    const double final_time = 1.0;
+    const double final_time = 5.0;
     const double time_step = 0.01;
 
     try
     {
+        auto configured = qmomkit::config::load_cqmom(configuration_file);
+        if (!configured)
+        {
+            cqmom_2d_vanishing_variance::print_configuration_errors(configured.error());
+            return 1;
+        }
         auto output_configured = qmomkit::config::load_output_options(configuration_file);
         if (!output_configured)
         {
-            cqmom_2d_continuous_breakage::print_configuration_errors(output_configured.error());
+            cqmom_2d_vanishing_variance::print_configuration_errors(output_configured.error());
             return 1;
         }
         auto transport_configured = qmomkit::config::load_cqmom_transport_options(configuration_file);
         if (!transport_configured)
         {
-            cqmom_2d_continuous_breakage::print_configuration_errors(transport_configured.error());
-            return 1;
-        }
-        const qmomkit::OutputOptions output_options = std::move(output_configured).value();
-
-        const std::optional<std::string> configuration_text = cqmom_2d_continuous_breakage::read_configuration_text(configuration_file);
-        if (!configuration_text.has_value())
-            return 1;
-
-        auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(*configuration_text, configuration_file.string());
-        if (!initial_condition)
-        {
-            cqmom_2d_continuous_breakage::print_configuration_errors(initial_condition.error());
+            cqmom_2d_vanishing_variance::print_configuration_errors(transport_configured.error());
             return 1;
         }
 
-        const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-            cqmom_2d_continuous_breakage::sample_initial_distribution(std::move(initial_condition).value());
-        if (!sampled.has_value())
-            return 1;
-        if (!sampled->ok())
-        {
-            std::cerr << sampled->sampling.message << sampled->moments.message << '\n';
-            return 1;
-        }
-
-        const std::size_t initial_section = configuration_text->find("[initial]");
-        if (initial_section == std::string::npos)
-        {
-            std::cerr << "Could not find the initial condition section in " << configuration_file << ".\n";
-            return 1;
-        }
-
-        std::ostringstream sampled_case_text;
-        sampled_case_text << std::setprecision(17) << configuration_text->substr(0, initial_section) << "\n[moments]\nextents = ";
-        for (std::size_t dimension = 0; dimension < sampled->moments.moments.extents.size(); ++dimension)
-        {
-            if (dimension > 0)
-            {
-                sampled_case_text << ", ";
-            }
-            sampled_case_text << sampled->moments.moments.extents[dimension];
-        }
-        sampled_case_text << '\n';
-        for (std::size_t flat_index = 0; flat_index < sampled->moments.moments.values.size(); ++flat_index)
-        {
-            const qmomkit::MultiIndex order = qmomkit::unflatten_multi_index(flat_index, sampled->moments.moments.extents);
-            sampled_case_text << "M[";
-            for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
-            {
-                if (dimension > 0)
-                {
-                    sampled_case_text << ',';
-                }
-                sampled_case_text << order[dimension];
-            }
-            sampled_case_text << "] = " << sampled->moments.moments.values[flat_index] << '\n';
-        }
-
-        auto sampled_case_result = qmomkit::config::parse_cqmom(sampled_case_text.str(), "sampled-cqmom-initialization");
-        if (!sampled_case_result)
-        {
-            cqmom_2d_continuous_breakage::print_configuration_errors(sampled_case_result.error());
-            return 1;
-        }
-        const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
-
+        const qmomkit::CqmomCase cqmom_case = std::move(configured).value();
         const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
         if (!cqmom.ok())
         {
@@ -110,36 +49,10 @@ int main()
         qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices};
-        const qmomkit::PhaseSpaceVelocity velocity = cqmom_2d_continuous_breakage::continuous_velocity();
-        const qmomkit::CqmomMomentSource source = cqmom_2d_continuous_breakage::binary_fragmentation_source();
-
+        const qmomkit::PhaseSpaceVelocity velocity = cqmom_2d_vanishing_variance::continuous_velocity();
+        const qmomkit::CqmomMomentSource source = cqmom_2d_vanishing_variance::zero_moment_source();
         qmomkit::CqmomTransportOptions transport_options = std::move(transport_configured).value();
-        std::cout << "Transport scheme: ";
-        switch (transport_options.scheme)
-        {
-        case qmomkit::TransportScheme::strang:
-            std::cout << "strang";
-            break;
-        case qmomkit::TransportScheme::cd:
-            std::cout << "cd";
-            break;
-        case qmomkit::TransportScheme::dc:
-            std::cout << "dc";
-            break;
-        }
-        std::cout << '\n';
-        std::cout << qmomkit::format_node_advection_options(transport_options.node_options);
-        std::cout << "CQMOM source node-count evolution: ";
-        switch (transport_options.source_node_count_evolution)
-        {
-        case qmomkit::CqmomNodeCountEvolution::preserve_active_counts:
-            std::cout << "preserve_active_counts";
-            break;
-        case qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum:
-            std::cout << "allow_growth_to_configured_maximum";
-            break;
-        }
-        std::cout << '\n';
+        const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
 
@@ -178,11 +91,11 @@ int main()
 
         if (output_options.write_quadrature)
         {
-            cqmom_2d_continuous_breakage::ensure_output_directory(output_options.directory);
+            cqmom_2d_vanishing_variance::ensure_output_directory(output_options.directory);
         }
         if (output_options.write_moments)
         {
-            cqmom_2d_continuous_breakage::ensure_output_directory(output_options.directory);
+            cqmom_2d_vanishing_variance::ensure_output_directory(output_options.directory);
             qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", moment_output_request)
                 .write(initial_time, cqmom.quadrature);
 
@@ -205,21 +118,12 @@ int main()
                 quadrature_history_writer.write(history_time, history_quadrature);
             }
         }
+
         const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(cqmom.quadrature, moment_output_request);
-        if (!initial_moments.ok())
-        {
-            std::cerr << "Initial CQMOM moment reconstruction failed: " << initial_moments.message << '\n';
-            return 1;
-        }
         const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(quadrature, moment_output_request);
-        if (!final_moments.ok())
-        {
-            std::cerr << "Final CQMOM moment reconstruction failed: " << final_moments.message << '\n';
-            return 1;
-        }
-        cqmom_2d_continuous_breakage::print_result_summary(
-            initial_moments, final_moments, quadrature, output_options.directory, cqmom_2d_continuous_breakage::initialization_sample_count,
-            cqmom_2d_continuous_breakage::initialization_seed, time_step, final_time, output_options.write_moments, output_options.write_quadrature);
+        cqmom_2d_vanishing_variance::print_result_summary(initial_moments, final_moments, quadrature_history, quadrature, output_options.directory,
+                                                          cqmom_case.hierarchy().conditioning_order(), time_step, final_time,
+                                                          output_options.write_moments, output_options.write_quadrature);
     }
     catch (const std::exception& error)
     {

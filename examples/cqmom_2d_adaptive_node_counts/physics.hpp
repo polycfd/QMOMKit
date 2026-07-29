@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <string>
 
-namespace cqmom_2d_variance_reinjection
+namespace cqmom_2d_adaptive_node_counts
 {
 
 struct VarianceInjectionParameters
@@ -31,4 +31,4 @@ struct VarianceInjectionParameters
 
 [[nodiscard]] bool validate_variance_injection_source_rates(const VarianceInjectionParameters& parameters, std::string& message);
 
-} // namespace cqmom_2d_variance_reinjection
+} // namespace cqmom_2d_adaptive_node_counts

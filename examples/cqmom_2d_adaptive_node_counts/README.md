@@ -1,17 +1,26 @@
-# CQMOM: 2D Variance Reinjection
+# CQMOM: 2D Adaptive Node Counts
 
 This deterministic example evolves a two-dimensional CQMOM phase space ordered
-as `(d, u)`, where `d` is size and `u` is velocity. It is based closely on
-`examples/cqmom_2d_vanishing_variance`, but adds a finite-time symmetric
-velocity-redistribution source so adaptive velocity branches reduce, regrow
-one node per accepted source step, and reduce again. With the default
-two-velocity-node configuration, each velocity branch follows:
+as `(d, u)`, where `d` is size and `u` is velocity. It demonstrates adaptive
+branch-local node counts: velocity branches reduce as variance collapses,
+persist at reduced counts during continuous phase-space advection, recover by
+at most one node per accepted discontinuous source step, and reduce again after
+the source pulse.
+
+Variance collapse and symmetric variance injection are the numerical mechanisms
+used to exercise that lifecycle. They are not the sole purpose of the example.
+
+With the default two-velocity-node configuration, each velocity branch follows:
 
 ```text
 2 -> 1 -> 2 -> 1
 ```
 
-It's also possible to change the conditioning order or increase the maximum node count.
+It's also possible to change the conditioning order or to increase the maximum number of nodes.
+
+Exact transition times depend on the configured parameters, reconstruction
+tolerances, and output interval. The repository validation covers both supported
+2D conditioning orders, so velocity may be either marginal or conditional.
 
 ## Configuration
 
@@ -34,8 +43,7 @@ adaptive = true
 `load_cqmom(...)` uses the configured independent-product distribution to
 compute the required analytical raw moments. `node_counts = 2, 2` requests two
 size nodes and two velocity nodes; with adaptive branch counts enabled, those
-counts are maximums. The example test configurations also exercise
-`node_counts = 2, 3`.
+counts are maximums.
 
 The source-stage policy lets post-source reconstruction test controlled
 branch-local growth back toward the configured maximum. Growth is validated per
@@ -50,7 +58,9 @@ conditioning_order = 1, 0
 ```
 
 The physical velocity coordinate remains phase-space dimension `u` in either
-case; only the recursive conditioning order changes.
+case; only the recursive conditioning order changes. In `conditioning_order =
+0, 1`, velocity is conditional on size. In `conditioning_order = 1, 0`,
+velocity is the marginal CQMOM dimension.
 
 ## Evolution
 
@@ -95,28 +105,13 @@ S[p,2] = lambda * du^2 * M[p,0]
 
 After the pulse ends, the same continuous relaxation again collapses the
 velocity variance and adaptive Wheeler reduces recovered branches back toward
-one node.
+one node. This repeated collapse and regrowth is the active-node-count behavior
+validated by the example.
 
 ## Build And Run
 
-From the repository root, build the example with the in-tree target:
-
-```bash
-cmake -S . -B build -DQMOMKIT_BUILD_EXAMPLES=ON
-cmake --build build --target cqmom_2d_variance_reinjection_example
-cd build/examples/cqmom_2d_variance_reinjection
-./cqmom_2d_variance_reinjection_example
-```
-
-To run the example validation variants through CTest:
-
-```bash
-cmake -S . -B build -DQMOMKIT_BUILD_TESTS=ON -DQMOMKIT_BUILD_EXAMPLES=ON
-cmake --build build --target cqmom_2d_variance_reinjection_example
-ctest --test-dir build -R cqmom_2d_variance_reinjection --output-on-failure
-```
-
-The standalone installed-package workflow also works:
+From the repository root, install QMOMKit, then configure the example as a
+standalone package consumer:
 
 ```bash
 cmake -S . -B build \
@@ -125,11 +120,28 @@ cmake -S . -B build \
 cmake --build build
 cmake --install build
 
-cd examples/cqmom_2d_variance_reinjection
+cd examples/cqmom_2d_adaptive_node_counts
 cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
 cmake --build build
 cd build
-./cqmom_2d_variance_reinjection_example
+./cqmom_2d_adaptive_node_counts_example
+```
+
+To run the example validation variants through CTest:
+
+```bash
+cd examples/cqmom_2d_adaptive_node_counts
+cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install" -DBUILD_TESTING=ON
+cmake --build build
+ctest --test-dir build -R cqmom_2d_adaptive_node_counts --output-on-failure
+```
+
+The repository test suite remains available from the root build:
+
+```bash
+cmake -S . -B build -DQMOMKIT_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
 ## Output
@@ -144,10 +156,24 @@ enabled:
 
 It also prints output-interval samples with time, source on/off state, velocity
 mean, velocity variance, branch-identified active velocity counts, and terminal
-paths. Active-count transition lines include conditioning level, phase-space
-dimension, parent path, count change, configured maximum, and a centered
-rank-indicator diagnostic when velocity moments through fourth order are
-available.
+paths. Active velocity counts use:
+
+```text
+parent-path: active/configured
+```
+
+For a marginal velocity branch, the parent path is shown as `root`. Conditional
+velocity branches use their actual parent paths, such as `[0]` or `[1]`.
+
+The transition table lists the time, velocity-branch parent path, count change,
+and configured maximum. When a configured three-node case demonstrates
+controlled `2 -> 3` growth, a separate diagnostic section reports:
+
+```text
+R2 = mu2 * mu4 - mu3^2 - mu2^3
+```
+
+A positive `R2` indicates moment information beyond a two-node representation.
 
 The implementation is generic in conditioning order and branch identity. The
 repository tests currently validate velocity maxima two and three.

@@ -9,76 +9,114 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
-#include <map>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
 
-namespace cqmom_2d_variance_reinjection
+namespace cqmom_2d_adaptive_node_counts
 {
 namespace
 {
 
 constexpr std::size_t max_console_moments = 12;
+constexpr std::size_t source_rate_checked_order = 5;
 
-void print_multi_index(const qmomkit::MultiIndex& order)
+void print_section_heading(const char* title)
 {
-    std::cout << '[';
+    std::cout << '\n' << title << '\n';
+    for (const char* character = title; *character != '\0'; ++character)
+    {
+        std::cout << '-';
+    }
+    std::cout << '\n';
+}
+
+std::string format_multi_index(const qmomkit::MultiIndex& order)
+{
+    std::ostringstream stream;
+    stream << '[';
     for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
     {
         if (dimension > 0)
         {
-            std::cout << ',';
+            stream << ',';
         }
-        std::cout << order[dimension];
+        stream << order[dimension];
     }
-    std::cout << ']';
+    stream << ']';
+    return stream.str();
 }
 
-void print_path(const qmomkit::ConditioningPath& path)
+std::string format_path(const qmomkit::ConditioningPath& path)
 {
-    std::cout << '[';
+    if (path.empty())
+    {
+        return "root";
+    }
+    std::ostringstream stream;
+    stream << '[';
     for (std::size_t level = 0; level < path.size(); ++level)
     {
         if (level > 0)
         {
-            std::cout << ',';
+            stream << ',';
         }
-        std::cout << path.node_index_at_level(level);
+        stream << path.node_index_at_level(level);
     }
-    std::cout << ']';
+    stream << ']';
+    return stream.str();
 }
 
-void print_paths(const std::vector<qmomkit::ConditioningPath>& paths)
+std::string format_terminal_path(const qmomkit::ConditioningPath& path)
 {
+    std::ostringstream stream;
+    stream << '[';
+    for (std::size_t level = 0; level < path.size(); ++level)
+    {
+        if (level > 0)
+        {
+            stream << ',';
+        }
+        stream << path.node_index_at_level(level);
+    }
+    stream << ']';
+    return stream.str();
+}
+
+std::string format_terminal_paths(const std::vector<qmomkit::ConditioningPath>& paths)
+{
+    std::ostringstream stream;
     for (std::size_t path = 0; path < paths.size(); ++path)
     {
         if (path > 0)
         {
-            std::cout << ',';
+            stream << ' ';
         }
-        print_path(paths[path]);
+        stream << format_terminal_path(paths[path]);
     }
+    return stream.str();
 }
 
-void print_conditioning_order(const std::vector<std::size_t>& conditioning_order)
+std::string format_index_vector(const std::vector<std::size_t>& values)
 {
-    std::cout << '[';
-    for (std::size_t dimension = 0; dimension < conditioning_order.size(); ++dimension)
+    std::ostringstream stream;
+    stream << '[';
+    for (std::size_t value = 0; value < values.size(); ++value)
     {
-        if (dimension > 0)
+        if (value > 0)
         {
-            std::cout << ',';
+            stream << ',';
         }
-        std::cout << conditioning_order[dimension];
+        stream << values[value];
     }
-    std::cout << ']';
+    stream << ']';
+    return stream.str();
 }
 
 void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentResult& moments)
 {
-    std::cout << label << '\n';
+    print_section_heading(label);
     if (!moments.ok())
     {
         std::cout << "  unavailable: " << moments.message << '\n';
@@ -86,11 +124,16 @@ void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentR
     }
 
     const std::size_t printed_count = std::min(max_console_moments, moments.values.size());
+    std::size_t label_width = 0;
     for (std::size_t index = 0; index < printed_count; ++index)
     {
-        std::cout << "M";
-        print_multi_index(moments.indices[index]);
-        std::cout << " = " << moments.values[index] << '\n';
+        label_width = std::max(label_width, std::string("M" + format_multi_index(moments.indices[index])).size());
+    }
+    for (std::size_t index = 0; index < printed_count; ++index)
+    {
+        const std::string moment_label = "M" + format_multi_index(moments.indices[index]);
+        std::cout << std::left << std::setw(static_cast<int>(label_width + 2)) << moment_label << std::right << std::scientific
+                  << std::setprecision(6) << moments.values[index] << '\n';
     }
     if (moments.values.size() > printed_count)
     {
@@ -100,13 +143,14 @@ void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentR
 
 void print_quadrature(const qmomkit::CqmomQuadrature& quadrature)
 {
-    std::cout << "node  path       weight          d               u\n";
+    print_section_heading("Final quadrature");
+    std::cout << " node  " << std::left << std::setw(10) << "path" << std::right << std::setw(16) << "weight" << std::setw(16) << "d" << std::setw(16)
+              << "u" << '\n';
     for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
     {
-        std::cout << node << "     ";
-        print_path(quadrature.terminal_paths()[node]);
-        std::cout << "   " << quadrature.weights()[node] << "   " << quadrature.abscissas()[0][node] << "   " << quadrature.abscissas()[1][node]
-                  << '\n';
+        std::cout << std::setw(5) << node << "  " << std::left << std::setw(10) << format_terminal_path(quadrature.terminal_paths()[node])
+                  << std::right << std::scientific << std::setprecision(6) << std::setw(16) << quadrature.weights()[node] << std::setw(16)
+                  << quadrature.abscissas()[0][node] << std::setw(16) << quadrature.abscissas()[1][node] << '\n';
     }
 }
 
@@ -251,12 +295,6 @@ long double centered_rank_indicator(const std::vector<double>& moments)
     return centered[2] * centered[4] - centered[3] * centered[3] - centered[2] * centered[2] * centered[2];
 }
 
-void print_branch_id(const VelocityBranchId& branch)
-{
-    std::cout << "level " << branch.conditioning_level << " dim " << branch.phase_space_dimension << " parent ";
-    print_path(branch.parent_path);
-}
-
 const char* qmom_status_name(const qmomkit::QmomStatus status)
 {
     switch (status)
@@ -273,74 +311,97 @@ const char* qmom_status_name(const qmomkit::QmomStatus status)
     return "unknown";
 }
 
-void print_branch_counts(const std::vector<VelocityBranchCount>& counts)
+std::string format_branch_counts(const std::vector<VelocityBranchCount>& counts)
 {
-    std::cout << '[';
+    std::ostringstream stream;
     for (std::size_t branch = 0; branch < counts.size(); ++branch)
     {
         if (branch > 0)
         {
-            std::cout << ',';
+            stream << ", ";
         }
-        std::cout << "level " << counts[branch].id.conditioning_level << " dim " << counts[branch].id.phase_space_dimension << " parent ";
-        print_path(counts[branch].id.parent_path);
-        std::cout << ':' << counts[branch].active_count << '/' << counts[branch].configured_maximum;
+        stream << format_path(counts[branch].id.parent_path) << ": " << counts[branch].active_count << '/' << counts[branch].configured_maximum;
     }
-    std::cout << ']';
+    return stream.str();
 }
 
 void print_variance_history(const std::vector<HistorySample>& history)
 {
-    std::cout << "\nVariance and active-count history:\n";
-    std::cout << "time  source  velocity_mean  velocity_variance  active_u_branch_counts  active_paths\n";
+    print_section_heading("Variance and active-count history");
+    std::cout << "Active counts are shown as parent-path: active/configured.\n";
+    std::cout << std::right << std::setw(12) << "time" << "  " << std::left << std::setw(3) << "src" << "  " << std::right << std::setw(14)
+              << "mean(u)" << std::setw(16) << "var(u)" << "  " << std::left << std::setw(28) << "active u counts" << "terminal paths\n";
     for (const HistorySample& sample : history)
     {
-        std::cout << sample.time << "  " << (sample.source_active ? "on " : "off") << "  " << sample.moments.velocity_mean << "  "
-                  << sample.moments.velocity_variance << "  ";
-        print_branch_counts(sample.velocity_branch_counts);
-        std::cout << "  ";
-        print_paths(sample.quadrature.terminal_paths());
-        std::cout << '\n';
+        std::cout << std::right << std::scientific << std::setprecision(3) << std::setw(12) << sample.time << "  " << std::left << std::setw(3)
+                  << (sample.source_active ? "on" : "off") << "  " << std::right << std::scientific << std::setprecision(6) << std::setw(14)
+                  << sample.moments.velocity_mean << std::setw(16) << sample.moments.velocity_variance << "  " << std::left << std::setw(28)
+                  << format_branch_counts(sample.velocity_branch_counts) << format_terminal_paths(sample.quadrature.terminal_paths()) << '\n';
     }
 }
 
 void print_active_count_transitions(const std::vector<ActiveCountTransition>& transitions)
 {
-    std::cout << "\nObserved active velocity-count transitions:\n";
+    print_section_heading("Active velocity-count transitions");
     if (transitions.empty())
     {
         std::cout << "none\n";
         return;
     }
 
+    std::cout << std::right << std::setw(12) << "time" << "  " << std::left << std::setw(10) << "branch" << std::setw(10) << "change" << std::right
+              << std::setw(8) << "maximum" << '\n';
     for (const ActiveCountTransition& transition : transitions)
     {
-        std::cout << transition.time << "  ";
-        print_branch_id(transition.branch);
-        std::cout << "  " << transition.before << " -> " << transition.after << " / " << transition.configured_maximum;
-        if (!transition.velocity_moments.empty())
-        {
-            std::cout << "  R2 = " << static_cast<double>(transition.rank_indicator);
-        }
-        std::cout << '\n';
+        std::ostringstream change;
+        change << transition.before << " -> " << transition.after;
+        std::cout << std::right << std::scientific << std::setprecision(3) << std::setw(12) << transition.time << "  " << std::left << std::setw(10)
+                  << format_path(transition.branch.parent_path) << std::setw(10) << change.str() << std::right << std::setw(8)
+                  << transition.configured_maximum << '\n';
+    }
+}
+
+void print_three_node_growth_diagnostics(const std::vector<ActiveCountTransition>& transitions)
+{
+    std::vector<ActiveCountTransition> growth_transitions;
+    for (const ActiveCountTransition& transition : transitions)
+    {
         if (transition.before == 2 && transition.after == 3)
         {
-            std::cout << "    velocity moments:";
-            for (std::size_t order = 0; order < transition.velocity_moments.size(); ++order)
-            {
-                std::cout << " m" << order << '=' << transition.velocity_moments[order];
-            }
-            std::cout << '\n';
-            qmomkit::QmomOptions options;
-            options.adaptive = true;
-            const qmomkit::QmomResult current_ceiling =
-                qmomkit::compute_qmom(qmomkit::MomentSet{transition.velocity_moments}, transition.before, options);
-            const qmomkit::QmomResult growth_ceiling =
-                qmomkit::compute_qmom(qmomkit::MomentSet{transition.velocity_moments}, transition.after, options);
-            std::cout << "    Wheeler diagnostic: ceiling " << transition.before << " returned " << current_ceiling.abscissas.size() << " status "
-                      << qmom_status_name(current_ceiling.status) << "; ceiling " << transition.after << " returned "
-                      << growth_ceiling.abscissas.size() << " status " << qmom_status_name(growth_ceiling.status) << '\n';
+            growth_transitions.push_back(transition);
         }
+    }
+    if (growth_transitions.empty())
+    {
+        return;
+    }
+
+    print_section_heading("Three-node growth diagnostic");
+    std::cout << "R2 > 0 indicates moment information beyond a two-node representation.\n";
+    std::cout << std::right << std::setw(12) << "time" << "  " << std::left << std::setw(10) << "branch" << std::right << std::setw(14) << "R2"
+              << "  " << std::left << std::setw(18) << "Wheeler ceiling 2" << "Wheeler ceiling 3\n";
+    for (const ActiveCountTransition& transition : growth_transitions)
+    {
+        qmomkit::QmomOptions options;
+        options.adaptive = true;
+        const qmomkit::QmomResult current_ceiling =
+            qmomkit::compute_qmom(qmomkit::MomentSet{transition.velocity_moments}, transition.before, options);
+        const qmomkit::QmomResult growth_ceiling = qmomkit::compute_qmom(qmomkit::MomentSet{transition.velocity_moments}, transition.after, options);
+        std::ostringstream current_status;
+        current_status << qmom_status_name(current_ceiling.status) << ' ' << current_ceiling.abscissas.size();
+        std::ostringstream growth_status;
+        growth_status << qmom_status_name(growth_ceiling.status) << ' ' << growth_ceiling.abscissas.size();
+        std::cout << std::right << std::scientific << std::setprecision(3) << std::setw(12) << transition.time << "  " << std::left << std::setw(10)
+                  << format_path(transition.branch.parent_path) << std::right << std::scientific << std::setprecision(6) << std::setw(14)
+                  << static_cast<double>(transition.rank_indicator) << "  " << std::left << std::setw(18) << current_status.str()
+                  << growth_status.str() << '\n';
+
+        std::cout << "  moments";
+        for (std::size_t order = 0; order < transition.velocity_moments.size(); ++order)
+        {
+            std::cout << "  m" << order << '=' << std::scientific << std::setprecision(6) << transition.velocity_moments[order];
+        }
+        std::cout << '\n';
     }
 }
 
@@ -464,7 +525,7 @@ bool validate_required_velocity_moments(const qmomkit::CqmomMomentLayout& layout
     }
 
     std::ostringstream stream;
-    stream << "source layout exposes velocity moments through order " << required_velocity_order;
+    stream << "highest order: " << required_velocity_order;
     message = stream.str();
     return true;
 }
@@ -563,56 +624,77 @@ bool validate_active_count_lifecycle(const std::vector<HistorySample>& history, 
 void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,
                           const std::vector<HistorySample>& output_history, const std::vector<ActiveCountTransition>& active_count_transitions,
                           const qmomkit::CqmomQuadrature& final_quadrature, const std::filesystem::path& output_directory,
-                          const std::vector<std::size_t>& conditioning_order, const double relaxation_rate, const double equilibrium_velocity,
-                          const double pulse_start, const double pulse_end, const double source_rate, const double velocity_displacement,
-                          const double time_step, const double final_time, const bool wrote_moments, const bool wrote_quadrature)
+                          const std::vector<std::size_t>& conditioning_order, const std::vector<std::size_t>& node_counts,
+                          const double relaxation_rate, const double equilibrium_velocity, const double pulse_start, const double pulse_end,
+                          const double source_rate, const double velocity_displacement, const double time_step, const double final_time,
+                          const std::size_t required_velocity_order, const std::string& source_validation_message,
+                          const std::string& moment_layout_message, const bool wrote_moments, const bool wrote_quadrature)
 {
-    std::cout << std::setprecision(12);
-    std::cout << "2D CQMOM variance reinjection example\n";
-    std::cout << "phase-space ordering: (d,u)\n";
-    std::cout << "conditioning_order = ";
-    print_conditioning_order(conditioning_order);
-    std::cout << '\n';
-    std::cout << "relaxation_rate = " << relaxation_rate << '\n';
-    std::cout << "equilibrium_velocity = " << equilibrium_velocity << '\n';
-    std::cout << "pulse_start = " << pulse_start << '\n';
-    std::cout << "pulse_end = " << pulse_end << '\n';
-    std::cout << "source_rate = " << source_rate << '\n';
-    std::cout << "velocity_displacement = " << velocity_displacement << '\n';
-    std::cout << "time_step = " << time_step << '\n';
-    std::cout << "final_time = " << final_time << '\n';
+    std::cout << "2D CQMOM adaptive node counts\n";
+    std::cout << "-----------------------------\n";
+    std::cout << std::left << std::setw(22) << "Phase space" << "(d, u)\n";
+    std::cout << std::setw(22) << "Conditioning order" << format_index_vector(conditioning_order) << '\n';
+    std::cout << std::setw(22) << "Node counts" << format_index_vector(node_counts) << '\n';
+    std::cout << std::setw(22) << "Relaxation rate" << std::scientific << std::setprecision(6) << relaxation_rate << '\n';
+    std::cout << std::left << std::setw(22) << "Equilibrium velocity" << std::scientific << std::setprecision(6) << equilibrium_velocity << '\n';
+    std::cout << std::left << std::setw(22) << "Pulse interval" << '[' << std::scientific << std::setprecision(6) << pulse_start << ", " << pulse_end
+              << ")\n";
+    std::cout << std::left << std::setw(22) << "Source rate" << std::scientific << std::setprecision(6) << source_rate << '\n';
+    std::cout << std::left << std::setw(22) << "Velocity displacement" << std::scientific << std::setprecision(6) << velocity_displacement << '\n';
+    std::cout << std::left << std::setw(22) << "Time step" << std::scientific << std::setprecision(6) << time_step << '\n';
+    std::cout << std::left << std::setw(22) << "Final time" << std::scientific << std::setprecision(6) << final_time << '\n';
 
-    std::cout << '\n';
-    print_selected_moments("Initial moments:", initial_moments);
+    print_selected_moments("Initial moments", initial_moments);
 
-    std::cout << '\n';
-    print_selected_moments("Final moments:", final_moments);
+    print_selected_moments("Final moments", final_moments);
 
     print_variance_history(output_history);
 
     print_active_count_transitions(active_count_transitions);
 
-    std::cout << "\nFinal quadrature:\n";
+    print_three_node_growth_diagnostics(active_count_transitions);
+
     print_quadrature(final_quadrature);
+
+    print_section_heading("Validation");
+    std::cout << "[pass] Mass conservation\n";
+    std::cout << "[pass] Velocity-mean relaxation\n";
+    std::cout << "[pass] Variance injection\n";
+    std::cout << "[pass] Adaptive collapse and regrowth\n";
+    std::cout << "[pass] Source moments through order " << source_rate_checked_order << "   " << source_validation_message << '\n';
+    std::cout << "[pass] Required velocity moment layout  " << moment_layout_message << '\n';
+    if (required_velocity_order > source_rate_checked_order)
+    {
+        std::cout << "[note] Source self-check covers order " << source_rate_checked_order << "; required order is " << required_velocity_order
+                  << '\n';
+    }
 
     if (wrote_moments || wrote_quadrature)
     {
-        std::cout << "\nOutputs written to:\n";
+        print_section_heading("Output files");
+        std::cout << std::left << std::setw(10) << "directory" << output_directory.string() << '\n';
+        std::cout << std::setw(10) << "files";
+        bool first_file = true;
         if (wrote_moments)
         {
-            std::cout << (output_directory / "initial_moments.txt").string() << '\n';
-            std::cout << (output_directory / "moment_history.txt").string() << '\n';
+            std::cout << "initial_moments.txt, moment_history.txt";
+            first_file = false;
         }
         if (wrote_quadrature)
         {
-            std::cout << (output_directory / "initial_quadrature.txt").string() << '\n';
-            std::cout << (output_directory / "quadrature_history.txt").string() << '\n';
+            if (!first_file)
+            {
+                std::cout << ", ";
+            }
+            std::cout << "initial_quadrature.txt, quadrature_history.txt";
         }
+        std::cout << '\n';
     }
     else
     {
-        std::cout << "\nOutput disabled by configuration.\n";
+        print_section_heading("Output files");
+        std::cout << "disabled by configuration\n";
     }
 }
 
-} // namespace cqmom_2d_variance_reinjection
+} // namespace cqmom_2d_adaptive_node_counts

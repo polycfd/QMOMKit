@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace cqmom_2d_variance_reinjection
+namespace cqmom_2d_adaptive_node_counts
 {
 
 struct MomentDiagnostics
@@ -79,8 +79,9 @@ void append_active_count_transitions(const HistorySample& previous, const Histor
 void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,
                           const std::vector<HistorySample>& output_history, const std::vector<ActiveCountTransition>& active_count_transitions,
                           const qmomkit::CqmomQuadrature& final_quadrature, const std::filesystem::path& output_directory,
-                          const std::vector<std::size_t>& conditioning_order, double relaxation_rate, double equilibrium_velocity, double pulse_start,
-                          double pulse_end, double source_rate, double velocity_displacement, double time_step, double final_time, bool wrote_moments,
-                          bool wrote_quadrature);
+                          const std::vector<std::size_t>& conditioning_order, const std::vector<std::size_t>& node_counts, double relaxation_rate,
+                          double equilibrium_velocity, double pulse_start, double pulse_end, double source_rate, double velocity_displacement,
+                          double time_step, double final_time, std::size_t required_velocity_order, const std::string& source_validation_message,
+                          const std::string& moment_layout_message, bool wrote_moments, bool wrote_quadrature);
 
-} // namespace cqmom_2d_variance_reinjection
+} // namespace cqmom_2d_adaptive_node_counts

@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace cqmom_2d_variance_reinjection
+namespace cqmom_2d_adaptive_node_counts
 {
 namespace
 {
@@ -86,7 +86,7 @@ qmomkit::PhaseSpaceVelocity continuous_velocity(const VarianceInjectionParameter
     {
         if (coordinates.size() < 2)
         {
-            throw std::invalid_argument("The variance-reinjection example expects phase-space coordinates ordered as (d,u).");
+            throw std::invalid_argument("The adaptive-node-count example expects phase-space coordinates ordered as (d,u).");
         }
 
         const double u = coordinates[velocity_dimension];
@@ -109,7 +109,7 @@ qmomkit::CqmomMomentSource variance_injection_source(const VarianceInjectionPara
             const qmomkit::MultiIndex& order = moments.index(entry);
             if (order.size() != 2)
             {
-                throw std::invalid_argument("The variance-reinjection source expects 2D raw moments ordered as (d,u).");
+                throw std::invalid_argument("The variance-injection source expects 2D raw moments ordered as (d,u).");
             }
 
             const std::size_t velocity_order = order[1];
@@ -121,7 +121,7 @@ qmomkit::CqmomMomentSource variance_injection_source(const VarianceInjectionPara
                 const std::optional<double> lower_moment = moments.value(lower_order);
                 if (!lower_moment.has_value())
                 {
-                    throw std::invalid_argument("The variance-reinjection source requires lower-order velocity moments from the CQMOM context.");
+                    throw std::invalid_argument("The variance-injection source requires lower-order velocity moments from the CQMOM context.");
                 }
 
                 redistribution_change += binomial_coefficient(velocity_order, displacement_order) *
@@ -190,9 +190,9 @@ bool validate_variance_injection_source_rates(const VarianceInjectionParameters&
     }
 
     std::ostringstream stream;
-    stream << "source rates match direct symmetric redistribution through velocity order five; max error = " << maximum_error;
+    stream << "max error: " << std::scientific << maximum_error;
     message = stream.str();
     return true;
 }
 
-} // namespace cqmom_2d_variance_reinjection
+} // namespace cqmom_2d_adaptive_node_counts

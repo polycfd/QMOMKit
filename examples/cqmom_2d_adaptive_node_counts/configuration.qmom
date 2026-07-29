@@ -1,6 +1,6 @@
 [phase_space]
 names = d, u
-node_counts = 2, 3
+node_counts = 2, 2
 conditioning_order = 0, 1
 adaptive_branch_counts = true
 
@@ -28,4 +28,4 @@ standard_deviation = 1.0
 directory = output
 write_moments = true
 write_quadrature = true
-interval = 0.05
+interval = 0.5

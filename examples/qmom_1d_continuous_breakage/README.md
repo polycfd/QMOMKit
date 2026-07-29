@@ -119,12 +119,6 @@ cd build
 ./qmom_1d_continuous_breakage_example
 ```
 
-The existing helper script remains available:
-
-```bash
-./build_and_run.sh
-```
-
 Running the executable writes:
 
 - `output/moments.txt`

@@ -1,5 +1,7 @@
 #include "utilities.hpp"
 
+#include "physics.hpp"
+
 #include <cstddef>
 #include <filesystem>
 #include <iomanip>
@@ -81,6 +83,7 @@ void print_common_run_summary(std::ostream& stream, const std::string_view workf
     stream << "Samples: " << sample_count << ", initialization seed: " << initialization_seed << '\n';
     stream << "Continuous model: dd/dt = 1 - d\n";
     stream << "Binary fragmentation: d -> d/2\n";
+    stream << "Nucleation boundary: J_nuc = " << nucleation_rate() << ", d_nuc = " << nucleation_diameter() << '\n';
     stream << "Time: initial = " << initial_time << ", final = " << final_time << ", step = " << time_step
            << ", output interval = " << output_interval << '\n';
 }

@@ -15,7 +15,9 @@ homogeneous and uses the same one-dimensional continuous-breakage case as
 `examples/qmom_1d_continuous_breakage_mc_initialization/`: the same configured
 bimodal distribution, fixed-seed Monte Carlo initialization, continuous
 velocity, binary-fragmentation source, timestep, output cadence, and output
-files.
+files. It also includes a separate Monte Carlo reference executable that
+evolves the sampled particles directly with the same physical model, including
+a simple nucleation boundary contribution.
 
 ## Difference From The Native Workflow
 
@@ -53,16 +55,61 @@ continuous half-step
     -> continuous half-step
 ```
 
+The executable loads the configured transport options and supports the default
+`strang` sequence used here. Other configured transport schemes are rejected
+explicitly by this local-rate driver.
+
 For the continuous half-steps,
 `evaluate_qmom_continuous_moment_rates(...)` inverts the supplied raw moments,
 evaluates the phase-space velocity at QMOM nodes, and reconstructs
 instantaneous raw-moment rates. For the discontinuous source step,
 `evaluate_qmom_discontinuous_moment_rates(...)` calls the source model, which
 already returns raw-moment rates; that rate evaluation does not require a
-quadrature inversion.
+quadrature inversion. The source-stage rate is combined with a lower-boundary
+nucleation contribution.
+
+The moment convention is
+
+```text
+m_k = integral d^k n(d) dd
+```
+
+so constant-rate nucleation at diameter `d_nuc` contributes
+`B_k = J_nuc d_nuc^k` to raw moment order `k`. This example uses
+`J_nuc = 0.05` and `d_nuc = 0.2`. The rate is visible in the histories over
+the unit simulation interval, but it remains small relative to the existing
+growth and breakage dynamics.
 
 Moments remain the evolved state. The driver calls `qmomkit::compute_qmom(...)`
 only when it needs weights and abscissas for output.
+
+## Monte Carlo Reference
+
+`main_mc.cpp` starts from the same configured distribution, sample count, and
+initialization seed as `main.cpp`. It interprets those samples as particles,
+uses the shared continuous velocity, applies the shared binary breakage event
+rate and daughter-state rule, and injects nucleated particles at the shared
+nucleation diameter.
+
+The Monte Carlo reference follows the same macro-step sequence:
+
+```text
+continuous particle half-step
+    -> stochastic binary breakage and Poisson nucleation
+    -> continuous particle half-step
+```
+
+Each computational particle has the fixed statistical weight
+`number_density / initial_sample_count`. Raw moments are weighted sums over
+particles; they are not divided by the current particle count, so increases in
+`m0` from breakage and nucleation remain physical number-density changes.
+Over a source interval `dt`, the Monte Carlo nucleation count is sampled from
+a Poisson distribution with mean `J_nuc dt / particle_weight`, so the expected
+weighted birth contribution is the same `J_nuc dt` used by the QMOM boundary
+rate. The Monte Carlo result is stochastic after initialization because
+breakage and nucleation events are sampled with fixed deterministic seeds. The
+fixed seeds make the example reproducible, but the final moments are not
+expected to match the QMOM local-rate result exactly.
 
 ## Stage Policy
 
@@ -75,9 +122,16 @@ limiters, or other coefficient-level criteria.
 
 ## Source Organization
 
-`main.cpp` contains the application-managed rate evaluation, SSP-RK3
-integration, stage policy, and simulation loop. `utilities.*` contains only
-output, filesystem, and reporting support.
+`physics.*` contains the shared physical model: continuous velocity, binary
+breakage rate, daughter state, nucleation rate, nucleation diameter, and the
+QMOM nucleation moment contribution. `main.cpp` contains the
+application-managed rate evaluation, SSP-RK3 integration, stage policy, and
+QMOM simulation loop. `main_mc.cpp` contains the Monte Carlo particle workflow.
+`particles_mc.*` adapts the shared physical model to the sampled-particle
+representation. `nucleation_balance_check.cpp` verifies the analytical
+correspondence between the QMOM nucleation moment rate and the MC birth
+intensity. `utilities.*` contains only output, filesystem, and reporting
+support.
 
 ## Output
 
@@ -92,6 +146,19 @@ native-workflow example:
 The files are written with QMOMKit's public `qmomkit::MomentWriter` and
 `qmomkit::QuadratureWriter`. They are whitespace-delimited text tables with
 commented headers.
+
+The Monte Carlo executable writes:
+
+- `output/moment_history_mc.txt`
+- `output/mc_diagnostics.txt`
+- `output/particle_history.txt`
+
+`moment_history_mc.txt` uses the same time column and raw-moment ordering as
+`moment_history.txt`. `mc_diagnostics.txt` records particle count, total number
+density, first raw moment, cumulative breakage events, cumulative nucleation
+particles, expected cumulative nucleation number, realized cumulative
+nucleation number, and the nucleation contribution to `m0`.
+`particle_history.txt` is a custom sampled-particle snapshot table.
 
 ## Build And Run
 
@@ -132,24 +199,21 @@ cmake --build build
 ```
 
 The build copies `configuration.qmom` into `build/`. Run from the build
-directory so generated output stays there:
+directory so generated output stays there. Run the QMOM local-rate executable
+first when you want the Monte Carlo executable to print direct comparison
+metrics against `output/moment_history.txt`:
 
 ```bash
 cd build
 ./qmom_1d_continuous_breakage_mc_local_rates_example
+./qmom_1d_continuous_breakage_mc_local_rates_mc_example
 ```
 
-The standalone example project also registers the executable as a CTest smoke
-test:
+The standalone example project also registers CTest smoke tests for both
+executables and a nucleation-balance check:
 
 ```bash
 ctest --test-dir build --output-on-failure
-```
-
-The helper script follows the same configure, build, and run pattern:
-
-```bash
-examples/qmom_1d_continuous_breakage_mc_local_rates/build_and_run.sh "$PWD/install"
 ```
 
 ## Limitations

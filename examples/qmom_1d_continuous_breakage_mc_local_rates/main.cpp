@@ -4,6 +4,7 @@
 #include "utilities.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <exception>
 #include <filesystem>
@@ -52,6 +53,11 @@ int main()
     const qmomkit::QmomCase qmom_case = std::move(configured).value();
     const qmomkit::OutputOptions output_options = std::move(output_configured).value();
     qmomkit::QmomTransportOptions transport_options = std::move(transport_configured).value();
+    if (transport_options.scheme != qmomkit::TransportScheme::strang)
+    {
+        std::cerr << "The local-rate example currently supports only the strang transport scheme.\n";
+        return 1;
+    }
     auto initial_condition = qmomkit::config::parse_qmom_initial_condition(*configuration_text, configuration_file.string());
     if (!initial_condition)
     {
@@ -100,6 +106,7 @@ int main()
     // the surrounding application code advance it.
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_continuous_breakage_mc_local_rates::continuous_velocity();
     const qmomkit::MomentSource source = qmom_1d_continuous_breakage_mc_local_rates::binary_fragmentation_source();
+    const qmomkit::MomentBoundaryContribution boundary = qmom_1d_continuous_breakage_mc_local_rates::boundary_contribution();
 
     const auto moments_are_invertible = [&](const std::vector<double>& candidate)
     { return qmomkit::compute_qmom(qmomkit::MomentSet(candidate), qmom_case.node_count, qmom_case.options).ok(); };
@@ -144,7 +151,22 @@ int main()
                     << ", message = " << rates.message;
             throw std::runtime_error(message.str());
         }
-        return rates.rates;
+        qmomkit::MomentBoundaryRate boundary_rate = boundary(stage_time, stage_moments);
+        if (boundary_rate.values.size() != rates.rates.size())
+        {
+            throw std::runtime_error("Boundary contribution returned the wrong number of moment rates.");
+        }
+
+        std::vector<double> combined_rates = rates.rates;
+        for (std::size_t index = 0; index < combined_rates.size(); ++index)
+        {
+            if (!std::isfinite(boundary_rate.values[index]))
+            {
+                throw std::runtime_error("Boundary contribution returned a non-finite moment rate.");
+            }
+            combined_rates[index] += boundary_rate.values[index];
+        }
+        return combined_rates;
     };
 
     qmom_1d_continuous_breakage_mc_local_rates::OutputFiles output_files;

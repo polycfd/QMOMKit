@@ -56,6 +56,24 @@ Documentation must describe the current design rather than development history.
 Do not preserve obsolete implementation stages, previous task instructions, or
 superseded terminology.
 
+## Tests and Examples
+
+Tests and examples are strictly separate and must never be conflated.
+
+- Tests belong under `tests/` and provide automated unit, component,
+  regression, verification, and public-header coverage.
+- Examples belong under `examples/` and provide clear user-facing workflows
+  demonstrating how to use QMOMKit.
+- An example must never be registered with CTest or treated as an automated
+  test, including as a smoke test.
+- Example CMake projects must not call `enable_testing()` or `add_test()`.
+- Important invariants demonstrated by an example must have focused coverage
+  under `tests/`.
+- Examples may perform concise runtime checks and return failure when their
+  demonstrated workflow is invalid, but those checks do not make the example a
+  test.
+- Tests must not invoke example executables or depend on example output.
+
 ## Package and Dependency Boundaries
 
 The root CMake project builds and installs only the core library target:

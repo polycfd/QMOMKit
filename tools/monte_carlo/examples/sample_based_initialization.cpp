@@ -208,12 +208,9 @@ private:
     return std::nullopt;
 }
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors)
+void print_configuration_errors(const std::string& errors)
 {
-    for (const qmomkit::config::ConfigurationError& error : errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
+    std::cerr << errors << '\n';
 }
 
 [[nodiscard]] qmomkit::AdaptiveRk23Options rk23_options()
@@ -370,17 +367,17 @@ int run_qmom_case(const std::filesystem::path& configuration_path, const std::st
     const auto configured = qmomkit::config::load_qmom(configuration_path);
     if (!configured.ok())
     {
-        print_configuration_errors(configured.errors);
+        print_configuration_errors(configured.error());
         return 1;
     }
     const auto initial_condition = qmomkit::config::parse_qmom_initial_condition(configuration_text, configuration_path.string());
     if (!initial_condition.ok())
     {
-        print_configuration_errors(initial_condition.errors);
+        print_configuration_errors(initial_condition.error());
         return 1;
     }
 
-    const std::optional<qmomkit::monte_carlo::OneDimensionalSampledInitialization> sampled = sample_qmom_initial_condition(*initial_condition.value);
+    const std::optional<qmomkit::monte_carlo::OneDimensionalSampledInitialization> sampled = sample_qmom_initial_condition(initial_condition.value());
     if (!sampled.has_value())
     {
         return 1;
@@ -394,7 +391,7 @@ int run_qmom_case(const std::filesystem::path& configuration_path, const std::st
     // The deterministic path starts from moments estimated from the same
     // finite realization used by the Monte Carlo path.
     std::vector<double> qmomkit_moments = sampled->moments.moments.values();
-    qmomkit::QmomResult qmom = qmomkit::compute_qmom(sampled->moments.moments, configured.value->node_count, configured.value->options);
+    qmomkit::QmomResult qmom = qmomkit::compute_qmom(sampled->moments.moments, configured.value().node_count, configured.value().options);
     if (!qmom.ok())
     {
         std::cerr << "Initial sample-based QMOM inversion failed: " << qmom.message << '\n';
@@ -475,17 +472,17 @@ int run_cqmom_case(const std::filesystem::path& configuration_path, const std::s
     const auto configured = qmomkit::config::load_cqmom_dense(configuration_path);
     if (!configured.ok())
     {
-        print_configuration_errors(configured.errors);
+        print_configuration_errors(configured.error());
         return 1;
     }
     const auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(configuration_text, configuration_path.string());
     if (!initial_condition.ok())
     {
-        print_configuration_errors(initial_condition.errors);
+        print_configuration_errors(initial_condition.error());
         return 1;
     }
 
-    const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled = sample_cqmom_initial_condition(*initial_condition.value);
+    const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled = sample_cqmom_initial_condition(initial_condition.value());
     if (!sampled.has_value())
     {
         return 1;
@@ -499,7 +496,7 @@ int run_cqmom_case(const std::filesystem::path& configuration_path, const std::s
     // The deterministic path starts from the tensor moments estimated from the
     // same finite realization used by the Monte Carlo path.
     qmomkit::RawMomentTensor qmomkit_moments = sampled->moments.moments;
-    qmomkit::CqmomDenseCase dense_case = *configured.value;
+    qmomkit::CqmomDenseCase dense_case = configured.value();
     dense_case.moments = qmomkit_moments;
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(dense_case);
     if (!initial.ok())

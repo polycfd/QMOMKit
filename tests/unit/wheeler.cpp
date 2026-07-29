@@ -165,12 +165,15 @@ void test_adaptive_threshold_rejection_falls_back_to_one_node()
     assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
 }
 
-void test_adaptive_negative_sigma_diagonal_falls_back_to_one_node()
+void test_adaptive_requested_two_node_negative_variance_recovers_one_node()
 {
     const qmomkit::MomentSet moments{1.0, 0.0, -1.0, 0.0};
     qmomkit::WheelerOptions options;
     options.adaptive = true;
 
+    // For a two-node request, the failing sigma diagonal is the variance
+    // numerator m0*m2 - m1*m1. The adaptive retry uses the lower-order prefix
+    // and is not expected to reproduce the discarded inconsistent m2.
     const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
 
     assert(quadrature.ok());
@@ -179,16 +182,17 @@ void test_adaptive_negative_sigma_diagonal_falls_back_to_one_node()
     assert(quadrature.weights.size() == 1);
     assert(std::isfinite(quadrature.abscissas.front()));
     assert(std::isfinite(quadrature.weights.front()));
-    assert_near(quadrature.abscissas.front(), moments[1] / moments[0], 1.0e-14);
-    assert_near(quadrature.weights.front(), moments[0], 1.0e-14);
+    assert_vector_near(reconstruct_moments(quadrature, 2), {moments[0], moments[1]}, 1.0e-14);
 }
 
-void test_adaptive_negative_sigma_diagonal_retries_to_highest_supported_count()
+void test_adaptive_requested_three_node_high_rank_sigma_recovers_two_nodes()
 {
     const qmomkit::MomentSet moments{1.0, 0.8, 2.8, 4.4, 0.0, 0.0};
     qmomkit::WheelerOptions options;
     options.adaptive = true;
 
+    // The first four moments support a two-node quadrature, but the higher-rank
+    // sigma condition needed by the requested three-node inversion fails.
     const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 3, options);
 
     assert(quadrature.ok());
@@ -211,10 +215,12 @@ void test_nonadaptive_singular_sequence_reports_failure()
     assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
 }
 
-void test_nonrealizable_negative_variance_reports_failure()
+void test_fixed_count_negative_variance_remains_strict_failure()
 {
     const qmomkit::MomentSet moments{1.0, 0.0, -1.0, 0.0};
 
+    // Without adaptive mode, a negative two-node variance numerator remains a
+    // not-realizable failure even though diagnostic one-node data is available.
     const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2);
 
     assert(!quadrature.ok());
@@ -224,40 +230,31 @@ void test_nonrealizable_negative_variance_reports_failure()
     assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
 }
 
-void test_adaptive_negative_sigma_diagonal_with_valid_mass_reduces()
-{
-    const qmomkit::MomentSet moments{1.0, 0.0, -1.0, 0.0};
-    qmomkit::WheelerOptions options;
-    options.adaptive = true;
-
-    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
-
-    assert(quadrature.ok());
-    assert(quadrature.status == qmomkit::QuadratureStatus::success);
-    assert_vector_near(quadrature.abscissas, {0.0}, 1.0e-14);
-    assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
-}
-
-void test_adaptive_scaled_negative_sigma_diagonal_with_valid_mass_reduces()
+void test_adaptive_scaled_requested_two_node_negative_variance_recovers_one_node()
 {
     const qmomkit::MomentSet moments{1.0, 100.0, 9999.0, 999900.0};
     qmomkit::WheelerOptions options;
     options.adaptive = true;
 
+    // The variance numerator is materially negative at large abscissa scale.
+    // The one-node adaptive retry still reproduces only m0 and m1.
     const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
 
     assert(quadrature.ok());
     assert(quadrature.status == qmomkit::QuadratureStatus::success);
     assert_vector_near(quadrature.abscissas, {100.0}, 1.0e-14);
     assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
+    assert_vector_near(reconstruct_moments(quadrature, 2), {moments[0], moments[1]}, 1.0e-14);
 }
 
-void test_adaptive_negative_mass_still_reports_failure()
+void test_adaptive_negative_mass_remains_failure()
 {
     const qmomkit::MomentSet moments{-1.0, 0.0, 1.0, 0.0};
     qmomkit::WheelerOptions options;
     options.adaptive = true;
 
+    // Adaptive rank reduction must not reinterpret a negative mass moment as a
+    // valid lower-rank quadrature.
     const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
 
     assert(!quadrature.ok());
@@ -342,13 +339,12 @@ int main()
     test_adaptive_exact_large_abscissa_degenerate_sequence_reduces();
     test_adaptive_roundoff_positive_degenerate_sequence_reduces();
     test_adaptive_threshold_rejection_falls_back_to_one_node();
-    test_adaptive_negative_sigma_diagonal_falls_back_to_one_node();
-    test_adaptive_negative_sigma_diagonal_retries_to_highest_supported_count();
+    test_adaptive_requested_two_node_negative_variance_recovers_one_node();
+    test_adaptive_requested_three_node_high_rank_sigma_recovers_two_nodes();
     test_nonadaptive_singular_sequence_reports_failure();
-    test_nonrealizable_negative_variance_reports_failure();
-    test_adaptive_negative_sigma_diagonal_with_valid_mass_reduces();
-    test_adaptive_scaled_negative_sigma_diagonal_with_valid_mass_reduces();
-    test_adaptive_negative_mass_still_reports_failure();
+    test_fixed_count_negative_variance_remains_strict_failure();
+    test_adaptive_scaled_requested_two_node_negative_variance_recovers_one_node();
+    test_adaptive_negative_mass_remains_failure();
     test_invalid_input_requires_two_moments_per_node();
     test_zero_requested_nodes_reports_invalid_input();
     test_nonfinite_moment_reports_invalid_input();

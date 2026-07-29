@@ -131,8 +131,8 @@ struct CqmomTransportOptions
 {
     NodeAdvectionOptions node_options;
     MomentSourceUpdateOptions source_options;
-    /** Source-stage rank policy. General sources default to allowing growth;
-     * zero/no-op sources should select `preserve_active_counts`. */
+    /** Source-stage rank policy. General sources default to controlled growth
+     * toward configured maxima; zero/no-op sources should preserve counts. */
     CqmomNodeCountEvolution source_node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     TransportScheme scheme = TransportScheme::strang;
 };
@@ -216,7 +216,7 @@ struct CqmomTransportResult
  * active counts separately from the hierarchy's configured maximum counts.
  * Source stages use `CqmomTransportOptions::source_node_count_evolution` to
  * decide whether post-source inversion preserves the current active counts or
- * may grow branches back to the configured maximum.
+ * may grow active branches one node at a time toward the configured maximum.
  */
 [[nodiscard]] CqmomTransportResult advance_transport_cqmom(const CqmomState& state, double t, double time_step, const PhaseSpaceVelocity& velocity,
                                                            const CqmomMomentSource& source, const CqmomTransportOptions& options = {});

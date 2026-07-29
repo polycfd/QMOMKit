@@ -588,11 +588,15 @@ maximum branch counts; the state also retains the current branch-specific
 active counts associated with its ragged quadrature. Continuous node advection
 preserves those active counts.
 
-Source stages choose whether the active counts can grow. The default
+Source stages choose whether the active counts can grow after a successful
+discontinuous source update. The default
 `CqmomTransportOptions::source_node_count_evolution` is
 `allow_growth_to_configured_maximum`, which is appropriate for general
-sources such as breakage that may create additional structure. For zero/no-op
-sources or source models known not to increase rank, set it to
+sources such as breakage that may create additional structure. Growth is
+branch-local and controlled: an active branch can grow by at most one node in a
+single accepted source step, and only when the higher-capacity inversion
+actually returns the requested larger count. For zero/no-op sources or source
+models known not to increase rank, set it to
 `preserve_active_counts` so one-node adaptive branches are not reconsidered as
 larger branches only because the configured maximum is larger.
 

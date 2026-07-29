@@ -602,11 +602,15 @@ Adaptive CQMOM source stages have an explicit branch-count evolution policy:
   a two-node branch merely because the hierarchy capacity is two. Use this for
   zero/no-op sources, continuous-only physical evolution composed through the
   hybrid helper, and source models known not to increase quadrature rank.
-- `allow_growth_to_configured_maximum`: post-source inversion may use the
-  hierarchy's configured maximum counts and may grow active branches when the
-  source-updated moments support additional nodes. This is the default because
-  it preserves the existing general-source semantics for binary breakage and
-  other discontinuous source terms that may create additional structure.
+- `allow_growth_to_configured_maximum`: post-source inversion keeps the
+  current active topology as its baseline and may grow an active branch by one
+  node toward the hierarchy's configured maximum when the source-updated
+  moments support that larger branch. Growth is accepted only when the
+  branch-local trial inversion returns exactly the requested `Nactive + 1`
+  nodes; reductions still take precedence. This is the default because it
+  preserves general-source support for binary breakage and other discontinuous
+  source terms that may create additional structure without jumping directly to
+  full configured capacity.
 
 After every successful inversion during CQMOM transport through `CqmomState`,
 the returned state is refreshed with the active counts extracted from the

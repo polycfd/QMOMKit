@@ -722,16 +722,16 @@ static DenseCqmomTransportResult advance_transport_cqmom_dense_impl(const CqmomD
         }
 
         const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
-        const std::vector<CqmomActiveBranchCount> post_source_inversion_limits =
-            options.source_node_count_evolution == CqmomNodeCountEvolution::preserve_active_counts ? current_active_branch_counts
-                                                                                                   : std::vector<CqmomActiveBranchCount>{};
+        const bool allow_active_branch_count_growth =
+            options.source_node_count_evolution == CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
         // Reconstruct quadrature after the moment update so CQMOM
         // realizability is checked before any later continuous stage.
         internal::performance::record_post_source_inversion();
         CqmomLeanCase post_source_case{source_update.moments,       dense_case.conditional_options,
                                        dense_case.qmom_options,     dense_case.adaptive_branch_counts,
                                        dense_case.diagnostic_level, dense_case.vandermonde_solver};
-        CqmomResult post_source_quadrature = internal::compute_trusted_cqmom(post_source_case, post_source_inversion_limits);
+        CqmomResult post_source_quadrature =
+            internal::compute_trusted_cqmom(post_source_case, current_active_branch_counts, allow_active_branch_count_growth);
         diagnostics.post_source_cqmom_status = post_source_quadrature.status;
         diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
         if (!post_source_quadrature.ok())
@@ -799,7 +799,8 @@ LeanCqmomTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanCase& 
         return lean_cqmom_failure(state, std::nullopt, TransportStatus::invalid_input, TransportStage::none, diagnostics, t, error.what());
     }
 
-    const auto compute_stage_cqmom = [&](const CqmomMomentData& moments, const std::vector<CqmomActiveBranchCount>& active_branch_counts)
+    const auto compute_stage_cqmom = [&](const CqmomMomentData& moments, const std::vector<CqmomActiveBranchCount>& active_branch_counts,
+                                         const bool allow_active_branch_count_growth = false)
     {
         const CqmomLeanCase stage_case{moments,
                                        lean_case.conditional_options,
@@ -807,7 +808,7 @@ LeanCqmomTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanCase& 
                                        lean_case.adaptive_branch_counts,
                                        lean_case.diagnostic_level,
                                        lean_case.vandermonde_solver};
-        return internal::compute_trusted_cqmom(stage_case, active_branch_counts);
+        return internal::compute_trusted_cqmom(stage_case, active_branch_counts, allow_active_branch_count_growth);
     };
 
     std::vector<CqmomActiveBranchCount> current_active_branch_counts = std::move(initial_active_branch_counts);
@@ -898,13 +899,13 @@ LeanCqmomTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanCase& 
 
         current_state.moments = source_update.moments;
         const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
-        const std::vector<CqmomActiveBranchCount> post_source_inversion_limits =
-            options.source_node_count_evolution == CqmomNodeCountEvolution::preserve_active_counts ? current_active_branch_counts
-                                                                                                   : std::vector<CqmomActiveBranchCount>{};
+        const bool allow_active_branch_count_growth =
+            options.source_node_count_evolution == CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
         // Reconstruct quadrature after the moment update so CQMOM
         // realizability is checked before any later continuous stage.
         internal::performance::record_post_source_inversion();
-        CqmomResult post_source_quadrature = compute_stage_cqmom(current_state.moments, post_source_inversion_limits);
+        CqmomResult post_source_quadrature =
+            compute_stage_cqmom(current_state.moments, current_active_branch_counts, allow_active_branch_count_growth);
         diagnostics.post_source_cqmom_status = post_source_quadrature.status;
         diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
         if (!post_source_quadrature.ok())

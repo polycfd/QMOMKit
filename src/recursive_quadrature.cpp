@@ -637,6 +637,12 @@ struct ActiveBranchTopology
     std::map<ActiveBranchKey, CqmomActiveBranchCount> counts;
 };
 
+struct BranchNodeCountLimit
+{
+    std::size_t ceiling = 0;
+    std::optional<std::size_t> active_node_count;
+};
+
 [[nodiscard]] bool path_has_prefix(const ConditioningPath& path, const ConditioningPath& prefix)
 {
     if (prefix.size() > path.size())
@@ -736,14 +742,14 @@ struct ActiveBranchTopology
     return topology;
 }
 
-[[nodiscard]] std::size_t recursive_branch_node_count_limit(const ActiveBranchTopology& topology, const std::size_t conditioning_level,
-                                                            const ConditioningPath& parent_path, const std::size_t phase_space_dimension,
-                                                            const std::size_t configured_node_count,
-                                                            const std::vector<ConditioningPath>& invalidated_prefixes)
+[[nodiscard]] BranchNodeCountLimit recursive_branch_node_count_limit(const ActiveBranchTopology& topology, const std::size_t conditioning_level,
+                                                                     const ConditioningPath& parent_path, const std::size_t phase_space_dimension,
+                                                                     const std::size_t configured_node_count,
+                                                                     const std::vector<ConditioningPath>& invalidated_prefixes)
 {
     if (!topology.constrained || branch_limit_invalidated(parent_path, invalidated_prefixes))
     {
-        return configured_node_count;
+        return {configured_node_count, std::nullopt};
     }
     const auto active = topology.counts.find(ActiveBranchKey{conditioning_level, parent_path, phase_space_dimension});
     if (active == topology.counts.end())
@@ -751,7 +757,20 @@ struct ActiveBranchTopology
         throw std::invalid_argument("CQMOM active branch count metadata is missing a reachable branch.");
     }
     (void)configured_node_count;
-    return active->second.active_node_count;
+    return {active->second.active_node_count, active->second.active_node_count};
+}
+
+[[nodiscard]] Quadrature1D compute_branch_quadrature(std::vector<double> moments, const std::size_t node_count, const WheelerOptions& wheeler_options)
+{
+    return compute_quadrature(MomentSet(std::move(moments)), node_count, wheeler_options);
+}
+
+[[nodiscard]] bool branch_growth_trial_allowed(const internal::RecursiveQuadratureMomentViewRequest& request, const BranchNodeCountLimit& limit,
+                                               const std::size_t configured_node_count, const Quadrature1D& current)
+{
+    return request.allow_active_branch_count_growth && request.adaptive_branch_counts && request.wheeler_options.adaptive &&
+           limit.active_node_count.has_value() && current.ok() && current.weights.size() == *limit.active_node_count &&
+           *limit.active_node_count < configured_node_count;
 }
 
 } // namespace
@@ -1299,11 +1318,11 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
         for (const BranchState& branch : current_branches)
         {
             internal::performance::record_cqmom_branch_solve();
-            std::size_t target_node_count = configured_node_count;
+            BranchNodeCountLimit node_count_limit{configured_node_count, std::nullopt};
             try
             {
-                target_node_count = recursive_branch_node_count_limit(active_topology, level, branch.path, phase_space_dimension,
-                                                                      configured_node_count, invalidated_active_count_prefixes);
+                node_count_limit = recursive_branch_node_count_limit(active_topology, level, branch.path, phase_space_dimension,
+                                                                     configured_node_count, invalidated_active_count_prefixes);
             }
             catch (const std::exception& ex)
             {
@@ -1314,7 +1333,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             branch_diagnostics.conditioning_level = level;
             branch_diagnostics.path = branch.path;
             branch_diagnostics.phase_space_dimension = phase_space_dimension;
-            branch_diagnostics.requested_node_count = target_node_count;
+            branch_diagnostics.requested_node_count = node_count_limit.ceiling;
             branch_diagnostics.adaptive_branch_counts_enabled = request.adaptive_branch_counts;
 
             std::vector<double> moment_sequence;
@@ -1331,10 +1350,27 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
                 return result;
             }
 
-            Quadrature1D quadrature = compute_quadrature(MomentSet(std::move(moment_sequence)), target_node_count, request.wheeler_options);
+            const bool branch_growth_possible = request.allow_active_branch_count_growth && request.adaptive_branch_counts &&
+                                                request.wheeler_options.adaptive && node_count_limit.active_node_count.has_value() &&
+                                                *node_count_limit.active_node_count < configured_node_count;
+            Quadrature1D quadrature = branch_growth_possible
+                                          ? compute_branch_quadrature(moment_sequence, node_count_limit.ceiling, request.wheeler_options)
+                                          : compute_branch_quadrature(std::move(moment_sequence), node_count_limit.ceiling, request.wheeler_options);
+            std::size_t selected_node_count_ceiling = node_count_limit.ceiling;
+            if (branch_growth_trial_allowed(request, node_count_limit, configured_node_count, quadrature))
+            {
+                const std::size_t growth_ceiling = *node_count_limit.active_node_count + 1;
+                Quadrature1D growth = compute_branch_quadrature(std::move(moment_sequence), growth_ceiling, request.wheeler_options);
+                if (growth.ok() && growth.weights.size() == growth_ceiling)
+                {
+                    quadrature = std::move(growth);
+                    selected_node_count_ceiling = growth_ceiling;
+                }
+            }
+            branch_diagnostics.requested_node_count = selected_node_count_ceiling;
             branch_diagnostics.wheeler_status = quadrature.status;
             branch_diagnostics.actual_node_count = quadrature.weights.size();
-            branch_diagnostics.adaptive_node_count_reduced = quadrature.ok() && quadrature.weights.size() < target_node_count;
+            branch_diagnostics.adaptive_node_count_reduced = quadrature.ok() && quadrature.weights.size() < selected_node_count_ceiling;
             if (!quadrature.ok())
             {
                 branch_diagnostics.message = quadrature.message;
@@ -1343,7 +1379,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
                 return result;
             }
             if (active_topology.constrained && !branch_limit_invalidated(branch.path, invalidated_active_count_prefixes) &&
-                quadrature.weights.size() != target_node_count)
+                node_count_limit.active_node_count.has_value() && quadrature.weights.size() != *node_count_limit.active_node_count)
             {
                 for (std::size_t child = 0; child < quadrature.weights.size(); ++child)
                 {
@@ -1351,7 +1387,8 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
                 }
             }
             if (quadrature.weights.empty() || quadrature.weights.size() != quadrature.abscissas.size() ||
-                quadrature.weights.size() > target_node_count || (!request.adaptive_branch_counts && quadrature.weights.size() != target_node_count))
+                quadrature.weights.size() > selected_node_count_ceiling ||
+                (!request.adaptive_branch_counts && quadrature.weights.size() != selected_node_count_ceiling))
             {
                 branch_diagnostics.wheeler_status = quadrature.status;
                 branch_diagnostics.message = "Wheeler inversion returned an unexpected node count.";
@@ -1524,7 +1561,8 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
 
     return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
                                                                     request.wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
-                                                                    request.conditional_vandermonde_solver, nullptr, request.active_branch_counts},
+                                                                    request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
+                                                                    request.allow_active_branch_count_growth},
                                                                    request.moments.layout);
 }
 
@@ -1554,7 +1592,8 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
 
     return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
                                                                     request.wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
-                                                                    request.conditional_vandermonde_solver, nullptr, request.active_branch_counts},
+                                                                    request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
+                                                                    request.allow_active_branch_count_growth},
                                                                    request.moments.layout);
 }
 

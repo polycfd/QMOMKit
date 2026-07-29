@@ -659,7 +659,8 @@ CqmomResult compute_cqmom(const CqmomLeanCase& lean_case)
 namespace internal
 {
 
-CqmomResult compute_trusted_cqmom(const CqmomDenseCase& dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts)
+CqmomResult compute_trusted_cqmom(const CqmomDenseCase& dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
+                                  const bool allow_active_branch_count_growth)
 {
     RecursiveQuadratureResult result{RecursiveQuadrature(dense_case.hierarchy), RecursiveQuadratureStatus::success, "", {}, {}, 0};
     result.quadrature.set_adaptive_branch_counts_enabled(dense_case.adaptive_branch_counts);
@@ -680,20 +681,22 @@ CqmomResult compute_trusted_cqmom(const CqmomDenseCase& dense_case, std::vector<
     }
     if (lean_moments.has_value())
     {
-        result = compute_recursive_quadrature_from_moment_data(
-            {dense_case.hierarchy, *lean_moments, dense_case.conditional_options, to_wheeler_options(dense_case.qmom_options),
-             dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver, std::move(active_branch_counts)});
+        result = compute_recursive_quadrature_from_moment_data({dense_case.hierarchy, *lean_moments, dense_case.conditional_options,
+                                                                to_wheeler_options(dense_case.qmom_options), dense_case.adaptive_branch_counts,
+                                                                dense_case.diagnostic_level, dense_case.vandermonde_solver,
+                                                                std::move(active_branch_counts), allow_active_branch_count_growth});
     }
 
     return to_cqmom_result(result, dense_case.hierarchy);
 }
 
-CqmomResult compute_trusted_cqmom(const CqmomLeanCase& lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts)
+CqmomResult compute_trusted_cqmom(const CqmomLeanCase& lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
+                                  const bool allow_active_branch_count_growth)
 {
     const PhaseSpaceHierarchy& hierarchy = lean_case.moments.layout.hierarchy;
     const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
         {hierarchy, lean_case.moments, lean_case.conditional_options, to_wheeler_options(lean_case.qmom_options), lean_case.adaptive_branch_counts,
-         lean_case.diagnostic_level, lean_case.vandermonde_solver, std::move(active_branch_counts)});
+         lean_case.diagnostic_level, lean_case.vandermonde_solver, std::move(active_branch_counts), allow_active_branch_count_growth});
 
     return to_cqmom_result(result, hierarchy);
 }

@@ -37,6 +37,12 @@ It installs the companion package into the same repository-local `install/`
 prefix as QMOMKit. It does not compile the full test suite unless testing is
 enabled.
 
+The installed exported target is:
+
+```cmake
+qmomkit_monte_carlo::qmomkit_monte_carlo
+```
+
 ## Run The Example Driver
 
 ```bash
@@ -87,12 +93,6 @@ cmake -S tools/monte_carlo -B tools/monte_carlo/build-tests \
 
 cmake --build tools/monte_carlo/build-tests
 ctest --test-dir tools/monte_carlo/build-tests --output-on-failure
-```
-
-The installed exported target is:
-
-```cmake
-qmomkit_monte_carlo::qmomkit_monte_carlo
 ```
 
 ## Documentation

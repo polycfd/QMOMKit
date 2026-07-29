@@ -69,14 +69,6 @@ const char* to_string(const qmomkit::SspRk3Status status)
     return "unknown";
 }
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors)
-{
-    for (const qmomkit::config::ConfigurationError& error : errors)
-    {
-        std::cerr << error.source_name << ':' << error.line << ": " << error.message << '\n';
-    }
-}
-
 void print_common_run_summary(std::ostream& stream, const std::string_view workflow, const std::filesystem::path& configuration_file,
                               const std::filesystem::path& output_directory, const std::size_t sample_count,
                               const unsigned long long initialization_seed, const double initial_time, const double final_time,

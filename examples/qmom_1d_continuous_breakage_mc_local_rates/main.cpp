@@ -12,19 +12,15 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
-
-namespace
-{
-constexpr double initial_time = 0.0;
-constexpr double final_time = 1.0;
-constexpr double time_step = 0.01;
-
-} // namespace
 
 int main()
 {
     const std::filesystem::path configuration_file = "configuration.qmom";
+    const double initial_time = 0.0;
+    const double final_time = 1.0;
+    const double time_step = 0.01;
 
     const std::optional<std::string> configuration_text = qmom_1d_continuous_breakage_mc_local_rates::read_configuration_text(configuration_file);
     if (!configuration_text.has_value())
@@ -32,31 +28,39 @@ int main()
         return 1;
     }
 
-    const auto configured = qmomkit::config::load_qmom(configuration_file);
-    if (!configured.ok())
+    auto configured = qmomkit::config::load_qmom(configuration_file);
+    if (!configured)
     {
-        qmom_1d_continuous_breakage_mc_local_rates::print_configuration_errors(configured.errors);
+        std::cerr << configured.error() << '\n';
         return 1;
     }
 
-    const auto output_configured = qmomkit::config::load_output_options(configuration_file);
-    if (!output_configured.ok())
+    auto output_configured = qmomkit::config::load_output_options(configuration_file);
+    if (!output_configured)
     {
-        qmom_1d_continuous_breakage_mc_local_rates::print_configuration_errors(output_configured.errors);
+        std::cerr << output_configured.error() << '\n';
         return 1;
     }
 
-    const qmomkit::QmomCase qmom_case = *configured.value;
-    const qmomkit::OutputOptions output_options = *output_configured.value;
-    const auto initial_condition = qmomkit::config::parse_qmom_initial_condition(*configuration_text, configuration_file.string());
-    if (!initial_condition.ok())
+    auto transport_configured = qmomkit::config::load_qmom_transport_options(configuration_file);
+    if (!transport_configured)
     {
-        qmom_1d_continuous_breakage_mc_local_rates::print_configuration_errors(initial_condition.errors);
+        std::cerr << transport_configured.error() << '\n';
+        return 1;
+    }
+
+    const qmomkit::QmomCase qmom_case = std::move(configured).value();
+    const qmomkit::OutputOptions output_options = std::move(output_configured).value();
+    qmomkit::QmomTransportOptions transport_options = std::move(transport_configured).value();
+    auto initial_condition = qmomkit::config::parse_qmom_initial_condition(*configuration_text, configuration_file.string());
+    if (!initial_condition)
+    {
+        std::cerr << initial_condition.error() << '\n';
         return 1;
     }
 
     const std::optional<qmom_1d_continuous_breakage_mc_local_rates::SamplingSetup> sampled =
-        qmom_1d_continuous_breakage_mc_local_rates::sample_initial_distribution(*initial_condition.value);
+        qmom_1d_continuous_breakage_mc_local_rates::sample_initial_distribution(std::move(initial_condition).value());
     if (!sampled.has_value())
     {
         return 1;
@@ -78,7 +82,9 @@ int main()
     const std::vector<double> initial_moments = sampled_moments.moments.values();
     std::vector<double> moments = initial_moments;
 
-    const qmomkit::QmomResult initial_result = qmomkit::compute_qmom(qmomkit::MomentSet(initial_moments), qmom_case.node_count, qmom_case.options);
+    const qmomkit::QmomCase sampled_case{sampled_moments.moments, qmom_case.node_count, qmom_case.options};
+    transport_options.qmom_options = sampled_case.options;
+    const qmomkit::QmomResult initial_result = qmomkit::compute_qmom(sampled_case);
     if (!initial_result.ok())
     {
         std::cerr << "Initial QMOM inversion failed: " << initial_result.message << '\n';
@@ -98,7 +104,7 @@ int main()
     const auto moments_are_invertible = [&](const std::vector<double>& candidate)
     { return qmomkit::compute_qmom(qmomkit::MomentSet(candidate), qmom_case.node_count, qmom_case.options).ok(); };
 
-    qmomkit::SspRk3Options rate_step_options;
+    qmomkit::SspRk3Options rate_step_options = transport_options.source_options.ssp_rk3_options;
     // Reject a tentative SSP-RK3 state if QMOM cannot reconstruct a
     // quadrature from its moments. This example keeps the default SSP-RK3
     // retry controls, so a rejected state fails the substep. A CG/DG solver
@@ -111,8 +117,8 @@ int main()
     // Continuous phase-space advection rate
     const qmomkit::OdeRhs continuous_rhs = [&](const double stage_time, const std::vector<double>& stage_moments)
     {
-        const qmomkit::QmomContinuousMomentRateResult rates =
-            qmomkit::evaluate_qmom_continuous_moment_rates(stage_moments, qmom_case.node_count, stage_time, velocity, qmom_case.options);
+        const qmomkit::QmomContinuousMomentRateResult rates = qmomkit::evaluate_qmom_continuous_moment_rates(
+            stage_moments, sampled_case.node_count, stage_time, velocity, transport_options.qmom_options);
         if (!rates.ok())
         {
             std::ostringstream message;

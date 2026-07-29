@@ -126,6 +126,7 @@ Then configure this example from its directory:
 cd examples/qmom_1d_continuous_breakage_mc_local_rates
 
 cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH="../../install"
 cmake --build build
 ```
@@ -136,6 +137,13 @@ directory so generated output stays there:
 ```bash
 cd build
 ./qmom_1d_continuous_breakage_mc_local_rates_example
+```
+
+The standalone example project also registers the executable as a CTest smoke
+test:
+
+```bash
+ctest --test-dir build --output-on-failure
 ```
 
 The helper script follows the same configure, build, and run pattern:

@@ -28,8 +28,6 @@ struct OutputFiles
 [[nodiscard]] const char* to_string(qmomkit::QmomStatus status);
 [[nodiscard]] const char* to_string(qmomkit::SspRk3Status status);
 
-void print_configuration_errors(const std::vector<qmomkit::config::ConfigurationError>& errors);
-
 void print_common_run_summary(std::ostream& stream, std::string_view workflow, const std::filesystem::path& configuration_file,
                               const std::filesystem::path& output_directory, std::size_t sample_count, unsigned long long initialization_seed,
                               double initial_time, double final_time, double time_step, double output_interval);

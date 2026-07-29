@@ -2,11 +2,13 @@
 
 #include "qmomkit/distributions.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -116,6 +118,48 @@ void assert_tensor_near(const qmomkit::RawMomentTensor& actual, const qmomkit::R
     {
         assert_near(actual.values[flat_index], expected.values[flat_index]);
     }
+}
+
+std::vector<double> raw_moments_from_terminals_2d(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas)
+{
+    std::vector<double> moments(16, 0.0);
+    for (std::size_t ix = 0; ix < 4; ++ix)
+    {
+        for (std::size_t iy = 0; iy < 4; ++iy)
+        {
+            double moment = 0.0;
+            for (std::size_t node = 0; node < weights.size(); ++node)
+            {
+                moment += weights[node] * std::pow(abscissas[0][node], static_cast<int>(ix)) * std::pow(abscissas[1][node], static_cast<int>(iy));
+            }
+            moments[4 * ix + iy] = moment;
+        }
+    }
+    return moments;
+}
+
+std::string cqmom_adaptive_branch_count_text_with_fixed_qmom(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas,
+                                                             const std::vector<std::size_t>& conditioning_order)
+{
+    const std::vector<double> moments = raw_moments_from_terminals_2d(weights, abscissas);
+    std::ostringstream text;
+    text.precision(17);
+    text << "[phase_space]\n"
+         << "node_counts = 2, 2\n"
+         << "conditioning_order = " << conditioning_order[0] << ", " << conditioning_order[1] << "\n"
+         << "adaptive_branch_counts = true\n\n"
+         << "[qmom]\n"
+         << "adaptive = false\n\n"
+         << "[moments]\n"
+         << "extents = 4, 4\n";
+    for (std::size_t ix = 0; ix < 4; ++ix)
+    {
+        for (std::size_t iy = 0; iy < 4; ++iy)
+        {
+            text << "M[" << ix << "," << iy << "] = " << moments[4 * ix + iy] << '\n';
+        }
+    }
+    return text.str();
 }
 
 void assert_cqmom_moments_near(const qmomkit::CqmomMomentData& actual, const qmomkit::CqmomMomentData& expected)
@@ -996,6 +1040,39 @@ M[1,1] = 6.0
     assert(omitted_qmom_adaptive.value().adaptive_branch_counts);
 }
 
+void test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom()
+{
+    const auto conditional_reduction = qmomkit::config::parse_cqmom_dense(
+        cqmom_adaptive_branch_count_text_with_fixed_qmom({0.2, 0.3, 0.5}, {{-1.0, 1.0, 1.0}, {0.0, -0.5, 0.5}}, {0, 1}));
+    assert(conditional_reduction.ok());
+    assert(!conditional_reduction.value().qmom_options.adaptive);
+    assert(conditional_reduction.value().adaptive_branch_counts);
+
+    const qmomkit::CqmomResult conditional = qmomkit::compute_cqmom(conditional_reduction.value());
+    assert(conditional.ok());
+    assert(conditional.quadrature.adaptive_branch_counts_enabled());
+    assert(conditional.quadrature.total_nodes() == 3);
+    assert(std::any_of(conditional.diagnostics.begin(), conditional.diagnostics.end(), [](const qmomkit::CqmomDiagnostics& item)
+                       { return item.conditioning_level == 1 && item.actual_node_count < item.requested_node_count; }));
+
+    const auto marginal_reduction =
+        qmomkit::config::parse_cqmom_dense(cqmom_adaptive_branch_count_text_with_fixed_qmom({0.5, 0.5}, {{0.0, 0.0}, {-1.0, 1.0}}, {0, 1}));
+    assert(marginal_reduction.ok());
+    assert(!marginal_reduction.value().qmom_options.adaptive);
+
+    const qmomkit::CqmomResult marginal = qmomkit::compute_cqmom(marginal_reduction.value());
+    assert(marginal.ok());
+    assert(marginal.quadrature.total_nodes() == 2);
+    assert(std::any_of(marginal.diagnostics.begin(), marginal.diagnostics.end(), [](const qmomkit::CqmomDiagnostics& item)
+                       { return item.conditioning_level == 0 && item.actual_node_count < item.requested_node_count; }));
+
+    const qmomkit::QmomResult fixed_qmom = qmomkit::compute_qmom(qmomkit::MomentSet({1.0, 0.0, 0.0, 0.0}), 2, qmomkit::QmomOptions{false});
+    const qmomkit::QmomResult adaptive_qmom = qmomkit::compute_qmom(qmomkit::MomentSet({1.0, 0.0, 0.0, 0.0}), 2, qmomkit::QmomOptions{true});
+    assert(!fixed_qmom.ok());
+    assert(adaptive_qmom.ok());
+    assert(adaptive_qmom.weights.size() == 1);
+}
+
 std::string cqmom_diagnostic_level_text(const std::string& diagnostic_level)
 {
     std::string text = R"(
@@ -1339,9 +1416,6 @@ max_step = 1.0e-2
 min_step = 1.0e-12
 max_steps = 200000
 
-[time_integration.cqmom]
-source_node_count_evolution = preserve_active_counts
-
 [time_integration.realizability]
 check_mode = final_only
 support = bounded_interval
@@ -1377,10 +1451,6 @@ accept_boundary = false
     assert(node_options.value().scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
     assert_near(node_options.value().rk23_options.relative_tolerance, 1.0e-7);
     assert_near(node_options.value().rk23_options.max_step, 1.0e-2);
-
-    const auto source_count_policy = qmomkit::config::parse_cqmom_source_node_count_evolution(runtime);
-    assert(source_count_policy.ok());
-    assert(source_count_policy.value() == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
 }
 
 void test_case_parsing_rejects_invalid_realizability_policy()
@@ -1638,43 +1708,20 @@ growth_limit = 2.0
     assert(has_error(unknown_rk23_key, ConfigurationErrorCode::unknown_entry));
 }
 
-void test_cqmom_source_node_count_evolution_defaults_and_parses_values()
+void test_removed_cqmom_source_policy_key_is_unknown()
 {
-    const auto omitted = qmomkit::config::parse_cqmom_source_node_count_evolution(qmom_text);
-    assert(omitted.ok());
-    assert(omitted.value() == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
+    const std::string removed_key = std::string("[time_integration.cqmom]\nsource_node_count_") + "evolution = preserve_active_" + "counts\n";
+    const auto qmom = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(removed_key));
+    assert(!qmom.ok());
+    assert(has_error(qmom, ConfigurationErrorCode::unknown_entry));
 
-    const auto preserve = qmomkit::config::parse_cqmom_source_node_count_evolution(R"(
-[time_integration.cqmom]
-source_node_count_evolution = preserve_active_counts
-)");
-    assert(preserve.ok());
-    assert(preserve.value() == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
+    const auto cqmom = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(removed_key));
+    assert(!cqmom.ok());
+    assert(has_error(cqmom, ConfigurationErrorCode::unknown_entry));
 
-    const auto growth = qmomkit::config::parse_cqmom_source_node_count_evolution(R"(
-[time_integration.cqmom]
-source_node_count_evolution = allow_growth_to_configured_maximum
-)");
-    assert(growth.ok());
-    assert(growth.value() == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
-}
-
-void test_cqmom_source_node_count_evolution_rejects_invalid_values()
-{
-    const auto invalid = qmomkit::config::parse_cqmom_source_node_count_evolution(R"(
-[time_integration.cqmom]
-source_node_count_evolution = freeze
-)");
-    assert(!invalid.ok());
-    assert(has_error(invalid, ConfigurationErrorCode::invalid_value));
-    assert(has_message_fragment(invalid, "preserve_active_counts or allow_growth_to_configured_maximum"));
-
-    const auto unknown_key = qmomkit::config::parse_cqmom_source_node_count_evolution(R"(
-[time_integration.cqmom]
-growth_limit = 2
-)");
-    assert(!unknown_key.ok());
-    assert(has_error(unknown_key, ConfigurationErrorCode::unknown_entry));
+    const auto transport_options = qmomkit::config::parse_cqmom_transport_options(removed_key);
+    assert(!transport_options.ok());
+    assert(has_error(transport_options, ConfigurationErrorCode::unknown_entry));
 }
 
 void test_transport_options_loaders_parse_defaults_explicit_values_and_callbacks()
@@ -1715,7 +1762,6 @@ max_step = 0.05
     assert(cqmom_defaults.ok());
     assert(cqmom_defaults.value().scheme == qmomkit::TransportScheme::strang);
     assert(cqmom_defaults.value().node_options.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
-    assert(cqmom_defaults.value().source_node_count_evolution == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
     assert(!cqmom_defaults.value().source_options.ssp_rk3_options.accept);
     assert(!cqmom_defaults.value().source_options.ssp_rk3_options.stage_accept);
 
@@ -1729,9 +1775,6 @@ scheme = adaptive_rk23
 [time_integration.node_advection.rk23]
 absolute_tolerance = 1.0e-12
 max_step = 0.025
-
-[time_integration.cqmom]
-source_node_count_evolution = preserve_active_counts
 )";
     const auto cqmom_options = qmomkit::config::parse_cqmom_transport_options(cqmom_runtime);
     assert(cqmom_options.ok());
@@ -1739,7 +1782,6 @@ source_node_count_evolution = preserve_active_counts
     assert(cqmom_options.value().node_options.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
     assert_near(cqmom_options.value().node_options.rk23_options.absolute_tolerance, 1.0e-12);
     assert_near(cqmom_options.value().node_options.rk23_options.max_step, 0.025);
-    assert(cqmom_options.value().source_node_count_evolution == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
     assert(!cqmom_options.value().source_options.ssp_rk3_options.accept);
     assert(!cqmom_options.value().source_options.ssp_rk3_options.stage_accept);
 
@@ -1753,7 +1795,6 @@ source_node_count_evolution = preserve_active_counts
     assert(loaded.value().scheme == cqmom_options.value().scheme);
     assert(loaded.value().node_options.scheme == cqmom_options.value().node_options.scheme);
     assert_near(loaded.value().node_options.rk23_options.max_step, cqmom_options.value().node_options.rk23_options.max_step);
-    assert(loaded.value().source_node_count_evolution == cqmom_options.value().source_node_count_evolution);
 
     {
         std::ofstream output(filename);
@@ -1798,12 +1839,10 @@ relative_tolerance = 0.0
     assert(!invalid_node.ok());
     assert(has_error(invalid_node, ConfigurationErrorCode::invalid_value));
 
-    const auto invalid_source_count = qmomkit::config::parse_cqmom_transport_options(R"(
-[time_integration.cqmom]
-source_node_count_evolution = freeze
-)");
-    assert(!invalid_source_count.ok());
-    assert(has_error(invalid_source_count, ConfigurationErrorCode::invalid_value));
+    const auto removed_source_count =
+        qmomkit::config::parse_cqmom_transport_options(std::string("[time_integration.cqmom]\nsource_node_count_") + "evolution = freeze\n");
+    assert(!removed_source_count.ok());
+    assert(has_error(removed_source_count, ConfigurationErrorCode::unknown_entry));
 }
 
 void test_cqmom_transport_options_loader_result_drives_transport_path()
@@ -1823,8 +1862,6 @@ relative_tolerance = 1.0e-10
 absolute_tolerance = 1.0e-12
 max_step = 0.02
 
-[time_integration.cqmom]
-source_node_count_evolution = preserve_active_counts
 )");
     assert(configured_options.ok());
 
@@ -1838,7 +1875,6 @@ source_node_count_evolution = preserve_active_counts
     assert(transported.diagnostics.scheme == qmomkit::TransportScheme::cd);
     assert(transported.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
     assert(transported.diagnostics.first_continuous_diagnostics.adaptive_rk23_status == qmomkit::AdaptiveRk23Status::success);
-    assert(configured_options.value().source_node_count_evolution == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
 }
 
 void test_output_options_default_to_disabled()
@@ -2085,22 +2121,14 @@ relative_tolerence = 1.0e-7
     assert(!unknown_node_key.ok());
     assert(has_error(unknown_node_key, ConfigurationErrorCode::unknown_entry));
 
-    const std::string source_policy = R"(
-
-[time_integration.cqmom]
-source_node_count_evolution = freeze
-)";
+    const std::string source_policy = std::string("\n[time_integration.cqmom]\nsource_node_count_") + "evolution = freeze\n";
     const auto qmom_case = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(source_policy));
     assert(!qmom_case.ok());
-    assert(has_error(qmom_case, ConfigurationErrorCode::invalid_value));
+    assert(has_error(qmom_case, ConfigurationErrorCode::unknown_entry));
 
     const auto cqmom_case = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(source_policy));
     assert(!cqmom_case.ok());
-    assert(has_error(cqmom_case, ConfigurationErrorCode::invalid_value));
-
-    const auto source_count_policy = qmomkit::config::parse_cqmom_source_node_count_evolution(source_policy);
-    assert(!source_count_policy.ok());
-    assert(has_error(source_count_policy, ConfigurationErrorCode::invalid_value));
+    assert(has_error(cqmom_case, ConfigurationErrorCode::unknown_entry));
 }
 
 void test_qmom_case_parsing_tolerates_output_options_without_installing_them()
@@ -2668,17 +2696,12 @@ void test_file_loading_and_file_failure()
     {
         std::ofstream output(filename);
         output << "[time_integration.node_advection]\nscheme = adaptive_rk23\n"
-                  "[time_integration.node_advection.rk23]\nmax_step = 0.05\n"
-                  "[time_integration.cqmom]\nsource_node_count_evolution = preserve_active_counts\n";
+                  "[time_integration.node_advection.rk23]\nmax_step = 0.05\n";
     }
     const auto node_advection_options = qmomkit::config::load_node_advection_options(filename);
     assert(node_advection_options.ok());
     assert(node_advection_options.value().scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
     assert_near(node_advection_options.value().rk23_options.max_step, 0.05);
-
-    const auto source_node_count_evolution = qmomkit::config::load_cqmom_source_node_count_evolution(filename);
-    assert(source_node_count_evolution.ok());
-    assert(source_node_count_evolution.value() == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
 
     const auto node_advection_scheme = qmomkit::config::load_node_advection_scheme(filename);
     assert(node_advection_scheme.ok());
@@ -2687,16 +2710,11 @@ void test_file_loading_and_file_failure()
     const auto transport_options = qmomkit::config::load_cqmom_transport_options(filename);
     assert(transport_options.ok());
     assert(transport_options.value().node_options.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
-    assert(transport_options.value().source_node_count_evolution == qmomkit::CqmomNodeCountEvolution::preserve_active_counts);
     std::filesystem::remove(filename);
 
     const auto missing_node_advection = qmomkit::config::load_node_advection_scheme(filename);
     assert(!missing_node_advection.ok());
     assert(has_error(missing_node_advection, ConfigurationErrorCode::file_error));
-
-    const auto missing_source_node_count_evolution = qmomkit::config::load_cqmom_source_node_count_evolution(filename);
-    assert(!missing_source_node_count_evolution.ok());
-    assert(has_error(missing_source_node_count_evolution, ConfigurationErrorCode::file_error));
 
     const auto missing_transport_options = qmomkit::config::load_cqmom_transport_options(filename);
     assert(!missing_transport_options.ok());
@@ -2731,15 +2749,11 @@ check_mode = final_only
 
     {
         std::ofstream output(filename);
-        output << cqmom_case_text_with_runtime(R"(
-
-[time_integration.cqmom]
-source_node_count_evolution = freeze
-)");
+        output << cqmom_case_text_with_runtime(std::string("\n[time_integration.cqmom]\nsource_node_count_") + "evolution = freeze\n");
     }
     const auto invalid_cqmom_runtime = qmomkit::config::load_cqmom(filename);
     assert(!invalid_cqmom_runtime.ok());
-    assert(has_error(invalid_cqmom_runtime, ConfigurationErrorCode::invalid_value));
+    assert(has_error(invalid_cqmom_runtime, ConfigurationErrorCode::unknown_entry));
     std::filesystem::remove(filename);
 }
 
@@ -2770,6 +2784,7 @@ int main()
     test_cqmom_case_file_loading();
     test_cqmom_independent_product_zero_density_skips_marginal_validation();
     test_cqmom_adaptive_options_are_independent();
+    test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom();
     test_cqmom_diagnostic_level_parses_values();
     test_cqmom_vandermonde_solver_parses_values();
     test_cqmom_case_and_state_report_vandermonde_solver();
@@ -2788,8 +2803,7 @@ int main()
     test_node_advection_options_parse_rk23_controls();
     test_node_advection_scheme_rejects_invalid_values();
     test_node_advection_options_reject_invalid_rk23_controls();
-    test_cqmom_source_node_count_evolution_defaults_and_parses_values();
-    test_cqmom_source_node_count_evolution_rejects_invalid_values();
+    test_removed_cqmom_source_policy_key_is_unknown();
     test_transport_options_loaders_parse_defaults_explicit_values_and_callbacks();
     test_transport_options_loaders_reject_invalid_values();
     test_cqmom_transport_options_loader_result_drives_transport_path();

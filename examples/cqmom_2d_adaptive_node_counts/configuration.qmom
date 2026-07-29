@@ -4,12 +4,6 @@ node_counts = 2, 2
 conditioning_order = 0, 1
 adaptive_branch_counts = true
 
-[time_integration.cqmom]
-source_node_count_evolution = allow_growth_to_configured_maximum
-
-[qmom]
-adaptive = true
-
 [initial]
 type = independent_product
 number_density = 1.0

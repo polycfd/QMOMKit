@@ -399,7 +399,7 @@ struct ActiveBranchKey
 
 void record_cqmom_node_count_transitions(TransportDiagnostics& diagnostics, const TransportStage stage,
                                          const std::vector<CqmomActiveBranchCount>& before_counts,
-                                         const std::vector<CqmomActiveBranchCount>& after_counts, const CqmomNodeCountEvolution node_count_evolution)
+                                         const std::vector<CqmomActiveBranchCount>& after_counts)
 {
     std::map<ActiveBranchKey, CqmomActiveBranchCount> before_by_key;
     std::map<ActiveBranchKey, CqmomActiveBranchCount> after_by_key;
@@ -445,7 +445,6 @@ void record_cqmom_node_count_transitions(TransportDiagnostics& diagnostics, cons
         transition.configured_maximum_node_count = reference.configured_node_count;
         transition.active_node_count_before = before;
         transition.active_node_count_after = after;
-        transition.node_count_evolution = node_count_evolution;
         transition.kind = kind;
         transition.rank_reduced = kind == CqmomNodeCountTransitionKind::reduced || kind == CqmomNodeCountTransitionKind::removed;
         transition.rank_grew = kind == CqmomNodeCountTransitionKind::grew || kind == CqmomNodeCountTransitionKind::created;
@@ -649,11 +648,8 @@ static DenseCqmomTransportResult advance_transport_cqmom_dense_impl(const CqmomD
     RawMomentTensor current_moments = dense_case.moments;
     CqmomQuadrature current_quadrature = initial_quadrature.quadrature;
     current_active_branch_counts = internal::active_branch_counts_from_quadrature(initial_quadrature.quadrature);
-    // Initial inversion seeds the observed active topology; source-stage growth
-    // policy is not involved, so use the preserve value consistently for dense
-    // and lean initialization diagnostics.
     record_cqmom_node_count_transitions(diagnostics, TransportStage::initial_inversion, before_initial_active_branch_counts,
-                                        current_active_branch_counts, CqmomNodeCountEvolution::preserve_active_counts);
+                                        current_active_branch_counts);
     const CqmomMomentLayout source_layout = create_cqmom_moment_layout(dense_case.hierarchy);
     std::optional<DenseCqmomTransportResult> failure;
 
@@ -722,8 +718,7 @@ static DenseCqmomTransportResult advance_transport_cqmom_dense_impl(const CqmomD
         }
 
         const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
-        const bool allow_active_branch_count_growth =
-            options.source_node_count_evolution == CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+        const bool allow_active_branch_count_growth = dense_case.adaptive_branch_counts;
         // Reconstruct quadrature after the moment update so CQMOM
         // realizability is checked before any later continuous stage.
         internal::performance::record_post_source_inversion();
@@ -757,7 +752,7 @@ static DenseCqmomTransportResult advance_transport_cqmom_dense_impl(const CqmomD
         }
         current_active_branch_counts = internal::active_branch_counts_from_quadrature(current_quadrature);
         record_cqmom_node_count_transitions(diagnostics, TransportStage::post_source_inversion, before_source_active_branch_counts,
-                                            current_active_branch_counts, options.source_node_count_evolution);
+                                            current_active_branch_counts);
         return true;
     };
 
@@ -822,11 +817,8 @@ LeanCqmomTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanCase& 
                                   diagnostics, t, initial_quadrature.message);
     }
     current_active_branch_counts = internal::active_branch_counts_from_quadrature(initial_quadrature.quadrature);
-    // Initial inversion seeds the observed active topology; source-stage growth
-    // policy is not involved, so use the preserve value consistently for dense
-    // and lean initialization diagnostics.
     record_cqmom_node_count_transitions(diagnostics, TransportStage::initial_inversion, before_initial_active_branch_counts,
-                                        current_active_branch_counts, CqmomNodeCountEvolution::preserve_active_counts);
+                                        current_active_branch_counts);
 
     LeanCqmomTransportState current_state = state;
     CqmomQuadrature current_quadrature = initial_quadrature.quadrature;
@@ -899,8 +891,7 @@ LeanCqmomTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanCase& 
 
         current_state.moments = source_update.moments;
         const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
-        const bool allow_active_branch_count_growth =
-            options.source_node_count_evolution == CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
+        const bool allow_active_branch_count_growth = lean_case.adaptive_branch_counts;
         // Reconstruct quadrature after the moment update so CQMOM
         // realizability is checked before any later continuous stage.
         internal::performance::record_post_source_inversion();
@@ -917,7 +908,7 @@ LeanCqmomTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanCase& 
         current_quadrature = post_source_quadrature.quadrature;
         current_active_branch_counts = internal::active_branch_counts_from_quadrature(current_quadrature);
         record_cqmom_node_count_transitions(diagnostics, TransportStage::post_source_inversion, before_source_active_branch_counts,
-                                            current_active_branch_counts, options.source_node_count_evolution);
+                                            current_active_branch_counts);
         return true;
     };
 

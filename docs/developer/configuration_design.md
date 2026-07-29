@@ -202,9 +202,11 @@ count in that dimension before creating a `CqmomDenseCase`. Recursive CQMOM
 success is still checked later by `compute_cqmom(...)`.
 
 The settings `phase_space.adaptive_branch_counts` and `[qmom] adaptive` are
-independent. The first controls whether CQMOM may accept branch-dependent
-quadrature counts. The second controls adaptive Wheeler behavior for
-one-dimensional inversions.
+parsed independently. `phase_space.adaptive_branch_counts` controls whether
+CQMOM may accept branch-dependent quadrature counts and, when enabled,
+automatically enables adaptive Wheeler for all CQMOM marginal and conditional
+inversions. `[qmom] adaptive` still controls standalone one-dimensional QMOM
+behavior.
 
 The optional `[cqmom] diagnostic_level = detailed|basic|none` setting maps to
 the CQMOM diagnostic policy stored in the loaded case. If omitted,
@@ -277,7 +279,6 @@ present in the same `.qmom` file, but they still return only `QmomCase` or
 | Vandermonde and CQMOM storage settings | yes | yes | no |
 | `time_integration.scheme` | yes | no | yes |
 | `time_integration.node_advection.*` | yes | no | yes |
-| `time_integration.cqmom.source_node_count_evolution` | yes | no | yes |
 | `time_integration.realizability.*` | yes | no | yes |
 
 Transport scheme configuration maps to `TransportScheme`. If omitted, the
@@ -298,12 +299,12 @@ min_step
 max_steps
 ```
 
-CQMOM state-transport source policy lives under `[time_integration.cqmom]` and
-maps to `CqmomNodeCountEvolution`. If omitted,
-`source_node_count_evolution` defaults to
-`allow_growth_to_configured_maximum`, matching the C++ transport option.
-The policy is storage-neutral and is assigned to the single
-`CqmomTransportOptions` object used by CQMOM transport through `CqmomState`.
+CQMOM source-stage active-count evolution is automatic. Continuous
+reconstruction constrains each existing adaptive branch to its current active
+count. After an accepted discontinuous source update, adaptive CQMOM passes the
+current active topology and enables the internal one-node growth trial. New
+descendants whose parent topology changed start from configured maximum counts
+and adapt downward.
 
 The parser default-constructs `NodeAdvectionOptions` and only overwrites keys
 that are present, so configuration parsing does not duplicate
@@ -386,8 +387,6 @@ Public configuration capabilities include:
   `load_node_advection_options(...)`;
 - `parse_node_advection_scheme(...)` and
   `load_node_advection_scheme(...)` compatibility helpers;
-- `parse_cqmom_source_node_count_evolution(...)` and
-  `load_cqmom_source_node_count_evolution(...)`;
 - `parse_qmom_transport_options(...)`, `load_qmom_transport_options(...)`,
   `parse_cqmom_transport_options(...)`, and
   `load_cqmom_transport_options(...)`;

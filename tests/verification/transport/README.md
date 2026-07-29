@@ -196,11 +196,14 @@ callback through the recommended configured CQMOM workflow: `load_cqmom(...)`,
 `CqmomCase::initial_state()`, and `advance_transport_cqmom(CqmomState, ...)`.
 The hierarchy has
 `node_counts = 2, 2`, which is the maximum branch capacity. With
-`adaptive_branch_counts = true` and adaptive QMOM enabled, reconstruction
-determines the active branch counts and may return ragged terminal storage with
-fewer than four terminal nodes. The verifier checks that adaptive ragged
-quadrature is preserved while the reconstructed full moments follow the
-continuous analytical reference above with the source term omitted.
+`adaptive_branch_counts = true`, CQMOM automatically uses adaptive Wheeler for
+marginal and conditional inversions. Reconstruction determines the active
+branch counts and may return ragged terminal storage with fewer than four
+terminal nodes. Continuous transport advects the existing ragged quadrature,
+preserves terminal paths, and reconstructs moments by summation from the moved
+nodes; active counts cannot grow in this stage. The verifier checks that the
+reconstructed full moments follow the continuous analytical reference above
+with the source term omitted.
 
 ## CQMOM-Native Source Callback
 

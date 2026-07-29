@@ -323,7 +323,6 @@ void compare_node_count_transitions(const std::vector<qmomkit::CqmomNodeCountTra
         QMOMKIT_VERIFY_CHECK(dense[i].configured_maximum_node_count == lean[i].configured_maximum_node_count);
         QMOMKIT_VERIFY_CHECK(dense[i].active_node_count_before == lean[i].active_node_count_before);
         QMOMKIT_VERIFY_CHECK(dense[i].active_node_count_after == lean[i].active_node_count_after);
-        QMOMKIT_VERIFY_CHECK(dense[i].node_count_evolution == lean[i].node_count_evolution);
         QMOMKIT_VERIFY_CHECK(dense[i].kind == lean[i].kind);
         QMOMKIT_VERIFY_CHECK(dense[i].rank_reduced == lean[i].rank_reduced);
         QMOMKIT_VERIFY_CHECK(dense[i].rank_grew == lean[i].rank_grew);
@@ -1338,7 +1337,6 @@ void run_explicit_transport_parity()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     const qmomkit::CqmomTransportResult dense = qmomkit::advance_transport_cqmom(dense_state, 0.0, 0.05, velocity, zero_source, options);
     const qmomkit::CqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.05, velocity, zero_source, options);

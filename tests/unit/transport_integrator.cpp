@@ -497,6 +497,14 @@ qmomkit::CqmomCase adaptive_cqmom_case_from_moments(const qmomkit::RawMomentTens
     return parsed.value();
 }
 
+qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_fixed_qmom(const qmomkit::RawMomentTensor& moments)
+{
+    const std::string text = cqmom_case_text_from_moments(moments, true, false);
+    const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case-from-moments-with-fixed-qmom");
+    assert(parsed.ok());
+    return parsed.value();
+}
+
 qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_storage(const qmomkit::RawMomentTensor& moments, const char* const storage)
 {
     std::string text = cqmom_case_text_from_moments(moments, true, true);
@@ -594,14 +602,12 @@ bool diagnostics_contain_branch_count(const std::vector<qmomkit::CqmomDiagnostic
 
 bool transitions_contain(const std::vector<qmomkit::CqmomNodeCountTransition>& transitions, const qmomkit::TransportStage stage,
                          const std::size_t level, const qmomkit::ConditioningPath& path, const std::optional<std::size_t> before,
-                         const std::optional<std::size_t> after, const qmomkit::CqmomNodeCountEvolution policy,
-                         const qmomkit::CqmomNodeCountTransitionKind kind)
+                         const std::optional<std::size_t> after, const qmomkit::CqmomNodeCountTransitionKind kind)
 {
     for (const qmomkit::CqmomNodeCountTransition& transition : transitions)
     {
         if (transition.stage == stage && transition.conditioning_level == level && transition.parent_path == path &&
-            transition.active_node_count_before == before && transition.active_node_count_after == after &&
-            transition.node_count_evolution == policy && transition.kind == kind)
+            transition.active_node_count_before == before && transition.active_node_count_after == after && transition.kind == kind)
         {
             return true;
         }
@@ -640,7 +646,6 @@ void assert_transition_diagnostics_equal(const std::vector<qmomkit::CqmomNodeCou
         assert(lhs[i].configured_maximum_node_count == rhs[i].configured_maximum_node_count);
         assert(lhs[i].active_node_count_before == rhs[i].active_node_count_before);
         assert(lhs[i].active_node_count_after == rhs[i].active_node_count_after);
-        assert(lhs[i].node_count_evolution == rhs[i].node_count_evolution);
         assert(lhs[i].kind == rhs[i].kind);
         assert(lhs[i].rank_reduced == rhs[i].rank_reduced);
         assert(lhs[i].rank_grew == rhs[i].rank_grew);
@@ -863,7 +868,6 @@ void test_explicit_dense_and_lean_adaptive_options_are_equivalent()
     dense_options.adaptive_branch_counts = true;
     dense_options.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
     dense_options.vandermonde_solver = qmomkit::VandermondeSolver::dense;
-    dense_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     dense_options.scheme = qmomkit::TransportScheme::dc;
 
     qmomkit::TestLeanCqmomTransportOptions lean_options;
@@ -871,7 +875,6 @@ void test_explicit_dense_and_lean_adaptive_options_are_equivalent()
     lean_options.adaptive_branch_counts = dense_options.adaptive_branch_counts;
     lean_options.diagnostic_level = dense_options.diagnostic_level;
     lean_options.vandermonde_solver = dense_options.vandermonde_solver;
-    lean_options.source_node_count_evolution = dense_options.source_node_count_evolution;
     lean_options.scheme = dense_options.scheme;
 
     const qmomkit::TestDenseCqmomTransportResult dense =
@@ -1166,7 +1169,7 @@ void test_explicit_dense_and_lean_cqmom_native_source_invalid_values_are_equival
     assert(lean_throw.message.find("native CQMOM source failure") != std::string::npos);
 }
 
-void test_explicit_dense_and_lean_source_node_count_evolution_is_used()
+void test_explicit_dense_and_lean_source_growth_is_automatic()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor initial_moments = collapsed_branch_cqmom_moments();
@@ -1177,45 +1180,26 @@ void test_explicit_dense_and_lean_source_node_count_evolution_is_used()
     const qmomkit::TestLeanCqmomTransportState lean_state{initial_required};
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
 
-    qmomkit::TestDenseCqmomTransportOptions dense_preserve_options;
-    dense_preserve_options.qmom_options = {true, 1.0e-10, 1.0e-10, 1.0e-12};
-    dense_preserve_options.adaptive_branch_counts = true;
-    dense_preserve_options.scheme = qmomkit::TransportScheme::dc;
-    dense_preserve_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    qmomkit::TestLeanCqmomTransportOptions lean_preserve_options;
-    lean_preserve_options.qmom_options = dense_preserve_options.qmom_options;
-    lean_preserve_options.adaptive_branch_counts = dense_preserve_options.adaptive_branch_counts;
-    lean_preserve_options.scheme = dense_preserve_options.scheme;
-    lean_preserve_options.source_node_count_evolution = dense_preserve_options.source_node_count_evolution;
-
-    const qmomkit::TestDenseCqmomTransportResult dense_preserve = qmomkit::advance_transport_cqmom(
-        initial_moments, hierarchy, 0.0, 1.0, zero_velocity, dense_source_from_to(initial_moments, target_moments), dense_preserve_options);
-    const qmomkit::TestLeanCqmomTransportResult lean_preserve = qmomkit::advance_transport_cqmom(
-        lean_state, 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), lean_preserve_options);
-
-    qmomkit::TestDenseCqmomTransportOptions dense_growth_options = dense_preserve_options;
-    dense_growth_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
-    qmomkit::TestLeanCqmomTransportOptions lean_growth_options = lean_preserve_options;
-    lean_growth_options.source_node_count_evolution = dense_growth_options.source_node_count_evolution;
+    qmomkit::TestDenseCqmomTransportOptions dense_growth_options;
+    dense_growth_options.qmom_options = {true, 1.0e-10, 1.0e-10, 1.0e-12};
+    dense_growth_options.adaptive_branch_counts = true;
+    dense_growth_options.scheme = qmomkit::TransportScheme::dc;
+    qmomkit::TestLeanCqmomTransportOptions lean_growth_options;
+    lean_growth_options.qmom_options = dense_growth_options.qmom_options;
+    lean_growth_options.adaptive_branch_counts = dense_growth_options.adaptive_branch_counts;
+    lean_growth_options.scheme = dense_growth_options.scheme;
 
     const qmomkit::TestDenseCqmomTransportResult dense_growth = qmomkit::advance_transport_cqmom(
         initial_moments, hierarchy, 0.0, 1.0, zero_velocity, dense_source_from_to(initial_moments, target_moments), dense_growth_options);
     const qmomkit::TestLeanCqmomTransportResult lean_growth =
         qmomkit::advance_transport_cqmom(lean_state, 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), lean_growth_options);
 
-    assert(dense_preserve.ok());
-    assert(lean_preserve.ok());
     assert(dense_growth.ok());
     assert(lean_growth.ok());
-    assert(dense_preserve.quadrature.has_value());
-    assert(lean_preserve.quadrature.has_value());
     assert(dense_growth.quadrature.has_value());
     assert(lean_growth.quadrature.has_value());
-    assert(dense_preserve.quadrature->total_nodes() == 2);
-    assert(lean_preserve.quadrature->total_nodes() == 2);
     assert(dense_growth.quadrature->total_nodes() == 3);
     assert(lean_growth.quadrature->total_nodes() == 3);
-    assert_cqmom_quadrature_near(*lean_preserve.quadrature, *dense_preserve.quadrature, 1.0e-12);
     assert_cqmom_quadrature_near(*lean_growth.quadrature, *dense_growth.quadrature, 1.0e-12);
 }
 
@@ -1404,7 +1388,6 @@ void test_adaptive_state_preserves_branch_counts_across_steps()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     qmomkit::CqmomTransportResult first = qmomkit::advance_transport_cqmom(case_.initial_state(), 0.0, 0.1, zero_velocity, zero_source, options);
     assert(first.ok());
     assert(first.quadrature.has_value());
@@ -1434,7 +1417,6 @@ void test_adaptive_state_preserved_source_can_reduce_active_counts()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
@@ -1444,8 +1426,7 @@ void test_adaptive_state_preserved_source_can_reduce_active_counts()
     assert(transported.quadrature->total_nodes() == 2);
     assert(active_counts_contain(transported.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 1));
     assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 1,
-                               qmomkit::ConditioningPath{{1}}, 2, 1, qmomkit::CqmomNodeCountEvolution::preserve_active_counts,
-                               qmomkit::CqmomNodeCountTransitionKind::reduced));
+                               qmomkit::ConditioningPath{{1}}, 2, 1, qmomkit::CqmomNodeCountTransitionKind::reduced));
 }
 
 void test_adaptive_state_source_policy_allows_growth_to_configured_maximum()
@@ -1460,7 +1441,6 @@ void test_adaptive_state_source_policy_allows_growth_to_configured_maximum()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    assert(options.source_node_count_evolution == qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum);
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
@@ -1471,8 +1451,54 @@ void test_adaptive_state_source_policy_allows_growth_to_configured_maximum()
     assert(active_counts_contain(transported.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 1));
     assert(active_counts_contain(transported.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 2));
     assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 1,
-                               qmomkit::ConditioningPath{{1}}, 1, 2, qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum,
-                               qmomkit::CqmomNodeCountTransitionKind::grew));
+                               qmomkit::ConditioningPath{{1}}, 1, 2, qmomkit::CqmomNodeCountTransitionKind::grew));
+}
+
+void test_adaptive_state_source_growth_forces_adaptive_wheeler_without_mutating_qmom_options()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::RawMomentTensor initial_moments = collapsed_branch_cqmom_moments();
+    const qmomkit::RawMomentTensor target_moments = branch_specific_ragged_cqmom_moments();
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
+    const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
+    const qmomkit::CqmomCase cqmom_case = adaptive_cqmom_case_from_moments_with_fixed_qmom(initial_moments);
+    const qmomkit::CqmomState state = cqmom_case.initial_state();
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+
+    assert(cqmom_case.adaptive_branch_counts());
+    assert(!cqmom_case.qmom_options().adaptive);
+    assert(state.adaptive_branch_counts());
+    assert(!state.qmom_options().adaptive);
+    assert(active_counts_contain(state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 2, 0, 2));
+    assert(active_counts_contain(state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 1, 1, 2));
+    assert(active_counts_contain(state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 1, 1, 2));
+
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::dc;
+    const qmomkit::CqmomTransportResult transported =
+        qmomkit::advance_transport_cqmom(state, 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), options);
+
+    assert(transported.ok());
+    assert(transported.quadrature.has_value());
+    assert(transported.quadrature->adaptive_branch_counts_enabled());
+    assert(!transported.quadrature->has_rectangular_storage());
+    assert(transported.quadrature->total_nodes() == 3);
+    assert(!transported.state.qmom_options().adaptive);
+    assert(active_counts_contain(transported.state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 2, 0, 2));
+    assert(active_counts_contain(transported.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 1, 1, 2));
+    assert(active_counts_contain(transported.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 2, 1, 2));
+    assert(diagnostics_contain_branch_count(transported.diagnostics.post_source_cqmom_diagnostics, 1, qmomkit::ConditioningPath{{1}}, 2, 2));
+    assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 1,
+                               qmomkit::ConditioningPath{{1}}, 1, 2, qmomkit::CqmomNodeCountTransitionKind::grew));
+    assert(transported.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::success);
+    assert(transported.diagnostics.post_source_cqmom_status == qmomkit::CqmomStatus::success);
+
+    const qmomkit::QmomResult fixed_qmom = qmomkit::compute_qmom(qmomkit::MomentSet({1.0, 0.0, 0.0, 0.0}), 2, qmomkit::QmomOptions{false});
+    const qmomkit::QmomResult adaptive_qmom = qmomkit::compute_qmom(qmomkit::MomentSet({1.0, 0.0, 0.0, 0.0}), 2, qmomkit::QmomOptions{true});
+    assert(!fixed_qmom.ok());
+    assert(adaptive_qmom.ok());
+    assert(adaptive_qmom.weights.size() == 1);
 }
 
 void test_adaptive_state_source_growth_is_limited_to_one_node_per_step()
@@ -1488,7 +1514,6 @@ void test_adaptive_state_source_growth_is_limited_to_one_node_per_step()
 
     qmomkit::CqmomTransportOptions growth_options;
     growth_options.scheme = qmomkit::TransportScheme::dc;
-    growth_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     const qmomkit::CqmomTransportResult first =
         qmomkit::advance_transport_cqmom(one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), growth_options);
@@ -1508,17 +1533,6 @@ void test_adaptive_state_source_growth_is_limited_to_one_node_per_step()
     assert(second.quadrature.has_value());
     assert(second.quadrature->total_nodes() == 3);
     assert(active_counts_contain(second.state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 3, 0, configured_node_count));
-
-    qmomkit::CqmomTransportOptions preserve_options = growth_options;
-    preserve_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
-    const qmomkit::CqmomTransportResult preserved =
-        qmomkit::advance_transport_cqmom(one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 1.0, zero_velocity,
-                                         source_from_to(initial_required, target_required), preserve_options);
-
-    assert(preserved.ok());
-    assert(preserved.quadrature.has_value());
-    assert(preserved.quadrature->total_nodes() == 1);
-    assert(active_counts_contain(preserved.state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 1, 0, configured_node_count));
 }
 
 void test_adaptive_state_failed_growth_trial_keeps_current_count()
@@ -1534,7 +1548,6 @@ void test_adaptive_state_failed_growth_trial_keeps_current_count()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(
         one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), options);
 
@@ -1559,7 +1572,6 @@ void test_adaptive_state_reduction_prevents_source_growth_trial()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(
         one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), options);
 
@@ -1582,7 +1594,6 @@ void test_adaptive_state_parent_growth_creates_unconstrained_descendants()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
@@ -1594,11 +1605,9 @@ void test_adaptive_state_parent_growth_creates_unconstrained_descendants()
     assert(active_counts_contain(transported.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 2));
     assert(active_counts_contain(transported.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 2));
     assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 0,
-                               qmomkit::ConditioningPath{}, 1, 2, qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum,
-                               qmomkit::CqmomNodeCountTransitionKind::grew));
+                               qmomkit::ConditioningPath{}, 1, 2, qmomkit::CqmomNodeCountTransitionKind::grew));
     assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 1,
-                               qmomkit::ConditioningPath{{1}}, std::nullopt, 2, qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum,
-                               qmomkit::CqmomNodeCountTransitionKind::created));
+                               qmomkit::ConditioningPath{{1}}, std::nullopt, 2, qmomkit::CqmomNodeCountTransitionKind::created));
 }
 
 void test_adaptive_state_preserved_source_invalidates_descendants_after_root_collapse()
@@ -1613,7 +1622,6 @@ void test_adaptive_state_preserved_source_invalidates_descendants_after_root_col
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
@@ -1624,14 +1632,11 @@ void test_adaptive_state_preserved_source_invalidates_descendants_after_root_col
     assert(active_counts_contain(transported.state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 1));
     assert(active_counts_contain(transported.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 2));
     assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 0,
-                               qmomkit::ConditioningPath{}, 2, 1, qmomkit::CqmomNodeCountEvolution::preserve_active_counts,
-                               qmomkit::CqmomNodeCountTransitionKind::reduced));
+                               qmomkit::ConditioningPath{}, 2, 1, qmomkit::CqmomNodeCountTransitionKind::reduced));
     assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 1,
-                               qmomkit::ConditioningPath{{0}}, 1, std::nullopt, qmomkit::CqmomNodeCountEvolution::preserve_active_counts,
-                               qmomkit::CqmomNodeCountTransitionKind::removed));
+                               qmomkit::ConditioningPath{{0}}, 1, std::nullopt, qmomkit::CqmomNodeCountTransitionKind::removed));
     assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 1,
-                               qmomkit::ConditioningPath{{0}}, std::nullopt, 2, qmomkit::CqmomNodeCountEvolution::preserve_active_counts,
-                               qmomkit::CqmomNodeCountTransitionKind::created));
+                               qmomkit::ConditioningPath{{0}}, std::nullopt, 2, qmomkit::CqmomNodeCountTransitionKind::created));
 }
 
 void test_adaptive_state_preserved_source_invalidates_grandchildren_after_second_level_collapse()
@@ -1648,7 +1653,6 @@ void test_adaptive_state_preserved_source_invalidates_grandchildren_after_second
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(
         adaptive_cqmom_case_from_moments_with_hierarchy(initial_moments, node_counts, conditioning_order).initial_state(), 0.0, 1.0, zero_velocity,
         source_from_to(initial_required, target_required), options);
@@ -1661,14 +1665,11 @@ void test_adaptive_state_preserved_source_invalidates_grandchildren_after_second
     assert(active_counts_contain(transported.state.active_branch_counts(), 2, qmomkit::ConditioningPath{{0, 0}}, 2));
     assert(active_counts_contain(transported.state.active_branch_counts(), 2, qmomkit::ConditioningPath{{1, 0}}, 1));
     assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 1,
-                               qmomkit::ConditioningPath{{0}}, 2, 1, qmomkit::CqmomNodeCountEvolution::preserve_active_counts,
-                               qmomkit::CqmomNodeCountTransitionKind::reduced));
+                               qmomkit::ConditioningPath{{0}}, 2, 1, qmomkit::CqmomNodeCountTransitionKind::reduced));
     assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 2,
-                               qmomkit::ConditioningPath{{0, 0}}, 1, std::nullopt, qmomkit::CqmomNodeCountEvolution::preserve_active_counts,
-                               qmomkit::CqmomNodeCountTransitionKind::removed));
+                               qmomkit::ConditioningPath{{0, 0}}, 1, std::nullopt, qmomkit::CqmomNodeCountTransitionKind::removed));
     assert(transitions_contain(transported.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 2,
-                               qmomkit::ConditioningPath{{0, 0}}, std::nullopt, 2, qmomkit::CqmomNodeCountEvolution::preserve_active_counts,
-                               qmomkit::CqmomNodeCountTransitionKind::created));
+                               qmomkit::ConditioningPath{{0, 0}}, std::nullopt, 2, qmomkit::CqmomNodeCountTransitionKind::created));
 }
 
 void test_adaptive_state_initial_counts_preserve_nonidentity_conditioning_order()
@@ -1693,7 +1694,6 @@ void test_fixed_state_transport_does_not_store_adaptive_branch_counts()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(transported.ok());
@@ -1720,7 +1720,6 @@ void test_adaptive_state_rejects_duplicate_active_count_metadata()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(bad_state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(!result.ok());
@@ -1745,7 +1744,6 @@ void test_adaptive_state_rejects_missing_active_count_metadata()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(bad_state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(!result.ok());
@@ -1766,7 +1764,6 @@ void test_adaptive_state_failure_preserves_active_counts_for_retry()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     const qmomkit::CqmomTransportResult failed = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_source, options);
     assert(!failed.ok());
     assert(active_counts_equal(state.active_branch_counts(), original_counts));
@@ -1793,7 +1790,6 @@ void test_adaptive_state_post_source_failure_preserves_active_counts_for_retry()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     const qmomkit::CqmomTransportResult failed = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_realizability_source, options);
     assert(!failed.ok());
     assert(failed.status == qmomkit::TransportStatus::inversion_failed);
@@ -1840,7 +1836,6 @@ void test_dense_and_lean_adaptive_state_active_count_persistence_are_equivalent(
 
         qmomkit::CqmomTransportOptions options;
         options.scheme = qmomkit::TransportScheme::dc;
-        options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
         const qmomkit::CqmomTransportResult dense_first =
             qmomkit::advance_transport_cqmom(dense_initial, 0.0, 0.1, zero_velocity, zero_source, options);
         const qmomkit::CqmomTransportResult lean_first =
@@ -1877,7 +1872,6 @@ void test_dense_and_lean_adaptive_state_active_count_persistence_are_equivalent(
 
     qmomkit::CqmomTransportOptions preserve_options;
     preserve_options.scheme = qmomkit::TransportScheme::dc;
-    preserve_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     run_source_case(branch_specific_ragged_cqmom_moments(), collapsed_branch_cqmom_moments(), qmomkit::PhaseSpaceHierarchy({2, 2}), preserve_options);
     run_source_case(branch_specific_ragged_cqmom_moments(), root_collapsed_child_spread_cqmom_moments(), qmomkit::PhaseSpaceHierarchy({2, 2}),
                     preserve_options);
@@ -1886,7 +1880,6 @@ void test_dense_and_lean_adaptive_state_active_count_persistence_are_equivalent(
 
     qmomkit::CqmomTransportOptions growth_options;
     growth_options.scheme = qmomkit::TransportScheme::dc;
-    growth_options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     run_source_case(collapsed_branch_cqmom_moments(), branch_specific_ragged_cqmom_moments(), qmomkit::PhaseSpaceHierarchy({2, 2}), growth_options);
 
     {
@@ -2191,7 +2184,6 @@ void test_dense_state_reconstructs_dense_only_moments_after_discontinuous_source
     const qmomkit::CqmomMomentSource source = proportional_cqmom_source(0.35);
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
     options.source_options.ssp_rk3_options.estimate_error = true;
     const std::size_t expected_source_state_size = qmomkit::create_cqmom_moment_layout(dense_case.hierarchy()).required_indices.size();
     std::size_t stage_accept_calls = 0;
@@ -2228,7 +2220,6 @@ void test_dense_state_zero_source_keeps_full_dense_closure_consistent()
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     const qmomkit::CqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, zero_velocity, zero_source, options);
@@ -2247,7 +2238,6 @@ void test_dense_state_reconstructs_dense_only_moments_after_source_and_boundary(
     const qmomkit::CqmomMomentBoundaryContribution boundary = proportional_cqmom_source(0.15);
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     const qmomkit::CqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, zero_velocity, source, boundary, options);
@@ -2267,7 +2257,6 @@ void test_dense_state_reconstructs_dense_only_moments_after_repeated_source_step
     const qmomkit::CqmomMomentSource source = proportional_cqmom_source(0.20);
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     qmomkit::CqmomTransportResult dense = qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.05, zero_velocity, source, options);
     qmomkit::CqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_case.initial_state(), 0.0, 0.05, zero_velocity, source, options);
@@ -2288,7 +2277,6 @@ void test_dense_state_reconstructs_dense_only_moments_with_nonidentity_condition
     const qmomkit::CqmomMomentSource source = proportional_cqmom_source(0.25);
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     const qmomkit::CqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, zero_velocity, source, options);
@@ -2797,6 +2785,7 @@ int main()
     test_adaptive_state_preserves_branch_counts_across_steps();
     test_adaptive_state_preserved_source_can_reduce_active_counts();
     test_adaptive_state_source_policy_allows_growth_to_configured_maximum();
+    test_adaptive_state_source_growth_forces_adaptive_wheeler_without_mutating_qmom_options();
     test_adaptive_state_source_growth_is_limited_to_one_node_per_step();
     test_adaptive_state_failed_growth_trial_keeps_current_count();
     test_adaptive_state_reduction_prevents_source_growth_trial();
@@ -2824,7 +2813,7 @@ int main()
     test_explicit_dense_and_lean_accept_same_cqmom_native_boundary();
     test_explicit_dense_and_lean_cqmom_native_source_failures_are_equivalent();
     test_explicit_dense_and_lean_cqmom_native_source_invalid_values_are_equivalent();
-    test_explicit_dense_and_lean_source_node_count_evolution_is_used();
+    test_explicit_dense_and_lean_source_growth_is_automatic();
     test_state_cqmom_transport_matches_lean_fixed_layout();
     test_configured_dense_and_lean_state_transport_are_equivalent();
     test_dense_and_lean_state_source_contexts_are_identical();

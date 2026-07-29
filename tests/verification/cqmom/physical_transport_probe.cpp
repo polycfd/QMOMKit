@@ -359,7 +359,6 @@ void run_captured_physical_regression()
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(state, 23.022499999999706, 0.0025, zero_velocity, zero_source, options);

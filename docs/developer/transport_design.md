@@ -249,16 +249,16 @@ adaptive topology cannot be reconstructed. Later state inversions validate
 supplied active-count metadata strictly: there must be exactly one reachable
 entry per active branch, configured node-count metadata must match the hierarchy,
 active counts must be within configured capacity, and stale or unreachable
-descendant entries are rejected. During a source-stage inversion with preserved
-active counts, if an ancestor branch changes active count, descendant limits
-below the new branch are invalidated top-down and recomputed from configured
-capacity so numeric path reuse does not apply stale branch limits after a
-collapse or merge. Diagnostics report only true node-count transitions and
-distinguish reduced, grown, created, and removed branch records.
+descendant entries are rejected. During a source-stage inversion, if an ancestor
+branch changes active count, descendant limits below the new branch are
+invalidated top-down and recomputed from configured capacity so numeric path
+reuse does not apply stale branch limits after a collapse, merge, or growth.
+Diagnostics report only true node-count transitions and distinguish reduced,
+grown, created, and removed branch records.
 
 `CqmomTransportOptions` owns transport-stage policies: node-advection/RK23
-controls, moment-source SSP-RK3 controls, source-stage node-count evolution, and
-transport sequencing. Conditional moment controls, QMOM/Wheeler controls,
+controls, moment-source SSP-RK3 controls, and transport sequencing. Conditional
+moment controls, standalone QMOM controls, CQMOM Wheeler controls,
 adaptive branch-count enablement, CQMOM diagnostic level, and Vandermonde solver
 selection are case-owned policies stored in `CqmomState`. Dense-backed and
 lean-backed states must pass these policies through to the same recursive
@@ -594,29 +594,23 @@ a successful source update, QMOM or CQMOM inversion is attempted again; if the
 updated raw moments are not invertible under the configured reconstruction
 options, transport reports an inversion failure.
 
-Adaptive CQMOM source stages have an explicit branch-count evolution policy:
-
-- `preserve_active_counts`: post-source inversion uses the current
-  branch-specific active counts as the branch-local capacity. Adaptive Wheeler
-  may reduce a branch further, but it does not reconsider a one-node branch as
-  a two-node branch merely because the hierarchy capacity is two. Use this for
-  zero/no-op sources, continuous-only physical evolution composed through the
-  hybrid helper, and source models known not to increase quadrature rank.
-- `allow_growth_to_configured_maximum`: post-source inversion keeps the
-  current active topology as its baseline and may grow an active branch by one
-  node toward the hierarchy's configured maximum when the source-updated
-  moments support that larger branch. Growth is accepted only when the
-  branch-local trial inversion returns exactly the requested `Nactive + 1`
-  nodes; reductions still take precedence. This is the default because it
-  preserves general-source support for binary breakage and other discontinuous
-  source terms that may create additional structure without jumping directly to
-  full configured capacity.
+Adaptive CQMOM uses one context-dependent active-count policy. Initial
+reconstruction starts each branch from its configured maximum and lets adaptive
+Wheeler determine the active count. Continuous transport reconstructs each
+existing branch with its current active count as the ceiling, so counts may
+remain or decrease but cannot grow. After an accepted discontinuous source
+update, post-source inversion first reconstructs at the current active count; a
+reduction is accepted immediately. If the current count is retained and the
+configured maximum is larger, the branch tries exactly `Nactive + 1`, and growth
+is accepted only when Wheeler returns that requested count. Branches created by
+an invalidated parent topology start from configured maximum counts and adapt
+downward.
 
 After every successful inversion during CQMOM transport through `CqmomState`,
 the returned state is refreshed with the active counts extracted from the
 returned quadrature. Structured transport diagnostics record branch path,
-configured maximum count, active count before and after the stage, selected
-evolution policy, and whether a rank reduction or growth occurred.
+configured maximum count, active count before and after the stage, and whether
+a rank reduction or growth occurred.
 
 Node advection preserves weights and moves an already accepted quadrature.
 The moment reconstruction after node advection is a deterministic summation

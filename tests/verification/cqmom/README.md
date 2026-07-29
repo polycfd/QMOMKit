@@ -164,9 +164,10 @@ x = 3 -> y = 7
 
 Each branch has exactly one conditional node with local conditional weight
 `1`. The configured hierarchy still requests two `y` nodes, but
-`qmom.adaptive = true` and `adaptive_branch_counts = true`, so Wheeler reduces
-each conditional branch from two requested nodes to one actual node. This
-reduction is expected success, not failure.
+`adaptive_branch_counts = true`, so CQMOM automatically uses adaptive Wheeler
+and reduces each conditional branch from two requested nodes to one actual
+node. This reduction is expected success, not failure. The fixture also stores
+`qmom.adaptive = true`, but standalone QMOM remains independently configurable.
 
 ## Case C: Branch-Dependent Conditional Rules
 
@@ -217,16 +218,12 @@ traversal order; abscissas are still stored by phase-space dimension.
 
 ## Adaptive Controls
 
-`qmom.adaptive` controls the one-dimensional Wheeler inversion used at each
-branch. When it is `true`, Wheeler may reduce a branch-local degenerate or
-thresholded moment sequence to fewer nodes.
-
+`qmom.adaptive` controls standalone one-dimensional QMOM. For CQMOM,
 `adaptive_branch_counts` controls whether recursive CQMOM accepts branch-local
-node counts smaller than the configured maximum hierarchy. These options are
-parsed independently. Setting one does not set the other. Recursive CQMOM
-rejects adaptive Wheeler reductions in fixed rectangular mode, so intentional
-branch-specific reductions require both `qmom.adaptive = true` and
-`adaptive_branch_counts = true`.
+node counts smaller than the configured maximum hierarchy. When adaptive branch
+counts are enabled, recursive CQMOM automatically uses adaptive Wheeler for each
+marginal and conditional inversion. Recursive CQMOM still rejects adaptive
+Wheeler reductions in fixed rectangular mode.
 
 ## Checks
 
@@ -333,11 +330,13 @@ xi_4 = 1.25 xi_3 - 0.2
 xi_5 = -0.8 xi_4 + 0.5
 ```
 
-It uses `conditioning_order = {0,1,2,3,4}`, `qmom.adaptive = true`,
-and `adaptive_branch_counts = true`. The first level has two nodes; every
-later branch reduces to one deterministic child with local weight `1`. The
-terminal weights remain `{0.4, 0.6}` and the terminal coordinates are stored
-in phase-space dimension order.
+It uses `conditioning_order = {0,1,2,3,4}` and
+`adaptive_branch_counts = true`. The first level has two nodes; CQMOM
+automatically uses adaptive Wheeler, so every later branch reduces to one
+deterministic child with local weight `1`. The terminal weights remain
+`{0.4, 0.6}` and the terminal coordinates are stored in phase-space dimension
+order. The fixture also records `qmom.adaptive = true`; that option controls
+standalone QMOM behavior independently.
 
 This case validates recursion depth and repeated adaptive reduction. Its
 configured tensor has `4^5 = 1024` moments and two terminal points.
@@ -386,12 +385,14 @@ xi_3 = {-1.0, 2.0}, weights = {0.30, 0.70}
 xi_4 = -xi_2 + 0.5 xi_3
 ```
 
-with `conditioning_order = {0,2,1,3}`, `qmom.adaptive = true`, and
-`adaptive_branch_counts = true`. The exact terminal quadrature has four
-points: each `xi_1` branch paired with each independent `xi_3` node. The
-first two levels have two children, and the affine descendants reduce to one
-child per parent path. Local weights are `{w_xi1, w_xi3, 1, 1}` along a
-complete path; accumulated terminal weights are `w_xi1 * w_xi3`.
+with `conditioning_order = {0,2,1,3}` and
+`adaptive_branch_counts = true`. CQMOM automatically uses adaptive Wheeler for
+the marginal and conditional inversions. The exact terminal quadrature has four
+points: each `xi_1` branch paired with each independent `xi_3` node. The first
+two levels have two children, and the affine descendants reduce to one child
+per parent path. Local weights are `{w_xi1, w_xi3, 1, 1}` along a complete
+path; accumulated terminal weights are `w_xi1 * w_xi3`. The fixture also
+records `qmom.adaptive = true`; that option remains a standalone QMOM setting.
 
 This case validates coupled conditional reconstruction with a non-identity
 conditioning order and a ragged adaptive tree. It has `4^4 = 256` configured

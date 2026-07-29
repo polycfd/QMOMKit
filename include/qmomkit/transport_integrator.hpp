@@ -54,12 +54,6 @@ enum class TransportStatus
     source_failed
 };
 
-enum class CqmomNodeCountEvolution
-{
-    preserve_active_counts,
-    allow_growth_to_configured_maximum
-};
-
 enum class CqmomNodeCountTransitionKind
 {
     reduced,
@@ -84,7 +78,6 @@ struct CqmomNodeCountTransition
     std::size_t configured_maximum_node_count = 0;
     std::optional<std::size_t> active_node_count_before;
     std::optional<std::size_t> active_node_count_after;
-    CqmomNodeCountEvolution node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     CqmomNodeCountTransitionKind kind = CqmomNodeCountTransitionKind::grew;
     bool rank_reduced = false;
     bool rank_grew = false;
@@ -131,9 +124,6 @@ struct CqmomTransportOptions
 {
     NodeAdvectionOptions node_options;
     MomentSourceUpdateOptions source_options;
-    /** Source-stage rank policy. General sources default to controlled growth
-     * toward configured maxima; zero/no-op sources should preserve counts. */
-    CqmomNodeCountEvolution source_node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     TransportScheme scheme = TransportScheme::strang;
 };
 
@@ -214,8 +204,7 @@ struct CqmomTransportResult
  *
  * In adaptive branch-count mode, `CqmomState` carries current branch-specific
  * active counts separately from the hierarchy's configured maximum counts.
- * Source stages use `CqmomTransportOptions::source_node_count_evolution` to
- * decide whether post-source inversion preserves the current active counts or
+ * Continuous stages preserve the active topology, while accepted source stages
  * may grow active branches one node at a time toward the configured maximum.
  */
 [[nodiscard]] CqmomTransportResult advance_transport_cqmom(const CqmomState& state, double t, double time_step, const PhaseSpaceVelocity& velocity,

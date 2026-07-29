@@ -327,7 +327,6 @@ qmomkit::TestDenseCqmomTransportOptions cqmom_options(const qmomkit::CqmomDenseC
     options.node_options.rk23_options.absolute_tolerance = 1.0e-14;
     options.node_options.rk23_options.max_step = 0.01;
     options.source_options.ssp_rk3_options.estimate_error = true;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     options.scheme = qmomkit::TransportScheme::strang;
     return options;
 }
@@ -357,7 +356,6 @@ qmomkit::TestLeanCqmomTransportOptions cqmom_lean_options(const qmomkit::CqmomLe
     options.node_options.rk23_options.absolute_tolerance = 1.0e-14;
     options.node_options.rk23_options.max_step = 0.01;
     options.source_options.ssp_rk3_options.estimate_error = true;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     options.scheme = qmomkit::TransportScheme::strang;
     return options;
 }
@@ -2547,7 +2545,6 @@ void verify_dense_helper_based_common_cqmom_transport(const qmomkit::CqmomDenseC
     policy_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     policy_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
     qmomkit::TestDenseCqmomTransportOptions options = cqmom_options(policy_case);
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
@@ -2586,7 +2583,6 @@ void verify_lean_helper_based_common_cqmom_transport(const qmomkit::CqmomLeanCas
     policy_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     policy_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
     qmomkit::TestLeanCqmomTransportOptions options = cqmom_lean_options(policy_case);
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     const qmomkit::TestLeanCqmomTransportState state{policy_case.moments};
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };

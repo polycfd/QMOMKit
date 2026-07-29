@@ -586,36 +586,28 @@ Adaptive branch counts configured on the `CqmomCase` are preserved by
 `CqmomState` transport. In adaptive mode, the hierarchy node counts remain the
 maximum branch counts; the state also retains the current branch-specific
 active counts associated with its ragged quadrature. Continuous node advection
-preserves those active counts.
+preserves terminal paths and therefore preserves active counts. Moments are
+reconstructed by summation from the advected quadrature; this stage does not
+grow active branch counts.
 
-Source stages choose whether the active counts can grow after a successful
-discontinuous source update. The default
-`CqmomTransportOptions::source_node_count_evolution` is
-`allow_growth_to_configured_maximum`, which is appropriate for general
-sources such as breakage that may create additional structure. Growth is
-branch-local and controlled: an active branch can grow by at most one node in a
-single accepted source step, and only when the higher-capacity inversion
-actually returns the requested larger count. For zero/no-op sources or source
-models known not to increase rank, set it to
-`preserve_active_counts` so one-node adaptive branches are not reconsidered as
-larger branches only because the configured maximum is larger.
+At reconstruction boundaries, existing branches use their current active count
+as the ceiling, so active counts may stay the same or decrease but cannot grow.
+After an accepted discontinuous source update, post-source inversion first
+tests the current active count; if that count remains valid and the configured
+maximum is larger, it tries exactly one additional node. Growth is accepted only
+when that trial returns the requested `Nactive + 1` nodes. If a parent topology
+change creates a genuinely new descendant branch, the descendant begins from
+its own configured maximum node count, and adaptive Wheeler determines its
+initial active count.
 
-Configuration-driven drivers can read the same policy from:
-
-```text
-[time_integration.cqmom]
-source_node_count_evolution = preserve_active_counts
-```
-
-The accepted values are `preserve_active_counts` and
-`allow_growth_to_configured_maximum`. Adaptive `CqmomState` construction seeds
-active counts from the initial CQMOM inversion; if that inversion fails, state
-construction fails instead of creating a state with inconsistent adaptive
-metadata. Failed CQMOM transport through `CqmomState` returns the previous state
-metadata so callers can retry from the last accepted step.
+Adaptive `CqmomState` construction seeds active counts from the initial CQMOM
+inversion; if that inversion fails, state construction fails instead of creating
+a state with inconsistent adaptive metadata. Failed CQMOM transport through
+`CqmomState` returns the previous state metadata so callers can retry from the
+last accepted step.
 
 `CqmomTransportOptions` contains only transport-stage policies: node advection,
-source integration, source node-count evolution, and the C/D sequencing scheme.
+source integration, and the C/D sequencing scheme.
 CQMOM inversion policies such as Wheeler options, adaptive branch counts,
 diagnostic level, and Vandermonde solver belong to `CqmomCase` and are preserved
 by `CqmomState`. Successful CQMOM transport through `CqmomState` persists active

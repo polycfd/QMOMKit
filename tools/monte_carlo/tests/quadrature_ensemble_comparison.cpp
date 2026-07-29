@@ -4,9 +4,9 @@
 #include "monte_carlo/moments.hpp"
 #include "monte_carlo/sampling.hpp"
 #include "qmomkit/multi_index.hpp"
+#include "test_checks.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -138,24 +138,32 @@ qmomkit::AdaptiveRk23Options accurate_options()
     return options;
 }
 
-void assert_close(const double actual, const double expected, const double tolerance)
+void check_close(const double actual, const double expected, const double tolerance)
 {
-    assert(std::abs(actual - expected) <= tolerance);
+    CHECK_CLOSE(actual, expected, tolerance);
 }
 
-void assert_statistically_close(const qmomkit::monte_carlo::MomentComparisonRow& row)
+std::string row_context(const qmomkit::monte_carlo::MomentComparisonRow& row)
+{
+    std::ostringstream context;
+    context << "flat_index=" << row.order << " reference_value=" << row.reference_value << " computed_value=" << row.computed_value
+            << " absolute_error=" << row.absolute_error << " standard_error=" << row.standard_error << " z_score=" << row.z_score;
+    return context.str();
+}
+
+void check_statistically_close(const qmomkit::monte_carlo::MomentComparisonRow& row)
 {
     const double tolerance = std::max(6.0 * row.standard_error, 1.0e-12);
-    assert(row.absolute_error <= tolerance);
-    assert(std::abs(row.z_score) <= 6.0 || !std::isfinite(row.z_score));
+    CHECK_CLOSE_CONTEXT(row.computed_value, row.reference_value, tolerance, 0.0, row_context(row));
+    CHECK_CONTEXT(std::abs(row.z_score) <= 6.0 || !std::isfinite(row.z_score), row_context(row));
 }
 
-void assert_same_samples(const qmomkit::monte_carlo::Ensemble& lhs, const qmomkit::monte_carlo::Ensemble& rhs)
+void check_same_samples(const qmomkit::monte_carlo::Ensemble& lhs, const qmomkit::monte_carlo::Ensemble& rhs)
 {
-    assert(lhs.size() == rhs.size());
+    CHECK(lhs.size() == rhs.size());
     for (std::size_t sample = 0; sample < lhs.size(); ++sample)
     {
-        assert(lhs[sample] == rhs[sample]);
+        CHECK(lhs[sample] == rhs[sample]);
     }
 }
 
@@ -169,7 +177,7 @@ const qmomkit::monte_carlo::MomentComparisonRow& find_row(const qmomkit::monte_c
             return row;
         }
     }
-    assert(false);
+    CHECK_CONTEXT(false, "requested comparison row was not found");
     return result.rows.front();
 }
 
@@ -686,21 +694,21 @@ void test_explicit_quadrature_construction()
     const qmomkit::Quadrature1D quadrature{{-1.0, 0.5, 2.0}, distribution.weights, qmomkit::QuadratureStatus::success, ""};
 
     const qmomkit::monte_carlo::MomentComparisonResult direct = compare_quadrature_to_ensemble(quadrature, {{-1.0}, {0.5}, {2.0}}, 2.2, 0);
-    assert(direct.ok());
-    assert_close(direct.rows.front().reference_value, 2.2, 1.0e-15);
+    CHECK(direct.ok());
+    check_close(direct.rows.front().reference_value, 2.2, 1.0e-15);
 
     const qmomkit::monte_carlo::MomentComparisonResult mismatched_comparison =
         compare_quadrature_to_ensemble(quadrature, {{-1.0}, {0.5}, {2.0}}, 3.0, 0);
-    assert(!mismatched_comparison.ok());
+    CHECK(!mismatched_comparison.ok());
 
     const qmomkit::Quadrature1D negative_weight{{0.0}, {-1.0}, qmomkit::QuadratureStatus::success, ""};
     const qmomkit::monte_carlo::MomentComparisonResult negative_comparison = compare_quadrature_to_ensemble(negative_weight, {{0.0}}, 1.0, 0);
-    assert(!negative_comparison.ok());
+    CHECK(!negative_comparison.ok());
 
     const ExplicitDiscreteDistribution mismatched_density{{{0.0}}, {1.0}, 2.0};
     const qmomkit::monte_carlo::ExplicitDiscreteSamplingResult invalid =
         qmomkit::monte_carlo::sample_explicit_discrete_distribution(mismatched_density, SamplingOptions{10, 1});
-    assert(!invalid.ok());
+    CHECK(!invalid.ok());
 }
 
 void test_direct_moment_comparison_utilities()
@@ -708,24 +716,24 @@ void test_direct_moment_comparison_utilities()
     const qmomkit::MomentSet reference_1d{2.0, 0.0, 8.0};
     const qmomkit::MomentSet same_1d{2.0, 0.0, 8.0};
     const qmomkit::monte_carlo::MomentComparisonResult identical = qmomkit::monte_carlo::compare_moments(reference_1d, same_1d, {0.0, 0.0, 0.0});
-    assert(identical.ok());
+    CHECK(identical.ok());
     for (const qmomkit::monte_carlo::MomentComparisonRow& row : identical.rows)
     {
-        assert_close(row.signed_error, 0.0, 0.0);
-        assert_close(row.absolute_error, 0.0, 0.0);
-        assert_close(row.z_score, 0.0, 0.0);
+        check_close(row.signed_error, 0.0, 0.0);
+        check_close(row.absolute_error, 0.0, 0.0);
+        check_close(row.z_score, 0.0, 0.0);
     }
 
     const qmomkit::MomentSet shifted_1d{2.0, 0.2, 7.8};
     const qmomkit::monte_carlo::MomentComparisonResult shifted = qmomkit::monte_carlo::compare_moments(reference_1d, shifted_1d, {0.0, 0.1, 0.2});
-    assert(shifted.ok());
-    assert_close(shifted.rows[1].signed_error, 0.2, 1.0e-15);
-    assert_close(shifted.rows[1].absolute_error, 0.2, 1.0e-15);
-    assert_close(shifted.rows[2].signed_error, -0.2, 1.0e-14);
-    assert_close(shifted.rows[2].absolute_error, 0.2, 1.0e-14);
-    assert_close(shifted.rows[1].z_score, 2.0, 1.0e-15);
-    assert_close(shifted.rows[2].z_score, -1.0, 1.0e-14);
-    assert(std::isinf(shifted.rows[0].z_score) == false);
+    CHECK(shifted.ok());
+    check_close(shifted.rows[1].signed_error, 0.2, 1.0e-15);
+    check_close(shifted.rows[1].absolute_error, 0.2, 1.0e-15);
+    check_close(shifted.rows[2].signed_error, -0.2, 1.0e-14);
+    check_close(shifted.rows[2].absolute_error, 0.2, 1.0e-14);
+    check_close(shifted.rows[1].z_score, 2.0, 1.0e-15);
+    check_close(shifted.rows[2].z_score, -1.0, 1.0e-14);
+    CHECK(std::isinf(shifted.rows[0].z_score) == false);
 
     const qmomkit::RawMomentTensor reference_tensor{{3, 4, 2}, std::vector<double>(24, 0.0)};
     qmomkit::RawMomentTensor monte_carlo_tensor = reference_tensor;
@@ -734,22 +742,22 @@ void test_direct_moment_comparison_utilities()
     standard_errors[qmomkit::flatten_multi_index({2, 3, 1}, reference_tensor.extents)] = 0.5;
     const qmomkit::monte_carlo::MomentComparisonResult tensor_result =
         qmomkit::monte_carlo::compare_moments(reference_tensor, monte_carlo_tensor, standard_errors);
-    assert(tensor_result.ok());
-    assert(tensor_result.rows.size() == 24);
+    CHECK(tensor_result.ok());
+    CHECK(tensor_result.rows.size() == 24);
     const std::size_t flat = qmomkit::flatten_multi_index({2, 3, 1}, reference_tensor.extents);
-    assert(tensor_result.rows[flat].multi_index == qmomkit::MultiIndex({2, 3, 1}));
-    assert_close(tensor_result.rows[flat].signed_error, 0.25, 1.0e-15);
-    assert_close(tensor_result.rows[flat].absolute_error, 0.25, 1.0e-15);
-    assert_close(tensor_result.rows[flat].z_score, 0.5, 1.0e-15);
+    CHECK(tensor_result.rows[flat].multi_index == qmomkit::MultiIndex({2, 3, 1}));
+    check_close(tensor_result.rows[flat].signed_error, 0.25, 1.0e-15);
+    check_close(tensor_result.rows[flat].absolute_error, 0.25, 1.0e-15);
+    check_close(tensor_result.rows[flat].z_score, 0.5, 1.0e-15);
 
     const qmomkit::MomentSet zero_reference{0.0, 0.0};
     const qmomkit::MomentSet nonzero_with_zero_error{0.0, 1.0};
     const qmomkit::monte_carlo::MomentComparisonResult infinite_z =
         qmomkit::monte_carlo::compare_moments(zero_reference, nonzero_with_zero_error, {0.0, 0.0});
-    assert(infinite_z.ok());
-    assert_close(infinite_z.rows[0].z_score, 0.0, 0.0);
-    assert(std::isinf(infinite_z.rows[1].z_score));
-    assert(infinite_z.rows[1].z_score > 0.0);
+    CHECK(infinite_z.ok());
+    check_close(infinite_z.rows[0].z_score, 0.0, 0.0);
+    CHECK(std::isinf(infinite_z.rows[1].z_score));
+    CHECK(infinite_z.rows[1].z_score > 0.0);
 }
 
 void test_multidimensional_sampling_and_dimension_validation()
@@ -760,19 +768,19 @@ void test_multidimensional_sampling_and_dimension_validation()
         qmomkit::monte_carlo::sample_explicit_discrete_distribution(distribution, options);
     const qmomkit::monte_carlo::ExplicitDiscreteSamplingResult second =
         qmomkit::monte_carlo::sample_explicit_discrete_distribution(distribution, options);
-    assert(first.ok());
-    assert(second.ok());
-    assert_close(first.number_density, 2.4, 1.0e-15);
-    assert_same_samples(first.ensemble, second.ensemble);
+    CHECK(first.ok());
+    CHECK(second.ok());
+    check_close(first.number_density, 2.4, 1.0e-15);
+    check_same_samples(first.ensemble, second.ensemble);
     for (const qmomkit::monte_carlo::Sample& sample : first.ensemble)
     {
-        assert(sample.size() == 2);
+        CHECK(sample.size() == 2);
     }
 
     const ExplicitDiscreteDistribution inconsistent{{{0.0, 1.0}, {2.0}}, {1.0, 1.0}, {}};
     const qmomkit::monte_carlo::ExplicitDiscreteSamplingResult invalid =
         qmomkit::monte_carlo::sample_explicit_discrete_distribution(inconsistent, options);
-    assert(!invalid.ok());
+    CHECK(!invalid.ok());
 }
 
 void test_deterministic_sampling_and_number_density()
@@ -784,16 +792,16 @@ void test_deterministic_sampling_and_number_density()
     const qmomkit::monte_carlo::ExplicitDiscreteSamplingResult second =
         qmomkit::monte_carlo::sample_explicit_discrete_distribution(distribution, options);
 
-    assert(first.ok());
-    assert(second.ok());
-    assert_close(first.number_density, 2.2, 1.0e-15);
-    assert_same_samples(first.ensemble, second.ensemble);
+    CHECK(first.ok());
+    CHECK(second.ok());
+    check_close(first.number_density, 2.2, 1.0e-15);
+    check_same_samples(first.ensemble, second.ensemble);
 
     const qmomkit::monte_carlo::OneDimensionalMomentEstimate moments =
         qmomkit::monte_carlo::compute_ensemble_moments(first.ensemble, first.number_density, 2);
-    assert(moments.ok());
-    assert_close(moments.moments[0], first.number_density, 1.0e-15);
-    assert_close(moments.standard_errors[0], 0.0, 0.0);
+    CHECK(moments.ok());
+    check_close(moments.moments[0], first.number_density, 1.0e-15);
+    check_close(moments.standard_errors[0], 0.0, 0.0);
 }
 
 void test_two_dimensional_constant_velocity_comparison()
@@ -805,7 +813,7 @@ void test_two_dimensional_constant_velocity_comparison()
     const double cy = -0.08;
     const qmomkit::PhaseSpaceVelocity callback = [cx, cy](double, const std::vector<double>& coordinates)
     {
-        assert(coordinates.size() == 2);
+        CHECK(coordinates.size() == 2);
         return std::vector<double>{cx, cy};
     };
 
@@ -819,20 +827,20 @@ void test_two_dimensional_constant_velocity_comparison()
     request.maximum_orders = {2, 2};
 
     const MultiDimensionalEvolutionComparisonResult result = compare_evolved_quadrature_to_ensemble(request);
-    assert(result.ok());
-    assert_close(result.number_density, 2.7, 1.0e-15);
-    assert(result.monte_carlo_result.ensemble.size() == request.sampling_options.sample_count);
-    assert_close(result.monte_carlo_result.final_time, t1, 0.0);
+    CHECK(result.ok());
+    check_close(result.number_density, 2.7, 1.0e-15);
+    CHECK(result.monte_carlo_result.ensemble.size() == request.sampling_options.sample_count);
+    check_close(result.monte_carlo_result.final_time, t1, 0.0);
 
     for (std::size_t node = 0; node < distribution.nodes.size(); ++node)
     {
-        assert_close(result.quadrature_result.evolved_distribution.nodes[node][0], distribution.nodes[node][0] + cx * (t1 - t0), 1.0e-12);
-        assert_close(result.quadrature_result.evolved_distribution.nodes[node][1], distribution.nodes[node][1] + cy * (t1 - t0), 1.0e-12);
+        check_close(result.quadrature_result.evolved_distribution.nodes[node][0], distribution.nodes[node][0] + cx * (t1 - t0), 1.0e-12);
+        check_close(result.quadrature_result.evolved_distribution.nodes[node][1], distribution.nodes[node][1] + cy * (t1 - t0), 1.0e-12);
     }
-    assert_close(find_row(result.comparison, {0, 0}).reference_value, result.number_density, 1.0e-15);
+    check_close(find_row(result.comparison, {0, 0}).reference_value, result.number_density, 1.0e-15);
     for (const qmomkit::monte_carlo::MomentComparisonRow& row : result.comparison.rows)
     {
-        assert_statistically_close(row);
+        check_statistically_close(row);
     }
 }
 
@@ -847,7 +855,7 @@ void test_two_dimensional_affine_comparison()
     const double by = -0.2;
     const qmomkit::PhaseSpaceVelocity callback = [ax, bx, ay, by](double, const std::vector<double>& coordinates)
     {
-        assert(coordinates.size() == 2);
+        CHECK(coordinates.size() == 2);
         return std::vector<double>{ax * coordinates[0] + bx, ay * coordinates[1] + by};
     };
 
@@ -861,18 +869,18 @@ void test_two_dimensional_affine_comparison()
     request.maximum_orders = {2, 2};
 
     const MultiDimensionalEvolutionComparisonResult result = compare_evolved_quadrature_to_ensemble(request);
-    assert(result.ok());
+    CHECK(result.ok());
 
     const double elapsed = t1 - t0;
     for (std::size_t node = 0; node < distribution.nodes.size(); ++node)
     {
         const double expected_x = (distribution.nodes[node][0] + bx / ax) * std::exp(ax * elapsed) - bx / ax;
         const double expected_y = (distribution.nodes[node][1] + by / ay) * std::exp(ay * elapsed) - by / ay;
-        assert_close(result.quadrature_result.evolved_distribution.nodes[node][0], expected_x, 1.0e-9);
-        assert_close(result.quadrature_result.evolved_distribution.nodes[node][1], expected_y, 1.0e-9);
+        check_close(result.quadrature_result.evolved_distribution.nodes[node][0], expected_x, 1.0e-9);
+        check_close(result.quadrature_result.evolved_distribution.nodes[node][1], expected_y, 1.0e-9);
     }
-    assert_statistically_close(find_row(result.comparison, {1, 1}));
-    assert_statistically_close(find_row(result.comparison, {2, 1}));
+    check_statistically_close(find_row(result.comparison, {1, 1}));
+    check_statistically_close(find_row(result.comparison, {2, 1}));
 }
 
 void test_two_dimensional_coupled_linear_comparison()
@@ -885,7 +893,7 @@ void test_two_dimensional_coupled_linear_comparison()
     const double c = -0.1;
     const qmomkit::PhaseSpaceVelocity callback = [a, b, c](double, const std::vector<double>& coordinates)
     {
-        assert(coordinates.size() == 2);
+        CHECK(coordinates.size() == 2);
         return std::vector<double>{a * coordinates[0], b * coordinates[0] + c * coordinates[1]};
     };
 
@@ -899,7 +907,7 @@ void test_two_dimensional_coupled_linear_comparison()
     request.maximum_orders = {2, 2};
 
     const MultiDimensionalEvolutionComparisonResult result = compare_evolved_quadrature_to_ensemble(request);
-    assert(result.ok());
+    CHECK(result.ok());
 
     const double elapsed = t1 - t0;
     for (std::size_t node = 0; node < distribution.nodes.size(); ++node)
@@ -908,11 +916,11 @@ void test_two_dimensional_coupled_linear_comparison()
         const double y0 = distribution.nodes[node][1];
         const double expected_x = x0 * std::exp(a * elapsed);
         const double expected_y = y0 * std::exp(c * elapsed) + b * x0 * (std::exp(a * elapsed) - std::exp(c * elapsed)) / (a - c);
-        assert_close(result.quadrature_result.evolved_distribution.nodes[node][0], expected_x, 1.0e-9);
-        assert_close(result.quadrature_result.evolved_distribution.nodes[node][1], expected_y, 1.0e-9);
+        check_close(result.quadrature_result.evolved_distribution.nodes[node][0], expected_x, 1.0e-9);
+        check_close(result.quadrature_result.evolved_distribution.nodes[node][1], expected_y, 1.0e-9);
     }
-    assert_statistically_close(find_row(result.comparison, {1, 1}));
-    assert_statistically_close(find_row(result.comparison, {1, 2}));
+    check_statistically_close(find_row(result.comparison, {1, 1}));
+    check_statistically_close(find_row(result.comparison, {1, 2}));
 }
 
 void test_asymmetric_tensor_indexing()
@@ -921,16 +929,16 @@ void test_asymmetric_tensor_indexing()
     const qmomkit::monte_carlo::Ensemble ensemble{{0.2, -0.1, 0.3}, {-0.3, 0.25, -0.2}, {0.1, 0.4, 0.15}};
     const std::vector<std::size_t> maximum_orders{2, 3, 1};
     const qmomkit::monte_carlo::MomentComparisonResult result = compare_quadrature_to_ensemble(quadrature, ensemble, 3.0, maximum_orders);
-    assert(result.ok());
-    assert(result.rows.size() == 24);
+    CHECK(result.ok());
+    CHECK(result.rows.size() == 24);
 
     const std::vector<std::size_t> extents{3, 4, 2};
     for (std::size_t flat = 0; flat < result.rows.size(); ++flat)
     {
         const qmomkit::MultiIndex expected = qmomkit::unflatten_multi_index(flat, extents);
-        assert(result.rows[flat].multi_index == expected);
-        assert(result.rows[flat].order == flat);
-        assert_close(result.rows[flat].reference_value, result.rows[flat].computed_value, 1.0e-14);
+        CHECK(result.rows[flat].multi_index == expected);
+        CHECK(result.rows[flat].order == flat);
+        check_close(result.rows[flat].reference_value, result.rows[flat].computed_value, 1.0e-14);
     }
 }
 
@@ -942,7 +950,7 @@ void test_constant_velocity_comparison()
     const double velocity = -0.35;
     const qmomkit::PhaseSpaceVelocity callback = [velocity](double, const std::vector<double>& coordinates)
     {
-        assert(coordinates.size() == 1);
+        CHECK(coordinates.size() == 1);
         return std::vector<double>{velocity};
     };
 
@@ -956,21 +964,22 @@ void test_constant_velocity_comparison()
     request.maximum_order = 2;
 
     const EvolutionComparisonResult result = compare_evolved_quadrature_to_ensemble(request);
-    assert(result.ok());
-    assert_close(result.number_density, 2.8, 1.0e-15);
-    assert_close(result.comparison.rows[0].reference_value, result.number_density, 1.0e-15);
-    assert_close(result.comparison.rows[0].computed_value, result.number_density, 1.0e-15);
-    assert(result.monte_carlo_result.ensemble.size() == request.sampling_options.sample_count);
-    assert_close(result.monte_carlo_result.final_time, t1, 0.0);
+    CHECK(result.ok());
+    CHECK(result.qmomkit_result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    check_close(result.number_density, 2.8, 1.0e-15);
+    check_close(result.comparison.rows[0].reference_value, result.number_density, 1.0e-15);
+    check_close(result.comparison.rows[0].computed_value, result.number_density, 1.0e-15);
+    CHECK(result.monte_carlo_result.ensemble.size() == request.sampling_options.sample_count);
+    check_close(result.monte_carlo_result.final_time, t1, 0.0);
 
     for (std::size_t node = 0; node < distribution.nodes.size(); ++node)
     {
         const double expected = distribution.nodes[node][0] + velocity * (t1 - t0);
-        assert_close(result.qmomkit_result.quadrature.abscissas[node], expected, 1.0e-12);
+        check_close(result.qmomkit_result.quadrature.abscissas[node], expected, 1.0e-12);
     }
     for (const qmomkit::monte_carlo::MomentComparisonRow& row : result.comparison.rows)
     {
-        assert_statistically_close(row);
+        check_statistically_close(row);
     }
 }
 
@@ -983,7 +992,7 @@ void test_affine_evolution_comparison()
     const double shift = 0.8;
     const qmomkit::PhaseSpaceVelocity callback = [rate, shift](double, const std::vector<double>& coordinates)
     {
-        assert(coordinates.size() == 1);
+        CHECK(coordinates.size() == 1);
         return std::vector<double>{rate * coordinates[0] + shift};
     };
 
@@ -997,17 +1006,18 @@ void test_affine_evolution_comparison()
     request.maximum_order = 2;
 
     const EvolutionComparisonResult result = compare_evolved_quadrature_to_ensemble(request);
-    assert(result.ok());
+    CHECK(result.ok());
+    CHECK(result.qmomkit_result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
 
     const double elapsed = t1 - t0;
     for (std::size_t node = 0; node < distribution.nodes.size(); ++node)
     {
         const double expected = (distribution.nodes[node][0] + shift / rate) * std::exp(rate * elapsed) - shift / rate;
-        assert_close(result.qmomkit_result.quadrature.abscissas[node], expected, 1.0e-9);
+        check_close(result.qmomkit_result.quadrature.abscissas[node], expected, 1.0e-9);
     }
     for (const qmomkit::monte_carlo::MomentComparisonRow& row : result.comparison.rows)
     {
-        assert_statistically_close(row);
+        check_statistically_close(row);
     }
 }
 
@@ -1024,19 +1034,19 @@ void test_text_output()
     request.maximum_order = 1;
 
     const EvolutionComparisonResult result = compare_evolved_quadrature_to_ensemble(request);
-    assert(result.ok());
+    CHECK(result.ok());
 
     std::ostringstream output;
     write_comparison_text(output, result);
     const std::string text = output.str();
-    assert(text.find("# time=0.2") != std::string::npos);
-    assert(text.find("# sample_count=20000") != std::string::npos);
-    assert(text.find("# seed=4301") != std::string::npos);
-    assert(text.find("# number_density=2") != std::string::npos);
-    assert(text.find("# rk23_relative_tolerance=1e-10") != std::string::npos);
-    assert(text.find("# time sample_count seed number_density alpha_0 reference_value computed_value signed_error absolute_error relative_error "
-                     "standard_error z_score") != std::string::npos);
-    assert(text.find(',') == std::string::npos);
+    CHECK(text.find("# time=0.2") != std::string::npos);
+    CHECK(text.find("# sample_count=20000") != std::string::npos);
+    CHECK(text.find("# seed=4301") != std::string::npos);
+    CHECK(text.find("# number_density=2") != std::string::npos);
+    CHECK(text.find("# rk23_relative_tolerance=1e-10") != std::string::npos);
+    CHECK(text.find("# time sample_count seed number_density alpha_0 reference_value computed_value signed_error absolute_error relative_error "
+                    "standard_error z_score") != std::string::npos);
+    CHECK(text.find(',') == std::string::npos);
 
     MultiDimensionalEvolutionComparisonRequest multi_request;
     multi_request.initial_distribution = ExplicitDiscreteDistribution{{{0.0, 0.1}, {0.2, -0.1}}, {1.0, 1.0}, {}};
@@ -1048,13 +1058,13 @@ void test_text_output()
     multi_request.maximum_orders = {1, 1};
 
     const MultiDimensionalEvolutionComparisonResult multi_result = compare_evolved_quadrature_to_ensemble(multi_request);
-    assert(multi_result.ok());
+    CHECK(multi_result.ok());
 
     std::ostringstream multi_output;
     write_comparison_text(multi_output, multi_result);
     const std::string multi_text = multi_output.str();
-    assert(multi_text.find("# time sample_count seed number_density alpha_0 alpha_1 reference_value computed_value signed_error absolute_error "
-                           "relative_error standard_error z_score") != std::string::npos);
+    CHECK(multi_text.find("# time sample_count seed number_density alpha_0 alpha_1 reference_value computed_value signed_error absolute_error "
+                          "relative_error standard_error z_score") != std::string::npos);
 }
 
 void test_sample_count_convergence()
@@ -1072,21 +1082,21 @@ void test_sample_count_convergence()
 
     const SampleCountConvergenceResult first = run_sample_count_convergence(request);
     const SampleCountConvergenceResult second = run_sample_count_convergence(request);
-    assert(first.ok());
-    assert(second.ok());
-    assert(first.rows.size() == 3);
-    assert(first.rows.size() == second.rows.size());
+    CHECK(first.ok());
+    CHECK(second.ok());
+    CHECK(first.rows.size() == 3);
+    CHECK(first.rows.size() == second.rows.size());
     for (std::size_t row = 0; row < first.rows.size(); ++row)
     {
-        assert(first.rows[row].sample_count == request.sample_counts[row]);
-        assert(first.rows[row].multi_index == qmomkit::MultiIndex({2}));
-        assert_close(first.rows[row].reference_value, 2.0, 1.0e-12);
-        assert_close(first.rows[row].monte_carlo_value, second.rows[row].monte_carlo_value, 0.0);
-        assert_close(first.rows[row].standard_error, second.rows[row].standard_error, 0.0);
-        assert(first.rows[row].standard_error > 0.0);
+        CHECK(first.rows[row].sample_count == request.sample_counts[row]);
+        CHECK(first.rows[row].multi_index == qmomkit::MultiIndex({2}));
+        check_close(first.rows[row].reference_value, 2.0, 1.0e-12);
+        check_close(first.rows[row].monte_carlo_value, second.rows[row].monte_carlo_value, 0.0);
+        check_close(first.rows[row].standard_error, second.rows[row].standard_error, 0.0);
+        CHECK(first.rows[row].standard_error > 0.0);
     }
-    assert(first.rows[1].standard_error < first.rows[0].standard_error);
-    assert(first.rows[2].standard_error < first.rows[1].standard_error);
+    CHECK(first.rows[1].standard_error < first.rows[0].standard_error);
+    CHECK(first.rows[2].standard_error < first.rows[1].standard_error);
 
     std::vector<qmomkit::monte_carlo::MomentComparisonRow> output_rows;
     for (const SampleCountConvergenceRow& row : first.rows)
@@ -1101,9 +1111,9 @@ void test_sample_count_convergence()
                                                 qmomkit::monte_carlo::ComparisonOutputMetadata{first.final_time, first.rows.front().sample_count,
                                                                                                first.seed, first.number_density, first.rk23_options});
     const std::string text = output.str();
-    assert(text.find("# time sample_count seed number_density alpha_0 reference_value computed_value signed_error absolute_error relative_error "
-                     "standard_error z_score") != std::string::npos);
-    assert(text.find("# rk23_relative_tolerance=1e-10") != std::string::npos);
+    CHECK(text.find("# time sample_count seed number_density alpha_0 reference_value computed_value signed_error absolute_error relative_error "
+                    "standard_error z_score") != std::string::npos);
+    CHECK(text.find("# rk23_relative_tolerance=1e-10") != std::string::npos);
 }
 
 void test_failure_propagation()
@@ -1116,20 +1126,20 @@ void test_failure_propagation()
     request.maximum_order = 1;
 
     const EvolutionComparisonResult missing_callback = compare_evolved_quadrature_to_ensemble(request);
-    assert(!missing_callback.ok());
-    assert(missing_callback.status == ComparisonStatus::invalid_input);
+    CHECK(!missing_callback.ok());
+    CHECK(missing_callback.status == ComparisonStatus::invalid_input);
 
     request.velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.0}; };
     request.initial_distribution = ExplicitDiscreteDistribution{{{0.0}}, {1.0}, 2.0};
     const EvolutionComparisonResult bad_density = compare_evolved_quadrature_to_ensemble(request);
-    assert(!bad_density.ok());
-    assert(bad_density.status == ComparisonStatus::invalid_input);
+    CHECK(!bad_density.ok());
+    CHECK(bad_density.status == ComparisonStatus::invalid_input);
 
     request.initial_distribution = ExplicitDiscreteDistribution{{{0.0}}, {1.0}, {}};
     request.sampling_options = SamplingOptions{0, 1};
     const EvolutionComparisonResult zero_samples = compare_evolved_quadrature_to_ensemble(request);
-    assert(!zero_samples.ok());
-    assert(zero_samples.status == ComparisonStatus::invalid_input);
+    CHECK(!zero_samples.ok());
+    CHECK(zero_samples.status == ComparisonStatus::invalid_input);
 
     request.sampling_options = SamplingOptions{10, 1};
     request.rk23_options = accurate_options();
@@ -1137,8 +1147,8 @@ void test_failure_propagation()
     request.rk23_options.max_step = 0.01;
     request.velocity = [](double, const std::vector<double>& coordinates) { return std::vector<double>{coordinates[0] + 1.0}; };
     const EvolutionComparisonResult rk_failure = compare_evolved_quadrature_to_ensemble(request);
-    assert(!rk_failure.ok());
-    assert(rk_failure.status == ComparisonStatus::qmomkit_failed || rk_failure.status == ComparisonStatus::monte_carlo_failed);
+    CHECK(!rk_failure.ok());
+    CHECK(rk_failure.status == ComparisonStatus::qmomkit_failed || rk_failure.status == ComparisonStatus::monte_carlo_failed);
 
     MultiDimensionalEvolutionComparisonRequest multidimensional;
     multidimensional.initial_distribution = ExplicitDiscreteDistribution{{{0.0, 1.0}, {2.0}}, {1.0, 1.0}, {}};
@@ -1148,12 +1158,12 @@ void test_failure_propagation()
     multidimensional.sampling_options = SamplingOptions{10, 1};
     multidimensional.maximum_orders = {1, 1};
     const MultiDimensionalEvolutionComparisonResult bad_dimension = compare_evolved_quadrature_to_ensemble(multidimensional);
-    assert(!bad_dimension.ok());
+    CHECK(!bad_dimension.ok());
 
     multidimensional.initial_distribution = ExplicitDiscreteDistribution{{{0.0, 1.0}}, {1.0}, {}};
     multidimensional.velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.0}; };
     const MultiDimensionalEvolutionComparisonResult bad_callback = compare_evolved_quadrature_to_ensemble(multidimensional);
-    assert(!bad_callback.ok());
+    CHECK(!bad_callback.ok());
 }
 
 } // namespace

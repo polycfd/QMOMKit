@@ -18,6 +18,11 @@ sys.modules["compare_moments"] = compare_moments
 spec.loader.exec_module(compare_moments)
 
 
+def check(condition: bool, message: str) -> None:
+    if not condition:
+        raise RuntimeError(message)
+
+
 def write_text(path: Path, header: list[str], rows: list[list[float | int]]) -> None:
     with path.open("w") as handle:
         handle.write("# " + " ".join(header) + "\n")
@@ -38,7 +43,7 @@ def read_rows(path: Path) -> list[dict[str, str]]:
                 if candidate and candidate[0] == "time":
                     fieldnames = candidate
                 continue
-            assert fieldnames is not None
+            check(fieldnames is not None, f"{path} did not provide a data header before rows")
             rows.append(dict(zip(fieldnames, stripped.split())))
     return rows
 
@@ -50,7 +55,7 @@ def run_compare(reference: Path, comparison: Path, output_dir: Path, statistics:
     if moments is not None:
         argv += ["--moments", *moments]
     status = compare_moments.main(argv)
-    assert status == 0
+    check(status == 0, f"compare_moments.py returned {status}")
     return read_rows(output_dir / "moment_comparison.txt")
 
 
@@ -58,9 +63,9 @@ def test_identical_files(workdir: Path) -> None:
     path = workdir / "identical.txt"
     write_text(path, ["time", "M0", "M1"], [[0.0, 2.0, 3.0], [0.5, 2.0, 4.0]])
     rows = run_compare(path, path, workdir / "identical_out")
-    assert all(float(row["signed_error"]) == 0.0 for row in rows)
-    assert all(float(row["absolute_error"]) == 0.0 for row in rows)
-    assert all(float(row["relative_error"]) == 0.0 for row in rows)
+    check(all(float(row["signed_error"]) == 0.0 for row in rows), "identical files produced nonzero signed error")
+    check(all(float(row["absolute_error"]) == 0.0 for row in rows), "identical files produced nonzero absolute error")
+    check(all(float(row["relative_error"]) == 0.0 for row in rows), "identical files produced nonzero relative error")
 
 
 def test_perturbed_moments(workdir: Path) -> None:
@@ -69,11 +74,17 @@ def test_perturbed_moments(workdir: Path) -> None:
     write_text(reference, ["time", "M0", "M1"], [[0.0, 2.0, 3.0], [0.5, 2.0, 4.0]])
     write_text(comparison, ["time", "M0", "M1"], [[0.0, 2.0, 3.5], [0.5, 2.1, 3.0]])
     rows = run_compare(reference, comparison, workdir / "perturbed_out")
-    assert any(float(row["signed_error"]) > 0.0 for row in rows)
-    assert any(float(row["signed_error"]) < 0.0 for row in rows)
-    assert all(float(row["absolute_error"]) >= 0.0 for row in rows)
-    assert any(row["moment"] == "M1" and abs(float(row["signed_error"]) - 0.5) < 1.0e-14 for row in rows)
-    assert any(row["moment"] == "M1" and abs(float(row["absolute_error"]) - 1.0) < 1.0e-14 for row in rows)
+    check(any(float(row["signed_error"]) > 0.0 for row in rows), "perturbed files did not produce a positive signed error")
+    check(any(float(row["signed_error"]) < 0.0 for row in rows), "perturbed files did not produce a negative signed error")
+    check(all(float(row["absolute_error"]) >= 0.0 for row in rows), "absolute error column contained a negative value")
+    check(
+        any(row["moment"] == "M1" and abs(float(row["signed_error"]) - 0.5) < 1.0e-14 for row in rows),
+        "M1 signed error at t=0.0 was not 0.5",
+    )
+    check(
+        any(row["moment"] == "M1" and abs(float(row["absolute_error"]) - 1.0) < 1.0e-14 for row in rows),
+        "M1 absolute error at t=0.5 was not 1.0",
+    )
 
 
 def test_mc_statistics(workdir: Path) -> None:
@@ -85,7 +96,7 @@ def test_mc_statistics(workdir: Path) -> None:
     write_text(statistics, ["time", "sample_count", "seed", "number_density", "SE_M0", "SE_M1"], [[0.0, 10, 7, 2.0, 0.0, 0.1]])
     rows = run_compare(reference, comparison, workdir / "stats_out", statistics=statistics)
     m1 = next(row for row in rows if row["moment"] == "M1")
-    assert abs(float(m1["z_score"]) - 2.0) < 1.0e-14
+    check(abs(float(m1["z_score"]) - 2.0) < 1.0e-14, "M1 z-score was not 2.0")
 
 
 def test_multidimensional_labels(workdir: Path) -> None:
@@ -94,9 +105,9 @@ def test_multidimensional_labels(workdir: Path) -> None:
     write_text(reference, ["time", "M00", "M01", "M10"], [[0.0, 2.0, 0.5, 1.5]])
     write_text(comparison, ["time", "M00", "M01", "M10"], [[0.0, 2.0, 0.25, 1.75]])
     rows = run_compare(reference, comparison, workdir / "tensor_out", moments=["M00", "M01", "M10"])
-    assert [row["moment"] for row in rows] == ["M00", "M01", "M10"]
-    assert any(row["moment"] == "M01" and float(row["signed_error"]) == -0.25 for row in rows)
-    assert any(row["moment"] == "M01" and float(row["absolute_error"]) == 0.25 for row in rows)
+    check([row["moment"] for row in rows] == ["M00", "M01", "M10"], "multidimensional moment labels were not preserved")
+    check(any(row["moment"] == "M01" and float(row["signed_error"]) == -0.25 for row in rows), "M01 signed error was not -0.25")
+    check(any(row["moment"] == "M01" and float(row["absolute_error"]) == 0.25 for row in rows), "M01 absolute error was not 0.25")
 
 
 def main() -> int:

@@ -165,6 +165,39 @@ void test_adaptive_threshold_rejection_falls_back_to_one_node()
     assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
 }
 
+void test_adaptive_negative_sigma_diagonal_falls_back_to_one_node()
+{
+    const qmomkit::MomentSet moments{1.0, 0.0, -1.0, 0.0};
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
+
+    assert(quadrature.ok());
+    assert(quadrature.status == qmomkit::QuadratureStatus::success);
+    assert(quadrature.abscissas.size() == 1);
+    assert(quadrature.weights.size() == 1);
+    assert(std::isfinite(quadrature.abscissas.front()));
+    assert(std::isfinite(quadrature.weights.front()));
+    assert_near(quadrature.abscissas.front(), moments[1] / moments[0], 1.0e-14);
+    assert_near(quadrature.weights.front(), moments[0], 1.0e-14);
+}
+
+void test_adaptive_negative_sigma_diagonal_retries_to_highest_supported_count()
+{
+    const qmomkit::MomentSet moments{1.0, 0.8, 2.8, 4.4, 0.0, 0.0};
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 3, options);
+
+    assert(quadrature.ok());
+    assert(quadrature.status == qmomkit::QuadratureStatus::success);
+    assert(quadrature.abscissas.size() == 2);
+    assert(quadrature.weights.size() == 2);
+    assert_vector_near_relative(reconstruct_moments(quadrature, 4), {1.0, 0.8, 2.8, 4.4}, 1.0e-13);
+}
+
 void test_nonadaptive_singular_sequence_reports_failure()
 {
     const qmomkit::MomentSet moments{1.0, 1.0, 1.0, 1.0};
@@ -191,7 +224,7 @@ void test_nonrealizable_negative_variance_reports_failure()
     assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
 }
 
-void test_adaptive_nonrealizable_negative_variance_reports_failure()
+void test_adaptive_negative_sigma_diagonal_with_valid_mass_reduces()
 {
     const qmomkit::MomentSet moments{1.0, 0.0, -1.0, 0.0};
     qmomkit::WheelerOptions options;
@@ -199,16 +232,29 @@ void test_adaptive_nonrealizable_negative_variance_reports_failure()
 
     const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
 
-    assert(!quadrature.ok());
-    assert(quadrature.status == qmomkit::QuadratureStatus::not_realizable);
-    assert(!quadrature.message.empty());
+    assert(quadrature.ok());
+    assert(quadrature.status == qmomkit::QuadratureStatus::success);
     assert_vector_near(quadrature.abscissas, {0.0}, 1.0e-14);
     assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
 }
 
-void test_adaptive_scaled_nonrealizable_negative_variance_reports_failure()
+void test_adaptive_scaled_negative_sigma_diagonal_with_valid_mass_reduces()
 {
     const qmomkit::MomentSet moments{1.0, 100.0, 9999.0, 999900.0};
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
+
+    assert(quadrature.ok());
+    assert(quadrature.status == qmomkit::QuadratureStatus::success);
+    assert_vector_near(quadrature.abscissas, {100.0}, 1.0e-14);
+    assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
+}
+
+void test_adaptive_negative_mass_still_reports_failure()
+{
+    const qmomkit::MomentSet moments{-1.0, 0.0, 1.0, 0.0};
     qmomkit::WheelerOptions options;
     options.adaptive = true;
 
@@ -217,8 +263,6 @@ void test_adaptive_scaled_nonrealizable_negative_variance_reports_failure()
     assert(!quadrature.ok());
     assert(quadrature.status == qmomkit::QuadratureStatus::not_realizable);
     assert(!quadrature.message.empty());
-    assert_vector_near(quadrature.abscissas, {100.0}, 1.0e-14);
-    assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
 }
 
 void test_invalid_input_requires_two_moments_per_node()
@@ -298,10 +342,13 @@ int main()
     test_adaptive_exact_large_abscissa_degenerate_sequence_reduces();
     test_adaptive_roundoff_positive_degenerate_sequence_reduces();
     test_adaptive_threshold_rejection_falls_back_to_one_node();
+    test_adaptive_negative_sigma_diagonal_falls_back_to_one_node();
+    test_adaptive_negative_sigma_diagonal_retries_to_highest_supported_count();
     test_nonadaptive_singular_sequence_reports_failure();
     test_nonrealizable_negative_variance_reports_failure();
-    test_adaptive_nonrealizable_negative_variance_reports_failure();
-    test_adaptive_scaled_nonrealizable_negative_variance_reports_failure();
+    test_adaptive_negative_sigma_diagonal_with_valid_mass_reduces();
+    test_adaptive_scaled_negative_sigma_diagonal_with_valid_mass_reduces();
+    test_adaptive_negative_mass_still_reports_failure();
     test_invalid_input_requires_two_moments_per_node();
     test_zero_requested_nodes_reports_invalid_input();
     test_nonfinite_moment_reports_invalid_input();

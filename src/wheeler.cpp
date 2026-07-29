@@ -60,11 +60,23 @@ struct RecurrenceCoefficients
     DenseMatrix sigma;
 };
 
+struct WheelerAttemptResult
+{
+    Quadrature1D quadrature;
+    bool negative_sigma_diagonal = false;
+};
+
 [[nodiscard]] Quadrature1D one_node_result(const MomentSet& moments, const QuadratureStatus status, std::string message)
 {
+    const double abscissa = moments[1] / moments[0];
+    if (!std::isfinite(abscissa))
+    {
+        return Quadrature1D{{}, {}, QuadratureStatus::not_realizable, "One-node Wheeler quadrature produced non-finite values."};
+    }
+
     // Non-success payloads are diagnostic only; callers must check status before
     // interpreting the node and weight as an accepted quadrature.
-    return Quadrature1D{{moments[1] / moments[0]}, {moments[0]}, status, std::move(message)};
+    return Quadrature1D{{abscissa}, {moments[0]}, status, std::move(message)};
 }
 
 [[nodiscard]] Quadrature1D negative_mass_result(const MomentSet& moments)
@@ -145,13 +157,13 @@ struct RecurrenceCoefficients
     return *std::min_element(b.begin(), b.end()) < 0.0;
 }
 
-[[nodiscard]] double adaptive_sigma_tolerance(const MomentSet& moments, const WheelerOptions& options)
+[[nodiscard]] double adaptive_sigma_tolerance(const MomentSet& moments, const WheelerOptions& options, const std::size_t moment_count)
 {
     constexpr double roundoff_multiplier = 100.0;
     double moment_scale = 1.0;
-    for (const double moment : moments.values())
+    for (std::size_t order = 0; order < moment_count; ++order)
     {
-        moment_scale = std::max(moment_scale, std::abs(moment));
+        moment_scale = std::max(moment_scale, std::abs(moments[order]));
     }
     return std::max(options.cutoff, roundoff_multiplier * std::numeric_limits<double>::epsilon() * moment_scale);
 }
@@ -205,6 +217,104 @@ struct RecurrenceCoefficients
     return min_nearest / max_farthest > options.eabs;
 }
 
+[[nodiscard]] bool required_moments_are_finite(const MomentSet& moments, const std::size_t moment_count)
+{
+    for (std::size_t order = 0; order < moment_count; ++order)
+    {
+        if (!std::isfinite(moments[order]))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] WheelerAttemptResult attempt_quadrature_count(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options)
+{
+    std::size_t n = max_nodes;
+    RecurrenceCoefficients coefficients = compute_recurrence(moments, n);
+
+    if (options.adaptive)
+    {
+        const double sigma_tolerance = adaptive_sigma_tolerance(moments, options, 2 * max_nodes);
+        for (std::size_t k = max_nodes; k > 1; --k)
+        {
+            if (coefficients.sigma(k, k) < -sigma_tolerance)
+            {
+                std::ostringstream message;
+                message << std::scientific << std::setprecision(17) << "Adaptive Wheeler recurrence has a negative sigma diagonal: "
+                        << "sigma(" << k << ", " << k << ") = " << coefficients.sigma(k, k) << ", tolerance = " << sigma_tolerance << '.';
+
+                return {one_node_result(moments, QuadratureStatus::not_realizable, message.str()), true};
+            }
+            if (std::abs(coefficients.sigma(k, k)) <= sigma_tolerance)
+            {
+                n = k - 1;
+                if (n == 1)
+                {
+                    internal::performance::record_wheeler_adaptive_reduction();
+                    return {one_node_result(moments, QuadratureStatus::success, ""), false};
+                }
+            }
+        }
+
+        coefficients = compute_recurrence(moments, n);
+        if (!recurrence_is_finite(coefficients))
+        {
+            return {one_node_result(moments, QuadratureStatus::not_realizable, "Reduced Wheeler recurrence produced non-finite values."), false};
+        }
+    }
+    else if (!recurrence_is_finite(coefficients))
+    {
+        return {one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values."), false};
+    }
+
+    if (has_negative_recurrence_b(coefficients.b))
+    {
+        const double minimum_b = *std::min_element(coefficients.b.begin(), coefficients.b.end());
+
+        std::ostringstream message;
+        message << std::scientific << std::setprecision(17) << "Moment sequence has negative recurrence b = " << minimum_b << '.';
+
+        return {one_node_result(moments, QuadratureStatus::not_realizable, message.str()), false};
+    }
+
+    for (std::size_t n1 = n; n1 > 0; --n1)
+    {
+        if (n1 == 1)
+        {
+            return {one_node_result(moments, QuadratureStatus::success, ""), false};
+        }
+
+        const DenseMatrix jacobi = make_jacobi_matrix(coefficients.a, coefficients.b, n1);
+        EigenDecomposition eigen = symmetric_jacobi_eigen(jacobi);
+        std::vector<double> weights = compute_weights(moments[0], eigen.eigenvectors);
+
+        if (!internal::all_finite(eigen.eigenvalues) || !internal::all_finite(weights))
+        {
+            return {one_node_result(moments, QuadratureStatus::not_realizable, "Jacobi matrix diagonalization produced non-finite values."), false};
+        }
+
+        if (options.adaptive)
+        {
+            if (adaptive_accepts(eigen.eigenvalues, weights, options))
+            {
+                if (n1 < max_nodes)
+                {
+                    internal::performance::record_wheeler_adaptive_reduction();
+                }
+                return {Quadrature1D{std::move(eigen.eigenvalues), std::move(weights), QuadratureStatus::success, ""}, false};
+            }
+        }
+        else
+        {
+            return {Quadrature1D{std::move(eigen.eigenvalues), std::move(weights), QuadratureStatus::success, ""}, false};
+        }
+    }
+
+    return {one_node_result(moments, QuadratureStatus::no_adaptive_quadrature, "No adaptive quadrature passed thresholds."), false};
+}
+
 } // namespace
 
 Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options)
@@ -226,7 +336,7 @@ Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_
     {
         return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence has fewer than 2*n entries."};
     }
-    if (!internal::all_finite(moments.values()))
+    if (!required_moments_are_finite(moments, 2 * max_nodes))
     {
         return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence contains non-finite values."};
     }
@@ -250,88 +360,30 @@ Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_
         return one_node_result(moments, QuadratureStatus::success, "");
     }
 
-    std::size_t n = max_nodes;
-    RecurrenceCoefficients coefficients = compute_recurrence(moments, n);
-
     if (options.adaptive)
     {
-        const double sigma_tolerance = adaptive_sigma_tolerance(moments, options);
-        for (std::size_t k = max_nodes; k > 1; --k)
+        for (std::size_t candidate_count = max_nodes; candidate_count > 1; --candidate_count)
         {
-            if (coefficients.sigma(k, k) < -sigma_tolerance)
+            const WheelerAttemptResult attempt = attempt_quadrature_count(moments, candidate_count, options);
+            if (attempt.quadrature.ok())
             {
-                std::ostringstream message;
-                message << std::scientific << std::setprecision(17) << "Adaptive Wheeler recurrence has a negative sigma diagonal: "
-                        << "sigma(" << k << ", " << k << ") = " << coefficients.sigma(k, k) << ", tolerance = " << sigma_tolerance << '.';
-
-                return one_node_result(moments, QuadratureStatus::not_realizable, message.str());
-            }
-            if (std::abs(coefficients.sigma(k, k)) <= sigma_tolerance)
-            {
-                n = k - 1;
-                if (n == 1)
-                {
-                    internal::performance::record_wheeler_adaptive_reduction();
-                    return one_node_result(moments, QuadratureStatus::success, "");
-                }
-            }
-        }
-
-        coefficients = compute_recurrence(moments, n);
-        if (!recurrence_is_finite(coefficients))
-        {
-            return one_node_result(moments, QuadratureStatus::not_realizable, "Reduced Wheeler recurrence produced non-finite values.");
-        }
-    }
-    else if (!recurrence_is_finite(coefficients))
-    {
-        return one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values.");
-    }
-
-    if (has_negative_recurrence_b(coefficients.b))
-    {
-        const double minimum_b = *std::min_element(coefficients.b.begin(), coefficients.b.end());
-
-        std::ostringstream message;
-        message << std::scientific << std::setprecision(17) << "Moment sequence has negative recurrence b = " << minimum_b << '.';
-
-        return one_node_result(moments, QuadratureStatus::not_realizable, message.str());
-    }
-
-    for (std::size_t n1 = n; n1 > 0; --n1)
-    {
-        if (n1 == 1)
-        {
-            return one_node_result(moments, QuadratureStatus::success, "");
-        }
-
-        const DenseMatrix jacobi = make_jacobi_matrix(coefficients.a, coefficients.b, n1);
-        EigenDecomposition eigen = symmetric_jacobi_eigen(jacobi);
-        std::vector<double> weights = compute_weights(moments[0], eigen.eigenvectors);
-
-        if (!internal::all_finite(eigen.eigenvalues) || !internal::all_finite(weights))
-        {
-            return one_node_result(moments, QuadratureStatus::not_realizable, "Jacobi matrix diagonalization produced non-finite values.");
-        }
-
-        if (options.adaptive)
-        {
-            if (adaptive_accepts(eigen.eigenvalues, weights, options))
-            {
-                if (n1 < max_nodes)
+                if (candidate_count < max_nodes && attempt.quadrature.weights.size() == candidate_count)
                 {
                     internal::performance::record_wheeler_adaptive_reduction();
                 }
-                return Quadrature1D{std::move(eigen.eigenvalues), std::move(weights), QuadratureStatus::success, ""};
+                return attempt.quadrature;
+            }
+            if (!attempt.negative_sigma_diagonal)
+            {
+                return attempt.quadrature;
             }
         }
-        else
-        {
-            return Quadrature1D{std::move(eigen.eigenvalues), std::move(weights), QuadratureStatus::success, ""};
-        }
+
+        internal::performance::record_wheeler_adaptive_reduction();
+        return one_node_result(moments, QuadratureStatus::success, "");
     }
 
-    return one_node_result(moments, QuadratureStatus::no_adaptive_quadrature, "No adaptive quadrature passed thresholds.");
+    return attempt_quadrature_count(moments, max_nodes, options).quadrature;
 }
 
 } // namespace qmomkit

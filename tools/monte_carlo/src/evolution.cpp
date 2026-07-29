@@ -204,6 +204,7 @@ qmomkit::QmomNodeAdvectionResult evolve_quadrature_nodes(const qmomkit::Quadratu
                                                          const double t0, const double t1, const qmomkit::AdaptiveRk23Options& options)
 {
     qmomkit::NodeAdvectionOptions node_options;
+    node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
     node_options.rk23_options = options;
     return qmomkit::advance_nodes(quadrature, t0, t1 - t0, velocity, node_options);
 }

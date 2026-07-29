@@ -37,6 +37,12 @@ It installs the companion package into the same repository-local `install/`
 prefix as QMOMKit. It does not compile the full test suite unless testing is
 enabled.
 
+The installed exported target is:
+
+```cmake
+qmomkit_monte_carlo::qmomkit_monte_carlo
+```
+
 ## Run The Example Driver
 
 ```bash
@@ -77,23 +83,37 @@ absolute_error = abs(signed_error)
 ## Run Tests
 
 Use a separate build when you want the Monte Carlo tests and validation-only
-drivers:
+drivers. Run the suite in both Debug and Release; Release alone is not enough
+because tests must exercise the same validation logic in every build
+configuration.
 
 ```bash
-cmake -S tools/monte_carlo -B tools/monte_carlo/build-tests \
+cmake -S tools/monte_carlo -B tools/monte_carlo/build-tests-debug \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_PREFIX_PATH="$PWD/install" \
+    -DBUILD_TESTING=ON
+
+cmake --build tools/monte_carlo/build-tests-debug
+ctest --test-dir tools/monte_carlo/build-tests-debug --output-on-failure
+```
+
+Repeat with Release enabled:
+
+```bash
+cmake -S tools/monte_carlo -B tools/monte_carlo/build-tests-release \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH="$PWD/install" \
     -DBUILD_TESTING=ON
 
-cmake --build tools/monte_carlo/build-tests
-ctest --test-dir tools/monte_carlo/build-tests --output-on-failure
+cmake --build tools/monte_carlo/build-tests-release
+ctest --test-dir tools/monte_carlo/build-tests-release --output-on-failure
 ```
 
-The installed exported target is:
-
-```cmake
-qmomkit_monte_carlo::qmomkit_monte_carlo
-```
+The registered example drivers are smoke tests. The validation tests are named
+for the behavior they check, such as
+`monte_carlo_sampling_moment_validation`,
+`monte_carlo_ensemble_evolution`, and
+`monte_carlo_quadrature_ensemble_comparison`.
 
 ## Documentation
 

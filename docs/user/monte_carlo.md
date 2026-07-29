@@ -174,16 +174,27 @@ moment.
 
 ## Run Tests Separately
 
-Configure a separate build with tests enabled:
+Configure separate builds with tests enabled. Run both Debug and Release so the
+same validation checks are exercised with and without optimization.
 
 ```bash
-cmake -S tools/monte_carlo -B tools/monte_carlo/build-tests \
+cmake -S tools/monte_carlo -B tools/monte_carlo/build-tests-debug \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_PREFIX_PATH="$PWD/install" \
+    -DBUILD_TESTING=ON
+
+cmake --build tools/monte_carlo/build-tests-debug
+ctest --test-dir tools/monte_carlo/build-tests-debug --output-on-failure
+```
+
+```bash
+cmake -S tools/monte_carlo -B tools/monte_carlo/build-tests-release \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH="$PWD/install" \
     -DBUILD_TESTING=ON
 
-cmake --build tools/monte_carlo/build-tests
-ctest --test-dir tools/monte_carlo/build-tests --output-on-failure
+cmake --build tools/monte_carlo/build-tests-release
+ctest --test-dir tools/monte_carlo/build-tests-release --output-on-failure
 ```
 
 Tests are not run by `cmake --build`; run `ctest` explicitly.

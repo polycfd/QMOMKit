@@ -2,9 +2,9 @@
 
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/multi_index.hpp"
+#include "test_checks.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <iostream>
@@ -20,11 +20,11 @@ void update_maximum_error(const double error)
     global_maximum_error = std::max(global_maximum_error, error);
 }
 
-void assert_close(const double actual, const double expected, const double tolerance)
+void check_close(const double actual, const double expected, const double tolerance)
 {
     const double error = std::abs(actual - expected);
     update_maximum_error(error);
-    assert(error <= tolerance);
+    CHECK_CLOSE(actual, expected, tolerance);
 }
 
 void test_one_dimensional_distribution_density()
@@ -33,12 +33,12 @@ void test_one_dimensional_distribution_density()
     const qmomkit::monte_carlo::OneDimensionalSampledInitialization initialization = qmomkit::monte_carlo::sample_initialization(
         qmomkit::NormalDistribution{0.5, 1.2}, number_density, 3, qmomkit::monte_carlo::SamplingOptions{2000, 1201});
 
-    assert(initialization.ok());
-    assert(initialization.sampling.ensemble.size() == 2000);
-    assert(initialization.sampling.number_density == number_density);
-    assert(initialization.sampling.seed == 1201);
-    assert(initialization.moments.moments.size() == 4);
-    assert_close(initialization.moments.moments[0], number_density, 1.0e-14);
+    CHECK(initialization.ok());
+    CHECK(initialization.sampling.ensemble.size() == 2000);
+    CHECK(initialization.sampling.number_density == number_density);
+    CHECK(initialization.sampling.seed == 1201);
+    CHECK(initialization.moments.moments.size() == 4);
+    check_close(initialization.moments.moments[0], number_density, 1.0e-14);
 }
 
 void test_mixture_absolute_density()
@@ -47,9 +47,9 @@ void test_mixture_absolute_density()
     const qmomkit::monte_carlo::OneDimensionalSampledInitialization initialization =
         qmomkit::monte_carlo::sample_initialization(mixture, 2, qmomkit::monte_carlo::SamplingOptions{3000, 2201});
 
-    assert(initialization.ok());
-    assert_close(initialization.sampling.number_density, 3.75, 0.0);
-    assert_close(initialization.moments.moments[0], 3.75, 1.0e-14);
+    CHECK(initialization.ok());
+    check_close(initialization.sampling.number_density, 3.75, 0.0);
+    check_close(initialization.moments.moments[0], 3.75, 1.0e-14);
 }
 
 void test_multidimensional_tensor_layout()
@@ -60,15 +60,15 @@ void test_multidimensional_tensor_layout()
     const qmomkit::monte_carlo::TensorSampledInitialization initialization =
         qmomkit::monte_carlo::sample_initialization(product, maximum_orders, qmomkit::monte_carlo::SamplingOptions{2500, 3201});
 
-    assert(initialization.ok());
-    assert((initialization.moments.moments.extents == std::vector<std::size_t>{2, 3, 4}));
-    assert(initialization.moments.moments.values.size() == 24);
-    assert_close(initialization.moments.moments.values.front(), product.number_density, 1.0e-14);
+    CHECK(initialization.ok());
+    CHECK((initialization.moments.moments.extents == std::vector<std::size_t>{2, 3, 4}));
+    CHECK(initialization.moments.moments.values.size() == 24);
+    check_close(initialization.moments.moments.values.front(), product.number_density, 1.0e-14);
 
     const qmomkit::MultiIndex order{1, 2, 3};
     const std::size_t flat = qmomkit::flatten_multi_index(order, initialization.moments.moments.extents);
-    assert(flat == 23);
-    assert(qmomkit::unflatten_multi_index(flat, initialization.moments.moments.extents) == order);
+    CHECK(flat == 23);
+    CHECK(qmomkit::unflatten_multi_index(flat, initialization.moments.moments.extents) == order);
 }
 
 void test_reproducibility()
@@ -81,11 +81,11 @@ void test_reproducibility()
     const qmomkit::monte_carlo::OneDimensionalSampledInitialization second =
         qmomkit::monte_carlo::sample_initialization(distribution, 1.5, 3, options);
 
-    assert(first.ok());
-    assert(second.ok());
-    assert(first.sampling.ensemble == second.sampling.ensemble);
-    assert(first.moments.moments.values() == second.moments.moments.values());
-    assert(first.moments.standard_errors == second.moments.standard_errors);
+    CHECK(first.ok());
+    CHECK(second.ok());
+    CHECK(first.sampling.ensemble == second.sampling.ensemble);
+    CHECK(first.moments.moments.values() == second.moments.moments.values());
+    CHECK(first.moments.standard_errors == second.moments.standard_errors);
 }
 
 void test_statistical_sanity_improves_with_sample_count()
@@ -95,37 +95,37 @@ void test_statistical_sanity_improves_with_sample_count()
     const std::size_t maximum_order = 2;
 
     const qmomkit::RawMomentResult analytical = qmomkit::compute_raw_moments(distribution, maximum_order, number_density);
-    assert(analytical.ok());
+    CHECK(analytical.ok());
 
-    const qmomkit::monte_carlo::OneDimensionalSampledInitialization small = qmomkit::monte_carlo::sample_initialization(
-        distribution, number_density, maximum_order, qmomkit::monte_carlo::SamplingOptions{4000, 5201});
-    const qmomkit::monte_carlo::OneDimensionalSampledInitialization large = qmomkit::monte_carlo::sample_initialization(
-        distribution, number_density, maximum_order, qmomkit::monte_carlo::SamplingOptions{64000, 5201});
+    const qmomkit::monte_carlo::OneDimensionalSampledInitialization small =
+        qmomkit::monte_carlo::sample_initialization(distribution, number_density, maximum_order, qmomkit::monte_carlo::SamplingOptions{4000, 5201});
+    const qmomkit::monte_carlo::OneDimensionalSampledInitialization large =
+        qmomkit::monte_carlo::sample_initialization(distribution, number_density, maximum_order, qmomkit::monte_carlo::SamplingOptions{64000, 5201});
 
-    assert(small.ok());
-    assert(large.ok());
+    CHECK(small.ok());
+    CHECK(large.ok());
 
     const double small_error = std::abs(small.moments.moments[1] - analytical.moments[1]);
     const double large_error = std::abs(large.moments.moments[1] - analytical.moments[1]);
     update_maximum_error(small_error);
     update_maximum_error(large_error);
-    assert(large_error < small_error);
+    CHECK(large_error < small_error);
 
     const double standard_error_ratio = large.moments.standard_errors[1] / small.moments.standard_errors[1];
     const double expected_ratio =
         std::sqrt(static_cast<double>(small.sampling.ensemble.size()) / static_cast<double>(large.sampling.ensemble.size()));
-    assert(standard_error_ratio < 1.2 * expected_ratio);
-    assert(standard_error_ratio > 0.8 * expected_ratio);
+    CHECK(standard_error_ratio < 1.2 * expected_ratio);
+    CHECK(standard_error_ratio > 0.8 * expected_ratio);
 }
 
 void test_error_propagation()
 {
-    const qmomkit::monte_carlo::OneDimensionalSampledInitialization invalid = qmomkit::monte_carlo::sample_initialization(
-        qmomkit::NormalDistribution{0.0, -1.0}, 1.0, 2, qmomkit::monte_carlo::SamplingOptions{100, 6201});
+    const qmomkit::monte_carlo::OneDimensionalSampledInitialization invalid =
+        qmomkit::monte_carlo::sample_initialization(qmomkit::NormalDistribution{0.0, -1.0}, 1.0, 2, qmomkit::monte_carlo::SamplingOptions{100, 6201});
 
-    assert(!invalid.ok());
-    assert(!invalid.sampling.ok());
-    assert(!invalid.moments.ok());
+    CHECK(!invalid.ok());
+    CHECK(!invalid.sampling.ok());
+    CHECK(!invalid.moments.ok());
 }
 
 } // namespace

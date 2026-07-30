@@ -130,7 +130,7 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
         rate[1] = (1.0 - chi) / parameters.aspect_ratio_relaxation_time;
         rate[2] = drag_rate * relative_velocity_x;
         rate[3] = drag_rate * relative_velocity_y;
-        rate[4] = drag_rate * relative_velocity_z; // - parameters.gravity;
+        rate[4] = drag_rate * relative_velocity_z - parameters.gravity;
 
         return rate;
     };

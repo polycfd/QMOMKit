@@ -13,10 +13,10 @@ struct ParticleModelParameters
     double gravity = 9.81;
     double fluid_velocity_amplitude_x = 2.0;
     double fluid_velocity_amplitude_y = 2.0;
-    double fluid_velocity_amplitude_z = 2.0;
+    double fluid_velocity_amplitude_z = 0.0;
     double oscillation_angular_frequency = 1.0;
-    double attrition_rate = 0.0;
-    double aspect_ratio_relaxation_time = 1.0e10;
+    double attrition_rate = 0.0; // 1.0e-3;
+    double aspect_ratio_relaxation_time = 2.0;
 };
 
 [[nodiscard]] ParticleModelParameters particle_model_parameters();

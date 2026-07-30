@@ -4,8 +4,19 @@ node_counts = 2, 2, 2, 2, 2
 conditioning_order = 0, 1, 2, 3, 4
 adaptive_branch_counts = true
 
+[time_integration]
+scheme = strang
+
 [time_integration.node_advection]
 scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-9
+absolute_tolerance = 1.0e-12
+initial_step = 1.0e-4
+max_step = 1.0e-2
+min_step = 1.0e-12
+max_steps = 2000000
 
 [initial]
 type = independent_product

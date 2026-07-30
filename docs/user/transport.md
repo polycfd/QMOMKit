@@ -585,7 +585,8 @@ the same writer, and adaptive output writes only active nodes without padding
 inactive entries.
 
 For CQMOM, use `advance_transport_cqmom(...)` with the `CqmomState` obtained
-from the loaded CQMOM case:
+from the loaded CQMOM case when QMOMKit should own one complete configured
+splitting step:
 
 ```cpp
 const auto configured = qmomkit::config::load_cqmom("configuration.qmom");
@@ -644,6 +645,54 @@ const qmomkit::CqmomTransportResult result_with_boundary =
     qmomkit::advance_transport_cqmom(
         state, time, time_step, velocity, cqmom_source, cqmom_boundary, options);
 ```
+
+Applications that own C/D stage orchestration can use the public CQMOM stage
+helpers directly:
+
+```cpp
+const qmomkit::CqmomTransportResult first =
+    qmomkit::advance_cqmom_continuous(
+        state, time, 0.5 * time_step, velocity, options);
+
+if (!first.ok())
+{
+    // Handle failure.
+}
+
+const qmomkit::CqmomTransportResult source_stage =
+    qmomkit::advance_cqmom_discontinuous(
+        first.state, time + 0.5 * time_step, time_step, cqmom_source, options);
+
+if (!source_stage.ok())
+{
+    // Handle failure.
+}
+
+const qmomkit::CqmomTransportResult second =
+    qmomkit::advance_cqmom_continuous(
+        source_stage.state, time + 0.5 * time_step,
+        0.5 * time_step, velocity, options);
+```
+
+The boundary-aware discontinuous stage has the same shape as the high-level
+boundary overload:
+
+```cpp
+const qmomkit::CqmomTransportResult source_with_boundary =
+    qmomkit::advance_cqmom_discontinuous(
+        first.state, time + 0.5 * time_step, time_step,
+        cqmom_source, cqmom_boundary, options);
+```
+
+Continuous CQMOM stages preserve terminal paths and active branch counts, move
+the accepted terminal quadrature nodes, and reconstruct moments from that
+advected quadrature without a post-stage CQMOM inversion. Discontinuous stages
+advance the CQMOM transport moment layout, then apply the same recursive fixed
+or adaptive reconstruction policy used by `advance_transport_cqmom(...)`.
+Source stages ignore node-advection options, continuous stages ignore source
+integration options, and standalone stage helpers do not use the splitting
+scheme option. On failure, the returned state is the stage input state; the
+returned quadrature, when present, is diagnostic unless `result.ok()` is true.
 
 Here `compute_cqmom(...)` computes the initial quadrature, while
 `CqmomCase::initial_state()` creates the runtime state that transport advances.

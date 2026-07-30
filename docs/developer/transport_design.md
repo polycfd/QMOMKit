@@ -464,6 +464,8 @@ operator-splitting scheme:
 advance_qmom_continuous(...)
 advance_qmom_discontinuous(...)
 advance_transport_qmom(...)
+advance_cqmom_continuous(...)
+advance_cqmom_discontinuous(...)
 advance_transport_cqmom(...)
 ```
 
@@ -479,13 +481,22 @@ steps follow the same state-based pattern with `CqmomState`. If a boundary
 contribution callback is supplied, it is added to the source rate inside the
 discontinuous source step; it does not create another transport stage.
 
-The public one-dimensional QMOM stage helpers expose the same continuous and
-discontinuous stage implementations used by `advance_transport_qmom(...)`.
+The public QMOM and CQMOM stage helpers expose the same continuous and
+discontinuous stage implementations used by the full transport helpers.
 Standalone stage failure returns the stage input state unchanged. A complete
-operator-split QMOM step remains transactional at the macro-step boundary: if a
-later substage fails after an earlier substage succeeded, the returned
-`QmomTransportResult::state` is still the state accepted before the complete
-split step began.
+operator-split macro step remains transactional at the macro-step boundary: if
+a later substage fails after an earlier substage succeeded, the returned result
+state is still the state accepted before the complete split step began.
+
+Successful CQMOM stage and macro-step states carry a private accepted
+quadrature cache for the next CQMOM transport stage. A stage starting from a
+fresh `CqmomCase::initial_state()` computes the initial CQMOM quadrature once
+before applying the requested operation. A stage starting from a previously
+accepted CQMOM transport state reuses the cached accepted quadrature rather
+than reinverting its stored moments. The cache is an implementation detail:
+public callers pass `CqmomState` objects between stages and inspect the
+`CqmomTransportResult::quadrature` value when they need the accepted or
+diagnostic quadrature.
 
 ### Strang Splitting
 
@@ -640,6 +651,8 @@ Public transport and time-evolution entry points include:
 - `advance_qmom_continuous(...)`
 - `advance_qmom_discontinuous(...)`
 - `advance_transport_qmom(...)`
+- `advance_cqmom_continuous(...)`
+- `advance_cqmom_discontinuous(...)`
 - `advance_transport_cqmom(...)`
 - `ssp_rk3_step(...)`
 - `integrate_rk23(...)`
@@ -689,6 +702,28 @@ QmomTransportResult advance_transport_qmom(
     const MomentSource& source,
     const MomentBoundaryContribution& boundary,
     const QmomTransportOptions& options);
+
+CqmomTransportResult advance_cqmom_continuous(
+    const CqmomState& state,
+    double t,
+    double time_step,
+    const PhaseSpaceVelocity& velocity,
+    const CqmomTransportOptions& options = {});
+
+CqmomTransportResult advance_cqmom_discontinuous(
+    const CqmomState& state,
+    double t,
+    double time_step,
+    const CqmomMomentSource& source,
+    const CqmomTransportOptions& options = {});
+
+CqmomTransportResult advance_cqmom_discontinuous(
+    const CqmomState& state,
+    double t,
+    double time_step,
+    const CqmomMomentSource& source,
+    const CqmomMomentBoundaryContribution& boundary,
+    const CqmomTransportOptions& options);
 
 CqmomTransportResult advance_transport_cqmom(
     const CqmomState& state,
@@ -744,15 +779,31 @@ mixed tensor entries that were not exposed to the source callback. Dense-only
 moments are therefore closure moments implied by the accepted quadrature, not
 independently transported source variables.
 
-`advance_transport_cqmom(const CqmomState&, ...)` is the only public CQMOM
-transport API. `CqmomState` stores the selected dense or lean moment
-representation, reconstruction policy, and current active branch-count metadata
-while remaining representation neutral to callers. In adaptive mode, the
-hierarchy node counts are configured maxima. `CqmomState::active_branch_counts()`
-reports the current ragged topology using conditioning-level parent paths. The
-returned `CqmomQuadrature` may contain adaptive ragged terminal storage, and
-successful CQMOM transport through `CqmomState` stores that topology for the next
+The public CQMOM transport API is `CqmomState` based. The high-level
+`advance_transport_cqmom(const CqmomState&, ...)` helper owns the configured
+C/D sequence. The public `advance_cqmom_continuous(...)` and
+`advance_cqmom_discontinuous(...)` stage helpers are for applications that own
+stage orchestration or acceptance externally.
+
+`CqmomState` stores the selected dense or lean moment representation,
+reconstruction policy, current active branch-count metadata, and, after
+successful transport, a private accepted quadrature cache while remaining
+representation neutral to callers. In adaptive mode, the hierarchy node counts
+are configured maxima. `CqmomState::active_branch_counts()` reports the current
+ragged topology using conditioning-level parent paths. The returned
+`CqmomQuadrature` may contain adaptive ragged terminal storage, and successful
+CQMOM transport through `CqmomState` stores that topology for the next stage or
 macro step.
+
+Continuous CQMOM stages preserve accepted terminal topology and active branch
+counts, use only node-advection options from `CqmomTransportOptions`, and
+reconstruct stored moments by summation from the moved quadrature. They do not
+perform a post-stage CQMOM inversion. Discontinuous CQMOM stages use only source
+integration options, update the canonical CQMOM transport moment layout, and
+apply the case-owned recursive reconstruction policy. Adaptive post-source
+reconstruction may reduce active branch counts and may grow a retained branch by
+at most one node toward the configured maximum. Standalone stage helpers ignore
+the split-scheme option because the caller owns composition order.
 
 `CqmomTransportOptions` contains only transport-stage policies. CQMOM inversion
 policies such as Wheeler options, conditional reconstruction options, adaptive

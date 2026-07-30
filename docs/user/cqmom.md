@@ -338,8 +338,11 @@ moments required by the configured hierarchy and conditioning order. Normal
 configuration workflows build and hide this representation automatically.
 
 For transport, use `CqmomCase::initial_state()` and pass the resulting
-`CqmomState` to `advance_transport_cqmom(...)`. `CqmomState` preserves the
-configured reconstruction policy, selected moment storage, and adaptive
-branch-count topology between successful transport calls. Dense and lean case
-types remain available for callers that intentionally manage static inversion
-inputs, but public CQMOM transport is storage-independent.
+`CqmomState` to `advance_transport_cqmom(...)` when QMOMKit should own the
+configured macro-step sequence. Applications that own stage orchestration can
+pass the same `CqmomState` through `advance_cqmom_continuous(...)` and
+`advance_cqmom_discontinuous(...)`. `CqmomState` preserves the configured
+reconstruction policy, selected moment storage, and adaptive branch-count
+topology between successful transport calls. Dense and lean case types remain
+available for callers that intentionally manage static inversion inputs, but
+public CQMOM transport is storage-independent.

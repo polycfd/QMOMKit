@@ -224,6 +224,38 @@ struct CqmomTransportResult
                                                          const MomentBoundaryContribution& boundary, const QmomTransportOptions& options);
 
 /**
+ * Advance an accepted CQMOM state through one continuous phase-space stage.
+ *
+ * The stage advects accepted terminal quadrature nodes, preserves terminal
+ * topology and active branch counts, and reconstructs the state moments from
+ * the advanced quadrature without a post-stage CQMOM inversion. On failure, the
+ * returned state is the unchanged input state.
+ */
+[[nodiscard]] CqmomTransportResult advance_cqmom_continuous(const CqmomState& state, double t, double time_step, const PhaseSpaceVelocity& velocity,
+                                                            const CqmomTransportOptions& options = {});
+
+/**
+ * Advance an accepted CQMOM state through one discontinuous moment-source
+ * stage.
+ *
+ * The stage advances the canonical CQMOM transport moment layout, applies the
+ * configured recursive CQMOM reconstruction policy, may reduce active branch
+ * counts, and may grow retained adaptive branches by at most one node toward
+ * the configured hierarchy maximum. On failure, the returned state is the
+ * unchanged input state.
+ */
+[[nodiscard]] CqmomTransportResult advance_cqmom_discontinuous(const CqmomState& state, double t, double time_step, const CqmomMomentSource& source,
+                                                               const CqmomTransportOptions& options = {});
+
+/**
+ * Advance an accepted CQMOM state through one discontinuous source stage using
+ * a CQMOM-native source plus an additive phase-space boundary exchange
+ * contribution.
+ */
+[[nodiscard]] CqmomTransportResult advance_cqmom_discontinuous(const CqmomState& state, double t, double time_step, const CqmomMomentSource& source,
+                                                               const CqmomMomentBoundaryContribution& boundary, const CqmomTransportOptions& options);
+
+/**
  * Advance a CQMOM transport state by one transport macro step.
  *
  * Reconstruction policies are taken from the state. The options configure only

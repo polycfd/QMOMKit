@@ -40,41 +40,6 @@ namespace qmomkit
 namespace
 {
 
-struct DenseCqmomTransportResult
-{
-    RawMomentTensor moments;
-    std::optional<CqmomQuadrature> quadrature;
-    TransportStatus status = TransportStatus::success;
-    TransportDiagnostics diagnostics;
-    double final_time = 0.0;
-    std::string message;
-
-    [[nodiscard]] bool ok() const noexcept
-    {
-        return status == TransportStatus::success;
-    }
-};
-
-struct LeanCqmomTransportState
-{
-    CqmomMomentData moments;
-};
-
-struct LeanCqmomTransportResult
-{
-    LeanCqmomTransportState state;
-    std::optional<CqmomQuadrature> quadrature;
-    TransportStatus status = TransportStatus::success;
-    TransportDiagnostics diagnostics;
-    double final_time = 0.0;
-    std::string message;
-
-    [[nodiscard]] bool ok() const noexcept
-    {
-        return status == TransportStatus::success;
-    }
-};
-
 void validate_time_input(const double t, const double time_step)
 {
     if (!std::isfinite(t) || !std::isfinite(time_step) || !std::isfinite(t + time_step))
@@ -178,54 +143,11 @@ void validate_boundary(const MomentBoundaryContribution* const boundary)
     }
 }
 
-void validate_dense_cqmom_input(const RawMomentTensor& moments, const PhaseSpaceHierarchy& hierarchy, const double t, const double time_step,
-                                const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source, const TransportScheme scheme)
-{
-    validate_time_input(t, time_step);
-    validate_transport_scheme(scheme);
-    internal::validate_dense_cqmom_moment_tensor(moments, hierarchy, "CQMOM transport moment tensor rank must match the phase-space hierarchy.",
-                                                 "CQMOM transport moment tensor size does not match its extents.",
-                                                 "CQMOM transport moments must be finite.");
-    if (!velocity)
-    {
-        throw std::invalid_argument("Transport phase-space velocity callback must be provided.");
-    }
-    if (!source)
-    {
-        throw std::invalid_argument("CQMOM source callback must be provided.");
-    }
-}
-
 void validate_cqmom_boundary(const CqmomMomentBoundaryContribution* const boundary)
 {
     if (boundary != nullptr && !*boundary)
     {
         throw std::invalid_argument("CQMOM boundary contribution callback must be provided.");
-    }
-}
-
-void validate_trusted_lean_cqmom_input(const LeanCqmomTransportState& state, const double t, const double time_step,
-                                       const PhaseSpaceVelocity& velocity, const TransportScheme scheme)
-{
-    validate_time_input(t, time_step);
-    validate_transport_scheme(scheme);
-    // CqmomState owns already validated layout metadata. The trusted path still
-    // checks the evolving values that transport mutates between reconstructions.
-    internal::validate_cqmom_moment_values_match_layout(
-        state.moments, {"", "Lean CQMOM transport moments must match the fixed layout size.", "Lean CQMOM transport moments must be finite."});
-    if (!velocity)
-    {
-        throw std::invalid_argument("Transport phase-space velocity callback must be provided.");
-    }
-}
-
-void validate_trusted_lean_cqmom_input(const LeanCqmomTransportState& state, const double t, const double time_step,
-                                       const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source, const TransportScheme scheme)
-{
-    validate_trusted_lean_cqmom_input(state, t, time_step, velocity, scheme);
-    if (!source)
-    {
-        throw std::invalid_argument("Lean CQMOM transport moment-source callback must be provided.");
     }
 }
 
@@ -475,22 +397,6 @@ void validate_qmom_discontinuous_input(const QmomState& state, const std::size_t
     return true;
 }
 
-[[nodiscard]] DenseCqmomTransportResult cqmom_failure(RawMomentTensor moments, std::optional<CqmomQuadrature> quadrature,
-                                                      const TransportStatus status, const TransportStage stage, TransportDiagnostics diagnostics,
-                                                      const double final_time, std::string message)
-{
-    record_failure_diagnostics(diagnostics, stage, message);
-    return DenseCqmomTransportResult{std::move(moments), std::move(quadrature), status, std::move(diagnostics), final_time, std::move(message)};
-}
-
-[[nodiscard]] LeanCqmomTransportResult lean_cqmom_failure(LeanCqmomTransportState state, std::optional<CqmomQuadrature> quadrature,
-                                                          const TransportStatus status, const TransportStage stage, TransportDiagnostics diagnostics,
-                                                          const double final_time, std::string message)
-{
-    record_failure_diagnostics(diagnostics, stage, message);
-    return LeanCqmomTransportResult{std::move(state), std::move(quadrature), status, std::move(diagnostics), final_time, std::move(message)};
-}
-
 [[nodiscard]] std::string neutral_cqmom_message(std::string message)
 {
     constexpr std::string_view lean_prefix = "Lean CQMOM ";
@@ -511,6 +417,13 @@ void validate_qmom_discontinuous_input(const QmomState& state, const std::size_t
     diagnostics.first_reconstruction_diagnostics.message = neutral_cqmom_message(std::move(diagnostics.first_reconstruction_diagnostics.message));
     diagnostics.final_reconstruction_diagnostics.message = neutral_cqmom_message(std::move(diagnostics.final_reconstruction_diagnostics.message));
     return diagnostics;
+}
+
+[[nodiscard]] CqmomTransportResult neutral_cqmom_result(CqmomTransportResult result)
+{
+    result.message = neutral_cqmom_message(std::move(result.message));
+    result.diagnostics = neutral_cqmom_diagnostics(std::move(result.diagnostics));
+    return result;
 }
 
 struct ActiveBranchKey
@@ -776,149 +689,425 @@ QmomTransportResult advance_transport_qmom(const QmomState& state, const std::si
     return advance_transport_qmom_impl(state, maximum_node_count, t, time_step, velocity, source, &boundary, options);
 }
 
-// Dense-backed CqmomState transport applies the selected C/D sequence while the
-// state owns full raw-tensor storage internally.
-static DenseCqmomTransportResult advance_transport_cqmom_dense_impl(const CqmomDenseCase& dense_case, const double t, const double time_step,
-                                                                    const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                                    const CqmomMomentBoundaryContribution* const boundary,
-                                                                    const CqmomTransportOptions& options,
-                                                                    std::vector<CqmomActiveBranchCount> initial_active_branch_counts)
+namespace
 {
-    internal::performance::record_transport_macro_step();
-    TransportDiagnostics diagnostics;
-    diagnostics.scheme = options.scheme;
+
+void initialize_cqmom_diagnostics(TransportDiagnostics& diagnostics, const CqmomDenseCase& dense_case)
+{
     diagnostics.cqmom_moment_storage = CqmomMomentStorage::dense;
     diagnostics.cqmom_diagnostic_level = dense_case.diagnostic_level;
     diagnostics.cqmom_vandermonde_solver = dense_case.vandermonde_solver;
-    try
+}
+
+void initialize_cqmom_diagnostics(TransportDiagnostics& diagnostics, const CqmomLeanCase& lean_case)
+{
+    diagnostics.cqmom_moment_storage = CqmomMomentStorage::lean;
+    diagnostics.cqmom_diagnostic_level = lean_case.diagnostic_level;
+    diagnostics.cqmom_vandermonde_solver = lean_case.vandermonde_solver;
+}
+
+void initialize_cqmom_diagnostics(TransportDiagnostics& diagnostics, const CqmomState& state)
+{
+    if (const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state))
     {
-        validate_dense_cqmom_input(dense_case.moments, dense_case.hierarchy, t, time_step, velocity, source, options.scheme);
-        validate_cqmom_boundary(boundary);
+        initialize_cqmom_diagnostics(diagnostics, *dense_case);
+        return;
     }
-    catch (const std::exception& error)
+    if (const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state))
     {
-        return cqmom_failure(dense_case.moments, std::nullopt, TransportStatus::invalid_input, TransportStage::none, diagnostics, t, error.what());
+        initialize_cqmom_diagnostics(diagnostics, *lean_case);
+    }
+}
+
+void validate_dense_cqmom_moments_for_transport(const CqmomDenseCase& dense_case)
+{
+    internal::validate_dense_cqmom_moment_tensor(
+        dense_case.moments, dense_case.hierarchy, "CQMOM transport moment tensor rank must match the phase-space hierarchy.",
+        "CQMOM transport moment tensor size does not match its extents.", "CQMOM transport moments must be finite.");
+}
+
+void validate_lean_cqmom_moments_for_transport(const CqmomLeanCase& lean_case)
+{
+    internal::validate_cqmom_moment_values_match_layout(
+        lean_case.moments, {"", "Lean CQMOM transport moments must match the fixed layout size.", "Lean CQMOM transport moments must be finite."});
+}
+
+void validate_cqmom_state_for_transport(const CqmomState& state)
+{
+    if (const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state))
+    {
+        validate_dense_cqmom_moments_for_transport(*dense_case);
+        return;
+    }
+    if (const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state))
+    {
+        validate_lean_cqmom_moments_for_transport(*lean_case);
+        return;
+    }
+    throw std::invalid_argument("Unknown CQMOM state storage.");
+}
+
+void validate_cqmom_continuous_input(const CqmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity)
+{
+    validate_time_input(t, time_step);
+    validate_cqmom_state_for_transport(state);
+    if (!velocity)
+    {
+        throw std::invalid_argument("Transport phase-space velocity callback must be provided.");
+    }
+}
+
+void validate_cqmom_discontinuous_input(const CqmomState& state, const double t, const double time_step, const CqmomMomentSource& source,
+                                        const CqmomMomentBoundaryContribution* const boundary)
+{
+    validate_time_input(t, time_step);
+    validate_cqmom_state_for_transport(state);
+    if (!source)
+    {
+        throw std::invalid_argument("CQMOM source callback must be provided.");
+    }
+    validate_cqmom_boundary(boundary);
+}
+
+void validate_cqmom_transport_input(const CqmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
+                                    const CqmomMomentSource& source, const CqmomMomentBoundaryContribution* const boundary,
+                                    const TransportScheme scheme)
+{
+    validate_time_input(t, time_step);
+    validate_transport_scheme(scheme);
+    validate_cqmom_state_for_transport(state);
+    if (!velocity)
+    {
+        throw std::invalid_argument("Transport phase-space velocity callback must be provided.");
+    }
+    if (!source)
+    {
+        throw std::invalid_argument("CQMOM source callback must be provided.");
+    }
+    validate_cqmom_boundary(boundary);
+}
+
+[[nodiscard]] CqmomTransportResult cqmom_state_failure(const CqmomState& rollback_state, std::optional<CqmomQuadrature> quadrature,
+                                                       const TransportStatus status, const TransportStage stage, TransportDiagnostics diagnostics,
+                                                       const double final_time, std::string message)
+{
+    record_failure_diagnostics(diagnostics, stage, message);
+    return neutral_cqmom_result(
+        CqmomTransportResult{rollback_state, std::move(quadrature), status, std::move(diagnostics), final_time, std::move(message)});
+}
+
+[[nodiscard]] CqmomTransportResult cqmom_success(CqmomState state, CqmomQuadrature quadrature, TransportDiagnostics diagnostics,
+                                                 const double final_time)
+{
+    finalize_diagnostics(diagnostics);
+    return CqmomTransportResult{std::move(state), std::move(quadrature), TransportStatus::success, std::move(diagnostics), final_time, ""};
+}
+
+[[nodiscard]] CqmomState dense_state_from_accepted_quadrature(const CqmomDenseCase& base_case, RawMomentTensor moments,
+                                                              const CqmomQuadrature& quadrature)
+{
+    CqmomDenseCase updated_case{base_case.hierarchy,
+                                std::move(moments),
+                                base_case.conditional_options,
+                                base_case.qmom_options,
+                                base_case.adaptive_branch_counts,
+                                base_case.diagnostic_level,
+                                base_case.vandermonde_solver};
+    std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(quadrature);
+    return internal::create_cqmom_state(std::move(updated_case), std::move(active_counts), quadrature);
+}
+
+[[nodiscard]] CqmomState lean_state_from_accepted_quadrature(const CqmomLeanCase& base_case, CqmomMomentData moments,
+                                                             const CqmomQuadrature& quadrature)
+{
+    CqmomLeanCase updated_case{std::move(moments),         base_case.conditional_options, base_case.qmom_options, base_case.adaptive_branch_counts,
+                               base_case.diagnostic_level, base_case.vandermonde_solver};
+    std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(quadrature);
+    return internal::create_cqmom_state(std::move(updated_case), std::move(active_counts), quadrature);
+}
+
+[[nodiscard]] bool prepare_cqmom_transport_working_state(const CqmomState& state, const CqmomState& rollback_state, const double t,
+                                                         TransportDiagnostics& diagnostics, std::optional<CqmomQuadrature>& current_quadrature,
+                                                         std::vector<CqmomActiveBranchCount>& current_active_branch_counts,
+                                                         std::optional<CqmomTransportResult>& failure)
+{
+    const std::optional<CqmomQuadrature>& accepted_quadrature = internal::cqmom_state_accepted_quadrature(state);
+    if (accepted_quadrature.has_value())
+    {
+        current_quadrature = *accepted_quadrature;
+        current_active_branch_counts = internal::active_branch_counts_from_quadrature(*current_quadrature);
+        return true;
     }
 
-    std::vector<CqmomActiveBranchCount> current_active_branch_counts = std::move(initial_active_branch_counts);
+    current_active_branch_counts = internal::cqmom_state_active_branch_counts(state);
     const std::vector<CqmomActiveBranchCount> before_initial_active_branch_counts = current_active_branch_counts;
-    CqmomResult initial_quadrature = internal::compute_trusted_cqmom(dense_case, current_active_branch_counts);
+    const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state);
+    CqmomResult initial_quadrature = dense_case != nullptr
+                                         ? internal::compute_trusted_cqmom(*dense_case, current_active_branch_counts)
+                                         : internal::compute_trusted_cqmom(*internal::cqmom_state_lean_case(state), current_active_branch_counts);
     diagnostics.initial_cqmom_status = initial_quadrature.status;
     diagnostics.initial_cqmom_diagnostics = initial_quadrature.diagnostics;
     if (!initial_quadrature.ok())
     {
-        return cqmom_failure(dense_case.moments, initial_quadrature.quadrature, TransportStatus::inversion_failed, TransportStage::initial_inversion,
-                             diagnostics, t, initial_quadrature.message);
+        failure =
+            cqmom_state_failure(rollback_state, initial_quadrature.quadrature, TransportStatus::inversion_failed, TransportStage::initial_inversion,
+                                diagnostics, t, neutral_cqmom_message(std::move(initial_quadrature.message)));
+        return false;
     }
 
-    RawMomentTensor current_moments = dense_case.moments;
-    CqmomQuadrature current_quadrature = initial_quadrature.quadrature;
-    current_active_branch_counts = internal::active_branch_counts_from_quadrature(initial_quadrature.quadrature);
+    current_quadrature = initial_quadrature.quadrature;
+    current_active_branch_counts = internal::active_branch_counts_from_quadrature(*current_quadrature);
     record_cqmom_node_count_transitions(diagnostics, TransportStage::initial_inversion, before_initial_active_branch_counts,
                                         current_active_branch_counts);
-    const CqmomMomentLayout source_layout = create_cqmom_moment_layout(dense_case.hierarchy);
-    std::optional<DenseCqmomTransportResult> failure;
+    return true;
+}
 
-    const auto apply_continuous = [&](const double start_time, const double step, const bool final_continuous)
+[[nodiscard]] CqmomTransportResult advance_cqmom_continuous_stage(const CqmomState& state, const CqmomState& rollback_state, const double t,
+                                                                  const double time_step, const PhaseSpaceVelocity& velocity,
+                                                                  const CqmomTransportOptions& options, const bool final_continuous,
+                                                                  TransportDiagnostics& diagnostics)
+{
+    std::optional<CqmomQuadrature> current_quadrature;
+    std::vector<CqmomActiveBranchCount> current_active_branch_counts;
+    std::optional<CqmomTransportResult> failure;
+    if (!prepare_cqmom_transport_working_state(state, rollback_state, t, diagnostics, current_quadrature, current_active_branch_counts, failure))
     {
-        internal::performance::record_continuous_operator_call();
-        const CqmomNodeAdvectionResult continuous = advance_nodes(current_quadrature, start_time, step, velocity, options.node_options);
-        record_continuous_diagnostics(diagnostics, final_continuous, continuous.status, continuous.diagnostics);
-        if (!continuous.ok())
-        {
-            failure = cqmom_failure(std::move(current_moments), current_quadrature, TransportStatus::continuous_failed,
-                                    final_continuous ? TransportStage::second_continuous_half_step : TransportStage::first_continuous_half_step,
-                                    diagnostics, start_time, continuous.message);
-            return false;
-        }
+        return std::move(*failure);
+    }
+    (void)current_active_branch_counts;
 
+    internal::performance::record_continuous_operator_call();
+    const CqmomNodeAdvectionResult continuous = advance_nodes(*current_quadrature, t, time_step, velocity, options.node_options);
+    record_continuous_diagnostics(diagnostics, final_continuous, continuous.status, continuous.diagnostics);
+    if (!continuous.ok())
+    {
+        return cqmom_state_failure(rollback_state, *current_quadrature, TransportStatus::continuous_failed,
+                                   final_continuous ? TransportStage::second_continuous_half_step : TransportStage::first_continuous_half_step,
+                                   diagnostics, t, continuous.message);
+    }
+
+    if (const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state))
+    {
         try
         {
             internal::performance::record_moment_reconstruction_call();
-            current_moments = reconstruct_raw_moments(continuous.quadrature, dense_case.moments.extents);
+            RawMomentTensor moments = reconstruct_raw_moments(continuous.quadrature, dense_case->moments.extents);
             if (final_continuous)
             {
-                diagnostics.final_reconstruction_diagnostics = successful_reconstruction(current_moments.values.size());
+                diagnostics.final_reconstruction_diagnostics = successful_reconstruction(moments.values.size());
             }
             else
             {
-                diagnostics.first_reconstruction_diagnostics = successful_reconstruction(current_moments.values.size());
+                diagnostics.first_reconstruction_diagnostics = successful_reconstruction(moments.values.size());
             }
-            current_quadrature = continuous.quadrature;
-            current_active_branch_counts = internal::active_branch_counts_from_quadrature(current_quadrature);
+            return cqmom_success(dense_state_from_accepted_quadrature(*dense_case, std::move(moments), continuous.quadrature), continuous.quadrature,
+                                 diagnostics, t + time_step);
         }
         catch (const std::exception& error)
         {
             if (final_continuous)
             {
-                diagnostics.final_reconstruction_diagnostics = {false, dense_case.moments.values.size(), error.what()};
+                diagnostics.final_reconstruction_diagnostics = {false, dense_case->moments.values.size(), error.what()};
             }
             else
             {
-                diagnostics.first_reconstruction_diagnostics = {false, dense_case.moments.values.size(), error.what()};
+                diagnostics.first_reconstruction_diagnostics = {false, dense_case->moments.values.size(), error.what()};
             }
-            failure = cqmom_failure(std::move(current_moments), continuous.quadrature, TransportStatus::moment_reconstruction_failed,
-                                    final_continuous ? TransportStage::final_moment_reconstruction : TransportStage::first_moment_reconstruction,
-                                    diagnostics, start_time + step, error.what());
+            return cqmom_state_failure(rollback_state, continuous.quadrature, TransportStatus::moment_reconstruction_failed,
+                                       final_continuous ? TransportStage::final_moment_reconstruction : TransportStage::first_moment_reconstruction,
+                                       diagnostics, t + time_step, error.what());
+        }
+    }
+
+    const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state);
+    try
+    {
+        internal::performance::record_moment_reconstruction_call();
+        CqmomMomentData moments = internal::reconstruct_trusted_cqmom_moments(continuous.quadrature, lean_case->moments.layout);
+        if (final_continuous)
+        {
+            diagnostics.final_reconstruction_diagnostics = successful_reconstruction(moments.values.size());
+        }
+        else
+        {
+            diagnostics.first_reconstruction_diagnostics = successful_reconstruction(moments.values.size());
+        }
+        return cqmom_success(lean_state_from_accepted_quadrature(*lean_case, std::move(moments), continuous.quadrature), continuous.quadrature,
+                             diagnostics, t + time_step);
+    }
+    catch (const std::exception& error)
+    {
+        if (final_continuous)
+        {
+            diagnostics.final_reconstruction_diagnostics = {false, lean_case->moments.values.size(), error.what()};
+        }
+        else
+        {
+            diagnostics.first_reconstruction_diagnostics = {false, lean_case->moments.values.size(), error.what()};
+        }
+        return cqmom_state_failure(rollback_state, continuous.quadrature, TransportStatus::moment_reconstruction_failed,
+                                   final_continuous ? TransportStage::final_moment_reconstruction : TransportStage::first_moment_reconstruction,
+                                   diagnostics, t + time_step, error.what());
+    }
+}
+
+[[nodiscard]] CqmomTransportResult advance_cqmom_discontinuous_stage(const CqmomState& state, const CqmomState& rollback_state, const double t,
+                                                                     const double time_step, const CqmomMomentSource& source,
+                                                                     const CqmomMomentBoundaryContribution* const boundary,
+                                                                     const CqmomTransportOptions& options, TransportDiagnostics& diagnostics)
+{
+    std::optional<CqmomQuadrature> current_quadrature;
+    std::vector<CqmomActiveBranchCount> current_active_branch_counts;
+    std::optional<CqmomTransportResult> failure;
+    if (!prepare_cqmom_transport_working_state(state, rollback_state, t, diagnostics, current_quadrature, current_active_branch_counts, failure))
+    {
+        return std::move(*failure);
+    }
+
+    internal::performance::record_discontinuous_operator_call();
+    if (const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state))
+    {
+        const CqmomMomentLayout source_layout = create_cqmom_moment_layout(dense_case->hierarchy);
+        CqmomMomentData source_moments = extract_cqmom_moments(dense_case->moments, source_layout);
+        const CqmomMomentSourceUpdateResult source_update =
+            boundary == nullptr ? advance_cqmom_moments_with_source(source_moments, t, time_step, source, options.source_options)
+                                : advance_cqmom_moments_with_source(source_moments, t, time_step, source, *boundary, options.source_options);
+        record_source_update_diagnostics(diagnostics, source_update);
+        if (!source_update.ok())
+        {
+            return cqmom_state_failure(rollback_state, *current_quadrature, TransportStatus::source_failed, TransportStage::discontinuous_source_step,
+                                       diagnostics, t, source_update.message);
+        }
+
+        const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
+        internal::performance::record_post_source_inversion();
+        CqmomLeanCase post_source_case{source_update.moments,        dense_case->conditional_options,
+                                       dense_case->qmom_options,     dense_case->adaptive_branch_counts,
+                                       dense_case->diagnostic_level, dense_case->vandermonde_solver};
+        CqmomResult post_source_quadrature =
+            internal::compute_trusted_cqmom(post_source_case, current_active_branch_counts, dense_case->adaptive_branch_counts);
+        diagnostics.post_source_cqmom_status = post_source_quadrature.status;
+        diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
+        if (!post_source_quadrature.ok())
+        {
+            return cqmom_state_failure(rollback_state, post_source_quadrature.quadrature, TransportStatus::inversion_failed,
+                                       TransportStage::post_source_inversion, diagnostics, t,
+                                       neutral_cqmom_message(std::move(post_source_quadrature.message)));
+        }
+
+        try
+        {
+            internal::performance::record_moment_reconstruction_call();
+            RawMomentTensor moments = reconstruct_raw_moments(post_source_quadrature.quadrature, dense_case->moments.extents);
+            const std::vector<CqmomActiveBranchCount> after_source_active_branch_counts =
+                internal::active_branch_counts_from_quadrature(post_source_quadrature.quadrature);
+            record_cqmom_node_count_transitions(diagnostics, TransportStage::post_source_inversion, before_source_active_branch_counts,
+                                                after_source_active_branch_counts);
+            return cqmom_success(dense_state_from_accepted_quadrature(*dense_case, std::move(moments), post_source_quadrature.quadrature),
+                                 post_source_quadrature.quadrature, diagnostics, t + time_step);
+        }
+        catch (const std::exception& error)
+        {
+            std::string message = std::string("Dense CQMOM post-source moment reconstruction failed: ") + error.what();
+            diagnostics.final_reconstruction_diagnostics = {false, dense_case->moments.values.size(), message};
+            return cqmom_state_failure(rollback_state, post_source_quadrature.quadrature, TransportStatus::moment_reconstruction_failed,
+                                       TransportStage::post_source_inversion, diagnostics, t, std::move(message));
+        }
+    }
+
+    const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state);
+    const CqmomMomentSourceUpdateResult source_update =
+        boundary == nullptr ? advance_cqmom_moments_with_source(lean_case->moments, t, time_step, source, options.source_options)
+                            : advance_cqmom_moments_with_source(lean_case->moments, t, time_step, source, *boundary, options.source_options);
+    record_source_update_diagnostics(diagnostics, source_update);
+    if (!source_update.ok())
+    {
+        return cqmom_state_failure(rollback_state, *current_quadrature, TransportStatus::source_failed, TransportStage::discontinuous_source_step,
+                                   diagnostics, t, source_update.message);
+    }
+
+    const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
+    internal::performance::record_post_source_inversion();
+    CqmomLeanCase post_source_case{source_update.moments,       lean_case->conditional_options,
+                                   lean_case->qmom_options,     lean_case->adaptive_branch_counts,
+                                   lean_case->diagnostic_level, lean_case->vandermonde_solver};
+    CqmomResult post_source_quadrature =
+        internal::compute_trusted_cqmom(post_source_case, current_active_branch_counts, lean_case->adaptive_branch_counts);
+    diagnostics.post_source_cqmom_status = post_source_quadrature.status;
+    diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
+    if (!post_source_quadrature.ok())
+    {
+        return cqmom_state_failure(rollback_state, post_source_quadrature.quadrature, TransportStatus::inversion_failed,
+                                   TransportStage::post_source_inversion, diagnostics, t,
+                                   neutral_cqmom_message(std::move(post_source_quadrature.message)));
+    }
+
+    const std::vector<CqmomActiveBranchCount> after_source_active_branch_counts =
+        internal::active_branch_counts_from_quadrature(post_source_quadrature.quadrature);
+    record_cqmom_node_count_transitions(diagnostics, TransportStage::post_source_inversion, before_source_active_branch_counts,
+                                        after_source_active_branch_counts);
+    return cqmom_success(lean_state_from_accepted_quadrature(*lean_case, source_update.moments, post_source_quadrature.quadrature),
+                         post_source_quadrature.quadrature, diagnostics, t + time_step);
+}
+
+CqmomTransportResult advance_cqmom_continuous_impl(const CqmomState& state, const CqmomState& rollback_state, const double t, const double time_step,
+                                                   const PhaseSpaceVelocity& velocity, const CqmomTransportOptions& options,
+                                                   const bool final_continuous, TransportDiagnostics& diagnostics)
+{
+    return neutral_cqmom_result(
+        advance_cqmom_continuous_stage(state, rollback_state, t, time_step, velocity, options, final_continuous, diagnostics));
+}
+
+CqmomTransportResult advance_cqmom_discontinuous_impl(const CqmomState& state, const CqmomState& rollback_state, const double t,
+                                                      const double time_step, const CqmomMomentSource& source,
+                                                      const CqmomMomentBoundaryContribution* const boundary, const CqmomTransportOptions& options,
+                                                      TransportDiagnostics& diagnostics)
+{
+    return neutral_cqmom_result(advance_cqmom_discontinuous_stage(state, rollback_state, t, time_step, source, boundary, options, diagnostics));
+}
+
+CqmomTransportResult advance_transport_cqmom_state_impl(const CqmomState& state, const double t, const double time_step,
+                                                        const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                        const CqmomMomentBoundaryContribution* const boundary, const CqmomTransportOptions& options)
+{
+    internal::performance::record_transport_macro_step();
+    TransportDiagnostics diagnostics;
+    diagnostics.scheme = options.scheme;
+    initialize_cqmom_diagnostics(diagnostics, state);
+    try
+    {
+        validate_cqmom_transport_input(state, t, time_step, velocity, source, boundary, options.scheme);
+    }
+    catch (const std::exception& error)
+    {
+        return cqmom_state_failure(state, std::nullopt, TransportStatus::invalid_input, TransportStage::none, diagnostics, t, error.what());
+    }
+
+    CqmomState current_state = state;
+    std::optional<CqmomTransportResult> failure;
+    const auto apply_continuous = [&](const double start_time, const double step, const bool final_continuous)
+    {
+        CqmomTransportResult result =
+            advance_cqmom_continuous_impl(current_state, state, start_time, step, velocity, options, final_continuous, diagnostics);
+        if (!result.ok())
+        {
+            failure = std::move(result);
             return false;
         }
+        current_state = std::move(result.state);
         return true;
     };
 
     const auto apply_source = [&](const double start_time)
     {
-        internal::performance::record_discontinuous_operator_call();
-        // D-step: CQMOM-native source and boundary callbacks update only the
-        // canonical transport layout. Dense-only tensor entries are closure
-        // values reconstructed from the accepted post-source quadrature below.
-        CqmomMomentData source_moments = extract_cqmom_moments(current_moments, source_layout);
-        const CqmomMomentSourceUpdateResult source_update =
-            boundary == nullptr ? advance_cqmom_moments_with_source(source_moments, start_time, time_step, source, options.source_options)
-                                : advance_cqmom_moments_with_source(source_moments, start_time, time_step, source, *boundary, options.source_options);
-        record_source_update_diagnostics(diagnostics, source_update);
-        if (!source_update.ok())
+        CqmomTransportResult result =
+            advance_cqmom_discontinuous_impl(current_state, state, start_time, time_step, source, boundary, options, diagnostics);
+        if (!result.ok())
         {
-            failure = cqmom_failure(std::move(current_moments), current_quadrature, TransportStatus::source_failed,
-                                    TransportStage::discontinuous_source_step, diagnostics, start_time, source_update.message);
+            failure = std::move(result);
             return false;
         }
-
-        const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
-        const bool allow_active_branch_count_growth = dense_case.adaptive_branch_counts;
-        // Reconstruct quadrature after the moment update so CQMOM
-        // realizability is checked before any later continuous stage.
-        internal::performance::record_post_source_inversion();
-        CqmomLeanCase post_source_case{source_update.moments,       dense_case.conditional_options,
-                                       dense_case.qmom_options,     dense_case.adaptive_branch_counts,
-                                       dense_case.diagnostic_level, dense_case.vandermonde_solver};
-        CqmomResult post_source_quadrature =
-            internal::compute_trusted_cqmom(post_source_case, current_active_branch_counts, allow_active_branch_count_growth);
-        diagnostics.post_source_cqmom_status = post_source_quadrature.status;
-        diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
-        if (!post_source_quadrature.ok())
-        {
-            failure = cqmom_failure(std::move(current_moments), post_source_quadrature.quadrature, TransportStatus::inversion_failed,
-                                    TransportStage::post_source_inversion, diagnostics, start_time,
-                                    neutral_cqmom_message(std::move(post_source_quadrature.message)));
-            return false;
-        }
-        current_quadrature = post_source_quadrature.quadrature;
-        try
-        {
-            internal::performance::record_moment_reconstruction_call();
-            current_moments = reconstruct_raw_moments(current_quadrature, dense_case.moments.extents);
-        }
-        catch (const std::exception& error)
-        {
-            std::string message = std::string("Dense CQMOM post-source moment reconstruction failed: ") + error.what();
-            diagnostics.final_reconstruction_diagnostics = {false, dense_case.moments.values.size(), message};
-            failure = cqmom_failure(std::move(current_moments), current_quadrature, TransportStatus::moment_reconstruction_failed,
-                                    TransportStage::post_source_inversion, diagnostics, start_time, std::move(message));
-            return false;
-        }
-        current_active_branch_counts = internal::active_branch_counts_from_quadrature(current_quadrature);
-        record_cqmom_node_count_transitions(diagnostics, TransportStage::post_source_inversion, before_source_active_branch_counts,
-                                            current_active_branch_counts);
+        current_state = std::move(result.state);
         return true;
     };
 
@@ -927,172 +1116,69 @@ static DenseCqmomTransportResult advance_transport_cqmom_dense_impl(const CqmomD
         return std::move(*failure);
     }
 
+    std::optional<CqmomQuadrature> accepted_quadrature = internal::cqmom_state_accepted_quadrature(current_state);
     finalize_diagnostics(diagnostics);
-    return DenseCqmomTransportResult{
-        std::move(current_moments), std::move(current_quadrature), TransportStatus::success, std::move(diagnostics), t + time_step, ""};
+    return CqmomTransportResult{std::move(current_state),
+                                std::move(accepted_quadrature),
+                                TransportStatus::success,
+                                neutral_cqmom_diagnostics(std::move(diagnostics)),
+                                t + time_step,
+                                ""};
+}
+
+} // namespace
+
+CqmomTransportResult advance_cqmom_continuous(const CqmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
+                                              const CqmomTransportOptions& options)
+{
+    TransportDiagnostics diagnostics;
+    diagnostics.scheme = options.scheme;
+    initialize_cqmom_diagnostics(diagnostics, state);
+    try
+    {
+        validate_cqmom_continuous_input(state, t, time_step, velocity);
+    }
+    catch (const std::exception& error)
+    {
+        return cqmom_state_failure(state, std::nullopt, TransportStatus::invalid_input, TransportStage::none, diagnostics, t, error.what());
+    }
+    return advance_cqmom_continuous_impl(state, state, t, time_step, velocity, options, false, diagnostics);
 }
 
 namespace
 {
 
-// Lean-backed CqmomState transport applies the selected C/D sequence to the
-// fixed CQMOM moment layout and rebuilds quadrature at stage boundaries.
-LeanCqmomTransportResult advance_transport_cqmom_lean_impl(const CqmomLeanCase& lean_case, const double t, const double time_step,
-                                                           const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                           const CqmomMomentBoundaryContribution* const boundary,
-                                                           const CqmomTransportOptions& options,
-                                                           std::vector<CqmomActiveBranchCount> initial_active_branch_counts = {})
+CqmomTransportResult advance_cqmom_discontinuous_public_impl(const CqmomState& state, const double t, const double time_step,
+                                                             const CqmomMomentSource& source, const CqmomMomentBoundaryContribution* const boundary,
+                                                             const CqmomTransportOptions& options)
 {
-    internal::performance::record_transport_macro_step();
     TransportDiagnostics diagnostics;
     diagnostics.scheme = options.scheme;
-    diagnostics.cqmom_moment_storage = CqmomMomentStorage::lean;
-    diagnostics.cqmom_diagnostic_level = lean_case.diagnostic_level;
-    diagnostics.cqmom_vandermonde_solver = lean_case.vandermonde_solver;
-    const LeanCqmomTransportState state{lean_case.moments};
+    initialize_cqmom_diagnostics(diagnostics, state);
     try
     {
-        validate_trusted_lean_cqmom_input(state, t, time_step, velocity, source, options.scheme);
-        validate_cqmom_boundary(boundary);
+        validate_cqmom_discontinuous_input(state, t, time_step, source, boundary);
     }
     catch (const std::exception& error)
     {
-        return lean_cqmom_failure(state, std::nullopt, TransportStatus::invalid_input, TransportStage::none, diagnostics, t, error.what());
+        return cqmom_state_failure(state, std::nullopt, TransportStatus::invalid_input, TransportStage::none, diagnostics, t, error.what());
     }
-
-    const auto compute_stage_cqmom = [&](const CqmomMomentData& moments, const std::vector<CqmomActiveBranchCount>& active_branch_counts,
-                                         const bool allow_active_branch_count_growth = false)
-    {
-        const CqmomLeanCase stage_case{moments,
-                                       lean_case.conditional_options,
-                                       lean_case.qmom_options,
-                                       lean_case.adaptive_branch_counts,
-                                       lean_case.diagnostic_level,
-                                       lean_case.vandermonde_solver};
-        return internal::compute_trusted_cqmom(stage_case, active_branch_counts, allow_active_branch_count_growth);
-    };
-
-    std::vector<CqmomActiveBranchCount> current_active_branch_counts = std::move(initial_active_branch_counts);
-    const std::vector<CqmomActiveBranchCount> before_initial_active_branch_counts = current_active_branch_counts;
-    CqmomResult initial_quadrature = compute_stage_cqmom(state.moments, current_active_branch_counts);
-    diagnostics.initial_cqmom_status = initial_quadrature.status;
-    diagnostics.initial_cqmom_diagnostics = initial_quadrature.diagnostics;
-    if (!initial_quadrature.ok())
-    {
-        return lean_cqmom_failure(state, initial_quadrature.quadrature, TransportStatus::inversion_failed, TransportStage::initial_inversion,
-                                  diagnostics, t, initial_quadrature.message);
-    }
-    current_active_branch_counts = internal::active_branch_counts_from_quadrature(initial_quadrature.quadrature);
-    record_cqmom_node_count_transitions(diagnostics, TransportStage::initial_inversion, before_initial_active_branch_counts,
-                                        current_active_branch_counts);
-
-    LeanCqmomTransportState current_state = state;
-    CqmomQuadrature current_quadrature = initial_quadrature.quadrature;
-    std::optional<LeanCqmomTransportResult> failure;
-
-    const auto apply_continuous = [&](const double start_time, const double step, const bool final_continuous)
-    {
-        internal::performance::record_continuous_operator_call();
-        const CqmomNodeAdvectionResult continuous = advance_nodes(current_quadrature, start_time, step, velocity, options.node_options);
-        record_continuous_diagnostics(diagnostics, final_continuous, continuous.status, continuous.diagnostics);
-        if (!continuous.ok())
-        {
-            failure = lean_cqmom_failure(std::move(current_state), current_quadrature, TransportStatus::continuous_failed,
-                                         final_continuous ? TransportStage::second_continuous_half_step : TransportStage::first_continuous_half_step,
-                                         diagnostics, start_time, continuous.message);
-            return false;
-        }
-
-        try
-        {
-            internal::performance::record_moment_reconstruction_call();
-            // The trusted lean-backed path preserves the existing fixed layout
-            // and reconstructs only updated moment values after node advection.
-            current_state.moments = internal::reconstruct_trusted_cqmom_moments(continuous.quadrature, current_state.moments.layout);
-            if (final_continuous)
-            {
-                diagnostics.final_reconstruction_diagnostics = successful_reconstruction(current_state.moments.values.size());
-            }
-            else
-            {
-                diagnostics.first_reconstruction_diagnostics = successful_reconstruction(current_state.moments.values.size());
-            }
-            current_quadrature = continuous.quadrature;
-            current_active_branch_counts = internal::active_branch_counts_from_quadrature(current_quadrature);
-        }
-        catch (const std::exception& error)
-        {
-            if (final_continuous)
-            {
-                diagnostics.final_reconstruction_diagnostics = {false, current_state.moments.values.size(), error.what()};
-            }
-            else
-            {
-                diagnostics.first_reconstruction_diagnostics = {false, current_state.moments.values.size(), error.what()};
-            }
-            failure = lean_cqmom_failure(std::move(current_state), continuous.quadrature, TransportStatus::moment_reconstruction_failed,
-                                         final_continuous ? TransportStage::final_moment_reconstruction : TransportStage::first_moment_reconstruction,
-                                         diagnostics, start_time + step, error.what());
-            return false;
-        }
-        return true;
-    };
-
-    const auto apply_source = [&](const double start_time)
-    {
-        internal::performance::record_discontinuous_operator_call();
-        // D-step: CqmomMomentSource and optional boundary contribution share
-        // the existing SSP-RK3 source update path.
-        const CqmomMomentSourceUpdateResult source_update =
-            boundary == nullptr
-                ? advance_cqmom_moments_with_source(current_state.moments, start_time, time_step, source, options.source_options)
-                : advance_cqmom_moments_with_source(current_state.moments, start_time, time_step, source, *boundary, options.source_options);
-        record_source_update_diagnostics(diagnostics, source_update);
-        if (!source_update.ok())
-        {
-            failure = lean_cqmom_failure(std::move(current_state), current_quadrature, TransportStatus::source_failed,
-                                         TransportStage::discontinuous_source_step, diagnostics, start_time, source_update.message);
-            return false;
-        }
-
-        current_state.moments = source_update.moments;
-        const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
-        const bool allow_active_branch_count_growth = lean_case.adaptive_branch_counts;
-        // Reconstruct quadrature after the moment update so CQMOM
-        // realizability is checked before any later continuous stage.
-        internal::performance::record_post_source_inversion();
-        CqmomResult post_source_quadrature =
-            compute_stage_cqmom(current_state.moments, current_active_branch_counts, allow_active_branch_count_growth);
-        diagnostics.post_source_cqmom_status = post_source_quadrature.status;
-        diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
-        if (!post_source_quadrature.ok())
-        {
-            failure = lean_cqmom_failure(std::move(current_state), post_source_quadrature.quadrature, TransportStatus::inversion_failed,
-                                         TransportStage::post_source_inversion, diagnostics, start_time, post_source_quadrature.message);
-            return false;
-        }
-        current_quadrature = post_source_quadrature.quadrature;
-        current_active_branch_counts = internal::active_branch_counts_from_quadrature(current_quadrature);
-        record_cqmom_node_count_transitions(diagnostics, TransportStage::post_source_inversion, before_source_active_branch_counts,
-                                            current_active_branch_counts);
-        return true;
-    };
-
-    if (!execute_transport_sequence(options.scheme, t, time_step, apply_continuous, apply_source))
-    {
-        return std::move(*failure);
-    }
-
-    finalize_diagnostics(diagnostics);
-    return LeanCqmomTransportResult{
-        std::move(current_state), std::move(current_quadrature), TransportStatus::success, std::move(diagnostics), t + time_step, ""};
+    return advance_cqmom_discontinuous_impl(state, state, t, time_step, source, boundary, options, diagnostics);
 }
 
 } // namespace
 
-static CqmomTransportResult advance_transport_cqmom_state_impl(const CqmomState& state, double t, double time_step,
-                                                               const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                               const CqmomMomentBoundaryContribution* boundary, const CqmomTransportOptions& options);
+CqmomTransportResult advance_cqmom_discontinuous(const CqmomState& state, const double t, const double time_step, const CqmomMomentSource& source,
+                                                 const CqmomTransportOptions& options)
+{
+    return advance_cqmom_discontinuous_public_impl(state, t, time_step, source, nullptr, options);
+}
+
+CqmomTransportResult advance_cqmom_discontinuous(const CqmomState& state, const double t, const double time_step, const CqmomMomentSource& source,
+                                                 const CqmomMomentBoundaryContribution& boundary, const CqmomTransportOptions& options)
+{
+    return advance_cqmom_discontinuous_public_impl(state, t, time_step, source, &boundary, options);
+}
 
 CqmomTransportResult advance_transport_cqmom(const CqmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
                                              const CqmomMomentSource& source, const CqmomTransportOptions& options)
@@ -1105,79 +1191,6 @@ CqmomTransportResult advance_transport_cqmom(const CqmomState& state, const doub
                                              const CqmomTransportOptions& options)
 {
     return advance_transport_cqmom_state_impl(state, t, time_step, velocity, source, &boundary, options);
-}
-
-static CqmomTransportResult advance_transport_cqmom_state_impl(const CqmomState& state, const double t, const double time_step,
-                                                               const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                               const CqmomMomentBoundaryContribution* const boundary,
-                                                               const CqmomTransportOptions& options)
-{
-    const std::vector<CqmomActiveBranchCount>& active_branch_counts = internal::cqmom_state_active_branch_counts(state);
-
-    if (const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state))
-    {
-        DenseCqmomTransportResult dense_result =
-            advance_transport_cqmom_dense_impl(*dense_case, t, time_step, velocity, source, boundary, options, active_branch_counts);
-        if (!dense_result.ok())
-        {
-            return CqmomTransportResult{state,
-                                        std::move(dense_result.quadrature),
-                                        dense_result.status,
-                                        std::move(dense_result.diagnostics),
-                                        dense_result.final_time,
-                                        std::move(dense_result.message)};
-        }
-
-        CqmomDenseCase updated_case{dense_case->hierarchy,         std::move(dense_result.moments),    dense_case->conditional_options,
-                                    dense_case->qmom_options,      dense_case->adaptive_branch_counts, dense_case->diagnostic_level,
-                                    dense_case->vandermonde_solver};
-        std::vector<CqmomActiveBranchCount> updated_active_branch_counts;
-        if (dense_result.quadrature.has_value())
-        {
-            updated_active_branch_counts = internal::active_branch_counts_from_quadrature(*dense_result.quadrature);
-        }
-        return CqmomTransportResult{internal::create_cqmom_state(std::move(updated_case), std::move(updated_active_branch_counts)),
-                                    std::move(dense_result.quadrature),
-                                    dense_result.status,
-                                    std::move(dense_result.diagnostics),
-                                    dense_result.final_time,
-                                    std::move(dense_result.message)};
-    }
-
-    const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state);
-    if (lean_case == nullptr)
-    {
-        TransportDiagnostics diagnostics;
-        diagnostics.scheme = options.scheme;
-        return CqmomTransportResult{state, std::nullopt, TransportStatus::invalid_input, std::move(diagnostics), t, "Unknown CQMOM state storage."};
-    }
-
-    LeanCqmomTransportResult lean_result =
-        advance_transport_cqmom_lean_impl(*lean_case, t, time_step, velocity, source, boundary, options, active_branch_counts);
-
-    if (!lean_result.ok())
-    {
-        TransportDiagnostics diagnostics = neutral_cqmom_diagnostics(std::move(lean_result.diagnostics));
-        std::string message = neutral_cqmom_message(std::move(lean_result.message));
-        return CqmomTransportResult{
-            state, std::move(lean_result.quadrature), lean_result.status, std::move(diagnostics), lean_result.final_time, std::move(message)};
-    }
-
-    CqmomLeanCase updated_case{lean_result.state.moments,         lean_case->conditional_options, lean_case->qmom_options,
-                               lean_case->adaptive_branch_counts, lean_case->diagnostic_level,    lean_case->vandermonde_solver};
-    std::vector<CqmomActiveBranchCount> updated_active_branch_counts;
-    if (lean_result.quadrature.has_value())
-    {
-        updated_active_branch_counts = internal::active_branch_counts_from_quadrature(*lean_result.quadrature);
-    }
-    TransportDiagnostics diagnostics = neutral_cqmom_diagnostics(std::move(lean_result.diagnostics));
-    std::string message = neutral_cqmom_message(std::move(lean_result.message));
-    return CqmomTransportResult{internal::create_cqmom_state(std::move(updated_case), std::move(updated_active_branch_counts)),
-                                std::move(lean_result.quadrature),
-                                lean_result.status,
-                                std::move(diagnostics),
-                                lean_result.final_time,
-                                std::move(message)};
 }
 
 } // namespace qmomkit

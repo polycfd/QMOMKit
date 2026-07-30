@@ -1482,6 +1482,270 @@ void test_qmom_transport_failure_after_first_stage_rolls_back_to_macro_input()
     assert_qmom_quadrature_near(result.state.quadrature(), state.quadrature(), 0.0);
 }
 
+void assert_cqmom_transport_results_match(const qmomkit::CqmomTransportResult& actual, const qmomkit::CqmomTransportResult& expected,
+                                          const double tolerance)
+{
+    assert(actual.ok());
+    assert(expected.ok());
+    assert_near(actual.final_time, expected.final_time, tolerance);
+    assert(actual.quadrature.has_value());
+    assert(expected.quadrature.has_value());
+    assert_cqmom_quadrature_near(*actual.quadrature, *expected.quadrature, tolerance);
+    assert(active_counts_equal(actual.state.active_branch_counts(), expected.state.active_branch_counts()));
+    assert_common_cqmom_moments_near(actual.state, expected.state, tolerance);
+}
+
+void test_public_cqmom_continuous_stage_preserves_topology()
+{
+    const qmomkit::CqmomCase case_ = adaptive_cqmom_case_from_moments(branch_specific_ragged_cqmom_moments());
+    const qmomkit::CqmomState state = case_.initial_state();
+    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(case_);
+    assert(initial.ok());
+    const auto velocity = [](double, const std::vector<double>& xi)
+    {
+        assert(xi.size() == 2);
+        return std::vector<double>{0.1 + 0.05 * xi[0], -0.08 * xi[1]};
+    };
+
+    qmomkit::CqmomTransportOptions options;
+    options.node_options = tight_node_options();
+    const qmomkit::CqmomTransportResult stage = qmomkit::advance_cqmom_continuous(state, 0.0, 0.2, velocity, options);
+
+    assert(stage.ok());
+    assert(stage.quadrature.has_value());
+    assert(stage.final_time == 0.2);
+    assert(stage.quadrature->hierarchy().node_counts() == initial.quadrature.hierarchy().node_counts());
+    assert(stage.quadrature->hierarchy().conditioning_order() == initial.quadrature.hierarchy().conditioning_order());
+    assert(stage.quadrature->terminal_paths() == initial.quadrature.terminal_paths());
+    assert_vector_near(stage.quadrature->weights(), initial.quadrature.weights(), 0.0);
+    assert(active_counts_equal(stage.state.active_branch_counts(), state.active_branch_counts()));
+    assert(stage.diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::success);
+    assert(stage.diagnostics.first_reconstruction_diagnostics.success);
+}
+
+void test_public_cqmom_continuous_stage_reconstructs_dense_and_lean_moments()
+{
+    const qmomkit::CqmomCase dense_case = fixed_cqmom_case_with_storage("dense");
+    const qmomkit::CqmomCase lean_case = fixed_cqmom_case_with_storage("lean");
+    const auto velocity = [](double, const std::vector<double>& xi)
+    {
+        assert(xi.size() == 2);
+        return std::vector<double>{0.15 + 0.02 * xi[0], -0.05 + 0.03 * xi[1]};
+    };
+    qmomkit::CqmomTransportOptions options;
+    options.node_options = tight_node_options();
+
+    const qmomkit::CqmomTransportResult dense = qmomkit::advance_cqmom_continuous(dense_case.initial_state(), 0.0, 0.1, velocity, options);
+    const qmomkit::CqmomTransportResult lean = qmomkit::advance_cqmom_continuous(lean_case.initial_state(), 0.0, 0.1, velocity, options);
+
+    assert(dense.ok());
+    assert(lean.ok());
+    assert(dense.quadrature.has_value());
+    assert(lean.quadrature.has_value());
+    assert_cqmom_quadrature_near(*dense.quadrature, *lean.quadrature, 5.0e-10);
+    assert_common_state_moments_near(dense.state, lean.state, 5.0e-10);
+    assert_dense_state_matches_reconstructed_quadrature(dense, dense.state.hierarchy().moment_extents(), 5.0e-10);
+}
+
+void test_public_cqmom_discontinuous_stage_adaptive_policy()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::RawMomentTensor retained_moments = branch_specific_ragged_cqmom_moments();
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData retained_required = qmomkit::extract_cqmom_moments(retained_moments, layout);
+    const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
+
+    qmomkit::CqmomTransportOptions options;
+    const qmomkit::CqmomState retained_state = adaptive_cqmom_case_from_moments(retained_moments).initial_state();
+    const qmomkit::CqmomTransportResult retained = qmomkit::advance_cqmom_discontinuous(retained_state, 0.0, 0.1, zero_source, options);
+    assert(retained.ok());
+    assert(active_counts_equal(retained.state.active_branch_counts(), retained_state.active_branch_counts()));
+
+    const qmomkit::RawMomentTensor reduced_moments = collapsed_branch_cqmom_moments();
+    const qmomkit::CqmomMomentData reduced_required = qmomkit::extract_cqmom_moments(reduced_moments, layout);
+    const qmomkit::CqmomTransportResult reduced =
+        qmomkit::advance_cqmom_discontinuous(retained_state, 0.0, 1.0, source_from_to(retained_required, reduced_required), options);
+    assert(reduced.ok());
+    assert(reduced.quadrature.has_value());
+    assert(reduced.quadrature->total_nodes() == 2);
+    assert(transitions_contain(reduced.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 1,
+                               qmomkit::ConditioningPath{{1}}, 2, 1, qmomkit::CqmomNodeCountTransitionKind::reduced));
+
+    const qmomkit::CqmomState collapsed_state = adaptive_cqmom_case_from_moments(reduced_moments).initial_state();
+    const qmomkit::CqmomTransportResult growth =
+        qmomkit::advance_cqmom_discontinuous(collapsed_state, 0.0, 1.0, source_from_to(reduced_required, retained_required), options);
+    assert(growth.ok());
+    assert(growth.quadrature.has_value());
+    assert(growth.quadrature->total_nodes() == 3);
+    assert(transitions_contain(growth.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 1,
+                               qmomkit::ConditioningPath{{1}}, 1, 2, qmomkit::CqmomNodeCountTransitionKind::grew));
+}
+
+void test_public_cqmom_discontinuous_stage_growth_is_limited_to_one_node()
+{
+    constexpr std::size_t configured_node_count = 3;
+    const qmomkit::RawMomentTensor initial_moments = one_dimensional_cqmom_moments(configured_node_count, {0.0}, {1.0});
+    const qmomkit::RawMomentTensor target_moments = one_dimensional_cqmom_moments(configured_node_count, {-1.0, 0.25, 2.0}, {0.2, 0.3, 0.5});
+    const qmomkit::PhaseSpaceHierarchy hierarchy({configured_node_count});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
+    const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
+
+    const qmomkit::CqmomTransportResult stage = qmomkit::advance_cqmom_discontinuous(one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 1.0,
+                                                                                     source_from_to(initial_required, target_required));
+
+    assert(stage.ok());
+    assert(stage.quadrature.has_value());
+    assert(stage.quadrature->total_nodes() == 2);
+    assert(active_counts_contain(stage.state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 2, 0, configured_node_count));
+}
+
+void assert_public_cqmom_stage_composition_matches_transport(const qmomkit::TransportScheme scheme)
+{
+    const qmomkit::CqmomState state = fixed_cqmom_case().initial_state();
+    const auto velocity = [](const double time, const std::vector<double>& xi)
+    {
+        assert(xi.size() == 2);
+        return std::vector<double>{0.2 + 0.03 * time - 0.04 * xi[0], -0.1 + 0.02 * time + 0.05 * xi[1]};
+    };
+    const qmomkit::CqmomMomentSource source = [](const double time, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t i = 0; i < context.size(); ++i)
+        {
+            rate[i] = -(0.18 + 0.04 * time) * static_cast<double>(context.index(i).size()) * context.value(i);
+        }
+        return qmomkit::CqmomMomentRate{rate};
+    };
+    qmomkit::CqmomTransportOptions options;
+    options.node_options = tight_node_options();
+    options.scheme = scheme;
+    constexpr double dt = 0.2;
+
+    const qmomkit::CqmomTransportResult high_level = qmomkit::advance_transport_cqmom(state, 0.0, dt, velocity, source, options);
+    qmomkit::CqmomTransportResult explicit_result = high_level;
+    if (scheme == qmomkit::TransportScheme::strang)
+    {
+        const qmomkit::CqmomTransportResult first = qmomkit::advance_cqmom_continuous(state, 0.0, 0.5 * dt, velocity, options);
+        assert(first.ok());
+        const qmomkit::CqmomTransportResult discontinuous = qmomkit::advance_cqmom_discontinuous(first.state, 0.5 * dt, dt, source, options);
+        assert(discontinuous.ok());
+        explicit_result = qmomkit::advance_cqmom_continuous(discontinuous.state, 0.5 * dt, 0.5 * dt, velocity, options);
+    }
+    else if (scheme == qmomkit::TransportScheme::cd)
+    {
+        const qmomkit::CqmomTransportResult continuous = qmomkit::advance_cqmom_continuous(state, 0.0, dt, velocity, options);
+        assert(continuous.ok());
+        explicit_result = qmomkit::advance_cqmom_discontinuous(continuous.state, 0.0, dt, source, options);
+    }
+    else
+    {
+        const qmomkit::CqmomTransportResult discontinuous = qmomkit::advance_cqmom_discontinuous(state, 0.0, dt, source, options);
+        assert(discontinuous.ok());
+        explicit_result = qmomkit::advance_cqmom_continuous(discontinuous.state, 0.0, dt, velocity, options);
+    }
+
+    assert_cqmom_transport_results_match(explicit_result, high_level, 5.0e-9);
+}
+
+void test_public_cqmom_stage_composition_matches_transport()
+{
+    assert_public_cqmom_stage_composition_matches_transport(qmomkit::TransportScheme::strang);
+    assert_public_cqmom_stage_composition_matches_transport(qmomkit::TransportScheme::cd);
+    assert_public_cqmom_stage_composition_matches_transport(qmomkit::TransportScheme::dc);
+}
+
+void test_public_cqmom_stage_failures_roll_back()
+{
+    const qmomkit::CqmomState state = fixed_cqmom_case().initial_state();
+    const auto bad_velocity = [](double, const std::vector<double>&) { return std::vector<double>{1.0}; };
+    const qmomkit::CqmomTransportResult continuous = qmomkit::advance_cqmom_continuous(state, 0.0, 0.1, bad_velocity);
+    assert(!continuous.ok());
+    assert(continuous.status == qmomkit::TransportStatus::continuous_failed);
+    assert_vector_near(continuous.state.moment_values(), state.moment_values(), 0.0);
+    assert(active_counts_equal(continuous.state.active_branch_counts(), state.active_branch_counts()));
+
+    const auto bad_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size() + 1, 0.0)}; };
+    const qmomkit::CqmomTransportResult discontinuous = qmomkit::advance_cqmom_discontinuous(state, 0.0, 0.1, bad_source);
+    assert(!discontinuous.ok());
+    assert(discontinuous.status == qmomkit::TransportStatus::source_failed);
+    assert_vector_near(discontinuous.state.moment_values(), state.moment_values(), 0.0);
+    assert(active_counts_equal(discontinuous.state.active_branch_counts(), state.active_branch_counts()));
+}
+
+void test_cqmom_transport_failure_after_first_stage_rolls_back_to_macro_input()
+{
+    const qmomkit::CqmomState state = fixed_cqmom_case().initial_state();
+    const auto velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.2); };
+    const auto bad_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size() + 1, 0.0)}; };
+    qmomkit::CqmomTransportOptions options;
+    options.node_options = tight_node_options();
+    options.scheme = qmomkit::TransportScheme::strang;
+
+    const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, bad_source, options);
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::TransportStatus::source_failed);
+    assert(result.diagnostics.failed_stage == qmomkit::TransportStage::discontinuous_source_step);
+    assert(result.diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::success);
+    assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
+    assert(active_counts_equal(result.state.active_branch_counts(), state.active_branch_counts()));
+}
+
+void test_public_cqmom_boundary_discontinuous_stage_matches_transport()
+{
+    const qmomkit::CqmomState state = fixed_cqmom_case().initial_state();
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const qmomkit::CqmomMomentSource source = [](double, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t i = 0; i < context.size(); ++i)
+        {
+            rate[i] = 0.10 * context.value(i);
+        }
+        return qmomkit::CqmomMomentRate{rate};
+    };
+    const qmomkit::CqmomMomentBoundaryContribution boundary = [](double, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t i = 0; i < context.size(); ++i)
+        {
+            rate[i] = 0.15 * context.value(i);
+        }
+        return qmomkit::CqmomMomentRate{rate};
+    };
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::dc;
+
+    const qmomkit::CqmomTransportResult high_level = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, source, boundary, options);
+    const qmomkit::CqmomTransportResult stage = qmomkit::advance_cqmom_discontinuous(state, 0.0, 0.1, source, boundary, options);
+
+    assert_cqmom_transport_results_match(stage, high_level, 5.0e-10);
+    assert(stage.diagnostics.source_status == high_level.diagnostics.source_status);
+}
+
+void test_public_cqmom_stage_irrelevant_options_are_ignored()
+{
+    const qmomkit::CqmomState state = fixed_cqmom_case().initial_state();
+    const auto velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    qmomkit::CqmomTransportOptions continuous_options;
+    continuous_options.source_options.ssp_rk3_options.min_time_step = 1.0;
+    const qmomkit::CqmomTransportResult continuous = qmomkit::advance_cqmom_continuous(state, 0.0, 0.1, velocity, continuous_options);
+    assert(continuous.ok());
+
+    qmomkit::CqmomTransportOptions discontinuous_options;
+    discontinuous_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
+    discontinuous_options.node_options.rk23_options.max_steps = 0;
+    const qmomkit::CqmomTransportResult discontinuous = qmomkit::advance_cqmom_discontinuous(state, 0.0, 0.1, zero_source, discontinuous_options);
+    assert(discontinuous.ok());
+}
+
 void test_continuous_only_matches_direct_operator_qmom()
 {
     const std::vector<double> moments = raw_moments_1d({-0.5, 1.25}, {0.4, 0.6}, 4);
@@ -3241,6 +3505,15 @@ int main()
     test_public_qmom_stage_composition_matches_strang_transport();
     test_public_qmom_stage_composition_matches_lie_transport();
     test_qmom_transport_failure_after_first_stage_rolls_back_to_macro_input();
+    test_public_cqmom_continuous_stage_preserves_topology();
+    test_public_cqmom_continuous_stage_reconstructs_dense_and_lean_moments();
+    test_public_cqmom_discontinuous_stage_adaptive_policy();
+    test_public_cqmom_discontinuous_stage_growth_is_limited_to_one_node();
+    test_public_cqmom_stage_composition_matches_transport();
+    test_public_cqmom_stage_failures_roll_back();
+    test_cqmom_transport_failure_after_first_stage_rolls_back_to_macro_input();
+    test_public_cqmom_boundary_discontinuous_stage_matches_transport();
+    test_public_cqmom_stage_irrelevant_options_are_ignored();
     test_continuous_only_matches_direct_operator_qmom();
     test_source_only_matches_direct_operator_qmom();
     test_source_plus_boundary_matches_direct_operator_qmom();

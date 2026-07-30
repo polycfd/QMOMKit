@@ -129,6 +129,9 @@ void print_run_metadata(const std::size_t sample_count, const unsigned long long
 std::vector<qmomkit::MultiIndex> select_terminal_moment_indices(const std::vector<qmomkit::MultiIndex>& required_indices)
 {
     std::vector<qmomkit::MultiIndex> selected_indices = required_indices;
+    // Stable sorting by total degree gives readable console output while preserving
+    // the CQMOM hierarchy order as the tie-break within each degree. File-output
+    // ordering is unaffected.
     std::stable_sort(selected_indices.begin(), selected_indices.end(), [](const qmomkit::MultiIndex& lhs, const qmomkit::MultiIndex& rhs)
                      { return moment_total_degree(lhs) < moment_total_degree(rhs); });
     if (selected_indices.size() > max_console_moments)

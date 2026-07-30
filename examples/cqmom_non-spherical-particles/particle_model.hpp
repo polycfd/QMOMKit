@@ -15,7 +15,7 @@ struct ParticleModelParameters
     double fluid_velocity_amplitude_y = 2.0;
     double fluid_velocity_amplitude_z = 0.0;
     double oscillation_angular_frequency = 1.0;
-    double attrition_rate = 0.0; // 1.0e-3;
+    double attrition_rate = 1.0e-4;
     double aspect_ratio_relaxation_time = 2.0;
 };
 
@@ -23,6 +23,8 @@ struct ParticleModelParameters
 
 void validate_particle_model_parameters(const ParticleModelParameters& parameters);
 
+// Returns the continuous phase-space velocity for states ordered as
+// (d, chi, u, v, w), capturing the validated parameters by value.
 [[nodiscard]] qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters);
 
 } // namespace cqmom_non_spherical_particles

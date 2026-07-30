@@ -48,6 +48,8 @@ void require_finite(const double value, const char* name)
 
 [[nodiscard]] double oblate_spheroid_shape_factor(const double aspect_ratio, const double reynolds_number)
 {
+    // Apply the non-spherical drag correction, using the spherical-limit form
+    // when the aspect ratio is close enough to one to avoid the oblate formula.
     const double e = std::sqrt(std::abs(1.0 - aspect_ratio * aspect_ratio));
     double k0 = 1.0;
     if (std::abs(1.0 - aspect_ratio) >= spherical_limit_tolerance)
@@ -70,12 +72,6 @@ ParticleModelParameters particle_model_parameters()
 {
     ParticleModelParameters parameters;
 
-    // Stage 1 parameter section. Replace these placeholders with the constants
-    // from the Python reference before running the particle model:
-    //
-    // rho_f, mu_f, rho_p, g,
-    // U_AMPLITUDE, V_AMPLITUDE, W_AMPLITUDE, OMEGA,
-    // ATTRITION_RATE_CONST, TAU_RELAX.
     return parameters;
 }
 
@@ -126,6 +122,8 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
         const double drag_rate = 18.0 * parameters.fluid_dynamic_viscosity * shape_factor / (parameters.particle_density * d * d);
 
         auto rate = state;
+        // The five phase-space rates combine diameter attrition, aspect-ratio
+        // relaxation, drag in all velocity components, and gravity vertically.
         rate[0] = -parameters.attrition_rate * relative_velocity_magnitude * relative_velocity_magnitude;
         rate[1] = (1.0 - chi) / parameters.aspect_ratio_relaxation_time;
         rate[2] = drag_rate * relative_velocity_x;

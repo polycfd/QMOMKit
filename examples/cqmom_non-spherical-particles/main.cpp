@@ -26,8 +26,10 @@ int main()
     {
         const cqmom_non_spherical_particles::ParticleModelParameters particle_parameters = cqmom_non_spherical_particles::particle_model_parameters();
         cqmom_non_spherical_particles::validate_particle_model_parameters(particle_parameters);
+        const cqmom_non_spherical_particles::BinaryFragmentationParameters breakage_parameters =
+            cqmom_non_spherical_particles::binary_fragmentation_parameters();
+        cqmom_non_spherical_particles::validate_binary_fragmentation_parameters(breakage_parameters);
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_non_spherical_particles::particle_phase_space_velocity(particle_parameters);
-        const qmomkit::CqmomMomentSource source = cqmom_non_spherical_particles::binary_breakage_source();
 
         auto configured = qmomkit::config::load_cqmom(configuration_file);
         if (!configured)
@@ -77,33 +79,35 @@ int main()
             return 1;
         }
 
-        std::ostringstream sampled_case_text;
-        sampled_case_text << std::setprecision(17) << configuration_text->substr(0, initial_section) << "\n[moments]\nextents = ";
+        // Replace the distribution-based initial condition with the dense raw moments
+        // of the sampled ensemble, so CQMOM and MC start from the same realization.
+        std::ostringstream sampled_moment_case_text;
+        sampled_moment_case_text << std::setprecision(17) << configuration_text->substr(0, initial_section) << "\n[moments]\nextents = ";
         for (std::size_t dimension = 0; dimension < sampled->moments.moments.extents.size(); ++dimension)
         {
             if (dimension > 0)
             {
-                sampled_case_text << ", ";
+                sampled_moment_case_text << ", ";
             }
-            sampled_case_text << sampled->moments.moments.extents[dimension];
+            sampled_moment_case_text << sampled->moments.moments.extents[dimension];
         }
-        sampled_case_text << '\n';
+        sampled_moment_case_text << '\n';
         for (std::size_t flat_index = 0; flat_index < sampled->moments.moments.values.size(); ++flat_index)
         {
             const qmomkit::MultiIndex order = qmomkit::unflatten_multi_index(flat_index, sampled->moments.moments.extents);
-            sampled_case_text << "M[";
+            sampled_moment_case_text << "M[";
             for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
             {
                 if (dimension > 0)
                 {
-                    sampled_case_text << ',';
+                    sampled_moment_case_text << ',';
                 }
-                sampled_case_text << order[dimension];
+                sampled_moment_case_text << order[dimension];
             }
-            sampled_case_text << "] = " << sampled->moments.moments.values[flat_index] << '\n';
+            sampled_moment_case_text << "] = " << sampled->moments.moments.values[flat_index] << '\n';
         }
 
-        auto sampled_case_result = qmomkit::config::parse_cqmom(sampled_case_text.str(), "sampled-cqmom-initialization");
+        auto sampled_case_result = qmomkit::config::parse_cqmom(sampled_moment_case_text.str(), "sampled-cqmom-initialization");
         if (!sampled_case_result)
         {
             cqmom_non_spherical_particles::print_configuration_errors(sampled_case_result.error());
@@ -118,10 +122,13 @@ int main()
             return 1;
         }
 
+        const qmomkit::CqmomMomentSource source = cqmom_non_spherical_particles::binary_breakage_source(cqmom_case, breakage_parameters);
         qmomkit::CqmomState state = cqmom_case.initial_state();
         qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
-        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices};
+        // File output uses the complete hierarchy-required moment set, whereas the
+        // console prints only a small total-degree-ordered subset for readability.
+        const qmomkit::RawMomentRequest file_moment_request{moment_output_layout.required_indices};
         const std::vector<qmomkit::MultiIndex> terminal_moment_indices =
             cqmom_non_spherical_particles::select_terminal_moment_indices(moment_output_layout.required_indices);
         const qmomkit::RawMomentRequest terminal_moment_request{terminal_moment_indices};
@@ -150,6 +157,9 @@ int main()
         const double output_interval = output_options.interval.value_or(final_time - initial_time);
         double time = initial_time;
         double next_output_time = initial_time + output_interval;
+        // Advance one macro step with the integration and operator-splitting schemes
+        // selected in configuration.qmom. The continuous operator advances particle
+        // trajectories, while the discontinuous operator applies binary fragmentation.
         while (time < final_time - 1.0e-12)
         {
             const double current_step = std::min(time_step, final_time - time);
@@ -187,11 +197,11 @@ int main()
         if (output_options.write_moments)
         {
             cqmom_non_spherical_particles::ensure_output_directory(output_options.directory);
-            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", moment_output_request)
+            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", file_moment_request)
                 .write(initial_time, cqmom.quadrature);
 
             qmomkit::MomentWriter moment_history_writer =
-                qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", moment_output_request);
+                qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", file_moment_request);
             for (const auto& [history_time, history_quadrature] : quadrature_history)
             {
                 moment_history_writer.write(history_time, history_quadrature);
@@ -209,6 +219,8 @@ int main()
                 quadrature_history_writer.write(history_time, history_quadrature);
             }
         }
+        // Reconstruct only the terminal-display subset here; file output above already
+        // used the complete moment request.
         const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(cqmom.quadrature, terminal_moment_request);
         if (!initial_moments.ok())
         {

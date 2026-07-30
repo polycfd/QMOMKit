@@ -28,6 +28,9 @@ int main()
     {
         const cqmom_non_spherical_particles::ParticleModelParameters particle_parameters = cqmom_non_spherical_particles::particle_model_parameters();
         cqmom_non_spherical_particles::validate_particle_model_parameters(particle_parameters);
+        const cqmom_non_spherical_particles::BinaryFragmentationParameters breakage_parameters =
+            cqmom_non_spherical_particles::binary_fragmentation_parameters();
+        cqmom_non_spherical_particles::validate_binary_fragmentation_parameters(breakage_parameters);
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_non_spherical_particles::particle_phase_space_velocity(particle_parameters);
 
         const std::optional<std::string> configuration_text = cqmom_non_spherical_particles::read_configuration_text(configuration_file);
@@ -44,6 +47,8 @@ int main()
         }
         const qmomkit::CqmomCase configured_case = std::move(configured).value();
         const qmomkit::CqmomMomentLayout terminal_moment_layout = qmomkit::create_cqmom_moment_layout(configured_case.hierarchy());
+        // Reuse the CQMOM hierarchy only to select and order console moments. Dense
+        // Monte Carlo file output retains its native tensor-storage ordering.
         const std::vector<qmomkit::MultiIndex> terminal_moment_indices =
             cqmom_non_spherical_particles::select_terminal_moment_indices(terminal_moment_layout.required_indices);
 
@@ -75,6 +80,8 @@ int main()
         }
 
         qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
+        // Each sampled particle carries n0 / N so the ensemble represents
+        // unnormalized raw moments of the particle number-density distribution.
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
         const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
         const qmomkit::AdaptiveRk23Options continuous_options;
@@ -96,10 +103,12 @@ int main()
         double next_output_time = initial_time + output_interval;
         while (time < final_time - 1.0e-12)
         {
+            // The MC macro step mirrors the operator roles of the CQMOM transport:
+            // continuous stages advance particle trajectories, while discontinuous
+            // stages apply stochastic fragmentation and may increase the ensemble size.
             const double current_step = std::min(time_step, final_time - time);
             const double half_step = 0.5 * current_step;
 
-            // First continuous half-step evolves the sampled particles.
             qmomkit::monte_carlo::EnsembleEvolutionResult first_continuous =
                 qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + half_step, continuous_options);
             if (!first_continuous.ok())
@@ -109,10 +118,8 @@ int main()
             }
             ensemble = std::move(first_continuous.ensemble);
 
-            // Discontinuous breakage stage currently contributes no fragmentation.
-            cqmom_non_spherical_particles::apply_binary_breakage(ensemble, current_step, breakage_generator);
+            cqmom_non_spherical_particles::apply_binary_breakage(ensemble, current_step, breakage_generator, breakage_parameters);
 
-            // Second continuous half-step evolves the post-breakage particles.
             qmomkit::monte_carlo::EnsembleEvolutionResult second_continuous =
                 qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time + half_step, time + current_step, continuous_options);
             if (!second_continuous.ok())

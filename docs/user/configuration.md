@@ -758,6 +758,16 @@ Multiple rows may share one time value, and adaptive CQMOM may write a different
 number of rows at different output times. Group rows by `time` to recover each
 saved terminal quadrature.
 
+QMOM quadrature output also uses one row per active node:
+
+```text
+time node_index weight x0
+```
+
+Create `QuadratureWriter::for_qmom(path, maximum_node_count)` with the maximum
+active node count the file should accept. Fixed and adaptive QMOM use the same
+writer; inactive adaptive nodes are not padded or written as zero-weight nodes.
+
 Moment output records native integer-order raw moments. Generalized moments
 with real exponents are evaluated by caller code from a valid quadrature result
 and are not part of the standard writer output.

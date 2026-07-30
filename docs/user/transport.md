@@ -574,11 +574,15 @@ accepted source update, transport first reconstructs at the current active count
 and then tries at most one additional node when the configured maximum permits
 it. Fixed-count QMOM remains strict at `node_count`.
 
-The current one-dimensional `QuadratureWriter` writes fixed-width `QmomResult`
-rows. Fixed-count QMOM examples can keep using it directly. Adaptive QMOM
-callers should only write quadrature history when the accepted state still has
-the writer's configured row width, or handle reduced-width output explicitly in
-application code.
+The one-dimensional `QuadratureWriter` writes one row per active QMOM node:
+
+```text
+time node_index weight x0
+```
+
+Create it with the configured maximum node count. Fixed and adaptive QMOM use
+the same writer, and adaptive output writes only active nodes without padding
+inactive entries.
 
 For CQMOM, use `advance_transport_cqmom(...)` with the `CqmomState` obtained
 from the loaded CQMOM case:

@@ -195,24 +195,19 @@ void verify_qmom_moment_output(const std::filesystem::path& path, const qmomkit:
 void verify_qmom_quadrature_output(const std::filesystem::path& path, const qmomkit::QmomResult& result)
 {
     const ParsedOutput output = read_output_table(path);
-    QMOMKIT_VERIFY_CHECK(output.rows.size() == 1);
-    QMOMKIT_VERIFY_NEAR(output.rows[0][0], output_time, tolerance);
     const std::size_t node_count = result.weights.size();
 
-    std::vector<std::string> labels;
-    for (std::size_t node = 0; node < node_count; ++node)
-    {
-        labels.push_back("w" + std::to_string(node));
-        labels.push_back("x" + std::to_string(node));
-    }
-    verify_header_labels(output, labels);
+    verify_header_labels(output, {"node_index", "weight", "x0"});
+    QMOMKIT_VERIFY_CHECK(output.rows.size() == node_count);
 
-    // QuadratureWriter preserves public QMOM node order and writes each
-    // weight immediately followed by its abscissa.
+    // QMOM quadrature output is active-node oriented: for each public node,
+    // write one row with its node index, weight, and abscissa.
     for (std::size_t node = 0; node < node_count; ++node)
     {
-        QMOMKIT_VERIFY_NEAR(output.rows[0][1 + 2 * node], result.weights[node], tolerance);
-        QMOMKIT_VERIFY_NEAR(output.rows[0][1 + 2 * node + 1], result.abscissas[node], tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][0], output_time, tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][1], static_cast<double>(node), 0.0);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][2], result.weights[node], tolerance);
+        QMOMKIT_VERIFY_NEAR(output.rows[node][3], result.abscissas[node], tolerance);
     }
 }
 

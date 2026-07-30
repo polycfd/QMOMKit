@@ -252,19 +252,6 @@ conventions, and a direct sampled-ensemble reference path.
 Example README:
 [`examples/cqmom_2d_continuous_breakage_mc_initialization/README.md`](../../examples/cqmom_2d_continuous_breakage_mc_initialization/README.md)
 
-### `cqmom_non-spherical-particles`
-
-Purpose: demonstrate a staged five-dimensional CQMOM and Monte Carlo workflow
-for non-spherical particles ordered as `(d, chi, u, v, w)`.
-
-Use this example when you want to see how one user-defined particle-level RHS
-can drive both CQMOM continuous node transport and direct Monte Carlo particle
-evolution, while leaving a clean extension point for a later binary breakage
-model.
-
-Example README:
-[`examples/cqmom_non-spherical-particles/README.md`](../../examples/cqmom_non-spherical-particles/README.md)
-
 For broader Monte Carlo guidance, see `monte_carlo.md`.
 
 ## Suggested Path

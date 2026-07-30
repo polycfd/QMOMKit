@@ -143,7 +143,7 @@ struct Rk23Step
     std::vector<double> error;
 };
 
-struct SspRk3Candidate
+struct SspRk3Attempt
 {
     SspRk3Result result;
     bool accepted = true;
@@ -201,19 +201,17 @@ struct SspRk3Candidate
     return !accept || accept(stage, state);
 }
 
-[[nodiscard]] SspRk3Candidate ssp_rk3_candidate_step(const std::vector<double>& state, const double t, const double time_step, const OdeRhs& rhs,
-                                                     const SspRk3Options& options)
+[[nodiscard]] SspRk3Attempt try_ssp_rk3_step(const std::vector<double>& state, const double t, const double time_step, const OdeRhs& rhs,
+                                             const SspRk3Options& options)
 {
-    // Build one SSP-RK3 candidate through the stage-1, stage-2, and final
-    // convex-combination states. The embedded second-order test_state is only
-    // for optional error estimation; acceptance decides whether new_state is
-    // committed or the caller retries from the original state.
+    // Perform exactly one fixed-timestep SSP-RK3 attempt. The caller owns any
+    // retry policy and discards rejected attempts by restarting from state.
     internal::performance::record_source_rk_stage();
     const std::vector<double> k1 = rhs_checked(rhs, t, state);
     const std::vector<double> stage_1 = add_scaled(state, time_step, k1);
     if (!stage_accepted(options.stage_accept, SspRk3Stage::Stage1, stage_1))
     {
-        return SspRk3Candidate{SspRk3Result{state, std::nullopt, SspRk3Status::success, 0, time_step}, false};
+        return SspRk3Attempt{SspRk3Result{state, std::nullopt, SspRk3Status::success, 0, time_step}, false};
     }
 
     internal::performance::record_source_rk_stage();
@@ -227,7 +225,7 @@ struct SspRk3Candidate
     }
     if (!stage_accepted(options.stage_accept, SspRk3Stage::Stage2, stage_2))
     {
-        return SspRk3Candidate{SspRk3Result{state, std::nullopt, SspRk3Status::success, 0, time_step}, false};
+        return SspRk3Attempt{SspRk3Result{state, std::nullopt, SspRk3Status::success, 0, time_step}, false};
     }
 
     internal::performance::record_source_rk_stage();
@@ -255,7 +253,7 @@ struct SspRk3Candidate
     }
 
     const bool accepted = stage_accepted(options.stage_accept, SspRk3Stage::Final, new_state) && (!options.accept || options.accept(new_state));
-    return SspRk3Candidate{SspRk3Result{std::move(new_state), error_estimate, SspRk3Status::success, 0, time_step}, accepted};
+    return SspRk3Attempt{SspRk3Result{std::move(new_state), error_estimate, SspRk3Status::success, 0, time_step}, accepted};
 }
 
 } // namespace
@@ -286,11 +284,11 @@ SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, cons
     std::size_t retries = 0;
     while (true)
     {
-        SspRk3Candidate candidate_step = ssp_rk3_candidate_step(state, t, candidate_dt, rhs, options);
-        SspRk3Result candidate = std::move(candidate_step.result);
+        SspRk3Attempt attempt = try_ssp_rk3_step(state, t, candidate_dt, rhs, options);
+        SspRk3Result candidate = std::move(attempt.result);
         candidate.retries = retries;
 
-        if (candidate_step.accepted)
+        if (attempt.accepted)
         {
             return candidate;
         }

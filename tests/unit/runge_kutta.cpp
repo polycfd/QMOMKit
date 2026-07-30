@@ -202,6 +202,145 @@ void test_ssp_rk3_failed_stage_check_retries_with_smaller_timestep()
     assert_vector_near(result.state, {0.0}, 1.0e-15);
 }
 
+void test_ssp_rk3_stage2_rejection_skips_k3_and_retries_from_original_state()
+{
+    std::vector<double> rhs_times;
+    std::vector<double> rhs_states;
+    const qmomkit::OdeRhs rhs = [&](const double time, const std::vector<double>& state)
+    {
+        rhs_times.push_back(time);
+        rhs_states.push_back(state[0]);
+        return std::vector<double>{-0.8};
+    };
+
+    std::vector<qmomkit::SspRk3Stage> checked_stages;
+    std::vector<double> checked_states;
+    qmomkit::SspRk3Options options;
+    options.stage_accept = [&](const qmomkit::SspRk3Stage stage, const std::vector<double>& state)
+    {
+        checked_stages.push_back(stage);
+        checked_states.push_back(state[0]);
+        if (stage == qmomkit::SspRk3Stage::Stage2)
+        {
+            return state[0] >= 0.75;
+        }
+        return true;
+    };
+    options.max_retries = 2;
+
+    const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({1.0}, 0.0, 1.0, rhs, options);
+
+    assert(result.ok());
+    assert(result.retries == 1);
+    assert_near(result.time_step_used, 0.5, 1.0e-15);
+    assert_vector_near(result.state, {0.6}, 1.0e-15);
+
+    assert(rhs_times.size() == 5);
+    assert_vector_near(rhs_times, {0.0, 1.0, 0.0, 0.5, 0.25}, 1.0e-15);
+    assert_vector_near(rhs_states, {1.0, 0.2, 1.0, 0.6, 0.8}, 1.0e-15);
+
+    assert(checked_stages.size() == 5);
+    assert(checked_stages[0] == qmomkit::SspRk3Stage::Stage1);
+    assert(checked_stages[1] == qmomkit::SspRk3Stage::Stage2);
+    assert(checked_stages[2] == qmomkit::SspRk3Stage::Stage1);
+    assert(checked_stages[3] == qmomkit::SspRk3Stage::Stage2);
+    assert(checked_stages[4] == qmomkit::SspRk3Stage::Final);
+    assert_vector_near(checked_states, {0.2, 0.6, 0.6, 0.8, 0.6}, 1.0e-15);
+}
+
+void test_ssp_rk3_final_stage_rejection_short_circuits_final_accept()
+{
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{1.0}; };
+    int final_accept_calls = 0;
+    qmomkit::SspRk3Options options;
+    options.stage_accept = [](const qmomkit::SspRk3Stage stage, const std::vector<double>&) { return stage != qmomkit::SspRk3Stage::Final; };
+    options.accept = [&](const std::vector<double>&)
+    {
+        ++final_accept_calls;
+        return true;
+    };
+
+    const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({0.0}, 0.0, 1.0, rhs, options);
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::SspRk3Status::rejected_by_predicate);
+    assert(result.retries == 0);
+    assert_near(result.time_step_used, 1.0, 1.0e-15);
+    assert_vector_near(result.state, {0.0}, 1.0e-15);
+    assert(final_accept_calls == 0);
+}
+
+void test_ssp_rk3_stage_rejection_exhaustion_preserves_original_state()
+{
+    const std::vector<double> initial{2.0};
+    qmomkit::SspRk3Options options;
+    options.stage_accept = [](qmomkit::SspRk3Stage, const std::vector<double>&) { return false; };
+    options.max_retries = 1;
+
+    const qmomkit::SspRk3Result result =
+        qmomkit::ssp_rk3_step(initial, 0.0, 0.8, [](double, const std::vector<double>&) { return std::vector<double>{3.0}; }, options);
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::SspRk3Status::rejected_by_predicate);
+    assert(result.retries == 1);
+    assert_near(result.time_step_used, 0.4, 1.0e-15);
+    assert_vector_near(result.state, initial, 1.0e-15);
+}
+
+void test_ssp_rk3_stage_rejection_minimum_timestep_preserves_original_state()
+{
+    const std::vector<double> initial{2.0};
+    qmomkit::SspRk3Options options;
+    options.stage_accept = [](qmomkit::SspRk3Stage, const std::vector<double>&) { return false; };
+    options.max_retries = 4;
+    options.min_time_step = 0.5;
+
+    const qmomkit::SspRk3Result result =
+        qmomkit::ssp_rk3_step(initial, 0.0, 0.8, [](double, const std::vector<double>&) { return std::vector<double>{3.0}; }, options);
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::SspRk3Status::minimum_timestep_reached);
+    assert(result.retries == 0);
+    assert_near(result.time_step_used, 0.8, 1.0e-15);
+    assert_vector_near(result.state, initial, 1.0e-15);
+}
+
+void test_ssp_rk3_rhs_stage_audit_preserves_times_and_retry_states()
+{
+    std::vector<double> rhs_times;
+    std::vector<double> rhs_states;
+    const qmomkit::OdeRhs rhs = [&](const double time, const std::vector<double>& state)
+    {
+        rhs_times.push_back(time);
+        rhs_states.push_back(state[0]);
+        return std::vector<double>{2.0};
+    };
+
+    int final_stage_calls = 0;
+    qmomkit::SspRk3Options options;
+    options.stage_accept = [&](const qmomkit::SspRk3Stage stage, const std::vector<double>&)
+    {
+        if (stage == qmomkit::SspRk3Stage::Final)
+        {
+            ++final_stage_calls;
+            return final_stage_calls > 1;
+        }
+        return true;
+    };
+    options.max_retries = 1;
+
+    const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({1.0}, 0.25, 0.4, rhs, options);
+
+    assert(result.ok());
+    assert(result.retries == 1);
+    assert_near(result.time_step_used, 0.2, 1.0e-15);
+    assert_vector_near(result.state, {1.4}, 1.0e-15);
+
+    assert(rhs_times.size() == 6);
+    assert_vector_near(rhs_times, {0.25, 0.65, 0.45, 0.25, 0.45, 0.35}, 1.0e-15);
+    assert_vector_near(rhs_states, {1.0, 1.8, 1.4, 1.0, 1.4, 1.2}, 1.0e-15);
+}
+
 void test_rk23_rejects_overly_large_initial_step()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{-10.0 * y[0]}; };
@@ -318,6 +457,11 @@ int main()
     test_ssp_rk3_final_only_callback_invoked_once();
     test_ssp_rk3_stage_callback_invoked_for_each_stage();
     test_ssp_rk3_failed_stage_check_retries_with_smaller_timestep();
+    test_ssp_rk3_stage2_rejection_skips_k3_and_retries_from_original_state();
+    test_ssp_rk3_final_stage_rejection_short_circuits_final_accept();
+    test_ssp_rk3_stage_rejection_exhaustion_preserves_original_state();
+    test_ssp_rk3_stage_rejection_minimum_timestep_preserves_original_state();
+    test_ssp_rk3_rhs_stage_audit_preserves_times_and_retry_states();
     test_rk23_rejects_overly_large_initial_step();
     test_rk23_zero_rhs_has_no_timestep_pathology();
     test_rk23_invalid_options_fail_before_loop();

@@ -601,9 +601,11 @@ Transport diagnostics record:
 - source update status and SSP-RK3 retry count;
 - message.
 
-Failure handling is fail-fast within a macro step. If any suboperation fails,
-the transport helper returns immediately with the failed stage and the latest
-available moment/quadrature state.
+Failure handling is fail-fast. A failed standalone continuous or discontinuous
+stage returns its stage input state. A failed complete operator-split macro
+step returns the original macro-step input state. An intermediate or
+failed-stage quadrature may be retained only as diagnostic information and is
+not an accepted transport state.
 
 Status propagation follows subsystem ownership:
 

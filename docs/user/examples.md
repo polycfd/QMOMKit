@@ -173,6 +173,18 @@ user-supplied velocity and source callbacks.
 Example README:
 [`examples/qmom_1d_minimal/README.md`](../../examples/qmom_1d_minimal/README.md)
 
+### `qmom_1d_explicit_strang_splitting`
+
+Purpose: advance an adaptive one-dimensional QMOM state with application-owned
+Strang splitting by calling the public continuous and discontinuous stage APIs.
+
+Use this example when the surrounding application needs to own the
+`C(dt/2) -> D(dt) -> C(dt/2)` sequence while QMOMKit still owns state
+canonicalization and adaptive post-source reconstruction.
+
+Example README:
+[`examples/qmom_1d_explicit_strang_splitting/README.md`](../../examples/qmom_1d_explicit_strang_splitting/README.md)
+
 ### `qmom_1d_continuous_breakage`
 
 Purpose: initialize and evolve a one-dimensional QMOM representation with

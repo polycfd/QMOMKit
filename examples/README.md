@@ -11,15 +11,18 @@ QMOMKit package.
 2. `qmom_distribution_initialization/` if you want QMOMKit to generate
    moments from an analytical distribution.
 3. `qmom_1d_minimal/` for the smallest complete QMOM transport loop.
-4. `qmom_1d_continuous_breakage/` for configuration-driven QMOM transport
+4. `qmom_1d_explicit_strang_splitting/` for application-managed adaptive QMOM
+   Strang splitting with the public continuous and discontinuous stage API.
+5. `qmom_1d_continuous_breakage/` for configuration-driven QMOM transport
    with continuous and discontinuous physics.
-5. `cqmom_independent_product_initialization/` for the smallest
+6. `cqmom_independent_product_initialization/` for the smallest
    multidimensional initialization workflow.
-6. `cqmom_transport/` for the canonical CQMOM transport workflow
+7. `cqmom_transport/` for the canonical CQMOM transport workflow
    with custom velocity, source, and boundary contribution callbacks, as well as
    output.
 
-`qmom_1d_minimal/`, `qmom_1d_continuous_breakage/`, and
+`qmom_1d_minimal/`, `qmom_1d_explicit_strang_splitting/`,
+`qmom_1d_continuous_breakage/`, and
 `cqmom_transport/` are the primary examples for physics callbacks. The
 callback requirements are documented in the [transport guide](../docs/user/transport.md). Each example
 chooses the callbacks needed by its model; those combinations are illustrative,
@@ -30,6 +33,7 @@ not mandatory for every transport workflow.
 - `qmom_mixture_initialization/`: optional QMOM initialization extension for
   mixture distributions.
 - `realizability_check/`: example with explicit opt-in diagnostics for moment realizability.
+- `qmom_1d_explicit_strang_splitting/`: adaptive 1D QMOM transport example with application-managed Strang stages.
 - `cqmom_2d_adaptive_node_counts/`: 2D CQMOM transport example for adaptive branch-local node-count reduction, persistence, and controlled recovery.
 - `qmom_1d_continuous_breakage_mc_initialization/`: 1D example with continuous and discontinuous physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.
 - `cqmom_2d_continuous_breakage_mc_initialization/`: 2D example with continuous and discontinuous physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.

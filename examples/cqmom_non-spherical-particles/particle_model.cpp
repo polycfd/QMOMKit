@@ -92,11 +92,13 @@ void validate_particle_model_parameters(const ParticleModelParameters& parameter
 qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters)
 {
     validate_particle_model_parameters(parameters);
+
     return [parameters](double time, const std::vector<double>& state)
     {
         if (state.size() != 5)
         {
-            throw std::invalid_argument("The non-spherical particle model expects coordinates ordered as (d, chi, u, v, w).");
+            throw std::invalid_argument("The non-spherical particle model expects coordinates ordered "
+                                        "as (d, chi, u, v, w).");
         }
 
         // Ordering defined in configuration.qmom: (d, chi, u, v, w).
@@ -106,8 +108,13 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
         const double v = state[3];
         const double w = state[4];
 
+        const double d_safe = std::clamp(d, 5.0e-7, 1.0e12);
+        const double chi_safe = std::clamp(chi, 1.0e-6, 1.0 - 1.0e-6);
+
         const double fluid_velocity_x = parameters.fluid_velocity_amplitude_x * std::cos(parameters.oscillation_angular_frequency * time);
+
         const double fluid_velocity_y = parameters.fluid_velocity_amplitude_y * std::sin(parameters.oscillation_angular_frequency * time);
+
         const double fluid_velocity_z = parameters.fluid_velocity_amplitude_z * std::cos(parameters.oscillation_angular_frequency * time);
 
         const double relative_velocity_x = fluid_velocity_x - u;
@@ -117,15 +124,28 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
         const double relative_velocity_magnitude = std::sqrt(relative_velocity_x * relative_velocity_x + relative_velocity_y * relative_velocity_y +
                                                              relative_velocity_z * relative_velocity_z);
 
-        const double reynolds_number = parameters.fluid_density * relative_velocity_magnitude * d / parameters.fluid_dynamic_viscosity;
-        const double shape_factor = oblate_spheroid_shape_factor(chi, reynolds_number);
-        const double drag_rate = 18.0 * parameters.fluid_dynamic_viscosity * shape_factor / (parameters.particle_density * d * d);
+        const double reynolds_number = parameters.fluid_density * relative_velocity_magnitude * d_safe / parameters.fluid_dynamic_viscosity;
 
-        auto rate = state;
-        // The five phase-space rates combine diameter attrition, aspect-ratio
-        // relaxation, drag in all velocity components, and gravity vertically.
+        const double shape_factor = oblate_spheroid_shape_factor(chi_safe, reynolds_number);
+
+        /*
+         * This is algebraically equivalent to evaluating the drag force
+         *
+         *   F_d = 1/2 rho_f A (24/Re) K Re |U_rel| U_rel
+         *
+         * and dividing by the spherical particle mass. The resulting
+         * acceleration coefficient is 18 mu_f K / (rho_p d^2).
+         */
+        const double drag_rate = 18.0 * parameters.fluid_dynamic_viscosity * shape_factor / (parameters.particle_density * d_safe * d_safe);
+
+        std::vector<double> rate(5);
+
+        // Diameter attrition and aspect-ratio relaxation use the clipped
+        // coordinates, matching the Python implementation.
         rate[0] = -parameters.attrition_rate * relative_velocity_magnitude * relative_velocity_magnitude;
-        rate[1] = (1.0 - chi) / parameters.aspect_ratio_relaxation_time;
+
+        rate[1] = (1.0 - chi_safe) / parameters.aspect_ratio_relaxation_time;
+
         rate[2] = drag_rate * relative_velocity_x;
         rate[3] = drag_rate * relative_velocity_y;
         rate[4] = drag_rate * relative_velocity_z - parameters.gravity;

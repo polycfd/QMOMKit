@@ -20,7 +20,7 @@ int main()
     const std::filesystem::path configuration_file = "configuration.qmom";
     const double initial_time = 0.0;
     const double final_time = 1.0;
-    const double time_step = 0.01;
+    const double time_step = 0.005;
 
     try
     {

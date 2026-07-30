@@ -5,7 +5,7 @@ conditioning_order = 0, 1, 2, 3, 4
 adaptive_branch_counts = true
 
 [time_integration]
-scheme = strang
+scheme = cd
 
 [time_integration.node_advection]
 scheme = adaptive_rk23
@@ -35,18 +35,18 @@ beta = 14.0
 
 [initial.dimension.2]
 family = normal
-mean = 1.0
-standard_deviation = 1.0
+mean = 0.0
+standard_deviation = 0.5
 
 [initial.dimension.3]
 family = normal
-mean = 1.0
-standard_deviation = 1.0
+mean = 0.0
+standard_deviation = 0.5
 
 [initial.dimension.4]
 family = normal
-mean = 1.0
-standard_deviation = 1.0
+mean = 0.0
+standard_deviation = 0.5
 
 [output]
 directory = output

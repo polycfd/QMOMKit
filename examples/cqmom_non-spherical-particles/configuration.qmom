@@ -1,0 +1,44 @@
+[phase_space]
+names = d, chi, u, v, w
+node_counts = 2, 2, 2, 2, 2
+conditioning_order = 0, 1, 2, 3, 4
+adaptive_branch_counts = true
+
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[initial]
+type = independent_product
+number_density = 1.0
+maximum_orders = 3, 3, 3, 3, 3
+
+[initial.dimension.0]
+family = lognormal
+mu_log = -8.9596725473
+sigma_log = 0.1529473098
+
+[initial.dimension.1]
+family = beta
+alpha = 6.0
+beta = 14.0
+
+[initial.dimension.2]
+family = normal
+mean = 1.0
+standard_deviation = 1.0
+
+[initial.dimension.3]
+family = normal
+mean = 1.0
+standard_deviation = 1.0
+
+[initial.dimension.4]
+family = normal
+mean = 1.0
+standard_deviation = 1.0
+
+[output]
+directory = output
+write_moments = true
+write_quadrature = true
+interval = 0.1

@@ -10,8 +10,8 @@ with commented headers, not CSV files:
 
 ```text
 # time M[0] M[1] ...
-# time w0 x0 w1 x1 ...
-# time w0 x0_0 x1_0 w1 x0_1 x1_1 ...
+# time node_index weight x0
+# time node_index path_0 ... weight x0 ...
 ```
 
 ## Requirements
@@ -46,10 +46,12 @@ Plot a CQMOM quadrature history:
 python tools/plotting/plot_quadrature.py output/quadrature_history.txt
 ```
 
-For QMOM output, the script plots weights versus time and abscissas versus
-time. For CQMOM output, it plots terminal weights versus time and a simple
-final-time node visualization. Multidimensional CQMOM output is shown in the
-first two dimensions.
+For QMOM output, each row is one active node at one output time. Adaptive QMOM
+files may contain different active node counts at different times, and inactive
+nodes are not padded. For CQMOM output, each row is one terminal node with its
+recursive path. The script plots weights and abscissas by public node index and
+adds a simple final-time CQMOM node visualization. Multidimensional CQMOM output
+is shown in the first two dimensions.
 
 These scripts deliberately avoid a general projection framework, trajectory
 analysis, or specialized interpretation of CQMOM nodes. They read the column

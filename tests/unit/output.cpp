@@ -328,12 +328,12 @@ void test_qmom_quadrature_output()
 {
     const std::filesystem::path path = temporary_output_path("qmomkit_qmom_quadrature");
     {
-        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, 3);
-        writer.write(0.0, qmomkit::QmomResult{{-1.0, 0.5, 2.0}, {0.25, 0.5, 0.25}});
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, 2);
+        writer.write(0.0, qmomkit::QmomResult{{-1.0, 2.0}, {0.25, 0.75}});
     }
 
-    const std::string expected = "# time w0 x0 w1 x1 w2 x2\n" + format_double(0.0) + " " + format_double(0.25) + " " + format_double(-1.0) + " " +
-                                 format_double(0.5) + " " + format_double(0.5) + " " + format_double(0.25) + " " + format_double(2.0) + "\n";
+    const std::string expected = "# time node_index weight x0\n" + format_double(0.0) + " 0 " + format_double(0.25) + " " + format_double(-1.0) +
+                                 "\n" + format_double(0.0) + " 1 " + format_double(0.75) + " " + format_double(2.0) + "\n";
     assert(read_text_file(path) == expected);
     std::filesystem::remove(path);
 }
@@ -346,8 +346,29 @@ void test_quadrature_1d_output()
         writer.write(0.125, qmomkit::Quadrature1D{{-0.75, 1.25}, {0.4, 0.6}});
     }
 
-    const std::string expected = "# time w0 x0 w1 x1\n" + format_double(0.125) + " " + format_double(0.4) + " " + format_double(-0.75) + " " +
-                                 format_double(0.6) + " " + format_double(1.25) + "\n";
+    const std::string expected = "# time node_index weight x0\n" + format_double(0.125) + " 0 " + format_double(0.4) + " " + format_double(-0.75) +
+                                 "\n" + format_double(0.125) + " 1 " + format_double(0.6) + " " + format_double(1.25) + "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
+void test_qmom_adaptive_quadrature_output_accepts_changing_node_counts()
+{
+    const std::filesystem::path path = temporary_output_path("qmomkit_qmom_adaptive_quadrature_history");
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, 2);
+        writer.write(0.0, qmomkit::QmomResult{{-1.0, 1.0}, {0.5, 0.5}});
+        writer.write(0.05, qmomkit::QmomResult{{0.0}, {1.0}});
+        writer.write(0.15, qmomkit::QmomResult{{-0.8944271909999159, 0.8944271909999159}, {0.5, 0.5}});
+        writer.write(0.25, qmomkit::QmomResult{{0.0}, {1.0}});
+    }
+
+    const std::string expected = "# time node_index weight x0\n" + format_double(0.0) + " 0 " + format_double(0.5) + " " + format_double(-1.0) +
+                                 "\n" + format_double(0.0) + " 1 " + format_double(0.5) + " " + format_double(1.0) + "\n" + format_double(0.05) +
+                                 " 0 " + format_double(1.0) + " " + format_double(0.0) + "\n" + format_double(0.15) + " 0 " + format_double(0.5) +
+                                 " " + format_double(-0.8944271909999159) + "\n" + format_double(0.15) + " 1 " + format_double(0.5) + " " +
+                                 format_double(0.8944271909999159) + "\n" + format_double(0.25) + " 0 " + format_double(1.0) + " " +
+                                 format_double(0.0) + "\n";
     assert(read_text_file(path) == expected);
     std::filesystem::remove(path);
 }
@@ -447,7 +468,12 @@ void test_quadrature_writer_rejects_mismatched_inputs()
     const std::filesystem::path qmom_path = temporary_output_path("qmomkit_qmom_invalid_quadrature");
     {
         qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(qmom_path, 2);
-        assert_throws_invalid_argument([&writer] { writer.write(0.0, qmomkit::QmomResult{{1.0}, {1.0}}); });
+        assert_throws_invalid_argument_message([&writer] { writer.write(0.0, qmomkit::QmomResult{{}, {}}); },
+                                               "QMOM quadrature output requires at least one active node.");
+        assert_throws_invalid_argument_message([&writer] { writer.write(0.0, qmomkit::QmomResult{{1.0}, {0.25, 0.75}}); },
+                                               "QMOM quadrature output weight and abscissa counts must match.");
+        assert_throws_invalid_argument_message([&writer] { writer.write(0.0, qmomkit::QmomResult{{-1.0, 0.0, 1.0}, {0.25, 0.5, 0.25}}); },
+                                               "QMOM quadrature output active node count exceeds the writer maximum.");
     }
     std::filesystem::remove(qmom_path);
 
@@ -517,6 +543,7 @@ int main()
     test_writer_rejects_mismatched_inputs();
     test_qmom_quadrature_output();
     test_quadrature_1d_output();
+    test_qmom_adaptive_quadrature_output_accepts_changing_node_counts();
     test_cqmom_quadrature_output();
     test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts();
     test_quadrature_writer_rejects_mismatched_inputs();

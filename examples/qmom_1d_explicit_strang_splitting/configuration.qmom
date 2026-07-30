@@ -1,0 +1,27 @@
+[phase_space]
+names = u
+node_counts = 2
+
+[moments]
+values = 1.0, 0.0, 1.0, 0.0
+
+[qmom]
+adaptive = true
+
+[time_integration]
+scheme = strang
+
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-8
+absolute_tolerance = 1.0e-12
+initial_step = 1.0e-4
+max_step = 2.0e-3
+min_step = 1.0e-12
+max_steps = 100000
+
+[output]
+directory = output
+write_quadrature = true

@@ -109,6 +109,7 @@ Run benchmark executables directly:
 ./build-benchmarks/wheeler_benchmark
 ./build-benchmarks/vandermonde_benchmark
 ./build-benchmarks/cqmom_benchmark
+./build-benchmarks/adaptive_quadrature_benchmark
 ./build-benchmarks/performance_instrumentation_benchmark
 ```
 
@@ -118,6 +119,11 @@ focused comparison is more useful than running the full executable:
 ```sh
 ./build-benchmarks/vandermonde_benchmark --benchmark_filter=solver_selection
 ./build-benchmarks/cqmom_benchmark --benchmark_filter=diagnostic_overhead
+./build-benchmarks/adaptive_quadrature_benchmark --benchmark_filter='Qmom/(Reconstruction|FullStep)'
+./build-benchmarks/adaptive_quadrature_benchmark --benchmark_filter='Cqmom(2D|3D)/(Reconstruction|FullStep)'
+./build-benchmarks/adaptive_quadrature_benchmark --benchmark_filter='Direct|Fallback'
+./build-benchmarks/adaptive_quadrature_benchmark \
+    --benchmark_filter='Retain/N2_Max2|RejectedGrowth/N2_Max3|ConditionalRetainN2_Max2|ConditionalRejectedGrowth'
 ./build-benchmarks/performance_instrumentation_benchmark --benchmark_filter=performance_cqmom_transport
 ./build-benchmarks/performance_instrumentation_benchmark --benchmark_filter=performance_node_advection_scheme
 ```
@@ -294,6 +300,56 @@ The current CQMOM application benchmark categories are:
   counts. These benchmarks report runtime plus dense and lean moment counts so
   maintainers can quantify the memory/runtime tradeoff without introducing
   automatic representation selection.
+
+Adaptive quadrature lifecycle benchmarks live in:
+
+```text
+tests/benchmarks/adaptive_quadrature_benchmark.cpp
+```
+
+These benchmarks measure the current adaptive QMOM and recursive CQMOM
+reconstruction policy without adding production diagnostics or changing node
+selection. They provide paired reconstruction-only and complete accepted
+transport-step timings for retained counts, rejected growth trials, reductions,
+and accepted one-node growth. Benchmark counters identify stable fixture
+metadata such as active node counts, configured terminal capacity, accepted
+terminal nodes, storage representation, and moment count. Use the paired
+`Reconstruction` and `FullStep` benchmark names to compute the reconstruction
+fraction of a complete accepted step, and compare adaptive event `FullStep`
+timings against the matching retained `FullStep` baseline to estimate
+incremental event cost.
+
+The `Direct` and `Fallback` reconstruction pairs use the same deterministic
+moment sequence and the same final accepted quadrature or CQMOM hierarchy. They
+differ only in the branch-local reconstruction ceiling supplied to the current
+validated adaptive policy. These paired cases estimate the maximum avoidable
+fallback cost that a future low-order information check could save, without
+implementing that check or changing production behavior. Use filters such as:
+
+```bash
+./build-benchmarks/adaptive_quadrature_benchmark \
+    --benchmark_filter='Qmom/Reconstruction/(Direct|Fallback)'
+
+./build-benchmarks/adaptive_quadrature_benchmark \
+    --benchmark_filter='Cqmom2D/Reconstruction/(Lean|Dense)/(Direct|Fallback)'
+```
+
+For a statistically useful local timing campaign, run repeated aggregate
+measurements and write JSON outside the repository:
+
+```bash
+./build-benchmarks/adaptive_quadrature_benchmark \
+    --benchmark_filter='Direct|Fallback|Retain/N2_Max2|RejectedGrowth/N2_Max3|ConditionalRetainN2_Max2|ConditionalRejectedGrowth' \
+    --benchmark_min_time=0.5s \
+    --benchmark_repetitions=10 \
+    --benchmark_report_aggregates_only=true \
+    --benchmark_out=/private/tmp/adaptive_quadrature_benchmark.json \
+    --benchmark_out_format=json
+```
+
+Absolute timings and derived overhead percentages are machine-specific. Treat
+them as local evidence for optimization decisions, not as portable performance
+guarantees.
 
 ### Performance Instrumentation Benchmarks
 

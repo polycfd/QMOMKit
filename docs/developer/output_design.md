@@ -63,9 +63,9 @@ multidimensional `RawMomentTensor` compatibility output, advanced lean
 
 `QuadratureWriter` writes quadrature histories. Construction opens exactly one
 text file and writes one header row. For one-dimensional `Quadrature1D` or
-`QmomResult` output, each `write(...)` call appends one fixed-width time row.
-For multidimensional `CqmomQuadrature` output, each `write(...)` call appends
-one row per active terminal node.
+`QmomResult` output, each `write(...)` call appends one row per active QMOM
+node. For multidimensional `CqmomQuadrature` output, each `write(...)` call
+appends one row per active terminal node.
 
 Both writers write to caller-provided paths. The public writer API does not
 choose application-level filenames. Examples may use names such as
@@ -74,9 +74,10 @@ than writer-owned conventions.
 
 Writers validate structural consistency before writing rows. Examples include
 finite time values, finite output values, matching moment counts, matching
-tensor extents, matching QMOM quadrature node counts, matching CQMOM dimension
-counts, and aligned CQMOM terminal weights, paths, and abscissas. Invalid rows
-are reported through exceptions rather than silently truncated or reshaped.
+tensor extents, QMOM active node counts within the configured maximum, matching
+CQMOM dimension counts, and aligned CQMOM terminal weights, paths, and
+abscissas. Invalid rows are reported through exceptions rather than silently
+truncated or reshaped.
 
 ## Moment History Output
 
@@ -141,12 +142,19 @@ does not create a dense `RawMomentTensor`.
 Quadrature history output records quadrature weights and abscissas at explicit
 times supplied by the caller.
 
-For one-dimensional QMOM quadrature, each node is written as a
-weight/abscissa pair in the quadrature node order:
+For one-dimensional QMOM quadrature, each row represents one active node at one
+output time:
 
 ```text
-# time w0 x0 w1 x1 w2 x2
+# time node_index weight x0
 ```
+
+`QuadratureWriter::for_qmom(path, maximum_node_count)` uses
+`maximum_node_count` as the largest active node count the writer will accept.
+Fixed and adaptive QMOM use the same row format. Multiple rows may share the
+same time value, and adaptive QMOM may write a different number of rows at
+different output times. Inactive nodes are not padded or emitted as zero-weight
+physical nodes.
 
 The writer accepts `Quadrature1D` and `QmomResult`. Callers are responsible for
 checking numerical status before writing a result object. Output helpers do not

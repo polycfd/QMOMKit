@@ -101,36 +101,19 @@ namespace
     return cqmom_labels(enumerate_multi_indices(extents));
 }
 
-[[nodiscard]] std::string weight_label(const std::size_t node)
-{
-    return "w" + std::to_string(node);
-}
-
-[[nodiscard]] std::string qmom_abscissa_label(const std::size_t node)
-{
-    return "x" + std::to_string(node);
-}
-
 [[nodiscard]] std::string cqmom_abscissa_label(const std::size_t dimension)
 {
     return "x" + std::to_string(dimension);
 }
 
-[[nodiscard]] std::vector<std::string> qmom_quadrature_labels(const std::size_t node_count)
+[[nodiscard]] std::vector<std::string> qmom_quadrature_labels(const std::size_t maximum_node_count)
 {
-    if (node_count == 0)
+    if (maximum_node_count == 0)
     {
         throw std::invalid_argument("QMOM quadrature output requires at least one node.");
     }
 
-    std::vector<std::string> labels;
-    labels.reserve(2 * node_count);
-    for (std::size_t node = 0; node < node_count; ++node)
-    {
-        labels.push_back(weight_label(node));
-        labels.push_back(qmom_abscissa_label(node));
-    }
-    return labels;
+    return {"node_index", "weight", "x0"};
 }
 
 [[nodiscard]] std::vector<std::string> cqmom_quadrature_labels(const std::size_t dimension_count)
@@ -362,9 +345,9 @@ void MomentWriter::write(const double time, const CqmomQuadrature& quadrature)
     write_aligned_row(time, reconstructed.values);
 }
 
-QuadratureWriter QuadratureWriter::for_qmom(const std::filesystem::path& path, const std::size_t node_count)
+QuadratureWriter QuadratureWriter::for_qmom(const std::filesystem::path& path, const std::size_t maximum_node_count)
 {
-    return QuadratureWriter(path, QuadratureLayout::qmom, 1, node_count, qmom_quadrature_labels(node_count));
+    return QuadratureWriter(path, QuadratureLayout::qmom, 1, maximum_node_count, qmom_quadrature_labels(maximum_node_count));
 }
 
 QuadratureWriter QuadratureWriter::for_cqmom(const std::filesystem::path& path, const std::size_t dimension_count)
@@ -373,8 +356,8 @@ QuadratureWriter QuadratureWriter::for_cqmom(const std::filesystem::path& path, 
 }
 
 QuadratureWriter::QuadratureWriter(const std::filesystem::path& path, const QuadratureLayout layout, const std::size_t dimension_count,
-                                   const std::size_t node_count, std::vector<std::string> labels)
-    : output_(path), layout_(layout), dimension_count_(dimension_count), node_count_(node_count), labels_(std::move(labels))
+                                   const std::size_t maximum_node_count, std::vector<std::string> labels)
+    : output_(path), layout_(layout), dimension_count_(dimension_count), maximum_node_count_(maximum_node_count), labels_(std::move(labels))
 {
     if (!output_)
     {
@@ -434,19 +417,28 @@ void QuadratureWriter::write_qmom_row(const double time, const std::vector<doubl
     {
         throw std::invalid_argument("QMOM quadrature output cannot be written with a CQMOM quadrature writer.");
     }
-    if (weights.size() != node_count_ || abscissas.size() != node_count_)
+    if (weights.empty())
     {
-        throw std::invalid_argument("QMOM quadrature output row does not match the writer node count.");
+        throw std::invalid_argument("QMOM quadrature output requires at least one active node.");
+    }
+    if (weights.size() != abscissas.size())
+    {
+        throw std::invalid_argument("QMOM quadrature output weight and abscissa counts must match.");
+    }
+    if (weights.size() > maximum_node_count_)
+    {
+        throw std::invalid_argument("QMOM quadrature output active node count exceeds the writer maximum.");
     }
 
-    std::vector<double> values;
-    values.reserve(2 * node_count_);
-    for (std::size_t node = 0; node < node_count_; ++node)
+    for (std::size_t node = 0; node < weights.size(); ++node)
     {
+        std::vector<double> values;
+        values.reserve(3);
+        values.push_back(static_cast<double>(node));
         values.push_back(weights[node]);
         values.push_back(abscissas[node]);
+        write_row(time, values);
     }
-    write_row(time, values);
 }
 
 void QuadratureWriter::write(const double time, const Quadrature1D& quadrature)

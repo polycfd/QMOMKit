@@ -111,8 +111,7 @@ private:
  *
  * The writer is application-controlled: construction opens exactly one file,
  * writes a header, and each `write(...)` call appends the full quadrature. QMOM
- * quadrature output uses one fixed-width row per call. CQMOM quadrature output
- * uses one row per active terminal node.
+ * and CQMOM quadrature output use one row per active node.
  */
 class QuadratureWriter
 {
@@ -123,8 +122,8 @@ public:
     QuadratureWriter& operator=(QuadratureWriter&&) noexcept = default;
     ~QuadratureWriter() = default;
 
-    /** Write all one-dimensional nodes as w0 x0 w1 x1 ... */
-    [[nodiscard]] static QuadratureWriter for_qmom(const std::filesystem::path& path, std::size_t node_count);
+    /** Write one-dimensional nodes with at most `maximum_node_count` active nodes. */
+    [[nodiscard]] static QuadratureWriter for_qmom(const std::filesystem::path& path, std::size_t maximum_node_count);
 
     /** Write terminal multidimensional nodes as one row per active terminal node. */
     [[nodiscard]] static QuadratureWriter for_cqmom(const std::filesystem::path& path, std::size_t dimension_count);
@@ -145,7 +144,7 @@ private:
         cqmom
     };
 
-    QuadratureWriter(const std::filesystem::path& path, QuadratureLayout layout, std::size_t dimension_count, std::size_t node_count,
+    QuadratureWriter(const std::filesystem::path& path, QuadratureLayout layout, std::size_t dimension_count, std::size_t maximum_node_count,
                      std::vector<std::string> labels);
 
     void write_header();
@@ -155,7 +154,7 @@ private:
     std::ofstream output_;
     QuadratureLayout layout_ = QuadratureLayout::qmom;
     std::size_t dimension_count_ = 1;
-    std::size_t node_count_ = 0;
+    std::size_t maximum_node_count_ = 0;
     std::vector<std::string> labels_;
 };
 

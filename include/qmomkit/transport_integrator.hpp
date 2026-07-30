@@ -156,6 +156,39 @@ struct CqmomTransportResult
 };
 
 /**
+ * Advance an accepted one-dimensional QMOM state through one continuous
+ * phase-space stage.
+ *
+ * The stage advects the accepted quadrature, preserves the active node count,
+ * does not perform QMOM inversion, and returns a canonical state whose full
+ * moment vector is reconstructed from the advanced quadrature. On failure, the
+ * returned state is the unchanged input state.
+ */
+[[nodiscard]] QmomTransportResult advance_qmom_continuous(const QmomState& state, double t, double time_step, const PhaseSpaceVelocity& velocity,
+                                                          const QmomTransportOptions& options = {});
+
+/**
+ * Advance an accepted one-dimensional QMOM state through one discontinuous
+ * moment-source stage.
+ *
+ * The stage advances the full stored moment vector, applies fixed or adaptive
+ * post-source QMOM reconstruction, may reduce the active node count, and may
+ * grow it by at most one node toward `maximum_node_count`. On success it returns
+ * a canonical accepted state; on failure, it returns the unchanged input state.
+ */
+[[nodiscard]] QmomTransportResult advance_qmom_discontinuous(const QmomState& state, std::size_t maximum_node_count, double t, double time_step,
+                                                             const MomentSource& source, const QmomTransportOptions& options = {});
+
+/**
+ * Advance an accepted one-dimensional QMOM state through one discontinuous
+ * source stage using a generic moment source plus an additive phase-space
+ * boundary exchange contribution.
+ */
+[[nodiscard]] QmomTransportResult advance_qmom_discontinuous(const QmomState& state, std::size_t maximum_node_count, double t, double time_step,
+                                                             const MomentSource& source, const MomentBoundaryContribution& boundary,
+                                                             const QmomTransportOptions& options);
+
+/**
  * Advance an accepted one-dimensional QMOM state by one transport macro step.
  *
  * Continuous transport advects quadrature nodes through the phase-space
@@ -189,6 +222,38 @@ struct CqmomTransportResult
 [[nodiscard]] QmomTransportResult advance_transport_qmom(const QmomState& state, std::size_t maximum_node_count, double t, double time_step,
                                                          const PhaseSpaceVelocity& velocity, const MomentSource& source,
                                                          const MomentBoundaryContribution& boundary, const QmomTransportOptions& options);
+
+/**
+ * Advance an accepted CQMOM state through one continuous phase-space stage.
+ *
+ * The stage advects accepted terminal quadrature nodes, preserves terminal
+ * topology and active branch counts, and reconstructs the state moments from
+ * the advanced quadrature without a post-stage CQMOM inversion. On failure, the
+ * returned state is the unchanged input state.
+ */
+[[nodiscard]] CqmomTransportResult advance_cqmom_continuous(const CqmomState& state, double t, double time_step, const PhaseSpaceVelocity& velocity,
+                                                            const CqmomTransportOptions& options = {});
+
+/**
+ * Advance an accepted CQMOM state through one discontinuous moment-source
+ * stage.
+ *
+ * The stage advances the canonical CQMOM transport moment layout, applies the
+ * configured recursive CQMOM reconstruction policy, may reduce active branch
+ * counts, and may grow retained adaptive branches by at most one node toward
+ * the configured hierarchy maximum. On failure, the returned state is the
+ * unchanged input state.
+ */
+[[nodiscard]] CqmomTransportResult advance_cqmom_discontinuous(const CqmomState& state, double t, double time_step, const CqmomMomentSource& source,
+                                                               const CqmomTransportOptions& options = {});
+
+/**
+ * Advance an accepted CQMOM state through one discontinuous source stage using
+ * a CQMOM-native source plus an additive phase-space boundary exchange
+ * contribution.
+ */
+[[nodiscard]] CqmomTransportResult advance_cqmom_discontinuous(const CqmomState& state, double t, double time_step, const CqmomMomentSource& source,
+                                                               const CqmomMomentBoundaryContribution& boundary, const CqmomTransportOptions& options);
 
 /**
  * Advance a CQMOM transport state by one transport macro step.

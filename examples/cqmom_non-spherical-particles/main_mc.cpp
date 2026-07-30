@@ -3,6 +3,7 @@
 #include "particle_model.hpp"
 #include "particles_mc.hpp"
 #include "qmomkit/configuration.hpp"
+#include "qmomkit/cqmom.hpp"
 #include "qmomkit/output.hpp"
 #include "sampling.hpp"
 #include "utilities.hpp"
@@ -34,6 +35,17 @@ int main()
         {
             return 1;
         }
+
+        auto configured = qmomkit::config::load_cqmom(configuration_file);
+        if (!configured)
+        {
+            cqmom_non_spherical_particles::print_configuration_errors(configured.error());
+            return 1;
+        }
+        const qmomkit::CqmomCase configured_case = std::move(configured).value();
+        const qmomkit::CqmomMomentLayout terminal_moment_layout = qmomkit::create_cqmom_moment_layout(configured_case.hierarchy());
+        const std::vector<qmomkit::MultiIndex> terminal_moment_indices =
+            cqmom_non_spherical_particles::select_terminal_moment_indices(terminal_moment_layout.required_indices);
 
         auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(*configuration_text, configuration_file.string());
         if (!initial_condition)
@@ -130,8 +142,9 @@ int main()
             final_moments = cqmom_non_spherical_particles::compute_ensemble_moments(ensemble, particle_weight, moment_extents);
         }
         cqmom_non_spherical_particles::print_monte_carlo_result_summary(
-            initial_moments, final_moments, output_options.directory, ensemble.size(), cqmom_non_spherical_particles::initialization_sample_count,
-            cqmom_non_spherical_particles::initialization_seed, time_step, final_time, output_options.write_moments);
+            initial_moments, final_moments, terminal_moment_indices, output_options.directory, ensemble.size(),
+            cqmom_non_spherical_particles::initialization_sample_count, cqmom_non_spherical_particles::initialization_seed, time_step, final_time,
+            output_options.write_moments);
     }
     catch (const std::exception& error)
     {

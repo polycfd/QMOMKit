@@ -122,6 +122,9 @@ int main()
         qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices};
+        const std::vector<qmomkit::MultiIndex> terminal_moment_indices =
+            cqmom_non_spherical_particles::select_terminal_moment_indices(moment_output_layout.required_indices);
+        const qmomkit::RawMomentRequest terminal_moment_request{terminal_moment_indices};
 
         qmomkit::CqmomTransportOptions transport_options = std::move(transport_configured).value();
         std::cout << qmomkit::format_cqmom_settings(cqmom_case.moment_storage(), cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(),
@@ -206,13 +209,13 @@ int main()
                 quadrature_history_writer.write(history_time, history_quadrature);
             }
         }
-        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(cqmom.quadrature, moment_output_request);
+        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(cqmom.quadrature, terminal_moment_request);
         if (!initial_moments.ok())
         {
             std::cerr << "Initial CQMOM moment reconstruction failed: " << initial_moments.message << '\n';
             return 1;
         }
-        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(quadrature, moment_output_request);
+        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(quadrature, terminal_moment_request);
         if (!final_moments.ok())
         {
             std::cerr << "Final CQMOM moment reconstruction failed: " << final_moments.message << '\n';

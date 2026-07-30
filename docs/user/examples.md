@@ -54,7 +54,7 @@ explained in `transport.md`.
 
 3. `qmom_1d_minimal`
 
-   This is the smallest complete QMOM transport loop using
+   This is the smallest complete QMOM transport loop using `QmomState` and
    `advance_transport_qmom(...)` with user-supplied velocity and source
    callbacks.
 
@@ -164,7 +164,7 @@ through continuous node motion and moment source terms.
 
 ### `qmom_1d_minimal`
 
-Purpose: advance one-dimensional raw moments through the high-level
+Purpose: advance one-dimensional accepted QMOM state through the high-level
 `advance_transport_qmom(...)` helper.
 
 Use this example when you want the smallest complete QMOM transport loop with

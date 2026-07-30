@@ -58,7 +58,7 @@ dM_k/dt = lambda * (2^(1-k) - 1) * M_k
 QMOMKit advances those moments with
 `qmomkit::advance_moments_with_source(...)`.
 
-The time loop in `main.cpp` uses explicit Strang splitting:
+The time loop in `main.cpp` uses Strang splitting:
 
 ```text
 Continuous half-step
@@ -94,7 +94,7 @@ concentrated in the QMOM approximation.
 ## Run the example
 
 This example covers initialization, continuous phase-space evolution, a
-discontinuous fragmentation source, and explicit Strang splitting. It is one
+discontinuous fragmentation source, and Strang splitting. It is one
 illustrative callback combination, not a requirement that every transport
 workflow include both continuous and source physics.
 

@@ -28,8 +28,8 @@ The library provides transport utilities. Users provide physical models:
 
 QMOMKit does not own meshes, cells, finite-volume or finite-element operators,
 boundary conditions, MPI communication, particle models, or application
-physics. Transport operates on raw moments, quadrature nodes, and callback
-interfaces only.
+physics. Transport operates on accepted QMOM/CQMOM state, quadrature nodes, raw
+moments, and callback interfaces only.
 
 The callback categories are independent runtime inputs. A workflow may use
 only continuous phase-space motion, only moment-space source evolution, source
@@ -37,7 +37,7 @@ plus boundary exchange, velocity plus source, or all three categories. Case and
 State objects store numerical configuration and evolving moment data; they do
 not store physical models or callback objects.
 
-The production transport composition is hybrid moment transport: continuous
+The production transport composition has two numerical stages: continuous
 motion is represented by advancing quadrature nodes, while discontinuous or
 source-like effects are represented by advancing raw moments. Direct moment
 transport is not part of the supported QMOMKit transport design.
@@ -249,16 +249,16 @@ adaptive topology cannot be reconstructed. Later state inversions validate
 supplied active-count metadata strictly: there must be exactly one reachable
 entry per active branch, configured node-count metadata must match the hierarchy,
 active counts must be within configured capacity, and stale or unreachable
-descendant entries are rejected. During a source-stage inversion with preserved
-active counts, if an ancestor branch changes active count, descendant limits
-below the new branch are invalidated top-down and recomputed from configured
-capacity so numeric path reuse does not apply stale branch limits after a
-collapse or merge. Diagnostics report only true node-count transitions and
-distinguish reduced, grown, created, and removed branch records.
+descendant entries are rejected. During a source-stage inversion, if an ancestor
+branch changes active count, descendant limits below the new branch are
+invalidated top-down and recomputed from configured capacity so numeric path
+reuse does not apply stale branch limits after a collapse, merge, or growth.
+Diagnostics report only true node-count transitions and distinguish reduced,
+grown, created, and removed branch records.
 
 `CqmomTransportOptions` owns transport-stage policies: node-advection/RK23
-controls, moment-source SSP-RK3 controls, source-stage node-count evolution, and
-transport sequencing. Conditional moment controls, QMOM/Wheeler controls,
+controls, moment-source SSP-RK3 controls, and transport sequencing. Conditional
+moment controls, standalone QMOM controls, CQMOM Wheeler controls,
 adaptive branch-count enablement, CQMOM diagnostic level, and Vandermonde solver
 selection are case-owned policies stored in `CqmomState`. Dense-backed and
 lean-backed states must pass these policies through to the same recursive
@@ -272,8 +272,8 @@ Source SSP-RK3 advances raw moment vectors through moment-source updates. It is
 an explicit third-order strong-stability-preserving Runge-Kutta step over a
 generic vector state.
 
-Transport uses this path for the discontinuous or source-like part of hybrid
-transport because that part acts directly on moments:
+Transport uses this path for the discontinuous or source-like stage because
+that stage acts directly on moments:
 
 ```text
 m_new = SSP-RK3(m_old, source)
@@ -458,22 +458,29 @@ node-advection step, rejected-step, and RHS-evaluation counts.
 ## Transport Composition
 
 The full transport helpers compose the lower-level operations with a selected
-operator ordering:
+operator-splitting scheme:
 
 ```cpp
 advance_transport_qmom(...)
 advance_transport_cqmom(...)
 ```
 
-Each macro step begins by reconstructing quadrature from the input raw
-moments. The selected transport scheme then composes continuous node motion
-and discontinuous moment-source evolution. If a boundary contribution callback
-is supplied, it is added to the source rate inside the discontinuous source
-step; it does not create another transport stage.
+Each QMOM macro step starts from an accepted `QmomState`; the state's accepted
+quadrature is used directly for continuous node motion, and its canonical raw
+moments are used for discontinuous moment-source evolution. `QmomState` exposes
+read-only accessors so callers cannot mutate moments and quadrature
+independently. It remains copyable and movable for application time loops, but
+direct construction from independent moments and quadrature is intentionally
+unavailable. Post-source QMOM reconstruction selects the next accepted
+quadrature before moments are canonicalized from that quadrature. CQMOM macro
+steps follow the same state-based pattern with `CqmomState`. If a boundary
+contribution callback is supplied, it is added to the source rate inside the
+discontinuous source step; it does not create another transport stage.
 
-### Strang
+### Strang Splitting
 
-`TransportScheme::strang` is the default second-order composition:
+`TransportScheme::strang` is the default second-order Strang splitting
+composition:
 
 ```text
 continuous half-step
@@ -493,7 +500,8 @@ final moments.
 
 ### `cd`
 
-`TransportScheme::cd` applies:
+`TransportScheme::cd` applies first-order continuous-then-discontinuous Lie
+splitting:
 
 ```text
 continuous full-step
@@ -502,11 +510,10 @@ source full-step
 post-source inversion
 ```
 
-This is a first-order continuous-then-discontinuous ordering.
-
 ### `dc`
 
-`TransportScheme::dc` applies:
+`TransportScheme::dc` applies first-order discontinuous-then-continuous Lie
+splitting:
 
 ```text
 source full-step
@@ -515,11 +522,9 @@ continuous full-step
 final moment reconstruction
 ```
 
-This is a first-order discontinuous-then-continuous ordering.
-
 The `cd` and `dc` schemes are useful for comparisons, diagnostics, or
-applications that deliberately want a fixed first-order operator order. They
-do not replace the default Strang composition.
+applications that deliberately want a fixed first-order splitting order. They
+do not replace the default Strang splitting composition.
 
 ### Extending Transport Schemes
 
@@ -567,7 +572,7 @@ Transport diagnostics record:
 
 - selected scheme;
 - failed stage;
-- initial and post-source QMOM/CQMOM inversion statuses;
+- post-source QMOM inversion status and initial/post-source CQMOM inversion statuses;
 - CQMOM diagnostics when available;
 - first and second continuous node-advection statuses;
 - node-advection step, rejected-step, and RHS-evaluation totals;
@@ -594,25 +599,23 @@ a successful source update, QMOM or CQMOM inversion is attempted again; if the
 updated raw moments are not invertible under the configured reconstruction
 options, transport reports an inversion failure.
 
-Adaptive CQMOM source stages have an explicit branch-count evolution policy:
-
-- `preserve_active_counts`: post-source inversion uses the current
-  branch-specific active counts as the branch-local capacity. Adaptive Wheeler
-  may reduce a branch further, but it does not reconsider a one-node branch as
-  a two-node branch merely because the hierarchy capacity is two. Use this for
-  zero/no-op sources, continuous-only physical evolution composed through the
-  hybrid helper, and source models known not to increase quadrature rank.
-- `allow_growth_to_configured_maximum`: post-source inversion may use the
-  hierarchy's configured maximum counts and may grow active branches when the
-  source-updated moments support additional nodes. This is the default because
-  it preserves the existing general-source semantics for binary breakage and
-  other discontinuous source terms that may create additional structure.
+Adaptive CQMOM uses one context-dependent active-count policy. Initial
+reconstruction starts each branch from its configured maximum and lets adaptive
+Wheeler determine the active count. Continuous transport reconstructs each
+existing branch with its current active count as the ceiling, so counts may
+remain or decrease but cannot grow. After an accepted discontinuous source
+update, post-source inversion first reconstructs at the current active count; a
+reduction is accepted immediately. If the current count is retained and the
+configured maximum is larger, the branch tries exactly `Nactive + 1`, and growth
+is accepted only when Wheeler returns that requested count. Branches created by
+an invalidated parent topology start from configured maximum counts and adapt
+downward.
 
 After every successful inversion during CQMOM transport through `CqmomState`,
 the returned state is refreshed with the active counts extracted from the
 returned quadrature. Structured transport diagnostics record branch path,
-configured maximum count, active count before and after the stage, selected
-evolution policy, and whether a rank reduction or growth occurred.
+configured maximum count, active count before and after the stage, and whether
+a rank reduction or growth occurred.
 
 Node advection preserves weights and moves an already accepted quadrature.
 The moment reconstruction after node advection is a deterministic summation
@@ -633,8 +636,8 @@ The main transport helpers are:
 
 ```cpp
 QmomTransportResult advance_transport_qmom(
-    const std::vector<double>& moments,
-    std::size_t node_count,
+    const QmomState& state,
+    std::size_t maximum_node_count,
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,
@@ -642,8 +645,8 @@ QmomTransportResult advance_transport_qmom(
     const QmomTransportOptions& options = {});
 
 QmomTransportResult advance_transport_qmom(
-    const std::vector<double>& moments,
-    std::size_t node_count,
+    const QmomState& state,
+    std::size_t maximum_node_count,
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,
@@ -747,8 +750,8 @@ for projects that use QMOMKit.
 ## Validation Expectations
 
 Transport changes should be validated through analytical or manufactured
-cases that exercise the relevant representation path. For complete hybrid
-transport this is:
+cases that exercise the relevant representation path. For a complete transport
+macro step this is:
 
 ```text
 moments
@@ -770,6 +773,6 @@ Existing verification covers:
 - reconstruction error and zeroth-moment checks;
 - diagnostics for successful transport runs.
 
-Changes to operator ordering, status mapping, callback validation,
+Changes to splitting order, status mapping, callback validation,
 realizability hooks, or diagnostic fields are transport-design changes and
 require matching verification coverage.

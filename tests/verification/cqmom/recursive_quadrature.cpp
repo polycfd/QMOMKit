@@ -17,6 +17,15 @@ void assert_vector_equal(const std::vector<std::size_t>& actual, const std::vect
     QMOMKIT_VERIFY_CHECK(actual == expected);
 }
 
+void assert_terminal_paths_equal(const qmomkit::internal::RecursiveQuadrature& quadrature, const std::vector<qmomkit::ConditioningPath>& expected)
+{
+    QMOMKIT_VERIFY_CHECK(quadrature.terminal_paths().size() == expected.size());
+    for (std::size_t path = 0; path < expected.size(); ++path)
+    {
+        QMOMKIT_VERIFY_CHECK(quadrature.terminal_paths()[path] == expected[path]);
+    }
+}
+
 void assert_vector_near(const std::vector<double>& actual, const std::vector<double>& expected)
 {
     QMOMKIT_VERIFY_CHECK(actual.size() == expected.size());
@@ -71,6 +80,18 @@ std::vector<double> raw_moments_from_terminal_quadrature(const std::vector<std::
             value += contribution;
         }
         moments[flat_moment] = value;
+    }
+    return moments;
+}
+
+std::vector<double> product_moments_from_1d_sequences(const std::vector<double>& x_moments, const std::vector<double>& y_moments,
+                                                      const std::vector<std::size_t>& extents)
+{
+    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat_moment = 0; flat_moment < moments.size(); ++flat_moment)
+    {
+        const qmomkit::MultiIndex moment_index = qmomkit::unflatten_multi_index(flat_moment, extents);
+        moments[flat_moment] = x_moments.at(moment_index[0]) * y_moments.at(moment_index[1]);
     }
     return moments;
 }
@@ -462,6 +483,53 @@ void test_recursive_adaptive_non_identity_conditioning_order()
     QMOMKIT_VERIFY_CHECK(saw_reduced_branch);
 }
 
+void test_recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders()
+{
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> size_moments{1.0, 0.0, 1.0, 0.0};
+    const std::vector<double> collapsing_velocity_moments{1.0, 0.0, -1.0, 0.0};
+    const std::vector<double> moments = product_moments_from_1d_sequences(size_moments, collapsing_velocity_moments, extents);
+    const qmomkit::WheelerOptions wheeler_options{true, 1.0e-10, 1.0e-10, 1.0e-12};
+
+    // With order [0,1], the same physical velocity dimension is conditional.
+    // Each size root keeps one velocity child after the negative-variance retry.
+    const qmomkit::internal::RecursiveQuadratureResult conditional = qmomkit::internal::compute_recursive_quadrature(
+        {qmomkit::PhaseSpaceHierarchy({2, 2}, {0, 1}), {extents, moments}, {}, wheeler_options, true});
+    QMOMKIT_VERIFY_CHECK(conditional.ok());
+    QMOMKIT_VERIFY_CHECK(conditional.quadrature.total_nodes() == 2);
+    assert_ragged_tree_consistent(conditional.quadrature);
+    assert_terminal_paths_equal(conditional.quadrature, {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({1, 0})});
+
+    std::size_t conditional_reduced_branches = 0;
+    for (const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostics : conditional.diagnostics)
+    {
+        if (diagnostics.conditioning_level == 1 && diagnostics.phase_space_dimension == 1)
+        {
+            QMOMKIT_VERIFY_CHECK(diagnostics.requested_node_count == 2);
+            QMOMKIT_VERIFY_CHECK(diagnostics.actual_node_count == 1);
+            QMOMKIT_VERIFY_CHECK(diagnostics.adaptive_node_count_reduced);
+            ++conditional_reduced_branches;
+        }
+    }
+    QMOMKIT_VERIFY_CHECK(conditional_reduced_branches == 2);
+
+    // With order [1,0], the velocity dimension is marginal. The root velocity
+    // quadrature reduces to one node, and that root retains two size children.
+    const qmomkit::internal::RecursiveQuadratureResult marginal = qmomkit::internal::compute_recursive_quadrature(
+        {qmomkit::PhaseSpaceHierarchy({2, 2}, {1, 0}), {extents, moments}, {}, wheeler_options, true});
+    QMOMKIT_VERIFY_CHECK(marginal.ok());
+    QMOMKIT_VERIFY_CHECK(marginal.quadrature.total_nodes() == 2);
+    assert_ragged_tree_consistent(marginal.quadrature);
+    assert_terminal_paths_equal(marginal.quadrature, {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 1})});
+    QMOMKIT_VERIFY_CHECK(!marginal.diagnostics.empty());
+    QMOMKIT_VERIFY_CHECK(marginal.diagnostics.front().conditioning_level == 0);
+    QMOMKIT_VERIFY_CHECK(marginal.diagnostics.front().path.empty());
+    QMOMKIT_VERIFY_CHECK(marginal.diagnostics.front().phase_space_dimension == 1);
+    QMOMKIT_VERIFY_CHECK(marginal.diagnostics.front().requested_node_count == 2);
+    QMOMKIT_VERIFY_CHECK(marginal.diagnostics.front().actual_node_count == 1);
+    QMOMKIT_VERIFY_CHECK(marginal.diagnostics.front().adaptive_node_count_reduced);
+}
+
 } // namespace
 
 int main()
@@ -474,6 +542,7 @@ int main()
     test_recursive_adaptive_2d_branch_specific_reduction();
     test_recursive_adaptive_3d_branch_specific_reduction();
     test_recursive_adaptive_non_identity_conditioning_order();
+    test_recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders();
 
     return 0;
 }

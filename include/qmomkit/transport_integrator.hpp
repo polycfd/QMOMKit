@@ -15,11 +15,11 @@ namespace qmomkit
 {
 
 /**
- * Operator ordering for one transport macro step.
+ * Operator-splitting scheme for one transport macro step.
  *
- * `strang`: continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2)
- * `cd`: continuous(dt) -> discontinuous(dt)
- * `dc`: discontinuous(dt) -> continuous(dt)
+ * `strang`: Strang splitting, continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2)
+ * `cd`: continuous-then-discontinuous Lie splitting, continuous(dt) -> discontinuous(dt)
+ * `dc`: discontinuous-then-continuous Lie splitting, discontinuous(dt) -> continuous(dt)
  *
  * Continuous transport advects quadrature nodes through phase-space velocity.
  * Discontinuous transport advances raw moments through MomentSource plus any
@@ -54,12 +54,6 @@ enum class TransportStatus
     source_failed
 };
 
-enum class CqmomNodeCountEvolution
-{
-    preserve_active_counts,
-    allow_growth_to_configured_maximum
-};
-
 enum class CqmomNodeCountTransitionKind
 {
     reduced,
@@ -84,7 +78,6 @@ struct CqmomNodeCountTransition
     std::size_t configured_maximum_node_count = 0;
     std::optional<std::size_t> active_node_count_before;
     std::optional<std::size_t> active_node_count_after;
-    CqmomNodeCountEvolution node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     CqmomNodeCountTransitionKind kind = CqmomNodeCountTransitionKind::grew;
     bool rank_reduced = false;
     bool rank_grew = false;
@@ -97,7 +90,6 @@ struct TransportDiagnostics
     CqmomMomentStorage cqmom_moment_storage = CqmomMomentStorage::lean;
     CqmomDiagnosticLevel cqmom_diagnostic_level = CqmomDiagnosticLevel::detailed;
     VandermondeSolver cqmom_vandermonde_solver = VandermondeSolver::automatic;
-    QmomStatus initial_qmom_status = QmomStatus::success;
     QmomStatus post_source_qmom_status = QmomStatus::success;
     CqmomStatus initial_cqmom_status = CqmomStatus::success;
     CqmomStatus post_source_cqmom_status = CqmomStatus::success;
@@ -131,16 +123,12 @@ struct CqmomTransportOptions
 {
     NodeAdvectionOptions node_options;
     MomentSourceUpdateOptions source_options;
-    /** Source-stage rank policy. General sources default to allowing growth;
-     * zero/no-op sources should select `preserve_active_counts`. */
-    CqmomNodeCountEvolution source_node_count_evolution = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     TransportScheme scheme = TransportScheme::strang;
 };
 
 struct QmomTransportResult
 {
-    std::vector<double> moments;
-    QmomResult quadrature;
+    QmomState state;
     TransportStatus status = TransportStatus::success;
     TransportDiagnostics diagnostics;
     double final_time = 0.0;
@@ -168,55 +156,61 @@ struct CqmomTransportResult
 };
 
 /**
- * Advance one-dimensional raw moments by one hybrid transport macro step.
+ * Advance an accepted one-dimensional QMOM state by one transport macro step.
  *
  * Continuous transport advects quadrature nodes through the phase-space
  * velocity field, then reconstructs raw moments. Discontinuous transport
  * advances raw moments through MomentSource plus any additive boundary
  * contribution supplied by a boundary-aware overload.
  *
- * TransportScheme::strang applies
+ * TransportScheme::strang applies second-order Strang splitting:
  * continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2).
- * TransportScheme::cd applies continuous(dt) -> discontinuous(dt).
- * TransportScheme::dc applies discontinuous(dt) -> continuous(dt). In
- * first-order schemes, diagnostic "half-step" stage names refer to the
+ * TransportScheme::cd applies first-order continuous-then-discontinuous Lie
+ * splitting: continuous(dt) -> discontinuous(dt). TransportScheme::dc applies
+ * first-order discontinuous-then-continuous Lie splitting:
+ * discontinuous(dt) -> continuous(dt). In first-order schemes, diagnostic
+ * "half-step" stage names refer to the
  * first/only continuous substep for backward compatibility.
+ *
+ * `maximum_node_count` is the configured fixed-count size or adaptive ceiling.
+ * In adaptive mode the accepted state's quadrature size is the active count.
  */
-[[nodiscard]] QmomTransportResult advance_transport_qmom(const std::vector<double>& moments, std::size_t node_count, double t, double time_step,
+[[nodiscard]] QmomTransportResult advance_transport_qmom(const QmomState& state, std::size_t maximum_node_count, double t, double time_step,
                                                          const PhaseSpaceVelocity& velocity, const MomentSource& source,
                                                          const QmomTransportOptions& options = {});
 
 /**
- * Advance one-dimensional raw moments by one hybrid transport macro step using
- * a generic moment source plus an additive phase-space boundary exchange
+ * Advance an accepted one-dimensional QMOM state using a generic moment source
+ * plus an additive phase-space boundary exchange
  * contribution. The source and boundary rates are combined in the
  * discontinuous moment update; boundary exchange does not add a separate
- * transport stage or alter the selected TransportScheme ordering.
+ * transport stage or alter the selected operator-splitting scheme.
  */
-[[nodiscard]] QmomTransportResult advance_transport_qmom(const std::vector<double>& moments, std::size_t node_count, double t, double time_step,
+[[nodiscard]] QmomTransportResult advance_transport_qmom(const QmomState& state, std::size_t maximum_node_count, double t, double time_step,
                                                          const PhaseSpaceVelocity& velocity, const MomentSource& source,
                                                          const MomentBoundaryContribution& boundary, const QmomTransportOptions& options);
 
 /**
- * Advance a CQMOM transport state by one Hybrid Transport macro step.
+ * Advance a CQMOM transport state by one transport macro step.
  *
  * Reconstruction policies are taken from the state. The options configure only
  * transport-time controls such as node advection, source integration, and
- * operator-splitting scheme. Continuous transport advects CQMOM quadrature
+ * the operator-splitting scheme. Continuous transport advects CQMOM quadrature
  * nodes and reconstructs state moments; discontinuous transport advances
  * moments through CqmomMomentSource plus any boundary contribution supplied by
  * a boundary-aware overload.
  *
- * TransportScheme::strang applies
+ * TransportScheme::strang applies second-order Strang splitting:
  * continuous(dt/2) -> discontinuous(dt) -> continuous(dt/2).
- * TransportScheme::cd applies continuous(dt) -> discontinuous(dt).
- * TransportScheme::dc applies discontinuous(dt) -> continuous(dt).
+ * TransportScheme::cd applies first-order continuous-then-discontinuous Lie
+ * splitting: continuous(dt) -> discontinuous(dt). TransportScheme::dc applies
+ * first-order discontinuous-then-continuous Lie splitting:
+ * discontinuous(dt) -> continuous(dt).
  *
  * In adaptive branch-count mode, `CqmomState` carries current branch-specific
  * active counts separately from the hierarchy's configured maximum counts.
- * Source stages use `CqmomTransportOptions::source_node_count_evolution` to
- * decide whether post-source inversion preserves the current active counts or
- * may grow branches back to the configured maximum.
+ * Continuous stages preserve the active topology, while accepted source stages
+ * may grow active branches one node at a time toward the configured maximum.
  */
 [[nodiscard]] CqmomTransportResult advance_transport_cqmom(const CqmomState& state, double t, double time_step, const PhaseSpaceVelocity& velocity,
                                                            const CqmomMomentSource& source, const CqmomTransportOptions& options = {});

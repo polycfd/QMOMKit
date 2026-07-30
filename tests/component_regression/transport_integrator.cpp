@@ -80,15 +80,21 @@ qmomkit::NodeAdvectionOptions tight_node_options()
     return options;
 }
 
+qmomkit::QmomState qmom_state_from_moments(const std::vector<double>& moments, const std::size_t node_count, const qmomkit::QmomOptions& options = {})
+{
+    return qmomkit::QmomCase{qmomkit::MomentSet(moments), node_count, options}.initial_state();
+}
+
 void test_zero_continuous_and_zero_source_preserve_qmom()
 {
     const std::vector<double> moments = raw_moments_1d({-1.0, 2.0}, {0.25, 0.75}, 4);
+    const qmomkit::QmomState state = qmom_state_from_moments(moments, 2);
     const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(
-        moments, 2, 0.0, 0.4, [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); },
+        state, 2, 0.0, 0.4, [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); },
         [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); });
 
     QMOMKIT_VERIFY_CHECK(result.ok());
-    assert_vector_near(result.moments, moments, 1.0e-12);
+    assert_vector_near(result.state.moments(), moments, 1.0e-12);
     QMOMKIT_VERIFY_CHECK(result.diagnostics.failed_stage == qmomkit::TransportStage::none);
     QMOMKIT_VERIFY_CHECK(result.diagnostics.first_reconstruction_diagnostics.success);
     QMOMKIT_VERIFY_CHECK(result.diagnostics.final_reconstruction_diagnostics.success);
@@ -115,7 +121,8 @@ void test_combined_continuous_and_source_qmom_analytical()
         return rhs;
     };
 
-    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(moments, 1, 0.0, dt, velocity, source);
+    const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
+    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 1, 0.0, dt, velocity, source);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     const double initial_weight = moments[0];
@@ -124,8 +131,8 @@ void test_combined_continuous_and_source_qmom_analytical()
         1.0 + source_rate * dt + 0.5 * source_rate * source_rate * dt * dt + source_rate * source_rate * source_rate * dt * dt * dt / 6.0;
     const double final_weight = source_factor * initial_weight;
     const double final_x = initial_x + shift_rate * dt;
-    assert_near(result.moments[0], final_weight, 1.0e-13);
-    assert_near(result.moments[1], final_weight * final_x, 1.0e-13);
+    assert_near(result.state.moments()[0], final_weight, 1.0e-13);
+    assert_near(result.state.moments()[1], final_weight * final_x, 1.0e-13);
 }
 
 void test_cqmom_case_preserves_phase_space_ordering()

@@ -782,6 +782,27 @@ void test_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts()
     assert(adaptive.quadrature.adaptive_branch_counts_enabled());
     assert(!adaptive.quadrature.has_rectangular_storage());
     assert(adaptive.quadrature.total_nodes() == weights.size());
+
+    const std::vector<double> branch_specific_moments =
+        raw_moments_from_terminal_quadrature({{-1.0, 1.0, 1.0}, {0.0, -0.5, 0.5}}, {0.2, 0.3, 0.5}, extents);
+    const qmomkit::internal::RecursiveQuadratureResult implicit_conditional_adaptive =
+        qmomkit::internal::compute_recursive_quadrature({hierarchy, {extents, branch_specific_moments}, {}, {}, true});
+    assert(implicit_conditional_adaptive.ok());
+    assert(implicit_conditional_adaptive.quadrature.total_nodes() == 3);
+
+    const std::vector<double> marginal_collapsed_moments = raw_moments_from_terminal_quadrature({{0.0, 0.0}, {-1.0, 1.0}}, {0.5, 0.5}, extents);
+    const qmomkit::internal::RecursiveQuadratureResult implicit_marginal_adaptive =
+        qmomkit::internal::compute_recursive_quadrature({hierarchy, {extents, marginal_collapsed_moments}, {}, {}, true});
+    assert(implicit_marginal_adaptive.ok());
+    assert(implicit_marginal_adaptive.quadrature.total_nodes() == 2);
+
+    const qmomkit::PhaseSpaceHierarchy swapped_hierarchy({2, 2}, {1, 0});
+    const std::vector<double> swapped_branch_moments =
+        raw_moments_from_terminal_quadrature({{-1.0, 1.0, 1.0}, {-1.0, -1.0, 1.0}}, {0.2, 0.3, 0.5}, extents);
+    const qmomkit::internal::RecursiveQuadratureResult swapped =
+        qmomkit::internal::compute_recursive_quadrature({swapped_hierarchy, {extents, swapped_branch_moments}, {}, {}, true});
+    assert(swapped.ok());
+    assert(swapped.quadrature.total_nodes() == 3);
 }
 
 void test_one_dimensional_hierarchy_reduces_to_stage_1_ordering()

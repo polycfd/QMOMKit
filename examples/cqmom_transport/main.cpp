@@ -80,17 +80,6 @@ int main()
         }
         std::cout << '\n';
         std::cout << qmomkit::format_node_advection_options(transport_options.node_options);
-        std::cout << "CQMOM source node-count evolution: ";
-        switch (transport_options.source_node_count_evolution)
-        {
-        case qmomkit::CqmomNodeCountEvolution::preserve_active_counts:
-            std::cout << "preserve_active_counts";
-            break;
-        case qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum:
-            std::cout << "allow_growth_to_configured_maximum";
-            break;
-        }
-        std::cout << '\n';
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
 

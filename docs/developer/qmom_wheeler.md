@@ -144,8 +144,9 @@ succeeded and whether the returned node count is acceptable for the caller's
 workflow.
 
 Adaptive Wheeler is a one-dimensional inversion policy. In recursive CQMOM,
-branch-specific adaptive node counts require both adaptive QMOM options and
-the CQMOM adaptive-branch-count policy described in `cqmom_recursive.md`.
+enabling branch-specific adaptive node counts automatically uses adaptive
+Wheeler for each marginal and conditional inversion. Standalone QMOM remains
+independently controlled by its own adaptive option.
 
 ## Numerical Assumptions And Failure Handling
 

@@ -334,8 +334,8 @@ The current instrumentation benchmark categories are:
   independent `CqmomState` objects, and repeatedly advances them through
   `advance_transport_cqmom(...)` with deterministic velocity, source, and
   boundary callbacks. Strang, continuous-discontinuous, and
-  discontinuous-continuous variants make the expected split-operator ordering
-  visible in normalized counters.
+  discontinuous-continuous splitting variants make the expected operator
+  sequence visible in normalized counters.
 - CQMOM reconstruction and Vandermonde policy comparisons: isolate
   `compute_cqmom(...)` for 2D 2 x 2, 2D 4 x 4, and 3D 2 x 2 x 2 fixed-node
   cases with automatic, explicit Björck-Pereyra, explicit dense, and detailed

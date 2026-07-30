@@ -10,6 +10,7 @@
 #include <iostream>
 #include <limits>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -161,6 +162,11 @@ struct QmomStepRun
     bool diagnostics_successful = true;
     std::size_t retry_count = 0;
 };
+
+qmomkit::QmomState qmom_state_from_moments(const std::vector<double>& moments, const std::size_t node_count, const qmomkit::QmomOptions& options)
+{
+    return qmomkit::QmomCase{qmomkit::MomentSet(moments), node_count, options}.initial_state();
+}
 
 struct CqmomNativeSourceAudit
 {
@@ -327,7 +333,6 @@ qmomkit::TestDenseCqmomTransportOptions cqmom_options(const qmomkit::CqmomDenseC
     options.node_options.rk23_options.absolute_tolerance = 1.0e-14;
     options.node_options.rk23_options.max_step = 0.01;
     options.source_options.ssp_rk3_options.estimate_error = true;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     options.scheme = qmomkit::TransportScheme::strang;
     return options;
 }
@@ -357,7 +362,6 @@ qmomkit::TestLeanCqmomTransportOptions cqmom_lean_options(const qmomkit::CqmomLe
     options.node_options.rk23_options.absolute_tolerance = 1.0e-14;
     options.node_options.rk23_options.max_step = 0.01;
     options.source_options.ssp_rk3_options.estimate_error = true;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
     options.scheme = qmomkit::TransportScheme::strang;
     return options;
 }
@@ -382,9 +386,8 @@ bool diagnostics_are_successful(const qmomkit::TransportDiagnostics& diagnostics
         reconstruction_success = diagnostics.final_reconstruction_diagnostics.success;
         break;
     }
-    return diagnostics.failed_stage == qmomkit::TransportStage::none && diagnostics.initial_qmom_status == qmomkit::QmomStatus::success &&
-           diagnostics.post_source_qmom_status == qmomkit::QmomStatus::success && continuous_success &&
-           diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::success && diagnostics.source_diagnostics.accepted &&
+    return diagnostics.failed_stage == qmomkit::TransportStage::none && diagnostics.post_source_qmom_status == qmomkit::QmomStatus::success &&
+           continuous_success && diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::success && diagnostics.source_diagnostics.accepted &&
            !diagnostics.source_diagnostics.rejected && diagnostics.source_retries == 0 && reconstruction_success;
 }
 
@@ -595,25 +598,29 @@ QmomStepRun run_qmom_steps(const std::vector<double>& initial, const std::size_t
                            const std::size_t steps, const qmomkit::PhaseSpaceVelocity& velocity, const qmomkit::MomentSource& source,
                            const qmomkit::QmomTransportOptions& options)
 {
-    std::vector<double> moments = initial;
+    qmomkit::QmomState state = qmom_state_from_moments(initial, node_count, options.qmom_options);
     double time = t0;
-    qmomkit::QmomTransportResult result;
+    std::optional<qmomkit::QmomTransportResult> result;
     bool diagnostics_successful = true;
     std::size_t retry_count = 0;
+    if (steps == 0)
+    {
+        throw std::invalid_argument("QMOM transport verification requires at least one step.");
+    }
     for (std::size_t step = 0; step < steps; ++step)
     {
-        result = qmomkit::advance_transport_qmom(moments, node_count, time, dt, velocity, source, options);
-        if (!result.ok())
+        result = qmomkit::advance_transport_qmom(state, node_count, time, dt, velocity, source, options);
+        if (!result->ok())
         {
-            retry_count += result.diagnostics.source_retries;
-            return {result, diagnostics_successful, retry_count};
+            retry_count += result->diagnostics.source_retries;
+            return {std::move(*result), diagnostics_successful, retry_count};
         }
-        diagnostics_successful = diagnostics_successful && diagnostics_are_successful(result.diagnostics);
-        retry_count += result.diagnostics.source_retries;
-        moments = result.moments;
-        time = result.final_time;
+        diagnostics_successful = diagnostics_successful && diagnostics_are_successful(result->diagnostics);
+        retry_count += result->diagnostics.source_retries;
+        state = result->state;
+        time = result->final_time;
     }
-    return {result, diagnostics_successful, retry_count};
+    return {std::move(*result), diagnostics_successful, retry_count};
 }
 
 RunSummary validate_qmom_run(VerificationResult& verification, const std::vector<double>& initial, const std::size_t node_count, const double t0,
@@ -647,12 +654,13 @@ RunSummary validate_qmom_run(VerificationResult& verification, const std::vector
         append_failure(verification, "transport final time does not match the requested final time.");
     }
 
-    update_errors(summary.errors, result.moments, exact);
-    summary.error_norm = scaled_infinity_error(result.moments, exact);
-    const qmomkit::Quadrature1D final_quadrature{result.quadrature.abscissas, result.quadrature.weights, qmomkit::QuadratureStatus::success, ""};
+    update_errors(summary.errors, result.state.moments(), exact);
+    summary.error_norm = scaled_infinity_error(result.state.moments(), exact);
+    const qmomkit::Quadrature1D final_quadrature{result.state.quadrature().abscissas, result.state.quadrature().weights,
+                                                 qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> reconstructed = qmomkit::reconstruct_raw_moments(final_quadrature, exact.size());
     update_reconstruction_errors(summary.errors, reconstructed, exact);
-    print_vector_comparison("Final QMOM moments", result.moments, exact);
+    print_vector_comparison("Final QMOM moments", result.state.moments(), exact);
     if (summary.errors.moment_scaled > moment_tolerance)
     {
         summary.success = false;
@@ -774,12 +782,13 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
 
     const qmomkit::QmomCase& qmom_case = configured.value();
     const std::vector<double> initial = qmom_case.moments.values();
+    const qmomkit::QmomState initial_state = qmom_state_from_moments(initial, qmom_case.node_count, qmom_case.options);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     qmomkit::QmomTransportOptions options = qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01, qmomkit::TransportScheme::dc);
 
     constexpr double boundary_dt = 0.04;
     const qmomkit::QmomTransportResult boundary_result = qmomkit::advance_transport_qmom(
-        initial, qmom_case.node_count, 0.0, boundary_dt, zero_velocity, zero_qmom_source, qmom_boundary_injection_removal, options);
+        initial_state, qmom_case.node_count, 0.0, boundary_dt, zero_velocity, zero_qmom_source, qmom_boundary_injection_removal, options);
     RunSummary boundary_summary;
     boundary_summary.scheme = options.scheme;
     boundary_summary.dt = boundary_dt;
@@ -799,13 +808,13 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
     }
     else
     {
-        update_errors(boundary_summary.errors, boundary_result.moments, boundary_exact);
-        const qmomkit::Quadrature1D final_quadrature{boundary_result.quadrature.abscissas, boundary_result.quadrature.weights,
+        update_errors(boundary_summary.errors, boundary_result.state.moments(), boundary_exact);
+        const qmomkit::Quadrature1D final_quadrature{boundary_result.state.quadrature().abscissas, boundary_result.state.quadrature().weights,
                                                      qmomkit::QuadratureStatus::success, ""};
         update_reconstruction_errors(boundary_summary.errors, qmomkit::reconstruct_raw_moments(final_quadrature, boundary_exact.size()),
                                      boundary_exact);
-        boundary_summary.error_norm = scaled_infinity_error(boundary_result.moments, boundary_exact);
-        print_vector_comparison("Final QMOM boundary contribution moments", boundary_result.moments, boundary_exact);
+        boundary_summary.error_norm = scaled_infinity_error(boundary_result.state.moments(), boundary_exact);
+        print_vector_comparison("Final QMOM boundary contribution moments", boundary_result.state.moments(), boundary_exact);
         if (boundary_summary.errors.moment_scaled > 5.0e-11 || boundary_summary.errors.reconstruction_scaled > 5.0e-11)
         {
             boundary_summary.success = false;
@@ -816,7 +825,7 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
 
     constexpr double combined_dt = 0.03;
     const qmomkit::QmomTransportResult combined_result = qmomkit::advance_transport_qmom(
-        initial, qmom_case.node_count, 0.0, combined_dt, zero_velocity, qmom_constant_source, qmom_boundary_injection_removal, options);
+        initial_state, qmom_case.node_count, 0.0, combined_dt, zero_velocity, qmom_constant_source, qmom_boundary_injection_removal, options);
     RunSummary combined_summary;
     combined_summary.scheme = options.scheme;
     combined_summary.dt = combined_dt;
@@ -836,13 +845,13 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
     }
     else
     {
-        update_errors(combined_summary.errors, combined_result.moments, combined_exact);
-        const qmomkit::Quadrature1D final_quadrature{combined_result.quadrature.abscissas, combined_result.quadrature.weights,
+        update_errors(combined_summary.errors, combined_result.state.moments(), combined_exact);
+        const qmomkit::Quadrature1D final_quadrature{combined_result.state.quadrature().abscissas, combined_result.state.quadrature().weights,
                                                      qmomkit::QuadratureStatus::success, ""};
         update_reconstruction_errors(combined_summary.errors, qmomkit::reconstruct_raw_moments(final_quadrature, combined_exact.size()),
                                      combined_exact);
-        combined_summary.error_norm = scaled_infinity_error(combined_result.moments, combined_exact);
-        print_vector_comparison("Final QMOM combined boundary/source moments", combined_result.moments, combined_exact);
+        combined_summary.error_norm = scaled_infinity_error(combined_result.state.moments(), combined_exact);
+        print_vector_comparison("Final QMOM combined boundary/source moments", combined_result.state.moments(), combined_exact);
         if (combined_summary.errors.moment_scaled > 5.0e-11 || combined_summary.errors.reconstruction_scaled > 5.0e-11)
         {
             combined_summary.success = false;
@@ -879,8 +888,8 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
 
     for (const BoundaryFailureCase& failure_case : failure_cases)
     {
-        const qmomkit::QmomTransportResult failure_result = qmomkit::advance_transport_qmom(initial, qmom_case.node_count, 0.0, 0.01, zero_velocity,
-                                                                                            zero_qmom_source, failure_case.boundary, options);
+        const qmomkit::QmomTransportResult failure_result = qmomkit::advance_transport_qmom(
+            initial_state, qmom_case.node_count, 0.0, 0.01, zero_velocity, zero_qmom_source, failure_case.boundary, options);
         RunSummary failure_summary;
         failure_summary.scheme = options.scheme;
         failure_summary.dt = 0.01;
@@ -904,8 +913,8 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
         rate.front() = -100.0;
         return qmomkit::MomentBoundaryRate{rate};
     };
-    const qmomkit::QmomTransportResult nonrealizable_result =
-        qmomkit::advance_transport_qmom(initial, qmom_case.node_count, 0.0, 0.02, zero_velocity, zero_qmom_source, nonrealizable_boundary, options);
+    const qmomkit::QmomTransportResult nonrealizable_result = qmomkit::advance_transport_qmom(
+        initial_state, qmom_case.node_count, 0.0, 0.02, zero_velocity, zero_qmom_source, nonrealizable_boundary, options);
     RunSummary nonrealizable_summary;
     nonrealizable_summary.scheme = options.scheme;
     nonrealizable_summary.dt = 0.02;
@@ -997,7 +1006,8 @@ VerificationResult run_noncommuting_qmom(const std::filesystem::path& configurat
     const QmomStepRun dc_coarse = run_qmom_steps(initial, qmom_case.node_count, t0, refinement_steps.front(),
                                                  static_cast<std::size_t>(std::lround(final_time / refinement_steps.front())), noncommuting_velocity,
                                                  noncommuting_source, dc_options);
-    if (cd_coarse.result.ok() && dc_coarse.result.ok() && scaled_infinity_error(cd_coarse.result.moments, dc_coarse.result.moments) < 1.0e-4)
+    if (cd_coarse.result.ok() && dc_coarse.result.ok() &&
+        scaled_infinity_error(cd_coarse.result.state.moments(), dc_coarse.result.state.moments()) < 1.0e-4)
     {
         append_failure(verification, "noncommuting CD and DC schemes did not differ at finite timestep.");
     }
@@ -1009,8 +1019,8 @@ void verify_qmom_continuous_failure_result(const std::string& case_name, const q
                                            VerificationResult& verification)
 {
     // A velocity callback contract violation should stop in the continuous
-    // node-advection stage. The returned moments/quadrature are diagnostic
-    // state from before the failed substep, not a completed final state.
+    // node-advection stage. The returned state is the accepted state from before
+    // the failed substep, not a completed final state.
     if (result.ok())
     {
         append_failure(verification, case_name + " unexpectedly reported QMOM transport success.");
@@ -1036,7 +1046,7 @@ void verify_qmom_continuous_failure_result(const std::string& case_name, const q
     {
         append_failure(verification, case_name + " advanced final_time despite continuous transport failure.");
     }
-    if (!vectors_equal(result.moments, initial_moments, 0.0))
+    if (!vectors_equal(result.state.moments(), initial_moments, 0.0))
     {
         append_failure(verification, case_name + " returned moments changed by a failed continuous substep.");
     }
@@ -1084,7 +1094,7 @@ void verify_qmom_rk23_minimum_step_failure_result(const qmomkit::QmomTransportRe
     {
         append_failure(verification, "QMOM RK23 minimum-step case advanced time despite rejecting all candidate steps.");
     }
-    if (!vectors_equal(result.moments, initial_moments, 0.0) || result.diagnostics.source_diagnostics.accepted ||
+    if (!vectors_equal(result.state.moments(), initial_moments, 0.0) || result.diagnostics.source_diagnostics.accepted ||
         result.diagnostics.first_reconstruction_diagnostics.success || result.diagnostics.final_reconstruction_diagnostics.success)
     {
         append_failure(verification, "QMOM RK23 minimum-step case reported misleading successful output after failure.");
@@ -1115,7 +1125,7 @@ void verify_qmom_post_source_inversion_failure_result(const qmomkit::QmomTranspo
     {
         append_failure(verification, "QMOM post-source inversion failure did not preserve the successful source-step diagnostics.");
     }
-    if (result.diagnostics.post_source_qmom_status == qmomkit::QmomStatus::success || result.quadrature.ok())
+    if (result.diagnostics.post_source_qmom_status == qmomkit::QmomStatus::success)
     {
         append_failure(verification, "QMOM post-source inversion failure reported a successful post-source quadrature.");
     }
@@ -1134,45 +1144,44 @@ void verify_qmom_post_source_inversion_failure_result(const qmomkit::QmomTranspo
     }
 }
 
-void verify_qmom_initial_inversion_failure_result(const qmomkit::QmomTransportResult& result, const std::vector<double>& input_moments,
-                                                  VerificationResult& verification)
+void verify_qmom_context_invalid_state_failure_result(const qmomkit::QmomTransportResult& result, const qmomkit::QmomState& input_state,
+                                                      const bool source_called, VerificationResult& verification)
 {
-    // This represents a user starting transport from a finite but
-    // non-realizable QMOM moment sequence. Transport should fail before any
-    // velocity or source callback can be used.
+    // QmomState construction owns representation consistency. Transport still
+    // rejects a canonical state that is incompatible with the supplied
+    // fixed-count context before any velocity or source callback is used.
     if (result.ok())
     {
-        append_failure(verification, "QMOM initial inversion failure unexpectedly reported transport success.");
+        append_failure(verification, "QMOM context-invalid state unexpectedly reported transport success.");
     }
-    if (result.status != qmomkit::TransportStatus::inversion_failed)
+    if (result.status != qmomkit::TransportStatus::invalid_input)
     {
-        append_failure(verification, "QMOM initial inversion failure did not report TransportStatus::inversion_failed.");
+        append_failure(verification, "QMOM context-invalid state did not report TransportStatus::invalid_input.");
     }
-    if (result.diagnostics.failed_stage != qmomkit::TransportStage::initial_inversion)
+    if (result.diagnostics.failed_stage != qmomkit::TransportStage::none)
     {
-        append_failure(verification, "QMOM initial inversion failure did not identify initial_inversion as the failed stage.");
+        append_failure(verification, "QMOM context-invalid state did not stop before a transport stage.");
     }
-    if (result.diagnostics.initial_qmom_status == qmomkit::QmomStatus::success)
+    if (result.message.empty() || result.diagnostics.message.empty() || !contains_text(result.message, "configured node count"))
     {
-        append_failure(verification, "QMOM initial inversion failure preserved a successful initial_qmom_status.");
-    }
-    if (result.message.empty() || result.diagnostics.message.empty() ||
-        (!contains_text(result.message, "m0") && !contains_text(result.message, "realizable")))
-    {
-        append_failure(verification, "QMOM initial inversion failure did not provide a meaningful realizability message.");
+        append_failure(verification, "QMOM context-invalid state did not provide a meaningful validation message.");
     }
     if (std::abs(result.final_time) > 1.0e-14)
     {
-        append_failure(verification, "QMOM initial inversion failure advanced final_time.");
+        append_failure(verification, "QMOM context-invalid state advanced final_time.");
     }
-    if (!vectors_equal(result.moments, input_moments, 0.0))
+    if (!vectors_equal(result.state.moments(), input_state.moments(), 0.0))
     {
-        append_failure(verification, "QMOM initial inversion failure changed the input moments.");
+        append_failure(verification, "QMOM context-invalid state failure changed the input moments.");
     }
-    if (result.quadrature.ok() || result.diagnostics.source_diagnostics.accepted || result.diagnostics.first_reconstruction_diagnostics.success ||
+    if (source_called)
+    {
+        append_failure(verification, "QMOM context-invalid state reached the source callback.");
+    }
+    if (result.diagnostics.source_diagnostics.accepted || result.diagnostics.first_reconstruction_diagnostics.success ||
         result.diagnostics.final_reconstruction_diagnostics.success)
     {
-        append_failure(verification, "QMOM initial inversion failure reported later-stage or successful quadrature output.");
+        append_failure(verification, "QMOM context-invalid state failure reported later-stage diagnostics.");
     }
 }
 
@@ -1192,6 +1201,7 @@ VerificationResult run_qmom_transport_failures(const std::filesystem::path& conf
 
     const qmomkit::QmomCase& qmom_case = configured.value();
     const std::vector<double> initial = qmom_case.moments.values();
+    const qmomkit::QmomState initial_state = qmom_state_from_moments(initial, qmom_case.node_count, qmom_case.options);
     const auto options = qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01);
     constexpr double dt = 0.08;
 
@@ -1221,8 +1231,9 @@ VerificationResult run_qmom_transport_failures(const std::filesystem::path& conf
     for (const FailureCase& failure_case : failure_cases)
     {
         const qmomkit::QmomTransportResult result =
-            qmomkit::advance_transport_qmom(initial, qmom_case.node_count, 0.0, dt, failure_case.velocity, zero_qmom_source, options);
-        verify_qmom_continuous_failure_result(failure_case.name, result, initial, failure_case.expected_message_fragment, verification);
+            qmomkit::advance_transport_qmom(initial_state, qmom_case.node_count, 0.0, dt, failure_case.velocity, zero_qmom_source, options);
+        verify_qmom_continuous_failure_result(failure_case.name, result, initial_state.moments(), failure_case.expected_message_fragment,
+                                              verification);
 
         RunSummary summary;
         summary.scheme = options.scheme;
@@ -1233,7 +1244,7 @@ VerificationResult run_qmom_transport_failures(const std::filesystem::path& conf
         summary.success = !result.ok() && result.status == qmomkit::TransportStatus::continuous_failed &&
                           result.diagnostics.failed_stage == qmomkit::TransportStage::first_continuous_half_step &&
                           result.diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::velocity_failed &&
-                          vectors_equal(result.moments, initial, 0.0);
+                          vectors_equal(result.state.moments(), initial_state.moments(), 0.0);
         verification.runs.push_back(summary);
     }
 
@@ -1251,8 +1262,8 @@ VerificationResult run_qmom_transport_failures(const std::filesystem::path& conf
         return std::vector<double>{1000.0 * xi[0]};
     };
     const qmomkit::QmomTransportResult rk_failure =
-        qmomkit::advance_transport_qmom(initial, qmom_case.node_count, 0.0, dt, stiff_velocity, zero_qmom_source, rk_failure_options);
-    verify_qmom_rk23_minimum_step_failure_result(rk_failure, initial, verification);
+        qmomkit::advance_transport_qmom(initial_state, qmom_case.node_count, 0.0, dt, stiff_velocity, zero_qmom_source, rk_failure_options);
+    verify_qmom_rk23_minimum_step_failure_result(rk_failure, initial_state.moments(), verification);
 
     RunSummary rk_summary;
     rk_summary.scheme = rk_failure_options.scheme;
@@ -1280,7 +1291,7 @@ VerificationResult run_qmom_transport_failures(const std::filesystem::path& conf
     };
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const qmomkit::QmomTransportResult post_source_inversion =
-        qmomkit::advance_transport_qmom(initial, qmom_case.node_count, 0.0, dt, zero_velocity, nonrealizable_source, options);
+        qmomkit::advance_transport_qmom(initial_state, qmom_case.node_count, 0.0, dt, zero_velocity, nonrealizable_source, options);
     verify_qmom_post_source_inversion_failure_result(post_source_inversion, 0.5 * dt, verification);
 
     RunSummary reconstruction_summary;
@@ -1298,9 +1309,8 @@ VerificationResult run_qmom_transport_failures(const std::filesystem::path& conf
 
 VerificationResult run_qmom_transport_inversion_failures(const std::filesystem::path& configuration_path)
 {
-    // Initial-inversion failure simulates a user starting transport from an
-    // impossible moment sequence. No callback should run and the result should
-    // preserve the input moments as diagnostic, non-success data.
+    // Construction of an accepted state owns initial inversion. Transport still
+    // validates caller-created states before any callback can run.
     VerificationResult verification;
     const auto configured = qmomkit::config::load_qmom(configuration_path);
     if (!configured.ok())
@@ -1312,9 +1322,33 @@ VerificationResult run_qmom_transport_inversion_failures(const std::filesystem::
 
     const qmomkit::QmomCase& qmom_case = configured.value();
     const std::vector<double> input = qmom_case.moments.values();
-    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(
-        input, qmom_case.node_count, 0.0, 0.08, commuting_velocity, zero_qmom_source, qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01));
-    verify_qmom_initial_inversion_failure_result(result, input, verification);
+    bool initial_state_failed = false;
+    try
+    {
+        (void)qmom_case.initial_state();
+    }
+    catch (const std::exception&)
+    {
+        initial_state_failed = true;
+    }
+    if (!initial_state_failed)
+    {
+        append_failure(verification, "QMOM invalid initial moments unexpectedly produced an accepted state.");
+    }
+
+    bool source_called = false;
+    const qmomkit::MomentSource recording_source = [&source_called](double, const std::vector<double>& moments)
+    {
+        source_called = true;
+        return std::vector<double>(moments.size(), 0.0);
+    };
+    std::vector<double> one_node_moments(input.size(), 0.0);
+    one_node_moments.front() = 1.0;
+    const qmomkit::QmomState invalid_state = qmomkit::QmomCase{qmomkit::MomentSet(one_node_moments), 1}.initial_state();
+    const qmomkit::QmomTransportResult result =
+        qmomkit::advance_transport_qmom(invalid_state, qmom_case.node_count, 0.0, 0.08, commuting_velocity, recording_source,
+                                        qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01));
+    verify_qmom_context_invalid_state_failure_result(result, invalid_state, source_called, verification);
 
     RunSummary summary;
     summary.scheme = qmomkit::TransportScheme::strang;
@@ -1322,9 +1356,8 @@ VerificationResult run_qmom_transport_inversion_failures(const std::filesystem::
     summary.steps = 1;
     summary.final_time = result.final_time;
     summary.retry_count = result.diagnostics.source_retries;
-    summary.success = !result.ok() && result.status == qmomkit::TransportStatus::inversion_failed &&
-                      result.diagnostics.failed_stage == qmomkit::TransportStage::initial_inversion &&
-                      result.diagnostics.initial_qmom_status != qmomkit::QmomStatus::success;
+    summary.success = initial_state_failed && !result.ok() && result.status == qmomkit::TransportStatus::invalid_input &&
+                      result.diagnostics.failed_stage == qmomkit::TransportStage::none && !source_called;
     verification.runs.push_back(summary);
     return verification;
 }
@@ -2547,7 +2580,6 @@ void verify_dense_helper_based_common_cqmom_transport(const qmomkit::CqmomDenseC
     policy_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     policy_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
     qmomkit::TestDenseCqmomTransportOptions options = cqmom_options(policy_case);
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
@@ -2586,7 +2618,6 @@ void verify_lean_helper_based_common_cqmom_transport(const qmomkit::CqmomLeanCas
     policy_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     policy_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
     qmomkit::TestLeanCqmomTransportOptions options = cqmom_lean_options(policy_case);
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     const qmomkit::TestLeanCqmomTransportState state{policy_case.moments};
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };

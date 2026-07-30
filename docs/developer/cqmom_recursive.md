@@ -360,13 +360,14 @@ terminal node.
 
 ## Adaptive Recursive CQMOM
 
-Adaptive recursive CQMOM separates two controls:
+Adaptive recursive CQMOM separates standalone QMOM controls from CQMOM branch
+controls:
 
-- adaptive Wheeler options control whether a branch-local one-dimensional
-  inversion may return fewer nodes than requested;
 - `adaptive_branch_counts` is the CQMOM reconstruction policy that controls
   whether recursive CQMOM accepts branch-local node counts smaller than the
-  configured hierarchy.
+  configured hierarchy;
+- when `adaptive_branch_counts` is enabled, recursive CQMOM automatically uses
+  adaptive Wheeler for every marginal and conditional inversion.
 
 The adaptive branch-count policy is available through the normal
 `CqmomCase`/`CqmomState` workflow and through explicit `CqmomDenseCase` and

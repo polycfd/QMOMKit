@@ -11,8 +11,8 @@ are present in your model. QMOMKit supplies the public routines that advance
 nodes, advance moment sources, reconstruct moments, and compose these pieces
 into a transport step.
 
-This division is useful for hybrid moment models. Smooth effects such as
-growth, drift, acceleration, or relaxation can often be represented by moving
+This division is useful for models with both smooth and source-like moment
+evolution. Smooth effects such as growth, drift, acceleration, or relaxation can often be represented by moving
 quadrature nodes through phase space. Internal or volumetric effects such as
 breakage, aggregation, jumps, or externally computed rates are often more
 naturally represented as raw-moment source terms. Phase-space boundary exchange
@@ -127,8 +127,8 @@ const qmomkit::CqmomNodeAdvectionResult advanced =
     qmomkit::advance_nodes(cqmom_result.quadrature, time, time_step, velocity);
 ```
 
-The full CQMOM transport helper described below keeps the CQMOM state together
-with the reconstruction settings needed for the next step.
+The full QMOM and CQMOM transport helpers described below keep accepted state
+together with the reconstruction settings needed for the next step.
 
 `NodeAdvectionOptions::scheme` selects how node trajectories are integrated:
 
@@ -428,18 +428,20 @@ dc
 ```
 
 `strang` is the default. It applies a continuous half-step, a source full-step,
-and a second continuous half-step. This is the usual choice when both
-continuous node motion and source-like moment evolution matter.
+and a second continuous half-step. This is second-order Strang splitting and is
+the usual choice when both continuous node motion and source-like moment
+evolution matter.
 
 `cd` applies continuous evolution first, then the source update. `dc` applies
-the source update first, then continuous evolution. These first-order schemes
-can be useful for comparisons, simple workflows, or cases where your
-application deliberately wants a fixed operator order.
+the source update first, then continuous evolution. These first-order Lie
+splitting schemes can be useful for comparisons, simple workflows, or cases
+where your application deliberately wants a fixed splitting order.
 
 ## Full Transport Step
 
-Use `advance_transport_qmom(...)` to advance one-dimensional raw moments by one
-transport step:
+Use `QmomCase::initial_state()` to construct an accepted one-dimensional state,
+then use `advance_transport_qmom(...)` to advance that state by one transport
+step:
 
 ```cpp
 #include <qmomkit/qmomkit.hpp>
@@ -469,6 +471,10 @@ int main()
     qmomkit::QmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::strang;
 
+    qmomkit::QmomState state =
+        qmomkit::QmomCase{qmomkit::MomentSet(moments), node_count, options.qmom_options}
+            .initial_state();
+
     double time = 0.0;
     const double final_time = 0.1;
     const double time_step = 0.01;
@@ -478,7 +484,7 @@ int main()
         const double step = std::min(time_step, final_time - time);
         const qmomkit::QmomTransportResult result =
             qmomkit::advance_transport_qmom(
-                moments, node_count, time, step, velocity, source, options);
+                state, node_count, time, step, velocity, source, options);
 
         if (!result.ok())
         {
@@ -486,7 +492,8 @@ int main()
             return 1;
         }
 
-        moments = result.moments;
+        state = result.state;
+        moments = state.moments();
         time = result.final_time;
     }
 }
@@ -515,8 +522,27 @@ const qmomkit::MomentBoundaryContribution boundary =
 
 const qmomkit::QmomTransportResult result =
     qmomkit::advance_transport_qmom(
-        moments, node_count, time, step, velocity, source, boundary, options);
+        state, node_count, time, step, velocity, source, boundary, options);
 ```
+
+`QmomState` exposes read-only `moments()` and `quadrature()` accessors. Its
+stored moments are reconstructed from its accepted quadrature, and
+`QmomState::active_node_count()` is derived from the accepted quadrature size.
+Users may copy and move accepted states for retry or in-process checkpointing,
+but direct construction from independent moments and quadrature is intentionally
+unavailable; no public restart/import factory is currently provided.
+In adaptive QMOM, `node_count` remains the configured maximum. Continuous node
+advection preserves the active count and reconstructs the stored moment vector
+from the advected quadrature without another Wheeler inversion. After an
+accepted source update, transport first reconstructs at the current active count
+and then tries at most one additional node when the configured maximum permits
+it. Fixed-count QMOM remains strict at `node_count`.
+
+The current one-dimensional `QuadratureWriter` writes fixed-width `QmomResult`
+rows. Fixed-count QMOM examples can keep using it directly. Adaptive QMOM
+callers should only write quadrature history when the accepted state still has
+the writer's configured row width, or handle reduced-width output explicitly in
+application code.
 
 For CQMOM, use `advance_transport_cqmom(...)` with the `CqmomState` obtained
 from the loaded CQMOM case:
@@ -586,32 +612,28 @@ Adaptive branch counts configured on the `CqmomCase` are preserved by
 `CqmomState` transport. In adaptive mode, the hierarchy node counts remain the
 maximum branch counts; the state also retains the current branch-specific
 active counts associated with its ragged quadrature. Continuous node advection
-preserves those active counts.
+preserves terminal paths and therefore preserves active counts. Moments are
+reconstructed by summation from the advected quadrature; this stage does not
+grow active branch counts.
 
-Source stages choose whether the active counts can grow. The default
-`CqmomTransportOptions::source_node_count_evolution` is
-`allow_growth_to_configured_maximum`, which is appropriate for general
-sources such as breakage that may create additional structure. For zero/no-op
-sources or source models known not to increase rank, set it to
-`preserve_active_counts` so one-node adaptive branches are not reconsidered as
-larger branches only because the configured maximum is larger.
+At reconstruction boundaries, existing branches use their current active count
+as the ceiling, so active counts may stay the same or decrease but cannot grow.
+After an accepted discontinuous source update, post-source inversion first
+tests the current active count; if that count remains valid and the configured
+maximum is larger, it tries exactly one additional node. Growth is accepted only
+when that trial returns the requested `Nactive + 1` nodes. If a parent topology
+change creates a genuinely new descendant branch, the descendant begins from
+its own configured maximum node count, and adaptive Wheeler determines its
+initial active count.
 
-Configuration-driven drivers can read the same policy from:
-
-```text
-[time_integration.cqmom]
-source_node_count_evolution = preserve_active_counts
-```
-
-The accepted values are `preserve_active_counts` and
-`allow_growth_to_configured_maximum`. Adaptive `CqmomState` construction seeds
-active counts from the initial CQMOM inversion; if that inversion fails, state
-construction fails instead of creating a state with inconsistent adaptive
-metadata. Failed CQMOM transport through `CqmomState` returns the previous state
-metadata so callers can retry from the last accepted step.
+Adaptive `CqmomState` construction seeds active counts from the initial CQMOM
+inversion; if that inversion fails, state construction fails instead of creating
+a state with inconsistent adaptive metadata. Failed CQMOM transport through
+`CqmomState` returns the previous state metadata so callers can retry from the
+last accepted step.
 
 `CqmomTransportOptions` contains only transport-stage policies: node advection,
-source integration, source node-count evolution, and the C/D sequencing scheme.
+source integration, and the C/D sequencing scheme.
 CQMOM inversion policies such as Wheeler options, adaptive branch counts,
 diagnostic level, and Vandermonde solver belong to `CqmomCase` and are preserved
 by `CqmomState`. Successful CQMOM transport through `CqmomState` persists active
@@ -650,7 +672,7 @@ dc
 ```
 
 Node-advection integration is configured separately because it controls the
-continuous trajectory integrator, not the operator-splitting order:
+continuous trajectory integrator, not the operator-splitting scheme:
 
 ```text
 [time_integration.node_advection]

@@ -42,8 +42,10 @@ public:
 [[nodiscard]] const CqmomDenseCase* cqmom_state_dense_case(const CqmomState& state);
 [[nodiscard]] const CqmomLeanCase* cqmom_state_lean_case(const CqmomState& state);
 [[nodiscard]] const std::vector<CqmomActiveBranchCount>& cqmom_state_active_branch_counts(const CqmomState& state);
-[[nodiscard]] CqmomResult compute_trusted_cqmom(const CqmomDenseCase& dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {});
-[[nodiscard]] CqmomResult compute_trusted_cqmom(const CqmomLeanCase& lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {});
+[[nodiscard]] CqmomResult compute_trusted_cqmom(const CqmomDenseCase& dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {},
+                                                bool allow_active_branch_count_growth = false);
+[[nodiscard]] CqmomResult compute_trusted_cqmom(const CqmomLeanCase& lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {},
+                                                bool allow_active_branch_count_growth = false);
 [[nodiscard]] CqmomQuadrature create_cqmom_quadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights,
                                                       std::vector<std::vector<double>> abscissas, bool adaptive_branch_counts_enabled,
                                                       bool rectangular_storage, std::vector<ConditioningPath> terminal_paths);

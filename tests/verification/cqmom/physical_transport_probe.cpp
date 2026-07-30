@@ -1,4 +1,5 @@
 #include "../verification_helpers.hpp"
+#include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "qmomkit/qmomkit.hpp"
 
@@ -127,6 +128,18 @@ standard_deviation = 1.0
     return parsed.value();
 }
 
+std::vector<qmomkit::ConditioningPath> captured_terminal_paths()
+{
+    return {qmomkit::ConditioningPath{{0, 0, 0}}, qmomkit::ConditioningPath{{0, 1, 0}}, qmomkit::ConditioningPath{{1, 0, 0}},
+            qmomkit::ConditioningPath{{1, 1, 0}}};
+}
+
+std::vector<qmomkit::ConditioningPath> captured_terminal_parent_paths()
+{
+    return {qmomkit::ConditioningPath{{0, 0}}, qmomkit::ConditioningPath{{0, 1}}, qmomkit::ConditioningPath{{1, 0}},
+            qmomkit::ConditioningPath{{1, 1}}};
+}
+
 qmomkit::CqmomQuadrature captured_failing_terminal_quadrature()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {0, 1, 2});
@@ -135,9 +148,7 @@ qmomkit::CqmomQuadrature captured_failing_terminal_quadrature()
         {{0.00010988241902807785, 0.00010988241902807785, 0.00014945058007081771, 0.00014945058007081771},
          {0.21441293841351547, 0.41880958133916973, 0.21711664207959502, 0.4193843251358394},
          {-1.1044079065934338, -1.1181660600053236, -1.1559642207840419, -1.1762606826705884}},
-        true, false,
-        {qmomkit::ConditioningPath{{0, 0, 0}}, qmomkit::ConditioningPath{{0, 1, 0}}, qmomkit::ConditioningPath{{1, 0, 0}},
-         qmomkit::ConditioningPath{{1, 1, 0}}});
+        true, false, captured_terminal_paths());
 }
 
 qmomkit::CqmomQuadrature captured_preceding_success_quadrature()
@@ -267,6 +278,20 @@ bool active_count_present(const std::vector<qmomkit::CqmomActiveBranchCount>& co
     return false;
 }
 
+bool has_terminal_u_reduction_diagnostic(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics, const qmomkit::ConditioningPath& path)
+{
+    for (const qmomkit::CqmomDiagnostics& diagnostic : diagnostics)
+    {
+        if (diagnostic.conditioning_level == 2 && diagnostic.phase_space_dimension == 2 && diagnostic.parent_path == path &&
+            diagnostic.requested_node_count == 2 && diagnostic.actual_node_count == 1 && diagnostic.adaptive_node_count_reduced &&
+            diagnostic.qmom_status == qmomkit::QmomStatus::success)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void run_captured_physical_regression()
 {
     const qmomkit::CqmomQuadrature captured = captured_failing_terminal_quadrature();
@@ -281,27 +306,25 @@ void run_captured_physical_regression()
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(lean_case);
     std::cout << "[physical captured fixture] status=" << static_cast<int>(result.status) << " message=\"" << result.message << "\"\n";
-    QMOMKIT_VERIFY_CHECK(result.status == qmomkit::CqmomStatus::qmom_failed);
-    QMOMKIT_VERIFY_CHECK(result.failed_phase_space_dimension == 2);
+    QMOMKIT_VERIFY_CHECK(result.ok());
+    QMOMKIT_VERIFY_CHECK(result.quadrature.total_nodes() == 4);
+    QMOMKIT_VERIFY_CHECK(result.quadrature.terminal_paths() == captured_terminal_paths());
 
-    std::optional<qmomkit::CqmomDiagnostics> failed;
-    for (const qmomkit::CqmomDiagnostics& diagnostic : result.diagnostics)
+    for (const qmomkit::ConditioningPath& path : captured_terminal_parent_paths())
     {
-        if (diagnostic.qmom_status != qmomkit::QmomStatus::success)
-        {
-            failed = diagnostic;
-        }
+        QMOMKIT_VERIFY_CHECK(has_terminal_u_reduction_diagnostic(result.diagnostics, path));
     }
-    QMOMKIT_VERIFY_CHECK(failed.has_value());
-    QMOMKIT_VERIFY_CHECK(failed->conditioning_level == 2);
-    QMOMKIT_VERIFY_CHECK(failed->phase_space_dimension == 2);
+
     const qmomkit::ConditioningPath expected_path{{0, 0}};
-    QMOMKIT_VERIFY_CHECK(failed->parent_path == expected_path);
-    QMOMKIT_VERIFY_CHECK(failed->requested_node_count == 2);
-    QMOMKIT_VERIFY_CHECK(failed->actual_node_count == 1);
+    const std::vector<qmomkit::CqmomActiveBranchCount> reconstructed_active_counts =
+        qmomkit::internal::active_branch_counts_from_quadrature(result.quadrature);
+    for (const qmomkit::ConditioningPath& path : captured_terminal_parent_paths())
+    {
+        QMOMKIT_VERIFY_CHECK(active_count_present(reconstructed_active_counts, path, 1));
+    }
 
     double branch_mass = 0.0;
-    const std::vector<double> direct_moments = direct_branch_moments(captured, failed->parent_path, failed->phase_space_dimension, 4, branch_mass);
+    const std::vector<double> direct_moments = direct_branch_moments(captured, expected_path, 2, 4, branch_mass);
     qmomkit::WheelerOptions wheeler_options;
     wheeler_options.adaptive = true;
     const qmomkit::Quadrature1D direct = qmomkit::compute_quadrature(qmomkit::MomentSet(direct_moments), 2, wheeler_options);
@@ -313,17 +336,19 @@ void run_captured_physical_regression()
 
     const double direct_variance =
         direct_moments[2] / direct_moments[0] - (direct_moments[1] / direct_moments[0]) * (direct_moments[1] / direct_moments[0]);
-    const double long_double_variance = direct_long_double_variance(captured, failed->parent_path, failed->phase_space_dimension);
+    const double long_double_variance = direct_long_double_variance(captured, expected_path, 2);
     const Recurrence2Diagnostic direct_recurrence = recurrence2(direct_moments);
     const double u = direct_moments[1] / direct_moments[0];
     const double ulp = std::nextafter(u, std::numeric_limits<double>::infinity()) - u;
+    QMOMKIT_VERIFY_CHECK(std::abs(direct_variance) <= ulp);
+    QMOMKIT_VERIFY_CHECK(long_double_variance == 0.0);
     std::cout << std::setprecision(17);
     std::cout << "[physical captured branch] mass=" << branch_mass << " direct_m0=" << direct_moments[0] << " direct_m1=" << direct_moments[1]
               << " direct_m2=" << direct_moments[2] << " direct_m3=" << direct_moments[3] << " direct_variance=" << direct_variance
               << " long_double_variance=" << long_double_variance << " ulp=" << ulp << " direct_nodes=" << direct.abscissas.size() << '\n';
     std::cout << "[physical recurrence] direct_sigma22=" << direct_recurrence.sigma22 << " direct_b1=" << direct_recurrence.b1
               << " direct_fixed_status=" << static_cast<int>(direct_fixed.status) << " direct_fixed_message=\"" << direct_fixed.message
-              << "\" recursive_failure=\"" << failed->message << "\"\n";
+              << "\" recursive_status=\"" << result.message << "\"\n";
 
     report_tree_spread("[physical captured tree]", captured);
     report_tree_spread("[physical preceding tree]", captured_preceding_success_quadrature());
@@ -334,7 +359,6 @@ void run_captured_physical_regression()
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
-    options.source_node_count_evolution = qmomkit::CqmomNodeCountEvolution::preserve_active_counts;
 
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(state, 23.022499999999706, 0.0025, zero_velocity, zero_source, options);

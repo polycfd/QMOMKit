@@ -48,7 +48,6 @@ constexpr std::string_view rk23_max_step_key = "time_integration.node_advection.
 constexpr std::string_view rk23_min_step_key = "time_integration.node_advection.rk23.min_step";
 constexpr std::string_view rk23_max_steps_key = "time_integration.node_advection.rk23.max_steps";
 constexpr std::string_view cqmom_time_integration_section = "time_integration.cqmom";
-constexpr std::string_view cqmom_source_node_count_evolution_key = "time_integration.cqmom.source_node_count_evolution";
 constexpr std::string_view output_section = "output";
 constexpr std::string_view output_key_prefix = "output.";
 
@@ -682,7 +681,6 @@ void append_time_integration_allowed_keys(std::vector<std::string>& allowed)
     allowed.push_back(std::string(rk23_max_step_key));
     allowed.push_back(std::string(rk23_min_step_key));
     allowed.push_back(std::string(rk23_max_steps_key));
-    allowed.push_back(std::string(cqmom_source_node_count_evolution_key));
     allowed.push_back("time_integration.realizability.check_mode");
     allowed.push_back("time_integration.realizability.accept_boundary");
     allowed.push_back("time_integration.realizability.support");
@@ -1104,22 +1102,6 @@ const std::vector<std::string>& node_advection_allowed_keys()
     return allowed;
 }
 
-std::optional<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution_value(ParsedFile& parsed, const Entry& entry,
-                                                                                     const std::string& source_name)
-{
-    if (entry.value == "preserve_active_counts")
-    {
-        return CqmomNodeCountEvolution::preserve_active_counts;
-    }
-    if (entry.value == "allow_growth_to_configured_maximum")
-    {
-        return CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
-    }
-    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry.line,
-              "time_integration.cqmom.source_node_count_evolution must be preserve_active_counts or allow_growth_to_configured_maximum.");
-    return std::nullopt;
-}
-
 std::optional<QmomOptions> parse_qmom_options_from_parsed(ParsedFile& parsed, const std::string& source_name)
 {
     QmomOptions options;
@@ -1495,15 +1477,6 @@ void validate_optional_realizability_policy(ParsedFile& parsed, const std::strin
     static_cast<void>(parse_realizability_policy_from_parsed(parsed, source_name));
 }
 
-void validate_optional_cqmom_source_node_count_evolution(ParsedFile& parsed, const std::string& source_name)
-{
-    const Entry* entry = find_entry(parsed, std::string(cqmom_source_node_count_evolution_key));
-    if (entry != nullptr)
-    {
-        static_cast<void>(parse_cqmom_source_node_count_evolution_value(parsed, *entry, source_name));
-    }
-}
-
 void reject_unknown_transport_sections(ParsedFile& parsed, const std::string& source_name)
 {
     for (const auto& item : parsed.sections)
@@ -1524,8 +1497,7 @@ void reject_unknown_transport_keys(ParsedFile& parsed, const std::string& source
         {
             continue;
         }
-        if (item.first == std::string(transport_scheme_key) || is_realizability_key(item.first) || is_node_advection_key(item.first) ||
-            item.first == std::string(cqmom_source_node_count_evolution_key))
+        if (item.first == std::string(transport_scheme_key) || is_realizability_key(item.first) || is_node_advection_key(item.first))
         {
             continue;
         }
@@ -1553,26 +1525,6 @@ std::optional<TransportScheme> parse_transport_scheme_from_parsed(ParsedFile& pa
     return scheme;
 }
 
-std::optional<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution_from_parsed(ParsedFile& parsed, const std::string& source_name)
-{
-    CqmomNodeCountEvolution policy = CqmomNodeCountEvolution::allow_growth_to_configured_maximum;
-    const Entry* entry = find_entry(parsed, std::string(cqmom_source_node_count_evolution_key));
-    if (entry != nullptr)
-    {
-        const std::optional<CqmomNodeCountEvolution> parsed_policy = parse_cqmom_source_node_count_evolution_value(parsed, *entry, source_name);
-        if (parsed_policy.has_value())
-        {
-            policy = *parsed_policy;
-        }
-    }
-
-    if (!parsed.errors.empty())
-    {
-        return std::nullopt;
-    }
-    return policy;
-}
-
 void validate_optional_cqmom_diagnostic_level(ParsedFile& parsed, const std::string& source_name)
 {
     static_cast<void>(parse_cqmom_diagnostic_level(parsed, source_name));
@@ -1597,7 +1549,6 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
     validate_optional_realizability_policy(parsed, source_name);
-    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     std::optional<CqmomDiagnosticLevel> diagnostic_level = parse_cqmom_diagnostic_level(parsed, source_name);
     const Entry* moment_storage_entry = find_entry(parsed, "cqmom.moment_storage");
     std::optional<CqmomMomentStorage> moment_storage = parse_cqmom_moment_storage(parsed, source_name);
@@ -1813,7 +1764,6 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
     validate_optional_realizability_policy(parsed, source_name);
-    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_format_version(parsed, source_name);
     validate_optional_qmom_phase_space(parsed, source_name);
     if (!parsed.moments.empty())
@@ -1899,7 +1849,6 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
     validate_optional_realizability_policy(parsed, source_name);
-    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_optional_cqmom_diagnostic_level(parsed, source_name);
     validate_optional_cqmom_moment_storage(parsed, source_name);
     validate_optional_vandermonde_solver(parsed, source_name);
@@ -2074,7 +2023,6 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     validate_optional_transport_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
     validate_optional_realizability_policy(parsed, source_name);
-    validate_optional_cqmom_source_node_count_evolution(parsed, source_name);
     validate_format_version(parsed, source_name);
     std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
@@ -2282,26 +2230,6 @@ ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(const std::
     return ConfigurationResult<NodeAdvectionScheme>{options.value().scheme};
 }
 
-ConfigurationResult<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution(const std::string_view text, std::string source_name)
-{
-    ParsedFile parsed = parse_file(text, source_name);
-    if (!parsed.errors.empty())
-    {
-        return failure_result<CqmomNodeCountEvolution>(std::move(parsed));
-    }
-
-    reject_unknown_transport_sections(parsed, source_name);
-    reject_unknown_transport_keys(parsed, source_name);
-
-    const std::optional<CqmomNodeCountEvolution> policy = parse_cqmom_source_node_count_evolution_from_parsed(parsed, source_name);
-
-    if (!parsed.errors.empty() || !policy.has_value())
-    {
-        return failure_result<CqmomNodeCountEvolution>(std::move(parsed));
-    }
-    return ConfigurationResult<CqmomNodeCountEvolution>{*policy};
-}
-
 ConfigurationResult<QmomTransportOptions> parse_qmom_transport_options(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
@@ -2341,10 +2269,8 @@ ConfigurationResult<CqmomTransportOptions> parse_cqmom_transport_options(const s
     reject_unknown_transport_keys(parsed, source_name);
     const std::optional<TransportScheme> scheme = parse_transport_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
-    const std::optional<CqmomNodeCountEvolution> source_node_count_evolution =
-        parse_cqmom_source_node_count_evolution_from_parsed(parsed, source_name);
 
-    if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value() || !source_node_count_evolution.has_value())
+    if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value())
     {
         return failure_result<CqmomTransportOptions>(std::move(parsed));
     }
@@ -2352,7 +2278,6 @@ ConfigurationResult<CqmomTransportOptions> parse_cqmom_transport_options(const s
     CqmomTransportOptions options;
     options.scheme = *scheme;
     options.node_options = *node_options;
-    options.source_node_count_evolution = *source_node_count_evolution;
     return ConfigurationResult<CqmomTransportOptions>{std::move(options)};
 }
 
@@ -2500,16 +2425,6 @@ ConfigurationResult<NodeAdvectionScheme> load_node_advection_scheme(const std::f
         return ConfigurationResult<NodeAdvectionScheme>::failure(options.error());
     }
     return ConfigurationResult<NodeAdvectionScheme>{options.value().scheme};
-}
-
-ConfigurationResult<CqmomNodeCountEvolution> load_cqmom_source_node_count_evolution(const std::filesystem::path& filename)
-{
-    std::optional<std::string> contents = read_configuration_file(filename);
-    if (!contents.has_value())
-    {
-        return file_failure<CqmomNodeCountEvolution>(filename);
-    }
-    return parse_cqmom_source_node_count_evolution(*contents, filename.string());
 }
 
 ConfigurationResult<RealizabilityPolicy> load_realizability_policy(const std::filesystem::path& filename)

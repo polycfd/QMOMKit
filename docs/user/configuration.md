@@ -178,11 +178,14 @@ required CQMOM moments. If you want QMOMKit to derive required CQMOM moments
 from a configured independent-product initialization, `load_cqmom(...)` remains
 the most concise route to the representation-neutral `CqmomCase`.
 
-Transport is still optional. QMOM transport advances moment vectors directly
-with `advance_transport_qmom(...)`. CQMOM transport advances a `CqmomState`
-created from `CqmomCase`:
+Transport is still optional. QMOM transport advances a `QmomState` created from
+`QmomCase`. CQMOM transport advances a `CqmomState` created from `CqmomCase`:
 
 ```cpp
+qmomkit::QmomState qmom_state = qmom_case.initial_state();
+const qmomkit::QmomTransportResult qmom_next =
+    qmomkit::advance_transport_qmom(qmom_state, qmom_case.node_count, time, time_step, velocity, source, options);
+
 qmomkit::CqmomState state = cqmom_case.initial_state();
 const qmomkit::CqmomTransportResult next =
     qmomkit::advance_transport_cqmom(state, time, time_step, velocity, source, options);
@@ -288,7 +291,7 @@ if (!result.ok())
 transport. `compute_cqmom(...)` returns the quadrature result for that setup; it
 does not return a `CqmomState`. `CqmomCase::initial_state()` creates the
 evolving `CqmomState` used by optional CQMOM transport. QMOM transport is also
-optional and advances raw moment vectors rather than a `QmomState`. Use
+optional and advances an evolving `QmomState` created from `QmomCase`. Use
 `load_cqmom_dense(...)` only when an application deliberately chooses the
 explicit dense representation workflow. Optional output settings are loaded
 separately with `load_output_options(...)`; transport controls are loaded with
@@ -596,13 +599,11 @@ branch-local node reduction:
 node_counts = 2, 2
 conditioning_order = 0, 1
 adaptive_branch_counts = true
-
-[qmom]
-adaptive = true
 ```
 
-`adaptive_branch_counts` and `[qmom] adaptive` are separate settings. Use them
-together when you want CQMOM to accept branch-local node reduction.
+Enabling adaptive CQMOM branch counts automatically enables adaptive Wheeler
+for all marginal and conditional inversions. The `[qmom] adaptive` setting
+still controls standalone one-dimensional QMOM behavior.
 
 ## Transport Options
 
@@ -617,7 +618,6 @@ still be loaded into transport options explicitly.
 | Vandermonde and CQMOM storage settings | yes | yes | no |
 | `time_integration.scheme` | yes | no | yes |
 | `time_integration.node_advection.*` | yes | no | yes |
-| `time_integration.cqmom.source_node_count_evolution` | yes | no | yes |
 | `time_integration.realizability.*` | yes | no | yes |
 
 A configuration file may select the transport operator-ordering scheme:
@@ -706,29 +706,18 @@ active.
 
 ### CQMOM Source Active Counts
 
-For adaptive CQMOM transport through `CqmomState`, source stages can either
-preserve the current branch-specific active node counts or allow branches to
-grow back to their configured maximum:
+When adaptive branch counts are enabled, QMOMKit automatically reduces
+branch-local node counts when moment information collapses. Continuous
+phase-space transport cannot increase active counts. After an accepted
+discontinuous source update, each existing branch may increase by at most one
+node toward its configured maximum when the updated moments support that
+additional node.
 
-```text
-[time_integration.cqmom]
-source_node_count_evolution = preserve_active_counts
-```
-
-Supported values are:
-
-```text
-preserve_active_counts
-allow_growth_to_configured_maximum
-```
-
-Omission defaults to `allow_growth_to_configured_maximum`, matching the C++
-`CqmomTransportOptions` default for general source terms. Drivers that use
-zero sources or source models known not to increase branch rank can select
-`preserve_active_counts` explicitly. Adaptive `CqmomState` initialization seeds
-current active counts from the initial inversion; malformed or inconsistent
-active-count metadata is rejected during transport rather than silently falling
-back to configured maxima.
+Initial reconstruction starts each branch from the configured maximum and lets
+adaptive Wheeler determine the active count. Newly created descendant branches
+also begin from the configured maximum and adapt downward. Users configure the
+maximum node counts, whether CQMOM branch counts are adaptive, and adaptive
+Wheeler tolerances; source node-count evolution is automatic.
 
 The configuration file stores runtime numerical choices and the initial
 numerical setup. Your application still provides the continuous velocity and

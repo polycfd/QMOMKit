@@ -10,7 +10,7 @@ and `examples/cqmom_transport/`.
 
 All initial QMOMKit cases are loaded from `.qmom` files through the public
 configuration API. Configuration may define the initial numerical setup and the
-transport operator ordering scheme (`strang`, `cd`, or `dc`). Operator
+operator-splitting scheme (`strang`, `cd`, or `dc`). Operator
 coefficients, exact references, timestep plans, RK23/SSP-RK3 options, and
 tolerances live in `transport_analytical.cpp` because the current configuration
 format does not define physics callbacks, model coefficients, timestep plans, or
@@ -158,7 +158,7 @@ second-order composition error visible. The observed order should approach
 two on the finest refinement pairs.
 
 The same noncommuting manufactured case also verifies `cd` and `dc` as
-first-order operator orderings. Those schemes are expected to approach first
+first-order Lie splitting schemes. Those schemes are expected to approach first
 order under refinement and to differ from each other at finite timestep,
 documenting that the public scheme option is active rather than ignored.
 
@@ -196,11 +196,14 @@ callback through the recommended configured CQMOM workflow: `load_cqmom(...)`,
 `CqmomCase::initial_state()`, and `advance_transport_cqmom(CqmomState, ...)`.
 The hierarchy has
 `node_counts = 2, 2`, which is the maximum branch capacity. With
-`adaptive_branch_counts = true` and adaptive QMOM enabled, reconstruction
-determines the active branch counts and may return ragged terminal storage with
-fewer than four terminal nodes. The verifier checks that adaptive ragged
-quadrature is preserved while the reconstructed full moments follow the
-continuous analytical reference above with the source term omitted.
+`adaptive_branch_counts = true`, CQMOM automatically uses adaptive Wheeler for
+marginal and conditional inversions. Reconstruction determines the active
+branch counts and may return ragged terminal storage with fewer than four
+terminal nodes. Continuous transport advects the existing ragged quadrature,
+preserves terminal paths, and reconstructs moments by summation from the moved
+nodes; active counts cannot grow in this stage. The verifier checks that the
+reconstructed full moments follow the continuous analytical reference above
+with the source term omitted.
 
 ## CQMOM-Native Source Callback
 
@@ -274,7 +277,7 @@ dM_ij/dt = gamma M_ij
 gamma = -0.09
 ```
 
-The default scheme is Strang splitting, so the analytical split reference for
+The default scheme is Strang splitting, so the analytical one-step reference for
 one macro step is:
 
 ```text

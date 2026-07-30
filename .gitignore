@@ -47,6 +47,7 @@
 build/
 Build/
 build-*/
+build_*/
 install/
 install-*/
 

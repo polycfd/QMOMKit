@@ -61,7 +61,9 @@ The callback receives:
 
 It returns `dxi/dt` with the same number of components. QMOMKit validates the
 returned size and finiteness, but it does not assign physical meaning to any
-coordinate.
+coordinate. A non-finite returned component is reported with the evaluation
+time, zero-based phase-space dimension, offending value, input coordinate
+vector, and complete returned velocity vector.
 
 For one-dimensional QMOM, node advection advances the one-dimensional
 abscissa array. For multidimensional CQMOM, node advection advances terminal

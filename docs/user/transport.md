@@ -92,7 +92,10 @@ The callback receives the current time and one node coordinate vector. It must
 return `dxi/dt` with the same number of components. QMOMKit does not assign a
 physical meaning to those coordinates; `x`, `diameter`, `velocity`, or any
 other interpretation comes from your application and must match the
-phase-space order used elsewhere.
+phase-space order used elsewhere. If a returned component is non-finite, the
+diagnostic includes the evaluation time, zero-based phase-space dimension,
+offending value, input coordinate vector, and complete returned velocity
+vector.
 
 Use the advanced `advance_nodes(...)` operation when you already have a
 quadrature and want to evolve only the node positions:

@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -19,6 +20,15 @@ namespace
 void assert_near(const double actual, const double expected, const double tolerance)
 {
     assert(std::abs(actual - expected) <= tolerance);
+}
+
+void assert_contains(const std::string& text, const std::string& needle)
+{
+    if (text.find(needle) == std::string::npos)
+    {
+        std::cerr << "Missing expected text:\n" << needle << "\nActual message:\n" << text << '\n';
+        assert(false);
+    }
 }
 
 void assert_vector_near(const std::vector<double>& actual, const std::vector<double>& expected, const double tolerance)
@@ -213,13 +223,20 @@ void test_qmom_failure_paths()
         moments, 1, 0.0, [](double, const std::vector<double>&) { return std::vector<double>{1.0, 2.0}; });
     assert(!wrong_size.ok());
     assert(wrong_size.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
-    assert(wrong_size.message == "Phase-space velocity callback returned the wrong dimension.");
+    assert_contains(wrong_size.message, "Phase-space velocity callback returned the wrong dimension:");
+    assert_contains(wrong_size.message, "expected size: 1");
+    assert_contains(wrong_size.message, "returned size: 2");
 
     const qmomkit::internal::QmomContinuousMomentRateResult non_finite = qmomkit::internal::evaluate_qmom_continuous_moment_rates(
         moments, 1, 0.0, [](double, const std::vector<double>&) { return std::vector<double>{std::numeric_limits<double>::infinity()}; });
     assert(!non_finite.ok());
     assert(non_finite.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
-    assert(non_finite.message == "Phase-space velocity callback returned a non-finite value.");
+    assert_contains(non_finite.message, "Phase-space velocity callback returned a non-finite value:");
+    assert_contains(non_finite.message, "time: 0");
+    assert_contains(non_finite.message, "dimension: 0");
+    assert_contains(non_finite.message, "value: inf");
+    assert_contains(non_finite.message, "state: [2]");
+    assert_contains(non_finite.message, "velocity: [inf]");
 
     const qmomkit::internal::QmomContinuousMomentRateResult thrown = qmomkit::internal::evaluate_qmom_continuous_moment_rates(
         moments, 1, 0.0, [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("velocity model failed"); });
@@ -340,19 +357,26 @@ void test_cqmom_failure_paths()
         valid_case, 0.0, [](double, const std::vector<double>&) { return std::vector<double>{1.0}; });
     assert(!wrong_size.ok());
     assert(wrong_size.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
-    assert(wrong_size.message == "Phase-space velocity callback returned the wrong dimension.");
+    assert_contains(wrong_size.message, "Phase-space velocity callback returned the wrong dimension:");
+    assert_contains(wrong_size.message, "expected size: 2");
+    assert_contains(wrong_size.message, "returned size: 1");
 
     const qmomkit::internal::CqmomContinuousMomentRateResult non_finite =
         qmomkit::internal::evaluate_cqmom_continuous_moment_rates(valid_case, 0.0,
                                                                   [](double, const std::vector<double>& coordinate)
                                                                   {
                                                                       std::vector<double> value(coordinate.size(), 0.0);
-                                                                      value.front() = std::numeric_limits<double>::quiet_NaN();
+                                                                      value[1] = std::numeric_limits<double>::quiet_NaN();
                                                                       return value;
                                                                   });
     assert(!non_finite.ok());
     assert(non_finite.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
-    assert(non_finite.message == "Phase-space velocity callback returned a non-finite value.");
+    assert_contains(non_finite.message, "Phase-space velocity callback returned a non-finite value:");
+    assert_contains(non_finite.message, "time: 0");
+    assert_contains(non_finite.message, "dimension: 1");
+    assert_contains(non_finite.message, "value: nan");
+    assert_contains(non_finite.message, "state: [-1, -0.49999999999999972]");
+    assert_contains(non_finite.message, "velocity: [0, nan]");
 
     const qmomkit::internal::CqmomContinuousMomentRateResult thrown = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(
         valid_case, 0.0, [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("CQMOM velocity model failed"); });

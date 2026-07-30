@@ -8,8 +8,6 @@
 #include <cmath>
 #include <cstddef>
 #include <exception>
-#include <iomanip>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -128,14 +126,7 @@ void validate_abscissas(const std::vector<std::vector<double>>& abscissas, const
 
         const std::vector<double> node_velocity = velocity(t, node_coordinate);
         internal::performance::record_node_rhs_evaluation();
-        if (node_velocity.size() != dimensions)
-        {
-            throw std::invalid_argument("Phase-space velocity callback returned the wrong dimension.");
-        }
-        if (!internal::all_finite(node_velocity))
-        {
-            throw std::invalid_argument("Phase-space velocity callback returned a non-finite value.");
-        }
+        internal::validate_phase_space_velocity_result(node_velocity, dimensions, t, node_coordinate);
 
         for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
         {

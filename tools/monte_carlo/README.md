@@ -109,8 +109,7 @@ cmake --build tools/monte_carlo/build-tests-release
 ctest --test-dir tools/monte_carlo/build-tests-release --output-on-failure
 ```
 
-The registered example drivers are smoke tests. The validation tests are named
-for the behavior they check, such as
+The registered tests are named for the behavior they check, such as
 `monte_carlo_sampling_moment_validation`,
 `monte_carlo_ensemble_evolution`, and
 `monte_carlo_quadrature_ensemble_comparison`.

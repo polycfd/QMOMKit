@@ -239,16 +239,17 @@ access by multi-index.
 Adaptive branch quadrature is available when a workflow can tolerate fewer
 active nodes on branches where the supplied moments support only a lower-order
 rule. This can be useful near degenerate or boundary-like states where a fixed
-node count may be too ambitious. Enable it explicitly in configuration by
-combining adaptive QMOM options with adaptive branch counts:
+node count may be too ambitious. Enable it explicitly in configuration with
+adaptive branch counts:
 
 ```text
 [phase_space]
 adaptive_branch_counts = true
-
-[qmom]
-adaptive = true
 ```
+
+Adaptive CQMOM branch counts imply adaptive Wheeler internally for all
+marginal and conditional inversions. The standalone QMOM adaptive option
+remains independent.
 
 Adaptive results expose terminal weights, terminal abscissas, and terminal
 conditioning paths. When adaptive branch counts are enabled, prefer iterating

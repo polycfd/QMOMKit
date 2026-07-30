@@ -295,8 +295,9 @@ struct CqmomResult
  *
  * Fixed rectangular hierarchies remain the default. Adaptive branch-specific
  * node counts are enabled explicitly with `CqmomDenseCase::adaptive_branch_counts`
- * and adaptive QMOM options. This does not implement transport or operator
- * splitting.
+ * and automatically enable adaptive Wheeler for all marginal and conditional
+ * inversions. Standalone QMOM remains independently configurable. This does
+ * not implement transport or operator splitting.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomDenseCase& dense_case);
 
@@ -306,8 +307,9 @@ struct CqmomResult
  *
  * The required-moment layout must match the hierarchy stored in
  * `lean_case.moments.layout`. Adaptive branch-specific node counts are enabled
- * explicitly with `CqmomLeanCase::adaptive_branch_counts` and
- * adaptive QMOM options.
+ * explicitly with `CqmomLeanCase::adaptive_branch_counts` and automatically
+ * enable adaptive Wheeler for all marginal and conditional inversions.
+ * Standalone QMOM remains independently configurable.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomLeanCase& lean_case);
 

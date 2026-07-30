@@ -120,7 +120,7 @@ Linear algebra counters summarize Vandermonde and dense solve work, including
 Vandermonde solves, solver paths, dense fallback usage, residual checks, and
 condition estimates.
 
-Transport counters summarize split-operator transport work, including macro
+Transport counters summarize operator-split transport work, including macro
 steps, continuous and discontinuous operator applications, moment
 reconstruction calls, and post-source inversions.
 

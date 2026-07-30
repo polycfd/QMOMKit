@@ -78,14 +78,21 @@ int main()
     const std::vector<double> initial_moments = sampled_moments.moments.values();
     std::vector<double> moments = initial_moments;
     const qmomkit::QmomCase sampled_case{sampled_moments.moments, qmom_case.node_count, qmom_case.options};
-    const qmomkit::QmomResult result = qmomkit::compute_qmom(sampled_case);
-    if (!result.ok())
+    std::optional<qmomkit::QmomState> initial_state_storage;
+    try
     {
-        std::cerr << "QMOM inversion failed: " << result.message << '\n';
+        initial_state_storage.emplace(sampled_case.initial_state());
+    }
+    catch (const std::exception& error)
+    {
+        std::cerr << error.what() << '\n';
         return 1;
     }
+    qmomkit::QmomState state = *initial_state_storage;
+    moments = state.moments();
 
-    qmomkit::Quadrature1D quadrature{result.abscissas, result.weights};
+    const qmomkit::QmomResult initial_quadrature = state.quadrature();
+    qmomkit::Quadrature1D quadrature{initial_quadrature.abscissas, initial_quadrature.weights};
     const std::vector<double> initial_abscissas = quadrature.abscissas;
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_continuous_breakage_mc_initialization::continuous_velocity();
     const qmomkit::MomentSource source = qmom_1d_continuous_breakage_mc_initialization::binary_fragmentation_source();
@@ -132,15 +139,16 @@ int main()
     {
         const double current_step = std::min(time_step, final_time - time);
         const qmomkit::QmomTransportResult transported =
-            qmomkit::advance_transport_qmom(moments, sampled_case.node_count, time, current_step, velocity, source, transport_options);
+            qmomkit::advance_transport_qmom(state, sampled_case.node_count, time, current_step, velocity, source, transport_options);
         if (!transported.ok())
         {
             std::cerr << "QMOM transport failed: " << transported.message << '\n';
             return 1;
         }
 
-        moments = transported.moments;
-        quadrature = qmomkit::Quadrature1D{transported.quadrature.abscissas, transported.quadrature.weights};
+        state = transported.state;
+        moments = state.moments();
+        quadrature = qmomkit::Quadrature1D{state.quadrature().abscissas, state.quadrature().weights, qmomkit::QuadratureStatus::success, ""};
         time = transported.final_time;
 
         if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
@@ -180,9 +188,9 @@ int main()
 
     std::cout << "\nInitial quadrature:\n";
     std::cout << "node  weight        abscissa\n";
-    for (std::size_t node = 0; node < result.weights.size(); ++node)
+    for (std::size_t node = 0; node < initial_quadrature.weights.size(); ++node)
     {
-        std::cout << node << "     " << result.weights[node] << "   " << result.abscissas[node] << '\n';
+        std::cout << node << "     " << initial_quadrature.weights[node] << "   " << initial_quadrature.abscissas[node] << '\n';
     }
 
     qmom_1d_continuous_breakage_mc_initialization::print_moments(std::cout, "Final moments", moments);

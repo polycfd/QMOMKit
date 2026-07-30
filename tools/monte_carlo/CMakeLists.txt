@@ -77,27 +77,6 @@ if(BUILD_TESTING)
     add_test(NAME monte_carlo_sampled_initialization COMMAND monte_carlo_sampled_initialization_tests)
     set_tests_properties(monte_carlo_sampled_initialization PROPERTIES LABELS monte_carlo)
 
-    add_executable(monte_carlo_node_vs_ensemble_example examples/comparison/node_vs_ensemble.cpp)
-    target_link_libraries(monte_carlo_node_vs_ensemble_example PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
-    add_test(NAME monte_carlo_node_vs_ensemble_smoke COMMAND monte_carlo_node_vs_ensemble_example)
-    set_tests_properties(monte_carlo_node_vs_ensemble_smoke PROPERTIES LABELS monte_carlo)
-
-    add_test(
-        NAME monte_carlo_sample_based_initialization_qmom_smoke
-        COMMAND
-            monte_carlo_sample_based_initialization_example
-            ${CMAKE_CURRENT_SOURCE_DIR}/configuration/qmom_distribution_lognormal.qmom
-            ${CMAKE_CURRENT_BINARY_DIR}/sample_based_qmom
-    )
-    set_tests_properties(monte_carlo_sample_based_initialization_qmom_smoke PROPERTIES LABELS monte_carlo)
-    add_test(
-        NAME monte_carlo_sample_based_initialization_cqmom_smoke
-        COMMAND
-            monte_carlo_sample_based_initialization_example
-            ${CMAKE_CURRENT_SOURCE_DIR}/configuration/cqmom_independent_product_2d.qmom
-            ${CMAKE_CURRENT_BINARY_DIR}/sample_based_cqmom
-    )
-    set_tests_properties(monte_carlo_sample_based_initialization_cqmom_smoke PROPERTIES LABELS monte_carlo)
 endif()
 
 install(

@@ -199,10 +199,6 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Parse optional node-advection configuration, including RK23 controls. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(std::string_view text, std::string source_name = "<string>");
 
-/** Parse optional CQMOM source-stage active branch-count policy. */
-[[nodiscard]] ConfigurationResult<CqmomNodeCountEvolution> parse_cqmom_source_node_count_evolution(std::string_view text,
-                                                                                                   std::string source_name = "<string>");
-
 /** Parse QMOM transport options from optional runtime configuration. */
 [[nodiscard]] ConfigurationResult<QmomTransportOptions> parse_qmom_transport_options(std::string_view text, std::string source_name = "<string>");
 
@@ -233,9 +229,6 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 
 /** Load and parse node-advection configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionOptions> load_node_advection_options(const std::filesystem::path& filename);
-
-/** Load and parse CQMOM source-stage active branch-count policy from exactly the requested file. */
-[[nodiscard]] ConfigurationResult<CqmomNodeCountEvolution> load_cqmom_source_node_count_evolution(const std::filesystem::path& filename);
 
 /** Load and parse runtime realizability policy configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<RealizabilityPolicy> load_realizability_policy(const std::filesystem::path& filename);

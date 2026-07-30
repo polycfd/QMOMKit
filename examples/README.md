@@ -30,6 +30,7 @@ not mandatory for every transport workflow.
 - `qmom_mixture_initialization/`: optional QMOM initialization extension for
   mixture distributions.
 - `realizability_check/`: example with explicit opt-in diagnostics for moment realizability.
+- `cqmom_2d_adaptive_node_counts/`: 2D CQMOM transport example for adaptive branch-local node-count reduction, persistence, and controlled recovery.
 - `qmom_1d_continuous_breakage_mc_initialization/`: 1D example with continuous and discontinuous physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.
 - `qmom_1d_continuous_breakage_mc_local_rates/`: 1D example with the same Monte Carlo initialization and physics as the previous example, but with application-managed moment-space SSP-RK3 integration through the public local moment-rate APIs.
 - `cqmom_2d_continuous_breakage_mc_initialization/`: 2D example with continuous and discontinuous physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.

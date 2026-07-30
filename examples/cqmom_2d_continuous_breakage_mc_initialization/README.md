@@ -71,7 +71,7 @@ continuous + stochastic discontinuous evolution
 
 Both workflows use the same `configuration.qmom`, distribution, sample count,
 initialization seed, phase-space ordering, continuous velocity, binary
-fragmentation model, and Strang splitting order. The MC workflow is not used as
+fragmentation model, and Strang splitting. The MC workflow is not used as
 a validation reference here, and no automatic CQMOM/MC comparison is performed.
 
 The phase-space ordering is:

@@ -7,10 +7,16 @@ transport loop used by an application:
 moments
    |
    v
+QmomCase::initial_state()
+   |
+   v
+QmomState
+   |
+   v
 advance_transport_qmom(...)
    |
    v
-moments
+QmomState
 ```
 
 The example keeps all application logic in `main.cpp`. The user provides:
@@ -28,6 +34,9 @@ the lower-level node-advection and moment-source routines.
 
 QMOMKit handles the quadrature representation, moment reconstruction, time
 integration, and transport splitting inside `advance_transport_qmom(...)`.
+The accepted `QmomState` carries the canonical moments and quadrature from one
+step to the next. Users copy, move, and advance accepted states; they do not
+construct them directly from independent moments and quadrature.
 
 The continuous physics is
 

@@ -88,11 +88,12 @@ The default CQMOM hierarchy is `node_counts = 2, 2`, meaning:
 - four terminal CQMOM nodes.
 
 Adaptive branch counts are also supported in this normal `CqmomState`
-transport workflow. When `phase_space.adaptive_branch_counts = true` is
-combined with `[qmom] adaptive = true`, `node_counts` are treated as maximum
-branch counts and the reconstructed quadrature may contain fewer active
-terminal nodes. Output should therefore be read through terminal weights and
-abscissas rather than assuming a fixed rectangular node grid.
+transport workflow. When `phase_space.adaptive_branch_counts = true`,
+`node_counts` are treated as maximum branch counts and CQMOM automatically uses
+adaptive Wheeler for marginal and conditional inversions. The reconstructed
+quadrature may contain fewer active terminal nodes. Output should therefore be
+read through terminal weights and abscissas rather than assuming a fixed
+rectangular node grid. The standalone QMOM adaptive option remains independent.
 
 To adapt the example to more dimensions, update `names`, `node_counts`,
 `conditioning_order`, and add one `[initial.dimension.N]` section per
@@ -157,7 +158,7 @@ source-only `advance_transport_cqmom(...)` overload.
 
 The example advances continuous motion, the source, and the optional boundary
 contribution with `qmomkit::advance_transport_cqmom(...)` and
-`qmomkit::CqmomState`. The operator split remains Strang:
+`qmomkit::CqmomState`. The operator-splitting scheme remains Strang splitting:
 
 ```text
 continuous half-step

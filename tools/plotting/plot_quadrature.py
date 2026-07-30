@@ -38,34 +38,44 @@ def read_qmomkit_table(path: Path) -> tuple[list[str], np.ndarray]:
     return labels, data
 
 
-def qmom_columns(labels: list[str]) -> tuple[list[str], list[str]] | None:
-    columns = labels[1:]
-    weights = columns[0::2]
-    abscissas = columns[1::2]
-    if len(columns) % 2 == 0 and all(w == f"w{i}" and x == f"x{i}" for i, (w, x) in enumerate(zip(weights, abscissas))):
-        return weights, abscissas
-    return None
+def is_qmom_labels(labels: list[str]) -> bool:
+    return labels == ["time", "node_index", "weight", "x0"]
 
 
-def cqmom_columns(labels: list[str]) -> tuple[list[int], list[int], dict[tuple[int, int], str]]:
-    nodes: list[int] = []
-    dims: set[int] = set()
-    xs: dict[tuple[int, int], str] = {}
-    for label in labels[1:]:
-        if match := re.fullmatch(r"w(\d+)", label):
-            nodes.append(int(match.group(1)))
-        elif match := re.fullmatch(r"x(\d+)_(\d+)", label):
-            dim, node = int(match.group(1)), int(match.group(2))
-            dims.add(dim)
-            xs[(node, dim)] = label
-    if not nodes or not dims:
+def cqmom_columns(labels: list[str]) -> tuple[list[str], list[str]]:
+    if len(labels) < 6 or labels[:2] != ["time", "node_index"]:
         raise ValueError("quadrature file is neither standard QMOM nor CQMOM output")
-    return nodes, sorted(dims), xs
+
+    cursor = 2
+    path_labels: list[str] = []
+    while cursor < len(labels) and re.fullmatch(r"path_\d+", labels[cursor]):
+        path_labels.append(labels[cursor])
+        cursor += 1
+
+    if not path_labels or cursor >= len(labels) or labels[cursor] != "weight":
+        raise ValueError("quadrature file is neither standard QMOM nor CQMOM output")
+    cursor += 1
+
+    x_labels = labels[cursor:]
+    if not x_labels or not all(re.fullmatch(r"x\d+", label) for label in x_labels):
+        raise ValueError("quadrature file is neither standard QMOM nor CQMOM output")
+    return path_labels, x_labels
 
 
-def plot_lines(ax, labels: list[str], data: np.ndarray, names: list[str], ylabel: str) -> None:
-    for name in names:
-        ax.plot(data[:, 0], data[:, labels.index(name)], marker="o", markersize=3, label=name)
+def rows_by_node(data: np.ndarray) -> list[tuple[int, np.ndarray]]:
+    node_column = 1
+    nodes = sorted({int(node) for node in data[:, node_column]})
+    grouped: list[tuple[int, np.ndarray]] = []
+    for node in nodes:
+        rows = data[data[:, node_column] == float(node)]
+        rows = rows[np.argsort(rows[:, 0], kind="stable")]
+        grouped.append((node, rows))
+    return grouped
+
+
+def plot_node_lines(ax, data: np.ndarray, value_column: int, ylabel: str) -> None:
+    for node, rows in rows_by_node(data):
+        ax.plot(rows[:, 0], rows[:, value_column], marker="o", markersize=3, label=f"node {node}")
     ax.set_xlabel("time")
     ax.set_ylabel(ylabel)
     ax.grid(True, alpha=0.3)
@@ -79,44 +89,45 @@ def save(fig, path: Path) -> None:
     plt.close(fig)
 
 
-def plot_qmom(labels: list[str], data: np.ndarray, output: Path) -> None:
-    weights, abscissas = qmom_columns(labels) or ([], [])
+def plot_qmom(data: np.ndarray, output: Path) -> None:
     fig, axes = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
-    plot_lines(axes[0], labels, data, weights, "weight")
-    plot_lines(axes[1], labels, data, abscissas, "abscissa")
+    plot_node_lines(axes[0], data, 2, "weight")
+    plot_node_lines(axes[1], data, 3, "x0")
     fig.suptitle("QMOM quadrature history")
     save(fig, output)
 
 
-def plot_cqmom_history(labels: list[str], data: np.ndarray, nodes: list[int], dims: list[int], xs: dict[tuple[int, int], str], path: Path) -> None:
-    shown_dims = dims[:2]
-    fig, axes = plt.subplots(1 + len(shown_dims), 1, figsize=(8, 3 + 2.5 * len(shown_dims)), sharex=True)
+def plot_cqmom_history(labels: list[str], data: np.ndarray, x_labels: list[str], path: Path) -> None:
+    shown_x = x_labels[:2]
+    fig, axes = plt.subplots(1 + len(shown_x), 1, figsize=(8, 3 + 2.5 * len(shown_x)), sharex=True)
     axes = np.atleast_1d(axes)
-    plot_lines(axes[0], labels, data, [f"w{node}" for node in nodes], "weight")
+    plot_node_lines(axes[0], data, labels.index("weight"), "weight")
     axes[0].set_title("CQMOM quadrature history")
-    for axis, dim in zip(axes[1:], shown_dims):
-        plot_lines(axis, labels, data, [xs[(node, dim)] for node in nodes], f"x{dim}")
+    for axis, x_label in zip(axes[1:], shown_x):
+        plot_node_lines(axis, data, labels.index(x_label), x_label)
     save(fig, path)
 
 
-def plot_cqmom_final(labels: list[str], data: np.ndarray, nodes: list[int], dims: list[int], xs: dict[tuple[int, int], str], path: Path) -> None:
-    final = data[-1]
-    weights = np.array([final[labels.index(f"w{node}")] for node in nodes])
+def plot_cqmom_final(labels: list[str], data: np.ndarray, x_labels: list[str], path: Path) -> None:
+    final_time = np.max(data[:, 0])
+    final_rows = data[data[:, 0] == final_time]
+    final_rows = final_rows[np.argsort(final_rows[:, 1], kind="stable")]
+    weights = final_rows[:, labels.index("weight")]
     sizes = 80 + 220 * weights / max(float(np.max(weights)), 1.0e-30)
     fig, ax = plt.subplots(figsize=(6, 5))
 
-    if len(dims) == 1:
-        xvals = [final[labels.index(xs[(node, dims[0])])] for node in nodes]
+    if len(x_labels) == 1:
+        xvals = final_rows[:, labels.index(x_labels[0])]
         ax.scatter(xvals, weights, s=sizes, c=weights, cmap="viridis", edgecolor="black")
-        ax.set_xlabel(f"x{dims[0]}")
+        ax.set_xlabel(x_labels[0])
         ax.set_ylabel("weight")
     else:
-        first, second = dims[:2]
-        xvals = [final[labels.index(xs[(node, first)])] for node in nodes]
-        yvals = [final[labels.index(xs[(node, second)])] for node in nodes]
+        first, second = x_labels[:2]
+        xvals = final_rows[:, labels.index(first)]
+        yvals = final_rows[:, labels.index(second)]
         ax.scatter(xvals, yvals, s=sizes, c=weights, cmap="viridis", edgecolor="black")
-        ax.set_xlabel(f"x{first}")
-        ax.set_ylabel(f"x{second}")
+        ax.set_xlabel(first)
+        ax.set_ylabel(second)
     ax.set_title("CQMOM final terminal nodes")
     ax.grid(True, alpha=0.3)
     save(fig, path)
@@ -130,16 +141,16 @@ def main() -> None:
 
     labels, data = read_qmomkit_table(args.quadrature_file)
     output = args.output or args.quadrature_file.with_suffix("")
-    if qmom_columns(labels):
+    if is_qmom_labels(labels):
         output = output.with_suffix(".png")
-        plot_qmom(labels, data, output)
+        plot_qmom(data, output)
         print(output)
     else:
-        nodes, dims, xs = cqmom_columns(labels)
+        _path_labels, x_labels = cqmom_columns(labels)
         history = output.with_name(output.name + "_history.png")
         final = output.with_name(output.name + "_final.png")
-        plot_cqmom_history(labels, data, nodes, dims, xs, history)
-        plot_cqmom_final(labels, data, nodes, dims, xs, final)
+        plot_cqmom_history(labels, data, x_labels, history)
+        plot_cqmom_final(labels, data, x_labels, final)
         print(history)
         print(final)
 

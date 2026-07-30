@@ -245,24 +245,19 @@ CqmomMomentStorage CqmomCase::moment_storage() const noexcept
 
 CqmomState CqmomCase::initial_state() const
 {
-    if (!adaptive_branch_counts())
+    CqmomResult accepted = std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return internal::compute_trusted_cqmom(dense_case); },
+                                                 [](const CqmomLeanCase& lean_case) { return internal::compute_trusted_cqmom(lean_case); }},
+                                      data_->case_);
+    if (!accepted.ok())
     {
-        return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return internal::create_cqmom_state(dense_case); },
-                                     [](const CqmomLeanCase& lean_case) { return internal::create_cqmom_state(lean_case); }},
-                          data_->case_);
+        throw std::runtime_error("CQMOM initial state quadrature reconstruction failed: " + accepted.message);
     }
-
-    const CqmomResult seeded = std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return internal::compute_trusted_cqmom(dense_case); },
-                                                     [](const CqmomLeanCase& lean_case) { return internal::compute_trusted_cqmom(lean_case); }},
-                                          data_->case_);
-    if (!seeded.ok())
-    {
-        throw std::runtime_error("CQMOM initial state active-count seeding failed: " + seeded.message);
-    }
-    std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(seeded.quadrature);
-    return std::visit(Overloaded{[&active_counts](const CqmomDenseCase& dense_case)
-                                 { return internal::create_cqmom_state(dense_case, active_counts); },
-                                 [&active_counts](const CqmomLeanCase& lean_case) { return internal::create_cqmom_state(lean_case, active_counts); }},
+    CqmomQuadrature accepted_quadrature = std::move(accepted.quadrature);
+    std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(accepted_quadrature);
+    return std::visit(Overloaded{[&active_counts, &accepted_quadrature](const CqmomDenseCase& dense_case)
+                                 { return internal::create_cqmom_state(dense_case, active_counts, std::move(accepted_quadrature)); },
+                                 [&active_counts, &accepted_quadrature](const CqmomLeanCase& lean_case)
+                                 { return internal::create_cqmom_state(lean_case, active_counts, std::move(accepted_quadrature)); }},
                       data_->case_);
 }
 

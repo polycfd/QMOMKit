@@ -1,3 +1,4 @@
+#include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "qmomkit/qmomkit.hpp"
 
@@ -720,6 +721,34 @@ void assert_common_cqmom_moments_near(const qmomkit::CqmomState& lhs, const qmom
     assert(lhs.hierarchy().node_counts() == rhs.hierarchy().node_counts());
     assert(lhs.hierarchy().conditioning_order() == rhs.hierarchy().conditioning_order());
     assert_vector_near(common_cqmom_moment_values(lhs), common_cqmom_moment_values(rhs), tolerance);
+}
+
+void assert_cqmom_state_moments_match_quadrature(const qmomkit::CqmomState& state, const qmomkit::CqmomQuadrature& quadrature, const double tolerance)
+{
+    const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(quadrature, state.hierarchy().moment_extents());
+    if (state.moment_storage() == qmomkit::CqmomMomentStorage::dense)
+    {
+        assert_vector_near(state.moment_values(), reconstructed.values, tolerance);
+        return;
+    }
+
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(state.hierarchy());
+    const qmomkit::CqmomMomentData reconstructed_required = qmomkit::extract_cqmom_moments(reconstructed, layout);
+    assert_vector_near(state.moment_values(), reconstructed_required.values, tolerance);
+}
+
+void assert_cqmom_initial_state_stores_accepted_quadrature(const qmomkit::CqmomCase& case_, const double tolerance)
+{
+    const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(case_);
+    assert(expected.ok());
+
+    const qmomkit::CqmomState state = case_.initial_state();
+    const std::optional<qmomkit::CqmomQuadrature>& accepted = qmomkit::internal::cqmom_state_accepted_quadrature(state);
+
+    assert(accepted.has_value());
+    assert_cqmom_quadrature_near(*accepted, expected.quadrature, tolerance);
+    assert(active_counts_equal(state.active_branch_counts(), qmomkit::internal::active_branch_counts_from_quadrature(*accepted)));
+    assert_cqmom_state_moments_match_quadrature(state, *accepted, tolerance);
 }
 
 bool layout_contains_index(const qmomkit::CqmomMomentLayout& layout, const qmomkit::MultiIndex& index)
@@ -1480,6 +1509,52 @@ void test_qmom_transport_failure_after_first_stage_rolls_back_to_macro_input()
     assert(result.diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::success);
     assert_vector_near(result.state.moments(), state.moments(), 0.0);
     assert_qmom_quadrature_near(result.state.quadrature(), state.quadrature(), 0.0);
+}
+
+void test_cqmom_initial_state_stores_accepted_quadrature_fixed_dense_and_lean()
+{
+    assert_cqmom_initial_state_stores_accepted_quadrature(fixed_cqmom_case_with_storage("dense"), 5.0e-10);
+    assert_cqmom_initial_state_stores_accepted_quadrature(fixed_cqmom_case_with_storage("lean"), 5.0e-10);
+}
+
+void test_cqmom_initial_state_stores_accepted_quadrature_adaptive_dense_and_lean()
+{
+    const qmomkit::RawMomentTensor moments = branch_specific_ragged_cqmom_moments();
+    const qmomkit::CqmomCase dense_case = adaptive_cqmom_case_from_moments_with_storage(moments, "dense");
+    const qmomkit::CqmomCase lean_case = adaptive_cqmom_case_from_moments_with_storage(moments, "lean");
+
+    assert_cqmom_initial_state_stores_accepted_quadrature(dense_case, 5.0e-10);
+    assert_cqmom_initial_state_stores_accepted_quadrature(lean_case, 5.0e-10);
+
+    const qmomkit::CqmomState dense_state = dense_case.initial_state();
+    const qmomkit::CqmomState lean_state = lean_case.initial_state();
+    const std::optional<qmomkit::CqmomQuadrature>& dense_quadrature = qmomkit::internal::cqmom_state_accepted_quadrature(dense_state);
+    const std::optional<qmomkit::CqmomQuadrature>& lean_quadrature = qmomkit::internal::cqmom_state_accepted_quadrature(lean_state);
+
+    assert(dense_quadrature.has_value());
+    assert(lean_quadrature.has_value());
+    assert(dense_quadrature->terminal_paths() == lean_quadrature->terminal_paths());
+    assert(active_counts_equal(dense_state.active_branch_counts(), lean_state.active_branch_counts()));
+    assert(active_counts_equal(dense_state.active_branch_counts(), qmomkit::internal::active_branch_counts_from_quadrature(*dense_quadrature)));
+}
+
+void test_cqmom_first_continuous_stage_uses_initial_accepted_quadrature()
+{
+    const qmomkit::CqmomState state = adaptive_cqmom_case_from_moments(branch_specific_ragged_cqmom_moments()).initial_state();
+    const std::optional<qmomkit::CqmomQuadrature>& initial_quadrature = qmomkit::internal::cqmom_state_accepted_quadrature(state);
+    assert(initial_quadrature.has_value());
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+
+    qmomkit::CqmomTransportOptions options;
+    options.node_options = tight_node_options();
+    const qmomkit::CqmomTransportResult stage = qmomkit::advance_cqmom_continuous(state, 0.0, 0.1, zero_velocity, options);
+
+    assert(stage.ok());
+    assert(stage.quadrature.has_value());
+    assert(stage.diagnostics.initial_cqmom_diagnostics.empty());
+    assert(stage.quadrature->terminal_paths() == initial_quadrature->terminal_paths());
+    assert_cqmom_quadrature_near(*stage.quadrature, *initial_quadrature, 5.0e-10);
+    assert(active_counts_equal(stage.state.active_branch_counts(), state.active_branch_counts()));
 }
 
 void assert_cqmom_transport_results_match(const qmomkit::CqmomTransportResult& actual, const qmomkit::CqmomTransportResult& expected,
@@ -2526,7 +2601,7 @@ void test_adaptive_state_transport_reports_initial_failure()
     catch (const std::runtime_error& error)
     {
         threw = true;
-        assert(std::string(error.what()).find("active-count seeding failed") != std::string::npos);
+        assert(std::string(error.what()).find("quadrature reconstruction failed") != std::string::npos);
     }
     assert(threw);
 }
@@ -3505,6 +3580,9 @@ int main()
     test_public_qmom_stage_composition_matches_strang_transport();
     test_public_qmom_stage_composition_matches_lie_transport();
     test_qmom_transport_failure_after_first_stage_rolls_back_to_macro_input();
+    test_cqmom_initial_state_stores_accepted_quadrature_fixed_dense_and_lean();
+    test_cqmom_initial_state_stores_accepted_quadrature_adaptive_dense_and_lean();
+    test_cqmom_first_continuous_stage_uses_initial_accepted_quadrature();
     test_public_cqmom_continuous_stage_preserves_topology();
     test_public_cqmom_continuous_stage_reconstructs_dense_and_lean_moments();
     test_public_cqmom_discontinuous_stage_adaptive_policy();

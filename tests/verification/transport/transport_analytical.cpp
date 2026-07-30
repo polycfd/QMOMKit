@@ -2789,8 +2789,15 @@ VerificationResult run_cqmom_transport_inversion_failures(const std::filesystem:
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = configured.value();
-    qmomkit::CqmomState state = cqmom_case.initial_state();
+    const auto configured_dense = qmomkit::config::load_cqmom_dense(configuration_path);
+    if (!configured_dense.ok())
+    {
+        print_configuration_errors(configured_dense);
+        append_failure(verification, "unable to load dense CQMOM transport inversion-failure configuration.");
+        return verification;
+    }
+
+    qmomkit::CqmomState state = qmomkit::internal::create_cqmom_state(configured_dense.value());
     qmomkit::CqmomTransportOptions options = cqmom_state_options();
     options.scheme = qmomkit::TransportScheme::strang;
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };

@@ -286,7 +286,7 @@ parsed scheme defaults to `TransportScheme::strang`.
 
 Node-advection configuration maps to `NodeAdvectionOptions`. The scheme lives
 under `[time_integration.node_advection]` so it is not confused with
-`[time_integration] scheme`, which controls operator splitting. RK23 controls
+`[time_integration] scheme`, which controls the operator-splitting scheme. RK23 controls
 live under `[time_integration.node_advection.rk23]` and map directly to
 `AdaptiveRk23Options`:
 

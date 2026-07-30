@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
@@ -60,31 +61,38 @@ int main()
     qmomkit::QuadratureWriter quadrature_history_writer =
         qmomkit::QuadratureWriter::for_qmom(output_directory / "quadrature_history.txt", node_count);
 
-    const qmomkit::QmomResult initial_quadrature = qmomkit::compute_qmom(qmomkit::MomentSet(moments), node_count, options.qmom_options);
-    if (!initial_quadrature.ok())
+    std::optional<qmomkit::QmomState> initial_state;
+    try
     {
-        std::cerr << "Initial QMOM reconstruction failed: " << initial_quadrature.message << '\n';
+        initial_state.emplace(qmomkit::QmomCase{qmomkit::MomentSet(moments), node_count, options.qmom_options}.initial_state());
+    }
+    catch (const std::exception& error)
+    {
+        std::cerr << error.what() << '\n';
         return 1;
     }
+    qmomkit::QmomState state = *initial_state;
+    moments = state.moments();
     moment_history_writer.write(initial_time, qmomkit::MomentSet(moments));
-    quadrature_history_writer.write(initial_time, initial_quadrature);
-    qmomkit::QmomResult final_quadrature = initial_quadrature;
+    quadrature_history_writer.write(initial_time, state.quadrature());
+    qmomkit::QmomResult final_quadrature = state.quadrature();
 
     while (time < final_time - 1.0e-12)
     {
         const double step = std::min(time_step, final_time - time);
-        const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(moments, node_count, time, step, velocity, source, options);
+        const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, node_count, time, step, velocity, source, options);
         if (!result.ok())
         {
             std::cerr << "QMOM transport failed: " << result.message << '\n';
             return 1;
         }
 
-        moments = result.moments;
+        state = result.state;
+        moments = state.moments();
         time = result.final_time;
-        final_quadrature = result.quadrature;
+        final_quadrature = state.quadrature();
         moment_history_writer.write(time, qmomkit::MomentSet(moments));
-        quadrature_history_writer.write(time, result.quadrature);
+        quadrature_history_writer.write(time, state.quadrature());
     }
 
     std::cout << '\n';

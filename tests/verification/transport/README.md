@@ -10,7 +10,7 @@ and `examples/cqmom_transport/`.
 
 All initial QMOMKit cases are loaded from `.qmom` files through the public
 configuration API. Configuration may define the initial numerical setup and the
-transport operator ordering scheme (`strang`, `cd`, or `dc`). Operator
+operator-splitting scheme (`strang`, `cd`, or `dc`). Operator
 coefficients, exact references, timestep plans, RK23/SSP-RK3 options, and
 tolerances live in `transport_analytical.cpp` because the current configuration
 format does not define physics callbacks, model coefficients, timestep plans, or
@@ -158,7 +158,7 @@ second-order composition error visible. The observed order should approach
 two on the finest refinement pairs.
 
 The same noncommuting manufactured case also verifies `cd` and `dc` as
-first-order operator orderings. Those schemes are expected to approach first
+first-order Lie splitting schemes. Those schemes are expected to approach first
 order under refinement and to differ from each other at finite timestep,
 documenting that the public scheme option is active rather than ignored.
 
@@ -277,7 +277,7 @@ dM_ij/dt = gamma M_ij
 gamma = -0.09
 ```
 
-The default scheme is Strang splitting, so the analytical split reference for
+The default scheme is Strang splitting, so the analytical one-step reference for
 one macro step is:
 
 ```text

@@ -20,7 +20,7 @@ The core library provides:
 - realizability diagnostics and optional runtime acceptance predicates;
 - generic SSP-RK3 and adaptive RK23 solvers;
 - continuous quadrature-node advection, discontinuous moment-source updates,
-  and hybrid moment transport composition;
+  and staged moment transport composition;
 - moment reconstruction/evaluation utilities, output helpers, and diagnostics.
 
 The moment reconstruction utilities reconstruct native integer-order raw
@@ -71,9 +71,10 @@ configuration
 
 After reconstruction, both QMOM and CQMOM workflows may inspect quadrature,
 evaluate derived quantities, write output, or enter optional transport. QMOM
-transport advances raw moment vectors with `advance_transport_qmom(...)`; normal
-CQMOM transport creates a `CqmomState` with `CqmomCase::initial_state()` and
-advances it with `advance_transport_cqmom(CqmomState, ...)`.
+transport creates a `QmomState` with `QmomCase::initial_state()` and advances it
+with `advance_transport_qmom(QmomState, ...)`; normal CQMOM transport creates a
+`CqmomState` with `CqmomCase::initial_state()` and advances it with
+`advance_transport_cqmom(CqmomState, ...)`.
 
 `CqmomCase` and `CqmomState` are the neutral public objects for normal CQMOM
 workflows. Normal CQMOM transport creates a `CqmomState` from `CqmomCase` and
@@ -92,7 +93,7 @@ implementation comments:
 | Term | Meaning |
 |------|---------|
 | Case | Problem definition used by a solver workflow, including initial moments and reconstruction settings. `QmomCase` is the configured one-dimensional QMOM case. `CqmomCase` is the normal representation-independent CQMOM case. |
-| State | Evolving runtime state during time integration or transport. This is currently used by CQMOM through `CqmomState`; QMOM transport uses raw moment vectors directly and does not require a `QmomState`. |
+| State | Evolving runtime state during time integration or transport. QMOM uses `QmomState`; CQMOM uses `CqmomState`. |
 | Dense | Full tensor moment representation, normally `RawMomentTensor`. Dense is not legacy; it is an explicit full-tensor workflow for CQMOM callers that choose that representation. |
 | Lean | Compact CQMOM required-moment representation containing only the moments required for a given hierarchy. Lean is not a different physical model. |
 | Explicit representation workflow | Workflow where the user intentionally chooses and manages the CQMOM moment representation, either dense or lean. |

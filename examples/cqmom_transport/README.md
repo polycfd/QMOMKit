@@ -158,7 +158,7 @@ source-only `advance_transport_cqmom(...)` overload.
 
 The example advances continuous motion, the source, and the optional boundary
 contribution with `qmomkit::advance_transport_cqmom(...)` and
-`qmomkit::CqmomState`. The operator split remains Strang:
+`qmomkit::CqmomState`. The operator-splitting scheme remains Strang splitting:
 
 ```text
 continuous half-step

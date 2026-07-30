@@ -232,8 +232,21 @@ QMOMKit does not implement general spatial PDE boundary conditions. Injection,
 removal, nucleation, or other phase-space boundary contributions may be
 represented through documented moment-rate callbacks.
 
-Do not introduce the terms “hybrid transport,” “operator-split transport,” or
-“Strang-split transport” in code or documentation.
+### Transport terminology
+
+Use established numerical-method terminology accurately.
+
+QMOMKit applies operator splitting for the continuous phase-space and
+discontinuous source operators. Strang splitting is one of the implemented
+splitting schemes.
+
+Terms such as “operator splitting,” “Lie splitting,” “Strang splitting,”
+“operator-split methods,” “Strang-split integration,” “splitting scheme,” and
+“splitting order” are valid and should be used where mathematically
+appropriate.
+
+Avoid misleading descriptions such as “hybrid transport” when referring to the
+standard operator-splitting workflow.
 
 See `docs/developer/transport_design.md` for the current transport workflow,
 callback contracts, status propagation, and validation requirements.

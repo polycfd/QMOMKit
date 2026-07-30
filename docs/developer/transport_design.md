@@ -28,8 +28,8 @@ The library provides transport utilities. Users provide physical models:
 
 QMOMKit does not own meshes, cells, finite-volume or finite-element operators,
 boundary conditions, MPI communication, particle models, or application
-physics. Transport operates on raw moments, quadrature nodes, and callback
-interfaces only.
+physics. Transport operates on accepted QMOM/CQMOM state, quadrature nodes, raw
+moments, and callback interfaces only.
 
 The callback categories are independent runtime inputs. A workflow may use
 only continuous phase-space motion, only moment-space source evolution, source
@@ -37,7 +37,7 @@ plus boundary exchange, velocity plus source, or all three categories. Case and
 State objects store numerical configuration and evolving moment data; they do
 not store physical models or callback objects.
 
-The production transport composition is hybrid moment transport: continuous
+The production transport composition has two numerical stages: continuous
 motion is represented by advancing quadrature nodes, while discontinuous or
 source-like effects are represented by advancing raw moments. Direct moment
 transport is not part of the supported QMOMKit transport design.
@@ -272,8 +272,8 @@ Source SSP-RK3 advances raw moment vectors through moment-source updates. It is
 an explicit third-order strong-stability-preserving Runge-Kutta step over a
 generic vector state.
 
-Transport uses this path for the discontinuous or source-like part of hybrid
-transport because that part acts directly on moments:
+Transport uses this path for the discontinuous or source-like stage because
+that stage acts directly on moments:
 
 ```text
 m_new = SSP-RK3(m_old, source)
@@ -458,22 +458,29 @@ node-advection step, rejected-step, and RHS-evaluation counts.
 ## Transport Composition
 
 The full transport helpers compose the lower-level operations with a selected
-operator ordering:
+operator-splitting scheme:
 
 ```cpp
 advance_transport_qmom(...)
 advance_transport_cqmom(...)
 ```
 
-Each macro step begins by reconstructing quadrature from the input raw
-moments. The selected transport scheme then composes continuous node motion
-and discontinuous moment-source evolution. If a boundary contribution callback
-is supplied, it is added to the source rate inside the discontinuous source
-step; it does not create another transport stage.
+Each QMOM macro step starts from an accepted `QmomState`; the state's accepted
+quadrature is used directly for continuous node motion, and its canonical raw
+moments are used for discontinuous moment-source evolution. `QmomState` exposes
+read-only accessors so callers cannot mutate moments and quadrature
+independently. It remains copyable and movable for application time loops, but
+direct construction from independent moments and quadrature is intentionally
+unavailable. Post-source QMOM reconstruction selects the next accepted
+quadrature before moments are canonicalized from that quadrature. CQMOM macro
+steps follow the same state-based pattern with `CqmomState`. If a boundary
+contribution callback is supplied, it is added to the source rate inside the
+discontinuous source step; it does not create another transport stage.
 
-### Strang
+### Strang Splitting
 
-`TransportScheme::strang` is the default second-order composition:
+`TransportScheme::strang` is the default second-order Strang splitting
+composition:
 
 ```text
 continuous half-step
@@ -493,7 +500,8 @@ final moments.
 
 ### `cd`
 
-`TransportScheme::cd` applies:
+`TransportScheme::cd` applies first-order continuous-then-discontinuous Lie
+splitting:
 
 ```text
 continuous full-step
@@ -502,11 +510,10 @@ source full-step
 post-source inversion
 ```
 
-This is a first-order continuous-then-discontinuous ordering.
-
 ### `dc`
 
-`TransportScheme::dc` applies:
+`TransportScheme::dc` applies first-order discontinuous-then-continuous Lie
+splitting:
 
 ```text
 source full-step
@@ -515,11 +522,9 @@ continuous full-step
 final moment reconstruction
 ```
 
-This is a first-order discontinuous-then-continuous ordering.
-
 The `cd` and `dc` schemes are useful for comparisons, diagnostics, or
-applications that deliberately want a fixed first-order operator order. They
-do not replace the default Strang composition.
+applications that deliberately want a fixed first-order splitting order. They
+do not replace the default Strang splitting composition.
 
 ### Extending Transport Schemes
 
@@ -567,7 +572,7 @@ Transport diagnostics record:
 
 - selected scheme;
 - failed stage;
-- initial and post-source QMOM/CQMOM inversion statuses;
+- post-source QMOM inversion status and initial/post-source CQMOM inversion statuses;
 - CQMOM diagnostics when available;
 - first and second continuous node-advection statuses;
 - node-advection step, rejected-step, and RHS-evaluation totals;
@@ -631,8 +636,8 @@ The main transport helpers are:
 
 ```cpp
 QmomTransportResult advance_transport_qmom(
-    const std::vector<double>& moments,
-    std::size_t node_count,
+    const QmomState& state,
+    std::size_t maximum_node_count,
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,
@@ -640,8 +645,8 @@ QmomTransportResult advance_transport_qmom(
     const QmomTransportOptions& options = {});
 
 QmomTransportResult advance_transport_qmom(
-    const std::vector<double>& moments,
-    std::size_t node_count,
+    const QmomState& state,
+    std::size_t maximum_node_count,
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,
@@ -745,8 +750,8 @@ for projects that use QMOMKit.
 ## Validation Expectations
 
 Transport changes should be validated through analytical or manufactured
-cases that exercise the relevant representation path. For complete hybrid
-transport this is:
+cases that exercise the relevant representation path. For a complete transport
+macro step this is:
 
 ```text
 moments
@@ -768,6 +773,6 @@ Existing verification covers:
 - reconstruction error and zeroth-moment checks;
 - diagnostics for successful transport runs.
 
-Changes to operator ordering, status mapping, callback validation,
+Changes to splitting order, status mapping, callback validation,
 realizability hooks, or diagnostic fields are transport-design changes and
 require matching verification coverage.

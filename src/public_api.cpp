@@ -1,9 +1,12 @@
 #include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
+#include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
+#include "internal/qmom_state_access.hpp"
 #include "internal/recursive_quadrature.hpp"
 #include "qmomkit/cqmom.hpp"
+#include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/qmom.hpp"
 #include "qmomkit/wheeler.hpp"
 
@@ -136,6 +139,18 @@ QmomResult compute_qmom(const MomentSet& moments, const std::size_t node_count, 
 QmomResult compute_qmom(const QmomCase& case_)
 {
     return compute_qmom(case_.moments, case_.node_count, case_.options);
+}
+
+QmomState::QmomState(std::vector<double> moments, QmomResult quadrature) : moments_(std::move(moments)), quadrature_(std::move(quadrature)) {}
+
+QmomState QmomCase::initial_state() const
+{
+    QmomResult quadrature = compute_qmom(*this);
+    if (!quadrature.ok())
+    {
+        throw std::runtime_error("QMOM initial state reconstruction failed: " + quadrature.message);
+    }
+    return internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size());
 }
 
 struct CqmomCase::Data

@@ -178,11 +178,14 @@ required CQMOM moments. If you want QMOMKit to derive required CQMOM moments
 from a configured independent-product initialization, `load_cqmom(...)` remains
 the most concise route to the representation-neutral `CqmomCase`.
 
-Transport is still optional. QMOM transport advances moment vectors directly
-with `advance_transport_qmom(...)`. CQMOM transport advances a `CqmomState`
-created from `CqmomCase`:
+Transport is still optional. QMOM transport advances a `QmomState` created from
+`QmomCase`. CQMOM transport advances a `CqmomState` created from `CqmomCase`:
 
 ```cpp
+qmomkit::QmomState qmom_state = qmom_case.initial_state();
+const qmomkit::QmomTransportResult qmom_next =
+    qmomkit::advance_transport_qmom(qmom_state, qmom_case.node_count, time, time_step, velocity, source, options);
+
 qmomkit::CqmomState state = cqmom_case.initial_state();
 const qmomkit::CqmomTransportResult next =
     qmomkit::advance_transport_cqmom(state, time, time_step, velocity, source, options);
@@ -288,7 +291,7 @@ if (!result.ok())
 transport. `compute_cqmom(...)` returns the quadrature result for that setup; it
 does not return a `CqmomState`. `CqmomCase::initial_state()` creates the
 evolving `CqmomState` used by optional CQMOM transport. QMOM transport is also
-optional and advances raw moment vectors rather than a `QmomState`. Use
+optional and advances an evolving `QmomState` created from `QmomCase`. Use
 `load_cqmom_dense(...)` only when an application deliberately chooses the
 explicit dense representation workflow. Optional output settings are loaded
 separately with `load_output_options(...)`; transport controls are loaded with

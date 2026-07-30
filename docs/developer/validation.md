@@ -67,7 +67,7 @@ coordinates, conditioning paths, and raw tensor reconstruction visible.
 ### Numerical Method Verification
 
 Numerical method verification validates a composition of numerical methods,
-typically with time evolution or operator splitting.
+typically with time evolution or staged transport composition.
 
 Examples include:
 

@@ -51,8 +51,12 @@ The inputs and outputs are:
 
 After reconstruction, a QMOM workflow may inspect the quadrature, evaluate
 derived quantities, write output, or optionally evolve the distribution. QMOM
-transport advances raw moment vectors with `advance_transport_qmom(...)`; it
-does not require a persistent `QmomState`.
+transport advances an accepted `QmomState` from `QmomCase::initial_state()`
+with `advance_transport_qmom(...)`. `QmomState` exposes read-only `moments()`
+and `quadrature()` accessors; its stored moments are canonicalized from its
+accepted quadrature. Users may copy and move accepted states, but direct
+construction from independent moments and quadrature is intentionally
+unavailable.
 
 For `N` nodes, provide at least `2 * N` moments:
 

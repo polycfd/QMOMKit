@@ -4,7 +4,7 @@ These verification cases exercise the public continuous phase-space operator:
 configuration loading, QMOM/CQMOM inversion, `qmomkit::advance_nodes(...)`,
 and raw-moment reconstruction. Initial moment states are loaded from `.qmom`
 files. Configuration files provide reproducible case setup and may define
-supported numerical scheme choices such as transport operator splitting and
+supported numerical scheme choices such as operator-splitting scheme and
 the node-advection scheme. The ODE coefficients, velocity callbacks, timestep
 plan, and detailed RK23 tolerance settings live in the verifier because those
 are application runtime choices rather than case-definition fields.

@@ -499,6 +499,42 @@ int main()
 }
 ```
 
+Use `advance_transport_qmom(...)` when QMOMKit should own one configured
+Strang or Lie splitting step. If the surrounding application owns stage
+orchestration, coupling, or acceptance, call the one-dimensional state stages
+directly:
+
+```cpp
+const qmomkit::QmomTransportResult first =
+    qmomkit::advance_qmom_continuous(
+        state, time, 0.5 * time_step, velocity, options);
+
+if (!first.ok())
+{
+    // Handle failure.
+}
+
+const qmomkit::QmomTransportResult source_stage =
+    qmomkit::advance_qmom_discontinuous(
+        first.state, node_count, time + 0.5 * time_step, time_step, source, options);
+
+if (!source_stage.ok())
+{
+    // Handle failure.
+}
+
+const qmomkit::QmomTransportResult second =
+    qmomkit::advance_qmom_continuous(
+        source_stage.state, time + 0.5 * time_step, 0.5 * time_step, velocity, options);
+```
+
+Continuous stages move the accepted quadrature topology and reconstruct the
+stored moment vector without another QMOM inversion. Discontinuous stages own
+the source update and the same fixed or adaptive post-source reconstruction
+policy used by the full transport helper. Application-managed workflows should
+pass `QmomState` objects between stages instead of reconstructing quadrature or
+mutating moments manually.
+
 If the model also has phase-space boundary exchange, define a
 `MomentBoundaryContribution` and call the boundary-aware overload with explicit
 transport options:

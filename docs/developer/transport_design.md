@@ -461,6 +461,8 @@ The full transport helpers compose the lower-level operations with a selected
 operator-splitting scheme:
 
 ```cpp
+advance_qmom_continuous(...)
+advance_qmom_discontinuous(...)
 advance_transport_qmom(...)
 advance_transport_cqmom(...)
 ```
@@ -476,6 +478,14 @@ quadrature before moments are canonicalized from that quadrature. CQMOM macro
 steps follow the same state-based pattern with `CqmomState`. If a boundary
 contribution callback is supplied, it is added to the source rate inside the
 discontinuous source step; it does not create another transport stage.
+
+The public one-dimensional QMOM stage helpers expose the same continuous and
+discontinuous stage implementations used by `advance_transport_qmom(...)`.
+Standalone stage failure returns the stage input state unchanged. A complete
+operator-split QMOM step remains transactional at the macro-step boundary: if a
+later substage fails after an earlier substage succeeded, the returned
+`QmomTransportResult::state` is still the state accepted before the complete
+split step began.
 
 ### Strang Splitting
 
@@ -627,6 +637,8 @@ Public transport and time-evolution entry points include:
 
 - `advance_nodes(...)`
 - `advance_moments_with_source(...)`
+- `advance_qmom_continuous(...)`
+- `advance_qmom_discontinuous(...)`
 - `advance_transport_qmom(...)`
 - `advance_transport_cqmom(...)`
 - `ssp_rk3_step(...)`
@@ -635,6 +647,30 @@ Public transport and time-evolution entry points include:
 The main transport helpers are:
 
 ```cpp
+QmomTransportResult advance_qmom_continuous(
+    const QmomState& state,
+    double t,
+    double time_step,
+    const PhaseSpaceVelocity& velocity,
+    const QmomTransportOptions& options = {});
+
+QmomTransportResult advance_qmom_discontinuous(
+    const QmomState& state,
+    std::size_t maximum_node_count,
+    double t,
+    double time_step,
+    const MomentSource& source,
+    const QmomTransportOptions& options = {});
+
+QmomTransportResult advance_qmom_discontinuous(
+    const QmomState& state,
+    std::size_t maximum_node_count,
+    double t,
+    double time_step,
+    const MomentSource& source,
+    const MomentBoundaryContribution& boundary,
+    const QmomTransportOptions& options);
+
 QmomTransportResult advance_transport_qmom(
     const QmomState& state,
     std::size_t maximum_node_count,

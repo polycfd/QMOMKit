@@ -340,6 +340,141 @@ void record_failure_diagnostics(TransportDiagnostics& diagnostics, const Transpo
     return current;
 }
 
+void validate_qmom_continuous_input(const QmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity)
+{
+    validate_time_input(t, time_step);
+    if (!internal::all_finite(state.moments()))
+    {
+        throw std::invalid_argument("QMOM transport state moments must be finite.");
+    }
+    if (!velocity)
+    {
+        throw std::invalid_argument("Transport phase-space velocity callback must be provided.");
+    }
+}
+
+void validate_qmom_discontinuous_input(const QmomState& state, const std::size_t maximum_node_count, const QmomOptions& qmom_options, const double t,
+                                       const double time_step, const MomentSource& source, const MomentBoundaryContribution* const boundary)
+{
+    validate_time_input(t, time_step);
+    if (maximum_node_count == 0)
+    {
+        throw std::invalid_argument("QMOM transport requires at least one configured node.");
+    }
+    if (state.moments().size() < 2 * maximum_node_count)
+    {
+        throw std::invalid_argument("QMOM transport state has too few moments for the configured maximum node count.");
+    }
+    if (!internal::all_finite(state.moments()))
+    {
+        throw std::invalid_argument("QMOM transport state moments must be finite.");
+    }
+    if (state.active_node_count() > maximum_node_count)
+    {
+        throw std::invalid_argument("QMOM transport state active node count exceeds the configured maximum.");
+    }
+    if (!qmom_options.adaptive && state.active_node_count() != maximum_node_count)
+    {
+        throw std::invalid_argument("Fixed-count QMOM transport state must contain the configured node count.");
+    }
+    if (!source)
+    {
+        throw std::invalid_argument("Transport moment-source callback must be provided.");
+    }
+    validate_boundary(boundary);
+}
+
+[[nodiscard]] bool advance_qmom_continuous_stage(const QmomState& state, const QmomState& rollback_state, const double t, const double time_step,
+                                                 const PhaseSpaceVelocity& velocity, const QmomTransportOptions& options, const bool final_continuous,
+                                                 TransportDiagnostics& diagnostics, QmomState& accepted_state,
+                                                 std::optional<QmomTransportResult>& failure)
+{
+    internal::performance::record_continuous_operator_call();
+    const QmomNodeAdvectionResult continuous = advance_nodes(state.quadrature(), t, time_step, velocity, options.node_options);
+    record_continuous_diagnostics(diagnostics, final_continuous, continuous.status, continuous.diagnostics);
+    if (!continuous.ok())
+    {
+        failure = qmom_failure(rollback_state, TransportStatus::continuous_failed,
+                               final_continuous ? TransportStage::second_continuous_half_step : TransportStage::first_continuous_half_step,
+                               diagnostics, t, continuous.message);
+        return false;
+    }
+
+    try
+    {
+        internal::performance::record_moment_reconstruction_call();
+        accepted_state = internal::QmomStateAccess::from_quadrature(qmom_from_quadrature(continuous.quadrature), state.moments().size());
+        if (final_continuous)
+        {
+            diagnostics.final_reconstruction_diagnostics = successful_reconstruction(accepted_state.moments().size());
+        }
+        else
+        {
+            diagnostics.first_reconstruction_diagnostics = successful_reconstruction(accepted_state.moments().size());
+        }
+    }
+    catch (const std::exception& error)
+    {
+        if (final_continuous)
+        {
+            diagnostics.final_reconstruction_diagnostics = {false, state.moments().size(), error.what()};
+        }
+        else
+        {
+            diagnostics.first_reconstruction_diagnostics = {false, state.moments().size(), error.what()};
+        }
+        failure = qmom_failure(rollback_state, TransportStatus::moment_reconstruction_failed,
+                               final_continuous ? TransportStage::final_moment_reconstruction : TransportStage::first_moment_reconstruction,
+                               diagnostics, t + time_step, error.what());
+        return false;
+    }
+    return true;
+}
+
+[[nodiscard]] bool advance_qmom_discontinuous_stage(const QmomState& state, const QmomState& rollback_state, const std::size_t maximum_node_count,
+                                                    const double t, const double time_step, const MomentSource& source,
+                                                    const MomentBoundaryContribution* const boundary, const QmomTransportOptions& options,
+                                                    TransportDiagnostics& diagnostics, QmomState& accepted_state,
+                                                    std::optional<QmomTransportResult>& failure)
+{
+    internal::performance::record_discontinuous_operator_call();
+    const MomentSourceUpdateResult source_update =
+        boundary == nullptr ? advance_moments_with_source(state.moments(), t, time_step, source, options.source_options)
+                            : advance_moments_with_source(state.moments(), t, time_step, source, *boundary, options.source_options);
+    record_source_update_diagnostics(diagnostics, source_update);
+    if (!source_update.ok())
+    {
+        failure = qmom_failure(rollback_state, TransportStatus::source_failed, TransportStage::discontinuous_source_step, diagnostics, t,
+                               source_update.message);
+        return false;
+    }
+
+    internal::performance::record_post_source_inversion();
+    QmomResult selected_quadrature =
+        select_post_source_qmom(source_update.moments, state.active_node_count(), maximum_node_count, options.qmom_options);
+    diagnostics.post_source_qmom_status = selected_quadrature.status;
+    if (!selected_quadrature.ok())
+    {
+        failure = qmom_failure(rollback_state, TransportStatus::inversion_failed, TransportStage::post_source_inversion, diagnostics, t,
+                               selected_quadrature.message);
+        return false;
+    }
+    try
+    {
+        internal::performance::record_moment_reconstruction_call();
+        accepted_state = internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moments().size());
+    }
+    catch (const std::exception& error)
+    {
+        std::string message = std::string("QMOM post-source moment reconstruction failed: ") + error.what();
+        diagnostics.final_reconstruction_diagnostics = {false, state.moments().size(), message};
+        failure = qmom_failure(rollback_state, TransportStatus::moment_reconstruction_failed, TransportStage::post_source_inversion, diagnostics, t,
+                               std::move(message));
+        return false;
+    }
+    return true;
+}
+
 [[nodiscard]] DenseCqmomTransportResult cqmom_failure(RawMomentTensor moments, std::optional<CqmomQuadrature> quadrature,
                                                       const TransportStatus status, const TransportStage stage, TransportDiagnostics diagnostics,
                                                       const double final_time, std::string message)
@@ -544,91 +679,14 @@ static QmomTransportResult advance_transport_qmom_impl(const QmomState& state, c
 
     const auto apply_continuous = [&](const double start_time, const double step, const bool final_continuous)
     {
-        internal::performance::record_continuous_operator_call();
-        const QmomNodeAdvectionResult continuous = advance_nodes(current_state.quadrature(), start_time, step, velocity, options.node_options);
-        record_continuous_diagnostics(diagnostics, final_continuous, continuous.status, continuous.diagnostics);
-        if (!continuous.ok())
-        {
-            failure = qmom_failure(state, TransportStatus::continuous_failed,
-                                   final_continuous ? TransportStage::second_continuous_half_step : TransportStage::first_continuous_half_step,
-                                   diagnostics, start_time, continuous.message);
-            return false;
-        }
-
-        try
-        {
-            internal::performance::record_moment_reconstruction_call();
-            current_state = internal::QmomStateAccess::from_quadrature(qmom_from_quadrature(continuous.quadrature), state.moments().size());
-            if (final_continuous)
-            {
-                diagnostics.final_reconstruction_diagnostics = successful_reconstruction(current_state.moments().size());
-            }
-            else
-            {
-                diagnostics.first_reconstruction_diagnostics = successful_reconstruction(current_state.moments().size());
-            }
-        }
-        catch (const std::exception& error)
-        {
-            if (final_continuous)
-            {
-                diagnostics.final_reconstruction_diagnostics = {false, state.moments().size(), error.what()};
-            }
-            else
-            {
-                diagnostics.first_reconstruction_diagnostics = {false, state.moments().size(), error.what()};
-            }
-            failure = qmom_failure(state, TransportStatus::moment_reconstruction_failed,
-                                   final_continuous ? TransportStage::final_moment_reconstruction : TransportStage::first_moment_reconstruction,
-                                   diagnostics, start_time + step, error.what());
-            return false;
-        }
-        return true;
+        return advance_qmom_continuous_stage(current_state, state, start_time, step, velocity, options, final_continuous, diagnostics, current_state,
+                                             failure);
     };
 
     const auto apply_source = [&](const double start_time)
     {
-        internal::performance::record_discontinuous_operator_call();
-        // D-step: MomentSource and optional boundary contribution share the
-        // existing SSP-RK3 source update path.
-        const MomentSourceUpdateResult source_update =
-            boundary == nullptr
-                ? advance_moments_with_source(current_state.moments(), start_time, time_step, source, options.source_options)
-                : advance_moments_with_source(current_state.moments(), start_time, time_step, source, *boundary, options.source_options);
-        record_source_update_diagnostics(diagnostics, source_update);
-        if (!source_update.ok())
-        {
-            failure = qmom_failure(state, TransportStatus::source_failed, TransportStage::discontinuous_source_step, diagnostics, start_time,
-                                   source_update.message);
-            return false;
-        }
-
-        internal::performance::record_post_source_inversion();
-        // Reconstruct quadrature after the moment update so realizability is
-        // checked before any later continuous stage can use these moments.
-        QmomResult selected_quadrature =
-            select_post_source_qmom(source_update.moments, current_state.active_node_count(), maximum_node_count, options.qmom_options);
-        diagnostics.post_source_qmom_status = selected_quadrature.status;
-        if (!selected_quadrature.ok())
-        {
-            failure = qmom_failure(state, TransportStatus::inversion_failed, TransportStage::post_source_inversion, diagnostics, start_time,
-                                   selected_quadrature.message);
-            return false;
-        }
-        try
-        {
-            internal::performance::record_moment_reconstruction_call();
-            current_state = internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moments().size());
-        }
-        catch (const std::exception& error)
-        {
-            std::string message = std::string("QMOM post-source moment reconstruction failed: ") + error.what();
-            diagnostics.final_reconstruction_diagnostics = {false, state.moments().size(), message};
-            failure = qmom_failure(state, TransportStatus::moment_reconstruction_failed, TransportStage::post_source_inversion, diagnostics,
-                                   start_time, std::move(message));
-            return false;
-        }
-        return true;
+        return advance_qmom_discontinuous_stage(current_state, state, maximum_node_count, start_time, time_step, source, boundary, options,
+                                                diagnostics, current_state, failure);
     };
 
     if (!execute_transport_sequence(options.scheme, t, time_step, apply_continuous, apply_source))
@@ -638,6 +696,71 @@ static QmomTransportResult advance_transport_qmom_impl(const QmomState& state, c
 
     finalize_diagnostics(diagnostics);
     return QmomTransportResult{std::move(current_state), TransportStatus::success, std::move(diagnostics), t + time_step, ""};
+}
+
+QmomTransportResult advance_qmom_continuous(const QmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
+                                            const QmomTransportOptions& options)
+{
+    TransportDiagnostics diagnostics;
+    diagnostics.scheme = options.scheme;
+    try
+    {
+        validate_qmom_continuous_input(state, t, time_step, velocity);
+    }
+    catch (const std::exception& error)
+    {
+        return qmom_failure(state, TransportStatus::invalid_input, TransportStage::none, diagnostics, t, error.what());
+    }
+
+    QmomState accepted_state = state;
+    std::optional<QmomTransportResult> failure;
+    if (!advance_qmom_continuous_stage(state, state, t, time_step, velocity, options, false, diagnostics, accepted_state, failure))
+    {
+        return std::move(*failure);
+    }
+
+    finalize_diagnostics(diagnostics);
+    return QmomTransportResult{std::move(accepted_state), TransportStatus::success, std::move(diagnostics), t + time_step, ""};
+}
+
+static QmomTransportResult advance_qmom_discontinuous_impl(const QmomState& state, const std::size_t maximum_node_count, const double t,
+                                                           const double time_step, const MomentSource& source,
+                                                           const MomentBoundaryContribution* const boundary, const QmomTransportOptions& options)
+{
+    TransportDiagnostics diagnostics;
+    diagnostics.scheme = options.scheme;
+    try
+    {
+        validate_qmom_discontinuous_input(state, maximum_node_count, options.qmom_options, t, time_step, source, boundary);
+    }
+    catch (const std::exception& error)
+    {
+        return qmom_failure(state, TransportStatus::invalid_input, TransportStage::none, diagnostics, t, error.what());
+    }
+
+    QmomState accepted_state = state;
+    std::optional<QmomTransportResult> failure;
+    if (!advance_qmom_discontinuous_stage(state, state, maximum_node_count, t, time_step, source, boundary, options, diagnostics, accepted_state,
+                                          failure))
+    {
+        return std::move(*failure);
+    }
+
+    finalize_diagnostics(diagnostics);
+    return QmomTransportResult{std::move(accepted_state), TransportStatus::success, std::move(diagnostics), t + time_step, ""};
+}
+
+QmomTransportResult advance_qmom_discontinuous(const QmomState& state, const std::size_t maximum_node_count, const double t, const double time_step,
+                                               const MomentSource& source, const QmomTransportOptions& options)
+{
+    return advance_qmom_discontinuous_impl(state, maximum_node_count, t, time_step, source, nullptr, options);
+}
+
+QmomTransportResult advance_qmom_discontinuous(const QmomState& state, const std::size_t maximum_node_count, const double t, const double time_step,
+                                               const MomentSource& source, const MomentBoundaryContribution& boundary,
+                                               const QmomTransportOptions& options)
+{
+    return advance_qmom_discontinuous_impl(state, maximum_node_count, t, time_step, source, &boundary, options);
 }
 
 QmomTransportResult advance_transport_qmom(const QmomState& state, const std::size_t maximum_node_count, const double t, const double time_step,

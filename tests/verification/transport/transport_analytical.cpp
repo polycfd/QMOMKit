@@ -228,6 +228,62 @@ bool vectors_equal(const std::vector<double>& lhs, const std::vector<double>& rh
     return true;
 }
 
+bool values_are_finite(const std::vector<double>& values)
+{
+    return std::all_of(values.begin(), values.end(), [](const double value) { return std::isfinite(value); });
+}
+
+bool qmom_quadrature_values_are_finite(const qmomkit::QmomResult& quadrature)
+{
+    return values_are_finite(quadrature.weights) && values_are_finite(quadrature.abscissas);
+}
+
+bool cqmom_quadrature_values_are_finite(const qmomkit::CqmomQuadrature& quadrature)
+{
+    if (!values_are_finite(quadrature.weights()))
+    {
+        return false;
+    }
+    for (const std::vector<double>& dimension : quadrature.abscissas())
+    {
+        if (!values_are_finite(dimension))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool cqmom_quadrature_topology_is_consistent(const qmomkit::CqmomQuadrature& quadrature)
+{
+    const std::size_t active_nodes = quadrature.weights().size();
+    if (quadrature.total_nodes() != active_nodes || quadrature.abscissas().size() != quadrature.number_of_dimensions())
+    {
+        return false;
+    }
+    for (const std::vector<double>& dimension : quadrature.abscissas())
+    {
+        if (dimension.size() != active_nodes)
+        {
+            return false;
+        }
+    }
+    return quadrature.terminal_paths().empty() || quadrature.terminal_paths().size() == active_nodes;
+}
+
+bool active_branch_counts_are_valid(const std::vector<qmomkit::CqmomActiveBranchCount>& counts)
+{
+    for (const qmomkit::CqmomActiveBranchCount& count : counts)
+    {
+        if (count.active_node_count == 0 || count.active_node_count > count.configured_node_count ||
+            count.parent_path.size() != count.conditioning_level)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 void update_errors(ErrorMetrics& errors, const std::vector<double>& computed, const std::vector<double>& exact)
 {
     for (std::size_t i = 0; i < computed.size(); ++i)
@@ -1057,47 +1113,65 @@ void verify_qmom_continuous_failure_result(const std::string& case_name, const q
     }
 }
 
-void verify_qmom_rk23_minimum_step_failure_result(const qmomkit::QmomTransportResult& result, const std::vector<double>& initial_moments,
-                                                  VerificationResult& verification)
+void verify_qmom_rk23_minimum_step_acceptance_result(const qmomkit::QmomTransportResult& result, const std::vector<double>& exact,
+                                                     VerificationResult& verification)
 {
-    // The velocity callback is finite and dimensionally valid. Failure is
-    // caused by adaptive RK23 rejecting the first trial step and being unable
-    // to reduce below the configured minimum step.
-    if (result.ok())
+    // The velocity callback is finite and dimensionally valid. Adaptive RK23
+    // rejects the first requested step, then advances at the effective minimum
+    // step instead of failing because the controller would prefer a smaller one.
+    if (!result.ok())
     {
-        append_failure(verification, "QMOM RK23 minimum-step case unexpectedly reported transport success.");
+        append_failure(verification, "QMOM RK23 minimum-step case did not report transport success.");
     }
-    if (result.status != qmomkit::TransportStatus::continuous_failed)
+    if (result.status != qmomkit::TransportStatus::success)
     {
-        append_failure(verification, "QMOM RK23 minimum-step case did not report TransportStatus::continuous_failed.");
+        append_failure(verification, "QMOM RK23 minimum-step case did not report TransportStatus::success.");
     }
-    if (result.diagnostics.failed_stage != qmomkit::TransportStage::first_continuous_half_step)
+    if (result.diagnostics.failed_stage != qmomkit::TransportStage::none)
     {
-        append_failure(verification, "QMOM RK23 minimum-step case did not identify the first continuous half-step as the failed stage.");
+        append_failure(verification, "QMOM RK23 minimum-step case reported a failed transport stage.");
     }
-    if (result.diagnostics.first_continuous_status != qmomkit::NodeAdvectionStatus::integration_failed ||
-        result.diagnostics.first_continuous_diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::step_size_underflow)
+    if (result.diagnostics.first_continuous_status != qmomkit::NodeAdvectionStatus::success ||
+        result.diagnostics.second_continuous_status != qmomkit::NodeAdvectionStatus::success ||
+        result.diagnostics.first_continuous_diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::success ||
+        result.diagnostics.second_continuous_diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::success)
     {
-        append_failure(verification, "QMOM RK23 minimum-step case did not preserve the RK23 step-size-underflow status.");
+        append_failure(verification, "QMOM RK23 minimum-step case did not preserve successful RK23 diagnostics.");
     }
     if (result.diagnostics.first_continuous_diagnostics.rejected_step_count == 0 || result.diagnostics.total_node_advection_rejected_steps == 0 ||
-        result.diagnostics.first_continuous_diagnostics.step_count != 0)
+        result.diagnostics.first_continuous_diagnostics.step_count == 0 || result.diagnostics.second_continuous_diagnostics.step_count == 0)
     {
-        append_failure(verification, "QMOM RK23 minimum-step case did not preserve rejected-step diagnostics.");
+        append_failure(verification, "QMOM RK23 minimum-step case did not preserve accepted and rejected RK23 diagnostics.");
     }
-    if (!contains_text(result.message, "RK23 required a step smaller than min_step.") ||
-        !contains_text(result.diagnostics.message, "RK23 required a step smaller than min_step."))
+    if (std::abs(result.final_time - 0.08) > 1.0e-14 || std::abs(result.diagnostics.first_continuous_diagnostics.final_time - 0.04) > 1.0e-14 ||
+        std::abs(result.diagnostics.second_continuous_diagnostics.final_time - 0.08) > 1.0e-14)
     {
-        append_failure(verification, "QMOM RK23 minimum-step case did not preserve the minimum-step message.");
+        append_failure(verification, "QMOM RK23 minimum-step case did not reach the expected endpoint.");
     }
-    if (std::abs(result.final_time) > 1.0e-14 || std::abs(result.diagnostics.first_continuous_diagnostics.final_time) > 1.0e-14)
+    if (!result.diagnostics.source_diagnostics.accepted || !result.diagnostics.first_reconstruction_diagnostics.success ||
+        !result.diagnostics.final_reconstruction_diagnostics.success)
     {
-        append_failure(verification, "QMOM RK23 minimum-step case advanced time despite rejecting all candidate steps.");
+        append_failure(verification, "QMOM RK23 minimum-step case did not complete the later transport stages.");
     }
-    if (!vectors_equal(result.state.moments(), initial_moments, 0.0) || result.diagnostics.source_diagnostics.accepted ||
-        result.diagnostics.first_reconstruction_diagnostics.success || result.diagnostics.final_reconstruction_diagnostics.success)
+    if (!values_are_finite(result.state.moments()))
     {
-        append_failure(verification, "QMOM RK23 minimum-step case reported misleading successful output after failure.");
+        append_failure(verification, "QMOM RK23 minimum-step case returned a non-finite final moment.");
+    }
+    if (!qmom_quadrature_values_are_finite(result.state.quadrature()))
+    {
+        append_failure(verification, "QMOM RK23 minimum-step case returned a non-finite final quadrature value.");
+    }
+    if (result.state.moments().size() != exact.size())
+    {
+        append_failure(verification, "QMOM RK23 minimum-step case returned an unexpected final moment count.");
+    }
+    const qmomkit::Quadrature1D final_quadrature{result.state.quadrature().abscissas, result.state.quadrature().weights,
+                                                 qmomkit::QuadratureStatus::success, ""};
+    const std::vector<double> reconstructed = qmomkit::reconstruct_raw_moments(final_quadrature, exact.size());
+    if (result.state.moments().size() == exact.size() &&
+        (scaled_infinity_error(result.state.moments(), exact) > 2.0e-6 || scaled_infinity_error(reconstructed, exact) > 2.0e-6))
+    {
+        append_failure(verification, "QMOM RK23 minimum-step case final state exceeded the analytical continuous-reference tolerance.");
     }
 }
 
@@ -1188,8 +1262,8 @@ void verify_qmom_context_invalid_state_failure_result(const qmomkit::QmomTranspo
 VerificationResult run_qmom_transport_failures(const std::filesystem::path& configuration_path)
 {
     // Exercise QMOM transport failure propagation after a valid initial
-    // inversion: velocity callback errors, RK23 step-size underflow, and a
-    // source step that creates a non-realizable post-source moment sequence.
+    // inversion: velocity callback errors and a source step that creates a
+    // non-realizable post-source moment sequence.
     VerificationResult verification;
     const auto configured = qmomkit::config::load_qmom(configuration_path);
     if (!configured.ok())
@@ -1248,36 +1322,39 @@ VerificationResult run_qmom_transport_failures(const std::filesystem::path& conf
         verification.runs.push_back(summary);
     }
 
-    qmomkit::QmomTransportOptions rk_failure_options = options;
-    rk_failure_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    rk_failure_options.node_options.rk23_options.initial_step = 0.04;
-    rk_failure_options.node_options.rk23_options.max_step = 0.04;
-    rk_failure_options.node_options.rk23_options.min_step = 0.02;
+    qmomkit::QmomTransportOptions rk_minimum_options = options;
+    rk_minimum_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
+    rk_minimum_options.node_options.rk23_options.initial_step = 0.04;
+    rk_minimum_options.node_options.rk23_options.max_step = 0.04;
+    rk_minimum_options.node_options.rk23_options.min_step = 0.02;
     const auto stiff_velocity = [](double, const std::vector<double>& xi)
     {
-        // This is a valid velocity callback, but the deliberately stiff
-        // exponential growth creates an oversized RK23 local-error estimate for
-        // the first half-step. With min_step = dt/4, the rejected candidate
-        // cannot be retried at a small enough step.
-        return std::vector<double>{1000.0 * xi[0]};
+        // This is a valid velocity callback, but the tight RK23 tolerances create
+        // an oversized local-error estimate for the first half-step. With
+        // min_step = dt/4, the next accepted update
+        // advances at the configured minimum instead of failing.
+        return std::vector<double>{xi[0]};
     };
-    const qmomkit::QmomTransportResult rk_failure =
-        qmomkit::advance_transport_qmom(initial_state, qmom_case.node_count, 0.0, dt, stiff_velocity, zero_qmom_source, rk_failure_options);
-    verify_qmom_rk23_minimum_step_failure_result(rk_failure, initial_state.moments(), verification);
+    const qmomkit::QmomTransportResult rk_minimum =
+        qmomkit::advance_transport_qmom(initial_state, qmom_case.node_count, 0.0, dt, stiff_velocity, zero_qmom_source, rk_minimum_options);
+    std::vector<double> rk_minimum_exact(initial_state.moments().size(), 0.0);
+    for (std::size_t order = 0; order < rk_minimum_exact.size(); ++order)
+    {
+        rk_minimum_exact[order] = initial_state.moments()[order] * std::exp(static_cast<double>(order) * dt);
+    }
+    verify_qmom_rk23_minimum_step_acceptance_result(rk_minimum, rk_minimum_exact, verification);
 
     RunSummary rk_summary;
-    rk_summary.scheme = rk_failure_options.scheme;
+    rk_summary.scheme = rk_minimum_options.scheme;
     rk_summary.dt = dt;
     rk_summary.steps = 1;
-    rk_summary.final_time = rk_failure.final_time;
-    rk_summary.retry_count = rk_failure.diagnostics.source_retries;
-    rk_summary.success =
-        !rk_failure.ok() && rk_failure.status == qmomkit::TransportStatus::continuous_failed &&
-        rk_failure.diagnostics.failed_stage == qmomkit::TransportStage::first_continuous_half_step &&
-        rk_failure.diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::integration_failed &&
-        rk_failure.diagnostics.first_continuous_diagnostics.adaptive_rk23_status == qmomkit::AdaptiveRk23Status::step_size_underflow &&
-        rk_failure.diagnostics.first_continuous_diagnostics.rejected_step_count > 0 &&
-        rk_failure.diagnostics.first_continuous_diagnostics.step_count == 0;
+    rk_summary.final_time = rk_minimum.final_time;
+    rk_summary.retry_count = rk_minimum.diagnostics.source_retries;
+    rk_summary.success = rk_minimum.ok() && rk_minimum.status == qmomkit::TransportStatus::success &&
+                         rk_minimum.diagnostics.failed_stage == qmomkit::TransportStage::none &&
+                         rk_minimum.diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::success &&
+                         rk_minimum.diagnostics.second_continuous_status == qmomkit::NodeAdvectionStatus::success &&
+                         rk_minimum.diagnostics.total_node_advection_rejected_steps > 0 && rk_minimum.diagnostics.total_node_advection_steps > 0;
     verification.runs.push_back(rk_summary);
 
     const auto nonrealizable_source = [](double, const std::vector<double>& moments)
@@ -2126,46 +2203,85 @@ void verify_cqmom_continuous_failure_result(const std::string& case_name, const 
     }
 }
 
-void verify_cqmom_rk23_minimum_step_failure_result(const qmomkit::CqmomTransportResult& result, VerificationResult& verification)
+void verify_cqmom_rk23_minimum_step_acceptance_result(const qmomkit::CqmomTransportResult& result, const qmomkit::RawMomentTensor& exact,
+                                                      VerificationResult& verification)
 {
     // This mirrors the QMOM RK23 minimum-step case through the public CqmomState
-    // workflow. The user velocity is valid; the adaptive node integrator is the
-    // component that cannot complete the requested continuous half-step.
-    if (result.ok())
+    // workflow. The user velocity is valid; the adaptive node integrator should
+    // advance at the effective minimum step instead of treating it as a callback
+    // or integration failure.
+    if (!result.ok())
     {
-        append_failure(verification, "CQMOM RK23 minimum-step case unexpectedly reported transport success.");
+        append_failure(verification, "CQMOM RK23 minimum-step case did not report transport success.");
     }
-    if (result.status != qmomkit::TransportStatus::continuous_failed)
+    if (result.status != qmomkit::TransportStatus::success)
     {
-        append_failure(verification, "CQMOM RK23 minimum-step case did not report TransportStatus::continuous_failed.");
+        append_failure(verification, "CQMOM RK23 minimum-step case did not report TransportStatus::success.");
     }
-    if (result.diagnostics.failed_stage != qmomkit::TransportStage::first_continuous_half_step)
+    if (result.diagnostics.failed_stage != qmomkit::TransportStage::none)
     {
-        append_failure(verification, "CQMOM RK23 minimum-step case did not identify the first continuous half-step as the failed stage.");
+        append_failure(verification, "CQMOM RK23 minimum-step case reported a failed transport stage.");
     }
-    if (result.diagnostics.first_continuous_status != qmomkit::NodeAdvectionStatus::integration_failed ||
-        result.diagnostics.first_continuous_diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::step_size_underflow)
+    if (result.diagnostics.first_continuous_status != qmomkit::NodeAdvectionStatus::success ||
+        result.diagnostics.second_continuous_status != qmomkit::NodeAdvectionStatus::success ||
+        result.diagnostics.first_continuous_diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::success ||
+        result.diagnostics.second_continuous_diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::success)
     {
-        append_failure(verification, "CQMOM RK23 minimum-step case did not preserve the RK23 step-size-underflow status.");
+        append_failure(verification, "CQMOM RK23 minimum-step case did not preserve successful RK23 diagnostics.");
     }
     if (result.diagnostics.first_continuous_diagnostics.rejected_step_count == 0 || result.diagnostics.total_node_advection_rejected_steps == 0 ||
-        result.diagnostics.first_continuous_diagnostics.step_count != 0)
+        result.diagnostics.first_continuous_diagnostics.step_count == 0 || result.diagnostics.second_continuous_diagnostics.step_count == 0)
     {
-        append_failure(verification, "CQMOM RK23 minimum-step case did not preserve rejected-step diagnostics.");
+        append_failure(verification, "CQMOM RK23 minimum-step case did not preserve accepted and rejected RK23 diagnostics.");
     }
-    if (!contains_text(result.message, "RK23 required a step smaller than min_step.") ||
-        !contains_text(result.diagnostics.message, "RK23 required a step smaller than min_step."))
+    if (std::abs(result.final_time - 0.08) > 1.0e-14 || std::abs(result.diagnostics.first_continuous_diagnostics.final_time - 0.04) > 1.0e-14 ||
+        std::abs(result.diagnostics.second_continuous_diagnostics.final_time - 0.08) > 1.0e-14)
     {
-        append_failure(verification, "CQMOM RK23 minimum-step case did not preserve the minimum-step message.");
+        append_failure(verification, "CQMOM RK23 minimum-step case did not reach the expected endpoint.");
     }
-    if (std::abs(result.final_time) > 1.0e-14 || std::abs(result.diagnostics.first_continuous_diagnostics.final_time) > 1.0e-14)
+    if (!result.diagnostics.source_diagnostics.accepted || !result.diagnostics.first_reconstruction_diagnostics.success ||
+        !result.diagnostics.final_reconstruction_diagnostics.success)
     {
-        append_failure(verification, "CQMOM RK23 minimum-step case advanced time despite rejecting all candidate steps.");
+        append_failure(verification, "CQMOM RK23 minimum-step case did not complete the later transport stages.");
     }
-    if (result.diagnostics.source_diagnostics.accepted || result.diagnostics.first_reconstruction_diagnostics.success ||
-        result.diagnostics.final_reconstruction_diagnostics.success)
+    if (!values_are_finite(result.state.moment_values()))
     {
-        append_failure(verification, "CQMOM RK23 minimum-step case reported misleading successful output after failure.");
+        append_failure(verification, "CQMOM RK23 minimum-step case returned a non-finite final stored moment.");
+    }
+    const qmomkit::CqmomMomentLayout transport_layout = qmomkit::create_cqmom_moment_layout(result.state.hierarchy());
+    const qmomkit::CqmomMomentData exact_required = qmomkit::extract_cqmom_moments(exact, transport_layout);
+    if (result.state.moment_values().size() != exact_required.values.size())
+    {
+        append_failure(verification, "CQMOM RK23 minimum-step case returned an unexpected stored moment count.");
+    }
+    if (result.state.moment_values().size() == exact_required.values.size() &&
+        scaled_infinity_error(result.state.moment_values(), exact_required.values) > 3.0e-6)
+    {
+        append_failure(verification, "CQMOM RK23 minimum-step case final stored moments exceeded the analytical continuous-reference tolerance.");
+    }
+    if (!active_branch_counts_are_valid(result.state.active_branch_counts()))
+    {
+        append_failure(verification, "CQMOM RK23 minimum-step case returned invalid active branch counts.");
+    }
+    if (!result.quadrature.has_value())
+    {
+        append_failure(verification, "CQMOM RK23 minimum-step case did not retain final quadrature.");
+    }
+    else
+    {
+        if (!cqmom_quadrature_values_are_finite(*result.quadrature))
+        {
+            append_failure(verification, "CQMOM RK23 minimum-step case returned a non-finite final terminal node or weight.");
+        }
+        if (!cqmom_quadrature_topology_is_consistent(*result.quadrature))
+        {
+            append_failure(verification, "CQMOM RK23 minimum-step case returned inconsistent final quadrature topology.");
+        }
+        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result.quadrature, exact.extents);
+        if (scaled_infinity_error(reconstructed.values, exact.values) > 3.0e-6)
+        {
+            append_failure(verification, "CQMOM RK23 minimum-step case final quadrature exceeded the analytical continuous-reference tolerance.");
+        }
     }
 }
 
@@ -2716,36 +2832,43 @@ VerificationResult run_cqmom_transport_failures(const std::filesystem::path& con
         verification.runs.push_back(summary);
     }
 
-    qmomkit::CqmomTransportOptions rk_failure_options = options;
-    rk_failure_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    rk_failure_options.node_options.rk23_options.initial_step = 0.04;
-    rk_failure_options.node_options.rk23_options.max_step = 0.04;
-    rk_failure_options.node_options.rk23_options.min_step = 0.02;
+    qmomkit::CqmomTransportOptions rk_minimum_options = options;
+    rk_minimum_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
+    rk_minimum_options.node_options.rk23_options.initial_step = 0.04;
+    rk_minimum_options.node_options.rk23_options.max_step = 0.04;
+    rk_minimum_options.node_options.rk23_options.min_step = 0.02;
     const auto stiff_velocity = [](double, const std::vector<double>& xi)
     {
-        // Valid two-dimensional velocity with deliberately stiff diagonal
-        // growth/decay. The public RK23 diagnostics should explain that the
-        // adaptive node step underflowed, not that the callback itself failed.
-        return std::vector<double>{1000.0 * xi[0], -1000.0 * xi[1]};
+        // Valid two-dimensional velocity with tight RK23 tolerances. RK23
+        // should accept finite updates at the effective minimum step instead of
+        // reporting callback or integration failure.
+        return std::vector<double>{xi[0], -xi[1]};
     };
     qmomkit::CqmomState state = cqmom_case.initial_state();
-    const qmomkit::CqmomTransportResult rk_failure =
-        qmomkit::advance_transport_cqmom(state, 0.0, dt, stiff_velocity, zero_source, rk_failure_options);
-    verify_cqmom_rk23_minimum_step_failure_result(rk_failure, verification);
+    const qmomkit::CqmomTransportResult rk_minimum =
+        qmomkit::advance_transport_cqmom(state, 0.0, dt, stiff_velocity, zero_source, rk_minimum_options);
+    const std::vector<std::size_t> rk_minimum_extents{4, 4};
+    const qmomkit::RawMomentTensor rk_minimum_initial = qmomkit::reconstruct_raw_moments(initial.quadrature, rk_minimum_extents);
+    qmomkit::RawMomentTensor rk_minimum_exact{rk_minimum_extents, std::vector<double>(qmomkit::product_extents(rk_minimum_extents), 0.0)};
+    for (std::size_t flat = 0; flat < rk_minimum_exact.values.size(); ++flat)
+    {
+        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, rk_minimum_extents);
+        const double exponent = static_cast<double>(index[0]) - static_cast<double>(index[1]);
+        rk_minimum_exact.values[flat] = rk_minimum_initial.values[flat] * std::exp(exponent * dt);
+    }
+    verify_cqmom_rk23_minimum_step_acceptance_result(rk_minimum, rk_minimum_exact, verification);
 
     RunSummary rk_summary;
-    rk_summary.scheme = rk_failure_options.scheme;
+    rk_summary.scheme = rk_minimum_options.scheme;
     rk_summary.dt = dt;
     rk_summary.steps = 1;
-    rk_summary.final_time = rk_failure.final_time;
-    rk_summary.retry_count = rk_failure.diagnostics.source_retries;
-    rk_summary.success =
-        !rk_failure.ok() && rk_failure.status == qmomkit::TransportStatus::continuous_failed &&
-        rk_failure.diagnostics.failed_stage == qmomkit::TransportStage::first_continuous_half_step &&
-        rk_failure.diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::integration_failed &&
-        rk_failure.diagnostics.first_continuous_diagnostics.adaptive_rk23_status == qmomkit::AdaptiveRk23Status::step_size_underflow &&
-        rk_failure.diagnostics.first_continuous_diagnostics.rejected_step_count > 0 &&
-        rk_failure.diagnostics.first_continuous_diagnostics.step_count == 0;
+    rk_summary.final_time = rk_minimum.final_time;
+    rk_summary.retry_count = rk_minimum.diagnostics.source_retries;
+    rk_summary.success = rk_minimum.ok() && rk_minimum.status == qmomkit::TransportStatus::success &&
+                         rk_minimum.diagnostics.failed_stage == qmomkit::TransportStage::none &&
+                         rk_minimum.diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::success &&
+                         rk_minimum.diagnostics.second_continuous_status == qmomkit::NodeAdvectionStatus::success &&
+                         rk_minimum.diagnostics.total_node_advection_rejected_steps > 0 && rk_minimum.diagnostics.total_node_advection_steps > 0;
     verification.runs.push_back(rk_summary);
 
     state = cqmom_case.initial_state();

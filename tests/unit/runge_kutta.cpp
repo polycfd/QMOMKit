@@ -402,6 +402,103 @@ void test_rk23_rejects_nonfinite_trial_state()
     assert(std::isfinite(result.state[0]));
 }
 
+void test_rk23_initial_request_below_minimum_uses_minimum_step()
+{
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{1.0}; };
+    qmomkit::AdaptiveRk23Options options;
+    options.initial_step = 1.0e-3;
+    options.max_step = 0.05;
+    options.min_step = 0.05;
+
+    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, 0.05, rhs, options);
+
+    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.accepted_steps == 1);
+    assert(result.rejected_steps == 0);
+    assert_near(result.t, 0.05, 1.0e-15);
+    assert_near(result.last_step, 0.05, 1.0e-15);
+    assert_near(result.state[0], 1.05, 1.0e-15);
+}
+
+void test_rk23_accepts_finite_update_at_minimum_step()
+{
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{1000.0 * y[0]}; };
+    qmomkit::AdaptiveRk23Options options;
+    options.initial_step = 1.0e-3;
+    options.max_step = 1.0e-3;
+    options.min_step = 1.0e-3;
+    options.relative_tolerance = 1.0e-15;
+    options.absolute_tolerance = 1.0e-15;
+
+    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, 1.0e-3, rhs, options);
+
+    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.accepted_steps == 1);
+    assert(result.rejected_steps == 0);
+    assert_near(result.t, 1.0e-3, 1.0e-18);
+    assert_near(result.last_step, 1.0e-3, 1.0e-18);
+    assert_near(result.state[0], 8.0 / 3.0, 1.0e-14);
+}
+
+void test_rk23_rejected_request_clamps_to_minimum_step()
+{
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{y[0], y[1], y[2]}; };
+    qmomkit::AdaptiveRk23Options options;
+    options.initial_step = 0.04;
+    options.max_step = 0.04;
+    options.min_step = 0.02;
+    options.relative_tolerance = 1.0e-12;
+    options.absolute_tolerance = 1.0e-14;
+
+    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({0.5, 1.0, 2.0}, 0.0, 0.04, rhs, options);
+
+    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.accepted_steps == 2);
+    assert(result.rejected_steps > 0);
+    assert_near(result.t, 0.04, 1.0e-15);
+    assert_near(result.last_step, 0.02, 1.0e-15);
+}
+
+void test_rk23_accepts_final_remainder_below_minimum_step()
+{
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{1000.0 * y[0]}; };
+    qmomkit::AdaptiveRk23Options options;
+    options.initial_step = 1.0e-3;
+    options.max_step = 1.0e-3;
+    options.min_step = 1.0e-3;
+    options.relative_tolerance = 1.0e-15;
+    options.absolute_tolerance = 1.0e-15;
+
+    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, 1.5e-3, rhs, options);
+
+    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.accepted_steps == 2);
+    assert(result.rejected_steps == 0);
+    assert_near(result.t, 1.5e-3, 1.0e-18);
+    assert_near(result.last_step, 5.0e-4, 1.0e-18);
+    assert_near(result.state[0], (8.0 / 3.0) * (79.0 / 48.0), 1.0e-14);
+}
+
+void test_rk23_accepts_complete_interval_below_minimum_step()
+{
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{1000.0 * y[0]}; };
+    qmomkit::AdaptiveRk23Options options;
+    options.initial_step = 1.0e-3;
+    options.max_step = 1.0e-3;
+    options.min_step = 1.0e-3;
+    options.relative_tolerance = 1.0e-15;
+    options.absolute_tolerance = 1.0e-15;
+
+    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, 5.0e-4, rhs, options);
+
+    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.accepted_steps == 1);
+    assert(result.rejected_steps == 0);
+    assert_near(result.t, 5.0e-4, 1.0e-18);
+    assert_near(result.last_step, 5.0e-4, 1.0e-18);
+    assert_near(result.state[0], 79.0 / 48.0, 1.0e-14);
+}
+
 void test_rk23_reports_maximum_step_count_failure()
 {
     qmomkit::AdaptiveRk23Options options;
@@ -466,6 +563,11 @@ int main()
     test_rk23_zero_rhs_has_no_timestep_pathology();
     test_rk23_invalid_options_fail_before_loop();
     test_rk23_rejects_nonfinite_trial_state();
+    test_rk23_initial_request_below_minimum_uses_minimum_step();
+    test_rk23_accepts_finite_update_at_minimum_step();
+    test_rk23_rejected_request_clamps_to_minimum_step();
+    test_rk23_accepts_final_remainder_below_minimum_step();
+    test_rk23_accepts_complete_interval_below_minimum_step();
     test_rk23_reports_maximum_step_count_failure();
     test_rk23_max_step_changes_observable_diagnostics();
 

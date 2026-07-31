@@ -401,15 +401,13 @@ AdaptiveRk23Result integrate_rk23(const std::vector<double>& initial_state, cons
         bool step_rejected = false;
         while (!step_accepted)
         {
-            if (h_abs < min_step)
+            const double remaining_interval = std::abs(t_bound - t);
+            const double effective_lower_bound = std::min(min_step, remaining_interval);
+            if (h_abs < effective_lower_bound)
             {
-                result.state = y;
-                result.t = t;
-                result.status = AdaptiveRk23Status::step_size_underflow;
-                result.message = "RK23 required a step smaller than min_step.";
-                result.function_evaluations = function_evaluations;
-                return result;
+                h_abs = effective_lower_bound;
             }
+            const double requested_h_abs = h_abs;
 
             double h = direction * h_abs;
             double t_new = t + h;
@@ -423,8 +421,11 @@ AdaptiveRk23Result integrate_rk23(const std::vector<double>& initial_state, cons
             Rk23Step step = rk23_step(rhs, t, y, f, h, function_evaluations);
             const bool step_is_finite = internal::all_finite(step.y_new) && internal::all_finite(step.error);
             const double norm = step_is_finite ? error_norm(step.error, y, step.y_new, options) : std::numeric_limits<double>::infinity();
+            const bool error_is_acceptable = std::isfinite(norm) && norm < 1.0;
+            const bool step_is_at_effective_lower_bound = requested_h_abs <= effective_lower_bound || h_abs <= effective_lower_bound;
+            const bool lower_bound_acceptance = step_is_finite && std::isfinite(norm) && step_is_at_effective_lower_bound;
 
-            if (std::isfinite(norm) && norm < 1.0)
+            if (error_is_acceptable || lower_bound_acceptance)
             {
                 double factor = max_factor;
                 if (norm > 0.0)
@@ -456,6 +457,15 @@ AdaptiveRk23Result integrate_rk23(const std::vector<double>& initial_state, cons
                 step_rejected = true;
                 ++result.rejected_steps;
                 internal::performance::record_rk23_step(false);
+                if (step_is_at_effective_lower_bound)
+                {
+                    result.state = y;
+                    result.t = t;
+                    result.status = AdaptiveRk23Status::step_size_underflow;
+                    result.message = "RK23 required a step smaller than min_step.";
+                    result.function_evaluations = function_evaluations;
+                    return result;
+                }
             }
         }
     }

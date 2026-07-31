@@ -410,7 +410,8 @@ scale_i = atol + max(abs(y_i), abs(y_new_i)) * rtol
 
 The solver then forms an RMS norm of `error_i / scale_i`. A trial step is
 accepted when the scaled error norm is less than `1`. Otherwise the trial step
-is rejected and retried with a smaller step.
+is rejected and retried with a smaller step, unless the finite update was
+already evaluated at the effective lower bound for the current interval.
 
 `AdaptiveRk23Options` provides scalar tolerance and step-size controls:
 
@@ -430,10 +431,14 @@ absolute_tolerance = 1.0e-9
 
 `max_step == 0` means the full integration interval is the maximum step size.
 `min_step == 0` means the solver uses a floating-point spacing based floor near
-the current time. `max_steps` limits accepted steps, not rejected trial steps.
-The final accepted step is clipped so integration lands exactly on `t_bound`.
-Forward and backward integration are both supported by applying the sign of
-`t_bound - t0` to the internal step magnitude.
+the current time. `max_steps` limits accepted steps, not rejected trial steps,
+and remains an optional configuration override with an internal default. The
+actual RK23 step is bounded by `min_step` and `max_step`, then clipped so
+integration lands exactly on `t_bound`; the final remainder may therefore be
+smaller than `min_step`. When the error controller would require a step below
+the effective lower bound, the solver advances at that lower bound instead of
+failing solely for tolerance reasons. Forward and backward integration are both
+supported by applying the sign of `t_bound - t0` to the internal step magnitude.
 
 RK23 status values are:
 
@@ -443,11 +448,11 @@ RK23 status values are:
 - `max_steps_exceeded`.
 
 Invalid structural inputs and invalid tolerance or step-size options return
-`AdaptiveRk23Status::invalid_input`. If the required trial step becomes smaller
-than the active minimum step, the solver returns
-`AdaptiveRk23Status::step_size_underflow`. If the number of accepted steps
-reaches `max_steps` before `t_bound`, it returns
-`AdaptiveRk23Status::max_steps_exceeded`.
+`AdaptiveRk23Status::invalid_input`. `AdaptiveRk23Status::step_size_underflow`
+is retained for API compatibility and non-finite lower-bound updates, but a
+finite update at the effective minimum step is accepted even when its error
+estimate exceeds tolerance. If the number of accepted steps reaches `max_steps`
+before `t_bound`, the solver returns `AdaptiveRk23Status::max_steps_exceeded`.
 
 On RK23 failure, the result state and time are the last accepted state and time.
 Diagnostics report accepted steps, rejected trial steps, RHS function

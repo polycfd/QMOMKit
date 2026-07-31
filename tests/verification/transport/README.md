@@ -72,11 +72,10 @@ valid final transport state.
 The same case also verifies adaptive RK23 minimum-step propagation. It uses a
 finite, dimensionally valid, deliberately stiff velocity field and RK23 options
 with `initial_step = max_step = 0.04` and `min_step = 0.02`. The first Strang
-continuous half-step rejects the trial step, but the configured minimum step
-prevents retrying at the smaller step size. The verifier checks
-`NodeAdvectionStatus::integration_failed`,
-`AdaptiveRk23Status::step_size_underflow`, rejected-step counts, unchanged
-time, and the public message `RK23 required a step smaller than min_step.`
+continuous half-step rejects the requested step, then advances finite updates
+at the effective minimum step instead of failing solely because the controller
+would prefer a smaller value. The verifier checks successful transport,
+successful RK23 diagnostics, rejected-step counts, and exact endpoint arrival.
 
 The QMOM case also verifies post-source reconstruction failure. A finite,
 correctly sized source callback drives `m0` negative during the discontinuous
@@ -338,11 +337,10 @@ returns are reported as continuous transport failures during the first
 continuous half-step, with meaningful diagnostic messages and no later-stage
 success diagnostics.
 
-The CQMOM case also repeats the RK23 minimum-step failure through
-`CqmomState`. The velocity callback is valid and finite, so users should see a
-continuous transport failure caused by RK23 `step_size_underflow`, with
-rejected-step diagnostics preserved and no source or reconstruction stages
-reported as completed.
+The CQMOM case also repeats the RK23 minimum-step acceptance path through
+`CqmomState`. The velocity callback is valid and finite, so the verifier checks
+that transport succeeds at the effective minimum step while preserving
+rejected-step diagnostics.
 
 The post-source reconstruction failure uses a finite, correctly sized
 `CqmomMomentSource` callback that drives `M[0,0]` negative. The source update

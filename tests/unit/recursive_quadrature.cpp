@@ -1070,33 +1070,54 @@ void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
 {
     const qmomkit::BoundedInterval interval{2.0, 5.0};
     const double tolerance = qmomkit::RealizabilityOptions{}.tolerance;
+    const double weight = 0.01;
     const qmomkit::PhaseSpaceHierarchy hierarchy({1});
     const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(1, 0, interval);
 
-    const auto run = [&](const double node)
+    const auto run = [&](const double node, const double node_weight)
     {
         const std::vector<std::size_t> extents{2};
-        const std::vector<double> moments = raw_moments_from_terminal_quadrature({{node}}, {1.0}, extents);
+        const std::vector<double> moments = raw_moments_from_terminal_quadrature({{node}}, {node_weight}, extents);
         return qmomkit::internal::compute_recursive_quadrature(
             {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
     };
 
-    for (const double node : {interval.lower, interval.upper, interval.lower + 0.5 * tolerance, interval.upper - 0.5 * tolerance})
+    for (const double node : {interval.lower, interval.upper, interval.lower - 0.5 * tolerance, interval.upper + 0.5 * tolerance})
     {
-        const qmomkit::internal::RecursiveQuadratureResult result = run(node);
+        const qmomkit::internal::RecursiveQuadratureResult result = run(node, weight);
         assert(result.ok());
         assert(result.quadrature.weights().size() == 1);
-        assert_near(result.quadrature.abscissas()[0][0], node, 0.0);
+        assert(result.quadrature.abscissas()[0].size() == 1);
+        assert(std::isfinite(result.quadrature.weights()[0]));
+        assert(std::isfinite(result.quadrature.abscissas()[0][0]));
+        assert_near(result.quadrature.weights()[0], weight, 0.0);
+        assert_near(result.quadrature.abscissas()[0][0], node, 0.01 * tolerance);
+        if (node < interval.lower)
+        {
+            assert(result.quadrature.abscissas()[0][0] < interval.lower);
+            assert(interval.lower - result.quadrature.abscissas()[0][0] <= tolerance);
+        }
+        if (node > interval.upper)
+        {
+            assert(result.quadrature.abscissas()[0][0] > interval.upper);
+            assert(result.quadrature.abscissas()[0][0] - interval.upper <= tolerance);
+        }
     }
 
-    const qmomkit::internal::RecursiveQuadratureResult lower_rejected = run(interval.lower - 2.0 * tolerance);
-    const qmomkit::internal::RecursiveQuadratureResult upper_rejected = run(interval.upper + 2.0 * tolerance);
+    const qmomkit::internal::RecursiveQuadratureResult lower_rejected = run(interval.lower - 2.0 * tolerance, weight);
+    const qmomkit::internal::RecursiveQuadratureResult upper_rejected = run(interval.upper + 2.0 * tolerance, weight);
     assert(!lower_rejected.ok());
     assert(!upper_rejected.ok());
     assert(!lower_rejected.diagnostics.empty());
     assert(!upper_rejected.diagnostics.empty());
     assert(lower_rejected.diagnostics.front().bounded_support_checked);
     assert(upper_rejected.diagnostics.front().bounded_support_checked);
+    assert(lower_rejected.diagnostics.front().bounded_realizability_status == qmomkit::RealizabilityStatus::boundary);
+    assert(upper_rejected.diagnostics.front().bounded_realizability_status == qmomkit::RealizabilityStatus::boundary);
+    assert(lower_rejected.diagnostics.front().bounded_returned_nodes.size() == 1);
+    assert(upper_rejected.diagnostics.front().bounded_returned_nodes.size() == 1);
+    assert(lower_rejected.message.find("returned nodes outside") != std::string::npos);
+    assert(upper_rejected.message.find("returned nodes outside") != std::string::npos);
 }
 
 void test_public_dense_and_lean_bounded_support_parity()

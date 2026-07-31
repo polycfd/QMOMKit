@@ -517,6 +517,53 @@ Moment orders control how many raw tensor entries are generated for full tensor
 workflows. Node counts control the requested CQMOM quadrature size. New users
 following `load_cqmom(...)` do not need `maximum_orders`.
 
+### Optional CQMOM Coordinate Support
+
+CQMOM coordinates are unconstrained by default, which means real-line
+reconstruction is used for every coordinate. When a phase-space coordinate has a
+known closed bounded support, declare it with paired phase-space-order
+`support_lower` and `support_upper` lists:
+
+```text
+[phase_space]
+names = d, chi, u
+node_counts = 2, 3, 2
+conditioning_order = 0, 1, 2
+support_lower = none, 0.0, none
+support_upper = none, 1.0, none
+```
+
+Use `none` for unconstrained coordinates. Numeric lower and upper entries must be
+finite values configured together, one entry per phase-space dimension, with
+`lower < upper`. Supports are generic numerical bounds. They are not inferred
+from coordinate names and do not assign physical units or particle semantics.
+
+A shifted interval uses the same syntax:
+
+```text
+[phase_space]
+names = x, y
+node_counts = 2, 2
+conditioning_order = 1, 0
+support_lower = none, 2.0
+support_upper = none, 5.0
+```
+
+Support is indexed by phase-space dimension, not by conditioning level. In the
+example above, the second coordinate is constrained to `[2, 5]` wherever it is
+reconstructed, even though it is the root coordinate in the conditioning order.
+The same rule applies when a bounded coordinate is reconstructed at an
+intermediate or final conditional level.
+
+For a bounded coordinate, QMOMKit checks each branch-local CQMOM candidate with
+the bounded-interval realizability test before accepting it. The support is
+carried by `CqmomCase` and `CqmomState`, so it is used for the initial
+configuration reconstruction and later transport-stage reconstructions. In
+adaptive branch-count mode, an unsupported candidate retries lower node counts
+down to one. In fixed-count mode, an unsupported requested count fails with
+diagnostics. This is a support-aware acceptance test; returned nodes are not
+clipped or projected.
+
 ### Advanced: Explicit Dense Representation Workflow
 
 Use explicit tensor moments when your application already has a full raw

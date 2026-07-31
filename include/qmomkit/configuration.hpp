@@ -162,17 +162,29 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 [[nodiscard]] ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, std::size_t node_count,
                                                              const QmomOptions& options = {}, std::string source_name = "<initialization>");
 
-/** Advanced: create an explicit dense CQMOM case from parsed initialization. */
+/**
+ * Advanced: create an explicit dense CQMOM case from parsed initialization.
+ *
+ * Coordinate support is indexed by phase-space dimension. Omit it, or leave it
+ * empty, for unconstrained real-line reconstruction.
+ */
 [[nodiscard]] ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditionSpecification& initial_condition,
                                                                           const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
                                                                           bool adaptive_branch_counts = false,
-                                                                          std::string source_name = "<initialization>");
+                                                                          std::string source_name = "<initialization>",
+                                                                          CqmomCoordinateSupport coordinate_support = {});
 
-/** Advanced: create an explicit lean CQMOM case from parsed initialization. */
+/**
+ * Advanced: create an explicit lean CQMOM case from parsed initialization.
+ *
+ * Coordinate support has the same phase-space-indexed semantics as the dense
+ * factory and is carried into the resulting case/state.
+ */
 [[nodiscard]] ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialConditionSpecification& initial_condition,
                                                                         const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
                                                                         bool adaptive_branch_counts = false,
-                                                                        std::string source_name = "<initialization>");
+                                                                        std::string source_name = "<initialization>",
+                                                                        CqmomCoordinateSupport coordinate_support = {});
 
 /** Parse a current QMOM configuration string. */
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -14,6 +15,15 @@ namespace
 void assert_near(const double actual, const double expected, const double tolerance)
 {
     assert(std::abs(actual - expected) <= tolerance);
+}
+
+void assert_contains(const std::string& text, const std::string& needle)
+{
+    if (text.find(needle) == std::string::npos)
+    {
+        std::cerr << "Missing expected text:\n" << needle << "\nActual message:\n" << text << '\n';
+        assert(false);
+    }
 }
 
 void assert_vector_near(const std::vector<double>& actual, const std::vector<double>& expected, const double tolerance)
@@ -107,7 +117,9 @@ void test_public_qmom_continuous_rates_and_status_mapping()
     assert(!velocity_failed.ok());
     assert(velocity_failed.status == qmomkit::ContinuousMomentRateStatus::velocity_failed);
     assert(velocity_failed.inversion_status == qmomkit::QmomStatus::success);
-    assert(velocity_failed.message == "Phase-space velocity callback returned the wrong dimension.");
+    assert_contains(velocity_failed.message, "Phase-space velocity callback returned the wrong dimension:");
+    assert_contains(velocity_failed.message, "expected size: 1");
+    assert_contains(velocity_failed.message, "returned size: 2");
 
     const qmomkit::QmomContinuousMomentRateResult invalid_input = qmomkit::evaluate_qmom_continuous_moment_rates({}, 1, 0.0, velocity);
     assert(!invalid_input.ok());
@@ -150,7 +162,12 @@ void test_public_cqmom_continuous_rates_preserve_layout_and_status()
     assert(!velocity_failed.ok());
     assert(velocity_failed.status == qmomkit::ContinuousMomentRateStatus::velocity_failed);
     assert(velocity_failed.inversion_status == qmomkit::CqmomStatus::success);
-    assert(velocity_failed.message == "Phase-space velocity callback returned a non-finite value.");
+    assert_contains(velocity_failed.message, "Phase-space velocity callback returned a non-finite value:");
+    assert_contains(velocity_failed.message, "time: 0");
+    assert_contains(velocity_failed.message, "dimension: 0");
+    assert_contains(velocity_failed.message, "value: nan");
+    assert_contains(velocity_failed.message, "state: [-0.99999999999999967, -0.49999999999999961]");
+    assert_contains(velocity_failed.message, "velocity: [nan, 0]");
 
     qmomkit::CqmomLeanCase malformed_case = lean_case;
     malformed_case.moments.values.pop_back();

@@ -154,14 +154,7 @@ std::vector<std::vector<double>> evaluate_terminal_velocities(const PhaseSpaceVe
         {
             throw std::invalid_argument(error.what());
         }
-        if (node_velocity.size() != dimensions)
-        {
-            throw std::invalid_argument("Phase-space velocity callback returned the wrong dimension.");
-        }
-        if (!all_finite(node_velocity))
-        {
-            throw std::invalid_argument("Phase-space velocity callback returned a non-finite value.");
-        }
+        validate_phase_space_velocity_result(node_velocity, dimensions, time, node_coordinate);
 
         velocities[node] = std::move(node_velocity);
     }

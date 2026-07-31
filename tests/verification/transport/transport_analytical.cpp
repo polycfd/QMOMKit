@@ -1219,14 +1219,14 @@ VerificationResult run_qmom_transport_failures(const std::filesystem::path& conf
                                                       // match the configured one-dimensional phase space.
                                                       return std::vector<double>{0.0, 0.0};
                                                   },
-                                                  "Phase-space velocity callback returned the wrong dimension."},
+                                                  "Phase-space velocity callback returned the wrong dimension:"},
                                                  {"non-finite velocity",
                                                   [](double, const std::vector<double>&)
                                                   {
                                                       // Simulates a physical model producing an invalid node velocity.
                                                       return std::vector<double>{std::numeric_limits<double>::quiet_NaN()};
                                                   },
-                                                  "Phase-space velocity callback returned a non-finite value."}};
+                                                  "Phase-space velocity callback returned a non-finite value:"}};
 
     for (const FailureCase& failure_case : failure_cases)
     {
@@ -2689,14 +2689,14 @@ VerificationResult run_cqmom_transport_failures(const std::filesystem::path& con
                                                                            // for a two-dimensional phase space.
                                                                            return std::vector<double>{0.0};
                                                                        },
-                                                                       "Phase-space velocity callback returned the wrong dimension."},
+                                                                       "Phase-space velocity callback returned the wrong dimension:"},
                                                                       {"CQMOM non-finite velocity",
                                                                        [](double, const std::vector<double>&)
                                                                        {
                                                                            // Simulates a coupled model producing a non-finite node velocity.
                                                                            return std::vector<double>{0.0, std::numeric_limits<double>::infinity()};
                                                                        },
-                                                                       "Phase-space velocity callback returned a non-finite value."}};
+                                                                       "Phase-space velocity callback returned a non-finite value:"}};
 
     for (const ContinuousFailureCase& failure_case : continuous_failure_cases)
     {
@@ -2856,10 +2856,10 @@ VerificationResult run_cqmom_dense_transport_failures(const std::filesystem::pat
     };
     const std::vector<ContinuousFailureCase> continuous_failure_cases{{"dense CQMOM wrong velocity dimension",
                                                                        [](double, const std::vector<double>&) { return std::vector<double>{0.0}; },
-                                                                       "Phase-space velocity callback returned the wrong dimension."},
+                                                                       "Phase-space velocity callback returned the wrong dimension:"},
                                                                       {"dense CQMOM non-finite velocity", [](double, const std::vector<double>&)
                                                                        { return std::vector<double>{0.0, std::numeric_limits<double>::infinity()}; },
-                                                                       "Phase-space velocity callback returned a non-finite value."}};
+                                                                       "Phase-space velocity callback returned a non-finite value:"}};
 
     for (const ContinuousFailureCase& failure_case : continuous_failure_cases)
     {
@@ -2965,10 +2965,10 @@ VerificationResult run_cqmom_lean_transport_failures(const std::filesystem::path
     };
     const std::vector<ContinuousFailureCase> continuous_failure_cases{{"lean CQMOM wrong velocity dimension",
                                                                        [](double, const std::vector<double>&) { return std::vector<double>{0.0}; },
-                                                                       "Phase-space velocity callback returned the wrong dimension."},
+                                                                       "Phase-space velocity callback returned the wrong dimension:"},
                                                                       {"lean CQMOM non-finite velocity", [](double, const std::vector<double>&)
                                                                        { return std::vector<double>{0.0, std::numeric_limits<double>::infinity()}; },
-                                                                       "Phase-space velocity callback returned a non-finite value."}};
+                                                                       "Phase-space velocity callback returned a non-finite value:"}};
 
     for (const ContinuousFailureCase& failure_case : continuous_failure_cases)
     {

@@ -1,5 +1,6 @@
 #include "internal/recursive_quadrature.hpp"
 
+#include "internal/cqmom_active_counts.hpp"
 #include "qmomkit/qmomkit.hpp"
 
 #include <cassert>
@@ -240,6 +241,35 @@ void assert_recursive_numerics_equivalent(const qmomkit::internal::RecursiveQuad
 std::vector<qmomkit::CqmomDiagnosticLevel> diagnostic_levels()
 {
     return {qmomkit::CqmomDiagnosticLevel::none, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::CqmomDiagnosticLevel::detailed};
+}
+
+qmomkit::CqmomCoordinateSupport bounded_support_for_dimension(const std::size_t dimensions, const std::size_t dimension,
+                                                              const qmomkit::BoundedInterval interval)
+{
+    qmomkit::CqmomCoordinateSupport support(dimensions);
+    support.at(dimension) = interval;
+    return support;
+}
+
+void assert_terminal_coordinate_inside_interval(const qmomkit::internal::RecursiveQuadratureResult& result, const std::size_t dimension,
+                                                const qmomkit::BoundedInterval interval, const double tolerance)
+{
+    assert(result.ok());
+    assert(dimension < result.quadrature.abscissas().size());
+    for (const double node : result.quadrature.abscissas()[dimension])
+    {
+        assert(node >= interval.lower - tolerance);
+        assert(node <= interval.upper + tolerance);
+    }
+}
+
+void assert_terminal_weights_positive(const qmomkit::internal::RecursiveQuadratureResult& result)
+{
+    assert(result.ok());
+    for (const double weight : result.quadrature.weights())
+    {
+        assert(weight > 0.0);
+    }
 }
 
 template <typename Function> void assert_throws_invalid_argument(Function function)
@@ -749,6 +779,351 @@ void test_public_cqmom_lean_route_matches_dense_recursive_adaptive()
 
     assert_cqmom_result_matches_recursive_result(public_result, dense, 1.0e-10);
     assert(public_result.ok());
+}
+
+void test_recursive_bounded_support_accepts_feasible_branch()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{0.2, 0.2, 0.8, 0.8}, {-1.0, 1.0, -1.0, 1.0}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature(
+        {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
+
+    assert(result.ok());
+    assert(result.quadrature.has_rectangular_storage());
+    for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(hierarchy))
+    {
+        const double x = result.quadrature.abscissa(0, node_index);
+        assert(x >= -1.0e-12);
+        assert(x <= 1.0 + 1.0e-12);
+    }
+    assert(!result.diagnostics.empty());
+    assert(result.diagnostics.front().bounded_support_checked);
+    assert(result.diagnostics.front().bounded_candidate_node_count == 2);
+    assert(result.diagnostics.front().bounded_realizability_status == qmomkit::RealizabilityStatus::strictly_realizable);
+    assert(!result.diagnostics.front().bounded_support_determinants.empty());
+}
+
+void test_recursive_shifted_bounded_support_accepts_feasible_fixed_branch()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 1});
+    const std::vector<std::size_t> extents{4, 2};
+    const qmomkit::BoundedInterval interval{2.0, 5.0};
+    const std::vector<double> weights{0.4, 0.6};
+    const std::vector<std::vector<double>> abscissas{{2.25, 4.5}, {0.0, 0.0}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, interval);
+
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature(
+        {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
+
+    assert(result.ok());
+    assert(result.quadrature.has_rectangular_storage());
+    assert_terminal_coordinate_inside_interval(result, 0, interval, 1.0e-12);
+    assert_terminal_weights_positive(result);
+    assert_raw_moments_reconstructed(result, moments, extents, 1.0e-10);
+
+    const std::vector<double> reconstructed_prefix =
+        raw_moments_from_terminal_quadrature({result.quadrature.abscissas()[0]}, result.quadrature.weights(), {4});
+    const std::vector<double> expected_prefix = raw_moments_from_terminal_quadrature({abscissas[0]}, weights, {4});
+    for (std::size_t order = 0; order < expected_prefix.size(); ++order)
+    {
+        assert_near(reconstructed_prefix[order], expected_prefix[order], 1.0e-10);
+    }
+}
+
+void test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 1});
+    const std::vector<std::size_t> extents{4, 2};
+    const qmomkit::BoundedInterval interval{2.0, 5.0};
+    const std::vector<double> weights{0.5, 0.5};
+    const std::vector<std::vector<double>> abscissas{{3.0, 7.0}, {0.0, 0.0}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, interval);
+    const qmomkit::MomentSet root_sequence({1.0, 5.0, 29.0, 185.0});
+    assert(qmomkit::check_realizability(root_sequence, qmomkit::MomentSupport::real_line).realizable());
+    assert(qmomkit::check_realizability(root_sequence, qmomkit::MomentSupport::nonnegative).realizable());
+    assert(!qmomkit::check_realizability(root_sequence, interval).realizable());
+
+    const qmomkit::internal::RecursiveQuadratureResult fixed = qmomkit::internal::compute_recursive_quadrature(
+        {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
+    assert(!fixed.ok());
+    assert(fixed.failed_conditioning_level == 0);
+    assert(!fixed.diagnostics.empty());
+    assert(fixed.diagnostics.front().bounded_support_checked);
+    assert(fixed.diagnostics.front().bounded_realizability_status == qmomkit::RealizabilityStatus::not_realizable);
+    assert(fixed.diagnostics.front().bounded_failed_matrix.find("L_upper") != std::string::npos);
+    assert(fixed.message.find("Bounded-support") != std::string::npos);
+
+    const qmomkit::WheelerOptions adaptive_wheeler{true, 1.0e-10, 1.0e-10, 1.0e-12};
+    const qmomkit::internal::RecursiveQuadratureResult adaptive =
+        qmomkit::internal::compute_recursive_quadrature({hierarchy,
+                                                         {extents, moments},
+                                                         {},
+                                                         adaptive_wheeler,
+                                                         true,
+                                                         qmomkit::CqmomDiagnosticLevel::detailed,
+                                                         qmomkit::VandermondeSolver::dense,
+                                                         support});
+    assert(adaptive.ok());
+    assert(adaptive.quadrature.total_nodes() == 1);
+    assert_terminal_coordinate_inside_interval(adaptive, 0, interval, 1.0e-12);
+    assert(!adaptive.diagnostics.empty());
+    assert(adaptive.diagnostics.front().bounded_candidate_node_count == 2);
+    assert(adaptive.diagnostics.front().bounded_accepted_fallback_node_count == 1);
+    assert(adaptive.diagnostics.front().adaptive_node_count_reduced);
+}
+
+void test_recursive_bounded_support_rejects_fixed_infeasible_count()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{2.0, 2.0, 3.0, 3.0}, {-1.0, 1.0, -1.0, 1.0}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature(
+        {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::internal::RecursiveQuadratureStatus::wheeler_failed);
+    assert(result.failed_conditioning_level == 0);
+    assert(result.diagnostics.size() == 1);
+    assert(result.diagnostics.front().bounded_support_checked);
+    assert(result.diagnostics.front().bounded_candidate_attempt_type == "fixed");
+    assert(result.diagnostics.front().bounded_candidate_node_count == 2);
+    assert(result.diagnostics.front().bounded_realizability_status == qmomkit::RealizabilityStatus::not_realizable);
+    assert(!result.diagnostics.front().bounded_support_determinants.empty());
+    assert(result.message.find("Bounded-support") != std::string::npos);
+}
+
+void test_recursive_bounded_support_diagnostic_terminology_is_precise()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{2.0, 2.0, 3.0, 3.0}, {-1.0, 1.0, -1.0, 1.0}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature(
+        {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
+
+    assert(!result.ok());
+    assert(!result.diagnostics.empty());
+    const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic = result.diagnostics.front();
+    assert(diagnostic.bounded_failed_matrix.find("L_upper") != std::string::npos);
+    assert(!diagnostic.bounded_support_determinants.empty());
+    bool found_upper_support_family = false;
+    bool found_lower_support_family = false;
+    for (const qmomkit::CqmomBoundedSupportDeterminantDiagnostics& determinant : diagnostic.bounded_support_determinants)
+    {
+        assert(determinant.matrix_family.find("Hankel-Hadamard") == std::string::npos);
+        found_upper_support_family =
+            found_upper_support_family || determinant.matrix_family.find("upper-support localizing determinant") != std::string::npos;
+        found_lower_support_family =
+            found_lower_support_family || determinant.matrix_family.find("lower-support localizing determinant") != std::string::npos;
+    }
+    assert(found_upper_support_family);
+    assert(found_lower_support_family);
+}
+
+void test_recursive_bounded_support_adaptive_falls_back_to_supported_count()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({3, 1});
+    const std::vector<std::size_t> extents{6, 2};
+    const std::vector<double> valid_prefix{1.0, 0.5, 0.3125, 0.21875};
+    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t order = 0; order < valid_prefix.size(); ++order)
+    {
+        moments[qmomkit::flatten_multi_index({order, 0}, extents)] = valid_prefix[order];
+    }
+    moments[qmomkit::flatten_multi_index({4, 0}, extents)] = 10.0;
+    moments[qmomkit::flatten_multi_index({5, 0}, extents)] = 10.0;
+    const qmomkit::WheelerOptions wheeler_options{true, 1.0e-10, 1.0e-10, 1.0e-12};
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult result =
+        qmomkit::internal::compute_recursive_quadrature({hierarchy,
+                                                         {extents, moments},
+                                                         {},
+                                                         wheeler_options,
+                                                         true,
+                                                         qmomkit::CqmomDiagnosticLevel::detailed,
+                                                         qmomkit::VandermondeSolver::dense,
+                                                         support});
+
+    assert(result.ok());
+    assert(result.quadrature.total_nodes() == 2);
+    assert(!result.diagnostics.empty());
+    const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic = result.diagnostics.front();
+    assert(diagnostic.bounded_support_checked);
+    assert(diagnostic.bounded_candidate_node_count == 3);
+    assert(diagnostic.bounded_realizability_status == qmomkit::RealizabilityStatus::not_realizable);
+    assert(diagnostic.bounded_accepted_fallback_node_count == 2);
+    assert(!diagnostic.bounded_support_determinants.empty());
+    assert(diagnostic.adaptive_node_count_reduced);
+}
+
+void test_recursive_bounded_support_rejects_growth_and_preserves_current_count()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({3, 1});
+    const std::vector<std::size_t> extents{6, 2};
+    const std::vector<double> valid_prefix{1.0, 0.5, 0.3125, 0.21875};
+    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t order = 0; order < valid_prefix.size(); ++order)
+    {
+        moments[qmomkit::flatten_multi_index({order, 0}, extents)] = valid_prefix[order];
+    }
+    moments[qmomkit::flatten_multi_index({4, 0}, extents)] = 10.0;
+    moments[qmomkit::flatten_multi_index({5, 0}, extents)] = 10.0;
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData moment_data = qmomkit::extract_cqmom_moments({extents, moments}, layout);
+    const std::vector<qmomkit::CqmomActiveBranchCount> active_counts{
+        {0, {}, 0, 3, 2}, {1, qmomkit::ConditioningPath({0}), 1, 1, 1}, {1, qmomkit::ConditioningPath({1}), 1, 1, 1}};
+    const qmomkit::WheelerOptions wheeler_options{true, 1.0e-10, 1.0e-10, 1.0e-12};
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult result =
+        qmomkit::internal::compute_recursive_quadrature_from_moment_data({hierarchy,
+                                                                          moment_data,
+                                                                          {},
+                                                                          wheeler_options,
+                                                                          true,
+                                                                          qmomkit::CqmomDiagnosticLevel::detailed,
+                                                                          qmomkit::VandermondeSolver::dense,
+                                                                          active_counts,
+                                                                          true,
+                                                                          support});
+
+    assert(result.ok());
+    assert(result.quadrature.total_nodes() == 2);
+    const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic = result.diagnostics.front();
+    assert(diagnostic.bounded_support_checked);
+    assert(diagnostic.bounded_candidate_attempt_type == "growth");
+    assert(diagnostic.bounded_candidate_node_count == 3);
+    assert(diagnostic.bounded_accepted_fallback_node_count == 2);
+    assert(!diagnostic.adaptive_node_count_reduced);
+}
+
+void test_recursive_bounded_support_uses_phase_space_coordinate_index()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{-1.0, 1.0, -1.0, 1.0}, {0.2, 0.2, 0.8, 0.8}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 1, {0.0, 1.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature(
+        {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
+
+    assert(result.ok());
+    assert(!result.diagnostics.empty());
+    assert(result.diagnostics.front().conditioning_level == 0);
+    assert(result.diagnostics.front().phase_space_dimension == 1);
+    assert(result.diagnostics.front().bounded_support_checked);
+}
+
+void test_recursive_bounded_support_applies_to_conditional_phase_space_dimension()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {0, 1});
+    const std::vector<std::size_t> extents{4, 4};
+    const qmomkit::BoundedInterval interval{2.0, 5.0};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{-3.0, -3.0, 8.0, 8.0}, {2.25, 4.5, 2.5, 4.75}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 1, interval);
+
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature(
+        {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
+
+    assert(result.ok());
+    assert_terminal_coordinate_inside_interval(result, 1, interval, 1.0e-12);
+    assert(result.quadrature.abscissas()[0].front() < interval.lower);
+    assert(result.quadrature.abscissas()[0].back() > interval.upper);
+    assert_raw_moments_reconstructed(result, moments, extents, 1.0e-9);
+
+    bool checked_conditional_dimension = false;
+    for (const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic : result.diagnostics)
+    {
+        if (diagnostic.conditioning_level == 1 && diagnostic.phase_space_dimension == 1)
+        {
+            assert(diagnostic.bounded_support_checked);
+            checked_conditional_dimension = true;
+        }
+        if (diagnostic.phase_space_dimension == 0)
+        {
+            assert(!diagnostic.bounded_support_checked);
+        }
+    }
+    assert(checked_conditional_dimension);
+}
+
+void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
+{
+    const qmomkit::BoundedInterval interval{2.0, 5.0};
+    const double tolerance = qmomkit::RealizabilityOptions{}.tolerance;
+    const qmomkit::PhaseSpaceHierarchy hierarchy({1});
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(1, 0, interval);
+
+    const auto run = [&](const double node)
+    {
+        const std::vector<std::size_t> extents{2};
+        const std::vector<double> moments = raw_moments_from_terminal_quadrature({{node}}, {1.0}, extents);
+        return qmomkit::internal::compute_recursive_quadrature(
+            {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
+    };
+
+    for (const double node : {interval.lower, interval.upper, interval.lower + 0.5 * tolerance, interval.upper - 0.5 * tolerance})
+    {
+        const qmomkit::internal::RecursiveQuadratureResult result = run(node);
+        assert(result.ok());
+        assert(result.quadrature.weights().size() == 1);
+        assert_near(result.quadrature.abscissas()[0][0], node, 0.0);
+    }
+
+    const qmomkit::internal::RecursiveQuadratureResult lower_rejected = run(interval.lower - 2.0 * tolerance);
+    const qmomkit::internal::RecursiveQuadratureResult upper_rejected = run(interval.upper + 2.0 * tolerance);
+    assert(!lower_rejected.ok());
+    assert(!upper_rejected.ok());
+    assert(!lower_rejected.diagnostics.empty());
+    assert(!upper_rejected.diagnostics.empty());
+    assert(lower_rejected.diagnostics.front().bounded_support_checked);
+    assert(upper_rejected.diagnostics.front().bounded_support_checked);
+}
+
+void test_public_dense_and_lean_bounded_support_parity()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{0.2, 0.2, 0.8, 0.8}, {-1.0, 1.0, -1.0, 1.0}};
+    const qmomkit::RawMomentTensor moments{extents, raw_moments_from_terminal_quadrature(abscissas, weights, extents)};
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+    qmomkit::CqmomDenseCase dense_case{hierarchy, moments};
+    dense_case.coordinate_support = support;
+    qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy))};
+    lean_case.coordinate_support = support;
+
+    const qmomkit::CqmomResult dense = qmomkit::compute_cqmom(dense_case);
+    const qmomkit::CqmomResult lean = qmomkit::compute_cqmom(lean_case);
+
+    assert(dense.ok());
+    assert(lean.ok());
+    assert_cqmom_results_numerically_equivalent(lean, dense, 1.0e-10);
+    assert(!dense.diagnostics.empty());
+    assert(!lean.diagnostics.empty());
+    assert(dense.diagnostics.front().bounded_support_checked);
+    assert(lean.diagnostics.front().bounded_support_checked);
+    assert(!dense.diagnostics.front().bounded_support_determinants.empty());
+    assert(!lean.diagnostics.front().bounded_support_determinants.empty());
 }
 
 void test_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts()
@@ -1437,6 +1812,17 @@ int main()
     test_public_cqmom_lean_route_matches_dense_recursive_non_identity();
     test_public_cqmom_lean_route_matches_dense_recursive_unequal_node_counts();
     test_public_cqmom_lean_route_matches_dense_recursive_adaptive();
+    test_recursive_bounded_support_accepts_feasible_branch();
+    test_recursive_shifted_bounded_support_accepts_feasible_fixed_branch();
+    test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive();
+    test_recursive_bounded_support_rejects_fixed_infeasible_count();
+    test_recursive_bounded_support_diagnostic_terminology_is_precise();
+    test_recursive_bounded_support_adaptive_falls_back_to_supported_count();
+    test_recursive_bounded_support_rejects_growth_and_preserves_current_count();
+    test_recursive_bounded_support_uses_phase_space_coordinate_index();
+    test_recursive_bounded_support_applies_to_conditional_phase_space_dimension();
+    test_recursive_bounded_support_returned_node_tolerance_and_no_clipping();
+    test_public_dense_and_lean_bounded_support_parity();
     test_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts();
     test_one_dimensional_hierarchy_reduces_to_stage_1_ordering();
     test_two_dimensional_hierarchy_indexing();

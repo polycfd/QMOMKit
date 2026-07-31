@@ -126,6 +126,28 @@ bool parse_double_list(const Entry& entry, std::vector<double>& values)
     return !values.empty() && entry.value.back() != ',';
 }
 
+bool parse_optional_double_list(const Entry& entry, std::vector<std::optional<double>>& values)
+{
+    std::istringstream stream(entry.value);
+    std::string token;
+    while (std::getline(stream, token, ','))
+    {
+        const std::string trimmed = trim(token);
+        if (trimmed == "none")
+        {
+            values.push_back(std::nullopt);
+            continue;
+        }
+        double value = 0.0;
+        if (!parse_double(trimmed, value))
+        {
+            return false;
+        }
+        values.push_back(value);
+    }
+    return !values.empty() && entry.value.back() != ',';
+}
+
 bool validate_names(const ParsedFile& parsed, const std::size_t dimensions)
 {
     const auto found = parsed.scalars.find("phase_space.names");
@@ -817,8 +839,8 @@ bool has_mixture_component_sections(const ParsedFile& parsed)
 std::vector<std::string> cqmom_explicit_allowed_keys()
 {
     return with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.conditioning_order",
-                                      "phase_space.adaptive_branch_counts", "qmom.adaptive", "cqmom.diagnostic_level", "cqmom.moment_storage",
-                                      "vandermonde.solver", "moments.extents"});
+                                      "phase_space.adaptive_branch_counts", "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive",
+                                      "cqmom.diagnostic_level", "cqmom.moment_storage", "vandermonde.solver", "moments.extents"});
 }
 
 std::vector<std::string> cqmom_initial_allowed_keys()
@@ -1059,6 +1081,7 @@ struct ParsedCqmomCaseSettings
     bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
+    CqmomCoordinateSupport coordinate_support;
     CqmomMomentStorage moment_storage = CqmomMomentStorage::lean;
     bool moment_storage_configured = false;
     std::size_t moment_storage_line = 0;
@@ -1540,6 +1563,68 @@ void validate_optional_vandermonde_solver(ParsedFile& parsed, const std::string&
     static_cast<void>(parse_vandermonde_solver(parsed, source_name));
 }
 
+std::optional<CqmomCoordinateSupport> parse_cqmom_coordinate_support(ParsedFile& parsed, const std::string& source_name, const std::size_t dimensions)
+{
+    const Entry* lower_entry = find_entry(parsed, "phase_space.support_lower");
+    const Entry* upper_entry = find_entry(parsed, "phase_space.support_upper");
+    if (lower_entry == nullptr && upper_entry == nullptr)
+    {
+        return CqmomCoordinateSupport{};
+    }
+    if (lower_entry == nullptr || upper_entry == nullptr)
+    {
+        add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, lower_entry == nullptr ? upper_entry->line : lower_entry->line,
+                  "phase_space.support_lower and phase_space.support_upper must be configured together.");
+        return std::nullopt;
+    }
+
+    std::vector<std::optional<double>> lower_values;
+    std::vector<std::optional<double>> upper_values;
+    if (!parse_optional_double_list(*lower_entry, lower_values))
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, lower_entry->line,
+                  "phase_space.support_lower must contain finite numbers or none entries.");
+    }
+    if (!parse_optional_double_list(*upper_entry, upper_values))
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, upper_entry->line,
+                  "phase_space.support_upper must contain finite numbers or none entries.");
+    }
+    if (!parsed.errors.empty())
+    {
+        return std::nullopt;
+    }
+    if (lower_values.size() != dimensions || upper_values.size() != dimensions)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, lower_entry->line,
+                  "phase_space.support_lower and phase_space.support_upper must contain one entry per phase-space dimension.");
+        return std::nullopt;
+    }
+
+    CqmomCoordinateSupport support(dimensions);
+    for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
+    {
+        if (lower_values[dimension].has_value() != upper_values[dimension].has_value())
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, lower_entry->line,
+                      "Each CQMOM coordinate support must configure both lower and upper or use none for both.");
+            return std::nullopt;
+        }
+        if (!lower_values[dimension].has_value())
+        {
+            continue;
+        }
+        if (!(*lower_values[dimension] < *upper_values[dimension]))
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, lower_entry->line,
+                      "CQMOM bounded coordinate support requires lower < upper.");
+            return std::nullopt;
+        }
+        support[dimension] = BoundedInterval{*lower_values[dimension], *upper_values[dimension]};
+    }
+    return support;
+}
+
 ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
@@ -1603,6 +1688,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
                   conditioning_entry == parsed.scalars.end() ? 0 : conditioning_entry->second.line,
                   "conditioning_order must be a permutation of the phase-space dimensions.");
     }
+    std::optional<CqmomCoordinateSupport> coordinate_support = parse_cqmom_coordinate_support(parsed, source_name, node_counts.size());
 
     bool adaptive_branch_counts = false;
     const auto adaptive_branch_counts_entry = parsed.scalars.find("phase_space.adaptive_branch_counts");
@@ -1630,6 +1716,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
                                          adaptive_branch_counts,
                                          diagnostic_level.value_or(CqmomDiagnosticLevel::detailed),
                                          vandermonde_solver.value_or(VandermondeSolver::automatic),
+                                         coordinate_support.value_or(CqmomCoordinateSupport{}),
                                          moment_storage.value_or(CqmomMomentStorage::lean),
                                          moment_storage_entry != nullptr,
                                          moment_storage_entry == nullptr ? 0 : moment_storage_entry->line};
@@ -1976,7 +2063,8 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
 
 ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditionSpecification& initial_condition,
                                                             const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options,
-                                                            const bool adaptive_branch_counts, std::string source_name)
+                                                            const bool adaptive_branch_counts, std::string source_name,
+                                                            CqmomCoordinateSupport coordinate_support)
 {
     ConfigurationResult<RawMomentTensor> initialized = initialize_cqmom_dense_moments(initial_condition, source_name);
     if (!initialized)
@@ -1999,19 +2087,33 @@ ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditi
         }
     }
 
-    return ConfigurationResult<CqmomDenseCase>{CqmomDenseCase{hierarchy, std::move(initialized).value(), {}, qmom_options, adaptive_branch_counts}};
+    return ConfigurationResult<CqmomDenseCase>{CqmomDenseCase{hierarchy,
+                                                              std::move(initialized).value(),
+                                                              {},
+                                                              qmom_options,
+                                                              adaptive_branch_counts,
+                                                              CqmomDiagnosticLevel::detailed,
+                                                              VandermondeSolver::automatic,
+                                                              std::move(coordinate_support)}};
 }
 
 ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialConditionSpecification& initial_condition,
                                                           const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options,
-                                                          const bool adaptive_branch_counts, std::string source_name)
+                                                          const bool adaptive_branch_counts, std::string source_name,
+                                                          CqmomCoordinateSupport coordinate_support)
 {
     ConfigurationResult<CqmomMomentData> initialized = initialize_cqmom_moment_data(initial_condition, hierarchy, std::move(source_name));
     if (!initialized)
     {
         return ConfigurationResult<CqmomLeanCase>::failure(initialized.error());
     }
-    return ConfigurationResult<CqmomLeanCase>{CqmomLeanCase{std::move(initialized).value(), {}, qmom_options, adaptive_branch_counts}};
+    return ConfigurationResult<CqmomLeanCase>{CqmomLeanCase{std::move(initialized).value(),
+                                                            {},
+                                                            qmom_options,
+                                                            adaptive_branch_counts,
+                                                            CqmomDiagnosticLevel::detailed,
+                                                            VandermondeSolver::automatic,
+                                                            std::move(coordinate_support)}};
 }
 
 ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::string source_name)
@@ -2076,7 +2178,7 @@ ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(const std::string_view tex
     }
     ConfigurationResult<CqmomDenseCase> dense_case =
         create_cqmom_dense_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
-                                settings.value().adaptive_branch_counts, std::move(source_name));
+                                settings.value().adaptive_branch_counts, std::move(source_name), settings.value().coordinate_support);
     if (dense_case)
     {
         dense_case.value().diagnostic_level = settings.value().diagnostic_level;
@@ -2105,7 +2207,7 @@ ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(const std::string_view text,
     }
     ConfigurationResult<CqmomLeanCase> lean_case =
         create_cqmom_lean_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
-                               settings.value().adaptive_branch_counts, std::move(source_name));
+                               settings.value().adaptive_branch_counts, std::move(source_name), settings.value().coordinate_support);
     if (lean_case)
     {
         lean_case.value().diagnostic_level = settings.value().diagnostic_level;
@@ -2132,7 +2234,7 @@ ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::str
     {
         ConfigurationResult<CqmomDenseCase> dense_case =
             create_cqmom_dense_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
-                                    settings.value().adaptive_branch_counts, source_name);
+                                    settings.value().adaptive_branch_counts, source_name, settings.value().coordinate_support);
         if (!dense_case)
         {
             return ConfigurationResult<CqmomCase>::failure(dense_case.error());
@@ -2142,8 +2244,9 @@ ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::str
         return ConfigurationResult<CqmomCase>{qmomkit::internal::create_cqmom_case(std::move(dense_case).value())};
     }
 
-    ConfigurationResult<CqmomLeanCase> lean_case = create_cqmom_lean_case(
-        initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options, settings.value().adaptive_branch_counts, source_name);
+    ConfigurationResult<CqmomLeanCase> lean_case =
+        create_cqmom_lean_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
+                               settings.value().adaptive_branch_counts, source_name, settings.value().coordinate_support);
     if (!lean_case)
     {
         return ConfigurationResult<CqmomCase>::failure(lean_case.error());

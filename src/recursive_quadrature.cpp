@@ -774,6 +774,376 @@ struct BranchNodeCountLimit
     return compute_quadrature(MomentSet(std::move(moments)), node_count, wheeler_options);
 }
 
+[[nodiscard]] bool validate_coordinate_support(const PhaseSpaceHierarchy& hierarchy, const CqmomCoordinateSupport& support, std::string& message)
+{
+    if (support.empty())
+    {
+        return true;
+    }
+    if (support.size() != hierarchy.number_of_dimensions())
+    {
+        message = "CQMOM coordinate_support must be empty or contain one entry per phase-space dimension.";
+        return false;
+    }
+    for (std::size_t dimension = 0; dimension < support.size(); ++dimension)
+    {
+        if (!support[dimension].has_value())
+        {
+            continue;
+        }
+        const BoundedInterval interval = *support[dimension];
+        if (!std::isfinite(interval.lower) || !std::isfinite(interval.upper) || !(interval.lower < interval.upper))
+        {
+            message = "CQMOM coordinate_support bounded intervals must have finite lower < upper values.";
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] std::optional<BoundedInterval> support_interval_for_dimension(const CqmomCoordinateSupport& support,
+                                                                            const std::size_t phase_space_dimension)
+{
+    if (support.empty())
+    {
+        return std::nullopt;
+    }
+    return support.at(phase_space_dimension);
+}
+
+struct BoundedBranchCandidate
+{
+    std::size_t node_count = 0;
+    std::string attempt_type;
+    std::vector<double> moments;
+    RealizabilityResult realizability;
+    Quadrature1D quadrature;
+    bool inversion_attempted = false;
+    bool nodes_inside_support = false;
+    bool accepted = false;
+    std::string message;
+};
+
+[[nodiscard]] bool nodes_inside_interval(const std::vector<double>& nodes, const BoundedInterval interval, const double tolerance)
+{
+    return std::all_of(nodes.begin(), nodes.end(), [interval, tolerance](const double node)
+                       { return std::isfinite(node) && node >= interval.lower - tolerance && node <= interval.upper + tolerance; });
+}
+
+[[nodiscard]] DenseMatrix bounded_hankel_hadamard_matrix(const std::vector<double>& moments, const std::size_t order)
+{
+    DenseMatrix matrix(order + 1, order + 1);
+    for (std::size_t row = 0; row <= order; ++row)
+    {
+        for (std::size_t col = 0; col <= order; ++col)
+        {
+            matrix(row, col) = moments[row + col];
+        }
+    }
+    return matrix;
+}
+
+[[nodiscard]] DenseMatrix bounded_linear_localizing_matrix(const std::vector<double>& moments, const BoundedInterval interval,
+                                                           const std::size_t order, const bool lower_bound)
+{
+    DenseMatrix matrix(order + 1, order + 1);
+    for (std::size_t row = 0; row <= order; ++row)
+    {
+        for (std::size_t col = 0; col <= order; ++col)
+        {
+            const std::size_t index = row + col;
+            matrix(row, col) =
+                lower_bound ? moments[index + 1] - interval.lower * moments[index] : interval.upper * moments[index] - moments[index + 1];
+        }
+    }
+    return matrix;
+}
+
+[[nodiscard]] DenseMatrix bounded_quadratic_localizing_matrix(const std::vector<double>& moments, const BoundedInterval interval,
+                                                              const std::size_t order)
+{
+    DenseMatrix matrix(order + 1, order + 1);
+    for (std::size_t row = 0; row <= order; ++row)
+    {
+        for (std::size_t col = 0; col <= order; ++col)
+        {
+            const std::size_t index = row + col;
+            matrix(row, col) =
+                (interval.lower + interval.upper) * moments[index + 1] - interval.lower * interval.upper * moments[index] - moments[index + 2];
+        }
+    }
+    return matrix;
+}
+
+[[nodiscard]] double determinant(DenseMatrix matrix)
+{
+    if (matrix.rows() != matrix.cols())
+    {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    double value = 1.0;
+    for (std::size_t pivot_col = 0; pivot_col < matrix.rows(); ++pivot_col)
+    {
+        std::size_t pivot_row = pivot_col;
+        double pivot_abs = std::abs(matrix(pivot_col, pivot_col));
+        for (std::size_t row = pivot_col + 1; row < matrix.rows(); ++row)
+        {
+            const double candidate = std::abs(matrix(row, pivot_col));
+            if (candidate > pivot_abs)
+            {
+                pivot_abs = candidate;
+                pivot_row = row;
+            }
+        }
+        if (pivot_abs == 0.0)
+        {
+            return 0.0;
+        }
+        if (pivot_row != pivot_col)
+        {
+            for (std::size_t col = 0; col < matrix.cols(); ++col)
+            {
+                std::swap(matrix(pivot_col, col), matrix(pivot_row, col));
+            }
+            value = -value;
+        }
+        const double pivot = matrix(pivot_col, pivot_col);
+        value *= pivot;
+        for (std::size_t row = pivot_col + 1; row < matrix.rows(); ++row)
+        {
+            const double factor = matrix(row, pivot_col) / pivot;
+            for (std::size_t col = pivot_col + 1; col < matrix.cols(); ++col)
+            {
+                matrix(row, col) -= factor * matrix(pivot_col, col);
+            }
+        }
+    }
+    return value;
+}
+
+[[nodiscard]] std::vector<CqmomBoundedSupportDeterminantDiagnostics> bounded_support_determinants(const std::vector<double>& moments,
+                                                                                                  const BoundedInterval interval)
+{
+    std::vector<CqmomBoundedSupportDeterminantDiagnostics> diagnostics;
+    if (moments.empty())
+    {
+        return diagnostics;
+    }
+
+    const std::size_t checked_order = moments.size() - 1;
+    const std::size_t order = checked_order / 2;
+    if (checked_order == 0)
+    {
+        diagnostics.push_back({"classical Hankel-Hadamard determinant Delta_0", 0, determinant(bounded_hankel_hadamard_matrix(moments, 0))});
+    }
+    else if (checked_order % 2 == 1)
+    {
+        diagnostics.push_back({"lower-support localizing determinant Delta_lower_" + std::to_string(order), order,
+                               determinant(bounded_linear_localizing_matrix(moments, interval, order, true))});
+        diagnostics.push_back({"upper-support localizing determinant Delta_upper_" + std::to_string(order), order,
+                               determinant(bounded_linear_localizing_matrix(moments, interval, order, false))});
+    }
+    else
+    {
+        diagnostics.push_back({"classical Hankel-Hadamard determinant Delta_" + std::to_string(order), order,
+                               determinant(bounded_hankel_hadamard_matrix(moments, order))});
+        if (order > 0)
+        {
+            diagnostics.push_back({"interval quadratic localizing determinant Delta_interval_" + std::to_string(order - 1), order - 1,
+                                   determinant(bounded_quadratic_localizing_matrix(moments, interval, order - 1))});
+        }
+    }
+    return diagnostics;
+}
+
+[[nodiscard]] BoundedBranchCandidate evaluate_bounded_branch_candidate(const std::vector<double>& moment_sequence, const std::size_t node_count,
+                                                                       const BoundedInterval interval, const WheelerOptions& wheeler_options,
+                                                                       std::string attempt_type)
+{
+    BoundedBranchCandidate candidate;
+    candidate.node_count = node_count;
+    candidate.attempt_type = std::move(attempt_type);
+    const std::size_t required_moment_count = 2 * node_count;
+    if (moment_sequence.size() < required_moment_count)
+    {
+        candidate.quadrature.status = QuadratureStatus::invalid_input;
+        candidate.message = "Bounded-support branch candidate does not have enough conditional moments.";
+        return candidate;
+    }
+    candidate.moments.assign(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(required_moment_count));
+
+    const RealizabilityOptions realizability_options{};
+    candidate.realizability = check_realizability(MomentSet(candidate.moments), interval, realizability_options);
+    if (!candidate.realizability.realizable())
+    {
+        candidate.quadrature.status = QuadratureStatus::not_realizable;
+        candidate.message = "Bounded-support realizability check failed: " + candidate.realizability.message;
+        return candidate;
+    }
+
+    WheelerOptions fixed_candidate_options = wheeler_options;
+    fixed_candidate_options.adaptive = false;
+    candidate.inversion_attempted = true;
+    candidate.quadrature = compute_branch_quadrature(candidate.moments, node_count, fixed_candidate_options);
+    if (!candidate.quadrature.ok())
+    {
+        candidate.message = "Bounded-support Wheeler inversion failed: " + candidate.quadrature.message;
+        return candidate;
+    }
+    if (candidate.quadrature.weights.size() != node_count || candidate.quadrature.abscissas.size() != node_count)
+    {
+        candidate.quadrature.status = QuadratureStatus::not_realizable;
+        candidate.message = "Bounded-support Wheeler inversion returned an unexpected node count.";
+        return candidate;
+    }
+
+    candidate.nodes_inside_support = nodes_inside_interval(candidate.quadrature.abscissas, interval, realizability_options.tolerance);
+    if (!candidate.nodes_inside_support)
+    {
+        candidate.quadrature.status = QuadratureStatus::not_realizable;
+        candidate.message = "Bounded-support Wheeler inversion returned nodes outside the configured interval.";
+        return candidate;
+    }
+
+    candidate.accepted = true;
+    candidate.message = "Bounded-support branch candidate accepted.";
+    return candidate;
+}
+
+void record_bounded_candidate_diagnostics(internal::RecursiveQuadratureBranchDiagnostics& diagnostics, const BoundedBranchCandidate& candidate,
+                                          const BoundedInterval interval, const std::optional<std::size_t> previous_active_node_count,
+                                          const std::size_t accepted_fallback_node_count, const bool include_determinants)
+{
+    diagnostics.bounded_support_checked = true;
+    diagnostics.bounded_support_interval_present = true;
+    diagnostics.bounded_support_interval = interval;
+    diagnostics.bounded_previous_active_node_count = previous_active_node_count;
+    diagnostics.bounded_candidate_node_count = candidate.node_count;
+    diagnostics.bounded_candidate_attempt_type = candidate.attempt_type;
+    diagnostics.bounded_candidate_moments = candidate.moments;
+    diagnostics.bounded_realizability_status = candidate.realizability.status;
+    diagnostics.bounded_effective_tolerance = candidate.realizability.tolerance_used;
+    diagnostics.bounded_failed_matrix = candidate.realizability.failed_matrix;
+    diagnostics.bounded_minimum_margin = candidate.realizability.minimum_pivot;
+    diagnostics.bounded_accepted_fallback_node_count = accepted_fallback_node_count;
+    if (candidate.inversion_attempted)
+    {
+        diagnostics.bounded_returned_nodes = candidate.quadrature.abscissas;
+        diagnostics.bounded_returned_weights = candidate.quadrature.weights;
+    }
+    if (!candidate.accepted || include_determinants)
+    {
+        diagnostics.bounded_support_determinants = bounded_support_determinants(candidate.moments, interval);
+    }
+}
+
+struct BoundedBranchSelection
+{
+    Quadrature1D quadrature;
+    std::size_t selected_node_count_ceiling = 0;
+    bool reduced = false;
+    bool success = false;
+    std::string message;
+};
+
+[[nodiscard]] bool branch_growth_trial_allowed(bool allow_active_branch_count_growth, bool adaptive_branch_counts,
+                                               const WheelerOptions& wheeler_options, const BranchNodeCountLimit& limit,
+                                               std::size_t configured_node_count, const Quadrature1D& current);
+
+[[nodiscard]] BoundedBranchSelection select_bounded_branch_quadrature(const std::vector<double>& moment_sequence,
+                                                                      const BranchNodeCountLimit& node_count_limit,
+                                                                      const std::size_t configured_node_count, const BoundedInterval interval,
+                                                                      const WheelerOptions& wheeler_options, const bool adaptive_branch_counts,
+                                                                      const bool allow_active_branch_count_growth, const bool include_determinants,
+                                                                      internal::RecursiveQuadratureBranchDiagnostics& diagnostics)
+{
+    BoundedBranchSelection selection;
+    const std::size_t first_count = node_count_limit.active_node_count.value_or(node_count_limit.ceiling);
+    std::optional<BoundedBranchCandidate> rejected_candidate;
+
+    if (!adaptive_branch_counts)
+    {
+        BoundedBranchCandidate fixed = evaluate_bounded_branch_candidate(moment_sequence, configured_node_count, interval, wheeler_options, "fixed");
+        if (!fixed.accepted)
+        {
+            record_bounded_candidate_diagnostics(diagnostics, fixed, interval, node_count_limit.active_node_count, 0, include_determinants);
+            selection.quadrature = std::move(fixed.quadrature);
+            selection.selected_node_count_ceiling = configured_node_count;
+            selection.message = fixed.message;
+            return selection;
+        }
+        record_bounded_candidate_diagnostics(diagnostics, fixed, interval, node_count_limit.active_node_count, configured_node_count,
+                                             include_determinants);
+        selection.quadrature = std::move(fixed.quadrature);
+        selection.selected_node_count_ceiling = configured_node_count;
+        selection.success = true;
+        return selection;
+    }
+
+    for (std::size_t candidate_count = first_count; candidate_count >= 1; --candidate_count)
+    {
+        const char* attempt_type =
+            candidate_count == first_count ? (node_count_limit.active_node_count.has_value() ? "current" : "configured") : "fallback";
+        BoundedBranchCandidate candidate =
+            evaluate_bounded_branch_candidate(moment_sequence, candidate_count, interval, wheeler_options, attempt_type);
+        if (candidate.accepted)
+        {
+            if (candidate_count < first_count)
+            {
+                selection.reduced = true;
+                record_bounded_candidate_diagnostics(diagnostics, rejected_candidate.value_or(candidate), interval,
+                                                     node_count_limit.active_node_count, candidate_count, include_determinants);
+            }
+            else
+            {
+                record_bounded_candidate_diagnostics(diagnostics, candidate, interval, node_count_limit.active_node_count, candidate_count,
+                                                     include_determinants);
+            }
+            selection.quadrature = std::move(candidate.quadrature);
+            selection.selected_node_count_ceiling = candidate_count;
+            selection.success = true;
+            break;
+        }
+        if (!rejected_candidate.has_value())
+        {
+            rejected_candidate = candidate;
+        }
+        if (candidate_count == 1)
+        {
+            record_bounded_candidate_diagnostics(diagnostics, *rejected_candidate, interval, node_count_limit.active_node_count, 0,
+                                                 include_determinants);
+            selection.quadrature = std::move(candidate.quadrature);
+            selection.selected_node_count_ceiling = first_count;
+            selection.message = candidate.message;
+            return selection;
+        }
+    }
+
+    if (branch_growth_trial_allowed(allow_active_branch_count_growth, adaptive_branch_counts, wheeler_options, node_count_limit,
+                                    configured_node_count, selection.quadrature) &&
+        selection.quadrature.weights.size() == *node_count_limit.active_node_count)
+    {
+        const std::size_t growth_count = *node_count_limit.active_node_count + 1;
+        BoundedBranchCandidate growth = evaluate_bounded_branch_candidate(moment_sequence, growth_count, interval, wheeler_options, "growth");
+        if (growth.accepted)
+        {
+            record_bounded_candidate_diagnostics(diagnostics, growth, interval, node_count_limit.active_node_count, growth_count,
+                                                 include_determinants);
+            selection.quadrature = std::move(growth.quadrature);
+            selection.selected_node_count_ceiling = growth_count;
+            selection.reduced = false;
+        }
+        else
+        {
+            record_bounded_candidate_diagnostics(diagnostics, growth, interval, node_count_limit.active_node_count,
+                                                 selection.quadrature.weights.size(), include_determinants);
+        }
+    }
+
+    return selection;
+}
+
 [[nodiscard]] bool branch_growth_trial_allowed(const bool allow_active_branch_count_growth, const bool adaptive_branch_counts,
                                                const WheelerOptions& wheeler_options, const BranchNodeCountLimit& limit,
                                                const std::size_t configured_node_count, const Quadrature1D& current)
@@ -1271,6 +1641,12 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
     {
         return result;
     }
+    std::string coordinate_support_message;
+    if (!validate_coordinate_support(request.hierarchy, request.coordinate_support, coordinate_support_message))
+    {
+        record_failure(result, RecursiveQuadratureStatus::invalid_input, {}, 0, coordinate_support_message);
+        return result;
+    }
     ActiveBranchTopology active_topology;
     try
     {
@@ -1360,28 +1736,48 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
                 return result;
             }
 
-            const bool branch_growth_possible = request.allow_active_branch_count_growth && request.adaptive_branch_counts &&
-                                                wheeler_options.adaptive && node_count_limit.active_node_count.has_value() &&
-                                                *node_count_limit.active_node_count < configured_node_count;
-            Quadrature1D quadrature = branch_growth_possible
-                                          ? compute_branch_quadrature(moment_sequence, node_count_limit.ceiling, wheeler_options)
-                                          : compute_branch_quadrature(std::move(moment_sequence), node_count_limit.ceiling, wheeler_options);
+            Quadrature1D quadrature;
             std::size_t selected_node_count_ceiling = node_count_limit.ceiling;
-            if (branch_growth_trial_allowed(request.allow_active_branch_count_growth, request.adaptive_branch_counts, wheeler_options,
-                                            node_count_limit, configured_node_count, quadrature))
+            bool support_driven_reduction = false;
+            const std::optional<BoundedInterval> support_interval = support_interval_for_dimension(request.coordinate_support, phase_space_dimension);
+            if (support_interval.has_value())
             {
-                const std::size_t growth_ceiling = *node_count_limit.active_node_count + 1;
-                Quadrature1D growth = compute_branch_quadrature(std::move(moment_sequence), growth_ceiling, wheeler_options);
-                if (growth.ok() && growth.weights.size() == growth_ceiling)
+                BoundedBranchSelection bounded_selection = select_bounded_branch_quadrature(
+                    moment_sequence, node_count_limit, configured_node_count, *support_interval, wheeler_options, request.adaptive_branch_counts,
+                    request.allow_active_branch_count_growth, request.diagnostic_level == CqmomDiagnosticLevel::detailed, branch_diagnostics);
+                quadrature = std::move(bounded_selection.quadrature);
+                selected_node_count_ceiling = bounded_selection.selected_node_count_ceiling;
+                support_driven_reduction = bounded_selection.reduced;
+                if (!bounded_selection.success && !bounded_selection.message.empty())
                 {
-                    quadrature = std::move(growth);
-                    selected_node_count_ceiling = growth_ceiling;
+                    quadrature.message = bounded_selection.message;
+                }
+            }
+            else
+            {
+                const bool branch_growth_possible = request.allow_active_branch_count_growth && request.adaptive_branch_counts &&
+                                                    wheeler_options.adaptive && node_count_limit.active_node_count.has_value() &&
+                                                    *node_count_limit.active_node_count < configured_node_count;
+                quadrature = branch_growth_possible
+                                 ? compute_branch_quadrature(moment_sequence, node_count_limit.ceiling, wheeler_options)
+                                 : compute_branch_quadrature(std::move(moment_sequence), node_count_limit.ceiling, wheeler_options);
+                if (branch_growth_trial_allowed(request.allow_active_branch_count_growth, request.adaptive_branch_counts, wheeler_options,
+                                                node_count_limit, configured_node_count, quadrature))
+                {
+                    const std::size_t growth_ceiling = *node_count_limit.active_node_count + 1;
+                    Quadrature1D growth = compute_branch_quadrature(std::move(moment_sequence), growth_ceiling, wheeler_options);
+                    if (growth.ok() && growth.weights.size() == growth_ceiling)
+                    {
+                        quadrature = std::move(growth);
+                        selected_node_count_ceiling = growth_ceiling;
+                    }
                 }
             }
             branch_diagnostics.requested_node_count = selected_node_count_ceiling;
             branch_diagnostics.wheeler_status = quadrature.status;
             branch_diagnostics.actual_node_count = quadrature.weights.size();
-            branch_diagnostics.adaptive_node_count_reduced = quadrature.ok() && quadrature.weights.size() < selected_node_count_ceiling;
+            branch_diagnostics.adaptive_node_count_reduced =
+                support_driven_reduction || (quadrature.ok() && quadrature.weights.size() < selected_node_count_ceiling);
             if (!quadrature.ok())
             {
                 branch_diagnostics.message = quadrature.message;
@@ -1574,7 +1970,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
     return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
                                                                     wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
                                                                     request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
-                                                                    request.allow_active_branch_count_growth},
+                                                                    request.allow_active_branch_count_growth, request.coordinate_support},
                                                                    request.moments.layout);
 }
 
@@ -1606,7 +2002,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
     return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
                                                                     wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
                                                                     request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
-                                                                    request.allow_active_branch_count_growth},
+                                                                    request.allow_active_branch_count_growth, request.coordinate_support},
                                                                    request.moments.layout);
 }
 
@@ -1641,7 +2037,9 @@ RecursiveQuadratureResult compute_recursive_quadrature(const RecursiveQuadrature
                                                           request.diagnostic_level,
                                                           request.conditional_vandermonde_solver,
                                                           nullptr,
-                                                          {}});
+                                                          {},
+                                                          false,
+                                                          request.coordinate_support});
 }
 
 } // namespace internal

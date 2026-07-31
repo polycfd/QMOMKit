@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace
@@ -30,6 +31,11 @@ qmomkit::AdaptiveRk23Options accurate_options()
 void check_close(const double actual, const double expected, const double tolerance)
 {
     CHECK_CLOSE(actual, expected, tolerance);
+}
+
+void check_contains(const std::string& text, const std::string& needle)
+{
+    CHECK(text.find(needle) != std::string::npos);
 }
 
 void check_ensemble_equal(const Ensemble& lhs, const Ensemble& rhs)
@@ -192,6 +198,12 @@ void test_failure_during_integration()
     CHECK(nonfinite.status == EnsembleEvolutionStatus::velocity_failed);
     CHECK(nonfinite.failed_sample_index == 0);
     CHECK(nonfinite.ensemble.empty());
+    check_contains(nonfinite.message, "Phase-space velocity callback returned a non-finite value:");
+    check_contains(nonfinite.message, "time: 0");
+    check_contains(nonfinite.message, "dimension: 0");
+    check_contains(nonfinite.message, "value: inf");
+    check_contains(nonfinite.message, "state: [1]");
+    check_contains(nonfinite.message, "velocity: [inf]");
 
     const qmomkit::PhaseSpaceVelocity wrong_dimension = [](double, const std::vector<double>&) { return std::vector<double>{1.0, 2.0}; };
     const qmomkit::monte_carlo::EnsembleEvolutionResult dimension =
@@ -199,6 +211,9 @@ void test_failure_during_integration()
     CHECK(!dimension.ok());
     CHECK(dimension.status == EnsembleEvolutionStatus::velocity_failed);
     CHECK(dimension.failed_sample_index == 0);
+    check_contains(dimension.message, "Phase-space velocity callback returned the wrong dimension:");
+    check_contains(dimension.message, "expected size: 1");
+    check_contains(dimension.message, "returned size: 2");
 
     const qmomkit::PhaseSpaceVelocity throwing_callback = [](double, const std::vector<double>&) -> std::vector<double>
     { throw std::runtime_error("manufactured callback failure"); };

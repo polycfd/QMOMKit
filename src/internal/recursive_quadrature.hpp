@@ -201,6 +201,7 @@ struct RecursiveQuadratureRequest
     bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
+    CqmomCoordinateSupport coordinate_support;
 };
 
 struct RecursiveQuadratureMomentViewRequest
@@ -215,6 +216,7 @@ struct RecursiveQuadratureMomentViewRequest
     const CqmomMomentLayout* validated_layout = nullptr;
     std::vector<CqmomActiveBranchCount> active_branch_counts;
     bool allow_active_branch_count_growth = false;
+    CqmomCoordinateSupport coordinate_support;
 };
 
 struct RecursiveQuadratureMomentDataRequest
@@ -228,6 +230,7 @@ struct RecursiveQuadratureMomentDataRequest
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
     std::vector<CqmomActiveBranchCount> active_branch_counts;
     bool allow_active_branch_count_growth = false;
+    CqmomCoordinateSupport coordinate_support;
 };
 
 struct RecursiveQuadratureBranchDiagnostics
@@ -247,6 +250,21 @@ struct RecursiveQuadratureBranchDiagnostics
     VandermondeAlgorithm conditional_vandermonde_algorithm_used = VandermondeAlgorithm::dense;
     bool dense_vandermonde_fallback_occurred = false;
     std::string message;
+    bool bounded_support_checked = false;
+    bool bounded_support_interval_present = false;
+    BoundedInterval bounded_support_interval;
+    std::optional<std::size_t> bounded_previous_active_node_count;
+    std::size_t bounded_candidate_node_count = 0;
+    std::string bounded_candidate_attempt_type;
+    std::vector<double> bounded_candidate_moments;
+    RealizabilityStatus bounded_realizability_status = RealizabilityStatus::invalid_input;
+    double bounded_effective_tolerance = 0.0;
+    std::string bounded_failed_matrix;
+    double bounded_minimum_margin = 0.0;
+    std::size_t bounded_accepted_fallback_node_count = 0;
+    std::vector<double> bounded_returned_nodes;
+    std::vector<double> bounded_returned_weights;
+    std::vector<CqmomBoundedSupportDeterminantDiagnostics> bounded_support_determinants;
 };
 
 struct RecursiveQuadratureResult

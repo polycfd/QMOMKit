@@ -93,6 +93,13 @@ using CqmomCaseVariant = std::variant<CqmomDenseCase, CqmomLeanCase>;
                       case_);
 }
 
+[[nodiscard]] const CqmomCoordinateSupport& coordinate_support(const CqmomCaseVariant& case_)
+{
+    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) -> const CqmomCoordinateSupport& { return dense_case.coordinate_support; },
+                                 [](const CqmomLeanCase& lean_case) -> const CqmomCoordinateSupport& { return lean_case.coordinate_support; }},
+                      case_);
+}
+
 [[nodiscard]] CqmomMomentStorage moment_storage(const CqmomCaseVariant& case_)
 {
     return std::holds_alternative<CqmomDenseCase>(case_) ? CqmomMomentStorage::dense : CqmomMomentStorage::lean;
@@ -238,6 +245,11 @@ VandermondeSolver CqmomCase::vandermonde_solver() const noexcept
     return qmomkit::vandermonde_solver(data_->case_);
 }
 
+const CqmomCoordinateSupport& CqmomCase::coordinate_support() const noexcept
+{
+    return qmomkit::coordinate_support(data_->case_);
+}
+
 CqmomMomentStorage CqmomCase::moment_storage() const noexcept
 {
     return qmomkit::moment_storage(data_->case_);
@@ -308,6 +320,11 @@ CqmomDiagnosticLevel CqmomState::diagnostic_level() const noexcept
 VandermondeSolver CqmomState::vandermonde_solver() const noexcept
 {
     return qmomkit::vandermonde_solver(data_->case_);
+}
+
+const CqmomCoordinateSupport& CqmomState::coordinate_support() const noexcept
+{
+    return qmomkit::coordinate_support(data_->case_);
 }
 
 CqmomMomentStorage CqmomState::moment_storage() const noexcept
@@ -608,20 +625,37 @@ namespace
 
 [[nodiscard]] CqmomDiagnostics to_cqmom_diagnostics(const internal::RecursiveQuadratureBranchDiagnostics& diagnostics)
 {
-    return CqmomDiagnostics{diagnostics.conditioning_level,
-                            diagnostics.path,
-                            diagnostics.phase_space_dimension,
-                            diagnostics.requested_node_count,
-                            diagnostics.actual_node_count,
-                            diagnostics.adaptive_branch_counts_enabled,
-                            diagnostics.adaptive_node_count_reduced,
-                            to_qmom_status(diagnostics.wheeler_status),
-                            diagnostics.conditional_moment_status,
-                            diagnostics.conditional_moment_diagnostics,
-                            diagnostics.conditional_vandermonde_requested_solver,
-                            diagnostics.conditional_vandermonde_selected_solver,
-                            diagnostics.dense_vandermonde_fallback_occurred,
-                            diagnostics.message};
+    CqmomDiagnostics converted;
+    converted.conditioning_level = diagnostics.conditioning_level;
+    converted.parent_path = diagnostics.path;
+    converted.phase_space_dimension = diagnostics.phase_space_dimension;
+    converted.requested_node_count = diagnostics.requested_node_count;
+    converted.actual_node_count = diagnostics.actual_node_count;
+    converted.adaptive_branch_counts_enabled = diagnostics.adaptive_branch_counts_enabled;
+    converted.adaptive_node_count_reduced = diagnostics.adaptive_node_count_reduced;
+    converted.qmom_status = to_qmom_status(diagnostics.wheeler_status);
+    converted.conditional_moment_status = diagnostics.conditional_moment_status;
+    converted.conditional_moment_diagnostics = diagnostics.conditional_moment_diagnostics;
+    converted.conditional_vandermonde_requested_solver = diagnostics.conditional_vandermonde_requested_solver;
+    converted.conditional_vandermonde_selected_solver = diagnostics.conditional_vandermonde_selected_solver;
+    converted.dense_vandermonde_fallback_occurred = diagnostics.dense_vandermonde_fallback_occurred;
+    converted.message = diagnostics.message;
+    converted.bounded_support_checked = diagnostics.bounded_support_checked;
+    converted.bounded_support_interval_present = diagnostics.bounded_support_interval_present;
+    converted.bounded_support_interval = diagnostics.bounded_support_interval;
+    converted.bounded_previous_active_node_count = diagnostics.bounded_previous_active_node_count;
+    converted.bounded_candidate_node_count = diagnostics.bounded_candidate_node_count;
+    converted.bounded_candidate_attempt_type = diagnostics.bounded_candidate_attempt_type;
+    converted.bounded_candidate_moments = diagnostics.bounded_candidate_moments;
+    converted.bounded_realizability_status = diagnostics.bounded_realizability_status;
+    converted.bounded_effective_tolerance = diagnostics.bounded_effective_tolerance;
+    converted.bounded_failed_matrix = diagnostics.bounded_failed_matrix;
+    converted.bounded_minimum_margin = diagnostics.bounded_minimum_margin;
+    converted.bounded_accepted_fallback_node_count = diagnostics.bounded_accepted_fallback_node_count;
+    converted.bounded_returned_nodes = diagnostics.bounded_returned_nodes;
+    converted.bounded_returned_weights = diagnostics.bounded_returned_weights;
+    converted.bounded_support_determinants = diagnostics.bounded_support_determinants;
+    return converted;
 }
 
 [[nodiscard]] std::vector<CqmomDiagnostics>
@@ -698,7 +732,9 @@ CqmomResult compute_cqmom(const CqmomLeanCase& lean_case)
                                                                  lean_case.adaptive_branch_counts,
                                                                  lean_case.diagnostic_level,
                                                                  lean_case.vandermonde_solver,
-                                                                 {}});
+                                                                 {},
+                                                                 false,
+                                                                 lean_case.coordinate_support});
 
     return to_cqmom_result(result, hierarchy);
 }
@@ -728,10 +764,10 @@ CqmomResult compute_trusted_cqmom(const CqmomDenseCase& dense_case, std::vector<
     }
     if (lean_moments.has_value())
     {
-        result = compute_recursive_quadrature_from_moment_data({dense_case.hierarchy, *lean_moments, dense_case.conditional_options,
-                                                                to_wheeler_options(dense_case.qmom_options), dense_case.adaptive_branch_counts,
-                                                                dense_case.diagnostic_level, dense_case.vandermonde_solver,
-                                                                std::move(active_branch_counts), allow_active_branch_count_growth});
+        result = compute_recursive_quadrature_from_moment_data(
+            {dense_case.hierarchy, *lean_moments, dense_case.conditional_options, to_wheeler_options(dense_case.qmom_options),
+             dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver, std::move(active_branch_counts),
+             allow_active_branch_count_growth, dense_case.coordinate_support});
     }
 
     return to_cqmom_result(result, dense_case.hierarchy);
@@ -743,7 +779,8 @@ CqmomResult compute_trusted_cqmom(const CqmomLeanCase& lean_case, std::vector<Cq
     const PhaseSpaceHierarchy& hierarchy = lean_case.moments.layout.hierarchy;
     const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
         {hierarchy, lean_case.moments, lean_case.conditional_options, to_wheeler_options(lean_case.qmom_options), lean_case.adaptive_branch_counts,
-         lean_case.diagnostic_level, lean_case.vandermonde_solver, std::move(active_branch_counts), allow_active_branch_count_growth});
+         lean_case.diagnostic_level, lean_case.vandermonde_solver, std::move(active_branch_counts), allow_active_branch_count_growth,
+         lean_case.coordinate_support});
 
     return to_cqmom_result(result, hierarchy);
 }

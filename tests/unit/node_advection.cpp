@@ -3,6 +3,9 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <iostream>
+#include <limits>
+#include <string>
 #include <vector>
 
 namespace
@@ -11,6 +14,15 @@ namespace
 void assert_near(const double actual, const double expected, const double tolerance)
 {
     assert(std::abs(actual - expected) <= tolerance);
+}
+
+void assert_contains(const std::string& text, const std::string& needle)
+{
+    if (text.find(needle) == std::string::npos)
+    {
+        std::cerr << "Missing expected text:\n" << needle << "\nActual message:\n" << text << '\n';
+        assert(false);
+    }
 }
 
 std::vector<double> raw_moments_1d(const std::vector<double>& abscissas, const std::vector<double>& weights, const std::size_t moment_count)
@@ -123,6 +135,49 @@ void test_default_scheme_is_ssp_rk3()
     assert(result.quadrature.weights == quadrature.weights);
 }
 
+void test_wrong_size_velocity_diagnostic_reports_expected_and_returned_size()
+{
+    qmomkit::Quadrature1D quadrature;
+    quadrature.abscissas = {1.0};
+    quadrature.weights = {1.0};
+
+    const qmomkit::QmomNodeAdvectionResult result =
+        qmomkit::advance_nodes(quadrature, 0.0, 0.25, [](double, const std::vector<double>&) { return std::vector<double>{1.0, 2.0}; });
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::NodeAdvectionStatus::velocity_failed);
+    assert(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
+    assert(result.diagnostics.message == result.message);
+    assert(result.quadrature.abscissas == quadrature.abscissas);
+    assert(result.quadrature.weights == quadrature.weights);
+    assert_contains(result.message, "Phase-space velocity callback returned the wrong dimension:");
+    assert_contains(result.message, "expected size: 1");
+    assert_contains(result.message, "returned size: 2");
+}
+
+void test_non_finite_velocity_diagnostic_reports_callback_context()
+{
+    const qmomkit::CqmomResult cqmom_result = make_fixed_two_dimensional_cqmom();
+    assert(cqmom_result.ok());
+
+    const qmomkit::CqmomNodeAdvectionResult result =
+        qmomkit::advance_nodes(cqmom_result.quadrature, 0.125, 0.25, [](const double time, const std::vector<double>& xi)
+                               { return std::vector<double>{xi[0] + time, -std::numeric_limits<double>::infinity()}; });
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::NodeAdvectionStatus::velocity_failed);
+    assert(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
+    assert(result.diagnostics.message == result.message);
+    assert(result.quadrature.weights() == cqmom_result.quadrature.weights());
+    assert(result.quadrature.abscissas() == cqmom_result.quadrature.abscissas());
+    assert_contains(result.message, "Phase-space velocity callback returned a non-finite value:");
+    assert_contains(result.message, "time: 0.125");
+    assert_contains(result.message, "dimension: 1");
+    assert_contains(result.message, "value: -inf");
+    assert_contains(result.message, "state: [-1, -0.49999999999999972]");
+    assert_contains(result.message, "velocity: [-0.875, -inf]");
+}
+
 void test_rk23_failure_diagnostics_are_reported()
 {
     qmomkit::Quadrature1D quadrature;
@@ -184,6 +239,8 @@ int main()
 {
     test_adaptive_quadrature_structure_is_preserved();
     test_default_scheme_is_ssp_rk3();
+    test_wrong_size_velocity_diagnostic_reports_expected_and_returned_size();
+    test_non_finite_velocity_diagnostic_reports_callback_context();
     test_rk23_failure_diagnostics_are_reported();
     test_configured_rk23_options_reach_node_advection();
     return 0;

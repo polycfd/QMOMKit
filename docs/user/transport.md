@@ -92,7 +92,10 @@ The callback receives the current time and one node coordinate vector. It must
 return `dxi/dt` with the same number of components. QMOMKit does not assign a
 physical meaning to those coordinates; `x`, `diameter`, `velocity`, or any
 other interpretation comes from your application and must match the
-phase-space order used elsewhere.
+phase-space order used elsewhere. If a returned component is non-finite, the
+diagnostic includes the evaluation time, zero-based phase-space dimension,
+offending value, input coordinate vector, and complete returned velocity
+vector.
 
 Use the advanced `advance_nodes(...)` operation when you already have a
 quadrature and want to evolve only the node positions:
@@ -398,6 +401,32 @@ qmomkit::CqmomMomentSource source =
 
 This pattern is dimension-independent: it uses the hierarchy dimension count
 instead of assuming a two-dimensional phase space.
+
+## Bounded CQMOM Support During Transport
+
+When a `CqmomCase` or `CqmomState` carries coordinate support from
+`phase_space.support_lower` and `phase_space.support_upper`, every CQMOM
+reconstruction for that coordinate uses the same support-aware acceptance check.
+This includes initial inversion, post-source inversion, current active-count
+preservation, and adaptive growth attempts.
+
+Fixed branch counts are strict: if the configured count is not realizable on the
+declared interval, the stage fails and the returned state rolls back to the
+input state. Adaptive branch counts first try to preserve the current count,
+then reduce to a feasible lower count when needed. Growth trials are allowed
+only toward the configured maximum; if a growth candidate violates support, the
+current feasible count is retained.
+
+After bounded realizability succeeds, QMOMKit verifies the returned nodes using
+the production realizability tolerance. Boundary nodes and nodes inside the
+interval within that tolerance are accepted unchanged. Nodes outside the
+interval by more than the tolerance are rejected. QMOMKit does not clip,
+project, or otherwise move nodes to fit the interval.
+
+Successful post-source stages store canonical moments reconstructed from the
+accepted quadrature and active counts. A source candidate whose higher-order
+moments would require unsupported nodes is not preserved as an infeasible
+sequence; the returned state contains the accepted bounded quadrature closure.
 
 ## Time Integration
 

@@ -1,0 +1,57 @@
+[phase_space]
+names = d, chi, u, v, w
+node_counts = 3, 3, 3, 3, 3
+conditioning_order = 0, 1, 2, 3, 4
+adaptive_branch_counts = true
+support_lower = none, 0.0, none, none, none
+support_upper = none, 1.0, none, none, none
+
+[time_integration]
+scheme = cd
+
+[time_integration.node_advection]
+scheme = adaptive_rk23
+
+[time_integration.node_advection.rk23]
+relative_tolerance = 1.0e-6
+absolute_tolerance = 1.0e-9
+initial_step = 1.0e-3
+max_step = 1.0e-2
+min_step = 1.0e-9
+max_steps = 2000000
+
+[initial]
+type = independent_product
+number_density = 1.0
+maximum_orders = 5, 5, 5, 5, 5
+
+[initial.dimension.0]
+family = lognormal
+mu_log = -8.9596725473
+sigma_log = 0.1529473098
+
+[initial.dimension.1]
+family = beta
+alpha = 6.0
+beta = 14.0
+
+[initial.dimension.2]
+family = normal
+mean = 0.0
+standard_deviation = 0.5
+
+[initial.dimension.3]
+family = normal
+mean = 0.0
+standard_deviation = 0.5
+
+[initial.dimension.4]
+family = normal
+mean = 0.0
+standard_deviation = 0.5
+
+[output]
+directory = output
+write_moments = true
+write_quadrature = true
+interval = 0.1

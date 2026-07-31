@@ -61,7 +61,9 @@ The callback receives:
 
 It returns `dxi/dt` with the same number of components. QMOMKit validates the
 returned size and finiteness, but it does not assign physical meaning to any
-coordinate.
+coordinate. A non-finite returned component is reported with the evaluation
+time, zero-based phase-space dimension, offending value, input coordinate
+vector, and complete returned velocity vector.
 
 For one-dimensional QMOM, node advection advances the one-dimensional
 abscissa array. For multidimensional CQMOM, node advection advances terminal
@@ -775,11 +777,42 @@ transport CQMOM moment layout.
 CQMOM source callbacks update the canonical transport-layout moments. After a
 successful source-stage inversion, the accepted quadrature becomes the canonical
 branch representation for the returned state. Lean storage reconstructs the
-retained CQMOM layout from that quadrature. Dense storage reconstructs the
-complete configured dense tensor from that quadrature, including higher-order or
-mixed tensor entries that were not exposed to the source callback. Dense-only
-moments are therefore closure moments implied by the accepted quadrature, not
-independently transported source variables.
+retained CQMOM layout from that quadrature for every accepted post-source
+state, even when the active topology is unchanged. Dense storage reconstructs
+the complete configured dense tensor from that quadrature, including
+higher-order or mixed tensor entries that were not exposed to the source
+callback. Stored post-source moments are therefore the moments implied by the
+accepted quadrature, not independently retained source variables. In adaptive
+mode, reduction or growth can replace source-candidate higher-order information
+with the closure represented by the accepted quadrature; the returned active
+branch counts are derived from that same quadrature.
+
+With coordinate support configured, the post-source invariant is:
+
+```text
+source candidate moments
+    -> bounded recursive inversion
+    -> accepted quadrature
+    -> accepted active counts
+    -> canonical stored moments
+```
+
+Bounded recursive inversion is phase-space-coordinate based, independent of the
+conditioning level at which that coordinate is reconstructed. The accepted
+quadrature is the only authority for the returned topology and stored moments.
+This matters for lean storage because lean states carry only the transport CQMOM
+moment layout; after a reduction or rejected growth trial, retaining the source
+candidate values would leave high-order entries inconsistent with the accepted
+bounded quadrature.
+
+Fixed-count bounded failures fail the stage and return the unchanged input
+state. Adaptive bounded reconstruction may reduce a branch to the largest
+accepted feasible count. It may also try one-node growth toward the configured
+maximum; if that growth candidate is support-infeasible, the current feasible
+count is retained. When a parent branch changes count, descendant branches and
+active-count metadata are rebuilt from the accepted quadrature. Coordinate
+support metadata is preserved across these state transitions. Failed
+post-source inversions roll back both stored moments and active counts.
 
 The public CQMOM transport API is `CqmomState` based. The high-level
 `advance_transport_cqmom(const CqmomState&, ...)` helper owns the configured

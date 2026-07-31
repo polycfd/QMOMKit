@@ -4,6 +4,7 @@
 #include "qmomkit/conditioning_path.hpp"
 #include "qmomkit/phase_space_hierarchy.hpp"
 #include "qmomkit/qmom.hpp"
+#include "qmomkit/realizability.hpp"
 #include "qmomkit/vandermonde_solver.hpp"
 
 #include <cstddef>
@@ -88,9 +89,18 @@ enum class CqmomMomentStorage
     dense
 };
 
+using CqmomCoordinateSupport = std::vector<std::optional<BoundedInterval>>;
+
 [[nodiscard]] std::string to_string(CqmomMomentStorage storage);
 [[nodiscard]] std::string format_cqmom_settings(CqmomMomentStorage storage, bool adaptive_branch_counts, VandermondeSolver vandermonde_solver,
                                                 CqmomDiagnosticLevel diagnostic_level);
+
+struct CqmomBoundedSupportDeterminantDiagnostics
+{
+    std::string matrix_family;
+    std::size_t matrix_order = 0;
+    double determinant = 0.0;
+};
 
 struct CqmomDiagnostics
 {
@@ -108,6 +118,21 @@ struct CqmomDiagnostics
     VandermondeSolver conditional_vandermonde_selected_solver = VandermondeSolver::dense;
     bool dense_vandermonde_fallback_occurred = false;
     std::string message;
+    bool bounded_support_checked = false;
+    bool bounded_support_interval_present = false;
+    BoundedInterval bounded_support_interval;
+    std::optional<std::size_t> bounded_previous_active_node_count;
+    std::size_t bounded_candidate_node_count = 0;
+    std::string bounded_candidate_attempt_type;
+    std::vector<double> bounded_candidate_moments;
+    RealizabilityStatus bounded_realizability_status = RealizabilityStatus::invalid_input;
+    double bounded_effective_tolerance = 0.0;
+    std::string bounded_failed_matrix;
+    double bounded_minimum_margin = 0.0;
+    std::size_t bounded_accepted_fallback_node_count = 0;
+    std::vector<double> bounded_returned_nodes;
+    std::vector<double> bounded_returned_weights;
+    std::vector<CqmomBoundedSupportDeterminantDiagnostics> bounded_support_determinants;
 };
 
 /**
@@ -179,6 +204,7 @@ struct CqmomDenseCase
     bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
+    CqmomCoordinateSupport coordinate_support;
 };
 
 /**
@@ -198,6 +224,7 @@ struct CqmomLeanCase
     bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
+    CqmomCoordinateSupport coordinate_support;
 };
 
 /**
@@ -223,6 +250,7 @@ public:
     [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
+    [[nodiscard]] const CqmomCoordinateSupport& coordinate_support() const noexcept;
     [[nodiscard]] CqmomMomentStorage moment_storage() const noexcept;
     [[nodiscard]] const std::vector<CqmomActiveBranchCount>& active_branch_counts() const noexcept;
     [[nodiscard]] std::vector<MultiIndex> moment_indices() const;
@@ -262,6 +290,7 @@ public:
     [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
+    [[nodiscard]] const CqmomCoordinateSupport& coordinate_support() const noexcept;
     [[nodiscard]] CqmomMomentStorage moment_storage() const noexcept;
     [[nodiscard]] CqmomState initial_state() const;
 

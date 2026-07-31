@@ -450,6 +450,46 @@ Callers must check `CqmomResult::ok()` or `status` before using quadrature
 data. A failed result can contain partially assembled diagnostic data, but
 that data is not a valid reconstructed multidimensional quadrature.
 
+### Bounded Coordinate Support
+
+Recursive CQMOM accepts optional bounded intervals in phase-space dimension
+order. An empty support vector means every coordinate is unconstrained, which
+preserves the ordinary Wheeler reconstruction path. A nonempty vector must have
+one entry per phase-space dimension; only dimensions with an interval use the
+support-aware candidate path.
+
+For a bounded coordinate, each branch-local `N`-node candidate is checked before
+acceptance with:
+
+```cpp
+check_realizability(MomentSet(m_0, ..., m_(2*N-1)),
+                    BoundedInterval{lower, upper},
+                    RealizabilityOptions{});
+```
+
+Only support-realizable candidates proceed to Wheeler inversion. The inversion
+is run for the candidate count, and the returned nodes must lie inside the
+configured interval within the realizability tolerance. This is an acceptance
+criterion, not a node clipping or projection step.
+
+Adaptive branch-count reconstruction retries bounded candidates from the
+current ceiling down to one node. When active branch-count metadata permits a
+one-node growth trial, failed bounded realizability, failed inversion, or
+out-of-interval nodes reject only that growth attempt and preserve the current
+accepted branch count. Fixed-count reconstruction does not silently reduce a
+bounded requested count; support infeasibility is reported as a reconstruction
+failure.
+
+Bounded-support diagnostics are attached to the affected CQMOM branch
+diagnostic. They identify the phase-space coordinate, conditioning path and
+level, interval, previous active count when available, attempted candidate
+count, attempt type, candidate conditional moments, bounded realizability
+status, effective tolerance, limiting matrix family and signed margin, accepted
+fallback count, and any returned nodes and weights from attempted inversion.
+The acceptance decision uses `check_realizability`; determinant or
+Classical Hankel-Hadamard determinant and support-localizing determinant
+analysis remains diagnostic-only.
+
 ### Diagnostic Levels
 
 CQMOM diagnostics balance numerical transparency with reconstruction cost. Some

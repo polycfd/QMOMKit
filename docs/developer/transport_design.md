@@ -777,11 +777,15 @@ transport CQMOM moment layout.
 CQMOM source callbacks update the canonical transport-layout moments. After a
 successful source-stage inversion, the accepted quadrature becomes the canonical
 branch representation for the returned state. Lean storage reconstructs the
-retained CQMOM layout from that quadrature. Dense storage reconstructs the
-complete configured dense tensor from that quadrature, including higher-order or
-mixed tensor entries that were not exposed to the source callback. Dense-only
-moments are therefore closure moments implied by the accepted quadrature, not
-independently transported source variables.
+retained CQMOM layout from that quadrature for every accepted post-source
+state, even when the active topology is unchanged. Dense storage reconstructs
+the complete configured dense tensor from that quadrature, including
+higher-order or mixed tensor entries that were not exposed to the source
+callback. Stored post-source moments are therefore the moments implied by the
+accepted quadrature, not independently retained source variables. In adaptive
+mode, reduction or growth can replace source-candidate higher-order information
+with the closure represented by the accepted quadrature; the returned active
+branch counts are derived from that same quadrature.
 
 The public CQMOM transport API is `CqmomState` based. The high-level
 `advance_transport_cqmom(const CqmomState&, ...)` helper owns the configured

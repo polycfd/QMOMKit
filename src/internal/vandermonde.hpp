@@ -12,6 +12,7 @@ namespace qmomkit::internal
 enum class VandermondeAlgorithm
 {
     dense,
+    pivoted_qr,
     bjorck_pereyra
 };
 

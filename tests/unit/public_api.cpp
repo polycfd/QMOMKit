@@ -856,6 +856,10 @@ void test_cqmom_storage_settings_format()
     assert(formatted.find("adaptive branch counts = enabled") != std::string::npos);
     assert(formatted.find("Vandermonde solver = dense") != std::string::npos);
     assert(formatted.find("diagnostic level = detailed") != std::string::npos);
+
+    const std::string pivoted_qr = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false, qmomkit::VandermondeSolver::pivoted_qr,
+                                                                  qmomkit::CqmomDiagnosticLevel::basic);
+    assert(pivoted_qr.find("Vandermonde solver = pivoted_qr") != std::string::npos);
 }
 
 } // namespace

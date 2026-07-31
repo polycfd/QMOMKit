@@ -1,6 +1,7 @@
 #include "vandermonde.hpp"
 
 #include "bjorck_pereyra.hpp"
+#include "householder_qr.hpp"
 #include "numeric_utils.hpp"
 #include "performance.hpp"
 
@@ -55,6 +56,7 @@ namespace
         (void)rhs_cols;
         return select_automatic_solver();
     case VandermondeSolver::dense:
+    case VandermondeSolver::pivoted_qr:
     case VandermondeSolver::bjorck_pereyra:
     case VandermondeSolver::bjorck_pereyra_with_dense_fallback:
         return requested_solver;
@@ -69,6 +71,23 @@ namespace
     return VandermondeSolveResult{std::move(result.solution), result.success,  std::move(result.message),
                                   requested_solver,           selected_solver, algorithm_used,
                                   dense_fallback_occurred};
+}
+
+[[nodiscard]] LinearSolveResult qr_linear_solve_result(QrSolveResult result, const std::size_t rows, const std::size_t cols,
+                                                       const std::string& singular_message)
+{
+    if (result.status == QrStatus::success)
+    {
+        return LinearSolveResult{std::move(result.solution), true, ""};
+    }
+
+    if (result.status == QrStatus::rank_deficient)
+    {
+        return failure_result(rows, cols, singular_message);
+    }
+
+    const std::string message = result.message.empty() ? singular_message : result.message;
+    return failure_result(rows, cols, message);
 }
 
 [[nodiscard]] bool residual_is_accepted(const DenseMatrix& system, const DenseMatrix& solution, const DenseMatrix& rhs, const double tolerance)
@@ -125,6 +144,31 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
         return vandermonde_result(solve_dense(std::move(system), std::move(rhs), options.singular_tolerance, singular_message), requested_solver,
                                   selected_solver, VandermondeAlgorithm::dense, false);
+    }
+
+    if (selected_solver == VandermondeSolver::pivoted_qr)
+    {
+        performance::record_vandermonde_solve(performance::VandermondeSolveKind::pivoted_qr);
+        if (weights.size() != n || rhs.rows() != n)
+        {
+            return vandermonde_result(failure_result(n, rhs_cols, "Weighted Vandermonde dimensions are inconsistent."), requested_solver,
+                                      selected_solver, VandermondeAlgorithm::pivoted_qr, false);
+        }
+
+        const DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
+        LinearSolveResult pivoted_qr = qr_linear_solve_result(solve_pivoted_householder_qr(system, rhs), n, rhs_cols, singular_message);
+        if (!pivoted_qr.success)
+        {
+            return vandermonde_result(std::move(pivoted_qr), requested_solver, selected_solver, VandermondeAlgorithm::pivoted_qr, false);
+        }
+
+        if (options.validate_residual && !residual_is_accepted(system, pivoted_qr.solution, rhs, options.residual_tolerance))
+        {
+            return vandermonde_result(failure_result(n, rhs_cols, singular_message), requested_solver, selected_solver,
+                                      VandermondeAlgorithm::pivoted_qr, false);
+        }
+
+        return vandermonde_result(std::move(pivoted_qr), requested_solver, selected_solver, VandermondeAlgorithm::pivoted_qr, false);
     }
 
     performance::record_vandermonde_solve(performance::VandermondeSolveKind::bjorck_pereyra);

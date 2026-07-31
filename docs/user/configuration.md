@@ -624,10 +624,16 @@ Supported values are `detailed`, `basic`, and `none`. If omitted, `detailed` is
 used.
 
 `vandermonde.solver` controls the branch-local conditional moment solve.
-Supported values are `automatic`, `dense`, `bjorck_pereyra`, and
-`bjorck_pereyra_with_dense_fallback`. If omitted, `automatic` is used. Loaded
-CQMOM cases and states expose the configured policy through
-`vandermonde_solver()`.
+Supported values are `automatic`, `dense`, `pivoted_qr`, `bjorck_pereyra`, and
+`bjorck_pereyra_with_dense_fallback`. If omitted, `automatic` is used. The
+`pivoted_qr` policy solves the weighted conditional Vandermonde system
+directly and is selected only when requested explicitly. It does not fall back
+to the dense solver if QR fails: a numerically rank-deficient conditional
+Vandermonde matrix makes the solve fail, and QMOMKit does not compute a
+truncated, regularized, minimum-norm, or pseudoinverse solution in this path.
+`automatic` is unchanged and continues to select the Björck-Pereyra solver with
+dense fallback. Loaded CQMOM cases and states expose the configured policy
+through `vandermonde_solver()`.
 
 ### Fixed And Adaptive CQMOM
 

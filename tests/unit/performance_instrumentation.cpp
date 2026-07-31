@@ -85,6 +85,7 @@ void test_counter_scope_records_direct_events_when_enabled()
         qmomkit::internal::performance::record_qmom_reconstruction();
         qmomkit::internal::performance::record_wheeler_call();
         qmomkit::internal::performance::record_vandermonde_solve(qmomkit::internal::performance::VandermondeSolveKind::bjorck_pereyra);
+        qmomkit::internal::performance::record_vandermonde_solve(qmomkit::internal::performance::VandermondeSolveKind::pivoted_qr);
         qmomkit::internal::performance::record_rk23_step(true);
         qmomkit::internal::performance::record_rk23_step(false);
     }
@@ -93,8 +94,9 @@ void test_counter_scope_records_direct_events_when_enabled()
 #if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
     assert(counters.reconstruction.qmom_reconstructions == 1);
     assert(counters.reconstruction.wheeler_calls == 1);
-    assert(counters.linear_algebra.vandermonde_solves == 1);
+    assert(counters.linear_algebra.vandermonde_solves == 2);
     assert(counters.linear_algebra.bjorck_pereyra_solves == 1);
+    assert(counters.linear_algebra.pivoted_qr_solves == 1);
     assert(counters.time_integration.rk23_accepted_steps == 1);
     assert(counters.time_integration.rk23_rejected_steps == 1);
 #else
@@ -102,6 +104,7 @@ void test_counter_scope_records_direct_events_when_enabled()
     assert(counters.reconstruction.wheeler_calls == 0);
     assert(counters.linear_algebra.vandermonde_solves == 0);
     assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
+    assert(counters.linear_algebra.pivoted_qr_solves == 0);
     assert(counters.time_integration.rk23_accepted_steps == 0);
     assert(counters.time_integration.rk23_rejected_steps == 0);
 #endif
@@ -274,10 +277,12 @@ void assert_trusted_case_reconstruction_uses_only_branch_layout_builds(const std
     assert(counters.reconstruction.moment_layout_builds == expected_layout_builds);
     assert(counters.reconstruction.wheeler_calls == expected_wheeler_calls);
     assert(counters.linear_algebra.vandermonde_solves == expected_vandermonde_solves);
+    assert(counters.linear_algebra.pivoted_qr_solves == 0);
 #else
     assert(counters.reconstruction.moment_layout_builds == 0);
     assert(counters.reconstruction.wheeler_calls == 0);
     assert(counters.linear_algebra.vandermonde_solves == 0);
+    assert(counters.linear_algebra.pivoted_qr_solves == 0);
 #endif
 }
 

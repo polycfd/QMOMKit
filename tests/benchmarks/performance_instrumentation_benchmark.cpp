@@ -155,8 +155,9 @@ bool has_reconstruction_counters(const perf::PerformanceCounters& counters)
 bool has_linear_algebra_counters(const perf::PerformanceCounters& counters)
 {
     return counters.linear_algebra.vandermonde_solves != 0 || counters.linear_algebra.bjorck_pereyra_solves != 0 ||
-           counters.linear_algebra.dense_linear_solves != 0 || counters.linear_algebra.dense_vandermonde_fallbacks != 0 ||
-           counters.linear_algebra.residual_checks != 0 || counters.linear_algebra.condition_estimates != 0;
+           counters.linear_algebra.pivoted_qr_solves != 0 || counters.linear_algebra.dense_linear_solves != 0 ||
+           counters.linear_algebra.dense_vandermonde_fallbacks != 0 || counters.linear_algebra.residual_checks != 0 ||
+           counters.linear_algebra.condition_estimates != 0;
 }
 
 bool has_transport_counters(const perf::PerformanceCounters& counters)
@@ -275,6 +276,7 @@ public:
                 std::cout << "  Linear algebra counters\n";
                 print_counter_line("Vandermonde solves", summary.counters.linear_algebra.vandermonde_solves);
                 print_counter_line("Bjorck-Pereyra solves", summary.counters.linear_algebra.bjorck_pereyra_solves);
+                print_counter_line("pivoted QR solves", summary.counters.linear_algebra.pivoted_qr_solves);
                 print_counter_line("dense linear solves", summary.counters.linear_algebra.dense_linear_solves);
                 print_counter_line("dense Vandermonde fallbacks", summary.counters.linear_algebra.dense_vandermonde_fallbacks);
                 print_counter_line("residual checks", summary.counters.linear_algebra.residual_checks);
@@ -624,6 +626,8 @@ std::string solver_name(const qmomkit::VandermondeSolver solver)
         return "automatic";
     case qmomkit::VandermondeSolver::dense:
         return "dense";
+    case qmomkit::VandermondeSolver::pivoted_qr:
+        return "pivoted_qr";
     case qmomkit::VandermondeSolver::bjorck_pereyra:
         return "bjorck_pereyra";
     case qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback:
@@ -703,6 +707,7 @@ void publish_workload_counters(benchmark::State& state, const perf::PerformanceC
     {
         publish_counter(state, "vandermonde_solves", counters.linear_algebra.vandermonde_solves);
         publish_counter(state, "bp_solves", counters.linear_algebra.bjorck_pereyra_solves);
+        publish_counter(state, "qr_solves", counters.linear_algebra.pivoted_qr_solves);
         publish_counter(state, "dense_solves", counters.linear_algebra.dense_linear_solves);
         publish_counter(state, "dense_fallbacks", counters.linear_algebra.dense_vandermonde_fallbacks);
         publish_counter(state, "residual_checks", counters.linear_algebra.residual_checks);

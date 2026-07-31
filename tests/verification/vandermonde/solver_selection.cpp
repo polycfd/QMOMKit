@@ -76,6 +76,8 @@ const char* solver_name(const qmomkit::VandermondeSolver solver)
         return "automatic";
     case qmomkit::VandermondeSolver::dense:
         return "dense";
+    case qmomkit::VandermondeSolver::pivoted_qr:
+        return "pivoted_qr";
     case qmomkit::VandermondeSolver::bjorck_pereyra:
         return "bjorck_pereyra";
     case qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback:
@@ -90,6 +92,8 @@ const char* algorithm_name(const qmomkit::internal::VandermondeAlgorithm algorit
     {
     case qmomkit::internal::VandermondeAlgorithm::dense:
         return "dense";
+    case qmomkit::internal::VandermondeAlgorithm::pivoted_qr:
+        return "pivoted_qr";
     case qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra:
         return "bjorck_pereyra";
     }
@@ -290,6 +294,8 @@ int main(const int argc, char** argv)
          qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false},
         {"dense", case_directory / "dense.qmom", qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::dense,
          qmomkit::internal::VandermondeAlgorithm::dense, false},
+        {"pivoted_qr", case_directory / "pivoted_qr.qmom", qmomkit::VandermondeSolver::pivoted_qr, qmomkit::VandermondeSolver::pivoted_qr,
+         qmomkit::internal::VandermondeAlgorithm::pivoted_qr, false},
         {"bjorck_pereyra", case_directory / "bjorck_pereyra.qmom", qmomkit::VandermondeSolver::bjorck_pereyra,
          qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false},
         {"bjorck_pereyra_with_dense_fallback", case_directory / "bjorck_pereyra_with_dense_fallback.qmom",
@@ -331,7 +337,7 @@ int main(const int argc, char** argv)
 
     if (computed.size() == cases.size())
     {
-        compare_dense_and_bp(computed[1], computed[2], loaded_cases[1].moments.extents, verification);
+        compare_dense_and_bp(computed[1], computed[3], loaded_cases[1].moments.extents, verification);
     }
 
     const bool passed = verification.passed && verification.errors.reference_node <= reference_tolerance &&

@@ -69,6 +69,8 @@ weighted conditional matrix. The adapter
 system:
 
 - the dense backend builds `A` and solves `A C = M` directly;
+- the pivoted-QR backend builds `A` and solves `A C = M` directly with the
+  internal pivoted Householder QR solver;
 - the Björck-Pereyra backend solves `V^T Y = M`, then recovers
   `C[i, q] = Y[i, q] / w_i`;
 - the adapter owns solver selection, fallback, residual checks, counters, and
@@ -107,6 +109,13 @@ Numerical rank is determined with the relative threshold
 relative_rank_tolerance * abs(R(0, 0)).
 ```
 
+The current QR default is `relative_rank_tolerance = 1.0e-14`, giving the rank
+threshold
+
+\[
+\tau_{\mathrm{rank}} = 10^{-14}|R_{00}|.
+\]
+
 A `rank_deficient` factorization is inspectable for diagnostics, but solves
 are refused unless the factorization is full column rank. QR does not produce
 truncated, pseudoinverse, regularized, or minimum-norm solutions for
@@ -118,8 +127,16 @@ Tests may form explicit `Q` only to verify the stored factorization convention.
 
 ## Current Production Status
 
-Pivoted Householder QR is internal. It is not a `VandermondeSolver` option, is
-not used by recursive CQMOM, and is not a BP-to-QR fallback path. Future QR
-integration into conditional Vandermonde policy would be a separate design
-decision with focused tests, documentation, diagnostics, and performance
-evidence.
+Pivoted Householder QR is available to recursive CQMOM only through the
+explicit `VandermondeSolver::pivoted_qr` policy. It solves the complete
+weighted conditional Vandermonde system directly through
+`solve_conditional_vandermonde_system(...)` and uses the QR solver's internal
+default relative rank tolerance. The QR relative rank tolerance is currently an
+internal default, is not configurable through `.qmom`, and is not taken from
+`VandermondeSolveOptions::singular_tolerance`. Exposing a user-configurable QR
+rank tolerance is deferred until a demonstrated need exists.
+
+`automatic` does not select QR. QR is not a BP-to-QR fallback path, and a QR
+rank-deficiency or residual-validation failure is reported as a failed
+conditional Vandermonde solve rather than as a partial solution or dense
+fallback.

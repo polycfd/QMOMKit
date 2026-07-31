@@ -5,6 +5,7 @@ qmomkit_add_ctest(test_conditional_moments unit_conditional_moments unit conditi
 qmomkit_add_ctest(test_moment_rates unit_moment_rates unit moment_rates.cpp)
 qmomkit_add_ctest(test_continuous_moment_rates unit_continuous_moment_rates unit continuous_moment_rates.cpp)
 qmomkit_add_ctest(test_discontinuous_moment_rates unit_discontinuous_moment_rates unit discontinuous_moment_rates.cpp)
+qmomkit_add_ctest(test_bjorck_pereyra unit_bjorck_pereyra unit bjorck_pereyra.cpp)
 qmomkit_add_ctest(test_vandermonde unit_vandermonde unit vandermonde.cpp)
 qmomkit_add_ctest(test_public_api unit_public_api unit public_api.cpp)
 qmomkit_add_ctest(test_configuration unit_configuration unit configuration.cpp)

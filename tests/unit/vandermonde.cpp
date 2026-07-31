@@ -1,6 +1,7 @@
 #include "internal/vandermonde.hpp"
 
 #include "internal/linear_algebra.hpp"
+#include "internal/performance.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -102,13 +103,14 @@ void assert_matches_dense_reference(const std::vector<double>& abscissas, const 
                                     const double residual_tolerance)
 {
     const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected_solution);
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_weighted_vandermonde(abscissas, weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
 
     const qmomkit::internal::LinearSolveResult dense = qmomkit::internal::solve_dense(system, rhs, singular_tolerance, singular_message);
     assert(dense.success);
 
-    const qmomkit::internal::LinearSolveResult structured =
-        qmomkit::internal::solve_weighted_transposed_vandermonde_bjorck_pereyra(abscissas, weights, rhs, singular_tolerance, singular_message);
+    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, singular_tolerance, false, 1.0e-10};
+    const qmomkit::internal::VandermondeSolveResult structured =
+        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
     assert(structured.success);
 
     assert_matrix_near(structured.solution, dense.solution, solution_tolerance);
@@ -121,13 +123,14 @@ void assert_matches_dense_reference_relative(const std::vector<double>& abscissa
                                              const double relative_tolerance, const double residual_tolerance)
 {
     const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected_solution);
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_weighted_vandermonde(abscissas, weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
 
     const qmomkit::internal::LinearSolveResult dense = qmomkit::internal::solve_dense(system, rhs, singular_tolerance, singular_message);
     assert(dense.success);
 
-    const qmomkit::internal::LinearSolveResult structured =
-        qmomkit::internal::solve_weighted_transposed_vandermonde_bjorck_pereyra(abscissas, weights, rhs, singular_tolerance, singular_message);
+    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, singular_tolerance, false, 1.0e-10};
+    const qmomkit::internal::VandermondeSolveResult structured =
+        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
     assert(structured.success);
 
     assert_matrix_close(structured.solution, dense.solution, absolute_tolerance, relative_tolerance);
@@ -141,13 +144,13 @@ void assert_wrapper_matches_dense_reference(const std::vector<double>& abscissas
                                             const qmomkit::internal::VandermondeAlgorithm expected_algorithm_used, const double solution_tolerance)
 {
     const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected_solution);
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_weighted_vandermonde(abscissas, weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
     const qmomkit::internal::LinearSolveResult dense = qmomkit::internal::solve_dense(system, rhs, singular_tolerance, singular_message);
     assert(dense.success);
 
     const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance, true, 1.0e-10};
     const qmomkit::internal::VandermondeSolveResult result =
-        qmomkit::internal::solve_weighted_vandermonde(abscissas, weights, rhs, options, singular_message);
+        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
     assert(result.success);
     assert(result.requested_solver == solver);
     assert(result.selected_solver == expected_selected_solver);
@@ -233,8 +236,9 @@ void test_zero_rhs_columns_success()
     const std::vector<double> abscissas{-1.0, 0.5, 2.0};
     const std::vector<double> weights{0.25, 0.5, 0.75};
     const qmomkit::internal::DenseMatrix rhs(abscissas.size(), 0);
-    const qmomkit::internal::LinearSolveResult structured =
-        qmomkit::internal::solve_weighted_transposed_vandermonde_bjorck_pereyra(abscissas, weights, rhs, singular_tolerance, singular_message);
+    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, singular_tolerance, false, 1.0e-10};
+    const qmomkit::internal::VandermondeSolveResult structured =
+        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
     assert(structured.success);
     assert(structured.solution.rows() == abscissas.size());
     assert(structured.solution.cols() == 0);
@@ -284,10 +288,64 @@ void test_wrapper_automatic_selects_bp_fallback_for_large_system()
 void assert_singular_failure(const std::vector<double>& abscissas, const std::vector<double>& weights, const qmomkit::internal::DenseMatrix& rhs,
                              const std::string& expected_message)
 {
-    const qmomkit::internal::LinearSolveResult structured =
-        qmomkit::internal::solve_weighted_transposed_vandermonde_bjorck_pereyra(abscissas, weights, rhs, singular_tolerance, singular_message);
+    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, singular_tolerance, false, 1.0e-10};
+    const qmomkit::internal::VandermondeSolveResult structured =
+        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
     assert(!structured.success);
     assert(structured.message == expected_message);
+}
+
+struct InvalidPolicyExpectation
+{
+    qmomkit::VandermondeSolver requested_solver;
+    qmomkit::VandermondeSolver selected_solver;
+    qmomkit::internal::VandermondeAlgorithm algorithm_used;
+    bool dense_fallback_occurred;
+    bool success;
+    const char* message;
+    std::size_t vandermonde_solves;
+    std::size_t bjorck_pereyra_solves;
+    std::size_t dense_linear_solves;
+    std::size_t dense_vandermonde_fallbacks;
+};
+
+void assert_counter_expectations(const qmomkit::internal::performance::PerformanceCounters& counters, const InvalidPolicyExpectation& expected)
+{
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(counters.linear_algebra.vandermonde_solves == expected.vandermonde_solves);
+    assert(counters.linear_algebra.bjorck_pereyra_solves == expected.bjorck_pereyra_solves);
+    assert(counters.linear_algebra.dense_linear_solves == expected.dense_linear_solves);
+    assert(counters.linear_algebra.dense_vandermonde_fallbacks == expected.dense_vandermonde_fallbacks);
+#else
+    (void)expected;
+    assert(counters.linear_algebra.vandermonde_solves == 0);
+    assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
+    assert(counters.linear_algebra.dense_linear_solves == 0);
+    assert(counters.linear_algebra.dense_vandermonde_fallbacks == 0);
+#endif
+}
+
+void assert_invalid_policy_behavior(const InvalidPolicyExpectation& expected)
+{
+    qmomkit::internal::performance::CounterSession session;
+    qmomkit::internal::VandermondeSolveResult result{
+        qmomkit::internal::DenseMatrix(0, 0), false, "", expected.requested_solver, expected.selected_solver, expected.algorithm_used, false};
+    {
+        qmomkit::internal::performance::CounterScope scope(session);
+        const std::vector<double> abscissas{1.0, std::numeric_limits<double>::infinity()};
+        const std::vector<double> weights{1.0, 1.0};
+        const qmomkit::internal::DenseMatrix rhs(2, 1);
+        const qmomkit::internal::VandermondeSolveOptions options{expected.requested_solver, singular_tolerance, false, 1.0e-10};
+        result = qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
+    }
+
+    assert(result.requested_solver == expected.requested_solver);
+    assert(result.selected_solver == expected.selected_solver);
+    assert(result.algorithm_used == expected.algorithm_used);
+    assert(result.dense_fallback_occurred == expected.dense_fallback_occurred);
+    assert(result.success == expected.success);
+    assert(result.message == expected.message);
+    assert_counter_expectations(session.snapshot(), expected);
 }
 
 void test_repeated_nodes_fail()
@@ -318,7 +376,7 @@ void test_wrapper_bp_fallback_uses_dense_on_repeated_nodes()
     const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, singular_tolerance, true,
                                                              1.0e-10};
     const qmomkit::internal::VandermondeSolveResult result =
-        qmomkit::internal::solve_weighted_vandermonde(abscissas, weights, rhs, options, singular_message);
+        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
     assert(!result.success);
     assert(result.requested_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
     assert(result.selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
@@ -337,7 +395,7 @@ void test_bp_fallback_validates_residual_independent_of_optional_diagnostics()
     const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, singular_tolerance,
                                                              false, -1.0};
     const qmomkit::internal::VandermondeSolveResult result =
-        qmomkit::internal::solve_weighted_vandermonde(abscissas, weights, rhs, options, singular_message);
+        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
 
     assert(result.success);
     assert(result.requested_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
@@ -352,6 +410,20 @@ void test_invalid_inputs_fail()
     assert_singular_failure({1.0, 2.0}, {1.0}, qmomkit::internal::DenseMatrix(2, 1), "Weighted Vandermonde dimensions are inconsistent.");
     assert_singular_failure({1.0, std::numeric_limits<double>::infinity()}, {1.0, 1.0}, qmomkit::internal::DenseMatrix(2, 1),
                             "Weighted Vandermonde inputs must be finite.");
+}
+
+void test_invalid_inputs_preserve_policy_diagnostics_and_counters()
+{
+    assert_invalid_policy_behavior({qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::dense,
+                                    qmomkit::internal::VandermondeAlgorithm::dense, false, false, singular_message, 1, 0, 1, 0});
+    assert_invalid_policy_behavior({qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::VandermondeSolver::bjorck_pereyra,
+                                    qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false, false,
+                                    "Weighted Vandermonde inputs must be finite.", 1, 1, 0, 0});
+    assert_invalid_policy_behavior({qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback,
+                                    qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, qmomkit::internal::VandermondeAlgorithm::dense,
+                                    true, false, singular_message, 2, 1, 1, 1});
+    assert_invalid_policy_behavior({qmomkit::VandermondeSolver::automatic, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback,
+                                    qmomkit::internal::VandermondeAlgorithm::dense, true, false, singular_message, 2, 1, 1, 1});
 }
 
 } // namespace
@@ -376,6 +448,7 @@ int main()
     test_wrapper_bp_fallback_uses_dense_on_repeated_nodes();
     test_bp_fallback_validates_residual_independent_of_optional_diagnostics();
     test_invalid_inputs_fail();
+    test_invalid_inputs_preserve_policy_diagnostics_and_counters();
 
     return 0;
 }

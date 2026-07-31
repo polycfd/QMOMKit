@@ -2,6 +2,7 @@
 
 #include "internal/linear_algebra.hpp"
 #include "internal/numeric_utils.hpp"
+#include "internal/vandermonde.hpp"
 #include "qmomkit/multi_index.hpp"
 
 #include <algorithm>
@@ -125,7 +126,7 @@ ConditionalMomentResult reconstruct_conditional_moments(const ConditionalMomentR
 
     // Solve weighted parent-node interpolation for the conditional moments of
     // the next target dimension at each parent abscissa.
-    DenseMatrix system = internal::make_weighted_vandermonde(request.parent_abscissas, request.parent_weights);
+    DenseMatrix system = internal::make_conditional_vandermonde_matrix(request.parent_abscissas, request.parent_weights);
     DenseMatrix rhs = extract_rhs(request, parent_dimension, target_dimension);
     LinearSolveResult solve = internal::solve_dense(system, rhs, request.options.singular_tolerance, "Weighted Vandermonde system is singular.");
     if (!solve.success)

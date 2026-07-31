@@ -715,8 +715,8 @@ BranchSigmaDiagnostic branch_sigma_direct_from_terminals(const std::vector<Termi
     return branch;
 }
 
-std::array<double, 2> solve_weighted_vandermonde_2(const std::array<double, 2>& nodes, const std::array<double, 2>& weights,
-                                                   const std::array<double, 2>& rhs)
+std::array<double, 2> solve_conditional_vandermonde_system_2(const std::array<double, 2>& nodes, const std::array<double, 2>& weights,
+                                                             const std::array<double, 2>& rhs)
 {
     const double separation = nodes[1] - nodes[0];
     return {(rhs[0] * nodes[1] - rhs[1]) / (weights[0] * separation), (rhs[1] - rhs[0] * nodes[0]) / (weights[1] * separation)};
@@ -823,10 +823,10 @@ VandermondeStageTrace solve_stage(const qmomkit::internal::BranchMomentSlice& pa
     trace.rhs = qmomkit::internal::make_branch_rhs_matrix(parent_slice, parent_abscissas.size());
     const qmomkit::internal::VandermondeSolveOptions solve_options{qmomkit::VandermondeSolver::automatic, conditional_options.singular_tolerance,
                                                                    true, 1.0e-10};
-    trace.solve = qmomkit::internal::solve_weighted_vandermonde(parent_abscissas, parent_weights, trace.rhs, solve_options,
-                                                                "Test-local weighted Vandermonde system is singular.");
+    trace.solve = qmomkit::internal::solve_conditional_vandermonde_system(parent_abscissas, parent_weights, trace.rhs, solve_options,
+                                                                          "Test-local weighted Vandermonde system is singular.");
     QMOMKIT_VERIFY_CHECK(trace.solve.success);
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_weighted_vandermonde(parent_abscissas, parent_weights);
+    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(parent_abscissas, parent_weights);
     trace.residual = qmomkit::internal::residual_norm(system, trace.solve.solution, trace.rhs);
     trace.condition = qmomkit::internal::condition_estimate(system, conditional_options.singular_tolerance);
     return trace;
@@ -912,7 +912,7 @@ BranchSigmaDiagnostic branch_sigma_reconstructed_for_identity_order(const qmomki
         for (std::size_t u_order = 0; u_order < 4; ++u_order)
         {
             const std::array<double, 2> rhs{dense_moment(moments, {0, chi_order, u_order}), dense_moment(moments, {1, chi_order, u_order})};
-            const std::array<double, 2> values = solve_weighted_vandermonde_2(d_nodes, d_weights, rhs);
+            const std::array<double, 2> values = solve_conditional_vandermonde_system_2(d_nodes, d_weights, rhs);
             child_moments[0][chi_order][u_order] = values[0];
             child_moments[1][chi_order][u_order] = values[1];
         }
@@ -936,7 +936,7 @@ BranchSigmaDiagnostic branch_sigma_reconstructed_for_identity_order(const qmomki
     for (std::size_t u_order = 0; u_order < branch.moments.size(); ++u_order)
     {
         const std::array<double, 2> rhs{child_moments[d_branch][0][u_order], child_moments[d_branch][1][u_order]};
-        const std::array<double, 2> values = solve_weighted_vandermonde_2(chi_nodes, chi_weights, rhs);
+        const std::array<double, 2> values = solve_conditional_vandermonde_system_2(chi_nodes, chi_weights, rhs);
         branch.moments[u_order] = values[chi_branch];
     }
     branch.sigma22 = branch.moments[2] - branch.moments[1] * branch.moments[1] / branch.moments[0];

@@ -34,12 +34,18 @@ struct VandermondeSolveResult
     bool dense_fallback_occurred = false;
 };
 
-[[nodiscard]] LinearSolveResult solve_weighted_transposed_vandermonde_bjorck_pereyra(const std::vector<double>& abscissas,
-                                                                                     const std::vector<double>& weights, DenseMatrix rhs,
-                                                                                     double singular_tolerance, const std::string& singular_message);
+/**
+ * Construct the conditional Vandermonde matrix A = V^T diag(w), with
+ * A(power, node) = weights[node] * nodes[node]^power.
+ */
+[[nodiscard]] DenseMatrix make_conditional_vandermonde_matrix(const std::vector<double>& nodes, const std::vector<double>& weights);
 
-[[nodiscard]] VandermondeSolveResult solve_weighted_vandermonde(const std::vector<double>& abscissas, const std::vector<double>& weights,
-                                                                DenseMatrix rhs, const VandermondeSolveOptions& options,
-                                                                const std::string& singular_message);
+/**
+ * Solve the complete conditional system A*C = rhs, where
+ * A(power, node) = weights[node] * nodes[node]^power.
+ */
+[[nodiscard]] VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<double>& nodes, const std::vector<double>& weights,
+                                                                          DenseMatrix rhs, const VandermondeSolveOptions& options,
+                                                                          const std::string& singular_message);
 
 } // namespace qmomkit::internal

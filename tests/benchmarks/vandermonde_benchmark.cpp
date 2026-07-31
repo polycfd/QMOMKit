@@ -1,7 +1,9 @@
+#include "internal/bjorck_pereyra.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/vandermonde.hpp"
 #include "qmomkit/qmomkit.hpp"
 
+#include <algorithm>
 #include <benchmark/benchmark.h>
 #include <cmath>
 #include <cstddef>
@@ -118,16 +120,48 @@ VandermondeFixture make_fixture(const std::size_t n, const std::size_t rhs_cols,
     std::vector<double> abscissas = make_abscissas(n, numerical_case);
     std::vector<double> weights = make_weights(n, numerical_case);
     qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, make_solution(n, rhs_cols));
-    qmomkit::internal::DenseMatrix system = qmomkit::internal::make_weighted_vandermonde(abscissas, weights);
+    qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
     return VandermondeFixture{std::move(abscissas), std::move(weights), std::move(rhs), std::move(system)};
+}
+
+qmomkit::internal::LinearSolveResult solve_weighted_bjorck_pereyra_for_benchmark(const std::vector<double>& abscissas,
+                                                                                 const std::vector<double>& weights,
+                                                                                 qmomkit::internal::DenseMatrix rhs)
+{
+    double weight_scale = 1.0;
+    for (const double weight : weights)
+    {
+        weight_scale = std::max(weight_scale, std::abs(weight));
+    }
+    for (const double weight : weights)
+    {
+        if (std::abs(weight) <= singular_tolerance * weight_scale)
+        {
+            return qmomkit::internal::LinearSolveResult{qmomkit::internal::DenseMatrix(abscissas.size(), rhs.cols()), false, singular_message};
+        }
+    }
+
+    qmomkit::internal::LinearSolveResult result = qmomkit::internal::solve_bjorck_pereyra(abscissas, std::move(rhs), singular_tolerance);
+    if (!result.success)
+    {
+        return result;
+    }
+    for (std::size_t row = 0; row < weights.size(); ++row)
+    {
+        for (std::size_t col = 0; col < result.solution.cols(); ++col)
+        {
+            result.solution(row, col) /= weights[row];
+        }
+    }
+    return result;
 }
 
 bool skip_if_invalid(benchmark::State& state, const VandermondeFixture& fixture)
 {
     const qmomkit::internal::LinearSolveResult dense =
         qmomkit::internal::solve_dense(fixture.system, fixture.rhs, singular_tolerance, singular_message);
-    const qmomkit::internal::LinearSolveResult structured = qmomkit::internal::solve_weighted_transposed_vandermonde_bjorck_pereyra(
-        fixture.abscissas, fixture.weights, fixture.rhs, singular_tolerance, singular_message);
+    const qmomkit::internal::LinearSolveResult structured =
+        solve_weighted_bjorck_pereyra_for_benchmark(fixture.abscissas, fixture.weights, fixture.rhs);
     if (!dense.success || !structured.success)
     {
         state.SkipWithError("Vandermonde benchmark fixture is singular under the configured tolerance.");
@@ -184,8 +218,7 @@ void run_bjorck_pereyra_solve(benchmark::State& state, const std::size_t n, cons
 
     for (auto _ : state)
     {
-        qmomkit::internal::LinearSolveResult result = qmomkit::internal::solve_weighted_transposed_vandermonde_bjorck_pereyra(
-            fixture.abscissas, fixture.weights, fixture.rhs, singular_tolerance, singular_message);
+        qmomkit::internal::LinearSolveResult result = solve_weighted_bjorck_pereyra_for_benchmark(fixture.abscissas, fixture.weights, fixture.rhs);
         benchmark::DoNotOptimize(result.solution.rows());
         benchmark::DoNotOptimize(result.solution.cols());
         benchmark::DoNotOptimize(result.success);
@@ -216,7 +249,7 @@ void run_weighted_wrapper_solve(benchmark::State& state, const std::size_t n, co
 
     const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance, false, 1.0e-10};
     const qmomkit::internal::VandermondeSolveResult setup_check =
-        qmomkit::internal::solve_weighted_vandermonde(fixture.abscissas, fixture.weights, fixture.rhs, options, singular_message);
+        qmomkit::internal::solve_conditional_vandermonde_system(fixture.abscissas, fixture.weights, fixture.rhs, options, singular_message);
     if (!setup_check.success)
     {
         state.SkipWithError("Vandermonde solver benchmark fixture failed setup.");
@@ -227,7 +260,7 @@ void run_weighted_wrapper_solve(benchmark::State& state, const std::size_t n, co
     for (auto _ : state)
     {
         const qmomkit::internal::VandermondeSolveResult result =
-            qmomkit::internal::solve_weighted_vandermonde(fixture.abscissas, fixture.weights, fixture.rhs, options, singular_message);
+            qmomkit::internal::solve_conditional_vandermonde_system(fixture.abscissas, fixture.weights, fixture.rhs, options, singular_message);
         benchmark::DoNotOptimize(result.solution.rows());
         benchmark::DoNotOptimize(result.solution.cols());
     }

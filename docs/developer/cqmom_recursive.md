@@ -282,8 +282,41 @@ The row index `p` is the parent moment order. The column index `i` is the
 parent node. The right-hand-side column `q` is a flattened trailing
 branch-local moment index.
 
-QMOMKit calls the numerical component that solves this system the Vandermonde
-solver. The user-facing solver choices are:
+Equivalently, if
+
+```text
+V[i, p] = x_i^p
+```
+
+then the conditional matrix is:
+
+```text
+A = V^T diag(w)
+```
+
+The dense pathway builds `A` and solves `A*C = M` directly with the generic
+dense linear solver. The Björck-Pereyra pathway is split into two internal
+layers: a structure-specific kernel solves the unweighted transposed
+Vandermonde system
+
+```text
+V^T Y = M
+```
+
+and the conditional Vandermonde adapter recovers the conditional moments by
+dividing each solution row by the corresponding parent weight:
+
+```text
+C[i, q] = Y[i, q] / w_i
+```
+
+The adapter owns the conditional-system validation, weight transformation,
+solver selection, residual acceptance, dense fallback, and diagnostics. The
+Björck-Pereyra kernel owns only the internal unweighted transposed Vandermonde
+solve and its node-separation checks.
+
+QMOMKit calls the numerical policy that solves this conditional system the
+Vandermonde solver. The user-facing solver choices are:
 
 - Dense solver: a generic dense linear solve used as the robustness reference.
 - Björck-Pereyra Vandermonde solver: the Vandermonde-specific

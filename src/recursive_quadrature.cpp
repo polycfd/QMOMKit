@@ -529,8 +529,8 @@ struct ConditionalSliceResult
     // Solve (V^T diag(w)) C = RHS for C: branch-local conditional moments of
     // the remaining axes at each parent node.
     const internal::VandermondeSolveOptions solve_options{vandermonde_solver, options.singular_tolerance, false, 1.0e-10};
-    internal::VandermondeSolveResult solve = internal::solve_weighted_vandermonde(parent_abscissas, parent_weights, rhs, solve_options,
-                                                                                  "Branch-local weighted Vandermonde system is singular.");
+    internal::VandermondeSolveResult solve = internal::solve_conditional_vandermonde_system(parent_abscissas, parent_weights, rhs, solve_options,
+                                                                                            "Branch-local weighted Vandermonde system is singular.");
     result.vandermonde_requested_solver = solve.requested_solver;
     result.vandermonde_selected_solver = solve.selected_solver;
     result.vandermonde_algorithm_used = solve.algorithm_used;
@@ -544,7 +544,7 @@ struct ConditionalSliceResult
 
     if (diagnostic_level == CqmomDiagnosticLevel::detailed)
     {
-        DenseMatrix system = internal::make_weighted_vandermonde(parent_abscissas, parent_weights);
+        DenseMatrix system = internal::make_conditional_vandermonde_matrix(parent_abscissas, parent_weights);
         const double residual = internal::residual_norm(system, solve.solution, rhs);
         const double condition = internal::condition_estimate(system, options.singular_tolerance);
         result.diagnostics.residual_norm = residual;

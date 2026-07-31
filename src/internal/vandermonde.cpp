@@ -1,5 +1,6 @@
 #include "vandermonde.hpp"
 
+#include "bjorck_pereyra.hpp"
 #include "numeric_utils.hpp"
 #include "performance.hpp"
 
@@ -70,16 +71,6 @@ namespace
                                   dense_fallback_occurred};
 }
 
-[[nodiscard]] double node_scale(const double lhs, const double rhs)
-{
-    return std::max({1.0, std::abs(lhs), std::abs(rhs)});
-}
-
-[[nodiscard]] bool denominator_is_singular(const double denominator, const double lhs, const double rhs, const double singular_tolerance)
-{
-    return std::abs(denominator) <= singular_tolerance * node_scale(lhs, rhs);
-}
-
 [[nodiscard]] bool residual_is_accepted(const DenseMatrix& system, const DenseMatrix& solution, const DenseMatrix& rhs, const double tolerance)
 {
     const double residual = residual_norm(system, solution, rhs);
@@ -98,117 +89,103 @@ namespace
 
 } // namespace
 
-LinearSolveResult solve_weighted_transposed_vandermonde_bjorck_pereyra(const std::vector<double>& abscissas, const std::vector<double>& weights,
-                                                                       DenseMatrix rhs, const double singular_tolerance,
-                                                                       const std::string& singular_message)
+DenseMatrix make_conditional_vandermonde_matrix(const std::vector<double>& nodes, const std::vector<double>& weights)
 {
-    const std::size_t n = abscissas.size();
-    const std::size_t rhs_cols = rhs.cols();
-    if (n == 0)
+    const std::size_t n = nodes.size();
+    DenseMatrix matrix(n, n);
+    for (std::size_t power = 0; power < n; ++power)
     {
-        return failure_result(n, rhs_cols, "Weighted Vandermonde system must not be empty.");
-    }
-    if (weights.size() != n || rhs.rows() != n)
-    {
-        return failure_result(n, rhs_cols, "Weighted Vandermonde dimensions are inconsistent.");
-    }
-    if (!std::isfinite(singular_tolerance) || singular_tolerance <= 0.0)
-    {
-        return failure_result(n, rhs_cols, "Weighted Vandermonde singular tolerance is invalid.");
-    }
-    if (!qmomkit::internal::all_finite(abscissas) || !qmomkit::internal::all_finite(weights) || !matrix_all_finite(rhs))
-    {
-        return failure_result(n, rhs_cols, "Weighted Vandermonde inputs must be finite.");
-    }
-
-    // In CQMOM this system maps mixed parent/target moments to conditional
-    // target moments C at each parent node:
-    //     (V^T diag(w)) C = RHS.
-    double weight_scale = 1.0;
-    for (const double weight : weights)
-    {
-        weight_scale = std::max(weight_scale, std::abs(weight));
-    }
-    for (const double weight : weights)
-    {
-        if (std::abs(weight) <= singular_tolerance * weight_scale)
+        for (std::size_t node = 0; node < n; ++node)
         {
-            return failure_result(n, rhs_cols, singular_message);
+            matrix(power, node) = std::pow(nodes[node], static_cast<int>(power)) * weights[node];
         }
     }
-
-    // Apply the transposed elementary operations of the Björck-Pereyra
-    // Vandermonde solve. The result is Y in V^T Y = rhs.
-    for (std::size_t k = 0; k + 1 < n; ++k)
-    {
-        for (std::size_t reverse_i = n - 1; reverse_i > k; --reverse_i)
-        {
-            const std::size_t i = reverse_i - 1;
-            for (std::size_t col = 0; col < rhs_cols; ++col)
-            {
-                rhs(i + 1, col) -= abscissas[k] * rhs(i, col);
-            }
-        }
-    }
-
-    for (std::size_t reverse_k = n - 1; reverse_k > 0; --reverse_k)
-    {
-        const std::size_t k = reverse_k - 1;
-        for (std::size_t i = k + 1; i < n; ++i)
-        {
-            const std::size_t denominator_node = i - k - 1;
-            const double denominator = abscissas[i] - abscissas[denominator_node];
-            if (denominator_is_singular(denominator, abscissas[i], abscissas[denominator_node], singular_tolerance))
-            {
-                return failure_result(n, rhs_cols, singular_message);
-            }
-            for (std::size_t col = 0; col < rhs_cols; ++col)
-            {
-                const double value = rhs(i, col) / denominator;
-                rhs(i - 1, col) -= value;
-                rhs(i, col) = value;
-            }
-        }
-    }
-
-    for (std::size_t row = 0; row < n; ++row)
-    {
-        // The Björck-Pereyra stages solve V^T Y = RHS; dividing by weights
-        // converts Y into the conditional-moment unknowns C.
-        for (std::size_t col = 0; col < rhs_cols; ++col)
-        {
-            rhs(row, col) /= weights[row];
-        }
-    }
-
-    if (!matrix_all_finite(rhs))
-    {
-        return failure_result(n, rhs_cols, "Weighted Vandermonde solve produced non-finite values.");
-    }
-
-    return LinearSolveResult{std::move(rhs), true, ""};
+    return matrix;
 }
 
-VandermondeSolveResult solve_weighted_vandermonde(const std::vector<double>& abscissas, const std::vector<double>& weights, DenseMatrix rhs,
-                                                  const VandermondeSolveOptions& options, const std::string& singular_message)
+VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<double>& nodes, const std::vector<double>& weights, DenseMatrix rhs,
+                                                            const VandermondeSolveOptions& options, const std::string& singular_message)
 {
+    const std::size_t n = nodes.size();
+    const std::size_t rhs_cols = rhs.cols();
     const VandermondeSolver requested_solver = options.solver;
-    const VandermondeSolver selected_solver = resolve_solver(requested_solver, abscissas.size(), rhs.cols());
+    const VandermondeSolver selected_solver = resolve_solver(requested_solver, nodes.size(), rhs.cols());
 
     // Solver choice is part of diagnostics: forced dense uses Gaussian
-    // elimination, forced Björck-Pereyra reports that result directly, and
+    // elimination, forced Bjorck-Pereyra reports that result directly, and
     // automatic/fallback validates the structured solve before using dense.
     if (selected_solver == VandermondeSolver::dense)
     {
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::dense);
-        DenseMatrix system = make_weighted_vandermonde(abscissas, weights);
+        if (weights.size() != n || rhs.rows() != n)
+        {
+            return vandermonde_result(failure_result(n, rhs_cols, "Weighted Vandermonde dimensions are inconsistent."), requested_solver,
+                                      selected_solver, VandermondeAlgorithm::dense, false);
+        }
+        DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
         return vandermonde_result(solve_dense(std::move(system), std::move(rhs), options.singular_tolerance, singular_message), requested_solver,
                                   selected_solver, VandermondeAlgorithm::dense, false);
     }
 
     performance::record_vandermonde_solve(performance::VandermondeSolveKind::bjorck_pereyra);
-    LinearSolveResult bjorck_pereyra =
-        solve_weighted_transposed_vandermonde_bjorck_pereyra(abscissas, weights, rhs, options.singular_tolerance, singular_message);
+    LinearSolveResult bjorck_pereyra{DenseMatrix(n, rhs_cols), true, ""};
+    if (n == 0)
+    {
+        bjorck_pereyra = failure_result(n, rhs_cols, "Weighted Vandermonde system must not be empty.");
+    }
+    else if (weights.size() != n || rhs.rows() != n)
+    {
+        bjorck_pereyra = failure_result(n, rhs_cols, "Weighted Vandermonde dimensions are inconsistent.");
+    }
+    else if (!std::isfinite(options.singular_tolerance) || options.singular_tolerance <= 0.0)
+    {
+        bjorck_pereyra = failure_result(n, rhs_cols, "Weighted Vandermonde singular tolerance is invalid.");
+    }
+    else if (!qmomkit::internal::all_finite(nodes) || !qmomkit::internal::all_finite(weights) || !matrix_all_finite(rhs))
+    {
+        bjorck_pereyra = failure_result(n, rhs_cols, "Weighted Vandermonde inputs must be finite.");
+    }
+
+    if (bjorck_pereyra.success)
+    {
+        double weight_scale = 1.0;
+        for (const double weight : weights)
+        {
+            weight_scale = std::max(weight_scale, std::abs(weight));
+        }
+        for (const double weight : weights)
+        {
+            if (std::abs(weight) <= options.singular_tolerance * weight_scale)
+            {
+                bjorck_pereyra = failure_result(n, rhs_cols, singular_message);
+                break;
+            }
+        }
+    }
+    if (bjorck_pereyra.success)
+    {
+        LinearSolveResult kernel_result = solve_bjorck_pereyra(nodes, rhs, options.singular_tolerance);
+        bjorck_pereyra = kernel_result.success ? std::move(kernel_result) : failure_result(n, rhs_cols, singular_message);
+    }
+
+    if (bjorck_pereyra.success)
+    {
+        for (std::size_t row = 0; row < n; ++row)
+        {
+            // The BP kernel solves V^T Y = RHS; dividing by weights converts Y
+            // into the conditional-moment unknowns C for A*C = RHS.
+            for (std::size_t col = 0; col < rhs_cols; ++col)
+            {
+                bjorck_pereyra.solution(row, col) /= weights[row];
+            }
+        }
+
+        if (!matrix_all_finite(bjorck_pereyra.solution))
+        {
+            bjorck_pereyra = failure_result(n, rhs_cols, "Weighted Vandermonde solve produced non-finite values.");
+        }
+    }
+
     if (bjorck_pereyra.success && result_is_finite(bjorck_pereyra))
     {
         const bool validate_residual = options.validate_residual || residual_validation_required(requested_solver, selected_solver);
@@ -216,7 +193,7 @@ VandermondeSolveResult solve_weighted_vandermonde(const std::vector<double>& abs
         {
             return vandermonde_result(bjorck_pereyra, requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra, false);
         }
-        const DenseMatrix system = make_weighted_vandermonde(abscissas, weights);
+        const DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
         if (residual_is_accepted(system, bjorck_pereyra.solution, rhs, options.residual_tolerance))
         {
             return vandermonde_result(bjorck_pereyra, requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra, false);
@@ -228,7 +205,12 @@ VandermondeSolveResult solve_weighted_vandermonde(const std::vector<double>& abs
         return vandermonde_result(bjorck_pereyra, requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra, false);
     }
 
-    DenseMatrix system = make_weighted_vandermonde(abscissas, weights);
+    if (weights.size() != n || rhs.rows() != n)
+    {
+        return vandermonde_result(bjorck_pereyra, requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra, false);
+    }
+
+    DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
     performance::record_vandermonde_fallback();
     performance::record_vandermonde_solve(performance::VandermondeSolveKind::dense);
     return vandermonde_result(solve_dense(std::move(system), std::move(rhs), options.singular_tolerance, singular_message), requested_solver,

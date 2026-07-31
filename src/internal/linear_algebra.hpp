@@ -73,8 +73,6 @@ struct JacobiOptions
 
 [[nodiscard]] LinearSolveResult solve_dense(DenseMatrix matrix, DenseMatrix rhs, double singular_tolerance, const std::string& singular_message);
 
-[[nodiscard]] DenseMatrix make_weighted_vandermonde(const std::vector<double>& abscissas, const std::vector<double>& weights);
-
 [[nodiscard]] DenseMatrix make_identity(std::size_t n);
 
 [[nodiscard]] double residual_norm(const DenseMatrix& matrix, const DenseMatrix& solution, const DenseMatrix& rhs);

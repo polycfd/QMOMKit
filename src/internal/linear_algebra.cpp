@@ -113,22 +113,6 @@ LinearSolveResult solve_dense(DenseMatrix matrix, DenseMatrix rhs, const double 
     return LinearSolveResult{std::move(solution), true, ""};
 }
 
-DenseMatrix make_weighted_vandermonde(const std::vector<double>& abscissas, const std::vector<double>& weights)
-{
-    const std::size_t n = abscissas.size();
-    DenseMatrix matrix(n, n);
-    // Rows are moment orders k and columns are parent nodes j:
-    // A(k,j) = w_j * x_j^k. Conditional reconstruction solves A*C = M.
-    for (std::size_t order = 0; order < n; ++order)
-    {
-        for (std::size_t node = 0; node < n; ++node)
-        {
-            matrix(order, node) = std::pow(abscissas[node], static_cast<int>(order)) * weights[node];
-        }
-    }
-    return matrix;
-}
-
 DenseMatrix make_identity(const std::size_t n)
 {
     DenseMatrix identity(n, n);

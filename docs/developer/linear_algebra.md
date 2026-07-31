@@ -1,0 +1,125 @@
+# Internal Linear Algebra
+
+This page documents the internal dense linear-algebra components used by
+QMOMKit. These headers live under `src/internal/` and are implementation
+details, not public APIs. Public workflows should continue to use the
+documented QMOM, CQMOM, transport, and configuration interfaces.
+
+## Scope
+
+The internal linear-algebra layer provides small dense numerical building
+blocks for algorithms that already own their mathematical inputs. It does not
+own phase-space hierarchy, configuration parsing, recursive CQMOM policy,
+application physics, or public solver selection beyond the internal adapters
+described here.
+
+These components are intentionally narrow:
+
+- `linear_algebra.*`: generic dense matrix infrastructure and baseline dense
+  solves;
+- `bjorck_pereyra.*`: an unweighted transposed Vandermonde kernel;
+- `vandermonde.*`: conditional Vandermonde system construction and policy;
+- `householder_qr.*`: generic dense pivoted Householder QR.
+
+## Dense Matrix Infrastructure
+
+`DenseMatrix` is the internal row-major dense matrix container used by the
+core numerical kernels. It stores dimensions and finite-sized value arrays, and
+is designed for straightforward local algorithms rather than for exposing a
+general matrix package.
+
+`solve_dense(...)` solves square systems with one or more right-hand-side
+columns using Gaussian elimination with pivoting. It is the simple generic
+baseline for dense square systems, residual checks, condition estimates, and
+comparisons in tests. It is deliberately independent of Vandermonde structure,
+CQMOM recursion, and solver fallback policy.
+
+## Björck-Pereyra
+
+`solve_bjorck_pereyra(...)` solves the unweighted transposed Vandermonde
+system
+
+```text
+V^T Y = B,
+V_{i,p} = x_i^p.
+```
+
+Rows of `B` correspond to powers, rows of `Y` correspond to nodes, and each
+right-hand-side column is solved independently. This kernel is
+structure-specific and owns only the unweighted Björck-Pereyra transformation
+and node-separation checks.
+
+The kernel does not know about quadrature weights, conditional moments,
+recursive CQMOM traversal, residual validation, dense fallback, or public
+Vandermonde solver policy.
+
+## Conditional Vandermonde Adapter
+
+Conditional moment reconstruction solves
+
+```text
+A C = M,
+A = V^T diag(w),
+A[p, i] = w_i x_i^p.
+```
+
+The helper `make_conditional_vandermonde_matrix(...)` constructs this complete
+weighted conditional matrix. The adapter
+`solve_conditional_vandermonde_system(...)` owns the internal policy for this
+system:
+
+- the dense backend builds `A` and solves `A C = M` directly;
+- the Björck-Pereyra backend solves `V^T Y = M`, then recovers
+  `C[i, q] = Y[i, q] / w_i`;
+- the adapter owns solver selection, fallback, residual checks, counters, and
+  diagnostics.
+
+Weights and conditional reconstruction policy therefore belong to
+`vandermonde.*`, not to the Björck-Pereyra kernel. Recursive CQMOM uses this
+adapter for branch-local conditional solves; see `cqmom_recursive.md` for the
+full recursive construction and index conventions.
+
+## Pivoted Householder QR
+
+`householder_qr.*` provides a generic dense pivoted Householder QR
+factorization
+
+```text
+A P = Q R.
+```
+
+It supports square and tall matrices with `m >= n`, column pivoting,
+full-column-rank square solves, overdetermined least-squares solves, reusable
+factorizations, and multiple right-hand-side columns. The column permutation is
+reported as
+
+```text
+column_permutation[pivoted_column] = original_column.
+```
+
+The factorization stores `R` on and above the diagonal. Entries below each
+diagonal store the tail of the Householder vector, whose leading one is
+implicit, and one Householder coefficient is stored per reflector.
+
+Numerical rank is determined with the relative threshold
+
+```text
+relative_rank_tolerance * abs(R(0, 0)).
+```
+
+A `rank_deficient` factorization is inspectable for diagnostics, but solves
+are refused unless the factorization is full column rank. QR does not produce
+truncated, pseudoinverse, regularized, or minimum-norm solutions for
+rank-deficient systems.
+
+Production QR solves do not form explicit `Q`, do not form normal equations,
+and do not recompute the factorization during solve-time metadata validation.
+Tests may form explicit `Q` only to verify the stored factorization convention.
+
+## Current Production Status
+
+Pivoted Householder QR is internal. It is not a `VandermondeSolver` option, is
+not used by recursive CQMOM, and is not a BP-to-QR fallback path. Future QR
+integration into conditional Vandermonde policy would be a separate design
+decision with focused tests, documentation, diagnostics, and performance
+evidence.

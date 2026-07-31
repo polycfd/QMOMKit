@@ -9,6 +9,7 @@ enum class VandermondeSolveKind
 {
     dense,
     pivoted_qr,
+    svd,
     bjorck_pereyra
 };
 
@@ -28,6 +29,7 @@ struct LinearAlgebraCounters
     std::size_t vandermonde_solves = 0;
     std::size_t bjorck_pereyra_solves = 0;
     std::size_t pivoted_qr_solves = 0;
+    std::size_t svd_solves = 0;
     std::size_t dense_linear_solves = 0;
     std::size_t dense_vandermonde_fallbacks = 0;
     std::size_t residual_checks = 0;
@@ -187,6 +189,10 @@ inline void record_vandermonde_solve(const VandermondeSolveKind algorithm) noexc
         if (algorithm == VandermondeSolveKind::pivoted_qr)
         {
             ++counters->linear_algebra.pivoted_qr_solves;
+        }
+        if (algorithm == VandermondeSolveKind::svd)
+        {
+            ++counters->linear_algebra.svd_solves;
         }
     }
 }

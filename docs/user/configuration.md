@@ -624,16 +624,25 @@ Supported values are `detailed`, `basic`, and `none`. If omitted, `detailed` is
 used.
 
 `vandermonde.solver` controls the branch-local conditional moment solve.
-Supported values are `automatic`, `dense`, `pivoted_qr`, `bjorck_pereyra`, and
-`bjorck_pereyra_with_dense_fallback`. If omitted, `automatic` is used. The
-`pivoted_qr` policy solves the weighted conditional Vandermonde system
-directly and is selected only when requested explicitly. It does not fall back
-to the dense solver if QR fails: a numerically rank-deficient conditional
-Vandermonde matrix makes the solve fail, and QMOMKit does not compute a
-truncated, regularized, minimum-norm, or pseudoinverse solution in this path.
-`automatic` is unchanged and continues to select the Björck-Pereyra solver with
-dense fallback. Loaded CQMOM cases and states expose the configured policy
-through `vandermonde_solver()`.
+Supported values are `automatic`, `dense`, `pivoted_qr`, `svd`,
+`bjorck_pereyra`, and `bjorck_pereyra_with_dense_fallback`. If omitted,
+`automatic` is used. The `pivoted_qr` and `svd` policies solve the weighted
+conditional Vandermonde system directly and are selected only when requested
+explicitly:
+
+```text
+[vandermonde]
+solver = svd
+```
+
+Neither explicit direct policy falls back to the dense solver if it fails. A
+rank-deficient conditional Vandermonde matrix makes the solve fail, and SVD
+Jacobi nonconvergence is also reported as a failure. QMOMKit does not compute a
+truncated, regularized, minimum-norm, or pseudoinverse solution in these paths.
+SVD rank and Jacobi tolerances are internal defaults and are not configurable
+through `.qmom` files. `automatic` is unchanged and continues to select the
+Björck-Pereyra solver with dense fallback. Loaded CQMOM cases and states expose
+the configured policy through `vandermonde_solver()`.
 
 ### Fixed And Adaptive CQMOM
 

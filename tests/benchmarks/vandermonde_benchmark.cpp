@@ -200,12 +200,14 @@ void set_solver_selection_counters(benchmark::State& state, const qmomkit::inter
 {
     state.counters["selected_dense"] = result.selected_solver == qmomkit::VandermondeSolver::dense ? 1.0 : 0.0;
     state.counters["selected_qr"] = result.selected_solver == qmomkit::VandermondeSolver::pivoted_qr ? 1.0 : 0.0;
+    state.counters["selected_svd"] = result.selected_solver == qmomkit::VandermondeSolver::svd ? 1.0 : 0.0;
     state.counters["selected_bp"] = result.selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra ||
                                             result.selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback
                                         ? 1.0
                                         : 0.0;
     state.counters["used_dense"] = result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::dense ? 1.0 : 0.0;
     state.counters["used_qr"] = result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::pivoted_qr ? 1.0 : 0.0;
+    state.counters["used_svd"] = result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::svd ? 1.0 : 0.0;
     state.counters["used_bp"] = result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra ? 1.0 : 0.0;
     state.counters["dense_fallback"] = result.dense_fallback_occurred ? 1.0 : 0.0;
 }
@@ -280,6 +282,7 @@ void run_direct_solve(benchmark::State& state, const std::size_t n, const std::s
         run_bjorck_pereyra_scaling_solve(state, n, rhs_cols, numerical_case);
         return;
     case qmomkit::VandermondeSolver::pivoted_qr:
+    case qmomkit::VandermondeSolver::svd:
     case qmomkit::VandermondeSolver::automatic:
     case qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback:
         run_weighted_wrapper_solve(state, n, rhs_cols, numerical_case, solver);

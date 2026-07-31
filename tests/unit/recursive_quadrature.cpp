@@ -1517,6 +1517,39 @@ void test_recursive_dense_and_pivoted_qr_equivalence_fixed()
     }
 }
 
+void test_recursive_dense_and_svd_equivalence_fixed()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
+    const std::vector<std::size_t> extents{4, 4, 4};
+    const std::vector<double> weights{0.05, 0.15, 0.20, 0.10, 0.12, 0.18, 0.08, 0.12};
+    const std::vector<std::vector<double>> abscissas{{-1.5, 0.25, -0.75, 1.75, -1.25, 0.75, -0.10, 2.00},
+                                                     {-2.0, -1.0, 0.5, 1.5, -1.5, -0.5, 1.0, 2.0},
+                                                     {-0.80, -0.80, -0.20, -0.20, 0.60, 0.60, 1.20, 1.20}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+
+    const qmomkit::internal::RecursiveQuadratureRequest dense_request{
+        hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense};
+    const qmomkit::internal::RecursiveQuadratureRequest svd_request{
+        hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::svd};
+
+    const qmomkit::internal::RecursiveQuadratureResult dense = qmomkit::internal::compute_recursive_quadrature(dense_request);
+    const qmomkit::internal::RecursiveQuadratureResult svd = qmomkit::internal::compute_recursive_quadrature(svd_request);
+
+    assert_recursive_results_equivalent(svd, dense, 1.0e-9);
+    assert(svd.ok());
+    assert(!svd.diagnostics.empty());
+    for (const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostics : svd.diagnostics)
+    {
+        if (diagnostics.conditioning_level + 1 < hierarchy.number_of_dimensions())
+        {
+            assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::svd);
+            assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::svd);
+            assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::svd);
+            assert(!diagnostics.dense_vandermonde_fallback_occurred);
+        }
+    }
+}
+
 void test_recursive_bp_success_independent_of_diagnostic_level()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
@@ -1891,6 +1924,7 @@ int main()
     test_recursive_failure_diagnostics_identify_failing_branch();
     test_recursive_dense_and_bp_fallback_equivalence_fixed();
     test_recursive_dense_and_pivoted_qr_equivalence_fixed();
+    test_recursive_dense_and_svd_equivalence_fixed();
     test_recursive_bp_success_independent_of_diagnostic_level();
     test_recursive_automatic_uses_bp_fallback_for_small_branches();
     test_recursive_automatic_independent_of_diagnostic_level();

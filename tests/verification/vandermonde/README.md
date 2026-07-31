@@ -24,6 +24,7 @@ the product formula, independently of the solver implementation.
 - `automatic`
 - `dense`
 - `pivoted_qr`
+- `svd`
 - `bjorck_pereyra`
 - `bjorck_pereyra_with_dense_fallback`
 
@@ -32,12 +33,15 @@ resolution:
 
 - `dense`
 - `pivoted_qr`
+- `svd`
 - `bjorck_pereyra`
 
 For this well-conditioned case, `automatic` is expected to resolve to
 `bjorck_pereyra_with_dense_fallback` and use the Björck-Pereyra algorithm
 without dense fallback. `pivoted_qr` is an explicit policy only and is expected
-to solve the weighted conditional Vandermonde system directly.
+to solve the weighted conditional Vandermonde system directly. `svd` is also an
+explicit policy only and is expected to solve the weighted conditional
+Vandermonde system directly without dense fallback.
 
 The public CQMOM result currently exposes branch success diagnostics but not
 the Vandermonde requested/selected/algorithm/fallback fields. This verifier

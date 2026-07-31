@@ -180,9 +180,20 @@ matrices. Square systems are ordinary linear solves, and tall systems produce
 full-column-rank least-squares solutions. SVD does not produce pseudoinverse,
 truncated, regularized, or minimum-norm solutions for rank-deficient systems.
 
-The SVD component is internal only. There is no current
-`VandermondeSolver::svd` policy, `.qmom` configuration value, automatic SVD
-selection, fallback path, or recursive CQMOM integration.
+The SVD component is internal only. Recursive CQMOM can use it only through the
+explicit `VandermondeSolver::svd` policy, which solves the complete weighted
+conditional Vandermonde system directly through
+`solve_conditional_vandermonde_system(...)`. The SVD path uses the internal SVD
+defaults: `relative_rank_tolerance = 1.0e-14`, the resolved Jacobi convergence
+tolerance, and the resolved maximum sweep count. These SVD tolerances are not
+configurable through `.qmom` files and are not taken from
+`VandermondeSolveOptions::singular_tolerance`.
+
+`automatic` does not select SVD. SVD is not a BP-to-SVD fallback path and does
+not fall back to dense, QR, or BP. Rank deficiency, Jacobi nonconvergence, or
+residual-validation failure is reported as a failed conditional Vandermonde
+solve rather than as a partial solution, pseudoinverse, truncated solve,
+regularized solve, or dense fallback.
 
 ## Current Production Status
 

@@ -860,6 +860,10 @@ void test_cqmom_storage_settings_format()
     const std::string pivoted_qr = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false, qmomkit::VandermondeSolver::pivoted_qr,
                                                                   qmomkit::CqmomDiagnosticLevel::basic);
     assert(pivoted_qr.find("Vandermonde solver = pivoted_qr") != std::string::npos);
+
+    const std::string svd = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false, qmomkit::VandermondeSolver::svd,
+                                                           qmomkit::CqmomDiagnosticLevel::basic);
+    assert(svd.find("Vandermonde solver = svd") != std::string::npos);
 }
 
 } // namespace

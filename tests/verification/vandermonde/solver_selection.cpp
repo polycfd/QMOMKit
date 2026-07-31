@@ -78,6 +78,8 @@ const char* solver_name(const qmomkit::VandermondeSolver solver)
         return "dense";
     case qmomkit::VandermondeSolver::pivoted_qr:
         return "pivoted_qr";
+    case qmomkit::VandermondeSolver::svd:
+        return "svd";
     case qmomkit::VandermondeSolver::bjorck_pereyra:
         return "bjorck_pereyra";
     case qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback:
@@ -94,6 +96,8 @@ const char* algorithm_name(const qmomkit::internal::VandermondeAlgorithm algorit
         return "dense";
     case qmomkit::internal::VandermondeAlgorithm::pivoted_qr:
         return "pivoted_qr";
+    case qmomkit::internal::VandermondeAlgorithm::svd:
+        return "svd";
     case qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra:
         return "bjorck_pereyra";
     }
@@ -232,6 +236,26 @@ void verify_solver_diagnostics(const SolverCase& solver_case, const qmomkit::Cqm
     }
 }
 
+bool reports_selected_solver(const qmomkit::CqmomResult& result, const qmomkit::PhaseSpaceHierarchy& hierarchy,
+                             const qmomkit::VandermondeSolver expected_solver)
+{
+    bool saw_conditional_solve = false;
+    for (const qmomkit::CqmomDiagnostics& diagnostics : result.diagnostics)
+    {
+        if (diagnostics.conditioning_level + 1 >= hierarchy.number_of_dimensions())
+        {
+            continue;
+        }
+
+        saw_conditional_solve = true;
+        if (diagnostics.conditional_vandermonde_selected_solver != expected_solver)
+        {
+            return false;
+        }
+    }
+    return saw_conditional_solve;
+}
+
 void compare_dense_and_bp(const qmomkit::CqmomResult& dense, const qmomkit::CqmomResult& bp, const std::vector<std::size_t>& extents,
                           VerificationResult& verification)
 {
@@ -296,6 +320,8 @@ int main(const int argc, char** argv)
          qmomkit::internal::VandermondeAlgorithm::dense, false},
         {"pivoted_qr", case_directory / "pivoted_qr.qmom", qmomkit::VandermondeSolver::pivoted_qr, qmomkit::VandermondeSolver::pivoted_qr,
          qmomkit::internal::VandermondeAlgorithm::pivoted_qr, false},
+        {"svd", case_directory / "svd.qmom", qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd,
+         qmomkit::internal::VandermondeAlgorithm::svd, false},
         {"bjorck_pereyra", case_directory / "bjorck_pereyra.qmom", qmomkit::VandermondeSolver::bjorck_pereyra,
          qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false},
         {"bjorck_pereyra_with_dense_fallback", case_directory / "bjorck_pereyra_with_dense_fallback.qmom",
@@ -337,7 +363,40 @@ int main(const int argc, char** argv)
 
     if (computed.size() == cases.size())
     {
-        compare_dense_and_bp(computed[1], computed[3], loaded_cases[1].moments.extents, verification);
+        const qmomkit::CqmomResult* dense_result = nullptr;
+        const qmomkit::CqmomResult* bp_result = nullptr;
+        const qmomkit::CqmomDenseCase* dense_case = nullptr;
+        const qmomkit::CqmomDenseCase* bp_case = nullptr;
+        for (std::size_t index = 0; index < loaded_cases.size(); ++index)
+        {
+            if (loaded_cases[index].vandermonde_solver == qmomkit::VandermondeSolver::dense)
+            {
+                dense_result = &computed[index];
+                dense_case = &loaded_cases[index];
+            }
+            if (loaded_cases[index].vandermonde_solver == qmomkit::VandermondeSolver::bjorck_pereyra)
+            {
+                bp_result = &computed[index];
+                bp_case = &loaded_cases[index];
+            }
+        }
+
+        if (dense_result == nullptr || bp_result == nullptr || dense_case == nullptr || bp_case == nullptr)
+        {
+            append_failure(verification, "dense/Björck-Pereyra comparison could not locate both explicit solver results.");
+        }
+        else if (!reports_selected_solver(*dense_result, dense_case->hierarchy, qmomkit::VandermondeSolver::dense))
+        {
+            append_failure(verification, "dense/Björck-Pereyra comparison did not receive the explicit dense result.");
+        }
+        else if (!reports_selected_solver(*bp_result, bp_case->hierarchy, qmomkit::VandermondeSolver::bjorck_pereyra))
+        {
+            append_failure(verification, "dense/Björck-Pereyra comparison did not receive the explicit Björck-Pereyra result.");
+        }
+        else
+        {
+            compare_dense_and_bp(*dense_result, *bp_result, dense_case->moments.extents, verification);
+        }
     }
 
     const bool passed = verification.passed && verification.errors.reference_node <= reference_tolerance &&

@@ -323,6 +323,9 @@ Vandermonde solver. The user-facing solver choices are:
 - Pivoted-QR solver: an explicit direct solve of the complete weighted
   conditional system with the internal pivoted Householder QR solver. It has no
   dense fallback and is not selected by `automatic`.
+- SVD solver: an explicit direct solve of the complete weighted conditional
+  system with the internal one-sided Jacobi SVD solver. It has no dense
+  fallback and is not selected by `automatic`.
 - Björck-Pereyra Vandermonde solver: the Vandermonde-specific
   Björck-Pereyra algorithm without dense fallback.
 - Automatic solver: the default. It selects the fallback-capable
@@ -334,17 +337,17 @@ Vandermonde solver. The user-facing solver choices are:
 
 The distinction between requested solver and actual algorithm is deliberate.
 Diagnostics record the requested Vandermonde solver, the selected solver after
-automatic resolution, the algorithm actually used (`dense`, `pivoted_qr`, or
-`bjorck_pereyra`), and whether dense fallback occurred. For example, the
+automatic resolution, the algorithm actually used (`dense`, `pivoted_qr`,
+`svd`, or `bjorck_pereyra`), and whether dense fallback occurred. For example, the
 default request is `automatic`; recursive CQMOM resolves that to
 `bjorck_pereyra_with_dense_fallback`; a difficult branch may then report that
 the dense algorithm was actually used and that dense fallback occurred.
 
 The default behavior remains automatic Björck-Pereyra with residual validation
-and dense fallback. Explicit pivoted QR honors the adapter residual-validation
-option when requested, but residual rejection is a failed conditional
-Vandermonde solve rather than a fallback trigger. Solver thresholds and
-performance measurements belong in source code and benchmark documentation.
+and dense fallback. Explicit pivoted QR and SVD honor the adapter
+residual-validation option when requested, but residual rejection is a failed
+conditional Vandermonde solve rather than a fallback trigger. Solver thresholds
+and performance measurements belong in source code and benchmark documentation.
 
 ## Terminal Quadrature Representation
 

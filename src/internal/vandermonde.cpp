@@ -2,6 +2,7 @@
 
 #include "bjorck_pereyra.hpp"
 #include "householder_qr.hpp"
+#include "jacobi_svd.hpp"
 #include "numeric_utils.hpp"
 #include "performance.hpp"
 
@@ -57,6 +58,7 @@ namespace
         return select_automatic_solver();
     case VandermondeSolver::dense:
     case VandermondeSolver::pivoted_qr:
+    case VandermondeSolver::svd:
     case VandermondeSolver::bjorck_pereyra:
     case VandermondeSolver::bjorck_pereyra_with_dense_fallback:
         return requested_solver;
@@ -82,6 +84,23 @@ namespace
     }
 
     if (result.status == QrStatus::rank_deficient)
+    {
+        return failure_result(rows, cols, singular_message);
+    }
+
+    const std::string message = result.message.empty() ? singular_message : result.message;
+    return failure_result(rows, cols, message);
+}
+
+[[nodiscard]] LinearSolveResult svd_linear_solve_result(SvdSolveResult result, const std::size_t rows, const std::size_t cols,
+                                                        const std::string& singular_message)
+{
+    if (result.status == SvdStatus::success)
+    {
+        return LinearSolveResult{std::move(result.solution), true, ""};
+    }
+
+    if (result.status == SvdStatus::rank_deficient)
     {
         return failure_result(rows, cols, singular_message);
     }
@@ -169,6 +188,31 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         }
 
         return vandermonde_result(std::move(pivoted_qr), requested_solver, selected_solver, VandermondeAlgorithm::pivoted_qr, false);
+    }
+
+    if (selected_solver == VandermondeSolver::svd)
+    {
+        performance::record_vandermonde_solve(performance::VandermondeSolveKind::svd);
+        if (weights.size() != n || rhs.rows() != n)
+        {
+            return vandermonde_result(failure_result(n, rhs_cols, "Weighted Vandermonde dimensions are inconsistent."), requested_solver,
+                                      selected_solver, VandermondeAlgorithm::svd, false);
+        }
+
+        const DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
+        LinearSolveResult svd = svd_linear_solve_result(solve_svd(system, rhs), n, rhs_cols, singular_message);
+        if (!svd.success)
+        {
+            return vandermonde_result(std::move(svd), requested_solver, selected_solver, VandermondeAlgorithm::svd, false);
+        }
+
+        if (options.validate_residual && !residual_is_accepted(system, svd.solution, rhs, options.residual_tolerance))
+        {
+            return vandermonde_result(failure_result(n, rhs_cols, singular_message), requested_solver, selected_solver, VandermondeAlgorithm::svd,
+                                      false);
+        }
+
+        return vandermonde_result(std::move(svd), requested_solver, selected_solver, VandermondeAlgorithm::svd, false);
     }
 
     performance::record_vandermonde_solve(performance::VandermondeSolveKind::bjorck_pereyra);

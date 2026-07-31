@@ -129,6 +129,8 @@ using CqmomCaseVariant = std::variant<CqmomDenseCase, CqmomLeanCase>;
         return "dense";
     case VandermondeSolver::pivoted_qr:
         return "pivoted_qr";
+    case VandermondeSolver::svd:
+        return "svd";
     case VandermondeSolver::bjorck_pereyra:
         return "bjorck_pereyra";
     case VandermondeSolver::bjorck_pereyra_with_dense_fallback:

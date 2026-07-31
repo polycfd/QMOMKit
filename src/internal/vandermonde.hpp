@@ -13,6 +13,7 @@ enum class VandermondeAlgorithm
 {
     dense,
     pivoted_qr,
+    svd,
     bjorck_pereyra
 };
 

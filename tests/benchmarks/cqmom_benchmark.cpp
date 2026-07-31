@@ -48,8 +48,10 @@ struct BranchSolveStats
     std::size_t solve_count = 0;
     std::size_t bp_count = 0;
     std::size_t qr_count = 0;
+    std::size_t svd_count = 0;
     std::size_t selected_bp_count = 0;
     std::size_t selected_qr_count = 0;
+    std::size_t selected_svd_count = 0;
     std::size_t fallback_count = 0;
     double total_node_count = 0.0;
     double total_rhs_width = 0.0;
@@ -268,6 +270,10 @@ BranchSolveStats collect_branch_solve_stats(const CqmomFixture& fixture, const q
         {
             ++stats.qr_count;
         }
+        if (diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::svd)
+        {
+            ++stats.svd_count;
+        }
         if (diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra ||
             diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback)
         {
@@ -276,6 +282,10 @@ BranchSolveStats collect_branch_solve_stats(const CqmomFixture& fixture, const q
         if (diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::pivoted_qr)
         {
             ++stats.selected_qr_count;
+        }
+        if (diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::svd)
+        {
+            ++stats.selected_svd_count;
         }
         if (diagnostics.dense_vandermonde_fallback_occurred)
         {
@@ -329,8 +339,10 @@ void set_branch_solve_counters(benchmark::State& state, const BranchSolveStats& 
     state.counters["branch_solves"] = solve_count;
     state.counters["bp_fraction"] = static_cast<double>(stats.bp_count) / solve_count;
     state.counters["qr_fraction"] = static_cast<double>(stats.qr_count) / solve_count;
+    state.counters["svd_fraction"] = static_cast<double>(stats.svd_count) / solve_count;
     state.counters["selected_bp_fraction"] = static_cast<double>(stats.selected_bp_count) / solve_count;
     state.counters["selected_qr_fraction"] = static_cast<double>(stats.selected_qr_count) / solve_count;
+    state.counters["selected_svd_fraction"] = static_cast<double>(stats.selected_svd_count) / solve_count;
     state.counters["dense_fallback_fraction"] = static_cast<double>(stats.fallback_count) / solve_count;
     state.counters["avg_branch_nodes"] = stats.total_node_count / solve_count;
     state.counters["avg_rhs_width"] = stats.total_rhs_width / solve_count;

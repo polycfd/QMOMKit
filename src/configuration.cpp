@@ -1474,6 +1474,10 @@ std::optional<VandermondeSolver> parse_vandermonde_solver_value(ParsedFile& pars
     {
         return VandermondeSolver::pivoted_qr;
     }
+    if (entry.value == "svd")
+    {
+        return VandermondeSolver::svd;
+    }
     if (entry.value == "bjorck_pereyra")
     {
         return VandermondeSolver::bjorck_pereyra;
@@ -1483,7 +1487,7 @@ std::optional<VandermondeSolver> parse_vandermonde_solver_value(ParsedFile& pars
         return VandermondeSolver::bjorck_pereyra_with_dense_fallback;
     }
     add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry.line,
-              "vandermonde.solver must be automatic, dense, pivoted_qr, bjorck_pereyra, or bjorck_pereyra_with_dense_fallback.");
+              "vandermonde.solver must be automatic, dense, pivoted_qr, svd, bjorck_pereyra, or bjorck_pereyra_with_dense_fallback.");
     return std::nullopt;
 }
 

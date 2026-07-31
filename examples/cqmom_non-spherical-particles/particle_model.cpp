@@ -9,7 +9,7 @@ namespace cqmom_non_spherical_particles
 {
 namespace
 {
-constexpr double spherical_limit_tolerance = 0.01;
+constexpr double spherical_limit_tolerance = 0.001;
 constexpr double pi = 3.141592653589793238462643383279502884;
 
 [[nodiscard]] bool is_positive_finite(const double value)
@@ -108,8 +108,9 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
         const double v = state[3];
         const double w = state[4];
 
-        const double d_safe = std::clamp(d, 5.0e-7, 1.0e12);
-        const double chi_safe = std::clamp(chi, 1.0e-6, 1.0 - 1.0e-6);
+        // const double d_safe = d; // std::clamp(d, 5.0e-7, 1.0e12);
+        // const double chi_safe = chi;
+        // std::clamp(chi, 1.0e-6, 1.0 - 1.0e-6);
 
         const double fluid_velocity_x = parameters.fluid_velocity_amplitude_x * std::cos(parameters.oscillation_angular_frequency * time);
 
@@ -124,9 +125,9 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
         const double relative_velocity_magnitude = std::sqrt(relative_velocity_x * relative_velocity_x + relative_velocity_y * relative_velocity_y +
                                                              relative_velocity_z * relative_velocity_z);
 
-        const double reynolds_number = parameters.fluid_density * relative_velocity_magnitude * d_safe / parameters.fluid_dynamic_viscosity;
+        const double reynolds_number = parameters.fluid_density * relative_velocity_magnitude * d / parameters.fluid_dynamic_viscosity;
 
-        const double shape_factor = oblate_spheroid_shape_factor(chi_safe, reynolds_number);
+        const double shape_factor = oblate_spheroid_shape_factor(chi, reynolds_number);
 
         /*
          * This is algebraically equivalent to evaluating the drag force
@@ -136,15 +137,19 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
          * and dividing by the spherical particle mass. The resulting
          * acceleration coefficient is 18 mu_f K / (rho_p d^2).
          */
-        const double drag_rate = 18.0 * parameters.fluid_dynamic_viscosity * shape_factor / (parameters.particle_density * d_safe * d_safe);
+        const double drag_rate = 18.0 * parameters.fluid_dynamic_viscosity * shape_factor / (parameters.particle_density * d * d);
 
         std::vector<double> rate(5);
 
         // Diameter attrition and aspect-ratio relaxation use the clipped
         // coordinates, matching the Python implementation.
-        rate[0] = -parameters.attrition_rate * relative_velocity_magnitude * relative_velocity_magnitude;
+        const double relative_speed_squared = relative_velocity_magnitude * relative_velocity_magnitude;
+        const double attrition_speed_squared =
+            relative_speed_squared / (1.0 + relative_speed_squared / (parameters.attrition_velocity_scale * parameters.attrition_velocity_scale));
+        const double attrition_taper = std::tanh((d - parameters.minimum_attrition_diameter) / parameters.attrition_transition_diameter);
+        rate[0] = -parameters.attrition_rate * attrition_speed_squared * attrition_taper;
 
-        rate[1] = (1.0 - chi_safe) / parameters.aspect_ratio_relaxation_time;
+        rate[1] = (1.0 - chi) / parameters.aspect_ratio_relaxation_time;
 
         rate[2] = drag_rate * relative_velocity_x;
         rate[3] = drag_rate * relative_velocity_y;

@@ -31,6 +31,13 @@ int main()
             return 1;
         }
 
+        auto configured_cqmom = qmomkit::config::parse_cqmom(*configuration_text, configuration_file.string());
+        if (!configured_cqmom)
+        {
+            cqmom_2d_continuous_breakage::print_configuration_errors(configured_cqmom.error());
+            return 1;
+        }
+
         auto initial_condition = qmomkit::config::parse_cqmom_initial_condition(*configuration_text, configuration_file.string());
         if (!initial_condition)
         {
@@ -47,7 +54,7 @@ int main()
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
         const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-            cqmom_2d_continuous_breakage::sample_initial_distribution(std::move(initial_condition).value());
+            cqmom_2d_continuous_breakage::sample_initial_distribution(std::move(initial_condition).value(), configured_cqmom.value().hierarchy());
         if (!sampled.has_value())
         {
             return 1;

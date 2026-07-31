@@ -336,20 +336,29 @@ sample_qmom_initial_condition(const qmomkit::config::InitialConditionSpecificati
 }
 
 std::optional<qmomkit::monte_carlo::TensorSampledInitialization>
-sample_cqmom_initial_condition(const qmomkit::config::InitialConditionSpecification& initial_condition)
+sample_cqmom_initial_condition(const qmomkit::config::InitialConditionSpecification& initial_condition, const qmomkit::PhaseSpaceHierarchy& hierarchy)
 {
     return std::visit(
-        [](const auto& specification) -> std::optional<qmomkit::monte_carlo::TensorSampledInitialization>
+        [&](const auto& specification) -> std::optional<qmomkit::monte_carlo::TensorSampledInitialization>
         {
             using Specification = std::decay_t<decltype(specification)>;
             if constexpr (std::is_same_v<Specification, qmomkit::config::IndependentProductInitialization>)
             {
-                if (!specification.maximum_orders.has_value())
+                std::vector<std::size_t> maximum_orders;
+                if (specification.maximum_orders.has_value())
                 {
-                    std::cerr << "Sample-based CQMOM validation requires initial.maximum_orders for dense tensor moment sampling.\n";
-                    return std::nullopt;
+                    maximum_orders = *specification.maximum_orders;
                 }
-                return qmomkit::monte_carlo::sample_initialization(specification.distribution, *specification.maximum_orders, sampling_options());
+                else
+                {
+                    const std::vector<std::size_t> extents = hierarchy.moment_extents();
+                    maximum_orders.reserve(extents.size());
+                    for (const std::size_t extent : extents)
+                    {
+                        maximum_orders.push_back(extent - 1);
+                    }
+                }
+                return qmomkit::monte_carlo::sample_initialization(specification.distribution, maximum_orders, sampling_options());
             }
             else
             {
@@ -482,7 +491,8 @@ int run_cqmom_case(const std::filesystem::path& configuration_path, const std::s
         return 1;
     }
 
-    const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled = sample_cqmom_initial_condition(initial_condition.value());
+    const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
+        sample_cqmom_initial_condition(initial_condition.value(), configured.value().hierarchy);
     if (!sampled.has_value())
     {
         return 1;

@@ -172,9 +172,9 @@ standard_deviation = 1.25
 ```
 
 For this normal configuration path, the CQMOM hierarchy determines the
-required raw moments automatically. `maximum_orders` is only needed by
-advanced full-tensor workflows where the application explicitly chooses that
-representation.
+required raw moments automatically. Advanced full-tensor workflows may also
+omit `maximum_orders`; QMOMKit then derives the minimum dense extents from the
+configured quadrature, while explicit larger extents remain available.
 
 For fixed rectangular quadratures, you can also access a node by its
 phase-space-order multi-index:

@@ -68,7 +68,7 @@ int main()
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
         const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-            cqmom_non_spherical_particles::sample_initial_distribution(std::move(initial_condition).value());
+            cqmom_non_spherical_particles::sample_initial_distribution(std::move(initial_condition).value(), configured_case.hierarchy());
         if (!sampled.has_value())
         {
             return 1;

@@ -131,7 +131,7 @@ std::optional<PreparedCqmomExample> prepare_cqmom_example(const std::filesystem:
     // analytical initialization moments so the bounded run, unbounded diagnostic,
     // and MC comparison start from one reproducible sampled realization.
     const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-        sample_initial_distribution(std::move(initial_condition).value());
+        sample_initial_distribution(std::move(initial_condition).value(), configured.value().hierarchy());
     if (!sampled.has_value())
     {
         return std::nullopt;

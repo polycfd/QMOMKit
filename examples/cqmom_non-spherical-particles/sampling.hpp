@@ -2,6 +2,7 @@
 
 #include "monte_carlo/sampled_initialization.hpp"
 #include "qmomkit/configuration.hpp"
+#include "qmomkit/phase_space_hierarchy.hpp"
 
 #include <cstddef>
 #include <filesystem>
@@ -19,6 +20,6 @@ constexpr unsigned long long initialization_seed = 12345;
 // Samples the independent-product marginals with the fixed example seed and
 // returns dense raw moments over maximum_orders from the same finite ensemble.
 [[nodiscard]] std::optional<qmomkit::monte_carlo::TensorSampledInitialization>
-sample_initial_distribution(const qmomkit::config::InitialConditionSpecification& initial_condition);
+sample_initial_distribution(const qmomkit::config::InitialConditionSpecification& initial_condition, const qmomkit::PhaseSpaceHierarchy& hierarchy);
 
 } // namespace cqmom_non_spherical_particles

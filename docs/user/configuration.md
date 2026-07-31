@@ -353,8 +353,10 @@ m_k = number_density * E[xi^k]
 m_0 = number_density
 ```
 
-`maximum_order` is inclusive. A `maximum_order` of `3` generates `m0` through
-`m3`, which is enough for a two-node QMOM inversion.
+`maximum_order` is optional and inclusive. If omitted, QMOMKit generates the
+minimum required order from the configured quadrature, `2 * node_count - 1`. A
+larger explicit value remains available when additional initialization moments
+are desired; this applies to analytical and sampled initialization workflows.
 
 Supported families and configuration parameter names are:
 
@@ -586,11 +588,12 @@ Tensor entries use phase-space dimension order. For a two-dimensional tensor,
 `M[1,0]` means order `1` in dimension `0` and order `0` in dimension `1`.
 Applications that need this representation can load it with
 `load_cqmom_dense(...)` and use the explicit dense representation APIs.
-Analytical independent-product configurations loaded through this dense
-representation workflow must provide `initial.maximum_orders` so QMOMKit can
-define the rectangular tensor extents. Dense remains a first-class supported
-expert workflow for callers that intentionally manage full tensor moment
-storage.
+Independent-product configurations loaded through this dense representation
+workflow may omit `initial.maximum_orders`; QMOMKit then derives the minimum
+dense tensor extents from the configured quadrature. Explicit larger extents
+remain available for analytical and sampled initialization. Dense remains a
+first-class supported expert workflow for callers that intentionally manage
+full tensor moment storage.
 
 ### Advanced: CQMOM Diagnostics And Solver Options
 

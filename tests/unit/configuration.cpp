@@ -259,7 +259,19 @@ void test_valid_qmom_matches_programmatic_case()
 
 void test_qmom_distribution_initialization_matches_direct_api()
 {
-    const auto configured = qmomkit::config::parse_qmom(R"(
+    const std::string omitted_order_text = R"(
+[phase_space]
+names = size
+node_counts = 3
+
+[initial]
+type = distribution
+family = lognormal
+number_density = 2.5
+mu_log = -0.2
+sigma_log = 0.4
+)";
+    const std::string explicit_order_text = R"(
 [phase_space]
 names = size
 node_counts = 3
@@ -271,15 +283,21 @@ number_density = 2.5
 maximum_order = 5
 mu_log = -0.2
 sigma_log = 0.4
-)");
-    assert(configured.ok());
+)";
+    const auto omitted_order = qmomkit::config::parse_qmom(omitted_order_text);
+    const auto explicit_order = qmomkit::config::parse_qmom(explicit_order_text);
+    assert(omitted_order.ok());
+    assert(explicit_order.ok());
 
     const qmomkit::RawMomentResult direct = qmomkit::compute_raw_moments(qmomkit::LogNormalDistribution{-0.2, 0.4}, 5, 2.5);
     assert(direct.ok());
-    assert(configured.value().node_count == 3);
-    assert(configured.value().moments.size() == 6);
-    assert_near(configured.value().moments[0], 2.5);
-    assert_moments_near(configured.value().moments, direct.moments);
+    assert(omitted_order.value().node_count == 3);
+    assert(omitted_order.value().node_count == explicit_order.value().node_count);
+    assert(omitted_order.value().moments.size() == 6);
+    assert(omitted_order.value().moments.size() == explicit_order.value().moments.size());
+    assert_near(omitted_order.value().moments[0], 2.5);
+    assert_moments_near(omitted_order.value().moments, explicit_order.value().moments);
+    assert_moments_near(omitted_order.value().moments, direct.moments);
 
     const auto initial = qmomkit::config::parse_qmom_initial_condition(R"(
 [phase_space]
@@ -602,11 +620,14 @@ standard_deviation = 1.25
     assert_cqmom_quadratures_near(case_compute.quadrature, lean_result.quadrature);
 }
 
-void test_dense_cqmom_initialization_requires_maximum_orders()
+void test_dense_cqmom_initialization_omits_maximum_orders()
 {
-    const std::string text = R"(
+    const std::string omitted_order_text = R"(
 [phase_space]
 node_counts = 1, 1
+conditioning_order = 1, 0
+support_lower = none, -2.0
+support_upper = none, 2.0
 
 [initial]
 type = independent_product
@@ -622,25 +643,66 @@ family = lognormal
 mu_log = 0.1
 sigma_log = 0.2
 )";
+    const std::string explicit_order_text = R"(
+[phase_space]
+node_counts = 1, 1
+conditioning_order = 1, 0
+support_lower = none, -2.0
+support_upper = none, 2.0
 
-    const auto initial = qmomkit::config::parse_cqmom_initial_condition(text);
+[initial]
+type = independent_product
+number_density = 2.5
+maximum_orders = 1, 1
+
+[initial.dimension.0]
+family = beta
+alpha = 2.0
+beta = 5.0
+
+[initial.dimension.1]
+family = lognormal
+mu_log = 0.1
+sigma_log = 0.2
+)";
+
+    const auto initial = qmomkit::config::parse_cqmom_initial_condition(omitted_order_text);
     assert(initial.ok());
 
-    const auto tensor = qmomkit::config::initialize_cqmom_dense_moments(initial.value());
-    assert(!tensor.ok());
-    assert(has_error(tensor, ConfigurationErrorCode::missing_entry));
-    assert(has_message_fragment(tensor, "initial.maximum_orders"));
-    assert(has_message_fragment(tensor, "dense/full tensor"));
+    const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1}, {1, 0});
+    const std::vector<std::size_t> extents = hierarchy.moment_extents();
+    const std::vector<std::size_t> inferred_orders{1, 1};
+    assert(inferred_orders.size() == extents.size());
+    for (std::size_t dimension = 0; dimension < extents.size(); ++dimension)
+    {
+        assert(inferred_orders[dimension] == extents[dimension] - 1);
+    }
 
-    const auto dense_case = qmomkit::config::create_cqmom_dense_case(initial.value(), qmomkit::PhaseSpaceHierarchy({1, 1}));
-    assert(!dense_case.ok());
-    assert(has_error(dense_case, ConfigurationErrorCode::missing_entry));
-    assert(has_message_fragment(dense_case, "initial.maximum_orders"));
+    const auto dense_case = qmomkit::config::create_cqmom_dense_case(initial.value(), hierarchy);
+    assert(dense_case.ok());
 
-    const auto parsed_case = qmomkit::config::parse_cqmom_dense(text);
-    assert(!parsed_case.ok());
-    assert(has_error(parsed_case, ConfigurationErrorCode::missing_entry));
-    assert(has_message_fragment(parsed_case, "dense/full tensor"));
+    const qmomkit::IndependentProductDistribution direct{{qmomkit::BetaDistribution{2.0, 5.0}, qmomkit::LogNormalDistribution{0.1, 0.2}}, 2.5};
+    const qmomkit::TensorMomentResult expected = qmomkit::compute_raw_moments(direct, inferred_orders);
+    assert(expected.ok());
+    assert_tensor_near(dense_case.value().moments, expected.moments);
+
+    const auto omitted_order = qmomkit::config::parse_cqmom_dense(omitted_order_text);
+    const auto explicit_order = qmomkit::config::parse_cqmom_dense(explicit_order_text);
+    assert(omitted_order.ok());
+    assert(explicit_order.ok());
+    assert(omitted_order.value().hierarchy.node_counts() == explicit_order.value().hierarchy.node_counts());
+    assert(omitted_order.value().hierarchy.conditioning_order() == explicit_order.value().hierarchy.conditioning_order());
+    assert(omitted_order.value().coordinate_support.size() == explicit_order.value().coordinate_support.size());
+    assert(!omitted_order.value().coordinate_support[0].has_value());
+    assert(!explicit_order.value().coordinate_support[0].has_value());
+    assert(omitted_order.value().coordinate_support[1].has_value());
+    assert(explicit_order.value().coordinate_support[1].has_value());
+    assert_near(omitted_order.value().coordinate_support[1]->lower, explicit_order.value().coordinate_support[1]->lower);
+    assert_near(omitted_order.value().coordinate_support[1]->upper, explicit_order.value().coordinate_support[1]->upper);
+    assert(omitted_order.value().moments.extents == explicit_order.value().moments.extents);
+    assert(omitted_order.value().moments.values.size() == explicit_order.value().moments.values.size());
+    assert_tensor_near(omitted_order.value().moments, explicit_order.value().moments);
+    assert_tensor_near(omitted_order.value().moments, expected.moments);
 }
 
 void test_lean_cqmom_initialization_selects_explicit_dense_tensor()
@@ -2332,10 +2394,10 @@ void test_duplicate_and_missing_entries()
     assert(!missing_parameter.ok());
     assert(has_error(missing_parameter, ConfigurationErrorCode::missing_entry));
 
-    const auto missing_maximum_order =
+    const auto omitted_maximum_order =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nfamily=gamma\nshape=1\nscale=2\n");
-    assert(!missing_maximum_order.ok());
-    assert(has_error(missing_maximum_order, ConfigurationErrorCode::missing_entry));
+    assert(omitted_maximum_order.ok());
+    assert(omitted_maximum_order.value().moments.size() == 2);
 
     const auto missing_mixture_components = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n");
     assert(!missing_mixture_components.ok());
@@ -2897,7 +2959,7 @@ int main()
     test_lean_cqmom_initialization_matches_dense_subselection();
     test_lean_cqmom_initialization_matches_example_flow();
     test_lean_cqmom_initialization_omits_maximum_orders();
-    test_dense_cqmom_initialization_requires_maximum_orders();
+    test_dense_cqmom_initialization_omits_maximum_orders();
     test_lean_cqmom_initialization_selects_explicit_dense_tensor();
     test_cqmom_lean_case_uses_selected_analytical_moments();
     test_cqmom_lean_case_matches_dense_case_path();

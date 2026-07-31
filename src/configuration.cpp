@@ -479,12 +479,12 @@ bool parse_optional_bool(ParsedFile& parsed, const std::string& key, const std::
     return false;
 }
 
-bool parse_required_size(ParsedFile& parsed, const std::string& key, const std::string& source_name, std::size_t& value)
+bool parse_optional_size(ParsedFile& parsed, const std::string& key, const std::string& source_name, std::size_t& value)
 {
-    const Entry* entry = require_entry(parsed, key, source_name);
+    const Entry* entry = find_entry(parsed, key);
     if (entry == nullptr)
     {
-        return false;
+        return true;
     }
     if (!parse_size(entry->value, value))
     {
@@ -509,6 +509,33 @@ bool parse_optional_positive_double(ParsedFile& parsed, const std::string& key, 
     }
     value = parsed_value;
     return true;
+}
+
+std::optional<std::size_t> infer_qmom_initial_maximum_order(ParsedFile& parsed, const std::string& source_name)
+{
+    const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
+    if (node_counts_entry == nullptr)
+    {
+        return std::nullopt;
+    }
+    std::optional<std::vector<std::size_t>> node_counts =
+        parse_phase_space_node_counts(parsed, *node_counts_entry, source_name, "QMOM node_counts must contain exactly one positive integer.");
+    if (!node_counts.has_value())
+    {
+        return std::nullopt;
+    }
+    validate_qmom_phase_space(parsed, source_name, *node_counts_entry, *node_counts);
+    if (!parsed.errors.empty())
+    {
+        return std::nullopt;
+    }
+    if ((*node_counts)[0] > std::numeric_limits<std::size_t>::max() / 2)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, node_counts_entry->line,
+                  "QMOM node_count is too large to infer initial.maximum_order.");
+        return std::nullopt;
+    }
+    return 2 * (*node_counts)[0] - 1;
 }
 
 bool parse_optional_positive_double(ParsedFile& parsed, const std::string& key, const std::string& source_name, std::optional<double>& value)
@@ -1776,7 +1803,7 @@ ConfigurationResult<RawMomentTensor> initialize_cqmom_dense_moments(const Initia
         if (!independent_product->maximum_orders.has_value())
         {
             return failure_result<RawMomentTensor>({ConfigurationErrorCode::missing_entry, std::move(source_name), 0,
-                                                    "initial.maximum_orders is required for dense/full tensor independent-product initialization."});
+                                                    "initial.maximum_orders is required for standalone dense tensor moment initialization."});
         }
         TensorMomentResult moments = compute_raw_moments(independent_product->distribution, *independent_product->maximum_orders);
         if (!moments.ok())
@@ -1891,7 +1918,18 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(
     }
 
     std::size_t maximum_order = 0;
-    parse_required_size(parsed, "initial.maximum_order", source_name, maximum_order);
+    if (find_entry(parsed, "initial.maximum_order") != nullptr)
+    {
+        parse_optional_size(parsed, "initial.maximum_order", source_name, maximum_order);
+    }
+    else if (parsed.errors.empty())
+    {
+        const std::optional<std::size_t> inferred_maximum_order = infer_qmom_initial_maximum_order(parsed, source_name);
+        if (inferred_maximum_order.has_value())
+        {
+            maximum_order = *inferred_maximum_order;
+        }
+    }
 
     if (type_entry->value == "distribution")
     {
@@ -2066,7 +2104,28 @@ ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditi
                                                             const bool adaptive_branch_counts, std::string source_name,
                                                             CqmomCoordinateSupport coordinate_support)
 {
-    ConfigurationResult<RawMomentTensor> initialized = initialize_cqmom_dense_moments(initial_condition, source_name);
+    InitialConditionSpecification effective_initial_condition = initial_condition;
+    if (auto* independent_product = std::get_if<IndependentProductInitialization>(&effective_initial_condition);
+        independent_product != nullptr && !independent_product->maximum_orders.has_value())
+    {
+        try
+        {
+            std::vector<std::size_t> maximum_orders;
+            const std::vector<std::size_t> extents = hierarchy.moment_extents();
+            maximum_orders.reserve(extents.size());
+            for (const std::size_t extent : extents)
+            {
+                maximum_orders.push_back(extent - 1);
+            }
+            independent_product->maximum_orders = std::move(maximum_orders);
+        }
+        catch (const std::exception& error)
+        {
+            return failure_result<CqmomDenseCase>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, error.what()});
+        }
+    }
+
+    ConfigurationResult<RawMomentTensor> initialized = initialize_cqmom_dense_moments(effective_initial_condition, source_name);
     if (!initialized)
     {
         return ConfigurationResult<CqmomDenseCase>::failure(initialized.error());

@@ -177,8 +177,9 @@ CqmomDenseCase
 This path is exposed through `load_cqmom_dense(...)` for callers that
 intentionally choose full rectangular tensor moment storage for full tensor
 access, external data, validation, debugging, or interoperability. Analytical
-independent-product configuration on this path requires
-`initial.maximum_orders`, which defines the rectangular dense tensor extents.
+independent-product configuration on this path uses explicit
+`initial.maximum_orders` when present; when omitted, the dense tensor extents
+come from `PhaseSpaceHierarchy::moment_extents()`.
 `load_cqmom_lean(...)` exposes the explicit lean representation workflow and
 returns `CqmomLeanCase` directly for callers that intentionally manage the
 required CQMOM moment representation.

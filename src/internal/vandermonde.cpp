@@ -156,7 +156,7 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         }
 
         const DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
-        LinearSolveResult pivoted_qr = qr_linear_solve_result(solve_pivoted_householder_qr(system, rhs), n, rhs_cols, singular_message);
+        LinearSolveResult pivoted_qr = qr_linear_solve_result(solve_qr(system, rhs), n, rhs_cols, singular_message);
         if (!pivoted_qr.success)
         {
             return vandermonde_result(std::move(pivoted_qr), requested_solver, selected_solver, VandermondeAlgorithm::pivoted_qr, false);

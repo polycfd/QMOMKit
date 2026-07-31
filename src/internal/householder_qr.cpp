@@ -184,7 +184,7 @@ void apply_householder_to_rhs(const PivotedQrFactorization& factorization, const
 
 } // namespace
 
-PivotedQrFactorization factorize_pivoted_householder_qr(DenseMatrix matrix, const double relative_rank_tolerance)
+PivotedQrFactorization factorize_qr(DenseMatrix matrix, const double relative_rank_tolerance)
 {
     const std::size_t rows = matrix.rows();
     const std::size_t cols = matrix.cols();
@@ -278,7 +278,7 @@ PivotedQrFactorization factorize_pivoted_householder_qr(DenseMatrix matrix, cons
     return result;
 }
 
-QrSolveResult solve_least_squares(const PivotedQrFactorization& factorization, DenseMatrix rhs)
+QrSolveResult solve_qr(const PivotedQrFactorization& factorization, DenseMatrix rhs)
 {
     const std::size_t rhs_cols = rhs.cols();
     if (!factorization_metadata_is_consistent(factorization))
@@ -339,14 +339,14 @@ QrSolveResult solve_least_squares(const PivotedQrFactorization& factorization, D
     return QrSolveResult{std::move(solution), factorization.numerical_rank, QrStatus::success, ""};
 }
 
-QrSolveResult solve_pivoted_householder_qr(DenseMatrix matrix, DenseMatrix rhs, const double relative_rank_tolerance)
+QrSolveResult solve_qr(DenseMatrix matrix, DenseMatrix rhs, const double relative_rank_tolerance)
 {
-    PivotedQrFactorization factorization = factorize_pivoted_householder_qr(std::move(matrix), relative_rank_tolerance);
+    PivotedQrFactorization factorization = factorize_qr(std::move(matrix), relative_rank_tolerance);
     if (factorization.status == QrStatus::invalid_input)
     {
         return solve_failure_result(factorization.cols, rhs.cols(), factorization.numerical_rank, factorization.status, factorization.message);
     }
-    return solve_least_squares(factorization, std::move(rhs));
+    return solve_qr(factorization, std::move(rhs));
 }
 
 } // namespace qmomkit::internal

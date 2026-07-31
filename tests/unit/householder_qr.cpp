@@ -204,7 +204,7 @@ void test_square_full_rank_solve()
     const qmomkit::internal::DenseMatrix expected = make_matrix({{1.0, -2.0}, {0.5, 3.0}, {-1.5, 0.25}});
     const qmomkit::internal::DenseMatrix rhs = make_rhs(matrix, expected);
 
-    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_pivoted_householder_qr(matrix, rhs);
+    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_qr(matrix, rhs);
 
     assert(result.status == qmomkit::internal::QrStatus::success);
     assert(result.numerical_rank == matrix.cols());
@@ -218,7 +218,7 @@ void test_tall_exact_least_squares_system()
     const qmomkit::internal::DenseMatrix expected = make_matrix({{1.25}, {-0.75}});
     const qmomkit::internal::DenseMatrix rhs = make_rhs(matrix, expected);
 
-    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_pivoted_householder_qr(matrix, rhs);
+    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_qr(matrix, rhs);
 
     assert(result.status == qmomkit::internal::QrStatus::success);
     assert(result.numerical_rank == matrix.cols());
@@ -232,7 +232,7 @@ void test_tall_inconsistent_least_squares_system()
     const qmomkit::internal::DenseMatrix rhs = make_matrix({{1.0}, {2.0}, {2.0}});
     const qmomkit::internal::DenseMatrix expected = make_matrix({{2.0 / 3.0}, {5.0 / 3.0}});
 
-    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_pivoted_householder_qr(matrix, rhs);
+    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_qr(matrix, rhs);
     const qmomkit::internal::DenseMatrix residual = residual_matrix(matrix, result.solution, rhs);
     const qmomkit::internal::DenseMatrix normal_residual = multiply(transpose(matrix), residual);
 
@@ -248,8 +248,8 @@ void test_nontrivial_column_pivot_restores_solution_order()
     const qmomkit::internal::DenseMatrix expected = make_matrix({{4.0}, {-2.0}, {3.0}});
     const qmomkit::internal::DenseMatrix rhs = make_rhs(matrix, expected);
 
-    const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_pivoted_householder_qr(matrix);
-    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_least_squares(factorization, rhs);
+    const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_qr(matrix);
+    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_qr(factorization, rhs);
 
     assert(factorization.status == qmomkit::internal::QrStatus::success);
     assert(factorization.column_permutation[0] == 1);
@@ -265,13 +265,13 @@ void test_reusable_factorization()
     const qmomkit::internal::DenseMatrix rhs_first = make_rhs(matrix, expected_first);
     const qmomkit::internal::DenseMatrix rhs_second = make_rhs(matrix, expected_second);
 
-    const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_pivoted_householder_qr(matrix);
+    const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_qr(matrix);
     const qmomkit::internal::DenseMatrix factors_before = factorization.factors;
     const std::vector<double> coefficients_before = factorization.householder_coefficients;
     const std::vector<std::size_t> permutation_before = factorization.column_permutation;
 
-    const qmomkit::internal::QrSolveResult first = qmomkit::internal::solve_least_squares(factorization, rhs_first);
-    const qmomkit::internal::QrSolveResult second = qmomkit::internal::solve_least_squares(factorization, rhs_second);
+    const qmomkit::internal::QrSolveResult first = qmomkit::internal::solve_qr(factorization, rhs_first);
+    const qmomkit::internal::QrSolveResult second = qmomkit::internal::solve_qr(factorization, rhs_second);
 
     assert(first.status == qmomkit::internal::QrStatus::success);
     assert(second.status == qmomkit::internal::QrStatus::success);
@@ -287,8 +287,8 @@ void test_rank_deficient_matrix_refuses_solve()
     const qmomkit::internal::DenseMatrix matrix = make_matrix({{1.0, 2.0, 1.0}, {3.0, 4.0, 3.0}, {5.0, 6.0, 5.0}, {7.0, 8.0, 7.0}});
     const qmomkit::internal::DenseMatrix rhs = make_matrix({{1.0}, {2.0}, {3.0}, {4.0}});
 
-    const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_pivoted_householder_qr(matrix);
-    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_least_squares(factorization, rhs);
+    const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_qr(matrix);
+    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_qr(factorization, rhs);
 
     assert(factorization.status == qmomkit::internal::QrStatus::rank_deficient);
     assert(factorization.numerical_rank == 2);
@@ -308,7 +308,7 @@ void test_zero_matrix_reports_rank_zero()
 {
     const qmomkit::internal::DenseMatrix matrix(3, 2);
 
-    const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_pivoted_householder_qr(matrix);
+    const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_qr(matrix);
 
     assert(factorization.status == qmomkit::internal::QrStatus::rank_deficient);
     assert(factorization.numerical_rank == 0);
@@ -319,8 +319,8 @@ void test_nearly_dependent_columns_follow_relative_tolerance()
     const qmomkit::internal::DenseMatrix full_rank = make_matrix({{1.0, 1.0}, {0.0, 1.0e-6}, {0.0, 0.0}});
     const qmomkit::internal::DenseMatrix rank_deficient = make_matrix({{1.0, 1.0}, {0.0, 1.0e-10}, {0.0, 0.0}});
 
-    const qmomkit::internal::PivotedQrFactorization full = qmomkit::internal::factorize_pivoted_householder_qr(full_rank, 1.0e-8);
-    const qmomkit::internal::PivotedQrFactorization deficient = qmomkit::internal::factorize_pivoted_householder_qr(rank_deficient, 1.0e-8);
+    const qmomkit::internal::PivotedQrFactorization full = qmomkit::internal::factorize_qr(full_rank, 1.0e-8);
+    const qmomkit::internal::PivotedQrFactorization deficient = qmomkit::internal::factorize_qr(rank_deficient, 1.0e-8);
 
     assert(full.status == qmomkit::internal::QrStatus::success);
     assert(full.numerical_rank == 2);
@@ -342,9 +342,9 @@ void test_rank_decision_is_scaling_invariant()
         }
     }
 
-    const qmomkit::internal::PivotedQrFactorization unscaled = qmomkit::internal::factorize_pivoted_householder_qr(matrix, 1.0e-8);
-    const qmomkit::internal::PivotedQrFactorization small_scaled = qmomkit::internal::factorize_pivoted_householder_qr(small, 1.0e-8);
-    const qmomkit::internal::PivotedQrFactorization large_scaled = qmomkit::internal::factorize_pivoted_householder_qr(large, 1.0e-8);
+    const qmomkit::internal::PivotedQrFactorization unscaled = qmomkit::internal::factorize_qr(matrix, 1.0e-8);
+    const qmomkit::internal::PivotedQrFactorization small_scaled = qmomkit::internal::factorize_qr(small, 1.0e-8);
+    const qmomkit::internal::PivotedQrFactorization large_scaled = qmomkit::internal::factorize_qr(large, 1.0e-8);
 
     assert(unscaled.numerical_rank == small_scaled.numerical_rank);
     assert(unscaled.numerical_rank == large_scaled.numerical_rank);
@@ -355,27 +355,27 @@ void test_rank_decision_is_scaling_invariant()
 void test_invalid_input_reports_status()
 {
     qmomkit::internal::DenseMatrix wide(2, 3);
-    qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_pivoted_householder_qr(wide);
+    qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_qr(wide);
     assert(factorization.status == qmomkit::internal::QrStatus::invalid_input);
 
-    factorization = qmomkit::internal::factorize_pivoted_householder_qr(make_matrix({{1.0}}), 0.0);
+    factorization = qmomkit::internal::factorize_qr(make_matrix({{1.0}}), 0.0);
     assert(factorization.status == qmomkit::internal::QrStatus::invalid_input);
 
-    factorization = qmomkit::internal::factorize_pivoted_householder_qr(make_matrix({{std::numeric_limits<double>::infinity()}}));
+    factorization = qmomkit::internal::factorize_qr(make_matrix({{std::numeric_limits<double>::infinity()}}));
     assert(factorization.status == qmomkit::internal::QrStatus::invalid_input);
 
     const qmomkit::internal::DenseMatrix matrix = make_matrix({{1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}});
-    factorization = qmomkit::internal::factorize_pivoted_householder_qr(matrix);
+    factorization = qmomkit::internal::factorize_qr(matrix);
 
-    qmomkit::internal::QrSolveResult solve = qmomkit::internal::solve_least_squares(factorization, qmomkit::internal::DenseMatrix(2, 1));
+    qmomkit::internal::QrSolveResult solve = qmomkit::internal::solve_qr(factorization, qmomkit::internal::DenseMatrix(2, 1));
     assert(solve.status == qmomkit::internal::QrStatus::invalid_input);
 
-    solve = qmomkit::internal::solve_least_squares(factorization, make_matrix({{1.0}, {std::numeric_limits<double>::quiet_NaN()}, {2.0}}));
+    solve = qmomkit::internal::solve_qr(factorization, make_matrix({{1.0}, {std::numeric_limits<double>::quiet_NaN()}, {2.0}}));
     assert(solve.status == qmomkit::internal::QrStatus::invalid_input);
 
     qmomkit::internal::PivotedQrFactorization inconsistent = factorization;
     inconsistent.column_permutation = {0, 0};
-    solve = qmomkit::internal::solve_least_squares(inconsistent, make_matrix({{1.0}, {2.0}, {3.0}}));
+    solve = qmomkit::internal::solve_qr(inconsistent, make_matrix({{1.0}, {2.0}, {3.0}}));
     assert(solve.status == qmomkit::internal::QrStatus::invalid_input);
 }
 
@@ -384,7 +384,7 @@ void test_malformed_full_rank_factorization_rejects_zero_diagonal()
     const qmomkit::internal::DenseMatrix matrix = make_matrix({{2.0, -1.0}, {1.0, 3.0}, {4.0, 0.5}});
     const qmomkit::internal::DenseMatrix expected = make_matrix({{1.0}, {-2.0}});
     const qmomkit::internal::DenseMatrix rhs = make_rhs(matrix, expected);
-    qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_pivoted_householder_qr(matrix);
+    qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_qr(matrix);
     qmomkit::internal::PivotedQrFactorization malformed = factorization;
 
     malformed.status = qmomkit::internal::QrStatus::success;
@@ -394,7 +394,7 @@ void test_malformed_full_rank_factorization_rejects_zero_diagonal()
     const std::vector<double> malformed_coefficients_before = malformed.householder_coefficients;
     const std::vector<std::size_t> malformed_permutation_before = malformed.column_permutation;
 
-    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_least_squares(malformed, rhs);
+    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_qr(malformed, rhs);
 
     assert(result.status == qmomkit::internal::QrStatus::invalid_input);
     assert(result.numerical_rank < malformed.cols);
@@ -417,7 +417,7 @@ void test_factorization_identity()
 {
     const qmomkit::internal::DenseMatrix matrix = make_matrix({{1.0, 4.0, -1.0}, {2.0, 0.0, 3.0}, {-1.0, 1.0, 2.0}, {0.5, -2.0, 1.0}});
 
-    const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_pivoted_householder_qr(matrix);
+    const qmomkit::internal::PivotedQrFactorization factorization = qmomkit::internal::factorize_qr(matrix);
     const qmomkit::internal::DenseMatrix q = explicit_q(factorization);
     const qmomkit::internal::DenseMatrix r = explicit_r(factorization);
     const qmomkit::internal::DenseMatrix ap = pivoted_columns(matrix, factorization.column_permutation);
@@ -439,7 +439,7 @@ void assert_vandermonde_case_matches_references(const std::vector<double>& absci
     const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, 1.0e-14, false, 1.0e-10};
     const qmomkit::internal::VandermondeSolveResult bjorck_pereyra =
         qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, "singular");
-    const qmomkit::internal::QrSolveResult qr = qmomkit::internal::solve_pivoted_householder_qr(system, rhs);
+    const qmomkit::internal::QrSolveResult qr = qmomkit::internal::solve_qr(system, rhs);
 
     assert(dense.success);
     assert(bjorck_pereyra.success);

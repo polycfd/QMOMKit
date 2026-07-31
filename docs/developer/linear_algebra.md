@@ -70,7 +70,7 @@ system:
 
 - the dense backend builds `A` and solves `A C = M` directly;
 - the pivoted-QR backend builds `A` and solves `A C = M` directly with the
-  internal pivoted Householder QR solver;
+  internal `solve_qr(...)` entry point;
 - the Björck-Pereyra backend solves `V^T Y = M`, then recovers
   `C[i, q] = Y[i, q] / w_i`;
 - the adapter owns solver selection, fallback, residual checks, counters, and
@@ -83,8 +83,8 @@ full recursive construction and index conventions.
 
 ## Pivoted Householder QR
 
-`householder_qr.*` provides a generic dense pivoted Householder QR
-factorization
+`householder_qr.*` provides `factorize_qr(...)` and `solve_qr(...)` for a
+generic dense pivoted Householder QR factorization
 
 ```text
 A P = Q R.

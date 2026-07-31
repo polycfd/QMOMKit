@@ -49,11 +49,11 @@ struct QrSolveResult
  *
  * The numerical rank uses the threshold
  * relative_rank_tolerance * abs(R(0, 0)). A rank_deficient result is
- * inspectable, but solve_least_squares refuses rank-deficient factorizations:
+ * inspectable, but solve_qr refuses rank-deficient factorizations:
  * it does not produce truncated, pseudoinverse, regularized, or minimum-norm
  * solutions.
  */
-[[nodiscard]] PivotedQrFactorization factorize_pivoted_householder_qr(DenseMatrix matrix, double relative_rank_tolerance = 1.0e-14);
+[[nodiscard]] PivotedQrFactorization factorize_qr(DenseMatrix matrix, double relative_rank_tolerance = 1.0e-14);
 
 /**
  * Reuse a full-column-rank factorization for one or more right-hand sides.
@@ -62,8 +62,8 @@ struct QrSolveResult
  * explicit Q or normal equations. Rank-deficient or internally inconsistent
  * factorizations are rejected before triangular back-substitution.
  */
-[[nodiscard]] QrSolveResult solve_least_squares(const PivotedQrFactorization& factorization, DenseMatrix rhs);
+[[nodiscard]] QrSolveResult solve_qr(const PivotedQrFactorization& factorization, DenseMatrix rhs);
 
-[[nodiscard]] QrSolveResult solve_pivoted_householder_qr(DenseMatrix matrix, DenseMatrix rhs, double relative_rank_tolerance = 1.0e-14);
+[[nodiscard]] QrSolveResult solve_qr(DenseMatrix matrix, DenseMatrix rhs, double relative_rank_tolerance = 1.0e-14);
 
 } // namespace qmomkit::internal

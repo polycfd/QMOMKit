@@ -141,8 +141,8 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
 
         std::vector<double> rate(5);
 
-        // Diameter attrition and aspect-ratio relaxation use the clipped
-        // coordinates, matching the Python implementation.
+        // Diameter attrition uses a saturated velocity response and a tanh taper
+        // near the configured minimum diameter; no callback clipping is applied.
         const double relative_speed_squared = relative_velocity_magnitude * relative_velocity_magnitude;
         const double attrition_speed_squared =
             relative_speed_squared / (1.0 + relative_speed_squared / (parameters.attrition_velocity_scale * parameters.attrition_velocity_scale));

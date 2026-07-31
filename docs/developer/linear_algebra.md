@@ -19,7 +19,8 @@ These components are intentionally narrow:
   solves;
 - `bjorck_pereyra.*`: an unweighted transposed Vandermonde kernel;
 - `vandermonde.*`: conditional Vandermonde system construction and policy;
-- `householder_qr.*`: generic dense pivoted Householder QR.
+- `householder_qr.*`: generic dense pivoted Householder QR;
+- `jacobi_svd.*`: generic dense one-sided Jacobi SVD.
 
 ## Dense Matrix Infrastructure
 
@@ -124,6 +125,64 @@ rank-deficient systems.
 Production QR solves do not form explicit `Q`, do not form normal equations,
 and do not recompute the factorization during solve-time metadata validation.
 Tests may form explicit `Q` only to verify the stored factorization convention.
+
+## One-Sided Jacobi SVD
+
+`jacobi_svd.*` provides `factorize_svd(...)` and `solve_svd(...)` for a
+generic dense singular value decomposition
+
+```text
+A = U Sigma V^T.
+```
+
+It supports square and tall matrices with `m >= n`, thin left singular vectors
+`U` with dimensions `m x n`, a length-`n` singular-value vector, and full right
+singular vectors `V` with dimensions `n x n`. Singular values are sorted in
+descending order, with the matching columns of `U` and `V` permuted
+consistently. Columns of `U` associated with exact zero singular values are
+stored as zero columns rather than as an orthonormal completion; rank-deficient
+solves are refused, so inactive left singular vectors are diagnostic only.
+
+The implementation uses dependency-free one-sided Jacobi sweeps. It maintains
+`B = A V`, starts from `B = A` and `V = I`, and applies right rotations to
+column pairs of `B` and to the same columns of `V`. A pair is converged when
+
+\[
+|b_p^T b_q| \leq \tau_{\mathrm{Jacobi}}\|b_p\|_2\|b_q\|_2.
+\]
+
+The default Jacobi tolerance is resolved internally from machine precision and
+matrix size, and the default sweep limit scales with the number of columns.
+Before sweeps, one global power-of-two scale is applied to keep the working
+matrix in a safe magnitude range; singular values are rescaled afterward.
+Column-wise scaling is not used because it would change the singular-vector
+problem.
+
+Numerical rank is determined from the sorted singular values with
+
+```text
+relative_rank_tolerance * sigma[0].
+```
+
+The current default is `relative_rank_tolerance = 1.0e-14`. A `rank_deficient`
+factorization remains inspectable but is refused by `solve_svd(...)`. If the
+Jacobi sweeps do not converge within the resolved limit, the factorization is
+returned with `no_convergence` and is also refused by `solve_svd(...)`.
+
+For successful full-column-rank factorizations, `solve_svd(...)` computes
+
+```text
+X = V Sigma^{-1} U^T B
+```
+
+without forming a pseudoinverse matrix, normal equations, or explicit diagonal
+matrices. Square systems are ordinary linear solves, and tall systems produce
+full-column-rank least-squares solutions. SVD does not produce pseudoinverse,
+truncated, regularized, or minimum-norm solutions for rank-deficient systems.
+
+The SVD component is internal only. There is no current
+`VandermondeSolver::svd` policy, `.qmom` configuration value, automatic SVD
+selection, fallback path, or recursive CQMOM integration.
 
 ## Current Production Status
 

@@ -2280,6 +2280,69 @@ void test_adaptive_state_bounded_support_rejects_post_source_growth()
     assert(!diagnostic.bounded_support_determinants.empty());
 }
 
+void test_dense_and_lean_bounded_post_source_reduction_are_equivalent()
+{
+    constexpr std::size_t configured_node_count = 3;
+    const qmomkit::PhaseSpaceHierarchy hierarchy({configured_node_count});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::RawMomentTensor initial_moments = one_dimensional_cqmom_moments(configured_node_count, {0.2, 0.5, 0.8}, {0.2, 0.3, 0.5});
+    qmomkit::RawMomentTensor source_candidate_moments{{2 * configured_node_count}, std::vector<double>(2 * configured_node_count, 0.0)};
+    const std::vector<double> feasible_prefix = raw_moments_1d({0.25, 0.75}, {0.45, 0.55}, 4);
+    for (std::size_t order = 0; order < feasible_prefix.size(); ++order)
+    {
+        source_candidate_moments.values[order] = feasible_prefix[order];
+    }
+    source_candidate_moments.values[4] = 10.0;
+    source_candidate_moments.values[5] = 10.0;
+
+    const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
+    const qmomkit::CqmomMomentData source_candidate_required = qmomkit::extract_cqmom_moments(source_candidate_moments, layout);
+    qmomkit::CqmomCoordinateSupport support(1);
+    support[0] = qmomkit::BoundedInterval{0.0, 1.0};
+    const qmomkit::QmomOptions adaptive_options{true, 1.0e-10, 1.0e-10, 1.0e-12};
+
+    qmomkit::CqmomDenseCase dense_case{hierarchy, initial_moments, {}, adaptive_options, true};
+    dense_case.coordinate_support = support;
+    qmomkit::CqmomLeanCase lean_case{initial_required, {}, adaptive_options, true};
+    lean_case.coordinate_support = support;
+
+    const qmomkit::CqmomMomentSource source = source_from_to(initial_required, source_candidate_required);
+    const qmomkit::CqmomTransportResult dense =
+        qmomkit::advance_cqmom_discontinuous(qmomkit::internal::create_cqmom_state(dense_case), 0.0, 1.0, source);
+    const qmomkit::CqmomTransportResult lean =
+        qmomkit::advance_cqmom_discontinuous(qmomkit::internal::create_cqmom_state(lean_case), 0.0, 1.0, source);
+
+    assert(dense.ok());
+    assert(lean.ok());
+    assert(dense.quadrature.has_value());
+    assert(lean.quadrature.has_value());
+    assert(dense.quadrature->total_nodes() == 2);
+    assert(lean.quadrature->total_nodes() == 2);
+    assert_cqmom_quadrature_near(*dense.quadrature, *lean.quadrature, 5.0e-10);
+    assert(active_counts_equal(dense.state.active_branch_counts(), lean.state.active_branch_counts()));
+    assert(active_counts_contain(dense.state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 2, 0, configured_node_count));
+    assert(transitions_contain(dense.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::post_source_inversion, 0,
+                               qmomkit::ConditioningPath{}, 3, 2, qmomkit::CqmomNodeCountTransitionKind::reduced));
+    assert_transition_diagnostics_equal(dense.diagnostics.cqmom_node_count_transitions, lean.diagnostics.cqmom_node_count_transitions);
+
+    assert(dense.state.coordinate_support().size() == 1);
+    assert(lean.state.coordinate_support().size() == 1);
+    assert(dense.state.coordinate_support()[0].has_value());
+    assert(lean.state.coordinate_support()[0].has_value());
+    assert_near(dense.state.coordinate_support()[0]->lower, 0.0, 0.0);
+    assert_near(lean.state.coordinate_support()[0]->upper, 1.0, 0.0);
+    assert_cqmom_state_moments_match_quadrature(dense.state, *dense.quadrature, 5.0e-10);
+    assert_cqmom_state_moments_match_quadrature(lean.state, *lean.quadrature, 5.0e-10);
+    assert_common_state_moments_near(dense.state, lean.state, 5.0e-10);
+
+    const qmomkit::RawMomentTensor dense_canonical = qmomkit::reconstruct_raw_moments(*dense.quadrature, hierarchy.moment_extents());
+    const qmomkit::CqmomMomentData lean_canonical = qmomkit::extract_cqmom_moments(dense_canonical, layout);
+    assert_vector_near(dense.state.moment_values(), dense_canonical.values, 5.0e-10);
+    assert_vector_near(lean.state.moment_values(), lean_canonical.values, 5.0e-10);
+    assert(std::abs(dense.state.moment_values()[4] - source_candidate_moments.values[4]) > 1.0);
+    assert(std::abs(lean.state.moment_values()[4] - source_candidate_required.values[4]) > 1.0);
+}
+
 void test_adaptive_state_reduction_prevents_source_growth_trial()
 {
     constexpr std::size_t configured_node_count = 3;
@@ -3705,6 +3768,7 @@ int main()
     test_adaptive_state_source_growth_canonicalizes_between_steps();
     test_adaptive_state_failed_growth_trial_keeps_current_count();
     test_adaptive_state_bounded_support_rejects_post_source_growth();
+    test_dense_and_lean_bounded_post_source_reduction_are_equivalent();
     test_adaptive_state_reduction_prevents_source_growth_trial();
     test_adaptive_state_parent_growth_creates_unconstrained_descendants();
     test_adaptive_state_preserved_source_invalidates_descendants_after_root_collapse();

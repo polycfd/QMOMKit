@@ -935,21 +935,22 @@ struct BoundedBranchCandidate
     const std::size_t order = checked_order / 2;
     if (checked_order == 0)
     {
-        diagnostics.push_back({"Hankel-Hadamard H_0", 0, determinant(bounded_hankel_hadamard_matrix(moments, 0))});
+        diagnostics.push_back({"classical Hankel-Hadamard determinant Delta_0", 0, determinant(bounded_hankel_hadamard_matrix(moments, 0))});
     }
     else if (checked_order % 2 == 1)
     {
-        diagnostics.push_back({"lower localizing L_lower_" + std::to_string(order), order,
+        diagnostics.push_back({"lower-support localizing determinant Delta_lower_" + std::to_string(order), order,
                                determinant(bounded_linear_localizing_matrix(moments, interval, order, true))});
-        diagnostics.push_back({"upper localizing L_upper_" + std::to_string(order), order,
+        diagnostics.push_back({"upper-support localizing determinant Delta_upper_" + std::to_string(order), order,
                                determinant(bounded_linear_localizing_matrix(moments, interval, order, false))});
     }
     else
     {
-        diagnostics.push_back({"Hankel-Hadamard H_" + std::to_string(order), order, determinant(bounded_hankel_hadamard_matrix(moments, order))});
+        diagnostics.push_back({"classical Hankel-Hadamard determinant Delta_" + std::to_string(order), order,
+                               determinant(bounded_hankel_hadamard_matrix(moments, order))});
         if (order > 0)
         {
-            diagnostics.push_back({"quadratic interval localizing L_interval_" + std::to_string(order - 1), order - 1,
+            diagnostics.push_back({"interval quadratic localizing determinant Delta_interval_" + std::to_string(order - 1), order - 1,
                                    determinant(bounded_quadratic_localizing_matrix(moments, interval, order - 1))});
         }
     }

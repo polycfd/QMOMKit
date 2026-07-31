@@ -194,6 +194,15 @@ void assert_cqmom_quadratures_near(const qmomkit::CqmomQuadrature& actual, const
     }
 }
 
+void assert_coordinate_support_matches_shifted_interval(const qmomkit::CqmomCoordinateSupport& support)
+{
+    assert(support.size() == 2);
+    assert(!support[0].has_value());
+    assert(support[1].has_value());
+    assert_near(support[1]->lower, 2.0);
+    assert_near(support[1]->upper, 5.0);
+}
+
 struct MoveOnlyValue
 {
     explicit MoveOnlyValue(const int input) : value(std::make_unique<int>(input)) {}
@@ -881,6 +890,30 @@ support_upper = none, 2.0
     assert_near(state.coordinate_support()[1]->upper, 2.0);
 }
 
+void test_cqmom_factories_preserve_coordinate_support()
+{
+    const auto initial = qmomkit::config::parse_cqmom_initial_condition(cqmom_text, "cqmom-factory-support");
+    assert(initial.ok());
+
+    const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1}, {1, 0});
+    const auto dense_default = qmomkit::config::create_cqmom_dense_case(initial.value(), hierarchy);
+    const auto lean_default = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy);
+    assert(dense_default.ok());
+    assert(lean_default.ok());
+    assert(dense_default.value().coordinate_support.empty());
+    assert(lean_default.value().coordinate_support.empty());
+
+    qmomkit::CqmomCoordinateSupport support(2);
+    support[1] = qmomkit::BoundedInterval{2.0, 5.0};
+
+    const auto dense = qmomkit::config::create_cqmom_dense_case(initial.value(), hierarchy, qmomkit::QmomOptions{}, false, "dense-factory", support);
+    const auto lean = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy, qmomkit::QmomOptions{}, false, "lean-factory", support);
+    assert(dense.ok());
+    assert(lean.ok());
+    assert_coordinate_support_matches_shifted_interval(dense.value().coordinate_support);
+    assert_coordinate_support_matches_shifted_interval(lean.value().coordinate_support);
+}
+
 void test_cqmom_case_rejects_invalid_coordinate_support()
 {
     const auto missing_upper = qmomkit::config::parse_cqmom(std::string(cqmom_text) + R"(
@@ -908,6 +941,33 @@ support_upper = none, 1.0
                                                                "cqmom-support");
     assert(!invalid_interval.ok());
     assert(has_message_fragment(invalid_interval, "lower < upper"));
+
+    const auto lower_nan = qmomkit::config::parse_cqmom(std::string(cqmom_text) + R"(
+[phase_space]
+support_lower = none, nan
+support_upper = none, 2.0
+)",
+                                                        "cqmom-support");
+    assert(!lower_nan.ok());
+    assert(has_message_fragment(lower_nan, "support_lower must contain finite numbers or none entries"));
+
+    const auto upper_inf = qmomkit::config::parse_cqmom(std::string(cqmom_text) + R"(
+[phase_space]
+support_lower = none, 1.0
+support_upper = none, inf
+)",
+                                                        "cqmom-support");
+    assert(!upper_inf.ok());
+    assert(has_message_fragment(upper_inf, "support_upper must contain finite numbers or none entries"));
+
+    const auto lower_negative_inf = qmomkit::config::parse_cqmom(std::string(cqmom_text) + R"(
+[phase_space]
+support_lower = none, -inf
+support_upper = none, 2.0
+)",
+                                                                 "cqmom-support");
+    assert(!lower_negative_inf.ok());
+    assert(has_message_fragment(lower_negative_inf, "support_lower must contain finite numbers or none entries"));
 }
 
 void test_cqmom_case_moment_storage_selection()
@@ -2845,6 +2905,7 @@ int main()
     test_cqmom_case_uses_selected_analytical_moments();
     test_cqmom_case_accepts_explicit_dense_tensor();
     test_cqmom_case_parses_coordinate_support();
+    test_cqmom_factories_preserve_coordinate_support();
     test_cqmom_case_rejects_invalid_coordinate_support();
     test_cqmom_case_moment_storage_selection();
     test_cqmom_case_initial_state_preserves_case_settings();

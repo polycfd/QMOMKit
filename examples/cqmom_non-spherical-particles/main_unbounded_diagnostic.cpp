@@ -1290,11 +1290,11 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
     }
     markdown << '\n';
 
-    markdown << "## Interval localizing matrices\n\n";
+    markdown << "## Support-localizing matrices\n\n";
     markdown << "For interval `[a,b]`, `Delta_lower(l) = det([m_(i+j+1) - a*m_(i+j)])` and "
                 "`Delta_upper(l) = det([b*m_(i+j) - m_(i+j+1)])`. For `[0,1]`, the upper matrix is `[m_(i+j) - m_(i+j+1)]`, "
                 "which detects the missing upper chi bound that the classical Stieltjes conditions do not enforce.\n\n";
-    markdown << "### Lower interval-localizing determinants\n\n";
+    markdown << "### Lower-support localizing determinants\n\n";
     markdown << "| determinant | value |\n";
     markdown << "|---|---:|\n";
     for (const MatrixDiagnostic& matrix : report.matrices)
@@ -1304,7 +1304,7 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
             markdown << "| Delta_lower(" << matrix.l << ") | " << matrix.determinant << " |\n";
         }
     }
-    markdown << "\n### Upper interval-localizing determinants\n\n";
+    markdown << "\n### Upper-support localizing determinants\n\n";
     markdown << "| determinant | value |\n";
     markdown << "|---|---:|\n";
     for (const MatrixDiagnostic& matrix : report.matrices)
@@ -1321,9 +1321,9 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
                 "`1e-12 * max(1, infinity_norm)`, matching the tolerance scaling used by QMOMKit realizability checks.\n\n";
     markdown << "### Classical Hankel-Hadamard matrices\n\n";
     write_matrix_table(markdown, report.matrices, "classical_hankel_hadamard");
-    markdown << "\n### Lower interval-localizing matrices\n\n";
+    markdown << "\n### Lower-support localizing matrices\n\n";
     write_interval_matrix_table(markdown, report.matrices, "lower_localizing", "Delta_lower");
-    markdown << "\n### Upper interval-localizing matrices\n\n";
+    markdown << "\n### Upper-support localizing matrices\n\n";
     write_interval_matrix_table(markdown, report.matrices, "upper_localizing", "Delta_upper");
     markdown << '\n';
 
@@ -1440,7 +1440,7 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
     markdown << "## Conclusion\n\n";
     markdown
         << "The first support-loss event is a conditional finite-moment closure issue: classical Hankel-Hadamard positivity is insufficient for the "
-           "bounded interval `[0,1]`, and the upper interval-localizing matrix is the first failing condition. The bounded workflow resolves the "
+           "bounded interval `[0,1]`, and the upper-support localizing matrix is the first failing condition. The bounded workflow resolves the "
            "event through adaptive branch-order reduction while preserving ordinary user-facing simulation output.\n";
 }
 

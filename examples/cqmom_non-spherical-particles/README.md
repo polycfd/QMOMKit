@@ -688,10 +688,10 @@ terminal $\chi$ node above one. In the bounded workflow, the declared interval
 turns the same candidate into a support-infeasible branch and lets adaptive
 reconstruction accept a lower-count support-valid representation.
 
-## Hankel-Hadamard and interval-localizing conditions
+## Classical Hankel-Hadamard and support-localizing conditions
 
 For a branch sequence $m_0,\ldots,m_5$, the diagnostic reports classical
-Hankel-Hadamard matrices and determinants
+Hankel-Hadamard matrices and classical Hankel-Hadamard determinants
 
 $$
 H_{k,\ell}
@@ -706,7 +706,7 @@ $$
 with $k=0$ and $k=1$. These checks establish real-line and
 nonnegative-support moment conditions.
 
-For interval $[a,b]$, bounded support also requires interval-localizing
+For interval $[a,b]$, bounded support also requires support-localizing
 matrices
 
 $$
@@ -719,7 +719,7 @@ U_{b,\ell}
 \left[b\,m_{i+j}-m_{i+j+1}\right]_{i,j=0}^{\ell}.
 $$
 
-For $[0,1]$, the upper localizing matrix is
+For $[0,1]$, the upper-support localizing matrix is
 
 $$
 U_{1,\ell}
@@ -739,7 +739,7 @@ $$
 
 and uses determinant values as explanatory diagnostics. The unbounded
 diagnostic shows that the classical Hankel-Hadamard determinants can remain
-positive while the upper localizing matrix fails. Wheeler can still be
+positive while the upper-support localizing matrix fails. Wheeler can still be
 algebraically accurate in this situation: it reconstructs the supplied
 unbounded-support sequence, but one returned $\chi$ node lies outside the
 finite physical interval.

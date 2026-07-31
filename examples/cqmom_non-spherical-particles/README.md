@@ -254,8 +254,27 @@ other.
 The sampled dense tensor extents are controlled by:
 
 ```text
-maximum_orders = 3, 3, 3, 3, 3
+maximum_orders = 3, 5, 3, 3, 3
 ```
+
+The CQMOM hierarchy requests three branch-local nodes for the aspect-ratio
+coordinate:
+
+```text
+node_counts = 2, 3, 2, 2, 2
+```
+
+The `chi` marginal is beta-distributed and physically bounded on `[0, 1]`.
+`configuration.qmom` declares that interval in phase-space order:
+
+```text
+support_lower = none, 0.0, none, none, none
+support_upper = none, 1.0, none, none, none
+```
+
+QMOMKit uses the interval as a bounded-support realizability criterion during
+branch-local CQMOM reconstruction. It does not clip reconstructed aspect-ratio
+nodes.
 
 Monte Carlo sampled moments use the QMOMKit number-density convention:
 

@@ -1,8 +1,10 @@
 [phase_space]
 names = d, chi, u, v, w
-node_counts = 2, 2, 2, 2, 2
+node_counts = 2, 3, 2, 2, 2
 conditioning_order = 0, 1, 2, 3, 4
 adaptive_branch_counts = true
+support_lower = none, 0.0, none, none, none
+support_upper = none, 1.0, none, none, none
 
 [time_integration]
 scheme = cd
@@ -21,7 +23,7 @@ max_steps = 2000000
 [initial]
 type = independent_product
 number_density = 1.0
-maximum_orders = 3, 3, 3, 3, 3
+maximum_orders = 3, 5, 3, 3, 3
 
 [initial.dimension.0]
 family = lognormal

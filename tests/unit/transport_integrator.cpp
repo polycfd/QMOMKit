@@ -2232,6 +2232,54 @@ void test_adaptive_state_failed_growth_trial_keeps_current_count()
                                qmomkit::ConditioningPath{}, std::nullopt, 2, qmomkit::CqmomNodeCountTransitionKind::created));
 }
 
+void test_adaptive_state_bounded_support_rejects_post_source_growth()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({3, 1});
+    const std::vector<std::size_t> extents{6, 2};
+    const std::vector<double> initial_sequence{1.0, 0.5, 0.3125, 0.21875, 0.16015625, 0.1220703125};
+    std::vector<double> initial_values(qmomkit::product_extents(extents), 0.0);
+    std::vector<double> target_values(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t order = 0; order < initial_sequence.size(); ++order)
+    {
+        initial_values[qmomkit::flatten_multi_index({order, 0}, extents)] = initial_sequence[order];
+        target_values[qmomkit::flatten_multi_index({order, 0}, extents)] = initial_sequence[order];
+    }
+    target_values[qmomkit::flatten_multi_index({4, 0}, extents)] = 10.0;
+    target_values[qmomkit::flatten_multi_index({5, 0}, extents)] = 10.0;
+
+    const qmomkit::RawMomentTensor initial_moments{extents, initial_values};
+    const qmomkit::RawMomentTensor target_moments{extents, target_values};
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
+    const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
+    qmomkit::CqmomCoordinateSupport support(2);
+    support[0] = qmomkit::BoundedInterval{0.0, 1.0};
+
+    qmomkit::CqmomLeanCase lean_case{initial_required, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true};
+    lean_case.coordinate_support = support;
+    const qmomkit::CqmomState state = qmomkit::internal::create_cqmom_state(lean_case);
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    qmomkit::CqmomTransportOptions options;
+    options.scheme = qmomkit::TransportScheme::dc;
+
+    const qmomkit::CqmomTransportResult transported =
+        qmomkit::advance_transport_cqmom(state, 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), options);
+
+    assert(transported.ok());
+    assert(transported.quadrature.has_value());
+    assert(transported.quadrature->total_nodes() == 2);
+    assert(transported.state.coordinate_support().size() == 2);
+    assert(transported.state.coordinate_support()[0].has_value());
+    assert(active_counts_contain(transported.state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 2, 0, 3));
+    assert(!transported.diagnostics.post_source_cqmom_diagnostics.empty());
+    const qmomkit::CqmomDiagnostics& diagnostic = transported.diagnostics.post_source_cqmom_diagnostics.front();
+    assert(diagnostic.bounded_support_checked);
+    assert(diagnostic.bounded_candidate_attempt_type == "growth");
+    assert(diagnostic.bounded_candidate_node_count == 3);
+    assert(diagnostic.bounded_accepted_fallback_node_count == 2);
+    assert(!diagnostic.bounded_support_determinants.empty());
+}
+
 void test_adaptive_state_reduction_prevents_source_growth_trial()
 {
     constexpr std::size_t configured_node_count = 3;
@@ -3656,6 +3704,7 @@ int main()
     test_adaptive_state_source_growth_forces_adaptive_wheeler_without_mutating_qmom_options();
     test_adaptive_state_source_growth_canonicalizes_between_steps();
     test_adaptive_state_failed_growth_trial_keeps_current_count();
+    test_adaptive_state_bounded_support_rejects_post_source_growth();
     test_adaptive_state_reduction_prevents_source_growth_trial();
     test_adaptive_state_parent_growth_creates_unconstrained_descendants();
     test_adaptive_state_preserved_source_invalidates_descendants_after_root_collapse();

@@ -183,8 +183,9 @@ qmomkit::CqmomMomentSource binary_breakage_source(const qmomkit::CqmomCase& cqmo
     const bool adaptive_branch_counts = cqmom_case.adaptive_branch_counts();
     const qmomkit::CqmomDiagnosticLevel diagnostic_level = cqmom_case.diagnostic_level();
     const qmomkit::VandermondeSolver vandermonde_solver = cqmom_case.vandermonde_solver();
+    const qmomkit::CqmomCoordinateSupport coordinate_support = cqmom_case.coordinate_support();
 
-    return [parameters, conditional_options, qmom_options, adaptive_branch_counts, diagnostic_level,
+    return [parameters, conditional_options, qmom_options, adaptive_branch_counts, diagnostic_level, coordinate_support,
             vandermonde_solver](double, const qmomkit::CqmomSourceContext& moments)
     {
         std::vector<double> source(moments.size(), 0.0);
@@ -200,8 +201,8 @@ qmomkit::CqmomMomentSource binary_breakage_source(const qmomkit::CqmomCase& cqmo
         // accumulating terminal-node contributions to the requested moment rates.
         qmomkit::CqmomMomentLayout layout{moments.hierarchy(), moments.indices()};
         qmomkit::CqmomMomentData moment_data{std::move(layout), moments.values()};
-        const qmomkit::CqmomLeanCase stage_case{std::move(moment_data), conditional_options, qmom_options,
-                                                adaptive_branch_counts, diagnostic_level,    vandermonde_solver};
+        const qmomkit::CqmomLeanCase stage_case{std::move(moment_data), conditional_options, qmom_options,      adaptive_branch_counts,
+                                                diagnostic_level,       vandermonde_solver,  coordinate_support};
         const qmomkit::CqmomResult stage_result = qmomkit::compute_cqmom(stage_case);
         if (!stage_result.ok())
         {

@@ -517,6 +517,32 @@ Moment orders control how many raw tensor entries are generated for full tensor
 workflows. Node counts control the requested CQMOM quadrature size. New users
 following `load_cqmom(...)` do not need `maximum_orders`.
 
+### Optional CQMOM Coordinate Support
+
+CQMOM coordinates are unconstrained by default. When a phase-space coordinate
+has a known closed bounded support, declare it with the phase-space-order
+`support_lower` and `support_upper` lists:
+
+```text
+[phase_space]
+names = d, chi, u
+node_counts = 2, 3, 2
+conditioning_order = 0, 1, 2
+support_lower = none, 0.0, none
+support_upper = none, 1.0, none
+```
+
+Use `none` for unconstrained coordinates. Numeric lower and upper entries must
+be configured together, one entry per phase-space dimension, with
+`lower < upper`. The support applies to the coordinate index, not to its
+conditioning level.
+
+For a bounded coordinate, QMOMKit checks each branch-local CQMOM candidate with
+the bounded-interval realizability test before accepting it. In adaptive
+branch-count mode, an unsupported candidate retries lower node counts down to
+one. In fixed-count mode, an unsupported requested count fails with diagnostics.
+This is a support-aware acceptance test; returned nodes are not clipped.
+
 ### Advanced: Explicit Dense Representation Workflow
 
 Use explicit tensor moments when your application already has a full raw

@@ -110,7 +110,7 @@ struct AdaptiveRk23Options
     std::optional<double> initial_step;
     double max_step = 0.0;
     double min_step = 0.0;
-    std::size_t max_steps = 100000;
+    std::size_t max_steps = 1000000000;
 };
 
 struct AdaptiveRk23Result

@@ -1,6 +1,6 @@
 [phase_space]
 names = d, chi, u, v, w
-node_counts = 2, 3, 2, 2, 2
+node_counts = 3, 3, 3, 3, 3
 conditioning_order = 0, 1, 2, 3, 4
 adaptive_branch_counts = true
 support_lower = none, 0.0, none, none, none
@@ -13,17 +13,17 @@ scheme = cd
 scheme = adaptive_rk23
 
 [time_integration.node_advection.rk23]
-relative_tolerance = 1.0e-9
-absolute_tolerance = 1.0e-12
-initial_step = 1.0e-4
+relative_tolerance = 1.0e-6
+absolute_tolerance = 1.0e-9
+initial_step = 1.0e-3
 max_step = 1.0e-2
-min_step = 1.0e-12
+min_step = 1.0e-9
 max_steps = 2000000
 
 [initial]
 type = independent_product
 number_density = 1.0
-maximum_orders = 3, 5, 3, 3, 3
+maximum_orders = 5, 5, 5, 5, 5
 
 [initial.dimension.0]
 family = lognormal

@@ -487,7 +487,8 @@ count, attempt type, candidate conditional moments, bounded realizability
 status, effective tolerance, limiting matrix family and signed margin, accepted
 fallback count, and any returned nodes and weights from attempted inversion.
 The acceptance decision uses `check_realizability`; determinant or
-Hankel-Hadamard/localizing determinant analysis remains diagnostic-only.
+Classical Hankel-Hadamard determinant and support-localizing determinant
+analysis remains diagnostic-only.
 
 ### Diagnostic Levels
 

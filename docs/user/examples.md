@@ -31,9 +31,12 @@ Primary onboarding
 Reference workflows
   qmom_mixture_initialization
   realizability_check
+  cqmom_2d_adaptive_node_counts
   qmom_1d_continuous_breakage_mc_initialization
+  qmom_1d_continuous_breakage_mc_local_rates
   cqmom_2d_continuous_breakage_mc_initialization
   cqmom_condensing_droplets
+  cqmom_polydisperse_cavitation
   cqmom_non-spherical-particles
 ```
 
@@ -211,6 +214,18 @@ hierarchy, and terminal quadrature output over time.
 Example README:
 [`examples/cqmom_transport/README.md`](../../examples/cqmom_transport/README.md)
 
+### `cqmom_2d_adaptive_node_counts`
+
+Purpose: evolve a two-dimensional CQMOM state with adaptive branch-local node
+counts that reduce during variance collapse and recover during a controlled
+discontinuous source pulse.
+
+Use this example when you want a deterministic demonstration of adaptive
+branch counts, branch persistence, and controlled node-count recovery.
+
+Example README:
+[`examples/cqmom_2d_adaptive_node_counts/README.md`](../../examples/cqmom_2d_adaptive_node_counts/README.md)
+
 ## Monte Carlo Reference
 
 These examples require the optional QMOMKitMonteCarlo package. They are
@@ -240,6 +255,18 @@ sample realization and reference workflow.
 
 Example README:
 [`examples/qmom_1d_continuous_breakage_mc_initialization/README.md`](../../examples/qmom_1d_continuous_breakage_mc_initialization/README.md)
+
+### `qmom_1d_continuous_breakage_mc_local_rates`
+
+Purpose: keep one-dimensional raw moments as application-owned state while
+calling QMOMKit's continuous and discontinuous local moment-rate APIs inside
+application-managed SSP-RK3 steps.
+
+Use this example when integrating QMOMKit's local rate operations into a host
+solver or finite-element/finite-volume residual workflow.
+
+Example README:
+[`examples/qmom_1d_continuous_breakage_mc_local_rates/README.md`](../../examples/qmom_1d_continuous_breakage_mc_local_rates/README.md)
 
 ### `cqmom_2d_continuous_breakage_mc_initialization`
 
@@ -293,6 +320,18 @@ the same case-defined moment columns, labels, ordering, and output times.
 
 Example README:
 [`examples/cqmom_condensing_droplets/README.md`](../../examples/cqmom_condensing_droplets/README.md)
+
+### `cqmom_polydisperse_cavitation`
+
+Purpose: evolve a two-dimensional `(R,U)` CQMOM representation of a
+polydisperse bubble population through continuous cavitation dynamics, with a
+direct Monte Carlo companion using the same finite sampled initialization.
+
+Use this example when you want a nonlinear continuous-only CQMOM application
+with matching sampled-population and quadrature workflows.
+
+Example README:
+[`examples/cqmom_polydisperse_cavitation/README.md`](../../examples/cqmom_polydisperse_cavitation/README.md)
 
 For broader Monte Carlo guidance, see `monte_carlo.md`.
 

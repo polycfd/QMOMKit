@@ -68,15 +68,20 @@ already returns raw-moment rates; that rate evaluation does not require a
 quadrature inversion. The source-stage rate is combined with a lower-boundary
 nucleation contribution.
 
-The moment convention is
+The moment convention uses raw, unnormalized number-density moments:
 
-```text
-m_k = integral d^k n(d) dd
-```
+$$
+m_k = \int_{\mathbb{R}} d^k n(d)\,\mathrm{d}d.
+$$
 
-so constant-rate nucleation at diameter `d_nuc` contributes
-`B_k = J_nuc d_nuc^k` to raw moment order `k`. This example uses
-`J_nuc = 0.05` and `d_nuc = 0.2`. The rate is visible in the histories over
+So constant-rate nucleation at diameter $d_{\mathrm{nuc}}$ contributes
+
+$$
+B_k = J_{\mathrm{nuc}}d_{\mathrm{nuc}}^k
+$$
+
+to raw moment order $k$. This example uses
+$J_{\mathrm{nuc}} = 0.05$ and $d_{\mathrm{nuc}} = 0.2$. The rate is visible in the histories over
 the unit simulation interval, but it remains small relative to the existing
 growth and breakage dynamics.
 
@@ -100,13 +105,14 @@ continuous particle half-step
 ```
 
 Each computational particle has the fixed statistical weight
-`number_density / initial_sample_count`. Raw moments are weighted sums over
-particles; they are not divided by the current particle count, so increases in
-`m0` from breakage and nucleation remain physical number-density changes.
-Over a source interval `dt`, the Monte Carlo nucleation count is sampled from
-a Poisson distribution with mean `J_nuc dt / particle_weight`, so the expected
-weighted birth contribution is the same `J_nuc dt` used by the QMOM boundary
-rate. The Monte Carlo result is stochastic after initialization because
+$w_p = n_0/N$. Raw moments are weighted sums over particles; they are not
+divided by the current particle count, so increases in the raw zeroth moment
+$m_0$ from breakage and nucleation remain physical number-density changes.
+Over a source interval $\Delta t$, the Monte Carlo nucleation count is sampled
+from a Poisson distribution with mean
+$J_{\mathrm{nuc}}\Delta t / w_p$, where $w_p$ is the particle weight. The
+expected weighted birth contribution is the same
+$J_{\mathrm{nuc}}\Delta t$ used by the QMOM boundary rate. The Monte Carlo result is stochastic after initialization because
 breakage and nucleation events are sampled with fixed deterministic seeds. The
 fixed seeds make the example reproducible, but the final moments are not
 expected to match the QMOM local-rate result exactly.
@@ -157,7 +163,7 @@ The Monte Carlo executable writes:
 `moment_history.txt`. `mc_diagnostics.txt` records particle count, total number
 density, first raw moment, cumulative breakage events, cumulative nucleation
 particles, expected cumulative nucleation number, realized cumulative
-nucleation number, and the nucleation contribution to `m0`.
+nucleation number, and the nucleation contribution to $m_0$.
 `particle_history.txt` is a custom sampled-particle snapshot table.
 
 ## Build And Run
@@ -209,11 +215,12 @@ cd build
 ./qmom_1d_continuous_breakage_mc_local_rates_mc_example
 ```
 
-The standalone example project also registers CTest smoke tests for both
-executables and a nucleation-balance check:
+The build also produces a standalone nucleation-balance executable. Run it
+directly when you want to check the analytical correspondence between the QMOM
+boundary rate and the Monte Carlo birth intensity:
 
 ```bash
-ctest --test-dir build --output-on-failure
+./qmom_1d_continuous_breakage_mc_local_rates_nucleation_balance_check
 ```
 
 ## Limitations

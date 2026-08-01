@@ -33,21 +33,26 @@ controlled one-node growth occur only after this discontinuous reconstruction.
 
 The continuous phase-space model is linear relaxation:
 
-```text
-du/dt = -a u
-```
+$$
+\frac{\mathrm{d}u}{\mathrm{d}t} = -a u.
+$$
 
 with `a = 500`. For zero mean, the variance decays as
-`Var[u](t) = Var[u](0) exp(-2*a*t)`.
+
+$$
+\operatorname{Var}[u](t) = \operatorname{Var}[u](0)\exp(-2at).
+$$
 
 The discontinuous source is a manufactured symmetric variance-injection source:
 
-```text
-dm0/dt = 0
-dm1/dt = 0
-dm2/dt = S(t)
-dm3/dt = 0
-```
+$$
+\begin{aligned}
+\frac{\mathrm{d}m_0}{\mathrm{d}t} &= 0, &
+\frac{\mathrm{d}m_1}{\mathrm{d}t} &= 0, \\
+\frac{\mathrm{d}m_2}{\mathrm{d}t} &= S(t), &
+\frac{\mathrm{d}m_3}{\mathrm{d}t} &= 0.
+\end{aligned}
+$$
 
 `S(t)` is positive only over the finite interval `[0.16, 0.25)`. The source
 preserves total mass and zero mean while allowing an adaptively reduced

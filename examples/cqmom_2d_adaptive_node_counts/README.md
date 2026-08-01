@@ -50,42 +50,57 @@ dimension `u`; conditioning order only changes recursive reconstruction order.
 
 The continuous phase-space velocity in `physics.cpp` is:
 
-```text
-dd/dt = 0
-du/dt = -a * (u - u_eq)
-```
+$$
+\begin{aligned}
+\frac{\mathrm{d}d}{\mathrm{d}t} &= 0, \\
+\frac{\mathrm{d}u}{\mathrm{d}t} &= -a\left(u-u_{\mathrm{eq}}\right).
+\end{aligned}
+$$
 
-with `a = 5` and `u_eq = 0` by default. Therefore the size distribution remains
+with $a=5$ and $u_{\mathrm{eq}}=0$ by default. Therefore the size distribution remains
 fixed, while the velocity variance decays as:
 
-```text
-Var[u](t) = Var[u](0) exp(-2*a*t)
-```
+$$
+\operatorname{Var}[u](t)
+= \operatorname{Var}[u](0)\exp(-2at).
+$$
 
 As the velocity variance approaches zero, adaptive Wheeler reduces active
 velocity branches toward one node.
 
 The discontinuous source is active only over a fixed pulse interval. For each
-parent state `(d,u)`, it applies the deliberately simple numerical validation
+parent state $(d,u)$, it applies the deliberately simple numerical validation
 event:
 
-```text
-(d,u) -> 0.5 * (d,u-du) + 0.5 * (d,u+du)
-```
+$$
+(d,u) \to \frac{1}{2}(d,u-du) + \frac{1}{2}(d,u+du).
+$$
 
-For a raw mixed moment `M[p,q]`, the source callback evaluates:
+Here $du$ is the configured velocity displacement and $\lambda$ is the
+source rate.
 
-```text
-S[p,q] = lambda * E[d^p * (((u-du)^q + (u+du)^q)/2 - u^q)]
-```
+For the raw, unnormalized mixed moment
 
-This gives `S[p,0] = 0` and `S[p,1] = 0`, so the source preserves total weight,
-all velocity-independent moments, and velocity mean. For `q = 2`, it injects
+$$
+M_{p,q} = \int\!\int d^p u^q n(d,u)\,\mathrm{d}d\,\mathrm{d}u,
+$$
+
+the source callback evaluates:
+
+$$
+S_{p,q}
+= \lambda\,\mathbb{E}\!\left[
+d^p\left(\frac{(u-du)^q+(u+du)^q}{2}-u^q\right)
+\right].
+$$
+
+This gives $S_{p,0}=0$ and $S_{p,1}=0$, so the source preserves total weight,
+all velocity-independent moments, and velocity mean. For $q=2$, it injects
 positive velocity variance through:
 
-```text
-S[p,2] = lambda * du^2 * M[p,0]
-```
+$$
+S_{p,2} = \lambda\,du^2 M_{p,0}.
+$$
 
 After the pulse ends, the same continuous relaxation again collapses the
 velocity variance and adaptive Wheeler reduces recovered branches back toward

@@ -38,17 +38,17 @@ The accepted `QmomState` carries the canonical moments and quadrature from one
 step to the next. Users copy, move, and advance accepted states; they do not
 construct them directly from independent moments and quadrature.
 
-The continuous physics is
+The continuous phase-space evolution is
 
-```text
-dd/dt = 1 - d
-```
+$$
+\frac{\mathrm{d}d}{\mathrm{d}t} = 1-d.
+$$
 
 The discontinuous source is binary fragmentation,
 
-```text
-d -> d/2
-```
+$$
+d \to \frac{d}{2},
+$$
 
 with the same raw-moment source formulation used by the full 1D continuous
 breakage example.

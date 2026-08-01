@@ -10,9 +10,7 @@ callback to demonstrate nucleation-style moment production.
 
 The supplied configuration is two-dimensional so the output is easy to read:
 
-```text
-(d, u)
-```
+The phase-space ordering is $(d,u)$,
 
 where `d` is particle size and `u` is velocity. The implementation is written
 against coordinate vectors and CQMOM source contexts, so the physics callbacks
@@ -56,16 +54,27 @@ only the callbacks required by their model.
 Edit `configuration.qmom` to change the distribution and CQMOM hierarchy. The
 example uses an independent-product initial distribution:
 
-```text
-f(d,u) = f_d(d) f_u(u)
-```
+$$
+f(d,u) = f_d(d)f_u(u).
+$$
 
 The default configuration uses:
 
-```text
-d ~ N(2, 0.5^2)
-u ~ N(0, 0.5^2)
-```
+$$
+d \sim \mathcal{N}(2, 0.5^2),
+\qquad
+u \sim \mathcal{N}(0, 0.5^2).
+$$
+
+For number density $n(d,u)$, the raw, unnormalized CQMOM moments are
+
+$$
+M_{\alpha_0,\alpha_1}
+= \int\!\int d^{\alpha_0}u^{\alpha_1}n(d,u)\,
+\mathrm{d}d\,\mathrm{d}u.
+$$
+
+The zeroth moment $M_{0,0}$ is the configured total number density.
 
 QMOMKit reads this configuration with `qmomkit::config::load_cqmom(...)`,
 which returns the user-facing CQMOM case consumed by `qmomkit::compute_cqmom(...)`
@@ -105,13 +114,15 @@ The user-defined velocity is in `physics.cpp`. The default model treats
 coordinate `0` as the breakage/growth coordinate and relaxes every later
 coordinate toward zero:
 
-```text
-dx0/dt = 1 - x0
-dx_k/dt = -x_k, for k > 0
-```
+$$
+\begin{aligned}
+\frac{\mathrm{d}x_0}{\mathrm{d}t} &= 1-x_0, \\
+\frac{\mathrm{d}x_k}{\mathrm{d}t} &= -x_k, \qquad k>0.
+\end{aligned}
+$$
 
-For the shipped two-dimensional configuration, this is `dd/dt = 1 - d` and
-`du/dt = -u`. The transport helper advances the terminal CQMOM nodes during
+For the shipped two-dimensional configuration, this is
+$\mathrm{d}d/\mathrm{d}t = 1-d$ and $\mathrm{d}u/\mathrm{d}t = -u$. The transport helper advances the terminal CQMOM nodes during
 the continuous substeps.
 
 ## Discontinuous Source
@@ -119,31 +130,35 @@ the continuous substeps.
 The discontinuous source is also in `physics.cpp`. It models binary
 fragmentation with constant rate along coordinate `0`:
 
-```text
-x0 -> x0/2
-```
+$$
+x_0 \to \frac{x_0}{2}.
+$$
 
 All other coordinates are unchanged by fragmentation, so the source acts on
 each CQMOM moment as:
 
-```text
-dM_alpha/dt = lambda * (2^(1-alpha0) - 1) * M_alpha
-```
+$$
+\frac{\mathrm{d}M_{\boldsymbol{\alpha}}}{\mathrm{d}t}
+= \lambda\left(2^{1-\alpha_0}-1\right)M_{\boldsymbol{\alpha}}.
+$$
 
 The example also defines a small `CqmomMomentBoundaryContribution` representing
 creation of new samples through the boundary of the first phase-space
 dimension. Boundary contributions provide additive raw-moment rates from
 phase-space exchange; in this example, the injected size is prescribed in the
-first coordinate and the other phase-space dimensions are not prescribed by
-the boundary contribution.
+first coordinate. The callback depends only on the exponent of that injected
+coordinate and returns a unit raw-moment factor for every unspecified
+coordinate dimension. This is an example-specific assumption; QMOMKit does not
+choose or infer a missing injected-coordinate distribution.
 
-For a moment multi-index `alpha`, the boundary exchange contribution is:
+For a moment multi-index $\boldsymbol{\alpha}$, the boundary exchange contribution is:
 
-```text
-dM_alpha/dt += J x_b^alpha0
-```
+$$
+\left.\frac{\mathrm{d}M_{\boldsymbol{\alpha}}}{\mathrm{d}t}\right|_{\mathrm{boundary}}
+= J x_b^{\alpha_0}.
+$$
 
-where `J` is the nucleation or injection rate and `x_b` is the injected size in
+where $J$ is the nucleation or injection rate and $x_b$ is the injected size in
 the first phase-space dimension. The callback receives the CQMOM moment
 context, evaluates the raw-moment rate for each context entry, and returns one
 rate value per required moment. Applying the contribution consistently across
@@ -186,8 +201,8 @@ The CQMOM source and boundary contribution callbacks receive a
 `qmomkit::CqmomSourceContext`. For entry `i`, `context.index(i)` is the moment
 multi-index and `context.value(i)` is the current value of that moment. The
 multi-index follows phase-space order, not conditioning order. Return one rate
-value per context entry in the same order: `rate[i]` is `dM_alpha/dt` for
-`context.index(i)`.
+value per context entry in the same order: `rate[i]` is
+$\mathrm{d}M_{\boldsymbol{\alpha}}/\mathrm{d}t$ for `context.index(i)`.
 
 Most users adapting this example change:
 

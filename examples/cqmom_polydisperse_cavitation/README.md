@@ -10,10 +10,7 @@ $$
 $$
 
 where $R$ is the instantaneous dimensionless bubble radius and
-$U=\dot R$ is the dimensionless radial velocity. The model contains
-continuous phase-space evolution only. It does not include physical-space
-advection, a discontinuous source, breakup, coalescence, bubble-collapse
-removal, or a CHyQMOM implementation.
+$U=\dot R$ is the dimensionless radial velocity. 
 
 The example contains two executables:
 

@@ -74,11 +74,7 @@ initialization seed, phase-space ordering, continuous velocity, binary
 fragmentation model, and Strang splitting. The MC workflow is not used as
 a validation reference here, and no automatic CQMOM/MC comparison is performed.
 
-The phase-space ordering is:
-
-```text
-(d, u)
-```
+The phase-space ordering is $(d,u)$,
 
 where `d` is particle size and `u` is velocity. The same ordering is used in
 `configuration.qmom`, the sampled ensemble, the CQMOM case, and the output.
@@ -88,20 +84,22 @@ where `d` is particle size and `u` is velocity. The same ordering is used in
 Edit `configuration.qmom` to change the independent-product distribution and
 CQMOM hierarchy. The default configuration uses:
 
-```text
-d ~ N(2, 0.5^2)
-u ~ N(0, 0.5^2)
-```
+$$
+\begin{aligned}
+d &\sim \mathcal{N}(2, 0.5^2), \\
+u &\sim \mathcal{N}(0, 0.5^2).
+\end{aligned}
+$$
 
 This example draws 10,000 samples with a fixed initialization seed. QMOMKit
 computes raw moments from that finite ensemble using the absolute
 number-density convention:
 
-```text
-M[i,j] = n0 / N * sum_p d_p^i u_p^j
-```
+$$
+M_{i,j} = \frac{n_0}{N}\sum_{p=1}^{N}d_p^i u_p^j.
+$$
 
-Equivalently, each initial sample has statistical weight `n0 / N` in the
+Equivalently, each initial sample has statistical weight $n_0/N$ in the
 moment estimate. The finite ensemble has ordinary Monte Carlo sampling
 uncertainty. Increasing the sample count generally reduces that uncertainty,
 but high-order tensor moments can require substantially more samples.
@@ -123,16 +121,19 @@ The CQMOM driver also supports adaptive branch counts through the same
 `CqmomState` transport workflow. With adaptive branch counts enabled, these
 node counts are maximums and output may contain fewer active terminal nodes.
 
-The sampled moment tensor is `M[i,j]` for `i = 0..3` and `j = 0..3`.
+The sampled moment tensor contains $M_{i,j}$ for $i=0,\ldots,3$ and
+$j=0,\ldots,3$.
 
 ## Continuous Velocity
 
 The shared velocity is in `physics.cpp`:
 
-```text
-dd/dt = 1 - d
-du/dt = -u
-```
+$$
+\begin{aligned}
+\frac{\mathrm{d}d}{\mathrm{d}t} &= 1-d, \\
+\frac{\mathrm{d}u}{\mathrm{d}t} &= -u.
+\end{aligned}
+$$
 
 Diameter relaxes toward `1`, and velocity relaxes toward `0`. The CQMOM driver
 uses `qmomkit::advance_transport_cqmom(...)` with `qmomkit::CqmomState`. The
@@ -143,23 +144,24 @@ direct MC driver advances sampled ensemble coordinates with
 
 The shared fragmentation model is:
 
-```text
-d -> d/2
-```
+$$
+d \to \frac{d}{2}.
+$$
 
 Velocity is unchanged by fragmentation. In the CQMOM driver, the source acts
 diagonally on each CQMOM moment:
 
-```text
-dM[i,j]/dt = lambda * (2^(1-i) - 1) * M[i,j]
-```
+$$
+\frac{\mathrm{d}M_{i,j}}{\mathrm{d}t}
+= \lambda\left(2^{1-i}-1\right)M_{i,j}.
+$$
 
 In the direct MC driver, each sample breaks stochastically over the source
-step with probability:
+step with probability
 
-```text
-1 - exp(-lambda * dt)
-```
+$$
+1-\exp(-\lambda\,\Delta t).
+$$
 
 When a sample breaks, the parent is replaced by two daughters with half the
 parent diameter and the same velocity.
@@ -269,5 +271,5 @@ raw moments, and the final sample count.
 `moment_history_mc.txt` stores Monte Carlo estimated moments with
 `qmomkit::MomentWriter`. It is a whitespace-delimited text table with a
 commented header line. It uses a constant per-sample statistical weight from
-the initial sampled ensemble, so `M[0,0]` reflects the sample population
+the initial sampled ensemble, so $M_{0,0}$ reflects the sample population
 increase caused by fragmentation.

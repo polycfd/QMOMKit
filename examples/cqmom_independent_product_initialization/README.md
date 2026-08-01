@@ -15,6 +15,27 @@ CqmomCase
     -> CqmomState
 ```
 
+The shipped configuration is two-dimensional and orders its phase space as
+`(size, velocity)`. It requests a fixed `2 x 2` CQMOM hierarchy with
+`conditioning_order = 0, 1`: two size nodes and two conditional velocity
+nodes. The initial number density is `2.5`, with a gamma distribution in
+`size` (shape `3.0`, scale `0.2`) and a normal distribution in `velocity`
+(mean `-0.5`, standard deviation `1.25`).
+
+For the number density $n(\mathrm{size},\mathrm{velocity})$, the raw multivariate moments are
+
+$$
+M_{i,j} = \int\!\int \mathrm{size}^i\mathrm{velocity}^j\,
+n(\mathrm{size},\mathrm{velocity})\,
+\mathrm{d}\mathrm{size}\,\mathrm{d}\mathrm{velocity}.
+$$
+
+They are unnormalized, so $M_{0,0}$ is the total number density `2.5`.
+`compute_cqmom(...)` converts the configured moment tensor into the initial
+conditional quadrature. The executable then creates a `CqmomState` to show
+the state lifecycle but does not add continuous evolution, a discontinuous
+moment source, or a boundary contribution.
+
 `CqmomCase` is the immutable configuration and problem definition.
 `CqmomState` is the runtime state that a transport workflow evolves later.
 This example creates the state but does not add transport physics.
@@ -35,5 +56,8 @@ cd build
 ./cqmom_independent_product_initialization_example
 ```
 
-The executable prints the CQMOM hierarchy and reconstructed node weights and
-abscissas.
+The executable writes no files. It prints the hierarchy, conditioning order,
+and reconstructed node weights and abscissas. The `x0` and `x1` labels in the
+terminal output are example-specific formatting for the shipped two-dimensional
+case: `x0` is `size` and `x1` is `velocity`. They are not a limitation of
+QMOMKit's multidimensional representation.

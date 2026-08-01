@@ -9,7 +9,7 @@ This is an optional reference workflow. It is not required for ordinary QMOM
 transport onboarding.
 
 Both examples use the same configured bimodal distribution,
-`0.5 N(1, 0.1^2) + 0.5 N(3, 0.2^2)`. This directory contains two workflows
+$0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)$. This directory contains two workflows
 that start from the same finite sampled ensemble. The Monte Carlo companion
 tool is used in both of its main roles here: as a sample realization tool and
 as a direct sampled-ensemble reference path.
@@ -53,10 +53,17 @@ distribution
 ```
 
 The distribution remains defined in `configuration.qmom`. This example draws
-10,000 samples with a fixed seed. The QMOM workflow computes statistical raw
-moments from that ensemble and uses those moments in
-`qmomkit::compute_qmom(...)`. The Monte Carlo workflow evolves the sampled
-ensemble directly with the same continuous and binary-fragmentation models.
+10,000 samples with a fixed seed. With `d` as the particle-diameter coordinate,
+the QMOM workflow estimates raw, unnormalized moments from the ensemble as
+
+$$
+M_k = \frac{n_0}{N}\sum_{p=1}^{N} d_p^k,
+$$
+
+where $n_0$ is the configured total number density and $N$ is the sample count.
+It uses those moments in `qmomkit::compute_qmom(...)`. The Monte Carlo
+workflow evolves the sampled ensemble directly with the same continuous and
+binary-fragmentation models.
 
 The sample is finite, so its raw moments include ordinary Monte Carlo sampling
 uncertainty. Increasing the sample count generally reduces this uncertainty,

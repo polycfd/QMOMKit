@@ -5,12 +5,13 @@
 This tutorial-style example initializes and evolves a one-dimensional QMOM
 representation for a particle-size distribution with continuous node motion
 and a discontinuous fragmentation source. The initial state is specified in
-`configuration.qmom`. The phase-space coordinate is `xi = d`, where `d` is
-particle diameter, and the raw moments are
+`configuration.qmom`. The phase-space coordinate is $\xi=d$, where `d` is
+particle diameter and $f(d)$ is the number density. The raw, unnormalized
+moments are
 
-```text
-M_k = integral d^k f(d) dd
-```
+$$
+M_k = \int_{\mathbb{R}} d^k f(d)\,\mathrm{d}d.
+$$
 
 The current workflow is:
 
@@ -23,37 +24,39 @@ initial distribution
 ```
 
 The executable uses a small bimodal distribution,
-`0.5 N(1, 0.1^2) + 0.5 N(3, 0.2^2)`, and reconstructs a three-node QMOM
-quadrature from moments `M0` through `M5`. QMOMKit reads the mixture
+$0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)$, and reconstructs a three-node QMOM
+quadrature from moments $M_0$ through $M_5$. QMOMKit reads the mixture
 configuration, generates the analytical raw moments, and then the example calls
 `qmomkit::compute_qmom(...)`.
 
 Users can modify the number of QMOM nodes and the mode densities, locations,
-and standard deviations directly in `configuration.qmom`. For `n` QMOM nodes,
+and standard deviations directly in `configuration.qmom`. For $n$ QMOM nodes,
 the configuration must request moments through order `2*n - 1`.
 
-The continuous physics is defined in `physics.cpp` as:
+The continuous phase-space evolution defined in `physics.cpp` is:
 
-```text
-dd/dt = 1 - d
-```
+$$
+\frac{\mathrm{d}d}{\mathrm{d}t} = 1-d.
+$$
 
-Particles smaller than `d = 1` grow, and particles larger than `d = 1` shrink.
+Particles smaller than $d=1$ grow, and particles larger than $d=1$ shrink.
 QMOMKit advances the quadrature nodes with `qmomkit::advance_nodes(...)`.
 Weights are unchanged during this continuous node evolution step.
 
 The discontinuous source is also defined in `physics.cpp`. It is a simple
 binary fragmentation model,
 
-```text
-d -> d/2
-```
+$$
+d \to \frac{d}{2},
+$$
 
-with constant rate `0.5`. For raw moments, the source callback returns
+with constant rate $\lambda=0.5$. For raw moments, the source callback
+returns
 
-```text
-dM_k/dt = lambda * (2^(1-k) - 1) * M_k
-```
+$$
+\frac{\mathrm{d}M_k}{\mathrm{d}t}
+= \lambda\left(2^{1-k}-1\right)M_k.
+$$
 
 QMOMKit advances those moments with
 `qmomkit::advance_moments_with_source(...)`.

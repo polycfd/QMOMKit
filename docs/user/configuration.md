@@ -930,10 +930,6 @@ Small QMOMKit configuration examples live under `examples/configuration/`:
 - `qmom_mixture_absolute_density.qmom`
 - `realizability_policy_nonnegative.qmom`
 
-Advanced CQMOM representation examples include:
-
-- `cqmom_independent_product_lean.qmom`
-
 Transport examples with local configuration files include:
 
 - `examples/qmom_1d_continuous_breakage/configuration.qmom`

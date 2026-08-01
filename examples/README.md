@@ -128,10 +128,6 @@ Small QMOMKit-only `.qmom` examples are provided for:
 - `qmom_mixture_absolute_density.qmom`
 - `realizability_policy_nonnegative.qmom`
 
-Advanced CQMOM representation examples are provided for:
-
-- `cqmom_independent_product_lean.qmom`
-
 Monte Carlo validation configuration examples live with the companion package
 under `tools/monte_carlo/configuration/`:
 

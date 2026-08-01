@@ -38,9 +38,9 @@ operating instructions.
 - [Recursive CQMOM](cqmom_recursive.md): conditional moment representation,
   recursive construction, terminal quadrature storage, adaptive branch counts,
   failure handling, and public/internal API boundaries.
-- [Internal Linear Algebra](linear_algebra.md): dense matrix infrastructure,
-  Björck-Pereyra, conditional Vandermonde adapter, pivoted Householder QR, and
-  current internal solver ownership.
+- [Internal Linear Algebra](linear_algebra.md): internal dense numerical
+  kernels, the conditional Vandermonde adapter, solver policies, and
+  numerical-convention ownership.
 - [Distribution Design](distributions_design.md): analytical distribution
   specifications, moment generation, mixtures, independent products, numerical
   failure behavior, and extension principles.

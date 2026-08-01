@@ -43,11 +43,13 @@ to solve the weighted conditional Vandermonde system directly. `svd` is also an
 explicit policy only and is expected to solve the weighted conditional
 Vandermonde system directly without dense fallback.
 
-The public CQMOM result currently exposes branch success diagnostics but not
-the Vandermonde requested/selected/algorithm/fallback fields. This verifier
-therefore loads public `.qmom` files and verifies public CQMOM results first,
-then inspects recursive diagnostics only for the solver-selection fields that
-are not available through the public diagnostic surface.
+The public CQMOM result exposes branch success diagnostics, the requested
+Vandermonde solver, the selected solver after policy resolution, and whether
+dense fallback occurred. The internal `VandermondeAlgorithm` field identifies
+the backend actually used (`dense`, `pivoted_qr`, `svd`, or `bjorck_pereyra`);
+that algorithm-used field is not exposed as the same public CQMOM diagnostic
+field. This verifier loads public `.qmom` files, verifies public CQMOM results,
+and inspects internal recursive diagnostics for algorithm-used checks.
 
 ## Checks
 

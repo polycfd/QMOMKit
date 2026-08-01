@@ -294,10 +294,8 @@ then the conditional matrix is:
 A = V^T diag(w)
 ```
 
-The dense pathway builds `A` and solves `A*C = M` directly with the generic
-dense linear solver. The pivoted-QR pathway also solves the complete weighted
-system `A*C = M` directly, using the internal pivoted Householder QR solver.
-The Björck-Pereyra pathway is split into two internal layers: a
+The dense, pivoted-QR, and SVD pathways build `A` and solve `A*C = M`
+directly. The Björck-Pereyra pathway is split into two internal layers: a
 structure-specific kernel solves the unweighted transposed Vandermonde system
 
 ```text
@@ -314,26 +312,23 @@ C[i, q] = Y[i, q] / w_i
 The adapter owns the conditional-system validation, weight transformation,
 solver selection, residual acceptance, dense fallback, and diagnostics. The
 Björck-Pereyra kernel owns only the internal unweighted transposed Vandermonde
-solve and its node-separation checks.
+solve and its node-separation checks. Numerical kernel details, tolerance
+definitions, and the complete solver-selection table are documented in
+`linear_algebra.md`.
 
 QMOMKit calls the numerical policy that solves this conditional system the
 Vandermonde solver. The user-facing solver choices are:
 
-- Dense solver: a generic dense linear solve used as the robustness reference.
-- Pivoted-QR solver: an explicit direct solve of the complete weighted
-  conditional system with the internal pivoted Householder QR solver. It has no
-  dense fallback and is not selected by `automatic`.
-- SVD solver: an explicit direct solve of the complete weighted conditional
-  system with the internal one-sided Jacobi SVD solver. It has no dense
-  fallback and is not selected by `automatic`.
-- Björck-Pereyra Vandermonde solver: the Vandermonde-specific
-  Björck-Pereyra algorithm without dense fallback.
-- Automatic solver: the default. It selects the fallback-capable
-  Björck-Pereyra Vandermonde solver.
-- Björck-Pereyra with dense fallback: tries the Vandermonde-specific
-  Björck-Pereyra algorithm, validates the residual when requested by
-  diagnostics or automatic mode, and uses the dense solver if the fast solve
-  fails validation or returns a failure.
+- Dense solver: a generic dense linear solve of the weighted system.
+- Pivoted-QR solver: an explicit direct solve of the weighted system with no
+  fallback.
+- SVD solver: an explicit direct solve of the weighted system with no fallback.
+- Björck-Pereyra Vandermonde solver: the structured unweighted BP transform plus
+  adapter-owned weight recovery, without fallback.
+- Automatic solver: the default; it resolves to the fallback-capable
+  Björck-Pereyra policy.
+- Björck-Pereyra with dense fallback: tries BP, requires BP residual acceptance,
+  and uses the dense solver when the BP attempt fails or is rejected.
 
 The distinction between requested solver and actual algorithm is deliberate.
 Diagnostics record the requested Vandermonde solver, the selected solver after
@@ -346,8 +341,11 @@ the dense algorithm was actually used and that dense fallback occurred.
 The default behavior remains automatic Björck-Pereyra with residual validation
 and dense fallback. Explicit pivoted QR and SVD honor the adapter
 residual-validation option when requested, but residual rejection is a failed
-conditional Vandermonde solve rather than a fallback trigger. Solver thresholds
-and performance measurements belong in source code and benchmark documentation.
+conditional Vandermonde solve rather than a fallback trigger. Recursive
+diagnostic level controls diagnostic retention and expensive diagnostic
+computations; it does not itself request residual rejection. Solver thresholds
+and performance measurements belong in `linear_algebra.md`, source comments,
+and benchmark documentation according to their level of detail.
 
 ## Terminal Quadrature Representation
 

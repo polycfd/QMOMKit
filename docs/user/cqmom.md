@@ -171,6 +171,34 @@ mean = -0.5
 standard_deviation = 1.25
 ```
 
+### Choosing The Vandermonde Solver
+
+Recursive CQMOM reconstructs conditional quantities by solving branch-local
+conditional Vandermonde systems. QMOMKit provides several solver policies for
+those systems through the optional `[vandermonde]` section:
+
+```ini
+[vandermonde]
+solver = automatic
+```
+
+This line may be omitted when using the default. Supported values are:
+
+| Value | Practical meaning |
+|---|---|
+| `automatic` | Recommended general default; currently uses Björck-Pereyra with eligible dense fallback. |
+| `dense` | Explicit dense Gaussian-elimination solve. |
+| `pivoted_qr` | Explicit pivoted-QR solve with numerical-rank detection and no fallback. |
+| `svd` | Explicit SVD solve with rank and convergence checks and no fallback. |
+| `bjorck_pereyra` | Explicit structured Vandermonde solve with no fallback. |
+| `bjorck_pereyra_with_dense_fallback` | Structured solve followed by eligible dense fallback. |
+
+QR and SVD rank-deficient systems fail, and SVD nonconvergence also fails.
+QMOMKit does not silently return a pseudoinverse or regularized solution in
+these paths. See [configuration.md](configuration.md) for exact syntax and
+policy behavior. Developer-level numerical details are in
+[Internal Linear Algebra](../developer/linear_algebra.md).
+
 For this normal configuration path, the CQMOM hierarchy determines the
 required raw moments automatically. Advanced full-tensor workflows may also
 omit `maximum_orders`; QMOMKit then derives the minimum dense extents from the

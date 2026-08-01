@@ -623,12 +623,21 @@ behavior, inversion results, transport results, or success/failure status.
 Supported values are `detailed`, `basic`, and `none`. If omitted, `detailed` is
 used.
 
-`vandermonde.solver` controls the branch-local conditional moment solve.
-Supported values are `automatic`, `dense`, `pivoted_qr`, `svd`,
-`bjorck_pereyra`, and `bjorck_pereyra_with_dense_fallback`. If omitted,
-`automatic` is used. The `pivoted_qr` and `svd` policies solve the weighted
-conditional Vandermonde system directly and are selected only when requested
-explicitly:
+`vandermonde.solver` controls the branch-local conditional Vandermonde solve.
+Supported values are:
+
+| Value | Behavior |
+|---|---|
+| `automatic` | Default; currently resolves to Björck-Pereyra with eligible dense fallback. |
+| `dense` | Dense Gaussian-elimination solve only. |
+| `pivoted_qr` | Pivoted-QR solve only, with numerical-rank detection and no fallback. |
+| `svd` | SVD solve only, with rank and convergence checks and no fallback. |
+| `bjorck_pereyra` | Structured Björck-Pereyra solve only, with no fallback. |
+| `bjorck_pereyra_with_dense_fallback` | Björck-Pereyra followed by eligible dense fallback. |
+
+If omitted, `automatic` is used. The `pivoted_qr` and `svd` policies solve the
+weighted conditional Vandermonde system directly and are selected only when
+requested explicitly:
 
 ```text
 [vandermonde]
@@ -640,9 +649,8 @@ rank-deficient conditional Vandermonde matrix makes the solve fail, and SVD
 Jacobi nonconvergence is also reported as a failure. QMOMKit does not compute a
 truncated, regularized, minimum-norm, or pseudoinverse solution in these paths.
 SVD rank and Jacobi tolerances are internal defaults and are not configurable
-through `.qmom` files. `automatic` is unchanged and continues to select the
-Björck-Pereyra solver with dense fallback. Loaded CQMOM cases and states expose
-the configured policy through `vandermonde_solver()`.
+through `.qmom` files. Loaded CQMOM cases and states expose the configured
+policy through `vandermonde_solver()`.
 
 ### Fixed And Adaptive CQMOM
 

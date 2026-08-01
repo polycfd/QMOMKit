@@ -38,7 +38,7 @@ individual cases, references, and tolerance choices in more detail.
 | Distributions | Verify analytical raw-moment generation and distribution-driven initialization workflows. | `verification_distributions_analytical` | Closed-form distribution moments, mixture sums, independent-product tensors |
 | Runge-Kutta | Verify standalone ODE utilities used by transport and source components. | `verification_runge_kutta_analytical`, `verification_runge_kutta_convergence` | Closed-form ODE solutions and convergence studies |
 | Output | Verify public text output workflows for moments and quadratures. | `output_workflows_verification` | Computed public results compared with analytical QMOM/CQMOM references |
-| Configuration | Verify representative user-facing configuration failure paths. | `configuration_failures_verification` | Invalid `.qmom` fixtures with expected public error codes and messages |
+| Configuration | Verify representative user-facing configuration failure paths. | `configuration_failures_verification` | Invalid `.qmom` fixtures with expected failure messages and source/line diagnostics |
 | Vandermonde solver policy | Verify user-facing CQMOM Vandermonde solver selection. | `vandermonde_solver_selection_verification` | Analytical product CQMOM reference plus solver-policy diagnostics |
 
 ## Test Styles

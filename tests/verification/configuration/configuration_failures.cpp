@@ -11,8 +11,6 @@
 namespace
 {
 
-using qmomkit::config::ConfigurationErrorCode;
-
 enum class Loader
 {
     qmom,
@@ -23,16 +21,9 @@ struct ExpectedFailure
 {
     std::string filename;
     Loader loader = Loader::qmom;
-    ConfigurationErrorCode code = ConfigurationErrorCode::syntax_error;
     std::string message_fragment;
     bool line_required = true;
 };
-
-template <class T> bool has_error_code(const qmomkit::config::ConfigurationResult<T>& result, const ConfigurationErrorCode code)
-{
-    static_cast<void>(code);
-    return !result;
-}
 
 template <class T> bool has_message_fragment(const qmomkit::config::ConfigurationResult<T>& result, const std::string& fragment)
 {
@@ -58,7 +49,6 @@ void verify_failed_load(const qmomkit::config::ConfigurationResult<T>& result, c
     QMOMKIT_VERIFY_CHECK(!result.ok());
     QMOMKIT_VERIFY_CHECK(!result);
     QMOMKIT_VERIFY_CHECK(!result.error().empty());
-    QMOMKIT_VERIFY_CHECK(has_error_code(result, expected.code));
     if (!has_message_fragment(result, expected.message_fragment))
     {
         std::cerr << "Expected message fragment: " << expected.message_fragment << '\n';
@@ -103,44 +93,40 @@ int main(const int argc, char** argv)
     const std::vector<ExpectedFailure> failures{
         // A malformed section header is the representative syntax error. Users
         // should see a syntax failure tied to the offending file and line.
-        {"malformed_syntax.qmom", Loader::qmom, ConfigurationErrorCode::syntax_error, "Malformed section header."},
+        {"malformed_syntax.qmom", Loader::qmom, "Malformed section header."},
 
         // Invalid booleans are common copy/edit mistakes. They must be rejected
         // instead of interpreted with truthy/falsy conventions.
-        {"qmom_invalid_adaptive.qmom", Loader::qmom, ConfigurationErrorCode::invalid_value, "qmom.adaptive must be true or false."},
+        {"qmom_invalid_adaptive.qmom", Loader::qmom, "qmom.adaptive must be true or false."},
 
         // A QMOM case needs either explicit moments or an analytical
         // initialization. Without one, no meaningful case can be created.
-        {"qmom_missing_moments.qmom", Loader::qmom, ConfigurationErrorCode::missing_entry, "Missing required key 'initial.type'", false},
+        {"qmom_missing_moments.qmom", Loader::qmom, "Missing required key 'initial.type'", false},
 
         // Syntax is valid here, but the requested two-node inversion does not
         // have the required four raw moments. This should fail at case creation
         // time, before compute_qmom(...) is called.
-        {"qmom_insufficient_moments.qmom", Loader::qmom, ConfigurationErrorCode::invalid_configuration, "requires at least 2 * node_count moments.",
-         false},
+        {"qmom_insufficient_moments.qmom", Loader::qmom, "requires at least 2 * node_count moments.", false},
 
         // Vandermonde solver selection is a user-facing CQMOM option. Unknown
         // names should not silently fall back to the default policy.
-        {"cqmom_invalid_vandermonde_solver.qmom", Loader::cqmom, ConfigurationErrorCode::invalid_value, "vandermonde.solver must be"},
+        {"cqmom_invalid_vandermonde_solver.qmom", Loader::cqmom, "vandermonde.solver must be"},
 
         // CQMOM branch-count adaptivity is a boolean workflow control separate
         // from one-dimensional Wheeler adaptivity.
-        {"cqmom_invalid_adaptive_branch_counts.qmom", Loader::cqmom, ConfigurationErrorCode::invalid_value,
-         "adaptive_branch_counts must be true or false."},
+        {"cqmom_invalid_adaptive_branch_counts.qmom", Loader::cqmom, "adaptive_branch_counts must be true or false."},
 
         // The public CQMOM loader cannot infer a phase-space hierarchy. Missing
         // node counts should be reported as missing required configuration.
-        {"cqmom_missing_phase_space.qmom", Loader::cqmom, ConfigurationErrorCode::missing_entry, "Missing required key 'phase_space.node_counts'.",
-         false},
+        {"cqmom_missing_phase_space.qmom", Loader::cqmom, "Missing required key 'phase_space.node_counts'.", false},
 
         // A conditioning order must be a permutation of dimensions. Duplicate
         // dimensions describe an invalid mathematical CQMOM hierarchy.
-        {"cqmom_invalid_conditioning_order.qmom", Loader::cqmom, ConfigurationErrorCode::invalid_configuration,
-         "conditioning_order must be a permutation"},
+        {"cqmom_invalid_conditioning_order.qmom", Loader::cqmom, "conditioning_order must be a permutation"},
 
         // Dense tensor moment input must be complete. Missing tensor entries
         // are rejected before the CQMOM case is exposed to the caller.
-        {"cqmom_incomplete_tensor.qmom", Loader::cqmom, ConfigurationErrorCode::missing_entry, "moment tensor is incomplete", false},
+        {"cqmom_incomplete_tensor.qmom", Loader::cqmom, "moment tensor is incomplete", false},
     };
 
     for (const ExpectedFailure& failure : failures)

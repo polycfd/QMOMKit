@@ -135,6 +135,34 @@ void test_default_scheme_is_ssp_rk3()
     assert(result.quadrature.weights == quadrature.weights);
 }
 
+void test_invalid_input_status_covers_quadrature_and_callback_contracts()
+{
+    qmomkit::Quadrature1D quadrature;
+    quadrature.abscissas = {1.0};
+    quadrature.weights = {1.0};
+
+    const qmomkit::QmomNodeAdvectionResult invalid_qmom =
+        qmomkit::advance_nodes(qmomkit::Quadrature1D{{1.0}, {1.0}, qmomkit::QuadratureStatus::not_realizable, "manufactured unsuccessful quadrature"},
+                               0.0, 0.1, [](double, const std::vector<double>&) { return std::vector<double>{0.0}; });
+    assert(!invalid_qmom.ok());
+    assert(invalid_qmom.status == qmomkit::NodeAdvectionStatus::invalid_input);
+    assert_contains(invalid_qmom.message, "Input QMOM quadrature is not successful.");
+
+    const qmomkit::CqmomResult valid_cqmom = make_fixed_two_dimensional_cqmom();
+    const qmomkit::CqmomNodeAdvectionResult invalid_cqmom_input =
+        qmomkit::advance_nodes(valid_cqmom.quadrature, std::numeric_limits<double>::quiet_NaN(), 0.1,
+                               [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0}; });
+    assert(!invalid_cqmom_input.ok());
+    assert(invalid_cqmom_input.status == qmomkit::NodeAdvectionStatus::invalid_input);
+    assert_contains(invalid_cqmom_input.message, "time input contains non-finite values");
+
+    const qmomkit::PhaseSpaceVelocity missing_velocity;
+    const qmomkit::QmomNodeAdvectionResult missing_callback = qmomkit::advance_nodes(quadrature, 0.0, 0.1, missing_velocity);
+    assert(!missing_callback.ok());
+    assert(missing_callback.status == qmomkit::NodeAdvectionStatus::invalid_input);
+    assert_contains(missing_callback.message, "velocity callback must be provided");
+}
+
 void test_wrong_size_velocity_diagnostic_reports_expected_and_returned_size()
 {
     qmomkit::Quadrature1D quadrature;
@@ -233,15 +261,49 @@ absolute_tolerance = 1.0e-9
     assert_near(result.quadrature.abscissas[0], 0.2, 1.0e-15);
 }
 
+void test_node_advection_options_formatting_reports_semantic_settings()
+{
+    const std::string fixed = qmomkit::format_node_advection_options(qmomkit::NodeAdvectionOptions{});
+    assert_contains(fixed, "scheme = ssp_rk3");
+    assert(fixed.find("rk23.relative_tolerance") == std::string::npos);
+
+    qmomkit::NodeAdvectionOptions adaptive_defaults;
+    adaptive_defaults.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
+    const std::string automatic = qmomkit::format_node_advection_options(adaptive_defaults);
+    assert_contains(automatic, "rk23.initial_step = automatic");
+    assert_contains(automatic, "rk23.max_step = full integration interval");
+    assert_contains(automatic, "rk23.min_step = machine-dependent automatic minimum");
+
+    qmomkit::NodeAdvectionOptions adaptive;
+    adaptive.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
+    adaptive.rk23_options.relative_tolerance = 0.125;
+    adaptive.rk23_options.absolute_tolerance = 0.25;
+    adaptive.rk23_options.initial_step = 0.5;
+    adaptive.rk23_options.max_step = 0.75;
+    adaptive.rk23_options.min_step = 0.0625;
+    adaptive.rk23_options.max_steps = 37;
+
+    const std::string formatted = qmomkit::format_node_advection_options(adaptive);
+    assert_contains(formatted, "scheme = adaptive_rk23");
+    assert_contains(formatted, "rk23.relative_tolerance = 0.125");
+    assert_contains(formatted, "rk23.absolute_tolerance = 0.25");
+    assert_contains(formatted, "rk23.initial_step = 0.5");
+    assert_contains(formatted, "rk23.max_step = 0.75");
+    assert_contains(formatted, "rk23.min_step = 0.0625");
+    assert_contains(formatted, "rk23.max_steps = 37");
+}
+
 } // namespace
 
 int main()
 {
     test_adaptive_quadrature_structure_is_preserved();
     test_default_scheme_is_ssp_rk3();
+    test_invalid_input_status_covers_quadrature_and_callback_contracts();
     test_wrong_size_velocity_diagnostic_reports_expected_and_returned_size();
     test_non_finite_velocity_diagnostic_reports_callback_context();
     test_rk23_failure_diagnostics_are_reported();
     test_configured_rk23_options_reach_node_advection();
+    test_node_advection_options_formatting_reports_semantic_settings();
     return 0;
 }

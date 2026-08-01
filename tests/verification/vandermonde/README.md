@@ -71,12 +71,14 @@ moments.
 
 ## Fallback Behavior
 
-This verification does not force dense fallback. A stable public CQMOM case
-that succeeds after deterministic dense fallback is not currently part of the
-suite. Repeated-node or singular artificial systems can exercise the fallback
-flag internally, but they do not provide a reliable successful user workflow
-and are better kept as unit-level failure tests unless a natural public case is
-identified.
+This verification does not force dense fallback. The existing successful unit
+fallback fixture deliberately uses a negative parent weight and a residual
+tolerance of `-1.0`; neither is an observable valid public CQMOM input (Wheeler
+parent weights are positive and the public recursive path uses its fixed
+residual validation). Repeated-node or singular artificial systems therefore
+do not provide a successful public workflow for this verification. The gap is
+kept explicit until the public contract exposes a valid deterministic fallback
+case; no production behavior is changed to manufacture one.
 
 ## Tolerance Policy
 

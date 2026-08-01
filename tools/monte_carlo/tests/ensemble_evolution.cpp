@@ -4,6 +4,7 @@
 #include "qmomkit/distributions.hpp"
 #include "test_checks.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -83,6 +84,57 @@ void test_single_sample_linear_growth()
 
     CHECK(result.ok());
     check_close(result.ensemble[0][0], ensemble[0][0] * std::exp(rate * (t1 - t0)), 1.0e-9);
+}
+
+void test_deterministic_ensemble_rk23_max_step_convergence()
+{
+    const Ensemble initial{{0.5}, {1.0}, {2.0}};
+    const std::vector<double> step_sizes{0.25, 0.125, 0.0625, 0.03125};
+    const qmomkit::PhaseSpaceVelocity callback = [](double, const std::vector<double>& coordinate)
+    {
+        CHECK(coordinate.size() == 1);
+        return std::vector<double>{coordinate[0]};
+    };
+
+    std::vector<double> errors;
+    errors.reserve(step_sizes.size());
+    for (const double step_size : step_sizes)
+    {
+        qmomkit::AdaptiveRk23Options options;
+        options.relative_tolerance = 1.0e-2;
+        options.absolute_tolerance = 1.0e-4;
+        options.initial_step = step_size;
+        options.max_step = step_size;
+        options.min_step = 0.01 * step_size;
+        options.max_steps = 1000;
+
+        const qmomkit::monte_carlo::EnsembleEvolutionResult result = qmomkit::monte_carlo::evolve_ensemble(initial, callback, 0.0, 1.0, options);
+        CHECK(result.ok());
+        CHECK(result.ensemble.size() == initial.size());
+        CHECK(result.total_accepted_steps == initial.size() * static_cast<std::size_t>(std::lround(1.0 / step_size)));
+        CHECK(result.total_rejected_steps == 0);
+        check_close(result.final_time, 1.0, 0.0);
+
+        double maximum_error = 0.0;
+        for (std::size_t sample = 0; sample < initial.size(); ++sample)
+        {
+            CHECK(result.ensemble[sample].size() == initial[sample].size());
+            maximum_error = std::max(maximum_error, std::abs(result.ensemble[sample][0] - initial[sample][0] * std::exp(1.0)));
+        }
+        errors.push_back(maximum_error);
+    }
+
+    CHECK(initial.size() == 3);
+    CHECK(initial[0][0] == 0.5);
+    CHECK(initial[1][0] == 1.0);
+    CHECK(initial[2][0] == 2.0);
+    CHECK(errors.front() > 0.0);
+    for (std::size_t refinement = 1; refinement < errors.size(); ++refinement)
+    {
+        CHECK(errors[refinement] < errors[refinement - 1]);
+        const double observed_order = std::log(errors[refinement - 1] / errors[refinement]) / std::log(2.0);
+        CHECK(observed_order > 2.0);
+    }
 }
 
 void test_single_sample_affine_evolution()
@@ -288,6 +340,7 @@ int main()
 {
     test_single_sample_constant_velocity();
     test_single_sample_linear_growth();
+    test_deterministic_ensemble_rk23_max_step_convergence();
     test_single_sample_affine_evolution();
     test_ensemble_evolution_and_moments();
     test_failure_inputs_preserve_original();

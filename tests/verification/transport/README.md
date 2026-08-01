@@ -161,6 +161,35 @@ first-order Lie splitting schemes. Those schemes are expected to approach first
 order under refinement and to differ from each other at finite timestep,
 documenting that the public scheme option is active rather than ignored.
 
+## Noncommuting CQMOM 2D
+
+Configuration: `noncommuting_cqmom_2d.qmom`
+
+This fixed (2 x 2) public CQMOM workflow uses conditioning order {0,1} and
+the positive discrete quadrature x={1,3}, wx={0.4,0.6}, y={-1,2},
+wy={0.25,0.75}. Its operators are:
+
+    continuous: dx/dt = x, dy/dt = 0
+    source:     dM_ij/dt = j M_(i+1,j-1)
+
+The exact terminal trajectories are x(t)=exp(t)x(0) and
+y(t)=y(0)+(exp(t)-1)x(0). The verifier advances a public CqmomState through
+advance_transport_cqmom with Strang, CD, and DC splitting, compares
+reconstructed raw moments with this discrete reference, and checks
+second-order Strang versus first-order Lie convergence. CD and DC are also
+required to differ at the coarse timestep.
+
+The fixed final time is `T = 1.2` with macro steps
+`0.3, 0.15, 0.075, 0.0375, 0.01875`. The reference is constructed directly
+from the listed four terminal nodes after applying the exact trajectories; it
+does not use a transported result. The error is the scaled infinity norm over
+all configured raw moments, `max |computed - exact| / max(1, |exact|)`, and the
+transport-layout moments are checked separately. Continuous RK23 tolerances
+are `1e-12` relative and `1e-14` absolute with maximum step `0.01`, keeping
+sub-integrator error below the measured splitting error. The observed-order
+acceptance window is 0.2 around order two for Strang and order one for each Lie
+ordering.
+
 ## Commuting CQMOM 2D
 
 Configuration: `commuting_cqmom_2d.qmom`

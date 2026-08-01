@@ -87,6 +87,22 @@ std::vector<double> raw_moments_1d(const std::vector<double>& abscissas, const s
     return moments;
 }
 
+void test_moment_set_public_container_behavior()
+{
+    const qmomkit::MomentSet empty;
+    assert(empty.empty());
+    assert(empty.size() == 0);
+    assert(empty.values().empty());
+
+    const qmomkit::MomentSet moments{1.0, -2.5, 4.25};
+    assert(!moments.empty());
+    assert(moments.size() == 3);
+    assert(moments.values() == std::vector<double>({1.0, -2.5, 4.25}));
+    assert_near(moments[0], 1.0, 0.0);
+    assert_near(moments[2], 4.25, 0.0);
+    assert_throws_out_of_range([&moments]() { (void)moments[3]; });
+}
+
 std::vector<double> indexed_values(const std::vector<std::size_t>& extents)
 {
     std::vector<double> values(qmomkit::product_extents(extents), 0.0);
@@ -684,7 +700,7 @@ void test_one_dimensional_cqmom_agrees_with_qmom()
 
 void test_cqmom_public_api_two_dimensional_manufactured_case()
 {
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
     const std::vector<std::size_t> extents{4, 4};
 
     const std::vector<double> x{-0.75, 1.25};
@@ -729,6 +745,45 @@ void test_cqmom_public_api_two_dimensional_manufactured_case()
         assert_near(result.quadrature.abscissa(0, node_index), abscissas[0][flat], 1.0e-12);
         assert_near(result.quadrature.abscissa(1, node_index), abscissas[1][flat], 1.0e-12);
     }
+
+    const std::vector<double> first_node = result.quadrature.node({0, 0});
+    const std::vector<double> last_node = result.quadrature.node({1, 1});
+    assert(first_node.size() == 2);
+    assert(last_node.size() == 2);
+    assert_near(first_node[0], x[0], 1.0e-12);
+    assert_near(first_node[1], y[0], 1.0e-12);
+    assert_near(last_node[0], x[1], 1.0e-12);
+    assert_near(last_node[1], y[1], 1.0e-12);
+}
+
+void test_cqmom_public_api_reports_conditional_moment_failure()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.5, 0.5};
+    const std::vector<std::vector<double>> abscissas{{-1.0, 1.0}, {2.0, -1.0}};
+    qmomkit::ConditionalMomentOptions conditional_options;
+    conditional_options.singular_tolerance = 1.0;
+    const qmomkit::CqmomDenseCase case_{hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, conditional_options, {}};
+
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::CqmomStatus::conditional_moment_failed);
+    assert(result.failed_phase_space_dimension == 0);
+    // The public contract makes the quadrature diagnostic-only whenever the
+    // overall CQMOM result fails; callers must gate it on result.ok().
+    assert(!result.message.empty());
+    assert(result.message.find("Vandermonde") != std::string::npos);
+    assert(!result.diagnostics.empty());
+    const auto failed_diagnostic =
+        std::find_if(result.diagnostics.begin(), result.diagnostics.end(), [](const qmomkit::CqmomDiagnostics& diagnostics)
+                     { return diagnostics.conditional_moment_status == qmomkit::ConditionalMomentStatus::singular_system; });
+    assert(failed_diagnostic != result.diagnostics.end());
+    assert(failed_diagnostic->conditioning_level == 0);
+    assert(failed_diagnostic->phase_space_dimension == 0);
+    assert(failed_diagnostic->parent_path.empty());
+    assert(!failed_diagnostic->message.empty());
 }
 
 void test_cqmom_public_api_exposes_adaptive_branch_counts()
@@ -870,6 +925,7 @@ void test_cqmom_storage_settings_format()
 
 int main()
 {
+    test_moment_set_public_container_behavior();
     test_cqmom_moment_layout_two_dimensional_reduced_set();
     test_cqmom_moment_layout_three_dimensional_recursive_indices();
     test_cqmom_moment_layout_non_identity_conditioning_order();
@@ -900,6 +956,7 @@ int main()
     test_qmom_public_api_matches_wheeler();
     test_one_dimensional_cqmom_agrees_with_qmom();
     test_cqmom_public_api_two_dimensional_manufactured_case();
+    test_cqmom_public_api_reports_conditional_moment_failure();
     test_cqmom_public_api_exposes_adaptive_branch_counts();
     test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts();
     test_cqmom_diagnostic_levels_control_expensive_diagnostics();

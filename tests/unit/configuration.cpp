@@ -18,8 +18,6 @@
 namespace
 {
 
-using qmomkit::config::ConfigurationErrorCode;
-
 const char* qmom_text = R"(
     # leading comment
     [phase_space]
@@ -77,10 +75,9 @@ M[1,1] = 0.0
 )" + runtime;
 }
 
-template <class T> bool has_error(const qmomkit::config::ConfigurationResult<T>& result, const ConfigurationErrorCode code)
+template <class T> bool has_failure(const qmomkit::config::ConfigurationResult<T>& result)
 {
-    static_cast<void>(code);
-    return !result;
+    return !result && !result.error().empty();
 }
 
 template <class T> bool has_message_fragment(const qmomkit::config::ConfigurationResult<T>& result, const std::string& fragment)
@@ -771,7 +768,7 @@ mean = -0.5
 standard_deviation = 1.25
 )");
     assert(!dense.ok());
-    assert(has_error(dense, ConfigurationErrorCode::invalid_configuration));
+    assert(has_failure(dense));
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(lean.value());
     assert(result.ok());
@@ -1111,7 +1108,7 @@ void test_cqmom_case_file_loading()
 
     const auto missing = qmomkit::config::load_cqmom(filename);
     assert(!missing.ok());
-    assert(has_error(missing, ConfigurationErrorCode::file_error));
+    assert(has_failure(missing));
     assert(has_message_fragment(missing, filename.string()));
 
     {
@@ -1302,7 +1299,7 @@ void test_cqmom_diagnostic_level_parses_values()
 
     const auto invalid = qmomkit::config::parse_cqmom_dense(cqmom_diagnostic_level_text("verbose"));
     assert(!invalid.ok());
-    assert(has_error(invalid, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid));
     assert(has_message_fragment(invalid, "diagnostic_level"));
     assert(has_message_fragment(invalid, "detailed, basic, or none"));
 }
@@ -1361,7 +1358,7 @@ void test_cqmom_vandermonde_solver_parses_values()
 
     const auto invalid = qmomkit::config::parse_cqmom_dense(cqmom_vandermonde_solver_text("structured"));
     assert(!invalid.ok());
-    assert(has_error(invalid, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid));
     assert(has_message_fragment(invalid, "vandermonde.solver"));
     assert(has_message_fragment(invalid, "svd"));
     assert(has_message_fragment(invalid, "pivoted_qr"));
@@ -1470,7 +1467,7 @@ check_mode = accepted_step
 support = nonnegative
 )");
     assert(!unknown_check_mode.ok());
-    assert(has_error(unknown_check_mode, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(unknown_check_mode));
     assert(has_message_fragment(unknown_check_mode, "check_mode"));
 
     const auto missing_support = qmomkit::config::parse_realizability_policy(R"(
@@ -1478,7 +1475,7 @@ support = nonnegative
 check_mode = final_only
 )");
     assert(!missing_support.ok());
-    assert(has_error(missing_support, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_support));
 
     const auto unknown_support = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
@@ -1486,7 +1483,7 @@ check_mode = final_only
 support = positive
 )");
     assert(!unknown_support.ok());
-    assert(has_error(unknown_support, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(unknown_support));
     assert(has_message_fragment(unknown_support, "support"));
 
     const auto invalid_tolerance = qmomkit::config::parse_realizability_policy(R"(
@@ -1496,7 +1493,7 @@ support = nonnegative
 tolerance = 0.0
 )");
     assert(!invalid_tolerance.ok());
-    assert(has_error(invalid_tolerance, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_tolerance));
 
     const auto nonfinite_tolerance = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
@@ -1505,7 +1502,7 @@ support = nonnegative
 tolerance = nan
 )");
     assert(!nonfinite_tolerance.ok());
-    assert(has_error(nonfinite_tolerance, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(nonfinite_tolerance));
 
     const auto malformed_bool = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
@@ -1514,7 +1511,7 @@ support = nonnegative
 accept_boundary = yes
 )");
     assert(!malformed_bool.ok());
-    assert(has_error(malformed_bool, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(malformed_bool));
 }
 
 void test_realizability_policy_rejects_invalid_bounded_interval()
@@ -1526,7 +1523,7 @@ support = bounded_interval
 lower = 0.0
 )");
     assert(!missing_bound.ok());
-    assert(has_error(missing_bound, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_bound));
 
     const auto invalid_interval = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
@@ -1536,7 +1533,7 @@ lower = 2.0
 upper = 1.0
 )");
     assert(!invalid_interval.ok());
-    assert(has_error(invalid_interval, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_interval));
 
     const auto nonfinite_bound = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability]
@@ -1546,7 +1543,7 @@ lower = -inf
 upper = 1.0
 )");
     assert(!nonfinite_bound.ok());
-    assert(has_error(nonfinite_bound, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(nonfinite_bound));
 }
 
 void test_realizability_policy_rejects_unknown_entries()
@@ -1558,14 +1555,14 @@ support = nonnegative
 enabled = true
 )");
     assert(!unknown_key.ok());
-    assert(has_error(unknown_key, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown_key));
 
     const auto unknown_section = qmomkit::config::parse_realizability_policy(R"(
 [time_integration.realizability.extra]
 check_mode = final_only
 )");
     assert(!unknown_section.ok());
-    assert(has_error(unknown_section, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown_section));
 }
 
 void test_qmom_case_parsing_tolerates_realizability_policy_without_installing_it()
@@ -1654,22 +1651,21 @@ accept_boundary = false
 
 void test_case_parsing_rejects_invalid_realizability_policy()
 {
-    const std::vector<std::pair<std::string, ConfigurationErrorCode>> invalid_blocks = {{R"(
+    const std::vector<std::string> invalid_blocks = {{
+        R"(
 
 [time_integration.realizability]
 check_mode = accepted_step
 support = nonnegative
 )",
-                                                                                         ConfigurationErrorCode::invalid_value},
-                                                                                        {R"(
+        R"(
 
 [time_integration.realizability]
 check_mode = final_only
 support = nonnegative
 tolerance = 0.0
 )",
-                                                                                         ConfigurationErrorCode::invalid_value},
-                                                                                        {R"(
+        R"(
 
 [time_integration.realizability]
 check_mode = final_only
@@ -1677,35 +1673,33 @@ support = bounded_interval
 lower = 2.0
 upper = 1.0
 )",
-                                                                                         ConfigurationErrorCode::invalid_value},
-                                                                                        {R"(
+        R"(
 
 [time_integration.realizability]
 check_mode = final_only
 )",
-                                                                                         ConfigurationErrorCode::missing_entry},
-                                                                                        {R"(
+        R"(
 
 [time_integration.realizability]
 check_mode = final_only
 support = nonnegative
 enabled = true
 )",
-                                                                                         ConfigurationErrorCode::unknown_entry}};
+    }};
 
     for (const auto& block : invalid_blocks)
     {
-        const auto qmom_case = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(block.first));
+        const auto qmom_case = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(block));
         assert(!qmom_case.ok());
-        assert(has_error(qmom_case, block.second));
+        assert(has_failure(qmom_case));
 
-        const auto cqmom_case = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(block.first));
+        const auto cqmom_case = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(block));
         assert(!cqmom_case.ok());
-        assert(has_error(cqmom_case, block.second));
+        assert(has_failure(cqmom_case));
 
-        const auto policy = qmomkit::config::parse_realizability_policy(block.first);
+        const auto policy = qmomkit::config::parse_realizability_policy(block);
         assert(!policy.ok());
-        assert(has_error(policy, block.second));
+        assert(has_failure(policy));
     }
 }
 
@@ -1744,7 +1738,7 @@ void test_scheme_rejects_invalid_values()
 scheme = leapfrog
 )");
     assert(!invalid.ok());
-    assert(has_error(invalid, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid));
     assert(has_message_fragment(invalid, "strang, cd, or dc"));
 
     const auto unknown_time_key = qmomkit::config::parse_transport_scheme(R"(
@@ -1752,7 +1746,7 @@ scheme = leapfrog
 stage_count = 3
 )");
     assert(!unknown_time_key.ok());
-    assert(has_error(unknown_time_key, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown_time_key));
 }
 
 void test_node_advection_scheme_defaults_and_parses_values()
@@ -1844,7 +1838,7 @@ void test_node_advection_scheme_rejects_invalid_values()
 scheme = rk4
 )");
     assert(!invalid.ok());
-    assert(has_error(invalid, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid));
     assert(has_message_fragment(invalid, "ssp_rk3 or adaptive_rk23"));
 
     const auto unknown_time_key = qmomkit::config::parse_node_advection_scheme(R"(
@@ -1852,7 +1846,7 @@ scheme = rk4
 stage_count = 3
 )");
     assert(!unknown_time_key.ok());
-    assert(has_error(unknown_time_key, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown_time_key));
 }
 
 void test_node_advection_options_reject_invalid_rk23_controls()
@@ -1862,7 +1856,7 @@ void test_node_advection_options_reject_invalid_rk23_controls()
 relative_tolerance = 0.0
 )");
     assert(!zero_relative.ok());
-    assert(has_error(zero_relative, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(zero_relative));
     assert(has_message_fragment(zero_relative, "relative_tolerance"));
     assert(has_message_fragment(zero_relative, "positive finite"));
 
@@ -1871,7 +1865,7 @@ relative_tolerance = 0.0
 absolute_tolerance = nan
 )");
     assert(!nonfinite_absolute.ok());
-    assert(has_error(nonfinite_absolute, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(nonfinite_absolute));
     assert(has_message_fragment(nonfinite_absolute, "absolute_tolerance"));
 
     const auto zero_initial_step = qmomkit::config::parse_node_advection_options(R"(
@@ -1879,7 +1873,7 @@ absolute_tolerance = nan
 initial_step = 0.0
 )");
     assert(!zero_initial_step.ok());
-    assert(has_error(zero_initial_step, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(zero_initial_step));
     assert(has_message_fragment(zero_initial_step, "initial_step"));
 
     const auto zero_max_steps = qmomkit::config::parse_node_advection_options(R"(
@@ -1887,7 +1881,7 @@ initial_step = 0.0
 max_steps = 0
 )");
     assert(!zero_max_steps.ok());
-    assert(has_error(zero_max_steps, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(zero_max_steps));
     assert(has_message_fragment(zero_max_steps, "max_steps"));
 
     const auto min_exceeds_max = qmomkit::config::parse_node_advection_options(R"(
@@ -1896,7 +1890,7 @@ min_step = 0.2
 max_step = 0.1
 )");
     assert(!min_exceeds_max.ok());
-    assert(has_error(min_exceeds_max, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(min_exceeds_max));
     assert(has_message_fragment(min_exceeds_max, "min_step must not exceed max_step"));
 
     const auto unknown_rk23_key = qmomkit::config::parse_node_advection_options(R"(
@@ -1904,7 +1898,7 @@ max_step = 0.1
 growth_limit = 2.0
 )");
     assert(!unknown_rk23_key.ok());
-    assert(has_error(unknown_rk23_key, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown_rk23_key));
 }
 
 void test_removed_cqmom_source_policy_key_is_unknown()
@@ -1912,15 +1906,15 @@ void test_removed_cqmom_source_policy_key_is_unknown()
     const std::string removed_key = std::string("[time_integration.cqmom]\nsource_node_count_") + "evolution = preserve_active_" + "counts\n";
     const auto qmom = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(removed_key));
     assert(!qmom.ok());
-    assert(has_error(qmom, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(qmom));
 
     const auto cqmom = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(removed_key));
     assert(!cqmom.ok());
-    assert(has_error(cqmom, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(cqmom));
 
     const auto transport_options = qmomkit::config::parse_cqmom_transport_options(removed_key);
     assert(!transport_options.ok());
-    assert(has_error(transport_options, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(transport_options));
 }
 
 void test_transport_options_loaders_parse_defaults_explicit_values_and_callbacks()
@@ -2014,14 +2008,14 @@ void test_transport_options_loaders_reject_invalid_values()
 scheme = leapfrog
 )");
     assert(!invalid_scheme.ok());
-    assert(has_error(invalid_scheme, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_scheme));
 
     const auto invalid_qmom = qmomkit::config::parse_qmom_transport_options(R"(
 [qmom]
 adaptive = sometimes
 )");
     assert(!invalid_qmom.ok());
-    assert(has_error(invalid_qmom, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_qmom));
     assert(has_message_fragment(invalid_qmom, "qmom.adaptive"));
 
     const auto unknown_qmom = qmomkit::config::parse_qmom_transport_options(R"(
@@ -2029,19 +2023,19 @@ adaptive = sometimes
 diagnostics = true
 )");
     assert(!unknown_qmom.ok());
-    assert(has_error(unknown_qmom, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown_qmom));
 
     const auto invalid_node = qmomkit::config::parse_cqmom_transport_options(R"(
 [time_integration.node_advection.rk23]
 relative_tolerance = 0.0
 )");
     assert(!invalid_node.ok());
-    assert(has_error(invalid_node, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_node));
 
     const auto removed_source_count =
         qmomkit::config::parse_cqmom_transport_options(std::string("[time_integration.cqmom]\nsource_node_count_") + "evolution = freeze\n");
     assert(!removed_source_count.ok());
-    assert(has_error(removed_source_count, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(removed_source_count));
 }
 
 void test_cqmom_transport_options_loader_result_drives_transport_path()
@@ -2135,7 +2129,7 @@ void test_output_options_reject_invalid_values()
 interval = 0.0
 )");
     assert(!zero_interval.ok());
-    assert(has_error(zero_interval, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(zero_interval));
     assert(has_message_fragment(zero_interval, "interval"));
 
     const auto nonfinite_interval = qmomkit::config::parse_output_options(R"(
@@ -2143,14 +2137,14 @@ interval = 0.0
 interval = nan
 )");
     assert(!nonfinite_interval.ok());
-    assert(has_error(nonfinite_interval, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(nonfinite_interval));
 
     const auto malformed_bool = qmomkit::config::parse_output_options(R"(
 [output]
 write_moments = yes
 )");
     assert(!malformed_bool.ok());
-    assert(has_error(malformed_bool, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(malformed_bool));
     assert(has_message_fragment(malformed_bool, "write_moments"));
 
     const auto unknown_key = qmomkit::config::parse_output_options(R"(
@@ -2158,21 +2152,21 @@ write_moments = yes
 write_nodes = true
 )");
     assert(!unknown_key.ok());
-    assert(has_error(unknown_key, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown_key));
 
     const auto unknown_section = qmomkit::config::parse_output_options(R"(
 [output.moments]
 M[0] = true
 )");
     assert(!unknown_section.ok());
-    assert(has_error(unknown_section, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown_section));
 
     const auto empty_directory = qmomkit::config::parse_output_options(R"(
 [output]
 directory =
 )");
     assert(!empty_directory.ok());
-    assert(has_error(empty_directory, ConfigurationErrorCode::syntax_error));
+    assert(has_failure(empty_directory));
     assert(has_message_fragment(empty_directory, "must not be empty"));
 
     const auto invalid_syntax = qmomkit::config::parse_output_options(R"(
@@ -2180,7 +2174,7 @@ directory =
 directory
 )");
     assert(!invalid_syntax.ok());
-    assert(has_error(invalid_syntax, ConfigurationErrorCode::syntax_error));
+    assert(has_failure(invalid_syntax));
 }
 
 void test_qmom_case_parsing_tolerates_scheme()
@@ -2237,7 +2231,7 @@ scheme = invalid
 values = 1.0, 0.0
 )");
     assert(!invalid.ok());
-    assert(has_error(invalid, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid));
 
     const auto invalid_node_advection = qmomkit::config::parse_qmom(R"(
 [phase_space]
@@ -2250,52 +2244,49 @@ scheme = rk4
 values = 1.0, 0.0
 )");
     assert(!invalid_node_advection.ok());
-    assert(has_error(invalid_node_advection, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_node_advection));
 }
 
 void test_case_parsing_rejects_invalid_runtime_transport_settings()
 {
-    const std::vector<std::pair<std::string, ConfigurationErrorCode>> invalid_shared_blocks = {{R"(
+    const std::vector<std::string> invalid_shared_blocks = {{
+        R"(
 
 [time_integration]
 scheme = invalid
 )",
-                                                                                                ConfigurationErrorCode::invalid_value},
-                                                                                               {R"(
+        R"(
 
 [time_integration.node_advection]
 scheme = rk4
 )",
-                                                                                                ConfigurationErrorCode::invalid_value},
-                                                                                               {R"(
+        R"(
 
 [time_integration.node_advection.rk23]
 relative_tolerance = 0.0
 )",
-                                                                                                ConfigurationErrorCode::invalid_value},
-                                                                                               {R"(
+        R"(
 
 [time_integration.node_advection.rk23]
 min_step = 2.0
 max_step = 1.0
 )",
-                                                                                                ConfigurationErrorCode::invalid_value},
-                                                                                               {R"(
+        R"(
 
 [time_integration.node_advection.rk23]
 relative_tolerence = 1.0e-7
 )",
-                                                                                                ConfigurationErrorCode::unknown_entry}};
+    }};
 
     for (const auto& block : invalid_shared_blocks)
     {
-        const auto qmom_case = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(block.first));
+        const auto qmom_case = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(block));
         assert(!qmom_case.ok());
-        assert(has_error(qmom_case, block.second));
+        assert(has_failure(qmom_case));
 
-        const auto cqmom_case = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(block.first));
+        const auto cqmom_case = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(block));
         assert(!cqmom_case.ok());
-        assert(has_error(cqmom_case, block.second));
+        assert(has_failure(cqmom_case));
     }
 
     const auto invalid_scheme = qmomkit::config::parse_transport_scheme(R"(
@@ -2303,7 +2294,7 @@ relative_tolerence = 1.0e-7
 scheme = invalid
 )");
     assert(!invalid_scheme.ok());
-    assert(has_error(invalid_scheme, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_scheme));
 
     const auto invalid_node_options = qmomkit::config::parse_node_advection_options(R"(
 [time_integration.node_advection.rk23]
@@ -2311,23 +2302,23 @@ min_step = 2.0
 max_step = 1.0
 )");
     assert(!invalid_node_options.ok());
-    assert(has_error(invalid_node_options, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_node_options));
 
     const auto unknown_node_key = qmomkit::config::parse_node_advection_options(R"(
 [time_integration.node_advection.rk23]
 relative_tolerence = 1.0e-7
 )");
     assert(!unknown_node_key.ok());
-    assert(has_error(unknown_node_key, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown_node_key));
 
     const std::string source_policy = std::string("\n[time_integration.cqmom]\nsource_node_count_") + "evolution = freeze\n";
     const auto qmom_case = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(source_policy));
     assert(!qmom_case.ok());
-    assert(has_error(qmom_case, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(qmom_case));
 
     const auto cqmom_case = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(source_policy));
     assert(!cqmom_case.ok());
-    assert(has_error(cqmom_case, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(cqmom_case));
 }
 
 void test_qmom_case_parsing_tolerates_output_options_without_installing_them()
@@ -2382,29 +2373,29 @@ void test_duplicate_and_missing_entries()
     const auto duplicate_key =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[qmom]\nadaptive=false\nadaptive=false\n[moments]\nvalues=1,0\n");
     assert(!duplicate_key.ok());
-    assert(has_error(duplicate_key, ConfigurationErrorCode::duplicate_entry));
+    assert(has_failure(duplicate_key));
 
     const auto duplicate_moment = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[moments]\nextents=2,2\nM[0,0]=1\nM[0,0]=1\nM[0,1]=0\nM[1,0]=0\nM[1,1]=0\n");
     assert(!duplicate_moment.ok());
-    assert(has_error(duplicate_moment, ConfigurationErrorCode::duplicate_entry));
+    assert(has_failure(duplicate_moment));
 
     const auto missing_moment = qmomkit::config::parse_cqmom_dense("[phase_space]\nnode_counts=1,1\n[moments]\nextents=2,2\nM[0,0]=1\n");
     assert(!missing_moment.ok());
-    assert(has_error(missing_moment, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_moment));
 
     const auto missing_initial_type = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\nfamily=normal\n");
     assert(!missing_initial_type.ok());
-    assert(has_error(missing_initial_type, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_initial_type));
 
     const auto missing_family = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nmaximum_order=1\n");
     assert(!missing_family.ok());
-    assert(has_error(missing_family, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_family));
 
     const auto missing_parameter =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nfamily=normal\nmaximum_order=1\nmean=0\n");
     assert(!missing_parameter.ok());
-    assert(has_error(missing_parameter, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_parameter));
 
     const auto omitted_maximum_order =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nfamily=gamma\nshape=1\nscale=2\n");
@@ -2413,54 +2404,54 @@ void test_duplicate_and_missing_entries()
 
     const auto missing_mixture_components = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n");
     assert(!missing_mixture_components.ok());
-    assert(has_error(missing_mixture_components, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_mixture_components));
 
     const auto missing_component_family = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n"
                                                                       "[initial.mixture.component.0]\nnumber_density=1\n");
     assert(!missing_component_family.ok());
-    assert(has_error(missing_component_family, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_component_family));
 
     const auto missing_component_density = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n"
                                                                        "[initial.mixture.component.0]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!missing_component_density.ok());
-    assert(has_error(missing_component_density, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_component_density));
 
     const auto missing_cqmom_initial_type = qmomkit::config::parse_cqmom_dense("[phase_space]\nnode_counts=1,1\n[initial]\nnumber_density=1\n");
     assert(!missing_cqmom_initial_type.ok());
-    assert(has_error(missing_cqmom_initial_type, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_cqmom_initial_type));
 
     const auto missing_product_dimensions = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n");
     assert(!missing_product_dimensions.ok());
-    assert(has_error(missing_product_dimensions, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_product_dimensions));
 
     const auto missing_product_family = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n"
         "[initial.dimension.0]\nmean=0\nstandard_deviation=1\n"
         "[initial.dimension.1]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!missing_product_family.ok());
-    assert(has_error(missing_product_family, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(missing_product_family));
 }
 
 void test_malformed_nonfinite_invalid_order_and_unknown_key()
 {
     const auto malformed = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=two\n[moments]\nvalues=1,0\n", "malformed");
     assert(!malformed.ok());
-    assert(has_error(malformed, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(malformed));
     assert(has_message_fragment(malformed, "malformed:2"));
 
     const auto nonfinite = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[moments]\nvalues=1,nan\n");
     assert(!nonfinite.ok());
-    assert(has_error(nonfinite, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(nonfinite));
 
     const auto malformed_adaptive = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[qmom]\nadaptive=yes\n[moments]\nvalues=1,0\n");
     assert(!malformed_adaptive.ok());
-    assert(has_error(malformed_adaptive, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(malformed_adaptive));
 
     const auto invalid_order = qmomkit::config::parse_cqmom_dense("[phase_space]\nnode_counts=1,1\nconditioning_order=0,0\n[moments]\nextents=2,2\n"
                                                                   "M[0,0]=1\nM[0,1]=1\nM[1,0]=1\nM[1,1]=1\n");
     assert(!invalid_order.ok());
-    assert(has_error(invalid_order, ConfigurationErrorCode::invalid_configuration));
+    assert(has_failure(invalid_order));
 
     const auto cqmom_initial_section = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[moments]\nextents=2,2\nM[0,0]=1\nM[0,1]=0\nM[1,0]=0\nM[1,1]=0\n[initial]\n");
@@ -2468,60 +2459,60 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
 
     const auto unknown = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\nmystery=4\n[moments]\nvalues=1,0\n");
     assert(!unknown.ok());
-    assert(has_error(unknown, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown));
 
     const auto unsupported_initial_type = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=independent_product\n");
     assert(!unsupported_initial_type.ok());
-    assert(has_error(unsupported_initial_type, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(unsupported_initial_type));
 
     const auto unsupported_family =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nfamily=poisson\nmaximum_order=1\n");
     assert(!unsupported_family.ok());
-    assert(has_error(unsupported_family, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(unsupported_family));
 
     const auto invalid_density = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nfamily="
                                                              "normal\nnumber_density=-1\nmaximum_order=1\nmean=0\nstandard_deviation=1\n");
     assert(!invalid_density.ok());
-    assert(has_error(invalid_density, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_density));
 
     const auto nonfinite_density = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nfamily="
                                                                "normal\nnumber_density=nan\nmaximum_order=1\nmean=0\nstandard_deviation=1\n");
     assert(!nonfinite_density.ok());
-    assert(has_error(nonfinite_density, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(nonfinite_density));
 
     const auto invalid_maximum_order = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nfamily="
                                                                    "normal\nmaximum_order=one\nmean=0\nstandard_deviation=1\n");
     assert(!invalid_maximum_order.ok());
-    assert(has_error(invalid_maximum_order, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_maximum_order));
 
     const auto invalid_mixture_maximum_order =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=one\n"
                                     "[initial.mixture.component.0]\nfamily=gamma\nnumber_density=1\nshape=1\nscale=2\n");
     assert(!invalid_mixture_maximum_order.ok());
-    assert(has_error(invalid_mixture_maximum_order, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_mixture_maximum_order));
 
     const auto invalid_distribution_parameter = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nfamily="
                                                                             "normal\nmaximum_order=1\nmean=0\nstandard_deviation=0\n");
     assert(!invalid_distribution_parameter.ok());
-    assert(has_error(invalid_distribution_parameter, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_distribution_parameter));
 
     const auto invalid_component_density =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n"
                                     "[initial.mixture.component.0]\nfamily=gamma\nnumber_density=-1\nshape=1\nscale=2\n");
     assert(!invalid_component_density.ok());
-    assert(has_error(invalid_component_density, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_component_density));
 
     const auto nonfinite_component_density =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n"
                                     "[initial.mixture.component.0]\nfamily=gamma\nnumber_density=nan\nshape=1\nscale=2\n");
     assert(!nonfinite_component_density.ok());
-    assert(has_error(nonfinite_component_density, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(nonfinite_component_density));
 
     const auto invalid_component_parameter =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n"
                                     "[initial.mixture.component.0]\nfamily=gamma\nnumber_density=1\nshape=0\nscale=2\n");
     assert(!invalid_component_parameter.ok());
-    assert(has_error(invalid_component_parameter, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_component_parameter));
     assert(has_message_fragment(invalid_component_parameter, "Component index: 0"));
 
     const auto invalid_second_component_parameter =
@@ -2529,45 +2520,44 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
                                     "[initial.mixture.component.0]\nfamily=gamma\nnumber_density=1\nshape=1\nscale=2\n"
                                     "[initial.mixture.component.1]\nfamily=normal\nnumber_density=1\nmean=0\nstandard_deviation=0\n");
     assert(!invalid_second_component_parameter.ok());
-    assert(has_error(invalid_second_component_parameter, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_second_component_parameter));
     assert(has_message_fragment(invalid_second_component_parameter, "Component index: 1"));
 
     const auto all_zero_mixture = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n"
                                                               "[initial.mixture.component.0]\nfamily=gamma\nnumber_density=0\nshape=1\nscale=2\n");
     assert(!all_zero_mixture.ok());
-    assert(has_error(all_zero_mixture, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(all_zero_mixture));
 
     const auto noncontiguous_mixture =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n"
                                     "[initial.mixture.component.1]\nfamily=gamma\nnumber_density=1\nshape=1\nscale=2\n");
     assert(!noncontiguous_mixture.ok());
-    assert(has_error(noncontiguous_mixture, ConfigurationErrorCode::invalid_configuration));
+    assert(has_failure(noncontiguous_mixture));
 
     const auto unknown_component_key =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n"
                                     "[initial.mixture.component.0]\nfamily=gamma\nnumber_density=1\nshape=1\nscale=2\nweight_fraction=0.5\n");
     assert(!unknown_component_key.ok());
-    assert(has_error(unknown_component_key, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unknown_component_key));
 
     const auto component_with_distribution_type =
         qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nfamily=normal\nmaximum_order=1\nmean=0\n"
                                     "standard_deviation=1\n[initial.mixture.component.0]\nfamily=gamma\nnumber_density=1\nshape=1\nscale=2\n");
     assert(!component_with_distribution_type.ok());
-    assert(has_error(component_with_distribution_type, ConfigurationErrorCode::invalid_configuration));
+    assert(has_failure(component_with_distribution_type));
 
     const auto unsupported_cqmom_initial_type =
         qmomkit::config::parse_cqmom_dense("[phase_space]\nnode_counts=1,1\n[initial]\ntype=distribution\nmaximum_order=1\nfamily=normal\nmean=0\n"
                                            "standard_deviation=1\n");
     assert(!unsupported_cqmom_initial_type.ok());
-    assert(has_error(unsupported_cqmom_initial_type, ConfigurationErrorCode::unknown_entry) ||
-           has_error(unsupported_cqmom_initial_type, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(unsupported_cqmom_initial_type));
 
     const auto invalid_product_order = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=one\n"
         "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n"
         "[initial.dimension.1]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!invalid_product_order.ok());
-    assert(has_error(invalid_product_order, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_product_order));
 
     const auto product_tensor_size_overflow =
         qmomkit::config::parse_cqmom_dense("[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\n"
@@ -2575,20 +2565,20 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
                                            "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n"
                                            "[initial.dimension.1]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!product_tensor_size_overflow.ok());
-    assert(has_error(product_tensor_size_overflow, ConfigurationErrorCode::invalid_configuration));
+    assert(has_failure(product_tensor_size_overflow));
 
     const auto invalid_product_density = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=-1\nmaximum_orders=1,1\n"
         "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n"
         "[initial.dimension.1]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!invalid_product_density.ok());
-    assert(has_error(invalid_product_density, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_product_density));
 
     const auto noncontiguous_product_dimensions = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n"
         "[initial.dimension.1]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!noncontiguous_product_dimensions.ok());
-    assert(has_error(noncontiguous_product_dimensions, ConfigurationErrorCode::invalid_configuration));
+    assert(has_failure(noncontiguous_product_dimensions));
 
     const auto extra_product_dimension = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n"
@@ -2596,41 +2586,41 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
         "[initial.dimension.1]\nfamily=normal\nmean=0\nstandard_deviation=1\n"
         "[initial.dimension.2]\nfamily=beta\nalpha=1\nbeta=2\n");
     assert(!extra_product_dimension.ok());
-    assert(has_error(extra_product_dimension, ConfigurationErrorCode::invalid_configuration));
+    assert(has_failure(extra_product_dimension));
 
     const auto duplicate_product_dimension = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n"
         "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n"
         "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!duplicate_product_dimension.ok());
-    assert(has_error(duplicate_product_dimension, ConfigurationErrorCode::duplicate_entry));
+    assert(has_failure(duplicate_product_dimension));
 
     const auto invalid_marginal_parameter = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n"
         "[initial.dimension.0]\nfamily=gamma\nshape=0\nscale=2\n"
         "[initial.dimension.1]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!invalid_marginal_parameter.ok());
-    assert(has_error(invalid_marginal_parameter, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(invalid_marginal_parameter));
 
     const auto product_dimension_mismatch =
         qmomkit::config::parse_cqmom_dense("[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1\n"
                                            "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!product_dimension_mismatch.ok());
-    assert(has_error(product_dimension_mismatch, ConfigurationErrorCode::invalid_configuration));
+    assert(has_failure(product_dimension_mismatch));
 
     const auto product_moment_extent_too_small = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=2,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n"
         "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n"
         "[initial.dimension.1]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!product_moment_extent_too_small.ok());
-    assert(has_error(product_moment_extent_too_small, ConfigurationErrorCode::invalid_configuration));
+    assert(has_failure(product_moment_extent_too_small));
 
     const auto product_rejects_marginal_density = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n"
         "[initial.dimension.0]\nfamily=gamma\nnumber_density=2\nshape=1\nscale=2\n"
         "[initial.dimension.1]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!product_rejects_marginal_density.ok());
-    assert(has_error(product_rejects_marginal_density, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(product_rejects_marginal_density));
 }
 
 void test_explicit_moments_take_precedence_over_initial_distribution()
@@ -2729,7 +2719,7 @@ values = 3.0, 1.0, 2.0, 4.0
 value = 1
 )");
     assert(!unrelated_unknown_section.ok());
-    assert(has_error(unrelated_unknown_section, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(unrelated_unknown_section));
 
     const auto cqmom = qmomkit::config::parse_cqmom_dense(R"(
 [phase_space]
@@ -2830,18 +2820,18 @@ void test_configuration_rejects_unsupported_or_ambiguous_format_fields()
 {
     const auto unsupported_version = qmomkit::config::parse_qmom("format_version=2\n[phase_space]\nnode_counts=1\n[moments]\nvalues=1,0\n");
     assert(!unsupported_version.ok());
-    assert(has_error(unsupported_version, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(unsupported_version));
     assert(has_message_fragment(unsupported_version, "format_version must be 1"));
 
     const auto qmom_with_multivariate_phase_space = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1,1\n[moments]\nvalues=1,0\n");
     assert(!qmom_with_multivariate_phase_space.ok());
-    assert(has_error(qmom_with_multivariate_phase_space, ConfigurationErrorCode::invalid_value));
+    assert(has_failure(qmom_with_multivariate_phase_space));
     assert(has_message_fragment(qmom_with_multivariate_phase_space, "exactly one positive integer"));
 
     const auto cqmom_with_univariate_phase_space =
         qmomkit::config::parse_cqmom_dense("[phase_space]\nnode_counts=1\n[moments]\nextents=2\nM[0]=1\nM[1]=0\n");
     assert(!cqmom_with_univariate_phase_space.ok());
-    assert(has_error(cqmom_with_univariate_phase_space, ConfigurationErrorCode::invalid_configuration));
+    assert(has_failure(cqmom_with_univariate_phase_space));
     assert(has_message_fragment(cqmom_with_univariate_phase_space, "one-dimensional phase space is interpreted as QMOM"));
 }
 
@@ -2858,7 +2848,7 @@ void test_file_loading_and_file_failure()
 
     const auto missing = qmomkit::config::load_qmom(filename);
     assert(!missing.ok());
-    assert(has_error(missing, ConfigurationErrorCode::file_error));
+    assert(has_failure(missing));
     assert(has_message_fragment(missing, filename.string()));
 
     {
@@ -2873,7 +2863,7 @@ void test_file_loading_and_file_failure()
 
     const auto missing_cqmom = qmomkit::config::load_cqmom_lean(filename);
     assert(!missing_cqmom.ok());
-    assert(has_error(missing_cqmom, ConfigurationErrorCode::file_error));
+    assert(has_failure(missing_cqmom));
     assert(has_message_fragment(missing_cqmom, filename.string()));
 
     {
@@ -2890,7 +2880,7 @@ void test_file_loading_and_file_failure()
 
     const auto missing_output = qmomkit::config::load_output_options(filename);
     assert(!missing_output.ok());
-    assert(has_error(missing_output, ConfigurationErrorCode::file_error));
+    assert(has_failure(missing_output));
 
     {
         std::ofstream output(filename);
@@ -2913,11 +2903,11 @@ void test_file_loading_and_file_failure()
 
     const auto missing_node_advection = qmomkit::config::load_node_advection_scheme(filename);
     assert(!missing_node_advection.ok());
-    assert(has_error(missing_node_advection, ConfigurationErrorCode::file_error));
+    assert(has_failure(missing_node_advection));
 
     const auto missing_transport_options = qmomkit::config::load_cqmom_transport_options(filename);
     assert(!missing_transport_options.ok());
-    assert(has_error(missing_transport_options, ConfigurationErrorCode::file_error));
+    assert(has_failure(missing_transport_options));
 
     {
         std::ofstream output(filename);
@@ -2931,7 +2921,7 @@ void test_file_loading_and_file_failure()
 
     const auto missing_policy = qmomkit::config::load_realizability_policy(filename);
     assert(!missing_policy.ok());
-    assert(has_error(missing_policy, ConfigurationErrorCode::file_error));
+    assert(has_failure(missing_policy));
 
     {
         std::ofstream output(filename);
@@ -2943,7 +2933,7 @@ check_mode = final_only
     }
     const auto invalid_qmom_runtime = qmomkit::config::load_qmom(filename);
     assert(!invalid_qmom_runtime.ok());
-    assert(has_error(invalid_qmom_runtime, ConfigurationErrorCode::missing_entry));
+    assert(has_failure(invalid_qmom_runtime));
     std::filesystem::remove(filename);
 
     {
@@ -2952,7 +2942,7 @@ check_mode = final_only
     }
     const auto invalid_cqmom_runtime = qmomkit::config::load_cqmom(filename);
     assert(!invalid_cqmom_runtime.ok());
-    assert(has_error(invalid_cqmom_runtime, ConfigurationErrorCode::unknown_entry));
+    assert(has_failure(invalid_cqmom_runtime));
     std::filesystem::remove(filename);
 }
 

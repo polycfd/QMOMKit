@@ -458,6 +458,32 @@ bool cqmom_diagnostics_are_successful(const qmomkit::TransportDiagnostics& diagn
            diagnostics.final_reconstruction_diagnostics.success;
 }
 
+bool cqmom_split_diagnostics_are_successful(const qmomkit::TransportDiagnostics& diagnostics, const qmomkit::TransportScheme scheme)
+{
+    bool continuous_success = false;
+    bool reconstruction_success = false;
+    switch (scheme)
+    {
+    case qmomkit::TransportScheme::strang:
+        continuous_success = diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::success &&
+                             diagnostics.second_continuous_status == qmomkit::NodeAdvectionStatus::success;
+        reconstruction_success = diagnostics.first_reconstruction_diagnostics.success && diagnostics.final_reconstruction_diagnostics.success;
+        break;
+    case qmomkit::TransportScheme::cd:
+        continuous_success = diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::success;
+        reconstruction_success = diagnostics.first_reconstruction_diagnostics.success;
+        break;
+    case qmomkit::TransportScheme::dc:
+        continuous_success = diagnostics.second_continuous_status == qmomkit::NodeAdvectionStatus::success;
+        reconstruction_success = diagnostics.final_reconstruction_diagnostics.success;
+        break;
+    }
+    return diagnostics.failed_stage == qmomkit::TransportStage::none && diagnostics.initial_cqmom_status == qmomkit::CqmomStatus::success &&
+           diagnostics.post_source_cqmom_status == qmomkit::CqmomStatus::success && continuous_success &&
+           diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::success && diagnostics.source_diagnostics.accepted &&
+           !diagnostics.source_diagnostics.rejected && diagnostics.source_retries == 0 && reconstruction_success;
+}
+
 bool cqmom_diagnostics_request_solver(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics, const std::size_t dimensions,
                                       const qmomkit::VandermondeSolver solver)
 {
@@ -1467,9 +1493,32 @@ std::vector<double> cqmom_continuous_exact_values(const qmomkit::RawMomentTensor
     return exact;
 }
 
+std::vector<double> cqmom_noncommuting_exact_values(const qmomkit::CqmomQuadrature& initial, const std::vector<std::size_t>& extents,
+                                                    const double elapsed)
+{
+    const double scale = std::exp(elapsed);
+    std::vector<double> exact(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat = 0; flat < exact.size(); ++flat)
+    {
+        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, extents);
+        for (std::size_t node = 0; node < initial.total_nodes(); ++node)
+        {
+            const double x = scale * initial.abscissas()[0][node];
+            const double y = initial.abscissas()[1][node] + (scale - 1.0) * initial.abscissas()[0][node];
+            exact[flat] += initial.weights()[node] * integer_power(x, index[0]) * integer_power(y, index[1]);
+        }
+    }
+    return exact;
+}
+
 std::vector<double> cqmom_velocity(double, const std::vector<double>& xi)
 {
     return {cqmom_a * xi[0], cqmom_c * xi[1]};
+}
+
+std::vector<double> cqmom_noncommuting_velocity(double, const std::vector<double>& xi)
+{
+    return {xi[0], 0.0};
 }
 
 qmomkit::CqmomMomentRate cqmom_source_for_context(double, const qmomkit::CqmomSourceContext& moments)
@@ -1487,6 +1536,85 @@ qmomkit::CqmomMomentRate cqmom_source_for_context(double, const qmomkit::CqmomSo
 qmomkit::CqmomMomentRate cqmom_state_zero_source(double, const qmomkit::CqmomSourceContext& moments)
 {
     return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)};
+}
+
+qmomkit::CqmomMomentSource make_cqmom_noncommuting_source(const double time_step)
+{
+    std::optional<std::vector<double>> base;
+    std::optional<std::vector<double>> first_stage_rate;
+    std::optional<std::vector<double>> second_stage_rate;
+    std::size_t rhs_call = 0;
+
+    return [time_step, base = std::move(base), first_stage_rate = std::move(first_stage_rate), second_stage_rate = std::move(second_stage_rate),
+            rhs_call = std::move(rhs_call)](double, const qmomkit::CqmomSourceContext& context) mutable
+    {
+        const std::vector<std::size_t> extents{5, 4};
+        const auto full_rates_from_full = [&extents](const std::vector<double>& full)
+        {
+            std::vector<double> rates(full.size(), 0.0);
+            for (std::size_t flat = 0; flat < full.size(); ++flat)
+            {
+                const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, extents);
+                if (index[1] == 0 || index[0] + 1 >= extents[0])
+                {
+                    continue;
+                }
+                const qmomkit::MultiIndex lower_index{index[0] + 1, index[1] - 1};
+                rates[flat] = static_cast<double>(index[1]) * full[qmomkit::flatten_multi_index(lower_index, extents)];
+            }
+            return rates;
+        };
+        const auto required_rates_from_full = [&context, &extents](const std::vector<double>& full_rates)
+        {
+            std::vector<double> rates(context.size(), 0.0);
+            for (std::size_t entry = 0; entry < context.size(); ++entry)
+            {
+                rates[entry] = full_rates[qmomkit::flatten_multi_index(context.index(entry), extents)];
+            }
+            return rates;
+        };
+
+        if (rhs_call == 0)
+        {
+            const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(context.hierarchy());
+            const qmomkit::CqmomLeanCase current_case{qmomkit::CqmomMomentData{layout, context.values()},
+                                                      {},
+                                                      {},
+                                                      false,
+                                                      qmomkit::CqmomDiagnosticLevel::none,
+                                                      qmomkit::VandermondeSolver::automatic};
+            const qmomkit::CqmomResult current = qmomkit::compute_cqmom(current_case);
+            if (!current.ok())
+            {
+                throw std::runtime_error("Manufactured CQMOM source could not reconstruct its current required moments.");
+            }
+            base = qmomkit::reconstruct_raw_moments(current.quadrature, extents).values;
+            first_stage_rate = full_rates_from_full(*base);
+            ++rhs_call;
+            return qmomkit::CqmomMomentRate{required_rates_from_full(*first_stage_rate)};
+        }
+
+        if (rhs_call == 1)
+        {
+            std::vector<double> stage_one = *base;
+            for (std::size_t entry = 0; entry < stage_one.size(); ++entry)
+            {
+                stage_one[entry] += time_step * (*first_stage_rate)[entry];
+            }
+            second_stage_rate = full_rates_from_full(stage_one);
+            ++rhs_call;
+            return qmomkit::CqmomMomentRate{required_rates_from_full(*second_stage_rate)};
+        }
+
+        std::vector<double> stage_two = *base;
+        for (std::size_t entry = 0; entry < stage_two.size(); ++entry)
+        {
+            const double stage_one = (*base)[entry] + time_step * (*first_stage_rate)[entry];
+            stage_two[entry] = 0.75 * (*base)[entry] + 0.25 * (stage_one + time_step * (*second_stage_rate)[entry]);
+        }
+        ++rhs_call;
+        return qmomkit::CqmomMomentRate{required_rates_from_full(full_rates_from_full(stage_two))};
+    };
 }
 
 std::vector<qmomkit::MultiIndex> cqmom_native_source_context_indices()
@@ -1843,6 +1971,136 @@ VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configura
         append_failure(verification, "CQMOM commuting transport exceeded the analytical tolerance.");
     }
     verification.runs.push_back(summary);
+    return verification;
+}
+
+VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configuration_path)
+{
+    // Public full CQMOM transport verification for the noncommuting operators
+    // C: dx/dt = x, dy/dt = 0 and D: dM_(i,j)/dt = j M_(i+1,j-1).
+    // The manufactured discrete quadrature therefore has
+    // x(t) = exp(t) x(0) and y(t) = y(0) + (exp(t) - 1) x(0).
+    VerificationResult verification;
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    if (!configured.ok())
+    {
+        print_configuration_errors(configured);
+        append_failure(verification, "unable to load noncommuting CQMOM configuration.");
+        return verification;
+    }
+
+    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    const qmomkit::CqmomResult initial_result = qmomkit::compute_cqmom(cqmom_case);
+    if (!initial_result.ok())
+    {
+        append_failure(verification, "noncommuting CQMOM initial reconstruction failed: " + initial_result.message);
+        return verification;
+    }
+
+    const std::vector<std::size_t> extents = cqmom_case.hierarchy().moment_extents();
+    const double final_time = 1.2;
+    const std::vector<double> refinement_steps{0.3, 0.15, 0.075, 0.0375, 0.01875};
+    const std::vector<qmomkit::TransportScheme> schemes{qmomkit::TransportScheme::strang, qmomkit::TransportScheme::cd, qmomkit::TransportScheme::dc};
+    std::optional<std::vector<double>> cd_coarse;
+    std::optional<std::vector<double>> dc_coarse;
+
+    for (const qmomkit::TransportScheme scheme : schemes)
+    {
+        qmomkit::CqmomTransportOptions options = cqmom_state_options();
+        options.scheme = scheme;
+        const std::size_t first_run_index = verification.runs.size();
+        double previous_error = 0.0;
+        for (const double dt : refinement_steps)
+        {
+            const std::size_t steps = static_cast<std::size_t>(std::lround(final_time / dt));
+            qmomkit::CqmomState state = cqmom_case.initial_state();
+            double time = 0.0;
+            std::optional<qmomkit::CqmomTransportResult> result;
+            bool run_success = true;
+            bool diagnostics_successful = true;
+            for (std::size_t step = 0; step < steps; ++step)
+            {
+                result = qmomkit::advance_transport_cqmom(state, time, dt, cqmom_noncommuting_velocity, make_cqmom_noncommuting_source(dt), options);
+                if (!result->ok())
+                {
+                    append_failure(verification, "noncommuting CQMOM transport failed: " + result->message);
+                    run_success = false;
+                    break;
+                }
+                diagnostics_successful = diagnostics_successful && cqmom_split_diagnostics_are_successful(result->diagnostics, scheme);
+                state = result->state;
+                time = result->final_time;
+            }
+
+            RunSummary summary;
+            summary.scheme = scheme;
+            summary.dt = dt;
+            summary.steps = steps;
+            summary.final_time = time;
+            summary.output_row = true;
+            if (!run_success || !result.has_value())
+            {
+                summary.success = false;
+                summary.error_norm = std::numeric_limits<double>::infinity();
+                verification.runs.push_back(summary);
+                continue;
+            }
+
+            const std::vector<double> exact = cqmom_noncommuting_exact_values(initial_result.quadrature, extents, final_time);
+            const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
+            const qmomkit::CqmomMomentData exact_required = qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{extents, exact}, layout);
+            update_errors(summary.errors, state.moment_values(), exact_required.values);
+            bool quadrature_successful = false;
+            if (result->quadrature.has_value())
+            {
+                quadrature_successful = true;
+                const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result->quadrature, extents);
+                update_errors(summary.errors, reconstructed.values, exact);
+                update_reconstruction_errors(summary.errors, reconstructed.values, exact);
+                summary.error_norm =
+                    std::max(scaled_infinity_error(state.moment_values(), exact_required.values), scaled_infinity_error(reconstructed.values, exact));
+                if (scheme == qmomkit::TransportScheme::cd && dt == refinement_steps.front())
+                {
+                    cd_coarse = reconstructed.values;
+                }
+                if (scheme == qmomkit::TransportScheme::dc && dt == refinement_steps.front())
+                {
+                    dc_coarse = reconstructed.values;
+                }
+            }
+            else
+            {
+                summary.success = false;
+                append_failure(verification, "noncommuting CQMOM transport did not retain its final quadrature.");
+            }
+            summary.retry_count = result->diagnostics.source_retries;
+            summary.success = run_success && diagnostics_successful && result->ok() && quadrature_successful;
+            if (previous_error > 0.0 && summary.error_norm > 0.0)
+            {
+                summary.observed_order = std::log(previous_error / summary.error_norm) / std::log(2.0);
+            }
+            previous_error = summary.error_norm;
+            verification.runs.push_back(summary);
+        }
+
+        if (verification.runs.size() >= first_run_index + refinement_steps.size())
+        {
+            const double penultimate_order = verification.runs[first_run_index + refinement_steps.size() - 2].observed_order;
+            const double finest_order = verification.runs[first_run_index + refinement_steps.size() - 1].observed_order;
+            const double expected_order = scheme == qmomkit::TransportScheme::strang ? 2.0 : 1.0;
+            const double order_tolerance = scheme == qmomkit::TransportScheme::strang ? 0.2 : 0.2;
+            if (penultimate_order < expected_order - order_tolerance || finest_order < expected_order - order_tolerance)
+            {
+                append_failure(verification, "noncommuting CQMOM " + std::string(transport_scheme_name(scheme)) +
+                                                 " refinement did not show the expected splitting order.");
+            }
+        }
+    }
+
+    if (!cd_coarse.has_value() || !dc_coarse.has_value() || scaled_infinity_error(*cd_coarse, *dc_coarse) < 1.0e-5)
+    {
+        append_failure(verification, "noncommuting CQMOM CD and DC schemes did not differ at finite timestep.");
+    }
     return verification;
 }
 
@@ -3572,6 +3830,10 @@ int main(int argc, char** argv)
     else if (case_name == "noncommuting_qmom")
     {
         result = run_noncommuting_qmom(configuration_path);
+    }
+    else if (case_name == "noncommuting_cqmom")
+    {
+        result = run_noncommuting_cqmom(configuration_path);
     }
     else if (case_name == "commuting_cqmom_2d")
     {

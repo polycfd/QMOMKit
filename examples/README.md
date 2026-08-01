@@ -38,6 +38,7 @@ not mandatory for every transport workflow.
 - `qmom_1d_continuous_breakage_mc_initialization/`: 1D example with continuous and discontinuous physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.
 - `qmom_1d_continuous_breakage_mc_local_rates/`: 1D example with the same Monte Carlo initialization and physics as the previous example, but with application-managed moment-space SSP-RK3 integration through the public local moment-rate APIs.
 - `cqmom_2d_continuous_breakage_mc_initialization/`: 2D example with continuous and discontinuous physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.
+- `cqmom_condensing_droplets/`: 3D CQMOM continuous phase-space transport example for a condensing droplet population, with matched Monte Carlo initialization and a companion direct Monte Carlo evolution executable. Builds `cqmom_condensing_droplets_example` and `cqmom_condensing_droplets_mc_example`.
 
 ## Package Dependencies
 

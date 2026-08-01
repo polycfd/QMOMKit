@@ -33,6 +33,7 @@ Reference workflows
   realizability_check
   qmom_1d_continuous_breakage_mc_initialization
   cqmom_2d_continuous_breakage_mc_initialization
+  cqmom_condensing_droplets
   cqmom_non-spherical-particles
 ```
 
@@ -251,6 +252,47 @@ conventions, and a direct sampled-ensemble reference path.
 
 Example README:
 [`examples/cqmom_2d_continuous_breakage_mc_initialization/README.md`](../../examples/cqmom_2d_continuous_breakage_mc_initialization/README.md)
+
+### `cqmom_condensing_droplets`
+
+Purpose: initialize and evolve a three-dimensional CQMOM representation of a
+condensing droplet population with a companion direct Monte Carlo evolution
+executable.
+
+Directory: `examples/cqmom_condensing_droplets`
+
+Phase space: `(r,w,T)`, where `r` is radius, `w` is vertical velocity, and `T`
+is droplet temperature.
+
+Executables:
+
+- `cqmom_condensing_droplets_example`
+- `cqmom_condensing_droplets_mc_example`
+
+Use this example when you want a 3D sampled-initialization workflow where
+CQMOM and Monte Carlo start from the same finite sample realization and evolve
+under the same continuous-only droplet phase-space callback. Both paths use
+RK23; the CQMOM driver calls `advance_cqmom_continuous(...)`, and the Monte
+Carlo driver calls `qmomkit::monte_carlo::evolve_ensemble(...)`.
+
+Build and run it with the normal standalone example pattern:
+
+```bash
+cd examples/cqmom_condensing_droplets
+cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
+cmake --build build
+cd build
+./cqmom_condensing_droplets_example
+./cqmom_condensing_droplets_mc_example
+```
+
+The default run writes `output/initial_moments.txt`,
+`output/moment_history.txt`, `output/quadrature_history.txt`, and
+`output/moment_history_mc.txt`. The CQMOM and Monte Carlo moment histories use
+the same case-defined moment columns, labels, ordering, and output times.
+
+Example README:
+[`examples/cqmom_condensing_droplets/README.md`](../../examples/cqmom_condensing_droplets/README.md)
 
 For broader Monte Carlo guidance, see `monte_carlo.md`.
 

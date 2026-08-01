@@ -66,6 +66,7 @@ int main()
         qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
         const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
+        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(configured_cqmom.value().hierarchy());
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_polydisperse_cavitation::continuous_velocity();
         const qmomkit::AdaptiveRk23Options continuous_options;
 
@@ -115,8 +116,9 @@ int main()
             final_moments = cqmom_polydisperse_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents);
         }
         cqmom_polydisperse_cavitation::print_monte_carlo_result_summary(
-            initial_moments, final_moments, output_options.directory, ensemble.size(), cqmom_polydisperse_cavitation::initialization_sample_count,
-            cqmom_polydisperse_cavitation::initialization_seed, time_step, final_time, output_options.write_moments);
+            initial_moments, final_moments, moment_output_layout.required_indices, output_options.directory, ensemble.size(),
+            cqmom_polydisperse_cavitation::initialization_sample_count, cqmom_polydisperse_cavitation::initialization_seed, time_step, final_time,
+            output_options.write_moments);
     }
     catch (const std::exception& error)
     {

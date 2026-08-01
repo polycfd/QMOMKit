@@ -21,7 +21,8 @@ void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moment
                           unsigned long long initialization_seed, double time_step, double final_time, bool wrote_moments, bool wrote_quadrature);
 
 void print_monte_carlo_result_summary(const qmomkit::RawMomentTensor& initial_moments, const qmomkit::RawMomentTensor& final_moments,
-                                      const std::filesystem::path& output_directory, std::size_t final_particle_count, std::size_t sample_count,
-                                      unsigned long long initialization_seed, double time_step, double final_time, bool wrote_moments);
+                                      const std::vector<qmomkit::MultiIndex>& moment_order, const std::filesystem::path& output_directory,
+                                      std::size_t final_particle_count, std::size_t sample_count, unsigned long long initialization_seed,
+                                      double time_step, double final_time, bool wrote_moments);
 
 } // namespace cqmom_polydisperse_cavitation

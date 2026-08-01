@@ -61,17 +61,18 @@ void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentR
     }
 }
 
-void print_moment_tensor(const qmomkit::RawMomentTensor& moments)
+void print_moment_tensor(const qmomkit::RawMomentTensor& moments, const std::vector<qmomkit::MultiIndex>& moment_order)
 {
-    const std::size_t printed_count = std::min(max_console_moments, moments.values.size());
-    for (std::size_t flat_index = 0; flat_index < printed_count; ++flat_index)
+    const std::size_t printed_count = std::min(max_console_moments, moment_order.size());
+    for (std::size_t index = 0; index < printed_count; ++index)
     {
-        const qmomkit::MultiIndex order = qmomkit::unflatten_multi_index(flat_index, moments.extents);
+        const qmomkit::MultiIndex& order = moment_order[index];
+        const std::size_t flat_index = qmomkit::flatten_multi_index(order, moments.extents);
         std::cout << "M[" << order[0] << ',' << order[1] << "] = " << moments.values[flat_index] << '\n';
     }
-    if (moments.values.size() > printed_count)
+    if (moment_order.size() > printed_count)
     {
-        std::cout << "... " << (moments.values.size() - printed_count) << " more moments omitted from the console summary\n";
+        std::cout << "... " << (moment_order.size() - printed_count) << " more moments omitted from the console summary\n";
     }
 }
 
@@ -152,9 +153,10 @@ void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moment
 }
 
 void print_monte_carlo_result_summary(const qmomkit::RawMomentTensor& initial_moments, const qmomkit::RawMomentTensor& final_moments,
-                                      const std::filesystem::path& output_directory, const std::size_t final_particle_count,
-                                      const std::size_t sample_count, const unsigned long long initialization_seed, const double time_step,
-                                      const double final_time, const bool wrote_moments)
+                                      const std::vector<qmomkit::MultiIndex>& moment_order, const std::filesystem::path& output_directory,
+                                      const std::size_t final_particle_count, const std::size_t sample_count,
+                                      const unsigned long long initialization_seed, const double time_step, const double final_time,
+                                      const bool wrote_moments)
 {
     std::cout << std::setprecision(12);
     std::cout << "2D direct Monte Carlo polydisperse cavitation example\n";
@@ -162,10 +164,10 @@ void print_monte_carlo_result_summary(const qmomkit::RawMomentTensor& initial_mo
     print_run_metadata(sample_count, initialization_seed, time_step, final_time);
 
     std::cout << "\nInitial moments:\n";
-    print_moment_tensor(initial_moments);
+    print_moment_tensor(initial_moments, moment_order);
 
     std::cout << "\nFinal moments:\n";
-    print_moment_tensor(final_moments);
+    print_moment_tensor(final_moments, moment_order);
 
     std::cout << "\nFinal ensemble:\n";
     std::cout << "final_sample_count = " << final_particle_count << '\n';

@@ -31,7 +31,7 @@ callbacks call:
 
 ```cpp
 qmomkit::evaluate_qmom_continuous_moment_rates(...)
-qmomkit::evaluate_qmom_discontinuous_moment_rates(...)
+qmomkit::evaluate_qmom_discontinuous_moment_rates(..., source, boundary)
 ```
 
 inside application-managed SSP-RK3 steps. These functions return
@@ -66,7 +66,8 @@ instantaneous raw-moment rates. For the discontinuous source step,
 `evaluate_qmom_discontinuous_moment_rates(...)` calls the source model, which
 already returns raw-moment rates; that rate evaluation does not require a
 quadrature inversion. The source-stage rate is combined with a lower-boundary
-nucleation contribution.
+nucleation contribution by the four-argument QMOM discontinuous rate evaluator,
+which returns the complete instantaneous rate to the application.
 
 The moment convention uses raw, unnormalized number-density moments:
 

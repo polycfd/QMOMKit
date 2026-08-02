@@ -330,6 +330,42 @@ void test_boundary_contribution_adds_to_moment_source()
     assert_vector_near(result.moments, {1.375, 2.125, -0.76497395833333337}, 1.0e-15);
 }
 
+void test_qmom_boundary_rate_evaluator_matches_source_update()
+{
+    const std::vector<double> initial{1.0, 0.8, 2.8};
+    constexpr double initial_time = 0.15;
+    constexpr double time_step = 0.2;
+
+    const qmomkit::MomentSource source = [](const double time, const std::vector<double>& moments)
+    { return std::vector<double>{0.2 + 0.1 * time + 0.05 * moments[0], -0.3 + 0.2 * moments[1], 0.4 * time - 0.1 * moments[2]}; };
+    const qmomkit::MomentBoundaryContribution boundary = [](const double time, const std::vector<double>& moments)
+    { return qmomkit::MomentBoundaryRate{std::vector<double>{0.1 * time, 0.05 + 0.02 * moments[0], -0.15 * moments[1]}}; };
+
+    qmomkit::MomentSourceUpdateOptions options;
+    options.ssp_rk3_options.estimate_error = true;
+
+    const qmomkit::OdeRhs rate_adapter = [&source, &boundary](const double time, const std::vector<double>& moments)
+    {
+        const qmomkit::QmomDiscontinuousMomentRateResult result = qmomkit::evaluate_qmom_discontinuous_moment_rates(time, moments, source, boundary);
+        if (!result.ok())
+        {
+            throw std::runtime_error(result.message);
+        }
+        return result.rates;
+    };
+
+    const qmomkit::SspRk3Result direct_result = qmomkit::ssp_rk3_step(initial, initial_time, time_step, rate_adapter, options.ssp_rk3_options);
+    const qmomkit::MomentSourceUpdateResult source_update =
+        qmomkit::advance_moments_with_source(initial, initial_time, time_step, source, boundary, options);
+
+    assert(direct_result.ok());
+    assert(source_update.ok());
+    assert(direct_result.error_estimate.has_value());
+    assert(source_update.diagnostics.error_estimate.has_value());
+    assert_near(*direct_result.error_estimate, *source_update.diagnostics.error_estimate, 1.0e-15);
+    assert_vector_near(direct_result.state, source_update.moments, 1.0e-15);
+}
+
 void test_boundary_contribution_wrong_size_fails_with_boundary_message()
 {
     const std::vector<double> initial{1.0, 2.0};
@@ -448,6 +484,7 @@ int main()
     test_cqmom_moment_data_non_finite_source_fails();
     test_cqmom_moment_data_rk_failure_propagates_and_preserves_state();
     test_boundary_contribution_adds_to_moment_source();
+    test_qmom_boundary_rate_evaluator_matches_source_update();
     test_boundary_contribution_wrong_size_fails_with_boundary_message();
     test_boundary_contribution_non_finite_fails_with_boundary_message();
     test_boundary_contribution_callback_exception_fails_with_boundary_message();

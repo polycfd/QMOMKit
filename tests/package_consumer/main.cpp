@@ -50,5 +50,14 @@ int main()
         return 1;
     }
 
+    const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>& state)
+    { return qmomkit::MomentBoundaryRate{std::vector<double>(state.size(), 0.0)}; };
+    const qmomkit::QmomDiscontinuousMomentRateResult discontinuous_rates_with_boundary =
+        qmomkit::evaluate_qmom_discontinuous_moment_rates(0.0, moments.values(), source, boundary);
+    if (!discontinuous_rates_with_boundary.ok() || discontinuous_rates_with_boundary.rates.size() != moments.values().size())
+    {
+        return 1;
+    }
+
     return 0;
 }

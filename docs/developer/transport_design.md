@@ -196,6 +196,17 @@ are wrapped before they enter the existing source failure pathway so diagnostics
 identify the boundary contribution callback as the origin. Source callback
 exceptions keep the existing source failure behavior.
 
+The QMOM-only instantaneous rate API
+`evaluate_qmom_discontinuous_moment_rates(time, moments, source, boundary)`
+exposes the same source-plus-boundary composition without integrating a time
+step or reconstructing quadrature. It invokes the source callback once, then
+the boundary callback once, validates both returned rate vectors, adds them in
+moment order, and reports a non-finite combined rate as a failed evaluation.
+This API is intended for application-owned spatial operators or time
+integrators. It does not replace the existing source advancement path, which
+retains SSP-RK3 retries, acceptance predicates, diagnostics, and post-source
+reconstruction behavior.
+
 ## Time Integration
 
 QMOMKit exposes generic Runge-Kutta utilities, but transport uses them in

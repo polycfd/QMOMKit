@@ -6,7 +6,6 @@
 #include "utilities.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <exception>
 #include <filesystem>
@@ -143,7 +142,8 @@ int qmom_1d_continuous_breakage_mc_local_rates::run_local_rate_workflow()
     // The source callback already returns raw-moment rates, so this evaluation does not require a QMOM inversion.
     const qmomkit::OdeRhs source_rhs = [&](const double stage_time, const std::vector<double>& stage_moments)
     {
-        const qmomkit::QmomDiscontinuousMomentRateResult rates = qmomkit::evaluate_qmom_discontinuous_moment_rates(stage_time, stage_moments, source);
+        const qmomkit::QmomDiscontinuousMomentRateResult rates =
+            qmomkit::evaluate_qmom_discontinuous_moment_rates(stage_time, stage_moments, source, boundary);
         if (!rates.ok())
         {
             std::ostringstream message;
@@ -152,22 +152,7 @@ int qmom_1d_continuous_breakage_mc_local_rates::run_local_rate_workflow()
                     << ", message = " << rates.message;
             throw std::runtime_error(message.str());
         }
-        qmomkit::MomentBoundaryRate boundary_rate = boundary(stage_time, stage_moments);
-        if (boundary_rate.values.size() != rates.rates.size())
-        {
-            throw std::runtime_error("Boundary contribution returned the wrong number of moment rates.");
-        }
-
-        std::vector<double> combined_rates = rates.rates;
-        for (std::size_t index = 0; index < combined_rates.size(); ++index)
-        {
-            if (!std::isfinite(boundary_rate.values[index]))
-            {
-                throw std::runtime_error("Boundary contribution returned a non-finite moment rate.");
-            }
-            combined_rates[index] += boundary_rate.values[index];
-        }
-        return combined_rates;
+        return rates.rates;
     };
 
     qmom_1d_continuous_breakage_mc_local_rates::OutputFiles output_files;

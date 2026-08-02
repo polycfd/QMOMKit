@@ -242,6 +242,20 @@ qmomkit::MomentBoundaryContribution boundary =
     };
 ```
 
+For an application-owned spatial operator or time integrator, the
+four-argument QMOM evaluator combines both callbacks at one stage:
+
+```cpp
+const qmomkit::QmomDiscontinuousMomentRateResult rates =
+    qmomkit::evaluate_qmom_discontinuous_moment_rates(time, moments, source, boundary);
+```
+
+It evaluates `source(time, moments) + boundary(time, moments)` without
+advancing time or reconstructing a quadrature; the source callback runs before
+the boundary callback. Use `advance_moments_with_source(...)` when QMOMKit
+should perform SSP-RK3 source integration, or the transport helpers when it
+should also own the configured operator-splitting sequence.
+
 For CQMOM, use `CqmomMomentBoundaryContribution`. It receives the same
 `CqmomSourceContext` as `CqmomMomentSource` and returns one additive rate per
 context entry:

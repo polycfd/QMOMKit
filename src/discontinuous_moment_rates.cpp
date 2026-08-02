@@ -59,6 +59,19 @@ namespace
     return "";
 }
 
+[[nodiscard]] std::string qmom_boundary_invalid_rate_message(const MomentBoundaryRate& rate, const std::size_t expected_size)
+{
+    if (rate.values.size() != expected_size)
+    {
+        return "Moment-boundary contribution rate values must match the moment state size.";
+    }
+    if (!all_finite(rate.values))
+    {
+        return "Moment-boundary contribution rate values must be finite.";
+    }
+    return "";
+}
+
 void validate_cqmom_stage_state(const CqmomMomentData& moments)
 {
     validate_cqmom_moment_values_match_layout(
@@ -99,6 +112,49 @@ QmomDiscontinuousMomentRateResult evaluate_qmom_discontinuous_moment_rates(const
         return qmom_invalid_rate(invalid_message);
     }
     return QmomDiscontinuousMomentRateResult{std::move(rate), DiscontinuousMomentRateStatus::success, ""};
+}
+
+QmomDiscontinuousMomentRateResult evaluate_qmom_discontinuous_moment_rates(const double time, const std::vector<double>& moments,
+                                                                           const MomentSource& source, const MomentBoundaryContribution& boundary)
+{
+    // Preserve the source-only evaluator's validation precedence while
+    // rejecting a missing boundary before either callback is invoked.
+    if (!moments.empty() && std::isfinite(time) && source && !boundary)
+    {
+        return qmom_invalid_input("Moment-boundary contribution callback must be provided.");
+    }
+
+    QmomDiscontinuousMomentRateResult source_result = evaluate_qmom_discontinuous_moment_rates(time, moments, source);
+    if (!source_result.ok())
+    {
+        return source_result;
+    }
+
+    MomentBoundaryRate boundary_rate;
+    try
+    {
+        boundary_rate = boundary(time, moments);
+    }
+    catch (const std::exception& error)
+    {
+        return qmom_source_failed(std::string("Moment-boundary contribution callback failed: ") + error.what());
+    }
+
+    const std::string invalid_message = qmom_boundary_invalid_rate_message(boundary_rate, moments.size());
+    if (!invalid_message.empty())
+    {
+        return qmom_invalid_rate(invalid_message);
+    }
+
+    for (std::size_t i = 0; i < source_result.rates.size(); ++i)
+    {
+        source_result.rates[i] += boundary_rate.values[i];
+    }
+    if (!all_finite(source_result.rates))
+    {
+        return qmom_invalid_rate("Combined discontinuous moment rate values must be finite.");
+    }
+    return source_result;
 }
 
 CqmomDiscontinuousMomentRateResult evaluate_cqmom_discontinuous_moment_rates(const double time, const CqmomMomentData& moments,
@@ -174,6 +230,13 @@ QmomDiscontinuousMomentRateResult evaluate_qmom_discontinuous_moment_rates(const
                                                                            const MomentSource& source)
 {
     internal::QmomDiscontinuousMomentRateResult result = internal::evaluate_qmom_discontinuous_moment_rates(time, moments, source);
+    return QmomDiscontinuousMomentRateResult{std::move(result.rates), to_public_status(result.status), std::move(result.message)};
+}
+
+QmomDiscontinuousMomentRateResult evaluate_qmom_discontinuous_moment_rates(const double time, const std::vector<double>& moments,
+                                                                           const MomentSource& source, const MomentBoundaryContribution& boundary)
+{
+    internal::QmomDiscontinuousMomentRateResult result = internal::evaluate_qmom_discontinuous_moment_rates(time, moments, source, boundary);
     return QmomDiscontinuousMomentRateResult{std::move(result.rates), to_public_status(result.status), std::move(result.message)};
 }
 

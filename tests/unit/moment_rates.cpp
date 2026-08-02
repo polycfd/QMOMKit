@@ -243,6 +243,189 @@ void test_public_qmom_discontinuous_rates_and_status_mapping()
     assert(source_failed.message.find("source failed") != std::string::npos);
 }
 
+void test_public_qmom_discontinuous_rates_with_boundary()
+{
+    const std::vector<double> moments{1.0, 2.0, 3.0};
+    const std::vector<double> original = moments;
+    std::size_t source_calls = 0;
+    std::size_t boundary_calls = 0;
+    int callback_order = 0;
+
+    const qmomkit::QmomDiscontinuousMomentRateResult result = qmomkit::evaluate_qmom_discontinuous_moment_rates(
+        0.25, moments,
+        [&moments, &source_calls, &callback_order](const double time, const std::vector<double>& state)
+        {
+            ++source_calls;
+            assert(callback_order == 0);
+            callback_order = 1;
+            assert_near(time, 0.25, 0.0);
+            assert(&state == &moments);
+            return std::vector<double>{1.0, 2.0, 3.0};
+        },
+        [&moments, &boundary_calls, &callback_order](const double time, const std::vector<double>& state)
+        {
+            ++boundary_calls;
+            assert(callback_order == 1);
+            callback_order = 2;
+            assert_near(time, 0.25, 0.0);
+            assert(&state == &moments);
+            return qmomkit::MomentBoundaryRate{std::vector<double>{0.5, -1.0, 2.0}};
+        });
+
+    assert(result.ok());
+    assert(result.status == qmomkit::DiscontinuousMomentRateStatus::success);
+    assert_vector_near(result.rates, {1.5, 1.0, 5.0}, 0.0);
+    assert(source_calls == 1);
+    assert(boundary_calls == 1);
+    assert(callback_order == 2);
+    assert(moments == original);
+}
+
+void test_public_qmom_discontinuous_rates_with_zero_boundary()
+{
+    const std::vector<double> moments{1.0, 2.0};
+    const qmomkit::QmomDiscontinuousMomentRateResult result = qmomkit::evaluate_qmom_discontinuous_moment_rates(
+        0.0, moments, [](double, const std::vector<double>&) { return std::vector<double>{3.0, -4.0}; },
+        [](double, const std::vector<double>& state) { return qmomkit::MomentBoundaryRate{std::vector<double>(state.size(), 0.0)}; });
+
+    assert(result.ok());
+    assert_vector_near(result.rates, {3.0, -4.0}, 0.0);
+}
+
+void test_public_qmom_discontinuous_rates_validate_inputs_before_callbacks()
+{
+    bool source_called = false;
+    bool boundary_called = false;
+    const qmomkit::MomentSource source = [&source_called](double, const std::vector<double>&)
+    {
+        source_called = true;
+        return std::vector<double>{0.0};
+    };
+    const qmomkit::MomentBoundaryContribution boundary = [&boundary_called](double, const std::vector<double>&)
+    {
+        boundary_called = true;
+        return qmomkit::MomentBoundaryRate{std::vector<double>{0.0}};
+    };
+
+    const qmomkit::QmomDiscontinuousMomentRateResult invalid_time =
+        qmomkit::evaluate_qmom_discontinuous_moment_rates(std::numeric_limits<double>::quiet_NaN(), {1.0}, source, boundary);
+    assert(!invalid_time.ok());
+    assert(invalid_time.status == qmomkit::DiscontinuousMomentRateStatus::invalid_input);
+    assert(invalid_time.message == "Moment-source rate evaluation time must be finite.");
+    assert(!source_called);
+    assert(!boundary_called);
+
+    const qmomkit::QmomDiscontinuousMomentRateResult invalid_moments = qmomkit::evaluate_qmom_discontinuous_moment_rates(0.0, {}, source, boundary);
+    assert(!invalid_moments.ok());
+    assert(invalid_moments.status == qmomkit::DiscontinuousMomentRateStatus::invalid_input);
+    assert(invalid_moments.message == "Moment-source rate evaluation requires at least one moment.");
+    assert(!source_called);
+    assert(!boundary_called);
+
+    const qmomkit::QmomDiscontinuousMomentRateResult missing_boundary = qmomkit::evaluate_qmom_discontinuous_moment_rates(0.0, {1.0}, source, {});
+    assert(!missing_boundary.ok());
+    assert(missing_boundary.status == qmomkit::DiscontinuousMomentRateStatus::invalid_input);
+    assert(missing_boundary.message == "Moment-boundary contribution callback must be provided.");
+    assert(!source_called);
+    assert(!boundary_called);
+}
+
+void test_public_qmom_discontinuous_rates_source_failure_prevents_boundary()
+{
+    bool boundary_called = false;
+    const qmomkit::QmomDiscontinuousMomentRateResult wrong_size = qmomkit::evaluate_qmom_discontinuous_moment_rates(
+        0.0, {1.0, 2.0}, [](double, const std::vector<double>&) { return std::vector<double>{0.0}; },
+        [&boundary_called](double, const std::vector<double>& state)
+        {
+            boundary_called = true;
+            return qmomkit::MomentBoundaryRate{std::vector<double>(state.size(), 0.0)};
+        });
+    assert(!wrong_size.ok());
+    assert(wrong_size.status == qmomkit::DiscontinuousMomentRateStatus::invalid_rate);
+    assert(wrong_size.message == "Moment-source callback rate values must match the moment state size.");
+    assert(wrong_size.rates.empty());
+    assert(!boundary_called);
+
+    const qmomkit::QmomDiscontinuousMomentRateResult non_finite = qmomkit::evaluate_qmom_discontinuous_moment_rates(
+        0.0, {1.0, 2.0},
+        [](double, const std::vector<double>& state)
+        {
+            std::vector<double> rate(state.size(), 0.0);
+            rate.front() = std::numeric_limits<double>::infinity();
+            return rate;
+        },
+        [&boundary_called](double, const std::vector<double>& state)
+        {
+            boundary_called = true;
+            return qmomkit::MomentBoundaryRate{std::vector<double>(state.size(), 0.0)};
+        });
+    assert(!non_finite.ok());
+    assert(non_finite.status == qmomkit::DiscontinuousMomentRateStatus::invalid_rate);
+    assert(non_finite.message == "Moment-source callback rate values must be finite.");
+    assert(non_finite.rates.empty());
+    assert(!boundary_called);
+
+    const qmomkit::QmomDiscontinuousMomentRateResult thrown = qmomkit::evaluate_qmom_discontinuous_moment_rates(
+        0.0, {1.0}, [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("source failed"); },
+        [&boundary_called](double, const std::vector<double>& state)
+        {
+            boundary_called = true;
+            return qmomkit::MomentBoundaryRate{std::vector<double>(state.size(), 0.0)};
+        });
+    assert(!thrown.ok());
+    assert(thrown.status == qmomkit::DiscontinuousMomentRateStatus::source_failed);
+    assert(thrown.message.find("source failed") != std::string::npos);
+    assert(thrown.rates.empty());
+    assert(!boundary_called);
+}
+
+void test_public_qmom_discontinuous_rates_boundary_failures()
+{
+    const std::vector<double> moments{1.0, 2.0};
+
+    const qmomkit::QmomDiscontinuousMomentRateResult wrong_size = qmomkit::evaluate_qmom_discontinuous_moment_rates(
+        0.0, moments, [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); },
+        [](double, const std::vector<double>& state) { return qmomkit::MomentBoundaryRate{std::vector<double>(state.size() + 1, 0.0)}; });
+    assert(!wrong_size.ok());
+    assert(wrong_size.status == qmomkit::DiscontinuousMomentRateStatus::invalid_rate);
+    assert(wrong_size.message == "Moment-boundary contribution rate values must match the moment state size.");
+    assert(wrong_size.rates.empty());
+
+    const qmomkit::QmomDiscontinuousMomentRateResult non_finite = qmomkit::evaluate_qmom_discontinuous_moment_rates(
+        0.0, moments, [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); },
+        [](double, const std::vector<double>& state)
+        {
+            std::vector<double> rate(state.size(), 0.0);
+            rate.front() = std::numeric_limits<double>::quiet_NaN();
+            return qmomkit::MomentBoundaryRate{rate};
+        });
+    assert(!non_finite.ok());
+    assert(non_finite.status == qmomkit::DiscontinuousMomentRateStatus::invalid_rate);
+    assert(non_finite.message == "Moment-boundary contribution rate values must be finite.");
+    assert(non_finite.rates.empty());
+
+    const qmomkit::QmomDiscontinuousMomentRateResult thrown = qmomkit::evaluate_qmom_discontinuous_moment_rates(
+        0.0, {1.0}, [](double, const std::vector<double>&) { return std::vector<double>{0.0}; },
+        [](double, const std::vector<double>&) -> qmomkit::MomentBoundaryRate { throw std::runtime_error("boundary failed"); });
+    assert(!thrown.ok());
+    assert(thrown.status == qmomkit::DiscontinuousMomentRateStatus::source_failed);
+    assert(thrown.message == "Moment-boundary contribution callback failed: boundary failed");
+    assert(thrown.rates.empty());
+}
+
+void test_public_qmom_discontinuous_rates_detect_combined_overflow()
+{
+    const double maximum = std::numeric_limits<double>::max();
+    const qmomkit::QmomDiscontinuousMomentRateResult result = qmomkit::evaluate_qmom_discontinuous_moment_rates(
+        0.0, {1.0}, [maximum](double, const std::vector<double>&) { return std::vector<double>{maximum}; },
+        [maximum](double, const std::vector<double>&) { return qmomkit::MomentBoundaryRate{std::vector<double>{maximum}}; });
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::DiscontinuousMomentRateStatus::invalid_rate);
+    assert(result.message == "Combined discontinuous moment rate values must be finite.");
+    assert(result.rates.empty());
+}
+
 void test_public_cqmom_discontinuous_rates_preserve_layout_and_status()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
@@ -317,6 +500,12 @@ int main()
     test_public_cqmom_continuous_rates_preserve_layout_and_status();
     test_public_cqmom_continuous_rates_preserve_adaptive_layout();
     test_public_qmom_discontinuous_rates_and_status_mapping();
+    test_public_qmom_discontinuous_rates_with_boundary();
+    test_public_qmom_discontinuous_rates_with_zero_boundary();
+    test_public_qmom_discontinuous_rates_validate_inputs_before_callbacks();
+    test_public_qmom_discontinuous_rates_source_failure_prevents_boundary();
+    test_public_qmom_discontinuous_rates_boundary_failures();
+    test_public_qmom_discontinuous_rates_detect_combined_overflow();
     test_public_cqmom_discontinuous_rates_preserve_layout_and_status();
     return 0;
 }

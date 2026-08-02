@@ -123,6 +123,19 @@ struct CqmomDiscontinuousMomentRateResult
                                                                                          const MomentSource& source);
 
 /**
+ * Evaluate dm/dt for one-dimensional raw moments from a source and an additive
+ * phase-space boundary contribution at one time. The source callback is
+ * invoked before the boundary callback; both receive the supplied time and
+ * moment vector. Returned rates preserve the input moment ordering. This
+ * operation performs no normalization, reconstruction, or time integration,
+ * and does not modify `moments`. Both callbacks must return one finite rate per
+ * input moment.
+ */
+[[nodiscard]] QmomDiscontinuousMomentRateResult evaluate_qmom_discontinuous_moment_rates(double time, const std::vector<double>& moments,
+                                                                                         const MomentSource& source,
+                                                                                         const MomentBoundaryContribution& boundary);
+
+/**
  * Evaluate dM/dt for fixed-layout CQMOM raw moments by invoking one source
  * callback at one time. Returned values preserve the input moment layout.
  */

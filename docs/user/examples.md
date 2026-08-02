@@ -32,6 +32,7 @@ Reference workflows
   qmom_mixture_initialization
   realizability_check
   cqmom_2d_adaptive_node_counts
+  cqmom_2d_borderline_conditioning
   qmom_1d_continuous_breakage_mc_initialization
   qmom_1d_continuous_breakage_mc_local_rates
   cqmom_2d_continuous_breakage_mc_initialization
@@ -225,6 +226,21 @@ branch counts, branch persistence, and controlled node-count recovery.
 
 Example README:
 [`examples/cqmom_2d_adaptive_node_counts/README.md`](../../examples/cqmom_2d_adaptive_node_counts/README.md)
+
+### `cqmom_2d_borderline_conditioning`
+
+Purpose: run a static two-dimensional CQMOM reconstruction sweep that varies
+parent-node separation, conditioning order, and explicit Vandermonde solver
+policy.
+
+Use this example when you want to see whether a failed reconstruction depends
+on the solver, how conditioning order changes the failed stage, and how
+fixed-count failures differ from successful lower-node reconstructions. It
+generates a human-readable Markdown summary and a complete flat diagnostic
+dataset.
+
+Example README:
+[`examples/cqmom_2d_borderline_conditioning/README.md`](../../examples/cqmom_2d_borderline_conditioning/README.md)
 
 ## Monte Carlo Reference
 

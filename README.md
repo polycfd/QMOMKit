@@ -2,49 +2,56 @@
 
 **QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number-density functions in arbitrary-dimensional phase spaces**
 
-QMOMKit reconstructs quadrature nodes and weights from raw moments, allowing applications to represent, evolve, and analyze number-density functions efficiently. It provides the numerical tools for moment transport and quadrature-based evaluation, while leaving the physical model, governing equations, and overall simulation workflow to the application. QMOMKit has **no** mandatory third-party numerical dependency.
+QMOMKit reconstructs quadrature nodes and weights from raw moments and provides phase-space evolution utilities for moment and quadrature states. It leaves moment transport in physical space, the physical model, governing equations, physical-space mesh and discretization, PDE solution, and overall simulation workflow to the host application. QMOMKit is independent of any particular CFD, FVM, FEM, or DG implementation. The **core QMOMKit package** has no mandatory third-party numerical dependency; optional tools may have their own dependencies.
+
+## Authors
+
+- [Fabian Denner](https://www.polymtl.ca/expertises/en/denner-fabian)
+- [Bruno Blais](https://www.polymtl.ca/expertises/en/blais-bruno)
+
+## License
+
+QMOMKit is released under the **Apache License 2.0**. See [LICENSE](LICENSE) for details.
 
 ## Capabilities
 
 QMOMKit provides tools to:
 
-- reconstruct one-dimensional quadratures using the **quadrature method of moments (QMOM)**;
-- reconstruct multidimensional quadratures using the **conditional QMOM (CQMOM)**;
-- evaluate derived generalized moments with finite real exponents from reconstructed QMOM or CQMOM quadrature;
-- use adaptive CQMOM branch counts when different branches need different active node counts;
-- initialize raw moments from supported distributions, mixtures, and independent products;
-- check realizability when moments must be consistent with a chosen support;
-- evolve moment-based representations through continuous node motion and source-like moment updates;
-- provide user-defined physics callbacks such as `PhaseSpaceVelocity`, `MomentSource`, `CqmomMomentSource`, `MomentBoundaryContribution`, and `CqmomMomentBoundaryContribution`;
-- write moment and quadrature histories with `MomentWriter` and `QuadratureWriter`;
-- generate sample-based initial conditions and stochastic reference histories with the optional Monte Carlo companion tools;
-- make quick plots of QMOMKit-native moment and quadrature histories;
-- use tests and verification cases that check the numerical methods against
-  known results.
+- reconstruct one-dimensional QMOM and multidimensional recursive CQMOM quadratures;
+- configure phase-space conditioning order, bounded support, and adaptive branch-specific CQMOM node counts;
+- initialize moments from explicit moment definitions, analytical distributions, or Monte carlo sampling;
+- evolve states through continuous phase-space node advection and discontinuous moment-source or boundary contributions;
+- use library-managed operator splitting or application-managed stage and local-rate workflows;
+- perform realizability checks and report transport diagnostics;
+- write native results output;
+- use the optional Monte Carlo companion for sampled initialization and to produce reference solutions.
 
 ## Repository Structure
 
 ```text
 QMOMKit/
-├── include/                  # Headers used by applications
-├── src/                      # QMOMKit library implementation
+├── include/qmomkit/                  # Installed public C++ API
+├── src/                              # Core implementation
+├── cmake/                            # CMake package templates
 ├── docs/
-│   ├── user/                 # User documentation
-│   └── developer/            # Developer documentation
-├── examples/                 # Example applications
-├── tests/                    # Tests and verification cases
+│   ├── user/                         # User-oriented documentation
+│   └── developer/                    # Developer-oriented documentation
+├── examples/                         # Standalone installed-package examples
+├── tests/                            # Unit, regression, verification, and consumer checks
 ├── tools/
-│   ├── monte_carlo/          # Monte Carlo companion package
-│   └── plotting/             # Lightweight plotting helper scripts
+│   ├── moment_rate_element_operator/ # Downstream local-rate prototype
+│   ├── monte_carlo/                  # Optional Monte Carlo companion
+│   └── plotting/                     # Optional plotting scripts
 ├── CMakeLists.txt
+├── LICENSE
 └── README.md
 ```
 
-The main CMake project builds and installs the QMOMKit library. Normal tests can be enabled in that same source-tree build so they exercise the current `qmomkit` target. Examples, benchmarks, companion tools, and the installed-package consumer are built separately and use the installed library, following the same workflow as external applications.
+The main CMake project builds and installs the core library. Core tests use the appropriate build-tree target; examples, optional tools, benchmarks, and package consumers are separate projects that use the installed package where designed to do so. Examples are not part of the test suite.
 
 ## Installation
 
-QMOMKit uses CMake, requires a C++17 compiler and has no third-party numerical dependency.
+QMOMKit requires CMake 3.16 or newer and a C++17 compiler. The core package has no mandatory third-party numerical dependency.
 
 From the repository root:
 
@@ -65,75 +72,48 @@ Point `CMAKE_PREFIX_PATH` at the QMOMKit install prefix when configuring your ap
 
 ## Examples and Tools
 
-The examples are small applications that show how to initialize moments, reconstruct QMOM and CQMOM quadratures, evolve moment-based representations, and write native output files. Start with the [examples guide](docs/user/examples.md).
+The standalone examples progress from basic QMOM and CQMOM reconstruction and initialization to transport and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, multidimensional physical-model demonstrations, and matched Monte Carlo comparisons. See the [examples repository index](examples/README.md) and the [user examples guide](docs/user/examples.md).
 
-QMOMKitMonteCarlo is an optional companion package under `tools/monte_carlo/`. It helps researchers draw finite sample ensembles, initialize QMOMKit from sample-derived moments, evolve sample ensembles, and generate stochastic reference results. See the [Monte Carlo guide](docs/user/monte_carlo.md) for more information.
-
-The plotting helpers under `tools/plotting/` provide quick visual checks for QMOMKit-native `MomentWriter` and `QuadratureWriter` text files.
+- `tools/monte_carlo/` provides sampled initialization, ensemble evolution, and finite-sample comparison workflows; see the [Monte Carlo guide](docs/user/monte_carlo.md).
+- `tools/plotting/` provides optional plotting helpers for QMOMKit-native histories; see the [plotting README](tools/plotting/README.md).
+- `tools/moment_rate_element_operator/` demonstrates downstream composition of local moment-rate evaluation; see its [README](tools/moment_rate_element_operator/README.md).
 
 ## Testing
 
-QMOMKit includes tests that check the library at several levels:
+The repository contains:
 
 - unit tests for local behavior and failure paths;
 - component regression tests for important interactions;
 - verification tests against analytical, manufactured, convergence, or reconstruction references;
-- public-header checks for current source-tree include behavior;
-- an installed-package smoke test that confirms another CMake project can find,
-  include, and link QMOMKit.
+- public-header checks and installed-package consumer checks;
+- separate performance benchmarks.
 
-Normal unit, regression, verification, and public-header tests link the current
-build-tree QMOMKit target. Installation is not required:
+Examples are not tests, and benchmarks measure performance rather than
+correctness. The installed-package consumer and optional tool tests have their
+own documented workflows.
+
+To enable the core test suite:
 
 ```bash
 cmake -S . -B build-tests \
-    -DQMOMKIT_BUILD_TESTS=ON \
-    -DCMAKE_BUILD_TYPE=Debug
+    -DQMOMKIT_BUILD_TESTS=ON
 cmake --build build-tests
 ctest --test-dir build-tests --output-on-failure
 ```
 
-The package consumer under `tests/package_consumer/` tests installation and
-downstream `find_package` behavior separately.
-
-Optional standalone benchmarks and internal performance-instrumentation builds
-support performance investigations without changing the core runtime API. See
-the [testing guide](docs/developer/testing.md), [benchmarks guide](docs/developer/benchmarks.md),
-and [tests README](tests/README.md) for details.
+See the [tests README](tests/README.md), [testing guide](docs/developer/testing.md),
+and [benchmarks guide](docs/developer/benchmarks.md) for details.
 
 ## Documentation
 
-User documentation:
-
-- [User guide](docs/user/README.md)
-- [Installation](docs/user/installation.md)
-- [Quick start](docs/user/quick_start.md)
-- [Examples](docs/user/examples.md)
-- [User glossary](docs/user/glossary.md)
-
-Developer documentation:
-
-- [Developer guide](docs/developer/README.md)
-- [Architecture](docs/developer/architecture.md)
-- [Testing](docs/developer/testing.md)
-- [Developer glossary](docs/developer/glossary.md)
-
-Tool documentation:
-
-- [Monte Carlo companion](docs/user/monte_carlo.md)
-- [Plotting helpers](tools/plotting/README.md)
+- **Getting started:** [installation](docs/user/installation.md), [quick start](docs/user/quick_start.md), and the [user guide](docs/user/README.md).
+- **Using QMOMKit:** [configuration](docs/user/configuration.md), [QMOM](docs/user/qmom.md), [CQMOM](docs/user/cqmom.md), [distributions](docs/user/distributions.md), [realizability](docs/user/realizability.md), and [transport](docs/user/transport.md).
+- **Examples:** [repository example index](examples/README.md) and [user example guide](docs/user/examples.md).
+- **Optional Monte Carlo tooling:** [Monte Carlo companion guide](docs/user/monte_carlo.md).
+- **Development:** [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), [testing](docs/developer/testing.md), and [benchmarks](docs/developer/benchmarks.md).
 
 ## Contributing
 
 Contributions to improve and extend QMOMKit are welcome. Before contributing, read the relevant documentation, preserve public interfaces and numerical conventions, add tests or verification cases at the right level, and update documentation when behavior changes.
 
 QMOMKit aims to remain a focused scientific computing library with clear interfaces, minimal dependencies, and carefully tested numerical behavior.
-
-## Authors
-
-- [Fabian Denner](https://www.polymtl.ca/expertises/en/denner-fabian)
-- [Bruno Blais](https://www.polymtl.ca/expertises/en/blais-bruno)
-
-## License
-
-QMOMKit is released under the **Apache License 2.0**. See [LICENSE](LICENSE) for details.

@@ -91,6 +91,27 @@ xi = (xi_0, xi_1, ..., xi_(D-1))
 Coordinate names are metadata and must not change sampling, storage, evolution,
 moment-index, or output order.
 
+### Selective multidimensional estimation
+
+`compute_requested_ensemble_moments(...)` estimates only the indices in a
+`qmomkit::RawMomentRequest`. It preserves request order and duplicate entries,
+and returns aligned `indices`, `values`, and `standard_errors` in
+`SelectedEnsembleMomentEstimate`. An empty request is a successful empty result
+after the ensemble and number-density inputs pass validation.
+
+The implementation evaluates each requested monomial directly with work
+proportional to the number of requested indices, samples, and phase-space
+dimensions. It must not construct maximum orders, dense extents, a dense tensor,
+or a shared power table. Its normalization and standard-error convention are
+identical to the dense ensemble moment estimator.
+
+Validation is ordered so ensemble structure and sample finiteness are checked
+first, followed by requested-index rank, number density, and exponent overflow.
+Failures return the existing `EnsembleMomentStatus` values with an empty
+payload; a successful result is the only result whose values are usable as
+estimated moments. The selective API is an additive Monte Carlo-package API and
+does not alter the existing dense overloads.
+
 ## Reproducibility
 
 A Monte Carlo validation case should record enough information to reproduce and

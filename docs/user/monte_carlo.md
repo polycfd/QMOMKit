@@ -147,6 +147,26 @@ z_score = signed_error / Monte Carlo standard error
 Large z-scores are diagnostic signals. They are not automatic proof that either
 calculation is wrong.
 
+## Estimate Selected Multidimensional Moments
+
+When only a requested set of multidimensional raw moments is needed, use the
+selective estimator instead of constructing a dense tensor:
+
+```cpp
+#include <monte_carlo/moments.hpp>
+
+const qmomkit::RawMomentRequest request{{{2, 0}, {0, 1}, {2, 0}}};
+const qmomkit::monte_carlo::SelectedEnsembleMomentEstimate estimate =
+    qmomkit::monte_carlo::compute_requested_ensemble_moments(ensemble, number_density, request);
+```
+
+On success, `estimate.indices`, `estimate.values`, and
+`estimate.standard_errors` are aligned in the original request order, including
+duplicate indices. The estimator applies the same total-number-density
+normalization as the dense API, computes each requested monomial directly, and
+does not allocate a dense tensor for omitted moments. Check `estimate.ok()` and
+use `estimate.message` for a failed validation or numerical evaluation.
+
 ## Output Format
 
 Normal Monte Carlo output follows the same text-table convention as QMOMKit

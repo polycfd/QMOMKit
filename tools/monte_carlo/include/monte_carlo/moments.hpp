@@ -1,8 +1,9 @@
 #pragma once
 
-#include "qmomkit/conditional_moments.hpp"
-#include "qmomkit/moment_set.hpp"
 #include "monte_carlo/ensemble.hpp"
+#include "qmomkit/conditional_moments.hpp"
+#include "qmomkit/distributions.hpp"
+#include "qmomkit/moment_set.hpp"
 
 #include <cstddef>
 #include <string>
@@ -56,6 +57,31 @@ struct TensorMomentEstimate
 };
 
 /**
+ * Selected multidimensional raw moments estimated from an equally weighted
+ * finite ensemble.
+ *
+ * On success, `indices`, `values`, and `standard_errors` are aligned one-to-one
+ * in the order supplied by the request. Duplicate requested indices remain
+ * duplicate result entries.
+ */
+struct SelectedEnsembleMomentEstimate
+{
+    // Requested raw-moment indices in the original request order.
+    std::vector<qmomkit::MultiIndex> indices;
+    // Estimated raw moment corresponding to each requested index.
+    std::vector<double> values;
+    // Estimated standard error corresponding to each requested index.
+    std::vector<double> standard_errors;
+    EnsembleMomentStatus status = EnsembleMomentStatus::success;
+    std::string message;
+
+    [[nodiscard]] bool ok() const noexcept
+    {
+        return status == EnsembleMomentStatus::success;
+    }
+};
+
+/**
  * Estimate one-dimensional raw moments from equally weighted samples.
  *
  * For `N` one-dimensional samples `x_p` and total number density `n0`, the
@@ -86,5 +112,20 @@ struct TensorMomentEstimate
  */
 [[nodiscard]] TensorMomentEstimate compute_ensemble_moments(const Ensemble& ensemble, double number_density,
                                                             const std::vector<std::size_t>& maximum_orders);
+
+/**
+ * Estimate only the requested multidimensional raw moments from equally
+ * weighted samples.
+ *
+ * The total number density is applied using the same convention as the dense
+ * estimator:
+ *
+ *     M_alpha = n0 / N * sum_p product_d xi[p,d]^alpha[d]
+ *
+ * Request order and duplicate entries are preserved. The function evaluates
+ * only the requested monomials and does not construct a dense moment tensor.
+ */
+[[nodiscard]] SelectedEnsembleMomentEstimate compute_requested_ensemble_moments(const Ensemble& ensemble, double number_density,
+                                                                                const qmomkit::RawMomentRequest& request);
 
 } // namespace qmomkit::monte_carlo

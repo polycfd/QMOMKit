@@ -85,6 +85,11 @@ where $N$ is the sample count, $n_0$ is the configured total number
 density, $(r_p,w_p,T_p)$ is sample $p$, and $n_0/N$ is the constant
 statistical weight carried by each sample.
 
+The direct Monte Carlo executable evaluates the configured selected moment
+request with QMOMKitMonteCarlo's native selective estimator, passing the total
+number density $n_0$. Request order and duplicate entries are preserved; no
+example-local monomial or per-particle-weight implementation is required.
+
 ## Droplet model
 
 The continuous callback receives coordinates ordered as $(r,w,T)$ and

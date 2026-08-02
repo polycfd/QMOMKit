@@ -1,5 +1,6 @@
 #include "droplet_model.hpp"
 #include "monte_carlo/evolution.hpp"
+#include "monte_carlo/moments.hpp"
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/output.hpp"
@@ -12,6 +13,7 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
+#include <stdexcept>
 #include <utility>
 
 int main()
@@ -74,14 +76,28 @@ int main()
         }
 
         qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
-        const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
         const auto velocity = cqmom_condensing_droplets::droplet_phase_space_velocity();
         const qmomkit::AdaptiveRk23Options continuous_options = transport_options.node_options.rk23_options;
 
         cqmom_condensing_droplets::print_monte_carlo_run_configuration(cqmom_case, transport_options.node_options);
 
-        qmomkit::SelectedRawMomentResult final_moments =
-            cqmom_condensing_droplets::compute_ensemble_moments(ensemble, particle_weight, moment_request);
+        const auto adapt_monte_carlo_result = [](const qmomkit::monte_carlo::SelectedEnsembleMomentEstimate& estimate)
+        {
+            if (!estimate.ok())
+            {
+                throw std::runtime_error("Monte Carlo moment extraction failed: " + estimate.message);
+            }
+            return qmomkit::SelectedRawMomentResult{estimate.indices,
+                                                    estimate.values,
+                                                    qmomkit::RawMomentStatus::success,
+                                                    "",
+                                                    qmomkit::invalid_component_index,
+                                                    qmomkit::invalid_dimension_index,
+                                                    {}};
+        };
+
+        qmomkit::SelectedRawMomentResult final_moments = adapt_monte_carlo_result(
+            qmomkit::monte_carlo::compute_requested_ensemble_moments(ensemble, sampled->sampling.number_density, moment_request));
         const qmomkit::SelectedRawMomentResult initial_moments = final_moments;
 
         std::optional<qmomkit::MomentWriter> moment_history_writer;
@@ -110,7 +126,8 @@ int main()
 
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
-                final_moments = cqmom_condensing_droplets::compute_ensemble_moments(ensemble, particle_weight, moment_request);
+                final_moments = adapt_monte_carlo_result(
+                    qmomkit::monte_carlo::compute_requested_ensemble_moments(ensemble, sampled->sampling.number_density, moment_request));
                 if (moment_history_writer.has_value())
                 {
                     moment_history_writer->write(time, qmomkit::create_cqmom_moment_data(moment_layout, final_moments));
@@ -124,7 +141,8 @@ int main()
 
         if (!moment_history_writer.has_value())
         {
-            final_moments = cqmom_condensing_droplets::compute_ensemble_moments(ensemble, particle_weight, moment_request);
+            final_moments = adapt_monte_carlo_result(
+                qmomkit::monte_carlo::compute_requested_ensemble_moments(ensemble, sampled->sampling.number_density, moment_request));
         }
         cqmom_condensing_droplets::print_monte_carlo_result_summary(
             initial_moments, final_moments, output_options.directory, ensemble.size(), cqmom_condensing_droplets::initialization_sample_count,

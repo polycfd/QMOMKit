@@ -111,6 +111,11 @@ namespace
                        [](const std::size_t maximum_order) { return maximum_order == std::numeric_limits<std::size_t>::max(); });
 }
 
+[[nodiscard]] SelectedEnsembleMomentEstimate selected_failure(const EnsembleMomentStatus status, std::string message)
+{
+    return SelectedEnsembleMomentEstimate{{}, {}, {}, status, std::move(message)};
+}
+
 } // namespace
 
 OneDimensionalMomentEstimate compute_ensemble_moments(const Ensemble& ensemble, const double number_density, const std::size_t maximum_order)
@@ -230,6 +235,101 @@ TensorMomentEstimate compute_ensemble_moments(const Ensemble& ensemble, const do
     }
 
     return TensorMomentEstimate{qmomkit::RawMomentTensor{extents, std::move(values)}, std::move(errors), EnsembleMomentStatus::success, ""};
+}
+
+SelectedEnsembleMomentEstimate compute_requested_ensemble_moments(const Ensemble& ensemble, const double number_density,
+                                                                  const qmomkit::RawMomentRequest& request)
+{
+    std::size_t dimensions = 0;
+    if (ensemble.empty())
+    {
+        return selected_failure(EnsembleMomentStatus::invalid_input, "Ensemble must contain at least one sample.");
+    }
+    dimensions = ensemble.front().size();
+    if (dimensions == 0)
+    {
+        return selected_failure(EnsembleMomentStatus::invalid_input, "Samples must contain at least one phase-space coordinate.");
+    }
+    for (const Sample& sample : ensemble)
+    {
+        if (sample.size() != dimensions)
+        {
+            return selected_failure(EnsembleMomentStatus::invalid_input, "All samples must have the same phase-space dimension.");
+        }
+    }
+    for (const Sample& sample : ensemble)
+    {
+        for (const double coordinate : sample)
+        {
+            if (!std::isfinite(coordinate))
+            {
+                return selected_failure(EnsembleMomentStatus::non_finite_sample, "Sample coordinate is non-finite.");
+            }
+        }
+    }
+
+    for (const qmomkit::MultiIndex& index : request.indices)
+    {
+        if (index.size() != dimensions)
+        {
+            return selected_failure(EnsembleMomentStatus::invalid_input, "Requested raw moment rank must match the sample phase-space dimension.");
+        }
+    }
+
+    if (!valid_number_density(number_density))
+    {
+        return selected_failure(EnsembleMomentStatus::invalid_input, "Number density must be finite and non-negative.");
+    }
+
+    for (const qmomkit::MultiIndex& index : request.indices)
+    {
+        for (const std::size_t exponent : index)
+        {
+            if (exponent == std::numeric_limits<std::size_t>::max())
+            {
+                return selected_failure(EnsembleMomentStatus::invalid_input, "Requested raw moment exponent is too large.");
+            }
+        }
+    }
+
+    if (request.indices.empty())
+    {
+        return SelectedEnsembleMomentEstimate{{}, {}, {}, EnsembleMomentStatus::success, ""};
+    }
+
+    std::vector<double> values(request.indices.size(), 0.0);
+    std::vector<double> errors(request.indices.size(), 0.0);
+    const double inverse_count = 1.0 / static_cast<double>(ensemble.size());
+    for (std::size_t requested = 0; requested < request.indices.size(); ++requested)
+    {
+        double sum = 0.0;
+        double sum_squares = 0.0;
+        for (const Sample& sample : ensemble)
+        {
+            const double value = monomial_value(sample, request.indices[requested]);
+            if (!std::isfinite(value))
+            {
+                return selected_failure(EnsembleMomentStatus::non_finite_moment, "Tensor moment accumulation became non-finite.");
+            }
+            sum += value;
+            sum_squares += value * value;
+            if (!std::isfinite(sum) || !std::isfinite(sum_squares))
+            {
+                return selected_failure(EnsembleMomentStatus::non_finite_moment, "Tensor moment accumulation became non-finite.");
+            }
+        }
+
+        values[requested] = number_density * sum * inverse_count;
+        const double count = static_cast<double>(ensemble.size());
+        const double raw_variance = ensemble.size() < 2 ? 0.0 : (sum_squares - (sum * sum) / count) / (count - 1.0);
+        errors[requested] = standard_error(sum, sum_squares, ensemble.size(), number_density);
+        if (!std::isfinite(values[requested]) || !std::isfinite(raw_variance) || !std::isfinite(errors[requested]))
+        {
+            return selected_failure(EnsembleMomentStatus::non_finite_moment, "Tensor moment or standard error became non-finite.");
+        }
+    }
+
+    return SelectedEnsembleMomentEstimate{request.indices, std::move(values), std::move(errors), EnsembleMomentStatus::success, ""};
 }
 
 } // namespace qmomkit::monte_carlo

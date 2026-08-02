@@ -17,16 +17,6 @@ namespace
 {
 constexpr std::size_t max_console_moments = 12;
 
-[[nodiscard]] double integer_power(double base, std::size_t exponent)
-{
-    double value = 1.0;
-    for (std::size_t count = 0; count < exponent; ++count)
-    {
-        value *= base;
-    }
-    return value;
-}
-
 void print_multi_index(const qmomkit::MultiIndex& order)
 {
     std::cout << '[';
@@ -149,32 +139,6 @@ void print_monte_carlo_run_configuration(const qmomkit::CqmomCase& cqmom_case, c
     std::cout << '\n';
     std::cout << "particle evolution: continuous phase-space advection only\n";
     std::cout << qmomkit::format_node_advection_options(node_options);
-}
-
-qmomkit::SelectedRawMomentResult compute_ensemble_moments(const qmomkit::monte_carlo::Ensemble& ensemble, const double particle_weight,
-                                                          const qmomkit::RawMomentRequest& request)
-{
-    qmomkit::SelectedRawMomentResult moments;
-    moments.indices = request.indices;
-    moments.values.assign(request.indices.size(), 0.0);
-    for (const qmomkit::monte_carlo::Sample& sample : ensemble)
-    {
-        if (sample.size() != 3)
-        {
-            throw std::runtime_error("The condensing-droplet MC example expects samples ordered as (r,w,T).");
-        }
-        for (std::size_t index = 0; index < request.indices.size(); ++index)
-        {
-            const qmomkit::MultiIndex& order = request.indices[index];
-            double monomial = 1.0;
-            for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
-            {
-                monomial *= integer_power(sample[dimension], order[dimension]);
-            }
-            moments.values[index] += particle_weight * monomial;
-        }
-    }
-    return moments;
 }
 
 void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,

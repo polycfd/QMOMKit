@@ -77,6 +77,11 @@ if(BUILD_TESTING)
     add_test(NAME monte_carlo_sampled_initialization COMMAND monte_carlo_sampled_initialization_tests)
     set_tests_properties(monte_carlo_sampled_initialization PROPERTIES LABELS monte_carlo)
 
+    add_executable(monte_carlo_selective_moments_tests tests/selective_moments.cpp)
+    target_link_libraries(monte_carlo_selective_moments_tests PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
+    add_test(NAME monte_carlo_selective_moments COMMAND monte_carlo_selective_moments_tests)
+    set_tests_properties(monte_carlo_selective_moments PROPERTIES LABELS monte_carlo)
+
 endif()
 
 install(

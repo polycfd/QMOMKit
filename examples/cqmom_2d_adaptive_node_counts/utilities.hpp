@@ -3,6 +3,7 @@
 #include "qmomkit/conditioning_path.hpp"
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
+#include "qmomkit/transport_integrator.hpp"
 
 #include <cstddef>
 #include <filesystem>
@@ -51,8 +52,9 @@ struct ActiveCountTransition
     double time = 0.0;
     VelocityBranchId branch;
     std::size_t configured_maximum = 0;
-    std::size_t before = 0;
-    std::size_t after = 0;
+    std::optional<std::size_t> before;
+    std::optional<std::size_t> after;
+    qmomkit::CqmomNodeCountTransitionKind kind = qmomkit::CqmomNodeCountTransitionKind::grew;
     std::vector<double> velocity_moments;
     long double rank_indicator = 0.0L;
 };
@@ -65,8 +67,10 @@ void ensure_output_directory(const std::filesystem::path& path);
                                                 const std::vector<qmomkit::CqmomActiveBranchCount>& active_branch_counts,
                                                 std::size_t velocity_dimension);
 
-void append_active_count_transitions(const HistorySample& previous, const HistorySample& current, std::vector<ActiveCountTransition>& transitions,
-                                     std::size_t velocity_dimension);
+void append_active_count_transitions(double time, const qmomkit::CqmomQuadrature& previous_quadrature,
+                                     const qmomkit::CqmomQuadrature& current_quadrature,
+                                     const std::vector<qmomkit::CqmomNodeCountTransition>& native_transitions,
+                                     std::vector<ActiveCountTransition>& transitions, std::size_t velocity_dimension);
 
 [[nodiscard]] bool validate_history(const std::vector<HistorySample>& history, double initial_velocity_mean, double relaxation_rate,
                                     double equilibrium_velocity, double pulse_start, double pulse_end, std::string& message);

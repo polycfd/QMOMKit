@@ -19,7 +19,8 @@ advance_transport_qmom(...)
 QmomState
 ```
 
-The example keeps all application logic in `main.cpp`. The user provides:
+The driver keeps top-level orchestration in `main.cpp`, while the example-local
+physics callbacks live in `physics.cpp`. The user provides:
 
 - initial raw moments;
 - a QMOM node count;

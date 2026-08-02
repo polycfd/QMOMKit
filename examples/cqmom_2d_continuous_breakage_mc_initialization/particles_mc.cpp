@@ -1,27 +1,17 @@
 #include "particles_mc.hpp"
 
-#include "qmomkit/multi_index.hpp"
+#include "monte_carlo/moments.hpp"
 #include "physics.hpp"
 
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
-#include <utility>
+#include <vector>
 
 namespace cqmom_2d_continuous_breakage
 {
 namespace
 {
-
-[[nodiscard]] double integer_power(double base, std::size_t exponent)
-{
-    double value = 1.0;
-    for (std::size_t count = 0; count < exponent; ++count)
-    {
-        value *= base;
-    }
-    return value;
-}
 
 void require_two_dimensional_sample(const qmomkit::monte_carlo::Sample& sample)
 {
@@ -29,6 +19,21 @@ void require_two_dimensional_sample(const qmomkit::monte_carlo::Sample& sample)
     {
         throw std::runtime_error("The 2D MC particle example expects samples ordered as (d,u).");
     }
+}
+
+std::vector<std::size_t> maximum_orders_from_extents(const std::vector<std::size_t>& extents)
+{
+    std::vector<std::size_t> maximum_orders;
+    maximum_orders.reserve(extents.size());
+    for (const std::size_t extent : extents)
+    {
+        if (extent == 0)
+        {
+            throw std::invalid_argument("The 2D MC particle example requires non-empty moment extents.");
+        }
+        maximum_orders.push_back(extent - 1);
+    }
+    return maximum_orders;
 }
 
 } // namespace
@@ -56,20 +61,20 @@ void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, const doubl
 }
 
 qmomkit::RawMomentTensor compute_particle_moments(const qmomkit::monte_carlo::Ensemble& ensemble, const double particle_weight,
-                                                    const std::vector<std::size_t>& moment_extents)
+                                                  const std::vector<std::size_t>& moment_extents)
 {
-    const std::size_t moment_count = qmomkit::product_extents(moment_extents);
-    std::vector<double> moments(moment_count, 0.0);
     for (const qmomkit::monte_carlo::Sample& sample : ensemble)
     {
         require_two_dimensional_sample(sample);
-        for (std::size_t flat_index = 0; flat_index < moment_count; ++flat_index)
-        {
-            const qmomkit::MultiIndex order = qmomkit::unflatten_multi_index(flat_index, moment_extents);
-            moments[flat_index] += particle_weight * integer_power(sample[0], order[0]) * integer_power(sample[1], order[1]);
-        }
     }
-    return qmomkit::RawMomentTensor{moment_extents, std::move(moments)};
+    const double number_density = particle_weight * static_cast<double>(ensemble.size());
+    const qmomkit::monte_carlo::TensorMomentEstimate estimate =
+        qmomkit::monte_carlo::compute_ensemble_moments(ensemble, number_density, maximum_orders_from_extents(moment_extents));
+    if (!estimate.ok())
+    {
+        throw std::runtime_error(estimate.message);
+    }
+    return estimate.moments;
 }
 
 } // namespace cqmom_2d_continuous_breakage

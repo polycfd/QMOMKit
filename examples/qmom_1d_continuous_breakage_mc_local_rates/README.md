@@ -130,9 +130,10 @@ limiters, or other coefficient-level criteria.
 
 `physics.*` contains the shared physical model: continuous velocity, binary
 breakage rate, daughter state, nucleation rate, nucleation diameter, and the
-QMOM nucleation moment contribution. `main.cpp` contains the
+QMOM nucleation moment contribution. `local_rate_workflow.cpp` contains the
 application-managed rate evaluation, SSP-RK3 integration, stage policy, and
-QMOM simulation loop. `main_mc.cpp` contains the Monte Carlo particle workflow.
+QMOM simulation loop; `main.cpp` only dispatches to that workflow.
+`main_mc.cpp` contains the Monte Carlo particle workflow.
 `particles_mc.*` adapts the shared physical model to the sampled-particle
 representation. `nucleation_balance_check.cpp` verifies the analytical
 correspondence between the QMOM nucleation moment rate and the MC birth

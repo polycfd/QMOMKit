@@ -4,7 +4,7 @@ project(QMOMKitQmom1DContinuousBreakageMcLocalRatesExample LANGUAGES CXX)
 
 find_package(QMOMKitMonteCarlo CONFIG REQUIRED)
 
-add_executable(qmom_1d_continuous_breakage_mc_local_rates_example main.cpp physics.cpp sampling.cpp utilities.cpp)
+add_executable(qmom_1d_continuous_breakage_mc_local_rates_example main.cpp local_rate_workflow.cpp physics.cpp sampling.cpp utilities.cpp)
 target_compile_features(qmom_1d_continuous_breakage_mc_local_rates_example PRIVATE cxx_std_17)
 target_link_libraries(
     qmom_1d_continuous_breakage_mc_local_rates_example

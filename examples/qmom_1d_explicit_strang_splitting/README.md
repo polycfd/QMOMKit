@@ -9,6 +9,9 @@ C(dt/2) -> D(dt) -> C(dt/2)
 
 and calls the public stage API directly.
 
+The example-local velocity and source callbacks are defined in `physics.cpp`;
+the application-owned stage sequence remains visible in `main.cpp`.
+
 ## API Levels
 
 `advance_transport_qmom(...)` is the library-managed complete transport

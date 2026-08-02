@@ -67,8 +67,7 @@ int main()
         return 1;
     }
 
-    const qmomkit::monte_carlo::OneDimensionalMomentEstimate sampled_moments =
-        qmom_1d_continuous_breakage_mc_initialization::compute_sampled_moments(*sampled);
+    const qmomkit::monte_carlo::OneDimensionalMomentEstimate& sampled_moments = sampled->moments;
     if (!sampled_moments.ok())
     {
         std::cerr << sampled_moments.message << '\n';
@@ -92,8 +91,7 @@ int main()
     moments = state.moments();
 
     const qmomkit::QmomResult initial_quadrature = state.quadrature();
-    qmomkit::Quadrature1D quadrature{initial_quadrature.abscissas, initial_quadrature.weights};
-    const std::vector<double> initial_abscissas = quadrature.abscissas;
+    qmomkit::QmomResult quadrature = initial_quadrature;
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_continuous_breakage_mc_initialization::continuous_velocity();
     const qmomkit::MomentSource source = qmom_1d_continuous_breakage_mc_initialization::binary_fragmentation_source();
     qmomkit::QmomTransportOptions transport_options = std::move(transport_configured).value();
@@ -148,7 +146,7 @@ int main()
 
         state = transported.state;
         moments = state.moments();
-        quadrature = qmomkit::Quadrature1D{state.quadrature().abscissas, state.quadrature().weights, qmomkit::QuadratureStatus::success, ""};
+        quadrature = state.quadrature();
         time = transported.final_time;
 
         if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
@@ -199,7 +197,7 @@ int main()
     std::cout << "node  initial_abscissa  final_abscissa\n";
     for (std::size_t node = 0; node < quadrature.abscissas.size(); ++node)
     {
-        std::cout << node << "     " << initial_abscissas[node] << "         " << quadrature.abscissas[node] << '\n';
+        std::cout << node << "     " << initial_quadrature.abscissas[node] << "         " << quadrature.abscissas[node] << '\n';
     }
     if (output_options.write_moments || output_options.write_quadrature)
     {

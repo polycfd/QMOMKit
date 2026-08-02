@@ -34,13 +34,12 @@ std::optional<SamplingSetup> sample_initial_distribution(const qmomkit::config::
             using Specification = std::decay_t<decltype(specification)>;
             if constexpr (std::is_same_v<Specification, qmomkit::config::DistributionInitialization>)
             {
-                return SamplingSetup{
-                    qmomkit::monte_carlo::sample_distribution(specification.distribution, specification.number_density, sampling_options),
-                    specification.maximum_order};
+                return qmomkit::monte_carlo::sample_initialization(specification.distribution, specification.number_density,
+                                                                   specification.maximum_order, sampling_options);
             }
             else if constexpr (std::is_same_v<Specification, qmomkit::config::MixtureInitialization>)
             {
-                return SamplingSetup{qmomkit::monte_carlo::sample_mixture(specification.mixture, sampling_options), specification.maximum_order};
+                return qmomkit::monte_carlo::sample_initialization(specification.mixture, specification.maximum_order, sampling_options);
             }
             else
             {
@@ -49,11 +48,6 @@ std::optional<SamplingSetup> sample_initial_distribution(const qmomkit::config::
             }
         },
         initial_condition);
-}
-
-qmomkit::monte_carlo::OneDimensionalMomentEstimate compute_sampled_moments(const SamplingSetup& sampled)
-{
-    return qmomkit::monte_carlo::compute_ensemble_moments(sampled.sampling.ensemble, sampled.sampling.number_density, sampled.maximum_order);
 }
 
 } // namespace qmom_1d_continuous_breakage_mc_local_rates

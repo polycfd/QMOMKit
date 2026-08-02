@@ -184,12 +184,6 @@ MomentDiagnostics compute_moment_diagnostics(const qmomkit::CqmomQuadrature& qua
     return diagnostics;
 }
 
-bool same_branch(const VelocityBranchId& lhs, const VelocityBranchId& rhs)
-{
-    return lhs.conditioning_level == rhs.conditioning_level && lhs.phase_space_dimension == rhs.phase_space_dimension &&
-           lhs.parent_path == rhs.parent_path;
-}
-
 bool branch_less(const VelocityBranchId& lhs, const VelocityBranchId& rhs)
 {
     if (lhs.conditioning_level != rhs.conditioning_level)
@@ -201,17 +195,6 @@ bool branch_less(const VelocityBranchId& lhs, const VelocityBranchId& rhs)
         return lhs.phase_space_dimension < rhs.phase_space_dimension;
     }
     return lhs.parent_path < rhs.parent_path;
-}
-
-std::optional<VelocityBranchCount> find_branch_count(const std::vector<VelocityBranchCount>& counts, const VelocityBranchId& branch)
-{
-    const auto found =
-        std::find_if(counts.begin(), counts.end(), [&branch](const VelocityBranchCount& count) { return same_branch(count.id, branch); });
-    if (found == counts.end())
-    {
-        return std::nullopt;
-    }
-    return *found;
 }
 
 std::vector<VelocityBranchCount> velocity_branch_counts(const std::vector<qmomkit::CqmomActiveBranchCount>& active_branch_counts,
@@ -349,15 +332,35 @@ void print_active_count_transitions(const std::vector<ActiveCountTransition>& tr
         return;
     }
 
-    std::cout << std::right << std::setw(12) << "time" << "  " << std::left << std::setw(10) << "branch" << std::setw(10) << "change" << std::right
-              << std::setw(8) << "maximum" << '\n';
+    std::cout << std::right << std::setw(12) << "time" << "  " << std::left << std::setw(10) << "branch" << std::setw(10) << "change" << std::setw(10)
+              << "kind" << std::right << std::setw(8) << "maximum" << '\n';
     for (const ActiveCountTransition& transition : transitions)
     {
         std::ostringstream change;
-        change << transition.before << " -> " << transition.after;
+        if (transition.before.has_value())
+        {
+            change << *transition.before;
+        }
+        else
+        {
+            change << "created";
+        }
+        change << " -> ";
+        if (transition.after.has_value())
+        {
+            change << *transition.after;
+        }
+        else
+        {
+            change << "removed";
+        }
+        const char* kind = transition.kind == qmomkit::CqmomNodeCountTransitionKind::reduced   ? "reduced"
+                           : transition.kind == qmomkit::CqmomNodeCountTransitionKind::grew    ? "grew"
+                           : transition.kind == qmomkit::CqmomNodeCountTransitionKind::created ? "created"
+                                                                                               : "removed";
         std::cout << std::right << std::scientific << std::setprecision(3) << std::setw(12) << transition.time << "  " << std::left << std::setw(10)
-                  << format_path(transition.branch.parent_path) << std::setw(10) << change.str() << std::right << std::setw(8)
-                  << transition.configured_maximum << '\n';
+                  << format_path(transition.branch.parent_path) << std::setw(10) << change.str() << std::setw(10) << kind << std::right
+                  << std::setw(8) << transition.configured_maximum << '\n';
     }
 }
 
@@ -366,7 +369,7 @@ void print_three_node_growth_diagnostics(const std::vector<ActiveCountTransition
     std::vector<ActiveCountTransition> growth_transitions;
     for (const ActiveCountTransition& transition : transitions)
     {
-        if (transition.before == 2 && transition.after == 3)
+        if (transition.before == std::optional<std::size_t>{2} && transition.after == std::optional<std::size_t>{3})
         {
             growth_transitions.push_back(transition);
         }
@@ -385,8 +388,8 @@ void print_three_node_growth_diagnostics(const std::vector<ActiveCountTransition
         qmomkit::QmomOptions options;
         options.adaptive = true;
         const qmomkit::QmomResult current_ceiling =
-            qmomkit::compute_qmom(qmomkit::MomentSet{transition.velocity_moments}, transition.before, options);
-        const qmomkit::QmomResult growth_ceiling = qmomkit::compute_qmom(qmomkit::MomentSet{transition.velocity_moments}, transition.after, options);
+            qmomkit::compute_qmom(qmomkit::MomentSet{transition.velocity_moments}, *transition.before, options);
+        const qmomkit::QmomResult growth_ceiling = qmomkit::compute_qmom(qmomkit::MomentSet{transition.velocity_moments}, *transition.after, options);
         std::ostringstream current_status;
         current_status << qmom_status_name(current_ceiling.status) << ' ' << current_ceiling.abscissas.size();
         std::ostringstream growth_status;
@@ -429,21 +432,24 @@ HistorySample make_history_sample(const double time, const bool source_active, c
                          velocity_branch_counts(active_branch_counts, velocity_dimension), quadrature};
 }
 
-void append_active_count_transitions(const HistorySample& previous, const HistorySample& current, std::vector<ActiveCountTransition>& transitions,
-                                     const std::size_t velocity_dimension)
+void append_active_count_transitions(const double time, const qmomkit::CqmomQuadrature& previous_quadrature,
+                                     const qmomkit::CqmomQuadrature& current_quadrature,
+                                     const std::vector<qmomkit::CqmomNodeCountTransition>& native_transitions,
+                                     std::vector<ActiveCountTransition>& transitions, const std::size_t velocity_dimension)
 {
-    for (const VelocityBranchCount& after : current.velocity_branch_counts)
+    for (const qmomkit::CqmomNodeCountTransition& native : native_transitions)
     {
-        const std::optional<VelocityBranchCount> before = find_branch_count(previous.velocity_branch_counts, after.id);
-        if (!before.has_value() || before->active_count == after.active_count)
+        if (native.phase_space_dimension != velocity_dimension)
         {
             continue;
         }
 
-        const std::size_t diagnostic_order = std::max(std::size_t{4}, 2 * after.configured_maximum - 1);
-        const std::vector<double> moments = branch_velocity_moments(current.quadrature, after.id, diagnostic_order, velocity_dimension);
-        transitions.push_back(ActiveCountTransition{current.time, after.id, after.configured_maximum, before->active_count, after.active_count,
-                                                    moments, centered_rank_indicator(moments)});
+        const VelocityBranchId branch{native.conditioning_level, native.phase_space_dimension, native.parent_path};
+        const std::size_t diagnostic_order = std::max(std::size_t{4}, 2 * native.configured_maximum_node_count - 1);
+        const qmomkit::CqmomQuadrature& diagnostic_quadrature = native.active_node_count_after.has_value() ? current_quadrature : previous_quadrature;
+        const std::vector<double> moments = branch_velocity_moments(diagnostic_quadrature, branch, diagnostic_order, velocity_dimension);
+        transitions.push_back(ActiveCountTransition{time, branch, native.configured_maximum_node_count, native.active_node_count_before,
+                                                    native.active_node_count_after, native.kind, moments, centered_rank_indicator(moments)});
     }
 }
 
@@ -559,7 +565,12 @@ bool validate_active_count_lifecycle(const std::vector<HistorySample>& history, 
 
     for (const ActiveCountTransition& transition : transitions)
     {
-        if (transition.after > transition.before)
+        if (!transition.before.has_value() || !transition.after.has_value())
+        {
+            continue;
+        }
+
+        if (*transition.after > *transition.before)
         {
             if (transition.time + time_tolerance < pulse_start)
             {
@@ -571,18 +582,18 @@ bool validate_active_count_lifecycle(const std::vector<HistorySample>& history, 
                 message = "A velocity branch grew after the variance-injection pulse.";
                 return false;
             }
-            if (transition.after > std::min(transition.before + 1, transition.configured_maximum))
+            if (*transition.after > std::min(*transition.before + 1, transition.configured_maximum))
             {
                 message = "A velocity branch grew by more than one active node.";
                 return false;
             }
             saw_pulse_growth = true;
-            if (transition.before == 2 && transition.after == 3)
+            if (*transition.before == 2 && *transition.after == 3)
             {
                 saw_two_to_three_growth = true;
             }
         }
-        else if (transition.after < transition.before)
+        else if (*transition.after < *transition.before)
         {
             if (transition.time + time_tolerance < pulse_start)
             {

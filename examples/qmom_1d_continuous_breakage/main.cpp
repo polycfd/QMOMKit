@@ -1,6 +1,5 @@
 #include "physics.hpp"
 #include "qmomkit/qmomkit.hpp"
-#include "utilities.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -22,20 +21,20 @@ int main()
     auto configured = qmomkit::config::load_qmom(configuration_file);
     if (!configured)
     {
-        qmom_1d_continuous_breakage::print_configuration_errors(configured.error());
+        std::cerr << configured.error() << '\n';
         return 1;
     }
 
     auto output_configured = qmomkit::config::load_output_options(configuration_file);
     if (!output_configured)
     {
-        qmom_1d_continuous_breakage::print_configuration_errors(output_configured.error());
+        std::cerr << output_configured.error() << '\n';
         return 1;
     }
     auto transport_configured = qmomkit::config::load_qmom_transport_options(configuration_file);
     if (!transport_configured)
     {
-        qmom_1d_continuous_breakage::print_configuration_errors(transport_configured.error());
+        std::cerr << transport_configured.error() << '\n';
         return 1;
     }
 
@@ -57,7 +56,7 @@ int main()
     moments = state.moments();
     const qmomkit::QmomResult initial_quadrature = state.quadrature();
 
-    qmomkit::Quadrature1D quadrature{initial_quadrature.abscissas, initial_quadrature.weights};
+    qmomkit::QmomResult quadrature = initial_quadrature;
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_continuous_breakage::continuous_velocity();
     const qmomkit::MomentSource source = qmom_1d_continuous_breakage::binary_fragmentation_source();
     qmomkit::QmomTransportOptions transport_options = std::move(transport_configured).value();
@@ -103,7 +102,7 @@ int main()
 
         state = transported.state;
         moments = state.moments();
-        quadrature = qmomkit::Quadrature1D{state.quadrature().abscissas, state.quadrature().weights, qmomkit::QuadratureStatus::success, ""};
+        quadrature = state.quadrature();
         time = transported.final_time;
 
         if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)

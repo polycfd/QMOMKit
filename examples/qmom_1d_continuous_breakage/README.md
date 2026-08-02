@@ -40,8 +40,10 @@ $$
 $$
 
 Particles smaller than $d=1$ grow, and particles larger than $d=1$ shrink.
-QMOMKit advances the quadrature nodes with `qmomkit::advance_nodes(...)`.
-Weights are unchanged during this continuous node evolution step.
+The example passes this callback to `qmomkit::advance_transport_qmom(...)`,
+which manages the continuous phase-space evolution as part of the configured
+transport step. The underlying continuous stage advances quadrature nodes, and
+weights are unchanged during that stage.
 
 The discontinuous source is also defined in `physics.cpp`. It is a simple
 binary fragmentation model,
@@ -58,10 +60,13 @@ $$
 = \lambda\left(2^{1-k}-1\right)M_k.
 $$
 
-QMOMKit advances those moments with
-`qmomkit::advance_moments_with_source(...)`.
+The example passes this callback to `qmomkit::advance_transport_qmom(...)`,
+which manages the discontinuous moment-source update as part of the configured
+transport step.
 
-The time loop in `main.cpp` uses Strang splitting:
+The time loop in `main.cpp` calls `qmomkit::advance_transport_qmom(...)` for
+each configured transport step. With the shipped `strang` setting, the native
+transport operation uses:
 
 ```text
 Continuous half-step
@@ -103,7 +108,7 @@ workflow include both continuous and source physics.
 
 Requires: QMOMKit.
 
-Required: `configuration.qmom`, `main.cpp`, `physics.cpp`, `utilities.cpp`,
+Required: `configuration.qmom`, `main.cpp`, and `physics.cpp`,
 and an installed QMOMKit package. Optional: output-file analysis after the run.
 
 Build from this example directory:

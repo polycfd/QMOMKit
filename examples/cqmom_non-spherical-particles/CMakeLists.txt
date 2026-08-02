@@ -19,7 +19,10 @@ target_link_libraries(
         qmomkit_monte_carlo::qmomkit_monte_carlo
 )
 
-add_executable(cqmom_non_spherical_particles_unbounded_diagnostic main_unbounded_diagnostic.cpp ${CQMOM_NON_SPHERICAL_COMMON_SOURCES})
+add_executable(cqmom_non_spherical_particles_unbounded_diagnostic main_unbounded_diagnostic.cpp unbounded_diagnostic_workflow.cpp
+                                                                  unbounded_diagnostic_report.cpp
+                                                                  unbounded_diagnostic_types.cpp
+                                                                  ${CQMOM_NON_SPHERICAL_COMMON_SOURCES})
 target_link_libraries(
     cqmom_non_spherical_particles_unbounded_diagnostic
     PRIVATE

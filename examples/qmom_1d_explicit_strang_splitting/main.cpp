@@ -1,5 +1,5 @@
+#include "physics.hpp"
 #include "qmomkit/qmomkit.hpp"
-#include "utilities.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -8,7 +8,6 @@
 #include <iomanip>
 #include <iostream>
 #include <optional>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -62,35 +61,15 @@ int main()
     }
 
     qmomkit::QmomState state = *initial_state_storage;
-    const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinates)
-    {
-        constexpr double relaxation_rate = 500.0;
-        if (coordinates.size() != 1)
-        {
-            throw std::invalid_argument("The explicit Strang example expects one phase-space coordinate.");
-        }
-        return std::vector<double>{-relaxation_rate * coordinates[0]};
-    };
-    const qmomkit::MomentSource source = [](const double time, const std::vector<double>& current_moments)
-    {
-        constexpr double source_start = 0.16;
-        constexpr double source_end = 0.25;
-        constexpr double variance_injection_rate = 12.0;
-
-        std::vector<double> derivative(current_moments.size(), 0.0);
-        if (time >= source_start && time < source_end && derivative.size() > 2)
-        {
-            derivative[2] = variance_injection_rate;
-        }
-        return derivative;
-    };
+    const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_explicit_strang_splitting::continuous_velocity();
+    const qmomkit::MomentSource source = qmom_1d_explicit_strang_splitting::variance_injection_source();
 
     std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;
     try
     {
         if (output_options.write_quadrature)
         {
-            qmom_1d_explicit_strang_splitting::ensure_output_directory(output_options.directory);
+            std::filesystem::create_directories(output_options.directory);
             quadrature_history_writer.emplace(
                 qmomkit::QuadratureWriter::for_qmom(output_options.directory / "quadrature_history.txt", maximum_node_count));
             quadrature_history_writer->write(initial_time, state.quadrature());

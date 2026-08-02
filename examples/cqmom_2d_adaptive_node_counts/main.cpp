@@ -103,8 +103,9 @@ int main()
             step_history.push_back(
                 cqmom_2d_adaptive_node_counts::make_history_sample(time, cqmom_2d_adaptive_node_counts::source_pulse_active(time, source_parameters),
                                                                    quadrature, state.active_branch_counts(), velocity_dimension));
-            cqmom_2d_adaptive_node_counts::append_active_count_transitions(step_history[step_history.size() - 2], step_history.back(),
-                                                                           active_count_transitions, velocity_dimension);
+            cqmom_2d_adaptive_node_counts::append_active_count_transitions(
+                time, step_history[step_history.size() - 2].quadrature, step_history.back().quadrature,
+                transported.diagnostics.cqmom_node_count_transitions, active_count_transitions, velocity_dimension);
 
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {

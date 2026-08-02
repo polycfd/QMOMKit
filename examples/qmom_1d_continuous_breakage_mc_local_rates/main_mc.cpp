@@ -85,6 +85,8 @@ int main()
         return 1;
     }
 
+    const std::size_t maximum_order = sampled->moments.moments.values().size() - 1;
+
     std::vector<qmom_1d_continuous_breakage_mc_local_rates::Particle> particles;
     try
     {
@@ -96,8 +98,7 @@ int main()
         return 1;
     }
 
-    const qmomkit::monte_carlo::OneDimensionalMomentEstimate sampled_moments =
-        qmom_1d_continuous_breakage_mc_local_rates::compute_sampled_moments(*sampled);
+    const qmomkit::monte_carlo::OneDimensionalMomentEstimate& sampled_moments = sampled->moments;
     if (!sampled_moments.ok())
     {
         std::cerr << sampled_moments.message << '\n';
@@ -111,7 +112,7 @@ int main()
         return 1;
     }
     std::vector<double> final_moments =
-        qmom_1d_continuous_breakage_mc_local_rates::compute_particle_moments(particles, particle_weight, sampled->maximum_order);
+        qmom_1d_continuous_breakage_mc_local_rates::compute_particle_moments(particles, particle_weight, maximum_order);
     const std::vector<double> initial_moments = final_moments;
     const std::vector<double> sampled_initial_moments = sampled_moments.moments.values();
     double initial_moment_mismatch = 0.0;
@@ -238,7 +239,7 @@ int main()
 
         if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
         {
-            final_moments = qmom_1d_continuous_breakage_mc_local_rates::compute_particle_moments(particles, particle_weight, sampled->maximum_order);
+            final_moments = qmom_1d_continuous_breakage_mc_local_rates::compute_particle_moments(particles, particle_weight, maximum_order);
             mc_times.push_back(time);
             mc_moment_history.push_back(final_moments);
             if (moment_history_writer.has_value())

@@ -58,6 +58,13 @@ int main()
         std::cerr << sampled->sampling.message << '\n';
         return 1;
     }
+    if (!sampled->moments.ok())
+    {
+        std::cerr << sampled->moments.message << '\n';
+        return 1;
+    }
+
+    const std::size_t maximum_order = sampled->moments.moments.values().size() - 1;
 
     std::vector<qmom_1d_continuous_breakage_mc_initialization::Particle> particles;
     try
@@ -78,7 +85,7 @@ int main()
     const qmomkit::AdaptiveRk23Options continuous_options;
 
     std::vector<double> final_moments =
-        qmom_1d_continuous_breakage_mc_initialization::compute_particle_moments(particles, particle_weight, sampled->maximum_order);
+        qmom_1d_continuous_breakage_mc_initialization::compute_particle_moments(particles, particle_weight, maximum_order);
     const std::vector<double> initial_moments = final_moments;
     std::vector<std::tuple<double, std::size_t, double>> particle_history;
     if (output_options.write_moments)
@@ -159,8 +166,7 @@ int main()
 
         if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
         {
-            final_moments =
-                qmom_1d_continuous_breakage_mc_initialization::compute_particle_moments(particles, particle_weight, sampled->maximum_order);
+            final_moments = qmom_1d_continuous_breakage_mc_initialization::compute_particle_moments(particles, particle_weight, maximum_order);
             if (moment_history_writer.has_value())
             {
                 try

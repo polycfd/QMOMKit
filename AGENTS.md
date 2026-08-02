@@ -398,3 +398,7 @@ When reporting completed work, include:
 - behavior or documentation changed;
 - tests and validation commands run;
 - any unresolved concerns, limitations, or uncertainties.
+
+## Copyright and Source Code Adaptation
+
+Do not copy or adapt source code from external projects unless explicitly instructed and the source, revision, copyright holder, and licence are recorded. For named algorithms, implement from mathematical descriptions, standards, or papers rather than from third-party source implementations. Report every external source consulted. Do not remove copyright, attribution, licence, or NOTICE information. When uncertain whether code is derived, stop and report the uncertainty rather than incorporating it.

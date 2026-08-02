@@ -37,8 +37,6 @@ namespace
         return QmomStatus::invalid_input;
     case QuadratureStatus::not_realizable:
         return QmomStatus::not_realizable;
-    case QuadratureStatus::no_adaptive_quadrature:
-        return QmomStatus::no_adaptive_quadrature;
     }
     return QmomStatus::invalid_input;
 }

@@ -169,17 +169,18 @@ const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, node_count, op
 ```
 
 `result.ok()` identifies whether the quadrature is a successful
-reconstruction. A failed result reports a status and message so the caller can
-decide whether to reject a state, reduce a timestep, change a requested node
-count, or inspect the supplied moments:
+reconstruction. In adaptive mode, Wheeler may retry candidates at lower node
+counts. A valid reduced reconstruction, including a one-node fallback, is a
+successful result. A failed result reports a status and message so the caller
+can decide whether to reject a state, reduce a timestep, change a requested
+node count, or inspect the supplied moments:
 
-- `success`: the quadrature was reconstructed.
+- `success`: the quadrature was reconstructed, possibly at a lower node count
+  in adaptive mode.
 - `invalid_input`: the input was structurally invalid, such as too few
   moments or a zero node count.
 - `not_realizable`: the supplied moment sequence could not represent a valid
   quadrature under the configured reconstruction.
-- `no_adaptive_quadrature`: adaptive reconstruction could not find an accepted
-  multi-node rule.
 
 Moment realizability is a mathematical property of the supplied sequence.
 QMOMKit does not silently change moments to make them realizable. If your

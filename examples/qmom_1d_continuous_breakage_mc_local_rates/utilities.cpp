@@ -51,8 +51,6 @@ const char* to_string(const qmomkit::QmomStatus status)
         return "invalid_input";
     case qmomkit::QmomStatus::not_realizable:
         return "not_realizable";
-    case qmomkit::QmomStatus::no_adaptive_quadrature:
-        return "no_adaptive_quadrature";
     }
     return "unknown";
 }

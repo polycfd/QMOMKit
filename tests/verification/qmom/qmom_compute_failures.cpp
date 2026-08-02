@@ -80,9 +80,6 @@ int main()
         case qmomkit::QmomStatus::not_realizable:
             std::cout << "not_realizable";
             break;
-        case qmomkit::QmomStatus::no_adaptive_quadrature:
-            std::cout << "no_adaptive";
-            break;
         case qmomkit::QmomStatus::success:
             std::cout << "success";
             break;

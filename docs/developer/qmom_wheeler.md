@@ -170,16 +170,12 @@ failure if the implementation reaches and accepts a reduced one-node rule.
 
 Current status values are:
 
-- `success`: the returned quadrature rule is accepted.
+- `success`: the returned quadrature rule is accepted, possibly at a lower node
+  count after adaptive retries.
 - `invalid_input`: the case/input is structurally invalid or contains invalid
   numerical options.
 - `not_realizable`: the supplied moments fail a realizability or recurrence
   check.
-- `no_adaptive_quadrature`: adaptive mode has no accepted quadrature under
-  the configured thresholds. Under the current reduction loop, rejected
-  multi-node candidates normally fall through to an accepted one-node rule
-  when that rule is available, so this status should not be interpreted as the
-  normal outcome of adaptive multi-node rejection.
 
 Non-success statuses may still carry diagnostic fallback data. This behavior
 is intentional and supports downstream diagnostics or controlled failure

@@ -193,9 +193,6 @@ void record_source_update_diagnostics(TransportDiagnostics& diagnostics, const S
     case QuadratureStatus::not_realizable:
         status = QmomStatus::not_realizable;
         break;
-    case QuadratureStatus::no_adaptive_quadrature:
-        status = QmomStatus::no_adaptive_quadrature;
-        break;
     }
     return QmomResult{quadrature.abscissas, quadrature.weights, status, quadrature.message};
 }

@@ -84,8 +84,6 @@ struct ElementRhsResult
         return "invalid_input";
     case qmomkit::QmomStatus::not_realizable:
         return "not_realizable";
-    case qmomkit::QmomStatus::no_adaptive_quadrature:
-        return "no_adaptive_quadrature";
     }
     return "unknown";
 }

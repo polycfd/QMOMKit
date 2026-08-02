@@ -13,8 +13,7 @@ enum class QmomStatus
 {
     success,
     invalid_input,
-    not_realizable,
-    no_adaptive_quadrature
+    not_realizable
 };
 
 /**

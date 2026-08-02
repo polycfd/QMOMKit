@@ -279,13 +279,8 @@ struct WheelerAttemptResult
         return {one_node_result(moments, QuadratureStatus::not_realizable, message.str()), false};
     }
 
-    for (std::size_t n1 = n; n1 > 0; --n1)
+    for (std::size_t n1 = n; n1 > 1; --n1)
     {
-        if (n1 == 1)
-        {
-            return {one_node_result(moments, QuadratureStatus::success, ""), false};
-        }
-
         const DenseMatrix jacobi = make_jacobi_matrix(coefficients.a, coefficients.b, n1);
         EigenDecomposition eigen = symmetric_jacobi_eigen(jacobi);
         std::vector<double> weights = compute_weights(moments[0], eigen.eigenvectors);
@@ -312,7 +307,7 @@ struct WheelerAttemptResult
         }
     }
 
-    return {one_node_result(moments, QuadratureStatus::no_adaptive_quadrature, "No adaptive quadrature passed thresholds."), false};
+    return {one_node_result(moments, QuadratureStatus::success, ""), false};
 }
 
 } // namespace

@@ -1588,6 +1588,21 @@ void assert_cqmom_transport_results_match(const qmomkit::CqmomTransportResult& a
     assert_common_cqmom_moments_near(actual.state, expected.state, tolerance);
 }
 
+void assert_cqmom_result_owns_independent_accepted_quadrature(const qmomkit::CqmomTransportResult& result, const double tolerance)
+{
+    assert(result.ok());
+    assert(result.quadrature.has_value());
+    const std::optional<qmomkit::CqmomQuadrature>& accepted = qmomkit::internal::cqmom_state_accepted_quadrature(result.state);
+    assert(accepted.has_value());
+    assert_cqmom_quadrature_near(*result.quadrature, *accepted, tolerance);
+    assert(&*result.quadrature != &*accepted);
+    assert(result.quadrature->weights().data() != accepted->weights().data());
+    for (std::size_t dimension = 0; dimension < result.quadrature->abscissas().size(); ++dimension)
+    {
+        assert(result.quadrature->abscissas()[dimension].data() != accepted->abscissas()[dimension].data());
+    }
+}
+
 void assert_cqmom_states_equal(const qmomkit::CqmomState& actual, const qmomkit::CqmomState& expected)
 {
     assert(actual.moment_storage() == expected.moment_storage());
@@ -1808,6 +1823,38 @@ void test_public_cqmom_stage_composition_matches_transport()
     assert_public_cqmom_stage_composition_matches_transport(qmomkit::TransportScheme::strang);
     assert_public_cqmom_stage_composition_matches_transport(qmomkit::TransportScheme::cd);
     assert_public_cqmom_stage_composition_matches_transport(qmomkit::TransportScheme::dc);
+}
+
+void test_cqmom_transport_success_materializes_an_independent_final_quadrature()
+{
+    const auto velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.1); };
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    for (const char* const storage : {"dense", "lean"})
+    {
+        const qmomkit::CqmomState state = fixed_cqmom_case_with_storage(storage).initial_state();
+        qmomkit::CqmomTransportOptions options;
+        options.node_options = tight_node_options();
+
+        assert_cqmom_result_owns_independent_accepted_quadrature(qmomkit::advance_cqmom_continuous(state, 0.0, 0.1, velocity, options), 5.0e-10);
+        assert_cqmom_result_owns_independent_accepted_quadrature(qmomkit::advance_cqmom_discontinuous(state, 0.0, 0.1, zero_source, options),
+                                                                 5.0e-10);
+
+        for (const qmomkit::TransportScheme scheme : {qmomkit::TransportScheme::cd, qmomkit::TransportScheme::dc, qmomkit::TransportScheme::strang})
+        {
+            options.scheme = scheme;
+            assert_cqmom_result_owns_independent_accepted_quadrature(
+                qmomkit::advance_transport_cqmom(state, 0.0, 0.1, velocity, zero_source, options), 5.0e-10);
+        }
+    }
+
+    const qmomkit::CqmomCase dense_case = fixed_cqmom_case_with_storage("dense");
+    const qmomkit::CqmomDenseCase* dense_backend = qmomkit::internal::cqmom_case_dense_case(dense_case);
+    assert(dense_backend != nullptr);
+    const qmomkit::CqmomState cache_miss_state = qmomkit::internal::create_cqmom_state(*dense_backend);
+    assert(!qmomkit::internal::cqmom_state_accepted_quadrature(cache_miss_state).has_value());
+    assert_cqmom_result_owns_independent_accepted_quadrature(qmomkit::advance_cqmom_discontinuous(cache_miss_state, 0.0, 0.1, zero_source), 5.0e-10);
 }
 
 void test_public_cqmom_stage_failures_roll_back()
@@ -3946,6 +3993,7 @@ int main()
     test_public_cqmom_discontinuous_stage_growth_is_limited_to_one_node();
     test_lean_cqmom_discontinuous_stage_canonicalizes_adaptive_reduction();
     test_public_cqmom_stage_composition_matches_transport();
+    test_cqmom_transport_success_materializes_an_independent_final_quadrature();
     test_public_cqmom_stage_failures_roll_back();
     test_cqmom_transport_failure_after_first_stage_rolls_back_to_macro_input();
     test_cqmom_macro_rollbacks_preserve_the_original_state_after_later_successes();

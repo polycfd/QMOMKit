@@ -437,6 +437,47 @@ CqmomWorkload make_workload(const std::vector<std::size_t>& node_counts,
     return {std::move(hierarchy), std::move(dense_moments), std::move(lean_moments), std::move(lean_case), std::move(case_)};
 }
 
+qmomkit::RawMomentTensor ragged_transport_moments()
+{
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.5};
+    const std::vector<std::vector<double>> abscissas{{-1.0, 1.0, 1.0}, {0.0, -0.5, 0.5}};
+    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat_moment = 0; flat_moment < moments.size(); ++flat_moment)
+    {
+        const qmomkit::MultiIndex moment_index = qmomkit::unflatten_multi_index(flat_moment, extents);
+        for (std::size_t node = 0; node < weights.size(); ++node)
+        {
+            double contribution = weights[node];
+            for (std::size_t dimension = 0; dimension < abscissas.size(); ++dimension)
+            {
+                contribution *= std::pow(abscissas[dimension][node], static_cast<int>(moment_index[dimension]));
+            }
+            moments[flat_moment] += contribution;
+        }
+    }
+    return {extents, std::move(moments)};
+}
+
+CqmomWorkload make_transport_workload(const std::vector<std::size_t>& node_counts, const qmomkit::CqmomMomentStorage storage, const bool adaptive)
+{
+    qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
+    qmomkit::RawMomentTensor dense_moments = adaptive ? ragged_transport_moments() : independent_product_moments(node_counts);
+    qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    qmomkit::CqmomMomentData lean_moments = qmomkit::extract_cqmom_moments(dense_moments, layout);
+    qmomkit::QmomOptions qmom_options;
+    qmom_options.adaptive = adaptive;
+    qmom_options.rmin = 1.0e-10;
+    qmom_options.eabs = 1.0e-12;
+    qmom_options.cutoff = 1.0e-12;
+    qmomkit::CqmomLeanCase lean_case{lean_moments, {}, qmom_options, adaptive, qmomkit::CqmomDiagnosticLevel::basic};
+    qmomkit::CqmomCase case_ = storage == qmomkit::CqmomMomentStorage::dense
+                                   ? qmomkit::internal::create_cqmom_case(qmomkit::CqmomDenseCase{
+                                         hierarchy, dense_moments, {}, qmom_options, adaptive, qmomkit::CqmomDiagnosticLevel::basic})
+                                   : qmomkit::internal::create_cqmom_case(lean_case);
+    return {std::move(hierarchy), std::move(dense_moments), std::move(lean_moments), std::move(lean_case), std::move(case_)};
+}
+
 std::vector<qmomkit::CqmomState> make_states(const qmomkit::CqmomCase& case_, const std::size_t state_count)
 {
     std::vector<qmomkit::CqmomState> states;
@@ -600,6 +641,33 @@ enum class CounterMode
     enabled_no_session,
     timing_only
 };
+
+enum class CqmomTransportWorkflow
+{
+    continuous,
+    discontinuous,
+    cd,
+    dc,
+    strang
+};
+
+std::string transport_workflow_name(const CqmomTransportWorkflow workflow)
+{
+    switch (workflow)
+    {
+    case CqmomTransportWorkflow::continuous:
+        return "continuous";
+    case CqmomTransportWorkflow::discontinuous:
+        return "discontinuous";
+    case CqmomTransportWorkflow::cd:
+        return "cd";
+    case CqmomTransportWorkflow::dc:
+        return "dc";
+    case CqmomTransportWorkflow::strang:
+        return "strang";
+    }
+    return "unknown";
+}
 
 std::string instrumentation_mode_name(const CounterMode mode)
 {
@@ -881,6 +949,108 @@ void bm_cqmom_transport_workload(benchmark::State& state, const qmomkit::Transpo
     BenchmarkSummary summary = make_summary(name, "CQMOM transport", {2, 2}, workload, counters, measured_seconds,
                                             static_cast<std::size_t>(state.iterations()), state_steps, "state-step", counter_mode);
     summary.transport_scheme = transport_scheme_name(scheme);
+    summary.state_count = state_count;
+    summary.steps_per_state = steps_per_state;
+    record_summary(std::move(summary));
+}
+
+void bm_cqmom_transport_ownership_workload(benchmark::State& state, const CqmomTransportWorkflow workflow, const qmomkit::CqmomMomentStorage storage,
+                                           const std::vector<std::size_t>& node_counts, const bool adaptive, const std::string& name)
+{
+    if (!instrumentation_is_available(state))
+    {
+        return;
+    }
+
+    const std::size_t state_count = static_cast<std::size_t>(state.range(0));
+    const std::size_t steps_per_state = static_cast<std::size_t>(state.range(1));
+    const CqmomWorkload workload = make_transport_workload(node_counts, storage, adaptive);
+    const qmomkit::PhaseSpaceVelocity velocity = velocity_model();
+    const qmomkit::CqmomMomentSource source = source_model();
+    qmomkit::CqmomTransportOptions options;
+    options.node_options.adaptive_options.initial_step = 0.0025;
+    options.node_options.adaptive_options.max_step = 0.0025;
+    switch (workflow)
+    {
+    case CqmomTransportWorkflow::cd:
+        options.scheme = qmomkit::TransportScheme::cd;
+        break;
+    case CqmomTransportWorkflow::dc:
+        options.scheme = qmomkit::TransportScheme::dc;
+        break;
+    case CqmomTransportWorkflow::strang:
+    case CqmomTransportWorkflow::continuous:
+    case CqmomTransportWorkflow::discontinuous:
+        options.scheme = qmomkit::TransportScheme::strang;
+        break;
+    }
+
+    perf::CounterSession session;
+    double measured_seconds = 0.0;
+    for (auto _ : state)
+    {
+        state.PauseTiming();
+        std::vector<qmomkit::CqmomState> states = make_states(workload.case_, state_count);
+        state.ResumeTiming();
+
+        const auto run_steps = [&]() -> bool
+        {
+            for (std::size_t step = 0; step < steps_per_state; ++step)
+            {
+                const double time = 0.0025 * static_cast<double>(step);
+                for (qmomkit::CqmomState& cqmom_state : states)
+                {
+                    qmomkit::CqmomTransportResult result = [&]()
+                    {
+                        switch (workflow)
+                        {
+                        case CqmomTransportWorkflow::continuous:
+                            return qmomkit::advance_cqmom_continuous(cqmom_state, time, 0.0025, velocity, options);
+                        case CqmomTransportWorkflow::discontinuous:
+                            return qmomkit::advance_cqmom_discontinuous(cqmom_state, time, 0.0025, source, options);
+                        case CqmomTransportWorkflow::cd:
+                        case CqmomTransportWorkflow::dc:
+                        case CqmomTransportWorkflow::strang:
+                            return qmomkit::advance_transport_cqmom(cqmom_state, time, 0.0025, velocity, source, options);
+                        }
+                        throw std::logic_error("Unsupported CQMOM transport benchmark workflow.");
+                    }();
+                    if (!result.ok())
+                    {
+                        state.SkipWithError(result.message.empty() ? "CQMOM transport ownership workload failed." : result.message.c_str());
+                        return false;
+                    }
+                    cqmom_state = std::move(result.state);
+                    benchmark::DoNotOptimize(cqmom_state.hierarchy().number_of_dimensions());
+                }
+            }
+            return true;
+        };
+
+        const auto start = std::chrono::steady_clock::now();
+        bool ok = false;
+        {
+            perf::CounterScope scope(session);
+            ok = run_steps();
+        }
+        const auto stop = std::chrono::steady_clock::now();
+        measured_seconds += std::chrono::duration<double>(stop - start).count();
+        if (!ok)
+        {
+            return;
+        }
+    }
+
+    const std::size_t state_steps = state_count * steps_per_state;
+    const perf::PerformanceCounters counters = session.snapshot();
+    publish_counter(state, "state_steps", state_steps * state.iterations());
+    publish_geometry_counters(state, node_counts, workload);
+    publish_workload_counters(state, counters);
+    publish_normalized_counters(state, counters, state_steps);
+    state.SetItemsProcessed(static_cast<int64_t>(state.iterations() * state_steps));
+    BenchmarkSummary summary = make_summary(name, "CQMOM accepted-quadrature ownership transport", node_counts, workload, counters, measured_seconds,
+                                            static_cast<std::size_t>(state.iterations()), state_steps, "state-step", CounterMode::enabled_session);
+    summary.transport_scheme = transport_workflow_name(workflow);
     summary.state_count = state_count;
     summary.steps_per_state = steps_per_state;
     record_summary(std::move(summary));
@@ -1390,6 +1560,36 @@ BENCHMARK_CAPTURE(bm_cqmom_transport_workload, overhead_no_session_2d_2x2, qmomk
                   "performance_instrumentation_overhead_transport_no_session_2d_2x2")
     ->Name("performance_instrumentation_overhead_transport_no_session_2d_2x2")
     ->Args({32, 4});
+
+const bool ownership_transport_benchmarks_registered = []
+{
+    struct Fixture
+    {
+        const char* name;
+        std::vector<std::size_t> node_counts;
+        qmomkit::CqmomMomentStorage storage;
+        bool adaptive;
+    };
+    const std::vector<Fixture> fixtures{{"lean_fixed_2d_2x2", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, false},
+                                        {"dense_fixed_2d_2x2", nodes_2x2(), qmomkit::CqmomMomentStorage::dense, false},
+                                        {"lean_fixed_2d_3x3", nodes_3x3(), qmomkit::CqmomMomentStorage::lean, false},
+                                        {"lean_fixed_3d_2x2x2", nodes_2x2x2(), qmomkit::CqmomMomentStorage::lean, false},
+                                        {"lean_adaptive_ragged_2d", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true}};
+    const std::vector<CqmomTransportWorkflow> workflows{CqmomTransportWorkflow::continuous, CqmomTransportWorkflow::discontinuous,
+                                                        CqmomTransportWorkflow::cd, CqmomTransportWorkflow::dc, CqmomTransportWorkflow::strang};
+    for (const Fixture& fixture : fixtures)
+    {
+        for (const CqmomTransportWorkflow workflow : workflows)
+        {
+            const std::string name = "performance_cqmom_transport_ownership_" + std::string(fixture.name) + "_" + transport_workflow_name(workflow);
+            benchmark::RegisterBenchmark(
+                name.c_str(), [fixture, workflow, name](benchmark::State& state)
+                { bm_cqmom_transport_ownership_workload(state, workflow, fixture.storage, fixture.node_counts, fixture.adaptive, name); })
+                ->Args({32, 4});
+        }
+    }
+    return true;
+}();
 
 BENCHMARK_CAPTURE(bm_cqmom_reconstruction_scaling, auto_basic_2d_2x2, nodes_2x2(), qmomkit::VandermondeSolver::automatic,
                   qmomkit::CqmomDiagnosticLevel::basic, CounterMode::enabled_session, "performance_vandermonde_auto_basic_2d_2x2")

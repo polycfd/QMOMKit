@@ -1014,6 +1014,77 @@ void bm_cqmom_source_integration_workload(benchmark::State& state, const Counter
     record_summary(std::move(summary));
 }
 
+void bm_cqmom_trusted_discontinuous_state_workload(benchmark::State& state, const std::vector<std::size_t> node_counts, const std::string name)
+{
+    if (!instrumentation_is_available(state))
+    {
+        return;
+    }
+
+    const std::size_t state_count = static_cast<std::size_t>(state.range(0));
+    const std::size_t steps_per_state = static_cast<std::size_t>(state.range(1));
+    const CqmomWorkload workload = make_workload(node_counts);
+    const qmomkit::CqmomMomentSource source = source_model();
+    qmomkit::CqmomTransportOptions options;
+    options.source_options.ssp_rk3_options.estimate_error = true;
+
+    perf::CounterSession session;
+    double measured_seconds = 0.0;
+    for (auto _ : state)
+    {
+        state.PauseTiming();
+        std::vector<qmomkit::CqmomState> states = make_states(workload.case_, state_count);
+        state.ResumeTiming();
+
+        const auto run_updates = [&]() -> bool
+        {
+            for (std::size_t step = 0; step < steps_per_state; ++step)
+            {
+                const double time = 0.001 * static_cast<double>(step);
+                for (qmomkit::CqmomState& cqmom_state : states)
+                {
+                    qmomkit::CqmomTransportResult result = qmomkit::advance_cqmom_discontinuous(cqmom_state, time, 0.001, source, options);
+                    if (!result.ok())
+                    {
+                        state.SkipWithError(result.message.empty() ? "Trusted CQMOM discontinuous-state workload failed." : result.message.c_str());
+                        return false;
+                    }
+                    cqmom_state = std::move(result.state);
+                    benchmark::DoNotOptimize(cqmom_state.hierarchy().number_of_dimensions());
+                }
+            }
+            return true;
+        };
+
+        const auto start = std::chrono::steady_clock::now();
+        bool ok = false;
+        {
+            perf::CounterScope scope(session);
+            ok = run_updates();
+        }
+        const auto stop = std::chrono::steady_clock::now();
+        measured_seconds += std::chrono::duration<double>(stop - start).count();
+        if (!ok)
+        {
+            return;
+        }
+    }
+
+    const std::size_t source_steps = state_count * steps_per_state;
+    const perf::PerformanceCounters counters = session.snapshot();
+    publish_counter(state, "source_steps", source_steps * state.iterations());
+    publish_geometry_counters(state, node_counts, workload);
+    publish_workload_counters(state, counters);
+    publish_normalized_counters(state, counters, source_steps);
+    state.SetItemsProcessed(static_cast<int64_t>(state.iterations() * source_steps));
+    BenchmarkSummary summary =
+        make_summary(name, "CQMOM trusted discontinuous state transport", node_counts, workload, counters, measured_seconds,
+                     static_cast<std::size_t>(state.iterations()), source_steps, "source state-step", CounterMode::enabled_session);
+    summary.state_count = state_count;
+    summary.steps_per_state = steps_per_state;
+    record_summary(std::move(summary));
+}
+
 void bm_cqmom_source_callback_only(benchmark::State& state)
 {
     const std::size_t state_count = static_cast<std::size_t>(state.range(0));
@@ -1372,6 +1443,15 @@ BENCHMARK_CAPTURE(bm_cqmom_source_integration_workload, source_no_session_2d_3x3
                   "performance_instrumentation_overhead_source_no_session_2d_3x3", "CQMOM source integration")
     ->Name("performance_instrumentation_overhead_source_no_session_2d_3x3")
     ->Args({64, 8});
+BENCHMARK_CAPTURE(bm_cqmom_trusted_discontinuous_state_workload, trusted_state_2d_2x2, nodes_2x2(), "performance_source_trusted_state_2d_2x2")
+    ->Name("performance_source_trusted_state_2d_2x2")
+    ->Args({32, 4});
+BENCHMARK_CAPTURE(bm_cqmom_trusted_discontinuous_state_workload, trusted_state_2d_3x3, nodes_3x3(), "performance_source_trusted_state_2d_3x3")
+    ->Name("performance_source_trusted_state_2d_3x3")
+    ->Args({64, 8});
+BENCHMARK_CAPTURE(bm_cqmom_trusted_discontinuous_state_workload, trusted_state_3d_2x2x2, nodes_2x2x2(), "performance_source_trusted_state_3d_2x2x2")
+    ->Name("performance_source_trusted_state_3d_2x2x2")
+    ->Args({16, 2});
 BENCHMARK(bm_cqmom_source_callback_only)->Name("performance_source_callback_only_2d_3x3")->Args({64, 8});
 BENCHMARK(bm_cqmom_moment_data_copy)->Name("performance_cqmom_moment_data_copy_2d_3x3")->Arg(512);
 BENCHMARK(bm_cqmom_ssp_source_existing_layout)->Name("performance_ssp_source_existing_layout_2d_3x3")->Args({64, 8});

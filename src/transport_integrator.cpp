@@ -4,6 +4,7 @@
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
 #include "internal/moment_reconstruction.hpp"
+#include "internal/moment_source.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
 #include "internal/qmom_state_access.hpp"
@@ -969,8 +970,9 @@ void validate_cqmom_transport_input(const CqmomState& state, const double t, con
         const CqmomMomentLayout source_layout = create_cqmom_moment_layout(dense_case->hierarchy);
         CqmomMomentData source_moments = extract_cqmom_moments(dense_case->moments, source_layout);
         const CqmomMomentSourceUpdateResult source_update =
-            boundary == nullptr ? advance_cqmom_moments_with_source(source_moments, t, time_step, source, options.source_options)
-                                : advance_cqmom_moments_with_source(source_moments, t, time_step, source, *boundary, options.source_options);
+            boundary == nullptr
+                ? internal::advance_trusted_cqmom_moments_with_source(source_moments, t, time_step, source, options.source_options)
+                : internal::advance_trusted_cqmom_moments_with_source(source_moments, t, time_step, source, *boundary, options.source_options);
         record_source_update_diagnostics(diagnostics, source_update);
         if (!source_update.ok())
         {
@@ -1016,8 +1018,9 @@ void validate_cqmom_transport_input(const CqmomState& state, const double t, con
 
     const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state);
     const CqmomMomentSourceUpdateResult source_update =
-        boundary == nullptr ? advance_cqmom_moments_with_source(lean_case->moments, t, time_step, source, options.source_options)
-                            : advance_cqmom_moments_with_source(lean_case->moments, t, time_step, source, *boundary, options.source_options);
+        boundary == nullptr
+            ? internal::advance_trusted_cqmom_moments_with_source(lean_case->moments, t, time_step, source, options.source_options)
+            : internal::advance_trusted_cqmom_moments_with_source(lean_case->moments, t, time_step, source, *boundary, options.source_options);
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
     {

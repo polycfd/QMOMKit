@@ -1,4 +1,5 @@
 #include "internal/cqmom_case.hpp"
+#include "internal/moment_source.hpp"
 #include "internal/performance.hpp"
 #include "internal/vandermonde.hpp"
 #include "qmomkit/qmom.hpp"
@@ -8,6 +9,8 @@
 #include <cmath>
 #include <cstddef>
 #include <optional>
+#include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -47,6 +50,34 @@ qmomkit::CqmomMomentData independent_product_moments(const qmomkit::CqmomMomentL
 void assert_near(const double actual, const double expected)
 {
     assert(std::abs(actual - expected) < 1.0e-12);
+}
+
+void assert_vector_near(const std::vector<double>& actual, const std::vector<double>& expected)
+{
+    assert(actual.size() == expected.size());
+    for (std::size_t i = 0; i < actual.size(); ++i)
+    {
+        assert_near(actual[i], expected[i]);
+    }
+}
+
+qmomkit::RawMomentTensor independent_product_dense_moments(const qmomkit::PhaseSpaceHierarchy& hierarchy)
+{
+    const std::vector<std::vector<double>> nodes_by_dimension{{-0.5, 1.0}, {0.25, 1.5}, {-1.25, 0.75}};
+    const std::vector<std::vector<double>> weights_by_dimension{{0.4, 0.6}, {0.7, 0.3}, {0.2, 0.8}};
+    const std::vector<std::size_t> extents = hierarchy.moment_extents();
+    std::vector<double> values(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat_index = 0; flat_index < values.size(); ++flat_index)
+    {
+        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat_index, extents);
+        double value = 1.0;
+        for (std::size_t dimension = 0; dimension < hierarchy.number_of_dimensions(); ++dimension)
+        {
+            value *= raw_moment_1d(nodes_by_dimension[dimension], weights_by_dimension[dimension], index[dimension]);
+        }
+        values[flat_index] = value;
+    }
+    return qmomkit::RawMomentTensor{extents, std::move(values)};
 }
 
 void assert_same_cqmom_result(const qmomkit::CqmomResult& actual, const qmomkit::CqmomResult& expected)
@@ -282,6 +313,169 @@ void test_cqmom_source_update_reuses_stage_layout_when_enabled()
 #endif
 }
 
+void test_trusted_cqmom_source_update_matches_general_path_and_skips_layout_validation()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData moments = independent_product_moments(layout);
+    qmomkit::MomentSourceUpdateOptions options;
+    options.ssp_rk3_options.estimate_error = true;
+
+    std::vector<double> general_times;
+    const qmomkit::CqmomMomentSource general_source = [&general_times](const double time, const qmomkit::CqmomSourceContext& context)
+    {
+        general_times.push_back(time);
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t i = 0; i < rate.size(); ++i)
+        {
+            rate[i] = -0.25 * context.value(i);
+        }
+        return qmomkit::CqmomMomentRate{std::move(rate)};
+    };
+
+    qmomkit::internal::performance::CounterSession general_session;
+    std::optional<qmomkit::CqmomMomentSourceUpdateResult> general_result;
+    {
+        qmomkit::internal::performance::CounterScope scope(general_session);
+        general_result.emplace(qmomkit::advance_cqmom_moments_with_source(moments, 0.2, 0.1, general_source, options));
+    }
+
+    std::vector<double> trusted_times;
+    const qmomkit::CqmomMomentSource trusted_source = [&trusted_times](const double time, const qmomkit::CqmomSourceContext& context)
+    {
+        trusted_times.push_back(time);
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t i = 0; i < rate.size(); ++i)
+        {
+            rate[i] = -0.25 * context.value(i);
+        }
+        return qmomkit::CqmomMomentRate{std::move(rate)};
+    };
+
+    qmomkit::internal::performance::CounterSession trusted_session;
+    std::optional<qmomkit::CqmomMomentSourceUpdateResult> trusted_result;
+    {
+        qmomkit::internal::performance::CounterScope scope(trusted_session);
+        trusted_result.emplace(qmomkit::internal::advance_trusted_cqmom_moments_with_source(moments, 0.2, 0.1, trusted_source, options));
+    }
+
+    assert(general_result.has_value());
+    assert(trusted_result.has_value());
+    assert(general_result->ok());
+    assert(trusted_result->ok());
+    assert(general_result->status == trusted_result->status);
+    assert(general_result->message == trusted_result->message);
+    assert(general_result->diagnostics.ssp_rk3_status == trusted_result->diagnostics.ssp_rk3_status);
+    assert(general_result->diagnostics.retries == trusted_result->diagnostics.retries);
+    assert_near(general_result->diagnostics.time_step_used, trusted_result->diagnostics.time_step_used);
+    assert(general_result->diagnostics.error_estimate.has_value());
+    assert(trusted_result->diagnostics.error_estimate.has_value());
+    assert_near(*general_result->diagnostics.error_estimate, *trusted_result->diagnostics.error_estimate);
+    assert_vector_near(general_result->moments.values, trusted_result->moments.values);
+    assert(general_result->moments.layout.required_indices == trusted_result->moments.layout.required_indices);
+    assert_vector_near(general_times, trusted_times);
+    assert(general_times.size() == 3);
+
+    const qmomkit::internal::performance::PerformanceCounters general_counters = general_session.snapshot();
+    const qmomkit::internal::performance::PerformanceCounters trusted_counters = trusted_session.snapshot();
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(general_counters.reconstruction.moment_layout_builds == 1);
+    assert(trusted_counters.reconstruction.moment_layout_builds == 0);
+    assert(general_counters.time_integration.source_rk_stages == 3);
+    assert(trusted_counters.time_integration.source_rk_stages == 3);
+#else
+    assert(general_counters.reconstruction.moment_layout_builds == 0);
+    assert(trusted_counters.reconstruction.moment_layout_builds == 0);
+    assert(general_counters.time_integration.source_rk_stages == 0);
+    assert(trusted_counters.time_integration.source_rk_stages == 0);
+#endif
+}
+
+void test_trusted_cqmom_source_update_matches_general_boundary_failures()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData moments = independent_product_moments(layout);
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    const qmomkit::CqmomMomentBoundaryContribution throwing_boundary = [](double, const qmomkit::CqmomSourceContext&) -> qmomkit::CqmomMomentRate
+    { throw std::runtime_error("boundary failure"); };
+    const qmomkit::CqmomMomentSourceUpdateResult general =
+        qmomkit::advance_cqmom_moments_with_source(moments, 0.0, 0.1, zero_source, throwing_boundary, {});
+    const qmomkit::CqmomMomentSourceUpdateResult trusted =
+        qmomkit::internal::advance_trusted_cqmom_moments_with_source(moments, 0.0, 0.1, zero_source, throwing_boundary, {});
+
+    assert(!general.ok());
+    assert(!trusted.ok());
+    assert(general.status == trusted.status);
+    assert(general.message == trusted.message);
+    assert_vector_near(general.moments.values, moments.values);
+    assert_vector_near(trusted.moments.values, moments.values);
+
+    const qmomkit::CqmomMomentSource wrong_size_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size() + 1, 0.0)}; };
+    const qmomkit::CqmomMomentSourceUpdateResult general_wrong_size =
+        qmomkit::advance_cqmom_moments_with_source(moments, 0.0, 0.1, wrong_size_source, {});
+    const qmomkit::CqmomMomentSourceUpdateResult trusted_wrong_size =
+        qmomkit::internal::advance_trusted_cqmom_moments_with_source(moments, 0.0, 0.1, wrong_size_source, {});
+    assert(!general_wrong_size.ok());
+    assert(!trusted_wrong_size.ok());
+    assert(general_wrong_size.status == trusted_wrong_size.status);
+    assert(general_wrong_size.message == trusted_wrong_size.message);
+    assert_vector_near(general_wrong_size.moments.values, moments.values);
+    assert_vector_near(trusted_wrong_size.moments.values, moments.values);
+}
+
+void test_state_transport_source_update_skips_redundant_layout_validation_when_enabled()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData lean_moments = independent_product_moments(layout);
+    const qmomkit::CqmomLeanCase lean_case{lean_moments};
+    const qmomkit::CqmomDenseCase dense_case{hierarchy, independent_product_dense_moments(hierarchy)};
+    const qmomkit::CqmomState lean_state = qmomkit::internal::create_cqmom_case(lean_case).initial_state();
+    const qmomkit::CqmomState dense_state = qmomkit::internal::create_cqmom_case(dense_case).initial_state();
+    const qmomkit::CqmomMomentSource source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    qmomkit::internal::performance::CounterSession lean_session;
+    std::optional<qmomkit::CqmomTransportResult> lean_result;
+    {
+        qmomkit::internal::performance::CounterScope scope(lean_session);
+        lean_result.emplace(qmomkit::advance_cqmom_discontinuous(lean_state, 0.0, 0.1, source));
+    }
+
+    qmomkit::internal::performance::CounterSession dense_session;
+    std::optional<qmomkit::CqmomTransportResult> dense_result;
+    {
+        qmomkit::internal::performance::CounterScope scope(dense_session);
+        dense_result.emplace(qmomkit::advance_cqmom_discontinuous(dense_state, 0.0, 0.1, source));
+    }
+
+    assert(lean_result.has_value());
+    assert(dense_result.has_value());
+    assert(lean_result->ok());
+    assert(dense_result->ok());
+    const qmomkit::internal::performance::PerformanceCounters lean_counters = lean_session.snapshot();
+    const qmomkit::internal::performance::PerformanceCounters dense_counters = dense_session.snapshot();
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(lean_counters.reconstruction.moment_layout_builds == 2);
+    assert(dense_counters.reconstruction.moment_layout_builds == 3);
+    assert(lean_counters.time_integration.source_rk_stages == 3);
+    assert(dense_counters.time_integration.source_rk_stages == 3);
+    assert(lean_counters.transport.post_source_inversions == 1);
+    assert(dense_counters.transport.post_source_inversions == 1);
+    assert(lean_counters.linear_algebra.dense_vandermonde_fallbacks == 0);
+    assert(dense_counters.linear_algebra.dense_vandermonde_fallbacks == 0);
+#else
+    assert(lean_counters.reconstruction.moment_layout_builds == 0);
+    assert(dense_counters.reconstruction.moment_layout_builds == 0);
+    assert(lean_counters.time_integration.source_rk_stages == 0);
+    assert(dense_counters.time_integration.source_rk_stages == 0);
+#endif
+}
+
 void test_ssp_node_advection_does_not_record_source_rk_stages_when_enabled()
 {
     qmomkit::Quadrature1D quadrature;
@@ -409,6 +603,9 @@ int main()
     test_explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_enabled();
     test_qmom_workflow_records_coarse_reconstruction_events_when_enabled();
     test_cqmom_source_update_reuses_stage_layout_when_enabled();
+    test_trusted_cqmom_source_update_matches_general_path_and_skips_layout_validation();
+    test_trusted_cqmom_source_update_matches_general_boundary_failures();
+    test_state_transport_source_update_skips_redundant_layout_validation_when_enabled();
     test_ssp_node_advection_does_not_record_source_rk_stages_when_enabled();
     test_public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_enabled();
     test_trusted_cqmom_case_reconstruction_skips_global_layout_validation_when_enabled();

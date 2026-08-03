@@ -1,6 +1,7 @@
 #include "qmomkit/moment_source.hpp"
 
 #include "internal/cqmom_validation.hpp"
+#include "internal/moment_source.hpp"
 #include "internal/numeric_utils.hpp"
 
 #include <algorithm>
@@ -198,10 +199,9 @@ void validate_request(const std::vector<double>& moments, const double t, const 
     }
 }
 
-void validate_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
-                                  const MomentSourceUpdateOptions& options)
+void validate_cqmom_source_update_controls(const double t, const double time_step, const CqmomMomentSource& source,
+                                           const MomentSourceUpdateOptions& options)
 {
-    validate_fixed_cqmom_moment_data(moments, "CQMOM source update");
     if (!std::isfinite(t) || !std::isfinite(time_step) || !std::isfinite(t + time_step))
     {
         throw std::invalid_argument("CQMOM source update time input contains non-finite values.");
@@ -222,9 +222,34 @@ void validate_moment_data_request(const CqmomMomentData& moments, const double t
 }
 
 void validate_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
+                                  const MomentSourceUpdateOptions& options)
+{
+    validate_fixed_cqmom_moment_data(moments, "CQMOM source update");
+    validate_cqmom_source_update_controls(t, time_step, source, options);
+}
+
+void validate_trusted_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
+                                          const MomentSourceUpdateOptions& options)
+{
+    internal::validate_cqmom_moment_values_match_layout(
+        moments, {"", "CQMOM source update values must match the fixed layout size.", "CQMOM source update values must be finite."});
+    validate_cqmom_source_update_controls(t, time_step, source, options);
+}
+
+void validate_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
                                   const CqmomMomentBoundaryContribution& boundary, const MomentSourceUpdateOptions& options)
 {
     validate_moment_data_request(moments, t, time_step, source, options);
+    if (!boundary)
+    {
+        throw std::invalid_argument("CQMOM boundary contribution callback must be provided.");
+    }
+}
+
+void validate_trusted_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
+                                          const CqmomMomentBoundaryContribution& boundary, const MomentSourceUpdateOptions& options)
+{
+    validate_trusted_moment_data_request(moments, t, time_step, source, options);
     if (!boundary)
     {
         throw std::invalid_argument("CQMOM boundary contribution callback must be provided.");
@@ -472,5 +497,42 @@ CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomen
 
     return advance_validated_cqmom_moments_with_source(moments, t, time_step, compose_cqmom_source_and_boundary(source, boundary), options);
 }
+
+namespace internal
+{
+
+CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, const double t, const double time_step,
+                                                                        const CqmomMomentSource& source, const MomentSourceUpdateOptions& options)
+{
+    try
+    {
+        validate_trusted_moment_data_request(moments, t, time_step, source, options);
+    }
+    catch (const std::exception& error)
+    {
+        return invalid_moment_data_result(moments, error.what());
+    }
+
+    return advance_validated_cqmom_moments_with_source(moments, t, time_step, source, options);
+}
+
+CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, const double t, const double time_step,
+                                                                        const CqmomMomentSource& source,
+                                                                        const CqmomMomentBoundaryContribution& boundary,
+                                                                        const MomentSourceUpdateOptions& options)
+{
+    try
+    {
+        validate_trusted_moment_data_request(moments, t, time_step, source, boundary, options);
+    }
+    catch (const std::exception& error)
+    {
+        return invalid_moment_data_result(moments, error.what());
+    }
+
+    return advance_validated_cqmom_moments_with_source(moments, t, time_step, compose_cqmom_source_and_boundary(source, boundary), options);
+}
+
+} // namespace internal
 
 } // namespace qmomkit

@@ -100,6 +100,81 @@ void assert_same_cqmom_result(const qmomkit::CqmomResult& actual, const qmomkit:
     }
 }
 
+void assert_active_count_counters(const qmomkit::internal::performance::PerformanceCounters& counters, const std::size_t expected_derivations,
+                                  const std::size_t expected_validations, const std::size_t expected_transition_builds)
+{
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(counters.cqmom_topology.active_count_derivations == expected_derivations);
+    assert(counters.cqmom_topology.active_count_validations == expected_validations);
+    assert(counters.cqmom_topology.active_count_transition_builds == expected_transition_builds);
+#else
+    (void)expected_derivations;
+    (void)expected_validations;
+    (void)expected_transition_builds;
+    assert(counters.cqmom_topology.active_count_derivations == 0);
+    assert(counters.cqmom_topology.active_count_validations == 0);
+    assert(counters.cqmom_topology.active_count_transition_builds == 0);
+#endif
+}
+
+qmomkit::RawMomentTensor adaptive_ragged_dense_moments()
+{
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.5};
+    const std::vector<std::vector<double>> abscissas{{-1.0, 1.0, 1.0}, {0.0, -0.5, 0.5}};
+    std::vector<double> values(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat_index = 0; flat_index < values.size(); ++flat_index)
+    {
+        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat_index, extents);
+        for (std::size_t node = 0; node < weights.size(); ++node)
+        {
+            double contribution = weights[node];
+            for (std::size_t dimension = 0; dimension < abscissas.size(); ++dimension)
+            {
+                contribution *= std::pow(abscissas[dimension][node], static_cast<int>(index[dimension]));
+            }
+            values[flat_index] += contribution;
+        }
+    }
+    return {extents, std::move(values)};
+}
+
+qmomkit::CqmomState adaptive_ragged_lean_state()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    qmomkit::QmomOptions qmom_options;
+    qmom_options.adaptive = true;
+    qmom_options.rmin = 1.0e-10;
+    qmom_options.eabs = 1.0e-12;
+    qmom_options.cutoff = 1.0e-12;
+    const qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments(adaptive_ragged_dense_moments(), layout), {}, qmom_options, true};
+    return qmomkit::internal::create_cqmom_case(lean_case).initial_state();
+}
+
+qmomkit::CqmomState adaptive_ragged_dense_state()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    qmomkit::QmomOptions qmom_options;
+    qmom_options.adaptive = true;
+    qmom_options.rmin = 1.0e-10;
+    qmom_options.eabs = 1.0e-12;
+    qmom_options.cutoff = 1.0e-12;
+    const qmomkit::CqmomDenseCase dense_case{hierarchy, adaptive_ragged_dense_moments(), {}, qmom_options, true};
+    return qmomkit::internal::create_cqmom_case(dense_case).initial_state();
+}
+
+qmomkit::CqmomState adaptive_ragged_state_without_cache(const qmomkit::CqmomState& state)
+{
+    if (const qmomkit::CqmomDenseCase* dense_case = qmomkit::internal::cqmom_state_dense_case(state))
+    {
+        return qmomkit::internal::create_cqmom_state(*dense_case, state.active_branch_counts());
+    }
+    const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::cqmom_state_lean_case(state);
+    assert(lean_case != nullptr);
+    return qmomkit::internal::create_cqmom_state(*lean_case, state.active_branch_counts());
+}
+
 void test_instrumentation_mode_matches_build_option()
 {
 #if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
@@ -119,6 +194,9 @@ void test_counter_scope_records_direct_events_when_enabled()
         qmomkit::internal::performance::record_vandermonde_solve(qmomkit::internal::performance::VandermondeSolveKind::bjorck_pereyra);
         qmomkit::internal::performance::record_vandermonde_solve(qmomkit::internal::performance::VandermondeSolveKind::pivoted_qr);
         qmomkit::internal::performance::record_vandermonde_solve(qmomkit::internal::performance::VandermondeSolveKind::svd);
+        qmomkit::internal::performance::record_active_count_derivation();
+        qmomkit::internal::performance::record_active_count_validation();
+        qmomkit::internal::performance::record_active_count_transition_build();
         qmomkit::internal::performance::record_embedded_rk_step(true);
         qmomkit::internal::performance::record_embedded_rk_step(false);
     }
@@ -131,6 +209,7 @@ void test_counter_scope_records_direct_events_when_enabled()
     assert(counters.linear_algebra.bjorck_pereyra_solves == 1);
     assert(counters.linear_algebra.pivoted_qr_solves == 1);
     assert(counters.linear_algebra.svd_solves == 1);
+    assert_active_count_counters(counters, 1, 1, 1);
     assert(counters.time_integration.embedded_rk_accepted_steps == 1);
     assert(counters.time_integration.embedded_rk_rejected_steps == 1);
 
@@ -145,9 +224,116 @@ void test_counter_scope_records_direct_events_when_enabled()
     assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
     assert(counters.linear_algebra.pivoted_qr_solves == 0);
     assert(counters.linear_algebra.svd_solves == 0);
+    assert_active_count_counters(counters, 0, 0, 0);
     assert(counters.time_integration.embedded_rk_accepted_steps == 0);
     assert(counters.time_integration.embedded_rk_rejected_steps == 0);
 #endif
+}
+
+void test_adaptive_cqmom_transport_records_active_count_work_when_enabled()
+{
+    const auto velocity = [](double, const std::vector<double>& coordinate)
+    { return std::vector<double>{0.05 + 0.01 * coordinate[0], -0.02 + 0.03 * coordinate[1]}; };
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    const auto exercise_adaptive_storage = [&](const qmomkit::CqmomState& initialized_state)
+    {
+        qmomkit::CqmomTransportOptions options;
+        qmomkit::internal::performance::CounterSession continuous_hit_session;
+        {
+            qmomkit::internal::performance::CounterScope scope(continuous_hit_session);
+            const qmomkit::CqmomTransportResult result = qmomkit::advance_cqmom_continuous(initialized_state, 0.0, 0.1, velocity, options);
+            assert(result.ok());
+        }
+        assert_active_count_counters(continuous_hit_session.snapshot(), 0, 0, 0);
+
+        const qmomkit::CqmomState cache_miss_state = adaptive_ragged_state_without_cache(initialized_state);
+        qmomkit::internal::performance::CounterSession continuous_miss_session;
+        {
+            qmomkit::internal::performance::CounterScope scope(continuous_miss_session);
+            const qmomkit::CqmomTransportResult result = qmomkit::advance_cqmom_continuous(cache_miss_state, 0.0, 0.1, velocity, options);
+            assert(result.ok());
+        }
+        assert_active_count_counters(continuous_miss_session.snapshot(), 1, 1, 1);
+
+        qmomkit::internal::performance::CounterSession discontinuous_hit_session;
+        {
+            qmomkit::internal::performance::CounterScope scope(discontinuous_hit_session);
+            const qmomkit::CqmomTransportResult result = qmomkit::advance_cqmom_discontinuous(initialized_state, 0.0, 0.1, zero_source, options);
+            assert(result.ok());
+        }
+        assert_active_count_counters(discontinuous_hit_session.snapshot(), 1, 1, 1);
+
+        const qmomkit::CqmomState discontinuous_cache_miss_state = adaptive_ragged_state_without_cache(initialized_state);
+        qmomkit::internal::performance::CounterSession discontinuous_miss_session;
+        {
+            qmomkit::internal::performance::CounterScope scope(discontinuous_miss_session);
+            const qmomkit::CqmomTransportResult result =
+                qmomkit::advance_cqmom_discontinuous(discontinuous_cache_miss_state, 0.0, 0.1, zero_source, options);
+            assert(result.ok());
+        }
+        assert_active_count_counters(discontinuous_miss_session.snapshot(), 2, 2, 2);
+
+        for (const qmomkit::TransportScheme scheme : {qmomkit::TransportScheme::cd, qmomkit::TransportScheme::dc, qmomkit::TransportScheme::strang})
+        {
+            options.scheme = scheme;
+            qmomkit::internal::performance::CounterSession hit_session;
+            {
+                qmomkit::internal::performance::CounterScope scope(hit_session);
+                const qmomkit::CqmomTransportResult result =
+                    qmomkit::advance_transport_cqmom(initialized_state, 0.0, 0.1, velocity, zero_source, options);
+                assert(result.ok());
+            }
+            assert_active_count_counters(hit_session.snapshot(), 1, 1, 1);
+
+            const qmomkit::CqmomState cache_miss_scheme_state = adaptive_ragged_state_without_cache(initialized_state);
+            qmomkit::internal::performance::CounterSession miss_session;
+            {
+                qmomkit::internal::performance::CounterScope scope(miss_session);
+                const qmomkit::CqmomTransportResult result =
+                    qmomkit::advance_transport_cqmom(cache_miss_scheme_state, 0.0, 0.1, velocity, zero_source, options);
+                assert(result.ok());
+            }
+            assert_active_count_counters(miss_session.snapshot(), 2, 2, 2);
+        }
+    };
+
+    qmomkit::internal::performance::CounterSession lean_initialization_session;
+    std::optional<qmomkit::CqmomState> lean_state;
+    {
+        qmomkit::internal::performance::CounterScope scope(lean_initialization_session);
+        lean_state.emplace(adaptive_ragged_lean_state());
+    }
+    assert_active_count_counters(lean_initialization_session.snapshot(), 1, 0, 0);
+    assert(lean_state.has_value());
+    exercise_adaptive_storage(*lean_state);
+
+    qmomkit::internal::performance::CounterSession dense_initialization_session;
+    std::optional<qmomkit::CqmomState> dense_state;
+    {
+        qmomkit::internal::performance::CounterScope scope(dense_initialization_session);
+        dense_state.emplace(adaptive_ragged_dense_state());
+    }
+    assert_active_count_counters(dense_initialization_session.snapshot(), 1, 0, 0);
+    assert(dense_state.has_value());
+    exercise_adaptive_storage(*dense_state);
+
+    const qmomkit::PhaseSpaceHierarchy fixed_hierarchy({2, 2});
+    const qmomkit::CqmomMomentLayout fixed_layout = qmomkit::create_cqmom_moment_layout(fixed_hierarchy);
+    const qmomkit::CqmomLeanCase fixed_case{qmomkit::extract_cqmom_moments(independent_product_dense_moments(fixed_hierarchy), fixed_layout)};
+    const qmomkit::CqmomState fixed_state = qmomkit::internal::create_cqmom_case(fixed_case).initial_state();
+    const qmomkit::CqmomState fixed_cache_miss_state = qmomkit::internal::create_cqmom_state(fixed_case);
+    qmomkit::internal::performance::CounterSession fixed_session;
+    {
+        qmomkit::internal::performance::CounterScope scope(fixed_session);
+        qmomkit::CqmomTransportOptions options;
+        const qmomkit::CqmomTransportResult continuous = qmomkit::advance_cqmom_continuous(fixed_cache_miss_state, 0.0, 0.1, velocity, options);
+        const qmomkit::CqmomTransportResult discontinuous = qmomkit::advance_cqmom_discontinuous(fixed_state, 0.0, 0.1, zero_source, options);
+        assert(continuous.ok());
+        assert(discontinuous.ok());
+    }
+    assert_active_count_counters(fixed_session.snapshot(), 0, 0, 0);
 }
 
 qmomkit::internal::DenseMatrix make_vandermonde_rhs(const std::vector<double>& nodes, const std::vector<double>& weights,
@@ -599,6 +785,7 @@ int main()
 {
     test_instrumentation_mode_matches_build_option();
     test_counter_scope_records_direct_events_when_enabled();
+    test_adaptive_cqmom_transport_records_active_count_work_when_enabled();
     test_explicit_svd_vandermonde_records_only_svd_counter_when_enabled();
     test_explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_enabled();
     test_qmom_workflow_records_coarse_reconstruction_events_when_enabled();

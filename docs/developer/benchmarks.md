@@ -364,6 +364,7 @@ QMOMKit workload measurements using the optional performance instrumentation
 layer. It reports Google Benchmark wall-clock/CPU timing together with
 internal workload counters, such as reconstruction calls, branch solves,
 Wheeler calls, Vandermonde solves, fallback counts, terminal node assembly,
+adaptive active-count derivations, validations, and transition builds,
 transport operator calls, source SSP-RK stages, and node RHS evaluations.
 
 This benchmark is intended for:

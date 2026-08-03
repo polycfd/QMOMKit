@@ -96,10 +96,11 @@ moment representation used by source evolution and later inversions.
 
 For adaptive CQMOM, the phase-space hierarchy node counts remain the
 configured maximum branch capacity throughout transport. The current active
-branch counts are separate runtime state: they are extracted from the ragged
-terminal paths of each successful adaptive CQMOM quadrature and stored on
-`CqmomState` beside the current moments. Continuous node advection preserves
-terminal paths and therefore preserves active branch topology. Moment
+branch counts are separate runtime state. A newly accepted adaptive inversion
+quadrature provides the terminal paths from which the next state's counts are
+derived and stored on `CqmomState` beside the current moments. Continuous node
+advection preserves terminal paths and therefore propagates the state's
+already accepted active-count metadata without re-deriving it. Moment
 reconstruction updates values only; it must not replace configured maximum
 counts with active counts or discard the active-count metadata.
 

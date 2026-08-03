@@ -39,9 +39,10 @@ and numerical path of a result.
 
 Performance instrumentation counts computational work. It records events such
 as reconstruction calls, Wheeler calls, Vandermonde solver usage, fallback
-usage, transport operator applications, source SSP-RK stages, source retries,
-node RHS evaluations, and adaptive embedded-RK node-advection steps. These counters
-describe workload composition, not correctness.
+usage, transport operator applications, adaptive CQMOM active-count derivation,
+validation, and transition construction, source SSP-RK stages, source retries,
+node RHS evaluations, and adaptive embedded-RK node-advection steps. These
+counters describe workload composition, not correctness.
 
 Profiling tools measure elapsed time and hardware-level behavior. Use external
 profilers to identify where time is spent, whether memory allocation or cache
@@ -123,6 +124,13 @@ condition estimates.
 Transport counters summarize operator-split transport work, including macro
 steps, continuous and discontinuous operator applications, moment
 reconstruction calls, and post-source inversions.
+
+CQMOM topology counters summarize adaptive active-count work. A derivation is
+recorded only after a complete active-count collection has been derived from an
+accepted adaptive quadrature; fixed-topology early returns are not counted. A
+validation is recorded when recursive reconstruction validates a non-empty
+active-count constraint collection. A transition build is recorded when
+non-empty before/after active counts are processed for transition diagnostics.
 
 Time-integration counters summarize RK-related work, including source SSP-RK
 stages, source retries, node RHS evaluations, and adaptive embedded-RK accepted

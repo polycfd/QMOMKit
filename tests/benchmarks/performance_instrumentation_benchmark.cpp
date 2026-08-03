@@ -11,6 +11,7 @@
 #include <iostream>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -169,6 +170,12 @@ bool has_transport_counters(const perf::PerformanceCounters& counters)
            counters.time_integration.embedded_rk_accepted_steps != 0 || counters.time_integration.embedded_rk_rejected_steps != 0;
 }
 
+bool has_cqmom_topology_counters(const perf::PerformanceCounters& counters)
+{
+    return counters.cqmom_topology.active_count_derivations != 0 || counters.cqmom_topology.active_count_validations != 0 ||
+           counters.cqmom_topology.active_count_transition_builds != 0;
+}
+
 void record_summary(BenchmarkSummary summary)
 {
     std::vector<BenchmarkSummary>& summaries = benchmark_summaries();
@@ -209,6 +216,7 @@ public:
             const bool has_reconstruction = has_reconstruction_counters(summary.counters);
             const bool has_linear_algebra = has_linear_algebra_counters(summary.counters);
             const bool has_transport = has_transport_counters(summary.counters);
+            const bool has_cqmom_topology = has_cqmom_topology_counters(summary.counters);
 
             std::cout << "\n" << summary.name << "\n";
             std::cout << std::string(summary.name.size(), '-') << "\n";
@@ -298,6 +306,14 @@ public:
                                                                                  summary.counters.time_integration.embedded_rk_rejected_steps);
             }
 
+            if (has_cqmom_topology)
+            {
+                std::cout << "  CQMOM topology counters\n";
+                print_counter_line("active-count derivations", summary.counters.cqmom_topology.active_count_derivations);
+                print_counter_line("active-count validations", summary.counters.cqmom_topology.active_count_validations);
+                print_counter_line("active-count transition builds", summary.counters.cqmom_topology.active_count_transition_builds);
+            }
+
             if (summary.diagnostic_node_advection_steps != 0 || summary.diagnostic_node_advection_rejected_steps != 0 ||
                 summary.diagnostic_node_advection_rhs_evaluations != 0 || summary.has_trajectory_error)
             {
@@ -311,7 +327,7 @@ public:
                 }
             }
 
-            if (has_reconstruction || has_linear_algebra || has_transport)
+            if (has_reconstruction || has_linear_algebra || has_transport || has_cqmom_topology)
             {
                 std::cout << "  Derived metrics\n";
                 if (has_reconstruction)
@@ -335,6 +351,15 @@ public:
                                       safe_ratio(summary.counters.time_integration.node_rhs_evaluations, total_operations));
                     print_metric_line("source SSP-RK stages / update",
                                       safe_ratio(summary.counters.time_integration.source_rk_stages, total_operations));
+                }
+                if (has_cqmom_topology && total_operations > 0)
+                {
+                    print_metric_line("active-count derivations / update",
+                                      safe_ratio(summary.counters.cqmom_topology.active_count_derivations, total_operations));
+                    print_metric_line("active-count validations / update",
+                                      safe_ratio(summary.counters.cqmom_topology.active_count_validations, total_operations));
+                    print_metric_line("active-count transition builds / update",
+                                      safe_ratio(summary.counters.cqmom_topology.active_count_transition_builds, total_operations));
                 }
             }
         }
@@ -459,10 +484,47 @@ qmomkit::RawMomentTensor ragged_transport_moments()
     return {extents, std::move(moments)};
 }
 
+qmomkit::RawMomentTensor ragged_transport_moments_3d()
+{
+    const std::vector<std::size_t> extents{4, 4, 4};
+    const std::vector<double> weights{0.25, 0.25, 0.5};
+    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0}, {-1.0, 1.0, 0.0}, {-1.0, 1.0, 0.0}};
+    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat_moment = 0; flat_moment < moments.size(); ++flat_moment)
+    {
+        const qmomkit::MultiIndex moment_index = qmomkit::unflatten_multi_index(flat_moment, extents);
+        for (std::size_t node = 0; node < weights.size(); ++node)
+        {
+            double contribution = weights[node];
+            for (std::size_t dimension = 0; dimension < abscissas.size(); ++dimension)
+            {
+                contribution *= std::pow(abscissas[dimension][node], static_cast<int>(moment_index[dimension]));
+            }
+            moments[flat_moment] += contribution;
+        }
+    }
+    return {extents, std::move(moments)};
+}
+
 CqmomWorkload make_transport_workload(const std::vector<std::size_t>& node_counts, const qmomkit::CqmomMomentStorage storage, const bool adaptive)
 {
     qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
-    qmomkit::RawMomentTensor dense_moments = adaptive ? ragged_transport_moments() : independent_product_moments(node_counts);
+    qmomkit::RawMomentTensor dense_moments = independent_product_moments(node_counts);
+    if (adaptive)
+    {
+        if (node_counts == nodes_2x2())
+        {
+            dense_moments = ragged_transport_moments();
+        }
+        else if (node_counts == nodes_2x2x2())
+        {
+            dense_moments = ragged_transport_moments_3d();
+        }
+        else
+        {
+            throw std::invalid_argument("No adaptive CQMOM transport benchmark fixture is available for these node counts.");
+        }
+    }
     qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     qmomkit::CqmomMomentData lean_moments = qmomkit::extract_cqmom_moments(dense_moments, layout);
     qmomkit::QmomOptions qmom_options;
@@ -485,6 +547,33 @@ std::vector<qmomkit::CqmomState> make_states(const qmomkit::CqmomCase& case_, co
     for (std::size_t state = 0; state < state_count; ++state)
     {
         states.push_back(case_.initial_state());
+    }
+    return states;
+}
+
+qmomkit::CqmomState state_without_accepted_quadrature(const qmomkit::CqmomState& state)
+{
+    if (const qmomkit::CqmomDenseCase* dense_case = qmomkit::internal::cqmom_state_dense_case(state))
+    {
+        return qmomkit::internal::create_cqmom_state(*dense_case, state.active_branch_counts());
+    }
+    const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::cqmom_state_lean_case(state);
+    if (lean_case == nullptr)
+    {
+        throw std::logic_error("CQMOM transport benchmark state has unknown storage.");
+    }
+    return qmomkit::internal::create_cqmom_state(*lean_case, state.active_branch_counts());
+}
+
+std::vector<qmomkit::CqmomState> make_transport_states(const qmomkit::CqmomCase& case_, const std::size_t state_count, const bool cache_miss)
+{
+    std::vector<qmomkit::CqmomState> states = make_states(case_, state_count);
+    if (cache_miss)
+    {
+        for (qmomkit::CqmomState& state : states)
+        {
+            state = state_without_accepted_quadrature(state);
+        }
     }
     return states;
 }
@@ -799,6 +888,12 @@ void publish_workload_counters(benchmark::State& state, const perf::PerformanceC
         publish_counter(state, "embedded_rk_accepted", counters.time_integration.embedded_rk_accepted_steps);
         publish_counter(state, "embedded_rk_rejected", counters.time_integration.embedded_rk_rejected_steps);
     }
+    if (has_cqmom_topology_counters(counters))
+    {
+        publish_counter(state, "active_count_derivations", counters.cqmom_topology.active_count_derivations);
+        publish_counter(state, "active_count_validations", counters.cqmom_topology.active_count_validations);
+        publish_counter(state, "active_count_transition_builds", counters.cqmom_topology.active_count_transition_builds);
+    }
 }
 
 void publish_node_advection_diagnostics(benchmark::State& state, const std::size_t step_count, const std::size_t rejected_step_count,
@@ -812,8 +907,8 @@ void publish_node_advection_diagnostics(benchmark::State& state, const std::size
 
 void publish_normalized_counters(benchmark::State& state, const perf::PerformanceCounters& counters, const std::size_t operations_per_iteration)
 {
-    if (operations_per_iteration == 0 ||
-        (!has_reconstruction_counters(counters) && !has_linear_algebra_counters(counters) && !has_transport_counters(counters)))
+    if (operations_per_iteration == 0 || (!has_reconstruction_counters(counters) && !has_linear_algebra_counters(counters) &&
+                                          !has_transport_counters(counters) && !has_cqmom_topology_counters(counters)))
     {
         return;
     }
@@ -840,6 +935,15 @@ void publish_normalized_counters(benchmark::State& state, const perf::Performanc
             benchmark::Counter(static_cast<double>(counters.time_integration.node_rhs_evaluations) / operations, benchmark::Counter::kAvgIterations);
         state.counters["source_rk_stages_per_op"] =
             benchmark::Counter(static_cast<double>(counters.time_integration.source_rk_stages) / operations, benchmark::Counter::kAvgIterations);
+    }
+    if (has_cqmom_topology_counters(counters))
+    {
+        state.counters["active_count_derivations_per_op"] = benchmark::Counter(
+            static_cast<double>(counters.cqmom_topology.active_count_derivations) / operations, benchmark::Counter::kAvgIterations);
+        state.counters["active_count_validations_per_op"] = benchmark::Counter(
+            static_cast<double>(counters.cqmom_topology.active_count_validations) / operations, benchmark::Counter::kAvgIterations);
+        state.counters["active_count_transition_builds_per_op"] = benchmark::Counter(
+            static_cast<double>(counters.cqmom_topology.active_count_transition_builds) / operations, benchmark::Counter::kAvgIterations);
     }
 }
 
@@ -955,7 +1059,8 @@ void bm_cqmom_transport_workload(benchmark::State& state, const qmomkit::Transpo
 }
 
 void bm_cqmom_transport_ownership_workload(benchmark::State& state, const CqmomTransportWorkflow workflow, const qmomkit::CqmomMomentStorage storage,
-                                           const std::vector<std::size_t>& node_counts, const bool adaptive, const std::string& name)
+                                           const std::vector<std::size_t>& node_counts, const bool adaptive, const bool cache_miss,
+                                           const std::string& name)
 {
     if (!instrumentation_is_available(state))
     {
@@ -990,7 +1095,7 @@ void bm_cqmom_transport_ownership_workload(benchmark::State& state, const CqmomT
     for (auto _ : state)
     {
         state.PauseTiming();
-        std::vector<qmomkit::CqmomState> states = make_states(workload.case_, state_count);
+        std::vector<qmomkit::CqmomState> states = make_transport_states(workload.case_, state_count, cache_miss);
         state.ResumeTiming();
 
         const auto run_steps = [&]() -> bool
@@ -1569,12 +1674,18 @@ const bool ownership_transport_benchmarks_registered = []
         std::vector<std::size_t> node_counts;
         qmomkit::CqmomMomentStorage storage;
         bool adaptive;
+        bool cache_miss;
     };
-    const std::vector<Fixture> fixtures{{"lean_fixed_2d_2x2", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, false},
-                                        {"dense_fixed_2d_2x2", nodes_2x2(), qmomkit::CqmomMomentStorage::dense, false},
-                                        {"lean_fixed_2d_3x3", nodes_3x3(), qmomkit::CqmomMomentStorage::lean, false},
-                                        {"lean_fixed_3d_2x2x2", nodes_2x2x2(), qmomkit::CqmomMomentStorage::lean, false},
-                                        {"lean_adaptive_ragged_2d", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true}};
+    const std::vector<Fixture> fixtures{{"lean_fixed_2d_2x2", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, false, false},
+                                        {"dense_fixed_2d_2x2", nodes_2x2(), qmomkit::CqmomMomentStorage::dense, false, false},
+                                        {"lean_fixed_2d_3x3", nodes_3x3(), qmomkit::CqmomMomentStorage::lean, false, false},
+                                        {"lean_fixed_3d_2x2x2", nodes_2x2x2(), qmomkit::CqmomMomentStorage::lean, false, false},
+                                        {"lean_adaptive_ragged_2d", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true, false},
+                                        {"dense_adaptive_ragged_2d", nodes_2x2(), qmomkit::CqmomMomentStorage::dense, true, false},
+                                        {"lean_adaptive_ragged_3d", nodes_2x2x2(), qmomkit::CqmomMomentStorage::lean, true, false},
+                                        {"lean_adaptive_ragged_2d_cache_miss", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true, true},
+                                        {"dense_adaptive_ragged_2d_cache_miss", nodes_2x2(), qmomkit::CqmomMomentStorage::dense, true, true},
+                                        {"lean_adaptive_ragged_3d_cache_miss", nodes_2x2x2(), qmomkit::CqmomMomentStorage::lean, true, true}};
     const std::vector<CqmomTransportWorkflow> workflows{CqmomTransportWorkflow::continuous, CqmomTransportWorkflow::discontinuous,
                                                         CqmomTransportWorkflow::cd, CqmomTransportWorkflow::dc, CqmomTransportWorkflow::strang};
     for (const Fixture& fixture : fixtures)
@@ -1582,10 +1693,13 @@ const bool ownership_transport_benchmarks_registered = []
         for (const CqmomTransportWorkflow workflow : workflows)
         {
             const std::string name = "performance_cqmom_transport_ownership_" + std::string(fixture.name) + "_" + transport_workflow_name(workflow);
-            benchmark::RegisterBenchmark(
-                name.c_str(), [fixture, workflow, name](benchmark::State& state)
-                { bm_cqmom_transport_ownership_workload(state, workflow, fixture.storage, fixture.node_counts, fixture.adaptive, name); })
-                ->Args({32, 4});
+            benchmark::RegisterBenchmark(name.c_str(),
+                                         [fixture, workflow, name](benchmark::State& state)
+                                         {
+                                             bm_cqmom_transport_ownership_workload(state, workflow, fixture.storage, fixture.node_counts,
+                                                                                   fixture.adaptive, fixture.cache_miss, name);
+                                         })
+                ->Args({32, fixture.cache_miss ? 1 : 4});
         }
     }
     return true;

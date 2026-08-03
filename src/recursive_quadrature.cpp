@@ -688,6 +688,7 @@ struct BranchNodeCountLimit
     {
         return topology;
     }
+    internal::performance::record_active_count_validation();
     topology.constrained = true;
 
     const std::size_t dimensions = hierarchy.number_of_dimensions();

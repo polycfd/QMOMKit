@@ -269,9 +269,9 @@ CqmomState CqmomCase::initial_state() const
     CqmomQuadrature accepted_quadrature = std::move(accepted.quadrature);
     std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(accepted_quadrature);
     return std::visit(Overloaded{[&active_counts, &accepted_quadrature](const CqmomDenseCase& dense_case)
-                                 { return internal::create_cqmom_state(dense_case, active_counts, std::move(accepted_quadrature)); },
+                                 { return internal::create_cqmom_state(dense_case, std::move(active_counts), std::move(accepted_quadrature)); },
                                  [&active_counts, &accepted_quadrature](const CqmomLeanCase& lean_case)
-                                 { return internal::create_cqmom_state(lean_case, active_counts, std::move(accepted_quadrature)); }},
+                                 { return internal::create_cqmom_state(lean_case, std::move(active_counts), std::move(accepted_quadrature)); }},
                       data_->case_);
 }
 

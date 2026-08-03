@@ -1,5 +1,6 @@
 #pragma once
 
+#include "performance.hpp"
 #include "qmomkit/cqmom.hpp"
 
 #include <algorithm>
@@ -119,6 +120,7 @@ inline void validate_contiguous_child_indices(const ActiveBranchAccumulator& acc
         counts.push_back({accumulator.conditioning_level, accumulator.parent_path, accumulator.phase_space_dimension,
                           accumulator.configured_node_count, accumulator.child_node_indices.size()});
     }
+    performance::record_active_count_derivation();
     return counts;
 }
 

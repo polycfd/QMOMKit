@@ -45,6 +45,13 @@ struct TransportCounters
     std::size_t post_source_inversions = 0;
 };
 
+struct CqmomTopologyCounters
+{
+    std::size_t active_count_derivations = 0;
+    std::size_t active_count_validations = 0;
+    std::size_t active_count_transition_builds = 0;
+};
+
 struct TimeIntegrationCounters
 {
     std::size_t source_rk_stages = 0;
@@ -59,6 +66,7 @@ struct PerformanceCounters
     ReconstructionCounters reconstruction;
     LinearAlgebraCounters linear_algebra;
     TransportCounters transport;
+    CqmomTopologyCounters cqmom_topology;
     TimeIntegrationCounters time_integration;
 };
 
@@ -269,6 +277,30 @@ inline void record_post_source_inversion() noexcept
     }
 }
 
+inline void record_active_count_derivation() noexcept
+{
+    if (PerformanceCounters* counters = active_counters())
+    {
+        ++counters->cqmom_topology.active_count_derivations;
+    }
+}
+
+inline void record_active_count_validation() noexcept
+{
+    if (PerformanceCounters* counters = active_counters())
+    {
+        ++counters->cqmom_topology.active_count_validations;
+    }
+}
+
+inline void record_active_count_transition_build() noexcept
+{
+    if (PerformanceCounters* counters = active_counters())
+    {
+        ++counters->cqmom_topology.active_count_transition_builds;
+    }
+}
+
 inline void record_source_rk_stage() noexcept
 {
     if (PerformanceCounters* counters = active_counters())
@@ -349,6 +381,9 @@ inline void record_continuous_operator_call() noexcept {}
 inline void record_discontinuous_operator_call() noexcept {}
 inline void record_moment_reconstruction_call() noexcept {}
 inline void record_post_source_inversion() noexcept {}
+inline void record_active_count_derivation() noexcept {}
+inline void record_active_count_validation() noexcept {}
+inline void record_active_count_transition_build() noexcept {}
 inline void record_source_rk_stage() noexcept {}
 inline void record_source_retry() noexcept {}
 inline void record_node_rhs_evaluation() noexcept {}

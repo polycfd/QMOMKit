@@ -487,6 +487,11 @@ void record_cqmom_node_count_transitions(TransportDiagnostics& diagnostics, cons
                                          const std::vector<CqmomActiveBranchCount>& before_counts,
                                          const std::vector<CqmomActiveBranchCount>& after_counts)
 {
+    if (!before_counts.empty() || !after_counts.empty())
+    {
+        internal::performance::record_active_count_transition_build();
+    }
+
     std::map<ActiveBranchKey, CqmomActiveBranchCount> before_by_key;
     std::map<ActiveBranchKey, CqmomActiveBranchCount> after_by_key;
     for (const CqmomActiveBranchCount& before : before_counts)
@@ -808,6 +813,15 @@ struct CqmomTransportWorkingState
     const std::vector<CqmomActiveBranchCount>* active_branch_counts = nullptr;
 };
 
+[[nodiscard]] std::vector<CqmomActiveBranchCount> take_cqmom_continuous_active_counts(CqmomTransportWorkingState& working_state)
+{
+    if (working_state.reconstructed_quadrature.has_value())
+    {
+        return std::move(working_state.reconstructed_active_branch_counts);
+    }
+    return *working_state.active_branch_counts;
+}
+
 [[nodiscard]] CqmomStageOutcome cqmom_state_failure(const CqmomState& rollback_state, std::optional<CqmomQuadrature> quadrature,
                                                     const TransportStatus status, const TransportStage stage, TransportDiagnostics diagnostics,
                                                     const double final_time, std::string message)
@@ -841,7 +855,8 @@ struct CqmomTransportWorkingState
                                                      std::move(outcome.diagnostics), outcome.final_time, ""});
 }
 
-[[nodiscard]] CqmomState dense_state_from_accepted_quadrature(const CqmomDenseCase& base_case, RawMomentTensor moments, CqmomQuadrature&& quadrature)
+[[nodiscard]] CqmomState dense_state_from_accepted_quadrature(const CqmomDenseCase& base_case, RawMomentTensor moments,
+                                                              std::vector<CqmomActiveBranchCount> active_counts, CqmomQuadrature&& quadrature)
 {
     CqmomDenseCase updated_case{base_case.hierarchy,
                                 std::move(moments),
@@ -851,16 +866,15 @@ struct CqmomTransportWorkingState
                                 base_case.diagnostic_level,
                                 base_case.vandermonde_solver,
                                 base_case.coordinate_support};
-    std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(quadrature);
     return internal::create_cqmom_state(std::move(updated_case), std::move(active_counts), std::move(quadrature));
 }
 
-[[nodiscard]] CqmomState lean_state_from_accepted_quadrature(const CqmomLeanCase& base_case, CqmomMomentData moments, CqmomQuadrature&& quadrature)
+[[nodiscard]] CqmomState lean_state_from_accepted_quadrature(const CqmomLeanCase& base_case, CqmomMomentData moments,
+                                                             std::vector<CqmomActiveBranchCount> active_counts, CqmomQuadrature&& quadrature)
 {
     CqmomLeanCase updated_case{
         std::move(moments),         base_case.conditional_options, base_case.qmom_options,      base_case.adaptive_branch_counts,
         base_case.diagnostic_level, base_case.vandermonde_solver,  base_case.coordinate_support};
-    std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(quadrature);
     return internal::create_cqmom_state(std::move(updated_case), std::move(active_counts), std::move(quadrature));
 }
 
@@ -876,8 +890,8 @@ struct CqmomTransportWorkingState
         return true;
     }
 
-    working_state.reconstructed_active_branch_counts = internal::cqmom_state_active_branch_counts(state);
-    const std::vector<CqmomActiveBranchCount> before_initial_active_branch_counts = working_state.reconstructed_active_branch_counts;
+    const std::vector<CqmomActiveBranchCount>& before_initial_active_branch_counts = internal::cqmom_state_active_branch_counts(state);
+    working_state.reconstructed_active_branch_counts = before_initial_active_branch_counts;
     const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state);
     CqmomResult initial_quadrature =
         dense_case != nullptr
@@ -938,8 +952,10 @@ struct CqmomTransportWorkingState
             {
                 diagnostics.first_reconstruction_diagnostics = successful_reconstruction(moments.values.size());
             }
-            return cqmom_success(dense_state_from_accepted_quadrature(*dense_case, std::move(moments), std::move(continuous.quadrature)), diagnostics,
-                                 t + time_step);
+            std::vector<CqmomActiveBranchCount> active_counts = take_cqmom_continuous_active_counts(working_state);
+            return cqmom_success(
+                dense_state_from_accepted_quadrature(*dense_case, std::move(moments), std::move(active_counts), std::move(continuous.quadrature)),
+                diagnostics, t + time_step);
         }
         catch (const std::exception& error)
         {
@@ -970,8 +986,10 @@ struct CqmomTransportWorkingState
         {
             diagnostics.first_reconstruction_diagnostics = successful_reconstruction(moments.values.size());
         }
-        return cqmom_success(lean_state_from_accepted_quadrature(*lean_case, std::move(moments), std::move(continuous.quadrature)), diagnostics,
-                             t + time_step);
+        std::vector<CqmomActiveBranchCount> active_counts = take_cqmom_continuous_active_counts(working_state);
+        return cqmom_success(
+            lean_state_from_accepted_quadrature(*lean_case, std::move(moments), std::move(active_counts), std::move(continuous.quadrature)),
+            diagnostics, t + time_step);
     }
     catch (const std::exception& error)
     {
@@ -1017,7 +1035,7 @@ struct CqmomTransportWorkingState
                                        TransportStage::discontinuous_source_step, diagnostics, t, source_update.message);
         }
 
-        const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = *working_state.active_branch_counts;
+        const std::vector<CqmomActiveBranchCount>& before_source_active_branch_counts = *working_state.active_branch_counts;
         internal::performance::record_post_source_inversion();
         CqmomLeanCase post_source_case{std::move(source_update.moments),   dense_case->conditional_options, dense_case->qmom_options,
                                        dense_case->adaptive_branch_counts, dense_case->diagnostic_level,    dense_case->vandermonde_solver,
@@ -1037,11 +1055,12 @@ struct CqmomTransportWorkingState
         {
             internal::performance::record_moment_reconstruction_call();
             RawMomentTensor moments = reconstruct_raw_moments(post_source_quadrature.quadrature, dense_case->moments.extents);
-            const std::vector<CqmomActiveBranchCount> after_source_active_branch_counts =
+            std::vector<CqmomActiveBranchCount> after_source_active_branch_counts =
                 internal::active_branch_counts_from_quadrature(post_source_quadrature.quadrature);
             record_cqmom_node_count_transitions(diagnostics, TransportStage::post_source_inversion, before_source_active_branch_counts,
                                                 after_source_active_branch_counts);
-            return cqmom_success(dense_state_from_accepted_quadrature(*dense_case, std::move(moments), std::move(post_source_quadrature.quadrature)),
+            return cqmom_success(dense_state_from_accepted_quadrature(*dense_case, std::move(moments), std::move(after_source_active_branch_counts),
+                                                                      std::move(post_source_quadrature.quadrature)),
                                  diagnostics, t + time_step);
         }
         catch (const std::exception& error)
@@ -1065,7 +1084,7 @@ struct CqmomTransportWorkingState
                                    TransportStage::discontinuous_source_step, diagnostics, t, source_update.message);
     }
 
-    const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = *working_state.active_branch_counts;
+    const std::vector<CqmomActiveBranchCount>& before_source_active_branch_counts = *working_state.active_branch_counts;
     internal::performance::record_post_source_inversion();
     CqmomLeanCase post_source_case{std::move(source_update.moments),  lean_case->conditional_options, lean_case->qmom_options,
                                    lean_case->adaptive_branch_counts, lean_case->diagnostic_level,    lean_case->vandermonde_solver,
@@ -1085,11 +1104,12 @@ struct CqmomTransportWorkingState
     {
         internal::performance::record_moment_reconstruction_call();
         CqmomMomentData moments = internal::reconstruct_trusted_cqmom_moments(post_source_quadrature.quadrature, lean_case->moments.layout);
-        const std::vector<CqmomActiveBranchCount> after_source_active_branch_counts =
+        std::vector<CqmomActiveBranchCount> after_source_active_branch_counts =
             internal::active_branch_counts_from_quadrature(post_source_quadrature.quadrature);
         record_cqmom_node_count_transitions(diagnostics, TransportStage::post_source_inversion, before_source_active_branch_counts,
                                             after_source_active_branch_counts);
-        return cqmom_success(lean_state_from_accepted_quadrature(*lean_case, std::move(moments), std::move(post_source_quadrature.quadrature)),
+        return cqmom_success(lean_state_from_accepted_quadrature(*lean_case, std::move(moments), std::move(after_source_active_branch_counts),
+                                                                 std::move(post_source_quadrature.quadrature)),
                              diagnostics, t + time_step);
     }
     catch (const std::exception& error)

@@ -1334,8 +1334,8 @@ void run_explicit_transport_parity()
         hierarchy, moments, {}, qmom_options, true, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::VandermondeSolver::dense};
     const qmomkit::CqmomLeanCase lean_case{
         lean_moments, {}, qmom_options, true, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::VandermondeSolver::dense};
-    const qmomkit::CqmomState dense_state = qmomkit::internal::create_cqmom_state(dense_case);
-    const qmomkit::CqmomState lean_state = qmomkit::internal::create_cqmom_state(lean_case);
+    const qmomkit::CqmomState dense_state = qmomkit::internal::CqmomConstructionAccess::create_state(dense_case);
+    const qmomkit::CqmomState lean_state = qmomkit::internal::CqmomConstructionAccess::create_state(lean_case);
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;

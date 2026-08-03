@@ -360,27 +360,30 @@ CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, const 
     }
     catch (const std::exception& error)
     {
-        return CqmomNodeAdvectionResult{internal::create_cqmom_quadrature(quadrature.hierarchy(), quadrature.weights(), quadrature.abscissas(),
-                                                                          quadrature.adaptive_branch_counts_enabled(),
-                                                                          quadrature.has_rectangular_storage(), quadrature.terminal_paths()),
-                                        NodeAdvectionStatus::invalid_input,
-                                        {},
-                                        error.what()};
+        return CqmomNodeAdvectionResult{
+            internal::CqmomConstructionAccess::create_quadrature(quadrature.hierarchy(), quadrature.weights(), quadrature.abscissas(),
+                                                                 quadrature.adaptive_branch_counts_enabled(), quadrature.has_rectangular_storage(),
+                                                                 quadrature.terminal_paths()),
+            NodeAdvectionStatus::invalid_input,
+            {},
+            error.what()};
     }
 
     const IntegratedNodes integrated = integrate_nodes(quadrature.abscissas(), t, time_step, velocity, options);
     if (integrated.status != NodeAdvectionStatus::success)
     {
-        return CqmomNodeAdvectionResult{internal::create_cqmom_quadrature(quadrature.hierarchy(), quadrature.weights(), quadrature.abscissas(),
-                                                                          quadrature.adaptive_branch_counts_enabled(),
-                                                                          quadrature.has_rectangular_storage(), quadrature.terminal_paths()),
-                                        integrated.status, integrated.diagnostics, integrated.message};
+        return CqmomNodeAdvectionResult{
+            internal::CqmomConstructionAccess::create_quadrature(quadrature.hierarchy(), quadrature.weights(), quadrature.abscissas(),
+                                                                 quadrature.adaptive_branch_counts_enabled(), quadrature.has_rectangular_storage(),
+                                                                 quadrature.terminal_paths()),
+            integrated.status, integrated.diagnostics, integrated.message};
     }
 
-    return CqmomNodeAdvectionResult{internal::create_cqmom_quadrature(quadrature.hierarchy(), quadrature.weights(), integrated.abscissas,
-                                                                      quadrature.adaptive_branch_counts_enabled(),
-                                                                      quadrature.has_rectangular_storage(), quadrature.terminal_paths()),
-                                    NodeAdvectionStatus::success, integrated.diagnostics, ""};
+    return CqmomNodeAdvectionResult{
+        internal::CqmomConstructionAccess::create_quadrature(quadrature.hierarchy(), quadrature.weights(), integrated.abscissas,
+                                                             quadrature.adaptive_branch_counts_enabled(), quadrature.has_rectangular_storage(),
+                                                             quadrature.terminal_paths()),
+        NodeAdvectionStatus::success, integrated.diagnostics, ""};
 }
 
 std::string format_node_advection_options(const NodeAdvectionOptions& options)

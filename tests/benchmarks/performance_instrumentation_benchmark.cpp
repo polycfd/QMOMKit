@@ -472,7 +472,7 @@ CqmomWorkload make_workload(const std::vector<std::size_t>& node_counts,
     qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     qmomkit::CqmomMomentData lean_moments = qmomkit::extract_cqmom_moments(dense_moments, layout);
     qmomkit::CqmomLeanCase lean_case{lean_moments, {}, {}, false, diagnostic_level, solver};
-    qmomkit::CqmomCase case_ = qmomkit::internal::create_cqmom_case(lean_case);
+    qmomkit::CqmomCase case_ = qmomkit::internal::CqmomConstructionAccess::create_case(lean_case);
     return {std::move(hierarchy), std::move(dense_moments), std::move(lean_moments), std::move(lean_case), std::move(case_)};
 }
 
@@ -548,9 +548,9 @@ CqmomWorkload make_transport_workload(const std::vector<std::size_t>& node_count
     qmom_options.cutoff = 1.0e-12;
     qmomkit::CqmomLeanCase lean_case{lean_moments, {}, qmom_options, adaptive, qmomkit::CqmomDiagnosticLevel::basic};
     qmomkit::CqmomCase case_ = storage == qmomkit::CqmomMomentStorage::dense
-                                   ? qmomkit::internal::create_cqmom_case(qmomkit::CqmomDenseCase{
+                                   ? qmomkit::internal::CqmomConstructionAccess::create_case(qmomkit::CqmomDenseCase{
                                          hierarchy, dense_moments, {}, qmom_options, adaptive, qmomkit::CqmomDiagnosticLevel::basic})
-                                   : qmomkit::internal::create_cqmom_case(lean_case);
+                                   : qmomkit::internal::CqmomConstructionAccess::create_case(lean_case);
     return {std::move(hierarchy), std::move(dense_moments), std::move(lean_moments), std::move(lean_case), std::move(case_)};
 }
 
@@ -567,17 +567,17 @@ std::vector<qmomkit::CqmomState> make_states(const qmomkit::CqmomCase& case_, co
 
 qmomkit::CqmomState state_without_accepted_quadrature(const qmomkit::CqmomState& state)
 {
-    const auto& prepared_fixed_metadata = qmomkit::internal::cqmom_state_prepared_fixed_metadata(state);
-    if (const qmomkit::CqmomDenseCase* dense_case = qmomkit::internal::cqmom_state_dense_case(state))
+    const auto& prepared_fixed_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(state);
+    if (const qmomkit::CqmomDenseCase* dense_case = qmomkit::internal::CqmomConstructionAccess::state_dense_case(state))
     {
-        return qmomkit::internal::create_cqmom_state(*dense_case, state.active_branch_counts(), prepared_fixed_metadata);
+        return qmomkit::internal::CqmomConstructionAccess::create_state(*dense_case, state.active_branch_counts(), prepared_fixed_metadata);
     }
-    const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::cqmom_state_lean_case(state);
+    const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::CqmomConstructionAccess::state_lean_case(state);
     if (lean_case == nullptr)
     {
         throw std::logic_error("CQMOM transport benchmark state has unknown storage.");
     }
-    return qmomkit::internal::create_cqmom_state(*lean_case, state.active_branch_counts(), prepared_fixed_metadata);
+    return qmomkit::internal::CqmomConstructionAccess::create_state(*lean_case, state.active_branch_counts(), prepared_fixed_metadata);
 }
 
 std::vector<qmomkit::CqmomState> make_transport_states(const qmomkit::CqmomCase& case_, const std::size_t state_count, const bool cache_miss)
@@ -1288,8 +1288,8 @@ void bm_cqmom_fixed_case_preparation(benchmark::State& state, const std::vector<
         std::optional<qmomkit::CqmomCase> prepared_case;
         {
             perf::CounterScope scope(session);
-            prepared_case.emplace(
-                qmomkit::internal::create_cqmom_case(qmomkit::CqmomLeanCase{lean_moments, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic}));
+            prepared_case.emplace(qmomkit::internal::CqmomConstructionAccess::create_case(
+                qmomkit::CqmomLeanCase{lean_moments, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic}));
         }
         benchmark::DoNotOptimize(prepared_case->hierarchy().number_of_dimensions());
         const auto stop = std::chrono::steady_clock::now();

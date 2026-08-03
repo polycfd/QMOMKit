@@ -140,7 +140,7 @@ std::vector<double> independently_composed_qmom_rates(const std::vector<double>&
 std::vector<double> independently_composed_cqmom_rates(const qmomkit::CqmomLeanCase& lean_case, const double time,
                                                        const qmomkit::PhaseSpaceVelocity& velocity)
 {
-    const qmomkit::CqmomResult quadrature = qmomkit::internal::compute_trusted_cqmom(lean_case);
+    const qmomkit::CqmomResult quadrature = qmomkit::internal::compute_cqmom_internal(lean_case);
     assert(quadrature.ok());
     return qmomkit::internal::reconstruct_continuous_moment_rates(quadrature.quadrature.weights(), quadrature.quadrature.abscissas(),
                                                                   manual_terminal_velocities(velocity, time, quadrature.quadrature.abscissas()),
@@ -278,7 +278,7 @@ void test_cqmom_non_identity_ordering_and_global_terminal_weights()
 
     const qmomkit::internal::CqmomContinuousMomentRateResult result =
         qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.5, velocity);
-    const qmomkit::CqmomResult quadrature = qmomkit::internal::compute_trusted_cqmom(lean_case);
+    const qmomkit::CqmomResult quadrature = qmomkit::internal::compute_cqmom_internal(lean_case);
     assert(quadrature.ok());
     const std::vector<double> expected = qmomkit::internal::reconstruct_continuous_moment_rates(
         quadrature.quadrature.weights(), quadrature.quadrature.abscissas(),
@@ -319,7 +319,7 @@ void test_cqmom_zero_velocity_and_adaptive_terminal_arrays()
         const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinate)
         { return std::vector<double>{0.25 * coordinate[0], -0.5 * coordinate[1]}; };
 
-        const qmomkit::CqmomResult quadrature = qmomkit::internal::compute_trusted_cqmom(lean_case);
+        const qmomkit::CqmomResult quadrature = qmomkit::internal::compute_cqmom_internal(lean_case);
         assert(quadrature.ok());
         assert(!quadrature.quadrature.has_rectangular_storage());
         assert(quadrature.quadrature.weights().size() == 3);

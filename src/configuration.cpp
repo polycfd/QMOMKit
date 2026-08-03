@@ -2218,7 +2218,7 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, 
             return ConfigurationResult<CqmomCase>::failure(*structure_error);
         }
 
-        if (const CqmomDenseCase* const dense_case = qmomkit::internal::cqmom_case_dense_case(base_case); dense_case != nullptr)
+        if (const CqmomDenseCase* const dense_case = qmomkit::internal::CqmomConstructionAccess::case_dense_case(base_case); dense_case != nullptr)
         {
             for (std::size_t dimension = 0; dimension < hierarchy.number_of_dimensions(); ++dimension)
             {
@@ -2232,11 +2232,11 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, 
 
             CqmomDenseCase replaced_case = *dense_case;
             replaced_case.moments = std::move(explicit_moments);
-            return ConfigurationResult<CqmomCase>{
-                qmomkit::internal::create_cqmom_case(std::move(replaced_case), qmomkit::internal::cqmom_case_prepared_fixed_metadata(base_case))};
+            return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(
+                std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(base_case))};
         }
 
-        const CqmomLeanCase* const lean_case = qmomkit::internal::cqmom_case_lean_case(base_case);
+        const CqmomLeanCase* const lean_case = qmomkit::internal::CqmomConstructionAccess::case_lean_case(base_case);
         if (lean_case == nullptr)
         {
             return ConfigurationResult<CqmomCase>::failure("The base CQMOM case has no recognized moment storage.");
@@ -2254,8 +2254,8 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, 
 
         CqmomLeanCase replaced_case = *lean_case;
         replaced_case.moments = extract_cqmom_moments(explicit_moments, layout);
-        return ConfigurationResult<CqmomCase>{
-            qmomkit::internal::create_cqmom_case(std::move(replaced_case), qmomkit::internal::cqmom_case_prepared_fixed_metadata(base_case))};
+        return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(
+            std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(base_case))};
     }
     catch (const std::exception& error)
     {
@@ -2388,7 +2388,7 @@ ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::str
         }
         dense_case.value().diagnostic_level = settings.value().diagnostic_level;
         dense_case.value().vandermonde_solver = settings.value().vandermonde_solver;
-        return ConfigurationResult<CqmomCase>{qmomkit::internal::create_cqmom_case(std::move(dense_case).value())};
+        return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(std::move(dense_case).value())};
     }
 
     ConfigurationResult<CqmomLeanCase> lean_case =
@@ -2400,7 +2400,7 @@ ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::str
     }
     lean_case.value().diagnostic_level = settings.value().diagnostic_level;
     lean_case.value().vandermonde_solver = settings.value().vandermonde_solver;
-    return ConfigurationResult<CqmomCase>{qmomkit::internal::create_cqmom_case(std::move(lean_case).value())};
+    return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(std::move(lean_case).value())};
 }
 
 ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::string_view text, std::string source_name)

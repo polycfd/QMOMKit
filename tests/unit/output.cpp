@@ -496,30 +496,32 @@ void test_cqmom_quadrature_writer_rejects_malformed_terminal_storage()
     {
         qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(path, 2);
 
-        const qmomkit::CqmomQuadrature empty = qmomkit::internal::create_cqmom_quadrature(hierarchy, {}, {{}, {}}, true, false, {});
+        const qmomkit::CqmomQuadrature empty =
+            qmomkit::internal::CqmomConstructionAccess::create_quadrature(hierarchy, {}, {{}, {}}, true, false, {});
         assert_throws_invalid_argument_message([&writer, &empty] { writer.write(0.0, empty); },
                                                "CQMOM quadrature output requires at least one active terminal node.");
 
-        const qmomkit::CqmomQuadrature missing_path = qmomkit::internal::create_cqmom_quadrature(hierarchy, {1.0}, {{-1.0}, {2.0}}, true, false, {});
+        const qmomkit::CqmomQuadrature missing_path =
+            qmomkit::internal::CqmomConstructionAccess::create_quadrature(hierarchy, {1.0}, {{-1.0}, {2.0}}, true, false, {});
         assert_throws_invalid_argument_message([&writer, &missing_path] { writer.write(0.0, missing_path); },
                                                "CQMOM quadrature output requires one terminal path per active terminal node.");
 
-        const qmomkit::CqmomQuadrature wrong_depth =
-            qmomkit::internal::create_cqmom_quadrature(hierarchy, {1.0}, {{-1.0}, {2.0}}, true, false, {qmomkit::ConditioningPath({0})});
+        const qmomkit::CqmomQuadrature wrong_depth = qmomkit::internal::CqmomConstructionAccess::create_quadrature(
+            hierarchy, {1.0}, {{-1.0}, {2.0}}, true, false, {qmomkit::ConditioningPath({0})});
         assert_throws_invalid_argument_message([&writer, &wrong_depth] { writer.write(0.0, wrong_depth); },
                                                "CQMOM quadrature output terminal path depth does not match the writer dimension count.");
 
-        const qmomkit::CqmomQuadrature wrong_abscissa_count =
-            qmomkit::internal::create_cqmom_quadrature(hierarchy, {1.0}, {{-1.0, 0.0}, {2.0}}, true, false, {qmomkit::ConditioningPath({0, 0})});
+        const qmomkit::CqmomQuadrature wrong_abscissa_count = qmomkit::internal::CqmomConstructionAccess::create_quadrature(
+            hierarchy, {1.0}, {{-1.0, 0.0}, {2.0}}, true, false, {qmomkit::ConditioningPath({0, 0})});
         assert_throws_invalid_argument_message([&writer, &wrong_abscissa_count] { writer.write(0.0, wrong_abscissa_count); },
                                                "CQMOM quadrature output abscissa node count is inconsistent.");
 
-        const qmomkit::CqmomQuadrature nonfinite_weight = qmomkit::internal::create_cqmom_quadrature(
+        const qmomkit::CqmomQuadrature nonfinite_weight = qmomkit::internal::CqmomConstructionAccess::create_quadrature(
             hierarchy, {std::numeric_limits<double>::infinity()}, {{-1.0}, {2.0}}, true, false, {qmomkit::ConditioningPath({0, 0})});
         assert_throws_invalid_argument_message([&writer, &nonfinite_weight] { writer.write(0.0, nonfinite_weight); },
                                                "CQMOM quadrature output weights must be finite.");
 
-        const qmomkit::CqmomQuadrature nonfinite_abscissa = qmomkit::internal::create_cqmom_quadrature(
+        const qmomkit::CqmomQuadrature nonfinite_abscissa = qmomkit::internal::CqmomConstructionAccess::create_quadrature(
             hierarchy, {1.0}, {{std::numeric_limits<double>::quiet_NaN()}, {2.0}}, true, false, {qmomkit::ConditioningPath({0, 0})});
         assert_throws_invalid_argument_message([&writer, &nonfinite_abscissa] { writer.write(0.0, nonfinite_abscissa); },
                                                "CQMOM quadrature output abscissas must be finite.");

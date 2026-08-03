@@ -768,9 +768,9 @@ qmomkit::CqmomCase make_cqmom_case(const CqmomEventFixture& fixture, const std::
 {
     if (storage == CqmomStorage::dense)
     {
-        return qmomkit::internal::create_cqmom_case(make_dense_case(fixture, moments));
+        return qmomkit::internal::CqmomConstructionAccess::create_case(make_dense_case(fixture, moments));
     }
-    return qmomkit::internal::create_cqmom_case(make_lean_case(fixture, moments));
+    return qmomkit::internal::CqmomConstructionAccess::create_case(make_lean_case(fixture, moments));
 }
 
 qmomkit::CqmomDenseCase make_dense_case(const CqmomFallbackFixture& fixture)
@@ -797,9 +797,9 @@ qmomkit::CqmomResult compute_cqmom_fallback_fixture(const CqmomFallbackFixture& 
 {
     if (storage == CqmomStorage::dense)
     {
-        return qmomkit::internal::compute_trusted_cqmom(make_dense_case(fixture), active_counts, false);
+        return qmomkit::internal::compute_cqmom_internal(make_dense_case(fixture), active_counts, false);
     }
-    return qmomkit::internal::compute_trusted_cqmom(make_lean_case(fixture), active_counts, false);
+    return qmomkit::internal::compute_cqmom_internal(make_lean_case(fixture), active_counts, false);
 }
 
 void compare_cqmom_active_counts(const std::vector<qmomkit::CqmomActiveBranchCount>& direct,
@@ -969,9 +969,9 @@ qmomkit::CqmomResult run_cqmom_event_reconstruction(const CqmomEventFixture& fix
 {
     if (storage == CqmomStorage::dense)
     {
-        return qmomkit::internal::compute_trusted_cqmom(make_dense_case(fixture, fixture.target_moments), active_counts, true);
+        return qmomkit::internal::compute_cqmom_internal(make_dense_case(fixture, fixture.target_moments), active_counts, true);
     }
-    return qmomkit::internal::compute_trusted_cqmom(make_lean_case(fixture, fixture.target_moments), active_counts, true);
+    return qmomkit::internal::compute_cqmom_internal(make_lean_case(fixture, fixture.target_moments), active_counts, true);
 }
 
 void canonicalize_cqmom_result(const CqmomEventFixture& fixture, const qmomkit::CqmomResult& result, const CqmomStorage storage)

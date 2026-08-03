@@ -156,7 +156,7 @@ void test_cqmom_case_preserves_phase_space_ordering()
     options.node_options = tight_node_options();
     options.scheme = qmomkit::TransportScheme::strang;
     const qmomkit::CqmomDenseCase dense_case{hierarchy, moments, {}, {}};
-    const qmomkit::CqmomState state = qmomkit::internal::create_cqmom_state(dense_case);
+    const qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(dense_case);
     const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, zero_source, options);
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.has_value());

@@ -712,12 +712,12 @@ void initialize_cqmom_diagnostics(TransportDiagnostics& diagnostics, const Cqmom
 
 void initialize_cqmom_diagnostics(TransportDiagnostics& diagnostics, const CqmomState& state)
 {
-    if (const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state))
+    if (const CqmomDenseCase* dense_case = internal::CqmomConstructionAccess::state_dense_case(state))
     {
         initialize_cqmom_diagnostics(diagnostics, *dense_case);
         return;
     }
-    if (const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state))
+    if (const CqmomLeanCase* lean_case = internal::CqmomConstructionAccess::state_lean_case(state))
     {
         initialize_cqmom_diagnostics(diagnostics, *lean_case);
     }
@@ -738,12 +738,12 @@ void validate_lean_cqmom_moments_for_transport(const CqmomLeanCase& lean_case)
 
 void validate_cqmom_state_for_transport(const CqmomState& state)
 {
-    if (const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state))
+    if (const CqmomDenseCase* dense_case = internal::CqmomConstructionAccess::state_dense_case(state))
     {
         validate_dense_cqmom_moments_for_transport(*dense_case);
         return;
     }
-    if (const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state))
+    if (const CqmomLeanCase* lean_case = internal::CqmomConstructionAccess::state_lean_case(state))
     {
         validate_lean_cqmom_moments_for_transport(*lean_case);
         return;
@@ -844,7 +844,7 @@ struct CqmomTransportWorkingState
                                                          std::move(outcome.diagnostics), outcome.final_time, std::move(outcome.message)});
     }
 
-    const std::optional<CqmomQuadrature>& accepted_quadrature = internal::cqmom_state_accepted_quadrature(outcome.state);
+    const std::optional<CqmomQuadrature>& accepted_quadrature = internal::CqmomConstructionAccess::state_accepted_quadrature(outcome.state);
     if (!accepted_quadrature.has_value())
     {
         throw std::logic_error("Successful CQMOM transport state has no accepted quadrature cache.");
@@ -868,7 +868,8 @@ struct CqmomTransportWorkingState
                                 base_case.diagnostic_level,
                                 base_case.vandermonde_solver,
                                 base_case.coordinate_support};
-    return internal::create_cqmom_state(std::move(updated_case), std::move(active_counts), std::move(quadrature), prepared_fixed_metadata);
+    return internal::CqmomConstructionAccess::create_state(std::move(updated_case), std::move(active_counts), std::move(quadrature),
+                                                           prepared_fixed_metadata);
 }
 
 [[nodiscard]] CqmomState lean_state_from_accepted_quadrature(const CqmomLeanCase& base_case, CqmomMomentData moments,
@@ -878,31 +879,34 @@ struct CqmomTransportWorkingState
     CqmomLeanCase updated_case{
         std::move(moments),         base_case.conditional_options, base_case.qmom_options,      base_case.adaptive_branch_counts,
         base_case.diagnostic_level, base_case.vandermonde_solver,  base_case.coordinate_support};
-    return internal::create_cqmom_state(std::move(updated_case), std::move(active_counts), std::move(quadrature), prepared_fixed_metadata);
+    return internal::CqmomConstructionAccess::create_state(std::move(updated_case), std::move(active_counts), std::move(quadrature),
+                                                           prepared_fixed_metadata);
 }
 
 [[nodiscard]] bool prepare_cqmom_transport_working_state(const CqmomState& state, const CqmomState& rollback_state, const double t,
                                                          TransportDiagnostics& diagnostics, CqmomTransportWorkingState& working_state,
                                                          std::optional<CqmomStageOutcome>& failure)
 {
-    const std::optional<CqmomQuadrature>& accepted_quadrature = internal::cqmom_state_accepted_quadrature(state);
+    const std::optional<CqmomQuadrature>& accepted_quadrature = internal::CqmomConstructionAccess::state_accepted_quadrature(state);
     if (accepted_quadrature.has_value())
     {
         working_state.accepted_quadrature = &*accepted_quadrature;
-        working_state.active_branch_counts = &internal::cqmom_state_active_branch_counts(state);
+        working_state.active_branch_counts = &internal::CqmomConstructionAccess::state_active_branch_counts(state);
         return true;
     }
 
-    const std::vector<CqmomActiveBranchCount>& before_initial_active_branch_counts = internal::cqmom_state_active_branch_counts(state);
+    const std::vector<CqmomActiveBranchCount>& before_initial_active_branch_counts =
+        internal::CqmomConstructionAccess::state_active_branch_counts(state);
     working_state.reconstructed_active_branch_counts = before_initial_active_branch_counts;
-    const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state);
-    const internal::PreparedFixedCqmomMetadata* prepared_fixed_metadata = internal::cqmom_state_prepared_fixed_metadata(state).get();
-    CqmomResult initial_quadrature =
-        dense_case != nullptr
-            ? internal::compute_trusted_cqmom(*dense_case, working_state.reconstructed_active_branch_counts, false, prepared_fixed_metadata,
-                                              !dense_case->adaptive_branch_counts)
-            : internal::compute_trusted_cqmom(*internal::cqmom_state_lean_case(state), working_state.reconstructed_active_branch_counts, false,
-                                              prepared_fixed_metadata, !state.adaptive_branch_counts());
+    const CqmomDenseCase* dense_case = internal::CqmomConstructionAccess::state_dense_case(state);
+    const internal::PreparedFixedCqmomMetadata* prepared_fixed_metadata =
+        internal::CqmomConstructionAccess::state_prepared_fixed_metadata(state).get();
+    CqmomResult initial_quadrature = dense_case != nullptr
+                                         ? internal::compute_cqmom_internal(*dense_case, working_state.reconstructed_active_branch_counts, false,
+                                                                            prepared_fixed_metadata, !dense_case->adaptive_branch_counts)
+                                         : internal::compute_cqmom_internal(*internal::CqmomConstructionAccess::state_lean_case(state),
+                                                                            working_state.reconstructed_active_branch_counts, false,
+                                                                            prepared_fixed_metadata, !state.adaptive_branch_counts());
     diagnostics.initial_cqmom_status = initial_quadrature.status;
     diagnostics.initial_cqmom_diagnostics = initial_quadrature.diagnostics;
     if (!initial_quadrature.ok())
@@ -944,9 +948,10 @@ struct CqmomTransportWorkingState
                                    diagnostics, t, continuous.message);
     }
 
-    if (const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state))
+    if (const CqmomDenseCase* dense_case = internal::CqmomConstructionAccess::state_dense_case(state))
     {
-        const internal::PreparedFixedCqmomMetadataPtr& prepared_fixed_metadata = internal::cqmom_state_prepared_fixed_metadata(state);
+        const internal::PreparedFixedCqmomMetadataPtr& prepared_fixed_metadata =
+            internal::CqmomConstructionAccess::state_prepared_fixed_metadata(state);
         try
         {
             internal::performance::record_moment_reconstruction_call();
@@ -980,8 +985,8 @@ struct CqmomTransportWorkingState
         }
     }
 
-    const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state);
-    const internal::PreparedFixedCqmomMetadataPtr& prepared_fixed_metadata = internal::cqmom_state_prepared_fixed_metadata(state);
+    const CqmomLeanCase* lean_case = internal::CqmomConstructionAccess::state_lean_case(state);
+    const internal::PreparedFixedCqmomMetadataPtr& prepared_fixed_metadata = internal::CqmomConstructionAccess::state_prepared_fixed_metadata(state);
     try
     {
         internal::performance::record_moment_reconstruction_call();
@@ -1028,9 +1033,10 @@ struct CqmomTransportWorkingState
     }
 
     internal::performance::record_discontinuous_operator_call();
-    if (const CqmomDenseCase* dense_case = internal::cqmom_state_dense_case(state))
+    if (const CqmomDenseCase* dense_case = internal::CqmomConstructionAccess::state_dense_case(state))
     {
-        const internal::PreparedFixedCqmomMetadataPtr& prepared_fixed_metadata = internal::cqmom_state_prepared_fixed_metadata(state);
+        const internal::PreparedFixedCqmomMetadataPtr& prepared_fixed_metadata =
+            internal::CqmomConstructionAccess::state_prepared_fixed_metadata(state);
         std::optional<CqmomMomentLayout> generated_source_layout;
         const CqmomMomentLayout* source_layout = prepared_fixed_metadata == nullptr ? nullptr : &prepared_fixed_metadata->moment_layout;
         if (source_layout == nullptr)
@@ -1056,8 +1062,8 @@ struct CqmomTransportWorkingState
                                        dense_case->adaptive_branch_counts, dense_case->diagnostic_level,    dense_case->vandermonde_solver,
                                        dense_case->coordinate_support};
         CqmomResult post_source_quadrature =
-            internal::compute_trusted_cqmom(post_source_case, *working_state.active_branch_counts, dense_case->adaptive_branch_counts,
-                                            prepared_fixed_metadata.get(), !dense_case->adaptive_branch_counts);
+            internal::compute_cqmom_internal(post_source_case, *working_state.active_branch_counts, dense_case->adaptive_branch_counts,
+                                             prepared_fixed_metadata.get(), !dense_case->adaptive_branch_counts);
         diagnostics.post_source_cqmom_status = post_source_quadrature.status;
         diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
         if (!post_source_quadrature.ok())
@@ -1088,8 +1094,8 @@ struct CqmomTransportWorkingState
         }
     }
 
-    const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state);
-    const internal::PreparedFixedCqmomMetadataPtr& prepared_fixed_metadata = internal::cqmom_state_prepared_fixed_metadata(state);
+    const CqmomLeanCase* lean_case = internal::CqmomConstructionAccess::state_lean_case(state);
+    const internal::PreparedFixedCqmomMetadataPtr& prepared_fixed_metadata = internal::CqmomConstructionAccess::state_prepared_fixed_metadata(state);
     CqmomMomentSourceUpdateResult source_update =
         boundary == nullptr
             ? internal::advance_trusted_cqmom_moments_with_source(lean_case->moments, t, time_step, source, options.source_options)
@@ -1107,8 +1113,8 @@ struct CqmomTransportWorkingState
                                    lean_case->adaptive_branch_counts, lean_case->diagnostic_level,    lean_case->vandermonde_solver,
                                    lean_case->coordinate_support};
     CqmomResult post_source_quadrature =
-        internal::compute_trusted_cqmom(post_source_case, *working_state.active_branch_counts, lean_case->adaptive_branch_counts,
-                                        prepared_fixed_metadata.get(), !lean_case->adaptive_branch_counts);
+        internal::compute_cqmom_internal(post_source_case, *working_state.active_branch_counts, lean_case->adaptive_branch_counts,
+                                         prepared_fixed_metadata.get(), !lean_case->adaptive_branch_counts);
     diagnostics.post_source_cqmom_status = post_source_quadrature.status;
     diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
     if (!post_source_quadrature.ok())

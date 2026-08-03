@@ -143,7 +143,7 @@ std::vector<qmomkit::ConditioningPath> captured_terminal_parent_paths()
 qmomkit::CqmomQuadrature captured_failing_terminal_quadrature()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {0, 1, 2});
-    return qmomkit::internal::create_cqmom_quadrature(
+    return qmomkit::internal::CqmomConstructionAccess::create_quadrature(
         hierarchy, {0.29500670652258476, 0.203375676586807, 0.29604427987962095, 0.20557333701099686},
         {{0.00010988241902807785, 0.00010988241902807785, 0.00014945058007081771, 0.00014945058007081771},
          {0.21441293841351547, 0.41880958133916973, 0.21711664207959502, 0.4193843251358394},
@@ -154,7 +154,7 @@ qmomkit::CqmomQuadrature captured_failing_terminal_quadrature()
 qmomkit::CqmomQuadrature captured_preceding_success_quadrature()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {0, 1, 2});
-    return qmomkit::internal::create_cqmom_quadrature(
+    return qmomkit::internal::CqmomConstructionAccess::create_quadrature(
         hierarchy, {0.29500670652258476, 0.203375676586807, 0.29604427987962095, 0.20557333701099686},
         {{0.00010988241902807785, 0.00010988241902807785, 0.00014945058007081771, 0.00014945058007081771},
          {0.21441293841351544, 0.41880958133916973, 0.21711664207959502, 0.41938432513583945},
@@ -353,7 +353,7 @@ void run_captured_physical_regression()
     report_tree_spread("[physical captured tree]", captured);
     report_tree_spread("[physical preceding tree]", captured_preceding_success_quadrature());
 
-    qmomkit::CqmomState state = qmomkit::internal::create_cqmom_state(lean_case, captured_active_branch_counts());
+    qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(lean_case, captured_active_branch_counts());
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };

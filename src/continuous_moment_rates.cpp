@@ -208,7 +208,7 @@ CqmomContinuousMomentRateResult evaluate_cqmom_continuous_moment_rates(const Cqm
         return cqmom_invalid_input(error.what());
     }
 
-    const CqmomResult quadrature = compute_trusted_cqmom(lean_case);
+    const CqmomResult quadrature = compute_cqmom_internal(lean_case);
     if (!quadrature.ok())
     {
         return CqmomContinuousMomentRateResult{std::nullopt, rate_status_from_cqmom_status(quadrature.status), quadrature.status, quadrature.message,

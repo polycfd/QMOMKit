@@ -1149,7 +1149,7 @@ qmomkit::CqmomDenseCase cqmom_dense_replacement_base()
 void test_cqmom_case_replaces_dense_initial_moments_immutably()
 {
     const qmomkit::CqmomDenseCase dense_base = cqmom_dense_replacement_base();
-    const qmomkit::CqmomCase base_case = qmomkit::internal::create_cqmom_case(dense_base);
+    const qmomkit::CqmomCase base_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_base);
     qmomkit::RawMomentTensor replacement = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
     const qmomkit::RawMomentTensor expected_replacement = replacement;
 
@@ -1188,7 +1188,7 @@ void test_cqmom_case_replaces_lean_initial_moments_immutably()
                                            dense_base.diagnostic_level,
                                            dense_base.vandermonde_solver,
                                            dense_base.coordinate_support};
-    const qmomkit::CqmomCase base_case = qmomkit::internal::create_cqmom_case(lean_base);
+    const qmomkit::CqmomCase base_case = qmomkit::internal::CqmomConstructionAccess::create_case(lean_base);
     qmomkit::RawMomentTensor replacement = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
     const qmomkit::CqmomMomentData expected_moments = qmomkit::extract_cqmom_moments(replacement, layout);
 
@@ -1214,29 +1214,29 @@ void test_fixed_cqmom_prepared_metadata_ownership()
     qmomkit::CqmomDenseCase dense_case = cqmom_dense_replacement_base();
     dense_case.adaptive_branch_counts = false;
     dense_case.qmom_options.adaptive = false;
-    const qmomkit::CqmomCase fixed_case = qmomkit::internal::create_cqmom_case(dense_case);
-    const auto& fixed_metadata = qmomkit::internal::cqmom_case_prepared_fixed_metadata(fixed_case);
+    const qmomkit::CqmomCase fixed_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_case);
+    const auto& fixed_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(fixed_case);
     assert(fixed_metadata != nullptr);
 
     const qmomkit::CqmomCase copied_case = fixed_case;
-    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(copied_case).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(copied_case).get() == fixed_metadata.get());
 
     qmomkit::CqmomCase movable_case = fixed_case;
     qmomkit::CqmomCase moved_case = std::move(movable_case);
-    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(moved_case).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(moved_case).get() == fixed_metadata.get());
 
-    const qmomkit::CqmomCase distinct_case = qmomkit::internal::create_cqmom_case(dense_case);
-    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(distinct_case).get() != fixed_metadata.get());
+    const qmomkit::CqmomCase distinct_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_case);
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(distinct_case).get() != fixed_metadata.get());
 
     const auto replaced = qmomkit::config::with_initial_moments(fixed_case, dense_case.moments);
     assert(replaced.ok());
-    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(replaced.value()).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(replaced.value()).get() == fixed_metadata.get());
 
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense_case.hierarchy);
-    const qmomkit::CqmomCase lean_case = qmomkit::internal::create_cqmom_case(qmomkit::CqmomLeanCase{
+    const qmomkit::CqmomCase lean_case = qmomkit::internal::CqmomConstructionAccess::create_case(qmomkit::CqmomLeanCase{
         qmomkit::extract_cqmom_moments(dense_case.moments, layout), dense_case.conditional_options, dense_case.qmom_options,
         dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver, dense_case.coordinate_support});
-    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(lean_case) != nullptr);
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(lean_case) != nullptr);
     const qmomkit::CqmomResult dense_result = qmomkit::compute_cqmom(fixed_case);
     const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(lean_case);
     assert(dense_result.ok());
@@ -1246,26 +1246,26 @@ void test_fixed_cqmom_prepared_metadata_ownership()
     qmomkit::CqmomDenseCase adaptive_dense_case = dense_case;
     adaptive_dense_case.adaptive_branch_counts = true;
     adaptive_dense_case.qmom_options.adaptive = true;
-    const qmomkit::CqmomCase adaptive_case = qmomkit::internal::create_cqmom_case(std::move(adaptive_dense_case));
-    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(adaptive_case) == nullptr);
+    const qmomkit::CqmomCase adaptive_case = qmomkit::internal::CqmomConstructionAccess::create_case(std::move(adaptive_dense_case));
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(adaptive_case) == nullptr);
 
     const qmomkit::CqmomState initial_state = fixed_case.initial_state();
-    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(initial_state).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(initial_state).get() == fixed_metadata.get());
     const qmomkit::CqmomState copied_state = initial_state;
-    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(copied_state).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(copied_state).get() == fixed_metadata.get());
     qmomkit::CqmomState movable_state = initial_state;
     qmomkit::CqmomState moved_state = std::move(movable_state);
-    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(moved_state).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(moved_state).get() == fixed_metadata.get());
 
     std::optional<qmomkit::CqmomState> surviving_state;
     const qmomkit::internal::PreparedFixedCqmomMetadata* surviving_metadata = nullptr;
     {
-        const qmomkit::CqmomCase temporary_case = qmomkit::internal::create_cqmom_case(dense_case);
-        surviving_metadata = qmomkit::internal::cqmom_case_prepared_fixed_metadata(temporary_case).get();
+        const qmomkit::CqmomCase temporary_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_case);
+        surviving_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(temporary_case).get();
         surviving_state.emplace(temporary_case.initial_state());
     }
     assert(surviving_state.has_value());
-    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(*surviving_state).get() == surviving_metadata);
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(*surviving_state).get() == surviving_metadata);
     assert(surviving_state->hierarchy().node_counts() == dense_case.hierarchy.node_counts());
     assert(surviving_state->hierarchy().conditioning_order() == dense_case.hierarchy.conditioning_order());
 }
@@ -1275,7 +1275,7 @@ void test_fixed_cqmom_prepared_metadata_is_concurrently_readable()
     qmomkit::CqmomDenseCase dense_case = cqmom_dense_replacement_base();
     dense_case.adaptive_branch_counts = false;
     dense_case.qmom_options.adaptive = false;
-    const qmomkit::CqmomCase fixed_case = qmomkit::internal::create_cqmom_case(std::move(dense_case));
+    const qmomkit::CqmomCase fixed_case = qmomkit::internal::CqmomConstructionAccess::create_case(std::move(dense_case));
     const qmomkit::CqmomResult reference = qmomkit::compute_cqmom(fixed_case);
     assert(reference.ok());
 
@@ -1308,23 +1308,23 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     qmomkit::CqmomDenseCase dense_case = cqmom_dense_replacement_base();
     dense_case.adaptive_branch_counts = false;
     dense_case.qmom_options.adaptive = false;
-    const qmomkit::CqmomCase fixed_case = qmomkit::internal::create_cqmom_case(dense_case);
-    const auto& prepared_fixed_metadata = qmomkit::internal::cqmom_case_prepared_fixed_metadata(fixed_case);
+    const qmomkit::CqmomCase fixed_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_case);
+    const auto& prepared_fixed_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(fixed_case);
     assert(prepared_fixed_metadata != nullptr);
 
-    const qmomkit::CqmomState new_lineage_state = qmomkit::internal::create_cqmom_state(dense_case);
-    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(new_lineage_state) != nullptr);
-    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(new_lineage_state).get() != prepared_fixed_metadata.get());
+    const qmomkit::CqmomState new_lineage_state = qmomkit::internal::CqmomConstructionAccess::create_state(dense_case);
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(new_lineage_state) != nullptr);
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(new_lineage_state).get() != prepared_fixed_metadata.get());
 
-    const qmomkit::CqmomState descendant_state = qmomkit::internal::create_cqmom_state(dense_case, prepared_fixed_metadata);
-    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(descendant_state).get() == prepared_fixed_metadata.get());
+    const qmomkit::CqmomState descendant_state = qmomkit::internal::CqmomConstructionAccess::create_state(dense_case, prepared_fixed_metadata);
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(descendant_state).get() == prepared_fixed_metadata.get());
 
     const auto assert_rejected = [&prepared_fixed_metadata](const qmomkit::CqmomDenseCase& incompatible_case)
     {
         bool rejected = false;
         try
         {
-            static_cast<void>(qmomkit::internal::create_cqmom_state(incompatible_case, prepared_fixed_metadata));
+            static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(incompatible_case, prepared_fixed_metadata));
         }
         catch (const std::invalid_argument& error)
         {
@@ -1354,7 +1354,7 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     bool lean_rejected = false;
     try
     {
-        static_cast<void>(qmomkit::internal::create_cqmom_state(reordered_lean_case, prepared_fixed_metadata));
+        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(reordered_lean_case, prepared_fixed_metadata));
     }
     catch (const std::invalid_argument& error)
     {
@@ -1366,7 +1366,7 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     bool malformed_new_lineage_rejected = false;
     try
     {
-        static_cast<void>(qmomkit::internal::create_cqmom_state(reordered_lean_case));
+        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(reordered_lean_case));
     }
     catch (const std::invalid_argument& error)
     {
@@ -1381,7 +1381,7 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     bool adaptive_rejected = false;
     try
     {
-        static_cast<void>(qmomkit::internal::create_cqmom_state(adaptive_case, prepared_fixed_metadata));
+        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(adaptive_case, prepared_fixed_metadata));
     }
     catch (const std::invalid_argument& error)
     {
@@ -1389,14 +1389,14 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
         assert(std::string(error.what()).find("Adaptive CQMOM cases must not carry") != std::string::npos);
     }
     assert(adaptive_rejected);
-    const qmomkit::CqmomState adaptive_state = qmomkit::internal::create_cqmom_state(std::move(adaptive_case));
-    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(adaptive_state) == nullptr);
+    const qmomkit::CqmomState adaptive_state = qmomkit::internal::CqmomConstructionAccess::create_state(std::move(adaptive_case));
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(adaptive_state) == nullptr);
 }
 
 void test_cqmom_case_replacement_rejects_structural_tensor_errors()
 {
     const qmomkit::CqmomDenseCase dense_base = cqmom_dense_replacement_base();
-    const qmomkit::CqmomCase dense_case = qmomkit::internal::create_cqmom_case(dense_base);
+    const qmomkit::CqmomCase dense_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_base);
     const qmomkit::CqmomLeanCase lean_base{
         qmomkit::extract_cqmom_moments(dense_base.moments, qmomkit::create_cqmom_moment_layout(dense_base.hierarchy)),
         dense_base.conditional_options,
@@ -1405,7 +1405,7 @@ void test_cqmom_case_replacement_rejects_structural_tensor_errors()
         dense_base.diagnostic_level,
         dense_base.vandermonde_solver,
         dense_base.coordinate_support};
-    const qmomkit::CqmomCase lean_case = qmomkit::internal::create_cqmom_case(lean_base);
+    const qmomkit::CqmomCase lean_case = qmomkit::internal::CqmomConstructionAccess::create_case(lean_base);
     const std::vector<double> base_values = dense_case.initial_state().moment_values();
 
     const auto rank = qmomkit::config::with_initial_moments(dense_case, {{4}, std::vector<double>(4, 1.0)});
@@ -1444,7 +1444,7 @@ void test_cqmom_case_replacement_rejects_structural_tensor_errors()
 
 void test_cqmom_case_replacement_defers_realizability()
 {
-    const qmomkit::CqmomCase base_case = qmomkit::internal::create_cqmom_case(cqmom_dense_replacement_base());
+    const qmomkit::CqmomCase base_case = qmomkit::internal::CqmomConstructionAccess::create_case(cqmom_dense_replacement_base());
     qmomkit::RawMomentTensor nonrealizable = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
     nonrealizable.values[0] = -1.0;
 

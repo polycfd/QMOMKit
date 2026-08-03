@@ -81,7 +81,7 @@ TestDenseCqmomTransportResult advance_transport_cqmom(const RawMomentTensor& mom
                               options.adaptive_branch_counts,
                               options.diagnostic_level,
                               options.vandermonde_solver};
-    CqmomState state = internal::create_cqmom_state(dense_case);
+    CqmomState state = internal::CqmomConstructionAccess::create_state(dense_case);
     const CqmomTransportResult result =
         advance_transport_cqmom(state, t, time_step, velocity, source, static_cast<const CqmomTransportOptions&>(options));
     const CqmomState& result_state = result.ok() ? result.state : state;
@@ -99,7 +99,7 @@ TestLeanCqmomTransportResult advance_transport_cqmom(const TestLeanCqmomTranspor
 {
     CqmomLeanCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
                             options.diagnostic_level, options.vandermonde_solver};
-    CqmomState state = internal::create_cqmom_state(lean_case);
+    CqmomState state = internal::CqmomConstructionAccess::create_state(lean_case);
     const CqmomTransportResult result =
         advance_transport_cqmom(state, t, time_step, velocity, source, static_cast<const CqmomTransportOptions&>(options));
     const CqmomState& result_state = result.ok() ? result.state : state;
@@ -3183,7 +3183,7 @@ VerificationResult run_cqmom_transport_inversion_failures(const std::filesystem:
         return verification;
     }
 
-    qmomkit::CqmomState state = qmomkit::internal::create_cqmom_state(configured_dense.value());
+    qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(configured_dense.value());
     qmomkit::CqmomTransportOptions options = cqmom_state_options();
     options.scheme = qmomkit::TransportScheme::strang;
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };

@@ -324,10 +324,7 @@ struct RecursiveQuadratureResult
 
 /**
  * Construct recursive CQMOM quadrature from an abstract CQMOM moment view.
- *
- * The view is assumed to contain the fixed-node moments required by
- * `create_cqmom_moment_layout(hierarchy)`. This is an internal migration hook for
- * CqmomMomentData root storage.
+ * The view supplies fixed-node moments from existing CQMOM storage.
  */
 [[nodiscard]] RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const RecursiveQuadratureMomentViewRequest& request);
 

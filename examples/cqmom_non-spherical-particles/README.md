@@ -24,6 +24,12 @@ Stieltjes-realizable while failing bounded Hausdorff realizability on $[0,1]$.
 The Monte Carlo executable uses the same sampled initialization and particle
 model to provide an event-driven stochastic reference workflow.
 
+Each CQMOM workflow loads its normal case, then uses
+`with_initial_moments(...)` to replace only the initialized tensor with the
+complete sampled moments. The configured hierarchy, bounded support, storage
+selection, and reconstruction policies remain unchanged; the sampling utility is
+only one possible tensor producer.
+
 ## Phase-space definition and raw moments
 
 The particle phase-space coordinate is

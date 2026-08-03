@@ -54,6 +54,12 @@ CqmomCase::initial_state() -> CqmomState
 CQMOM transport
 ```
 
+The CQMOM driver loads this numerical setup as a normal `CqmomCase`, estimates
+the complete sampled tensor, and creates an immutable replacement case with
+`with_initial_moments(...)`. The hierarchy, storage selection, and reconstruction
+policies therefore remain those declared by `configuration.qmom`; sampling is
+only one possible producer of replacement raw moments.
+
 Monte Carlo sampled distribution reference:
 
 ```text

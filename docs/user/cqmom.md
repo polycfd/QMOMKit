@@ -90,6 +90,31 @@ For the usual CQMOM path, users specify the phase space, initial condition, and
 reconstruction settings. QMOMKit determines which moments are needed for the
 configured hierarchy and avoids exposing the internal moment storage.
 
+### Replacing Initial Moments Programmatically
+
+When an application obtains a complete `RawMomentTensor` after loading its
+ordinary CQMOM setup, it can make a separate transport-capable case without
+rewriting configuration text:
+
+```cpp
+const auto replaced = qmomkit::config::with_initial_moments(base_case, std::move(raw_moments));
+if (!replaced)
+{
+    std::cerr << replaced.error() << '\n';
+    return 1;
+}
+const qmomkit::CqmomCase cqmom_case = replaced.value();
+```
+
+The new case retains the base hierarchy, conditioning order, support, storage
+selection, and every reconstruction policy. A dense base retains the complete
+tensor; a lean base extracts its fixed required layout. The transformation checks
+rank, extents, value count, finiteness, and required coverage only. It does not
+test realizability: `compute_cqmom(...)` reports numerical reconstruction
+status, and `initial_state()` keeps its existing exception-on-failure behavior.
+The producer of the raw moments can be a sampler, measurement pipeline, or any
+other application code.
+
 ## Using CQMOM In QMOMKit
 
 Include the umbrella header when following the user guide examples:

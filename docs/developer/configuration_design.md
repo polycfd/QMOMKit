@@ -213,6 +213,22 @@ The optional `[cqmom] diagnostic_level = detailed|basic|none` setting maps to
 the CQMOM diagnostic policy stored in the loaded case. If omitted,
 configuration preserves the public default `CqmomDiagnosticLevel::detailed`.
 
+### Immutable Explicit-Moment Replacement
+
+`config::with_initial_moments(const CqmomCase&, RawMomentTensor)` is the normal
+programmatic boundary for replacing the explicit initial tensor of an existing
+normal case. It copies the base case representation and policies, then replaces
+only its initial moments: dense storage retains the full supplied tensor, while
+lean storage derives the fixed layout from the base hierarchy and extracts its
+required values. The base case is unchanged.
+
+This boundary validates tensor rank, positive non-overflowing extents, value
+count, finiteness, and dense or lean reconstruction coverage without parser
+metadata. It deliberately does not invoke CQMOM inversion. Consequently,
+programmatic and parsed explicit tensors share the same lifecycle: structural
+errors are configuration failures, while non-realizability is reported by
+`compute_cqmom(...)` or by `CqmomCase::initial_state()`.
+
 ## Distribution Initialization Design
 
 Configuration can reference analytical distributions as a compact way to define

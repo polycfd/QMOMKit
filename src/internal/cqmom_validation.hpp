@@ -6,12 +6,27 @@
 #include "qmomkit/multi_index.hpp"
 
 #include <cstddef>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace qmomkit::internal
 {
+
+[[nodiscard]] inline std::optional<std::size_t> raw_moment_tensor_value_count(const std::vector<std::size_t>& extents)
+{
+    std::size_t value_count = 1;
+    for (const std::size_t extent : extents)
+    {
+        if (extent == 0 || value_count > std::numeric_limits<std::size_t>::max() / extent)
+        {
+            return std::nullopt;
+        }
+        value_count *= extent;
+    }
+    return value_count;
+}
 
 struct CqmomMomentDataValidationMessages
 {

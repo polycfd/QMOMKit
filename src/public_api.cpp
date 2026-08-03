@@ -427,6 +427,16 @@ CqmomState CqmomConstructionAccess::create_state(CqmomLeanCase lean_case, std::v
         std::make_unique<CqmomState::Data>(CqmomState::Data{std::move(lean_case), std::move(active_branch_counts), std::move(accepted_quadrature)}));
 }
 
+const CqmomDenseCase* CqmomConstructionAccess::case_dense_case(const CqmomCase& case_)
+{
+    return std::get_if<CqmomDenseCase>(&case_.data_->case_);
+}
+
+const CqmomLeanCase* CqmomConstructionAccess::case_lean_case(const CqmomCase& case_)
+{
+    return std::get_if<CqmomLeanCase>(&case_.data_->case_);
+}
+
 const CqmomDenseCase* CqmomConstructionAccess::state_dense_case(const CqmomState& state)
 {
     return std::get_if<CqmomDenseCase>(&state.data_->case_);
@@ -495,6 +505,16 @@ CqmomState create_cqmom_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBr
                               std::optional<CqmomQuadrature> accepted_quadrature)
 {
     return CqmomConstructionAccess::create_state(std::move(lean_case), std::move(active_branch_counts), std::move(accepted_quadrature));
+}
+
+const CqmomDenseCase* cqmom_case_dense_case(const CqmomCase& case_)
+{
+    return CqmomConstructionAccess::case_dense_case(case_);
+}
+
+const CqmomLeanCase* cqmom_case_lean_case(const CqmomCase& case_)
+{
+    return CqmomConstructionAccess::case_lean_case(case_);
 }
 
 const CqmomDenseCase* cqmom_state_dense_case(const CqmomState& state)

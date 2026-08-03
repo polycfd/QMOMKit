@@ -26,6 +26,12 @@ phase-space velocity. The Monte Carlo executable is a direct sampled-population
 companion for this example; it is not a separate physical model and no
 automatic CQMOM/MC comparison is performed.
 
+The CQMOM driver retains the normal case loaded from `configuration.qmom` and
+replaces its initial moments with the complete sampled tensor using
+`with_initial_moments(...)`. This keeps the loaded hierarchy, storage selection,
+support, and reconstruction policies intact and does not depend on sampling as
+the only possible moment producer.
+
 The CQMOM workflow is:
 
 ```text

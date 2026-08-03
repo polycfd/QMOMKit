@@ -26,6 +26,8 @@ public:
     [[nodiscard]] static CqmomState create_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts);
     [[nodiscard]] static CqmomState create_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
                                                  std::optional<CqmomQuadrature> accepted_quadrature);
+    [[nodiscard]] static const CqmomDenseCase* case_dense_case(const CqmomCase& case_);
+    [[nodiscard]] static const CqmomLeanCase* case_lean_case(const CqmomCase& case_);
     [[nodiscard]] static const CqmomDenseCase* state_dense_case(const CqmomState& state);
     [[nodiscard]] static const CqmomLeanCase* state_lean_case(const CqmomState& state);
     [[nodiscard]] static const std::vector<CqmomActiveBranchCount>& state_active_branch_counts(const CqmomState& state);
@@ -49,6 +51,8 @@ public:
 [[nodiscard]] CqmomState create_cqmom_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts);
 [[nodiscard]] CqmomState create_cqmom_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
                                             std::optional<CqmomQuadrature> accepted_quadrature);
+[[nodiscard]] const CqmomDenseCase* cqmom_case_dense_case(const CqmomCase& case_);
+[[nodiscard]] const CqmomLeanCase* cqmom_case_lean_case(const CqmomCase& case_);
 [[nodiscard]] const CqmomDenseCase* cqmom_state_dense_case(const CqmomState& state);
 [[nodiscard]] const CqmomLeanCase* cqmom_state_lean_case(const CqmomState& state);
 [[nodiscard]] const std::vector<CqmomActiveBranchCount>& cqmom_state_active_branch_counts(const CqmomState& state);

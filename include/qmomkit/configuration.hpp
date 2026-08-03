@@ -186,6 +186,18 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
                                                                         std::string source_name = "<initialization>",
                                                                         CqmomCoordinateSupport coordinate_support = {});
 
+/**
+ * Create a normal CQMOM case with replacement explicit initial raw moments.
+ *
+ * The returned immutable case preserves the base case hierarchy, storage
+ * choice, coordinate support, and all reconstruction policies. Dense cases
+ * retain the complete supplied tensor; lean cases extract their fixed required
+ * CQMOM moment layout from it. This operation validates tensor structure only;
+ * CQMOM realizability and reconstruction remain the responsibility of
+ * `compute_cqmom(...)` and `CqmomCase::initial_state()`.
+ */
+[[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, RawMomentTensor explicit_moments);
+
 /** Parse a current QMOM configuration string. */
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");
 

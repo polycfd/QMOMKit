@@ -22,3 +22,9 @@ qmomkit_add_ctest(
     component_regression
     cqmom_compute_failures.cpp
 )
+qmomkit_add_ctest(
+    component_regression_cqmom_case_moment_replacement
+    component_regression_cqmom_case_moment_replacement
+    component_regression
+    cqmom_case_moment_replacement.cpp
+)

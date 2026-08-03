@@ -439,6 +439,15 @@ quantities, write output, or optionally evolve the distribution. Optional CQMOM
 transport creates a `CqmomState` with `CqmomCase::initial_state()` and advances
 that state with `advance_transport_cqmom(...)`.
 
+An application that loads a normal `CqmomCase` and later supplies complete raw
+tensor moments may create a replacement case with
+`qmomkit::config::with_initial_moments(base_case, tensor)`. This immutable
+operation preserves the loaded hierarchy, support, storage choice, and
+reconstruction policies. It performs tensor structural validation, while CQMOM
+realizability remains a reconstruction-time concern. It is therefore equivalent
+to using explicit moments in an otherwise identical CQMOM configuration without
+serializing or reparsing configuration text.
+
 The phase-space section defines the dimension count, node hierarchy, and
 conditioning order. These settings connect the configuration file to the
 physical model: every callback coordinate vector, output column, and moment

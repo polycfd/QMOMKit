@@ -17,34 +17,6 @@ namespace cqmom_non_spherical_particles
 namespace
 {
 
-void append_sampled_moments(std::ostringstream& text, const qmomkit::RawMomentTensor& moments)
-{
-    text << "\n[moments]\nextents = ";
-    for (std::size_t dimension = 0; dimension < moments.extents.size(); ++dimension)
-    {
-        if (dimension > 0)
-        {
-            text << ", ";
-        }
-        text << moments.extents[dimension];
-    }
-    text << '\n';
-    for (std::size_t flat_index = 0; flat_index < moments.values.size(); ++flat_index)
-    {
-        const qmomkit::MultiIndex order = qmomkit::unflatten_multi_index(flat_index, moments.extents);
-        text << "M[";
-        for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
-        {
-            if (dimension > 0)
-            {
-                text << ',';
-            }
-            text << order[dimension];
-        }
-        text << "] = " << moments.values[flat_index] << '\n';
-    }
-}
-
 void print_path(const qmomkit::ConditioningPath& path)
 {
     std::cout << '[';
@@ -142,18 +114,7 @@ std::optional<PreparedCqmomExample> prepare_cqmom_example(const std::filesystem:
         return std::nullopt;
     }
 
-    const std::size_t initial_section = configuration_text->find("[initial]");
-    if (initial_section == std::string::npos)
-    {
-        std::cerr << "Could not find the initial condition section in " << configuration_file << ".\n";
-        return std::nullopt;
-    }
-
-    std::ostringstream sampled_moment_case_text;
-    sampled_moment_case_text << std::setprecision(17) << configuration_text->substr(0, initial_section);
-    append_sampled_moments(sampled_moment_case_text, sampled->moments.moments);
-
-    auto sampled_case_result = qmomkit::config::parse_cqmom(sampled_moment_case_text.str(), "sampled-cqmom-initialization");
+    auto sampled_case_result = qmomkit::config::with_initial_moments(configured.value(), std::move(sampled->moments.moments));
     if (!sampled_case_result)
     {
         print_configuration_errors(sampled_case_result.error());

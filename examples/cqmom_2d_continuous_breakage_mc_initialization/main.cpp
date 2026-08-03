@@ -6,10 +6,8 @@
 #include <algorithm>
 #include <exception>
 #include <filesystem>
-#include <iomanip>
 #include <iostream>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -65,40 +63,7 @@ int main()
             return 1;
         }
 
-        const std::size_t initial_section = configuration_text->find("[initial]");
-        if (initial_section == std::string::npos)
-        {
-            std::cerr << "Could not find the initial condition section in " << configuration_file << ".\n";
-            return 1;
-        }
-
-        std::ostringstream sampled_case_text;
-        sampled_case_text << std::setprecision(17) << configuration_text->substr(0, initial_section) << "\n[moments]\nextents = ";
-        for (std::size_t dimension = 0; dimension < sampled->moments.moments.extents.size(); ++dimension)
-        {
-            if (dimension > 0)
-            {
-                sampled_case_text << ", ";
-            }
-            sampled_case_text << sampled->moments.moments.extents[dimension];
-        }
-        sampled_case_text << '\n';
-        for (std::size_t flat_index = 0; flat_index < sampled->moments.moments.values.size(); ++flat_index)
-        {
-            const qmomkit::MultiIndex order = qmomkit::unflatten_multi_index(flat_index, sampled->moments.moments.extents);
-            sampled_case_text << "M[";
-            for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
-            {
-                if (dimension > 0)
-                {
-                    sampled_case_text << ',';
-                }
-                sampled_case_text << order[dimension];
-            }
-            sampled_case_text << "] = " << sampled->moments.moments.values[flat_index] << '\n';
-        }
-
-        auto sampled_case_result = qmomkit::config::parse_cqmom(sampled_case_text.str(), "sampled-cqmom-initialization");
+        auto sampled_case_result = qmomkit::config::with_initial_moments(configured_cqmom.value(), std::move(sampled->moments.moments));
         if (!sampled_case_result)
         {
             cqmom_2d_continuous_breakage::print_configuration_errors(sampled_case_result.error());

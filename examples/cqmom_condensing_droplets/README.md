@@ -34,6 +34,11 @@ callback. The coordinate names and distributions are example choices; the
 configuration and sampled-initialization machinery are generic QMOMKit
 mechanisms.
 
+The CQMOM driver loads the normal case first, then replaces only its initial
+raw moments with the complete sampled tensor through `with_initial_moments(...)`.
+The loaded hierarchy, support, storage selection, and reconstruction policies
+are retained; a sampler is only one possible source of the replacement tensor.
+
 ## Phase-space definition and raw moments
 
 The configured phase-space order is:

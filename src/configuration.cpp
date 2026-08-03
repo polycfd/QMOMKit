@@ -1,6 +1,7 @@
 #include "qmomkit/configuration.hpp"
 
 #include "internal/cqmom_case.hpp"
+#include "internal/cqmom_validation.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -958,15 +959,12 @@ std::optional<IndependentProductDistribution> parse_independent_product(ParsedFi
 
 bool checked_product(const std::vector<std::size_t>& extents, std::size_t& product)
 {
-    product = 1;
-    for (const std::size_t extent : extents)
+    const std::optional<std::size_t> value_count = internal::raw_moment_tensor_value_count(extents);
+    if (!value_count.has_value())
     {
-        if (extent == 0 || product > std::numeric_limits<std::size_t>::max() / extent)
-        {
-            return false;
-        }
-        product *= extent;
+        return false;
     }
+    product = *value_count;
     return true;
 }
 
@@ -1070,6 +1068,45 @@ template <class T> ConfigurationResult<T> failure_result(ConfigurationError erro
 template <class T> ConfigurationResult<T> file_failure(const std::filesystem::path& filename)
 {
     return failure_result<T>({ConfigurationErrorCode::file_error, filename.string(), 0, "Unable to open configuration file."});
+}
+
+[[nodiscard]] std::optional<std::string> validate_replacement_tensor_structure(const RawMomentTensor& moments, const PhaseSpaceHierarchy& hierarchy)
+{
+    if (moments.extents.size() != hierarchy.number_of_dimensions())
+    {
+        return "Raw moment tensor rank must match the base CQMOM hierarchy.";
+    }
+
+    const std::optional<std::size_t> value_count = internal::raw_moment_tensor_value_count(moments.extents);
+    if (!value_count.has_value())
+    {
+        return "Raw moment tensor extents must be positive and their product must not overflow.";
+    }
+    if (moments.values.size() != *value_count)
+    {
+        return "Raw moment tensor value count does not match its extents.";
+    }
+    if (!internal::all_finite(moments.values))
+    {
+        return "Raw moment tensor values must be finite.";
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] std::string format_moment_index(const MultiIndex& index)
+{
+    std::ostringstream message;
+    message << '[';
+    for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
+    {
+        if (dimension != 0)
+        {
+            message << ", ";
+        }
+        message << index[dimension];
+    }
+    message << ']';
+    return message.str();
 }
 
 std::optional<std::string> read_configuration_file(const std::filesystem::path& filename)
@@ -2168,6 +2205,60 @@ ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialCondition
                                                             CqmomDiagnosticLevel::detailed,
                                                             VandermondeSolver::automatic,
                                                             std::move(coordinate_support)}};
+}
+
+ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, RawMomentTensor explicit_moments)
+{
+    try
+    {
+        const PhaseSpaceHierarchy& hierarchy = base_case.hierarchy();
+        const std::optional<std::string> structure_error = validate_replacement_tensor_structure(explicit_moments, hierarchy);
+        if (structure_error.has_value())
+        {
+            return ConfigurationResult<CqmomCase>::failure(*structure_error);
+        }
+
+        if (const CqmomDenseCase* const dense_case = qmomkit::internal::cqmom_case_dense_case(base_case); dense_case != nullptr)
+        {
+            for (std::size_t dimension = 0; dimension < hierarchy.number_of_dimensions(); ++dimension)
+            {
+                const std::size_t node_count = hierarchy.node_count(dimension);
+                if (node_count > std::numeric_limits<std::size_t>::max() / 2 || explicit_moments.extents[dimension] < 2 * node_count)
+                {
+                    return ConfigurationResult<CqmomCase>::failure(
+                        "Raw moment tensor extents must contain at least 2*N orders for every base CQMOM phase-space dimension.");
+                }
+            }
+
+            CqmomDenseCase replaced_case = *dense_case;
+            replaced_case.moments = std::move(explicit_moments);
+            return ConfigurationResult<CqmomCase>{qmomkit::internal::create_cqmom_case(std::move(replaced_case))};
+        }
+
+        const CqmomLeanCase* const lean_case = qmomkit::internal::cqmom_case_lean_case(base_case);
+        if (lean_case == nullptr)
+        {
+            return ConfigurationResult<CqmomCase>::failure("The base CQMOM case has no recognized moment storage.");
+        }
+
+        const CqmomMomentLayout layout = create_cqmom_moment_layout(hierarchy);
+        for (const MultiIndex& index : layout.required_indices)
+        {
+            if (!internal::multi_index_within_extents(index, explicit_moments.extents))
+            {
+                return ConfigurationResult<CqmomCase>::failure("Raw moment tensor does not contain required CQMOM moment index " +
+                                                               format_moment_index(index) + ".");
+            }
+        }
+
+        CqmomLeanCase replaced_case = *lean_case;
+        replaced_case.moments = extract_cqmom_moments(explicit_moments, layout);
+        return ConfigurationResult<CqmomCase>{qmomkit::internal::create_cqmom_case(std::move(replaced_case))};
+    }
+    catch (const std::exception& error)
+    {
+        return ConfigurationResult<CqmomCase>::failure("Unable to replace CQMOM initial moments: " + std::string(error.what()));
+    }
 }
 
 ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::string source_name)

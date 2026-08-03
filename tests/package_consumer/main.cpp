@@ -59,5 +59,32 @@ int main()
         return 1;
     }
 
+    const auto base_case = qmomkit::config::parse_cqmom(R"(
+[phase_space]
+node_counts = 1, 1
+
+[moments]
+extents = 2, 2
+M[0,0] = 1.0
+M[0,1] = 0.0
+M[1,0] = 0.0
+M[1,1] = 0.0
+)");
+    if (!base_case.ok())
+    {
+        return 1;
+    }
+
+    const auto replaced_case = qmomkit::config::with_initial_moments(base_case.value(), {{2, 2}, {1.0, 0.5, 1.0, 0.5}});
+    if (!replaced_case.ok())
+    {
+        return 1;
+    }
+    const qmomkit::CqmomState replaced_state = replaced_case.value().initial_state();
+    if (replaced_state.moment_storage() != qmomkit::CqmomMomentStorage::lean || replaced_state.moment_values().empty())
+    {
+        return 1;
+    }
+
     return 0;
 }

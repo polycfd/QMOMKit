@@ -22,6 +22,9 @@ struct ReconstructionCounters
     std::size_t wheeler_adaptive_reductions = 0;
     std::size_t terminal_nodes_assembled = 0;
     std::size_t moment_layout_builds = 0;
+    std::size_t cqmom_prepared_metadata_builds = 0;
+    std::size_t cqmom_prepared_metadata_uses = 0;
+    std::size_t cqmom_dynamic_metadata_builds = 0;
 };
 
 struct LinearAlgebraCounters
@@ -182,6 +185,30 @@ inline void record_moment_layout_build() noexcept
     if (PerformanceCounters* counters = active_counters())
     {
         ++counters->reconstruction.moment_layout_builds;
+    }
+}
+
+inline void record_cqmom_prepared_metadata_build() noexcept
+{
+    if (PerformanceCounters* counters = active_counters())
+    {
+        ++counters->reconstruction.cqmom_prepared_metadata_builds;
+    }
+}
+
+inline void record_cqmom_prepared_metadata_use() noexcept
+{
+    if (PerformanceCounters* counters = active_counters())
+    {
+        ++counters->reconstruction.cqmom_prepared_metadata_uses;
+    }
+}
+
+inline void record_cqmom_dynamic_metadata_build() noexcept
+{
+    if (PerformanceCounters* counters = active_counters())
+    {
+        ++counters->reconstruction.cqmom_dynamic_metadata_builds;
     }
 }
 
@@ -371,6 +398,9 @@ inline void record_wheeler_call() noexcept {}
 inline void record_wheeler_adaptive_reduction() noexcept {}
 inline void record_terminal_node_assembled() noexcept {}
 inline void record_moment_layout_build() noexcept {}
+inline void record_cqmom_prepared_metadata_build() noexcept {}
+inline void record_cqmom_prepared_metadata_use() noexcept {}
+inline void record_cqmom_dynamic_metadata_build() noexcept {}
 inline void record_vandermonde_solve(VandermondeSolveKind) noexcept {}
 inline void record_dense_linear_solve() noexcept {}
 inline void record_vandermonde_fallback() noexcept {}

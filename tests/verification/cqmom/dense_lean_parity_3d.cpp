@@ -837,8 +837,10 @@ RecursiveBranchTrace recursive_trace_for_identity_branch(const qmomkit::RawMomen
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {0, 1, 2});
     const qmomkit::CqmomMomentLayout canonical = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const std::shared_ptr<const qmomkit::internal::BranchMomentLayout> root_layout =
+        qmomkit::internal::create_branch_moment_layout(hierarchy.moment_extents(), canonical.required_indices, false);
     qmomkit::internal::BranchMomentSlice root_slice;
-    root_slice.layout = qmomkit::internal::create_branch_moment_layout(hierarchy.moment_extents(), canonical.required_indices, false);
+    root_slice.layout = root_layout.get();
     root_slice.values.reserve(canonical.required_indices.size());
     for (const qmomkit::MultiIndex& index : canonical.required_indices)
     {
@@ -854,7 +856,7 @@ RecursiveBranchTrace recursive_trace_for_identity_branch(const qmomkit::RawMomen
 
     trace.d_to_chi_u = solve_stage(root_slice, trace.d_nodes, trace.d_weights, conditional_options);
     const qmomkit::internal::BranchMomentChildLayout& root_child_case = qmomkit::internal::child_layout_for_parent_node_count(*root_slice.layout, 2);
-    qmomkit::internal::BranchMomentSlice d0_slice{root_child_case.child_layout,
+    qmomkit::internal::BranchMomentSlice d0_slice{root_child_case.child_layout.get(),
                                                   std::vector<double>(root_child_case.child_layout->indices.size(), 0.0)};
     trace.d0_child_indices = root_child_case.child_layout->indices;
     for (std::size_t col = 0; col < d0_slice.values.size(); ++col)
@@ -871,7 +873,7 @@ RecursiveBranchTrace recursive_trace_for_identity_branch(const qmomkit::RawMomen
 
     trace.chi_to_u = solve_stage(d0_slice, trace.d0_chi_nodes, trace.d0_chi_weights, conditional_options);
     const qmomkit::internal::BranchMomentChildLayout& chi_child_case = qmomkit::internal::child_layout_for_parent_node_count(*d0_slice.layout, 2);
-    qmomkit::internal::BranchMomentSlice d0_chi1_slice{chi_child_case.child_layout,
+    qmomkit::internal::BranchMomentSlice d0_chi1_slice{chi_child_case.child_layout.get(),
                                                        std::vector<double>(chi_child_case.child_layout->indices.size(), 0.0)};
     trace.d0_chi1_child_indices = chi_child_case.child_layout->indices;
     for (std::size_t col = 0; col < d0_chi1_slice.values.size(); ++col)

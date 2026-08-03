@@ -364,6 +364,7 @@ QMOMKit workload measurements using the optional performance instrumentation
 layer. It reports Google Benchmark wall-clock/CPU timing together with
 internal workload counters, such as reconstruction calls, branch solves,
 Wheeler calls, Vandermonde solves, fallback counts, terminal node assembly,
+fixed prepared-metadata builds and uses, dynamic-metadata builds,
 adaptive active-count derivations, validations, and transition builds,
 transport operator calls, source SSP-RK stages, and node RHS evaluations.
 
@@ -393,12 +394,19 @@ The current instrumentation benchmark categories are:
   boundary callbacks. Strang, continuous-discontinuous, and
   discontinuous-continuous splitting variants make the expected operator
   sequence visible in normalized counters.
-- CQMOM reconstruction and Vandermonde policy comparisons: isolate
-  `compute_cqmom(...)` for 2D 2 x 2, 2D 4 x 4, and 3D 2 x 2 x 2 fixed-node
-  cases with automatic, explicit Björck-Pereyra, explicit dense, and detailed
-  automatic policies. These variants make residual checks, condition
-  estimates, dense solves, and fallback paths visible at the application
-  reconstruction level.
+- CQMOM reconstruction and Vandermonde policy comparisons: explicit dynamic
+  lean rows retain the `performance_vandermonde_*` names. Separate
+  `performance_cqmom_normal_prepared_*` rows measure warm
+  `compute_cqmom(CqmomCase)` for fixed 2D 2 x 2, 2D 3 x 3, 3D 2 x 2 x 2,
+  4D 2^4, and 5D 2^5 cases. The two names denote different operations and are
+  not before/after substitutes. `performance_cqmom_programmatic_case_construction_*`
+  rows include only programmatic normal-case construction from precomputed
+  hierarchy, layout, and moment data; they do not include configuration parsing.
+  A prepared `initial_state()` row isolates state construction after that
+  one-time work. Standalone explicit lean/dense and adaptive normal controls
+  remain on the dynamic path. Together, the rows distinguish one-time case
+  cost from repeated normal-case reconstruction and make prepared-versus-dynamic
+  counter use visible.
 - CQMOM source integration and layout comparisons: repeatedly call
   `advance_cqmom_moments_with_source(...)` with a deterministic source model
   to expose source SSP-RK stage counts, retry behavior, and layout construction.
@@ -525,7 +533,8 @@ The report sections are:
   reconstruction, source update, node update, or state-step. This answers how
   expensive the measured workload was.
 - Reconstruction counters: CQMOM/QMOM reconstruction counts, Wheeler calls,
-  branch solves, terminal node assembly, and moment-layout construction.
+  branch solves, terminal node assembly, moment-layout construction, and fixed
+  prepared-versus-dynamic metadata events.
 - Linear algebra counters: Vandermonde solves, solver-path counts, dense
   fallback counts, residual checks, and condition estimates.
 - Transport/time-integration counters: continuous/discontinuous operator

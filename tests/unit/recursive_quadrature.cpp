@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -88,8 +89,13 @@ std::vector<double> indexed_values(const std::vector<std::size_t>& extents)
     return values;
 }
 
-qmomkit::internal::BranchMomentSlice make_branch_slice_from_dense(const qmomkit::PhaseSpaceHierarchy& hierarchy,
-                                                                  const qmomkit::RawMomentTensor& dense)
+struct BranchMomentSliceFixture
+{
+    std::shared_ptr<const qmomkit::internal::BranchMomentLayout> layout;
+    qmomkit::internal::BranchMomentSlice slice;
+};
+
+BranchMomentSliceFixture make_branch_slice_from_dense(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& dense)
 {
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<std::size_t> moment_extents = hierarchy.moment_extents();
@@ -115,7 +121,9 @@ qmomkit::internal::BranchMomentSlice make_branch_slice_from_dense(const qmomkit:
         values.push_back(dense.values[qmomkit::flatten_multi_index(phase_space_index, dense.extents)]);
     }
 
-    return {qmomkit::internal::create_branch_moment_layout(std::move(ordered_extents), std::move(ordered_indices)), std::move(values)};
+    std::shared_ptr<const qmomkit::internal::BranchMomentLayout> branch_layout =
+        qmomkit::internal::create_branch_moment_layout(std::move(ordered_extents), std::move(ordered_indices));
+    return {branch_layout, {branch_layout.get(), std::move(values)}};
 }
 
 void assert_matrix_value(const qmomkit::internal::DenseMatrix& matrix, const std::size_t row, const std::size_t col, const double expected)
@@ -472,7 +480,8 @@ void test_branch_local_layout_identity_wheeler_and_rhs_offsets()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor dense{{4, 4}, indexed_values({4, 4})};
-    const qmomkit::internal::BranchMomentSlice slice = make_branch_slice_from_dense(hierarchy, dense);
+    const BranchMomentSliceFixture fixture = make_branch_slice_from_dense(hierarchy, dense);
+    const qmomkit::internal::BranchMomentSlice& slice = fixture.slice;
 
     assert(slice.layout);
     assert_vector_equal(slice.layout->extents, {4, 4});
@@ -496,7 +505,8 @@ void test_branch_local_layout_non_identity_wheeler_and_rhs_offsets()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
     const qmomkit::RawMomentTensor dense{{4, 4}, indexed_values({4, 4})};
-    const qmomkit::internal::BranchMomentSlice slice = make_branch_slice_from_dense(hierarchy, dense);
+    const BranchMomentSliceFixture fixture = make_branch_slice_from_dense(hierarchy, dense);
+    const qmomkit::internal::BranchMomentSlice& slice = fixture.slice;
 
     assert(slice.layout);
     assert_vector_equal(slice.layout->extents, {4, 4});
@@ -519,7 +529,8 @@ void test_branch_local_layout_unequal_node_counts_and_adaptive_child_case()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3});
     const qmomkit::RawMomentTensor dense{{4, 6}, indexed_values({4, 6})};
-    const qmomkit::internal::BranchMomentSlice slice = make_branch_slice_from_dense(hierarchy, dense);
+    const BranchMomentSliceFixture fixture = make_branch_slice_from_dense(hierarchy, dense);
+    const qmomkit::internal::BranchMomentSlice& slice = fixture.slice;
 
     assert(slice.layout);
     assert_vector_equal(slice.layout->extents, {4, 6});

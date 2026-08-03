@@ -133,6 +133,33 @@ IndexedMomentSet create_indexed_cqmom_moment_set(const CqmomMomentData& moments)
 namespace
 {
 
+[[nodiscard]] std::shared_ptr<const BranchMomentLayout> create_ordered_root_layout(const CqmomMomentLayout& layout, const bool adaptive_branch_counts)
+{
+    const PhaseSpaceHierarchy& hierarchy = layout.hierarchy;
+    const std::vector<std::size_t> moment_extents = hierarchy.moment_extents();
+    std::vector<std::size_t> ordered_extents;
+    ordered_extents.reserve(hierarchy.number_of_dimensions());
+    std::vector<MultiIndex> ordered_indices;
+    ordered_indices.reserve(layout.required_indices.size());
+    for (const std::size_t dimension : hierarchy.conditioning_order())
+    {
+        ordered_extents.push_back(moment_extents[dimension]);
+    }
+
+    // Branch-local layouts are ordered by conditioning level. Raw/global
+    // moment storage remains in phase-space dimension order.
+    for (const MultiIndex& phase_space_index : layout.required_indices)
+    {
+        MultiIndex ordered_index(hierarchy.number_of_dimensions(), 0);
+        for (std::size_t axis = 0; axis < hierarchy.number_of_dimensions(); ++axis)
+        {
+            ordered_index[axis] = phase_space_index[hierarchy.conditioning_order()[axis]];
+        }
+        ordered_indices.push_back(std::move(ordered_index));
+    }
+    return create_branch_moment_layout(std::move(ordered_extents), std::move(ordered_indices), adaptive_branch_counts);
+}
+
 void append_unique_index(std::vector<MultiIndex>& indices, MultiIndex index)
 {
     if (std::find(indices.begin(), indices.end(), index) == indices.end())
@@ -242,6 +269,41 @@ std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vecto
     }
 
     return layout;
+}
+
+PreparedFixedCqmomMetadata::PreparedFixedCqmomMetadata(CqmomMomentLayout prepared_moment_layout,
+                                                       std::shared_ptr<const BranchMomentLayout> prepared_root_branch_layout)
+    : moment_layout(std::move(prepared_moment_layout)), root_branch_layout(std::move(prepared_root_branch_layout))
+{
+    if (root_branch_layout == nullptr)
+    {
+        throw std::invalid_argument("Prepared fixed CQMOM metadata requires a root branch layout.");
+    }
+}
+
+std::shared_ptr<const PreparedFixedCqmomMetadata> create_prepared_fixed_cqmom_metadata(CqmomMomentLayout moment_layout)
+{
+    validate_fixed_cqmom_moment_layout(moment_layout, "Prepared fixed CQMOM metadata requires the canonical CQMOM moment layout.");
+    std::shared_ptr<const BranchMomentLayout> root_branch_layout = create_ordered_root_layout(moment_layout, false);
+    std::shared_ptr<const PreparedFixedCqmomMetadata> metadata(
+        new PreparedFixedCqmomMetadata(std::move(moment_layout), std::move(root_branch_layout)));
+    internal::performance::record_cqmom_prepared_metadata_build();
+    return metadata;
+}
+
+bool prepared_fixed_cqmom_metadata_is_compatible(const PreparedFixedCqmomMetadata& metadata, const PhaseSpaceHierarchy& hierarchy,
+                                                 const CqmomMomentLayout* const expected_layout)
+{
+    if (metadata.root_branch_layout == nullptr)
+    {
+        return false;
+    }
+    const PhaseSpaceHierarchy& metadata_hierarchy = metadata.moment_layout.hierarchy;
+    if (metadata_hierarchy.node_counts() != hierarchy.node_counts() || metadata_hierarchy.conditioning_order() != hierarchy.conditioning_order())
+    {
+        return false;
+    }
+    return expected_layout == nullptr || metadata.moment_layout.required_indices == expected_layout->required_indices;
 }
 
 std::vector<double> extract_wheeler_moments(const BranchMomentSlice& slice)
@@ -443,35 +505,16 @@ struct ConditionalSliceResult
 }
 
 [[nodiscard]] BranchMomentSlice create_ordered_root_slice(const CqmomMomentLayout& layout, const internal::CqmomMomentView& moments,
-                                                          const bool adaptive_branch_counts)
+                                                          const internal::BranchMomentLayout& root_branch_layout)
 {
     BranchMomentSlice slice;
-    const PhaseSpaceHierarchy& hierarchy = layout.hierarchy;
-    const std::vector<std::size_t> moment_extents = hierarchy.moment_extents();
-    std::vector<std::size_t> ordered_extents;
-    ordered_extents.reserve(hierarchy.number_of_dimensions());
-    std::vector<MultiIndex> ordered_indices;
     std::vector<double> values;
-    ordered_indices.reserve(layout.required_indices.size());
     values.reserve(layout.required_indices.size());
-    for (const std::size_t dimension : hierarchy.conditioning_order())
-    {
-        ordered_extents.push_back(moment_extents[dimension]);
-    }
-
-    // Branch-local slices are ordered by conditioning level. Raw/global moment
-    // storage remains in phase-space dimension order.
     for (const MultiIndex& phase_space_index : layout.required_indices)
     {
-        MultiIndex ordered_index(hierarchy.number_of_dimensions(), 0);
-        for (std::size_t axis = 0; axis < hierarchy.number_of_dimensions(); ++axis)
-        {
-            ordered_index[axis] = phase_space_index[hierarchy.conditioning_order()[axis]];
-        }
-        ordered_indices.push_back(std::move(ordered_index));
         values.push_back(moments.moment(phase_space_index));
     }
-    slice.layout = internal::create_branch_moment_layout(std::move(ordered_extents), std::move(ordered_indices), adaptive_branch_counts);
+    slice.layout = &root_branch_layout;
     slice.values = std::move(values);
     return slice;
 }
@@ -552,7 +595,7 @@ struct ConditionalSliceResult
         result.diagnostics.conditioning_warning = condition > options.conditioning_warning_threshold;
     }
 
-    const BranchMomentSlice empty_child_slice{child_case->child_layout, std::vector<double>(rhs_cols, 0.0)};
+    const BranchMomentSlice empty_child_slice{child_case->child_layout.get(), std::vector<double>(rhs_cols, 0.0)};
     result.child_slices.assign(parent_node_count, empty_child_slice);
     for (BranchMomentSlice& slice : result.child_slices)
     {
@@ -1659,16 +1702,33 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
         return result;
     }
     BranchMomentSlice root_slice;
+    std::shared_ptr<const BranchMomentLayout> dynamic_root_branch_layout;
     try
     {
-        std::optional<CqmomMomentLayout> generated_root_layout;
-        const CqmomMomentLayout* root_layout = request.validated_layout;
-        if (root_layout == nullptr)
+        const bool use_prepared_fixed_metadata = request.prepared_fixed_metadata != nullptr && !request.adaptive_branch_counts;
+        if (use_prepared_fixed_metadata)
         {
-            generated_root_layout.emplace(create_cqmom_moment_layout(request.hierarchy));
-            root_layout = &*generated_root_layout;
+            const PreparedFixedCqmomMetadata& metadata = *request.prepared_fixed_metadata;
+            internal::performance::record_cqmom_prepared_metadata_use();
+            root_slice = create_ordered_root_slice(metadata.moment_layout, request.moments, *metadata.root_branch_layout);
         }
-        root_slice = create_ordered_root_slice(*root_layout, request.moments, request.adaptive_branch_counts);
+        else
+        {
+            if (request.require_prepared_fixed_metadata && !request.adaptive_branch_counts)
+            {
+                throw std::logic_error("Fixed normal CQMOM reconstruction requires prepared metadata.");
+            }
+            std::optional<CqmomMomentLayout> generated_root_layout;
+            const CqmomMomentLayout* root_layout = request.validated_layout;
+            if (root_layout == nullptr)
+            {
+                generated_root_layout.emplace(create_cqmom_moment_layout(request.hierarchy));
+                root_layout = &*generated_root_layout;
+            }
+            internal::performance::record_cqmom_dynamic_metadata_build();
+            dynamic_root_branch_layout = internal::create_ordered_root_layout(*root_layout, request.adaptive_branch_counts);
+            root_slice = create_ordered_root_slice(*root_layout, request.moments, *dynamic_root_branch_layout);
+        }
     }
     catch (const std::exception& ex)
     {
@@ -1971,7 +2031,8 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
     return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
                                                                     wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
                                                                     request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
-                                                                    request.allow_active_branch_count_growth, request.coordinate_support},
+                                                                    request.allow_active_branch_count_growth, request.coordinate_support,
+                                                                    request.prepared_fixed_metadata, request.require_prepared_fixed_metadata},
                                                                    request.moments.layout);
 }
 
@@ -2003,7 +2064,8 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
     return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
                                                                     wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
                                                                     request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
-                                                                    request.allow_active_branch_count_growth, request.coordinate_support},
+                                                                    request.allow_active_branch_count_growth, request.coordinate_support,
+                                                                    request.prepared_fixed_metadata, request.require_prepared_fixed_metadata},
                                                                    request.moments.layout);
 }
 

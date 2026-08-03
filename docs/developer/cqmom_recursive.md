@@ -197,12 +197,33 @@ state was created or loaded. Reconstruction therefore reuses the existing
 hierarchy, conditioning order, and moment layout instead of regenerating and
 comparing the global required layout on every reconstruction.
 
+For fixed-topology normal cases, construction also eagerly prepares one
+immutable internal metadata object. It contains the required CQMOM moment
+layout and the complete fixed branch-layout graph: conditioning-ordered root
+indices and extents, Wheeler offsets, and child RHS/offset mappings. It does
+not contain raw moment values, quadrature data, matrices, factorizations,
+diagnostics, active counts, or terminal paths. Every fixed normal case and
+state owns compatible metadata. A direct internal fixed-state factory either
+starts a new prepared lineage eagerly or receives the owner from a structurally
+unchanged parent. Initial-state construction, value replacement, copies, and
+transport successors propagate that owner without copying the graph. Missing or
+incompatible metadata is an internal contract violation, not a dynamic fallback.
+Case and state copies share the immutable owner; a state can therefore outlive
+its case without retaining mutable aliases.
+
+Adaptive normal cases retain the dynamic branch-layout path because their
+active topology is runtime data. Explicit `CqmomDenseCase` and
+`CqmomLeanCase` reconstruction likewise remains dynamic. Neither path uses a
+process-wide cache or lazy initialization.
+
 Reusing setup information does not mean unchecked numerical data. These paths
 still validate evolving moment values, vector sizes, finite values, runtime
-numerical options, and reconstruction failure conditions. Branch layouts,
-adaptive branch counts, Wheeler inversions, conditional Vandermonde solves,
-terminal assembly, statuses, and diagnostics follow the same recursive
-algorithm as the explicit representation paths.
+numerical options, and reconstruction failure conditions. Fixed prepared
+metadata changes only the source of immutable layout information; Wheeler
+inversions, conditional Vandermonde solves, terminal assembly, statuses, and
+diagnostics use the same recursive algorithm as the explicit and adaptive
+paths. Reconstruction borrows the prepared graph for the duration of the call;
+it does not copy branch-layout ownership per reconstruction or per branch.
 
 ## Recursive Construction
 

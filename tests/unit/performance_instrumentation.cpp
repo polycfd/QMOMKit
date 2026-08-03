@@ -323,7 +323,11 @@ void test_adaptive_cqmom_transport_records_active_count_work_when_enabled()
     const qmomkit::CqmomMomentLayout fixed_layout = qmomkit::create_cqmom_moment_layout(fixed_hierarchy);
     const qmomkit::CqmomLeanCase fixed_case{qmomkit::extract_cqmom_moments(independent_product_dense_moments(fixed_hierarchy), fixed_layout)};
     const qmomkit::CqmomState fixed_state = qmomkit::internal::create_cqmom_case(fixed_case).initial_state();
-    const qmomkit::CqmomState fixed_cache_miss_state = qmomkit::internal::create_cqmom_state(fixed_case);
+    const qmomkit::CqmomState fixed_cache_miss_state =
+        qmomkit::internal::create_cqmom_state(fixed_case, qmomkit::internal::cqmom_state_prepared_fixed_metadata(fixed_state));
+    const auto& fixed_metadata = qmomkit::internal::cqmom_state_prepared_fixed_metadata(fixed_state);
+    assert(fixed_metadata != nullptr);
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(fixed_cache_miss_state).get() == fixed_metadata.get());
     qmomkit::internal::performance::CounterSession fixed_session;
     {
         qmomkit::internal::performance::CounterScope scope(fixed_session);
@@ -332,8 +336,14 @@ void test_adaptive_cqmom_transport_records_active_count_work_when_enabled()
         const qmomkit::CqmomTransportResult discontinuous = qmomkit::advance_cqmom_discontinuous(fixed_state, 0.0, 0.1, zero_source, options);
         assert(continuous.ok());
         assert(discontinuous.ok());
+        assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(continuous.state).get() == fixed_metadata.get());
+        assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(discontinuous.state).get() == fixed_metadata.get());
     }
     assert_active_count_counters(fixed_session.snapshot(), 0, 0, 0);
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(fixed_session.snapshot().reconstruction.cqmom_prepared_metadata_uses == 2);
+    assert(fixed_session.snapshot().reconstruction.cqmom_dynamic_metadata_builds == 0);
+#endif
 }
 
 qmomkit::internal::DenseMatrix make_vandermonde_rhs(const std::vector<double>& nodes, const std::vector<double>& weights,
@@ -646,8 +656,12 @@ void test_state_transport_source_update_skips_redundant_layout_validation_when_e
     const qmomkit::internal::performance::PerformanceCounters lean_counters = lean_session.snapshot();
     const qmomkit::internal::performance::PerformanceCounters dense_counters = dense_session.snapshot();
 #if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
-    assert(lean_counters.reconstruction.moment_layout_builds == 2);
-    assert(dense_counters.reconstruction.moment_layout_builds == 3);
+    assert(lean_counters.reconstruction.moment_layout_builds == 0);
+    assert(dense_counters.reconstruction.moment_layout_builds == 0);
+    assert(lean_counters.reconstruction.cqmom_prepared_metadata_uses == 1);
+    assert(dense_counters.reconstruction.cqmom_prepared_metadata_uses == 1);
+    assert(lean_counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
+    assert(dense_counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
     assert(lean_counters.time_integration.source_rk_stages == 3);
     assert(dense_counters.time_integration.source_rk_stages == 3);
     assert(lean_counters.transport.post_source_inversions == 1);
@@ -657,6 +671,8 @@ void test_state_transport_source_update_skips_redundant_layout_validation_when_e
 #else
     assert(lean_counters.reconstruction.moment_layout_builds == 0);
     assert(dense_counters.reconstruction.moment_layout_builds == 0);
+    assert(lean_counters.reconstruction.cqmom_prepared_metadata_uses == 0);
+    assert(dense_counters.reconstruction.cqmom_prepared_metadata_uses == 0);
     assert(lean_counters.time_integration.source_rk_stages == 0);
     assert(dense_counters.time_integration.source_rk_stages == 0);
 #endif
@@ -728,15 +744,19 @@ void test_public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_e
     const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
 #if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
     assert(counters.reconstruction.moment_layout_builds == 3);
+    assert(counters.reconstruction.cqmom_prepared_metadata_builds == 0);
+    assert(counters.reconstruction.cqmom_prepared_metadata_uses == 0);
+    assert(counters.reconstruction.cqmom_dynamic_metadata_builds == 1);
 #else
     assert(counters.reconstruction.moment_layout_builds == 0);
+    assert(counters.reconstruction.cqmom_prepared_metadata_builds == 0);
+    assert(counters.reconstruction.cqmom_prepared_metadata_uses == 0);
+    assert(counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
 #endif
 }
 
-void assert_trusted_case_reconstruction_uses_only_branch_layout_builds(const std::vector<std::size_t>& node_counts,
-                                                                       const std::size_t expected_layout_builds,
-                                                                       const std::size_t expected_wheeler_calls,
-                                                                       const std::size_t expected_vandermonde_solves)
+void assert_trusted_case_reconstruction_uses_prepared_metadata(const std::vector<std::size_t>& node_counts, const std::size_t expected_wheeler_calls,
+                                                               const std::size_t expected_vandermonde_solves)
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -759,13 +779,19 @@ void assert_trusted_case_reconstruction_uses_only_branch_layout_builds(const std
 
     const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
 #if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
-    assert(counters.reconstruction.moment_layout_builds == expected_layout_builds);
+    assert(counters.reconstruction.moment_layout_builds == 0);
+    assert(counters.reconstruction.cqmom_prepared_metadata_builds == 0);
+    assert(counters.reconstruction.cqmom_prepared_metadata_uses == 1);
+    assert(counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
     assert(counters.reconstruction.wheeler_calls == expected_wheeler_calls);
     assert(counters.linear_algebra.vandermonde_solves == expected_vandermonde_solves);
     assert(counters.linear_algebra.pivoted_qr_solves == 0);
     assert(counters.linear_algebra.svd_solves == 0);
 #else
     assert(counters.reconstruction.moment_layout_builds == 0);
+    assert(counters.reconstruction.cqmom_prepared_metadata_builds == 0);
+    assert(counters.reconstruction.cqmom_prepared_metadata_uses == 0);
+    assert(counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
     assert(counters.reconstruction.wheeler_calls == 0);
     assert(counters.linear_algebra.vandermonde_solves == 0);
     assert(counters.linear_algebra.pivoted_qr_solves == 0);
@@ -775,8 +801,99 @@ void assert_trusted_case_reconstruction_uses_only_branch_layout_builds(const std
 
 void test_trusted_cqmom_case_reconstruction_skips_global_layout_validation_when_enabled()
 {
-    assert_trusted_case_reconstruction_uses_only_branch_layout_builds({2, 2}, 2, 3, 1);
-    assert_trusted_case_reconstruction_uses_only_branch_layout_builds({2, 2, 2}, 3, 7, 3);
+    assert_trusted_case_reconstruction_uses_prepared_metadata({2, 2}, 3, 1);
+    assert_trusted_case_reconstruction_uses_prepared_metadata({2, 2, 2}, 7, 3);
+}
+
+void test_fixed_and_dynamic_cqmom_metadata_counters()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData moments = independent_product_moments(layout);
+    const qmomkit::CqmomLeanCase fixed_lean_case{moments};
+
+    qmomkit::internal::performance::CounterSession fixed_session;
+    {
+        qmomkit::internal::performance::CounterScope scope(fixed_session);
+        const qmomkit::CqmomCase fixed_case = qmomkit::internal::create_cqmom_case(fixed_lean_case);
+        assert(qmomkit::compute_cqmom(fixed_case).ok());
+        assert(qmomkit::compute_cqmom(fixed_case).ok());
+    }
+
+    const qmomkit::CqmomLeanCase adaptive_lean_case{moments, {}, {true, 1.0e-10, 1.0e-12, 1.0e-12}, true};
+    qmomkit::internal::performance::CounterSession adaptive_session;
+    {
+        qmomkit::internal::performance::CounterScope scope(adaptive_session);
+        const qmomkit::CqmomCase adaptive_case = qmomkit::internal::create_cqmom_case(adaptive_lean_case);
+        assert(qmomkit::compute_cqmom(adaptive_case).ok());
+    }
+
+    const qmomkit::internal::performance::PerformanceCounters fixed_counters = fixed_session.snapshot();
+    const qmomkit::internal::performance::PerformanceCounters adaptive_counters = adaptive_session.snapshot();
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(fixed_counters.reconstruction.cqmom_prepared_metadata_builds == 1);
+    assert(fixed_counters.reconstruction.cqmom_prepared_metadata_uses == 2);
+    assert(fixed_counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
+    assert(adaptive_counters.reconstruction.cqmom_prepared_metadata_builds == 0);
+    assert(adaptive_counters.reconstruction.cqmom_prepared_metadata_uses == 0);
+    assert(adaptive_counters.reconstruction.cqmom_dynamic_metadata_builds == 1);
+#else
+    assert(fixed_counters.reconstruction.cqmom_prepared_metadata_builds == 0);
+    assert(fixed_counters.reconstruction.cqmom_prepared_metadata_uses == 0);
+    assert(fixed_counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
+    assert(adaptive_counters.reconstruction.cqmom_prepared_metadata_builds == 0);
+    assert(adaptive_counters.reconstruction.cqmom_prepared_metadata_uses == 0);
+    assert(adaptive_counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
+#endif
+}
+
+void test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_metadata()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomLeanCase lean_case{independent_product_moments(layout)};
+    const qmomkit::CqmomDenseCase dense_case{hierarchy, independent_product_dense_moments(hierarchy)};
+    const qmomkit::CqmomState dense_initial = qmomkit::internal::create_cqmom_case(dense_case).initial_state();
+    const qmomkit::CqmomState lean_initial = qmomkit::internal::create_cqmom_case(lean_case).initial_state();
+    const qmomkit::CqmomQuadrature dense_quadrature = *qmomkit::internal::cqmom_state_accepted_quadrature(dense_initial);
+    const qmomkit::CqmomQuadrature lean_quadrature = *qmomkit::internal::cqmom_state_accepted_quadrature(lean_initial);
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    qmomkit::internal::performance::CounterSession session;
+    {
+        qmomkit::internal::performance::CounterScope scope(session);
+        std::vector<qmomkit::CqmomState> states;
+        states.reserve(8);
+        states.push_back(qmomkit::internal::create_cqmom_state(dense_case));
+        states.push_back(qmomkit::internal::create_cqmom_state(dense_case, std::vector<qmomkit::CqmomActiveBranchCount>{}));
+        states.push_back(qmomkit::internal::create_cqmom_state(dense_case, {}, std::nullopt));
+        states.push_back(qmomkit::internal::create_cqmom_state(dense_case, {}, qmomkit::CqmomQuadrature{dense_quadrature}));
+        states.push_back(qmomkit::internal::create_cqmom_state(lean_case));
+        states.push_back(qmomkit::internal::create_cqmom_state(lean_case, std::vector<qmomkit::CqmomActiveBranchCount>{}));
+        states.push_back(qmomkit::internal::create_cqmom_state(lean_case, {}, std::nullopt));
+        states.push_back(qmomkit::internal::create_cqmom_state(lean_case, {}, qmomkit::CqmomQuadrature{lean_quadrature}));
+
+        for (const qmomkit::CqmomState& state : states)
+        {
+            assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(state) != nullptr);
+            const qmomkit::CqmomTransportResult result = qmomkit::advance_cqmom_discontinuous(state, 0.0, 0.1, zero_source);
+            assert(result.ok());
+            assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(result.state).get() ==
+                   qmomkit::internal::cqmom_state_prepared_fixed_metadata(state).get());
+        }
+    }
+
+    const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(counters.reconstruction.cqmom_prepared_metadata_builds == 8);
+    assert(counters.reconstruction.cqmom_prepared_metadata_uses == 14);
+    assert(counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
+#else
+    assert(counters.reconstruction.cqmom_prepared_metadata_builds == 0);
+    assert(counters.reconstruction.cqmom_prepared_metadata_uses == 0);
+    assert(counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
+#endif
 }
 
 } // namespace
@@ -796,6 +913,8 @@ int main()
     test_ssp_node_advection_does_not_record_source_rk_stages_when_enabled();
     test_public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_enabled();
     test_trusted_cqmom_case_reconstruction_skips_global_layout_validation_when_enabled();
+    test_fixed_and_dynamic_cqmom_metadata_counters();
+    test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_metadata();
 
     return 0;
 }

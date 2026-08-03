@@ -108,14 +108,35 @@ struct BranchMomentLayout
     std::vector<BranchMomentChildLayout> child_layouts_by_parent_node_count;
 };
 
+/**
+ * Immutable fixed-topology reconstruction metadata prepared by a normal
+ * CQMOM case. The layout owns no numerical values or solver workspaces.
+ */
+struct PreparedFixedCqmomMetadata
+{
+    const CqmomMomentLayout moment_layout;
+    const std::shared_ptr<const BranchMomentLayout> root_branch_layout;
+
+private:
+    PreparedFixedCqmomMetadata(CqmomMomentLayout moment_layout, std::shared_ptr<const BranchMomentLayout> root_branch_layout);
+
+    friend std::shared_ptr<const PreparedFixedCqmomMetadata> create_prepared_fixed_cqmom_metadata(CqmomMomentLayout moment_layout);
+};
+
 struct BranchMomentSlice
 {
-    std::shared_ptr<const BranchMomentLayout> layout;
+    // The reconstruction entry point retains the root layout owner for the
+    // full traversal. Child layouts are reachable from that root, so slices
+    // only need a borrowed layout pointer and never alter reference counts.
+    const BranchMomentLayout* layout = nullptr;
     std::vector<double> values;
 };
 
 [[nodiscard]] std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vector<std::size_t> extents, std::vector<MultiIndex> indices,
                                                                                     bool adaptive_parent_node_counts = true);
+[[nodiscard]] std::shared_ptr<const PreparedFixedCqmomMetadata> create_prepared_fixed_cqmom_metadata(CqmomMomentLayout moment_layout);
+[[nodiscard]] bool prepared_fixed_cqmom_metadata_is_compatible(const PreparedFixedCqmomMetadata& metadata, const PhaseSpaceHierarchy& hierarchy,
+                                                               const CqmomMomentLayout* expected_layout = nullptr);
 [[nodiscard]] std::vector<double> extract_wheeler_moments(const BranchMomentSlice& slice);
 [[nodiscard]] DenseMatrix make_branch_rhs_matrix(const BranchMomentSlice& slice, std::size_t parent_node_count);
 [[nodiscard]] const BranchMomentChildLayout& child_layout_for_parent_node_count(const BranchMomentLayout& layout, std::size_t parent_node_count);
@@ -217,6 +238,11 @@ struct RecursiveQuadratureMomentViewRequest
     std::vector<CqmomActiveBranchCount> active_branch_counts;
     bool allow_active_branch_count_growth = false;
     CqmomCoordinateSupport coordinate_support;
+    const PreparedFixedCqmomMetadata* prepared_fixed_metadata = nullptr;
+    // Normal fixed case/state reconstruction requires prepared metadata.
+    // Explicit standalone reconstruction leaves this false and remains
+    // dynamically prepared.
+    bool require_prepared_fixed_metadata = false;
 };
 
 struct RecursiveQuadratureMomentDataRequest
@@ -231,6 +257,8 @@ struct RecursiveQuadratureMomentDataRequest
     std::vector<CqmomActiveBranchCount> active_branch_counts;
     bool allow_active_branch_count_growth = false;
     CqmomCoordinateSupport coordinate_support;
+    const PreparedFixedCqmomMetadata* prepared_fixed_metadata = nullptr;
+    bool require_prepared_fixed_metadata = false;
 };
 
 struct RecursiveQuadratureBranchDiagnostics

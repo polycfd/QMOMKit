@@ -115,7 +115,8 @@ Current counters are grouped by workload area.
 Reconstruction counters summarize QMOM and CQMOM reconstruction work, including
 QMOM/CQMOM reconstruction calls, Wheeler calls, recursive branch solves,
 adaptive Wheeler reductions, terminal node assembly, and moment-layout
-construction.
+construction. Fixed normal CQMOM workflows also report prepared-metadata
+builds, prepared-metadata uses, and dynamic-metadata builds.
 
 Linear algebra counters summarize Vandermonde and dense solve work, including
 Vandermonde solves, solver paths, dense fallback usage, residual checks, and
@@ -163,6 +164,20 @@ paths that rebuild expected layouts. Interpret this with the benchmark type.
 For public input paths, one expected-layout build may be intentional validation
 work. For trusted `CqmomCase` or `CqmomState` paths, repeated global-layout
 builds are usually more interesting than branch-local layouts.
+
+`cqmom_prepared_metadata_builds` increments once when a fixed normal case or a
+direct fixed normal state starts a new lineage and eagerly constructs its
+immutable required-layout and branch-layout graph. It does not increment for
+copies, transformations that preserve structure, or transport successors.
+`cqmom_prepared_metadata_uses` increments once when a fixed trusted
+reconstruction consumes compatible metadata. `cqmom_dynamic_metadata_builds`
+increments once per reconstruction that creates root/branch metadata
+dynamically, such as an adaptive normal case or an explicit dense/lean case. A
+valid fixed normal case/state never contributes a dynamic-metadata build;
+missing metadata is an internal contract violation. These coarse counters do
+not replace `moment_layout_builds`: the latter still counts individual
+required-layout and branch-layout objects, including the objects created during
+one eager prepared build.
 
 A high node-RHS-evaluation count may reflect many terminal nodes, long
 transport intervals, difficult velocity dynamics, or tight embedded-RK
@@ -274,10 +289,10 @@ Recent optimization effects visible in this baseline:
 - CQMOM source integration no longer performs redundant layout preparation in
   every SSP-RK3 stage; the public source-update path has one layout build per
   update, while the existing-layout SSP-RK3 kernel has none.
-- Trusted `CqmomCase` and `CqmomState` reconstruction avoids repeated
-  immutable metadata validation and global required-layout rebuilding. The
-  `CqmomState` transport rows retain branch-local layout work but avoid
-  extra global-layout validation work.
+- Fixed trusted `CqmomCase` and case-derived `CqmomState` reconstruction reuse
+  one eager immutable branch-layout graph. Adaptive and explicit workflows
+  remain dynamic; no numerical matrices, active topology, or reconstruction
+  results are cached.
 - Numerical workload counters such as Wheeler calls and Vandermonde solves are
   unchanged by these metadata optimizations.
 

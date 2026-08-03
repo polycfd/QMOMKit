@@ -366,6 +366,14 @@ TestLeanCqmomTransportResult advance_transport_cqmom(const TestLeanCqmomTranspor
                                                      const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
                                                      const TestLeanCqmomTransportOptions& options = {})
 {
+    if (lean_state.moments.values.size() != lean_state.moments.layout.required_indices.size())
+    {
+        const std::string message = "CQMOM transport moments must match the fixed layout size.";
+        TransportDiagnostics diagnostics;
+        diagnostics.failed_stage = TransportStage::none;
+        diagnostics.message = message;
+        return TestLeanCqmomTransportResult{lean_state, std::nullopt, TransportStatus::invalid_input, std::move(diagnostics), t, message};
+    }
     CqmomLeanCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
                             options.diagnostic_level, options.vandermonde_solver};
     CqmomState state = internal::create_cqmom_state(lean_case);
@@ -384,6 +392,14 @@ TestLeanCqmomTransportResult advance_transport_cqmom(const TestLeanCqmomTranspor
                                                      const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
                                                      const CqmomMomentBoundaryContribution& boundary, const TestLeanCqmomTransportOptions& options)
 {
+    if (lean_state.moments.values.size() != lean_state.moments.layout.required_indices.size())
+    {
+        const std::string message = "CQMOM transport moments must match the fixed layout size.";
+        TransportDiagnostics diagnostics;
+        diagnostics.failed_stage = TransportStage::none;
+        diagnostics.message = message;
+        return TestLeanCqmomTransportResult{lean_state, std::nullopt, TransportStatus::invalid_input, std::move(diagnostics), t, message};
+    }
     CqmomLeanCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
                             options.diagnostic_level, options.vandermonde_solver};
     CqmomState state = internal::create_cqmom_state(lean_case);
@@ -452,6 +468,42 @@ void test_internal_cqmom_state_backend_accessors_are_explicit_and_guarded()
     assert(qmomkit::internal::cqmom_state_lean_case(dense_state) == nullptr);
     assert(qmomkit::internal::cqmom_state_dense_case(lean_state) == nullptr);
     assert(qmomkit::internal::cqmom_state_lean_case(lean_state) != nullptr);
+}
+
+void test_fixed_cqmom_transport_successors_share_prepared_metadata()
+{
+    const qmomkit::CqmomCase case_ = fixed_cqmom_case();
+    const auto& prepared_fixed_metadata = qmomkit::internal::cqmom_case_prepared_fixed_metadata(case_);
+    assert(prepared_fixed_metadata != nullptr);
+    const qmomkit::CqmomState initial_state = case_.initial_state();
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(initial_state).get() == prepared_fixed_metadata.get());
+
+    const auto zero_velocity = [](double, const std::vector<double>& coordinate) { return std::vector<double>(coordinate.size(), 0.0); };
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    const qmomkit::CqmomTransportResult continuous = qmomkit::advance_cqmom_continuous(initial_state, 0.0, 0.1, zero_velocity);
+    assert(continuous.ok());
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(continuous.state).get() == prepared_fixed_metadata.get());
+
+    const qmomkit::CqmomTransportResult discontinuous = qmomkit::advance_cqmom_discontinuous(initial_state, 0.0, 0.1, zero_source);
+    assert(discontinuous.ok());
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(discontinuous.state).get() == prepared_fixed_metadata.get());
+
+    for (const qmomkit::TransportScheme scheme : {qmomkit::TransportScheme::cd, qmomkit::TransportScheme::dc, qmomkit::TransportScheme::strang})
+    {
+        qmomkit::CqmomTransportOptions options;
+        options.scheme = scheme;
+        const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(initial_state, 0.0, 0.1, zero_velocity, zero_source, options);
+        assert(result.ok());
+        assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(result.state).get() == prepared_fixed_metadata.get());
+    }
+
+    const qmomkit::CqmomMomentSource failing_source = [](double, const qmomkit::CqmomSourceContext&) -> qmomkit::CqmomMomentRate
+    { throw std::runtime_error("prepared metadata rollback failure"); };
+    const qmomkit::CqmomTransportResult failed = qmomkit::advance_cqmom_discontinuous(initial_state, 0.0, 0.1, failing_source);
+    assert(!failed.ok());
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(failed.state).get() == prepared_fixed_metadata.get());
 }
 
 std::string cqmom_case_text_from_moments_with_hierarchy(const qmomkit::RawMomentTensor& moments, const std::vector<std::size_t>& node_counts,
@@ -1875,8 +1927,11 @@ void test_cqmom_transport_success_materializes_an_independent_final_quadrature()
     const qmomkit::CqmomCase dense_case = fixed_cqmom_case_with_storage("dense");
     const qmomkit::CqmomDenseCase* dense_backend = qmomkit::internal::cqmom_case_dense_case(dense_case);
     assert(dense_backend != nullptr);
-    const qmomkit::CqmomState cache_miss_state = qmomkit::internal::create_cqmom_state(*dense_backend);
+    const qmomkit::CqmomState cache_miss_state =
+        qmomkit::internal::create_cqmom_state(*dense_backend, qmomkit::internal::cqmom_case_prepared_fixed_metadata(dense_case));
     assert(!qmomkit::internal::cqmom_state_accepted_quadrature(cache_miss_state).has_value());
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(cache_miss_state).get() ==
+           qmomkit::internal::cqmom_case_prepared_fixed_metadata(dense_case).get());
     assert_cqmom_result_owns_independent_accepted_quadrature(qmomkit::advance_cqmom_discontinuous(cache_miss_state, 0.0, 0.1, zero_source), 5.0e-10);
 }
 
@@ -4133,6 +4188,7 @@ int main()
     test_adaptive_state_initial_counts_preserve_nonidentity_conditioning_order();
     test_fixed_state_transport_does_not_store_adaptive_branch_counts();
     test_internal_cqmom_state_backend_accessors_are_explicit_and_guarded();
+    test_fixed_cqmom_transport_successors_share_prepared_metadata();
     test_adaptive_state_rejects_duplicate_active_count_metadata();
     test_adaptive_state_rejects_missing_active_count_metadata();
     test_adaptive_state_failure_preserves_active_counts_for_retry();

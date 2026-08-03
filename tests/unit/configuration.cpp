@@ -10,9 +10,11 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -1205,6 +1207,190 @@ void test_cqmom_case_replaces_lean_initial_moments_immutably()
     assert(base_state.moment_values() == lean_base.moments.values);
     assert(replaced_state.moment_indices() == expected_moments.layout.required_indices);
     assert(replaced_state.moment_values() == expected_moments.values);
+}
+
+void test_fixed_cqmom_prepared_metadata_ownership()
+{
+    qmomkit::CqmomDenseCase dense_case = cqmom_dense_replacement_base();
+    dense_case.adaptive_branch_counts = false;
+    dense_case.qmom_options.adaptive = false;
+    const qmomkit::CqmomCase fixed_case = qmomkit::internal::create_cqmom_case(dense_case);
+    const auto& fixed_metadata = qmomkit::internal::cqmom_case_prepared_fixed_metadata(fixed_case);
+    assert(fixed_metadata != nullptr);
+
+    const qmomkit::CqmomCase copied_case = fixed_case;
+    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(copied_case).get() == fixed_metadata.get());
+
+    qmomkit::CqmomCase movable_case = fixed_case;
+    qmomkit::CqmomCase moved_case = std::move(movable_case);
+    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(moved_case).get() == fixed_metadata.get());
+
+    const qmomkit::CqmomCase distinct_case = qmomkit::internal::create_cqmom_case(dense_case);
+    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(distinct_case).get() != fixed_metadata.get());
+
+    const auto replaced = qmomkit::config::with_initial_moments(fixed_case, dense_case.moments);
+    assert(replaced.ok());
+    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(replaced.value()).get() == fixed_metadata.get());
+
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense_case.hierarchy);
+    const qmomkit::CqmomCase lean_case = qmomkit::internal::create_cqmom_case(qmomkit::CqmomLeanCase{
+        qmomkit::extract_cqmom_moments(dense_case.moments, layout), dense_case.conditional_options, dense_case.qmom_options,
+        dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver, dense_case.coordinate_support});
+    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(lean_case) != nullptr);
+    const qmomkit::CqmomResult dense_result = qmomkit::compute_cqmom(fixed_case);
+    const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(lean_case);
+    assert(dense_result.ok());
+    assert(lean_result.ok());
+    assert_cqmom_quadratures_near(lean_result.quadrature, dense_result.quadrature);
+
+    qmomkit::CqmomDenseCase adaptive_dense_case = dense_case;
+    adaptive_dense_case.adaptive_branch_counts = true;
+    adaptive_dense_case.qmom_options.adaptive = true;
+    const qmomkit::CqmomCase adaptive_case = qmomkit::internal::create_cqmom_case(std::move(adaptive_dense_case));
+    assert(qmomkit::internal::cqmom_case_prepared_fixed_metadata(adaptive_case) == nullptr);
+
+    const qmomkit::CqmomState initial_state = fixed_case.initial_state();
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(initial_state).get() == fixed_metadata.get());
+    const qmomkit::CqmomState copied_state = initial_state;
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(copied_state).get() == fixed_metadata.get());
+    qmomkit::CqmomState movable_state = initial_state;
+    qmomkit::CqmomState moved_state = std::move(movable_state);
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(moved_state).get() == fixed_metadata.get());
+
+    std::optional<qmomkit::CqmomState> surviving_state;
+    const qmomkit::internal::PreparedFixedCqmomMetadata* surviving_metadata = nullptr;
+    {
+        const qmomkit::CqmomCase temporary_case = qmomkit::internal::create_cqmom_case(dense_case);
+        surviving_metadata = qmomkit::internal::cqmom_case_prepared_fixed_metadata(temporary_case).get();
+        surviving_state.emplace(temporary_case.initial_state());
+    }
+    assert(surviving_state.has_value());
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(*surviving_state).get() == surviving_metadata);
+    assert(surviving_state->hierarchy().node_counts() == dense_case.hierarchy.node_counts());
+    assert(surviving_state->hierarchy().conditioning_order() == dense_case.hierarchy.conditioning_order());
+}
+
+void test_fixed_cqmom_prepared_metadata_is_concurrently_readable()
+{
+    qmomkit::CqmomDenseCase dense_case = cqmom_dense_replacement_base();
+    dense_case.adaptive_branch_counts = false;
+    dense_case.qmom_options.adaptive = false;
+    const qmomkit::CqmomCase fixed_case = qmomkit::internal::create_cqmom_case(std::move(dense_case));
+    const qmomkit::CqmomResult reference = qmomkit::compute_cqmom(fixed_case);
+    assert(reference.ok());
+
+    std::vector<int> succeeded(4, 0);
+    std::vector<std::thread> workers;
+    workers.reserve(succeeded.size());
+    for (std::size_t worker = 0; worker < succeeded.size(); ++worker)
+    {
+        workers.emplace_back(
+            [&fixed_case, &reference, &succeeded, worker]()
+            {
+                for (std::size_t iteration = 0; iteration < 16; ++iteration)
+                {
+                    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(fixed_case);
+                    assert(result.ok());
+                    assert_cqmom_quadratures_near(result.quadrature, reference.quadrature);
+                }
+                succeeded[worker] = 1;
+            });
+    }
+    for (std::thread& worker : workers)
+    {
+        worker.join();
+    }
+    assert(std::all_of(succeeded.begin(), succeeded.end(), [](const int value) { return value == 1; }));
+}
+
+void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
+{
+    qmomkit::CqmomDenseCase dense_case = cqmom_dense_replacement_base();
+    dense_case.adaptive_branch_counts = false;
+    dense_case.qmom_options.adaptive = false;
+    const qmomkit::CqmomCase fixed_case = qmomkit::internal::create_cqmom_case(dense_case);
+    const auto& prepared_fixed_metadata = qmomkit::internal::cqmom_case_prepared_fixed_metadata(fixed_case);
+    assert(prepared_fixed_metadata != nullptr);
+
+    const qmomkit::CqmomState new_lineage_state = qmomkit::internal::create_cqmom_state(dense_case);
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(new_lineage_state) != nullptr);
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(new_lineage_state).get() != prepared_fixed_metadata.get());
+
+    const qmomkit::CqmomState descendant_state = qmomkit::internal::create_cqmom_state(dense_case, prepared_fixed_metadata);
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(descendant_state).get() == prepared_fixed_metadata.get());
+
+    const auto assert_rejected = [&prepared_fixed_metadata](const qmomkit::CqmomDenseCase& incompatible_case)
+    {
+        bool rejected = false;
+        try
+        {
+            static_cast<void>(qmomkit::internal::create_cqmom_state(incompatible_case, prepared_fixed_metadata));
+        }
+        catch (const std::invalid_argument& error)
+        {
+            rejected = true;
+            assert(std::string(error.what()).find("Prepared fixed CQMOM metadata is incompatible") != std::string::npos);
+        }
+        assert(rejected);
+    };
+
+    qmomkit::CqmomDenseCase different_node_counts = dense_case;
+    different_node_counts.hierarchy = qmomkit::PhaseSpaceHierarchy({1, 2});
+    assert_rejected(different_node_counts);
+
+    qmomkit::CqmomDenseCase different_conditioning_order = dense_case;
+    different_conditioning_order.hierarchy = qmomkit::PhaseSpaceHierarchy({2, 2}, {0, 1});
+    assert_rejected(different_conditioning_order);
+
+    qmomkit::CqmomDenseCase different_dimension = dense_case;
+    different_dimension.hierarchy = qmomkit::PhaseSpaceHierarchy({1, 1, 1});
+    assert_rejected(different_dimension);
+
+    const qmomkit::CqmomMomentLayout fixed_layout = qmomkit::create_cqmom_moment_layout(dense_case.hierarchy);
+    qmomkit::CqmomMomentLayout reordered_layout = fixed_layout;
+    std::reverse(reordered_layout.required_indices.begin(), reordered_layout.required_indices.end());
+    const qmomkit::CqmomLeanCase reordered_lean_case{
+        qmomkit::CqmomMomentData{std::move(reordered_layout), std::vector<double>(fixed_layout.required_indices.size(), 1.0)}};
+    bool lean_rejected = false;
+    try
+    {
+        static_cast<void>(qmomkit::internal::create_cqmom_state(reordered_lean_case, prepared_fixed_metadata));
+    }
+    catch (const std::invalid_argument& error)
+    {
+        lean_rejected = true;
+        assert(std::string(error.what()).find("Prepared fixed CQMOM metadata is incompatible") != std::string::npos);
+    }
+    assert(lean_rejected);
+
+    bool malformed_new_lineage_rejected = false;
+    try
+    {
+        static_cast<void>(qmomkit::internal::create_cqmom_state(reordered_lean_case));
+    }
+    catch (const std::invalid_argument& error)
+    {
+        malformed_new_lineage_rejected = true;
+        assert(std::string(error.what()).find("canonical CQMOM moment layout") != std::string::npos);
+    }
+    assert(malformed_new_lineage_rejected);
+
+    qmomkit::CqmomDenseCase adaptive_case = dense_case;
+    adaptive_case.adaptive_branch_counts = true;
+    adaptive_case.qmom_options.adaptive = true;
+    bool adaptive_rejected = false;
+    try
+    {
+        static_cast<void>(qmomkit::internal::create_cqmom_state(adaptive_case, prepared_fixed_metadata));
+    }
+    catch (const std::invalid_argument& error)
+    {
+        adaptive_rejected = true;
+        assert(std::string(error.what()).find("Adaptive CQMOM cases must not carry") != std::string::npos);
+    }
+    assert(adaptive_rejected);
+    const qmomkit::CqmomState adaptive_state = qmomkit::internal::create_cqmom_state(std::move(adaptive_case));
+    assert(qmomkit::internal::cqmom_state_prepared_fixed_metadata(adaptive_state) == nullptr);
 }
 
 void test_cqmom_case_replacement_rejects_structural_tensor_errors()
@@ -3228,6 +3414,9 @@ int main()
     test_cqmom_case_initial_state_preserves_case_settings();
     test_cqmom_case_replaces_dense_initial_moments_immutably();
     test_cqmom_case_replaces_lean_initial_moments_immutably();
+    test_fixed_cqmom_prepared_metadata_ownership();
+    test_fixed_cqmom_prepared_metadata_is_concurrently_readable();
+    test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility();
     test_cqmom_case_replacement_rejects_structural_tensor_errors();
     test_cqmom_case_replacement_defers_realizability();
     test_cqmom_case_file_loading();

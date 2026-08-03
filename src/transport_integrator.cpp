@@ -969,7 +969,7 @@ void validate_cqmom_transport_input(const CqmomState& state, const double t, con
     {
         const CqmomMomentLayout source_layout = create_cqmom_moment_layout(dense_case->hierarchy);
         CqmomMomentData source_moments = extract_cqmom_moments(dense_case->moments, source_layout);
-        const CqmomMomentSourceUpdateResult source_update =
+        CqmomMomentSourceUpdateResult source_update =
             boundary == nullptr
                 ? internal::advance_trusted_cqmom_moments_with_source(source_moments, t, time_step, source, options.source_options)
                 : internal::advance_trusted_cqmom_moments_with_source(source_moments, t, time_step, source, *boundary, options.source_options);
@@ -982,9 +982,9 @@ void validate_cqmom_transport_input(const CqmomState& state, const double t, con
 
         const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
         internal::performance::record_post_source_inversion();
-        CqmomLeanCase post_source_case{
-            source_update.moments,        dense_case->conditional_options, dense_case->qmom_options,      dense_case->adaptive_branch_counts,
-            dense_case->diagnostic_level, dense_case->vandermonde_solver,  dense_case->coordinate_support};
+        CqmomLeanCase post_source_case{std::move(source_update.moments),   dense_case->conditional_options, dense_case->qmom_options,
+                                       dense_case->adaptive_branch_counts, dense_case->diagnostic_level,    dense_case->vandermonde_solver,
+                                       dense_case->coordinate_support};
         CqmomResult post_source_quadrature =
             internal::compute_trusted_cqmom(post_source_case, current_active_branch_counts, dense_case->adaptive_branch_counts);
         diagnostics.post_source_cqmom_status = post_source_quadrature.status;
@@ -1017,7 +1017,7 @@ void validate_cqmom_transport_input(const CqmomState& state, const double t, con
     }
 
     const CqmomLeanCase* lean_case = internal::cqmom_state_lean_case(state);
-    const CqmomMomentSourceUpdateResult source_update =
+    CqmomMomentSourceUpdateResult source_update =
         boundary == nullptr
             ? internal::advance_trusted_cqmom_moments_with_source(lean_case->moments, t, time_step, source, options.source_options)
             : internal::advance_trusted_cqmom_moments_with_source(lean_case->moments, t, time_step, source, *boundary, options.source_options);
@@ -1030,9 +1030,9 @@ void validate_cqmom_transport_input(const CqmomState& state, const double t, con
 
     const std::vector<CqmomActiveBranchCount> before_source_active_branch_counts = current_active_branch_counts;
     internal::performance::record_post_source_inversion();
-    CqmomLeanCase post_source_case{
-        source_update.moments,       lean_case->conditional_options, lean_case->qmom_options,      lean_case->adaptive_branch_counts,
-        lean_case->diagnostic_level, lean_case->vandermonde_solver,  lean_case->coordinate_support};
+    CqmomLeanCase post_source_case{std::move(source_update.moments),  lean_case->conditional_options, lean_case->qmom_options,
+                                   lean_case->adaptive_branch_counts, lean_case->diagnostic_level,    lean_case->vandermonde_solver,
+                                   lean_case->coordinate_support};
     CqmomResult post_source_quadrature =
         internal::compute_trusted_cqmom(post_source_case, current_active_branch_counts, lean_case->adaptive_branch_counts);
     diagnostics.post_source_cqmom_status = post_source_quadrature.status;
@@ -1097,31 +1097,34 @@ CqmomTransportResult advance_transport_cqmom_state_impl(const CqmomState& state,
         return cqmom_state_failure(state, std::nullopt, TransportStatus::invalid_input, TransportStage::none, diagnostics, t, error.what());
     }
 
-    CqmomState current_state = state;
+    const CqmomState* current_state = &state;
+    std::optional<CqmomState> owned_current_state;
     std::optional<CqmomTransportResult> failure;
     const auto apply_continuous = [&](const double start_time, const double step, const bool final_continuous)
     {
         CqmomTransportResult result =
-            advance_cqmom_continuous_impl(current_state, state, start_time, step, velocity, options, final_continuous, diagnostics);
+            advance_cqmom_continuous_impl(*current_state, state, start_time, step, velocity, options, final_continuous, diagnostics);
         if (!result.ok())
         {
             failure = std::move(result);
             return false;
         }
-        current_state = std::move(result.state);
+        owned_current_state = std::move(result.state);
+        current_state = &*owned_current_state;
         return true;
     };
 
     const auto apply_source = [&](const double start_time)
     {
         CqmomTransportResult result =
-            advance_cqmom_discontinuous_impl(current_state, state, start_time, time_step, source, boundary, options, diagnostics);
+            advance_cqmom_discontinuous_impl(*current_state, state, start_time, time_step, source, boundary, options, diagnostics);
         if (!result.ok())
         {
             failure = std::move(result);
             return false;
         }
-        current_state = std::move(result.state);
+        owned_current_state = std::move(result.state);
+        current_state = &*owned_current_state;
         return true;
     };
 
@@ -1130,9 +1133,9 @@ CqmomTransportResult advance_transport_cqmom_state_impl(const CqmomState& state,
         return std::move(*failure);
     }
 
-    std::optional<CqmomQuadrature> accepted_quadrature = internal::cqmom_state_accepted_quadrature(current_state);
+    std::optional<CqmomQuadrature> accepted_quadrature = internal::cqmom_state_accepted_quadrature(*current_state);
     finalize_diagnostics(diagnostics);
-    return CqmomTransportResult{std::move(current_state),
+    return CqmomTransportResult{std::move(*owned_current_state),
                                 std::move(accepted_quadrature),
                                 TransportStatus::success,
                                 neutral_cqmom_diagnostics(std::move(diagnostics)),

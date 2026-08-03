@@ -1588,6 +1588,24 @@ void assert_cqmom_transport_results_match(const qmomkit::CqmomTransportResult& a
     assert_common_cqmom_moments_near(actual.state, expected.state, tolerance);
 }
 
+void assert_cqmom_states_equal(const qmomkit::CqmomState& actual, const qmomkit::CqmomState& expected)
+{
+    assert(actual.moment_storage() == expected.moment_storage());
+    assert(actual.hierarchy().node_counts() == expected.hierarchy().node_counts());
+    assert(actual.hierarchy().conditioning_order() == expected.hierarchy().conditioning_order());
+    assert(actual.moment_indices() == expected.moment_indices());
+    assert_vector_near(actual.moment_values(), expected.moment_values(), 0.0);
+    assert(active_counts_equal(actual.active_branch_counts(), expected.active_branch_counts()));
+
+    const std::optional<qmomkit::CqmomQuadrature>& actual_quadrature = qmomkit::internal::cqmom_state_accepted_quadrature(actual);
+    const std::optional<qmomkit::CqmomQuadrature>& expected_quadrature = qmomkit::internal::cqmom_state_accepted_quadrature(expected);
+    assert(actual_quadrature.has_value() == expected_quadrature.has_value());
+    if (actual_quadrature.has_value())
+    {
+        assert_cqmom_quadrature_near(*actual_quadrature, *expected_quadrature, 0.0);
+    }
+}
+
 void test_public_cqmom_continuous_stage_preserves_topology()
 {
     const qmomkit::CqmomCase case_ = adaptive_cqmom_case_from_moments(branch_specific_ragged_cqmom_moments());
@@ -1827,8 +1845,91 @@ void test_cqmom_transport_failure_after_first_stage_rolls_back_to_macro_input()
     assert(result.status == qmomkit::TransportStatus::source_failed);
     assert(result.diagnostics.failed_stage == qmomkit::TransportStage::discontinuous_source_step);
     assert(result.diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::success);
-    assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
-    assert(active_counts_equal(result.state.active_branch_counts(), state.active_branch_counts()));
+    assert_cqmom_states_equal(result.state, state);
+}
+
+void test_cqmom_macro_rollbacks_preserve_the_original_state_after_later_successes()
+{
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    for (const char* const storage : {"dense", "lean"})
+    {
+        const qmomkit::CqmomState state = fixed_cqmom_case_with_storage(storage).initial_state();
+
+        qmomkit::CqmomTransportOptions dc_options;
+        dc_options.scheme = qmomkit::TransportScheme::dc;
+        dc_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+        const auto failing_velocity = [](double, const std::vector<double>&) -> std::vector<double>
+        { throw std::runtime_error("continuous failure after discontinuous success"); };
+        const qmomkit::CqmomTransportResult dc = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, failing_velocity, zero_source, dc_options);
+
+        assert(!dc.ok());
+        assert(dc.status == qmomkit::TransportStatus::continuous_failed);
+        assert(dc.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::success);
+        assert(dc.diagnostics.second_continuous_status == qmomkit::NodeAdvectionStatus::velocity_failed);
+        assert_cqmom_states_equal(dc.state, state);
+
+        qmomkit::CqmomTransportOptions strang_options;
+        strang_options.scheme = qmomkit::TransportScheme::strang;
+        strang_options.node_options = tight_node_options();
+        std::size_t first_stage_velocity_calls = 0;
+        const auto counting_velocity = [&first_stage_velocity_calls](double, const std::vector<double>& xi)
+        {
+            ++first_stage_velocity_calls;
+            return std::vector<double>(xi.size(), 0.2);
+        };
+        const qmomkit::CqmomTransportResult first = qmomkit::advance_cqmom_continuous(state, 0.0, 0.1, counting_velocity, strang_options);
+        assert(first.ok());
+        assert(first_stage_velocity_calls > 0);
+
+        std::size_t macro_velocity_calls = 0;
+        const auto fail_final_continuous = [&macro_velocity_calls, first_stage_velocity_calls](double, const std::vector<double>& xi)
+        {
+            ++macro_velocity_calls;
+            if (macro_velocity_calls > first_stage_velocity_calls)
+            {
+                throw std::runtime_error("final continuous failure");
+            }
+            return std::vector<double>(xi.size(), 0.2);
+        };
+        const qmomkit::CqmomTransportResult strang =
+            qmomkit::advance_transport_cqmom(state, 0.0, 0.2, fail_final_continuous, zero_source, strang_options);
+
+        assert(!strang.ok());
+        assert(strang.status == qmomkit::TransportStatus::continuous_failed);
+        assert(strang.diagnostics.first_continuous_status == qmomkit::NodeAdvectionStatus::success);
+        assert(strang.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::success);
+        assert(strang.diagnostics.second_continuous_status == qmomkit::NodeAdvectionStatus::velocity_failed);
+        assert_cqmom_states_equal(strang.state, state);
+    }
+}
+
+void test_cqmom_macro_success_preserves_input_and_final_value_semantics()
+{
+    const auto velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.1); };
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    for (const char* const storage : {"dense", "lean"})
+    {
+        const qmomkit::CqmomState state = fixed_cqmom_case_with_storage(storage).initial_state();
+        const qmomkit::CqmomState original = state;
+        qmomkit::CqmomTransportOptions options;
+        options.scheme = qmomkit::TransportScheme::strang;
+        options.node_options = tight_node_options();
+        qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.2, velocity, zero_source, options);
+
+        assert(result.ok());
+        assert_cqmom_states_equal(state, original);
+        qmomkit::CqmomState copied_result = result.state;
+        qmomkit::CqmomState moved_result = std::move(copied_result);
+        assert_cqmom_states_equal(moved_result, result.state);
+
+        const qmomkit::CqmomTransportResult next = qmomkit::advance_cqmom_continuous(moved_result, 0.2, 0.1, velocity, options);
+        assert(next.ok());
+        assert_cqmom_states_equal(result.state, moved_result);
+    }
 }
 
 void test_public_cqmom_boundary_discontinuous_stage_matches_transport()
@@ -3321,6 +3422,10 @@ void test_state_cqmom_transport_api_does_not_expose_moments()
     static_assert(!HasPublicMomentsMember<qmomkit::CqmomTransportOptions>::value);
     static_assert(!HasPublicMomentsMember<qmomkit::CqmomTransportResult>::value);
     static_assert(std::is_same_v<decltype(std::declval<qmomkit::CqmomTransportResult&>().state), qmomkit::CqmomState>);
+    static_assert(std::is_copy_constructible_v<qmomkit::CqmomState>);
+    static_assert(std::is_move_constructible_v<qmomkit::CqmomState>);
+    static_assert(std::is_copy_assignable_v<qmomkit::CqmomState>);
+    static_assert(std::is_move_assignable_v<qmomkit::CqmomState>);
 }
 
 void test_state_qmom_transport_api_does_not_expose_moments()
@@ -3843,6 +3948,8 @@ int main()
     test_public_cqmom_stage_composition_matches_transport();
     test_public_cqmom_stage_failures_roll_back();
     test_cqmom_transport_failure_after_first_stage_rolls_back_to_macro_input();
+    test_cqmom_macro_rollbacks_preserve_the_original_state_after_later_successes();
+    test_cqmom_macro_success_preserves_input_and_final_value_semantics();
     test_public_cqmom_boundary_discontinuous_stage_matches_transport();
     test_public_cqmom_stage_irrelevant_options_are_ignored();
     test_continuous_only_matches_direct_operator_qmom();

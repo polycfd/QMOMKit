@@ -70,7 +70,7 @@ struct ComparisonOutputMetadata
     std::size_t sample_count = 0;
     unsigned long long seed = 0;
     double number_density = 0.0;
-    std::optional<qmomkit::AdaptiveRk23Options> rk23_options;
+    std::optional<qmomkit::AdaptiveRkOptions> adaptive_options;
 };
 
 /**

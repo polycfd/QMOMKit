@@ -82,11 +82,13 @@ and `qmomkit::CqmomCase::initial_state()`.
 
 The same file also uses `[time_integration.node_advection]` to select the
 continuous node-trajectory integrator. The shipped configuration chooses
-`scheme = ssp_rk3` for fixed-stage, predictable node motion; use
-`scheme = adaptive_rk23` when adaptive trajectory error control is desired.
-RK23 controls can be supplied under
-`[time_integration.node_advection.rk23]`; omitted values retain the
-`AdaptiveRk23Options` defaults. The executable prints the effective
+`scheme = ssp_rk3` for fixed-stage, predictable node motion; `scheme = rk23`
+is the default adaptive Bogacki-Shampine 3(2) choice, and `scheme = rk45`
+selects Dormand-Prince RK5(4)7M. Embedded-RK controls can be supplied under
+`[time_integration.node_advection.adaptive]`; omitted values retain the
+`AdaptiveRkOptions` defaults, including `initial_step = 1.0e-6 s` for RK23
+and RK45. QMOMKit does not estimate the initial step from the state,
+derivatives, or tolerances. The executable prints the effective
 node-advection settings at startup. This choice does not change the
 Strang/CD/DC transport ordering or the SSP-RK3 source update.
 

@@ -353,10 +353,11 @@ qmomkit::QmomTransportOptions qmom_options(const qmomkit::QmomOptions& qmom_opti
 {
     qmomkit::QmomTransportOptions options;
     options.qmom_options = qmom_options;
-    options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    options.node_options.rk23_options.relative_tolerance = rk_relative_tolerance;
-    options.node_options.rk23_options.absolute_tolerance = rk_absolute_tolerance;
-    options.node_options.rk23_options.max_step = max_step;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    options.node_options.adaptive_options.relative_tolerance = rk_relative_tolerance;
+    options.node_options.adaptive_options.absolute_tolerance = rk_absolute_tolerance;
+    options.node_options.adaptive_options.initial_step = max_step;
+    options.node_options.adaptive_options.max_step = max_step;
     options.source_options.ssp_rk3_options.estimate_error = true;
     options.scheme = scheme;
     return options;
@@ -384,10 +385,11 @@ qmomkit::TestDenseCqmomTransportOptions cqmom_options(const qmomkit::CqmomDenseC
     options.adaptive_branch_counts = dense_case.adaptive_branch_counts;
     options.diagnostic_level = dense_case.diagnostic_level;
     options.vandermonde_solver = dense_case.vandermonde_solver;
-    options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    options.node_options.rk23_options.relative_tolerance = 1.0e-12;
-    options.node_options.rk23_options.absolute_tolerance = 1.0e-14;
-    options.node_options.rk23_options.max_step = 0.01;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    options.node_options.adaptive_options.relative_tolerance = 1.0e-12;
+    options.node_options.adaptive_options.absolute_tolerance = 1.0e-14;
+    options.node_options.adaptive_options.initial_step = 0.01;
+    options.node_options.adaptive_options.max_step = 0.01;
     options.source_options.ssp_rk3_options.estimate_error = true;
     options.scheme = qmomkit::TransportScheme::strang;
     return options;
@@ -396,10 +398,11 @@ qmomkit::TestDenseCqmomTransportOptions cqmom_options(const qmomkit::CqmomDenseC
 qmomkit::CqmomTransportOptions cqmom_state_options()
 {
     qmomkit::CqmomTransportOptions options;
-    options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    options.node_options.rk23_options.relative_tolerance = 1.0e-12;
-    options.node_options.rk23_options.absolute_tolerance = 1.0e-14;
-    options.node_options.rk23_options.max_step = 0.01;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    options.node_options.adaptive_options.relative_tolerance = 1.0e-12;
+    options.node_options.adaptive_options.absolute_tolerance = 1.0e-14;
+    options.node_options.adaptive_options.initial_step = 0.01;
+    options.node_options.adaptive_options.max_step = 0.01;
     options.source_options.ssp_rk3_options.estimate_error = true;
     options.scheme = qmomkit::TransportScheme::strang;
     return options;
@@ -413,10 +416,11 @@ qmomkit::TestLeanCqmomTransportOptions cqmom_lean_options(const qmomkit::CqmomLe
     options.adaptive_branch_counts = lean_case.adaptive_branch_counts;
     options.diagnostic_level = lean_case.diagnostic_level;
     options.vandermonde_solver = lean_case.vandermonde_solver;
-    options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    options.node_options.rk23_options.relative_tolerance = 1.0e-12;
-    options.node_options.rk23_options.absolute_tolerance = 1.0e-14;
-    options.node_options.rk23_options.max_step = 0.01;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    options.node_options.adaptive_options.relative_tolerance = 1.0e-12;
+    options.node_options.adaptive_options.absolute_tolerance = 1.0e-14;
+    options.node_options.adaptive_options.initial_step = 0.01;
+    options.node_options.adaptive_options.max_step = 0.01;
     options.source_options.ssp_rk3_options.estimate_error = true;
     options.scheme = qmomkit::TransportScheme::strang;
     return options;
@@ -766,10 +770,11 @@ void validate_commuting_component_checks(VerificationResult& verification, const
     }
 
     qmomkit::NodeAdvectionOptions node_options;
-    node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    node_options.rk23_options.relative_tolerance = 1.0e-12;
-    node_options.rk23_options.absolute_tolerance = 1.0e-14;
-    node_options.rk23_options.max_step = 0.005;
+    node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    node_options.adaptive_options.relative_tolerance = 1.0e-12;
+    node_options.adaptive_options.absolute_tolerance = 1.0e-14;
+    node_options.adaptive_options.initial_step = 0.005;
+    node_options.adaptive_options.max_step = 0.005;
     constexpr double elapsed = 0.03;
     const qmomkit::QmomNodeAdvectionResult advanced = qmomkit::advance_nodes(initial, 0.0, elapsed, commuting_velocity, node_options);
     if (!advanced.ok())
@@ -1159,8 +1164,8 @@ void verify_qmom_rk23_minimum_step_acceptance_result(const qmomkit::QmomTranspor
     }
     if (result.diagnostics.first_continuous_status != qmomkit::NodeAdvectionStatus::success ||
         result.diagnostics.second_continuous_status != qmomkit::NodeAdvectionStatus::success ||
-        result.diagnostics.first_continuous_diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::success ||
-        result.diagnostics.second_continuous_diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::success)
+        result.diagnostics.first_continuous_diagnostics.adaptive_status != qmomkit::AdaptiveRkStatus::success ||
+        result.diagnostics.second_continuous_diagnostics.adaptive_status != qmomkit::AdaptiveRkStatus::success)
     {
         append_failure(verification, "QMOM RK23 minimum-step case did not preserve successful RK23 diagnostics.");
     }
@@ -1349,10 +1354,10 @@ VerificationResult run_qmom_transport_failures(const std::filesystem::path& conf
     }
 
     qmomkit::QmomTransportOptions rk_minimum_options = options;
-    rk_minimum_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    rk_minimum_options.node_options.rk23_options.initial_step = 0.04;
-    rk_minimum_options.node_options.rk23_options.max_step = 0.04;
-    rk_minimum_options.node_options.rk23_options.min_step = 0.02;
+    rk_minimum_options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    rk_minimum_options.node_options.adaptive_options.initial_step = 0.04;
+    rk_minimum_options.node_options.adaptive_options.max_step = 0.04;
+    rk_minimum_options.node_options.adaptive_options.min_step = 0.02;
     const auto stiff_velocity = [](double, const std::vector<double>& xi)
     {
         // This is a valid velocity callback, but the tight RK23 tolerances create
@@ -2482,8 +2487,8 @@ void verify_cqmom_rk23_minimum_step_acceptance_result(const qmomkit::CqmomTransp
     }
     if (result.diagnostics.first_continuous_status != qmomkit::NodeAdvectionStatus::success ||
         result.diagnostics.second_continuous_status != qmomkit::NodeAdvectionStatus::success ||
-        result.diagnostics.first_continuous_diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::success ||
-        result.diagnostics.second_continuous_diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::success)
+        result.diagnostics.first_continuous_diagnostics.adaptive_status != qmomkit::AdaptiveRkStatus::success ||
+        result.diagnostics.second_continuous_diagnostics.adaptive_status != qmomkit::AdaptiveRkStatus::success)
     {
         append_failure(verification, "CQMOM RK23 minimum-step case did not preserve successful RK23 diagnostics.");
     }
@@ -3091,10 +3096,10 @@ VerificationResult run_cqmom_transport_failures(const std::filesystem::path& con
     }
 
     qmomkit::CqmomTransportOptions rk_minimum_options = options;
-    rk_minimum_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    rk_minimum_options.node_options.rk23_options.initial_step = 0.04;
-    rk_minimum_options.node_options.rk23_options.max_step = 0.04;
-    rk_minimum_options.node_options.rk23_options.min_step = 0.02;
+    rk_minimum_options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    rk_minimum_options.node_options.adaptive_options.initial_step = 0.04;
+    rk_minimum_options.node_options.adaptive_options.max_step = 0.04;
+    rk_minimum_options.node_options.adaptive_options.min_step = 0.02;
     const auto stiff_velocity = [](double, const std::vector<double>& xi)
     {
         // Valid two-dimensional velocity with tight RK23 tolerances. RK23

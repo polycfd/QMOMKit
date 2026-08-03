@@ -38,7 +38,7 @@ struct EnsembleEvolutionResult
     Ensemble ensemble;
     EnsembleEvolutionStatus status = EnsembleEvolutionStatus::success;
     std::size_t failed_sample_index = invalid_sample_index;
-    qmomkit::AdaptiveRk23Status rk23_status = qmomkit::AdaptiveRk23Status::success;
+    qmomkit::AdaptiveRkStatus rk23_status = qmomkit::AdaptiveRkStatus::success;
     std::string message;
     // Totals accumulated over completed samples and, for RK23 failures, the
     // failed sample's reported counters.
@@ -69,7 +69,7 @@ struct ExplicitQuadratureEvolutionResult
     ExplicitDiscreteDistribution evolved_distribution;
     ComparisonStatus status = ComparisonStatus::success;
     std::size_t failed_node_index = static_cast<std::size_t>(-1);
-    qmomkit::AdaptiveRk23Status rk23_status = qmomkit::AdaptiveRk23Status::success;
+    qmomkit::AdaptiveRkStatus rk23_status = qmomkit::AdaptiveRkStatus::success;
     std::string message;
     std::size_t total_accepted_steps = 0;
     std::size_t total_rejected_steps = 0;
@@ -91,7 +91,7 @@ struct ExplicitQuadratureEvolutionResult
  * contribution, or transport splitting is applied.
  */
 [[nodiscard]] EnsembleEvolutionResult evolve_ensemble(const Ensemble& ensemble, const qmomkit::PhaseSpaceVelocity& velocity, double t0, double t1,
-                                                      const qmomkit::AdaptiveRk23Options& options = {});
+                                                      const qmomkit::AdaptiveRkOptions& options = {});
 
 /**
  * Evolve one-dimensional quadrature nodes with QMOMKit node advection.
@@ -101,7 +101,7 @@ struct ExplicitQuadratureEvolutionResult
  */
 [[nodiscard]] qmomkit::QmomNodeAdvectionResult evolve_quadrature_nodes(const qmomkit::Quadrature1D& quadrature,
                                                                        const qmomkit::PhaseSpaceVelocity& velocity, double t0, double t1,
-                                                                       const qmomkit::AdaptiveRk23Options& options = {});
+                                                                       const qmomkit::AdaptiveRkOptions& options = {});
 
 /**
  * Evolve the nodes of an explicit weighted quadrature distribution.
@@ -112,6 +112,6 @@ struct ExplicitQuadratureEvolutionResult
  */
 [[nodiscard]] ExplicitQuadratureEvolutionResult evolve_explicit_quadrature(const ExplicitDiscreteDistribution& distribution,
                                                                            const qmomkit::PhaseSpaceVelocity& velocity, double t0, double t1,
-                                                                           const qmomkit::AdaptiveRk23Options& options);
+                                                                           const qmomkit::AdaptiveRkOptions& options);
 
 } // namespace qmomkit::monte_carlo

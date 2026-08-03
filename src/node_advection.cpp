@@ -23,16 +23,16 @@ namespace
     return std::all_of(values.begin(), values.end(), [](const std::vector<double>& row) { return internal::all_finite(row); });
 }
 
-[[nodiscard]] NodeAdvectionDiagnostics diagnostics_from_rk23(const AdaptiveRk23Result& result)
+[[nodiscard]] NodeAdvectionDiagnostics diagnostics_from_embedded_rk(const AdaptiveRkResult& result, const NodeAdvectionScheme scheme)
 {
     NodeAdvectionDiagnostics diagnostics;
-    diagnostics.scheme = NodeAdvectionScheme::adaptive_rk23;
+    diagnostics.scheme = scheme;
     diagnostics.step_count = result.accepted_steps;
     diagnostics.rejected_step_count = result.rejected_steps;
     diagnostics.rhs_evaluations = result.function_evaluations;
     diagnostics.final_time = result.t;
     diagnostics.last_step = result.last_step;
-    diagnostics.adaptive_rk23_status = result.status;
+    diagnostics.adaptive_status = result.status;
     diagnostics.message = result.message;
     return diagnostics;
 }
@@ -159,35 +159,36 @@ struct IntegratedNodes
     return result;
 }
 
-[[nodiscard]] IntegratedNodes integrate_nodes_rk23(const std::vector<std::vector<double>>& abscissas, const double t, const double time_step,
-                                                   const PhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options,
-                                                   const std::size_t dimensions, const std::vector<double>& initial_state)
+[[nodiscard]] IntegratedNodes integrate_nodes_embedded_rk(const std::vector<std::vector<double>>& abscissas, const double t, const double time_step,
+                                                          const PhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options,
+                                                          const NodeAdvectionScheme scheme, const EmbeddedRkMethod method,
+                                                          const std::size_t dimensions, const std::vector<double>& initial_state)
 {
-    AdaptiveRk23Result rk_result;
+    AdaptiveRkResult rk_result;
     try
     {
-        rk_result = integrate_rk23(
+        rk_result = integrate_embedded_rk(
             initial_state, t, t + time_step, [&velocity, dimensions](const double rhs_time, const std::vector<double>& state)
-            { return node_rhs_from_velocity(velocity, dimensions, rhs_time, state); }, options.rk23_options);
+            { return node_rhs_from_velocity(velocity, dimensions, rhs_time, state); }, method, options.adaptive_options);
     }
     catch (const std::exception& error)
     {
         NodeAdvectionDiagnostics diagnostics;
-        diagnostics.scheme = NodeAdvectionScheme::adaptive_rk23;
-        diagnostics.adaptive_rk23_status = AdaptiveRk23Status::invalid_input;
+        diagnostics.scheme = scheme;
+        diagnostics.adaptive_status = AdaptiveRkStatus::invalid_input;
         diagnostics.final_time = t;
         diagnostics.message = error.what();
         return IntegratedNodes{abscissas, NodeAdvectionStatus::velocity_failed, diagnostics, error.what()};
     }
 
-    NodeAdvectionDiagnostics diagnostics = diagnostics_from_rk23(rk_result);
-    if (rk_result.status != AdaptiveRk23Status::success)
+    NodeAdvectionDiagnostics diagnostics = diagnostics_from_embedded_rk(rk_result, scheme);
+    if (rk_result.status != AdaptiveRkStatus::success)
     {
         return IntegratedNodes{abscissas, NodeAdvectionStatus::integration_failed, diagnostics, rk_result.message};
     }
     if (rk_result.state.size() != initial_state.size() || !internal::all_finite(rk_result.state))
     {
-        diagnostics.message = "RK23 returned an invalid node state.";
+        diagnostics.message = "Embedded Runge-Kutta returned an invalid node state.";
         return IntegratedNodes{abscissas, NodeAdvectionStatus::integration_failed, diagnostics, diagnostics.message};
     }
 
@@ -271,10 +272,14 @@ struct IntegratedNodes
     const std::vector<double> initial_state = pack_nodes(abscissas);
     switch (options.scheme)
     {
+    case NodeAdvectionScheme::rk23:
+        return integrate_nodes_embedded_rk(abscissas, t, time_step, velocity, options, options.scheme, EmbeddedRkMethod::rk23, dimensions,
+                                           initial_state);
+    case NodeAdvectionScheme::rk45:
+        return integrate_nodes_embedded_rk(abscissas, t, time_step, velocity, options, options.scheme, EmbeddedRkMethod::rk45, dimensions,
+                                           initial_state);
     case NodeAdvectionScheme::ssp_rk3:
         return integrate_nodes_ssp_rk3(abscissas, t, time_step, velocity, dimensions, initial_state);
-    case NodeAdvectionScheme::adaptive_rk23:
-        return integrate_nodes_rk23(abscissas, t, time_step, velocity, options, dimensions, initial_state);
     }
 
     NodeAdvectionDiagnostics diagnostics;
@@ -286,10 +291,12 @@ struct IntegratedNodes
 {
     switch (scheme)
     {
+    case NodeAdvectionScheme::rk23:
+        return "rk23";
+    case NodeAdvectionScheme::rk45:
+        return "rk45";
     case NodeAdvectionScheme::ssp_rk3:
         return "ssp_rk3";
-    case NodeAdvectionScheme::adaptive_rk23:
-        return "adaptive_rk23";
     }
     return "unknown";
 }
@@ -383,44 +390,35 @@ std::string format_node_advection_options(const NodeAdvectionOptions& options)
     output << "Node advection settings:\n";
     output << "  scheme = " << scheme_name(options.scheme) << '\n';
 
-    if (options.scheme != NodeAdvectionScheme::adaptive_rk23)
+    if (options.scheme == NodeAdvectionScheme::ssp_rk3)
     {
         return output.str();
     }
 
-    output << "  rk23.relative_tolerance = " << options.rk23_options.relative_tolerance << '\n';
-    output << "  rk23.absolute_tolerance = " << options.rk23_options.absolute_tolerance << '\n';
-    output << "  rk23.initial_step = ";
-    if (options.rk23_options.initial_step.has_value())
+    output << "  adaptive.relative_tolerance = " << options.adaptive_options.relative_tolerance << '\n';
+    output << "  adaptive.absolute_tolerance = " << options.adaptive_options.absolute_tolerance << '\n';
+    output << "  adaptive.initial_step = " << options.adaptive_options.initial_step << '\n';
+    output << "  adaptive.max_step = ";
+    if (options.adaptive_options.max_step > 0.0)
     {
-        output << *options.rk23_options.initial_step;
-    }
-    else
-    {
-        output << "automatic";
-    }
-    output << '\n';
-    output << "  rk23.max_step = ";
-    if (options.rk23_options.max_step > 0.0)
-    {
-        output << options.rk23_options.max_step;
+        output << options.adaptive_options.max_step;
     }
     else
     {
         output << "full integration interval";
     }
     output << '\n';
-    output << "  rk23.min_step = ";
-    if (options.rk23_options.min_step > 0.0)
+    output << "  adaptive.min_step = ";
+    if (options.adaptive_options.min_step > 0.0)
     {
-        output << options.rk23_options.min_step;
+        output << options.adaptive_options.min_step;
     }
     else
     {
         output << "machine-dependent automatic minimum";
     }
     output << '\n';
-    output << "  rk23.max_steps = " << options.rk23_options.max_steps << '\n';
+    output << "  adaptive.max_steps = " << options.adaptive_options.max_steps << '\n';
     return output.str();
 }
 

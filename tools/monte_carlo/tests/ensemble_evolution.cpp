@@ -20,11 +20,12 @@ using qmomkit::monte_carlo::EnsembleEvolutionStatus;
 using qmomkit::monte_carlo::Sample;
 using qmomkit::monte_carlo::SamplingOptions;
 
-qmomkit::AdaptiveRk23Options accurate_options()
+qmomkit::AdaptiveRkOptions accurate_options()
 {
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.relative_tolerance = 1.0e-10;
     options.absolute_tolerance = 1.0e-12;
+    options.initial_step = 0.01;
     options.max_step = 0.01;
     return options;
 }
@@ -70,6 +71,25 @@ void test_single_sample_constant_velocity()
     check_close(result.final_time, t1, 0.0);
 }
 
+void test_convenience_evolution_uses_default_adaptive_initial_step()
+{
+    const double time_step = 2.0 * qmomkit::default_adaptive_initial_step;
+    const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>&) { return std::vector<double>{-0.4}; };
+
+    const qmomkit::monte_carlo::EnsembleEvolutionResult ensemble = qmomkit::monte_carlo::evolve_ensemble(Ensemble{{1.25}}, velocity, 0.0, time_step);
+    CHECK(ensemble.ok());
+    check_close(ensemble.ensemble[0][0], 1.25 - 0.4 * time_step, 1.0e-15);
+    CHECK(ensemble.total_accepted_steps == 2);
+
+    qmomkit::Quadrature1D quadrature;
+    quadrature.abscissas = {1.25};
+    quadrature.weights = {1.0};
+    const qmomkit::QmomNodeAdvectionResult nodes = qmomkit::monte_carlo::evolve_quadrature_nodes(quadrature, velocity, 0.0, time_step);
+    CHECK(nodes.ok());
+    check_close(nodes.quadrature.abscissas[0], 1.25 - 0.4 * time_step, 1.0e-15);
+    CHECK(nodes.diagnostics.step_count == 2);
+}
+
 void test_single_sample_linear_growth()
 {
     const Ensemble ensemble{{0.8}};
@@ -100,7 +120,7 @@ void test_deterministic_ensemble_rk23_max_step_convergence()
     errors.reserve(step_sizes.size());
     for (const double step_size : step_sizes)
     {
-        qmomkit::AdaptiveRk23Options options;
+        qmomkit::AdaptiveRkOptions options;
         options.relative_tolerance = 1.0e-2;
         options.absolute_tolerance = 1.0e-4;
         options.initial_step = step_size;
@@ -205,7 +225,7 @@ void test_failure_inputs_preserve_original()
 {
     const Ensemble original{{1.0}, {2.0}};
     const qmomkit::PhaseSpaceVelocity identity = [](double, const std::vector<double>& coordinate) { return coordinate; };
-    const qmomkit::AdaptiveRk23Options options = accurate_options();
+    const qmomkit::AdaptiveRkOptions options = accurate_options();
 
     const qmomkit::monte_carlo::EnsembleEvolutionResult empty = qmomkit::monte_carlo::evolve_ensemble(Ensemble{}, identity, 0.0, 1.0, options);
     CHECK(!empty.ok());
@@ -240,7 +260,7 @@ void test_failure_inputs_preserve_original()
 void test_failure_during_integration()
 {
     const Ensemble original{{1.0}, {2.0}};
-    const qmomkit::AdaptiveRk23Options options = accurate_options();
+    const qmomkit::AdaptiveRkOptions options = accurate_options();
 
     const qmomkit::PhaseSpaceVelocity nonfinite_callback = [](double, const std::vector<double>&)
     { return std::vector<double>{std::numeric_limits<double>::infinity()}; };
@@ -275,7 +295,7 @@ void test_failure_during_integration()
     CHECK(thrown.status == EnsembleEvolutionStatus::velocity_failed);
     CHECK(thrown.failed_sample_index == 0);
 
-    qmomkit::AdaptiveRk23Options failing_options = accurate_options();
+    qmomkit::AdaptiveRkOptions failing_options = accurate_options();
     failing_options.max_steps = 1;
     failing_options.max_step = 0.01;
     const qmomkit::PhaseSpaceVelocity linear = [](double, const std::vector<double>& coordinate) { return std::vector<double>{coordinate[0]}; };
@@ -283,7 +303,7 @@ void test_failure_during_integration()
         qmomkit::monte_carlo::evolve_ensemble(original, linear, 0.0, 1.0, failing_options);
     CHECK(!rk_failure.ok());
     CHECK(rk_failure.status == EnsembleEvolutionStatus::rk23_failed);
-    CHECK(rk_failure.rk23_status == qmomkit::AdaptiveRk23Status::max_steps_exceeded);
+    CHECK(rk_failure.rk23_status == qmomkit::AdaptiveRkStatus::max_steps_exceeded);
     CHECK(rk_failure.failed_sample_index == 0);
     CHECK(rk_failure.ensemble.empty());
 
@@ -317,7 +337,7 @@ void test_reproducibility()
     CHECK(first_sampling.ok());
     CHECK(second_sampling.ok());
 
-    qmomkit::AdaptiveRk23Options options = accurate_options();
+    qmomkit::AdaptiveRkOptions options = accurate_options();
     options.max_step = 0.02;
     const qmomkit::PhaseSpaceVelocity callback = [](double time, const std::vector<double>& coordinate)
     { return std::vector<double>{0.1 + 0.2 * coordinate[0] + 0.03 * time}; };
@@ -339,6 +359,7 @@ void test_reproducibility()
 int main()
 {
     test_single_sample_constant_velocity();
+    test_convenience_evolution_uses_default_adaptive_initial_step();
     test_single_sample_linear_growth();
     test_deterministic_ensemble_rk23_max_step_convergence();
     test_single_sample_affine_evolution();

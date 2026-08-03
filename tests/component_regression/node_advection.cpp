@@ -72,12 +72,16 @@ void test_constant_phase_space_velocity_for_qmom()
     const qmomkit::QmomResult quadrature = qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d(input_abscissas, input_weights, 4)), 2);
     QMOMKIT_VERIFY_CHECK(quadrature.ok());
 
-    const qmomkit::QmomNodeAdvectionResult result = qmomkit::advance_nodes(quadrature, 0.0, 0.25,
-                                                                           [](double, const std::vector<double>& xi)
-                                                                           {
-                                                                               QMOMKIT_VERIFY_CHECK(xi.size() == 1);
-                                                                               return std::vector<double>{2.0};
-                                                                           });
+    qmomkit::NodeAdvectionOptions options;
+    options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const qmomkit::QmomNodeAdvectionResult result = qmomkit::advance_nodes(
+        quadrature, 0.0, 0.25,
+        [](double, const std::vector<double>& xi)
+        {
+            QMOMKIT_VERIFY_CHECK(xi.size() == 1);
+            return std::vector<double>{2.0};
+        },
+        options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
@@ -99,9 +103,10 @@ void test_linear_phase_space_velocity_for_qmom()
     quadrature.weights = {0.4, 0.6};
 
     qmomkit::NodeAdvectionOptions options;
-    options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    options.rk23_options.relative_tolerance = 1.0e-8;
-    options.rk23_options.absolute_tolerance = 1.0e-11;
+    options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    options.adaptive_options.relative_tolerance = 1.0e-8;
+    options.adaptive_options.absolute_tolerance = 1.0e-11;
+    options.adaptive_options.initial_step = 0.05;
 
     constexpr double rate = -0.75;
     constexpr double dt = 0.6;
@@ -120,9 +125,10 @@ void test_multi_dimensional_phase_space_evolution()
     QMOMKIT_VERIFY_CHECK(cqmom_result.ok());
 
     qmomkit::NodeAdvectionOptions options;
-    options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    options.rk23_options.relative_tolerance = 1.0e-8;
-    options.rk23_options.absolute_tolerance = 1.0e-11;
+    options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    options.adaptive_options.relative_tolerance = 1.0e-8;
+    options.adaptive_options.absolute_tolerance = 1.0e-11;
+    options.adaptive_options.initial_step = 0.05;
 
     constexpr double rate_x = 0.3;
     constexpr double rate_y = -0.4;
@@ -185,14 +191,16 @@ void test_rk23_convergence_sanity_check()
     quadrature.weights = {1.0};
 
     qmomkit::NodeAdvectionOptions loose_options;
-    loose_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    loose_options.rk23_options.relative_tolerance = 1.0e-3;
-    loose_options.rk23_options.absolute_tolerance = 1.0e-6;
+    loose_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    loose_options.adaptive_options.relative_tolerance = 1.0e-3;
+    loose_options.adaptive_options.absolute_tolerance = 1.0e-6;
+    loose_options.adaptive_options.initial_step = 0.1;
 
     qmomkit::NodeAdvectionOptions tight_options;
-    tight_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    tight_options.rk23_options.relative_tolerance = 1.0e-8;
-    tight_options.rk23_options.absolute_tolerance = 1.0e-11;
+    tight_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    tight_options.adaptive_options.relative_tolerance = 1.0e-8;
+    tight_options.adaptive_options.absolute_tolerance = 1.0e-11;
+    tight_options.adaptive_options.initial_step = 0.1;
 
     const auto velocity = [](double, const std::vector<double>& xi) { return std::vector<double>{xi[0]}; };
     const qmomkit::QmomNodeAdvectionResult loose = qmomkit::advance_nodes(quadrature, 0.0, 1.0, velocity, loose_options);

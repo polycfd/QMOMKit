@@ -1,9 +1,13 @@
 #include "qmomkit/runge_kutta.hpp"
 
+#include "internal/embedded_runge_kutta.hpp"
+
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace
@@ -20,6 +24,309 @@ void assert_vector_near(const std::vector<double>& actual, const std::vector<dou
     for (std::size_t i = 0; i < actual.size(); ++i)
     {
         assert_near(actual[i], expected[i], tolerance);
+    }
+}
+
+qmomkit::OdeRhs exponential_decay_rhs();
+
+double reference_scalar_embedded_step(const qmomkit::EmbeddedRkMethod method, const double value, const double lambda, const double step,
+                                      const bool higher)
+{
+    if (method == qmomkit::EmbeddedRkMethod::rk23)
+    {
+        const double k1 = lambda * value;
+        const double k2 = lambda * (value + step * (1.0 / 2.0) * k1);
+        const double k3 = lambda * (value + step * (3.0 / 4.0) * k2);
+        const double high = value + step * ((2.0 / 9.0) * k1 + (1.0 / 3.0) * k2 + (4.0 / 9.0) * k3);
+        const double k4 = lambda * high;
+        return higher ? high : value + step * ((7.0 / 24.0) * k1 + (1.0 / 4.0) * k2 + (1.0 / 3.0) * k3 + (1.0 / 8.0) * k4);
+    }
+
+    const double k1 = lambda * value;
+    const double k2 = lambda * (value + step * ((1.0 / 5.0) * k1));
+    const double k3 = lambda * (value + step * ((3.0 / 40.0) * k1 + (9.0 / 40.0) * k2));
+    const double k4 = lambda * (value + step * ((44.0 / 45.0) * k1 - (56.0 / 15.0) * k2 + (32.0 / 9.0) * k3));
+    const double k5 = lambda * (value + step * ((19372.0 / 6561.0) * k1 - (25360.0 / 2187.0) * k2 + (64448.0 / 6561.0) * k3 - (212.0 / 729.0) * k4));
+    const double k6 =
+        lambda *
+        (value + step * ((9017.0 / 3168.0) * k1 - (355.0 / 33.0) * k2 + (46732.0 / 5247.0) * k3 + (49.0 / 176.0) * k4 - (5103.0 / 18656.0) * k5));
+    const double high =
+        value + step * ((35.0 / 384.0) * k1 + (500.0 / 1113.0) * k3 + (125.0 / 192.0) * k4 - (2187.0 / 6784.0) * k5 + (11.0 / 84.0) * k6);
+    const double k7 = lambda * high;
+    return higher ? high
+                  : value + step * ((5179.0 / 57600.0) * k1 + (7571.0 / 16695.0) * k3 + (393.0 / 640.0) * k4 - (92097.0 / 339200.0) * k5 +
+                                    (187.0 / 2100.0) * k6 + (1.0 / 40.0) * k7);
+}
+
+void assert_tableau_invariants(const qmomkit::internal::EmbeddedRkTableau& tableau, const std::size_t expected_stages,
+                               const std::size_t expected_higher_order, const std::size_t expected_embedded_order)
+{
+    assert(tableau.stage_count == expected_stages);
+    assert(tableau.higher_order == expected_higher_order);
+    assert(tableau.embedded_order == expected_embedded_order);
+    assert(tableau.fsal);
+
+    double higher_sum = 0.0;
+    double embedded_sum = 0.0;
+    for (std::size_t row = 0; row < tableau.stage_count; ++row)
+    {
+        double row_sum = 0.0;
+        for (std::size_t column = 0; column < tableau.stage_count; ++column)
+        {
+            if (column >= row)
+            {
+                assert(tableau.a[row][column] == 0.0);
+            }
+            row_sum += tableau.a[row][column];
+        }
+        assert_near(row_sum, tableau.c[row], 2.0e-15);
+        higher_sum += tableau.b[row];
+        embedded_sum += tableau.b_embedded[row];
+        assert(tableau.a[tableau.stage_count - 1][row] == tableau.b[row]);
+    }
+    assert_near(higher_sum, 1.0, 2.0e-15);
+    assert_near(embedded_sum, 1.0, 2.0e-15);
+}
+
+void test_embedded_rk_tableaus_match_primary_papers()
+{
+    const qmomkit::internal::EmbeddedRkTableau& rk23 = qmomkit::internal::embedded_rk_tableau(qmomkit::EmbeddedRkMethod::rk23);
+    assert_tableau_invariants(rk23, 4, 3, 2);
+    assert((rk23.c == std::array<double, 7>{0.0, 1.0 / 2.0, 3.0 / 4.0, 1.0, 0.0, 0.0, 0.0}));
+    assert((rk23.b == std::array<double, 7>{2.0 / 9.0, 1.0 / 3.0, 4.0 / 9.0, 0.0, 0.0, 0.0, 0.0}));
+    assert((rk23.b_embedded == std::array<double, 7>{7.0 / 24.0, 1.0 / 4.0, 1.0 / 3.0, 1.0 / 8.0, 0.0, 0.0, 0.0}));
+    assert(rk23.a[1][0] == 1.0 / 2.0);
+    assert(rk23.a[2][1] == 3.0 / 4.0);
+    assert(rk23.a[3][0] == 2.0 / 9.0);
+    assert(rk23.a[3][1] == 1.0 / 3.0);
+    assert(rk23.a[3][2] == 4.0 / 9.0);
+
+    const qmomkit::internal::EmbeddedRkTableau& rk45 = qmomkit::internal::embedded_rk_tableau(qmomkit::EmbeddedRkMethod::rk45);
+    assert_tableau_invariants(rk45, 7, 5, 4);
+    assert((rk45.c == std::array<double, 7>{0.0, 1.0 / 5.0, 3.0 / 10.0, 4.0 / 5.0, 8.0 / 9.0, 1.0, 1.0}));
+    assert((rk45.b == std::array<double, 7>{35.0 / 384.0, 0.0, 500.0 / 1113.0, 125.0 / 192.0, -2187.0 / 6784.0, 11.0 / 84.0, 0.0}));
+    assert((rk45.b_embedded ==
+            std::array<double, 7>{5179.0 / 57600.0, 0.0, 7571.0 / 16695.0, 393.0 / 640.0, -92097.0 / 339200.0, 187.0 / 2100.0, 1.0 / 40.0}));
+    assert(rk45.a[1][0] == 1.0 / 5.0);
+    assert(rk45.a[2][0] == 3.0 / 40.0 && rk45.a[2][1] == 9.0 / 40.0);
+    assert(rk45.a[3][0] == 44.0 / 45.0 && rk45.a[3][1] == -56.0 / 15.0 && rk45.a[3][2] == 32.0 / 9.0);
+    assert(rk45.a[4][0] == 19372.0 / 6561.0 && rk45.a[4][1] == -25360.0 / 2187.0 && rk45.a[4][2] == 64448.0 / 6561.0 &&
+           rk45.a[4][3] == -212.0 / 729.0);
+    assert(rk45.a[5][0] == 9017.0 / 3168.0 && rk45.a[5][1] == -355.0 / 33.0 && rk45.a[5][2] == 46732.0 / 5247.0 && rk45.a[5][3] == 49.0 / 176.0 &&
+           rk45.a[5][4] == -5103.0 / 18656.0);
+    assert(rk45.a[6][0] == 35.0 / 384.0 && rk45.a[6][1] == 0.0 && rk45.a[6][2] == 500.0 / 1113.0 && rk45.a[6][3] == 125.0 / 192.0 &&
+           rk45.a[6][4] == -2187.0 / 6784.0 && rk45.a[6][5] == 11.0 / 84.0);
+
+    assert_near(qmomkit::internal::embedded_rk_controller_exponent(rk23), -1.0 / 3.0, 0.0);
+    assert_near(qmomkit::internal::embedded_rk_controller_exponent(rk45), -1.0 / 5.0, 0.0);
+}
+
+void test_embedded_rk_one_steps_match_independent_scalar_formulae()
+{
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        const qmomkit::internal::EmbeddedRkTableau& tableau = qmomkit::internal::embedded_rk_tableau(method);
+        std::size_t evaluations = 0;
+        const qmomkit::internal::EmbeddedRkStep forward = qmomkit::internal::take_embedded_rk_step(
+            tableau, [](double, const std::vector<double>& state) { return std::vector<double>{state[0], -2.0 * state[1]}; }, 0.25, {1.5, -0.5}, 0.2,
+            std::nullopt, evaluations);
+        const std::vector<double> expected_high{reference_scalar_embedded_step(method, 1.5, 1.0, 0.2, true),
+                                                reference_scalar_embedded_step(method, -0.5, -2.0, 0.2, true)};
+        const std::vector<double> expected_low{reference_scalar_embedded_step(method, 1.5, 1.0, 0.2, false),
+                                               reference_scalar_embedded_step(method, -0.5, -2.0, 0.2, false)};
+        assert_vector_near(forward.higher_state, expected_high, 2.0e-15);
+        assert_vector_near(forward.embedded_state, expected_low, 2.0e-15);
+        assert_vector_near(forward.error, {expected_high[0] - expected_low[0], expected_high[1] - expected_low[1]}, 2.0e-15);
+        assert(evaluations == tableau.stage_count);
+
+        evaluations = 0;
+        const qmomkit::internal::EmbeddedRkStep backward = qmomkit::internal::take_embedded_rk_step(
+            tableau, [](double, const std::vector<double>& state) { return std::vector<double>{state[0]}; }, 0.25, {1.5}, -0.2, std::nullopt,
+            evaluations);
+        assert_near(backward.higher_state[0], reference_scalar_embedded_step(method, 1.5, 1.0, -0.2, true), 2.0e-15);
+    }
+}
+
+void test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs()
+{
+    constexpr double initial_time = 0.3;
+    constexpr double initial_value = 1.0;
+    constexpr double step = 0.2;
+    const double expected = initial_value + initial_time * step + 0.5 * step * step;
+
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        const qmomkit::internal::EmbeddedRkTableau& tableau = qmomkit::internal::embedded_rk_tableau(method);
+        std::size_t evaluations = 0;
+        const qmomkit::internal::EmbeddedRkStep result = qmomkit::internal::take_embedded_rk_step(
+            tableau, [](const double time, const std::vector<double>&) { return std::vector<double>{time}; }, initial_time, {initial_value}, step,
+            std::nullopt, evaluations);
+
+        // y' = t has y(t + h) = y(t) + t h + h^2 / 2.  Both members of
+        // these pairs must use their declared stage abscissae to recover it.
+        assert_near(result.higher_state[0], expected, 2.0e-15);
+        assert_near(result.embedded_state[0], expected, 2.0e-15);
+        assert_near(result.error[0], 0.0, 2.0e-15);
+        assert(evaluations == tableau.stage_count);
+    }
+}
+
+void test_adaptive_initial_step_default_and_override()
+{
+    qmomkit::AdaptiveRkOptions options;
+    assert(options.initial_step == qmomkit::default_adaptive_initial_step);
+    assert(options.initial_step == 1.0e-6);
+
+    options.initial_step = 2.5e-5;
+    assert(options.initial_step == 2.5e-5);
+}
+
+void test_embedded_rk_default_initial_step_is_used_for_both_methods()
+{
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        std::vector<double> rhs_times;
+        const double initial_time = 2.0;
+        const qmomkit::AdaptiveRkResult result =
+            qmomkit::integrate_embedded_rk({0.0}, initial_time, initial_time + 2.0 * qmomkit::default_adaptive_initial_step,
+                                           [&rhs_times](const double time, const std::vector<double>&)
+                                           {
+                                               rhs_times.push_back(time);
+                                               return std::vector<double>{1.0};
+                                           },
+                                           method, {});
+
+        assert(result.status == qmomkit::AdaptiveRkStatus::success);
+        assert_near(result.t, initial_time + 2.0 * qmomkit::default_adaptive_initial_step, 1.0e-15);
+        assert_near(result.state[0], 2.0 * qmomkit::default_adaptive_initial_step, 1.0e-15);
+        assert(rhs_times.size() >= 2);
+        assert_near(rhs_times[0], initial_time, 0.0);
+        assert_near(rhs_times[1] - initial_time, qmomkit::internal::embedded_rk_tableau(method).c[1] * qmomkit::default_adaptive_initial_step,
+                    1.0e-15);
+    }
+}
+
+void test_rk23_wrapper_uses_default_initial_step()
+{
+    std::vector<double> rhs_times;
+    constexpr double initial_time = 1.0;
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({0.0}, initial_time, initial_time + 2.0 * qmomkit::default_adaptive_initial_step,
+                                                                     [&rhs_times](const double time, const std::vector<double>&)
+                                                                     {
+                                                                         rhs_times.push_back(time);
+                                                                         return std::vector<double>{1.0};
+                                                                     },
+                                                                     {});
+
+    assert(result.status == qmomkit::AdaptiveRkStatus::success);
+    assert_near(result.t, initial_time + 2.0 * qmomkit::default_adaptive_initial_step, 1.0e-15);
+    assert(rhs_times.size() >= 2);
+    assert_near(rhs_times[1] - initial_time, 0.5 * qmomkit::default_adaptive_initial_step, 1.0e-15);
+}
+
+void test_embedded_rk_fsal_reuses_accepted_endpoint_derivative()
+{
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        qmomkit::AdaptiveRkOptions options;
+        options.initial_step = 0.5;
+        options.max_step = 0.5;
+        const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk(
+            {1.0}, 0.0, 1.0, [](double, const std::vector<double>& state) { return std::vector<double>{0.0 * state[0]}; }, method, options);
+        assert(result.status == qmomkit::AdaptiveRkStatus::success);
+        assert(result.accepted_steps == 2);
+        assert(result.function_evaluations == 2 * qmomkit::internal::embedded_rk_tableau(method).stage_count - 1);
+    }
+}
+
+void test_embedded_rk_adaptive_controls_for_both_methods()
+{
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        const qmomkit::AdaptiveRkResult empty_interval = qmomkit::integrate_embedded_rk({1.0}, 0.25, 0.25, exponential_decay_rhs(), method, {});
+        assert(empty_interval.status == qmomkit::AdaptiveRkStatus::success);
+        assert(empty_interval.function_evaluations == 0);
+
+        qmomkit::AdaptiveRkOptions accepted;
+        accepted.initial_step = 0.2;
+        accepted.max_step = 0.2;
+        const qmomkit::AdaptiveRkResult first_trial = qmomkit::integrate_embedded_rk(
+            {2.0}, 0.0, 0.2, [](double, const std::vector<double>&) { return std::vector<double>{3.0}; }, method, accepted);
+        assert(first_trial.status == qmomkit::AdaptiveRkStatus::success);
+        assert(first_trial.accepted_steps == 1);
+        assert(first_trial.rejected_steps == 0);
+        assert_near(first_trial.t, 0.2, 1.0e-15);
+        assert_near(first_trial.state[0], 2.6, 1.0e-15);
+
+        qmomkit::AdaptiveRkOptions rejected;
+        rejected.initial_step = 1.0;
+        rejected.max_step = 1.0;
+        rejected.relative_tolerance = 1.0e-9;
+        rejected.absolute_tolerance = 1.0e-12;
+        const qmomkit::AdaptiveRkResult recovered = qmomkit::integrate_embedded_rk(
+            {1.0}, 0.0, 1.0, [](double, const std::vector<double>& state) { return std::vector<double>{-10.0 * state[0]}; }, method, rejected);
+        assert(recovered.status == qmomkit::AdaptiveRkStatus::success);
+        assert(recovered.rejected_steps > 1);
+        const std::size_t stage_count = qmomkit::internal::embedded_rk_tableau(method).stage_count;
+        assert(recovered.function_evaluations == stage_count + (recovered.accepted_steps + recovered.rejected_steps - 1) * (stage_count - 1));
+        assert_near(recovered.t, 1.0, 1.0e-14);
+
+        qmomkit::AdaptiveRkOptions clamped;
+        clamped.initial_step = 1.0;
+        clamped.max_step = 0.25;
+        const qmomkit::AdaptiveRkResult maximum_step = qmomkit::integrate_embedded_rk(
+            {1.0}, 0.0, 1.0, [](double, const std::vector<double>& state) { return std::vector<double>{0.0 * state[0]}; }, method, clamped);
+        assert(maximum_step.status == qmomkit::AdaptiveRkStatus::success);
+        assert(maximum_step.accepted_steps == 4);
+        assert_near(maximum_step.t, 1.0, 1.0e-15);
+
+        qmomkit::AdaptiveRkOptions nonfinite_error;
+        nonfinite_error.initial_step = 2.0;
+        nonfinite_error.max_step = 2.0;
+        nonfinite_error.min_step = 0.5;
+        const qmomkit::AdaptiveRkResult underflow = qmomkit::integrate_embedded_rk(
+            {0.0}, 0.0, 2.0, [](double, const std::vector<double>&) { return std::vector<double>{std::numeric_limits<double>::max()}; }, method,
+            nonfinite_error);
+        assert(underflow.status == qmomkit::AdaptiveRkStatus::step_size_underflow);
+        assert(underflow.rejected_steps > 0);
+
+        bool nonfinite_derivative_rejected = false;
+        try
+        {
+            (void)qmomkit::integrate_embedded_rk(
+                {1.0}, 0.0, 1.0, [](double, const std::vector<double>&) { return std::vector<double>{std::numeric_limits<double>::infinity()}; },
+                method, accepted);
+        }
+        catch (const std::invalid_argument&)
+        {
+            nonfinite_derivative_rejected = true;
+        }
+        assert(nonfinite_derivative_rejected);
+    }
+}
+
+void test_embedded_rk_public_backward_integration()
+{
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        qmomkit::AdaptiveRkOptions options;
+        options.initial_step = 0.3;
+        options.max_step = 0.3;
+        std::vector<double> rhs_times;
+        const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk(
+            {2.0}, 2.0, 1.0,
+            [&rhs_times](const double time, const std::vector<double>&)
+            {
+                rhs_times.push_back(time);
+                return std::vector<double>{1.0};
+            },
+            method, options);
+
+        assert(result.status == qmomkit::AdaptiveRkStatus::success);
+        assert_near(result.t, 1.0, 0.0);
+        assert_near(result.state[0], 1.0, 1.0e-15);
+        assert(rhs_times.size() >= 2);
+        assert(rhs_times[1] < rhs_times[0]);
     }
 }
 
@@ -344,15 +651,15 @@ void test_ssp_rk3_rhs_stage_audit_preserves_times_and_retry_states()
 void test_rk23_rejects_overly_large_initial_step()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{-10.0 * y[0]}; };
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.initial_step = 1.0;
     options.max_step = 1.0;
     options.relative_tolerance = 1.0e-9;
     options.absolute_tolerance = 1.0e-12;
 
-    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, options);
 
-    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.rejected_steps > 0);
     assert_near(result.state[0], std::exp(-10.0), 5.0e-9);
 }
@@ -360,14 +667,14 @@ void test_rk23_rejects_overly_large_initial_step()
 void test_rk23_zero_rhs_has_no_timestep_pathology()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>(y.size(), 0.0); };
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.initial_step = 0.1;
     options.relative_tolerance = 1.0e-8;
     options.absolute_tolerance = 1.0e-12;
 
-    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({0.0, 2.0, -3.0}, 0.0, 1.0, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({0.0, 2.0, -3.0}, 0.0, 1.0, rhs, options);
 
-    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert_near(result.t, 1.0, 1.0e-14);
     assert_vector_near(result.state, {0.0, 2.0, -3.0}, 1.0e-15);
     assert(result.rejected_steps == 0);
@@ -375,29 +682,38 @@ void test_rk23_zero_rhs_has_no_timestep_pathology()
 
 void test_rk23_invalid_options_fail_before_loop()
 {
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.absolute_tolerance = 0.0;
 
-    const qmomkit::AdaptiveRk23Result zero_atol = qmomkit::integrate_rk23({0.0}, 0.0, 1.0, exponential_decay_rhs(), options);
-    assert(zero_atol.status == qmomkit::AdaptiveRk23Status::invalid_input);
+    const qmomkit::AdaptiveRkResult zero_atol = qmomkit::integrate_rk23({0.0}, 0.0, 1.0, exponential_decay_rhs(), options);
+    assert(zero_atol.status == qmomkit::AdaptiveRkStatus::invalid_input);
 
-    options.absolute_tolerance = 1.0e-9;
-    options.initial_step = -1.0;
-    const qmomkit::AdaptiveRk23Result negative_initial_step = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, exponential_decay_rhs(), options);
-    assert(negative_initial_step.status == qmomkit::AdaptiveRk23Status::invalid_input);
+    for (const double initial_step :
+         {0.0, -1.0, std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()})
+    {
+        options.absolute_tolerance = 1.0e-9;
+        options.initial_step = initial_step;
+        for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+        {
+            const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk({1.0}, 0.0, 1.0, exponential_decay_rhs(), method, options);
+            assert(result.status == qmomkit::AdaptiveRkStatus::invalid_input);
+        }
+        const qmomkit::AdaptiveRkResult wrapper = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, exponential_decay_rhs(), options);
+        assert(wrapper.status == qmomkit::AdaptiveRkStatus::invalid_input);
+    }
 }
 
 void test_rk23_rejects_nonfinite_trial_state()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{std::numeric_limits<double>::max()}; };
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.initial_step = 2.0;
     options.max_step = 2.0;
     options.min_step = 0.5;
 
-    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({0.0}, 0.0, 2.0, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({0.0}, 0.0, 2.0, rhs, options);
 
-    assert(result.status == qmomkit::AdaptiveRk23Status::step_size_underflow);
+    assert(result.status == qmomkit::AdaptiveRkStatus::step_size_underflow);
     assert(result.rejected_steps > 0);
     assert(std::isfinite(result.state[0]));
 }
@@ -405,14 +721,14 @@ void test_rk23_rejects_nonfinite_trial_state()
 void test_rk23_initial_request_below_minimum_uses_minimum_step()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{1.0}; };
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.initial_step = 1.0e-3;
     options.max_step = 0.05;
     options.min_step = 0.05;
 
-    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, 0.05, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 0.05, rhs, options);
 
-    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 1);
     assert(result.rejected_steps == 0);
     assert_near(result.t, 0.05, 1.0e-15);
@@ -423,16 +739,16 @@ void test_rk23_initial_request_below_minimum_uses_minimum_step()
 void test_rk23_accepts_finite_update_at_minimum_step()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{1000.0 * y[0]}; };
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.initial_step = 1.0e-3;
     options.max_step = 1.0e-3;
     options.min_step = 1.0e-3;
     options.relative_tolerance = 1.0e-15;
     options.absolute_tolerance = 1.0e-15;
 
-    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, 1.0e-3, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 1.0e-3, rhs, options);
 
-    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 1);
     assert(result.rejected_steps == 0);
     assert_near(result.t, 1.0e-3, 1.0e-18);
@@ -443,16 +759,16 @@ void test_rk23_accepts_finite_update_at_minimum_step()
 void test_rk23_rejected_request_clamps_to_minimum_step()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{y[0], y[1], y[2]}; };
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.initial_step = 0.04;
     options.max_step = 0.04;
     options.min_step = 0.02;
     options.relative_tolerance = 1.0e-12;
     options.absolute_tolerance = 1.0e-14;
 
-    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({0.5, 1.0, 2.0}, 0.0, 0.04, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({0.5, 1.0, 2.0}, 0.0, 0.04, rhs, options);
 
-    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 2);
     assert(result.rejected_steps > 0);
     assert_near(result.t, 0.04, 1.0e-15);
@@ -462,16 +778,16 @@ void test_rk23_rejected_request_clamps_to_minimum_step()
 void test_rk23_accepts_final_remainder_below_minimum_step()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{1000.0 * y[0]}; };
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.initial_step = 1.0e-3;
     options.max_step = 1.0e-3;
     options.min_step = 1.0e-3;
     options.relative_tolerance = 1.0e-15;
     options.absolute_tolerance = 1.0e-15;
 
-    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, 1.5e-3, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 1.5e-3, rhs, options);
 
-    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 2);
     assert(result.rejected_steps == 0);
     assert_near(result.t, 1.5e-3, 1.0e-18);
@@ -482,16 +798,16 @@ void test_rk23_accepts_final_remainder_below_minimum_step()
 void test_rk23_accepts_complete_interval_below_minimum_step()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{1000.0 * y[0]}; };
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.initial_step = 1.0e-3;
     options.max_step = 1.0e-3;
     options.min_step = 1.0e-3;
     options.relative_tolerance = 1.0e-15;
     options.absolute_tolerance = 1.0e-15;
 
-    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, 5.0e-4, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 5.0e-4, rhs, options);
 
-    assert(result.status == qmomkit::AdaptiveRk23Status::success);
+    assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 1);
     assert(result.rejected_steps == 0);
     assert_near(result.t, 5.0e-4, 1.0e-18);
@@ -501,14 +817,14 @@ void test_rk23_accepts_complete_interval_below_minimum_step()
 
 void test_rk23_reports_maximum_step_count_failure()
 {
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.initial_step = 0.1;
     options.max_step = 0.1;
     options.max_steps = 1;
 
-    const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, exponential_decay_rhs(), options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, exponential_decay_rhs(), options);
 
-    assert(result.status == qmomkit::AdaptiveRk23Status::max_steps_exceeded);
+    assert(result.status == qmomkit::AdaptiveRkStatus::max_steps_exceeded);
     assert(!result.message.empty());
     assert(result.accepted_steps == 1);
     assert(result.t > 0.0);
@@ -520,19 +836,19 @@ void test_rk23_max_step_changes_observable_diagnostics()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>(y.size(), 0.0); };
 
-    qmomkit::AdaptiveRk23Options large_step;
+    qmomkit::AdaptiveRkOptions large_step;
     large_step.initial_step = 0.5;
     large_step.max_step = 0.5;
 
-    qmomkit::AdaptiveRk23Options small_step;
+    qmomkit::AdaptiveRkOptions small_step;
     small_step.initial_step = 0.1;
     small_step.max_step = 0.1;
 
-    const qmomkit::AdaptiveRk23Result large = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, large_step);
-    const qmomkit::AdaptiveRk23Result small = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, small_step);
+    const qmomkit::AdaptiveRkResult large = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, large_step);
+    const qmomkit::AdaptiveRkResult small = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, small_step);
 
-    assert(large.status == qmomkit::AdaptiveRk23Status::success);
-    assert(small.status == qmomkit::AdaptiveRk23Status::success);
+    assert(large.status == qmomkit::AdaptiveRkStatus::success);
+    assert(small.status == qmomkit::AdaptiveRkStatus::success);
     assert(large.accepted_steps == 2);
     assert(small.accepted_steps >= 10);
     assert(large.function_evaluations == 7);
@@ -544,6 +860,15 @@ void test_rk23_max_step_changes_observable_diagnostics()
 
 int main()
 {
+    test_embedded_rk_tableaus_match_primary_papers();
+    test_embedded_rk_one_steps_match_independent_scalar_formulae();
+    test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs();
+    test_adaptive_initial_step_default_and_override();
+    test_embedded_rk_default_initial_step_is_used_for_both_methods();
+    test_rk23_wrapper_uses_default_initial_step();
+    test_embedded_rk_fsal_reuses_accepted_endpoint_derivative();
+    test_embedded_rk_adaptive_controls_for_both_methods();
+    test_embedded_rk_public_backward_integration();
     test_ssp_rk3_accept_all_predicate();
     test_ssp_rk3_reject_negative_values_then_success();
     test_ssp_rk3_multiple_retries();

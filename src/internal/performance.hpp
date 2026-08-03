@@ -50,8 +50,8 @@ struct TimeIntegrationCounters
     std::size_t source_rk_stages = 0;
     std::size_t source_rk_retries = 0;
     std::size_t node_rhs_evaluations = 0;
-    std::size_t rk23_accepted_steps = 0;
-    std::size_t rk23_rejected_steps = 0;
+    std::size_t embedded_rk_accepted_steps = 0;
+    std::size_t embedded_rk_rejected_steps = 0;
 };
 
 struct PerformanceCounters
@@ -293,17 +293,17 @@ inline void record_node_rhs_evaluation() noexcept
     }
 }
 
-inline void record_rk23_step(const bool accepted) noexcept
+inline void record_embedded_rk_step(const bool accepted) noexcept
 {
     if (PerformanceCounters* counters = active_counters())
     {
         if (accepted)
         {
-            ++counters->time_integration.rk23_accepted_steps;
+            ++counters->time_integration.embedded_rk_accepted_steps;
         }
         else
         {
-            ++counters->time_integration.rk23_rejected_steps;
+            ++counters->time_integration.embedded_rk_rejected_steps;
         }
     }
 }
@@ -352,7 +352,7 @@ inline void record_post_source_inversion() noexcept {}
 inline void record_source_rk_stage() noexcept {}
 inline void record_source_retry() noexcept {}
 inline void record_node_rhs_evaluation() noexcept {}
-inline void record_rk23_step(bool) noexcept {}
+inline void record_embedded_rk_step(bool) noexcept {}
 
 #endif
 

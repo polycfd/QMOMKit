@@ -127,7 +127,7 @@ lower-level operation for workflows that only need to move node coordinates:
 
 ```cpp
 const qmomkit::CqmomNodeAdvectionResult advanced =
-    qmomkit::advance_nodes(cqmom_result.quadrature, time, time_step, velocity);
+    qmomkit::advance_nodes(cqmom_result.quadrature, time, time_step, velocity, node_options);
 ```
 
 The full QMOM and CQMOM transport helpers described below keep accepted state
@@ -135,25 +135,28 @@ together with the reconstruction settings needed for the next step.
 
 `NodeAdvectionOptions::scheme` selects how node trajectories are integrated:
 
-- `NodeAdvectionScheme::ssp_rk3` is the default. It takes one fixed three-stage
-  step over the supplied timestep. This gives predictable callback cost and is
-  useful when the surrounding application controls timestep size.
-- `NodeAdvectionScheme::adaptive_rk23` uses adaptive RK23 internally and may
-  take additional trajectory substeps to estimate error and satisfy its
-  tolerance controls. This is useful when trajectory accuracy inside the
-  transport step matters more than fixed callback cost.
+- `NodeAdvectionScheme::rk23` is the default adaptive Bogacki-Shampine 3(2)
+  method.
+- `NodeAdvectionScheme::rk45` is the adaptive Dormand-Prince RK5(4)7M method
+  from Table 2 of Dormand and Prince (1980).
+- `NodeAdvectionScheme::ssp_rk3` takes one separate fixed three-stage step over
+  the supplied timestep.
 
-Both schemes integrate the same continuous quadrature-node trajectory equation.
+All three choices integrate the same continuous quadrature-node trajectory equation.
 SSP-RK3 node advection does not retry, reduce the timestep, or perform
 realizability checks. Its accuracy is controlled by the timestep chosen by the
 caller. Realizability remains a property of reconstructed moments and later
 quadrature inversions, not of the coordinate trajectory step itself.
 
 Configuration-driven drivers can load the complete node-advection controls
-with `qmomkit::config::load_node_advection_options(...)`. For RK23,
-`NodeAdvectionOptions::rk23_options` carries scalar relative and absolute
-tolerances, optional initial step size, maximum step size, minimum step size,
-and maximum internal accepted steps.
+with `qmomkit::config::load_node_advection_options(...)`. For RK23 and RK45,
+`NodeAdvectionOptions::adaptive_options` carries scalar relative and absolute
+tolerances, an initial step that defaults to `1.0e-6 s`, maximum step size,
+minimum step size, and maximum internal accepted steps. The initial step may
+be overridden but must be finite and strictly positive. QMOMKit does not
+estimate it from the state, derivatives, or tolerances; accepted states use
+the higher-order embedded solution and the methods reuse FSAL derivatives
+internally.
 
 ## Moment Source Terms
 
@@ -447,8 +450,8 @@ sequence; the returned state contains the accepted bounded quadrature closure.
 QMOMKit uses two user-visible integration roles:
 
 - node-advection integration advances quadrature coordinates through
-  continuous phase-space velocities using fixed-stage SSP-RK3 by default or
-  adaptive RK23 when selected;
+  continuous phase-space velocities using default adaptive RK23, adaptive RK45,
+  or selected fixed-stage SSP-RK3;
 - source integration advances raw moments through discontinuous or source-like
   moment updates with SSP-RK3.
 
@@ -457,8 +460,8 @@ Most users interact with these through `NodeAdvectionOptions`,
 
 ```cpp
 qmomkit::QmomTransportOptions options;
-options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-options.node_options.rk23_options.relative_tolerance = 1.0e-7;
+options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+options.node_options.adaptive_options.relative_tolerance = 1.0e-7;
 options.source_options.ssp_rk3_options.max_retries = 4;
 ```
 
@@ -808,23 +811,29 @@ continuous trajectory integrator, not the operator-splitting scheme:
 
 ```text
 [time_integration.node_advection]
-scheme = ssp_rk3
+scheme = rk23
 ```
 
 Accepted values are:
 
 ```text
+rk23
+rk45
 ssp_rk3
-adaptive_rk23
 ```
 
-Adaptive RK23 controls are configured in a nested section:
+`rk23` is the default adaptive Bogacki-Shampine 3(2) method. `rk45` is the
+adaptive Dormand-Prince RK5(4)7M pair from Table 2 of Dormand and Prince
+(1980). `ssp_rk3` remains a separate fixed-stage method. The embedded methods
+use their higher-order state for accepted steps and reuse FSAL derivatives.
+
+Adaptive controls are configured in a nested section:
 
 ```text
 [time_integration.node_advection]
-scheme = adaptive_rk23
+scheme = rk23
 
-[time_integration.node_advection.rk23]
+[time_integration.node_advection.adaptive]
 relative_tolerance = 1.0e-7
 absolute_tolerance = 1.0e-10
 initial_step = 1.0e-4
@@ -833,13 +842,15 @@ min_step = 1.0e-12
 max_steps = 200000
 ```
 
-Omitted RK23 keys keep the `AdaptiveRk23Options` defaults:
+Omitted adaptive-RK keys keep the `AdaptiveRkOptions` defaults:
 `relative_tolerance = 1.0e-6`, `absolute_tolerance = 1.0e-9`,
-`initial_step = automatic`, `max_step = full integration interval`,
+`initial_step = 1.0e-6 s`, `max_step = full integration interval`,
 `min_step = machine-dependent automatic minimum`, and
-`max_steps = 100000`. Startup summaries in the transport examples report the
-effective node-advection scheme and controls. For fixed-step schemes, the
-summary reports only the selected scheme.
+`max_steps = 1000000000`. `initial_step` may be overridden and must be finite
+and strictly positive whenever `rk23` or `rk45` is selected; QMOMKit does not
+estimate it from the state, derivatives, or tolerances. Startup summaries in the transport examples report the effective
+node-advection scheme and controls. For fixed-step schemes, the summary reports
+only the selected scheme. Discontinuous source integration is unchanged.
 
 Output can be requested with:
 

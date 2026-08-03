@@ -71,7 +71,7 @@ namespace
     return ComparisonStatus::success;
 }
 
-void write_rk23_metadata(std::ostream& output, const std::optional<qmomkit::AdaptiveRk23Options>& options)
+void write_rk23_metadata(std::ostream& output, const std::optional<qmomkit::AdaptiveRkOptions>& options)
 {
     if (!options.has_value())
     {
@@ -82,10 +82,7 @@ void write_rk23_metadata(std::ostream& output, const std::optional<qmomkit::Adap
     output << "# rk23_max_step=" << options->max_step << '\n';
     output << "# rk23_min_step=" << options->min_step << '\n';
     output << "# rk23_max_steps=" << options->max_steps << '\n';
-    if (options->initial_step.has_value())
-    {
-        output << "# rk23_initial_step=" << *options->initial_step << '\n';
-    }
+    output << "# rk23_initial_step=" << options->initial_step << '\n';
 }
 
 } // namespace
@@ -195,7 +192,7 @@ void write_comparison_text(std::ostream& output, const MomentComparisonResult& r
     output << "# sample_count=" << metadata.sample_count << '\n';
     output << "# seed=" << metadata.seed << '\n';
     output << "# number_density=" << metadata.number_density << '\n';
-    write_rk23_metadata(output, metadata.rk23_options);
+    write_rk23_metadata(output, metadata.adaptive_options);
     // The repeated metadata columns make each comparison row self-contained
     // when rows are filtered by moment or time.
     output << "# time sample_count seed number_density";

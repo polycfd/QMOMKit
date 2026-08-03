@@ -4,9 +4,10 @@ These checks verify the standalone ODE integration utilities used by
 transport-related components:
 
 - SSP-RK3 on a constant right-hand side, where one fixed step is exact;
-- adaptive RK23 on scalar exponential decay;
+- adaptive RK23 and RK45 on scalar exponential decay;
 - adaptive RK23 on a constant vector right-hand side;
-- adaptive RK23 on a two-component harmonic oscillator over a short interval.
+- adaptive RK23 and RK45 on a two-component harmonic oscillator over a short
+  interval.
 
 Expected values come from closed-form ODE solutions. The tolerances are chosen
 to be tighter than the configured adaptive tolerances after accounting for the
@@ -27,13 +28,13 @@ the absolute final-state error `|y_num(T) - exp(-T)|`. The printed table reports
 timestep size, error, and observed order, and the finest refinements are
 required to approach third-order global convergence.
 
-For adaptive RK23, the verifier integrates the same ODE from `T=0` to `T=2`
-with successively tighter relative and absolute tolerances. The solver chooses
-its own accepted timesteps. The printed table reports tolerance, accepted and
-rejected steps, function evaluations, average accepted step, final error, and
-observed order against the average accepted step. The check requires tighter
-tolerances to reduce the error, increase or preserve accepted-step counts, and
-show a high-order trend for the finest refinements.
+For adaptive RK23 and RK45, the verifier integrates the same ODE from `T=0` to
+`T=2` with successively tighter relative and absolute tolerances. An explicit
+initial step is supplied for each run. The solver chooses later accepted
+timesteps. The printed table reports tolerance, accepted and rejected steps,
+function evaluations, average accepted step, final error, and observed order
+against the average accepted step. The fixed-step study separately checks
+third-order RK23 and fifth-order RK45 convergence.
 
 Run with:
 

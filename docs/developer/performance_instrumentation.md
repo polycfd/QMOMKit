@@ -40,7 +40,7 @@ and numerical path of a result.
 Performance instrumentation counts computational work. It records events such
 as reconstruction calls, Wheeler calls, Vandermonde solver usage, fallback
 usage, transport operator applications, source SSP-RK stages, source retries,
-node RHS evaluations, and adaptive RK23 node-advection steps. These counters
+node RHS evaluations, and adaptive embedded-RK node-advection steps. These counters
 describe workload composition, not correctness.
 
 Profiling tools measure elapsed time and hardware-level behavior. Use external
@@ -125,8 +125,8 @@ steps, continuous and discontinuous operator applications, moment
 reconstruction calls, and post-source inversions.
 
 Time-integration counters summarize RK-related work, including source SSP-RK
-stages, source retries, node RHS evaluations, and adaptive RK23 accepted or
-rejected steps when adaptive RK23 node advection is selected.
+stages, source retries, node RHS evaluations, and adaptive embedded-RK accepted
+or rejected steps when RK23 or RK45 node advection is selected.
 
 These groups intentionally avoid per-branch timing, per-dimension breakdowns,
 allocation tracking, callback timing, and other finer-grained details until
@@ -157,8 +157,8 @@ work. For trusted `CqmomCase` or `CqmomState` paths, repeated global-layout
 builds are usually more interesting than branch-local layouts.
 
 A high node-RHS-evaluation count may reflect many terminal nodes, long
-transport intervals, difficult velocity dynamics, or tight RK23 tolerances
-when adaptive RK23 is selected. The next step is to compare counters with
+transport intervals, difficult velocity dynamics, or tight embedded-RK
+tolerances when RK23 or RK45 is selected. The next step is to compare counters with
 node-advection timings, including the
 `performance_node_advection_scheme` benchmark cases, and profile the velocity
 callback path.

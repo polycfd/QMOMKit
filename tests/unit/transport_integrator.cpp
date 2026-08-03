@@ -235,9 +235,10 @@ qmomkit::CqmomState one_dimensional_adaptive_cqmom_state(const qmomkit::CqmomMom
 qmomkit::NodeAdvectionOptions tight_node_options()
 {
     qmomkit::NodeAdvectionOptions options;
-    options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    options.rk23_options.relative_tolerance = 1.0e-9;
-    options.rk23_options.absolute_tolerance = 1.0e-12;
+    options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    options.adaptive_options.relative_tolerance = 1.0e-9;
+    options.adaptive_options.absolute_tolerance = 1.0e-12;
+    options.adaptive_options.initial_step = 0.01;
     return options;
 }
 
@@ -925,7 +926,7 @@ void compare_lean_transport_to_dense_layout_closed_source(const qmomkit::Transpo
     assert_vector_near(lean.state.moments.values, expected.values, 5.0e-9);
 }
 
-void test_explicit_dense_and_lean_adaptive_options_are_equivalent()
+void test_explicit_dense_and_lean_adaptive_branch_options_are_equivalent()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = adaptive_cqmom_moments();
@@ -940,6 +941,7 @@ void test_explicit_dense_and_lean_adaptive_options_are_equivalent()
     dense_options.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
     dense_options.vandermonde_solver = qmomkit::VandermondeSolver::dense;
     dense_options.scheme = qmomkit::TransportScheme::dc;
+    dense_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.qmom_options = dense_options.qmom_options;
@@ -947,6 +949,7 @@ void test_explicit_dense_and_lean_adaptive_options_are_equivalent()
     lean_options.diagnostic_level = dense_options.diagnostic_level;
     lean_options.vandermonde_solver = dense_options.vandermonde_solver;
     lean_options.scheme = dense_options.scheme;
+    lean_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     const qmomkit::TestDenseCqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, zero_source, dense_options);
@@ -985,9 +988,11 @@ void test_explicit_dense_and_lean_diagnostic_level_none_is_propagated()
     qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.diagnostic_level = qmomkit::CqmomDiagnosticLevel::none;
     dense_options.scheme = qmomkit::TransportScheme::dc;
+    dense_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.diagnostic_level = dense_options.diagnostic_level;
     lean_options.scheme = dense_options.scheme;
+    lean_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     const qmomkit::TestDenseCqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, zero_source, dense_options);
@@ -1004,7 +1009,7 @@ void test_explicit_dense_and_lean_diagnostic_level_none_is_propagated()
     assert(lean.diagnostics.post_source_cqmom_diagnostics.empty());
 }
 
-void test_explicit_dense_and_lean_rk23_options_are_equivalent()
+void test_explicit_dense_and_lean_adaptive_options_are_equivalent()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
@@ -1018,8 +1023,9 @@ void test_explicit_dense_and_lean_rk23_options_are_equivalent()
     { return qmomkit::CqmomMomentRate{std::vector<double>(values.size(), 0.0)}; };
 
     qmomkit::TestDenseCqmomTransportOptions dense_options;
-    dense_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    dense_options.node_options.rk23_options.max_step = 0.01;
+    dense_options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    dense_options.node_options.adaptive_options.initial_step = 0.01;
+    dense_options.node_options.adaptive_options.max_step = 0.01;
     dense_options.scheme = qmomkit::TransportScheme::cd;
     qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.node_options = dense_options.node_options;
@@ -1033,8 +1039,8 @@ void test_explicit_dense_and_lean_rk23_options_are_equivalent()
     assert(lean.ok());
     assert(dense.quadrature.has_value());
     assert(lean.quadrature.has_value());
-    assert(dense.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
-    assert(lean.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    assert(dense.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk23);
+    assert(lean.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk23);
     assert(dense.diagnostics.first_continuous_diagnostics.step_count > 1);
     assert(lean.diagnostics.first_continuous_diagnostics.step_count == dense.diagnostics.first_continuous_diagnostics.step_count);
     assert_cqmom_quadrature_near(*lean.quadrature, *dense.quadrature, 1.0e-11);
@@ -1051,10 +1057,12 @@ void test_explicit_dense_and_lean_source_options_are_equivalent()
 
     qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.scheme = qmomkit::TransportScheme::dc;
+    dense_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     dense_options.source_options.ssp_rk3_options.max_retries = 2;
     dense_options.source_options.ssp_rk3_options.accept = [](const std::vector<double>&) { return false; };
     qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.scheme = dense_options.scheme;
+    lean_options.node_options = dense_options.node_options;
     lean_options.source_options = dense_options.source_options;
 
     const qmomkit::TestDenseCqmomTransportResult dense =
@@ -1113,8 +1121,10 @@ void test_explicit_dense_and_lean_accept_same_cqmom_native_source()
 
     qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.scheme = qmomkit::TransportScheme::dc;
+    dense_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.scheme = dense_options.scheme;
+    lean_options.node_options = dense_options.node_options;
 
     const qmomkit::TestDenseCqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(moments, hierarchy, 0.25, 0.02, zero_velocity, source, dense_options);
@@ -1147,8 +1157,10 @@ void test_explicit_dense_and_lean_accept_same_cqmom_native_boundary()
 
     qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.scheme = qmomkit::TransportScheme::dc;
+    dense_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.scheme = dense_options.scheme;
+    lean_options.node_options = dense_options.node_options;
 
     const qmomkit::TestDenseCqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.01, zero_velocity, source, boundary, dense_options);
@@ -1172,8 +1184,10 @@ void test_explicit_dense_and_lean_cqmom_native_source_failures_are_equivalent()
 
     qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.scheme = qmomkit::TransportScheme::dc;
+    dense_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.scheme = dense_options.scheme;
+    lean_options.node_options = dense_options.node_options;
 
     const qmomkit::TestDenseCqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, bad_source, dense_options);
@@ -1200,8 +1214,10 @@ void test_explicit_dense_and_lean_cqmom_native_source_invalid_values_are_equival
 
     qmomkit::TestDenseCqmomTransportOptions dense_options;
     dense_options.scheme = qmomkit::TransportScheme::dc;
+    dense_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.scheme = dense_options.scheme;
+    lean_options.node_options = dense_options.node_options;
 
     const qmomkit::CqmomMomentSource nonfinite_source = [](double, const qmomkit::CqmomSourceContext& context)
     {
@@ -1255,10 +1271,12 @@ void test_explicit_dense_and_lean_source_growth_is_automatic()
     dense_growth_options.qmom_options = {true, 1.0e-10, 1.0e-10, 1.0e-12};
     dense_growth_options.adaptive_branch_counts = true;
     dense_growth_options.scheme = qmomkit::TransportScheme::dc;
+    dense_growth_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     qmomkit::TestLeanCqmomTransportOptions lean_growth_options;
     lean_growth_options.qmom_options = dense_growth_options.qmom_options;
     lean_growth_options.adaptive_branch_counts = dense_growth_options.adaptive_branch_counts;
     lean_growth_options.scheme = dense_growth_options.scheme;
+    lean_growth_options.node_options = dense_growth_options.node_options;
 
     const qmomkit::TestDenseCqmomTransportResult dense_growth = qmomkit::advance_transport_cqmom(
         initial_moments, hierarchy, 0.0, 1.0, zero_velocity, dense_source_from_to(initial_moments, target_moments), dense_growth_options);
@@ -1837,6 +1855,7 @@ void test_public_cqmom_boundary_discontinuous_stage_matches_transport()
     };
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     const qmomkit::CqmomTransportResult high_level = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, source, boundary, options);
     const qmomkit::CqmomTransportResult stage = qmomkit::advance_cqmom_discontinuous(state, 0.0, 0.1, source, boundary, options);
@@ -1854,12 +1873,13 @@ void test_public_cqmom_stage_irrelevant_options_are_ignored()
 
     qmomkit::CqmomTransportOptions continuous_options;
     continuous_options.source_options.ssp_rk3_options.min_time_step = 1.0;
+    continuous_options.node_options.adaptive_options.initial_step = 0.1;
     const qmomkit::CqmomTransportResult continuous = qmomkit::advance_cqmom_continuous(state, 0.0, 0.1, velocity, continuous_options);
     assert(continuous.ok());
 
     qmomkit::CqmomTransportOptions discontinuous_options;
-    discontinuous_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    discontinuous_options.node_options.rk23_options.max_steps = 0;
+    discontinuous_options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    discontinuous_options.node_options.adaptive_options.max_steps = 0;
     const qmomkit::CqmomTransportResult discontinuous = qmomkit::advance_cqmom_discontinuous(state, 0.0, 0.1, zero_source, discontinuous_options);
     assert(discontinuous.ok());
 }
@@ -1896,7 +1916,9 @@ void test_source_only_matches_direct_operator_qmom()
         return std::vector<double>{0.0, 3.0};
     };
 
-    const qmomkit::QmomTransportResult transport = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.25, zero_velocity, source);
+    qmomkit::QmomTransportOptions options;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const qmomkit::QmomTransportResult transport = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.25, zero_velocity, source, options);
     const qmomkit::MomentSourceUpdateResult direct = qmomkit::advance_moments_with_source(moments, 0.125, 0.25, source);
 
     assert(transport.ok());
@@ -1921,7 +1943,9 @@ void test_source_plus_boundary_matches_direct_operator_qmom()
         return qmomkit::MomentBoundaryRate{std::vector<double>{0.25, -0.5}};
     };
 
-    const qmomkit::QmomTransportResult transport = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.25, zero_velocity, source, boundary, {});
+    qmomkit::QmomTransportOptions options;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const qmomkit::QmomTransportResult transport = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.25, zero_velocity, source, boundary, options);
     const qmomkit::MomentSourceUpdateResult direct = qmomkit::advance_moments_with_source(moments, 0.125, 0.25, source, boundary, {});
 
     assert(transport.ok());
@@ -1941,6 +1965,7 @@ void test_adaptive_branch_specific_cqmom_case()
     qmomkit::TestDenseCqmomTransportOptions options;
     options.qmom_options = {true, 1.0e-10, 1.0e-10, 1.0e-12};
     options.adaptive_branch_counts = true;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::TestDenseCqmomTransportResult result =
         qmomkit::advance_transport_cqmom(moments, hierarchy, 0.0, 0.1, zero_velocity, zero_source, options);
 
@@ -2032,6 +2057,7 @@ void test_adaptive_state_source_transport_changes_active_counts()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 1.0, zero_velocity, source, options);
 
     assert(transported.ok());
@@ -2053,6 +2079,7 @@ void test_adaptive_state_preserves_branch_counts_across_steps()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     qmomkit::CqmomTransportResult first = qmomkit::advance_transport_cqmom(case_.initial_state(), 0.0, 0.1, zero_velocity, zero_source, options);
     assert(first.ok());
     assert(first.quadrature.has_value());
@@ -2084,6 +2111,7 @@ void test_adaptive_state_preserved_source_can_reduce_active_counts()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
@@ -2108,6 +2136,7 @@ void test_adaptive_state_source_policy_allows_growth_to_configured_maximum()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
@@ -2143,6 +2172,7 @@ void test_adaptive_state_source_growth_forces_adaptive_wheeler_without_mutating_
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(state, 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), options);
 
@@ -2181,6 +2211,7 @@ void test_adaptive_state_source_growth_canonicalizes_between_steps()
 
     qmomkit::CqmomTransportOptions source_last_options;
     source_last_options.scheme = qmomkit::TransportScheme::cd;
+    source_last_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult first =
         qmomkit::advance_transport_cqmom(one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), source_last_options);
@@ -2196,6 +2227,7 @@ void test_adaptive_state_source_growth_canonicalizes_between_steps()
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
     qmomkit::CqmomTransportOptions growth_options;
     growth_options.scheme = qmomkit::TransportScheme::dc;
+    growth_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult second =
         qmomkit::advance_transport_cqmom(first.state, first.final_time, 0.1, zero_velocity, zero_source, growth_options);
 
@@ -2220,6 +2252,7 @@ void test_adaptive_state_failed_growth_trial_keeps_current_count()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(
         one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), options);
 
@@ -2261,6 +2294,7 @@ void test_adaptive_state_bounded_support_rejects_post_source_growth()
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(state, 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), options);
@@ -2356,6 +2390,7 @@ void test_adaptive_state_reduction_prevents_source_growth_trial()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(
         one_dimensional_adaptive_cqmom_state(initial_required), 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), options);
 
@@ -2378,6 +2413,7 @@ void test_adaptive_state_parent_growth_creates_unconstrained_descendants()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
@@ -2406,6 +2442,7 @@ void test_adaptive_state_preserved_source_invalidates_descendants_after_root_col
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported =
         qmomkit::advance_transport_cqmom(adaptive_cqmom_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
                                          source_from_to(initial_required, target_required), options);
@@ -2437,6 +2474,7 @@ void test_adaptive_state_preserved_source_invalidates_grandchildren_after_second
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(
         adaptive_cqmom_case_from_moments_with_hierarchy(initial_moments, node_counts, conditioning_order).initial_state(), 0.0, 1.0, zero_velocity,
         source_from_to(initial_required, target_required), options);
@@ -2478,6 +2516,7 @@ void test_fixed_state_transport_does_not_store_adaptive_branch_counts()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(transported.ok());
@@ -2504,6 +2543,7 @@ void test_adaptive_state_rejects_duplicate_active_count_metadata()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(bad_state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(!result.ok());
@@ -2528,6 +2568,7 @@ void test_adaptive_state_rejects_missing_active_count_metadata()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(bad_state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(!result.ok());
@@ -2548,6 +2589,7 @@ void test_adaptive_state_failure_preserves_active_counts_for_retry()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult failed = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_source, options);
     assert(!failed.ok());
     assert(active_counts_equal(state.active_branch_counts(), original_counts));
@@ -2574,6 +2616,7 @@ void test_adaptive_state_post_source_failure_preserves_active_counts_for_retry()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult failed = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_realizability_source, options);
     assert(!failed.ok());
     assert(failed.status == qmomkit::TransportStatus::inversion_failed);
@@ -2622,6 +2665,7 @@ void test_dense_and_lean_adaptive_state_active_count_persistence_are_equivalent(
 
         qmomkit::CqmomTransportOptions options;
         options.scheme = qmomkit::TransportScheme::dc;
+        options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
         const qmomkit::CqmomTransportResult dense_first =
             qmomkit::advance_transport_cqmom(dense_initial, 0.0, 0.1, zero_velocity, zero_source, options);
         const qmomkit::CqmomTransportResult lean_first =
@@ -2658,6 +2702,7 @@ void test_dense_and_lean_adaptive_state_active_count_persistence_are_equivalent(
 
     qmomkit::CqmomTransportOptions preserve_options;
     preserve_options.scheme = qmomkit::TransportScheme::dc;
+    preserve_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     run_source_case(branch_specific_ragged_cqmom_moments(), collapsed_branch_cqmom_moments(), qmomkit::PhaseSpaceHierarchy({2, 2}), preserve_options);
     run_source_case(branch_specific_ragged_cqmom_moments(), root_collapsed_child_spread_cqmom_moments(), qmomkit::PhaseSpaceHierarchy({2, 2}),
                     preserve_options);
@@ -2666,6 +2711,7 @@ void test_dense_and_lean_adaptive_state_active_count_persistence_are_equivalent(
 
     qmomkit::CqmomTransportOptions growth_options;
     growth_options.scheme = qmomkit::TransportScheme::dc;
+    growth_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     run_source_case(collapsed_branch_cqmom_moments(), branch_specific_ragged_cqmom_moments(), qmomkit::PhaseSpaceHierarchy({2, 2}), growth_options);
 
     {
@@ -2901,6 +2947,7 @@ void test_dense_and_lean_state_source_contexts_are_identical()
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     constexpr double start_time = 0.125;
     constexpr double dt = 0.02;
 
@@ -2970,6 +3017,7 @@ void test_dense_state_reconstructs_dense_only_moments_after_discontinuous_source
     const qmomkit::CqmomMomentSource source = proportional_cqmom_source(0.35);
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     options.source_options.ssp_rk3_options.estimate_error = true;
     const std::size_t expected_source_state_size = qmomkit::create_cqmom_moment_layout(dense_case.hierarchy()).required_indices.size();
     std::size_t stage_accept_calls = 0;
@@ -3006,6 +3054,7 @@ void test_dense_state_zero_source_keeps_full_dense_closure_consistent()
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     const qmomkit::CqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, zero_velocity, zero_source, options);
@@ -3024,6 +3073,7 @@ void test_dense_state_reconstructs_dense_only_moments_after_source_and_boundary(
     const qmomkit::CqmomMomentBoundaryContribution boundary = proportional_cqmom_source(0.15);
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     const qmomkit::CqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, zero_velocity, source, boundary, options);
@@ -3043,6 +3093,7 @@ void test_dense_state_reconstructs_dense_only_moments_after_repeated_source_step
     const qmomkit::CqmomMomentSource source = proportional_cqmom_source(0.20);
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     qmomkit::CqmomTransportResult dense = qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.05, zero_velocity, source, options);
     qmomkit::CqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_case.initial_state(), 0.0, 0.05, zero_velocity, source, options);
@@ -3063,6 +3114,7 @@ void test_dense_state_reconstructs_dense_only_moments_with_nonidentity_condition
     const qmomkit::CqmomMomentSource source = proportional_cqmom_source(0.25);
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     const qmomkit::CqmomTransportResult dense =
         qmomkit::advance_transport_cqmom(dense_case.initial_state(), 0.0, 0.1, zero_velocity, source, options);
@@ -3087,6 +3139,7 @@ void test_state_cqmom_transport_preserves_vandermonde_solver_policy()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult transported = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, zero_source, options);
 
     assert(transported.ok());
@@ -3123,6 +3176,7 @@ void test_cqmom_transport_vandermonde_policy_independent_of_diagnostic_level()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     std::optional<qmomkit::CqmomTransportResult> reference_dense;
     std::optional<qmomkit::CqmomTransportResult> reference_lean;
@@ -3225,10 +3279,12 @@ void test_state_cqmom_source_evolution_matches_lean()
 
     qmomkit::CqmomTransportOptions state_options;
     state_options.scheme = qmomkit::TransportScheme::dc;
+    state_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult state_result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, source, state_options);
 
     qmomkit::TestLeanCqmomTransportOptions lean_options;
     lean_options.scheme = state_options.scheme;
+    lean_options.node_options = state_options.node_options;
     const qmomkit::TestLeanCqmomTransportResult lean_result =
         qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.1, zero_velocity, source, lean_options);
 
@@ -3249,6 +3305,7 @@ void test_state_cqmom_failure_propagation_from_source_operator()
 
     qmomkit::CqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_source, options);
 
     assert(!result.ok());
@@ -3294,6 +3351,7 @@ void test_qmom_state_copy_move_workflow()
     const auto zero_source = [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 0.0); };
     qmomkit::QmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::cd;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(moved, 2, 0.0, 0.1, zero_velocity, zero_source, options);
     assert(result.ok());
@@ -3349,6 +3407,7 @@ void test_qmom_adaptive_post_source_reduction_and_growth_policy()
     qmomkit::QmomTransportOptions options;
     options.qmom_options = qmom_options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
 
     const auto source_from_to = [](const std::vector<double>& initial, const std::vector<double>& target)
@@ -3413,6 +3472,7 @@ void test_qmom_fixed_post_source_requires_configured_count()
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     qmomkit::QmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
     const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 2, 0.0, 1.0, zero_velocity, source, options);
 
@@ -3497,16 +3557,25 @@ void test_qmom_transport_node_advection_scheme_selection()
     assert(ssp.diagnostics.total_node_advection_rejected_steps == 0);
 
     qmomkit::QmomTransportOptions rk_options = ssp_options;
-    rk_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    rk_options.node_options.rk23_options.relative_tolerance = 1.0e-10;
-    rk_options.node_options.rk23_options.absolute_tolerance = 1.0e-12;
+    rk_options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    rk_options.node_options.adaptive_options.relative_tolerance = 1.0e-10;
+    rk_options.node_options.adaptive_options.absolute_tolerance = 1.0e-12;
+    rk_options.node_options.adaptive_options.initial_step = 0.01;
     const qmomkit::QmomTransportResult rk = qmomkit::advance_transport_qmom(state, 2, 0.0, 0.2, velocity, zero_source, rk_options);
     assert(rk.ok());
-    assert(rk.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
-    assert(rk.diagnostics.first_continuous_diagnostics.adaptive_rk23_status == qmomkit::AdaptiveRk23Status::success);
+    assert(rk.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk23);
+    assert(rk.diagnostics.first_continuous_diagnostics.adaptive_status == qmomkit::AdaptiveRkStatus::success);
     assert(rk.diagnostics.total_node_advection_steps > 0);
 
     assert_vector_near(ssp.state.moments(), rk.state.moments(), 1.0e-10);
+
+    qmomkit::QmomTransportOptions rk45_options = rk_options;
+    rk45_options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk45;
+    const qmomkit::QmomTransportResult rk45 = qmomkit::advance_transport_qmom(state, 2, 0.0, 0.2, velocity, zero_source, rk45_options);
+    assert(rk45.ok());
+    assert(rk45.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk45);
+    assert(rk45.diagnostics.first_continuous_diagnostics.adaptive_status == qmomkit::AdaptiveRkStatus::success);
+    assert_vector_near(rk.state.moments(), rk45.state.moments(), 1.0e-10);
 }
 
 void test_cqmom_state_transport_node_advection_scheme_selection()
@@ -3528,14 +3597,24 @@ void test_cqmom_state_transport_node_advection_scheme_selection()
     assert(ssp.diagnostics.source_status == qmomkit::MomentSourceUpdateStatus::success);
 
     qmomkit::CqmomTransportOptions rk_options = ssp_options;
-    rk_options.node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    rk_options.node_options.rk23_options.relative_tolerance = 1.0e-10;
-    rk_options.node_options.rk23_options.absolute_tolerance = 1.0e-12;
+    rk_options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    rk_options.node_options.adaptive_options.relative_tolerance = 1.0e-10;
+    rk_options.node_options.adaptive_options.absolute_tolerance = 1.0e-12;
+    rk_options.node_options.adaptive_options.initial_step = 0.01;
     const qmomkit::CqmomTransportResult rk = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, velocity, zero_source, rk_options);
     assert(rk.ok());
     assert(rk.quadrature.has_value());
-    assert(rk.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
-    assert(rk.diagnostics.first_continuous_diagnostics.adaptive_rk23_status == qmomkit::AdaptiveRk23Status::success);
+    assert(rk.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk23);
+    assert(rk.diagnostics.first_continuous_diagnostics.adaptive_status == qmomkit::AdaptiveRkStatus::success);
+
+    qmomkit::CqmomTransportOptions rk45_options = rk_options;
+    rk45_options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk45;
+    const qmomkit::CqmomTransportResult rk45 = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, velocity, zero_source, rk45_options);
+    assert(rk45.ok());
+    assert(rk45.quadrature.has_value());
+    assert(rk45.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk45);
+    assert(rk45.diagnostics.first_continuous_diagnostics.adaptive_status == qmomkit::AdaptiveRkStatus::success);
+    assert_cqmom_quadrature_near(*rk.quadrature, *rk45.quadrature, 1.0e-10);
 }
 
 void test_failure_propagation_from_continuous_operator()
@@ -3544,8 +3623,10 @@ void test_failure_propagation_from_continuous_operator()
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
     const auto bad_velocity = [](double, const std::vector<double>&) { return std::vector<double>{1.0, 2.0}; };
     const auto zero_source = [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); };
+    qmomkit::QmomTransportOptions options;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
-    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.1, bad_velocity, zero_source);
+    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.1, bad_velocity, zero_source, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::TransportStatus::continuous_failed);
@@ -3560,8 +3641,10 @@ void test_failure_propagation_from_source_operator()
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const auto bad_source = [](double, const std::vector<double>&) { return std::vector<double>{1.0, 2.0, 3.0}; };
+    qmomkit::QmomTransportOptions options;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
-    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.1, zero_velocity, bad_source);
+    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.1, zero_velocity, bad_source, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::TransportStatus::source_failed);
@@ -3578,8 +3661,11 @@ void test_failure_propagation_from_boundary_contribution()
     const auto zero_source = [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); };
     const qmomkit::MomentBoundaryContribution bad_boundary = [](double, const std::vector<double>& state)
     { return qmomkit::MomentBoundaryRate{std::vector<double>(state.size() + 1, 0.0)}; };
+    qmomkit::QmomTransportOptions options;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
-    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.1, zero_velocity, zero_source, bad_boundary, {});
+    const qmomkit::QmomTransportResult result =
+        qmomkit::advance_transport_qmom(state, 1, 0.0, 0.1, zero_velocity, zero_source, bad_boundary, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::TransportStatus::source_failed);
@@ -3601,8 +3687,10 @@ void test_boundary_contribution_post_source_inversion_failure()
         rate.front() = -20.0;
         return qmomkit::MomentBoundaryRate{rate};
     };
+    qmomkit::QmomTransportOptions options;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
-    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.1, zero_velocity, zero_source, removal, {});
+    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 1, 0.0, 0.1, zero_velocity, zero_source, removal, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::TransportStatus::inversion_failed);
@@ -3674,7 +3762,8 @@ void test_lean_cqmom_failure_propagation_from_reconstruction()
     const auto huge_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 1.0e200); };
 
     qmomkit::TestLeanCqmomTransportOptions options;
-    options.node_options.rk23_options.max_step = 1.0;
+    options.node_options.adaptive_options.initial_step = 1.0;
+    options.node_options.adaptive_options.max_step = 1.0;
     options.scheme = qmomkit::TransportScheme::cd;
     const qmomkit::TestLeanCqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 1.0, huge_velocity, options);
 
@@ -3695,6 +3784,7 @@ void test_lean_cqmom_failure_propagation_from_source_operator()
 
     qmomkit::TestLeanCqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::TestLeanCqmomTransportResult result = qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_source, options);
 
     assert(!result.ok());
@@ -3718,6 +3808,7 @@ void test_lean_cqmom_failure_propagation_from_post_source_inversion()
 
     qmomkit::TestLeanCqmomTransportOptions options;
     options.scheme = qmomkit::TransportScheme::dc;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::TestLeanCqmomTransportResult result =
         qmomkit::advance_transport_cqmom(state, 0.0, 0.1, zero_velocity, bad_realizability_source, options);
 
@@ -3786,9 +3877,9 @@ int main()
     test_lean_cqmom_strang_matches_dense_layout_closed_source();
     test_lean_cqmom_cd_matches_dense_layout_closed_source();
     test_lean_cqmom_dc_matches_dense_layout_closed_source();
-    test_explicit_dense_and_lean_adaptive_options_are_equivalent();
+    test_explicit_dense_and_lean_adaptive_branch_options_are_equivalent();
     test_explicit_dense_and_lean_diagnostic_level_none_is_propagated();
-    test_explicit_dense_and_lean_rk23_options_are_equivalent();
+    test_explicit_dense_and_lean_adaptive_options_are_equivalent();
     test_explicit_dense_and_lean_source_options_are_equivalent();
     test_explicit_dense_and_lean_accept_same_cqmom_native_source();
     test_explicit_dense_and_lean_accept_same_cqmom_native_boundary();

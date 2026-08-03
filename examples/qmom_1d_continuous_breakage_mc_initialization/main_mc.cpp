@@ -82,7 +82,7 @@ int main()
     std::mt19937_64 breakage_generator(qmom_1d_continuous_breakage_mc_initialization::breakage_seed);
 
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_continuous_breakage_mc_initialization::continuous_velocity();
-    const qmomkit::AdaptiveRk23Options continuous_options;
+    const qmomkit::AdaptiveRkOptions continuous_options;
 
     std::vector<double> final_moments =
         qmom_1d_continuous_breakage_mc_initialization::compute_particle_moments(particles, particle_weight, maximum_order);

@@ -30,7 +30,7 @@ struct EvolutionComparisonRequest
     qmomkit::PhaseSpaceVelocity velocity;
     double t0 = 0.0;
     double t1 = 0.0;
-    qmomkit::AdaptiveRk23Options rk23_options;
+    qmomkit::AdaptiveRkOptions adaptive_options;
     SamplingOptions sampling_options;
     std::size_t maximum_order = 0;
 };
@@ -46,7 +46,7 @@ struct EvolutionComparisonResult
     std::size_t sample_count = 0;
     unsigned long long seed = 0;
     double final_time = 0.0;
-    qmomkit::AdaptiveRk23Options rk23_options;
+    qmomkit::AdaptiveRkOptions adaptive_options;
     ComparisonStatus status = ComparisonStatus::success;
     std::string message;
 
@@ -62,7 +62,7 @@ struct MultiDimensionalEvolutionComparisonRequest
     qmomkit::PhaseSpaceVelocity velocity;
     double t0 = 0.0;
     double t1 = 0.0;
-    qmomkit::AdaptiveRk23Options rk23_options;
+    qmomkit::AdaptiveRkOptions adaptive_options;
     SamplingOptions sampling_options;
     std::vector<std::size_t> maximum_orders;
 };
@@ -77,7 +77,7 @@ struct MultiDimensionalEvolutionComparisonResult
     std::size_t sample_count = 0;
     unsigned long long seed = 0;
     double final_time = 0.0;
-    qmomkit::AdaptiveRk23Options rk23_options;
+    qmomkit::AdaptiveRkOptions adaptive_options;
     ComparisonStatus status = ComparisonStatus::success;
     std::string message;
 
@@ -106,7 +106,7 @@ struct SampleCountConvergenceRequest
     qmomkit::PhaseSpaceVelocity velocity;
     double t0 = 0.0;
     double t1 = 0.0;
-    qmomkit::AdaptiveRk23Options rk23_options;
+    qmomkit::AdaptiveRkOptions adaptive_options;
     unsigned long long seed = 0;
     std::vector<std::size_t> sample_counts;
     std::vector<std::size_t> maximum_orders;
@@ -119,7 +119,7 @@ struct SampleCountConvergenceResult
     double number_density = 0.0;
     double final_time = 0.0;
     unsigned long long seed = 0;
-    qmomkit::AdaptiveRk23Options rk23_options;
+    qmomkit::AdaptiveRkOptions adaptive_options;
     ComparisonStatus status = ComparisonStatus::success;
     std::string message;
 
@@ -129,11 +129,12 @@ struct SampleCountConvergenceResult
     }
 };
 
-qmomkit::AdaptiveRk23Options accurate_options()
+qmomkit::AdaptiveRkOptions accurate_options()
 {
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.relative_tolerance = 1.0e-10;
     options.absolute_tolerance = 1.0e-12;
+    options.initial_step = 0.01;
     options.max_step = 0.05;
     return options;
 }
@@ -421,7 +422,7 @@ EvolutionComparisonResult failed_evolution_result(const EvolutionComparisonReque
     result.sample_count = request.sampling_options.sample_count;
     result.seed = request.sampling_options.seed;
     result.final_time = request.t0;
-    result.rk23_options = request.rk23_options;
+    result.adaptive_options = request.adaptive_options;
     return result;
 }
 
@@ -434,7 +435,7 @@ MultiDimensionalEvolutionComparisonResult failed_multidimensional_result(const M
     result.sample_count = request.sampling_options.sample_count;
     result.seed = request.sampling_options.seed;
     result.final_time = request.t0;
-    result.rk23_options = request.rk23_options;
+    result.adaptive_options = request.adaptive_options;
     return result;
 }
 
@@ -457,7 +458,7 @@ EvolutionComparisonResult compare_evolved_quadrature_to_ensemble(const Evolution
     result.sample_count = request.sampling_options.sample_count;
     result.seed = request.sampling_options.seed;
     result.final_time = request.t1;
-    result.rk23_options = request.rk23_options;
+    result.adaptive_options = request.adaptive_options;
 
     double number_density = 0.0;
     std::size_t dimensions = 0;
@@ -475,7 +476,7 @@ EvolutionComparisonResult compare_evolved_quadrature_to_ensemble(const Evolution
 
     result.initial_quadrature = make_one_dimensional_quadrature(request.initial_distribution);
     result.qmomkit_result =
-        qmomkit::monte_carlo::evolve_quadrature_nodes(result.initial_quadrature, request.velocity, request.t0, request.t1, request.rk23_options);
+        qmomkit::monte_carlo::evolve_quadrature_nodes(result.initial_quadrature, request.velocity, request.t0, request.t1, request.adaptive_options);
     if (!result.qmomkit_result.ok())
     {
         result.status = ComparisonStatus::qmomkit_failed;
@@ -493,7 +494,7 @@ EvolutionComparisonResult compare_evolved_quadrature_to_ensemble(const Evolution
     }
 
     result.monte_carlo_result =
-        qmomkit::monte_carlo::evolve_ensemble(result.sampling_result.ensemble, request.velocity, request.t0, request.t1, request.rk23_options);
+        qmomkit::monte_carlo::evolve_ensemble(result.sampling_result.ensemble, request.velocity, request.t0, request.t1, request.adaptive_options);
     if (!result.monte_carlo_result.ok())
     {
         result.status = ComparisonStatus::monte_carlo_failed;
@@ -528,7 +529,7 @@ MultiDimensionalEvolutionComparisonResult compare_evolved_quadrature_to_ensemble
     result.sample_count = request.sampling_options.sample_count;
     result.seed = request.sampling_options.seed;
     result.final_time = request.t1;
-    result.rk23_options = request.rk23_options;
+    result.adaptive_options = request.adaptive_options;
 
     double number_density = 0.0;
     std::size_t dimensions = 0;
@@ -545,7 +546,7 @@ MultiDimensionalEvolutionComparisonResult compare_evolved_quadrature_to_ensemble
     result.number_density = number_density;
 
     result.quadrature_result = qmomkit::monte_carlo::evolve_explicit_quadrature(request.initial_distribution, request.velocity, request.t0,
-                                                                                request.t1, request.rk23_options);
+                                                                                request.t1, request.adaptive_options);
     if (!result.quadrature_result.ok())
     {
         result.status = result.quadrature_result.status;
@@ -563,7 +564,7 @@ MultiDimensionalEvolutionComparisonResult compare_evolved_quadrature_to_ensemble
     }
 
     result.monte_carlo_result =
-        qmomkit::monte_carlo::evolve_ensemble(result.sampling_result.ensemble, request.velocity, request.t0, request.t1, request.rk23_options);
+        qmomkit::monte_carlo::evolve_ensemble(result.sampling_result.ensemble, request.velocity, request.t0, request.t1, request.adaptive_options);
     if (!result.monte_carlo_result.ok())
     {
         result.status = ComparisonStatus::monte_carlo_failed;
@@ -584,7 +585,7 @@ SampleCountConvergenceResult run_sample_count_convergence(const SampleCountConve
     SampleCountConvergenceResult result;
     result.final_time = request.t0;
     result.seed = request.seed;
-    result.rk23_options = request.rk23_options;
+    result.adaptive_options = request.adaptive_options;
 
     double number_density = 0.0;
     std::size_t dimensions = 0;
@@ -611,7 +612,7 @@ SampleCountConvergenceResult run_sample_count_convergence(const SampleCountConve
     }
 
     const qmomkit::monte_carlo::ExplicitQuadratureEvolutionResult reference_evolution = qmomkit::monte_carlo::evolve_explicit_quadrature(
-        request.initial_distribution, request.velocity, request.t0, request.t1, request.rk23_options);
+        request.initial_distribution, request.velocity, request.t0, request.t1, request.adaptive_options);
     if (!reference_evolution.ok())
     {
         result.status = reference_evolution.status;
@@ -640,7 +641,7 @@ SampleCountConvergenceResult run_sample_count_convergence(const SampleCountConve
             return result;
         }
         const qmomkit::monte_carlo::EnsembleEvolutionResult monte_carlo_result =
-            qmomkit::monte_carlo::evolve_ensemble(sampling_result.ensemble, request.velocity, request.t0, request.t1, request.rk23_options);
+            qmomkit::monte_carlo::evolve_ensemble(sampling_result.ensemble, request.velocity, request.t0, request.t1, request.adaptive_options);
         if (!monte_carlo_result.ok())
         {
             result.status = ComparisonStatus::monte_carlo_failed;
@@ -678,14 +679,14 @@ void write_comparison_text(std::ostream& output, const EvolutionComparisonResult
 {
     qmomkit::monte_carlo::write_comparison_text(output, result.comparison,
                                                 qmomkit::monte_carlo::ComparisonOutputMetadata{result.final_time, result.sample_count, result.seed,
-                                                                                               result.number_density, result.rk23_options});
+                                                                                               result.number_density, result.adaptive_options});
 }
 
 void write_comparison_text(std::ostream& output, const MultiDimensionalEvolutionComparisonResult& result)
 {
     qmomkit::monte_carlo::write_comparison_text(output, result.comparison,
                                                 qmomkit::monte_carlo::ComparisonOutputMetadata{result.final_time, result.sample_count, result.seed,
-                                                                                               result.number_density, result.rk23_options});
+                                                                                               result.number_density, result.adaptive_options});
 }
 
 void test_explicit_quadrature_construction()
@@ -822,7 +823,7 @@ void test_two_dimensional_constant_velocity_comparison()
     request.velocity = callback;
     request.t0 = t0;
     request.t1 = t1;
-    request.rk23_options = accurate_options();
+    request.adaptive_options = accurate_options();
     request.sampling_options = SamplingOptions{7000, 5201};
     request.maximum_orders = {2, 2};
 
@@ -864,7 +865,7 @@ void test_two_dimensional_affine_comparison()
     request.velocity = callback;
     request.t0 = t0;
     request.t1 = t1;
-    request.rk23_options = accurate_options();
+    request.adaptive_options = accurate_options();
     request.sampling_options = SamplingOptions{8000, 5301};
     request.maximum_orders = {2, 2};
 
@@ -902,7 +903,7 @@ void test_two_dimensional_coupled_linear_comparison()
     request.velocity = callback;
     request.t0 = t0;
     request.t1 = t1;
-    request.rk23_options = accurate_options();
+    request.adaptive_options = accurate_options();
     request.sampling_options = SamplingOptions{9000, 5401};
     request.maximum_orders = {2, 2};
 
@@ -959,13 +960,13 @@ void test_constant_velocity_comparison()
     request.velocity = callback;
     request.t0 = t0;
     request.t1 = t1;
-    request.rk23_options = accurate_options();
+    request.adaptive_options = accurate_options();
     request.sampling_options = SamplingOptions{6000, 4101};
     request.maximum_order = 2;
 
     const EvolutionComparisonResult result = compare_evolved_quadrature_to_ensemble(request);
     CHECK(result.ok());
-    CHECK(result.qmomkit_result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    CHECK(result.qmomkit_result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk23);
     check_close(result.number_density, 2.8, 1.0e-15);
     check_close(result.comparison.rows[0].reference_value, result.number_density, 1.0e-15);
     check_close(result.comparison.rows[0].computed_value, result.number_density, 1.0e-15);
@@ -1001,13 +1002,13 @@ void test_affine_evolution_comparison()
     request.velocity = callback;
     request.t0 = t0;
     request.t1 = t1;
-    request.rk23_options = accurate_options();
+    request.adaptive_options = accurate_options();
     request.sampling_options = SamplingOptions{8000, 4201};
     request.maximum_order = 2;
 
     const EvolutionComparisonResult result = compare_evolved_quadrature_to_ensemble(request);
     CHECK(result.ok());
-    CHECK(result.qmomkit_result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::adaptive_rk23);
+    CHECK(result.qmomkit_result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk23);
 
     const double elapsed = t1 - t0;
     for (std::size_t node = 0; node < distribution.nodes.size(); ++node)
@@ -1029,7 +1030,7 @@ void test_text_output()
     request.velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.1}; };
     request.t0 = 0.0;
     request.t1 = 0.2;
-    request.rk23_options = accurate_options();
+    request.adaptive_options = accurate_options();
     request.sampling_options = SamplingOptions{20000, 4301};
     request.maximum_order = 1;
 
@@ -1053,7 +1054,7 @@ void test_text_output()
     multi_request.velocity = [](double, const std::vector<double>& coordinates) { return std::vector<double>{0.05, -0.02 * coordinates[1]}; };
     multi_request.t0 = 0.0;
     multi_request.t1 = 0.1;
-    multi_request.rk23_options = accurate_options();
+    multi_request.adaptive_options = accurate_options();
     multi_request.sampling_options = SamplingOptions{3000, 5501};
     multi_request.maximum_orders = {1, 1};
 
@@ -1074,7 +1075,7 @@ void test_sample_count_convergence()
     request.velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.0}; };
     request.t0 = 0.0;
     request.t1 = 0.2;
-    request.rk23_options = accurate_options();
+    request.adaptive_options = accurate_options();
     request.seed = 6101;
     request.sample_counts = {500, 2000, 8000};
     request.maximum_orders = {2};
@@ -1106,10 +1107,10 @@ void test_sample_count_convergence()
                                                                         signed_error, row.absolute_error, 0.0, row.standard_error, row.z_score});
     }
     std::ostringstream output;
-    qmomkit::monte_carlo::write_comparison_text(output,
-                                                qmomkit::monte_carlo::MomentComparisonResult{std::move(output_rows), ComparisonStatus::success, ""},
-                                                qmomkit::monte_carlo::ComparisonOutputMetadata{first.final_time, first.rows.front().sample_count,
-                                                                                               first.seed, first.number_density, first.rk23_options});
+    qmomkit::monte_carlo::write_comparison_text(
+        output, qmomkit::monte_carlo::MomentComparisonResult{std::move(output_rows), ComparisonStatus::success, ""},
+        qmomkit::monte_carlo::ComparisonOutputMetadata{first.final_time, first.rows.front().sample_count, first.seed, first.number_density,
+                                                       first.adaptive_options});
     const std::string text = output.str();
     CHECK(text.find("# time sample_count seed number_density alpha_0 reference_value computed_value signed_error absolute_error relative_error "
                     "standard_error z_score") != std::string::npos);
@@ -1142,9 +1143,9 @@ void test_failure_propagation()
     CHECK(zero_samples.status == ComparisonStatus::invalid_input);
 
     request.sampling_options = SamplingOptions{10, 1};
-    request.rk23_options = accurate_options();
-    request.rk23_options.max_steps = 1;
-    request.rk23_options.max_step = 0.01;
+    request.adaptive_options = accurate_options();
+    request.adaptive_options.max_steps = 1;
+    request.adaptive_options.max_step = 0.01;
     request.velocity = [](double, const std::vector<double>& coordinates) { return std::vector<double>{coordinates[0] + 1.0}; };
     const EvolutionComparisonResult rk_failure = compare_evolved_quadrature_to_ensemble(request);
     CHECK(!rk_failure.ok());

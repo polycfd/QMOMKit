@@ -75,8 +75,9 @@ qmomkit::RawMomentTensor adaptive_cqmom_moments()
 qmomkit::NodeAdvectionOptions tight_node_options()
 {
     qmomkit::NodeAdvectionOptions options;
-    options.rk23_options.relative_tolerance = 1.0e-9;
-    options.rk23_options.absolute_tolerance = 1.0e-12;
+    options.adaptive_options.relative_tolerance = 1.0e-9;
+    options.adaptive_options.absolute_tolerance = 1.0e-12;
+    options.adaptive_options.initial_step = 0.01;
     return options;
 }
 
@@ -89,9 +90,11 @@ void test_zero_continuous_and_zero_source_preserve_qmom()
 {
     const std::vector<double> moments = raw_moments_1d({-1.0, 2.0}, {0.25, 0.75}, 4);
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 2);
+    qmomkit::QmomTransportOptions options;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(
         state, 2, 0.0, 0.4, [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); },
-        [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); });
+        [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); }, options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     assert_vector_near(result.state.moments(), moments, 1.0e-12);
@@ -122,7 +125,9 @@ void test_combined_continuous_and_source_qmom_analytical()
     };
 
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
-    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 1, 0.0, dt, velocity, source);
+    qmomkit::QmomTransportOptions options;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, 1, 0.0, dt, velocity, source, options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     const double initial_weight = moments[0];

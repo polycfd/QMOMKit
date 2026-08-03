@@ -260,10 +260,11 @@ continuous advancement; raw moments change because the abscissas change.
 
 The direct Monte Carlo executable advances every sample with
 `qmomkit::monte_carlo::evolve_ensemble(...)` and the same cavitation velocity
-callback. It constructs default `qmomkit::AdaptiveRk23Options`, whose default
+callback. It constructs default `qmomkit::AdaptiveRkOptions`, whose default
 tolerances are `relative_tolerance = 1.0e-6` and
-`absolute_tolerance = 1.0e-9`; the example does not set an explicit initial
-step, minimum step, or maximum step for the Monte Carlo path.
+`absolute_tolerance = 1.0e-9` and whose initial step defaults to `1.0e-6 s`;
+the example does not override the initial, minimum, or maximum step for the
+Monte Carlo path.
 
 ## Build
 

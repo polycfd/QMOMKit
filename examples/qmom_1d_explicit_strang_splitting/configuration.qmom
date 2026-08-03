@@ -12,9 +12,9 @@ adaptive = true
 scheme = strang
 
 [time_integration.node_advection]
-scheme = adaptive_rk23
+scheme = rk23
 
-[time_integration.node_advection.rk23]
+[time_integration.node_advection.adaptive]
 relative_tolerance = 1.0e-8
 absolute_tolerance = 1.0e-12
 initial_step = 1.0e-4

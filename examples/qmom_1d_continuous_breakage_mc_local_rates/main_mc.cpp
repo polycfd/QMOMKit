@@ -125,7 +125,7 @@ int main()
     std::mt19937_64 breakage_generator(qmom_1d_continuous_breakage_mc_local_rates::breakage_seed);
     std::mt19937_64 nucleation_generator(qmom_1d_continuous_breakage_mc_local_rates::nucleation_seed);
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_continuous_breakage_mc_local_rates::continuous_velocity();
-    const qmomkit::AdaptiveRk23Options continuous_options = transport_options.node_options.rk23_options;
+    const qmomkit::AdaptiveRkOptions continuous_options = transport_options.node_options.adaptive_options;
 
     std::vector<std::tuple<double, std::size_t, double>> particle_history;
     std::vector<double> mc_times{initial_time};

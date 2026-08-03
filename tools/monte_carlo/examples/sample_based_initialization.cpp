@@ -213,11 +213,12 @@ void print_configuration_errors(const std::string& errors)
     std::cerr << errors << '\n';
 }
 
-[[nodiscard]] qmomkit::AdaptiveRk23Options rk23_options()
+[[nodiscard]] qmomkit::AdaptiveRkOptions adaptive_options()
 {
-    qmomkit::AdaptiveRk23Options options;
+    qmomkit::AdaptiveRkOptions options;
     options.relative_tolerance = 1.0e-8;
     options.absolute_tolerance = 1.0e-11;
+    options.initial_step = 0.01;
     options.max_step = 0.02;
     return options;
 }
@@ -425,7 +426,7 @@ int run_qmom_case(const std::filesystem::path& configuration_path, const std::st
 
     const qmomkit::PhaseSpaceVelocity velocity = validation_velocity();
     qmomkit::NodeAdvectionOptions node_options;
-    node_options.rk23_options = rk23_options();
+    node_options.adaptive_options = adaptive_options();
     qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
     double time = initial_time;
 
@@ -444,7 +445,7 @@ int run_qmom_case(const std::filesystem::path& configuration_path, const std::st
         qmomkit_moments = qmomkit::reconstruct_raw_moments(advanced_qmom.quadrature, qmomkit_moments.size());
 
         const qmomkit::monte_carlo::EnsembleEvolutionResult advanced_mc =
-            qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + step, node_options.rk23_options);
+            qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + step, node_options.adaptive_options);
         if (!advanced_mc.ok())
         {
             std::cerr << "Monte Carlo ensemble evolution failed: " << advanced_mc.message << '\n';
@@ -535,7 +536,7 @@ int run_cqmom_case(const std::filesystem::path& configuration_path, const std::s
 
     const qmomkit::PhaseSpaceVelocity velocity = validation_velocity();
     qmomkit::NodeAdvectionOptions node_options;
-    node_options.rk23_options = rk23_options();
+    node_options.adaptive_options = adaptive_options();
     qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
     double time = initial_time;
 
@@ -554,7 +555,7 @@ int run_cqmom_case(const std::filesystem::path& configuration_path, const std::s
         qmomkit_moments = qmomkit::reconstruct_raw_moments(cqmom, qmomkit_moments.extents);
 
         const qmomkit::monte_carlo::EnsembleEvolutionResult advanced_mc =
-            qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + step, node_options.rk23_options);
+            qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + step, node_options.adaptive_options);
         if (!advanced_mc.ok())
         {
             std::cerr << "Monte Carlo ensemble evolution failed: " << advanced_mc.message << '\n';

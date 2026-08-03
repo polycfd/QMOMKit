@@ -484,9 +484,9 @@ conditioning_order = 0, 1, 2
 adaptive_branch_counts = true
 
 [time_integration.node_advection]
-scheme = adaptive_rk23
+scheme = rk23
 
-[time_integration.node_advection.rk23]
+[time_integration.node_advection.adaptive]
 relative_tolerance = 1.0e-6
 absolute_tolerance = 1.0e-9
 initial_step = 1.0e-4
@@ -532,7 +532,7 @@ quadrature, creates a `qmomkit::CqmomState`, and advances it with
 `qmomkit::advance_cqmom_continuous(...)`. The Monte Carlo executable advances
 each sampled droplet with `qmomkit::monte_carlo::evolve_ensemble(...)`. Both
 paths use the same droplet phase-space velocity callback and the configured
-adaptive RK23 node-advection tolerances.
+adaptive embedded-RK node-advection tolerances.
 
 There is no discontinuous source or operator-split source stage in this
 example. Continuous phase-space advection changes quadrature abscissas while

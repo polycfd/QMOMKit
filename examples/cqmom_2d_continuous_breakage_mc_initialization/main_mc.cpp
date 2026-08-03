@@ -69,7 +69,7 @@ int main()
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
         const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_2d_continuous_breakage::continuous_velocity();
-        const qmomkit::AdaptiveRk23Options continuous_options;
+        const qmomkit::AdaptiveRkOptions continuous_options;
         std::mt19937_64 breakage_generator(cqmom_2d_continuous_breakage::breakage_seed);
 
         qmomkit::RawMomentTensor final_moments = cqmom_2d_continuous_breakage::compute_particle_moments(ensemble, particle_weight, moment_extents);

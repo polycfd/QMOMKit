@@ -88,7 +88,7 @@ struct SspRk3Result
  */
 [[nodiscard]] double adapt_ssp_rk3_timestep(double current_dt, double timestep_error, double error_tolerance, double min_dt, double max_dt);
 
-enum class AdaptiveRk23Status
+enum class AdaptiveRkStatus
 {
     success,
     invalid_input,
@@ -97,27 +97,43 @@ enum class AdaptiveRk23Status
 };
 
 /**
- * Controls for the generic adaptive RK23 integrator.
+ * Built-in explicit embedded Runge-Kutta methods.
  *
- * The coefficients and error control are the Bogacki-Shampine 3(2) pair used by
- * SciPy's solve_ivp(method="RK23"). Scalar tolerances are applied componentwise
- * with scale_i = atol + max(|y_i|, |y_new_i|) * rtol.
+ * The available methods are the Bogacki-Shampine 3(2) pair and the
+ * Dormand-Prince RK5(4)7M pair. This enum selects a built-in method only; it
+ * does not expose arbitrary Runge-Kutta coefficients.
  */
-struct AdaptiveRk23Options
+enum class EmbeddedRkMethod
+{
+    rk23,
+    rk45
+};
+
+inline constexpr double default_adaptive_initial_step = 1.0e-6;
+
+/**
+ * Controls for generic adaptive explicit embedded Runge-Kutta integration.
+ *
+ * Scalar tolerances are applied componentwise with
+ * scale_i = atol + max(|y_i|, |y_high_i|) * rtol. `initial_step` defaults to
+ * 1.0e-6 s for continuous node advection and may be overridden. QMOMKit does
+ * not estimate it from derivatives or tolerances.
+ */
+struct AdaptiveRkOptions
 {
     double relative_tolerance = 1.0e-6;
     double absolute_tolerance = 1.0e-9;
-    std::optional<double> initial_step;
+    double initial_step = default_adaptive_initial_step;
     double max_step = 0.0;
     double min_step = 0.0;
     std::size_t max_steps = 1000000000;
 };
 
-struct AdaptiveRk23Result
+struct AdaptiveRkResult
 {
     std::vector<double> state;
     double t = 0.0;
-    AdaptiveRk23Status status = AdaptiveRk23Status::success;
+    AdaptiveRkStatus status = AdaptiveRkStatus::success;
     std::string message;
     std::size_t accepted_steps = 0;
     std::size_t rejected_steps = 0;
@@ -126,9 +142,18 @@ struct AdaptiveRk23Result
 };
 
 /**
- * Integrate y' = rhs(t, y) from t0 to t_bound with adaptive RK23.
+ * Integrate y' = rhs(t, y) from t0 to t_bound with a selected built-in
+ * adaptive embedded Runge-Kutta pair. The accepted state is always the
+ * higher-order member of the pair.
  */
-[[nodiscard]] AdaptiveRk23Result integrate_rk23(const std::vector<double>& initial_state, double t0, double t_bound, const OdeRhs& rhs,
-                                                const AdaptiveRk23Options& options = {});
+[[nodiscard]] AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state, double t0, double t_bound, const OdeRhs& rhs,
+                                                     EmbeddedRkMethod method, const AdaptiveRkOptions& options);
+
+/**
+ * Compatibility wrapper selecting the Bogacki-Shampine RK3(2) pair.
+ * New method-neutral code should use integrate_embedded_rk(..., rk23, ...).
+ */
+[[nodiscard]] AdaptiveRkResult integrate_rk23(const std::vector<double>& initial_state, double t0, double t_bound, const OdeRhs& rhs,
+                                              const AdaptiveRkOptions& options);
 
 } // namespace qmomkit

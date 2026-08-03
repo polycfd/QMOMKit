@@ -68,7 +68,7 @@ int main()
         const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(configured_cqmom.value().hierarchy());
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_polydisperse_cavitation::continuous_velocity();
-        const qmomkit::AdaptiveRk23Options continuous_options;
+        const qmomkit::AdaptiveRkOptions continuous_options;
 
         qmomkit::RawMomentTensor final_moments = cqmom_polydisperse_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents);
         const qmomkit::RawMomentTensor initial_moments = final_moments;

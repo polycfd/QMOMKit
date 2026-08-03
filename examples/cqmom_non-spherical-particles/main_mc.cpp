@@ -84,7 +84,7 @@ int main()
         // unnormalized raw moments of the particle number-density distribution.
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
         const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
-        const qmomkit::AdaptiveRk23Options continuous_options;
+        const qmomkit::AdaptiveRkOptions continuous_options;
         std::mt19937_64 breakage_generator(cqmom_non_spherical_particles::breakage_seed);
 
         qmomkit::RawMomentTensor final_moments = cqmom_non_spherical_particles::compute_ensemble_moments(ensemble, particle_weight, moment_extents);

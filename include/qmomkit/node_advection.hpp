@@ -32,26 +32,27 @@ enum class NodeAdvectionStatus
 
 enum class NodeAdvectionScheme
 {
+    rk23,
+    rk45,
     ssp_rk3,
-    adaptive_rk23
 };
 
 struct NodeAdvectionOptions
 {
-    NodeAdvectionScheme scheme = NodeAdvectionScheme::ssp_rk3;
-    AdaptiveRk23Options rk23_options;
+    NodeAdvectionScheme scheme = NodeAdvectionScheme::rk23;
+    AdaptiveRkOptions adaptive_options;
 };
 
 struct NodeAdvectionDiagnostics
 {
-    NodeAdvectionScheme scheme = NodeAdvectionScheme::ssp_rk3;
+    NodeAdvectionScheme scheme = NodeAdvectionScheme::rk23;
     std::size_t step_count = 0;
     std::size_t rejected_step_count = 0;
     std::size_t rhs_evaluations = 0;
     double final_time = 0.0;
     double last_step = 0.0;
     std::optional<double> estimated_error;
-    std::optional<AdaptiveRk23Status> adaptive_rk23_status;
+    std::optional<AdaptiveRkStatus> adaptive_status;
     std::string message;
 };
 

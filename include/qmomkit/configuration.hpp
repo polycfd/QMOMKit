@@ -208,7 +208,7 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * Prefer `parse_node_advection_options(...)` for full node controls. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(std::string_view text, std::string source_name = "<string>");
 
-/** Parse optional node-advection configuration, including RK23 controls. */
+/** Parse optional node-advection configuration, including embedded-RK controls. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(std::string_view text, std::string source_name = "<string>");
 
 /** Parse QMOM transport options from optional runtime configuration. */

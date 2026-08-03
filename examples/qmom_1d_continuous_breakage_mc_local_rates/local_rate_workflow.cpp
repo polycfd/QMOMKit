@@ -113,8 +113,8 @@ int qmom_1d_continuous_breakage_mc_local_rates::run_local_rate_workflow()
 
     qmomkit::SspRk3Options rate_step_options = transport_options.source_options.ssp_rk3_options;
     // Reject a tentative SSP-RK3 state if QMOM cannot reconstruct a
-    // quadrature from its moments. This example keeps the default SSP-RK3
-    // retry controls, so a rejected state fails the substep. A CG/DG solver
+    // quadrature from its moments. This source-stage path uses SSP-RK3 retry
+    // controls, so a rejected state fails the substep. A CG/DG solver
     // may apply additional limiters or admissibility checks.
     rate_step_options.stage_accept = [&](qmomkit::SspRk3Stage, const std::vector<double>& candidate) { return moments_are_invertible(candidate); };
 

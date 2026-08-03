@@ -77,7 +77,7 @@ int main()
 
         qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
         const auto velocity = cqmom_condensing_droplets::droplet_phase_space_velocity();
-        const qmomkit::AdaptiveRk23Options continuous_options = transport_options.node_options.rk23_options;
+        const qmomkit::AdaptiveRkOptions continuous_options = transport_options.node_options.adaptive_options;
 
         cqmom_condensing_droplets::print_monte_carlo_run_configuration(cqmom_case, transport_options.node_options);
 

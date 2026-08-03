@@ -228,7 +228,7 @@ The main sections are:
 - `[cqmom]`: CQMOM-specific reconstruction options.
 - `[time_integration]`: transport operator-ordering choices.
 - `[time_integration.node_advection]`: optional continuous node-trajectory
-  integration scheme and RK23 controls.
+  integration scheme and embedded-RK controls.
 - `[time_integration.cqmom]`: optional CQMOM state-transport source-stage
   active node-count policy.
 - `[time_integration.realizability]`: optional runtime realizability policy.
@@ -717,34 +717,32 @@ A configuration file may also select the continuous node-advection scheme:
 
 ```text
 [time_integration.node_advection]
-scheme = ssp_rk3
+scheme = rk23
 ```
 
 Supported values are:
 
 ```text
+rk23
+rk45
 ssp_rk3
-adaptive_rk23
 ```
 
-`ssp_rk3` is the default fixed-stage node-trajectory integrator. It advances
-exactly over the timestep supplied by the application. `adaptive_rk23` retains
-adaptive internal trajectory substepping and is useful when node-motion
-accuracy should control internal step size. The choice is application
-dependent: use fixed-stage SSP-RK3 when the surrounding application controls
-the timestep and predictable callback cost is important; use adaptive RK23 when
-internal trajectory error estimation is part of the desired numerical control.
-Both choices integrate continuous quadrature-node trajectories; they do not
-change source integration, realizability policy, or transport splitting.
+`rk23` is the default. It is the adaptive Bogacki-Shampine 3(2) pair.
+`rk45` is the adaptive Dormand-Prince RK5(4)7M pair from Table 2 of Dormand
+and Prince (1980). `ssp_rk3` is a distinct fixed-stage method that advances
+exactly over the timestep supplied by the application. The choice affects only
+continuous quadrature-node trajectories; it does not change source integration,
+realizability policy, or transport splitting.
 
-When `scheme = adaptive_rk23`, optional controls live under the nested RK23
-section:
+The adaptive controls apply to `rk23` and `rk45` and live under a shared nested
+section. `initial_step` defaults to `1.0e-6 s` and may be overridden:
 
 ```text
 [time_integration.node_advection]
-scheme = adaptive_rk23
+scheme = rk23
 
-[time_integration.node_advection.rk23]
+[time_integration.node_advection.adaptive]
 relative_tolerance = 1.0e-7
 absolute_tolerance = 1.0e-10
 initial_step = 1.0e-4
@@ -753,7 +751,7 @@ min_step = 1.0e-12
 max_steps = 200000
 ```
 
-Supported RK23 keys are:
+Supported adaptive embedded-RK keys are:
 
 ```text
 relative_tolerance
@@ -764,17 +762,20 @@ min_step
 max_steps
 ```
 
-If omitted, these keys retain the C++ `AdaptiveRk23Options` defaults:
+If omitted, the tolerances retain the C++ `AdaptiveRkOptions` defaults:
 `relative_tolerance = 1.0e-6`, `absolute_tolerance = 1.0e-9`,
-`initial_step = automatic`, `max_step = full integration interval`,
+`max_step = full integration interval`,
 `min_step = machine-dependent automatic minimum`, and
-`max_steps = 100000`. Explicit tolerances and step sizes must be positive
-finite numbers, and `min_step` must not exceed `max_step` when both are
-provided. `max_steps` must be a positive integer.
+`max_steps = 1000000000`, and `initial_step = 1.0e-6 s`. There is no automatic
+initial-step estimator: QMOMKit does not derive `initial_step` from the state,
+derivatives, or tolerances. Explicit tolerances and step sizes must be positive finite
+numbers, and `min_step` must not exceed `max_step` when both are provided.
+`max_steps` must be a positive integer. The higher-order member advances an
+accepted state, and both embedded methods use FSAL derivative reuse internally.
 
 Drivers can print `format_node_advection_options(...)` at startup to report
 the effective scheme and controls. For fixed-step node advection, that summary
-reports the selected scheme only; it does not imply that RK23 tolerances are
+reports the selected scheme only; it does not imply that adaptive controls are
 active.
 
 ### CQMOM Source Active Counts

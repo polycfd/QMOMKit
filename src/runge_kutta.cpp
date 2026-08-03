@@ -1,5 +1,6 @@
 #include "qmomkit/runge_kutta.hpp"
 
+#include "internal/embedded_runge_kutta.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
 
@@ -71,7 +72,7 @@ void require_same_size(const std::vector<double>& lhs, const std::vector<double>
     return value >= 0.0 ? 1.0 : -1.0;
 }
 
-[[nodiscard]] double validate_or_default_max_step(const AdaptiveRk23Options& options, const double interval)
+[[nodiscard]] double validate_or_default_max_step(const AdaptiveRkOptions& options, const double interval)
 {
     if (options.max_step > 0.0)
     {
@@ -80,7 +81,7 @@ void require_same_size(const std::vector<double>& lhs, const std::vector<double>
     return std::abs(interval);
 }
 
-[[nodiscard]] double minimum_step(const double t, const double direction, const AdaptiveRk23Options& options)
+[[nodiscard]] double minimum_step(const double t, const double direction, const AdaptiveRkOptions& options)
 {
     if (options.min_step > 0.0)
     {
@@ -90,97 +91,14 @@ void require_same_size(const std::vector<double>& lhs, const std::vector<double>
     return 10.0 * std::abs(std::nextafter(t, toward_infinity) - t);
 }
 
-[[nodiscard]] double select_initial_step(const OdeRhs& rhs, const double t0, const std::vector<double>& y0, const std::vector<double>& f0,
-                                         const double direction, const AdaptiveRk23Options& options, std::size_t& function_evaluations)
-{
-    constexpr double tiny = 1.0e-5;
-    constexpr double derivative_tiny = 1.0e-15;
-    constexpr double target = 0.01;
-    constexpr double estimator_order_plus_one = 3.0;
-
-    std::vector<double> y_scaled(y0.size(), 0.0);
-    std::vector<double> f_scaled(y0.size(), 0.0);
-    for (std::size_t i = 0; i < y0.size(); ++i)
-    {
-        const double scale = options.absolute_tolerance + std::abs(y0[i]) * options.relative_tolerance;
-        y_scaled[i] = y0[i] / scale;
-        f_scaled[i] = f0[i] / scale;
-    }
-
-    const double d0 = rms_norm(y_scaled);
-    const double d1 = rms_norm(f_scaled);
-    const double h0 = (d0 < tiny || d1 < tiny) ? 1.0e-6 : 0.01 * d0 / d1;
-
-    const std::vector<double> y1 = add_scaled(y0, h0 * direction, f0);
-    const std::vector<double> f1 = rhs_checked(rhs, t0 + h0 * direction, y1);
-    ++function_evaluations;
-
-    std::vector<double> f_difference_scaled(y0.size(), 0.0);
-    for (std::size_t i = 0; i < y0.size(); ++i)
-    {
-        const double scale = options.absolute_tolerance + std::abs(y0[i]) * options.relative_tolerance;
-        f_difference_scaled[i] = (f1[i] - f0[i]) / scale;
-    }
-    const double d2 = rms_norm(f_difference_scaled) / h0;
-
-    double h1 = 0.0;
-    if (d1 <= derivative_tiny && d2 <= derivative_tiny)
-    {
-        h1 = std::max(1.0e-6, h0 * 1.0e-3);
-    }
-    else
-    {
-        h1 = std::pow(target / std::max(d1, d2), 1.0 / estimator_order_plus_one);
-    }
-
-    return std::min(100.0 * h0, h1);
-}
-
-struct Rk23Step
-{
-    std::vector<double> y_new;
-    std::vector<double> f_new;
-    std::vector<double> error;
-};
-
 struct SspRk3Attempt
 {
     SspRk3Result result;
     bool accepted = true;
 };
 
-[[nodiscard]] Rk23Step rk23_step(const OdeRhs& rhs, const double t, const std::vector<double>& y, const std::vector<double>& f, const double h,
-                                 std::size_t& function_evaluations)
-{
-    const std::vector<double> k0 = f;
-    const std::vector<double> y_stage_1 = add_scaled(y, 0.5 * h, k0);
-    const std::vector<double> k1 = rhs_checked(rhs, t + 0.5 * h, y_stage_1);
-    ++function_evaluations;
-
-    const std::vector<double> y_stage_2 = add_scaled(y, 0.75 * h, k1);
-    const std::vector<double> k2 = rhs_checked(rhs, t + 0.75 * h, y_stage_2);
-    ++function_evaluations;
-
-    std::vector<double> y_new(y.size(), 0.0);
-    for (std::size_t i = 0; i < y.size(); ++i)
-    {
-        y_new[i] = y[i] + h * ((2.0 / 9.0) * k0[i] + (1.0 / 3.0) * k1[i] + (4.0 / 9.0) * k2[i]);
-    }
-
-    std::vector<double> k3 = rhs_checked(rhs, t + h, y_new);
-    ++function_evaluations;
-
-    std::vector<double> error(y.size(), 0.0);
-    for (std::size_t i = 0; i < y.size(); ++i)
-    {
-        error[i] = h * ((5.0 / 72.0) * k0[i] - (1.0 / 12.0) * k1[i] - (1.0 / 9.0) * k2[i] + (1.0 / 8.0) * k3[i]);
-    }
-
-    return Rk23Step{std::move(y_new), std::move(k3), std::move(error)};
-}
-
 [[nodiscard]] double error_norm(const std::vector<double>& error, const std::vector<double>& y, const std::vector<double>& y_new,
-                                const AdaptiveRk23Options& options)
+                                const AdaptiveRkOptions& options)
 {
     std::vector<double> scaled(error.size(), 0.0);
     for (std::size_t i = 0; i < error.size(); ++i)
@@ -191,9 +109,9 @@ struct SspRk3Attempt
     return rms_norm(scaled);
 }
 
-[[nodiscard]] AdaptiveRk23Result invalid_rk23_result(std::vector<double> state, const double t, std::string message)
+[[nodiscard]] AdaptiveRkResult invalid_embedded_rk_result(std::vector<double> state, const double t, std::string message)
 {
-    return AdaptiveRk23Result{std::move(state), t, AdaptiveRk23Status::invalid_input, std::move(message), 0, 0, 0, 0.0};
+    return AdaptiveRkResult{std::move(state), t, AdaptiveRkStatus::invalid_input, std::move(message), 0, 0, 0, 0.0};
 }
 
 [[nodiscard]] bool stage_accepted(const StageAcceptancePredicate& accept, const SspRk3Stage stage, const std::vector<double>& state)
@@ -324,63 +242,62 @@ double adapt_ssp_rk3_timestep(const double current_dt, const double timestep_err
     return std::min(std::max(new_dt, min_dt), max_dt);
 }
 
-AdaptiveRk23Result integrate_rk23(const std::vector<double>& initial_state, const double t0, const double t_bound, const OdeRhs& rhs,
-                                  const AdaptiveRk23Options& options)
+AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state, const double t0, const double t_bound, const OdeRhs& rhs,
+                                       const EmbeddedRkMethod method, const AdaptiveRkOptions& options)
 {
+    const internal::EmbeddedRkTableau* tableau = nullptr;
+    try
+    {
+        tableau = &internal::embedded_rk_tableau(method);
+    }
+    catch (const std::exception& error)
+    {
+        return invalid_embedded_rk_result(initial_state, t0, error.what());
+    }
+
     if (initial_state.empty())
     {
-        return invalid_rk23_result(initial_state, t0, "RK23 state must not be empty.");
+        return invalid_embedded_rk_result(initial_state, t0, "Embedded Runge-Kutta state must not be empty.");
     }
     if (!internal::all_finite(initial_state) || !std::isfinite(t0) || !std::isfinite(t_bound) || !std::isfinite(options.relative_tolerance) ||
         !std::isfinite(options.absolute_tolerance) || options.relative_tolerance <= 0.0 || options.absolute_tolerance <= 0.0 ||
         options.max_steps == 0)
     {
-        return invalid_rk23_result(initial_state, t0, "Invalid RK23 input.");
-    }
-    if ((options.initial_step.has_value() && (!std::isfinite(*options.initial_step) || *options.initial_step <= 0.0)) ||
-        !std::isfinite(options.max_step) || options.max_step < 0.0 || !std::isfinite(options.min_step) || options.min_step < 0.0)
-    {
-        return invalid_rk23_result(initial_state, t0, "Invalid RK23 step-size option.");
+        return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta input.");
     }
     if (t0 == t_bound)
     {
-        return AdaptiveRk23Result{initial_state, t0, AdaptiveRk23Status::success, "", 0, 0, 0, 0.0};
+        return AdaptiveRkResult{initial_state, t0, AdaptiveRkStatus::success, "", 0, 0, 0, 0.0};
+    }
+    if ((!std::isfinite(options.initial_step) || options.initial_step <= 0.0) || !std::isfinite(options.max_step) || options.max_step < 0.0 ||
+        !std::isfinite(options.min_step) || options.min_step < 0.0)
+    {
+        return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta step-size option.");
     }
 
     const double direction = sign(t_bound - t0);
     const double max_step = validate_or_default_max_step(options, t_bound - t0);
     if (max_step <= 0.0 || !std::isfinite(max_step))
     {
-        return invalid_rk23_result(initial_state, t0, "Invalid RK23 maximum step.");
+        return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta maximum step.");
     }
 
     std::vector<double> y = initial_state;
     double t = t0;
     std::size_t function_evaluations = 0;
-    std::vector<double> f = rhs_checked(rhs, t, y);
-    ++function_evaluations;
+    double h_abs = std::min(std::abs(options.initial_step), max_step);
+    std::optional<std::vector<double>> first_derivative;
 
-    double h_abs = 0.0;
-    if (options.initial_step.has_value())
-    {
-        h_abs = std::abs(*options.initial_step);
-    }
-    else
-    {
-        h_abs = select_initial_step(rhs, t0, y, f, direction, options, function_evaluations);
-    }
-    h_abs = std::min(h_abs, max_step);
-
-    AdaptiveRk23Result result;
+    AdaptiveRkResult result;
     result.state = y;
     result.t = t;
-    result.status = AdaptiveRk23Status::success;
+    result.status = AdaptiveRkStatus::success;
     result.function_evaluations = function_evaluations;
 
     constexpr double safety = 0.9;
     constexpr double min_factor = 0.2;
     constexpr double max_factor = 10.0;
-    constexpr double error_exponent = -1.0 / 3.0;
+    const double error_exponent = internal::embedded_rk_controller_exponent(*tableau);
 
     while (direction * (t_bound - t) > 0.0)
     {
@@ -388,8 +305,8 @@ AdaptiveRk23Result integrate_rk23(const std::vector<double>& initial_state, cons
         {
             result.state = y;
             result.t = t;
-            result.status = AdaptiveRk23Status::max_steps_exceeded;
-            result.message = "RK23 exceeded max_steps.";
+            result.status = AdaptiveRkStatus::max_steps_exceeded;
+            result.message = std::string(tableau->name) + " exceeded max_steps.";
             result.function_evaluations = function_evaluations;
             return result;
         }
@@ -418,9 +335,10 @@ AdaptiveRk23Result integrate_rk23(const std::vector<double>& initial_state, cons
             h = t_new - t;
             h_abs = std::abs(h);
 
-            Rk23Step step = rk23_step(rhs, t, y, f, h, function_evaluations);
-            const bool step_is_finite = internal::all_finite(step.y_new) && internal::all_finite(step.error);
-            const double norm = step_is_finite ? error_norm(step.error, y, step.y_new, options) : std::numeric_limits<double>::infinity();
+            internal::EmbeddedRkStep step = internal::take_embedded_rk_step(*tableau, rhs, t, y, h, first_derivative, function_evaluations);
+            const bool step_is_finite =
+                internal::all_finite(step.higher_state) && internal::all_finite(step.embedded_state) && internal::all_finite(step.error);
+            const double norm = step_is_finite ? error_norm(step.error, y, step.higher_state, options) : std::numeric_limits<double>::infinity();
             const bool error_is_acceptable = std::isfinite(norm) && norm < 1.0;
             const bool step_is_at_effective_lower_bound = requested_h_abs <= effective_lower_bound || h_abs <= effective_lower_bound;
             const bool lower_bound_acceptance = step_is_finite && std::isfinite(norm) && step_is_at_effective_lower_bound;
@@ -439,10 +357,10 @@ AdaptiveRk23Result integrate_rk23(const std::vector<double>& initial_state, cons
 
                 result.last_step = h;
                 ++result.accepted_steps;
-                internal::performance::record_rk23_step(true);
+                internal::performance::record_embedded_rk_step(true);
                 t = t_new;
-                y = std::move(step.y_new);
-                f = std::move(step.f_new);
+                y = std::move(step.higher_state);
+                first_derivative = tableau->fsal ? std::optional<std::vector<double>>{std::move(step.final_derivative)} : std::nullopt;
                 h_abs *= factor;
                 step_accepted = true;
             }
@@ -455,14 +373,15 @@ AdaptiveRk23Result integrate_rk23(const std::vector<double>& initial_state, cons
                 }
                 h_abs *= factor;
                 step_rejected = true;
+                first_derivative = std::move(step.first_derivative);
                 ++result.rejected_steps;
-                internal::performance::record_rk23_step(false);
+                internal::performance::record_embedded_rk_step(false);
                 if (step_is_at_effective_lower_bound)
                 {
                     result.state = y;
                     result.t = t;
-                    result.status = AdaptiveRk23Status::step_size_underflow;
-                    result.message = "RK23 required a step smaller than min_step.";
+                    result.status = AdaptiveRkStatus::step_size_underflow;
+                    result.message = std::string(tableau->name) + " required a step smaller than min_step.";
                     result.function_evaluations = function_evaluations;
                     return result;
                 }
@@ -472,9 +391,15 @@ AdaptiveRk23Result integrate_rk23(const std::vector<double>& initial_state, cons
 
     result.state = std::move(y);
     result.t = t;
-    result.status = AdaptiveRk23Status::success;
+    result.status = AdaptiveRkStatus::success;
     result.function_evaluations = function_evaluations;
     return result;
+}
+
+AdaptiveRkResult integrate_rk23(const std::vector<double>& initial_state, const double t0, const double t_bound, const OdeRhs& rhs,
+                                const AdaptiveRkOptions& options)
+{
+    return integrate_embedded_rk(initial_state, t0, t_bound, rhs, EmbeddedRkMethod::rk23, options);
 }
 
 } // namespace qmomkit

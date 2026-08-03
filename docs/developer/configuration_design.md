@@ -263,7 +263,7 @@ tensor entries follow phase-space dimension order.
 Configuration may include optional runtime settings that are useful to drivers:
 
 - transport scheme selection;
-- node-advection scheme selection and RK23 controls;
+- node-advection scheme selection and embedded-RK controls;
 - CQMOM source-stage active branch-count policy;
 - output options;
 - runtime realizability policy.
@@ -287,9 +287,12 @@ parsed scheme defaults to `TransportScheme::strang`.
 
 Node-advection configuration maps to `NodeAdvectionOptions`. The scheme lives
 under `[time_integration.node_advection]` so it is not confused with
-`[time_integration] scheme`, which controls the operator-splitting scheme. RK23 controls
-live under `[time_integration.node_advection.rk23]` and map directly to
-`AdaptiveRk23Options`:
+`[time_integration] scheme`, which controls the operator-splitting scheme. The
+available continuous choices are `rk23` (the default Bogacki-Shampine 3(2)
+pair), `rk45` (Dormand-Prince RK5(4)7M from Table 2), and the separate
+fixed-step `ssp_rk3` path. Embedded-RK controls live under
+`[time_integration.node_advection.adaptive]` and map directly to
+`AdaptiveRkOptions`:
 
 ```text
 relative_tolerance
@@ -309,8 +312,8 @@ and adapt downward.
 
 The parser default-constructs `NodeAdvectionOptions` and only overwrites keys
 that are present, so configuration parsing does not duplicate
-`AdaptiveRk23Options` defaults. If omitted, the parsed node-advection scheme
-defaults to `NodeAdvectionScheme::ssp_rk3`. Applications can assign the parsed
+`AdaptiveRkOptions` defaults. If omitted, the parsed node-advection scheme
+defaults to `NodeAdvectionScheme::rk23`. Applications can assign the parsed
 object directly to transport options. This configuration choice affects only
 continuous quadrature-node trajectories; it does not configure moment-source
 integration, realizability policies, or transport splitting.

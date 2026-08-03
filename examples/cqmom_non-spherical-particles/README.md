@@ -597,13 +597,13 @@ The supplied CQMOM transport settings are:
 scheme = cd
 
 [time_integration.node_advection]
-scheme = adaptive_rk23
+scheme = rk23
 ```
 
 with RK23 tolerances and step limits in:
 
 ```text
-[time_integration.node_advection.rk23]
+[time_integration.node_advection.adaptive]
 relative_tolerance = 1.0e-6
 absolute_tolerance = 1.0e-9
 initial_step = 1.0e-3

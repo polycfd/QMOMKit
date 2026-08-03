@@ -81,10 +81,11 @@ int main()
     const qmomkit::monte_carlo::ExplicitDiscreteDistribution initial_distribution{{{-0.25, 0.1}, {0.15, -0.2}, {0.35, 0.25}}, {0.9, 0.8, 1.0}, {}};
     const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinates)
     { return std::vector<double>{0.05 + 0.1 * coordinates[0], -0.03 * coordinates[1]}; };
-    qmomkit::AdaptiveRk23Options rk23_options;
-    rk23_options.relative_tolerance = 1.0e-9;
-    rk23_options.absolute_tolerance = 1.0e-12;
-    rk23_options.max_step = 0.05;
+    qmomkit::AdaptiveRkOptions adaptive_options;
+    adaptive_options.relative_tolerance = 1.0e-9;
+    adaptive_options.absolute_tolerance = 1.0e-12;
+    adaptive_options.initial_step = 0.01;
+    adaptive_options.max_step = 0.05;
 
     constexpr double t0 = 0.0;
     constexpr double t1 = 0.2;
@@ -93,7 +94,7 @@ int main()
     const double density = number_density(initial_distribution);
 
     const qmomkit::monte_carlo::ExplicitQuadratureEvolutionResult reference =
-        qmomkit::monte_carlo::evolve_explicit_quadrature(initial_distribution, velocity, t0, t1, rk23_options);
+        qmomkit::monte_carlo::evolve_explicit_quadrature(initial_distribution, velocity, t0, t1, adaptive_options);
     if (!reference.ok())
     {
         std::cerr << reference.message << '\n';
@@ -109,7 +110,7 @@ int main()
     }
 
     const qmomkit::monte_carlo::EnsembleEvolutionResult evolved_ensemble =
-        qmomkit::monte_carlo::evolve_ensemble(sampling.ensemble, velocity, t0, t1, rk23_options);
+        qmomkit::monte_carlo::evolve_ensemble(sampling.ensemble, velocity, t0, t1, adaptive_options);
     if (!evolved_ensemble.ok())
     {
         std::cerr << evolved_ensemble.message << '\n';
@@ -135,6 +136,6 @@ int main()
 
     qmomkit::monte_carlo::write_comparison_text(
         std::cout, comparison,
-        qmomkit::monte_carlo::ComparisonOutputMetadata{t1, sampling_options.sample_count, sampling_options.seed, density, rk23_options});
+        qmomkit::monte_carlo::ComparisonOutputMetadata{t1, sampling_options.sample_count, sampling_options.seed, density, adaptive_options});
     return 0;
 }

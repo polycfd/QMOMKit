@@ -104,10 +104,11 @@ bool coordinate_less(const std::vector<double>& lhs, const std::vector<double>& 
 qmomkit::NodeAdvectionOptions accurate_options()
 {
     qmomkit::NodeAdvectionOptions options;
-    options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    options.rk23_options.relative_tolerance = 1.0e-10;
-    options.rk23_options.absolute_tolerance = 1.0e-12;
-    options.rk23_options.max_step = 0.05;
+    options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    options.adaptive_options.relative_tolerance = 1.0e-10;
+    options.adaptive_options.absolute_tolerance = 1.0e-12;
+    options.adaptive_options.initial_step = 0.01;
+    options.adaptive_options.max_step = 0.05;
     return options;
 }
 
@@ -288,7 +289,7 @@ void verify_qmom_plan(const CaseDefinition& definition, const qmomkit::Quadratur
             append_failure(result, "QMOM node advection failed: " + advanced.message);
             return;
         }
-        if (advanced.diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::success || advanced.diagnostics.step_count == 0)
+        if (advanced.diagnostics.adaptive_status != qmomkit::AdaptiveRkStatus::success || advanced.diagnostics.step_count == 0)
         {
             append_failure(result, "QMOM RK23 diagnostics did not report successful integration.");
         }
@@ -307,12 +308,13 @@ void verify_linear_growth_convergence(const qmomkit::Quadrature1D& initial, Veri
 {
     const TimePlan plan{0.0, 0.9, 1};
     qmomkit::NodeAdvectionOptions loose;
-    loose.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    loose.rk23_options.relative_tolerance = 1.0e-3;
-    loose.rk23_options.absolute_tolerance = 1.0e-6;
-    loose.rk23_options.max_step = 0.9;
+    loose.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    loose.adaptive_options.relative_tolerance = 1.0e-3;
+    loose.adaptive_options.absolute_tolerance = 1.0e-6;
+    loose.adaptive_options.initial_step = 0.1;
+    loose.adaptive_options.max_step = 0.9;
     qmomkit::NodeAdvectionOptions tight = accurate_options();
-    tight.rk23_options.max_step = 0.9;
+    tight.adaptive_options.max_step = 0.9;
 
     auto run = [&](const qmomkit::NodeAdvectionOptions& options)
     {
@@ -524,7 +526,7 @@ void verify_cqmom_plan(const qmomkit::CqmomQuadrature& initial, const TimePlan& 
             append_failure(result, "CQMOM node advection failed: " + advanced.message);
             return;
         }
-        if (advanced.diagnostics.adaptive_rk23_status != qmomkit::AdaptiveRk23Status::success || advanced.diagnostics.step_count == 0)
+        if (advanced.diagnostics.adaptive_status != qmomkit::AdaptiveRkStatus::success || advanced.diagnostics.step_count == 0)
         {
             append_failure(result, "CQMOM RK23 diagnostics did not report successful integration.");
         }

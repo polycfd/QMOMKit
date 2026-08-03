@@ -1,4 +1,5 @@
 #include "../verification_helpers.hpp"
+#include "internal/embedded_runge_kutta.hpp"
 #include "qmomkit/runge_kutta.hpp"
 
 #include <algorithm>
@@ -7,6 +8,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -30,6 +32,16 @@ struct AdaptiveRun
     double average_step = 0.0;
     double error = 0.0;
     double observed_order = std::numeric_limits<double>::quiet_NaN();
+};
+
+struct EmbeddedFixedRun
+{
+    std::size_t steps = 0;
+    double dt = 0.0;
+    double solution_error = 0.0;
+    double embedded_difference = 0.0;
+    double solution_order = std::numeric_limits<double>::quiet_NaN();
+    double embedded_order = std::numeric_limits<double>::quiet_NaN();
 };
 
 qmomkit::OdeRhs exponential_decay_rhs()
@@ -99,13 +111,14 @@ std::vector<AdaptiveRun> verify_rk23_convergence()
 
     for (const double tolerance : tolerances)
     {
-        qmomkit::AdaptiveRk23Options options;
+        qmomkit::AdaptiveRkOptions options;
         options.relative_tolerance = tolerance;
         options.absolute_tolerance = tolerance * 1.0e-3;
+        options.initial_step = 0.1;
         options.max_step = final_time;
 
-        const qmomkit::AdaptiveRk23Result result = qmomkit::integrate_rk23({1.0}, 0.0, final_time, exponential_decay_rhs(), options);
-        QMOMKIT_VERIFY_CHECK(result.status == qmomkit::AdaptiveRk23Status::success);
+        const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, final_time, exponential_decay_rhs(), options);
+        QMOMKIT_VERIFY_CHECK(result.status == qmomkit::AdaptiveRkStatus::success);
         QMOMKIT_VERIFY_NEAR(result.t, final_time, 1.0e-14);
         QMOMKIT_VERIFY_CHECK(result.accepted_steps > 0);
         QMOMKIT_VERIFY_CHECK(result.function_evaluations >= 1 + 3 * result.accepted_steps);
@@ -131,6 +144,48 @@ std::vector<AdaptiveRun> verify_rk23_convergence()
     return runs;
 }
 
+std::vector<EmbeddedFixedRun> verify_embedded_fixed_step_convergence(const qmomkit::EmbeddedRkMethod method, const double expected_solution_order,
+                                                                     const double expected_embedded_order)
+{
+    constexpr double final_time = 1.0;
+    const double exact = std::exp(-final_time);
+    const std::vector<std::size_t> step_counts{8, 16, 32, 64};
+    const qmomkit::internal::EmbeddedRkTableau& tableau = qmomkit::internal::embedded_rk_tableau(method);
+    std::vector<EmbeddedFixedRun> runs;
+
+    for (const std::size_t steps : step_counts)
+    {
+        const double dt = final_time / static_cast<double>(steps);
+        qmomkit::AdaptiveRkOptions options;
+        options.initial_step = dt;
+        options.max_step = dt;
+        options.min_step = dt;
+        options.relative_tolerance = 1.0e-15;
+        options.absolute_tolerance = 1.0e-15;
+        const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk({1.0}, 0.0, final_time, exponential_decay_rhs(), method, options);
+        QMOMKIT_VERIFY_CHECK(result.status == qmomkit::AdaptiveRkStatus::success);
+        QMOMKIT_VERIFY_CHECK(result.accepted_steps == steps);
+
+        std::size_t function_evaluations = 0;
+        const qmomkit::internal::EmbeddedRkStep one_step =
+            qmomkit::internal::take_embedded_rk_step(tableau, exponential_decay_rhs(), 0.0, {1.0}, dt, std::nullopt, function_evaluations);
+        QMOMKIT_VERIFY_CHECK(function_evaluations == tableau.stage_count);
+        runs.push_back(EmbeddedFixedRun{steps, dt, std::abs(result.state[0] - exact), std::abs(one_step.error[0])});
+    }
+
+    for (std::size_t run = 1; run < runs.size(); ++run)
+    {
+        runs[run].solution_order = observed_order(runs[run - 1].solution_error, runs[run].solution_error, runs[run - 1].dt, runs[run].dt);
+        runs[run].embedded_order = observed_order(runs[run - 1].embedded_difference, runs[run].embedded_difference, runs[run - 1].dt, runs[run].dt);
+    }
+
+    QMOMKIT_VERIFY_CHECK(runs.back().solution_order > expected_solution_order - 0.15);
+    QMOMKIT_VERIFY_CHECK(runs.back().solution_order < expected_solution_order + 0.15);
+    QMOMKIT_VERIFY_CHECK(runs.back().embedded_order > expected_embedded_order - 0.15);
+    QMOMKIT_VERIFY_CHECK(runs.back().embedded_order < expected_embedded_order + 0.15);
+    return runs;
+}
+
 void print_ssp_table(const std::vector<FixedStepRun>& runs)
 {
     std::cout << "SSP-RK3 convergence for y'=-y, y(0)=1, T=1\n";
@@ -152,6 +207,17 @@ void print_rk23_table(const std::vector<AdaptiveRun>& runs)
     }
 }
 
+void print_embedded_fixed_step_table(const char* const method, const std::vector<EmbeddedFixedRun>& runs)
+{
+    std::cout << method << " fixed-step convergence for y'=-y, y(0)=1, T=1\n";
+    std::cout << "steps dt solution_error embedded_difference solution_order embedded_order\n";
+    for (const EmbeddedFixedRun& run : runs)
+    {
+        std::cout << run.steps << ' ' << run.dt << ' ' << run.solution_error << ' ' << run.embedded_difference << ' ' << run.solution_order << ' '
+                  << run.embedded_order << '\n';
+    }
+}
+
 } // namespace
 
 int main()
@@ -159,7 +225,11 @@ int main()
     std::cout << std::setprecision(17);
     const std::vector<FixedStepRun> ssp_runs = verify_ssp_rk3_convergence();
     const std::vector<AdaptiveRun> rk23_runs = verify_rk23_convergence();
+    const std::vector<EmbeddedFixedRun> rk23_fixed_runs = verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk23, 3.0, 3.0);
+    const std::vector<EmbeddedFixedRun> rk45_fixed_runs = verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk45, 5.0, 5.0);
     print_ssp_table(ssp_runs);
     print_rk23_table(rk23_runs);
+    print_embedded_fixed_step_table("RK23", rk23_fixed_runs);
+    print_embedded_fixed_step_table("RK45", rk45_fixed_runs);
     return 0;
 }

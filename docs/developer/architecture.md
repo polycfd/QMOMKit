@@ -18,7 +18,7 @@ The core library provides:
   and conditioning order;
 - analytical moment initialization helpers;
 - realizability diagnostics and optional runtime acceptance predicates;
-- generic SSP-RK3 and adaptive RK23 solvers;
+- generic SSP-RK3 and adaptive embedded RK23/RK45 solvers;
 - continuous quadrature-node advection, discontinuous moment-source updates,
   and staged moment transport composition;
 - moment reconstruction/evaluation utilities, output helpers, and diagnostics.

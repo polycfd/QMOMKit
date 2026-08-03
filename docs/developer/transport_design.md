@@ -78,11 +78,11 @@ are represented through terminal-node arrays during advection. For adaptive
 ragged quadratures, terminal paths are carried through unchanged.
 
 Internally, node coordinates are packed into a vector state and integrated by
-the selected `NodeAdvectionScheme`. The default is fixed-stage SSP-RK3, which
-advances exactly over the supplied node-advection timestep. Adaptive RK23 is
-available when trajectory accuracy should control internal substeps. After
-integration, the state is unpacked back into the same terminal-node
-representation. Weights are not integrated by node advection.
+the selected `NodeAdvectionScheme`. The default is adaptive RK23; adaptive
+RK45 and fixed-stage SSP-RK3 are also available. SSP-RK3 advances exactly over
+the supplied node-advection timestep. After integration, the state is unpacked
+back into the same terminal-node representation. Weights are not integrated by
+node advection.
 
 After a successful continuous node step, transport reconstructs raw moments
 from the moved quadrature:
@@ -222,16 +222,17 @@ dxi/dt = velocity(t, xi)
 
 The public `NodeAdvectionScheme` selects the trajectory integrator:
 
-- `ssp_rk3`: the default fixed-stage SSP-RK3 trajectory step;
-- `adaptive_rk23`: adaptive Bogacki-Shampine RK23 with scalar tolerances.
+- `rk23`: the default adaptive Bogacki-Shampine 3(2) pair;
+- `rk45`: the adaptive Dormand-Prince RK5(4)7M pair from Table 2;
+- `ssp_rk3`: a separate fixed-stage SSP-RK3 trajectory step.
 
 The choice is a user-facing trajectory-integration policy, not a change to the
 transport composition. SSP-RK3 is appropriate when the surrounding application
-controls the timestep and needs fixed callback cost. Adaptive RK23 is
-appropriate when trajectory accuracy inside the requested transport step should
-be controlled by internal error estimation. Neither scheme is universally
-preferred; the useful choice depends on the application timestep policy and
-velocity-field behavior.
+controls the timestep and needs fixed callback cost. The adaptive embedded
+methods are appropriate when trajectory accuracy inside the requested transport
+step should be controlled by internal error estimation. Neither scheme is
+universally preferred; the useful choice depends on the application timestep
+policy and velocity-field behavior.
 
 The SSP-RK3 node path is implemented inside node advection, not through the
 moment-source update wrapper. It does not use source acceptability predicates,
@@ -239,16 +240,17 @@ realizability checks, source retry semantics, or source-specific performance
 counters. It performs one three-stage step over the supplied timestep and
 reports scheme-neutral node-advection diagnostics.
 
-Adaptive RK23 may take internal accepted and rejected trial steps to reach the
-requested end time. It is useful when QMOMKit should control trajectory
-accuracy inside a larger transport macro step.
+RK23 and RK45 may take internal accepted and rejected trial steps to reach the
+requested end time. Both use an initial step that defaults to `1.0e-6 s` and
+may be overridden with a finite, strictly positive value; neither estimates an
+initial step automatically.
 
 Configuration-driven drivers load the full `NodeAdvectionOptions` object from
 `[time_integration.node_advection]` and the nested
-`[time_integration.node_advection.rk23]` section. Startup reporting should use
+`[time_integration.node_advection.adaptive]` section. Startup reporting should use
 the shared node-advection formatter so fixed-step runs report only the active
-scheme, while RK23 runs also report effective tolerances, automatic step-size
-controls, and the maximum internal accepted-step count.
+scheme, while embedded-RK runs also report effective tolerances, the supplied
+initial-step value, and the maximum internal accepted-step count.
 
 Node advection does not perform realizability checks. It moves already
 reconstructed quadrature coordinates and preserves weights; realizability is
@@ -269,7 +271,7 @@ reuse does not apply stale branch limits after a collapse, merge, or growth.
 Diagnostics report only true node-count transitions and distinguish reduced,
 grown, created, and removed branch records.
 
-`CqmomTransportOptions` owns transport-stage policies: node-advection/RK23
+`CqmomTransportOptions` owns transport-stage policies: node-advection/embedded-RK
 controls, moment-source SSP-RK3 controls, and transport sequencing. Conditional
 moment controls, standalone QMOM controls, CQMOM Wheeler controls,
 adaptive branch-count enablement, CQMOM diagnostic level, and Vandermonde solver
@@ -328,8 +330,8 @@ utility.
 Transport-facing wrappers add domain-specific failure handling. Node advection
 catches phase-space velocity failures and reports
 `NodeAdvectionStatus::velocity_failed`; trajectory-integrator failures report
-`NodeAdvectionStatus::integration_failed`, with optional RK23 status retained
-when adaptive RK23 is selected. Moment-source updates catch source callback or
+`NodeAdvectionStatus::integration_failed`, with optional embedded-RK status
+retained when an adaptive method is selected. Moment-source updates catch source callback or
 SSP-RK3 validation failures and report
 `MomentSourceUpdateStatus::source_failed`. The full transport helpers then map
 failed node advection to `TransportStatus::continuous_failed` and failed
@@ -400,18 +402,23 @@ clamps the suggested timestep between caller-supplied minimum and maximum
 values. Transport source updates use the predicate retry behavior; they do not
 silently change the mathematical source model.
 
-### RK23 Details
+### Embedded RK23 and RK45 Details
 
-Adaptive RK23 advances generic vector states from `t0` to `t_bound`. In
-transport, the vector state is the packed collection of quadrature node
-coordinates, and the RHS is built from `PhaseSpaceVelocity`.
+Adaptive embedded Runge-Kutta advances generic vector states from `t0` to
+`t_bound`. In transport, the vector state is the packed collection of
+quadrature node coordinates, and the RHS is built from `PhaseSpaceVelocity`.
 
-The implementation uses a Bogacki-Shampine 3(2) embedded pair. Each trial step
-computes:
+The internal engine uses immutable built-in tableaus with stage abscissae,
+strictly lower-triangular coefficients, higher and embedded weights, orders,
+and FSAL metadata. It evaluates every tableau stage, forms both solutions, and
+uses `y_high - y_low` as the error estimate. The accepted state is always the
+higher-order solution. `rk23` is the four-stage Bogacki-Shampine 3(2) pair;
+`rk45` is Dormand-Prince RK5(4)7M from Table 2. Both are FSAL, so an accepted
+final derivative is reused for the next trial in the same public integration
+call. A rejected trial retains only the derivative at its unchanged starting
+state.
 
-- a third-order candidate state;
-- an embedded lower-order error estimate;
-- a scaled RMS error norm.
+Each trial step computes a scaled RMS error norm.
 
 The error scale for component `i` is:
 
@@ -424,11 +431,12 @@ accepted when the scaled error norm is less than `1`. Otherwise the trial step
 is rejected and retried with a smaller step, unless the finite update was
 already evaluated at the effective lower bound for the current interval.
 
-`AdaptiveRk23Options` provides scalar tolerance and step-size controls:
+`AdaptiveRkOptions` provides scalar tolerance and step-size controls for both
+embedded methods:
 
 - `relative_tolerance`;
 - `absolute_tolerance`;
-- optional `initial_step`;
+- `initial_step`;
 - `max_step`;
 - `min_step`;
 - `max_steps`.
@@ -440,18 +448,22 @@ relative_tolerance = 1.0e-6
 absolute_tolerance = 1.0e-9
 ```
 
-`max_step == 0` means the full integration interval is the maximum step size.
-`min_step == 0` means the solver uses a floating-point spacing based floor near
-the current time. `max_steps` limits accepted steps, not rejected trial steps,
-and remains an optional configuration override with an internal default. The
-actual RK23 step is bounded by `min_step` and `max_step`, then clipped so
+`initial_step` defaults to `1.0e-6 s`, may be overridden, and must be finite
+and strictly positive. QMOMKit does not estimate it from the state,
+derivatives, or tolerances. `max_step == 0` means the full integration interval is
+the maximum step size. `min_step == 0` means the solver uses a floating-point
+spacing based floor near the current time. `max_steps` limits accepted steps,
+not rejected trial steps, and remains an optional configuration override with
+an internal default. The actual embedded-RK step is bounded by `min_step` and `max_step`, then clipped so
 integration lands exactly on `t_bound`; the final remainder may therefore be
 smaller than `min_step`. When the error controller would require a step below
 the effective lower bound, the solver advances at that lower bound instead of
 failing solely for tolerance reasons. Forward and backward integration are both
 supported by applying the sign of `t_bound - t0` to the internal step magnitude.
 
-RK23 status values are:
+The controller exponent is derived from the embedded lower order: `1 / (p + 1)`
+in magnitude, giving `1/3` for RK23 and `1/5` for RK45. Embedded-RK status values
+are:
 
 - `success`;
 - `invalid_input`;
@@ -459,19 +471,24 @@ RK23 status values are:
 - `max_steps_exceeded`.
 
 Invalid structural inputs and invalid tolerance or step-size options return
-`AdaptiveRk23Status::invalid_input`. `AdaptiveRk23Status::step_size_underflow`
+`AdaptiveRkStatus::invalid_input`. `AdaptiveRkStatus::step_size_underflow`
 is retained for API compatibility and non-finite lower-bound updates, but a
 finite update at the effective minimum step is accepted even when its error
 estimate exceeds tolerance. If the number of accepted steps reaches `max_steps`
-before `t_bound`, the solver returns `AdaptiveRk23Status::max_steps_exceeded`.
+before `t_bound`, the solver returns `AdaptiveRkStatus::max_steps_exceeded`.
 
-On RK23 failure, the result state and time are the last accepted state and time.
+On embedded-RK failure, the result state and time are the last accepted state and time.
 Diagnostics report accepted steps, rejected trial steps, RHS function
 evaluations, final time, message, and the signed size of the last accepted step.
-Node advection maps RK23 failure to
-`NodeAdvectionStatus::integration_failed` and records the adaptive RK23 status
+Node advection maps embedded-RK failure to
+`NodeAdvectionStatus::integration_failed` and records the adaptive status
 inside scheme-specific diagnostics. Transport aggregates scheme-neutral
 node-advection step, rejected-step, and RHS-evaluation counts.
+
+The embedded pairs are based on P. Bogacki and L. F. Shampine, “A 3(2) Pair of
+Runge–Kutta Formulas,” *Applied Mathematics Letters*, 2(4), 1989, 321–325, and
+J. R. Dormand and P. J. Prince, “A Family of Embedded Runge–Kutta Formulae,”
+*Journal of Computational and Applied Mathematics*, 6(1), 1980, 19–26.
 
 ## Transport Composition
 

@@ -45,7 +45,7 @@ operating instructions.
   specifications, moment generation, mixtures, independent products, numerical
   failure behavior, and extension principles.
 - [Transport Design](transport_design.md): node advection, moment-source
-  evolution, SSP-RK3, adaptive RK23, Strang splitting, coupled-direction
+  evolution, SSP-RK3, adaptive embedded RK23/RK45, Strang splitting, coupled-direction
   schemes, status propagation, and transport API boundaries.
 - [Configuration Design](configuration_design.md): configuration philosophy,
   parsing and validation boundaries, mapping to QMOM cases, CQMOM cases,

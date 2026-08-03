@@ -26,6 +26,7 @@ add_library(
     src/discontinuous_moment_rates.cpp
     src/distributions.cpp
     src/internal/bjorck_pereyra.cpp
+    src/internal/embedded_runge_kutta.cpp
     src/internal/householder_qr.cpp
     src/internal/jacobi_svd.cpp
     src/internal/linear_algebra.cpp

@@ -67,7 +67,7 @@ namespace
     EnsembleEvolutionResult result;
     result.status = EnsembleEvolutionStatus::invalid_input;
     result.failed_sample_index = failed_sample_index;
-    result.rk23_status = qmomkit::AdaptiveRk23Status::invalid_input;
+    result.rk23_status = qmomkit::AdaptiveRkStatus::invalid_input;
     result.message = std::move(message);
     return result;
 }
@@ -117,7 +117,7 @@ struct StateEvolutionResult
     Ensemble states;
     EnsembleEvolutionStatus status = EnsembleEvolutionStatus::success;
     std::size_t failed_state_index = invalid_sample_index;
-    qmomkit::AdaptiveRk23Status rk23_status = qmomkit::AdaptiveRk23Status::success;
+    qmomkit::AdaptiveRkStatus rk23_status = qmomkit::AdaptiveRkStatus::success;
     std::string message;
     std::size_t total_accepted_steps = 0;
     std::size_t total_rejected_steps = 0;
@@ -145,7 +145,7 @@ struct StateEvolutionResult
 }
 
 [[nodiscard]] StateEvolutionResult evolve_states(const Ensemble& states, const std::size_t dimensions, const qmomkit::PhaseSpaceVelocity& velocity,
-                                                 const double t0, const double t1, const qmomkit::AdaptiveRk23Options& options,
+                                                 const double t0, const double t1, const qmomkit::AdaptiveRkOptions& options,
                                                  std::string invalid_state_message)
 {
     Ensemble evolved;
@@ -156,7 +156,7 @@ struct StateEvolutionResult
 
     for (std::size_t state_index = 0; state_index < states.size(); ++state_index)
     {
-        qmomkit::AdaptiveRk23Result rk_result;
+        qmomkit::AdaptiveRkResult rk_result;
         try
         {
             rk_result = qmomkit::integrate_rk23(
@@ -168,7 +168,7 @@ struct StateEvolutionResult
             result.states.clear();
             result.status = EnsembleEvolutionStatus::velocity_failed;
             result.failed_state_index = state_index;
-            result.rk23_status = qmomkit::AdaptiveRk23Status::invalid_input;
+            result.rk23_status = qmomkit::AdaptiveRkStatus::invalid_input;
             result.message = error.what();
             result.final_time = t0;
             return result;
@@ -183,7 +183,7 @@ struct StateEvolutionResult
         result.maximum_rejected_steps = std::max(result.maximum_rejected_steps, rk_result.rejected_steps);
         result.rk23_status = rk_result.status;
 
-        if (rk_result.status != qmomkit::AdaptiveRk23Status::success)
+        if (rk_result.status != qmomkit::AdaptiveRkStatus::success)
         {
             result.states.clear();
             result.status = EnsembleEvolutionStatus::rk23_failed;
@@ -197,7 +197,7 @@ struct StateEvolutionResult
             result.states.clear();
             result.status = EnsembleEvolutionStatus::rk23_failed;
             result.failed_state_index = state_index;
-            result.rk23_status = qmomkit::AdaptiveRk23Status::invalid_input;
+            result.rk23_status = qmomkit::AdaptiveRkStatus::invalid_input;
             result.message = std::move(invalid_state_message);
             result.final_time = rk_result.t;
             return result;
@@ -209,7 +209,7 @@ struct StateEvolutionResult
     result.states = std::move(evolved);
     result.status = EnsembleEvolutionStatus::success;
     result.failed_state_index = invalid_sample_index;
-    result.rk23_status = qmomkit::AdaptiveRk23Status::success;
+    result.rk23_status = qmomkit::AdaptiveRkStatus::success;
     result.message.clear();
     result.final_time = t1;
     return result;
@@ -218,7 +218,7 @@ struct StateEvolutionResult
 } // namespace
 
 EnsembleEvolutionResult evolve_ensemble(const Ensemble& ensemble, const qmomkit::PhaseSpaceVelocity& velocity, const double t0, const double t1,
-                                        const qmomkit::AdaptiveRk23Options& options)
+                                        const qmomkit::AdaptiveRkOptions& options)
 {
     EnsembleEvolutionResult validation = validate_inputs(ensemble, velocity, t0, t1);
     if (!validation.ok())
@@ -245,17 +245,17 @@ EnsembleEvolutionResult evolve_ensemble(const Ensemble& ensemble, const qmomkit:
 }
 
 qmomkit::QmomNodeAdvectionResult evolve_quadrature_nodes(const qmomkit::Quadrature1D& quadrature, const qmomkit::PhaseSpaceVelocity& velocity,
-                                                         const double t0, const double t1, const qmomkit::AdaptiveRk23Options& options)
+                                                         const double t0, const double t1, const qmomkit::AdaptiveRkOptions& options)
 {
     qmomkit::NodeAdvectionOptions node_options;
-    node_options.scheme = qmomkit::NodeAdvectionScheme::adaptive_rk23;
-    node_options.rk23_options = options;
+    node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
+    node_options.adaptive_options = options;
     return qmomkit::advance_nodes(quadrature, t0, t1 - t0, velocity, node_options);
 }
 
 ExplicitQuadratureEvolutionResult evolve_explicit_quadrature(const ExplicitDiscreteDistribution& distribution,
                                                              const qmomkit::PhaseSpaceVelocity& velocity, const double t0, const double t1,
-                                                             const qmomkit::AdaptiveRk23Options& options)
+                                                             const qmomkit::AdaptiveRkOptions& options)
 {
     ExplicitQuadratureEvolutionResult result;
     result.initial_distribution = distribution;
@@ -265,21 +265,21 @@ ExplicitQuadratureEvolutionResult evolve_explicit_quadrature(const ExplicitDiscr
     if (!validation.ok)
     {
         result.status = ComparisonStatus::invalid_input;
-        result.rk23_status = qmomkit::AdaptiveRk23Status::invalid_input;
+        result.rk23_status = qmomkit::AdaptiveRkStatus::invalid_input;
         result.message = validation.message;
         return result;
     }
     if (!velocity)
     {
         result.status = ComparisonStatus::invalid_input;
-        result.rk23_status = qmomkit::AdaptiveRk23Status::invalid_input;
+        result.rk23_status = qmomkit::AdaptiveRkStatus::invalid_input;
         result.message = "Phase-space velocity callback must be provided.";
         return result;
     }
     if (!std::isfinite(t0) || !std::isfinite(t1) || t0 == t1)
     {
         result.status = ComparisonStatus::invalid_input;
-        result.rk23_status = qmomkit::AdaptiveRk23Status::invalid_input;
+        result.rk23_status = qmomkit::AdaptiveRkStatus::invalid_input;
         result.message = "Evolution time interval is invalid.";
         return result;
     }
@@ -305,7 +305,7 @@ ExplicitQuadratureEvolutionResult evolve_explicit_quadrature(const ExplicitDiscr
     result.evolved_distribution = ExplicitDiscreteDistribution{std::move(states.states), distribution.weights, validation.number_density};
     result.status = ComparisonStatus::success;
     result.failed_node_index = static_cast<std::size_t>(-1);
-    result.rk23_status = qmomkit::AdaptiveRk23Status::success;
+    result.rk23_status = qmomkit::AdaptiveRkStatus::success;
     result.message.clear();
     result.final_time = t1;
     return result;

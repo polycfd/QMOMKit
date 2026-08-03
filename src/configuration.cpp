@@ -40,13 +40,13 @@ constexpr std::string_view transport_scheme_key = "time_integration.scheme";
 constexpr std::string_view node_advection_section = "time_integration.node_advection";
 constexpr std::string_view node_advection_key_prefix = "time_integration.node_advection.";
 constexpr std::string_view node_advection_scheme_key = "time_integration.node_advection.scheme";
-constexpr std::string_view rk23_section = "time_integration.node_advection.rk23";
-constexpr std::string_view rk23_relative_tolerance_key = "time_integration.node_advection.rk23.relative_tolerance";
-constexpr std::string_view rk23_absolute_tolerance_key = "time_integration.node_advection.rk23.absolute_tolerance";
-constexpr std::string_view rk23_initial_step_key = "time_integration.node_advection.rk23.initial_step";
-constexpr std::string_view rk23_max_step_key = "time_integration.node_advection.rk23.max_step";
-constexpr std::string_view rk23_min_step_key = "time_integration.node_advection.rk23.min_step";
-constexpr std::string_view rk23_max_steps_key = "time_integration.node_advection.rk23.max_steps";
+constexpr std::string_view adaptive_section = "time_integration.node_advection.adaptive";
+constexpr std::string_view adaptive_relative_tolerance_key = "time_integration.node_advection.adaptive.relative_tolerance";
+constexpr std::string_view adaptive_absolute_tolerance_key = "time_integration.node_advection.adaptive.absolute_tolerance";
+constexpr std::string_view adaptive_initial_step_key = "time_integration.node_advection.adaptive.initial_step";
+constexpr std::string_view adaptive_max_step_key = "time_integration.node_advection.adaptive.max_step";
+constexpr std::string_view adaptive_min_step_key = "time_integration.node_advection.adaptive.min_step";
+constexpr std::string_view adaptive_max_steps_key = "time_integration.node_advection.adaptive.max_steps";
 constexpr std::string_view cqmom_time_integration_section = "time_integration.cqmom";
 constexpr std::string_view output_section = "output";
 constexpr std::string_view output_key_prefix = "output.";
@@ -538,23 +538,6 @@ std::optional<std::size_t> infer_qmom_initial_maximum_order(ParsedFile& parsed, 
     return 2 * (*node_counts)[0] - 1;
 }
 
-bool parse_optional_positive_double(ParsedFile& parsed, const std::string& key, const std::string& source_name, std::optional<double>& value)
-{
-    const Entry* entry = find_entry(parsed, key);
-    if (entry == nullptr)
-    {
-        return true;
-    }
-    double parsed_value = 0.0;
-    if (!parse_double(entry->value, parsed_value) || parsed_value <= 0.0)
-    {
-        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line, key + " must be a positive finite number.");
-        return false;
-    }
-    value = parsed_value;
-    return true;
-}
-
 bool parse_optional_positive_size(ParsedFile& parsed, const std::string& key, const std::string& source_name, std::size_t& value)
 {
     const Entry* entry = find_entry(parsed, key);
@@ -724,12 +707,12 @@ void append_time_integration_allowed_keys(std::vector<std::string>& allowed)
 {
     allowed.push_back(std::string(transport_scheme_key));
     allowed.push_back(std::string(node_advection_scheme_key));
-    allowed.push_back(std::string(rk23_relative_tolerance_key));
-    allowed.push_back(std::string(rk23_absolute_tolerance_key));
-    allowed.push_back(std::string(rk23_initial_step_key));
-    allowed.push_back(std::string(rk23_max_step_key));
-    allowed.push_back(std::string(rk23_min_step_key));
-    allowed.push_back(std::string(rk23_max_steps_key));
+    allowed.push_back(std::string(adaptive_relative_tolerance_key));
+    allowed.push_back(std::string(adaptive_absolute_tolerance_key));
+    allowed.push_back(std::string(adaptive_initial_step_key));
+    allowed.push_back(std::string(adaptive_max_step_key));
+    allowed.push_back(std::string(adaptive_min_step_key));
+    allowed.push_back(std::string(adaptive_max_steps_key));
     allowed.push_back("time_integration.realizability.check_mode");
     allowed.push_back("time_integration.realizability.accept_boundary");
     allowed.push_back("time_integration.realizability.support");
@@ -756,7 +739,7 @@ std::vector<std::string> with_runtime_allowed_keys(std::vector<std::string> allo
 
 std::vector<std::string> time_integration_sections()
 {
-    return {"time_integration", "time_integration.realizability", "time_integration.node_advection", "time_integration.node_advection.rk23",
+    return {"time_integration", "time_integration.realizability", "time_integration.node_advection", "time_integration.node_advection.adaptive",
             "time_integration.cqmom"};
 }
 
@@ -1145,10 +1128,10 @@ bool is_node_advection_key(const std::string& key)
 
 const std::vector<std::string>& node_advection_allowed_keys()
 {
-    static const std::vector<std::string> allowed{std::string(node_advection_scheme_key),   std::string(rk23_relative_tolerance_key),
-                                                  std::string(rk23_absolute_tolerance_key), std::string(rk23_initial_step_key),
-                                                  std::string(rk23_max_step_key),           std::string(rk23_min_step_key),
-                                                  std::string(rk23_max_steps_key)};
+    static const std::vector<std::string> allowed{std::string(node_advection_scheme_key),       std::string(adaptive_relative_tolerance_key),
+                                                  std::string(adaptive_absolute_tolerance_key), std::string(adaptive_initial_step_key),
+                                                  std::string(adaptive_max_step_key),           std::string(adaptive_min_step_key),
+                                                  std::string(adaptive_max_steps_key)};
     return allowed;
 }
 
@@ -1272,16 +1255,20 @@ std::optional<TransportScheme> parse_transport_scheme_value(ParsedFile& parsed, 
 
 std::optional<NodeAdvectionScheme> parse_node_advection_scheme_value(ParsedFile& parsed, const Entry& entry, const std::string& source_name)
 {
+    if (entry.value == "rk23")
+    {
+        return NodeAdvectionScheme::rk23;
+    }
+    if (entry.value == "rk45")
+    {
+        return NodeAdvectionScheme::rk45;
+    }
     if (entry.value == "ssp_rk3")
     {
         return NodeAdvectionScheme::ssp_rk3;
     }
-    if (entry.value == "adaptive_rk23")
-    {
-        return NodeAdvectionScheme::adaptive_rk23;
-    }
     add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry.line,
-              "time_integration.node_advection.scheme must be ssp_rk3 or adaptive_rk23.");
+              "time_integration.node_advection.scheme must be rk23, rk45, or ssp_rk3.");
     return std::nullopt;
 }
 
@@ -1311,19 +1298,19 @@ std::optional<NodeAdvectionOptions> parse_node_advection_options_from_parsed(Par
         }
     }
 
-    parse_optional_positive_double(parsed, std::string(rk23_relative_tolerance_key), source_name, options.rk23_options.relative_tolerance);
-    parse_optional_positive_double(parsed, std::string(rk23_absolute_tolerance_key), source_name, options.rk23_options.absolute_tolerance);
-    parse_optional_positive_double(parsed, std::string(rk23_initial_step_key), source_name, options.rk23_options.initial_step);
-    parse_optional_positive_double(parsed, std::string(rk23_max_step_key), source_name, options.rk23_options.max_step);
-    parse_optional_positive_double(parsed, std::string(rk23_min_step_key), source_name, options.rk23_options.min_step);
-    parse_optional_positive_size(parsed, std::string(rk23_max_steps_key), source_name, options.rk23_options.max_steps);
+    parse_optional_positive_double(parsed, std::string(adaptive_relative_tolerance_key), source_name, options.adaptive_options.relative_tolerance);
+    parse_optional_positive_double(parsed, std::string(adaptive_absolute_tolerance_key), source_name, options.adaptive_options.absolute_tolerance);
+    parse_optional_positive_double(parsed, std::string(adaptive_initial_step_key), source_name, options.adaptive_options.initial_step);
+    parse_optional_positive_double(parsed, std::string(adaptive_max_step_key), source_name, options.adaptive_options.max_step);
+    parse_optional_positive_double(parsed, std::string(adaptive_min_step_key), source_name, options.adaptive_options.min_step);
+    parse_optional_positive_size(parsed, std::string(adaptive_max_steps_key), source_name, options.adaptive_options.max_steps);
 
-    const Entry* min_step = find_entry(parsed, std::string(rk23_min_step_key));
-    const Entry* max_step = find_entry(parsed, std::string(rk23_max_step_key));
-    if (min_step != nullptr && max_step != nullptr && parsed.errors.empty() && options.rk23_options.min_step > options.rk23_options.max_step)
+    const Entry* min_step = find_entry(parsed, std::string(adaptive_min_step_key));
+    const Entry* max_step = find_entry(parsed, std::string(adaptive_max_step_key));
+    if (min_step != nullptr && max_step != nullptr && parsed.errors.empty() && options.adaptive_options.min_step > options.adaptive_options.max_step)
     {
         add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, min_step->line,
-                  "time_integration.node_advection.rk23.min_step must not exceed max_step.");
+                  "time_integration.node_advection.adaptive.min_step must not exceed max_step.");
     }
 
     if (!parsed.errors.empty())
@@ -1540,7 +1527,7 @@ void reject_unknown_transport_sections(ParsedFile& parsed, const std::string& so
     for (const auto& item : parsed.sections)
     {
         if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
-            item.first != rk23_section && item.first != cqmom_time_integration_section)
+            item.first != adaptive_section && item.first != cqmom_time_integration_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
@@ -2338,7 +2325,7 @@ ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::s
     for (const auto& item : parsed.sections)
     {
         if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
-            item.first != rk23_section && item.first != cqmom_time_integration_section)
+            item.first != adaptive_section && item.first != cqmom_time_integration_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }

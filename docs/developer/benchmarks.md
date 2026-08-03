@@ -415,7 +415,7 @@ The current instrumentation benchmark categories are:
   simple trajectory. Affine-velocity cases add an analytical non-trivial
   trajectory so the benchmark can report both workload counters and maximum
   trajectory error. These variants compare `NodeAdvectionScheme::ssp_rk3` with
-  `NodeAdvectionScheme::adaptive_rk23` without changing transport splitting,
+  `NodeAdvectionScheme::rk23` without changing transport splitting,
   source integration, or node-advection methods.
 - Instrumentation overhead comparisons: run equivalent no-session workloads
   against instrumentation-enabled and instrumentation-disabled QMOMKit builds.
@@ -529,8 +529,8 @@ The report sections are:
   fallback counts, residual checks, and condition estimates.
 - Transport/time-integration counters: continuous/discontinuous operator
   applications, moment reconstruction calls, post-source inversions, source
-  SSP-RK stages and retries, node RHS evaluations, and adaptive RK23 step
-  counts when adaptive RK23 node advection is selected.
+  SSP-RK stages and retries, node RHS evaluations, and adaptive embedded-RK step
+  counts when RK23 or RK45 node advection is selected.
 - Node-advection diagnostics: scheme-neutral node-advection steps, rejected
   steps, RHS evaluations, and maximum trajectory error for benchmark cases with
   an analytical trajectory.

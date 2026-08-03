@@ -166,7 +166,7 @@ bool has_transport_counters(const perf::PerformanceCounters& counters)
            counters.transport.discontinuous_operator_calls != 0 || counters.transport.moment_reconstruction_calls != 0 ||
            counters.transport.post_source_inversions != 0 || counters.time_integration.source_rk_stages != 0 ||
            counters.time_integration.source_rk_retries != 0 || counters.time_integration.node_rhs_evaluations != 0 ||
-           counters.time_integration.rk23_accepted_steps != 0 || counters.time_integration.rk23_rejected_steps != 0;
+           counters.time_integration.embedded_rk_accepted_steps != 0 || counters.time_integration.embedded_rk_rejected_steps != 0;
 }
 
 void record_summary(BenchmarkSummary summary)
@@ -294,8 +294,8 @@ public:
                 print_counter_line("source SSP-RK stages", summary.counters.time_integration.source_rk_stages);
                 print_counter_line("source retries", summary.counters.time_integration.source_rk_retries);
                 print_counter_line("node RHS evaluations", summary.counters.time_integration.node_rhs_evaluations);
-                print_counter_line("adaptive RK23 accepted/rejected",
-                                   summary.counters.time_integration.rk23_accepted_steps + summary.counters.time_integration.rk23_rejected_steps);
+                print_counter_line("adaptive embedded-RK accepted/rejected", summary.counters.time_integration.embedded_rk_accepted_steps +
+                                                                                 summary.counters.time_integration.embedded_rk_rejected_steps);
             }
 
             if (summary.diagnostic_node_advection_steps != 0 || summary.diagnostic_node_advection_rejected_steps != 0 ||
@@ -551,10 +551,10 @@ qmomkit::NodeAdvectionOptions node_advection_benchmark_options(const qmomkit::No
 {
     qmomkit::NodeAdvectionOptions options;
     options.scheme = scheme;
-    options.rk23_options.relative_tolerance = 1.0e-8;
-    options.rk23_options.absolute_tolerance = 1.0e-10;
-    options.rk23_options.initial_step = time_step;
-    options.rk23_options.max_step = time_step;
+    options.adaptive_options.relative_tolerance = 1.0e-8;
+    options.adaptive_options.absolute_tolerance = 1.0e-10;
+    options.adaptive_options.initial_step = time_step;
+    options.adaptive_options.max_step = time_step;
     return options;
 }
 
@@ -673,8 +673,10 @@ std::string node_advection_scheme_name(const qmomkit::NodeAdvectionScheme scheme
     {
     case qmomkit::NodeAdvectionScheme::ssp_rk3:
         return "ssp_rk3";
-    case qmomkit::NodeAdvectionScheme::adaptive_rk23:
-        return "adaptive_rk23";
+    case qmomkit::NodeAdvectionScheme::rk23:
+        return "rk23";
+    case qmomkit::NodeAdvectionScheme::rk45:
+        return "rk45";
     }
     return "unknown";
 }
@@ -726,8 +728,8 @@ void publish_workload_counters(benchmark::State& state, const perf::PerformanceC
         publish_counter(state, "source_rk_stages", counters.time_integration.source_rk_stages);
         publish_counter(state, "source_retries", counters.time_integration.source_rk_retries);
         publish_counter(state, "node_rhs_evals", counters.time_integration.node_rhs_evaluations);
-        publish_counter(state, "rk23_accepted", counters.time_integration.rk23_accepted_steps);
-        publish_counter(state, "rk23_rejected", counters.time_integration.rk23_rejected_steps);
+        publish_counter(state, "embedded_rk_accepted", counters.time_integration.embedded_rk_accepted_steps);
+        publish_counter(state, "embedded_rk_rejected", counters.time_integration.embedded_rk_rejected_steps);
     }
 }
 
@@ -818,8 +820,8 @@ void bm_cqmom_transport_workload(benchmark::State& state, const qmomkit::Transpo
     const qmomkit::CqmomMomentBoundaryContribution boundary = zero_boundary_model();
     qmomkit::CqmomTransportOptions options;
     options.scheme = scheme;
-    options.node_options.rk23_options.initial_step = 0.0025;
-    options.node_options.rk23_options.max_step = 0.0025;
+    options.node_options.adaptive_options.initial_step = 0.0025;
+    options.node_options.adaptive_options.max_step = 0.0025;
 
     perf::CounterSession session;
     double measured_seconds = 0.0;
@@ -1377,28 +1379,28 @@ BENCHMARK(bm_cqmom_ssp_source_existing_layout)->Name("performance_ssp_source_exi
 BENCHMARK_CAPTURE(bm_qmom_node_advection_scheme, constant_ssp_rk3_1d_4, qmomkit::NodeAdvectionScheme::ssp_rk3, NodeTrajectory::constant,
                   "performance_node_advection_scheme_qmom_constant_1d_4_ssp_rk3")
     ->Name("performance_node_advection_scheme_qmom_constant_1d_4_ssp_rk3");
-BENCHMARK_CAPTURE(bm_qmom_node_advection_scheme, constant_adaptive_rk23_1d_4, qmomkit::NodeAdvectionScheme::adaptive_rk23, NodeTrajectory::constant,
-                  "performance_node_advection_scheme_qmom_constant_1d_4_adaptive_rk23")
-    ->Name("performance_node_advection_scheme_qmom_constant_1d_4_adaptive_rk23");
+BENCHMARK_CAPTURE(bm_qmom_node_advection_scheme, constant_rk23_1d_4, qmomkit::NodeAdvectionScheme::rk23, NodeTrajectory::constant,
+                  "performance_node_advection_scheme_qmom_constant_1d_4_rk23")
+    ->Name("performance_node_advection_scheme_qmom_constant_1d_4_rk23");
 BENCHMARK_CAPTURE(bm_qmom_node_advection_scheme, affine_ssp_rk3_1d_4, qmomkit::NodeAdvectionScheme::ssp_rk3, NodeTrajectory::affine,
                   "performance_node_advection_scheme_qmom_affine_1d_4_ssp_rk3")
     ->Name("performance_node_advection_scheme_qmom_affine_1d_4_ssp_rk3");
-BENCHMARK_CAPTURE(bm_qmom_node_advection_scheme, affine_adaptive_rk23_1d_4, qmomkit::NodeAdvectionScheme::adaptive_rk23, NodeTrajectory::affine,
-                  "performance_node_advection_scheme_qmom_affine_1d_4_adaptive_rk23")
-    ->Name("performance_node_advection_scheme_qmom_affine_1d_4_adaptive_rk23");
+BENCHMARK_CAPTURE(bm_qmom_node_advection_scheme, affine_rk23_1d_4, qmomkit::NodeAdvectionScheme::rk23, NodeTrajectory::affine,
+                  "performance_node_advection_scheme_qmom_affine_1d_4_rk23")
+    ->Name("performance_node_advection_scheme_qmom_affine_1d_4_rk23");
 
 BENCHMARK_CAPTURE(bm_cqmom_node_advection_scheme, constant_ssp_rk3_2d_2x2, qmomkit::NodeAdvectionScheme::ssp_rk3, NodeTrajectory::constant,
                   "performance_node_advection_scheme_cqmom_constant_2d_2x2_ssp_rk3")
     ->Name("performance_node_advection_scheme_cqmom_constant_2d_2x2_ssp_rk3");
-BENCHMARK_CAPTURE(bm_cqmom_node_advection_scheme, constant_adaptive_rk23_2d_2x2, qmomkit::NodeAdvectionScheme::adaptive_rk23,
-                  NodeTrajectory::constant, "performance_node_advection_scheme_cqmom_constant_2d_2x2_adaptive_rk23")
-    ->Name("performance_node_advection_scheme_cqmom_constant_2d_2x2_adaptive_rk23");
+BENCHMARK_CAPTURE(bm_cqmom_node_advection_scheme, constant_rk23_2d_2x2, qmomkit::NodeAdvectionScheme::rk23, NodeTrajectory::constant,
+                  "performance_node_advection_scheme_cqmom_constant_2d_2x2_rk23")
+    ->Name("performance_node_advection_scheme_cqmom_constant_2d_2x2_rk23");
 BENCHMARK_CAPTURE(bm_cqmom_node_advection_scheme, affine_ssp_rk3_2d_2x2, qmomkit::NodeAdvectionScheme::ssp_rk3, NodeTrajectory::affine,
                   "performance_node_advection_scheme_cqmom_affine_2d_2x2_ssp_rk3")
     ->Name("performance_node_advection_scheme_cqmom_affine_2d_2x2_ssp_rk3");
-BENCHMARK_CAPTURE(bm_cqmom_node_advection_scheme, affine_adaptive_rk23_2d_2x2, qmomkit::NodeAdvectionScheme::adaptive_rk23, NodeTrajectory::affine,
-                  "performance_node_advection_scheme_cqmom_affine_2d_2x2_adaptive_rk23")
-    ->Name("performance_node_advection_scheme_cqmom_affine_2d_2x2_adaptive_rk23");
+BENCHMARK_CAPTURE(bm_cqmom_node_advection_scheme, affine_rk23_2d_2x2, qmomkit::NodeAdvectionScheme::rk23, NodeTrajectory::affine,
+                  "performance_node_advection_scheme_cqmom_affine_2d_2x2_rk23")
+    ->Name("performance_node_advection_scheme_cqmom_affine_2d_2x2_rk23");
 BENCHMARK_CAPTURE(bm_cqmom_source_integration_workload, transport_component_source_2d_2x2, CounterMode::enabled_session, nodes_2x2(),
                   "performance_transport_component_source_update_2d_2x2", "CQMOM discontinuous/source update")
     ->Name("performance_transport_component_source_update_2d_2x2")

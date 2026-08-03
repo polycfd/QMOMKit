@@ -128,7 +128,7 @@ and all configured raw moments including cross moments.
 
 The standard RK23 tolerance and step-size settings are supplied by the
 verifier. `.qmom` files may select the node-advection scheme, but these
-verification cases keep the detailed adaptive RK23 controls in code together
+verification cases keep the detailed adaptive embedded-RK controls in code together
 with the velocity callback and timestep plan. The settings are:
 
 ```text

@@ -88,8 +88,8 @@ void test_counter_scope_records_direct_events_when_enabled()
         qmomkit::internal::performance::record_vandermonde_solve(qmomkit::internal::performance::VandermondeSolveKind::bjorck_pereyra);
         qmomkit::internal::performance::record_vandermonde_solve(qmomkit::internal::performance::VandermondeSolveKind::pivoted_qr);
         qmomkit::internal::performance::record_vandermonde_solve(qmomkit::internal::performance::VandermondeSolveKind::svd);
-        qmomkit::internal::performance::record_rk23_step(true);
-        qmomkit::internal::performance::record_rk23_step(false);
+        qmomkit::internal::performance::record_embedded_rk_step(true);
+        qmomkit::internal::performance::record_embedded_rk_step(false);
     }
 
     const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
@@ -100,8 +100,8 @@ void test_counter_scope_records_direct_events_when_enabled()
     assert(counters.linear_algebra.bjorck_pereyra_solves == 1);
     assert(counters.linear_algebra.pivoted_qr_solves == 1);
     assert(counters.linear_algebra.svd_solves == 1);
-    assert(counters.time_integration.rk23_accepted_steps == 1);
-    assert(counters.time_integration.rk23_rejected_steps == 1);
+    assert(counters.time_integration.embedded_rk_accepted_steps == 1);
+    assert(counters.time_integration.embedded_rk_rejected_steps == 1);
 
     session.reset();
     const qmomkit::internal::performance::PerformanceCounters reset_counters = session.snapshot();
@@ -114,8 +114,8 @@ void test_counter_scope_records_direct_events_when_enabled()
     assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
     assert(counters.linear_algebra.pivoted_qr_solves == 0);
     assert(counters.linear_algebra.svd_solves == 0);
-    assert(counters.time_integration.rk23_accepted_steps == 0);
-    assert(counters.time_integration.rk23_rejected_steps == 0);
+    assert(counters.time_integration.embedded_rk_accepted_steps == 0);
+    assert(counters.time_integration.embedded_rk_rejected_steps == 0);
 #endif
 }
 
@@ -308,14 +308,14 @@ void test_ssp_node_advection_does_not_record_source_rk_stages_when_enabled()
     assert(counters.time_integration.node_rhs_evaluations == 6);
     assert(counters.time_integration.source_rk_stages == 0);
     assert(counters.time_integration.source_rk_retries == 0);
-    assert(counters.time_integration.rk23_accepted_steps == 0);
-    assert(counters.time_integration.rk23_rejected_steps == 0);
+    assert(counters.time_integration.embedded_rk_accepted_steps == 0);
+    assert(counters.time_integration.embedded_rk_rejected_steps == 0);
 #else
     assert(counters.time_integration.node_rhs_evaluations == 0);
     assert(counters.time_integration.source_rk_stages == 0);
     assert(counters.time_integration.source_rk_retries == 0);
-    assert(counters.time_integration.rk23_accepted_steps == 0);
-    assert(counters.time_integration.rk23_rejected_steps == 0);
+    assert(counters.time_integration.embedded_rk_accepted_steps == 0);
+    assert(counters.time_integration.embedded_rk_rejected_steps == 0);
 #endif
 }
 

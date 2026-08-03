@@ -69,13 +69,13 @@ reconstruction stage is reported as completed. The returned moments are checked
 against the input moments to document that a failed continuous substep is not a
 valid final transport state.
 
-The same case also verifies adaptive RK23 minimum-step propagation. It uses a
+The same case also verifies adaptive embedded-RK minimum-step propagation. It uses a
 finite, dimensionally valid, deliberately stiff velocity field and RK23 options
 with `initial_step = max_step = 0.04` and `min_step = 0.02`. The first Strang
 continuous half-step rejects the requested step, then advances finite updates
 at the effective minimum step instead of failing solely because the controller
 would prefer a smaller value. The verifier checks successful transport,
-successful RK23 diagnostics, rejected-step counts, and exact endpoint arrival.
+successful embedded-RK diagnostics, rejected-step counts, and exact endpoint arrival.
 
 The QMOM case also verifies post-source reconstruction failure. A finite,
 correctly sized source callback drives `m0` negative during the discontinuous

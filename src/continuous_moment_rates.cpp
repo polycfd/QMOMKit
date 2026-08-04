@@ -235,42 +235,17 @@ CqmomContinuousMomentRateResult evaluate_cqmom_continuous_moment_rates(const Cqm
 
 namespace qmomkit
 {
-namespace
-{
-
-[[nodiscard]] ContinuousMomentRateStatus to_public_status(const internal::ContinuousMomentRateStatus status)
-{
-    switch (status)
-    {
-    case internal::ContinuousMomentRateStatus::success:
-        return ContinuousMomentRateStatus::success;
-    case internal::ContinuousMomentRateStatus::invalid_input:
-        return ContinuousMomentRateStatus::invalid_input;
-    case internal::ContinuousMomentRateStatus::inversion_failed:
-        return ContinuousMomentRateStatus::inversion_failed;
-    case internal::ContinuousMomentRateStatus::velocity_failed:
-        return ContinuousMomentRateStatus::velocity_failed;
-    }
-    return ContinuousMomentRateStatus::invalid_input;
-}
-
-} // namespace
-
 QmomContinuousMomentRateResult evaluate_qmom_continuous_moment_rates(const std::vector<double>& moments, const std::size_t node_count,
                                                                      const double time, const PhaseSpaceVelocity& velocity,
                                                                      const QmomOptions& options)
 {
-    internal::QmomContinuousMomentRateResult result = internal::evaluate_qmom_continuous_moment_rates(moments, node_count, time, velocity, options);
-    return QmomContinuousMomentRateResult{std::move(result.rates), to_public_status(result.status), result.inversion_status,
-                                          std::move(result.message)};
+    return internal::evaluate_qmom_continuous_moment_rates(moments, node_count, time, velocity, options);
 }
 
 CqmomContinuousMomentRateResult evaluate_cqmom_continuous_moment_rates(const CqmomLeanCase& case_, const double time,
                                                                        const PhaseSpaceVelocity& velocity)
 {
-    internal::CqmomContinuousMomentRateResult result = internal::evaluate_cqmom_continuous_moment_rates(case_, time, velocity);
-    return CqmomContinuousMomentRateResult{std::move(result.rates), to_public_status(result.status), result.inversion_status,
-                                           std::move(result.message), std::move(result.diagnostics)};
+    return internal::evaluate_cqmom_continuous_moment_rates(case_, time, velocity);
 }
 
 } // namespace qmomkit

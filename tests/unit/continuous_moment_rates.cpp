@@ -152,8 +152,7 @@ void test_qmom_one_node_constant_velocity()
     const std::vector<double> moments = qmom_moments_from_terminals({2.0}, {3.0}, 4);
     const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.5}; };
 
-    const qmomkit::internal::QmomContinuousMomentRateResult result =
-        qmomkit::internal::evaluate_qmom_continuous_moment_rates(moments, 1, 0.25, velocity);
+    const qmomkit::QmomContinuousMomentRateResult result = qmomkit::internal::evaluate_qmom_continuous_moment_rates(moments, 1, 0.25, velocity);
 
     assert(result.ok());
     assert(result.inversion_status == qmomkit::QmomStatus::success);
@@ -169,8 +168,7 @@ void test_qmom_two_node_distinct_velocities_and_independent_composition()
     const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinate)
     { return std::vector<double>{coordinate[0] < 0.0 ? 0.5 : -0.25}; };
 
-    const qmomkit::internal::QmomContinuousMomentRateResult result =
-        qmomkit::internal::evaluate_qmom_continuous_moment_rates(moments, 2, 0.5, velocity);
+    const qmomkit::QmomContinuousMomentRateResult result = qmomkit::internal::evaluate_qmom_continuous_moment_rates(moments, 2, 0.5, velocity);
 
     assert(result.ok());
     assert(result.rates[0] == 0.0);
@@ -184,8 +182,7 @@ void test_qmom_zero_and_linear_velocity()
         const std::vector<double> moments = qmom_moments_from_terminals({1.0, 2.0, 3.0}, {-2.0, 0.0, 4.0}, 6);
         const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.0}; };
 
-        const qmomkit::internal::QmomContinuousMomentRateResult result =
-            qmomkit::internal::evaluate_qmom_continuous_moment_rates(moments, 3, 0.0, velocity);
+        const qmomkit::QmomContinuousMomentRateResult result = qmomkit::internal::evaluate_qmom_continuous_moment_rates(moments, 3, 0.0, velocity);
 
         assert(result.ok());
         assert_vector_near(result.rates, std::vector<double>(moments.size(), 0.0), 0.0);
@@ -195,8 +192,7 @@ void test_qmom_zero_and_linear_velocity()
         const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinate)
         { return std::vector<double>{0.4 - 0.2 * coordinate[0]}; };
 
-        const qmomkit::internal::QmomContinuousMomentRateResult result =
-            qmomkit::internal::evaluate_qmom_continuous_moment_rates(moments, 2, 0.0, velocity);
+        const qmomkit::QmomContinuousMomentRateResult result = qmomkit::internal::evaluate_qmom_continuous_moment_rates(moments, 2, 0.0, velocity);
 
         assert(result.ok());
         assert(result.rates[0] == 0.0);
@@ -206,31 +202,30 @@ void test_qmom_zero_and_linear_velocity()
 
 void test_qmom_failure_paths()
 {
-    const qmomkit::internal::QmomContinuousMomentRateResult inversion_failure = qmomkit::internal::evaluate_qmom_continuous_moment_rates(
+    const qmomkit::QmomContinuousMomentRateResult inversion_failure = qmomkit::internal::evaluate_qmom_continuous_moment_rates(
         {1.0, 0.0, -1.0, 0.0}, 2, 0.0, [](double, const std::vector<double>&) { return std::vector<double>{0.0}; });
     assert(!inversion_failure.ok());
-    assert(inversion_failure.status == qmomkit::internal::ContinuousMomentRateStatus::inversion_failed);
+    assert(inversion_failure.status == qmomkit::ContinuousMomentRateStatus::inversion_failed);
     assert(inversion_failure.inversion_status == qmomkit::QmomStatus::not_realizable);
     assert(inversion_failure.rates.empty());
 
-    const qmomkit::internal::QmomContinuousMomentRateResult missing_velocity =
-        qmomkit::internal::evaluate_qmom_continuous_moment_rates({1.0, 0.0}, 1, 0.0, {});
+    const qmomkit::QmomContinuousMomentRateResult missing_velocity = qmomkit::internal::evaluate_qmom_continuous_moment_rates({1.0, 0.0}, 1, 0.0, {});
     assert(!missing_velocity.ok());
-    assert(missing_velocity.status == qmomkit::internal::ContinuousMomentRateStatus::invalid_input);
+    assert(missing_velocity.status == qmomkit::ContinuousMomentRateStatus::invalid_input);
 
     const std::vector<double> moments = qmom_moments_from_terminals({1.0}, {2.0}, 3);
-    const qmomkit::internal::QmomContinuousMomentRateResult wrong_size = qmomkit::internal::evaluate_qmom_continuous_moment_rates(
+    const qmomkit::QmomContinuousMomentRateResult wrong_size = qmomkit::internal::evaluate_qmom_continuous_moment_rates(
         moments, 1, 0.0, [](double, const std::vector<double>&) { return std::vector<double>{1.0, 2.0}; });
     assert(!wrong_size.ok());
-    assert(wrong_size.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
+    assert(wrong_size.status == qmomkit::ContinuousMomentRateStatus::velocity_failed);
     assert_contains(wrong_size.message, "Phase-space velocity callback returned the wrong dimension:");
     assert_contains(wrong_size.message, "expected size: 1");
     assert_contains(wrong_size.message, "returned size: 2");
 
-    const qmomkit::internal::QmomContinuousMomentRateResult non_finite = qmomkit::internal::evaluate_qmom_continuous_moment_rates(
+    const qmomkit::QmomContinuousMomentRateResult non_finite = qmomkit::internal::evaluate_qmom_continuous_moment_rates(
         moments, 1, 0.0, [](double, const std::vector<double>&) { return std::vector<double>{std::numeric_limits<double>::infinity()}; });
     assert(!non_finite.ok());
-    assert(non_finite.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
+    assert(non_finite.status == qmomkit::ContinuousMomentRateStatus::velocity_failed);
     assert_contains(non_finite.message, "Phase-space velocity callback returned a non-finite value:");
     assert_contains(non_finite.message, "time: 0");
     assert_contains(non_finite.message, "dimension: 0");
@@ -238,10 +233,10 @@ void test_qmom_failure_paths()
     assert_contains(non_finite.message, "state: [2]");
     assert_contains(non_finite.message, "velocity: [inf]");
 
-    const qmomkit::internal::QmomContinuousMomentRateResult thrown = qmomkit::internal::evaluate_qmom_continuous_moment_rates(
+    const qmomkit::QmomContinuousMomentRateResult thrown = qmomkit::internal::evaluate_qmom_continuous_moment_rates(
         moments, 1, 0.0, [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("velocity model failed"); });
     assert(!thrown.ok());
-    assert(thrown.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
+    assert(thrown.status == qmomkit::ContinuousMomentRateStatus::velocity_failed);
     assert(thrown.message.find("velocity model failed") != std::string::npos);
 }
 
@@ -255,8 +250,7 @@ void test_cqmom_identity_ordering_and_independent_composition()
     const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinate)
     { return std::vector<double>{0.25 * coordinate[0], -0.5 * coordinate[1]}; };
 
-    const qmomkit::internal::CqmomContinuousMomentRateResult result =
-        qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
+    const qmomkit::CqmomContinuousMomentRateResult result = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
 
     assert(result.ok());
     assert(result.rates.has_value());
@@ -276,8 +270,7 @@ void test_cqmom_non_identity_ordering_and_global_terminal_weights()
     const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinate)
     { return std::vector<double>{0.2 + coordinate[1], -0.1 * coordinate[0]}; };
 
-    const qmomkit::internal::CqmomContinuousMomentRateResult result =
-        qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.5, velocity);
+    const qmomkit::CqmomContinuousMomentRateResult result = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.5, velocity);
     const qmomkit::CqmomResult quadrature = qmomkit::internal::compute_cqmom_internal(lean_case);
     assert(quadrature.ok());
     const std::vector<double> expected = qmomkit::internal::reconstruct_continuous_moment_rates(
@@ -301,8 +294,7 @@ void test_cqmom_zero_velocity_and_adaptive_terminal_arrays()
         const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinate)
         { return std::vector<double>(coordinate.size(), 0.0); };
 
-        const qmomkit::internal::CqmomContinuousMomentRateResult result =
-            qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
+        const qmomkit::CqmomContinuousMomentRateResult result = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
 
         assert(result.ok());
         assert(result.rates.has_value());
@@ -324,8 +316,7 @@ void test_cqmom_zero_velocity_and_adaptive_terminal_arrays()
         assert(!quadrature.quadrature.has_rectangular_storage());
         assert(quadrature.quadrature.weights().size() == 3);
 
-        const qmomkit::internal::CqmomContinuousMomentRateResult result =
-            qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
+        const qmomkit::CqmomContinuousMomentRateResult result = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(lean_case, 0.0, velocity);
 
         assert(result.ok());
         assert(result.rates.has_value());
@@ -342,10 +333,10 @@ void test_cqmom_failure_paths()
     invalid_values.front() = -1.0;
     const qmomkit::CqmomLeanCase invalid_case{qmomkit::CqmomMomentData{layout, invalid_values}};
 
-    const qmomkit::internal::CqmomContinuousMomentRateResult inversion_failure = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(
+    const qmomkit::CqmomContinuousMomentRateResult inversion_failure = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(
         invalid_case, 0.0, [](double, const std::vector<double>& coordinate) { return std::vector<double>(coordinate.size(), 0.0); });
     assert(!inversion_failure.ok());
-    assert(inversion_failure.status == qmomkit::internal::ContinuousMomentRateStatus::inversion_failed);
+    assert(inversion_failure.status == qmomkit::ContinuousMomentRateStatus::inversion_failed);
     assert(inversion_failure.inversion_status == qmomkit::CqmomStatus::qmom_failed);
     assert(!inversion_failure.rates.has_value());
     assert(!inversion_failure.diagnostics.empty());
@@ -353,15 +344,15 @@ void test_cqmom_failure_paths()
     const qmomkit::CqmomLeanCase valid_case{
         cqmom_moment_data_from_terminals(layout, {0.2, 0.3, 0.1, 0.4}, {{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}})};
 
-    const qmomkit::internal::CqmomContinuousMomentRateResult wrong_size = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(
+    const qmomkit::CqmomContinuousMomentRateResult wrong_size = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(
         valid_case, 0.0, [](double, const std::vector<double>&) { return std::vector<double>{1.0}; });
     assert(!wrong_size.ok());
-    assert(wrong_size.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
+    assert(wrong_size.status == qmomkit::ContinuousMomentRateStatus::velocity_failed);
     assert_contains(wrong_size.message, "Phase-space velocity callback returned the wrong dimension:");
     assert_contains(wrong_size.message, "expected size: 2");
     assert_contains(wrong_size.message, "returned size: 1");
 
-    const qmomkit::internal::CqmomContinuousMomentRateResult non_finite =
+    const qmomkit::CqmomContinuousMomentRateResult non_finite =
         qmomkit::internal::evaluate_cqmom_continuous_moment_rates(valid_case, 0.0,
                                                                   [](double, const std::vector<double>& coordinate)
                                                                   {
@@ -370,7 +361,7 @@ void test_cqmom_failure_paths()
                                                                       return value;
                                                                   });
     assert(!non_finite.ok());
-    assert(non_finite.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
+    assert(non_finite.status == qmomkit::ContinuousMomentRateStatus::velocity_failed);
     assert_contains(non_finite.message, "Phase-space velocity callback returned a non-finite value:");
     assert_contains(non_finite.message, "time: 0");
     assert_contains(non_finite.message, "dimension: 1");
@@ -378,10 +369,10 @@ void test_cqmom_failure_paths()
     assert_contains(non_finite.message, "state: [-1, -0.49999999999999972]");
     assert_contains(non_finite.message, "velocity: [0, nan]");
 
-    const qmomkit::internal::CqmomContinuousMomentRateResult thrown = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(
+    const qmomkit::CqmomContinuousMomentRateResult thrown = qmomkit::internal::evaluate_cqmom_continuous_moment_rates(
         valid_case, 0.0, [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("CQMOM velocity model failed"); });
     assert(!thrown.ok());
-    assert(thrown.status == qmomkit::internal::ContinuousMomentRateStatus::velocity_failed);
+    assert(thrown.status == qmomkit::ContinuousMomentRateStatus::velocity_failed);
     assert(thrown.message.find("CQMOM velocity model failed") != std::string::npos);
 }
 
@@ -401,9 +392,9 @@ void test_new_evaluators_do_not_record_native_node_rhs_counters()
     qmomkit::internal::performance::CounterSession session;
     {
         qmomkit::internal::performance::CounterScope scope(session);
-        const qmomkit::internal::QmomContinuousMomentRateResult qmom_result =
+        const qmomkit::QmomContinuousMomentRateResult qmom_result =
             qmomkit::internal::evaluate_qmom_continuous_moment_rates(qmom_moments, 2, 0.0, qmom_velocity);
-        const qmomkit::internal::CqmomContinuousMomentRateResult cqmom_result =
+        const qmomkit::CqmomContinuousMomentRateResult cqmom_result =
             qmomkit::internal::evaluate_cqmom_continuous_moment_rates(cqmom_case, 0.0, cqmom_velocity);
         assert(qmom_result.ok());
         assert(cqmom_result.ok());

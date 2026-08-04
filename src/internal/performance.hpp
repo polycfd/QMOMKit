@@ -78,11 +78,6 @@ struct PerformanceCounters
 class CounterSession
 {
 public:
-    [[nodiscard]] const PerformanceCounters& counters() const noexcept
-    {
-        return counters_;
-    }
-
     [[nodiscard]] PerformanceCounters snapshot() const noexcept
     {
         return counters_;

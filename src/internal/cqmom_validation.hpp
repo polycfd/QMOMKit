@@ -89,13 +89,6 @@ inline void validate_fixed_cqmom_moment_layout(const CqmomMomentLayout& layout, 
     validate_cqmom_moment_layout_matches_expected(layout, expected_layout, message);
 }
 
-inline void validate_cqmom_moment_layout_matches_hierarchy(const CqmomMomentLayout& layout, const PhaseSpaceHierarchy& hierarchy,
-                                                           const std::string& message)
-{
-    const CqmomMomentLayout expected_layout = create_cqmom_moment_layout(hierarchy);
-    validate_cqmom_moment_layout_matches_expected(layout, expected_layout, message);
-}
-
 inline void validate_cqmom_moment_values_match_layout(const CqmomMomentData& moments, const CqmomMomentDataValidationMessages& messages)
 {
     if (moments.values.size() != moments.layout.required_indices.size())

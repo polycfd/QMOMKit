@@ -417,7 +417,7 @@ void test_ssp_rk3_without_stage_callback_accepts_unchecked_candidate()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, -2.0}; };
 
-    const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({1.0, 0.0, 1.0}, 0.0, 1.0, rhs);
+    const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({1.0, 0.0, 1.0}, 0.0, 1.0, rhs, qmomkit::SspRk3Options{});
 
     assert(result.ok());
     assert(result.retries == 0);

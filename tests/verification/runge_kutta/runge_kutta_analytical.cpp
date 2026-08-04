@@ -29,7 +29,9 @@ qmomkit::OdeRhs exponential_decay_rhs()
 void test_ssp_rk3_constant_rhs()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{1.0, -2.0, 0.5}; };
-    const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({0.0, 3.0, -1.0}, 1.5, 0.25, rhs, true);
+    qmomkit::SspRk3Options options;
+    options.estimate_error = true;
+    const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({0.0, 3.0, -1.0}, 1.5, 0.25, rhs, options);
 
     assert_vector_near(result.state, {0.25, 2.5, -0.875}, 1.0e-15);
     QMOMKIT_VERIFY_CHECK(result.error_estimate.has_value());

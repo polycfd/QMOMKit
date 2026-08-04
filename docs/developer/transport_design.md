@@ -360,6 +360,14 @@ predicates while preserving a simple explicit update structure. QMOMKit uses
 this path for discontinuous or source-like moment evolution, where the state is
 a raw-moment vector rather than node coordinates.
 
+The fixed SSP-RK3 entry point takes explicit options:
+
+```cpp
+SspRk3Options options;
+options.estimate_error = true;
+const SspRk3Result result = ssp_rk3_step(state, time, time_step, rhs, options);
+```
+
 `SspRk3Options` controls optional solver behavior:
 
 - `estimate_error` requests an embedded lower-order error estimate;
@@ -397,11 +405,9 @@ Realizability policies interact with SSP-RK3 only through predicates. A
 checks intermediate SSP-RK3 stage states and the final state. The solver remains
 agnostic to the meaning of those predicates.
 
-The helper `adapt_ssp_rk3_timestep(...)` is a separate timestep-controller
-utility for positive nonzero error estimates. It applies a safety factor and
-clamps the suggested timestep between caller-supplied minimum and maximum
-values. Transport source updates use the predicate retry behavior; they do not
-silently change the mathematical source model.
+The optional error estimate is diagnostic; any external timestep adaptation is
+caller-owned. Transport source updates use the predicate retry behavior; they
+do not silently change the mathematical source model.
 
 ### Embedded RK23 and RK45 Details
 

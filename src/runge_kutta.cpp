@@ -176,13 +176,6 @@ struct SspRk3Attempt
 
 } // namespace
 
-SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, const double time_step, const OdeRhs& rhs, const bool estimate_error)
-{
-    SspRk3Options options;
-    options.estimate_error = estimate_error;
-    return ssp_rk3_step(state, t, time_step, rhs, options);
-}
-
 SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, const double time_step, const OdeRhs& rhs, const SspRk3Options& options)
 {
     if (state.empty())
@@ -226,20 +219,6 @@ SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, cons
         internal::performance::record_source_retry();
         ++retries;
     }
-}
-
-double adapt_ssp_rk3_timestep(const double current_dt, const double timestep_error, const double error_tolerance, const double min_dt,
-                              const double max_dt)
-{
-    if (current_dt <= 0.0 || timestep_error <= 0.0 || error_tolerance <= 0.0 || min_dt <= 0.0 || max_dt < min_dt)
-    {
-        throw std::invalid_argument("Invalid SSP-RK3 timestep adaptation input.");
-    }
-
-    const double error_fraction = std::sqrt(0.5 * error_tolerance / timestep_error);
-    const double time_step_factor = std::min(std::max(error_fraction, 0.3), 2.0);
-    const double new_dt = 0.9 * time_step_factor * current_dt;
-    return std::min(std::max(new_dt, min_dt), max_dt);
 }
 
 AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state, const double t0, const double t_bound, const OdeRhs& rhs,

@@ -68,25 +68,11 @@ struct SspRk3Result
 };
 
 /**
- * Advance a vector-valued state by one deterministic SSP-RK3 step.
- *
- * The RHS callback must return a vector with the same size as the input state.
- * This routine is generic and does not assume any CQMOM, particle, or physics
- * semantics.
- */
-[[nodiscard]] SspRk3Result ssp_rk3_step(const std::vector<double>& state, double t, double time_step, const OdeRhs& rhs, bool estimate_error = false);
-
-/**
  * Advance a vector-valued state by one SSP-RK3 step with optional generic
  * acceptance/rejection.
  */
 [[nodiscard]] SspRk3Result ssp_rk3_step(const std::vector<double>& state, double t, double time_step, const OdeRhs& rhs,
                                         const SspRk3Options& options);
-
-/**
- * Adapt a timestep using the SSP-RK3 error controller.
- */
-[[nodiscard]] double adapt_ssp_rk3_timestep(double current_dt, double timestep_error, double error_tolerance, double min_dt, double max_dt);
 
 enum class AdaptiveRkStatus
 {

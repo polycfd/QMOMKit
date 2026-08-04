@@ -66,6 +66,8 @@ std::vector<FixedStepRun> verify_ssp_rk3_convergence()
     const double exact = std::exp(-final_time);
     const std::vector<std::size_t> step_counts{5, 10, 20, 40, 80};
     std::vector<FixedStepRun> runs;
+    qmomkit::SspRk3Options options;
+    options.estimate_error = true;
 
     for (const std::size_t steps : step_counts)
     {
@@ -74,7 +76,7 @@ std::vector<FixedStepRun> verify_ssp_rk3_convergence()
         std::vector<double> state{1.0};
         for (std::size_t step = 0; step < steps; ++step)
         {
-            const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step(state, t, dt, exponential_decay_rhs(), true);
+            const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step(state, t, dt, exponential_decay_rhs(), options);
             QMOMKIT_VERIFY_CHECK(result.ok());
             QMOMKIT_VERIFY_CHECK(result.error_estimate.has_value());
             state = result.state;

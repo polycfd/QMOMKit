@@ -124,9 +124,4 @@ MultiIndex recursive_path_to_node_index(const PhaseSpaceHierarchy& hierarchy, co
     return path.phase_space_node_index(hierarchy);
 }
 
-std::size_t recursive_path_to_flat_node_index(const PhaseSpaceHierarchy& hierarchy, const ConditioningPath& path)
-{
-    return hierarchy.flatten_node_index(recursive_path_to_node_index(hierarchy, path));
-}
-
 } // namespace qmomkit

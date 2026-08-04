@@ -50,8 +50,6 @@ private:
     std::size_t total_nodes_ = 0;
 };
 
-[[nodiscard]] std::vector<MultiIndex> enumerate_moment_multi_indices(const PhaseSpaceHierarchy& hierarchy);
-
 /**
  * Enumerate quadrature-node multi-indices in recursive conditioning order.
  */

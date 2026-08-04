@@ -1328,11 +1328,6 @@ MultiIndex PhaseSpaceHierarchy::unflatten_node_index(const std::size_t flat_inde
     return unflatten_multi_index(flat_index, node_counts_);
 }
 
-std::vector<MultiIndex> enumerate_moment_multi_indices(const PhaseSpaceHierarchy& hierarchy)
-{
-    return enumerate_multi_indices(hierarchy.moment_extents());
-}
-
 CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarchy)
 {
     internal::performance::record_moment_layout_build();

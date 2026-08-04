@@ -50,6 +50,4 @@ private:
  */
 [[nodiscard]] MultiIndex recursive_path_to_node_index(const PhaseSpaceHierarchy& hierarchy, const ConditioningPath& path);
 
-[[nodiscard]] std::size_t recursive_path_to_flat_node_index(const PhaseSpaceHierarchy& hierarchy, const ConditioningPath& path);
-
 } // namespace qmomkit

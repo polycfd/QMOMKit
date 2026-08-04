@@ -1222,7 +1222,7 @@ void test_one_dimensional_hierarchy_reduces_to_stage_1_ordering()
     assert_vector_equal(hierarchy.conditioning_order(), {0});
     assert_vector_equal(hierarchy.moment_extents(), {6});
 
-    const std::vector<qmomkit::MultiIndex> moment_indices = qmomkit::enumerate_moment_multi_indices(hierarchy);
+    const std::vector<qmomkit::MultiIndex> moment_indices = qmomkit::enumerate_multi_indices(hierarchy.moment_extents());
     const std::vector<qmomkit::MultiIndex> node_indices = qmomkit::enumerate_quadrature_node_multi_indices(hierarchy);
 
     assert(moment_indices.size() == 6);
@@ -1263,7 +1263,7 @@ void test_two_dimensional_hierarchy_indexing()
     assert_vector_equal(node_indices[0], {0, 0});
     assert_vector_equal(node_indices[5], {1, 2});
 
-    const std::vector<qmomkit::MultiIndex> moment_indices = qmomkit::enumerate_moment_multi_indices(hierarchy);
+    const std::vector<qmomkit::MultiIndex> moment_indices = qmomkit::enumerate_multi_indices(hierarchy.moment_extents());
     assert(moment_indices.size() == 24);
     assert_vector_equal(moment_indices[0], {0, 0});
     assert_vector_equal(moment_indices[23], {3, 5});
@@ -1281,7 +1281,7 @@ void test_three_dimensional_hierarchy_indexing()
     assert(hierarchy.flatten_node_index({1, 1, 1}) == 7);
     assert_vector_equal(hierarchy.unflatten_node_index(6), {1, 1, 0});
 
-    const std::vector<qmomkit::MultiIndex> moment_indices = qmomkit::enumerate_moment_multi_indices(hierarchy);
+    const std::vector<qmomkit::MultiIndex> moment_indices = qmomkit::enumerate_multi_indices(hierarchy.moment_extents());
     assert(moment_indices.size() == 64);
     assert_vector_equal(moment_indices.front(), {0, 0, 0});
     assert_vector_equal(moment_indices.back(), {3, 3, 3});
@@ -1388,7 +1388,7 @@ void test_conditioning_path_maps_to_phase_space_node_index()
     assert_vector_equal(partial_path.phase_space_node_index(hierarchy), {0, 0, 1});
     assert_vector_equal(full_path.phase_space_node_index(hierarchy), {0, 2, 1});
     assert_vector_equal(qmomkit::recursive_path_to_node_index(hierarchy, full_path), {0, 2, 1});
-    assert(qmomkit::recursive_path_to_flat_node_index(hierarchy, full_path) == hierarchy.flatten_node_index({0, 2, 1}));
+    assert(hierarchy.flatten_node_index(qmomkit::recursive_path_to_node_index(hierarchy, full_path)) == hierarchy.flatten_node_index({0, 2, 1}));
     assert(partial_path.with_child(2) == full_path);
     assert(qmomkit::ConditioningPath({0, 2}) < qmomkit::ConditioningPath({1, 0}));
     assert(!partial_path.to_string().empty());

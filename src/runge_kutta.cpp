@@ -396,10 +396,4 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     return result;
 }
 
-AdaptiveRkResult integrate_rk23(const std::vector<double>& initial_state, const double t0, const double t_bound, const OdeRhs& rhs,
-                                const AdaptiveRkOptions& options)
-{
-    return integrate_embedded_rk(initial_state, t0, t_bound, rhs, EmbeddedRkMethod::rk23, options);
-}
-
 } // namespace qmomkit

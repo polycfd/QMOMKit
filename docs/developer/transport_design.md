@@ -409,6 +409,13 @@ Adaptive embedded Runge-Kutta advances generic vector states from `t0` to
 `t_bound`. In transport, the vector state is the packed collection of
 quadrature node coordinates, and the RHS is built from `PhaseSpaceVelocity`.
 
+The public API selects the built-in pair explicitly:
+
+```cpp
+const AdaptiveRkResult result =
+    integrate_embedded_rk(initial_state, t0, t_bound, rhs, EmbeddedRkMethod::rk23, options);
+```
+
 The internal engine uses immutable built-in tableaus with stage abscissae,
 strictly lower-triangular coefficients, higher and embedded weights, orders,
 and FSAL metadata. It evaluates every tableau stage, forms both solutions, and
@@ -693,7 +700,7 @@ Public transport and time-evolution entry points include:
 - `advance_cqmom_discontinuous(...)`
 - `advance_transport_cqmom(...)`
 - `ssp_rk3_step(...)`
-- `integrate_rk23(...)`
+- `integrate_embedded_rk(...)`
 
 The main transport helpers are:
 
@@ -888,7 +895,7 @@ The lower-level public helpers are:
 - `advance_moments_with_source(...)`: raw-moment source evolution through
   SSP-RK3;
 - `ssp_rk3_step(...)`: generic vector SSP-RK3 utility;
-- `integrate_rk23(...)`: generic adaptive vector RK23 utility.
+- `integrate_embedded_rk(...)`: generic adaptive vector RK23/RK45 utility.
 
 Implementation details include:
 

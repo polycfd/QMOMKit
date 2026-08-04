@@ -117,7 +117,8 @@ std::vector<AdaptiveRun> verify_rk23_convergence()
         options.initial_step = 0.1;
         options.max_step = final_time;
 
-        const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, final_time, exponential_decay_rhs(), options);
+        const qmomkit::AdaptiveRkResult result =
+            qmomkit::integrate_embedded_rk({1.0}, 0.0, final_time, exponential_decay_rhs(), qmomkit::EmbeddedRkMethod::rk23, options);
         QMOMKIT_VERIFY_CHECK(result.status == qmomkit::AdaptiveRkStatus::success);
         QMOMKIT_VERIFY_NEAR(result.t, final_time, 1.0e-14);
         QMOMKIT_VERIFY_CHECK(result.accepted_steps > 0);

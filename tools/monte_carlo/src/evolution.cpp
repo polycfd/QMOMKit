@@ -159,9 +159,9 @@ struct StateEvolutionResult
         qmomkit::AdaptiveRkResult rk_result;
         try
         {
-            rk_result = qmomkit::integrate_rk23(
+            rk_result = qmomkit::integrate_embedded_rk(
                 states[state_index], t0, t1, [&velocity, dimensions](const double rhs_time, const std::vector<double>& coordinates)
-                { return checked_velocity(velocity, dimensions, rhs_time, coordinates); }, options);
+                { return checked_velocity(velocity, dimensions, rhs_time, coordinates); }, qmomkit::EmbeddedRkMethod::rk23, options);
         }
         catch (const std::exception& error)
         {

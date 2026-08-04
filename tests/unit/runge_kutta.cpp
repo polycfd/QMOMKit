@@ -206,24 +206,6 @@ void test_embedded_rk_default_initial_step_is_used_for_both_methods()
     }
 }
 
-void test_rk23_wrapper_uses_default_initial_step()
-{
-    std::vector<double> rhs_times;
-    constexpr double initial_time = 1.0;
-    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({0.0}, initial_time, initial_time + 2.0 * qmomkit::default_adaptive_initial_step,
-                                                                     [&rhs_times](const double time, const std::vector<double>&)
-                                                                     {
-                                                                         rhs_times.push_back(time);
-                                                                         return std::vector<double>{1.0};
-                                                                     },
-                                                                     {});
-
-    assert(result.status == qmomkit::AdaptiveRkStatus::success);
-    assert_near(result.t, initial_time + 2.0 * qmomkit::default_adaptive_initial_step, 1.0e-15);
-    assert(rhs_times.size() >= 2);
-    assert_near(rhs_times[1] - initial_time, 0.5 * qmomkit::default_adaptive_initial_step, 1.0e-15);
-}
-
 void test_embedded_rk_fsal_reuses_accepted_endpoint_derivative()
 {
     for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
@@ -657,7 +639,7 @@ void test_rk23_rejects_overly_large_initial_step()
     options.relative_tolerance = 1.0e-9;
     options.absolute_tolerance = 1.0e-12;
 
-    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk({1.0}, 0.0, 1.0, rhs, qmomkit::EmbeddedRkMethod::rk23, options);
 
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.rejected_steps > 0);
@@ -672,7 +654,8 @@ void test_rk23_zero_rhs_has_no_timestep_pathology()
     options.relative_tolerance = 1.0e-8;
     options.absolute_tolerance = 1.0e-12;
 
-    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({0.0, 2.0, -3.0}, 0.0, 1.0, rhs, options);
+    const qmomkit::AdaptiveRkResult result =
+        qmomkit::integrate_embedded_rk({0.0, 2.0, -3.0}, 0.0, 1.0, rhs, qmomkit::EmbeddedRkMethod::rk23, options);
 
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert_near(result.t, 1.0, 1.0e-14);
@@ -685,7 +668,8 @@ void test_rk23_invalid_options_fail_before_loop()
     qmomkit::AdaptiveRkOptions options;
     options.absolute_tolerance = 0.0;
 
-    const qmomkit::AdaptiveRkResult zero_atol = qmomkit::integrate_rk23({0.0}, 0.0, 1.0, exponential_decay_rhs(), options);
+    const qmomkit::AdaptiveRkResult zero_atol =
+        qmomkit::integrate_embedded_rk({0.0}, 0.0, 1.0, exponential_decay_rhs(), qmomkit::EmbeddedRkMethod::rk23, options);
     assert(zero_atol.status == qmomkit::AdaptiveRkStatus::invalid_input);
 
     for (const double initial_step :
@@ -698,8 +682,6 @@ void test_rk23_invalid_options_fail_before_loop()
             const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk({1.0}, 0.0, 1.0, exponential_decay_rhs(), method, options);
             assert(result.status == qmomkit::AdaptiveRkStatus::invalid_input);
         }
-        const qmomkit::AdaptiveRkResult wrapper = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, exponential_decay_rhs(), options);
-        assert(wrapper.status == qmomkit::AdaptiveRkStatus::invalid_input);
     }
 }
 
@@ -711,7 +693,7 @@ void test_rk23_rejects_nonfinite_trial_state()
     options.max_step = 2.0;
     options.min_step = 0.5;
 
-    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({0.0}, 0.0, 2.0, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk({0.0}, 0.0, 2.0, rhs, qmomkit::EmbeddedRkMethod::rk23, options);
 
     assert(result.status == qmomkit::AdaptiveRkStatus::step_size_underflow);
     assert(result.rejected_steps > 0);
@@ -726,7 +708,7 @@ void test_rk23_initial_request_below_minimum_uses_minimum_step()
     options.max_step = 0.05;
     options.min_step = 0.05;
 
-    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 0.05, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk({1.0}, 0.0, 0.05, rhs, qmomkit::EmbeddedRkMethod::rk23, options);
 
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 1);
@@ -746,7 +728,7 @@ void test_rk23_accepts_finite_update_at_minimum_step()
     options.relative_tolerance = 1.0e-15;
     options.absolute_tolerance = 1.0e-15;
 
-    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 1.0e-3, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk({1.0}, 0.0, 1.0e-3, rhs, qmomkit::EmbeddedRkMethod::rk23, options);
 
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 1);
@@ -766,7 +748,8 @@ void test_rk23_rejected_request_clamps_to_minimum_step()
     options.relative_tolerance = 1.0e-12;
     options.absolute_tolerance = 1.0e-14;
 
-    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({0.5, 1.0, 2.0}, 0.0, 0.04, rhs, options);
+    const qmomkit::AdaptiveRkResult result =
+        qmomkit::integrate_embedded_rk({0.5, 1.0, 2.0}, 0.0, 0.04, rhs, qmomkit::EmbeddedRkMethod::rk23, options);
 
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 2);
@@ -785,7 +768,7 @@ void test_rk23_accepts_final_remainder_below_minimum_step()
     options.relative_tolerance = 1.0e-15;
     options.absolute_tolerance = 1.0e-15;
 
-    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 1.5e-3, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk({1.0}, 0.0, 1.5e-3, rhs, qmomkit::EmbeddedRkMethod::rk23, options);
 
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 2);
@@ -805,7 +788,7 @@ void test_rk23_accepts_complete_interval_below_minimum_step()
     options.relative_tolerance = 1.0e-15;
     options.absolute_tolerance = 1.0e-15;
 
-    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 5.0e-4, rhs, options);
+    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk({1.0}, 0.0, 5.0e-4, rhs, qmomkit::EmbeddedRkMethod::rk23, options);
 
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 1);
@@ -822,7 +805,8 @@ void test_rk23_reports_maximum_step_count_failure()
     options.max_step = 0.1;
     options.max_steps = 1;
 
-    const qmomkit::AdaptiveRkResult result = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, exponential_decay_rhs(), options);
+    const qmomkit::AdaptiveRkResult result =
+        qmomkit::integrate_embedded_rk({1.0}, 0.0, 1.0, exponential_decay_rhs(), qmomkit::EmbeddedRkMethod::rk23, options);
 
     assert(result.status == qmomkit::AdaptiveRkStatus::max_steps_exceeded);
     assert(!result.message.empty());
@@ -844,8 +828,8 @@ void test_rk23_max_step_changes_observable_diagnostics()
     small_step.initial_step = 0.1;
     small_step.max_step = 0.1;
 
-    const qmomkit::AdaptiveRkResult large = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, large_step);
-    const qmomkit::AdaptiveRkResult small = qmomkit::integrate_rk23({1.0}, 0.0, 1.0, rhs, small_step);
+    const qmomkit::AdaptiveRkResult large = qmomkit::integrate_embedded_rk({1.0}, 0.0, 1.0, rhs, qmomkit::EmbeddedRkMethod::rk23, large_step);
+    const qmomkit::AdaptiveRkResult small = qmomkit::integrate_embedded_rk({1.0}, 0.0, 1.0, rhs, qmomkit::EmbeddedRkMethod::rk23, small_step);
 
     assert(large.status == qmomkit::AdaptiveRkStatus::success);
     assert(small.status == qmomkit::AdaptiveRkStatus::success);
@@ -865,7 +849,6 @@ int main()
     test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs();
     test_adaptive_initial_step_default_and_override();
     test_embedded_rk_default_initial_step_is_used_for_both_methods();
-    test_rk23_wrapper_uses_default_initial_step();
     test_embedded_rk_fsal_reuses_accepted_endpoint_derivative();
     test_embedded_rk_adaptive_controls_for_both_methods();
     test_embedded_rk_public_backward_integration();

@@ -149,11 +149,4 @@ struct AdaptiveRkResult
 [[nodiscard]] AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state, double t0, double t_bound, const OdeRhs& rhs,
                                                      EmbeddedRkMethod method, const AdaptiveRkOptions& options);
 
-/**
- * Compatibility wrapper selecting the Bogacki-Shampine RK3(2) pair.
- * New method-neutral code should use integrate_embedded_rk(..., rk23, ...).
- */
-[[nodiscard]] AdaptiveRkResult integrate_rk23(const std::vector<double>& initial_state, double t0, double t_bound, const OdeRhs& rhs,
-                                              const AdaptiveRkOptions& options);
-
 } // namespace qmomkit

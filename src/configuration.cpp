@@ -2470,16 +2470,6 @@ ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(const std
     return ConfigurationResult<NodeAdvectionOptions>{*options};
 }
 
-ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(const std::string_view text, std::string source_name)
-{
-    ConfigurationResult<NodeAdvectionOptions> options = parse_node_advection_options(text, std::move(source_name));
-    if (!options)
-    {
-        return ConfigurationResult<NodeAdvectionScheme>::failure(options.error());
-    }
-    return ConfigurationResult<NodeAdvectionScheme>{options.value().scheme};
-}
-
 ConfigurationResult<QmomTransportOptions> parse_qmom_transport_options(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
@@ -2665,16 +2655,6 @@ ConfigurationResult<NodeAdvectionOptions> load_node_advection_options(const std:
         return file_failure<NodeAdvectionOptions>(filename);
     }
     return parse_node_advection_options(*contents, filename.string());
-}
-
-ConfigurationResult<NodeAdvectionScheme> load_node_advection_scheme(const std::filesystem::path& filename)
-{
-    ConfigurationResult<NodeAdvectionOptions> options = load_node_advection_options(filename);
-    if (!options)
-    {
-        return ConfigurationResult<NodeAdvectionScheme>::failure(options.error());
-    }
-    return ConfigurationResult<NodeAdvectionScheme>{options.value().scheme};
 }
 
 ConfigurationResult<RealizabilityPolicy> load_realizability_policy(const std::filesystem::path& filename)

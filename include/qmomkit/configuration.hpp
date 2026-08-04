@@ -216,10 +216,6 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Parse optional transport scheme configuration. */
 [[nodiscard]] ConfigurationResult<TransportScheme> parse_transport_scheme(std::string_view text, std::string source_name = "<string>");
 
-/** Compatibility helper for parsing only the node-advection scheme.
- * Prefer `parse_node_advection_options(...)` for full node controls. */
-[[nodiscard]] ConfigurationResult<NodeAdvectionScheme> parse_node_advection_scheme(std::string_view text, std::string source_name = "<string>");
-
 /** Parse optional node-advection configuration, including embedded-RK controls. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(std::string_view text, std::string source_name = "<string>");
 
@@ -246,10 +242,6 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 
 /** Load and parse output configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<OutputOptions> load_output_options(const std::filesystem::path& filename);
-
-/** Compatibility helper for loading only the node-advection scheme.
- * Prefer `load_node_advection_options(...)` for full node controls. */
-[[nodiscard]] ConfigurationResult<NodeAdvectionScheme> load_node_advection_scheme(const std::filesystem::path& filename);
 
 /** Load and parse node-advection configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionOptions> load_node_advection_options(const std::filesystem::path& filename);

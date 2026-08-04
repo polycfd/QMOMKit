@@ -319,6 +319,10 @@ min_step
 max_steps
 ```
 
+Drivers parse or load the complete `NodeAdvectionOptions` object with
+`parse_node_advection_options(...)` or `load_node_advection_options(...)`.
+When only the integration scheme is needed, they inspect its `.scheme` member.
+
 CQMOM source-stage active-count evolution is automatic. Continuous
 reconstruction constrains each existing adaptive branch to its current active
 count. After an accepted discontinuous source update, adaptive CQMOM passes the
@@ -405,8 +409,6 @@ Public configuration capabilities include:
 - `parse_transport_scheme(...)`;
 - `parse_node_advection_options(...)` and
   `load_node_advection_options(...)`;
-- `parse_node_advection_scheme(...)` and
-  `load_node_advection_scheme(...)` compatibility helpers;
 - `parse_qmom_transport_options(...)`, `load_qmom_transport_options(...)`,
   `parse_cqmom_transport_options(...)`, and
   `load_cqmom_transport_options(...)`;

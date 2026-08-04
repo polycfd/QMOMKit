@@ -1576,7 +1576,6 @@ void bm_cqmom_source_callback_only(benchmark::State& state)
     const std::size_t steps_per_state = static_cast<std::size_t>(state.range(1));
     const CqmomWorkload workload = make_workload({3, 3});
     const qmomkit::CqmomMomentSource source = source_model();
-    const qmomkit::CqmomSourceContext context(workload.hierarchy, workload.lean_moments.layout.required_indices, workload.lean_moments.values);
     double measured_seconds = 0.0;
     for (auto _ : state)
     {
@@ -1584,6 +1583,8 @@ void bm_cqmom_source_callback_only(benchmark::State& state)
         for (std::size_t step = 0; step < steps_per_state; ++step)
         {
             const double time = 0.001 * static_cast<double>(step);
+            const qmomkit::CqmomSourceContext context(time, workload.hierarchy, workload.lean_moments.layout.required_indices,
+                                                      workload.lean_moments.values);
             for (std::size_t state_index = 0; state_index < state_count; ++state_index)
             {
                 qmomkit::CqmomMomentRate rate = source(time, context);
@@ -1659,7 +1660,8 @@ void bm_cqmom_ssp_source_existing_layout(benchmark::State& state)
                     value_state, time, 0.001,
                     [&](const double rhs_time, const std::vector<double>& state_values)
                     {
-                        const qmomkit::CqmomSourceContext context(workload.hierarchy, workload.lean_moments.layout.required_indices, state_values);
+                        const qmomkit::CqmomSourceContext context(rhs_time, workload.hierarchy, workload.lean_moments.layout.required_indices,
+                                                                  state_values);
                         return source(rhs_time, context).values;
                     },
                     options);

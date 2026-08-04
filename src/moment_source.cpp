@@ -352,12 +352,6 @@ CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierar
     validate_source_context(source_hierarchy, indices, values);
 }
 
-CqmomSourceContext::CqmomSourceContext(const PhaseSpaceHierarchy& source_hierarchy, const std::vector<MultiIndex>& indices,
-                                       const std::vector<double>& values)
-    : CqmomSourceContext(0.0, source_hierarchy, indices, values)
-{
-}
-
 double CqmomSourceContext::time() const noexcept
 {
     return time_;

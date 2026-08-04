@@ -50,14 +50,14 @@ using MomentBoundaryContribution = std::function<MomentBoundaryRate(double, cons
  * Entries are ordered consistently with the derivative values expected from a
  * `CqmomMomentSource`. The context exposes the CQMOM moment layout selected for
  * transport, along with phase-space hierarchy, stage time, moment multi-indices,
- * and moment values. That layout is independent of the underlying dense or lean
- * CQMOM moment storage backend.
+ * and moment values. The time is explicit and matches the stage or evaluation
+ * time passed as the first argument to the callback. That layout is independent
+ * of the underlying dense or lean CQMOM moment storage backend.
  */
 class CqmomSourceContext
 {
 public:
     CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values);
-    CqmomSourceContext(const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values);
 
     [[nodiscard]] double time() const noexcept;
     [[nodiscard]] std::size_t moment_count() const noexcept;

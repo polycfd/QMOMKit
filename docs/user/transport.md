@@ -364,7 +364,9 @@ configured hierarchy.
 
 Use:
 
-- `context.time()` for the current SSP-RK source-stage time;
+- `context.time()` for the explicitly supplied current SSP-RK source-stage
+  time; it is the same value as the callback's first argument. Callers that
+  represent the initial instant must provide `0.0` deliberately;
 - `context.size()` for the number of moment entries that need derivatives;
 - `context.moment_count()` as a synonym for that source moment count;
 - `context.dimension_count()` for the hierarchy dimension count;

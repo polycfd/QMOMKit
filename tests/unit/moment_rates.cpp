@@ -432,14 +432,16 @@ void test_public_cqmom_discontinuous_rates_preserve_layout_and_status()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData moments =
         cqmom_moment_data_from_terminals(layout, {0.2, 0.3, 0.1, 0.4}, {{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}});
+    constexpr double evaluation_time = 1.2345;
     std::size_t calls = 0;
 
     const qmomkit::CqmomDiscontinuousMomentRateResult success =
-        qmomkit::evaluate_cqmom_discontinuous_moment_rates(0.5, moments,
+        qmomkit::evaluate_cqmom_discontinuous_moment_rates(evaluation_time, moments,
                                                            [&moments, &calls](const double time, const qmomkit::CqmomSourceContext& context)
                                                            {
                                                                ++calls;
-                                                               assert_near(time, 0.5, 0.0);
+                                                               assert_near(time, evaluation_time, 0.0);
+                                                               assert_near(context.time(), evaluation_time, 0.0);
                                                                assert(context.size() == moments.values.size());
                                                                std::vector<double> rates(context.size(), 0.0);
                                                                for (std::size_t i = 0; i < context.size(); ++i)

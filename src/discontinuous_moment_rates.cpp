@@ -177,7 +177,7 @@ CqmomDiscontinuousMomentRateResult evaluate_cqmom_discontinuous_moment_rates(con
         return cqmom_invalid_input(error.what());
     }
 
-    const CqmomSourceContext context{moments.layout.hierarchy, moments.layout.required_indices, moments.values};
+    const CqmomSourceContext context{time, moments.layout.hierarchy, moments.layout.required_indices, moments.values};
     CqmomMomentRate rate;
     try
     {

@@ -7,10 +7,16 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace
 {
+
+static_assert(std::is_constructible_v<qmomkit::CqmomSourceContext, double, const qmomkit::PhaseSpaceHierarchy&,
+                                      const std::vector<qmomkit::MultiIndex>&, const std::vector<double>&>);
+static_assert(!std::is_constructible_v<qmomkit::CqmomSourceContext, const qmomkit::PhaseSpaceHierarchy&, const std::vector<qmomkit::MultiIndex>&,
+                                       const std::vector<double>&>);
 
 void assert_near(const double actual, const double expected, const double tolerance)
 {
@@ -166,16 +172,18 @@ void test_cqmom_moment_data_zero_source_preserves_state()
 void test_cqmom_source_context_exposes_moment_metadata()
 {
     const qmomkit::CqmomMomentData initial = create_moment_data();
+    constexpr double initial_time = 1.2345;
     bool inspected_context = false;
 
     const qmomkit::CqmomMomentSourceUpdateResult result = qmomkit::advance_cqmom_moments_with_source(
-        initial, 0.1, 0.2,
+        initial, initial_time, 0.2,
         [&initial, &inspected_context](const double time, const qmomkit::CqmomSourceContext& moments)
         {
             assert_near(time, moments.time(), 1.0e-15);
             if (!inspected_context)
             {
-                assert_near(moments.time(), 0.1, 1.0e-15);
+                assert_near(time, initial_time, 1.0e-15);
+                assert_near(moments.time(), initial_time, 1.0e-15);
                 assert(moments.size() == initial.values.size());
                 assert(moments.moment_count() == initial.values.size());
                 assert(moments.dimension_count() == initial.layout.hierarchy.number_of_dimensions());
@@ -437,13 +445,23 @@ void test_source_callback_exception_keeps_source_message()
 void test_cqmom_boundary_contribution_uses_source_context_ordering()
 {
     const qmomkit::CqmomMomentData initial = create_moment_data();
+    constexpr double initial_time = 1.2345;
     constexpr double time_step = 0.2;
     bool inspected_context = false;
+    std::vector<double> source_times;
+    std::vector<double> boundary_times;
 
-    const qmomkit::CqmomMomentSource source = [](double, const qmomkit::CqmomSourceContext& moments)
-    { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
-    const qmomkit::CqmomMomentBoundaryContribution boundary = [&initial, &inspected_context](double, const qmomkit::CqmomSourceContext& context)
+    const qmomkit::CqmomMomentSource source = [&source_times](const double time, const qmomkit::CqmomSourceContext& moments)
     {
+        assert_near(time, moments.time(), 1.0e-15);
+        source_times.push_back(time);
+        return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)};
+    };
+    const qmomkit::CqmomMomentBoundaryContribution boundary =
+        [&initial, &inspected_context, &boundary_times](const double time, const qmomkit::CqmomSourceContext& context)
+    {
+        assert_near(time, context.time(), 1.0e-15);
+        boundary_times.push_back(time);
         std::vector<double> rate(context.size(), 0.0);
         for (std::size_t i = 0; i < context.size(); ++i)
         {
@@ -454,7 +472,8 @@ void test_cqmom_boundary_contribution_uses_source_context_ordering()
         return qmomkit::CqmomMomentRate{rate};
     };
 
-    const qmomkit::CqmomMomentSourceUpdateResult result = qmomkit::advance_cqmom_moments_with_source(initial, 0.0, time_step, source, boundary, {});
+    const qmomkit::CqmomMomentSourceUpdateResult result =
+        qmomkit::advance_cqmom_moments_with_source(initial, initial_time, time_step, source, boundary, {});
 
     std::vector<double> expected = initial.values;
     for (std::size_t i = 0; i < expected.size(); ++i)
@@ -464,6 +483,9 @@ void test_cqmom_boundary_contribution_uses_source_context_ordering()
     }
     assert(result.ok());
     assert(inspected_context);
+    assert(!source_times.empty());
+    assert(source_times == boundary_times);
+    assert_near(source_times.front(), initial_time, 1.0e-15);
     assert_vector_near(result.moments.values, expected, 1.0e-15);
 }
 

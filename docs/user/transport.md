@@ -875,6 +875,67 @@ examples/qmom_1d_continuous_breakage/
 examples/cqmom_transport/
 ```
 
+## Batch Convenience Wrappers
+
+When an application owns several independent accepted states with shared
+transport controls, it can call the `*_batch(...)` accepted-state transport
+wrappers. QMOM and CQMOM provide matching continuous-stage, discontinuous-stage,
+and complete-transport batch families, including the corresponding
+boundary-aware overloads.
+
+A batch call is a serial convenience wrapper around the corresponding scalar
+call. It processes input positions in increasing order and returns one result
+per input in the same order. Each entry retains its own adaptive substeps,
+retries, active node or branch topology, diagnostics, and transport status. An
+empty input returns an empty result without invoking callbacks or validating the
+shared arguments.
+
+Use ordinary batch functions such as `advance_transport_qmom_batch(...)` when
+one scalar callback applies to every entry. When external data vary by input
+position, use the batch-index-aware `*_batch_with_index(...)` functions with
+the `Batch*` callback types. Their first `batch_index` argument is only the
+zero-based position in the supplied state collection; it is not a cell, mesh,
+or spatial identifier. The distinct function names select the callback family,
+so generic and dual-signature callables remain unambiguous.
+
+```cpp
+const std::vector<qmomkit::QmomTransportResult> results =
+    qmomkit::advance_transport_qmom_batch(
+        states, maximum_node_count, time, time_step, velocity, source, options);
+
+const qmomkit::BatchPhaseSpaceVelocity indexed_velocity =
+    [](std::size_t, double, const std::vector<double>& coordinates)
+    {
+        return std::vector<double>(coordinates.size(), 0.0);
+    };
+
+const qmomkit::BatchMomentSource indexed_source =
+    [&local_rates](std::size_t batch_index, double, const std::vector<double>& moments)
+    {
+        std::vector<double> rates(moments.size(), 0.0);
+        for (std::size_t i = 0; i < moments.size(); ++i)
+        {
+            rates[i] = local_rates[batch_index] * moments[i];
+        }
+        return rates;
+    };
+
+const std::vector<qmomkit::QmomTransportResult> indexed_results =
+    qmomkit::advance_transport_qmom_batch_with_index(
+        states, maximum_node_count, time, time_step, indexed_velocity,
+        indexed_source, options);
+```
+
+Time, time step, transport options, and the QMOM maximum node count are shared
+by a batch. Applications needing heterogeneous controls should make explicit
+scalar calls. An unsuccessful scalar result is retained at its input position
+and does not stop later entries. An exception that escapes a scalar call also
+escapes the batch call unchanged and stops processing.
+
+Batch wrappers do not provide threading, MPI, scheduling, or spatial
+organization. Calling scalar APIs inside an application-managed parallel loop
+remains fully supported.
+
 ## Practical Guidance
 
 Coordinate order links the transport callback to the configured model. A

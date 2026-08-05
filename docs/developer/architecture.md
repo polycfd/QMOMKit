@@ -76,6 +76,10 @@ with `advance_transport_qmom(QmomState, ...)`; normal CQMOM transport creates a
 `CqmomState` with `CqmomCase::initial_state()` and advances it with
 `advance_transport_cqmom(CqmomState, ...)`.
 
+Accepted-state batch transport is a serial collection of these same local
+operations. It does not give QMOMKit ownership of cells, meshes, partitions, or
+parallel execution; applications retain spatial organization and scheduling.
+
 `CqmomCase` and `CqmomState` are the neutral public objects for normal CQMOM
 workflows. Normal CQMOM transport creates a `CqmomState` from `CqmomCase` and
 advances it with `advance_transport_cqmom(...)`, independent of dense or lean

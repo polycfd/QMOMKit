@@ -59,6 +59,28 @@ int main()
         return 1;
     }
 
+    const qmomkit::QmomState qmom_state = qmomkit::QmomCase{moments, 2, {}}.initial_state();
+    const std::vector<qmomkit::QmomState> qmom_states{qmom_state};
+    qmomkit::QmomTransportOptions qmom_options;
+    qmom_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const std::vector<qmomkit::QmomTransportResult> qmom_batch =
+        qmomkit::advance_transport_qmom_batch(qmom_states, 2, 0.0, 0.1, velocity, source, qmom_options);
+    if (qmom_batch.size() != 1 || !qmom_batch.front().ok())
+    {
+        return 1;
+    }
+
+    const qmomkit::BatchPhaseSpaceVelocity batch_velocity = [](std::size_t, double, const std::vector<double>& coordinate)
+    { return std::vector<double>(coordinate.size(), 0.0); };
+    const qmomkit::BatchMomentSource batch_source = [](std::size_t, double, const std::vector<double>& state)
+    { return std::vector<double>(state.size(), 0.0); };
+    const std::vector<qmomkit::QmomTransportResult> qmom_batch_aware =
+        qmomkit::advance_transport_qmom_batch_with_index(qmom_states, 2, 0.0, 0.1, batch_velocity, batch_source, qmom_options);
+    if (qmom_batch_aware.size() != 1 || !qmom_batch_aware.front().ok())
+    {
+        return 1;
+    }
+
     const auto base_case = qmomkit::config::parse_cqmom(R"(
 [phase_space]
 node_counts = 1, 1
@@ -82,6 +104,25 @@ M[1,1] = 0.0
     }
     const qmomkit::CqmomState replaced_state = replaced_case.value().initial_state();
     if (replaced_state.moment_storage() != qmomkit::CqmomMomentStorage::lean || replaced_state.moment_values().empty())
+    {
+        return 1;
+    }
+
+    const std::vector<qmomkit::CqmomState> cqmom_states{replaced_state};
+    qmomkit::CqmomTransportOptions cqmom_options;
+    cqmom_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const qmomkit::PhaseSpaceVelocity cqmom_velocity = [](double, const std::vector<double>& coordinate)
+    { return std::vector<double>(coordinate.size(), 0.0); };
+    const std::vector<qmomkit::CqmomTransportResult> cqmom_batch =
+        qmomkit::advance_cqmom_continuous_batch(cqmom_states, 0.0, 0.1, cqmom_velocity, cqmom_options);
+    if (cqmom_batch.size() != 1 || !cqmom_batch.front().ok())
+    {
+        return 1;
+    }
+
+    const std::vector<qmomkit::CqmomTransportResult> cqmom_batch_aware =
+        qmomkit::advance_cqmom_continuous_batch_with_index(cqmom_states, 0.0, 0.1, batch_velocity, cqmom_options);
+    if (cqmom_batch_aware.size() != 1 || !cqmom_batch_aware.front().ok())
     {
         return 1;
     }

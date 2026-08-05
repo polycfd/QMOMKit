@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -41,6 +42,20 @@ namespace qmomkit
 
 namespace
 {
+
+template <typename State, typename Apply>
+[[nodiscard]] auto apply_batch(const std::vector<State>& states, Apply&& apply)
+    -> std::vector<std::invoke_result_t<Apply&, std::size_t, const State&>>
+{
+    using Result = std::invoke_result_t<Apply&, std::size_t, const State&>;
+    std::vector<Result> results;
+    results.reserve(states.size());
+    for (std::size_t batch_index = 0; batch_index < states.size(); ++batch_index)
+    {
+        results.push_back(apply(batch_index, states[batch_index]));
+    }
+    return results;
+}
 
 void validate_time_input(const double t, const double time_step)
 {
@@ -1283,6 +1298,283 @@ CqmomTransportResult advance_transport_cqmom(const CqmomState& state, const doub
                                              const CqmomTransportOptions& options)
 {
     return advance_transport_cqmom_state_impl(state, t, time_step, velocity, source, &boundary, options);
+}
+
+std::vector<QmomTransportResult> advance_qmom_continuous_batch(const std::vector<QmomState>& states, const double time, const double time_step,
+                                                               const PhaseSpaceVelocity& velocity, const QmomTransportOptions& options)
+{
+    return apply_batch(states,
+                       [&](const std::size_t, const QmomState& state) { return advance_qmom_continuous(state, time, time_step, velocity, options); });
+}
+
+std::vector<CqmomTransportResult> advance_cqmom_continuous_batch(const std::vector<CqmomState>& states, const double time, const double time_step,
+                                                                 const PhaseSpaceVelocity& velocity, const CqmomTransportOptions& options)
+{
+    return apply_batch(states, [&](const std::size_t, const CqmomState& state)
+                       { return advance_cqmom_continuous(state, time, time_step, velocity, options); });
+}
+
+std::vector<QmomTransportResult> advance_qmom_discontinuous_batch(const std::vector<QmomState>& states, const std::size_t maximum_node_count,
+                                                                  const double time, const double time_step, const MomentSource& source,
+                                                                  const QmomTransportOptions& options)
+{
+    return apply_batch(states, [&](const std::size_t, const QmomState& state)
+                       { return advance_qmom_discontinuous(state, maximum_node_count, time, time_step, source, options); });
+}
+
+std::vector<CqmomTransportResult> advance_cqmom_discontinuous_batch(const std::vector<CqmomState>& states, const double time, const double time_step,
+                                                                    const CqmomMomentSource& source, const CqmomTransportOptions& options)
+{
+    return apply_batch(states, [&](const std::size_t, const CqmomState& state)
+                       { return advance_cqmom_discontinuous(state, time, time_step, source, options); });
+}
+
+std::vector<QmomTransportResult> advance_qmom_discontinuous_batch(const std::vector<QmomState>& states, const std::size_t maximum_node_count,
+                                                                  const double time, const double time_step, const MomentSource& source,
+                                                                  const MomentBoundaryContribution& boundary, const QmomTransportOptions& options)
+{
+    return apply_batch(states, [&](const std::size_t, const QmomState& state)
+                       { return advance_qmom_discontinuous(state, maximum_node_count, time, time_step, source, boundary, options); });
+}
+
+std::vector<CqmomTransportResult> advance_cqmom_discontinuous_batch(const std::vector<CqmomState>& states, const double time, const double time_step,
+                                                                    const CqmomMomentSource& source, const CqmomMomentBoundaryContribution& boundary,
+                                                                    const CqmomTransportOptions& options)
+{
+    return apply_batch(states, [&](const std::size_t, const CqmomState& state)
+                       { return advance_cqmom_discontinuous(state, time, time_step, source, boundary, options); });
+}
+
+std::vector<QmomTransportResult> advance_transport_qmom_batch(const std::vector<QmomState>& states, const std::size_t maximum_node_count,
+                                                              const double time, const double time_step, const PhaseSpaceVelocity& velocity,
+                                                              const MomentSource& source, const QmomTransportOptions& options)
+{
+    return apply_batch(states, [&](const std::size_t, const QmomState& state)
+                       { return advance_transport_qmom(state, maximum_node_count, time, time_step, velocity, source, options); });
+}
+
+std::vector<CqmomTransportResult> advance_transport_cqmom_batch(const std::vector<CqmomState>& states, const double time, const double time_step,
+                                                                const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                                const CqmomTransportOptions& options)
+{
+    return apply_batch(states, [&](const std::size_t, const CqmomState& state)
+                       { return advance_transport_cqmom(state, time, time_step, velocity, source, options); });
+}
+
+std::vector<QmomTransportResult> advance_transport_qmom_batch(const std::vector<QmomState>& states, const std::size_t maximum_node_count,
+                                                              const double time, const double time_step, const PhaseSpaceVelocity& velocity,
+                                                              const MomentSource& source, const MomentBoundaryContribution& boundary,
+                                                              const QmomTransportOptions& options)
+{
+    return apply_batch(states, [&](const std::size_t, const QmomState& state)
+                       { return advance_transport_qmom(state, maximum_node_count, time, time_step, velocity, source, boundary, options); });
+}
+
+std::vector<CqmomTransportResult> advance_transport_cqmom_batch(const std::vector<CqmomState>& states, const double time, const double time_step,
+                                                                const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                                const CqmomMomentBoundaryContribution& boundary, const CqmomTransportOptions& options)
+{
+    return apply_batch(states, [&](const std::size_t, const CqmomState& state)
+                       { return advance_transport_cqmom(state, time, time_step, velocity, source, boundary, options); });
+}
+
+std::vector<QmomTransportResult> advance_qmom_continuous_batch_with_index(const std::vector<QmomState>& states, const double time,
+                                                                          const double time_step, const BatchPhaseSpaceVelocity& velocity,
+                                                                          const QmomTransportOptions& options)
+{
+    return apply_batch(
+        states,
+        [&](const std::size_t batch_index, const QmomState& state)
+        {
+            const PhaseSpaceVelocity local_velocity =
+                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
+                                              { return velocity(batch_index, callback_time, phase_space_location); }}
+                         : PhaseSpaceVelocity{};
+            return advance_qmom_continuous(state, time, time_step, local_velocity, options);
+        });
+}
+
+std::vector<CqmomTransportResult> advance_cqmom_continuous_batch_with_index(const std::vector<CqmomState>& states, const double time,
+                                                                            const double time_step, const BatchPhaseSpaceVelocity& velocity,
+                                                                            const CqmomTransportOptions& options)
+{
+    return apply_batch(
+        states,
+        [&](const std::size_t batch_index, const CqmomState& state)
+        {
+            const PhaseSpaceVelocity local_velocity =
+                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
+                                              { return velocity(batch_index, callback_time, phase_space_location); }}
+                         : PhaseSpaceVelocity{};
+            return advance_cqmom_continuous(state, time, time_step, local_velocity, options);
+        });
+}
+
+std::vector<QmomTransportResult> advance_qmom_discontinuous_batch_with_index(const std::vector<QmomState>& states,
+                                                                             const std::size_t maximum_node_count, const double time,
+                                                                             const double time_step, const BatchMomentSource& source,
+                                                                             const QmomTransportOptions& options)
+{
+    return apply_batch(states,
+                       [&](const std::size_t batch_index, const QmomState& state)
+                       {
+                           const MomentSource local_source =
+                               source ? MomentSource{[&source, batch_index](const double callback_time, const std::vector<double>& moments)
+                                                     { return source(batch_index, callback_time, moments); }}
+                                      : MomentSource{};
+                           return advance_qmom_discontinuous(state, maximum_node_count, time, time_step, local_source, options);
+                       });
+}
+
+std::vector<CqmomTransportResult> advance_cqmom_discontinuous_batch_with_index(const std::vector<CqmomState>& states, const double time,
+                                                                               const double time_step, const BatchCqmomMomentSource& source,
+                                                                               const CqmomTransportOptions& options)
+{
+    return apply_batch(states,
+                       [&](const std::size_t batch_index, const CqmomState& state)
+                       {
+                           const CqmomMomentSource local_source =
+                               source ? CqmomMomentSource{[&source, batch_index](const double callback_time, const CqmomSourceContext& context)
+                                                          { return source(batch_index, callback_time, context); }}
+                                      : CqmomMomentSource{};
+                           return advance_cqmom_discontinuous(state, time, time_step, local_source, options);
+                       });
+}
+
+std::vector<QmomTransportResult> advance_qmom_discontinuous_batch_with_index(const std::vector<QmomState>& states,
+                                                                             const std::size_t maximum_node_count, const double time,
+                                                                             const double time_step, const BatchMomentSource& source,
+                                                                             const BatchMomentBoundaryContribution& boundary,
+                                                                             const QmomTransportOptions& options)
+{
+    return apply_batch(
+        states,
+        [&](const std::size_t batch_index, const QmomState& state)
+        {
+            const MomentSource local_source =
+                source ? MomentSource{[&source, batch_index](const double callback_time, const std::vector<double>& moments)
+                                      { return source(batch_index, callback_time, moments); }}
+                       : MomentSource{};
+            const MomentBoundaryContribution local_boundary =
+                boundary ? MomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const std::vector<double>& moments)
+                                                      { return boundary(batch_index, callback_time, moments); }}
+                         : MomentBoundaryContribution{};
+            return advance_qmom_discontinuous(state, maximum_node_count, time, time_step, local_source, local_boundary, options);
+        });
+}
+
+std::vector<CqmomTransportResult> advance_cqmom_discontinuous_batch_with_index(const std::vector<CqmomState>& states, const double time,
+                                                                               const double time_step, const BatchCqmomMomentSource& source,
+                                                                               const BatchCqmomMomentBoundaryContribution& boundary,
+                                                                               const CqmomTransportOptions& options)
+{
+    return apply_batch(
+        states,
+        [&](const std::size_t batch_index, const CqmomState& state)
+        {
+            const CqmomMomentSource local_source =
+                source ? CqmomMomentSource{[&source, batch_index](const double callback_time, const CqmomSourceContext& context)
+                                           { return source(batch_index, callback_time, context); }}
+                       : CqmomMomentSource{};
+            const CqmomMomentBoundaryContribution local_boundary =
+                boundary ? CqmomMomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const CqmomSourceContext& context)
+                                                           { return boundary(batch_index, callback_time, context); }}
+                         : CqmomMomentBoundaryContribution{};
+            return advance_cqmom_discontinuous(state, time, time_step, local_source, local_boundary, options);
+        });
+}
+
+std::vector<QmomTransportResult> advance_transport_qmom_batch_with_index(const std::vector<QmomState>& states, const std::size_t maximum_node_count,
+                                                                         const double time, const double time_step,
+                                                                         const BatchPhaseSpaceVelocity& velocity, const BatchMomentSource& source,
+                                                                         const QmomTransportOptions& options)
+{
+    return apply_batch(
+        states,
+        [&](const std::size_t batch_index, const QmomState& state)
+        {
+            const PhaseSpaceVelocity local_velocity =
+                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
+                                              { return velocity(batch_index, callback_time, phase_space_location); }}
+                         : PhaseSpaceVelocity{};
+            const MomentSource local_source =
+                source ? MomentSource{[&source, batch_index](const double callback_time, const std::vector<double>& moments)
+                                      { return source(batch_index, callback_time, moments); }}
+                       : MomentSource{};
+            return advance_transport_qmom(state, maximum_node_count, time, time_step, local_velocity, local_source, options);
+        });
+}
+
+std::vector<CqmomTransportResult> advance_transport_cqmom_batch_with_index(const std::vector<CqmomState>& states, const double time,
+                                                                           const double time_step, const BatchPhaseSpaceVelocity& velocity,
+                                                                           const BatchCqmomMomentSource& source, const CqmomTransportOptions& options)
+{
+    return apply_batch(
+        states,
+        [&](const std::size_t batch_index, const CqmomState& state)
+        {
+            const PhaseSpaceVelocity local_velocity =
+                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
+                                              { return velocity(batch_index, callback_time, phase_space_location); }}
+                         : PhaseSpaceVelocity{};
+            const CqmomMomentSource local_source =
+                source ? CqmomMomentSource{[&source, batch_index](const double callback_time, const CqmomSourceContext& context)
+                                           { return source(batch_index, callback_time, context); }}
+                       : CqmomMomentSource{};
+            return advance_transport_cqmom(state, time, time_step, local_velocity, local_source, options);
+        });
+}
+
+std::vector<QmomTransportResult> advance_transport_qmom_batch_with_index(const std::vector<QmomState>& states, const std::size_t maximum_node_count,
+                                                                         const double time, const double time_step,
+                                                                         const BatchPhaseSpaceVelocity& velocity, const BatchMomentSource& source,
+                                                                         const BatchMomentBoundaryContribution& boundary,
+                                                                         const QmomTransportOptions& options)
+{
+    return apply_batch(
+        states,
+        [&](const std::size_t batch_index, const QmomState& state)
+        {
+            const PhaseSpaceVelocity local_velocity =
+                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
+                                              { return velocity(batch_index, callback_time, phase_space_location); }}
+                         : PhaseSpaceVelocity{};
+            const MomentSource local_source =
+                source ? MomentSource{[&source, batch_index](const double callback_time, const std::vector<double>& moments)
+                                      { return source(batch_index, callback_time, moments); }}
+                       : MomentSource{};
+            const MomentBoundaryContribution local_boundary =
+                boundary ? MomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const std::vector<double>& moments)
+                                                      { return boundary(batch_index, callback_time, moments); }}
+                         : MomentBoundaryContribution{};
+            return advance_transport_qmom(state, maximum_node_count, time, time_step, local_velocity, local_source, local_boundary, options);
+        });
+}
+
+std::vector<CqmomTransportResult> advance_transport_cqmom_batch_with_index(const std::vector<CqmomState>& states, const double time,
+                                                                           const double time_step, const BatchPhaseSpaceVelocity& velocity,
+                                                                           const BatchCqmomMomentSource& source,
+                                                                           const BatchCqmomMomentBoundaryContribution& boundary,
+                                                                           const CqmomTransportOptions& options)
+{
+    return apply_batch(
+        states,
+        [&](const std::size_t batch_index, const CqmomState& state)
+        {
+            const PhaseSpaceVelocity local_velocity =
+                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
+                                              { return velocity(batch_index, callback_time, phase_space_location); }}
+                         : PhaseSpaceVelocity{};
+            const CqmomMomentSource local_source =
+                source ? CqmomMomentSource{[&source, batch_index](const double callback_time, const CqmomSourceContext& context)
+                                           { return source(batch_index, callback_time, context); }}
+                       : CqmomMomentSource{};
+            const CqmomMomentBoundaryContribution local_boundary =
+                boundary ? CqmomMomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const CqmomSourceContext& context)
+                                                           { return boundary(batch_index, callback_time, context); }}
+                         : CqmomMomentBoundaryContribution{};
+            return advance_transport_cqmom(state, time, time_step, local_velocity, local_source, local_boundary, options);
+        });
 }
 
 } // namespace qmomkit

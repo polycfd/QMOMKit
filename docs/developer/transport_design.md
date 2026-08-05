@@ -916,6 +916,37 @@ Implementation details include:
 These details support the public APIs but should not become required concepts
 for projects that use QMOMKit.
 
+## Batch Convenience Wrappers
+
+The accepted-state batch transport functions are serial convenience wrappers
+only. Each wrapper reserves one result per input and delegates in increasing
+input order to its corresponding public scalar accepted-state operation. It
+must not call lower-level transport stages, reconstruction helpers, or time
+integrators directly, and it must not introduce a second numerical path.
+
+QMOM and CQMOM provide matching batch families for continuous stages,
+discontinuous stages, and complete transport, including boundary-aware
+overloads. Ordinary batch functions use the existing scalar callback types and
+the `_batch` suffix. Batch-index-aware functions use the `_batch_with_index`
+suffix and callbacks whose first argument is `batch_index`, the zero-based
+position of the state in the supplied collection. The distinct names select the
+callback family without callable-conversion ambiguity. Each scalar callback
+adapter captures that position by value, forwards all remaining arguments
+unchanged, and exists only for the duration of the scalar call. In particular,
+`CqmomSourceContext` remains non-owning and stage-local.
+
+The input/output contract is exactly a serial loop over scalar calls: an empty
+batch performs no validation or callback invocation; ordinary unsuccessful
+results are appended unchanged; and an escaping exception is not caught,
+wrapped, or annotated. Results, adaptive node-advection substeps, source
+retries, active node counts, active CQMOM branch topology, and diagnostics are
+strictly entry-local.
+
+Batch transport does not add execution policies, threading, scheduling,
+parallelism, mesh ownership, per-entry operation controls, batch diagnostics,
+or persistent batch state. Hosts retain responsibility for spatial organization
+and may instead call scalar transport inside their own parallel loops.
+
 ## Validation Expectations
 
 Transport changes should be validated through analytical or manufactured

@@ -7,6 +7,7 @@
 #include "qmomkit/qmom.hpp"
 
 #include <cstddef>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -156,6 +157,49 @@ struct CqmomTransportResult
 };
 
 /**
+ * Batch-index-aware phase-space velocity callback.
+ *
+ * `batch_index` is the zero-based position of the state in the collection
+ * supplied to a batch transport operation.
+ */
+using BatchPhaseSpaceVelocity =
+    std::function<std::vector<double>(std::size_t batch_index, double time, const std::vector<double>& phase_space_location)>;
+
+/**
+ * Batch-index-aware one-dimensional moment-source callback.
+ *
+ * `batch_index` is the zero-based position of the state in the collection
+ * supplied to a batch transport operation.
+ */
+using BatchMomentSource = std::function<std::vector<double>(std::size_t batch_index, double time, const std::vector<double>& moments)>;
+
+/**
+ * Batch-index-aware one-dimensional boundary-contribution callback.
+ *
+ * `batch_index` is the zero-based position of the state in the collection
+ * supplied to a batch transport operation.
+ */
+using BatchMomentBoundaryContribution = std::function<MomentBoundaryRate(std::size_t batch_index, double time, const std::vector<double>& moments)>;
+
+/**
+ * Batch-index-aware CQMOM moment-source callback.
+ *
+ * `batch_index` is the zero-based position of the state in the collection
+ * supplied to a batch transport operation. The CQMOM source context remains
+ * non-owning and valid only during the callback invocation.
+ */
+using BatchCqmomMomentSource = std::function<CqmomMomentRate(std::size_t batch_index, double time, const CqmomSourceContext& context)>;
+
+/**
+ * Batch-index-aware CQMOM boundary-contribution callback.
+ *
+ * `batch_index` is the zero-based position of the state in the collection
+ * supplied to a batch transport operation. The CQMOM source context remains
+ * non-owning and valid only during the callback invocation.
+ */
+using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::size_t batch_index, double time, const CqmomSourceContext& context)>;
+
+/**
  * Advance an accepted one-dimensional QMOM state through one continuous
  * phase-space stage.
  *
@@ -289,5 +333,129 @@ struct CqmomTransportResult
 [[nodiscard]] CqmomTransportResult advance_transport_cqmom(const CqmomState& state, double t, double time_step, const PhaseSpaceVelocity& velocity,
                                                            const CqmomMomentSource& source, const CqmomMomentBoundaryContribution& boundary,
                                                            const CqmomTransportOptions& options);
+
+/**
+ * Serial batch convenience wrappers for accepted QMOM and CQMOM transport
+ * states.
+ *
+ * Every wrapper reserves one result per input state and delegates in
+ * increasing input order to the corresponding scalar public operation. Input
+ * states are not modified, adaptive behavior remains independent per entry,
+ * and an empty input returns an empty result collection without validation or
+ * callback invocation. Time, timestep, options, and the QMOM maximum node
+ * count are shared by the batch.
+ *
+ * Ordinary batch functions reuse one scalar callback for every entry.
+ * Batch-index-aware functions have a `_batch_with_index` suffix and bind the
+ * zero-based input position into each callback invocation; that position is not
+ * a spatial or host-application identifier. Distinct names select the callback
+ * family without callable-conversion ambiguity. QMOMKit does not provide
+ * parallel execution or spatial organization through this API, and hosts may
+ * instead call scalar operations inside their own parallel loops.
+ *
+ * An unsuccessful scalar result is appended unchanged. Exceptions that escape
+ * a scalar call escape unchanged and stop processing; no partial result
+ * collection is returned.
+ */
+
+// Ordinary-callback continuous-stage batch wrappers.
+[[nodiscard]] std::vector<QmomTransportResult> advance_qmom_continuous_batch(const std::vector<QmomState>& states, double time, double time_step,
+                                                                             const PhaseSpaceVelocity& velocity,
+                                                                             const QmomTransportOptions& options = {});
+
+[[nodiscard]] std::vector<CqmomTransportResult> advance_cqmom_continuous_batch(const std::vector<CqmomState>& states, double time, double time_step,
+                                                                               const PhaseSpaceVelocity& velocity,
+                                                                               const CqmomTransportOptions& options = {});
+
+// Ordinary-callback discontinuous-stage batch wrappers.
+[[nodiscard]] std::vector<QmomTransportResult> advance_qmom_discontinuous_batch(const std::vector<QmomState>& states, std::size_t maximum_node_count,
+                                                                                double time, double time_step, const MomentSource& source,
+                                                                                const QmomTransportOptions& options = {});
+
+[[nodiscard]] std::vector<CqmomTransportResult> advance_cqmom_discontinuous_batch(const std::vector<CqmomState>& states, double time,
+                                                                                  double time_step, const CqmomMomentSource& source,
+                                                                                  const CqmomTransportOptions& options = {});
+
+[[nodiscard]] std::vector<QmomTransportResult> advance_qmom_discontinuous_batch(const std::vector<QmomState>& states, std::size_t maximum_node_count,
+                                                                                double time, double time_step, const MomentSource& source,
+                                                                                const MomentBoundaryContribution& boundary,
+                                                                                const QmomTransportOptions& options);
+
+[[nodiscard]] std::vector<CqmomTransportResult> advance_cqmom_discontinuous_batch(const std::vector<CqmomState>& states, double time,
+                                                                                  double time_step, const CqmomMomentSource& source,
+                                                                                  const CqmomMomentBoundaryContribution& boundary,
+                                                                                  const CqmomTransportOptions& options);
+
+// Ordinary-callback complete-transport batch wrappers.
+[[nodiscard]] std::vector<QmomTransportResult> advance_transport_qmom_batch(const std::vector<QmomState>& states, std::size_t maximum_node_count,
+                                                                            double time, double time_step, const PhaseSpaceVelocity& velocity,
+                                                                            const MomentSource& source, const QmomTransportOptions& options = {});
+
+[[nodiscard]] std::vector<CqmomTransportResult> advance_transport_cqmom_batch(const std::vector<CqmomState>& states, double time, double time_step,
+                                                                              const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                                              const CqmomTransportOptions& options = {});
+
+[[nodiscard]] std::vector<QmomTransportResult> advance_transport_qmom_batch(const std::vector<QmomState>& states, std::size_t maximum_node_count,
+                                                                            double time, double time_step, const PhaseSpaceVelocity& velocity,
+                                                                            const MomentSource& source, const MomentBoundaryContribution& boundary,
+                                                                            const QmomTransportOptions& options);
+
+[[nodiscard]] std::vector<CqmomTransportResult> advance_transport_cqmom_batch(const std::vector<CqmomState>& states, double time, double time_step,
+                                                                              const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                                              const CqmomMomentBoundaryContribution& boundary,
+                                                                              const CqmomTransportOptions& options);
+
+// Batch-index-aware continuous-stage batch wrappers.
+[[nodiscard]] std::vector<QmomTransportResult> advance_qmom_continuous_batch_with_index(const std::vector<QmomState>& states, double time,
+                                                                                        double time_step, const BatchPhaseSpaceVelocity& velocity,
+                                                                                        const QmomTransportOptions& options = {});
+
+[[nodiscard]] std::vector<CqmomTransportResult> advance_cqmom_continuous_batch_with_index(const std::vector<CqmomState>& states, double time,
+                                                                                          double time_step, const BatchPhaseSpaceVelocity& velocity,
+                                                                                          const CqmomTransportOptions& options = {});
+
+// Batch-index-aware discontinuous-stage batch wrappers.
+[[nodiscard]] std::vector<QmomTransportResult> advance_qmom_discontinuous_batch_with_index(const std::vector<QmomState>& states,
+                                                                                           std::size_t maximum_node_count, double time,
+                                                                                           double time_step, const BatchMomentSource& source,
+                                                                                           const QmomTransportOptions& options = {});
+
+[[nodiscard]] std::vector<CqmomTransportResult> advance_cqmom_discontinuous_batch_with_index(const std::vector<CqmomState>& states, double time,
+                                                                                             double time_step, const BatchCqmomMomentSource& source,
+                                                                                             const CqmomTransportOptions& options = {});
+
+[[nodiscard]] std::vector<QmomTransportResult> advance_qmom_discontinuous_batch_with_index(const std::vector<QmomState>& states,
+                                                                                           std::size_t maximum_node_count, double time,
+                                                                                           double time_step, const BatchMomentSource& source,
+                                                                                           const BatchMomentBoundaryContribution& boundary,
+                                                                                           const QmomTransportOptions& options);
+
+[[nodiscard]] std::vector<CqmomTransportResult> advance_cqmom_discontinuous_batch_with_index(const std::vector<CqmomState>& states, double time,
+                                                                                             double time_step, const BatchCqmomMomentSource& source,
+                                                                                             const BatchCqmomMomentBoundaryContribution& boundary,
+                                                                                             const CqmomTransportOptions& options);
+
+// Batch-index-aware complete-transport batch wrappers.
+[[nodiscard]] std::vector<QmomTransportResult> advance_transport_qmom_batch_with_index(const std::vector<QmomState>& states,
+                                                                                       std::size_t maximum_node_count, double time, double time_step,
+                                                                                       const BatchPhaseSpaceVelocity& velocity,
+                                                                                       const BatchMomentSource& source,
+                                                                                       const QmomTransportOptions& options = {});
+
+[[nodiscard]] std::vector<CqmomTransportResult> advance_transport_cqmom_batch_with_index(const std::vector<CqmomState>& states, double time,
+                                                                                         double time_step, const BatchPhaseSpaceVelocity& velocity,
+                                                                                         const BatchCqmomMomentSource& source,
+                                                                                         const CqmomTransportOptions& options = {});
+
+[[nodiscard]] std::vector<QmomTransportResult>
+advance_transport_qmom_batch_with_index(const std::vector<QmomState>& states, std::size_t maximum_node_count, double time, double time_step,
+                                        const BatchPhaseSpaceVelocity& velocity, const BatchMomentSource& source,
+                                        const BatchMomentBoundaryContribution& boundary, const QmomTransportOptions& options);
+
+[[nodiscard]] std::vector<CqmomTransportResult> advance_transport_cqmom_batch_with_index(const std::vector<CqmomState>& states, double time,
+                                                                                         double time_step, const BatchPhaseSpaceVelocity& velocity,
+                                                                                         const BatchCqmomMomentSource& source,
+                                                                                         const BatchCqmomMomentBoundaryContribution& boundary,
+                                                                                         const CqmomTransportOptions& options);
 
 } // namespace qmomkit

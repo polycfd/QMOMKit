@@ -2,7 +2,79 @@
 
 `paper/verification/` contains standalone, explicitly run numerical studies for
 the QMOMKit paper. They complement, but do not replace, the automated tests
-under `tests/`. `paper/examples/` is reserved for future paper examples.
+under `tests/`. `paper/examples/` contains standalone copies of three existing
+application examples: `examples/cqmom_non-spherical-particles/`,
+`examples/cqmom_condensing_droplets/`, and
+`examples/cqmom_polydisperse_cavitation/`.
+
+Each paper example preserves its canonical physics, configuration, fixed-seed
+Monte Carlo sample, and final time. One sampled ensemble initializes QMOMKit
+and is then evolved as the MC reference. For the controlled comparison, MC
+uses the same outer timestep and continuous RK23 trajectory options as QMOMKit
+node advection, and both paths are output at identical physical times. This
+deliberately differs from a standalone canonical MC executable if its timestep
+or integration options differ.
+
+## Paper application examples
+
+Install QMOMKit and QMOMKitMonteCarlo, then configure the paper examples as a
+standalone downstream consumer:
+
+```bash
+cmake -S paper/examples -B <paper-examples-build-dir> \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_PREFIX_PATH=<install-prefix>
+cmake --build <paper-examples-build-dir>
+```
+
+Run each executable from its corresponding build subdirectory so it uses the
+copied case configuration:
+
+```bash
+cd <paper-examples-build-dir>/non_spherical_particles
+../qmomkit_paper_non_spherical_particles
+
+cd <paper-examples-build-dir>/condensing_droplets
+../qmomkit_paper_condensing_droplets
+
+cd <paper-examples-build-dir>/polydisperse_cavitation
+../qmomkit_paper_polydisperse_cavitation
+```
+
+Each case writes its existing example outputs plus
+`output/moment_comparison.csv`, with the aligned columns `time`, `quantity`,
+`qmomkit`, and `monte_carlo`.
+
+The paper quantities are:
+
+- Non-spherical particles `(d, chi, u, v, w)`: `M_00000`,
+  `M_30000/M_20000`, `M_01000/M_00000`, `M_30100/M_00000`,
+  `M_30010/M_00000`, `M_30001/M_00000`, `Theta_x`, `Theta_y`, and
+  `Theta_z`, where `Theta_x = M_00200/M_00000 - (M_00100/M_00000)^2`
+  with analogous `y` and `z` formulas.
+- Condensing droplets `(r, w, T)`: `M_000`, `M_300/M_200`,
+  `M_010/M_000`, and `M_001/M_000`. Here `r` is radius; the requested
+  `M_300/M_200` is plotted exactly, without an added factor of two.
+- Polydisperse cavitation `(R, U)`: `M_00`, `M_10/M_00`, `M_01/M_00`,
+  `M_11/M_00`, `M_20/M_00`, and `M_02/M_00`.
+
+NumPy and Matplotlib are required to produce the figures:
+
+```bash
+cd <paper-examples-build-dir>/non_spherical_particles
+python3 <source-dir>/paper/examples/non_spherical_particles/plot.py
+
+cd <paper-examples-build-dir>/condensing_droplets
+python3 <source-dir>/paper/examples/condensing_droplets/plot.py
+
+cd <paper-examples-build-dir>/polydisperse_cavitation
+python3 <source-dir>/paper/examples/polydisperse_cavitation/plot.py
+```
+
+The scripts write `non_spherical_particles_moments.pdf`,
+`condensing_droplets_moments.pdf`, and
+`polydisperse_cavitation_moments.pdf`, respectively, in the corresponding
+build directories.
 
 Install QMOMKit, then configure the verification project in an out-of-source
 directory:

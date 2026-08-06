@@ -1,0 +1,40 @@
+[phase_space]
+names = r, w, T
+node_counts = 2, 2, 2
+conditioning_order = 0, 1, 2
+adaptive_branch_counts = true
+
+[time_integration.node_advection]
+scheme = rk23
+
+[time_integration.node_advection.adaptive]
+relative_tolerance = 1.0e-6
+absolute_tolerance = 1.0e-9
+initial_step = 1.0e-4
+max_step = 1.0e-2
+min_step = 1.0e-9
+
+[initial]
+type = independent_product
+number_density = 1.0
+
+[initial.dimension.0]
+family = gamma
+shape = 16.0
+scale = 1.875e-5
+
+[initial.dimension.1]
+family = normal
+mean = -2.0
+standard_deviation = 1.0
+
+[initial.dimension.2]
+family = normal
+mean = 293.15
+standard_deviation = 3.0
+
+[output]
+directory = output
+write_moments = true
+write_quadrature = true
+interval = 0.1

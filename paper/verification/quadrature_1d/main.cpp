@@ -39,11 +39,8 @@ struct ReferenceQuadrature
 
 struct ErrorMetrics
 {
-    double absolute_node = 0.0;
     double scaled_node = 0.0;
-    double absolute_weight = 0.0;
     double scaled_weight = 0.0;
-    double absolute_moment = 0.0;
     double scaled_moment = 0.0;
 };
 
@@ -138,6 +135,8 @@ std::vector<long double> analytical_moments(const Family family, const std::size
 
 ReferenceQuadrature golub_welsch_reference(const Family family, const std::size_t node_count)
 {
+    // This case-local Golub--Welsch construction is the independent classical
+    // reference; QMOMKit is used only after the input moments are formed.
     std::vector<std::vector<long double>> matrix(node_count, std::vector<long double>(node_count, 0.0L));
     long double mass = 1.0L;
 
@@ -275,6 +274,8 @@ std::vector<long double> moments_from_reference(const ReferenceQuadrature& refer
 
 void verify_reference(const Family family, const ReferenceQuadrature& reference, const std::size_t moment_count)
 {
+    // Exact family moments validate the independently constructed rule before
+    // it supplies the raw moments to the reconstruction under study.
     const std::vector<long double> actual = moments_from_reference(reference, moment_count);
     const std::vector<long double> expected = analytical_moments(family, moment_count);
     for (std::size_t order = 0; order < moment_count; ++order)
@@ -296,10 +297,9 @@ void verify_reference(const Family family, const ReferenceQuadrature& reference,
     }
 }
 
-void update_error(double& maximum_absolute, double& maximum_scaled, const double actual, const double expected)
+void update_scaled_error(double& maximum_scaled, const double actual, const double expected)
 {
     const double absolute = std::abs(actual - expected);
-    maximum_absolute = std::max(maximum_absolute, absolute);
     maximum_scaled = std::max(maximum_scaled, absolute / std::max(1.0, std::abs(expected)));
 }
 
@@ -317,9 +317,8 @@ RunResult run_case(const Family family, const std::size_t node_count)
         input_moments.push_back(static_cast<double>(moment));
     }
 
-    qmomkit::QmomOptions options;
-    options.adaptive = false;
-    const qmomkit::QmomResult reconstructed = qmomkit::compute_qmom(qmomkit::MomentSet{input_moments}, node_count, options);
+    // Native QMOMKit inversion and raw-moment reconstruction begin here.
+    const qmomkit::QmomResult reconstructed = qmomkit::compute_qmom(qmomkit::MomentSet{input_moments}, node_count, {});
     RunResult result;
     result.family = family_name(family);
     result.node_count = node_count;
@@ -341,9 +340,8 @@ RunResult run_case(const Family family, const std::size_t node_count)
 
     for (std::size_t node = 0; node < node_count; ++node)
     {
-        update_error(result.errors.absolute_node, result.errors.scaled_node, recovered_rule[node].first, static_cast<double>(reference.nodes[node]));
-        update_error(result.errors.absolute_weight, result.errors.scaled_weight, recovered_rule[node].second,
-                     static_cast<double>(reference.weights[node]));
+        update_scaled_error(result.errors.scaled_node, recovered_rule[node].first, static_cast<double>(reference.nodes[node]));
+        update_scaled_error(result.errors.scaled_weight, recovered_rule[node].second, static_cast<double>(reference.weights[node]));
     }
 
     const qmomkit::Quadrature1D quadrature{reconstructed.abscissas, reconstructed.weights, qmomkit::QuadratureStatus::success, ""};
@@ -354,8 +352,7 @@ RunResult run_case(const Family family, const std::size_t node_count)
     }
     for (std::size_t order = 0; order < moment_count; ++order)
     {
-        update_error(result.errors.absolute_moment, result.errors.scaled_moment, reconstructed_moments[order],
-                     static_cast<double>(reference_moments[order]));
+        update_scaled_error(result.errors.scaled_moment, reconstructed_moments[order], static_cast<double>(reference_moments[order]));
     }
 
     result.passed = result.errors.scaled_node <= node_weight_tolerance && result.errors.scaled_weight <= node_weight_tolerance &&
@@ -370,14 +367,12 @@ void write_csv(const std::vector<RunResult>& results)
     {
         throw std::runtime_error("Could not open quadrature_1d.csv for writing.");
     }
-    output << "family,node_count,status,active_node_count,max_absolute_node_error,max_scaled_node_error,max_absolute_weight_error,"
-              "max_scaled_weight_error,max_absolute_moment_error,max_scaled_moment_error\n";
+    output << "family,node_count,status,active_node_count,max_scaled_node_error,max_scaled_weight_error,max_scaled_moment_error\n";
     output << std::scientific << std::setprecision(17);
     for (const RunResult& result : results)
     {
         output << result.family << ',' << result.node_count << ',' << result.status << ',' << result.active_node_count << ','
-               << result.errors.absolute_node << ',' << result.errors.scaled_node << ',' << result.errors.absolute_weight << ','
-               << result.errors.scaled_weight << ',' << result.errors.absolute_moment << ',' << result.errors.scaled_moment << '\n';
+               << result.errors.scaled_node << ',' << result.errors.scaled_weight << ',' << result.errors.scaled_moment << '\n';
     }
 }
 

@@ -26,9 +26,6 @@ struct RkRun
     double step_size = 0.0;
     double absolute_error = 0.0;
     double observed_order = 0.0;
-    std::size_t accepted_steps = 0;
-    std::size_t rejected_steps = 0;
-    std::size_t function_evaluations = 0;
 };
 
 struct SplitRun
@@ -36,7 +33,6 @@ struct SplitRun
     std::string mode;
     std::size_t level = 0;
     double step_size = 0.0;
-    double maximum_absolute_moment_error = 0.0;
     double maximum_scaled_moment_error = 0.0;
     double observed_order = 0.0;
 };
@@ -65,6 +61,8 @@ void verify_finite(const double value, const std::string& description)
 
 std::vector<RkRun> run_ssp_rk3()
 {
+    // y'=-y has the exact solution exp(-t), so the reported final error is an
+    // independent measure of the native SSP-RK3 integration error.
     const std::vector<std::size_t> step_counts{8, 16, 32, 64, 128};
     const double exact = std::exp(-final_time);
     std::vector<RkRun> runs;
@@ -91,7 +89,7 @@ std::vector<RkRun> run_ssp_rk3()
         }
         const double error = std::abs(state[0] - exact);
         verify_finite(error, "SSP-RK3 final error");
-        runs.push_back({"ssp_rk3", level, step_size, error, 0.0, step_count, 0, 3 * step_count});
+        runs.push_back({"ssp_rk3", level, step_size, error, 0.0});
     }
     for (std::size_t level = 1; level < runs.size(); ++level)
     {
@@ -129,7 +127,7 @@ std::vector<RkRun> run_embedded_method(const qmomkit::EmbeddedRkMethod method, c
         }
         const double error = std::abs(result.state[0] - exact);
         verify_finite(error, name + " final error");
-        runs.push_back({name, level, step_size, error, 0.0, result.accepted_steps, result.rejected_steps, result.function_evaluations});
+        runs.push_back({name, level, step_size, error, 0.0});
     }
     for (std::size_t level = 1; level < runs.size(); ++level)
     {
@@ -145,6 +143,8 @@ std::vector<RkRun> run_embedded_method(const qmomkit::EmbeddedRkMethod method, c
 
 std::vector<double> noncommuting_exact(const std::vector<double>& initial, const double elapsed)
 {
+    // The triangular exact solution is independent of the split evolution
+    // implementation and supplies the moment reference for all three modes.
     const std::size_t count = initial.size();
     std::vector<double> diagonal(count, 0.0);
     for (std::size_t order = 0; order < count; ++order)
@@ -221,7 +221,6 @@ SplitRun run_split_case(const qmomkit::PhaseSpaceEvolutionScheme scheme, const s
     options.node_options.adaptive_options.absolute_tolerance = 1.0e-15;
     options.node_options.adaptive_options.initial_step = 0.0025;
     options.node_options.adaptive_options.max_step = 0.0025;
-    options.source_options.ssp_rk3_options.estimate_error = true;
     options.scheme = scheme;
 
     double time = 0.0;
@@ -247,10 +246,8 @@ SplitRun run_split_case(const qmomkit::PhaseSpaceEvolutionScheme scheme, const s
     for (std::size_t moment = 0; moment < exact.size(); ++moment)
     {
         const double absolute = std::abs(state.moments()[moment] - exact[moment]);
-        run.maximum_absolute_moment_error = std::max(run.maximum_absolute_moment_error, absolute);
         run.maximum_scaled_moment_error = std::max(run.maximum_scaled_moment_error, absolute / std::max(1.0, std::abs(exact[moment])));
     }
-    verify_finite(run.maximum_absolute_moment_error, "Maximum absolute moment error");
     verify_finite(run.maximum_scaled_moment_error, "Maximum scaled moment error");
     return run;
 }
@@ -288,12 +285,11 @@ void write_rk_csv(const std::vector<RkRun>& runs)
     {
         throw std::runtime_error("Could not open rk_convergence.csv for writing.");
     }
-    output << "scheme,level,step_size,absolute_error,observed_order,accepted_steps,rejected_steps,function_evaluations\n";
+    output << "scheme,level,step_size,absolute_error,observed_order\n";
     output << std::scientific << std::setprecision(17);
     for (const RkRun& run : runs)
     {
-        output << run.scheme << ',' << run.level << ',' << run.step_size << ',' << run.absolute_error << ',' << run.observed_order << ','
-               << run.accepted_steps << ',' << run.rejected_steps << ',' << run.function_evaluations << '\n';
+        output << run.scheme << ',' << run.level << ',' << run.step_size << ',' << run.absolute_error << ',' << run.observed_order << '\n';
     }
 }
 
@@ -304,12 +300,11 @@ void write_splitting_csv(const std::vector<SplitRun>& runs)
     {
         throw std::runtime_error("Could not open splitting_convergence.csv for writing.");
     }
-    output << "split_mode,level,outer_step_size,max_absolute_moment_error,max_scaled_moment_error,observed_order\n";
+    output << "split_mode,level,outer_step_size,max_scaled_moment_error,observed_order\n";
     output << std::scientific << std::setprecision(17);
     for (const SplitRun& run : runs)
     {
-        output << run.mode << ',' << run.level << ',' << run.step_size << ',' << run.maximum_absolute_moment_error << ','
-               << run.maximum_scaled_moment_error << ',' << run.observed_order << '\n';
+        output << run.mode << ',' << run.level << ',' << run.step_size << ',' << run.maximum_scaled_moment_error << ',' << run.observed_order << '\n';
     }
 }
 
@@ -317,14 +312,12 @@ void print_rk_table(const std::vector<RkRun>& runs)
 {
     std::cout << "Runge--Kutta fixed-step convergence\n";
     std::cout << std::left << std::setw(10) << "scheme" << std::right << std::setw(7) << "level" << std::setw(16) << "step" << std::setw(18)
-              << "absolute error" << std::setw(14) << "order" << std::setw(12) << "accepted" << std::setw(12) << "rejected" << std::setw(12)
-              << "rhs evals" << '\n';
+              << "absolute error" << std::setw(14) << "order" << '\n';
     std::cout << std::scientific << std::setprecision(6);
     for (const RkRun& run : runs)
     {
         std::cout << std::left << std::setw(10) << run.scheme << std::right << std::setw(7) << run.level << std::setw(16) << run.step_size
-                  << std::setw(18) << run.absolute_error << std::setw(14) << run.observed_order << std::setw(12) << run.accepted_steps
-                  << std::setw(12) << run.rejected_steps << std::setw(12) << run.function_evaluations << '\n';
+                  << std::setw(18) << run.absolute_error << std::setw(14) << run.observed_order << '\n';
     }
 }
 
@@ -332,13 +325,12 @@ void print_splitting_table(const std::vector<SplitRun>& runs)
 {
     std::cout << "Operator-splitting convergence\n";
     std::cout << std::left << std::setw(10) << "split mode" << std::right << std::setw(7) << "level" << std::setw(16) << "outer step" << std::setw(22)
-              << "max absolute moment" << std::setw(22) << "max scaled moment" << std::setw(14) << "order" << '\n';
+              << "max scaled moment" << std::setw(14) << "order" << '\n';
     std::cout << std::scientific << std::setprecision(6);
     for (const SplitRun& run : runs)
     {
         std::cout << std::left << std::setw(10) << run.mode << std::right << std::setw(7) << run.level << std::setw(16) << run.step_size
-                  << std::setw(22) << run.maximum_absolute_moment_error << std::setw(22) << run.maximum_scaled_moment_error << std::setw(14)
-                  << run.observed_order << '\n';
+                  << std::setw(22) << run.maximum_scaled_moment_error << std::setw(14) << run.observed_order << '\n';
     }
 }
 

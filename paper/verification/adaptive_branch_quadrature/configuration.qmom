@@ -1,6 +1,6 @@
 [phase_space]
 names = d, u
-node_counts = 2, 3
+node_counts = 1, 5
 conditioning_order = 0, 1
 adaptive_branch_counts = true
 
@@ -17,3 +17,18 @@ standard_deviation = 0.5
 family = normal
 mean = 1.0
 standard_deviation = 1.0
+
+[time_integration]
+scheme = strang
+
+[time_integration.node_advection]
+scheme = rk23
+
+[time_integration.node_advection.adaptive]
+relative_tolerance = 1.0e-12
+absolute_tolerance = 1.0e-14
+initial_step = 0.01
+max_step = 0.01
+
+[output]
+interval = 0.01

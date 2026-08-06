@@ -79,7 +79,7 @@ compare against analytical references, manufactured solutions, convergence
 studies, mathematical invariants, or other independently known results. They
 serve as executable documentation for intended behavior.
 
-Representative examples include QMOM/CQMOM reconstruction, transport workflows,
+Representative examples include QMOM/CQMOM reconstruction, phase-space evolution workflows,
 physics callbacks, and output workflows.
 
 Verification tests live under `tests/verification/` and use the `verification`
@@ -140,7 +140,7 @@ tests/
         realizability_policy.cpp
         recursive_quadrature.cpp
         runge_kutta.cpp
-        transport_integrator.cpp
+        phase_space_evolution.cpp
         vandermonde.cpp
         wheeler.cpp
     component_regression/
@@ -149,7 +149,7 @@ tests/
         cqmom_compute_failures.cpp
         moment_source.cpp
         node_advection.cpp
-        transport_integrator.cpp
+        phase_space_evolution.cpp
     public_headers/
         CMakeLists.txt
         main.cpp
@@ -204,9 +204,9 @@ tests/
             README.md
             runge_kutta_analytical.cpp
             runge_kutta_convergence.cpp
-        transport/
+        phase-space evolution/
             README.md
-            transport_analytical.cpp
+            phase_space_evolution_analytical.cpp
             *.qmom
         vandermonde/
             README.md

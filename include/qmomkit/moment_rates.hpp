@@ -13,7 +13,7 @@
 namespace qmomkit
 {
 
-enum class ContinuousMomentRateStatus
+enum class AdvectionMomentRateStatus
 {
     success,
     invalid_input,
@@ -21,7 +21,7 @@ enum class ContinuousMomentRateStatus
     velocity_failed
 };
 
-enum class DiscontinuousMomentRateStatus
+enum class MomentSourceRateStatus
 {
     success,
     invalid_input,
@@ -30,97 +30,97 @@ enum class DiscontinuousMomentRateStatus
 };
 
 /**
- * Instantaneous one-dimensional raw-moment rate from continuous node motion.
+ * Instantaneous one-dimensional advection-induced moment rate.
  */
-struct QmomContinuousMomentRateResult
+struct QmomAdvectionMomentRateResult
 {
     std::vector<double> rates;
-    ContinuousMomentRateStatus status = ContinuousMomentRateStatus::success;
+    AdvectionMomentRateStatus status = AdvectionMomentRateStatus::success;
     QmomStatus inversion_status = QmomStatus::success;
     std::string message;
 
     [[nodiscard]] bool ok() const noexcept
     {
-        return status == ContinuousMomentRateStatus::success;
+        return status == AdvectionMomentRateStatus::success;
     }
 };
 
 /**
- * Instantaneous fixed-layout CQMOM raw-moment rate from continuous node motion.
+ * Instantaneous fixed-layout CQMOM advection-induced moment rate.
  */
-struct CqmomContinuousMomentRateResult
+struct CqmomAdvectionMomentRateResult
 {
     std::optional<CqmomMomentData> rates;
-    ContinuousMomentRateStatus status = ContinuousMomentRateStatus::success;
+    AdvectionMomentRateStatus status = AdvectionMomentRateStatus::success;
     CqmomStatus inversion_status = CqmomStatus::success;
     std::string message;
     std::vector<CqmomDiagnostics> diagnostics;
 
     [[nodiscard]] bool ok() const noexcept
     {
-        return status == ContinuousMomentRateStatus::success;
+        return status == AdvectionMomentRateStatus::success;
     }
 };
 
 /**
- * Instantaneous one-dimensional raw-moment rate from a discontinuous source.
+ * Instantaneous one-dimensional moment-source rate.
  */
-struct QmomDiscontinuousMomentRateResult
+struct QmomMomentSourceRateResult
 {
     std::vector<double> rates;
-    DiscontinuousMomentRateStatus status = DiscontinuousMomentRateStatus::success;
+    MomentSourceRateStatus status = MomentSourceRateStatus::success;
     std::string message;
 
     [[nodiscard]] bool ok() const noexcept
     {
-        return status == DiscontinuousMomentRateStatus::success;
+        return status == MomentSourceRateStatus::success;
     }
 };
 
 /**
- * Instantaneous fixed-layout CQMOM raw-moment rate from a discontinuous source.
+ * Instantaneous fixed-layout CQMOM moment-source rate.
  */
-struct CqmomDiscontinuousMomentRateResult
+struct CqmomMomentSourceRateResult
 {
     std::optional<CqmomMomentData> rates;
-    DiscontinuousMomentRateStatus status = DiscontinuousMomentRateStatus::success;
+    MomentSourceRateStatus status = MomentSourceRateStatus::success;
     std::string message;
 
     [[nodiscard]] bool ok() const noexcept
     {
-        return status == DiscontinuousMomentRateStatus::success;
+        return status == MomentSourceRateStatus::success;
     }
 };
 
 /**
- * Evaluate dm/dt for one-dimensional raw moments induced by continuous
- * phase-space node motion at one time.
+ * Evaluate an advection-induced moment rate for one-dimensional raw moments at
+ * one time.
  *
  * This function performs the QMOM inversion, evaluates the velocity callback
  * at terminal nodes, and reconstructs rates for the input moment orders. It
  * does not advance time, retry a step, or expose quadrature nodes.
  */
-[[nodiscard]] QmomContinuousMomentRateResult evaluate_qmom_continuous_moment_rates(const std::vector<double>& moments, std::size_t node_count,
-                                                                                   double time, const PhaseSpaceVelocity& velocity,
-                                                                                   const QmomOptions& options = {});
+[[nodiscard]] QmomAdvectionMomentRateResult evaluate_qmom_advection_moment_rates(const std::vector<double>& moments, std::size_t node_count,
+                                                                                 double time, const PhaseSpaceVelocity& velocity,
+                                                                                 const QmomOptions& options = {});
 
 /**
- * Evaluate dM/dt for fixed-layout CQMOM raw moments induced by continuous
- * phase-space node motion at one time.
+ * Evaluate an advection-induced moment rate for fixed-layout CQMOM raw
+ * moments at one time.
  *
  * This function performs the CQMOM inversion, evaluates the velocity callback
  * at terminal nodes, and reconstructs rates in `case_.moments.layout` order.
  * It does not advance time, retry a step, or expose quadrature nodes.
  */
-[[nodiscard]] CqmomContinuousMomentRateResult evaluate_cqmom_continuous_moment_rates(const CqmomLeanCase& case_, double time,
-                                                                                     const PhaseSpaceVelocity& velocity);
+[[nodiscard]] CqmomAdvectionMomentRateResult evaluate_cqmom_advection_moment_rates(const CqmomLeanCase& case_, double time,
+                                                                                   const PhaseSpaceVelocity& velocity);
 
 /**
- * Evaluate dm/dt for one-dimensional raw moments by invoking one source
- * callback at one time.
+ * Evaluate a moment-source rate for one-dimensional raw moments by invoking a
+ * moment-source callback at one time.
  */
-[[nodiscard]] QmomDiscontinuousMomentRateResult evaluate_qmom_discontinuous_moment_rates(double time, const std::vector<double>& moments,
-                                                                                         const MomentSource& source);
+[[nodiscard]] QmomMomentSourceRateResult evaluate_qmom_moment_source_rates(double time, const std::vector<double>& moments,
+                                                                           const MomentSource& source);
 
 /**
  * Evaluate dm/dt for one-dimensional raw moments from a source and an additive
@@ -131,15 +131,15 @@ struct CqmomDiscontinuousMomentRateResult
  * and does not modify `moments`. Both callbacks must return one finite rate per
  * input moment.
  */
-[[nodiscard]] QmomDiscontinuousMomentRateResult evaluate_qmom_discontinuous_moment_rates(double time, const std::vector<double>& moments,
-                                                                                         const MomentSource& source,
-                                                                                         const MomentBoundaryContribution& boundary);
+[[nodiscard]] QmomMomentSourceRateResult evaluate_qmom_moment_source_rates(double time, const std::vector<double>& moments,
+                                                                           const MomentSource& source, const MomentBoundaryContribution& boundary);
 
 /**
- * Evaluate dM/dt for fixed-layout CQMOM raw moments by invoking one source
- * callback at one time. Returned values preserve the input moment layout.
+ * Evaluate a moment-source rate for fixed-layout CQMOM raw moments by invoking
+ * a moment-source callback at one time. Returned values preserve the input
+ * moment layout.
  */
-[[nodiscard]] CqmomDiscontinuousMomentRateResult evaluate_cqmom_discontinuous_moment_rates(double time, const CqmomMomentData& moments,
-                                                                                           const CqmomMomentSource& source);
+[[nodiscard]] CqmomMomentSourceRateResult evaluate_cqmom_moment_source_rates(double time, const CqmomMomentData& moments,
+                                                                             const CqmomMomentSource& source);
 
 } // namespace qmomkit

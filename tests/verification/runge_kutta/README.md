@@ -1,7 +1,7 @@
 # Runge-Kutta Analytical Verification
 
 These checks verify the standalone ODE integration utilities used by
-transport-related components:
+phase-space evolution-related components:
 
 - SSP-RK3 on a constant right-hand side, where one fixed step is exact;
 - adaptive RK23 and RK45 on scalar exponential decay;

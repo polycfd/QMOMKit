@@ -147,16 +147,16 @@ std::string matrix_string(const Matrix& matrix)
     return text.str();
 }
 
-std::string transport_scheme_string(const qmomkit::TransportScheme scheme)
+std::string phase_space_evolution_scheme_string(const qmomkit::PhaseSpaceEvolutionScheme scheme)
 {
     switch (scheme)
     {
-    case qmomkit::TransportScheme::strang:
+    case qmomkit::PhaseSpaceEvolutionScheme::strang:
         return "strang";
-    case qmomkit::TransportScheme::cd:
-        return "cd";
-    case qmomkit::TransportScheme::dc:
-        return "dc";
+    case qmomkit::PhaseSpaceEvolutionScheme::advsrc:
+        return "advsrc";
+    case qmomkit::PhaseSpaceEvolutionScheme::srcadv:
+        return "srcadv";
     }
     return "unknown";
 }
@@ -597,7 +597,7 @@ std::vector<double> branch_moment_row(const ConditionalSolveDiagnostic& solve, c
 std::optional<OffendingNode> find_first_out_of_support_chi(const qmomkit::CqmomQuadrature& quadrature)
 {
     // The diagnostic stops on the first accepted post-source chi node outside
-    // [0,1]. Waiting for a later continuous callback failure would conflate the
+    // [0,1]. Waiting for a later advection callback failure would conflate the
     // reconstruction event with downstream particle dynamics.
     constexpr double tolerance = 1.0e-12;
     for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
@@ -671,7 +671,7 @@ std::optional<qmomkit::CqmomNodeCountTransition> find_branch_transition(const st
 {
     for (const qmomkit::CqmomNodeCountTransition& transition : transitions)
     {
-        if (transition.stage == qmomkit::TransportStage::post_source_inversion && transition.conditioning_level == 1 &&
+        if (transition.stage == qmomkit::PhaseSpaceEvolutionStage::post_source_inversion && transition.conditioning_level == 1 &&
             transition.phase_space_dimension == chi_dimension && same_path(transition.parent_path, parent_path))
         {
             return transition;
@@ -760,10 +760,10 @@ SourceReplay replay_source_stages(const cqmom_non_spherical_particles::PreparedC
 
     qmomkit::CqmomMomentData input_data{*replay.layout, y0};
     const qmomkit::CqmomMomentSourceUpdateResult public_update = qmomkit::advance_cqmom_moments_with_source(
-        input_data, source_start_time, time_step, example.source, example.transport_options.source_options);
+        input_data, source_start_time, time_step, example.source, example.phase_space_evolution_options.source_options);
     if (!public_update.ok())
     {
-        throw std::runtime_error("Public source update failed during diagnostic replay verification: " + public_update.message);
+        throw std::runtime_error("Public moment-source update failed during diagnostic replay verification: " + public_update.message);
     }
     for (std::size_t i = 0; i < final.size(); ++i)
     {
@@ -772,7 +772,7 @@ SourceReplay replay_source_stages(const cqmom_non_spherical_particles::PreparedC
     }
     if (replay.max_difference_from_public_source_update > 1.0e-11)
     {
-        throw std::runtime_error("Diagnostic source replay does not match the public source update.");
+        throw std::runtime_error("Diagnostic moment-source replay does not match the public moment-source update.");
     }
     return replay;
 }
@@ -890,10 +890,10 @@ BoundaryAdvance advance_to_source_boundary(const cqmom_non_spherical_particles::
 {
     // Advance exactly to the source boundary for the configured splitting
     // scheme. The unbounded diagnostic inspects this boundary before any
-    // following continuous stage can advect the accepted unsupported chi node.
+    // following advection stage can advect the accepted unsupported chi node.
     BoundaryAdvance advanced;
     advanced.source_start_time = time;
-    const auto fail = [&](const qmomkit::CqmomTransportResult& result)
+    const auto fail = [&](const qmomkit::CqmomPhaseSpaceEvolutionResult& result)
     {
         advanced.ok = false;
         advanced.message = result.message;
@@ -905,10 +905,11 @@ BoundaryAdvance advance_to_source_boundary(const cqmom_non_spherical_particles::
         return advanced;
     };
 
-    if (example.transport_options.scheme == qmomkit::TransportScheme::strang)
+    if (example.phase_space_evolution_options.scheme == qmomkit::PhaseSpaceEvolutionScheme::strang)
     {
         const double half_step = 0.5 * time_step;
-        qmomkit::CqmomTransportResult first = qmomkit::advance_cqmom_continuous(state, time, half_step, example.velocity, example.transport_options);
+        qmomkit::CqmomPhaseSpaceEvolutionResult first =
+            qmomkit::advance_cqmom_advection(state, time, half_step, example.velocity, example.phase_space_evolution_options);
         if (!first.ok() || !first.quadrature.has_value())
         {
             return fail(first);
@@ -916,19 +917,19 @@ BoundaryAdvance advance_to_source_boundary(const cqmom_non_spherical_particles::
         advanced.pre_source_state = first.state;
         advanced.pre_source_quadrature = *first.quadrature;
         advanced.source_start_time = time + half_step;
-        qmomkit::CqmomTransportResult source = qmomkit::advance_cqmom_discontinuous(*advanced.pre_source_state, advanced.source_start_time, time_step,
-                                                                                    example.source, example.transport_options);
+        qmomkit::CqmomPhaseSpaceEvolutionResult source = qmomkit::advance_cqmom_moment_source(
+            *advanced.pre_source_state, advanced.source_start_time, time_step, example.source, example.phase_space_evolution_options);
         if (!source.ok() || !source.quadrature.has_value())
         {
             return fail(source);
         }
-        advanced.source_diagnostics = source.diagnostics;
+        advanced.moment_source_diagnostics = source.diagnostics;
         advanced.boundary_state = source.state;
         advanced.boundary_quadrature = *source.quadrature;
         advanced.boundary_time = source.final_time;
-        advanced.stage_label = "post_source_inversion_before_second_continuous";
-        qmomkit::CqmomTransportResult second =
-            qmomkit::advance_cqmom_continuous(*advanced.boundary_state, time + half_step, half_step, example.velocity, example.transport_options);
+        advanced.stage_label = "post_source_inversion_before_second_advection";
+        qmomkit::CqmomPhaseSpaceEvolutionResult second = qmomkit::advance_cqmom_advection(*advanced.boundary_state, time + half_step, half_step,
+                                                                                          example.velocity, example.phase_space_evolution_options);
         if (!second.ok() || !second.quadrature.has_value())
         {
             return fail(second);
@@ -938,23 +939,23 @@ BoundaryAdvance advance_to_source_boundary(const cqmom_non_spherical_particles::
         advanced.ok = true;
         return advanced;
     }
-    if (example.transport_options.scheme == qmomkit::TransportScheme::cd)
+    if (example.phase_space_evolution_options.scheme == qmomkit::PhaseSpaceEvolutionScheme::advsrc)
     {
-        qmomkit::CqmomTransportResult continuous =
-            qmomkit::advance_cqmom_continuous(state, time, time_step, example.velocity, example.transport_options);
-        if (!continuous.ok() || !continuous.quadrature.has_value())
+        qmomkit::CqmomPhaseSpaceEvolutionResult advection =
+            qmomkit::advance_cqmom_advection(state, time, time_step, example.velocity, example.phase_space_evolution_options);
+        if (!advection.ok() || !advection.quadrature.has_value())
         {
-            return fail(continuous);
+            return fail(advection);
         }
-        advanced.pre_source_state = continuous.state;
-        advanced.pre_source_quadrature = *continuous.quadrature;
-        qmomkit::CqmomTransportResult source =
-            qmomkit::advance_cqmom_discontinuous(*advanced.pre_source_state, time, time_step, example.source, example.transport_options);
+        advanced.pre_source_state = advection.state;
+        advanced.pre_source_quadrature = *advection.quadrature;
+        qmomkit::CqmomPhaseSpaceEvolutionResult source =
+            qmomkit::advance_cqmom_moment_source(*advanced.pre_source_state, time, time_step, example.source, example.phase_space_evolution_options);
         if (!source.ok() || !source.quadrature.has_value())
         {
             return fail(source);
         }
-        advanced.source_diagnostics = source.diagnostics;
+        advanced.moment_source_diagnostics = source.diagnostics;
         advanced.boundary_state = source.state;
         advanced.boundary_quadrature = *source.quadrature;
         advanced.final_state = source.state;
@@ -965,25 +966,26 @@ BoundaryAdvance advance_to_source_boundary(const cqmom_non_spherical_particles::
         return advanced;
     }
 
-    qmomkit::CqmomTransportResult source = qmomkit::advance_cqmom_discontinuous(state, time, time_step, example.source, example.transport_options);
+    qmomkit::CqmomPhaseSpaceEvolutionResult source =
+        qmomkit::advance_cqmom_moment_source(state, time, time_step, example.source, example.phase_space_evolution_options);
     if (!source.ok() || !source.quadrature.has_value())
     {
         return fail(source);
     }
     advanced.pre_source_state = state;
-    advanced.source_diagnostics = source.diagnostics;
+    advanced.moment_source_diagnostics = source.diagnostics;
     advanced.boundary_state = source.state;
     advanced.boundary_quadrature = *source.quadrature;
     advanced.boundary_time = source.final_time;
-    advanced.stage_label = "post_source_inversion_before_continuous";
-    qmomkit::CqmomTransportResult continuous =
-        qmomkit::advance_cqmom_continuous(*advanced.boundary_state, time, time_step, example.velocity, example.transport_options);
-    if (!continuous.ok() || !continuous.quadrature.has_value())
+    advanced.stage_label = "post_source_inversion_before_advection";
+    qmomkit::CqmomPhaseSpaceEvolutionResult advection =
+        qmomkit::advance_cqmom_advection(*advanced.boundary_state, time, time_step, example.velocity, example.phase_space_evolution_options);
+    if (!advection.ok() || !advection.quadrature.has_value())
     {
-        return fail(continuous);
+        return fail(advection);
     }
-    advanced.final_state = continuous.state;
-    advanced.final_quadrature = *continuous.quadrature;
+    advanced.final_state = advection.state;
+    advanced.final_quadrature = *advection.quadrature;
     advanced.ok = true;
     return advanced;
 }
@@ -998,7 +1000,7 @@ DiagnosticReport build_report(const cqmom_non_spherical_particles::PreparedCqmom
     }
     const qmomkit::ConditioningPath parent_path{{offending.path.node_index_at_level(0)}};
     const std::optional<qmomkit::CqmomDiagnostics> unbounded_branch =
-        find_branch_diagnostic(unbounded_boundary.source_diagnostics.post_source_cqmom_diagnostics, parent_path);
+        find_branch_diagnostic(unbounded_boundary.moment_source_diagnostics.post_source_cqmom_diagnostics, parent_path);
     if (!unbounded_branch.has_value())
     {
         throw std::runtime_error("Could not find the offending unbounded branch diagnostic.");
@@ -1048,7 +1050,7 @@ DiagnosticReport build_report(const cqmom_non_spherical_particles::PreparedCqmom
     {
         // The comparison must use the bounded workflow's accepted post-source
         // quadrature, not a fresh lower-count solve on the rejected candidate.
-        report.bounded_transition = find_branch_transition(bounded_boundary.source_diagnostics.cqmom_node_count_transitions, parent_path);
+        report.bounded_transition = find_branch_transition(bounded_boundary.moment_source_diagnostics.cqmom_node_count_transitions, parent_path);
         report.bounded_accepted_branch =
             actual_bounded_branch_from_quadrature(*bounded_boundary.boundary_quadrature, parent_path, bounded_branch->bounded_candidate_moments,
                                                   bounded_branch->bounded_accepted_fallback_node_count);
@@ -1088,7 +1090,7 @@ int cqmom_non_spherical_particles::run_unbounded_diagnostic()
 
         std::cout << "5D CQMOM unbounded chi diagnostic\n";
         std::cout << "configuration: " << unbounded_configuration_file.string() << '\n';
-        cqmom_non_spherical_particles::print_transport_settings(unbounded);
+        cqmom_non_spherical_particles::print_phase_space_evolution_settings(unbounded);
 
         qmomkit::CqmomState unbounded_state = std::move(unbounded.state);
         qmomkit::CqmomState bounded_state = std::move(bounded.state);
@@ -1107,15 +1109,15 @@ int cqmom_non_spherical_particles::run_unbounded_diagnostic()
             {
                 cqmom_non_spherical_particles::write_failure_context(unbounded.output_options.directory, last_unbounded_quadrature, unbounded, time,
                                                                      unbounded_boundary.message);
-                std::cerr << "Unbounded diagnostic transport failed before an out-of-support chi node was accepted: " << unbounded_boundary.message
-                          << '\n';
+                std::cerr << "Unbounded diagnostic phase-space evolution failed before an out-of-support chi node was accepted: "
+                          << unbounded_boundary.message << '\n';
                 return 1;
             }
             if (!bounded_boundary.ok)
             {
                 cqmom_non_spherical_particles::write_failure_context(unbounded.output_options.directory, last_unbounded_quadrature, unbounded, time,
                                                                      bounded_boundary.message);
-                std::cerr << "Bounded comparison transport failed before the diagnostic event: " << bounded_boundary.message << '\n';
+                std::cerr << "Bounded comparison phase-space evolution failed before the diagnostic event: " << bounded_boundary.message << '\n';
                 return 1;
             }
             const std::optional<OffendingNode> offending = find_first_out_of_support_chi(*unbounded_boundary.boundary_quadrature);
@@ -1126,7 +1128,7 @@ int cqmom_non_spherical_particles::run_unbounded_diagnostic()
                 {
                     const qmomkit::ConditioningPath parent_path{{offending->path.node_index_at_level(0)}};
                     const std::optional<qmomkit::CqmomDiagnostics> bounded_branch =
-                        find_branch_diagnostic(bounded_boundary.source_diagnostics.post_source_cqmom_diagnostics, parent_path);
+                        find_branch_diagnostic(bounded_boundary.moment_source_diagnostics.post_source_cqmom_diagnostics, parent_path);
                     report = build_report(unbounded, bounded_branch, unbounded_boundary, bounded_boundary, *offending, macro_step);
                     cqmom_non_spherical_particles::write_report_file(unbounded.output_options.directory, *report, unbounded, bounded);
                 }

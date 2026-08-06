@@ -2,7 +2,7 @@
 
 **QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number-density functions in arbitrary-dimensional phase spaces**
 
-QMOMKit reconstructs quadrature nodes and weights from raw moments and provides phase-space evolution utilities for moment and quadrature states. It leaves moment transport in physical space, the physical model, governing equations, physical-space mesh and discretization, PDE solution, and overall simulation workflow to the host application. QMOMKit is independent of any particular CFD, FVM, FEM, or DG implementation. The **core QMOMKit package** has no mandatory third-party numerical dependency; optional tools may have their own dependencies.
+QMOMKit reconstructs quadrature nodes and weights from raw moments and provides phase-space evolution utilities for moment and quadrature states. It leaves physical-space transport of moments, the physical model, governing equations, physical-space mesh and discretization, PDE solution, and overall simulation workflow to the host application. QMOMKit is independent of any particular CFD (FVM, FEM, ...) implementation. The **core QMOMKit package** has no mandatory third-party numerical dependency.
 
 ## Authors
 
@@ -20,9 +20,9 @@ QMOMKit provides tools to:
 - reconstruct one-dimensional QMOM and multidimensional recursive CQMOM quadratures;
 - configure phase-space conditioning order, bounded support, and adaptive branch-specific CQMOM node counts;
 - initialize moments from explicit moment definitions, analytical distributions, or Monte carlo sampling;
-- evolve states through continuous phase-space node advection and discontinuous moment-source or boundary contributions;
+- evolve states through phase-space advection and moment-source or boundary contributions;
 - use library-managed operator splitting or application-managed stage and local-rate workflows;
-- perform realizability checks and report transport diagnostics;
+- perform realizability checks and report phase-space evolution diagnostics;
 - write native results output;
 - use the optional Monte Carlo companion for sampled initialization and to produce reference solutions.
 
@@ -72,7 +72,7 @@ Point `CMAKE_PREFIX_PATH` at the QMOMKit install prefix when configuring your ap
 
 ## Examples and Tools
 
-The standalone examples progress from basic QMOM and CQMOM reconstruction and initialization to transport and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, multidimensional physical-model demonstrations, and matched Monte Carlo comparisons. See the [examples repository index](examples/README.md) and the [user examples guide](docs/user/examples.md).
+The standalone examples progress from basic QMOM and CQMOM reconstruction and initialization to phase-space evolution and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, multidimensional physical-model demonstrations, and matched Monte Carlo comparisons. See the [examples repository index](examples/README.md) and the [user examples guide](docs/user/examples.md).
 
 - `tools/monte_carlo/` provides sampled initialization, ensemble evolution, and finite-sample comparison workflows; see the [Monte Carlo guide](docs/user/monte_carlo.md).
 - `tools/plotting/` provides optional plotting helpers for QMOMKit-native histories; see the [plotting README](tools/plotting/README.md).
@@ -107,7 +107,7 @@ and [benchmarks guide](docs/developer/benchmarks.md) for details.
 ## Documentation
 
 - **Getting started:** [installation](docs/user/installation.md), [quick start](docs/user/quick_start.md), and the [user guide](docs/user/README.md).
-- **Using QMOMKit:** [configuration](docs/user/configuration.md), [QMOM](docs/user/qmom.md), [CQMOM](docs/user/cqmom.md), [distributions](docs/user/distributions.md), [realizability](docs/user/realizability.md), and [transport](docs/user/transport.md).
+- **Using QMOMKit:** [configuration](docs/user/configuration.md), [QMOM](docs/user/qmom.md), [CQMOM](docs/user/cqmom.md), [distributions](docs/user/distributions.md), [realizability](docs/user/realizability.md), and [phase-space evolution](docs/user/phase_space_evolution.md).
 - **Examples:** [repository example index](examples/README.md) and [user example guide](docs/user/examples.md).
 - **Optional Monte Carlo tooling:** [Monte Carlo companion guide](docs/user/monte_carlo.md).
 - **Development:** [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), [testing](docs/developer/testing.md), and [benchmarks](docs/developer/benchmarks.md).

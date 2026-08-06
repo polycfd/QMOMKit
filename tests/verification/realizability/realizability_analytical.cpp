@@ -219,7 +219,7 @@ void verify_boundary_diagnostics()
 void verify_hamburger()
 {
     // Hamburger checks cover moments on the full real line: strictly
-    // realizable continuous moments, boundary atomic measures, and basic
+    // realizable advection moments, boundary atomic measures, and basic
     // positivity/range violations.
     expect_status(standard_normal_moments(5), MomentSupport::real_line, RealizabilityStatus::strictly_realizable, "normal order 5");
     expect_status(discrete_moments({2.0}, {-1.5}, 5), MomentSupport::real_line, RealizabilityStatus::boundary, "single Dirac order 5");

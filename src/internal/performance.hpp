@@ -39,11 +39,11 @@ struct LinearAlgebraCounters
     std::size_t condition_estimates = 0;
 };
 
-struct TransportCounters
+struct PhaseSpaceEvolutionCounters
 {
-    std::size_t transport_macro_steps = 0;
-    std::size_t continuous_operator_calls = 0;
-    std::size_t discontinuous_operator_calls = 0;
+    std::size_t phase_space_evolution_macro_steps = 0;
+    std::size_t advection_operator_calls = 0;
+    std::size_t moment_source_operator_calls = 0;
     std::size_t moment_reconstruction_calls = 0;
     std::size_t post_source_inversions = 0;
 };
@@ -68,7 +68,7 @@ struct PerformanceCounters
 {
     ReconstructionCounters reconstruction;
     LinearAlgebraCounters linear_algebra;
-    TransportCounters transport;
+    PhaseSpaceEvolutionCounters phase_space_evolution;
     CqmomTopologyCounters cqmom_topology;
     TimeIntegrationCounters time_integration;
 };
@@ -259,27 +259,27 @@ inline void record_condition_estimate() noexcept
     }
 }
 
-inline void record_transport_macro_step() noexcept
+inline void record_phase_space_evolution_macro_step() noexcept
 {
     if (PerformanceCounters* counters = active_counters())
     {
-        ++counters->transport.transport_macro_steps;
+        ++counters->phase_space_evolution.phase_space_evolution_macro_steps;
     }
 }
 
-inline void record_continuous_operator_call() noexcept
+inline void record_advection_operator_call() noexcept
 {
     if (PerformanceCounters* counters = active_counters())
     {
-        ++counters->transport.continuous_operator_calls;
+        ++counters->phase_space_evolution.advection_operator_calls;
     }
 }
 
-inline void record_discontinuous_operator_call() noexcept
+inline void record_moment_source_operator_call() noexcept
 {
     if (PerformanceCounters* counters = active_counters())
     {
-        ++counters->transport.discontinuous_operator_calls;
+        ++counters->phase_space_evolution.moment_source_operator_calls;
     }
 }
 
@@ -287,7 +287,7 @@ inline void record_moment_reconstruction_call() noexcept
 {
     if (PerformanceCounters* counters = active_counters())
     {
-        ++counters->transport.moment_reconstruction_calls;
+        ++counters->phase_space_evolution.moment_reconstruction_calls;
     }
 }
 
@@ -295,7 +295,7 @@ inline void record_post_source_inversion() noexcept
 {
     if (PerformanceCounters* counters = active_counters())
     {
-        ++counters->transport.post_source_inversions;
+        ++counters->phase_space_evolution.post_source_inversions;
     }
 }
 
@@ -401,9 +401,9 @@ inline void record_dense_linear_solve() noexcept {}
 inline void record_vandermonde_fallback() noexcept {}
 inline void record_residual_check() noexcept {}
 inline void record_condition_estimate() noexcept {}
-inline void record_transport_macro_step() noexcept {}
-inline void record_continuous_operator_call() noexcept {}
-inline void record_discontinuous_operator_call() noexcept {}
+inline void record_phase_space_evolution_macro_step() noexcept {}
+inline void record_advection_operator_call() noexcept {}
+inline void record_moment_source_operator_call() noexcept {}
 inline void record_moment_reconstruction_call() noexcept {}
 inline void record_post_source_inversion() noexcept {}
 inline void record_active_count_derivation() noexcept {}

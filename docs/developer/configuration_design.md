@@ -11,8 +11,8 @@ QMOMKit algorithms by themselves.
 QMOMKit case configuration files use the user-facing `.qmom` extension.
 
 For raw-moment, tensor, phase-space, conditioning-order, distribution, node, and
-weight conventions, see `numerical_conventions.md`. For transport behavior, see
-`transport_design.md`.
+weight conventions, see `numerical_conventions.md`. For phase-space evolution behavior, see
+`phase_space_evolution_design.md`.
 
 ## Configuration Philosophy
 
@@ -30,10 +30,10 @@ The core design principle is separation:
   they do for programmatically constructed inputs.
 
 A valid configuration is not a guarantee that a numerical reconstruction or
-transport step will succeed. Configuration validation checks structure,
+phase-space evolution step will succeed. Configuration validation checks structure,
 supported values, and basic consistency before execution. Algorithmic statuses
 from QMOM, CQMOM, realizability checks, node advection, source updates, and
-transport remain part of the runtime numerical algorithms.
+phase-space evolution remain part of the runtime numerical algorithms.
 
 Configuration is intentionally application agnostic. It does not define meshes,
 boundary conditions, CFD operators, source callbacks, velocity callbacks, MPI
@@ -76,7 +76,7 @@ The main parts of configuration handling are:
 - case construction: builds `QmomCase`, `CqmomCase`, or explicit
   representation `CqmomLeanCase` and `CqmomDenseCase` objects from initialized
   moments, phase-space hierarchy, and options;
-- policy extraction: parses optional transport scheme, transport options,
+- policy extraction: parses an optional phase-space evolution scheme, phase-space evolution options,
   output options, and runtime realizability policy objects for drivers that
   choose to use them.
 
@@ -274,18 +274,18 @@ Generated moments follow the conventions in `numerical_conventions.md`: `m0` is
 the total number density, moments are not normalized away, and multidimensional
 tensor entries follow phase-space dimension order.
 
-## Transport And Policy Configuration
+## Phase-Space Evolution and Policy Configuration
 
 Configuration may include optional runtime settings that are useful to drivers:
 
-- transport scheme selection;
+- phase-space evolution scheme selection;
 - node-advection scheme selection and embedded-RK controls;
-- CQMOM source-stage active branch-count policy;
+- CQMOM active branch-count policy for moment-source stages;
 - output options;
 - runtime realizability policy.
 
 These settings are parsed into public objects or enum values. They do not
-install callbacks, run transport, write output, or define a physical model.
+install callbacks, run phase-space evolution, write output, or define a physical model.
 Case loaders validate recognized runtime settings when those settings are
 present in the same `.qmom` file, but they still return only `QmomCase` or
 `CqmomCase`.
@@ -298,13 +298,13 @@ present in the same `.qmom` file, but they still return only `QmomCase` or
 | `time_integration.node_advection.*` | yes | no | yes |
 | `time_integration.realizability.*` | yes | no | yes |
 
-Transport scheme configuration maps to `TransportScheme`. If omitted, the
-parsed scheme defaults to `TransportScheme::strang`.
+Phase-space evolution scheme configuration maps to `PhaseSpaceEvolutionScheme`. If omitted, the
+parsed scheme defaults to `PhaseSpaceEvolutionScheme::strang`.
 
 Node-advection configuration maps to `NodeAdvectionOptions`. The scheme lives
 under `[time_integration.node_advection]` so it is not confused with
 `[time_integration] scheme`, which controls the operator-splitting scheme. The
-available continuous choices are `rk23` (the default Bogacki-Shampine 3(2)
+available advection choices are `rk23` (the default Bogacki-Shampine 3(2)
 pair), `rk45` (Dormand-Prince RK5(4)7M from Table 2), and the separate
 fixed-step `ssp_rk3` path. Embedded-RK controls live under
 `[time_integration.node_advection.adaptive]` and map directly to
@@ -323,9 +323,9 @@ Drivers parse or load the complete `NodeAdvectionOptions` object with
 `parse_node_advection_options(...)` or `load_node_advection_options(...)`.
 When only the integration scheme is needed, they inspect its `.scheme` member.
 
-CQMOM source-stage active-count evolution is automatic. Continuous
+CQMOM active-count evolution during moment-source stages is automatic. Advection
 reconstruction constrains each existing adaptive branch to its current active
-count. After an accepted discontinuous source update, adaptive CQMOM passes the
+count. After an accepted moment-source update, adaptive CQMOM passes the
 current active topology and enables the internal one-node growth trial. New
 descendants whose parent topology changed start from configured maximum counts
 and adapt downward.
@@ -334,9 +334,9 @@ The parser default-constructs `NodeAdvectionOptions` and only overwrites keys
 that are present, so configuration parsing does not duplicate
 `AdaptiveRkOptions` defaults. If omitted, the parsed node-advection scheme
 defaults to `NodeAdvectionScheme::rk23`. Applications can assign the parsed
-object directly to transport options. This configuration choice affects only
-continuous quadrature-node trajectories; it does not configure moment-source
-integration, realizability policies, or transport splitting.
+object directly to phase-space evolution options. This configuration choice affects only
+advection quadrature-node trajectories; it does not configure moment-source
+integration, realizability policies, or phase-space evolution splitting.
 
 Runtime realizability configuration maps to `RealizabilityPolicy`. A parsed
 policy is inert until a driver wires it into an acceptance predicate or another
@@ -406,12 +406,12 @@ Public configuration capabilities include:
 - `initialize_cqmom_moment_data(...)`;
 - `create_qmom_case(...)`, `create_cqmom_dense_case(...)`, and
   `create_cqmom_lean_case(...)`;
-- `parse_transport_scheme(...)`;
+- `parse_phase_space_evolution_scheme(...)`;
 - `parse_node_advection_options(...)` and
   `load_node_advection_options(...)`;
-- `parse_qmom_transport_options(...)`, `load_qmom_transport_options(...)`,
-  `parse_cqmom_transport_options(...)`, and
-  `load_cqmom_transport_options(...)`;
+- `parse_qmom_phase_space_evolution_options(...)`, `load_qmom_phase_space_evolution_options(...)`,
+  `parse_cqmom_phase_space_evolution_options(...)`, and
+  `load_cqmom_phase_space_evolution_options(...)`;
 - `parse_realizability_policy(...)` and `load_realizability_policy(...)`;
 - `parse_output_options(...)` and `load_output_options(...)`;
 - `ConfigurationResult<T>`, `ConfigurationError`, and

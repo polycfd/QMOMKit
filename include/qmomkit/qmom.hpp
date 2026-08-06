@@ -48,7 +48,7 @@ class QmomStateAccess;
 }
 
 /**
- * Accepted one-dimensional QMOM transport state.
+ * Accepted one-dimensional QMOM phase-space evolution state.
  *
  * The stored moments are reconstructed from the accepted quadrature at
  * construction. Users can inspect the state but cannot mutate moments and
@@ -100,7 +100,7 @@ struct QmomCase
     QmomOptions options;
 
     /**
-     * Construct the accepted initial transport state from the configured maximum
+     * Construct the accepted initial phase-space evolution state from the configured maximum
      * node count and canonicalize stored moments from the accepted quadrature.
      */
     [[nodiscard]] QmomState initial_state() const;

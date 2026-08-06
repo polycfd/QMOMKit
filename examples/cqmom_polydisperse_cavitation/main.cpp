@@ -27,10 +27,10 @@ int main()
             cqmom_polydisperse_cavitation::print_configuration_errors(output_configured.error());
             return 1;
         }
-        auto transport_configured = qmomkit::config::load_cqmom_transport_options(configuration_file);
-        if (!transport_configured)
+        auto phase_space_evolution_configured = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
+        if (!phase_space_evolution_configured)
         {
-            cqmom_polydisperse_cavitation::print_configuration_errors(transport_configured.error());
+            cqmom_polydisperse_cavitation::print_configuration_errors(phase_space_evolution_configured.error());
             return 1;
         }
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
@@ -82,10 +82,10 @@ int main()
         qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices};
-        const qmomkit::PhaseSpaceVelocity velocity = cqmom_polydisperse_cavitation::continuous_velocity();
+        const qmomkit::PhaseSpaceVelocity velocity = cqmom_polydisperse_cavitation::advection_velocity();
 
-        qmomkit::CqmomTransportOptions transport_options = std::move(transport_configured).value();
-        std::cout << qmomkit::format_node_advection_options(transport_options.node_options);
+        qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
+        std::cout << qmomkit::format_node_advection_options(phase_space_evolution_options.node_options);
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
 
@@ -95,22 +95,22 @@ int main()
         while (time < final_time - 1.0e-12)
         {
             const double current_step = std::min(time_step, final_time - time);
-            const qmomkit::CqmomTransportResult transported =
-                qmomkit::advance_cqmom_continuous(state, time, current_step, velocity, transport_options);
-            if (!transported.ok())
+            const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
+                qmomkit::advance_cqmom_advection(state, time, current_step, velocity, phase_space_evolution_options);
+            if (!phase_space_evolved.ok())
             {
-                std::cerr << "CQMOM transport failed: " << transported.message << '\n';
+                std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
                 return 1;
             }
-            if (!transported.quadrature.has_value())
+            if (!phase_space_evolved.quadrature.has_value())
             {
-                std::cerr << "CQMOM transport did not return a quadrature.\n";
+                std::cerr << "CQMOM phase-space evolution did not return a quadrature.\n";
                 return 1;
             }
 
-            state = transported.state;
-            quadrature = *transported.quadrature;
-            time = transported.final_time;
+            state = phase_space_evolved.state;
+            quadrature = *phase_space_evolved.quadrature;
+            time = phase_space_evolved.final_time;
 
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {

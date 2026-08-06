@@ -42,33 +42,33 @@ struct ElementRhsResult
     std::string message;
 };
 
-[[nodiscard]] inline std::string to_string(const qmomkit::ContinuousMomentRateStatus status)
+[[nodiscard]] inline std::string to_string(const qmomkit::AdvectionMomentRateStatus status)
 {
     switch (status)
     {
-    case qmomkit::ContinuousMomentRateStatus::success:
+    case qmomkit::AdvectionMomentRateStatus::success:
         return "success";
-    case qmomkit::ContinuousMomentRateStatus::invalid_input:
+    case qmomkit::AdvectionMomentRateStatus::invalid_input:
         return "invalid_input";
-    case qmomkit::ContinuousMomentRateStatus::inversion_failed:
+    case qmomkit::AdvectionMomentRateStatus::inversion_failed:
         return "inversion_failed";
-    case qmomkit::ContinuousMomentRateStatus::velocity_failed:
+    case qmomkit::AdvectionMomentRateStatus::velocity_failed:
         return "velocity_failed";
     }
     return "unknown";
 }
 
-[[nodiscard]] inline std::string to_string(const qmomkit::DiscontinuousMomentRateStatus status)
+[[nodiscard]] inline std::string to_string(const qmomkit::MomentSourceRateStatus status)
 {
     switch (status)
     {
-    case qmomkit::DiscontinuousMomentRateStatus::success:
+    case qmomkit::MomentSourceRateStatus::success:
         return "success";
-    case qmomkit::DiscontinuousMomentRateStatus::invalid_input:
+    case qmomkit::MomentSourceRateStatus::invalid_input:
         return "invalid_input";
-    case qmomkit::DiscontinuousMomentRateStatus::source_failed:
+    case qmomkit::MomentSourceRateStatus::source_failed:
         return "source_failed";
-    case qmomkit::DiscontinuousMomentRateStatus::invalid_rate:
+    case qmomkit::MomentSourceRateStatus::invalid_rate:
         return "invalid_rate";
     }
     return "unknown";
@@ -367,22 +367,22 @@ struct ElementRhsResult
     return ElementRhsResult{true, std::move(coefficient_rates), std::numeric_limits<std::size_t>::max(), "success", "success", ""};
 }
 
-[[nodiscard]] inline ElementRhsResult continuous_failure(const std::size_t point, const qmomkit::ContinuousMomentRateStatus status,
-                                                         const std::string& inversion_status, std::string message)
+[[nodiscard]] inline ElementRhsResult advection_failure(const std::size_t point, const qmomkit::AdvectionMomentRateStatus status,
+                                                        const std::string& inversion_status, std::string message)
 {
     return ElementRhsResult{false, {}, point, to_string(status), inversion_status, std::move(message)};
 }
 
-[[nodiscard]] inline ElementRhsResult discontinuous_failure(const std::size_t point, const qmomkit::DiscontinuousMomentRateStatus status,
+[[nodiscard]] inline ElementRhsResult moment_source_failure(const std::size_t point, const qmomkit::MomentSourceRateStatus status,
                                                             std::string message)
 {
     return ElementRhsResult{false, {}, point, to_string(status), "not_applicable", std::move(message)};
 }
 
-[[nodiscard]] inline ElementRhsResult evaluate_qmom_continuous_rhs(const Element& element, const std::vector<double>& coefficients,
-                                                                   const std::size_t moment_count, const std::size_t node_count, const double time,
-                                                                   const qmomkit::PhaseSpaceVelocity& velocity,
-                                                                   const qmomkit::QmomOptions& options = {})
+[[nodiscard]] inline ElementRhsResult evaluate_qmom_advection_rhs(const Element& element, const std::vector<double>& coefficients,
+                                                                  const std::size_t moment_count, const std::size_t node_count, const double time,
+                                                                  const qmomkit::PhaseSpaceVelocity& velocity,
+                                                                  const qmomkit::QmomOptions& options = {})
 {
     const std::vector<double> local_moments = interpolate_element_state(element, coefficients, moment_count);
     std::vector<double> local_rates(element.quadrature_count() * moment_count, 0.0);
@@ -390,11 +390,11 @@ struct ElementRhsResult
     {
         const std::vector<double> moments(local_moments.begin() + static_cast<std::ptrdiff_t>(q * moment_count),
                                           local_moments.begin() + static_cast<std::ptrdiff_t>((q + 1) * moment_count));
-        const qmomkit::QmomContinuousMomentRateResult result =
-            qmomkit::evaluate_qmom_continuous_moment_rates(moments, node_count, time, velocity, options);
+        const qmomkit::QmomAdvectionMomentRateResult result =
+            qmomkit::evaluate_qmom_advection_moment_rates(moments, node_count, time, velocity, options);
         if (!result.ok())
         {
-            return continuous_failure(q, result.status, to_string(result.inversion_status), result.message);
+            return advection_failure(q, result.status, to_string(result.inversion_status), result.message);
         }
         for (std::size_t moment = 0; moment < moment_count; ++moment)
         {
@@ -404,7 +404,7 @@ struct ElementRhsResult
     return success_result(project_rates_to_coefficients(element, local_rates, moment_count));
 }
 
-[[nodiscard]] inline ElementRhsResult evaluate_qmom_discontinuous_rhs(const Element& element, const std::vector<double>& coefficients,
+[[nodiscard]] inline ElementRhsResult evaluate_qmom_moment_source_rhs(const Element& element, const std::vector<double>& coefficients,
                                                                       const std::size_t moment_count, const double time,
                                                                       const qmomkit::MomentSource& source)
 {
@@ -414,10 +414,10 @@ struct ElementRhsResult
     {
         const std::vector<double> moments(local_moments.begin() + static_cast<std::ptrdiff_t>(q * moment_count),
                                           local_moments.begin() + static_cast<std::ptrdiff_t>((q + 1) * moment_count));
-        const qmomkit::QmomDiscontinuousMomentRateResult result = qmomkit::evaluate_qmom_discontinuous_moment_rates(time, moments, source);
+        const qmomkit::QmomMomentSourceRateResult result = qmomkit::evaluate_qmom_moment_source_rates(time, moments, source);
         if (!result.ok())
         {
-            return discontinuous_failure(q, result.status, result.message);
+            return moment_source_failure(q, result.status, result.message);
         }
         for (std::size_t moment = 0; moment < moment_count; ++moment)
         {
@@ -427,9 +427,9 @@ struct ElementRhsResult
     return success_result(project_rates_to_coefficients(element, local_rates, moment_count));
 }
 
-[[nodiscard]] inline ElementRhsResult evaluate_cqmom_continuous_rhs(const Element& element, const std::vector<double>& coefficients,
-                                                                    const qmomkit::CqmomLeanCase& template_case, const double time,
-                                                                    const qmomkit::PhaseSpaceVelocity& velocity)
+[[nodiscard]] inline ElementRhsResult evaluate_cqmom_advection_rhs(const Element& element, const std::vector<double>& coefficients,
+                                                                   const qmomkit::CqmomLeanCase& template_case, const double time,
+                                                                   const qmomkit::PhaseSpaceVelocity& velocity)
 {
     const std::size_t moment_count = template_case.moments.values.size();
     const std::vector<double> local_moments = interpolate_element_state(element, coefficients, moment_count);
@@ -439,10 +439,10 @@ struct ElementRhsResult
         qmomkit::CqmomLeanCase local_case = template_case;
         local_case.moments.values.assign(local_moments.begin() + static_cast<std::ptrdiff_t>(q * moment_count),
                                          local_moments.begin() + static_cast<std::ptrdiff_t>((q + 1) * moment_count));
-        const qmomkit::CqmomContinuousMomentRateResult result = qmomkit::evaluate_cqmom_continuous_moment_rates(local_case, time, velocity);
+        const qmomkit::CqmomAdvectionMomentRateResult result = qmomkit::evaluate_cqmom_advection_moment_rates(local_case, time, velocity);
         if (!result.ok())
         {
-            return continuous_failure(q, result.status, to_string(result.inversion_status), result.message);
+            return advection_failure(q, result.status, to_string(result.inversion_status), result.message);
         }
         for (std::size_t moment = 0; moment < moment_count; ++moment)
         {
@@ -452,7 +452,7 @@ struct ElementRhsResult
     return success_result(project_rates_to_coefficients(element, local_rates, moment_count));
 }
 
-[[nodiscard]] inline ElementRhsResult evaluate_cqmom_discontinuous_rhs(const Element& element, const std::vector<double>& coefficients,
+[[nodiscard]] inline ElementRhsResult evaluate_cqmom_moment_source_rhs(const Element& element, const std::vector<double>& coefficients,
                                                                        const qmomkit::CqmomMomentData& template_moments, const double time,
                                                                        const qmomkit::CqmomMomentSource& source)
 {
@@ -464,10 +464,10 @@ struct ElementRhsResult
         qmomkit::CqmomMomentData moments = template_moments;
         moments.values.assign(local_moments.begin() + static_cast<std::ptrdiff_t>(q * moment_count),
                               local_moments.begin() + static_cast<std::ptrdiff_t>((q + 1) * moment_count));
-        const qmomkit::CqmomDiscontinuousMomentRateResult result = qmomkit::evaluate_cqmom_discontinuous_moment_rates(time, moments, source);
+        const qmomkit::CqmomMomentSourceRateResult result = qmomkit::evaluate_cqmom_moment_source_rates(time, moments, source);
         if (!result.ok())
         {
-            return discontinuous_failure(q, result.status, result.message);
+            return moment_source_failure(q, result.status, result.message);
         }
         for (std::size_t moment = 0; moment < moment_count; ++moment)
         {

@@ -5,7 +5,7 @@
 namespace qmom_1d_explicit_strang_splitting
 {
 
-[[nodiscard]] qmomkit::PhaseSpaceVelocity continuous_velocity();
+[[nodiscard]] qmomkit::PhaseSpaceVelocity advection_velocity();
 [[nodiscard]] qmomkit::MomentSource variance_injection_source();
 
 } // namespace qmom_1d_explicit_strang_splitting

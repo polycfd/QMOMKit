@@ -51,15 +51,15 @@ int main()
             cqmom_condensing_droplets::print_configuration_errors(output_configured.error());
             return 1;
         }
-        auto transport_configured = qmomkit::config::load_cqmom_transport_options(configuration_file);
-        if (!transport_configured)
+        auto phase_space_evolution_configured = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
+        if (!phase_space_evolution_configured)
         {
-            cqmom_condensing_droplets::print_configuration_errors(transport_configured.error());
+            cqmom_condensing_droplets::print_configuration_errors(phase_space_evolution_configured.error());
             return 1;
         }
         const qmomkit::CqmomCase cqmom_case = std::move(configured_cqmom).value();
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
-        const qmomkit::CqmomTransportOptions transport_options = std::move(transport_configured).value();
+        const qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
         const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
         const qmomkit::RawMomentRequest moment_request{moment_layout.required_indices};
 
@@ -77,9 +77,9 @@ int main()
 
         qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
         const auto velocity = cqmom_condensing_droplets::droplet_phase_space_velocity();
-        const qmomkit::AdaptiveRkOptions continuous_options = transport_options.node_options.adaptive_options;
+        const qmomkit::AdaptiveRkOptions advection_options = phase_space_evolution_options.node_options.adaptive_options;
 
-        cqmom_condensing_droplets::print_monte_carlo_run_configuration(cqmom_case, transport_options.node_options);
+        cqmom_condensing_droplets::print_monte_carlo_run_configuration(cqmom_case, phase_space_evolution_options.node_options);
 
         const auto adapt_monte_carlo_result = [](const qmomkit::monte_carlo::SelectedEnsembleMomentEstimate& estimate)
         {
@@ -114,15 +114,15 @@ int main()
         while (time < final_time - 1.0e-12)
         {
             const double current_step = std::min(time_step, final_time - time);
-            qmomkit::monte_carlo::EnsembleEvolutionResult continuous =
-                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + current_step, continuous_options);
-            if (!continuous.ok())
+            qmomkit::monte_carlo::EnsembleEvolutionResult advection =
+                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + current_step, advection_options);
+            if (!advection.ok())
             {
-                std::cerr << "Continuous particle step failed: " << continuous.message << '\n';
+                std::cerr << "Advection particle step failed: " << advection.message << '\n';
                 return 1;
             }
-            ensemble = std::move(continuous.ensemble);
-            time = continuous.final_time;
+            ensemble = std::move(advection.ensemble);
+            time = advection.final_time;
 
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {

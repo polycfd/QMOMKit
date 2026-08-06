@@ -31,4 +31,4 @@ Current component regression coverage includes:
   representations;
 - direct moment-source update behavior and diagnostics;
 - direct node-advection behavior and diagnostics;
-- focused transport-integrator composition and phase-space ordering behavior.
+- focused phase-space evolution integrator composition and phase-space ordering behavior.

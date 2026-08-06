@@ -354,7 +354,7 @@ void test_qmom_boundary_rate_evaluator_matches_source_update()
 
     const qmomkit::OdeRhs rate_adapter = [&source, &boundary](const double time, const std::vector<double>& moments)
     {
-        const qmomkit::QmomDiscontinuousMomentRateResult result = qmomkit::evaluate_qmom_discontinuous_moment_rates(time, moments, source, boundary);
+        const qmomkit::QmomMomentSourceRateResult result = qmomkit::evaluate_qmom_moment_source_rates(time, moments, source, boundary);
         if (!result.ok())
         {
             throw std::runtime_error(result.message);

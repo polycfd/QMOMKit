@@ -49,7 +49,7 @@ using MomentBoundaryContribution = std::function<MomentBoundaryRate(double, cons
  *
  * Entries are ordered consistently with the derivative values expected from a
  * `CqmomMomentSource`. The context exposes the CQMOM moment layout selected for
- * transport, along with phase-space hierarchy, stage time, moment multi-indices,
+ * phase-space evolution, along with phase-space hierarchy, stage time, moment multi-indices,
  * and moment values. The time is explicit and matches the stage or evaluation
  * time passed as the first argument to the callback. That layout is independent
  * of the underlying dense or lean CQMOM moment storage backend.
@@ -90,7 +90,7 @@ struct CqmomMomentRate
 };
 
 /**
- * CQMOM-native source callback over the transport CQMOM moment layout.
+ * CQMOM-native source callback over the phase-space evolution CQMOM moment layout.
  *
  * The callback receives the current CQMOM source context and returns one
  * derivative value per context entry, in context order.
@@ -159,7 +159,7 @@ struct CqmomMomentSourceUpdateResult
 
 /**
  * Advanced composable operation: advance a raw-moment vector through a
- * discontinuous source operator using the existing SSP-RK3 integrator.
+ * moment-source operator using the existing SSP-RK3 integrator.
  * Optional acceptability checks are supplied through
  * `options.ssp_rk3_options.accept`; rejected candidates use the SSP-RK3 retry
  * policy with timestep halving.
@@ -168,9 +168,9 @@ struct CqmomMomentSourceUpdateResult
                                                                    const MomentSource& source, const MomentSourceUpdateOptions& options = {});
 
 /**
- * Advanced composable operation: advance raw moments through a generic source
+ * Advanced composable operation: advance raw moments through a generic moment source
  * plus an additive phase-space boundary exchange contribution using the same
- * SSP-RK3 source-update path.
+ * SSP-RK3 moment-source update path.
  */
 [[nodiscard]] MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, double t, double time_step,
                                                                    const MomentSource& source, const MomentBoundaryContribution& boundary,
@@ -178,7 +178,7 @@ struct CqmomMomentSourceUpdateResult
 
 /**
  * Advanced composable operation: advance fixed-layout CQMOM moments through a
- * source operator using the existing vector SSP-RK3 integrator. The RK stages
+ * moment-source operator using the existing vector SSP-RK3 integrator. The RK stages
  * are exposed to the CQMOM source callback through `CqmomSourceContext`.
  */
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
@@ -187,7 +187,7 @@ struct CqmomMomentSourceUpdateResult
 
 /**
  * Advanced composable operation: advance fixed-layout CQMOM moments through a
- * generic source plus an additive phase-space boundary exchange contribution
+ * generic moment source plus an additive phase-space boundary exchange contribution
  * using the same SSP-RK3 source-update path.
  */
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,

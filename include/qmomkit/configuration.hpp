@@ -3,9 +3,9 @@
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/output.hpp"
+#include "qmomkit/phase_space_evolution.hpp"
 #include "qmomkit/qmom.hpp"
 #include "qmomkit/realizability_policy.hpp"
-#include "qmomkit/transport_integrator.hpp"
 
 #include <cstddef>
 #include <filesystem>
@@ -213,17 +213,20 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Parse optional runtime realizability policy configuration. */
 [[nodiscard]] ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(std::string_view text, std::string source_name = "<string>");
 
-/** Parse optional transport scheme configuration. */
-[[nodiscard]] ConfigurationResult<TransportScheme> parse_transport_scheme(std::string_view text, std::string source_name = "<string>");
+/** Parse an optional phase-space evolution scheme configuration. */
+[[nodiscard]] ConfigurationResult<PhaseSpaceEvolutionScheme> parse_phase_space_evolution_scheme(std::string_view text,
+                                                                                                std::string source_name = "<string>");
 
 /** Parse optional node-advection configuration, including embedded-RK controls. */
 [[nodiscard]] ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(std::string_view text, std::string source_name = "<string>");
 
-/** Parse QMOM transport options from optional runtime configuration. */
-[[nodiscard]] ConfigurationResult<QmomTransportOptions> parse_qmom_transport_options(std::string_view text, std::string source_name = "<string>");
+/** Parse QMOM phase-space evolution options from optional runtime configuration. */
+[[nodiscard]] ConfigurationResult<QmomPhaseSpaceEvolutionOptions> parse_qmom_phase_space_evolution_options(std::string_view text,
+                                                                                                           std::string source_name = "<string>");
 
-/** Parse CQMOM transport options from optional runtime configuration. */
-[[nodiscard]] ConfigurationResult<CqmomTransportOptions> parse_cqmom_transport_options(std::string_view text, std::string source_name = "<string>");
+/** Parse CQMOM phase-space evolution options from optional runtime configuration. */
+[[nodiscard]] ConfigurationResult<CqmomPhaseSpaceEvolutionOptions> parse_cqmom_phase_space_evolution_options(std::string_view text,
+                                                                                                             std::string source_name = "<string>");
 
 /** Parse optional output configuration. */
 [[nodiscard]] ConfigurationResult<OutputOptions> parse_output_options(std::string_view text, std::string source_name = "<string>");
@@ -249,10 +252,10 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Load and parse runtime realizability policy configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<RealizabilityPolicy> load_realizability_policy(const std::filesystem::path& filename);
 
-/** Load and parse QMOM transport options from exactly the requested file. */
-[[nodiscard]] ConfigurationResult<QmomTransportOptions> load_qmom_transport_options(const std::filesystem::path& filename);
+/** Load and parse QMOM phase-space evolution options from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<QmomPhaseSpaceEvolutionOptions> load_qmom_phase_space_evolution_options(const std::filesystem::path& filename);
 
-/** Load and parse CQMOM transport options from exactly the requested file. */
-[[nodiscard]] ConfigurationResult<CqmomTransportOptions> load_cqmom_transport_options(const std::filesystem::path& filename);
+/** Load and parse CQMOM phase-space evolution options from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<CqmomPhaseSpaceEvolutionOptions> load_cqmom_phase_space_evolution_options(const std::filesystem::path& filename);
 
 } // namespace qmomkit::config

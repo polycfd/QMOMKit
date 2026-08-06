@@ -2,13 +2,13 @@
 
 QMOMKit includes the optional `QMOMKitMonteCarlo` companion package under
 `tools/monte_carlo/`. It provides finite ensemble sampling, sample-derived raw
-moments, continuous sample evolution, and moment-history comparison utilities.
+moments, advection sample evolution, and moment-history comparison utilities.
 It is useful when you want a sampled reference beside a QMOM or CQMOM
 calculation.
 
 The companion package is not needed for ordinary QMOM or CQMOM reconstruction.
 It is not a production particle solver, a source-term model, or a replacement
-for QMOMKit transport.
+for QMOMKit phase-space evolution.
 
 ## When To Use It
 

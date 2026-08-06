@@ -67,8 +67,8 @@ int main()
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
         const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(configured_cqmom.value().hierarchy());
-        const qmomkit::PhaseSpaceVelocity velocity = cqmom_polydisperse_cavitation::continuous_velocity();
-        const qmomkit::AdaptiveRkOptions continuous_options;
+        const qmomkit::PhaseSpaceVelocity velocity = cqmom_polydisperse_cavitation::advection_velocity();
+        const qmomkit::AdaptiveRkOptions advection_options;
 
         qmomkit::RawMomentTensor final_moments = cqmom_polydisperse_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents);
         const qmomkit::RawMomentTensor initial_moments = final_moments;
@@ -87,14 +87,14 @@ int main()
         while (time < final_time - 1.0e-12)
         {
             const double current_step = std::min(time_step, final_time - time);
-            qmomkit::monte_carlo::EnsembleEvolutionResult continuous =
-                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + current_step, continuous_options);
-            if (!continuous.ok())
+            qmomkit::monte_carlo::EnsembleEvolutionResult advection =
+                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + current_step, advection_options);
+            if (!advection.ok())
             {
-                std::cerr << "Continuous particle step failed: " << continuous.message << '\n';
+                std::cerr << "Advection particle step failed: " << advection.message << '\n';
                 return 1;
             }
-            ensemble = std::move(continuous.ensemble);
+            ensemble = std::move(advection.ensemble);
             time += current_step;
 
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)

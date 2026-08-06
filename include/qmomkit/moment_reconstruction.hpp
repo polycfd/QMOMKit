@@ -52,7 +52,7 @@ namespace qmomkit
  *
  * Generalized moments are quadrature-derived post-processing quantities. This
  * function does not create or update a generalized moment state, and the
- * returned value is not a QMOM reconstruction or transport input.
+ * returned value is not a QMOM reconstruction or phase-space evolution input.
  */
 [[nodiscard]] double evaluate_generalized_moment(const Quadrature1D& quadrature, double exponent);
 
@@ -69,7 +69,7 @@ namespace qmomkit
  *
  * Generalized moments are quadrature-derived post-processing quantities. This
  * function does not create or update a generalized moment state, and the
- * returned value is not a CQMOM reconstruction or transport input.
+ * returned value is not a CQMOM reconstruction or phase-space evolution input.
  */
 [[nodiscard]] double evaluate_generalized_moment(const CqmomQuadrature& quadrature, const std::vector<double>& exponents);
 

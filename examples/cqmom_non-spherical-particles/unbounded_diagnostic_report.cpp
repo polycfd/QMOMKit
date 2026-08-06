@@ -95,16 +95,16 @@ std::string matrix_string(const Matrix& matrix)
     return text.str();
 }
 
-std::string transport_scheme_string(const qmomkit::TransportScheme scheme)
+std::string phase_space_evolution_scheme_string(const qmomkit::PhaseSpaceEvolutionScheme scheme)
 {
     switch (scheme)
     {
-    case qmomkit::TransportScheme::strang:
+    case qmomkit::PhaseSpaceEvolutionScheme::strang:
         return "strang";
-    case qmomkit::TransportScheme::cd:
-        return "cd";
-    case qmomkit::TransportScheme::dc:
-        return "dc";
+    case qmomkit::PhaseSpaceEvolutionScheme::advsrc:
+        return "advsrc";
+    case qmomkit::PhaseSpaceEvolutionScheme::srcadv:
+        return "srcadv";
     }
     return "unknown";
 }
@@ -217,7 +217,7 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
 
     markdown << "# Unbounded conditional-support diagnostic\n\n";
     markdown << "This diagnostic intentionally omits the configured chi support [0,1], accepts the first unconstrained post-source reconstruction "
-                "with chi outside that interval, writes this report, and stops before the next continuous stage.\n\n";
+                "with chi outside that interval, writes this report, and stops before the next advection stage.\n\n";
 
     markdown << "## Run configuration\n\n";
     markdown << "| quantity | bounded workflow | unbounded diagnostic |\n";
@@ -227,7 +227,8 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
              << cqmom_non_spherical_particles::initialization_sample_count << " | same seed and sample count |\n";
     markdown << "| node counts | `" << vector_string(unbounded.cqmom_case.hierarchy().node_counts()) << "` | same |\n";
     markdown << "| conditioning order | `" << vector_string(unbounded.cqmom_case.hierarchy().conditioning_order()) << "` | same |\n";
-    markdown << "| transport scheme | `" << transport_scheme_string(unbounded.transport_options.scheme) << "` | same |\n";
+    markdown << "| phase-space evolution scheme | `" << phase_space_evolution_scheme_string(unbounded.phase_space_evolution_options.scheme)
+             << "` | same |\n";
     markdown << "| macro time step | " << cqmom_non_spherical_particles::cqmom_time_step << " | same |\n";
     markdown << "| source model | binary fragmentation callback from shared setup | same callback construction |\n";
     markdown << "| chi support declaration | `[0,1]` | intentionally absent |\n\n";
@@ -261,7 +262,7 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
     markdown
         << "The phase-space ordering is `(d, chi, u, v, w)`. The coordinate name `chi` is example metadata, and this model communicates its physical "
            "aspect-ratio interval through the generic coordinate-support declaration. The diagnostic inspects the accepted post-source quadrature "
-           "immediately after moment-space fragmentation because the next continuous stage could obscure the closure event that produced the "
+           "immediately after moment-space fragmentation because the next advection stage could obscure the closure event that produced the "
            "out-of-support value.\n\n";
 
     markdown << "## Conditional moment sequence\n\n";
@@ -269,12 +270,12 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
     write_moment_table(markdown, report.branch_moments, report.offending.parent_global_weight);
     markdown << '\n';
 
-    markdown << "## Source-stage evolution\n\n";
+    markdown << "## Moment-Source Evolution\n\n";
     markdown
         << "The source replay uses the same pre-source moment state, the same source callback, and the SSP-RK3 stage times and coefficients used by "
-           "`advance_cqmom_moments_with_source(...)`. QMOMKit currently exposes this discontinuous source update through SSP-RK3 options; this "
+           "`advance_cqmom_moments_with_source(...)`. QMOMKit currently exposes this moment-source update through SSP-RK3 options; this "
            "example-local diagnostic should be extended before being used with any future selectable source scheme. The replay final candidate "
-           "agrees with the public source update to "
+           "agrees with the public moment-source update to "
         << report.source_replay.max_difference_from_public_source_update << ".\n\n";
     markdown << "| stage | time | m0 | m1 | m2 | m3 | m4 | m5 |\n";
     markdown << "|---|---:|---:|---:|---:|---:|---:|---:|\n";

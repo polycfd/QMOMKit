@@ -94,7 +94,7 @@ QMOMKit's scalable CQMOM representation is the required moment set: the minimal
 set of raw moments required by the configured hierarchy and conditioning order.
 The normal user workflow loads a `CqmomCase` and computes its quadrature with
 `compute_cqmom(CqmomCase)`. If the distribution evolves in time, the same case
-can create a `CqmomState` for transport. Users on this path do not manage
+can create a `CqmomState` for phase-space evolution. Users on this path do not manage
 internal branch-local storage, dense tensor extents, or required moment indices.
 Representation choices are hidden by default. Callers that need direct control
 can opt into an explicit dense representation workflow or an explicit lean
@@ -206,7 +206,7 @@ diagnostics, active counts, or terminal paths. Every fixed normal case and
 state owns compatible metadata. A direct internal fixed-state factory either
 starts a new prepared lineage eagerly or receives the owner from a structurally
 unchanged parent. Initial-state construction, value replacement, copies, and
-transport successors propagate that owner without copying the graph. Missing or
+phase-space evolution successors propagate that owner without copying the graph. Missing or
 incompatible metadata is an internal contract violation, not a dynamic fallback.
 Case and state copies share the immutable owner; a state can therefore outlive
 its case without retaining mutable aliases.
@@ -596,7 +596,7 @@ explicit representation case selects how much diagnostic work is performed:
 
 `CqmomDiagnosticLevel` controls diagnostic retention and reporting only. It does
 not alter Vandermonde solver selection, residual acceptance, dense fallback
-behavior, inversion results, active node counts, quadrature values, transport
+behavior, inversion results, active node counts, quadrature values, phase-space evolution
 results, or success/failure status.
 
 - `CqmomDiagnosticLevel::detailed` preserves full diagnostic reporting. It
@@ -654,7 +654,7 @@ Public CQMOM concepts include:
 
 `CqmomCase` and `CqmomState` are the neutral public objects for the normal
 CQMOM workflow. The case stores initialized moment data and reconstruction
-policies; a state is created from the case when users choose CQMOM transport.
+policies; a state is created from the case when users choose CQMOM phase-space evolution.
 This workflow avoids exposing dense or lean moment storage to users.
 
 `CqmomDenseCase` bundles the phase-space hierarchy, raw moment tensor,

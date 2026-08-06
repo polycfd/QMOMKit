@@ -231,9 +231,9 @@ struct CqmomLeanCase
  * User-facing mutable CQMOM runtime state.
  *
  * A state owns the current CQMOM moments and reconstruction policies while
- * hiding the storage representation used internally. Normal CQMOM transport
+ * hiding the storage representation used internally. Normal CQMOM phase-space evolution
  * creates this state from `CqmomCase` and passes it to
- * `advance_transport_cqmom(...)`.
+ * `advance_cqmom_phase_space(...)`.
  */
 class CqmomState
 {
@@ -326,7 +326,7 @@ struct CqmomResult
  * node counts are enabled explicitly with `CqmomDenseCase::adaptive_branch_counts`
  * and automatically enable adaptive Wheeler for all marginal and conditional
  * inversions. Standalone QMOM remains independently configurable. This does
- * not implement transport or operator splitting.
+ * not implement phase-space evolution or operator splitting.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomDenseCase& dense_case);
 

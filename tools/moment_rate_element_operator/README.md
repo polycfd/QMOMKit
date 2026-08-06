@@ -49,15 +49,15 @@ tools/moment_rate_element_operator/build/moment_rate_element_operator_check
 
 The check covers:
 
-- QMOM continuous local rates with an analytical constant-velocity reference;
-- QMOM discontinuous local rates from a deterministic raw-moment source;
-- CQMOM continuous local-rate composition through the public API;
-- CQMOM discontinuous source-context ordering and rate ordering;
-- a local coefficient-level SSP-RK3 demonstration using continuous and
-  discontinuous RHS evaluators;
-- failure diagnostics for a rejected local continuous rate call.
+- QMOM advection local rates with an analytical constant-velocity reference;
+- QMOM moment-source local rates from a deterministic raw-moment source;
+- CQMOM advection local-rate composition through the public API;
+- CQMOM moment-source-context ordering and rate ordering;
+- a local coefficient-level SSP-RK3 demonstration using advection and
+  moment-source RHS evaluators;
+- failure diagnostics for a rejected local advection rate call.
 
-The CQMOM continuous case validates downstream composition and status handling;
+The CQMOM advection case validates downstream composition and status handling;
 it is not an independent validation of CQMOM inversion mathematics.
 
 ## Timing
@@ -102,10 +102,10 @@ Categories include:
 - projection and inverse-mass application only;
 - public QMOM inversion only;
 - public CQMOM inversion only;
-- QMOM continuous local-rate evaluation;
-- QMOM discontinuous local-rate evaluation;
-- CQMOM continuous local-rate evaluation;
-- CQMOM discontinuous local-rate evaluation;
+- QMOM advection local-rate evaluation;
+- QMOM moment-source local-rate evaluation;
+- CQMOM advection local-rate evaluation;
+- CQMOM moment-source local-rate evaluation;
 - complete element RHS;
 - complete external SSP-RK3 coefficient step.
 
@@ -114,17 +114,17 @@ and batched serial loops, one- and two-node QMOM cases, identity and
 nonidentity CQMOM conditioning order, a larger fixed CQMOM hierarchy, an
 adaptive branch-specific CQMOM fixture, no and detailed CQMOM diagnostics, zero
 and cheap affine velocities, a modest nonlinear velocity, and nearly free or
-modest arithmetic discontinuous callbacks.
+modest arithmetic moment-source callbacks.
 
 The inversion-only rows call the public `compute_qmom(...)` and
 `compute_cqmom(...)` entry points with the same local moment values used by the
-continuous local-rate rows. They are included to compare full continuous-rate
+advection local-rate rows. They are included to compare full advection-rate
 timing with public inversion timing. Do not treat full-call minus
 inversion-only timing as a precise component measurement; the two measurements
 have different surrounding work, result shapes, and noise.
 
 The CSV output reports compiler/build metadata, target sample duration, case
-metadata, operation category, basis size, spatial quadrature count, transported
+metadata, operation category, basis size, spatial quadrature count, phase_space_evolved
 moment count, phase-space dimension, node configuration, conditioning-order
 label, diagnostic level, callback label, element batch size, local call counts,
 sample count, calibrated iterations per sample, median total time, median time
@@ -135,7 +135,7 @@ Results are serial, machine-specific, compiler-specific, and build-specific.
 Use a Release build and compare trends within a single run before drawing
 conclusions across machines.
 
-A useful first profiling case is the largest fixed CQMOM continuous local-rate
+A useful first profiling case is the largest fixed CQMOM advection local-rate
 case with minimal diagnostics and cheap affine velocity:
 
 ```sh
@@ -146,7 +146,7 @@ tools/moment_rate_element_operator/build/moment_rate_element_operator_benchmark 
 
 On macOS, run that command under Instruments Time Profiler. On Linux, use a
 similar filtered run under `perf`. The filter isolates repeated public
-continuous local-rate evaluation better than a full matrix run and keeps
+advection local-rate evaluation better than a full matrix run and keeps
 callback cost modest.
 
 The benchmark intentionally does not add workspaces, caches, batching, or

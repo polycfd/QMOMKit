@@ -8,8 +8,8 @@ phase space, write interpretable output, or compare with sampled data.
 
 QMOMKit does not define a physical model, mesh, PDE discretization, solver loop,
 or persistent probability-density object. It converts moments to quadrature,
-stores the case setup, and, when transport is used, tracks the state advanced by
-the transport helper. Your application defines the meaning of the coordinates
+stores the case setup, and, when phase-space evolution is used, tracks the state advanced by
+the phase-space evolution helper. Your application defines the meaning of the coordinates
 and the equations that generate or evolve the moments.
 
 The basic workflow is:
@@ -36,7 +36,7 @@ In practice, a first QMOMKit integration usually asks four questions:
 - Are initial moments supplied explicitly, generated from distributions, or
   read from configuration?
 - After reconstruction, will the quadrature only be inspected, or will it be
-  evolved through transport?
+  evolved through phase-space evolution?
 
 ## QMOM
 
@@ -147,7 +147,7 @@ int main()
 }
 ```
 
-`compute_cqmom(...)` returns the quadrature for the configured case. Transport is
+`compute_cqmom(...)` returns the quadrature for the configured case. Phase-space evolution is
 optional. When the CQMOM distribution evolves in time, create the runtime state
 separately:
 
@@ -155,12 +155,12 @@ separately:
 qmomkit::CqmomState state = cqmom_case.initial_state();
 ```
 
-That state is passed to `advance_transport_cqmom(...)` in a transport loop.
+That state is passed to `advance_cqmom_phase_space(...)` in a phase-space evolution loop.
 
 The configuration file defines the parts of the numerical setup that should be
 repeatable: phase-space names, node counts, conditioning order, and either an
 initial distribution or explicit moments. It does not define the physics
-callbacks used later for transport. See `configuration.md` for complete
+callbacks used later for phase-space evolution. See `configuration.md` for complete
 configuration syntax and the relationship between `.qmom` files and direct C++
 setup.
 
@@ -180,8 +180,8 @@ const double x1 = quadrature.abscissa(1, node_index);
 Once you have a quadrature representation, a larger workflow can:
 
 - write moments or quadrature histories with QMOMKit output helpers;
-- advance quadrature nodes with a caller-supplied continuous velocity;
-- advance raw moments with a caller-supplied discontinuous source term;
+- advance quadrature nodes with a caller-supplied advection velocity;
+- advance raw moments with a caller-supplied moment-source term;
 - run optional realizability checks;
 - compare moment histories against Monte Carlo companion outputs.
 
@@ -189,6 +189,6 @@ Once you have a quadrature representation, a larger workflow can:
 writes reconstructed nodes and weights. Generalized moments are derived
 quantities evaluated separately from a valid quadrature result.
 
-See `configuration.md` for configuration-file examples, `transport.md` for
+See `configuration.md` for configuration-file examples, `phase_space_evolution.md` for
 time evolution, `realizability.md` for support-aware checks, and
 `monte_carlo.md` for Monte Carlo companion workflows.

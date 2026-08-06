@@ -27,7 +27,7 @@ enum class EnsembleEvolutionStatus
 };
 
 /**
- * Result of continuous sample-coordinate evolution.
+ * Result of advection sample-coordinate evolution.
  *
  * On success, `ensemble` contains one evolved sample for each input sample. On
  * failure, no partially evolved ensemble is returned; diagnostics identify the
@@ -59,7 +59,7 @@ struct EnsembleEvolutionResult
 /**
  * Result of evolving the nodes of an explicit weighted quadrature.
  *
- * The weights are unchanged by continuous phase-space motion. The evolved
+ * The weights are unchanged by phase-space advection. The evolved
  * distribution therefore stores the advanced node coordinates with the original
  * absolute weights and number-density convention.
  */
@@ -88,7 +88,7 @@ struct ExplicitQuadratureEvolutionResult
  *
  * The callback must return one derivative per phase-space coordinate. Samples
  * are treated as generic coordinate realizations; no moment source, boundary
- * contribution, or transport splitting is applied.
+ * contribution, or operator-split phase-space evolution is applied.
  */
 [[nodiscard]] EnsembleEvolutionResult evolve_ensemble(const Ensemble& ensemble, const qmomkit::PhaseSpaceVelocity& velocity, double t0, double t1,
                                                       const qmomkit::AdaptiveRkOptions& options = {});
@@ -96,7 +96,7 @@ struct ExplicitQuadratureEvolutionResult
 /**
  * Evolve one-dimensional quadrature nodes with QMOMKit node advection.
  *
- * This helper is used to compare continuous node motion with continuous sample
+ * This helper is used to compare advection node motion with advection sample
  * motion under the same velocity callback.
  */
 [[nodiscard]] qmomkit::QmomNodeAdvectionResult evolve_quadrature_nodes(const qmomkit::Quadrature1D& quadrature,

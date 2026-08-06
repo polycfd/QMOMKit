@@ -35,7 +35,7 @@ compute_qmom(...) or compute_cqmom(...)
 After moment generation, the reconstruction algorithms have no memory of whether
 the input moments came from an analytical distribution, an explicit moment list,
 a sample-derived ensemble, or another upstream calculation. This keeps
-distribution handling separate from quadrature reconstruction, transport,
+distribution handling separate from quadrature reconstruction, phase-space evolution,
 realizability checks, and application physics.
 
 ## Distribution Abstraction

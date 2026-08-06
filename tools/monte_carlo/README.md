@@ -1,7 +1,7 @@
 # QMOMKitMonteCarlo
 
 This directory contains the optional QMOMKitMonteCarlo companion package. It
-adds finite ensemble sampling, sample-derived moment estimation, continuous
+adds finite ensemble sampling, sample-derived moment estimation, advection
 sample evolution, and moment comparison utilities for QMOMKit validation and
 analysis.
 

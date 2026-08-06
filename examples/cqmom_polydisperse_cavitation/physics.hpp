@@ -11,6 +11,6 @@ constexpr double heat_capacity_ratio = 1.4;
 constexpr double reynolds_number = 10.0;
 constexpr double weber_number = 1.39;
 
-[[nodiscard]] qmomkit::PhaseSpaceVelocity continuous_velocity();
+[[nodiscard]] qmomkit::PhaseSpaceVelocity advection_velocity();
 
 } // namespace cqmom_polydisperse_cavitation

@@ -107,7 +107,8 @@ void validate_fixed_cqmom_moment_data(const CqmomMomentData& moments, const char
 void validate_rate(const CqmomMomentRate& rate, const std::size_t expected_size)
 {
     internal::validate_cqmom_moment_rate(
-        rate, expected_size, {"CQMOM source rate values must match the source context size.", "CQMOM source rate values must be finite."});
+        rate, expected_size,
+        {"CQMOM moment-source rate values must match the source context size.", "CQMOM moment-source rate values must be finite."});
 }
 
 void validate_source_rate(const std::vector<double>& rate, const std::size_t expected_size)
@@ -145,11 +146,11 @@ void validate_cqmom_stage_state(const std::vector<double>& state, const CqmomMom
 {
     if (state.size() != layout.required_indices.size())
     {
-        throw std::invalid_argument("CQMOM source stage values must match the fixed layout size.");
+        throw std::invalid_argument("CQMOM moment-source stage values must match the fixed layout size.");
     }
     if (!internal::all_finite(state))
     {
-        throw std::invalid_argument("CQMOM source stage values must be finite.");
+        throw std::invalid_argument("CQMOM moment-source stage values must be finite.");
     }
 }
 
@@ -204,11 +205,11 @@ void validate_cqmom_source_update_controls(const double t, const double time_ste
 {
     if (!std::isfinite(t) || !std::isfinite(time_step) || !std::isfinite(t + time_step))
     {
-        throw std::invalid_argument("CQMOM source update time input contains non-finite values.");
+        throw std::invalid_argument("CQMOM moment-source update time input contains non-finite values.");
     }
     if (time_step <= 0.0)
     {
-        throw std::invalid_argument("CQMOM source update timestep must be positive.");
+        throw std::invalid_argument("CQMOM moment-source update timestep must be positive.");
     }
     if (!source)
     {
@@ -217,14 +218,14 @@ void validate_cqmom_source_update_controls(const double t, const double time_ste
     if (options.ssp_rk3_options.min_time_step < 0.0 ||
         (options.ssp_rk3_options.min_time_step > 0.0 && time_step < options.ssp_rk3_options.min_time_step))
     {
-        throw std::invalid_argument("CQMOM source update timestep controls are invalid.");
+        throw std::invalid_argument("CQMOM moment-source update timestep controls are invalid.");
     }
 }
 
 void validate_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
                                   const MomentSourceUpdateOptions& options)
 {
-    validate_fixed_cqmom_moment_data(moments, "CQMOM source update");
+    validate_fixed_cqmom_moment_data(moments, "CQMOM moment-source update");
     validate_cqmom_source_update_controls(t, time_step, source, options);
 }
 
@@ -232,7 +233,7 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
                                           const MomentSourceUpdateOptions& options)
 {
     internal::validate_cqmom_moment_values_match_layout(
-        moments, {"", "CQMOM source update values must match the fixed layout size.", "CQMOM source update values must be finite."});
+        moments, {"", "CQMOM moment-source update values must match the fixed layout size.", "CQMOM moment-source update values must be finite."});
     validate_cqmom_source_update_controls(t, time_step, source, options);
 }
 
@@ -258,7 +259,7 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
 
 [[nodiscard]] MomentSource compose_source_and_boundary(const MomentSource& source, const MomentBoundaryContribution& boundary)
 {
-    // Boundary exchange is an additive rate inside the discontinuous source
+    // Boundary exchange is an additive rate inside the moment-source
     // operator, so SSP-RK3 still sees a single combined RHS.
     return [source, boundary](const double stage_time, const std::vector<double>& state)
     {
@@ -284,7 +285,7 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
 
 [[nodiscard]] CqmomMomentSource compose_cqmom_source_and_boundary(const CqmomMomentSource& source, const CqmomMomentBoundaryContribution& boundary)
 {
-    // Boundary exchange is an additive rate inside the discontinuous source
+    // Boundary exchange is an additive rate inside the moment-source
     // operator, so SSP-RK3 still sees a single combined RHS.
     return [source, boundary](const double stage_time, const CqmomSourceContext& context)
     {

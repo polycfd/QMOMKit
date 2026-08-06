@@ -4,7 +4,7 @@
 
 QMOMKit is designed to be embedded in larger simulation, validation, and
 analysis codes. In large CFD-style applications, QMOM and CQMOM reconstruction,
-moment transport, source integration, and linear solves may be called many
+phase-space evolution, moment-source integration, and linear solves may be called many
 millions or billions of times. A small per-call cost can therefore become a
 significant application-level cost.
 
@@ -20,7 +20,7 @@ questions before changing algorithms or implementation structure:
 - How much computational work was performed?
 - Which numerical operations dominate a workload?
 - How does the workload scale with dimensions, node counts, branch counts,
-  moment counts, transport steps, or solver choices?
+  moment counts, phase-space evolution steps, or solver choices?
 
 The instrumentation layer does not directly measure wall-clock performance. It
 records counters that describe the shape of the computational workload. Timing,
@@ -39,8 +39,8 @@ and numerical path of a result.
 
 Performance instrumentation counts computational work. It records events such
 as reconstruction calls, Wheeler calls, Vandermonde solver usage, fallback
-usage, transport operator applications, adaptive CQMOM active-count derivation,
-validation, and transition construction, source SSP-RK stages, source retries,
+usage, phase-space evolution operator applications, adaptive CQMOM active-count derivation,
+validation, and transition construction, moment-source SSP-RK stages, moment-source retries,
 node RHS evaluations, and adaptive embedded-RK node-advection steps. These
 counters describe workload composition, not correctness.
 
@@ -77,9 +77,9 @@ timing with the internal counter layer. Build it against an installed QMOMKit
 package configured with `QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION=ON`; the
 benchmark project discovers that package through `find_package(QMOMKit)`.
 Its default output includes a grouped human-readable report so maintainers can
-connect timings to reconstruction, linear algebra, transport, and
+connect timings to reconstruction, linear algebra, phase-space evolution, and
 time-integration workload counters. The benchmark also includes comparison
-variants for source-layout work, Vandermonde solver policy, transport
+variants for source-layout work, Vandermonde solver policy, phase-space evolution
 components, and instrumentation overhead; those comparisons are designed to
 test performance hypotheses before any optimization work begins.
 
@@ -106,7 +106,7 @@ effects without making timing policy part of the core numerical API.
 
 The instrumentation layer is internal. It is not a public API, does not affect
 output formats, and is not connected to `CqmomDiagnosticLevel`,
-`TransportDiagnostics`, or numerical status reporting.
+`PhaseSpaceEvolutionDiagnostics`, or numerical status reporting.
 
 ## Available counter categories
 
@@ -122,8 +122,8 @@ Linear algebra counters summarize Vandermonde and dense solve work, including
 Vandermonde solves, solver paths, dense fallback usage, residual checks, and
 condition estimates.
 
-Transport counters summarize operator-split transport work, including macro
-steps, continuous and discontinuous operator applications, moment
+Phase-space evolution counters summarize operator-split phase-space evolution work, including macro
+steps, advection and moment-source operator applications, moment
 reconstruction calls, and post-source inversions.
 
 CQMOM topology counters summarize adaptive active-count work. A derivation is
@@ -133,8 +133,8 @@ validation is recorded when recursive reconstruction validates a non-empty
 active-count constraint collection. A transition build is recorded when
 non-empty before/after active counts are processed for transition diagnostics.
 
-Time-integration counters summarize RK-related work, including source SSP-RK
-stages, source retries, node RHS evaluations, and adaptive embedded-RK accepted
+Time-integration counters summarize RK-related work, including moment-source SSP-RK
+stages, moment-source retries, node RHS evaluations, and adaptive embedded-RK accepted
 or rejected steps when RK23 or RK45 node advection is selected.
 
 These groups intentionally avoid per-branch timing, per-dimension breakdowns,
@@ -148,7 +148,7 @@ together with benchmark timings, profiler output, and the numerical problem
 being solved.
 
 A high Wheeler-call count may indicate frequent reconstruction, many CQMOM
-branches, many transport macro steps, or a modeling choice that requires
+branches, many phase-space evolution macro steps, or a modeling choice that requires
 repeated inversion. It does not by itself prove that Wheeler inversion is the
 runtime bottleneck.
 
@@ -168,7 +168,7 @@ builds are usually more interesting than branch-local layouts.
 `cqmom_prepared_metadata_builds` increments once when a fixed normal case or a
 direct fixed normal state starts a new lineage and eagerly constructs its
 immutable required-layout and branch-layout graph. It does not increment for
-copies, transformations that preserve structure, or transport successors.
+copies, transformations that preserve structure, or phase-space evolution successors.
 `cqmom_prepared_metadata_uses` increments once when a fixed trusted
 reconstruction consumes compatible metadata. `cqmom_dynamic_metadata_builds`
 increments once per reconstruction that creates root/branch metadata
@@ -180,7 +180,7 @@ required-layout and branch-layout objects, including the objects created during
 one eager prepared build.
 
 A high node-RHS-evaluation count may reflect many terminal nodes, long
-transport intervals, difficult velocity dynamics, or tight embedded-RK
+phase-space evolution intervals, difficult velocity dynamics, or tight embedded-RK
 tolerances when RK23 or RK45 is selected. The next step is to compare counters with
 node-advection timings, including the
 `performance_node_advection_scheme` benchmark cases, and profile the velocity
@@ -233,37 +233,37 @@ These rows use fixed-node public lean reconstruction workloads with automatic
 Vandermonde selection and basic diagnostics. Counters are normalized per
 successful reconstruction.
 
-| Benchmark | Dimensions | Node Counts | Type | Time / Reconstruction | CQMOM Reconstructions | Wheeler Calls | Vandermonde Solves | Layout Builds | Source RK Stages | Node RHS Evaluations |
+| Benchmark | Dimensions | Node Counts | Type | Time / Reconstruction | CQMOM Reconstructions | Wheeler Calls | Vandermonde Solves | Layout Builds | Moment-Source RK Stages | Node RHS Evaluations |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `performance_transport_component_inversion_2d_2x2` | 2 | `2 x 2` | CQMOM reconstruction | 8.953 us | 1 | 3 | 1 | 3 | 0 | 0 |
+| `performance_phase_space_evolution_component_inversion_2d_2x2` | 2 | `2 x 2` | CQMOM reconstruction | 8.953 us | 1 | 3 | 1 | 3 | 0 | 0 |
 | `performance_vandermonde_auto_basic_2d_4x4` | 2 | `4 x 4` | CQMOM reconstruction | 28.670 us | 1 | 5 | 1 | 3 | 0 | 0 |
 | `performance_vandermonde_auto_basic_3d_2x2x2` | 3 | `2 x 2 x 2` | CQMOM reconstruction | 22.903 us | 1 | 7 | 3 | 4 | 0 | 0 |
 
-### CQMOM Transport
+### CQMOM Phase-Space Evolution
 
-These rows use fixed-node `2 x 2` `CqmomState` transport workloads with 32
+These rows use fixed-node `2 x 2` `CqmomState` phase-space evolution workloads with 32
 states and 4 macro steps per state. Counters are normalized per state-step.
 
-| Benchmark | Dimensions | Node Counts | Type | Time / State-Step | CQMOM Reconstructions | Wheeler Calls | Vandermonde Solves | Layout Builds | Source RK Stages | Node RHS Evaluations |
+| Benchmark | Dimensions | Node Counts | Type | Time / State-Step | CQMOM Reconstructions | Wheeler Calls | Vandermonde Solves | Layout Builds | Moment-Source RK Stages | Node RHS Evaluations |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `performance_cqmom_transport_strang_2d_2x2/32/4` | 2 | `2 x 2` | Strang CQMOM transport | 25.006 us | 2 | 6 | 2 | 5 | 3 | 32 |
-| `performance_cqmom_transport_cd_2d_2x2/32/4` | 2 | `2 x 2` | CD CQMOM transport | 23.052 us | 2 | 6 | 2 | 5 | 3 | 16 |
-| `performance_cqmom_transport_dc_2d_2x2/32/4` | 2 | `2 x 2` | DC CQMOM transport | 22.840 us | 2 | 6 | 2 | 5 | 3 | 16 |
+| `performance_cqmom_phase_space_evolution_strang_2d_2x2/32/4` | 2 | `2 x 2` | Strang CQMOM phase-space evolution | 25.006 us | 2 | 6 | 2 | 5 | 3 | 32 |
+| `performance_cqmom_phase_space_evolution_advsrc_2d_2x2/32/4` | 2 | `2 x 2` | `advsrc` CQMOM phase-space evolution | 23.052 us | 2 | 6 | 2 | 5 | 3 | 16 |
+| `performance_cqmom_phase_space_evolution_srcadv_2d_2x2/32/4` | 2 | `2 x 2` | `srcadv` CQMOM phase-space evolution | 22.840 us | 2 | 6 | 2 | 5 | 3 | 16 |
 
-### Source Integration
+### Moment-Source Integration
 
-This row uses the fixed-node `3 x 3` CQMOM source integration workload with 64
-states and 8 source updates per state. Counters are normalized per source
+This row uses the fixed-node `3 x 3` CQMOM moment-source integration workload with 64
+states and 8 moment-source updates per state. Counters are normalized per moment-source
 update.
 
-| Benchmark | Dimensions | Node Counts | Type | Time / Source Update | CQMOM Reconstructions | Wheeler Calls | Vandermonde Solves | Layout Builds | Source SSP-RK Stages | Node RHS Evaluations |
+| Benchmark | Dimensions | Node Counts | Type | Time / Moment-Source Update | CQMOM Reconstructions | Wheeler Calls | Vandermonde Solves | Layout Builds | Moment-Source SSP-RK Stages | Node RHS Evaluations |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `performance_source_normal_2d_3x3/64/8` | 2 | `3 x 3` | CQMOM source integration | 4.085 us | 0 | 0 | 0 | 1 | 3 | 0 |
+| `performance_source_normal_2d_3x3/64/8` | 2 | `3 x 3` | CQMOM moment-source integration | 4.085 us | 0 | 0 | 0 | 1 | 3 | 0 |
 
 The lower-level `performance_ssp_source_existing_layout_2d_3x3/64/8` benchmark
-measured the same SSP-RK3 source-update kernel with existing layout metadata at
-512.726 ns per source update and 3 source SSP-RK stages per update. It is useful
-for separating callback/RK cost from public source-update validation and
+measured the same SSP-RK3 moment-source-update kernel with existing layout metadata at
+512.726 ns per moment-source update and 3 moment-source SSP-RK stages per update. It is useful
+for separating callback/RK cost from public moment-source-update validation and
 metadata preparation.
 
 ### Interpretation Guidance
@@ -271,23 +271,23 @@ metadata preparation.
 Use these baselines as workload fingerprints, not just timing rows:
 
 - High Wheeler counts indicate recursive reconstruction complexity, usually
-  from more branches or repeated transport inversions.
+  from more branches or repeated phase-space evolution inversions.
 - Vandermonde solves indicate conditional reconstruction work; dense fallback
   counts, when nonzero, point to difficult conditional solves or conservative
   solver policy.
 - Layout builds indicate metadata preparation work. Public paths may retain
   validation layout builds by design; trusted `CqmomCase` and `CqmomState`
   workflows should avoid repeated immutable global-layout validation.
-- Source SSP-RK stages indicate discontinuous/source integration work. The normal
-  SSP-RK3 source-update baseline performs 3 stages per update.
-- Node RHS evaluations indicate continuous transport workload. Strang performs
-  two continuous half-steps, which is why its node RHS count is higher than CD
-  and DC for the same state and macro-step counts.
+- Moment-source SSP-RK stages indicate moment-source integration work. The normal
+  SSP-RK3 moment-source-update baseline performs 3 stages per update.
+- Node RHS evaluations indicate phase-space advection workload. Strang performs
+  two advection half-steps, which is why its node RHS count is higher than `advsrc`
+  and `srcadv` for the same state and macro-step counts.
 
 Recent optimization effects visible in this baseline:
 
-- CQMOM source integration no longer performs redundant layout preparation in
-  every SSP-RK3 stage; the public source-update path has one layout build per
+- CQMOM moment-source integration no longer performs redundant layout preparation in
+  every SSP-RK3 stage; the public moment-source-update path has one layout build per
   update, while the existing-layout SSP-RK3 kernel has none.
 - Fixed trusted `CqmomCase` and case-derived `CqmomState` reconstruction reuse
   one eager immutable branch-layout graph. Adaptive and explicit workflows

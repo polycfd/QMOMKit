@@ -81,10 +81,10 @@ std::optional<PreparedCqmomExample> prepare_cqmom_example(const std::filesystem:
         print_configuration_errors(output_configured.error());
         return std::nullopt;
     }
-    auto transport_configured = qmomkit::config::load_cqmom_transport_options(configuration_file);
-    if (!transport_configured)
+    auto phase_space_evolution_configured = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
+    if (!phase_space_evolution_configured)
     {
-        print_configuration_errors(transport_configured.error());
+        print_configuration_errors(phase_space_evolution_configured.error());
         return std::nullopt;
     }
 
@@ -140,7 +140,7 @@ std::optional<PreparedCqmomExample> prepare_cqmom_example(const std::filesystem:
                                 breakage_parameters,
                                 std::move(cqmom_case),
                                 std::move(output_configured).value(),
-                                std::move(transport_configured).value(),
+                                std::move(phase_space_evolution_configured).value(),
                                 std::move(velocity),
                                 std::move(source),
                                 std::move(state),
@@ -150,28 +150,28 @@ std::optional<PreparedCqmomExample> prepare_cqmom_example(const std::filesystem:
                                 std::move(terminal_moment_request)};
 }
 
-void print_transport_settings(const PreparedCqmomExample& example)
+void print_phase_space_evolution_settings(const PreparedCqmomExample& example)
 {
     std::cout << qmomkit::format_cqmom_settings(example.cqmom_case.moment_storage(), example.cqmom_case.adaptive_branch_counts(),
                                                 example.cqmom_case.vandermonde_solver(), example.cqmom_case.diagnostic_level());
-    std::cout << "Transport scheme: ";
-    switch (example.transport_options.scheme)
+    std::cout << "Phase-space evolution scheme: ";
+    switch (example.phase_space_evolution_options.scheme)
     {
-    case qmomkit::TransportScheme::strang:
+    case qmomkit::PhaseSpaceEvolutionScheme::strang:
         std::cout << "strang";
         break;
-    case qmomkit::TransportScheme::cd:
-        std::cout << "cd";
+    case qmomkit::PhaseSpaceEvolutionScheme::advsrc:
+        std::cout << "advsrc";
         break;
-    case qmomkit::TransportScheme::dc:
-        std::cout << "dc";
+    case qmomkit::PhaseSpaceEvolutionScheme::srcadv:
+        std::cout << "srcadv";
         break;
     }
     std::cout << '\n';
-    std::cout << qmomkit::format_node_advection_options(example.transport_options.node_options);
+    std::cout << qmomkit::format_node_advection_options(example.phase_space_evolution_options.node_options);
 }
 
-void print_bounded_support_event_summaries(const qmomkit::TransportDiagnostics& diagnostics, const double time)
+void print_bounded_support_event_summaries(const qmomkit::PhaseSpaceEvolutionDiagnostics& diagnostics, const double time)
 {
     static std::set<std::string> printed_events;
     for (const qmomkit::CqmomDiagnostics& branch : diagnostics.post_source_cqmom_diagnostics)

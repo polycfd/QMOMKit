@@ -13,8 +13,8 @@ where $r$ is droplet radius, $w$ is vertical droplet velocity, and $T$ is
 droplet temperature. Positive $w$ is upward, so falling droplets have
 negative vertical velocity.
 
-The model contains continuous phase-space evolution only. It does not include
-physical-space advection, a discontinuous population source, breakup,
+The model contains phase-space evolution only. It does not include
+physical-space advection, a moment-source population source, breakup,
 coalescence, nucleation, a zero-radius boundary contribution, or gas-phase
 feedback from the droplets. The implemented callback advances radius,
 vertical velocity, and droplet temperature for prescribed uniform ambient
@@ -24,7 +24,7 @@ The example contains two executables:
 
 - `cqmom_condensing_droplets_example`: initializes CQMOM from empirical raw
   moments of a deterministic finite sampled population and advances the CQMOM
-  quadrature through the continuous droplet phase-space velocity.
+  quadrature through the advection droplet phase-space velocity.
 - `cqmom_condensing_droplets_mc_example`: evolves the same deterministic finite
   sampled population directly with the Monte Carlo companion utilities.
 
@@ -97,7 +97,7 @@ example-local monomial or per-particle-weight implementation is required.
 
 ## Droplet model
 
-The continuous callback receives coordinates ordered as $(r,w,T)$ and
+The advection callback receives coordinates ordered as $(r,w,T)$ and
 returns
 
 $$
@@ -534,14 +534,14 @@ interval = 0.1
 
 The CQMOM executable reconstructs the initial three-dimensional CQMOM
 quadrature, creates a `qmomkit::CqmomState`, and advances it with
-`qmomkit::advance_cqmom_continuous(...)`. The Monte Carlo executable advances
+`qmomkit::advance_cqmom_advection(...)`. The Monte Carlo executable advances
 each sampled droplet with `qmomkit::monte_carlo::evolve_ensemble(...)`. Both
 paths use the same droplet phase-space velocity callback and the configured
 adaptive embedded-RK node-advection tolerances.
 
-There is no discontinuous source or operator-split source stage in this
-example. Continuous phase-space advection changes quadrature abscissas while
-preserving terminal weights during each continuous advancement. Raw moments
+There is no moment-source or operator-split source stage in this
+example. Phase-space advection changes quadrature abscissas while
+preserving terminal weights during each advection advancement. Raw moments
 change because those abscissas move through phase space.
 
 ## Build and run
@@ -594,7 +594,7 @@ cd build
 ```
 
 The CQMOM executable prints phase-space and conditioning information,
-configured node counts, transport and RK23 settings, sample count and seed,
+configured node counts, phase-space evolution and RK23 settings, sample count and seed,
 selected initial and final moments, final quadrature, and output paths. The
 Monte Carlo executable prints phase-space and RK23 information, sample count
 and seed, selected initial and final moments, final ensemble size, and its
@@ -681,7 +681,7 @@ to be converged or optimal.
 This example covers isolated droplets in prescribed spatially uniform ambient
 conditions. It does not include physical-space transport, gas-phase feedback,
 breakup, coalescence, nucleation, droplet-droplet interactions, zero-radius
-population boundary treatment, or any discontinuous source. The heat-transfer
+population boundary treatment, or any moment-source. The heat-transfer
 model uses the base Nusselt correlation without the evaporation-oriented
 wet-bulb correction from the reference paper.
 

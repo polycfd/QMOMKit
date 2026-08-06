@@ -10,38 +10,38 @@ QMOMKit package.
 1. `qmom_explicit_moments/` if you already have raw moments.
 2. `qmom_distribution_initialization/` if you want QMOMKit to generate
    moments from an analytical distribution.
-3. `qmom_1d_minimal/` for the smallest complete QMOM transport loop.
+3. `qmom_1d_minimal/` for the smallest complete QMOM phase-space evolution loop.
 4. `qmom_1d_explicit_strang_splitting/` for application-managed adaptive QMOM
-   Strang splitting with the public continuous and discontinuous stage API.
-5. `qmom_1d_continuous_breakage/` for configuration-driven QMOM transport
-   with continuous and discontinuous physics.
+   Strang splitting with the public advection and moment-source-evolution stage API.
+5. `qmom_1d_breakage_advection/` for configuration-driven QMOM phase-space evolution
+   with advection and moment-source physics.
 6. `cqmom_independent_product_initialization/` for the smallest
    multidimensional initialization workflow.
-7. `cqmom_transport/` for the canonical CQMOM transport workflow
+7. `cqmom_phase_space_evolution/` for the canonical CQMOM phase-space evolution workflow
    with custom velocity, source, and boundary contribution callbacks, as well as
    output.
 
 `qmom_1d_minimal/`, `qmom_1d_explicit_strang_splitting/`,
-`qmom_1d_continuous_breakage/`, and
-`cqmom_transport/` are the primary examples for physics callbacks. The
-callback requirements are documented in the [transport guide](../docs/user/transport.md). Each example
+`qmom_1d_breakage_advection/`, and
+`cqmom_phase_space_evolution/` are the primary examples for physics callbacks. The
+callback requirements are documented in the [phase-space evolution guide](../docs/user/phase_space_evolution.md). Each example
 chooses the callbacks needed by its model; those combinations are illustrative,
-not mandatory for every transport workflow.
+not mandatory for every phase-space evolution workflow.
 
 ## Advanced And Reference Workflows
 
 - `qmom_mixture_initialization/`: optional QMOM initialization extension for
   mixture distributions.
 - `realizability_check/`: example with explicit opt-in diagnostics for moment realizability.
-- `qmom_1d_explicit_strang_splitting/`: adaptive 1D QMOM transport example with application-managed Strang stages.
-- `cqmom_2d_adaptive_node_counts/`: 2D CQMOM transport example for adaptive branch-local node-count reduction, persistence, and controlled recovery.
+- `qmom_1d_explicit_strang_splitting/`: adaptive 1D QMOM phase-space evolution example with application-managed Strang stages.
+- `cqmom_2d_adaptive_node_counts/`: 2D CQMOM phase-space evolution example for adaptive branch-local node-count reduction, persistence, and controlled recovery.
 - `cqmom_2d_borderline_conditioning/`: static 2D CQMOM reconstruction sweep for conditioning-order sensitivity, borderline Vandermonde systems, solver comparisons, failed-stage interpretation, lower-node reconstructions, and human-readable plus flat diagnostic reports.
-- `qmom_1d_continuous_breakage_mc_initialization/`: 1D example with continuous and discontinuous physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.
-- `qmom_1d_continuous_breakage_mc_local_rates/`: 1D example with the same Monte Carlo initialization and physics as the previous example, but with application-managed moment-space SSP-RK3 integration through the public local moment-rate APIs.
-- `cqmom_2d_continuous_breakage_mc_initialization/`: 2D example with continuous and discontinuous physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.
-- `cqmom_condensing_droplets/`: 3D CQMOM continuous phase-space transport example for a condensing droplet population, with matched Monte Carlo initialization and a companion direct Monte Carlo evolution executable. Builds `cqmom_condensing_droplets_example` and `cqmom_condensing_droplets_mc_example`.
-- `cqmom_polydisperse_cavitation/`: 2D CQMOM continuous phase-space evolution example for a polydisperse cavitation population, with matched Monte Carlo initialization and a companion direct Monte Carlo evolution executable.
-- `cqmom_non-spherical-particles/`: 5D CQMOM example for nonspherical particles with bounded aspect-ratio support, adaptive branch counts, discontinuous fragmentation, and a companion Monte Carlo workflow.
+- `qmom_1d_breakage_advection_mc_initialization/`: 1D example with advection and moment-source physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.
+- `qmom_1d_breakage_advection_mc_local_rates/`: 1D example with the same Monte Carlo initialization and physics as the previous example, but with application-managed moment-space SSP-RK3 integration through the public local moment-rate APIs.
+- `cqmom_2d_breakage_advection_mc_initialization/`: 2D example with advection and moment-source physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.
+- `cqmom_condensing_droplets/`: 3D CQMOM phase-space evolution example for a condensing droplet population, with matched Monte Carlo initialization and a companion direct Monte Carlo evolution executable. Builds `cqmom_condensing_droplets_example` and `cqmom_condensing_droplets_mc_example`.
+- `cqmom_polydisperse_cavitation/`: 2D CQMOM phase-space evolution example for a polydisperse cavitation population, with matched Monte Carlo initialization and a companion direct Monte Carlo evolution executable.
+- `cqmom_non-spherical-particles/`: 5D CQMOM example for nonspherical particles with bounded aspect-ratio support, adaptive branch counts, moment-source fragmentation, and a companion Monte Carlo workflow.
 
 ## Package Dependencies
 

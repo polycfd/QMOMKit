@@ -315,11 +315,11 @@ void validate_qmom_step_fixture(const QmomEventFixture& fixture)
 {
     validate_qmom_fixture(fixture);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
-    qmomkit::QmomTransportOptions options;
+    qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.qmom_options = fixture.qmom_options;
-    options.scheme = qmomkit::TransportScheme::dc;
-    const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(fixture.initial_state, fixture.maximum_node_count, 0.0, 1.0,
-                                                                                zero_velocity, qmom_source_to_target(fixture), options);
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
+    const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(
+        fixture.initial_state, fixture.maximum_node_count, 0.0, 1.0, zero_velocity, qmom_source_to_target(fixture), options);
     if (!result.ok() || result.state.active_node_count() != fixture.active_node_count_after)
     {
         throw std::runtime_error("QMOM full-step fixture did not produce the expected accepted event.");
@@ -441,17 +441,17 @@ void run_qmom_full_step(benchmark::State& state, const QmomEventFixture& fixture
 
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const qmomkit::MomentSource source = qmom_source_to_target(fixture);
-    qmomkit::QmomTransportOptions options;
+    qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.qmom_options = fixture.qmom_options;
-    options.scheme = qmomkit::TransportScheme::dc;
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
 
     for (auto _ : state)
     {
         state.PauseTiming();
         const qmomkit::QmomState iteration_state = fixture.initial_state;
         state.ResumeTiming();
-        const qmomkit::QmomTransportResult result =
-            qmomkit::advance_transport_qmom(iteration_state, fixture.maximum_node_count, 0.0, 1.0, zero_velocity, source, options);
+        const qmomkit::QmomPhaseSpaceEvolutionResult result =
+            qmomkit::advance_qmom_phase_space(iteration_state, fixture.maximum_node_count, 0.0, 1.0, zero_velocity, source, options);
         benchmark::DoNotOptimize(result.state.moments().data());
         benchmark::DoNotOptimize(result.state.quadrature().weights.data());
     }
@@ -1044,13 +1044,13 @@ void validate_cqmom_step_fixture(const CqmomEventFixture& fixture, const CqmomSt
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
     const qmomkit::CqmomMomentData target = qmomkit::extract_cqmom_moments({fixture.extents, fixture.target_moments}, layout);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
-    qmomkit::CqmomTransportOptions options;
-    options.scheme = qmomkit::TransportScheme::dc;
-    const qmomkit::CqmomTransportResult result =
-        qmomkit::advance_transport_cqmom(initial_state, 0.0, 1.0, zero_velocity, cqmom_source_to_target(initial_state, target), options);
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
+    const qmomkit::CqmomPhaseSpaceEvolutionResult result =
+        qmomkit::advance_cqmom_phase_space(initial_state, 0.0, 1.0, zero_velocity, cqmom_source_to_target(initial_state, target), options);
     if (!result.ok() || !result.quadrature.has_value())
     {
-        throw std::runtime_error("CQMOM full-step fixture did not produce an accepted transport step.");
+        throw std::runtime_error("CQMOM full-step fixture did not produce an accepted phase-space evolution step.");
     }
     validate_expected_cqmom_counts(fixture, *result.quadrature);
     validate_cqmom_state_canonical(result.state, *result.quadrature);
@@ -1111,8 +1111,8 @@ void run_cqmom_full_step(benchmark::State& state, const CqmomEventFixture& fixtu
     const qmomkit::CqmomMomentData target = qmomkit::extract_cqmom_moments({fixture.extents, fixture.target_moments}, layout);
     const qmomkit::CqmomMomentSource source = cqmom_source_to_target(initial_state, target);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
-    qmomkit::CqmomTransportOptions options;
-    options.scheme = qmomkit::TransportScheme::dc;
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
     set_cqmom_counters(state, fixture, storage, initial_state.active_branch_counts().size());
 
     for (auto _ : state)
@@ -1120,7 +1120,8 @@ void run_cqmom_full_step(benchmark::State& state, const CqmomEventFixture& fixtu
         state.PauseTiming();
         const qmomkit::CqmomState iteration_state = initial_state;
         state.ResumeTiming();
-        const qmomkit::CqmomTransportResult result = qmomkit::advance_transport_cqmom(iteration_state, 0.0, 1.0, zero_velocity, source, options);
+        const qmomkit::CqmomPhaseSpaceEvolutionResult result =
+            qmomkit::advance_cqmom_phase_space(iteration_state, 0.0, 1.0, zero_velocity, source, options);
         benchmark::DoNotOptimize(result.state.moment_values().data());
         if (result.quadrature.has_value())
         {

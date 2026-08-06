@@ -3,8 +3,8 @@
 This deterministic example evolves a two-dimensional CQMOM phase space ordered
 as `(d, u)`, where `d` is size and `u` is velocity. It demonstrates adaptive
 branch-local node counts: velocity branches reduce as variance collapses,
-persist at reduced counts during continuous phase-space advection, recover by
-at most one node per accepted discontinuous source step, and reduce again after
+persist at reduced counts during phase-space advection, recover by
+at most one node per accepted moment-source stage, and reduce again after
 the source pulse.
 
 Variance collapse and symmetric variance injection are the numerical mechanisms
@@ -40,7 +40,7 @@ counts are maximums.
 
 Post-source reconstruction automatically tests controlled branch-local growth
 back toward the configured maximum. Growth is validated per velocity branch and
-may increase by at most one active node per accepted source step.
+may increase by at most one active node per accepted moment-source stage.
 
 The shipped configuration uses `conditioning_order = 0, 1`, so velocity is
 conditional on size. The physical velocity coordinate remains phase-space
@@ -48,7 +48,7 @@ dimension `u`; conditioning order only changes recursive reconstruction order.
 
 ## Evolution
 
-The continuous phase-space velocity in `physics.cpp` is:
+The phase-space velocity in `physics.cpp` is:
 
 $$
 \begin{aligned}
@@ -68,7 +68,7 @@ $$
 As the velocity variance approaches zero, adaptive Wheeler reduces active
 velocity branches toward one node.
 
-The discontinuous source is active only over a fixed pulse interval. For each
+The moment-source is active only over a fixed pulse interval. For each
 parent state $(d,u)$, it applies the deliberately simple numerical validation
 event:
 
@@ -77,7 +77,7 @@ $$
 $$
 
 Here $du$ is the configured velocity displacement and $\lambda$ is the
-source rate.
+moment-source rate.
 
 For the raw, unnormalized mixed moment
 
@@ -102,7 +102,7 @@ $$
 S_{p,2} = \lambda\,du^2 M_{p,0}.
 $$
 
-After the pulse ends, the same continuous relaxation again collapses the
+After the pulse ends, the same advection relaxation again collapses the
 velocity variance and adaptive Wheeler reduces recovered branches back toward
 one node. This repeated collapse and regrowth is the active-node-count behavior
 validated by the example.

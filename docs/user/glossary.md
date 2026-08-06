@@ -9,7 +9,7 @@ each entry.
 | Term | Explanation | More information |
 |---|---|---|
 | distribution | A mathematical description of how population mass is spread over one or more coordinates. In QMOMKit, distributions are mainly used to generate initial raw moments. | [Distributions](distributions.md) |
-| generalized moment | A moment-like quantity evaluated from a valid quadrature using finite real exponents. Generalized moments are derived post-processing values, not reconstruction inputs or transported state. | [One-Dimensional QMOM](qmom.md) |
+| generalized moment | A moment-like quantity evaluated from a valid quadrature using finite real exponents. Generalized moments are derived post-processing values, not reconstruction inputs or phase_space_evolved state. | [One-Dimensional QMOM](qmom.md) |
 | moment | A weighted integral or sum of powers of coordinates that summarizes a distribution. Moment-method workflows store and evolve these summaries instead of the full distribution. | [One-Dimensional QMOM](qmom.md) |
 | phase space | The ordered set of coordinates used to describe the represented population. Coordinate names are labels; the chosen order controls moment indices, quadrature coordinates, callbacks, and output. | [Configuration](configuration.md) |
 | raw moment | An uncentered, unnormalized moment of the number density function. QMOMKit preserves the total number density instead of automatically scaling moments to probability moments. | [Distributions](distributions.md) |
@@ -41,9 +41,9 @@ each entry.
 
 | Term | Explanation | More information |
 |---|---|---|
-| boundary contribution | An additive raw-moment rate from phase-space boundary exchange such as injection, removal, or similar production and loss terms. It is not a mesh boundary-condition framework. | [Transport](transport.md) |
-| moment source | A rate of change applied directly to raw moments. Use it for source-like effects that are better represented as `dm/dt` than as smooth node motion. | [Transport](transport.md) |
+| boundary contribution | An additive raw-moment rate from phase-space boundary exchange such as injection, removal, or similar production and loss terms. It is not a mesh boundary-condition framework. | [Phase-space evolution](phase_space_evolution.md) |
+| moment source | A rate of change applied directly to raw moments. Use it for source-like effects that are better represented as `dm/dt` than as smooth node motion. | [Phase-space evolution](phase_space_evolution.md) |
 | Monte Carlo reference | A stochastic moment history computed from a sample ensemble and used for comparison with deterministic QMOMKit results. It is a reference with statistical uncertainty, not exact ground truth. | [Monte Carlo Companion Package](monte_carlo.md) |
-| physics callback | Application-supplied code that gives QMOMKit a velocity, source, or boundary-rate model. QMOMKit advances moments and quadrature, while the application defines the physical meaning. | [Transport](transport.md) |
+| physics callback | Application-supplied code that gives QMOMKit a velocity, source, or boundary-rate model. QMOMKit advances moments and quadrature, while the application defines the physical meaning. | [Phase-space evolution](phase_space_evolution.md) |
 | sample ensemble | A finite collection of samples drawn from a distribution or supplied externally. Sample-derived moments contain sampling fluctuation, even with a fixed random seed. | [Monte Carlo Companion Package](monte_carlo.md) |
-| transport state | Runtime data advanced by a transport workflow. QMOM transport advances a `QmomState` created from a `QmomCase`; normal CQMOM transport advances a `CqmomState` created from a `CqmomCase`. | [Transport](transport.md) |
+| phase-space evolution state | Runtime data advanced by a phase-space evolution workflow. QMOM phase-space evolution advances a `QmomState` created from a `QmomCase`; normal CQMOM phase-space evolution advances a `CqmomState` created from a `CqmomCase`. | [Phase-space evolution](phase_space_evolution.md) |

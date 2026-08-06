@@ -22,8 +22,8 @@ add_library(
     src/conditional_moments.cpp
     src/conditioning_path.cpp
     src/configuration.cpp
-    src/continuous_moment_rates.cpp
-    src/discontinuous_moment_rates.cpp
+    src/advection_moment_rates.cpp
+    src/moment_source_rates.cpp
     src/distributions.cpp
     src/internal/bjorck_pereyra.cpp
     src/internal/embedded_runge_kutta.cpp
@@ -39,7 +39,7 @@ add_library(
     src/realizability.cpp
     src/recursive_quadrature.cpp
     src/runge_kutta.cpp
-    src/transport_integrator.cpp
+    src/phase_space_evolution.cpp
     src/wheeler.cpp
 )
 add_library(qmomkit::qmomkit ALIAS qmomkit)
@@ -92,7 +92,7 @@ install(
         include/qmomkit/realizability.hpp
         include/qmomkit/realizability_policy.hpp
         include/qmomkit/runge_kutta.hpp
-        include/qmomkit/transport_integrator.hpp
+        include/qmomkit/phase_space_evolution.hpp
         include/qmomkit/vandermonde_solver.hpp
         include/qmomkit/wheeler.hpp
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qmomkit

@@ -8,7 +8,7 @@ adaptive_branch_counts = true
 # unconstrained conditional CQMOM reconstruction outside that interval.
 
 [time_integration]
-scheme = cd
+scheme = advsrc
 
 [time_integration.node_advection]
 scheme = rk23

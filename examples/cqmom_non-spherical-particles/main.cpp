@@ -24,7 +24,7 @@ int main()
         cqmom_non_spherical_particles::PreparedCqmomExample example = std::move(*prepared);
         qmomkit::CqmomState state = std::move(example.state);
         qmomkit::CqmomQuadrature quadrature = example.initial_quadrature;
-        cqmom_non_spherical_particles::print_transport_settings(example);
+        cqmom_non_spherical_particles::print_phase_space_evolution_settings(example);
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{cqmom_non_spherical_particles::cqmom_initial_time, quadrature}};
 
@@ -33,29 +33,29 @@ int main()
         double time = cqmom_non_spherical_particles::cqmom_initial_time;
         double next_output_time = cqmom_non_spherical_particles::cqmom_initial_time + output_interval;
         // Advance one macro step with the integration and operator-splitting schemes
-        // selected in configuration.qmom. The continuous operator advances particle
-        // trajectories, while the discontinuous operator applies binary fragmentation.
+        // selected in configuration.qmom. The advection operator advances particle
+        // trajectories, while the moment-source operator applies binary fragmentation.
         while (time < cqmom_non_spherical_particles::cqmom_final_time - 1.0e-12)
         {
             const double current_step =
                 std::min(cqmom_non_spherical_particles::cqmom_time_step, cqmom_non_spherical_particles::cqmom_final_time - time);
-            const qmomkit::CqmomTransportResult transported =
-                qmomkit::advance_transport_cqmom(state, time, current_step, example.velocity, example.source, example.transport_options);
-            if (!transported.ok())
+            const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved = qmomkit::advance_cqmom_phase_space(
+                state, time, current_step, example.velocity, example.source, example.phase_space_evolution_options);
+            if (!phase_space_evolved.ok())
             {
-                std::cerr << "CQMOM transport failed: " << transported.message << '\n';
+                std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
                 return 1;
             }
-            if (!transported.quadrature.has_value())
+            if (!phase_space_evolved.quadrature.has_value())
             {
-                std::cerr << "CQMOM transport did not return a quadrature.\n";
+                std::cerr << "CQMOM phase-space evolution did not return a quadrature.\n";
                 return 1;
             }
 
-            state = transported.state;
-            quadrature = *transported.quadrature;
-            time = transported.final_time;
-            cqmom_non_spherical_particles::print_bounded_support_event_summaries(transported.diagnostics, time);
+            state = phase_space_evolved.state;
+            quadrature = *phase_space_evolved.quadrature;
+            time = phase_space_evolved.final_time;
+            cqmom_non_spherical_particles::print_bounded_support_event_summaries(phase_space_evolved.diagnostics, time);
 
             if (time + 1.0e-12 >= next_output_time || time >= cqmom_non_spherical_particles::cqmom_final_time - 1.0e-12)
             {

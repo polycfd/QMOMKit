@@ -147,7 +147,7 @@ struct BranchMomentSlice
  * Fixed results keep rectangular phase-space-order storage. Adaptive
  * branch-specific results keep a ragged tree plus terminal quadrature arrays in
  * deterministic traversal order. This container performs no Wheeler inversion,
- * conditional-moment reconstruction, or transport update.
+ * conditional-moment reconstruction, or phase-space evolution update.
  */
 class RecursiveQuadrature
 {

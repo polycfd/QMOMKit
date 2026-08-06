@@ -16,12 +16,12 @@ The example contains two executables:
 
 - `cqmom_polydisperse_cavitation_example`: initializes CQMOM from empirical raw
   moments of a deterministic finite sampled population and advances the CQMOM
-  quadrature through the continuous cavitation velocity.
+  quadrature through the advection cavitation velocity.
 - `cqmom_polydisperse_cavitation_mc_example`: evolves the same deterministic
   finite sampled population directly with the Monte Carlo companion utilities.
 
 Both workflows use the same `configuration.qmom`, distribution parameters,
-sample count, initialization seed, coordinate order, and continuous
+sample count, initialization seed, coordinate order, and advection
 phase-space velocity. The Monte Carlo executable is a direct sampled-population
 companion for this example; it is not a separate physical model and no
 automatic CQMOM/MC comparison is performed.
@@ -50,7 +50,7 @@ CQMOM case
 compute_cqmom(...) -> initial quadrature
         |
         v
-continuous CQMOM phase-space evolution
+advection CQMOM phase-space evolution
 ```
 
 The direct Monte Carlo workflow is:
@@ -65,7 +65,7 @@ fixed-seed sampled initialization
 finite sampled population
         |
         v
-continuous sample evolution
+advection sample evolution
 ```
 
 ## Phase-space definition and raw moments
@@ -115,7 +115,7 @@ Carlo companion.
 
 ## Cavitation model
 
-The continuous callback in `physics.cpp` advances each point in phase space
+The advection callback in `physics.cpp` advances each point in phase space
 with
 
 $$
@@ -258,11 +258,11 @@ interval = 0.1
 ```
 
 `configuration.qmom` does not contain an explicit `[time_integration]` section.
-The CQMOM executable loads the default transport options and advances the
-accepted CQMOM state with `qmomkit::advance_cqmom_continuous(...)`; the default
-node-advection scheme is `ssp_rk3`. During continuous CQMOM phase-space
+The CQMOM executable loads the default phase-space evolution options and advances the
+accepted CQMOM state with `qmomkit::advance_cqmom_advection(...)`; the default
+node-advection scheme is `ssp_rk3`. During advection CQMOM phase-space
 advection, quadrature abscissas move and weights are preserved over the
-continuous advancement; raw moments change because the abscissas change.
+advection advancement; raw moments change because the abscissas change.
 
 The direct Monte Carlo executable advances every sample with
 `qmomkit::monte_carlo::evolve_ensemble(...)` and the same cavitation velocity
@@ -413,10 +413,10 @@ evolution is not expected.
 
 ## Interpretation and limitations
 
-This example is a compact continuous phase-space cavitation workflow, not a
+This example is a compact phase-space advection cavitation workflow, not a
 complete cavitating-flow solver. It does not include physical-space advection,
 mesh coupling, gas-liquid feedback, collapse removal, breakup, coalescence,
-discontinuous sources, or CHyQMOM. The implemented constants are fixed
+moment-sources, or CHyQMOM. The implemented constants are fixed
 example-local physics parameters, and the `.qmom` file describes numerical
 configuration rather than application physics.
 

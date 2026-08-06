@@ -26,7 +26,7 @@ struct ParticleModelParameters
 
 void validate_particle_model_parameters(const ParticleModelParameters& parameters);
 
-// Returns the continuous phase-space velocity for states ordered as
+// Returns the phase-space velocity for states ordered as
 // (d, chi, u, v, w), capturing the validated parameters by value.
 [[nodiscard]] qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters);
 

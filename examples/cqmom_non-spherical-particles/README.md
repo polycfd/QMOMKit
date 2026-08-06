@@ -5,7 +5,7 @@
 This standalone example advances a five-dimensional non-spherical particle
 population with CQMOM and a direct Monte Carlo comparison. The model includes
 drag in an oscillating carrier flow, gravity, regularized diameter attrition,
-continuous aspect-ratio relaxation, binary fragmentation, and recoil velocity
+advection aspect-ratio relaxation, binary fragmentation, and recoil velocity
 spread.
 
 It includes three executables:
@@ -42,7 +42,7 @@ where $d$ is particle diameter in meters, $\chi$ is dimensionless particle
 aspect ratio, and $u$, $v$, and $w$ are particle-velocity components in meters
 per second.
 
-Continuous transport uses the phase-space velocity
+Phase-space advection uses the phase-space velocity
 
 $$
 \frac{\mathrm{d}\boldsymbol{\xi}}{\mathrm{d}t}
@@ -56,7 +56,7 @@ $$
 \right).
 $$
 
-Binary fragmentation is treated separately as a discontinuous population
+Binary fragmentation is treated separately as a moment-source population
 source acting on raw moments or, in the Monte Carlo executable, on sampled
 particles.
 
@@ -101,7 +101,7 @@ example-local model values, not universal calibrated material constants.
 | $U_{\mathrm{sat}}$ | `attrition_velocity_scale` | `5.0` | m/s | velocity scale for attrition saturation |
 | $d_{\min}$ | `minimum_attrition_diameter` | `0.0` | m | lower scale in attrition taper |
 | $d_{\mathrm{transition}}$ | `attrition_transition_diameter` | `1.0e-5` | m | attrition taper transition length |
-| $\tau_\chi$ | `aspect_ratio_relaxation_time` | `2.0` | s | continuous relaxation time toward $\chi=1$ |
+| $\tau_\chi$ | `aspect_ratio_relaxation_time` | `2.0` | s | advection relaxation time toward $\chi=1$ |
 | $k_{\mathrm{frag}}$ | `fragmentation_rate_constant` | `1.0e8` | m^-2 s^-1 | coefficient in $\beta(d)$ for $p_{\mathrm{frag}}=2$ |
 | $p_{\mathrm{frag}}$ | `fragmentation_power` | `2.0` | dimensionless | diameter exponent in fragmentation rate |
 | $d_{\mathrm{frag,min}}$ | `minimum_fragmentation_diameter` | `1.0e-6` | m | fragmentation cutoff diameter |
@@ -320,9 +320,9 @@ The current minimum attrition diameter is $d_{\min}=0$. This regularization
 changes the attrition law itself; it is not state clipping, and it does not
 remove extreme velocity quadrature nodes.
 
-### Continuous aspect-ratio relaxation
+### Advection aspect-ratio relaxation
 
-The continuous aspect-ratio equation is
+The advection aspect-ratio equation is
 
 $$
 \frac{\mathrm{d}\chi}{\mathrm{d}t}
@@ -330,8 +330,8 @@ $$
 \frac{1-\chi}{\tau_\chi}.
 $$
 
-The relaxation time is $\tau_\chi=2.0$ s. This continuous term drives $\chi$
-toward the spherical value $\chi=1$. It is distinct from the discontinuous
+The relaxation time is $\tau_\chi=2.0$ s. This advection term drives $\chi$
+toward the spherical value $\chi=1$. It is distinct from the moment-source
 daughter aspect-ratio transformation used during fragmentation.
 
 ## Binary fragmentation
@@ -354,7 +354,7 @@ $$
 with $k_{\mathrm{frag}}=1.0\times10^8$ m^-2 s^-1,
 $p_{\mathrm{frag}}=2.0$, and $d_{\mathrm{frag,min}}=1.0\times10^{-6}$ m. The
 minimum fragmentation diameter stops further fragmentation events for smaller
-particles, but it is not a lower bound on particle diameter under continuous
+particles, but it is not a lower bound on particle diameter under advection
 attrition.
 
 ### Daughter diameter and volume conservation
@@ -388,8 +388,8 @@ $$
 f_\chi\chi_{\mathrm{parent}},
 $$
 
-with $f_\chi=0.5$. This discontinuous multiplicative shape change is separate
-from the continuous relaxation toward $\chi=1$. If the parent is inside the
+with $f_\chi=0.5$. This moment-source multiplicative shape change is separate
+from the advection relaxation toward $\chi=1$. If the parent is inside the
 physical interval $[0,1]$, this daughter rule also stays inside $[0,1]$.
 
 ### Gaussian recoil velocity
@@ -513,17 +513,17 @@ $$
 T\sim\mathrm{Exp}(\beta(d)).
 $$
 
-If $T$ falls inside the remaining discontinuous-source interval, the parent is
+If $T$ falls inside the remaining moment-source interval, the parent is
 removed and two daughters are inserted with
 $d_{\mathrm{daughter}}=2^{-1/3}d_{\mathrm{parent}}$,
 $\chi_{\mathrm{daughter}}=f_\chi\chi_{\mathrm{parent}}$, and paired recoil
-velocities. Daughter lineages re-enter the same source stage with the remaining
+velocities. Daughter lineages re-enter the same moment-source stage with the remaining
 stage time, so repeated fragmentation in one source interval is allowed.
 Survivors and newly generated daughters keep the same macro-particle weight.
 
 ### Fragmentation-stage balances
 
-For the discontinuous fragmentation operator alone, particle number increases
+For the moment-source fragmentation operator alone, particle number increases
 by one per binary event:
 
 $$
@@ -552,8 +552,8 @@ S_{(3,0,0,0,1)}
 $$
 
 Recoil increases velocity spread and velocity second moments. These are
-fragmentation-only balances. The complete model also includes continuous drag,
-gravity, diameter attrition, and aspect-ratio relaxation. Continuous drag
+fragmentation-only balances. The complete model also includes advection drag,
+gravity, diameter attrition, and aspect-ratio relaxation. Advection drag
 exchanges momentum with the carrier flow, gravity accelerates the vertical
 velocity component, and attrition changes particle volume and diameter moments.
 
@@ -596,11 +596,11 @@ maximum_orders = 5, 5, 5, 5, 5
 adaptive_branch_counts = true
 ```
 
-The supplied CQMOM transport settings are:
+The supplied CQMOM phase-space evolution settings are:
 
 ```text
 [time_integration]
-scheme = cd
+scheme = advsrc
 
 [time_integration.node_advection]
 scheme = rk23
@@ -627,7 +627,7 @@ time_step = 0.005
 ```
 
 The Monte Carlo driver currently uses `time_step = 0.01` and
-`final_time = 1.0`. The discontinuous fragmentation source is advanced through
+`final_time = 1.0`. The moment-source fragmentation source is advanced through
 QMOMKit's moment-source update path for CQMOM and through event-driven waiting
 times for Monte Carlo; no application physics is placed in the `.qmom`
 configuration files.
@@ -644,7 +644,7 @@ support_upper = none, 1.0, none, none, none
 
 QMOMKit uses this interval as a support-aware recursive branch acceptance
 check. The bounded workflow advances the full physical model, completes the
-full CQMOM transport run, writes standard moment and quadrature histories, and
+full CQMOM phase-space evolution run, writes standard moment and quadrature histories, and
 prints only concise support topology events.
 
 ## Intentionally unbounded diagnostic workflow
@@ -657,7 +657,7 @@ output directory is `output/unbounded_diagnostic`.
 The diagnostic advances the same physics to the first source boundary where
 ordinary unconstrained post-source inversion accepts a finite terminal node
 with $\chi<0$ or $\chi>1$. It then writes one self-contained Markdown report and
-returns success before the next continuous stage can obscure the origin of the
+returns success before the next advection stage can obscure the origin of the
 event.
 
 ## Why both CQMOM workflows are included
@@ -681,7 +681,7 @@ support-aware response.
 
 ## Conditional support-loss mechanism
 
-After the discontinuous source update, a branch-local conditional $\chi$
+After the moment-source update, a branch-local conditional $\chi$
 sequence can remain realizable on the nonnegative real line while failing
 feasibility on the bounded physical interval $[0,1]$. This is a higher-order
 conditional moment representation/support issue. It is not random sampling
@@ -785,7 +785,7 @@ the physical $\chi$ support interval and writes CQMOM output under `output`.
 
 `configuration_unbounded.qmom` intentionally removes only the $\chi$ support
 declaration and redirects diagnostic output to `output/unbounded_diagnostic`.
-It keeps the same phase-space hierarchy, initialization, transport settings,
+It keeps the same phase-space hierarchy, initialization, phase-space evolution settings,
 tolerances, and physical source callbacks.
 
 Both configuration files are copied into the example build directory by the
@@ -858,7 +858,7 @@ one immediately after an accepted post-source reconstruction.
 
 The Monte Carlo executable is a direct stochastic comparison. It may take
 substantially longer than CQMOM because it starts with `10000` particles,
-fragmentation grows the ensemble, every particle follows continuous dynamics,
+fragmentation grows the ensemble, every particle follows advection dynamics,
 and dense moments are recomputed from the evolving ensemble. A long Monte Carlo
 runtime is expected behavior, not a defect.
 
@@ -870,7 +870,7 @@ QMOMKit itself does not assign physical units or enforce application physics.
 The bounded support declaration is the correct way for this model to
 communicate the physical aspect-ratio interval to generic CQMOM reconstruction.
 
-The continuous model does not include spatial transport, particle-particle
+The advection model does not include spatial phase-space evolution, particle-particle
 collision physics beyond the configured binary fragmentation source, calibrated
 material parameters, or application boundary conditions. The unbounded
 diagnostic is intentionally nonphysical with respect to $\chi$ support; it is

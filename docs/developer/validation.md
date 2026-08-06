@@ -67,15 +67,15 @@ coordinates, conditioning paths, and raw tensor reconstruction visible.
 ### Numerical Method Verification
 
 Numerical method verification validates a composition of numerical methods,
-typically with time evolution or staged transport composition.
+typically with time evolution or staged phase-space evolution composition.
 
 Examples include:
 
 - RK23 behavior against simple ODEs with known exact solutions;
-- SSP-RK3 source evolution against closed-form source updates;
+- SSP-RK3 moment-source evolution against closed-form source updates;
 - node advection with constant, affine, or linear phase-space velocities;
 - moment-source integration with known moment-space dynamics;
-- transport composition against commuting and noncommuting analytical cases;
+- phase-space evolution composition against commuting and noncommuting analytical cases;
 - convergence studies that verify expected error reduction.
 
 These cases should define the exact or manufactured reference independently of
@@ -123,10 +123,10 @@ conditioning-path behavior. Higher-dimensional cases verify phase-space order,
 conditioning order, terminal coordinates, global weights, and full raw tensor
 reconstruction.
 
-For transport, analytical references should isolate the numerical behavior being
+For phase-space evolution, analytical references should isolate the numerical behavior being
 validated. Constant or affine node advection tests exact phase-space evolution.
 Closed-form source equations test moment-source integration. Commuting and
-noncommuting operator cases test transport composition and convergence behavior.
+noncommuting operator cases test phase-space evolution composition and convergence behavior.
 
 Manufactured solutions are appropriate when the exact physical model is less
 important than a controlled mathematical reference. A manufactured case may
@@ -155,7 +155,7 @@ comparison is the moment representation.
 Monte Carlo references are stochastic sample-based references that validate
 moment representations and their evolution. They are not production physical
 models, analytical solutions, source-term models, or replacements for
-QMOM/CQMOM transport. A Monte Carlo case supplies a sampled ensemble reference
+QMOM/CQMOM phase-space evolution. A Monte Carlo case supplies a sampled ensemble reference
 whose uncertainty depends on sample count, seed, moment order, distribution
 tails, and the selected dynamics.
 

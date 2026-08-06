@@ -11,10 +11,10 @@ qmomkit_add_ctest(
     node_advection.cpp
 )
 qmomkit_add_ctest(
-    component_regression_transport_integrator
-    component_regression_transport_integrator
+    component_regression_phase_space_evolution
+    component_regression_phase_space_evolution
     component_regression
-    transport_integrator.cpp
+    phase_space_evolution.cpp
 )
 qmomkit_add_ctest(
     component_regression_cqmom_compute_failures

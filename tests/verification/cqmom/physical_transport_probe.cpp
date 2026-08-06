@@ -357,22 +357,22 @@ void run_captured_physical_regression()
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
-    qmomkit::CqmomTransportOptions options;
-    options.scheme = qmomkit::TransportScheme::dc;
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
-    const qmomkit::CqmomTransportResult transported =
-        qmomkit::advance_transport_cqmom(state, 23.022499999999706, 0.0025, zero_velocity, zero_source, options);
-    QMOMKIT_VERIFY_CHECK(transported.ok());
-    QMOMKIT_VERIFY_CHECK(transported.quadrature.has_value());
-    QMOMKIT_VERIFY_CHECK(transported.quadrature->total_nodes() == 4);
-    QMOMKIT_VERIFY_CHECK(active_count_present(transported.state.active_branch_counts(), expected_path, 1));
+    const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
+        qmomkit::advance_cqmom_phase_space(state, 23.022499999999706, 0.0025, zero_velocity, zero_source, options);
+    QMOMKIT_VERIFY_CHECK(phase_space_evolved.ok());
+    QMOMKIT_VERIFY_CHECK(phase_space_evolved.quadrature.has_value());
+    QMOMKIT_VERIFY_CHECK(phase_space_evolved.quadrature->total_nodes() == 4);
+    QMOMKIT_VERIFY_CHECK(active_count_present(phase_space_evolved.state.active_branch_counts(), expected_path, 1));
 
-    const qmomkit::CqmomTransportResult second =
-        qmomkit::advance_transport_cqmom(transported.state, transported.final_time, 0.0025, zero_velocity, zero_source, options);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult second =
+        qmomkit::advance_cqmom_phase_space(phase_space_evolved.state, phase_space_evolved.final_time, 0.0025, zero_velocity, zero_source, options);
     QMOMKIT_VERIFY_CHECK(second.ok());
     QMOMKIT_VERIFY_CHECK(second.quadrature.has_value());
-    QMOMKIT_VERIFY_CHECK(second.quadrature->terminal_paths() == transported.quadrature->terminal_paths());
+    QMOMKIT_VERIFY_CHECK(second.quadrature->terminal_paths() == phase_space_evolved.quadrature->terminal_paths());
     QMOMKIT_VERIFY_CHECK(active_count_present(second.state.active_branch_counts(), expected_path, 1));
 }
 

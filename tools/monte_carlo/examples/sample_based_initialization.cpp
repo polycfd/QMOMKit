@@ -440,7 +440,7 @@ int run_qmom_case(const std::filesystem::path& configuration_path, const std::st
             return 1;
         }
         qmom = qmomkit::QmomResult{advanced_qmom.quadrature.abscissas, advanced_qmom.quadrature.weights, qmomkit::QmomStatus::success, ""};
-        // Compare raw moments after each continuous node/sample update; node
+        // Compare raw moments after each advection node/sample update; node
         // coordinates themselves are diagnostics, not the validation quantity.
         qmomkit_moments = qmomkit::reconstruct_raw_moments(advanced_qmom.quadrature, qmomkit_moments.size());
 
@@ -550,7 +550,7 @@ int run_cqmom_case(const std::filesystem::path& configuration_path, const std::s
             return 1;
         }
         cqmom = advanced_cqmom.quadrature;
-        // Compare reconstructed tensor moments after each continuous update;
+        // Compare reconstructed tensor moments after each advection update;
         // CQMOM branch structure is diagnostic rather than a comparison target.
         qmomkit_moments = qmomkit::reconstruct_raw_moments(cqmom, qmomkit_moments.extents);
 

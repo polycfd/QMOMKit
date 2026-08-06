@@ -1,7 +1,7 @@
 # Explicit 1D QMOM Strang Splitting
 
 This example demonstrates application-managed Strang splitting for adaptive
-one-dimensional QMOM transport. The application owns the stage sequence:
+one-dimensional QMOM phase-space evolution. The application owns the stage sequence:
 
 ```text
 C(dt/2) -> D(dt) -> C(dt/2)
@@ -14,27 +14,27 @@ the application-owned stage sequence remains visible in `main.cpp`.
 
 ## API Levels
 
-`advance_transport_qmom(...)` is the library-managed complete transport
+`advance_qmom_phase_space(...)` is the library-managed complete phase-space evolution
 workflow. It owns the configured Strang or Lie stage ordering for one macro
 step.
 
-`advance_qmom_continuous(...)` and `advance_qmom_discontinuous(...)` let the
+`advance_qmom_advection(...)` and `advance_qmom_moment_source(...)` let the
 surrounding application own the splitting sequence while still passing accepted
 `QmomState` objects between stages.
 
 ## Numerical Distinction
 
-The continuous stage directly advects the current quadrature nodes and
+The advection stage directly advects the current quadrature nodes and
 reconstructs the stored raw moments from those same active nodes. It preserves
 the active node count.
 
-The discontinuous stage integrates raw moments through the source callback and
+The moment-source-evolution stage integrates raw moments through the source callback and
 then performs fixed or adaptive QMOM reconstruction. Adaptive reduction and
-controlled one-node growth occur only after this discontinuous reconstruction.
+controlled one-node growth occur only after this moment-source reconstruction.
 
 ## Model
 
-The continuous phase-space model is linear relaxation:
+The phase-space advection model is linear relaxation:
 
 $$
 \frac{\mathrm{d}u}{\mathrm{d}t} = -a u.
@@ -46,7 +46,7 @@ $$
 \operatorname{Var}[u](t) = \operatorname{Var}[u](0)\exp(-2at).
 $$
 
-The discontinuous source is a manufactured symmetric variance-injection source:
+The moment-source is a manufactured symmetric variance-injection source:
 
 $$
 \begin{aligned}
@@ -66,29 +66,29 @@ one-node state to regrow to two nodes.
 The time loop keeps the three public stage calls visible:
 
 ```cpp
-const qmomkit::QmomTransportResult first_continuous =
-    qmomkit::advance_qmom_continuous(
-        trial_state, time, 0.5 * time_step, velocity, transport_options);
+const qmomkit::QmomPhaseSpaceEvolutionResult first_advection =
+    qmomkit::advance_qmom_advection(
+        trial_state, time, 0.5 * time_step, velocity, phase_space_evolution_options);
 
-const qmomkit::QmomTransportResult discontinuous =
-    qmomkit::advance_qmom_discontinuous(
-        first_continuous.state, maximum_node_count,
-        time + 0.5 * time_step, time_step, source, transport_options);
+const qmomkit::QmomPhaseSpaceEvolutionResult moment_source =
+    qmomkit::advance_qmom_moment_source(
+        first_advection.state, maximum_node_count,
+        time + 0.5 * time_step, time_step, source, phase_space_evolution_options);
 
-const qmomkit::QmomTransportResult second_continuous =
-    qmomkit::advance_qmom_continuous(
-        discontinuous.state, time + 0.5 * time_step,
-        0.5 * time_step, velocity, transport_options);
+const qmomkit::QmomPhaseSpaceEvolutionResult second_advection =
+    qmomkit::advance_qmom_advection(
+        moment_source.state, time + 0.5 * time_step,
+        0.5 * time_step, velocity, phase_space_evolution_options);
 ```
 
-For a macro step beginning at `time`, the first continuous half-step starts at
-`time`, the discontinuous source step starts at `time + 0.5 * time_step`, and
-the second continuous half-step also starts at `time + 0.5 * time_step`.
+For a macro step beginning at `time`, the first advection half-step starts at
+`time`, the moment-source stage starts at `time + 0.5 * time_step`, and
+the second advection half-step also starts at `time + 0.5 * time_step`.
 
 ## Transactional Commit
 
 The host application advances a trial state through all three stages. The
-accepted macro-step state is updated only after the second continuous
+accepted macro-step state is updated only after the second advection
 half-step succeeds. If a standalone stage fails, it rolls back only to its own
 stage input, so the application keeps the previous macro-step state unchanged.
 
@@ -101,9 +101,9 @@ The shipped constants produce a deterministic adaptive lifecycle:
 ```
 
 The exact transition times depend on selected tolerances and source
-parameters. With this configuration, continuous relaxation collapses the
+parameters. With this configuration, advection relaxation collapses the
 variance while retaining the current active topology, a source-free
-discontinuous reconstruction reduces two nodes to one, the finite source pulse
+moment-source reconstruction reduces two nodes to one, the finite source pulse
 regrows the state to two nodes, and later source-free reconstruction reduces it
 again.
 

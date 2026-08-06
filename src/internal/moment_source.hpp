@@ -5,7 +5,7 @@
 namespace qmomkit::internal
 {
 
-// This entry point is for validated CqmomState transport only. The caller owns
+// This entry point is for validated CqmomState phase-space evolution only. The caller owns
 // the proof that the fixed source layout is immutable and valid; evolving
 // values, source controls, callbacks, and callback rates are still validated.
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,

@@ -1,6 +1,6 @@
-# Continuous Node-Advection Analytical Verification
+# Node-Advection Analytical Verification
 
-These verification cases exercise the public continuous phase-space operator:
+These verification cases exercise the public phase-space advection operator:
 configuration loading, QMOM/CQMOM inversion, `qmomkit::advance_nodes(...)`,
 and raw-moment reconstruction. Initial moment states are loaded from `.qmom`
 files. Configuration files provide reproducible case setup and may define
@@ -9,7 +9,7 @@ the node-advection scheme. The ODE coefficients, velocity callbacks, timestep
 plan, and detailed RK23 tolerance settings live in the verifier because those
 are application runtime choices rather than case-definition fields.
 
-The continuous operator advances abscissas only. Quadrature weights represent
+The advection operator advances abscissas only. Quadrature weights represent
 the amount of mass carried by each node, so they are invariant under these
 deterministic phase-space trajectories.
 

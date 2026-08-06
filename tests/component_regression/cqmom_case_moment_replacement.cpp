@@ -180,19 +180,19 @@ void test_parsed_and_programmatic_replacement_match()
     { return std::vector<double>(coordinates.size(), 0.0); };
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
-    qmomkit::CqmomTransportOptions options;
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
-    const qmomkit::CqmomTransportResult replaced_transport =
-        qmomkit::advance_transport_cqmom(replaced_state, 0.0, 0.1, zero_velocity, zero_source, options);
-    const qmomkit::CqmomTransportResult parsed_transport =
-        qmomkit::advance_transport_cqmom(parsed_state, 0.0, 0.1, zero_velocity, zero_source, options);
-    QMOMKIT_VERIFY_CHECK(replaced_transport.ok());
-    QMOMKIT_VERIFY_CHECK(parsed_transport.ok());
-    QMOMKIT_VERIFY_CHECK(replaced_transport.quadrature.has_value());
-    QMOMKIT_VERIFY_CHECK(parsed_transport.quadrature.has_value());
-    assert_quadratures_match(*replaced_transport.quadrature, *parsed_transport.quadrature);
-    assert_states_match(replaced_transport.state, parsed_transport.state);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult replaced_phase_space_evolution =
+        qmomkit::advance_cqmom_phase_space(replaced_state, 0.0, 0.1, zero_velocity, zero_source, options);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult parsed_phase_space_evolution =
+        qmomkit::advance_cqmom_phase_space(parsed_state, 0.0, 0.1, zero_velocity, zero_source, options);
+    QMOMKIT_VERIFY_CHECK(replaced_phase_space_evolution.ok());
+    QMOMKIT_VERIFY_CHECK(parsed_phase_space_evolution.ok());
+    QMOMKIT_VERIFY_CHECK(replaced_phase_space_evolution.quadrature.has_value());
+    QMOMKIT_VERIFY_CHECK(parsed_phase_space_evolution.quadrature.has_value());
+    assert_quadratures_match(*replaced_phase_space_evolution.quadrature, *parsed_phase_space_evolution.quadrature);
+    assert_states_match(replaced_phase_space_evolution.state, parsed_phase_space_evolution.state);
 }
 
 } // namespace

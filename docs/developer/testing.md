@@ -21,7 +21,7 @@ contract.
 Unit tests alone are insufficient for moment-method software. They are good at
 protecting local behavior, option validation, indexing helpers, and failure
 paths, but they do not by themselves establish that an inversion, conditional
-reconstruction, transport update, or realizability check matches the intended
+reconstruction, phase-space evolution update, or realizability check matches the intended
 mathematics.
 
 The core testing principle is:
@@ -122,7 +122,7 @@ Unit coverage is appropriate for:
 Representative unit areas include Wheeler inversion, recursive CQMOM support
 structures, realizability checks and policies, configuration mapping,
 distribution helpers, output helpers, node advection, moment-source evolution,
-raw-moment reconstruction, and transport components.
+raw-moment reconstruction, and phase-space evolution components.
 
 ### Component Regression Tests
 
@@ -163,7 +163,7 @@ Verification coverage belongs around:
 - Runge-Kutta integration;
 - node advection;
 - moment-source evolution;
-- transport composition.
+- phase-space evolution composition.
 
 Verification tests should preserve QMOMKit conventions: raw moments are moments
 of the number density function, tensor indices follow phase-space dimension
@@ -210,16 +210,16 @@ public headers, or CMake package metadata change.
 
 Analytical solutions are preferred when the exact answer is known in closed
 form. They are useful for Wheeler inversion, low-dimensional CQMOM cases,
-distribution moment generation, simple ODE integration, source evolution, and
-transport cases with closed-form operator behavior.
+distribution moment generation, simple ODE integration, moment-source evolution, and
+phase-space evolution cases with closed-form operator behavior.
 
 Manufactured solutions are useful when the algorithm is more complex than the
 available closed-form examples. They should define moments, nodes, weights,
-conditioning paths, source terms, or transport behavior from an independent
+conditioning paths, source terms, or phase-space evolution behavior from an independent
 construction and then verify that QMOMKit recovers the expected mathematical
 object.
 
-Convergence studies are useful for time integration and transport. They should
+Convergence studies are useful for time integration and phase-space evolution. They should
 test numerical order or monotonic error reduction using deterministic cases
 whose exact or high-confidence reference behavior is known.
 

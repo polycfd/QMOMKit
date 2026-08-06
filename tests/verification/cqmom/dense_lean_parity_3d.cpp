@@ -7,7 +7,7 @@
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/moment_source.hpp"
 #include "qmomkit/multi_index.hpp"
-#include "qmomkit/transport_integrator.hpp"
+#include "qmomkit/phase_space_evolution.hpp"
 #include "qmomkit/wheeler.hpp"
 
 #include <algorithm>
@@ -297,7 +297,7 @@ void compare_diagnostics(const std::vector<qmomkit::CqmomDiagnostics>& dense, co
 }
 
 std::vector<qmomkit::CqmomNodeCountTransition> transitions_for_stage(const std::vector<qmomkit::CqmomNodeCountTransition>& transitions,
-                                                                     const qmomkit::TransportStage stage)
+                                                                     const qmomkit::PhaseSpaceEvolutionStage stage)
 {
     std::vector<qmomkit::CqmomNodeCountTransition> selected;
     for (const qmomkit::CqmomNodeCountTransition& transition : transitions)
@@ -1315,7 +1315,7 @@ void run_failure_probe()
     run_expanded_layout_experiments(probe->dense_moments, layout, qmom_options);
 }
 
-void run_explicit_transport_parity()
+void run_explicit_phase_space_evolution_parity()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {0, 1, 2});
     const qmomkit::RawMomentTensor moments = raw_moments_from_terminals(deterministic_rectangular_nodes(), hierarchy.moment_extents());
@@ -1337,13 +1337,14 @@ void run_explicit_transport_parity()
     const qmomkit::CqmomState dense_state = qmomkit::internal::CqmomConstructionAccess::create_state(dense_case);
     const qmomkit::CqmomState lean_state = qmomkit::internal::CqmomConstructionAccess::create_state(lean_case);
 
-    qmomkit::CqmomTransportOptions options;
-    options.scheme = qmomkit::TransportScheme::cd;
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::advsrc;
 
-    const qmomkit::CqmomTransportResult dense = qmomkit::advance_transport_cqmom(dense_state, 0.0, 0.05, velocity, zero_source, options);
-    const qmomkit::CqmomTransportResult lean = qmomkit::advance_transport_cqmom(lean_state, 0.0, 0.05, velocity, zero_source, options);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult dense = qmomkit::advance_cqmom_phase_space(dense_state, 0.0, 0.05, velocity, zero_source, options);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult lean = qmomkit::advance_cqmom_phase_space(lean_state, 0.0, 0.05, velocity, zero_source, options);
 
-    std::cout << "[explicit transport parity] dense_status=" << static_cast<int>(dense.status) << " lean_status=" << static_cast<int>(lean.status)
+    std::cout << "[explicit phase-space evolution parity] dense_status=" << static_cast<int>(dense.status)
+              << " lean_status=" << static_cast<int>(lean.status)
               << " remaining_limits=explicit active topology is one-call only; runtime storage selection is not exposed\n";
     QMOMKIT_VERIFY_CHECK(dense.status == lean.status);
     QMOMKIT_VERIFY_CHECK(dense.ok() == lean.ok());
@@ -1360,8 +1361,9 @@ void run_explicit_transport_parity()
         diagnostics_request_solver(dense.diagnostics.initial_cqmom_diagnostics, hierarchy.number_of_dimensions(), qmomkit::VandermondeSolver::dense));
     QMOMKIT_VERIFY_CHECK(
         diagnostics_request_solver(lean.diagnostics.initial_cqmom_diagnostics, hierarchy.number_of_dimensions(), qmomkit::VandermondeSolver::dense));
-    compare_node_count_transitions(transitions_for_stage(dense.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::initial_inversion),
-                                   transitions_for_stage(lean.diagnostics.cqmom_node_count_transitions, qmomkit::TransportStage::initial_inversion));
+    compare_node_count_transitions(
+        transitions_for_stage(dense.diagnostics.cqmom_node_count_transitions, qmomkit::PhaseSpaceEvolutionStage::initial_inversion),
+        transitions_for_stage(lean.diagnostics.cqmom_node_count_transitions, qmomkit::PhaseSpaceEvolutionStage::initial_inversion));
     if (dense.ok() && lean.ok())
     {
         QMOMKIT_VERIFY_CHECK(dense.quadrature.has_value());
@@ -1394,7 +1396,7 @@ int main()
     run_static_parity_case("near-degenerate conditional u branch", identity, near_degenerate_u_nodes(), false);
     run_physical_analytical_contraction_case(identity);
     run_failure_probe();
-    run_explicit_transport_parity();
+    run_explicit_phase_space_evolution_parity();
 
     std::cout << "[dense/lean parity] Stage 1 diagnostic verification completed.\n";
     return 0;

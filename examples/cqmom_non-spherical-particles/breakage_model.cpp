@@ -197,7 +197,7 @@ qmomkit::CqmomMomentSource binary_breakage_source(const qmomkit::CqmomCase& cqmo
             }
         }
 
-        // Reconstruct the active quadrature at the current source stage before
+        // Reconstruct the active quadrature at the current moment-source stage before
         // accumulating terminal-node contributions to the requested moment rates.
         qmomkit::CqmomMomentLayout layout{moments.hierarchy(), moments.indices()};
         qmomkit::CqmomMomentData moment_data{std::move(layout), moments.values()};
@@ -256,7 +256,7 @@ void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, const doubl
     {
         require_sample(sample);
         pending.emplace_back(std::move(sample), step_size);
-        // Advance one lineage through the remaining discontinuous-stage time.
+        // Advance one lineage through the remaining moment-source stage time.
         // Daughters re-enter with only the unused interval, so repeated
         // fragmentation is allowed without restarting the stage clock.
         while (!pending.empty())

@@ -33,12 +33,12 @@ $$
 They are unnormalized, so $M_{0,0}$ is the total number density `2.5`.
 `compute_cqmom(...)` converts the configured moment tensor into the initial
 conditional quadrature. The executable then creates a `CqmomState` to show
-the state lifecycle but does not add continuous evolution, a discontinuous
-moment source, or a boundary contribution.
+the state lifecycle but does not add phase-space advection, a moment source,
+or a boundary contribution.
 
 `CqmomCase` is the immutable configuration and problem definition.
-`CqmomState` is the runtime state that a transport workflow evolves later.
-This example creates the state but does not add transport physics.
+`CqmomState` is the runtime state that a phase-space evolution workflow evolves later.
+This example creates the state but does not add phase-space evolution physics.
 
 Requires: QMOMKit.
 

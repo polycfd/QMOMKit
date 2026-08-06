@@ -19,14 +19,14 @@ int main()
     const double time_step = 0.01;
     double time = initial_time;
 
-    const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_minimal::continuous_velocity();
+    const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_minimal::advection_velocity();
     const qmomkit::MomentSource source = qmom_1d_minimal::fragmentation_source();
 
-    qmomkit::QmomTransportOptions options;
-    options.scheme = qmomkit::TransportScheme::strang;
+    qmomkit::QmomPhaseSpaceEvolutionOptions options;
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
 
     std::cout << std::setprecision(12);
-    std::cout << "Minimal 1D QMOM transport example\n\n";
+    std::cout << "Minimal 1D QMOM phase-space evolution example\n\n";
     std::cout << "Initial moments:\n";
     for (std::size_t order = 0; order < moments.size(); ++order)
     {
@@ -58,10 +58,11 @@ int main()
     while (time < final_time - 1.0e-12)
     {
         const double step = std::min(time_step, final_time - time);
-        const qmomkit::QmomTransportResult result = qmomkit::advance_transport_qmom(state, node_count, time, step, velocity, source, options);
+        const qmomkit::QmomPhaseSpaceEvolutionResult result =
+            qmomkit::advance_qmom_phase_space(state, node_count, time, step, velocity, source, options);
         if (!result.ok())
         {
-            std::cerr << "QMOM transport failed: " << result.message << '\n';
+            std::cerr << "QMOM phase-space evolution failed: " << result.message << '\n';
             return 1;
         }
 

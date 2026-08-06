@@ -5,8 +5,8 @@ a developer reference for maintainers, contributors, and AI-assisted development
 workflows.
 
 For raw-moment, number-density, and storage conventions, see
-`numerical_conventions.md`. For source updates and transport composition, see
-`transport_design.md`. For configuration mapping of runtime policies, see
+`numerical_conventions.md`. For source updates and phase-space evolution composition, see
+`phase_space_evolution_design.md`. For configuration mapping of runtime policies, see
 `configuration_design.md`.
 
 ## Role Of Realizability
@@ -196,9 +196,9 @@ hide them.
 states are accepted. `not_realizable`, `invalid_input`, and
 `numerically_indeterminate` are rejected.
 
-## Interaction With Transport
+## Interaction With Phase-Space Evolution
 
-Transport uses realizability policies through SSP-RK3 acceptance predicates for
+Phase-space evolution uses realizability policies through SSP-RK3 acceptance predicates for
 moment-source evolution. A source update can propose candidate raw moments that
 leave the admissible moment space. A policy adapter can reject that candidate so
 the SSP-RK3 retry logic may reduce the timestep according to its configured
@@ -223,14 +223,14 @@ final-candidate predicate.
 - a stage-aware predicate that checks every supplied SSP-RK3 stage for
   `EveryStage`.
 
-Transport does not install these policies automatically. Configuration parsing
+Phase-space evolution does not install these policies automatically. Configuration parsing
 can create a `RealizabilityPolicy`, but the application or driver must wire the
 policy into the relevant time-integration options.
 
 When a source update is rejected by a realizability predicate and retries cannot
 produce an accepted state, the source-update layer reports predicate or
-minimum-timestep failure. High-level transport maps source-update failure to the
-transport source-failure path and records subsystem diagnostics.
+minimum-timestep failure. High-level phase-space evolution maps source-update failure to the
+phase-space evolution source-failure path and records subsystem diagnostics.
 
 ## Interaction With QMOM And CQMOM
 

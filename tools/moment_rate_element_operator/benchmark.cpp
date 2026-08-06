@@ -241,7 +241,7 @@ template <typename Work> [[nodiscard]] std::pair<double, double> time_iterations
 void print_csv_header()
 {
     std::cout << "compiler_id,compiler_version,build_type,assertions,os,target_sample_ms,case_name,operation_category,basis_size,"
-                 "spatial_quadrature_count,transported_moment_count,phase_space_dimension,"
+                 "spatial_quadrature_count,advected_moment_count,phase_space_dimension,"
                  "node_configuration,conditioning_order,diagnostic_level,callback_label,element_batch_size,local_calls_per_element_rhs,"
                  "local_calls_per_ssp_rk3,sample_count,iterations_per_sample,median_total_time_ns,median_time_per_element_ns,"
                  "median_time_per_local_call_ns,min_sample_time_ns,max_sample_time_ns,checksum\n";
@@ -435,14 +435,14 @@ void add_interpolation_projection_rows(std::vector<BenchmarkCase>& cases, const 
     }
 }
 
-void add_qmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element& element, const std::vector<std::size_t>& batch_sizes,
-                              const std::string& case_name, const std::vector<double>& moments, const std::size_t node_count,
-                              const qmomkit::PhaseSpaceVelocity& velocity, const std::string& callback_label)
+void add_qmom_advection_case(std::vector<BenchmarkCase>& cases, const Element& element, const std::vector<std::size_t>& batch_sizes,
+                             const std::string& case_name, const std::vector<double>& moments, const std::size_t node_count,
+                             const qmomkit::PhaseSpaceVelocity& velocity, const std::string& callback_label)
 {
     const std::size_t moment_count = moments.size();
     const std::vector<double> coefficients = constant_coefficients(element, moments);
     const std::vector<double> local_moments = interpolate_element_state(element, coefficients, moment_count);
-    const ElementRhsResult probe = evaluate_qmom_continuous_rhs(element, coefficients, moment_count, node_count, 0.0, velocity);
+    const ElementRhsResult probe = evaluate_qmom_advection_rhs(element, coefficients, moment_count, node_count, 0.0, velocity);
     if (!probe.ok)
     {
         throw std::runtime_error("benchmark setup failed: " + describe_failure(probe));
@@ -489,13 +489,13 @@ void add_qmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element& 
             }));
 
         CaseMetadata local = base;
-        local.category = "qmom_continuous_local_rate";
+        local.category = "qmom_advection_local_rate";
         local.element_batch_size = batch_size;
         cases.push_back(make_case(
             local,
             [=]
             {
-                const ElementRhsResult result = evaluate_qmom_continuous_rhs(element, coefficients, moment_count, node_count, 0.0, velocity);
+                const ElementRhsResult result = evaluate_qmom_advection_rhs(element, coefficients, moment_count, node_count, 0.0, velocity);
                 if (!result.ok)
                 {
                     throw std::runtime_error("benchmark setup failed: " + describe_failure(result));
@@ -509,7 +509,7 @@ void add_qmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element& 
                                         std::vector<double> rates(element.quadrature_count() * moment_count, 0.0);
                                         for (std::size_t q = 0; q < element.quadrature_count(); ++q)
                                         {
-                                            const qmomkit::QmomContinuousMomentRateResult result = qmomkit::evaluate_qmom_continuous_moment_rates(
+                                            const qmomkit::QmomAdvectionMomentRateResult result = qmomkit::evaluate_qmom_advection_moment_rates(
                                                 local_moment_slice(local_moments, q, moment_count), node_count, 0.0, velocity);
                                             for (std::size_t moment = 0; moment < moment_count; ++moment)
                                             {
@@ -527,7 +527,7 @@ void add_qmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element& 
             rhs,
             [=]
             {
-                const ElementRhsResult result = evaluate_qmom_continuous_rhs(element, coefficients, moment_count, node_count, 0.0, velocity);
+                const ElementRhsResult result = evaluate_qmom_advection_rhs(element, coefficients, moment_count, node_count, 0.0, velocity);
                 if (!result.ok)
                 {
                     throw std::runtime_error("benchmark setup failed: " + describe_failure(result));
@@ -539,7 +539,7 @@ void add_qmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element& 
                                     [&]
                                     {
                                         const ElementRhsResult result =
-                                            evaluate_qmom_continuous_rhs(element, coefficients, moment_count, node_count, 0.0, velocity);
+                                            evaluate_qmom_advection_rhs(element, coefficients, moment_count, node_count, 0.0, velocity);
                                         return result.coefficient_rates;
                                     });
             }));
@@ -554,7 +554,7 @@ void add_qmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element& 
             {
                 const ElementRhsResult result =
                     ssp_rk3_coefficient_step(coefficients, 0.0, 0.01, [&](const double time, const std::vector<double>& state)
-                                             { return evaluate_qmom_continuous_rhs(element, state, moment_count, node_count, time, velocity); });
+                                             { return evaluate_qmom_advection_rhs(element, state, moment_count, node_count, time, velocity); });
                 if (!result.ok)
                 {
                     throw std::runtime_error("benchmark setup failed: " + describe_failure(result));
@@ -567,21 +567,21 @@ void add_qmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element& 
                                     {
                                         const ElementRhsResult result = ssp_rk3_coefficient_step(
                                             coefficients, 0.0, 0.01, [&](const double time, const std::vector<double>& state)
-                                            { return evaluate_qmom_continuous_rhs(element, state, moment_count, node_count, time, velocity); });
+                                            { return evaluate_qmom_advection_rhs(element, state, moment_count, node_count, time, velocity); });
                                         return result.coefficient_rates;
                                     });
             }));
     }
 }
 
-void add_qmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Element& element, const std::vector<std::size_t>& batch_sizes,
+void add_qmom_moment_source_case(std::vector<BenchmarkCase>& cases, const Element& element, const std::vector<std::size_t>& batch_sizes,
                                  const std::string& case_name, const qmomkit::MomentSource& source, const std::string& callback_label)
 {
     const std::size_t moment_count = 4;
     const std::vector<double> moments = qmom_moments_from_terminals({0.4, 0.6}, {-0.5, 1.2}, moment_count);
     const std::vector<double> coefficients = constant_coefficients(element, moments);
     const std::vector<double> local_moments = interpolate_element_state(element, coefficients, moment_count);
-    const ElementRhsResult probe = evaluate_qmom_discontinuous_rhs(element, coefficients, moment_count, 0.0, source);
+    const ElementRhsResult probe = evaluate_qmom_moment_source_rhs(element, coefficients, moment_count, 0.0, source);
     if (!probe.ok)
     {
         throw std::runtime_error("benchmark setup failed: " + describe_failure(probe));
@@ -606,7 +606,7 @@ void add_qmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Elemen
     for (const std::size_t batch_size : batch_sizes)
     {
         CaseMetadata local = base;
-        local.category = "qmom_discontinuous_local_rate";
+        local.category = "qmom_moment_source_local_rate";
         local.element_batch_size = batch_size;
         cases.push_back(make_case(local, {},
                                   [=]
@@ -617,8 +617,8 @@ void add_qmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Elemen
                                                               std::vector<double> rates(element.quadrature_count() * moment_count, 0.0);
                                                               for (std::size_t q = 0; q < element.quadrature_count(); ++q)
                                                               {
-                                                                  const qmomkit::QmomDiscontinuousMomentRateResult result =
-                                                                      qmomkit::evaluate_qmom_discontinuous_moment_rates(
+                                                                  const qmomkit::QmomMomentSourceRateResult result =
+                                                                      qmomkit::evaluate_qmom_moment_source_rates(
                                                                           0.0, local_moment_slice(local_moments, q, moment_count), source);
                                                                   for (std::size_t moment = 0; moment < moment_count; ++moment)
                                                                   {
@@ -639,7 +639,7 @@ void add_qmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Elemen
                                                           [&]
                                                           {
                                                               const ElementRhsResult result =
-                                                                  evaluate_qmom_discontinuous_rhs(element, coefficients, moment_count, 0.0, source);
+                                                                  evaluate_qmom_moment_source_rhs(element, coefficients, moment_count, 0.0, source);
                                                               return result.coefficient_rates;
                                                           });
                                   }));
@@ -654,7 +654,7 @@ void add_qmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Elemen
             {
                 const ElementRhsResult result =
                     ssp_rk3_coefficient_step(coefficients, 0.0, 0.01, [&](const double time, const std::vector<double>& state)
-                                             { return evaluate_qmom_discontinuous_rhs(element, state, moment_count, time, source); });
+                                             { return evaluate_qmom_moment_source_rhs(element, state, moment_count, time, source); });
                 if (!result.ok)
                 {
                     throw std::runtime_error("benchmark setup failed: " + describe_failure(result));
@@ -667,7 +667,7 @@ void add_qmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Elemen
                                     {
                                         const ElementRhsResult result = ssp_rk3_coefficient_step(
                                             coefficients, 0.0, 0.01, [&](const double time, const std::vector<double>& state)
-                                            { return evaluate_qmom_discontinuous_rhs(element, state, moment_count, time, source); });
+                                            { return evaluate_qmom_moment_source_rhs(element, state, moment_count, time, source); });
                                         return result.coefficient_rates;
                                     });
             }));
@@ -693,14 +693,14 @@ void add_qmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Elemen
     return lean_case;
 }
 
-void add_cqmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element& element, const std::vector<std::size_t>& batch_sizes,
-                               const std::string& case_name, const qmomkit::CqmomLeanCase& lean_case, const std::string& node_configuration,
-                               const std::string& conditioning_order, const qmomkit::PhaseSpaceVelocity& velocity, const std::string& callback_label)
+void add_cqmom_advection_case(std::vector<BenchmarkCase>& cases, const Element& element, const std::vector<std::size_t>& batch_sizes,
+                              const std::string& case_name, const qmomkit::CqmomLeanCase& lean_case, const std::string& node_configuration,
+                              const std::string& conditioning_order, const qmomkit::PhaseSpaceVelocity& velocity, const std::string& callback_label)
 {
     const std::size_t moment_count = lean_case.moments.values.size();
     const std::vector<double> coefficients = constant_coefficients(element, lean_case.moments.values);
     const std::vector<double> local_moments = interpolate_element_state(element, coefficients, moment_count);
-    const ElementRhsResult probe = evaluate_cqmom_continuous_rhs(element, coefficients, lean_case, 0.0, velocity);
+    const ElementRhsResult probe = evaluate_cqmom_advection_rhs(element, coefficients, lean_case, 0.0, velocity);
     if (!probe.ok)
     {
         throw std::runtime_error("benchmark setup failed: " + describe_failure(probe));
@@ -749,13 +749,13 @@ void add_cqmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element&
             }));
 
         CaseMetadata local = base;
-        local.category = "cqmom_continuous_local_rate";
+        local.category = "cqmom_advection_local_rate";
         local.element_batch_size = batch_size;
         cases.push_back(make_case(
             local,
             [=]
             {
-                const ElementRhsResult result = evaluate_cqmom_continuous_rhs(element, coefficients, lean_case, 0.0, velocity);
+                const ElementRhsResult result = evaluate_cqmom_advection_rhs(element, coefficients, lean_case, 0.0, velocity);
                 if (!result.ok)
                 {
                     throw std::runtime_error("benchmark setup failed: " + describe_failure(result));
@@ -771,8 +771,8 @@ void add_cqmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element&
                                         {
                                             qmomkit::CqmomLeanCase local_case = lean_case;
                                             local_case.moments.values = local_moment_slice(local_moments, q, moment_count);
-                                            const qmomkit::CqmomContinuousMomentRateResult result =
-                                                qmomkit::evaluate_cqmom_continuous_moment_rates(local_case, 0.0, velocity);
+                                            const qmomkit::CqmomAdvectionMomentRateResult result =
+                                                qmomkit::evaluate_cqmom_advection_moment_rates(local_case, 0.0, velocity);
                                             for (std::size_t moment = 0; moment < moment_count; ++moment)
                                             {
                                                 rates[q * moment_count + moment] = result.rates->values[moment];
@@ -789,7 +789,7 @@ void add_cqmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element&
             rhs,
             [=]
             {
-                const ElementRhsResult result = evaluate_cqmom_continuous_rhs(element, coefficients, lean_case, 0.0, velocity);
+                const ElementRhsResult result = evaluate_cqmom_advection_rhs(element, coefficients, lean_case, 0.0, velocity);
                 if (!result.ok)
                 {
                     throw std::runtime_error("benchmark setup failed: " + describe_failure(result));
@@ -800,22 +800,21 @@ void add_cqmom_continuous_case(std::vector<BenchmarkCase>& cases, const Element&
                 return repeat_batch(batch_size,
                                     [&]
                                     {
-                                        const ElementRhsResult result =
-                                            evaluate_cqmom_continuous_rhs(element, coefficients, lean_case, 0.0, velocity);
+                                        const ElementRhsResult result = evaluate_cqmom_advection_rhs(element, coefficients, lean_case, 0.0, velocity);
                                         return result.coefficient_rates;
                                     });
             }));
     }
 }
 
-void add_cqmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Element& element, const std::vector<std::size_t>& batch_sizes,
+void add_cqmom_moment_source_case(std::vector<BenchmarkCase>& cases, const Element& element, const std::vector<std::size_t>& batch_sizes,
                                   const std::string& case_name, const qmomkit::CqmomLeanCase& lean_case, const std::string& node_configuration,
                                   const std::string& conditioning_order, const qmomkit::CqmomMomentSource& source, const std::string& callback_label)
 {
     const std::size_t moment_count = lean_case.moments.values.size();
     const std::vector<double> coefficients = constant_coefficients(element, lean_case.moments.values);
     const std::vector<double> local_moments = interpolate_element_state(element, coefficients, moment_count);
-    const ElementRhsResult probe = evaluate_cqmom_discontinuous_rhs(element, coefficients, lean_case.moments, 0.0, source);
+    const ElementRhsResult probe = evaluate_cqmom_moment_source_rhs(element, coefficients, lean_case.moments, 0.0, source);
     if (!probe.ok)
     {
         throw std::runtime_error("benchmark setup failed: " + describe_failure(probe));
@@ -840,7 +839,7 @@ void add_cqmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Eleme
     for (const std::size_t batch_size : batch_sizes)
     {
         CaseMetadata local = base;
-        local.category = "cqmom_discontinuous_local_rate";
+        local.category = "cqmom_moment_source_local_rate";
         local.element_batch_size = batch_size;
         cases.push_back(make_case(local, {},
                                   [=]
@@ -853,8 +852,8 @@ void add_cqmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Eleme
                                                               {
                                                                   qmomkit::CqmomMomentData local_data = lean_case.moments;
                                                                   local_data.values = local_moment_slice(local_moments, q, moment_count);
-                                                                  const qmomkit::CqmomDiscontinuousMomentRateResult result =
-                                                                      qmomkit::evaluate_cqmom_discontinuous_moment_rates(0.0, local_data, source);
+                                                                  const qmomkit::CqmomMomentSourceRateResult result =
+                                                                      qmomkit::evaluate_cqmom_moment_source_rates(0.0, local_data, source);
                                                                   for (std::size_t moment = 0; moment < moment_count; ++moment)
                                                                   {
                                                                       rates[q * moment_count + moment] = result.rates->values[moment];
@@ -873,7 +872,7 @@ void add_cqmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Eleme
                                       return repeat_batch(batch_size,
                                                           [&]
                                                           {
-                                                              const ElementRhsResult result = evaluate_cqmom_discontinuous_rhs(
+                                                              const ElementRhsResult result = evaluate_cqmom_moment_source_rhs(
                                                                   element, coefficients, lean_case.moments, 0.0, source);
                                                               return result.coefficient_rates;
                                                           });
@@ -889,7 +888,7 @@ void add_cqmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Eleme
             {
                 const ElementRhsResult result =
                     ssp_rk3_coefficient_step(coefficients, 0.0, 0.01, [&](const double time, const std::vector<double>& state)
-                                             { return evaluate_cqmom_discontinuous_rhs(element, state, lean_case.moments, time, source); });
+                                             { return evaluate_cqmom_moment_source_rhs(element, state, lean_case.moments, time, source); });
                 if (!result.ok)
                 {
                     throw std::runtime_error("benchmark setup failed: " + describe_failure(result));
@@ -902,7 +901,7 @@ void add_cqmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Eleme
                                     {
                                         const ElementRhsResult result = ssp_rk3_coefficient_step(
                                             coefficients, 0.0, 0.01, [&](const double time, const std::vector<double>& state)
-                                            { return evaluate_cqmom_discontinuous_rhs(element, state, lean_case.moments, time, source); });
+                                            { return evaluate_cqmom_moment_source_rhs(element, state, lean_case.moments, time, source); });
                                         return result.coefficient_rates;
                                     });
             }));
@@ -930,31 +929,31 @@ void add_cqmom_discontinuous_case(std::vector<BenchmarkCase>& cases, const Eleme
                                                                   {{-1.0, -1.0, 1.0}, {-2.0, 2.0, 3.0}}, qmomkit::CqmomDiagnosticLevel::none, true);
 
     std::vector<BenchmarkCase> cases;
-    add_qmom_continuous_case(cases, quadratic, options.batch_sizes, "qmom_1node_2mom_zero_velocity", qmom_moments_from_terminals({2.0}, {3.0}, 2), 1,
-                             zero_velocity(), "zero_velocity");
-    add_qmom_continuous_case(cases, quadratic, options.batch_sizes, "qmom_2node_4mom_affine_velocity",
-                             qmom_moments_from_terminals({0.4, 0.6}, {-0.5, 1.2}, 4), 2, affine_velocity(), "cheap_affine_velocity");
-    add_qmom_continuous_case(cases, cubic, options.batch_sizes, "qmom_2node_6mom_nonlinear_velocity",
-                             qmom_moments_from_terminals({0.4, 0.6}, {-0.5, 1.2}, 6), 2, nonlinear_velocity(), "modest_nonlinear_velocity");
+    add_qmom_advection_case(cases, quadratic, options.batch_sizes, "qmom_1node_2mom_zero_velocity", qmom_moments_from_terminals({2.0}, {3.0}, 2), 1,
+                            zero_velocity(), "zero_velocity");
+    add_qmom_advection_case(cases, quadratic, options.batch_sizes, "qmom_2node_4mom_affine_velocity",
+                            qmom_moments_from_terminals({0.4, 0.6}, {-0.5, 1.2}, 4), 2, affine_velocity(), "cheap_affine_velocity");
+    add_qmom_advection_case(cases, cubic, options.batch_sizes, "qmom_2node_6mom_nonlinear_velocity",
+                            qmom_moments_from_terminals({0.4, 0.6}, {-0.5, 1.2}, 6), 2, nonlinear_velocity(), "modest_nonlinear_velocity");
 
-    add_qmom_discontinuous_case(cases, quadratic, options.batch_sizes, "qmom_2node_4mom_free_source", free_qmom_source(), "nearly_free_source");
-    add_qmom_discontinuous_case(cases, cubic, options.batch_sizes, "qmom_2node_4mom_arithmetic_source", arithmetic_qmom_source(),
+    add_qmom_moment_source_case(cases, quadratic, options.batch_sizes, "qmom_2node_4mom_free_source", free_qmom_source(), "nearly_free_source");
+    add_qmom_moment_source_case(cases, cubic, options.batch_sizes, "qmom_2node_4mom_arithmetic_source", arithmetic_qmom_source(),
                                 "modest_arithmetic_source");
 
-    add_cqmom_continuous_case(cases, quadratic, options.batch_sizes, "cqmom_2x2_identity_none_affine_velocity", cqmom_identity_none, "2x2_fixed",
-                              "identity", affine_velocity(), "cheap_affine_velocity");
-    add_cqmom_continuous_case(cases, quadratic, options.batch_sizes, "cqmom_2x2_identity_detailed_affine_velocity", cqmom_identity_detailed,
-                              "2x2_fixed", "identity", affine_velocity(), "cheap_affine_velocity");
-    add_cqmom_continuous_case(cases, quadratic, options.batch_sizes, "cqmom_2x2_nonidentity_detailed_nonlinear_velocity", cqmom_nonidentity_detailed,
-                              "2x2_fixed", "nonidentity", nonlinear_velocity(), "modest_nonlinear_velocity");
-    add_cqmom_continuous_case(cases, cubic, options.batch_sizes, "cqmom_3x2_identity_none_affine_velocity", cqmom_larger_fixed, "3x2_fixed",
-                              "identity", affine_velocity(), "cheap_affine_velocity");
-    add_cqmom_continuous_case(cases, quadratic, options.batch_sizes, "cqmom_2x2_adaptive_identity_none_zero_velocity", cqmom_adaptive,
-                              "2x2_adaptive_branch_counts", "identity", zero_velocity(), "zero_velocity");
+    add_cqmom_advection_case(cases, quadratic, options.batch_sizes, "cqmom_2x2_identity_none_affine_velocity", cqmom_identity_none, "2x2_fixed",
+                             "identity", affine_velocity(), "cheap_affine_velocity");
+    add_cqmom_advection_case(cases, quadratic, options.batch_sizes, "cqmom_2x2_identity_detailed_affine_velocity", cqmom_identity_detailed,
+                             "2x2_fixed", "identity", affine_velocity(), "cheap_affine_velocity");
+    add_cqmom_advection_case(cases, quadratic, options.batch_sizes, "cqmom_2x2_nonidentity_detailed_nonlinear_velocity", cqmom_nonidentity_detailed,
+                             "2x2_fixed", "nonidentity", nonlinear_velocity(), "modest_nonlinear_velocity");
+    add_cqmom_advection_case(cases, cubic, options.batch_sizes, "cqmom_3x2_identity_none_affine_velocity", cqmom_larger_fixed, "3x2_fixed",
+                             "identity", affine_velocity(), "cheap_affine_velocity");
+    add_cqmom_advection_case(cases, quadratic, options.batch_sizes, "cqmom_2x2_adaptive_identity_none_zero_velocity", cqmom_adaptive,
+                             "2x2_adaptive_branch_counts", "identity", zero_velocity(), "zero_velocity");
 
-    add_cqmom_discontinuous_case(cases, quadratic, options.batch_sizes, "cqmom_2x2_nonidentity_free_source", cqmom_nonidentity_detailed, "2x2_fixed",
+    add_cqmom_moment_source_case(cases, quadratic, options.batch_sizes, "cqmom_2x2_nonidentity_free_source", cqmom_nonidentity_detailed, "2x2_fixed",
                                  "nonidentity", free_cqmom_source(), "nearly_free_source");
-    add_cqmom_discontinuous_case(cases, cubic, options.batch_sizes, "cqmom_2x2_nonidentity_arithmetic_source", cqmom_nonidentity_detailed,
+    add_cqmom_moment_source_case(cases, cubic, options.batch_sizes, "cqmom_2x2_nonidentity_arithmetic_source", cqmom_nonidentity_detailed,
                                  "2x2_fixed", "nonidentity", arithmetic_cqmom_source(), "modest_arithmetic_source");
     return cases;
 }

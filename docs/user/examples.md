@@ -15,7 +15,7 @@ with commented header lines.
 ## Recommended Onboarding Path
 
 Use these examples in order when you want the shortest path from first QMOM
-inversion to CQMOM transport.
+inversion to CQMOM phase-space evolution.
 
 ```text
 Primary onboarding
@@ -23,27 +23,27 @@ Primary onboarding
     qmom_explicit_moments
     qmom_distribution_initialization
     qmom_1d_minimal
-    qmom_1d_continuous_breakage
+    qmom_1d_breakage_advection
   CQMOM
     cqmom_independent_product_initialization
-    cqmom_transport
+    cqmom_phase_space_evolution
 
 Reference workflows
   qmom_mixture_initialization
   realizability_check
   cqmom_2d_adaptive_node_counts
   cqmom_2d_borderline_conditioning
-  qmom_1d_continuous_breakage_mc_initialization
-  qmom_1d_continuous_breakage_mc_local_rates
-  cqmom_2d_continuous_breakage_mc_initialization
+  qmom_1d_breakage_advection_mc_initialization
+  qmom_1d_breakage_advection_mc_local_rates
+  cqmom_2d_breakage_advection_mc_initialization
   cqmom_condensing_droplets
   cqmom_polydisperse_cavitation
   cqmom_non-spherical-particles
 ```
 
 For physics callbacks, start with `qmom_1d_minimal`,
-`qmom_1d_continuous_breakage`, or `cqmom_transport`. The callback contract is
-explained in `transport.md`.
+`qmom_1d_breakage_advection`, or `cqmom_phase_space_evolution`. The callback contract is
+explained in `phase_space_evolution.md`.
 
 ### Beginner QMOM Workflow
 
@@ -59,11 +59,11 @@ explained in `transport.md`.
 
 3. `qmom_1d_minimal`
 
-   This is the smallest complete QMOM transport loop using `QmomState` and
-   `advance_transport_qmom(...)` with user-supplied velocity and source
+   This is the smallest complete QMOM phase-space evolution loop using `QmomState` and
+   `advance_qmom_phase_space(...)` with user-supplied velocity and source
    callbacks.
 
-4. `qmom_1d_continuous_breakage`
+4. `qmom_1d_breakage_advection`
 
    Use this when you want the full readable version with configuration,
    explicit Strang stages, physics callbacks, and file output.
@@ -74,12 +74,12 @@ explained in `transport.md`.
 
    Start here for multidimensional CQMOM. It shows
    `load_cqmom(...) -> CqmomCase -> compute_cqmom(...) -> CqmomQuadrature`.
-   When transport is needed, the same case can then create `CqmomState`.
+   When phase-space evolution is needed, the same case can then create `CqmomState`.
 
-6. `cqmom_transport`
+6. `cqmom_phase_space_evolution`
 
-   Use this canonical CQMOM transport example when your workflow needs custom
-   continuous velocity, discontinuous moment sources, transport, and
+   Use this canonical CQMOM phase-space evolution example when your workflow needs custom
+   phase-space velocity, moment-source evolution, and
    quadrature output.
 
 ## Initialization Workflows
@@ -126,7 +126,7 @@ Use this example when you want the normal multidimensional CQMOM setup path.
 ### `cqmom_independent_product_initialization`
 
 Purpose: load a multidimensional CQMOM case from configuration and compute its
-initial quadrature. If the workflow later enters transport, the same case can
+initial quadrature. If the workflow later enters phase-space evolution, the same case can
 create the initial CQMOM state.
 
 Use this example when you want the normal CQMOM onboarding path without
@@ -162,17 +162,17 @@ consistent with a physical support such as the nonnegative real line.
 Example README:
 [`examples/realizability_check/README.md`](../../examples/realizability_check/README.md)
 
-## Transport And Evolution
+## Phase-Space Evolution
 
 Use these examples when you want to evolve a quadrature-based representation
-through continuous node motion and moment source terms.
+through advection node motion and moment source terms.
 
 ### `qmom_1d_minimal`
 
 Purpose: advance one-dimensional accepted QMOM state through the high-level
-`advance_transport_qmom(...)` helper.
+`advance_qmom_phase_space(...)` helper.
 
-Use this example when you want the smallest complete QMOM transport loop with
+Use this example when you want the smallest complete QMOM phase-space evolution loop with
 user-supplied velocity and source callbacks.
 
 Example README:
@@ -181,7 +181,7 @@ Example README:
 ### `qmom_1d_explicit_strang_splitting`
 
 Purpose: advance an adaptive one-dimensional QMOM state with application-owned
-Strang splitting by calling the public continuous and discontinuous stage APIs.
+Strang splitting by calling the public advection and moment-source-evolution stage APIs.
 
 Use this example when the surrounding application needs to own the
 `C(dt/2) -> D(dt) -> C(dt/2)` sequence while QMOMKit still owns state
@@ -190,22 +190,22 @@ canonicalization and adaptive post-source reconstruction.
 Example README:
 [`examples/qmom_1d_explicit_strang_splitting/README.md`](../../examples/qmom_1d_explicit_strang_splitting/README.md)
 
-### `qmom_1d_continuous_breakage`
+### `qmom_1d_breakage_advection`
 
 Purpose: initialize and evolve a one-dimensional QMOM representation with
-continuous node motion and a discontinuous fragmentation source.
+advection node motion and a moment-source fragmentation source.
 
-Use this example when you want a readable QMOM transport workflow that keeps
-the Strang sequence visible: continuous half-step, moment source update, QMOM
-reconstruction, continuous half-step.
+Use this example when you want a readable QMOM phase-space evolution workflow that keeps
+the Strang sequence visible: phase-space advection half-step, moment-source update, QMOM
+reconstruction, phase-space advection half-step.
 
 Example README:
-[`examples/qmom_1d_continuous_breakage/README.md`](../../examples/qmom_1d_continuous_breakage/README.md)
+[`examples/qmom_1d_breakage_advection/README.md`](../../examples/qmom_1d_breakage_advection/README.md)
 
-### `cqmom_transport`
+### `cqmom_phase_space_evolution`
 
-Purpose: initialize and evolve a CQMOM state with continuous phase-space
-velocity and a discontinuous fragmentation source. The shipped configuration
+Purpose: initialize and evolve a CQMOM state with phase-space advection
+velocity and a moment-source fragmentation source. The shipped configuration
 is two-dimensional, while the physics callbacks are written in a
 dimension-ready style.
 
@@ -213,13 +213,13 @@ Use this example when your workflow needs multidimensional moments, a CQMOM
 hierarchy, and terminal quadrature output over time.
 
 Example README:
-[`examples/cqmom_transport/README.md`](../../examples/cqmom_transport/README.md)
+[`examples/cqmom_phase_space_evolution/README.md`](../../examples/cqmom_phase_space_evolution/README.md)
 
 ### `cqmom_2d_adaptive_node_counts`
 
 Purpose: evolve a two-dimensional CQMOM state with adaptive branch-local node
 counts that reduce during variance collapse and recover during a controlled
-discontinuous source pulse.
+moment-source pulse.
 
 Use this example when you want a deterministic demonstration of adaptive
 branch counts, branch persistence, and controlled node-count recovery.
@@ -260,7 +260,7 @@ roles:
 The sampled ensemble is finite, so its moments include statistical sampling
 uncertainty. Increasing the sample count generally reduces that uncertainty.
 
-### `qmom_1d_continuous_breakage_mc_initialization`
+### `qmom_1d_breakage_advection_mc_initialization`
 
 Purpose: initialize a one-dimensional QMOM workflow from a fixed-seed Monte
 Carlo sample and provide a companion direct Monte Carlo evolution executable.
@@ -270,21 +270,21 @@ sample-derived initialization, or when you want a one-dimensional sampled
 sample realization and reference workflow.
 
 Example README:
-[`examples/qmom_1d_continuous_breakage_mc_initialization/README.md`](../../examples/qmom_1d_continuous_breakage_mc_initialization/README.md)
+[`examples/qmom_1d_breakage_advection_mc_initialization/README.md`](../../examples/qmom_1d_breakage_advection_mc_initialization/README.md)
 
-### `qmom_1d_continuous_breakage_mc_local_rates`
+### `qmom_1d_breakage_advection_mc_local_rates`
 
 Purpose: keep one-dimensional raw moments as application-owned state while
-calling QMOMKit's continuous and discontinuous local moment-rate APIs inside
+calling QMOMKit's advection and moment-source local moment-rate APIs inside
 application-managed SSP-RK3 steps.
 
 Use this example when integrating QMOMKit's local rate operations into a host
 solver or finite-element/finite-volume residual workflow.
 
 Example README:
-[`examples/qmom_1d_continuous_breakage_mc_local_rates/README.md`](../../examples/qmom_1d_continuous_breakage_mc_local_rates/README.md)
+[`examples/qmom_1d_breakage_advection_mc_local_rates/README.md`](../../examples/qmom_1d_breakage_advection_mc_local_rates/README.md)
 
-### `cqmom_2d_continuous_breakage_mc_initialization`
+### `cqmom_2d_breakage_advection_mc_initialization`
 
 Purpose: initialize a two-dimensional CQMOM workflow from a fixed-seed Monte
 Carlo sample and provide a companion direct Monte Carlo evolution executable.
@@ -294,7 +294,7 @@ workflow with shared phase-space ordering, velocity callbacks, output
 conventions, and a direct sampled-ensemble reference path.
 
 Example README:
-[`examples/cqmom_2d_continuous_breakage_mc_initialization/README.md`](../../examples/cqmom_2d_continuous_breakage_mc_initialization/README.md)
+[`examples/cqmom_2d_breakage_advection_mc_initialization/README.md`](../../examples/cqmom_2d_breakage_advection_mc_initialization/README.md)
 
 ### `cqmom_condensing_droplets`
 
@@ -314,8 +314,8 @@ Executables:
 
 Use this example when you want a 3D sampled-initialization workflow where
 CQMOM and Monte Carlo start from the same finite sample realization and evolve
-under the same continuous-only droplet phase-space callback. Both paths use
-RK23; the CQMOM driver calls `advance_cqmom_continuous(...)`, and the Monte
+under the same advection-only droplet phase-space callback. Both paths use
+RK23; the CQMOM driver calls `advance_cqmom_advection(...)`, and the Monte
 Carlo driver calls `qmomkit::monte_carlo::evolve_ensemble(...)`.
 
 Build and run it with the normal standalone example pattern:
@@ -340,10 +340,10 @@ Example README:
 ### `cqmom_polydisperse_cavitation`
 
 Purpose: evolve a two-dimensional `(R,U)` CQMOM representation of a
-polydisperse bubble population through continuous cavitation dynamics, with a
+polydisperse bubble population through advection cavitation dynamics, with a
 direct Monte Carlo companion using the same finite sampled initialization.
 
-Use this example when you want a nonlinear continuous-only CQMOM application
+Use this example when you want a nonlinear advection-only CQMOM application
 with matching sampled-population and quadrature workflows.
 
 Example README:
@@ -358,9 +358,9 @@ If you are new to QMOMKit, a practical order is:
 1. `qmom_explicit_moments`
 2. `qmom_distribution_initialization`
 3. `qmom_1d_minimal`
-4. `qmom_1d_continuous_breakage`
+4. `qmom_1d_breakage_advection`
 5. `cqmom_independent_product_initialization`
-6. `cqmom_transport`
+6. `cqmom_phase_space_evolution`
 7. Optional initialization examples only when needed:
    `qmom_mixture_initialization`.
 8. Reference examples only when needed: `realizability_check` and Monte Carlo

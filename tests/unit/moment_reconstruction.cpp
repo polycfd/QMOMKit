@@ -400,7 +400,7 @@ void test_cqmom_moment_data_reconstructs_adaptive_quadrature()
     assert_vector_near(reconstructed.values, expected.values, 1.0e-10);
 }
 
-void test_continuous_moment_rates_one_dimensional_cases()
+void test_advection_moment_rates_one_dimensional_cases()
 {
     {
         const std::vector<double> weights{2.0};
@@ -408,7 +408,7 @@ void test_continuous_moment_rates_one_dimensional_cases()
         const std::vector<std::vector<double>> velocities{{0.5}};
         const std::vector<qmomkit::MultiIndex> indices{{0}, {1}, {2}, {3}};
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
 
         assert(rates[0] == 0.0);
         assert_vector_near(rates, {0.0, 1.0, 6.0, 27.0}, 1.0e-15);
@@ -419,7 +419,7 @@ void test_continuous_moment_rates_one_dimensional_cases()
         const std::vector<std::vector<double>> velocities{{0.5}, {-0.25}};
         const std::vector<qmomkit::MultiIndex> indices{{0}, {1}, {2}, {3}};
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
 
         assert(rates[0] == 0.0);
         assert_vector_near(rates, {0.0, -0.0625, -1.0, -1.875}, 1.0e-15);
@@ -430,7 +430,7 @@ void test_continuous_moment_rates_one_dimensional_cases()
         const std::vector<std::vector<double>> velocities{{0.0}, {0.0}, {0.0}};
         const std::vector<qmomkit::MultiIndex> indices{{0}, {1}, {4}};
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
 
         assert_vector_near(rates, {0.0, 0.0, 0.0}, 0.0);
     }
@@ -440,7 +440,7 @@ void test_continuous_moment_rates_one_dimensional_cases()
         const std::vector<std::vector<double>> velocities{{0.2}, {-0.2}};
         const std::vector<qmomkit::MultiIndex> indices{{1}, {2}};
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
 
         assert_vector_near(rates, {-0.2, -1.6}, 1.0e-15);
     }
@@ -450,14 +450,14 @@ void test_continuous_moment_rates_one_dimensional_cases()
         const std::vector<std::vector<double>> velocities{{2.0}};
         const std::vector<qmomkit::MultiIndex> indices{{0}, {1}, {2}};
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
 
         assert(rates[0] == 0.0);
         assert_vector_near(rates, {0.0, 8.0, 0.0}, 0.0);
     }
 }
 
-void test_continuous_moment_rates_multidimensional_cases()
+void test_advection_moment_rates_multidimensional_cases()
 {
     {
         const std::vector<double> weights{0.2, 0.3};
@@ -465,7 +465,7 @@ void test_continuous_moment_rates_multidimensional_cases()
         const std::vector<std::vector<double>> velocities{{0.4, -0.2}, {-0.1, 0.3}};
         const std::vector<qmomkit::MultiIndex> indices{{1, 0}, {0, 1}, {1, 1}, {2, 1}};
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
 
         assert_vector_near(rates, {0.05, 0.05, 0.045, 0.1}, 1.0e-15);
     }
@@ -475,7 +475,7 @@ void test_continuous_moment_rates_multidimensional_cases()
         const std::vector<std::vector<double>> velocities{{7.0, 11.0, 13.0}};
         const std::vector<qmomkit::MultiIndex> indices{{0, 0, 0}, {1, 1, 0}, {0, 2, 1}, {2, 0, 1}};
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
 
         assert(rates[0] == 0.0);
         assert_vector_near(rates, {0.0, 86.0, 894.0, 384.0}, 1.0e-15);
@@ -489,7 +489,7 @@ void test_continuous_moment_rates_multidimensional_cases()
         const std::vector<std::vector<double>> velocities{{5.0, 7.0}};
         const std::vector<qmomkit::MultiIndex> indices{{1, 2}};
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
 
         assert_vector_near(rates, {193.5}, 1.0e-15);
     }
@@ -499,13 +499,13 @@ void test_continuous_moment_rates_multidimensional_cases()
         const std::vector<std::vector<double>> velocities{{0.25, -0.5}, {0.75, 0.5}, {-1.0, 0.25}};
         const std::vector<qmomkit::MultiIndex> indices{{2, 0}, {0, 2}, {1, 1}};
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
 
         assert_vector_near(rates, {-1.7, 1.7, -1.35}, 1.0e-15);
     }
 }
 
-void test_continuous_moment_rates_match_finite_difference()
+void test_advection_moment_rates_match_finite_difference()
 {
     {
         const std::vector<double> weights{0.25, 0.75};
@@ -523,7 +523,7 @@ void test_continuous_moment_rates_match_finite_difference()
             finite_difference.push_back((perturbed_moments[i] - moments[i]) / epsilon);
         }
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
         assert_vector_near(rates, finite_difference, 1.0e-6);
     }
     {
@@ -542,55 +542,55 @@ void test_continuous_moment_rates_match_finite_difference()
             finite_difference.push_back((perturbed_moments[i] - moments[i]) / epsilon);
         }
 
-        const std::vector<double> rates = qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, indices);
+        const std::vector<double> rates = qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, indices);
         assert_vector_near(rates, finite_difference, 1.0e-6);
     }
 }
 
-void test_continuous_moment_rates_reject_invalid_shapes()
+void test_advection_moment_rates_reject_invalid_shapes()
 {
     const std::vector<double> weights{1.0, 2.0};
     const std::vector<std::vector<double>> abscissas{{0.0, 1.0}, {2.0, 3.0}};
     const std::vector<std::vector<double>> velocities{{0.5, 0.25}, {0.0, -0.25}};
     const std::vector<qmomkit::MultiIndex> indices{{1, 0}};
 
-    assert_throws_invalid_argument_message([&] { (void)qmomkit::internal::reconstruct_continuous_moment_rates({}, abscissas, velocities, indices); },
-                                           "Continuous moment-rate reconstruction requires at least one terminal node.");
-    assert_throws_invalid_argument_message([&] { (void)qmomkit::internal::reconstruct_continuous_moment_rates(weights, {}, velocities, indices); },
-                                           "Continuous moment-rate reconstruction requires at least one phase-space dimension.");
+    assert_throws_invalid_argument_message([&] { (void)qmomkit::internal::reconstruct_advection_moment_rates({}, abscissas, velocities, indices); },
+                                           "Advection moment-rate reconstruction requires at least one terminal node.");
+    assert_throws_invalid_argument_message([&] { (void)qmomkit::internal::reconstruct_advection_moment_rates(weights, {}, velocities, indices); },
+                                           "Advection moment-rate reconstruction requires at least one phase-space dimension.");
     assert_throws_invalid_argument_message(
-        [&] { (void)qmomkit::internal::reconstruct_continuous_moment_rates(weights, {{0.0}, {2.0, 3.0}}, velocities, indices); },
-        "Every continuous moment-rate abscissa row must contain one value per terminal node.");
+        [&] { (void)qmomkit::internal::reconstruct_advection_moment_rates(weights, {{0.0}, {2.0, 3.0}}, velocities, indices); },
+        "Every advection moment-rate abscissa row must contain one value per terminal node.");
     assert_throws_invalid_argument_message(
-        [&] { (void)qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, {{0.5, 0.25}}, indices); },
-        "Continuous moment-rate velocity count must match terminal node count.");
+        [&] { (void)qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, {{0.5, 0.25}}, indices); },
+        "Advection moment-rate velocity count must match terminal node count.");
     assert_throws_invalid_argument_message(
-        [&] { (void)qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, {{0.5}, {0.0, -0.25}}, indices); },
-        "Continuous moment-rate velocities must contain one component per phase-space dimension.");
+        [&] { (void)qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, {{0.5}, {0.0, -0.25}}, indices); },
+        "Advection moment-rate velocities must contain one component per phase-space dimension.");
     assert_throws_invalid_argument_message([&]
-                                           { (void)qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas, velocities, {{1}}); },
-                                           "Continuous moment-rate index rank must match the phase-space dimension count.");
+                                           { (void)qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas, velocities, {{1}}); },
+                                           "Advection moment-rate index rank must match the phase-space dimension count.");
     assert_throws_invalid_argument_message(
         [&]
         {
-            (void)qmomkit::internal::reconstruct_continuous_moment_rates({1.0, std::numeric_limits<double>::infinity()}, abscissas, velocities,
-                                                                         indices);
+            (void)qmomkit::internal::reconstruct_advection_moment_rates({1.0, std::numeric_limits<double>::infinity()}, abscissas, velocities,
+                                                                        indices);
         },
-        "Continuous moment-rate weights must be finite.");
+        "Advection moment-rate weights must be finite.");
     assert_throws_invalid_argument_message(
         [&]
         {
-            (void)qmomkit::internal::reconstruct_continuous_moment_rates(weights, {{0.0, std::numeric_limits<double>::quiet_NaN()}, {2.0, 3.0}},
-                                                                         velocities, indices);
+            (void)qmomkit::internal::reconstruct_advection_moment_rates(weights, {{0.0, std::numeric_limits<double>::quiet_NaN()}, {2.0, 3.0}},
+                                                                        velocities, indices);
         },
-        "Continuous moment-rate abscissas must be finite.");
+        "Advection moment-rate abscissas must be finite.");
     assert_throws_invalid_argument_message(
         [&]
         {
-            (void)qmomkit::internal::reconstruct_continuous_moment_rates(weights, abscissas,
-                                                                         {{0.5, 0.25}, {0.0, std::numeric_limits<double>::infinity()}}, indices);
+            (void)qmomkit::internal::reconstruct_advection_moment_rates(weights, abscissas,
+                                                                        {{0.5, 0.25}, {0.0, std::numeric_limits<double>::infinity()}}, indices);
         },
-        "Continuous moment-rate velocities must be finite.");
+        "Advection moment-rate velocities must be finite.");
 }
 
 void test_cqmom_moment_data_rejects_mismatched_layout()
@@ -699,10 +699,10 @@ int main()
     test_cqmom_moment_data_reconstructs_unequal_node_counts();
     test_cqmom_reconstructs_adaptive_terminal_moments();
     test_cqmom_moment_data_reconstructs_adaptive_quadrature();
-    test_continuous_moment_rates_one_dimensional_cases();
-    test_continuous_moment_rates_multidimensional_cases();
-    test_continuous_moment_rates_match_finite_difference();
-    test_continuous_moment_rates_reject_invalid_shapes();
+    test_advection_moment_rates_one_dimensional_cases();
+    test_advection_moment_rates_multidimensional_cases();
+    test_advection_moment_rates_match_finite_difference();
+    test_advection_moment_rates_reject_invalid_shapes();
     test_cqmom_moment_data_rejects_mismatched_layout();
     test_cqmom_moment_data_rejects_noncanonical_fixed_layout();
     test_reconstruction_rejects_invalid_qmom_storage();

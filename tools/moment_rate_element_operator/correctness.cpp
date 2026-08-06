@@ -37,7 +37,7 @@ void require_vector_near(const std::vector<double>& actual, const std::vector<do
     }
 }
 
-std::vector<double> qmom_single_node_continuous_rates(const std::vector<double>& moments, const double velocity)
+std::vector<double> qmom_single_node_advection_rates(const std::vector<double>& moments, const double velocity)
 {
     const double weight = moments[0];
     const double abscissa = moments[1] / moments[0];
@@ -49,7 +49,7 @@ std::vector<double> qmom_single_node_continuous_rates(const std::vector<double>&
     return rates;
 }
 
-std::vector<double> manual_qmom_discontinuous_reference(const Element& element, const std::vector<double>& coefficients,
+std::vector<double> manual_qmom_moment_source_reference(const Element& element, const std::vector<double>& coefficients,
                                                         const std::size_t moment_count, const double time)
 {
     const std::vector<double> local_moments = interpolate_element_state(element, coefficients, moment_count);
@@ -65,7 +65,7 @@ std::vector<double> manual_qmom_discontinuous_reference(const Element& element, 
     return project_rates_to_coefficients(element, local_rates, moment_count);
 }
 
-std::vector<double> manual_cqmom_discontinuous_reference(const Element& element, const std::vector<double>& coefficients,
+std::vector<double> manual_cqmom_moment_source_reference(const Element& element, const std::vector<double>& coefficients,
                                                          const qmomkit::CqmomMomentLayout& layout, const double time)
 {
     const std::size_t moment_count = layout.required_indices.size();
@@ -84,7 +84,7 @@ std::vector<double> manual_cqmom_discontinuous_reference(const Element& element,
     return project_rates_to_coefficients(element, local_rates, moment_count);
 }
 
-void check_qmom_continuous()
+void check_qmom_advection()
 {
     const Element element = make_lagrange_element(2);
     const std::vector<double> moments = qmom_moments_from_terminals({2.0}, {3.0}, 4);
@@ -92,14 +92,14 @@ void check_qmom_continuous()
     const double velocity_value = 0.5;
     const qmomkit::PhaseSpaceVelocity velocity = [velocity_value](double, const std::vector<double>&) { return std::vector<double>{velocity_value}; };
 
-    const ElementRhsResult result = evaluate_qmom_continuous_rhs(element, coefficients, moments.size(), 1, 0.0, velocity);
-    require(result.ok, "QMOM continuous RHS failed: " + describe_failure(result));
+    const ElementRhsResult result = evaluate_qmom_advection_rhs(element, coefficients, moments.size(), 1, 0.0, velocity);
+    require(result.ok, "QMOM advection RHS failed: " + describe_failure(result));
 
-    const std::vector<double> local_expected = qmom_single_node_continuous_rates(moments, velocity_value);
-    require_vector_near(result.coefficient_rates, constant_coefficients(element, local_expected), 1.0e-12, "QMOM continuous coefficient rate");
+    const std::vector<double> local_expected = qmom_single_node_advection_rates(moments, velocity_value);
+    require_vector_near(result.coefficient_rates, constant_coefficients(element, local_expected), 1.0e-12, "QMOM advection coefficient rate");
 }
 
-void check_qmom_discontinuous()
+void check_qmom_moment_source()
 {
     const Element element = make_lagrange_element(2);
     std::vector<double> coefficients = constant_coefficients(element, qmom_moments_from_terminals({0.4, 0.6}, {-0.5, 1.2}, 4));
@@ -117,13 +117,13 @@ void check_qmom_discontinuous()
         return rates;
     };
 
-    const ElementRhsResult result = evaluate_qmom_discontinuous_rhs(element, coefficients, 4, 0.25, source);
-    require(result.ok, "QMOM discontinuous RHS failed: " + describe_failure(result));
-    require_vector_near(result.coefficient_rates, manual_qmom_discontinuous_reference(element, coefficients, 4, 0.25), 1.0e-12,
-                        "QMOM discontinuous coefficient rate");
+    const ElementRhsResult result = evaluate_qmom_moment_source_rhs(element, coefficients, 4, 0.25, source);
+    require(result.ok, "QMOM moment-source RHS failed: " + describe_failure(result));
+    require_vector_near(result.coefficient_rates, manual_qmom_moment_source_reference(element, coefficients, 4, 0.25), 1.0e-12,
+                        "QMOM moment-source coefficient rate");
 }
 
-void check_cqmom_continuous()
+void check_cqmom_advection()
 {
     const Element element = make_lagrange_element(2);
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
@@ -138,8 +138,8 @@ void check_cqmom_continuous()
     const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinate)
     { return std::vector<double>{0.1 + 0.05 * coordinate[0], -0.2 * coordinate[1]}; };
 
-    const ElementRhsResult result = evaluate_cqmom_continuous_rhs(element, coefficients, lean_case, 0.0, velocity);
-    require(result.ok, "CQMOM continuous RHS failed: " + describe_failure(result));
+    const ElementRhsResult result = evaluate_cqmom_advection_rhs(element, coefficients, lean_case, 0.0, velocity);
+    require(result.ok, "CQMOM advection RHS failed: " + describe_failure(result));
 
     const std::vector<double> local_moments = interpolate_element_state(element, coefficients, lean_case.moments.values.size());
     std::vector<double> local_rates(element.quadrature_count() * lean_case.moments.values.size(), 0.0);
@@ -148,18 +148,18 @@ void check_cqmom_continuous()
         qmomkit::CqmomLeanCase local_case = lean_case;
         local_case.moments.values.assign(local_moments.begin() + static_cast<std::ptrdiff_t>(q * lean_case.moments.values.size()),
                                          local_moments.begin() + static_cast<std::ptrdiff_t>((q + 1) * lean_case.moments.values.size()));
-        const qmomkit::CqmomContinuousMomentRateResult local = qmomkit::evaluate_cqmom_continuous_moment_rates(local_case, 0.0, velocity);
-        require(local.ok(), "manual CQMOM continuous local call failed");
+        const qmomkit::CqmomAdvectionMomentRateResult local = qmomkit::evaluate_cqmom_advection_moment_rates(local_case, 0.0, velocity);
+        require(local.ok(), "manual CQMOM advection local call failed");
         for (std::size_t moment = 0; moment < lean_case.moments.values.size(); ++moment)
         {
             local_rates[q * lean_case.moments.values.size() + moment] = local.rates->values[moment];
         }
     }
     require_vector_near(result.coefficient_rates, project_rates_to_coefficients(element, local_rates, lean_case.moments.values.size()), 1.0e-12,
-                        "CQMOM continuous coefficient rate");
+                        "CQMOM advection coefficient rate");
 }
 
-void check_cqmom_discontinuous()
+void check_cqmom_moment_source()
 {
     const Element element = make_lagrange_element(2);
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
@@ -181,11 +181,11 @@ void check_cqmom_discontinuous()
         return qmomkit::CqmomMomentRate{rates};
     };
 
-    const ElementRhsResult result = evaluate_cqmom_discontinuous_rhs(element, coefficients, moments, 0.25, source);
-    require(result.ok, "CQMOM discontinuous RHS failed: " + describe_failure(result));
-    require(inspected_context, "CQMOM discontinuous source was not invoked");
-    require_vector_near(result.coefficient_rates, manual_cqmom_discontinuous_reference(element, coefficients, layout, 0.25), 1.0e-12,
-                        "CQMOM discontinuous coefficient rate");
+    const ElementRhsResult result = evaluate_cqmom_moment_source_rhs(element, coefficients, moments, 0.25, source);
+    require(result.ok, "CQMOM moment-source RHS failed: " + describe_failure(result));
+    require(inspected_context, "CQMOM moment source was not invoked");
+    require_vector_near(result.coefficient_rates, manual_cqmom_moment_source_reference(element, coefficients, layout, 0.25), 1.0e-12,
+                        "CQMOM moment-source coefficient rate");
 }
 
 void check_external_ssp_rk3()
@@ -194,16 +194,16 @@ void check_external_ssp_rk3()
     const std::vector<double> qmom_moments = qmom_moments_from_terminals({2.0}, {3.0}, 4);
     const std::vector<double> qmom_coefficients = constant_coefficients(element, qmom_moments);
     const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.02}; };
-    const ElementRhsResult continuous_step =
+    const ElementRhsResult advection_step =
         ssp_rk3_coefficient_step(qmom_coefficients, 0.0, 0.05, [&element, &velocity](const double time, const std::vector<double>& coefficients)
-                                 { return evaluate_qmom_continuous_rhs(element, coefficients, 4, 1, time, velocity); });
-    require(continuous_step.ok, "external continuous SSP-RK3 step failed: " + describe_failure(continuous_step));
+                                 { return evaluate_qmom_advection_rhs(element, coefficients, 4, 1, time, velocity); });
+    require(advection_step.ok, "external advection SSP-RK3 step failed: " + describe_failure(advection_step));
 
     const qmomkit::MomentSource source = [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 0.01); };
-    const ElementRhsResult discontinuous_step =
+    const ElementRhsResult moment_source_step =
         ssp_rk3_coefficient_step(qmom_coefficients, 0.0, 0.05, [&element, &source](const double time, const std::vector<double>& coefficients)
-                                 { return evaluate_qmom_discontinuous_rhs(element, coefficients, 4, time, source); });
-    require(discontinuous_step.ok, "external discontinuous SSP-RK3 step failed: " + describe_failure(discontinuous_step));
+                                 { return evaluate_qmom_moment_source_rhs(element, coefficients, 4, time, source); });
+    require(moment_source_step.ok, "external moment-source SSP-RK3 stage failed: " + describe_failure(moment_source_step));
 }
 
 void check_failure_diagnostics()
@@ -212,8 +212,8 @@ void check_failure_diagnostics()
     const std::vector<double> nonrealizable{1.0, 0.0, -1.0, 0.0};
     const std::vector<double> coefficients = constant_coefficients(element, nonrealizable);
     const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.0}; };
-    const ElementRhsResult result = evaluate_qmom_continuous_rhs(element, coefficients, nonrealizable.size(), 2, 0.0, velocity);
-    require(!result.ok, "expected failed local continuous rate call");
+    const ElementRhsResult result = evaluate_qmom_advection_rhs(element, coefficients, nonrealizable.size(), 2, 0.0, velocity);
+    require(!result.ok, "expected failed local advection rate call");
     require(result.failed_quadrature_point == 0, "failed quadrature-point index was not reported");
     require(result.status == "inversion_failed", "public rate status was not reported");
     require(result.inversion_status == "not_realizable", "underlying inversion status was not reported");
@@ -225,10 +225,10 @@ int main()
 {
     try
     {
-        check_qmom_continuous();
-        check_qmom_discontinuous();
-        check_cqmom_continuous();
-        check_cqmom_discontinuous();
+        check_qmom_advection();
+        check_qmom_moment_source();
+        check_cqmom_advection();
+        check_cqmom_moment_source();
         check_external_ssp_rk3();
         check_failure_diagnostics();
     }

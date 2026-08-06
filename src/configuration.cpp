@@ -37,7 +37,7 @@ constexpr std::string_view mixture_component_section_prefix = "initial.mixture.c
 constexpr std::string_view independent_product_dimension_section_prefix = "initial.dimension.";
 constexpr std::string_view realizability_section = "time_integration.realizability";
 constexpr std::string_view realizability_key_prefix = "time_integration.realizability.";
-constexpr std::string_view transport_scheme_key = "time_integration.scheme";
+constexpr std::string_view phase_space_evolution_scheme_key = "time_integration.scheme";
 constexpr std::string_view node_advection_section = "time_integration.node_advection";
 constexpr std::string_view node_advection_key_prefix = "time_integration.node_advection.";
 constexpr std::string_view node_advection_scheme_key = "time_integration.node_advection.scheme";
@@ -706,7 +706,7 @@ std::vector<std::string> qmom_allowed_keys()
 
 void append_time_integration_allowed_keys(std::vector<std::string>& allowed)
 {
-    allowed.push_back(std::string(transport_scheme_key));
+    allowed.push_back(std::string(phase_space_evolution_scheme_key));
     allowed.push_back(std::string(node_advection_scheme_key));
     allowed.push_back(std::string(adaptive_relative_tolerance_key));
     allowed.push_back(std::string(adaptive_absolute_tolerance_key));
@@ -1272,21 +1272,22 @@ std::optional<MomentSupport> parse_moment_support(ParsedFile& parsed, const std:
     return std::nullopt;
 }
 
-std::optional<TransportScheme> parse_transport_scheme_value(ParsedFile& parsed, const Entry& entry, const std::string& source_name)
+std::optional<PhaseSpaceEvolutionScheme> parse_phase_space_evolution_scheme_value(ParsedFile& parsed, const Entry& entry,
+                                                                                  const std::string& source_name)
 {
     if (entry.value == "strang")
     {
-        return TransportScheme::strang;
+        return PhaseSpaceEvolutionScheme::strang;
     }
-    if (entry.value == "cd")
+    if (entry.value == "advsrc")
     {
-        return TransportScheme::cd;
+        return PhaseSpaceEvolutionScheme::advsrc;
     }
-    if (entry.value == "dc")
+    if (entry.value == "srcadv")
     {
-        return TransportScheme::dc;
+        return PhaseSpaceEvolutionScheme::srcadv;
     }
-    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry.line, "time_integration.scheme must be strang, cd, or dc.");
+    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry.line, "time_integration.scheme must be strang, advsrc, or srcadv.");
     return std::nullopt;
 }
 
@@ -1540,12 +1541,12 @@ bool is_output_key(const std::string& key)
     return key.rfind(std::string(output_key_prefix), 0) == 0;
 }
 
-void validate_optional_transport_scheme(ParsedFile& parsed, const std::string& source_name)
+void validate_optional_phase_space_evolution_scheme(ParsedFile& parsed, const std::string& source_name)
 {
-    const Entry* entry = find_entry(parsed, std::string(transport_scheme_key));
+    const Entry* entry = find_entry(parsed, std::string(phase_space_evolution_scheme_key));
     if (entry != nullptr)
     {
-        static_cast<void>(parse_transport_scheme_value(parsed, *entry, source_name));
+        static_cast<void>(parse_phase_space_evolution_scheme_value(parsed, *entry, source_name));
     }
 }
 
@@ -1559,7 +1560,7 @@ void validate_optional_realizability_policy(ParsedFile& parsed, const std::strin
     static_cast<void>(parse_realizability_policy_from_parsed(parsed, source_name));
 }
 
-void reject_unknown_transport_sections(ParsedFile& parsed, const std::string& source_name)
+void reject_unknown_phase_space_evolution_sections(ParsedFile& parsed, const std::string& source_name)
 {
     for (const auto& item : parsed.sections)
     {
@@ -1571,7 +1572,7 @@ void reject_unknown_transport_sections(ParsedFile& parsed, const std::string& so
     }
 }
 
-void reject_unknown_transport_keys(ParsedFile& parsed, const std::string& source_name)
+void reject_unknown_phase_space_evolution_keys(ParsedFile& parsed, const std::string& source_name)
 {
     for (const auto& item : parsed.scalars)
     {
@@ -1579,7 +1580,7 @@ void reject_unknown_transport_keys(ParsedFile& parsed, const std::string& source
         {
             continue;
         }
-        if (item.first == std::string(transport_scheme_key) || is_realizability_key(item.first) || is_node_advection_key(item.first))
+        if (item.first == std::string(phase_space_evolution_scheme_key) || is_realizability_key(item.first) || is_node_advection_key(item.first))
         {
             continue;
         }
@@ -1587,13 +1588,13 @@ void reject_unknown_transport_keys(ParsedFile& parsed, const std::string& source
     }
 }
 
-std::optional<TransportScheme> parse_transport_scheme_from_parsed(ParsedFile& parsed, const std::string& source_name)
+std::optional<PhaseSpaceEvolutionScheme> parse_phase_space_evolution_scheme_from_parsed(ParsedFile& parsed, const std::string& source_name)
 {
-    TransportScheme scheme = TransportScheme::strang;
-    const Entry* entry = find_entry(parsed, std::string(transport_scheme_key));
+    PhaseSpaceEvolutionScheme scheme = PhaseSpaceEvolutionScheme::strang;
+    const Entry* entry = find_entry(parsed, std::string(phase_space_evolution_scheme_key));
     if (entry != nullptr)
     {
-        const std::optional<TransportScheme> parsed_scheme = parse_transport_scheme_value(parsed, *entry, source_name);
+        const std::optional<PhaseSpaceEvolutionScheme> parsed_scheme = parse_phase_space_evolution_scheme_value(parsed, *entry, source_name);
         if (parsed_scheme.has_value())
         {
             scheme = *parsed_scheme;
@@ -1690,7 +1691,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
     const bool explicit_moments = has_explicit_cqmom_moments(parsed);
     reject_unknown_cqmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
-    validate_optional_transport_scheme(parsed, source_name);
+    validate_optional_phase_space_evolution_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
     validate_optional_realizability_policy(parsed, source_name);
     std::optional<CqmomDiagnosticLevel> diagnostic_level = parse_cqmom_diagnostic_level(parsed, source_name);
@@ -1907,7 +1908,7 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(
     const bool explicit_moments = has_explicit_qmom_moments(parsed);
     reject_unknown_qmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
-    validate_optional_transport_scheme(parsed, source_name);
+    validate_optional_phase_space_evolution_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
     validate_optional_realizability_policy(parsed, source_name);
     validate_format_version(parsed, source_name);
@@ -2003,7 +2004,7 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
     const bool explicit_moments = has_explicit_cqmom_moments(parsed);
     reject_unknown_cqmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
-    validate_optional_transport_scheme(parsed, source_name);
+    validate_optional_phase_space_evolution_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
     validate_optional_realizability_policy(parsed, source_name);
     validate_optional_cqmom_diagnostic_level(parsed, source_name);
@@ -2269,7 +2270,7 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     const bool explicit_moments = has_explicit_qmom_moments(parsed);
     reject_unknown_qmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
-    validate_optional_transport_scheme(parsed, source_name);
+    validate_optional_phase_space_evolution_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
     validate_optional_realizability_policy(parsed, source_name);
     validate_format_version(parsed, source_name);
@@ -2432,23 +2433,23 @@ ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::s
     return ConfigurationResult<RealizabilityPolicy>{*policy};
 }
 
-ConfigurationResult<TransportScheme> parse_transport_scheme(const std::string_view text, std::string source_name)
+ConfigurationResult<PhaseSpaceEvolutionScheme> parse_phase_space_evolution_scheme(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
     if (!parsed.errors.empty())
     {
-        return failure_result<TransportScheme>(std::move(parsed));
+        return failure_result<PhaseSpaceEvolutionScheme>(std::move(parsed));
     }
 
-    reject_unknown_transport_sections(parsed, source_name);
-    reject_unknown_transport_keys(parsed, source_name);
-    const std::optional<TransportScheme> scheme = parse_transport_scheme_from_parsed(parsed, source_name);
+    reject_unknown_phase_space_evolution_sections(parsed, source_name);
+    reject_unknown_phase_space_evolution_keys(parsed, source_name);
+    const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
 
     if (!parsed.errors.empty() || !scheme.has_value())
     {
-        return failure_result<TransportScheme>(std::move(parsed));
+        return failure_result<PhaseSpaceEvolutionScheme>(std::move(parsed));
     }
-    return ConfigurationResult<TransportScheme>{*scheme};
+    return ConfigurationResult<PhaseSpaceEvolutionScheme>{*scheme};
 }
 
 ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(const std::string_view text, std::string source_name)
@@ -2459,8 +2460,8 @@ ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(const std
         return failure_result<NodeAdvectionOptions>(std::move(parsed));
     }
 
-    reject_unknown_transport_sections(parsed, source_name);
-    reject_unknown_transport_keys(parsed, source_name);
+    reject_unknown_phase_space_evolution_sections(parsed, source_name);
+    reject_unknown_phase_space_evolution_keys(parsed, source_name);
     const std::optional<NodeAdvectionOptions> options = parse_node_advection_options_from_parsed(parsed, source_name);
 
     if (!parsed.errors.empty() || !options.has_value())
@@ -2470,55 +2471,55 @@ ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(const std
     return ConfigurationResult<NodeAdvectionOptions>{*options};
 }
 
-ConfigurationResult<QmomTransportOptions> parse_qmom_transport_options(const std::string_view text, std::string source_name)
+ConfigurationResult<QmomPhaseSpaceEvolutionOptions> parse_qmom_phase_space_evolution_options(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
     if (!parsed.errors.empty())
     {
-        return failure_result<QmomTransportOptions>(std::move(parsed));
+        return failure_result<QmomPhaseSpaceEvolutionOptions>(std::move(parsed));
     }
 
-    reject_unknown_transport_sections(parsed, source_name);
-    reject_unknown_transport_keys(parsed, source_name);
+    reject_unknown_phase_space_evolution_sections(parsed, source_name);
+    reject_unknown_phase_space_evolution_keys(parsed, source_name);
     reject_unknown_qmom_option_keys(parsed, source_name);
-    const std::optional<TransportScheme> scheme = parse_transport_scheme_from_parsed(parsed, source_name);
+    const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
     const std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
 
     if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value() || !qmom_options.has_value())
     {
-        return failure_result<QmomTransportOptions>(std::move(parsed));
+        return failure_result<QmomPhaseSpaceEvolutionOptions>(std::move(parsed));
     }
 
-    QmomTransportOptions options;
+    QmomPhaseSpaceEvolutionOptions options;
     options.scheme = *scheme;
     options.node_options = *node_options;
     options.qmom_options = *qmom_options;
-    return ConfigurationResult<QmomTransportOptions>{std::move(options)};
+    return ConfigurationResult<QmomPhaseSpaceEvolutionOptions>{std::move(options)};
 }
 
-ConfigurationResult<CqmomTransportOptions> parse_cqmom_transport_options(const std::string_view text, std::string source_name)
+ConfigurationResult<CqmomPhaseSpaceEvolutionOptions> parse_cqmom_phase_space_evolution_options(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
     if (!parsed.errors.empty())
     {
-        return failure_result<CqmomTransportOptions>(std::move(parsed));
+        return failure_result<CqmomPhaseSpaceEvolutionOptions>(std::move(parsed));
     }
 
-    reject_unknown_transport_sections(parsed, source_name);
-    reject_unknown_transport_keys(parsed, source_name);
-    const std::optional<TransportScheme> scheme = parse_transport_scheme_from_parsed(parsed, source_name);
+    reject_unknown_phase_space_evolution_sections(parsed, source_name);
+    reject_unknown_phase_space_evolution_keys(parsed, source_name);
+    const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
 
     if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value())
     {
-        return failure_result<CqmomTransportOptions>(std::move(parsed));
+        return failure_result<CqmomPhaseSpaceEvolutionOptions>(std::move(parsed));
     }
 
-    CqmomTransportOptions options;
+    CqmomPhaseSpaceEvolutionOptions options;
     options.scheme = *scheme;
     options.node_options = *node_options;
-    return ConfigurationResult<CqmomTransportOptions>{std::move(options)};
+    return ConfigurationResult<CqmomPhaseSpaceEvolutionOptions>{std::move(options)};
 }
 
 ConfigurationResult<OutputOptions> parse_output_options(const std::string_view text, std::string source_name)
@@ -2667,24 +2668,24 @@ ConfigurationResult<RealizabilityPolicy> load_realizability_policy(const std::fi
     return parse_realizability_policy(*contents, filename.string());
 }
 
-ConfigurationResult<QmomTransportOptions> load_qmom_transport_options(const std::filesystem::path& filename)
+ConfigurationResult<QmomPhaseSpaceEvolutionOptions> load_qmom_phase_space_evolution_options(const std::filesystem::path& filename)
 {
     std::optional<std::string> contents = read_configuration_file(filename);
     if (!contents.has_value())
     {
-        return file_failure<QmomTransportOptions>(filename);
+        return file_failure<QmomPhaseSpaceEvolutionOptions>(filename);
     }
-    return parse_qmom_transport_options(*contents, filename.string());
+    return parse_qmom_phase_space_evolution_options(*contents, filename.string());
 }
 
-ConfigurationResult<CqmomTransportOptions> load_cqmom_transport_options(const std::filesystem::path& filename)
+ConfigurationResult<CqmomPhaseSpaceEvolutionOptions> load_cqmom_phase_space_evolution_options(const std::filesystem::path& filename)
 {
     std::optional<std::string> contents = read_configuration_file(filename);
     if (!contents.has_value())
     {
-        return file_failure<CqmomTransportOptions>(filename);
+        return file_failure<CqmomPhaseSpaceEvolutionOptions>(filename);
     }
-    return parse_cqmom_transport_options(*contents, filename.string());
+    return parse_cqmom_phase_space_evolution_options(*contents, filename.string());
 }
 
 } // namespace qmomkit::config

@@ -24,12 +24,12 @@ struct BinaryFragmentationParameters
 
 void validate_binary_fragmentation_parameters(const BinaryFragmentationParameters& parameters);
 
-// Builds the discontinuous CQMOM source for binary fragmentation, capturing the
+// Builds the CQMOM moment source for binary fragmentation, capturing the
 // example parameters and CQMOM numerical options by value.
 [[nodiscard]] qmomkit::CqmomMomentSource binary_breakage_source(const qmomkit::CqmomCase& cqmom_case,
                                                                 const BinaryFragmentationParameters& parameters);
 
-// Applies one stochastic source-stage interval in place; the generator advances
+// Applies one stochastic moment-source interval in place; the generator advances
 // by reference so the example seed controls reproducibility.
 void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, double step_size, std::mt19937_64& generator,
                            const BinaryFragmentationParameters& parameters);

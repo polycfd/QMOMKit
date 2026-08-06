@@ -14,7 +14,7 @@ for automated development tools.
 ## Project Philosophy
 
 QMOMKit is a reusable C++ library for QMOM, CQMOM, recursive CQMOM, and
-moment-transport algorithms. The core package remains independent of CFD
+phase-space evolution algorithms. The core package remains independent of CFD
 frameworks, physical models, application domains, meshes, boundary conditions,
 and parallel-runtime assumptions.
 
@@ -151,7 +151,7 @@ API changes should preserve public-header coverage. Package and export changes
 should preserve installed-package consumer validation.
 
 Scientific changes require more than matching a previous regression result.
-When a method, tolerance, status rule, reconstruction path, transport update, or
+When a method, tolerance, status rule, reconstruction path, phase-space evolution update, or
 realizability decision changes the numerical behavior, the relevant validation
 assumptions should be updated and documented. Numerical discrepancies should be
 explained rather than hidden by undocumented tolerance changes.

@@ -108,8 +108,8 @@ struct BoundaryAdvance
     std::optional<qmomkit::CqmomQuadrature> boundary_quadrature;
     std::optional<qmomkit::CqmomState> final_state;
     std::optional<qmomkit::CqmomQuadrature> final_quadrature;
-    qmomkit::TransportDiagnostics source_diagnostics;
-    qmomkit::TransportStage failed_stage = qmomkit::TransportStage::none;
+    qmomkit::PhaseSpaceEvolutionDiagnostics moment_source_diagnostics;
+    qmomkit::PhaseSpaceEvolutionStage failed_stage = qmomkit::PhaseSpaceEvolutionStage::none;
     double source_start_time = 0.0;
     double boundary_time = 0.0;
     std::string stage_label;

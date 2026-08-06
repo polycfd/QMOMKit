@@ -10,7 +10,7 @@ guidance, see `testing.md`.
 ## Package Role
 
 QMOMKitMonteCarlo provides finite ensemble sampling, ensemble moment estimation,
-continuous sample evolution, text output, and comparison utilities. It is a
+advection sample evolution, text output, and comparison utilities. It is a
 companion package for sample-based analysis and stochastic validation
 references.
 

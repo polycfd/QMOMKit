@@ -5,7 +5,7 @@
 QMOMKit is an application-agnostic C++ library for quadrature-based moment
 methods, including one-dimensional QMOM, multidimensional and recursive CQMOM,
 raw-moment initialization, realizability diagnostics, quadrature
-reconstruction, and moment-transport utilities.
+reconstruction, and phase-space evolution utilities.
 
 QMOMKit converts raw moments of a number density function into quadrature
 representations that can be embedded in larger simulation, validation, or
@@ -31,7 +31,7 @@ docs/user/
     usage.
 
 docs/developer/
-    Architecture, numerical conventions, algorithm design, transport,
+    Architecture, numerical conventions, algorithm design, phase-space evolution,
     validation, testing, benchmarking, and engineering practices.
 
 examples/
@@ -167,7 +167,7 @@ including:
 - diagnostics;
 - moment containers;
 - quadrature representations;
-- transport state;
+- phase-space evolution state;
 - documented algorithm entry points.
 
 Do not expose parser internals, temporary solver workspaces, private
@@ -210,7 +210,7 @@ When a convention is ambiguous, make the assumption explicit and support it
 with an analytical, manufactured, convergence, or independently generated
 validation case.
 
-## Transport and Time Integration
+## Phase-Space Evolution and Time Integration
 
 QMOMKit provides numerical operations for advancing moments and quadrature
 states. Application physics enters through callbacks or caller-provided rate
@@ -232,12 +232,12 @@ QMOMKit does not implement general spatial PDE boundary conditions. Injection,
 removal, nucleation, or other phase-space boundary contributions may be
 represented through documented moment-rate callbacks.
 
-### Transport terminology
+### Phase-Space Evolution Terminology
 
 Use established numerical-method terminology accurately.
 
-QMOMKit applies operator splitting for the continuous phase-space and
-discontinuous source operators. Strang splitting is one of the implemented
+QMOMKit applies operator splitting for the phase-space advection and
+moment-source operators. Strang splitting is one of the implemented
 splitting schemes.
 
 Terms such as “operator splitting,” “Lie splitting,” “Strang splitting,”
@@ -245,10 +245,10 @@ Terms such as “operator splitting,” “Lie splitting,” “Strang splitting
 “splitting order” are valid and should be used where mathematically
 appropriate.
 
-Avoid misleading descriptions such as “hybrid transport” when referring to the
+Avoid misleading descriptions such as “hybrid phase-space evolution” when referring to the
 standard operator-splitting workflow.
 
-See `docs/developer/transport_design.md` for the current transport workflow,
+See `docs/developer/phase_space_evolution_design.md` for the current phase-space evolution workflow,
 callback contracts, status propagation, and validation requirements.
 
 ## Implementation Principles

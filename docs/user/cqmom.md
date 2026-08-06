@@ -17,7 +17,7 @@ In one dimension, QMOM reconstructs nodes and weights from a raw moment
 sequence. In multiple dimensions, CQMOM reconstructs a multidimensional
 quadrature from a CQMOM case. The case records the phase-space dimensions,
 requested node counts, conditioning order, initial moments, and reconstruction
-options so these choices remain consistent across initialization, transport,
+options so these choices remain consistent across initialization, phase-space evolution,
 output, and validation.
 
 QMOMKit uses raw, unnormalized tensor moments:
@@ -57,10 +57,10 @@ reconstruction:
     -> CqmomResult / CqmomQuadrature
     -> inspect / evaluate / output
 
-normal optional transport:
+normal optional phase-space evolution:
     CqmomCase::initial_state()
     -> CqmomState
-    -> advance_transport_cqmom(...)
+    -> advance_cqmom_phase_space(...)
 ```
 
 At the user level, this means:
@@ -72,19 +72,19 @@ At the user level, this means:
 4. Call `compute_cqmom(...)` to compute the initial quadrature.
 5. Inspect the quadrature, evaluate derived quantities, or write output.
 6. If the case evolves in time, call `CqmomCase::initial_state()` to create the
-   runtime state for transport and pass that `CqmomState` to
-   `advance_transport_cqmom(...)`.
+   runtime state for phase-space evolution and pass that `CqmomState` to
+   `advance_cqmom_phase_space(...)`.
 
 The result is a set of weighted multidimensional nodes. Each terminal node has
 one global weight and one abscissa per phase-space dimension.
 
 `CqmomCase` is the representation-neutral immutable setup produced by the normal
-configuration loader. Normal CQMOM transport creates `CqmomState` from
-`CqmomCase` and advances it with `advance_transport_cqmom(...)`, independent of
+configuration loader. Normal CQMOM phase-space evolution creates `CqmomState` from
+`CqmomCase` and advances it with `advance_cqmom_phase_space(...)`, independent of
 whether the case stores moments densely or leanly. Advanced direct C++ workflows
 can instead pass `CqmomDenseCase` or `CqmomLeanCase` to `compute_cqmom(...)` for
 explicit static inversion. In all cases, `compute_cqmom(...)` returns
-quadrature; it does not return a transport state.
+quadrature; it does not return a phase-space evolution state.
 
 For the usual CQMOM path, users specify the phase space, initial condition, and
 reconstruction settings. QMOMKit determines which moments are needed for the
@@ -93,7 +93,7 @@ configured hierarchy and avoids exposing the internal moment storage.
 ### Replacing Initial Moments Programmatically
 
 When an application obtains a complete `RawMomentTensor` after loading its
-ordinary CQMOM setup, it can make a separate transport-capable case without
+ordinary CQMOM setup, it can make a separate phase-space evolution-capable case without
 rewriting configuration text:
 
 ```cpp
@@ -124,7 +124,7 @@ Include the umbrella header when following the user guide examples:
 ```
 
 The example below loads a two-dimensional CQMOM case from configuration and
-computes the initial quadrature. It stops at reconstruction; transport is shown
+computes the initial quadrature. It stops at reconstruction; phase-space evolution is shown
 afterward as an optional step.
 
 ```cpp
@@ -164,8 +164,8 @@ int main()
 }
 ```
 
-If this reconstructed distribution evolves in time, create the transport state
-from the same case and pass it to `advance_transport_cqmom(...)`:
+If this reconstructed distribution evolves in time, create the phase-space evolution state
+from the same case and pass it to `advance_cqmom_phase_space(...)`:
 
 ```cpp
 qmomkit::CqmomState state = cqmom_case.initial_state();
@@ -310,7 +310,7 @@ over `weights()` and `abscissas()` instead of assuming rectangular multi-index
 storage.
 
 Adaptive branch counts are supported in both reconstruction and the normal
-configured `CqmomState` transport workflow. `CqmomState` keeps the required
+configured `CqmomState` phase-space evolution workflow. `CqmomState` keeps the required
 moment representation for the configured hierarchy, while each reconstructed
 quadrature may contain adaptive active node counts.
 
@@ -322,7 +322,7 @@ which phase-space dimension or conditioning step was not accepted.
 
 Native CQMOM moments remain integer-order polynomial raw moments with
 phase-space-order multi-indices. QMOMKit reconstructs those moments from
-terminal quadrature when output, validation, or transport handoff needs raw
+terminal quadrature when output, validation, or phase-space evolution handoff needs raw
 moment values.
 
 After checking that a CQMOM quadrature result is valid, callers may also
@@ -336,7 +336,7 @@ const double derived =
 ```
 
 Generalized moment evaluation applies the terminal quadrature formula directly.
-These values are not CQMOM reconstruction inputs, transported state, or native
+These values are not CQMOM reconstruction inputs, phase_space_evolved state, or native
 `CqmomMomentData`/`RawMomentTensor` entries. Non-integer exponents require
 non-negative abscissas in the corresponding dimensions.
 
@@ -390,12 +390,12 @@ a different physical model; it is the compact representation used for the
 moments required by the configured hierarchy and conditioning order. Normal
 configuration workflows build and hide this representation automatically.
 
-For transport, use `CqmomCase::initial_state()` and pass the resulting
-`CqmomState` to `advance_transport_cqmom(...)` when QMOMKit should own the
+For phase-space evolution, use `CqmomCase::initial_state()` and pass the resulting
+`CqmomState` to `advance_cqmom_phase_space(...)` when QMOMKit should own the
 configured macro-step sequence. Applications that own stage orchestration can
-pass the same `CqmomState` through `advance_cqmom_continuous(...)` and
-`advance_cqmom_discontinuous(...)`. `CqmomState` preserves the configured
+pass the same `CqmomState` through `advance_cqmom_advection(...)` and
+`advance_cqmom_moment_source(...)`. `CqmomState` preserves the configured
 reconstruction policy, selected moment storage, and adaptive branch-count
-topology between successful transport calls. Dense and lean case types remain
+topology between successful phase-space evolution calls. Dense and lean case types remain
 available for callers that intentionally manage static inversion inputs, but
-public CQMOM transport is storage-independent.
+public CQMOM phase-space evolution is storage-independent.

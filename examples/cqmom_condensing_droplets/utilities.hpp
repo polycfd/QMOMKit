@@ -4,7 +4,7 @@
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/node_advection.hpp"
-#include "qmomkit/transport_integrator.hpp"
+#include "qmomkit/phase_space_evolution.hpp"
 
 #include <cstddef>
 #include <filesystem>
@@ -18,7 +18,8 @@ void print_configuration_errors(const std::string& error);
 
 void ensure_output_directory(const std::filesystem::path& path);
 
-void print_cqmom_run_configuration(const qmomkit::CqmomCase& cqmom_case, const qmomkit::CqmomTransportOptions& transport_options);
+void print_cqmom_run_configuration(const qmomkit::CqmomCase& cqmom_case,
+                                   const qmomkit::CqmomPhaseSpaceEvolutionOptions& phase_space_evolution_options);
 
 void print_monte_carlo_run_configuration(const qmomkit::CqmomCase& cqmom_case, const qmomkit::NodeAdvectionOptions& node_options);
 

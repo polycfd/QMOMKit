@@ -31,7 +31,7 @@ struct PreparedCqmomExample
     BinaryFragmentationParameters breakage_parameters;
     qmomkit::CqmomCase cqmom_case;
     qmomkit::OutputOptions output_options;
-    qmomkit::CqmomTransportOptions transport_options;
+    qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options;
     qmomkit::PhaseSpaceVelocity velocity;
     qmomkit::CqmomMomentSource source;
     qmomkit::CqmomState state;
@@ -43,7 +43,7 @@ struct PreparedCqmomExample
 
 /**
  * Load a CQMOM example configuration, sample the configured initialization with
- * the example seed, and build the initial state, quadrature, transport callback,
+ * the example seed, and build the initial state, quadrature, phase-space evolution callback,
  * and breakage source used by the CQMOM drivers.
  *
  * Returns `std::nullopt` after printing user-facing configuration or
@@ -51,8 +51,8 @@ struct PreparedCqmomExample
  */
 [[nodiscard]] std::optional<PreparedCqmomExample> prepare_cqmom_example(const std::filesystem::path& configuration_file);
 
-/** Print the selected CQMOM reconstruction and transport settings. */
-void print_transport_settings(const PreparedCqmomExample& example);
+/** Print the selected CQMOM reconstruction and phase-space evolution settings. */
+void print_phase_space_evolution_settings(const PreparedCqmomExample& example);
 
 /**
  * Print compact, deduplicated support decisions for the normal bounded run.
@@ -61,7 +61,7 @@ void print_transport_settings(const PreparedCqmomExample& example);
  * full determinant/eigenvalue/Vandermonde explanation belongs to the unbounded
  * diagnostic report.
  */
-void print_bounded_support_event_summaries(const qmomkit::TransportDiagnostics& diagnostics, double time);
+void print_bounded_support_event_summaries(const qmomkit::PhaseSpaceEvolutionDiagnostics& diagnostics, double time);
 
 /** Write the configured CQMOM output files and the final console summary. */
 void write_cqmom_outputs_and_summary(const PreparedCqmomExample& example,

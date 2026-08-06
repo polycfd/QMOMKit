@@ -45,11 +45,11 @@ void validate_reconstructed_value(const double value)
     }
 }
 
-void validate_continuous_moment_rate_value(const double value)
+void validate_advection_moment_rate_value(const double value)
 {
     if (!std::isfinite(value))
     {
-        throw std::overflow_error("Continuous moment-rate reconstruction produced a non-finite value.");
+        throw std::overflow_error("Advection moment-rate reconstruction produced a non-finite value.");
     }
 }
 
@@ -93,47 +93,47 @@ void validate_generalized_exponent(const double exponent)
             "CQMOM quadrature abscissas must be finite."};
 }
 
-void validate_continuous_moment_rate_storage(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas,
-                                             const std::vector<std::vector<double>>& velocities, const std::vector<MultiIndex>& indices)
+void validate_advection_moment_rate_storage(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas,
+                                            const std::vector<std::vector<double>>& velocities, const std::vector<MultiIndex>& indices)
 {
     if (weights.empty())
     {
-        throw std::invalid_argument("Continuous moment-rate reconstruction requires at least one terminal node.");
+        throw std::invalid_argument("Advection moment-rate reconstruction requires at least one terminal node.");
     }
     if (abscissas.empty())
     {
-        throw std::invalid_argument("Continuous moment-rate reconstruction requires at least one phase-space dimension.");
+        throw std::invalid_argument("Advection moment-rate reconstruction requires at least one phase-space dimension.");
     }
     if (!internal::all_finite(weights))
     {
-        throw std::invalid_argument("Continuous moment-rate weights must be finite.");
+        throw std::invalid_argument("Advection moment-rate weights must be finite.");
     }
 
     for (const std::vector<double>& dimension_abscissas : abscissas)
     {
         if (dimension_abscissas.size() != weights.size())
         {
-            throw std::invalid_argument("Every continuous moment-rate abscissa row must contain one value per terminal node.");
+            throw std::invalid_argument("Every advection moment-rate abscissa row must contain one value per terminal node.");
         }
         if (!internal::all_finite(dimension_abscissas))
         {
-            throw std::invalid_argument("Continuous moment-rate abscissas must be finite.");
+            throw std::invalid_argument("Advection moment-rate abscissas must be finite.");
         }
     }
 
     if (velocities.size() != weights.size())
     {
-        throw std::invalid_argument("Continuous moment-rate velocity count must match terminal node count.");
+        throw std::invalid_argument("Advection moment-rate velocity count must match terminal node count.");
     }
     for (const std::vector<double>& node_velocity : velocities)
     {
         if (node_velocity.size() != abscissas.size())
         {
-            throw std::invalid_argument("Continuous moment-rate velocities must contain one component per phase-space dimension.");
+            throw std::invalid_argument("Advection moment-rate velocities must contain one component per phase-space dimension.");
         }
         if (!internal::all_finite(node_velocity))
         {
-            throw std::invalid_argument("Continuous moment-rate velocities must be finite.");
+            throw std::invalid_argument("Advection moment-rate velocities must be finite.");
         }
     }
 
@@ -141,7 +141,7 @@ void validate_continuous_moment_rate_storage(const std::vector<double>& weights,
     {
         if (index.size() != abscissas.size())
         {
-            throw std::invalid_argument("Continuous moment-rate index rank must match the phase-space dimension count.");
+            throw std::invalid_argument("Advection moment-rate index rank must match the phase-space dimension count.");
         }
     }
 }
@@ -165,8 +165,8 @@ void validate_continuous_moment_rate_storage(const std::vector<double>& weights,
     return value;
 }
 
-[[nodiscard]] double reconstruct_continuous_moment_rate_value(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas,
-                                                              const std::vector<std::vector<double>>& velocities, const MultiIndex& moment_index)
+[[nodiscard]] double reconstruct_advection_moment_rate_value(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas,
+                                                             const std::vector<std::vector<double>>& velocities, const MultiIndex& moment_index)
 {
     double value = 0.0;
     for (std::size_t node = 0; node < weights.size(); ++node)
@@ -180,15 +180,15 @@ void validate_continuous_moment_rate_storage(const std::vector<double>& weights,
 
             double contribution =
                 weights[node] * static_cast<double>(moment_index[differentiated_dimension]) * velocities[node][differentiated_dimension];
-            validate_continuous_moment_rate_value(contribution);
+            validate_advection_moment_rate_value(contribution);
             for (std::size_t dimension = 0; dimension < abscissas.size(); ++dimension)
             {
                 const std::size_t exponent = dimension == differentiated_dimension ? moment_index[dimension] - 1 : moment_index[dimension];
                 contribution *= integer_power(abscissas[dimension][node], exponent);
-                validate_continuous_moment_rate_value(contribution);
+                validate_advection_moment_rate_value(contribution);
             }
             value += contribution;
-            validate_continuous_moment_rate_value(value);
+            validate_advection_moment_rate_value(value);
         }
     }
     return value;
@@ -369,16 +369,16 @@ CqmomMomentData reconstruct_trusted_cqmom_moments(const CqmomQuadrature& quadrat
     return reconstruct_cqmom_moments_impl(quadrature, layout, true);
 }
 
-std::vector<double> reconstruct_continuous_moment_rates(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas,
-                                                        const std::vector<std::vector<double>>& velocities, const std::vector<MultiIndex>& indices)
+std::vector<double> reconstruct_advection_moment_rates(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas,
+                                                       const std::vector<std::vector<double>>& velocities, const std::vector<MultiIndex>& indices)
 {
-    validate_continuous_moment_rate_storage(weights, abscissas, velocities, indices);
+    validate_advection_moment_rate_storage(weights, abscissas, velocities, indices);
 
     std::vector<double> rates;
     rates.reserve(indices.size());
     for (const MultiIndex& index : indices)
     {
-        rates.push_back(reconstruct_continuous_moment_rate_value(weights, abscissas, velocities, index));
+        rates.push_back(reconstruct_advection_moment_rate_value(weights, abscissas, velocities, index));
     }
     return rates;
 }

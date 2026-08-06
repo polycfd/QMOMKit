@@ -84,7 +84,7 @@ int main()
         // unnormalized raw moments of the particle number-density distribution.
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
         const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
-        const qmomkit::AdaptiveRkOptions continuous_options;
+        const qmomkit::AdaptiveRkOptions advection_options;
         std::mt19937_64 breakage_generator(cqmom_non_spherical_particles::breakage_seed);
 
         qmomkit::RawMomentTensor final_moments = cqmom_non_spherical_particles::compute_ensemble_moments(ensemble, particle_weight, moment_extents);
@@ -103,31 +103,31 @@ int main()
         double next_output_time = initial_time + output_interval;
         while (time < final_time - 1.0e-12)
         {
-            // The MC macro step mirrors the operator roles of the CQMOM transport:
-            // continuous stages advance particle trajectories, while discontinuous
+            // The MC macro step mirrors the operator roles of CQMOM phase-space evolution:
+            // advection stages advance particle trajectories, while moment-source
             // stages apply stochastic fragmentation and may increase the ensemble size.
             const double current_step = std::min(time_step, final_time - time);
             const double half_step = 0.5 * current_step;
 
-            qmomkit::monte_carlo::EnsembleEvolutionResult first_continuous =
-                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + half_step, continuous_options);
-            if (!first_continuous.ok())
+            qmomkit::monte_carlo::EnsembleEvolutionResult first_advection =
+                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + half_step, advection_options);
+            if (!first_advection.ok())
             {
-                std::cerr << "First continuous particle half-step failed: " << first_continuous.message << '\n';
+                std::cerr << "First advection particle half-step failed: " << first_advection.message << '\n';
                 return 1;
             }
-            ensemble = std::move(first_continuous.ensemble);
+            ensemble = std::move(first_advection.ensemble);
 
             cqmom_non_spherical_particles::apply_binary_breakage(ensemble, current_step, breakage_generator, breakage_parameters);
 
-            qmomkit::monte_carlo::EnsembleEvolutionResult second_continuous =
-                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time + half_step, time + current_step, continuous_options);
-            if (!second_continuous.ok())
+            qmomkit::monte_carlo::EnsembleEvolutionResult second_advection =
+                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time + half_step, time + current_step, advection_options);
+            if (!second_advection.ok())
             {
-                std::cerr << "Second continuous particle half-step failed: " << second_continuous.message << '\n';
+                std::cerr << "Second advection particle half-step failed: " << second_advection.message << '\n';
                 return 1;
             }
-            ensemble = std::move(second_continuous.ensemble);
+            ensemble = std::move(second_advection.ensemble);
             time += current_step;
 
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)

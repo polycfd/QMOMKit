@@ -8,7 +8,7 @@
 namespace qmom_1d_minimal
 {
 
-qmomkit::PhaseSpaceVelocity continuous_velocity()
+qmomkit::PhaseSpaceVelocity advection_velocity()
 {
     return [](double, const std::vector<double>& coordinates)
     {

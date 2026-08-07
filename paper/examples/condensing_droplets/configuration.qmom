@@ -1,6 +1,6 @@
 [phase_space]
 names = r, w, T
-node_counts = 2, 2, 2
+node_counts = 3, 3, 3
 conditioning_order = 0, 1, 2
 adaptive_branch_counts = true
 
@@ -16,7 +16,7 @@ min_step = 1.0e-9
 
 [initial]
 type = independent_product
-number_density = 1.0
+number_density = 10000.0
 
 [initial.dimension.0]
 family = gamma

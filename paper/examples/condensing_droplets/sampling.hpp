@@ -12,7 +12,7 @@
 namespace cqmom_condensing_droplets
 {
 
-constexpr std::size_t initialization_sample_count = 20000;
+constexpr std::size_t initialization_sample_count = 10000;
 constexpr unsigned long long initialization_seed = 20260199;
 
 [[nodiscard]] std::optional<std::string> read_configuration_text(const std::filesystem::path& path);

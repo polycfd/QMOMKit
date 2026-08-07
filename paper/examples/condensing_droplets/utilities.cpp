@@ -124,7 +124,7 @@ void print_cqmom_run_configuration(const qmomkit::CqmomCase& cqmom_case,
     std::cout << "node_counts = ";
     print_index_vector(cqmom_case.hierarchy().node_counts());
     std::cout << '\n';
-    std::cout << "phase-space evolution: phase-space advection only\n";
+    std::cout << "phase-space evolution: Strang-split advection and boundary contribution\n";
     std::cout << qmomkit::format_cqmom_settings(cqmom_case.moment_storage(), cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(),
                                                 cqmom_case.diagnostic_level());
     std::cout << qmomkit::format_node_advection_options(phase_space_evolution_options.node_options);
@@ -138,7 +138,7 @@ void print_monte_carlo_run_configuration(const qmomkit::CqmomCase& cqmom_case, c
     std::cout << "node_counts = ";
     print_index_vector(cqmom_case.hierarchy().node_counts());
     std::cout << '\n';
-    std::cout << "particle evolution: phase-space advection only\n";
+    std::cout << "particle evolution: Strang-split advection and population injection\n";
     std::cout << qmomkit::format_node_advection_options(node_options);
 }
 

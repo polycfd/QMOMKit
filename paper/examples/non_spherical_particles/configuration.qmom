@@ -22,7 +22,6 @@ min_step = 1.0e-9
 [initial]
 type = independent_product
 number_density = 1.0
-maximum_orders = 5, 5, 5, 5, 5
 
 [initial.dimension.0]
 family = lognormal

@@ -6,7 +6,6 @@ conditioning_order = 0, 1
 [initial]
 type = independent_product
 number_density = 1.0
-maximum_orders = 3, 3
 
 [initial.dimension.0]
 family = lognormal

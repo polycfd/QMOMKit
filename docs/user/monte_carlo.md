@@ -38,6 +38,27 @@ For direct comparisons, initialize both paths from the same finite realization
 when practical. That keeps initial sampling fluctuation common to the Monte
 Carlo and deterministic paths.
 
+## Inject A Local Population Birth
+
+`inject_population(...)` adds a generic birth contribution to an existing
+Monte Carlo ensemble. The caller supplies the integrated birth amount
+`Delta n` for its chosen interval; the companion package does not own physical
+rate laws, time stepping, or operator splitting.
+
+For an ensemble of `N` samples and positive number density `n0`, every sample
+has representative weight `w = n0 / N`. The operation draws
+`K ~ Poisson(Delta n / w)` and invokes the coordinate callback once per born
+sample. That callback represents the normalized birth distribution and may
+ignore its supplied random engine for deterministic injection. The returned
+number density is `w * (N + K)`, so existing and new samples retain the same
+representative weight.
+
+The operation owns one locally seeded `std::mt19937_64` for the Poisson draw
+and all coordinate samples. Its reproducibility limits are the same as the
+other sampling APIs. A zero birth amount is a successful no-op. Positive birth
+requires a non-empty ensemble with positive finite number density; birth into
+an empty or zero-density population is not supported by this initial API.
+
 ## Install QMOMKit Core
 
 Build and install the core QMOMKit package from the repository root first:

@@ -27,8 +27,8 @@ int main()
 {
     const std::filesystem::path configuration_file = "configuration.qmom";
     const double initial_time = 0.0;
-    const double final_time = 1.0;
-    const double time_step = 0.005;
+    constexpr double final_time = 1.0;
+    constexpr std::size_t outer_step_count = 100;
 
     try
     {
@@ -109,6 +109,7 @@ int main()
             cqmom_non_spherical_particles::select_terminal_moment_indices(moment_output_layout.required_indices)};
         const qmomkit::CqmomMomentSource source = cqmom_non_spherical_particles::binary_breakage_source(cqmom_case, breakage_parameters);
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
+        const double outer_time_step = final_time / static_cast<double>(outer_step_count);
         const qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
         if (phase_space_evolution_options.node_options.scheme != qmomkit::NodeAdvectionScheme::rk23)
         {
@@ -220,14 +221,14 @@ int main()
         }
         write_comparison(initial_time, quadrature);
 
-        const double output_interval = output_options.interval.value_or(final_time - initial_time);
-        double time = initial_time;
-        double next_output_time = initial_time + output_interval;
         std::mt19937_64 breakage_generator(cqmom_non_spherical_particles::breakage_seed);
-        while (time < final_time - 1.0e-12)
+        for (std::size_t outer_step = 0; outer_step < outer_step_count; ++outer_step)
         {
-            const double current_step = std::min(time_step, final_time - time);
-            const double step_start_time = time;
+            const double step_start_time = initial_time + static_cast<double>(outer_step) * outer_time_step;
+            const double output_time = outer_step + 1 == outer_step_count
+                                           ? final_time
+                                           : initial_time + static_cast<double>(outer_step + 1) * outer_time_step;
+            const double current_step = output_time - step_start_time;
             const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
                 qmomkit::advance_cqmom_phase_space(state, step_start_time, current_step, velocity, source, phase_space_evolution_options);
             if (!phase_space_evolved.ok())
@@ -242,7 +243,11 @@ int main()
             }
             state = phase_space_evolved.state;
             quadrature = *phase_space_evolved.quadrature;
-            time = phase_space_evolved.final_time;
+            if (std::abs(phase_space_evolved.final_time - output_time) > 1.0e-12 * std::max(1.0, std::abs(output_time)))
+            {
+                std::cerr << "CQMOM phase-space evolution did not reach the prescribed outer-step endpoint.\n";
+                return 1;
+            }
 
             const double half_step = 0.5 * current_step;
             qmomkit::monte_carlo::EnsembleEvolutionResult first_advection =
@@ -255,7 +260,7 @@ int main()
             ensemble = std::move(first_advection.ensemble);
             cqmom_non_spherical_particles::apply_binary_breakage(ensemble, current_step, breakage_generator, breakage_parameters);
             qmomkit::monte_carlo::EnsembleEvolutionResult second_advection = qmomkit::monte_carlo::evolve_ensemble(
-                ensemble, velocity, step_start_time + half_step, step_start_time + current_step, mc_advection_options);
+                ensemble, velocity, step_start_time + half_step, output_time, mc_advection_options);
             if (!second_advection.ok())
             {
                 std::cerr << "Second advection particle half-step failed: " << second_advection.message << '\n';
@@ -263,20 +268,13 @@ int main()
             }
             ensemble = std::move(second_advection.ensemble);
 
-            if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
+            quadrature_history.emplace_back(output_time, quadrature);
+            mc_final_moments = cqmom_non_spherical_particles::compute_ensemble_moments(ensemble, particle_weight, moment_extents);
+            if (mc_moment_history_writer.has_value())
             {
-                quadrature_history.emplace_back(time, quadrature);
-                mc_final_moments = cqmom_non_spherical_particles::compute_ensemble_moments(ensemble, particle_weight, moment_extents);
-                if (mc_moment_history_writer.has_value())
-                {
-                    mc_moment_history_writer->write(time, mc_final_moments);
-                }
-                write_comparison(time, quadrature);
-                while (next_output_time <= time + 1.0e-12)
-                {
-                    next_output_time += output_interval;
-                }
+                mc_moment_history_writer->write(output_time, mc_final_moments);
             }
+            write_comparison(output_time, quadrature);
         }
 
         if (output_options.write_moments)
@@ -311,11 +309,12 @@ int main()
         }
         cqmom_non_spherical_particles::print_result_summary(
             initial_moments, final_moments, quadrature, output_options.directory, cqmom_non_spherical_particles::initialization_sample_count,
-            cqmom_non_spherical_particles::initialization_seed, time_step, final_time, output_options.write_moments, output_options.write_quadrature);
+            cqmom_non_spherical_particles::initialization_seed, outer_time_step, final_time, output_options.write_moments,
+            output_options.write_quadrature);
         cqmom_non_spherical_particles::print_monte_carlo_result_summary(
             mc_initial_moments, mc_final_moments, terminal_moment_request.indices, output_options.directory, ensemble.size(),
-            cqmom_non_spherical_particles::initialization_sample_count, cqmom_non_spherical_particles::initialization_seed, time_step, final_time,
-            output_options.write_moments);
+            cqmom_non_spherical_particles::initialization_sample_count, cqmom_non_spherical_particles::initialization_seed, outer_time_step,
+            final_time, output_options.write_moments);
     }
     catch (const std::exception& error)
     {

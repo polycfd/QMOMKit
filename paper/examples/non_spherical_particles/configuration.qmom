@@ -7,7 +7,7 @@ support_lower = none, 0.0, none, none, none
 support_upper = none, 1.0, none, none, none
 
 [time_integration]
-scheme = advsrc
+scheme = strang
 
 [time_integration.node_advection]
 scheme = rk23
@@ -53,4 +53,3 @@ standard_deviation = 0.5
 directory = output
 write_moments = true
 write_quadrature = true
-interval = 0.1

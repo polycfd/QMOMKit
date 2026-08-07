@@ -22,4 +22,3 @@ standard_deviation = 0.2
 directory = output
 write_moments = true
 write_quadrature = true
-interval = 0.1

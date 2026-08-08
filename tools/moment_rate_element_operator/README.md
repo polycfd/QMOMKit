@@ -1,154 +1,115 @@
-# Moment-Rate Element Operator Prototype
+# QMOM Spatial-Coupling Demonstrator
 
-This directory is a standalone downstream prototype for QMOMKit's public local
-moment-rate API. It is a manufactured element operator, not a complete CG or DG
-solver.
+This standalone downstream example teaches two different ways a host spatial
+discretization can couple raw-moment fields to QMOMKit. It is a manufactured
+quadratic reference-element example, not a CG, DG, or FVM solver: it has no
+mesh, numerical flux, physical-space derivative, physical-space transport,
+physical-element mapping, or boundary-condition machinery.
 
-The prototype demonstrates this external workflow:
+The common host-only spatial mapping is:
 
 ```text
-element coefficients
--> interpolate local moments at spatial quadrature points
--> call QMOMKit local moment-rate evaluators
--> project rates back to element coefficients
--> apply the inverse element mass matrix
+host element moment coefficients
+        <->
+local raw moments at spatial quadrature points
 ```
 
-All spatial interpolation, projection, and mass-matrix logic lives in this
-standalone project. The code consumes only the installed QMOMKit package and
-public headers.
+The host stores coefficients for raw-moment fields. It interpolates those
+fields before every local QMOMKit call and projects local values back afterward.
+QMOMKit never receives basis functions, coefficient vectors, a mass matrix, or
+a spatial quadrature rule.
 
-## Build
+The manufactured field is a positive spatial scaling of one realizable
+two-node QMOM moment sequence. The host never stores, transports, interpolates,
+or projects QMOM nodes or weights; quadrature is an internal temporary
+representation used only by QMOMKit's local phase-space operations.
 
-Install QMOMKit first, using a Release build for timings:
+## Shared timing and phase-space model
 
-```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/install"
-cmake --build build
-cmake --install build
+Both routes start from exactly the same moment coefficients and use the same
+constant phase-space velocity, initial time, final time, fixed `dt`, node count,
+and SSP-RK3 integrator. The example deliberately removes time-integration
+order as a variable: the difference is where the integration occurs relative to
+the host projection.
+
+```text
+Route A: QMOMKit rate -> projection -> host SSP-RK3
+Route B: QMOMKit local SSP-RK3 evolution -> projection
 ```
 
-Configure this downstream project against that install prefix:
+The routes are different coupling strategies. The example does not claim that
+their final coefficient vectors must be identical, because projection and local
+phase-space evolution occur in a different order.
+
+## Route A: host-integrated moment rates
+
+```text
+for each host time step:
+
+    host SSP-RK3 stage
+        element coefficients
+        -> interpolate local raw moments
+        -> QMOMKit instantaneous moment rates
+        -> project rates
+        -> coefficient RHS
+
+    repeat with fresh local rates for all SSP-RK3 stages
+```
+
+The program calls `qmomkit::evaluate_qmom_advection_moment_rates(...)` at every
+spatial quadrature point and at every SSP-RK3 stage.
+
+> QMOMKit supplies local instantaneous phase-space moment rates; the host owns
+> SSP-RK3 time integration.
+
+A real CG/DG/FVM application would replace this manufactured coefficient update
+with its native time-integration and physical-space machinery.
+
+## Route B: QMOMKit-integrated finite evolution
+
+```text
+for each phase-space substep:
+
+    element coefficients
+    -> interpolate local raw moments
+
+    for each spatial quadrature point:
+        raw moments
+        -> reconstruct local QMOM state
+        -> QMOMKit SSP-RK3 evolution over dt
+        -> evolved raw moments
+
+    evolved local raw moments
+    -> project
+    -> updated element coefficients
+```
+
+The program constructs a temporary `QmomState` for each local raw-moment set,
+then calls `qmomkit::advance_qmom_phase_space(...)`. Its node-advection option
+is explicitly `NodeAdvectionScheme::ssp_rk3`; the source callback is explicitly
+zero, so the manufactured model contains only phase-space advection.
+
+> QMOMKit owns the local SSP-RK3 phase-space advance; the host owns the spatial
+> representation and decides where this phase-space step appears in its outer
+> operator splitting.
+
+This example contains no physical-space transport. A real host solver supplies
+that evolution independently and can place the finite local phase-space step
+inside its own operator-splitting sequence.
+
+## Build and run
+
+Install QMOMKit first, then configure this standalone consumer against that
+install prefix:
 
 ```sh
 cmake -S tools/moment_rate_element_operator \
   -B tools/moment_rate_element_operator/build \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$PWD/install"
-
 cmake --build tools/moment_rate_element_operator/build
+tools/moment_rate_element_operator/build/moment_rate_element_operator
 ```
 
-## Correctness Check
-
-Run:
-
-```sh
-tools/moment_rate_element_operator/build/moment_rate_element_operator_check
-```
-
-The check covers:
-
-- QMOM advection local rates with an analytical constant-velocity reference;
-- QMOM moment-source local rates from a deterministic raw-moment source;
-- CQMOM advection local-rate composition through the public API;
-- CQMOM moment-source-context ordering and rate ordering;
-- a local coefficient-level SSP-RK3 demonstration using advection and
-  moment-source RHS evaluators;
-- failure diagnostics for a rejected local advection rate call.
-
-The CQMOM advection case validates downstream composition and status handling;
-it is not an independent validation of CQMOM inversion mathematics.
-
-## Timing
-
-Run a short smoke benchmark:
-
-```sh
-tools/moment_rate_element_operator/build/moment_rate_element_operator_benchmark --short
-```
-
-Run a longer local timing pass:
-
-```sh
-tools/moment_rate_element_operator/build/moment_rate_element_operator_benchmark
-```
-
-The benchmark prints a human-readable table by default. Use CSV when collecting
-results for a spreadsheet or plotting script:
-
-```sh
-tools/moment_rate_element_operator/build/moment_rate_element_operator_benchmark --csv > moment-rate-element-operator.csv
-```
-
-Useful controls include:
-
-```sh
-tools/moment_rate_element_operator/build/moment_rate_element_operator_benchmark --samples 9 --target-ms 50
-tools/moment_rate_element_operator/build/moment_rate_element_operator_benchmark --filter cqmom_3x2 --csv
-```
-
-Each case performs an untimed fixture validation, an untimed warm-up, an
-automatic iteration calibration to reach the requested per-sample target
-duration, and repeated measured samples. The reported median is the primary
-timing value; minimum and maximum sample timings are printed as a simple spread
-indicator. Every measured result contributes to a checksum consumed after
-timing so the compiler cannot discard the work. Console output is outside the
-timed loops.
-
-Categories include:
-
-- spatial interpolation only;
-- projection and inverse-mass application only;
-- public QMOM inversion only;
-- public CQMOM inversion only;
-- QMOM advection local-rate evaluation;
-- QMOM moment-source local-rate evaluation;
-- CQMOM advection local-rate evaluation;
-- CQMOM moment-source local-rate evaluation;
-- complete element RHS;
-- complete external SSP-RK3 coefficient step.
-
-The matrix includes quadratic and cubic manufactured elements, single-element
-and batched serial loops, one- and two-node QMOM cases, identity and
-nonidentity CQMOM conditioning order, a larger fixed CQMOM hierarchy, an
-adaptive branch-specific CQMOM fixture, no and detailed CQMOM diagnostics, zero
-and cheap affine velocities, a modest nonlinear velocity, and nearly free or
-modest arithmetic moment-source callbacks.
-
-The inversion-only rows call the public `compute_qmom(...)` and
-`compute_cqmom(...)` entry points with the same local moment values used by the
-advection local-rate rows. They are included to compare full advection-rate
-timing with public inversion timing. Do not treat full-call minus
-inversion-only timing as a precise component measurement; the two measurements
-have different surrounding work, result shapes, and noise.
-
-The CSV output reports compiler/build metadata, target sample duration, case
-metadata, operation category, basis size, spatial quadrature count, phase_space_evolved
-moment count, phase-space dimension, node configuration, conditioning-order
-label, diagnostic level, callback label, element batch size, local call counts,
-sample count, calibrated iterations per sample, median total time, median time
-per element, median time per local call, minimum sample time, maximum sample
-time, and checksum. CSV timing fields are nanoseconds.
-
-Results are serial, machine-specific, compiler-specific, and build-specific.
-Use a Release build and compare trends within a single run before drawing
-conclusions across machines.
-
-A useful first profiling case is the largest fixed CQMOM advection local-rate
-case with minimal diagnostics and cheap affine velocity:
-
-```sh
-tools/moment_rate_element_operator/build/moment_rate_element_operator_benchmark \
-  --filter cqmom_3x2_identity_none_affine_velocity \
-  --target-ms 100
-```
-
-On macOS, run that command under Instruments Time Profiler. On Linux, use a
-similar filtered run under `perf`. The filter isolates repeated public
-advection local-rate evaluation better than a full matrix run and keeps
-callback cost modest.
-
-The benchmark intentionally does not add workspaces, caches, batching, or
-pre-inverted overloads. It is a first measurement scaffold for deciding what,
-if anything, deserves optimization later.
+The executable prints the shared initial coefficients and the final coefficient
+vectors produced by Routes A and B. Their agreement is not a success criterion.

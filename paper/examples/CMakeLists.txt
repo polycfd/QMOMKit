@@ -50,6 +50,19 @@ target_link_libraries(
         qmomkit_monte_carlo::qmomkit_monte_carlo
 )
 
+add_executable(
+    qmomkit_paper_aerosol_evaporation
+    aerosol_evaporation/main.cpp
+    aerosol_evaporation/physics.cpp
+)
+target_link_libraries(
+    qmomkit_paper_aerosol_evaporation
+    PRIVATE
+        qmomkit::qmomkit
+        qmomkit_monte_carlo::qmomkit_monte_carlo
+)
+
 configure_file(non_spherical_particles/configuration.qmom non_spherical_particles/configuration.qmom COPYONLY)
 configure_file(condensing_droplets/configuration.qmom condensing_droplets/configuration.qmom COPYONLY)
 configure_file(polydisperse_cavitation/configuration.qmom polydisperse_cavitation/configuration.qmom COPYONLY)
+configure_file(aerosol_evaporation/configuration.qmom aerosol_evaporation/configuration.qmom COPYONLY)

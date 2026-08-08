@@ -187,7 +187,7 @@ IndependentProductDistribution
 
 It contains:
 
-- one normalized one-dimensional marginal distribution per phase-space
+- one one-dimensional simple-distribution or mixture marginal per phase-space
   dimension;
 - one global absolute number density.
 
@@ -212,15 +212,17 @@ Marginals are ordered by phase-space dimension, not by CQMOM conditioning order.
 `maximum_orders[r]` is inclusive and defines
 `RawMomentTensor::extents[r] = maximum_orders[r] + 1`.
 
-The global number density is applied exactly once. Independent products do not
-support per-dimension number densities, correlated distributions, copulas,
-marginal mixtures, or mixtures of multidimensional products. Those concepts
-would require additional public representation and validation rules rather than
-being inferred from current distribution names or configuration fields.
+The global number density is applied exactly once. Each marginal is normalized
+through its zeroth raw moment before tensor assembly, so existing mixture
+component densities retain their standalone semantics. Independent products do
+not support per-dimension number densities, correlated distributions, copulas,
+or mixtures of multidimensional products. Those concepts would require
+additional public representation and validation rules rather than being
+inferred from current distribution names or configuration fields.
 
-The implementation generates each marginal moment sequence with unit total
-number density, then forms tensor entries by direct multiplication with the
-single global number density. Direct multiplication is intentional because
+The implementation evaluates each marginal using its existing semantics, then
+normalizes the resulting moment sequence to unit zeroth moment before
+independent-product assembly. Direct multiplication is intentional because
 normal marginals may have negative or exactly zero odd moments; a purely
 logarithmic product would not represent all supported families.
 

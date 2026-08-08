@@ -137,6 +137,26 @@ struct MomentValueResult
     return MomentValueResult{0.0, status, message, failed_order};
 }
 
+[[nodiscard]] MomentValueResult normalize_marginal_moment(const double raw_moment, const double zeroth_moment, const std::size_t order)
+{
+    if (!std::isfinite(zeroth_moment) || zeroth_moment <= 0.0)
+    {
+        return moment_value_failure(RawMomentStatus::invalid_input, "Independent product marginal zeroth raw moment must be finite and positive.",
+                                    order);
+    }
+
+    const double normalized_moment = raw_moment / zeroth_moment;
+    if (!std::isfinite(normalized_moment))
+    {
+        return moment_value_failure(finite_failure_status(normalized_moment), "Normalized marginal raw moment is not finite.", order);
+    }
+    if (raw_moment != 0.0 && normalized_moment == 0.0)
+    {
+        return moment_value_failure(RawMomentStatus::underflow, "Normalized marginal raw moment underflows double precision.", order);
+    }
+    return MomentValueResult{normalized_moment, RawMomentStatus::success, "", 0};
+}
+
 [[nodiscard]] MomentValueResult evaluate_log_expectation(const double log_expectation, const double total_weight, const std::size_t order)
 {
     if (order == 0)
@@ -818,6 +838,26 @@ struct SelectedRawMomentVisitor
     throw std::out_of_range("Requested marginal moment order was not evaluated.");
 }
 
+[[nodiscard]] RawMomentResult compute_independent_product_marginal_moments(const IndependentProductMarginal& marginal,
+                                                                           const std::size_t maximum_order)
+{
+    if (const auto* distribution = std::get_if<DistributionSpecification>(&marginal))
+    {
+        return compute_raw_moments(*distribution, maximum_order, 1.0);
+    }
+    return compute_raw_moments(std::get<DistributionMixture>(marginal), maximum_order);
+}
+
+[[nodiscard]] SelectedRawMomentResult compute_independent_product_marginal_moments(const IndependentProductMarginal& marginal,
+                                                                                   const RawMomentRequest& request)
+{
+    if (const auto* distribution = std::get_if<DistributionSpecification>(&marginal))
+    {
+        return compute_raw_moments(*distribution, request, 1.0);
+    }
+    return compute_raw_moments(std::get<DistributionMixture>(marginal), request);
+}
+
 [[nodiscard]] MultiIndex first_requested_index_with_order(const RawMomentRequest& request, const std::size_t dimension, const std::size_t order)
 {
     for (const MultiIndex& index : request.indices)
@@ -1104,7 +1144,7 @@ TensorMomentResult compute_raw_moments(const IndependentProductDistribution& dis
     marginal_moments.reserve(n_dimensions);
     for (std::size_t dimension = 0; dimension < n_dimensions; ++dimension)
     {
-        RawMomentResult marginal_result = compute_raw_moments(distribution.marginals[dimension], maximum_orders[dimension], 1.0);
+        RawMomentResult marginal_result = compute_independent_product_marginal_moments(distribution.marginals[dimension], maximum_orders[dimension]);
         if (!marginal_result.ok())
         {
             MultiIndex failed_order(n_dimensions, 0);
@@ -1112,6 +1152,13 @@ TensorMomentResult compute_raw_moments(const IndependentProductDistribution& dis
             return make_tensor_failure(marginal_result.status,
                                        "Independent product marginal " + std::to_string(dimension) + " failed: " + marginal_result.message, dimension,
                                        std::move(failed_order));
+        }
+        const double zeroth_moment = marginal_result.moments[0];
+        if (!std::isfinite(zeroth_moment) || zeroth_moment <= 0.0)
+        {
+            MultiIndex failed_order(n_dimensions, 0);
+            return make_tensor_failure(RawMomentStatus::invalid_input, "Independent product marginal zeroth raw moment must be finite and positive.",
+                                       dimension, std::move(failed_order));
         }
         marginal_moments.push_back(std::move(marginal_result.moments));
     }
@@ -1123,7 +1170,13 @@ TensorMomentResult compute_raw_moments(const IndependentProductDistribution& dis
         double value = distribution.number_density;
         for (std::size_t dimension = 0; dimension < n_dimensions; ++dimension)
         {
-            const double factor = marginal_moments[dimension][moment_order[dimension]];
+            const MomentValueResult normalized = normalize_marginal_moment(marginal_moments[dimension][moment_order[dimension]],
+                                                                           marginal_moments[dimension][0], moment_order[dimension]);
+            if (!normalized.ok())
+            {
+                return make_tensor_failure(normalized.status, normalized.message, dimension, moment_order);
+            }
+            const double factor = normalized.value;
             const double product = value * factor;
             if (!std::isfinite(product))
             {
@@ -1190,6 +1243,14 @@ SelectedRawMomentResult compute_raw_moments(const IndependentProductDistribution
         return make_selected_raw_moment_result(request, std::vector<double>(request.indices.size(), 0.0));
     }
 
+    for (std::vector<std::size_t>& orders : marginal_orders)
+    {
+        if (!contains_order(orders, 0))
+        {
+            orders.push_back(0);
+        }
+    }
+
     std::vector<std::vector<double>> marginal_values(n_dimensions);
     for (std::size_t dimension = 0; dimension < n_dimensions; ++dimension)
     {
@@ -1200,14 +1261,24 @@ SelectedRawMomentResult compute_raw_moments(const IndependentProductDistribution
             marginal_request.indices.push_back({order});
         }
 
-        SelectedRawMomentResult marginal_result = compute_raw_moments(distribution.marginals[dimension], marginal_request, 1.0);
+        SelectedRawMomentResult marginal_result = compute_independent_product_marginal_moments(distribution.marginals[dimension], marginal_request);
         if (!marginal_result.ok())
         {
             const std::size_t marginal_order = marginal_result.failed_order.empty() ? 0 : marginal_result.failed_order.front();
             const MultiIndex failed_order = first_requested_index_with_order(request, dimension, marginal_order);
-            return make_selected_failure(marginal_result.status,
-                                         "Independent product marginal " + std::to_string(dimension) + " failed: " + marginal_result.message,
-                                         dimension, failed_order);
+            SelectedRawMomentResult result = make_selected_failure(
+                marginal_result.status, "Independent product marginal " + std::to_string(dimension) + " failed: " + marginal_result.message,
+                dimension, failed_order);
+            result.failed_component = marginal_result.failed_component;
+            return result;
+        }
+        const std::size_t zeroth_position = order_position(marginal_orders[dimension], 0);
+        const double zeroth_moment = marginal_result.values[zeroth_position];
+        if (!std::isfinite(zeroth_moment) || zeroth_moment <= 0.0)
+        {
+            return make_selected_failure(RawMomentStatus::invalid_input,
+                                         "Independent product marginal zeroth raw moment must be finite and positive.", dimension,
+                                         first_requested_index_with_order(request, dimension, 0));
         }
         marginal_values[dimension] = std::move(marginal_result.values);
     }
@@ -1220,7 +1291,14 @@ SelectedRawMomentResult compute_raw_moments(const IndependentProductDistribution
         for (std::size_t dimension = 0; dimension < n_dimensions; ++dimension)
         {
             const std::size_t position = order_position(marginal_orders[dimension], moment_order[dimension]);
-            const double factor = marginal_values[dimension][position];
+            const std::size_t zeroth_position = order_position(marginal_orders[dimension], 0);
+            const MomentValueResult normalized =
+                normalize_marginal_moment(marginal_values[dimension][position], marginal_values[dimension][zeroth_position], moment_order[dimension]);
+            if (!normalized.ok())
+            {
+                return make_selected_failure(normalized.status, normalized.message, dimension, moment_order);
+            }
+            const double factor = normalized.value;
             const double product = value * factor;
             if (!std::isfinite(product))
             {

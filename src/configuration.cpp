@@ -191,14 +191,20 @@ bool parse_moment_key(const std::string& key, MultiIndex& index)
     return !index.empty() && contents.back() != ',';
 }
 
-bool is_mixture_component_section(const std::string& section)
+std::string mixture_component_prefix(const std::string& initialization_prefix)
 {
-    if (section.rfind(std::string(mixture_component_section_prefix), 0) != 0)
+    return initialization_prefix + ".mixture.component.";
+}
+
+bool is_mixture_component_section(const std::string& section, const std::string& initialization_prefix)
+{
+    const std::string prefix = mixture_component_prefix(initialization_prefix);
+    if (section.rfind(prefix, 0) != 0)
     {
         return false;
     }
     std::size_t component = 0;
-    return parse_size(section.substr(mixture_component_section_prefix.size()), component);
+    return parse_size(section.substr(prefix.size()), component);
 }
 
 bool is_independent_product_dimension_section(const std::string& section)
@@ -662,11 +668,15 @@ bool component_key_allowed(const std::string& key, const std::string& prefix)
 
 bool marginal_key_allowed(const std::string& key, const std::string& prefix)
 {
-    static const std::vector<std::string> fields{"family", "mean",  "standard_deviation", "mu_log", "sigma_log", "alpha", "beta",
-                                                 "shape",  "scale", "degrees_of_freedom"};
+    static const std::vector<std::string> fields{"type", "family", "mean",  "standard_deviation", "mu_log", "sigma_log", "alpha",
+                                                 "beta", "shape",  "scale", "degrees_of_freedom"};
     if (key.rfind(prefix + ".", 0) != 0)
     {
         return false;
+    }
+    if (key.rfind(mixture_component_prefix(prefix), 0) == 0)
+    {
+        return true;
     }
     const std::string field = key.substr(prefix.size() + 1);
     return std::find(fields.begin(), fields.end(), field) != fields.end();
@@ -769,24 +779,26 @@ void reject_unknown_qmom_keys(ParsedFile& parsed, const bool explicit_moments, c
     reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_allowed_keys()), {std::string(mixture_component_section_prefix)}, source_name);
 }
 
-std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::string& source_name)
+std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::string& source_name,
+                                                 const std::string& initialization_prefix = "initial")
 {
+    const std::string component_section_prefix = mixture_component_prefix(initialization_prefix);
     std::map<std::size_t, Entry> component_sections;
     for (const auto& item : parsed.sections)
     {
-        if (!is_mixture_component_section(item.first))
+        if (!is_mixture_component_section(item.first, initialization_prefix))
         {
             continue;
         }
         std::size_t component = 0;
-        parse_size(item.first.substr(mixture_component_section_prefix.size()), component);
+        parse_size(item.first.substr(component_section_prefix.size()), component);
         component_sections.emplace(component, item.second);
     }
 
     if (component_sections.empty())
     {
         add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, 0,
-                  "Mixture initialization requires at least one '[initial.mixture.component.N]' section.");
+                  "Mixture initialization requires at least one '[" + component_section_prefix + "N]' section.");
         return std::nullopt;
     }
 
@@ -802,7 +814,7 @@ std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::
             return std::nullopt;
         }
 
-        const std::string prefix = std::string(mixture_component_section_prefix) + std::to_string(item.first);
+        const std::string prefix = component_section_prefix + std::to_string(item.first);
         for (const auto& scalar : parsed.scalars)
         {
             if (scalar.first.rfind(prefix + ".", 0) == 0 && !component_key_allowed(scalar.first, prefix))
@@ -835,11 +847,11 @@ std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::
     return DistributionMixture{std::move(components)};
 }
 
-bool has_mixture_component_sections(const ParsedFile& parsed)
+bool has_mixture_component_sections(const ParsedFile& parsed, const std::string& initialization_prefix = "initial")
 {
     for (const auto& item : parsed.sections)
     {
-        if (is_mixture_component_section(item.first))
+        if (is_mixture_component_section(item.first, initialization_prefix))
         {
             return true;
         }
@@ -921,7 +933,7 @@ std::optional<IndependentProductDistribution> parse_independent_product(ParsedFi
                   "initial.number_density must be finite and non-negative.");
     }
 
-    std::vector<DistributionSpecification> marginals;
+    std::vector<IndependentProductMarginal> marginals;
     marginals.reserve(dimension_sections.size());
     std::size_t expected_dimension = 0;
     for (const auto& item : dimension_sections)
@@ -942,10 +954,36 @@ std::optional<IndependentProductDistribution> parse_independent_product(ParsedFi
             }
         }
 
-        std::optional<DistributionSpecification> distribution = parse_distribution(parsed, prefix, source_name);
-        if (distribution.has_value())
+        const Entry* marginal_type = find_entry(parsed, prefix + ".type");
+        const bool has_components = has_mixture_component_sections(parsed, prefix);
+        if (marginal_type != nullptr)
         {
-            marginals.push_back(*distribution);
+            if (marginal_type->value != "mixture")
+            {
+                add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, marginal_type->line,
+                          "Independent product marginal type must be 'mixture' when specified.");
+            }
+            else
+            {
+                std::optional<DistributionMixture> mixture = parse_mixture(parsed, source_name, prefix);
+                if (mixture.has_value())
+                {
+                    marginals.push_back(*mixture);
+                }
+            }
+        }
+        else if (has_components)
+        {
+            add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, item.second.line,
+                      "Independent product mixture marginal requires 'type = mixture'.");
+        }
+        else
+        {
+            std::optional<DistributionSpecification> distribution = parse_distribution(parsed, prefix, source_name);
+            if (distribution.has_value())
+            {
+                marginals.push_back(*distribution);
+            }
         }
         ++expected_dimension;
     }

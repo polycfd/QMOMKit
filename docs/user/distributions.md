@@ -172,8 +172,10 @@ The generated `MomentSet` can be passed directly to `compute_qmom`.
 
 For multidimensional CQMOM, independent-product initialization covers cases
 where the initial coordinates can be described as independent marginal
-distributions. Each phase-space dimension gets one normalized marginal, and
-the product has one global `number_density`.
+distributions. Each phase-space dimension gets one simple distribution or
+mixture marginal, normalized through its zeroth raw moment, and the product has
+one global `number_density`. Mixture component densities retain their usual
+absolute-density meaning.
 
 For the normal configured workflow, describe those marginals in a
 multidimensional `.qmom` configuration file and load it with `load_cqmom(...)`.

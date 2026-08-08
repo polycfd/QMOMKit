@@ -511,6 +511,28 @@ the same order as callback coordinates and moment tensor indices. There is one
 global `number_density`; per-dimension number densities are not part of this
 model.
 
+A marginal may instead use the existing mixture syntax. The mixture component
+densities keep their ordinary absolute-density meaning, while the independent
+product normalizes the completed marginal through its zeroth raw moment before
+applying the one global `number_density`:
+
+```text
+[initial.dimension.1]
+type = mixture
+
+[initial.dimension.1.mixture.component.0]
+family = lognormal
+number_density = 1.5
+mu_log = -0.3
+sigma_log = 0.25
+
+[initial.dimension.1.mixture.component.1]
+family = lognormal
+number_density = 3.25
+mu_log = 0.4
+sigma_log = 0.45
+```
+
 For the normal `load_cqmom(...)` path, `node_counts` and
 `conditioning_order` determine which raw moments are required. Analytical
 independent-product initialization generates only those required moments and

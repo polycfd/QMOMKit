@@ -500,6 +500,64 @@ sigma_log = 0.2
     assert_tensor_near(dense_case.value().moments, expected_tensor.moments);
 }
 
+void test_cqmom_independent_product_mixture_marginal_initialization()
+{
+    const auto initial = qmomkit::config::parse_cqmom_initial_condition(R"(
+[phase_space]
+node_counts = 1, 1
+
+[initial]
+type = independent_product
+number_density = 2.75
+maximum_orders = 1, 2
+
+[initial.dimension.0]
+family = normal
+mean = -0.4
+standard_deviation = 0.7
+
+[initial.dimension.1]
+type = mixture
+
+[initial.dimension.1.mixture.component.0]
+family = lognormal
+number_density = 1.5
+mu_log = -0.3
+sigma_log = 0.25
+
+[initial.dimension.1.mixture.component.1]
+family = lognormal
+number_density = 3.25
+mu_log = 0.4
+sigma_log = 0.45
+)");
+    assert(initial.ok());
+
+    const auto* independent_product = std::get_if<qmomkit::config::IndependentProductInitialization>(&initial.value());
+    assert(independent_product != nullptr);
+    assert(independent_product->distribution.number_density == 2.75);
+    assert(independent_product->distribution.marginals.size() == 2);
+    const auto* normal = std::get_if<qmomkit::DistributionSpecification>(&independent_product->distribution.marginals[0]);
+    const auto* mixture = std::get_if<qmomkit::DistributionMixture>(&independent_product->distribution.marginals[1]);
+    assert(normal != nullptr);
+    assert(mixture != nullptr);
+    assert(std::get<qmomkit::NormalDistribution>(*normal).mean == -0.4);
+    assert(std::get<qmomkit::NormalDistribution>(*normal).standard_deviation == 0.7);
+    assert(mixture->components.size() == 2);
+    assert(mixture->components[0].number_density == 1.5);
+    assert(mixture->components[1].number_density == 3.25);
+    assert(std::get<qmomkit::LogNormalDistribution>(mixture->components[0].distribution).normal_mean == -0.3);
+    assert(std::get<qmomkit::LogNormalDistribution>(mixture->components[1].distribution).normal_standard_deviation == 0.45);
+
+    const qmomkit::IndependentProductDistribution direct{{qmomkit::DistributionSpecification{qmomkit::NormalDistribution{-0.4, 0.7}}, *mixture},
+                                                         2.75};
+    const qmomkit::TensorMomentResult expected = qmomkit::compute_raw_moments(direct, {1, 2});
+    const auto initialized = qmomkit::config::initialize_cqmom_dense_moments(initial.value());
+    assert(expected.ok());
+    assert(initialized.ok());
+    assert_tensor_near(initialized.value(), expected.moments);
+}
+
 void test_lean_cqmom_initialization_matches_dense_subselection()
 {
     const auto initial = qmomkit::config::parse_cqmom_initial_condition(R"(
@@ -3406,6 +3464,7 @@ int main()
     test_mixture_zero_density_component_is_skipped();
     test_valid_cqmom_matches_programmatic_case();
     test_cqmom_independent_product_initialization_matches_direct_api();
+    test_cqmom_independent_product_mixture_marginal_initialization();
     test_lean_cqmom_initialization_matches_dense_subselection();
     test_lean_cqmom_initialization_matches_example_flow();
     test_lean_cqmom_initialization_omits_maximum_orders();

@@ -39,7 +39,7 @@ QMOMKit/
 ├── examples/                         # Standalone installed-package examples
 ├── tests/                            # Unit, regression, verification, and consumer checks
 ├── tools/
-│   ├── moment_rate_element_operator/ # Downstream local-rate prototype
+│   ├── galerkin_element_coupling/    # Galerkin coupling demonstrator
 │   ├── monte_carlo/                  # Optional Monte Carlo companion
 │   └── plotting/                     # Optional plotting scripts
 ├── CMakeLists.txt
@@ -76,7 +76,7 @@ The standalone examples progress from basic QMOM and CQMOM reconstruction and in
 
 - `tools/monte_carlo/` provides sampled initialization, ensemble evolution, and finite-sample comparison workflows; see the [Monte Carlo guide](docs/user/monte_carlo.md).
 - `tools/plotting/` provides optional plotting helpers for QMOMKit-native histories; see the [plotting README](tools/plotting/README.md).
-- `tools/moment_rate_element_operator/` demonstrates downstream composition of local moment-rate evaluation; see its [README](tools/moment_rate_element_operator/README.md).
+- `tools/galerkin_element_coupling/` demonstrates Galerkin coupling to local QMOMKit phase-space operations; see its [README](tools/galerkin_element_coupling/README.md).
 
 ## Testing
 

@@ -18,8 +18,8 @@ constexpr std::size_t quadrature_count = 3;
 
 using Matrix3 = std::array<std::array<double, basis_size>, basis_size>;
 
-// This is deliberately only a small reference element. The host application,
-// not QMOMKit, owns its spatial basis, quadrature rule, and mass matrix.
+// Keep the element deliberately small: it supplies just enough Galerkin
+// machinery to show the handoff to QMOMKit without becoming an FE framework.
 struct ReferenceElement
 {
     std::array<double, quadrature_count> points;
@@ -82,9 +82,9 @@ struct ReferenceElement
     return basis * moment_count + moment;
 }
 
-// The host stores moment fields as coefficients[basis][moment]. QMOMKit instead
-// consumes one independent raw-moment set, so the host evaluates every moment
-// field at each spatial quadrature point before making a local QMOMKit call.
+// QMOMKit works with one local moment set at a time. The Galerkin solution is
+// stored as basis coefficients, so first evaluate those fields at the spatial
+// quadrature points.
 [[nodiscard]] std::vector<double> interpolate_coefficients_to_local_moments(const ReferenceElement& element, const std::vector<double>& coefficients,
                                                                             const std::size_t moment_count)
 {
@@ -108,10 +108,10 @@ struct ReferenceElement
     return local_moments;
 }
 
-// QMOMKit returns values at spatial quadrature points, while the host evolves
-// basis coefficients. This is the host's L2 projection: first form the
-// weighted basis inner products, then apply M^{-1}. The local values may be
-// either instantaneous rates (Route A) or evolved raw moments (Route B).
+// After a local QMOMKit call, the values live at the spatial Gauss points. The
+// weighted projection forms the right-hand side of the element mass-matrix
+// system; M^{-1} turns that into basis coefficients. The values are rates in
+// Route A and evolved moments in Route B.
 [[nodiscard]] std::vector<double> project_local_values_to_coefficients(const ReferenceElement& element, const std::vector<double>& local_values,
                                                                        const std::size_t moment_count)
 {
@@ -157,9 +157,9 @@ struct ReferenceElement
 
 [[nodiscard]] std::vector<double> make_spatially_varying_coefficients(const std::vector<double>& moments)
 {
-    // The nodal scale field is 1 + 0.15 x. It stays positive on the element,
-    // so it scales all weights of the fixed realizable moment sequence by a
-    // positive factor without changing its two-node support.
+    // The scale field 1 + 0.15 x stays positive over the element. It therefore
+    // preserves realizability while making the moment field visibly spatially
+    // nonconstant.
     const std::array<double, basis_size> nodal_scales{0.85, 1.0, 1.15};
     std::vector<double> coefficients(basis_size * moments.size(), 0.0);
     for (std::size_t basis = 0; basis < basis_size; ++basis)
@@ -192,10 +192,9 @@ int main()
 {
     try
     {
-        // This manufactured problem has one one-dimensional QMOM population on
-        // one quadratic reference element. There is deliberately no mesh or
-        // physical-space operator here: a real CG or DG application owns
-        // those operations independently of the local QMOMKit calls below.
+        // One one-dimensional QMOM population on one quadratic reference
+        // element is enough to show the coupling. There is no mesh or
+        // physical-space operator in this example.
         constexpr std::size_t node_count = 2;
         const double initial_time = 0.0;
         const double final_time = 0.05;
@@ -206,9 +205,8 @@ int main()
             throw std::runtime_error("The common time interval is not an integer number of time steps.");
         }
 
-        // Both routes use this exact velocity model, this node count, this
-        // reconstruction policy, and the same SSP-RK3 time step. The zero
-        // source makes this a pure phase-space advection example.
+        // Keep the phase-space model and timing identical in both routes. The
+        // zero source leaves a pure phase-space advection problem.
         const qmomkit::QmomOptions qmom_options;
         const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.1}; };
         const qmomkit::MomentSource zero_source = [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 0.0); };
@@ -220,15 +218,14 @@ int main()
 
         const ReferenceElement element = make_quadratic_reference_element();
 
-        // A two-node quadrature with nodes -0.5 and 1.2 and weights 0.4 and
-        // 0.6 defines this raw-moment sequence. The spatially varying positive
-        // scaling below keeps the local sequences realizable at all three
-        // spatial quadrature points.
+        // QMOM nodes -0.5 and 1.2 with weights 0.4 and 0.6 define this local
+        // raw-moment sequence. Positive spatial scaling keeps every local
+        // sequence at the spatial quadrature points realizable.
         const std::vector<double> base_moments{1.0, 0.52, 0.964, 0.9868};
 
-        // Conceptually, initial_coefficients[i][k] is the coefficient of raw
-        // moment order k in spatial basis function i. The host has no spatial
-        // field of QMOM nodes or weights; those exist only inside local calls.
+        // Conceptually, initial_coefficients[i][k] is raw moment k in spatial
+        // basis function i. These are moment fields, not fields of QMOM nodes
+        // or weights.
         const std::vector<double> initial_coefficients = make_spatially_varying_coefficients(base_moments);
 
         // ---------------------------------------------------------------------
@@ -239,12 +236,10 @@ int main()
         {
             const double time = initial_time + static_cast<double>(step) * dt;
 
-            // QMOMKit returns only an instantaneous local phase-space rate in
-            // this route. The host must form a fresh coefficient-space RHS at
-            // every SSP-RK3 stage; a real spatial solver would use its own
-            // native time integrator at this same coupling boundary.
+            // QMOMKit does not advance time in this route. Each host RK stage
+            // needs a new coefficient-space RHS from the current stage state.
 
-            // Stage 1: coefficients -> local moments -> local QMOMKit rates -> projected RHS.
+            // Stage 1 starts at the current Galerkin coefficient state.
             const std::vector<double> stage_one_local_moments =
                 interpolate_coefficients_to_local_moments(element, rate_coefficients, base_moments.size());
             std::vector<double> stage_one_local_rates(quadrature_count * base_moments.size(), 0.0);
@@ -269,9 +264,8 @@ int main()
                 stage_one_coefficients[value] = rate_coefficients[value] + dt * stage_one_rhs[value];
             }
 
-            // Stage 2 repeats interpolation, local rate evaluation, and
-            // projection for the first SSP-RK3 stage state. Rates from stage 1
-            // are not reused because the local raw-moment states changed.
+            // Stage 2 must revisit the spatial Gauss points: its local moment
+            // states differ from those in stage 1, so their rates do as well.
             const std::vector<double> stage_two_local_moments =
                 interpolate_coefficients_to_local_moments(element, stage_one_coefficients, base_moments.size());
             std::vector<double> stage_two_local_rates(quadrature_count * base_moments.size(), 0.0);
@@ -296,8 +290,8 @@ int main()
                 stage_two_coefficients[value] = 0.75 * rate_coefficients[value] + 0.25 * (stage_one_coefficients[value] + dt * stage_two_rhs[value]);
             }
 
-            // Stage 3 again makes fresh local QMOMKit calls before completing
-            // the host-owned SSP-RK3 update of the coefficient fields.
+            // Stage 3 makes the same fresh local calls before the host finishes
+            // its SSP-RK3 update.
             const std::vector<double> stage_three_local_moments =
                 interpolate_coefficients_to_local_moments(element, stage_two_coefficients, base_moments.size());
             std::vector<double> stage_three_local_rates(quadrature_count * base_moments.size(), 0.0);
@@ -331,9 +325,9 @@ int main()
         {
             const double time = initial_time + static_cast<double>(step) * dt;
 
-            // The host still interpolates its moment fields. Each resulting
-            // point is an independent local phase-space IVP; QMOMKit never
-            // receives the basis functions, mass matrix, or spatial rule.
+            // Interpolation still belongs to the Galerkin side. Each spatial
+            // quadrature point now defines a separate local phase-space IVP;
+            // QMOMKit sees none of the basis or mass-matrix machinery.
             const std::vector<double> local_moments =
                 interpolate_coefficients_to_local_moments(element, finite_step_coefficients, base_moments.size());
             std::vector<double> evolved_local_moments(quadrature_count * base_moments.size(), 0.0);
@@ -342,13 +336,13 @@ int main()
             {
                 try
                 {
-                    // Construct a local QMOM state from the raw moments at this spatial
-                    // quadrature point and advance it over the phase-space substep.
+                    // Build the QMOM state for this spatial quadrature point and
+                    // advance that local phase-space problem over dt.
 
-                    // The QMOM state contains the corresponding quadrature, but that quadrature
-                    // is only a local phase-space representation. After the substep, the host
-                    // takes the evolved raw moments and projects those back to its spatial basis;
-                    // QMOM nodes and weights are not represented as spatial fields.
+                    // The state includes the corresponding QMOM quadrature for
+                    // the local calculation. Afterward, only its evolved raw
+                    // moments return to the Galerkin basis; QMOM nodes and
+                    // weights never become spatial fields.
                     const qmomkit::QmomState state =
                         qmomkit::QmomCase{qmomkit::MomentSet(local_moment_slice(local_moments, q, base_moments.size())), node_count, qmom_options}
                             .initial_state();
@@ -370,10 +364,9 @@ int main()
                 }
             }
 
-            // QMOMKit has advanced each local phase-space IVP over dt. The
-            // host projects the evolved raw moments to its basis, then decides
-            // where this substep belongs relative to physical-space evolution
-            // in an outer operator-splitting scheme.
+            // Bring the evolved local moments back to the basis. A real host
+            // can place this finite phase-space substep wherever it belongs in
+            // its outer splitting sequence.
             finite_step_coefficients = project_local_values_to_coefficients(element, evolved_local_moments, base_moments.size());
         }
 

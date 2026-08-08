@@ -2,7 +2,7 @@
 
 **QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number-density functions in arbitrary-dimensional phase spaces**
 
-QMOMKit reconstructs quadrature nodes and weights from raw moments and provides phase-space evolution utilities for moment and quadrature states. It leaves physical-space transport of moments, the physical model, governing equations, physical-space mesh and discretization, PDE solution, and overall simulation workflow to the host application. QMOMKit is independent of any particular CFD (FVM, FEM, ...) implementation. The **core QMOMKit package** has no mandatory third-party numerical dependency.
+QMOMKit reconstructs quadrature nodes and weights from raw moments and provides phase-space evolution utilities for moment and quadrature states. It leaves physical-space transport of moments, the physical model, governing equations, physical-space mesh and discretization, PDE solution, and overall simulation workflow to the host application. QMOMKit is independent of any particular CFD (FVM, FEM, ...) implementation. The core QMOMKit package has **no third-party dependencies**.
 
 ## Authors
 
@@ -37,11 +37,11 @@ QMOMKit/
 │   ├── user/                         # User-oriented documentation
 │   └── developer/                    # Developer-oriented documentation
 ├── examples/                         # Standalone installed-package examples
-├── tests/                            # Unit, regression, verification, and consumer checks
+├── tests/                            # Unit, regression, and verification tests
 ├── tools/
 │   ├── galerkin_element_coupling/    # Galerkin coupling demonstrator
-│   ├── monte_carlo/                  # Optional Monte Carlo companion
-│   └── plotting/                     # Optional plotting scripts
+│   ├── monte_carlo/                  # Monte Carlo companion code
+│   └── plotting/                     # Plotting scripts
 ├── CMakeLists.txt
 ├── LICENSE
 └── README.md

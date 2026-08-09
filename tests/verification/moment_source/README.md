@@ -117,9 +117,11 @@ with `dt=0.08`, and eight outer steps from `t=-0.2` with `dt=0.06`. The chosen
 coefficients preserve realizability over the tested interval, so the final
 two-node QMOM inversion remains meaningful.
 
-The convergence sanity check runs the same final time `tau = 0.48` with
-`dt=0.12` and `dt=0.06`, requiring the refined final moment error to decrease.
-It is not a formal order-of-accuracy study.
+The convergence study retains the same closed-form coupled source problem and
+advances to the same final time, `tau = 0.48`, at four timestep refinement
+levels. It computes the observed SSP-RK3 order from adjacent final-moment
+errors. The two finest observed orders must satisfy `p >= 2.8`, explicitly
+verifying third-order temporal behavior of the public moment-source wrapper.
 
 ## Invariants And Tolerances
 

@@ -223,16 +223,46 @@ void print_embedded_fixed_step_table(const char* const method, const std::vector
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
+    if (argc > 2)
+    {
+        std::cerr << "Usage: test_runge_kutta_convergence [ssp_rk3|rk23_adaptive|rk23_fixed_step|rk45_fixed_step]\n";
+        return 2;
+    }
+
     std::cout << std::setprecision(17);
-    const std::vector<FixedStepRun> ssp_runs = verify_ssp_rk3_convergence();
-    const std::vector<AdaptiveRun> rk23_runs = verify_rk23_convergence();
-    const std::vector<EmbeddedFixedRun> rk23_fixed_runs = verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk23, 3.0, 3.0);
-    const std::vector<EmbeddedFixedRun> rk45_fixed_runs = verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk45, 5.0, 5.0);
-    print_ssp_table(ssp_runs);
-    print_rk23_table(rk23_runs);
-    print_embedded_fixed_step_table("RK23", rk23_fixed_runs);
-    print_embedded_fixed_step_table("RK45", rk45_fixed_runs);
-    return 0;
+    const std::string selector = argc == 2 ? argv[1] : "";
+    if (selector.empty() || selector == "ssp_rk3")
+    {
+        print_ssp_table(verify_ssp_rk3_convergence());
+        if (!selector.empty())
+        {
+            return 0;
+        }
+    }
+    if (selector.empty() || selector == "rk23_adaptive")
+    {
+        print_rk23_table(verify_rk23_convergence());
+        if (!selector.empty())
+        {
+            return 0;
+        }
+    }
+    if (selector.empty() || selector == "rk23_fixed_step")
+    {
+        print_embedded_fixed_step_table("RK23", verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk23, 3.0, 3.0));
+        if (!selector.empty())
+        {
+            return 0;
+        }
+    }
+    if (selector.empty() || selector == "rk45_fixed_step")
+    {
+        print_embedded_fixed_step_table("RK45", verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk45, 5.0, 5.0));
+        return 0;
+    }
+
+    std::cerr << "Unknown Runge-Kutta convergence selector: " << selector << '\n';
+    return 2;
 }

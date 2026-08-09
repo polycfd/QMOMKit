@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -1887,7 +1888,7 @@ void test_recursive_bp_failure_independent_of_diagnostic_level()
 
 } // namespace
 
-int main()
+void run_all_recursive_quadrature_tests()
 {
     test_flat_multi_index_round_trip();
     test_enumerate_multi_indices_row_major();
@@ -1946,6 +1947,116 @@ int main()
     test_public_dense_and_lean_bp_success_independent_of_diagnostic_level();
     test_recursive_dense_and_bp_fallback_equivalence_failure();
     test_recursive_bp_failure_independent_of_diagnostic_level();
+}
 
-    return 0;
+void run_indexing_layout_tests()
+{
+    test_flat_multi_index_round_trip();
+    test_enumerate_multi_indices_row_major();
+    test_cqmom_moment_view_dense_matches_tensor_access();
+    test_cqmom_moment_view_moment_data_matches_dense_view();
+    test_indexed_moment_set_preserves_order_and_uses_key_lookup();
+    test_cqmom_moment_view_moment_data_references_indexed_storage();
+    test_branch_local_layout_identity_wheeler_and_rhs_offsets();
+    test_branch_local_layout_non_identity_wheeler_and_rhs_offsets();
+    test_branch_local_layout_unequal_node_counts_and_adaptive_child_case();
+    test_one_dimensional_hierarchy_reduces_to_stage_1_ordering();
+    test_two_dimensional_hierarchy_indexing();
+    test_three_dimensional_hierarchy_indexing();
+    test_non_uniform_node_counts();
+    test_identity_conditioning_order_matches_phase_space_order();
+    test_non_identity_conditioning_order_controls_recursive_traversal();
+    test_reversed_conditioning_order_controls_recursive_traversal();
+    test_conditioning_path_maps_to_phase_space_node_index();
+    test_invalid_hierarchy_inputs();
+    test_invalid_index_inputs();
+    test_recursive_failure_diagnostics_identify_failing_branch();
+}
+
+void run_lean_reconstruction_tests()
+{
+    test_moment_data_root_recursive_result_matches_dense_two_dimensional();
+    test_moment_data_root_recursive_result_matches_dense_three_dimensional();
+    test_moment_data_root_recursive_result_matches_dense_three_dimensional_non_identity();
+    test_moment_data_root_recursive_result_matches_dense_unequal_node_counts();
+    test_moment_data_recursive_rejects_missing_values();
+    test_moment_data_recursive_rejects_non_finite_values();
+    test_moment_data_recursive_rejects_incompatible_layout();
+    test_public_cqmom_lean_route_matches_dense_recursive_two_dimensional();
+    test_public_cqmom_lean_route_matches_dense_recursive_three_dimensional();
+    test_public_cqmom_lean_route_matches_dense_recursive_non_identity();
+    test_public_cqmom_lean_route_matches_dense_recursive_unequal_node_counts();
+    test_public_cqmom_lean_route_matches_dense_recursive_adaptive();
+    test_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts();
+}
+
+void run_bounded_support_tests()
+{
+    test_recursive_bounded_support_accepts_feasible_branch();
+    test_recursive_shifted_bounded_support_accepts_feasible_fixed_branch();
+    test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive();
+    test_recursive_bounded_support_rejects_fixed_infeasible_count();
+    test_recursive_bounded_support_diagnostic_terminology_is_precise();
+    test_recursive_bounded_support_adaptive_falls_back_to_supported_count();
+    test_recursive_bounded_support_rejects_growth_and_preserves_current_count();
+    test_recursive_bounded_support_uses_phase_space_coordinate_index();
+    test_recursive_bounded_support_applies_to_conditional_phase_space_dimension();
+    test_recursive_bounded_support_returned_node_tolerance_and_no_clipping();
+    test_public_dense_and_lean_bounded_support_parity();
+}
+
+void run_solver_policy_tests()
+{
+    test_recursive_dense_and_bp_fallback_equivalence_fixed();
+    test_recursive_dense_and_pivoted_qr_equivalence_fixed();
+    test_recursive_dense_and_svd_equivalence_fixed();
+    test_recursive_bp_success_independent_of_diagnostic_level();
+    test_recursive_automatic_uses_bp_fallback_for_small_branches();
+    test_recursive_automatic_independent_of_diagnostic_level();
+    test_recursive_dense_and_bp_fallback_equivalence_adaptive();
+    test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch();
+    test_recursive_dense_and_bp_fallback_equivalence_difficult_branches();
+    test_recursive_bp_rejection_failure_independent_of_diagnostic_level();
+    test_public_dense_and_lean_bp_success_independent_of_diagnostic_level();
+    test_recursive_dense_and_bp_fallback_equivalence_failure();
+    test_recursive_bp_failure_independent_of_diagnostic_level();
+}
+
+int main(const int argc, char** argv)
+{
+    if (argc > 2)
+    {
+        std::cerr << "Usage: test_recursive_quadrature [indexing_layout|lean_reconstruction|bounded_support|solver_policy]\n";
+        return 2;
+    }
+
+    const std::string selector = argc == 2 ? argv[1] : "";
+    if (selector.empty())
+    {
+        run_all_recursive_quadrature_tests();
+        return 0;
+    }
+    if (selector == "indexing_layout")
+    {
+        run_indexing_layout_tests();
+        return 0;
+    }
+    if (selector == "lean_reconstruction")
+    {
+        run_lean_reconstruction_tests();
+        return 0;
+    }
+    if (selector == "bounded_support")
+    {
+        run_bounded_support_tests();
+        return 0;
+    }
+    if (selector == "solver_policy")
+    {
+        run_solver_policy_tests();
+        return 0;
+    }
+
+    std::cerr << "Unknown recursive quadrature selector: " << selector << '\n';
+    return 2;
 }

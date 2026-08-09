@@ -80,7 +80,7 @@ The standalone examples progress from basic QMOM and CQMOM reconstruction and in
 
 ## Testing
 
-The repository contains:
+The repository contains over 100 individual tests:
 
 - unit tests for local behavior and failure paths;
 - component regression tests for important interactions;
@@ -92,12 +92,14 @@ Examples are not tests, and benchmarks measure performance rather than
 correctness. The installed-package consumer and optional tool tests have their
 own documented workflows.
 
-To enable the core test suite:
+To enable the core test suite, use a Debug build because the unit tests use
+`assert()`:
 
 ```bash
 cmake -S . -B build-tests \
+    -DCMAKE_BUILD_TYPE=Debug \
     -DQMOMKIT_BUILD_TESTS=ON
-cmake --build build-tests
+cmake --build build-tests --parallel
 ctest --test-dir build-tests --output-on-failure
 ```
 

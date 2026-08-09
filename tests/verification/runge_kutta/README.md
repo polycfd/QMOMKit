@@ -13,8 +13,8 @@ Expected values come from closed-form ODE solutions. The tolerances are chosen
 to be tighter than the configured adaptive tolerances after accounting for the
 tested final time and solution scale.
 
-`runge_kutta_convergence.cpp` is the formal order-of-accuracy verification
-case. It uses the scalar closed-form problem
+`runge_kutta_convergence.cpp` contains four independently registered studies
+using the scalar closed-form problem
 
 ```text
 y' = -y
@@ -22,22 +22,31 @@ y(0) = 1
 y(T) = exp(-T)
 ```
 
+- `verification_ssp_rk3_convergence` verifies fixed-step SSP-RK3 formal
+  convergence;
+- `verification_rk23_adaptive_convergence` studies tolerance-controlled
+  adaptive RK23 behavior;
+- `verification_rk23_fixed_step_convergence` verifies constrained fixed-step
+  RK23 formal convergence;
+- `verification_rk45_fixed_step_convergence` verifies constrained fixed-step
+  RK45 formal convergence.
+
 For SSP-RK3, the verifier advances from `T=0` to `T=1` with repeated fixed
 steps and halves the timestep over several refinement levels. The error norm is
 the absolute final-state error `|y_num(T) - exp(-T)|`. The printed table reports
 timestep size, error, and observed order, and the finest refinements are
 required to approach third-order global convergence.
 
-For adaptive RK23 and RK45, the verifier integrates the same ODE from `T=0` to
-`T=2` with successively tighter relative and absolute tolerances. An explicit
-initial step is supplied for each run. The solver chooses later accepted
+For adaptive RK23, the verifier integrates the same ODE from `T=0` to `T=2`
+with successively tighter relative and absolute tolerances. An explicit initial
+step is supplied for each run, while the solver chooses later accepted
 timesteps. The printed table reports tolerance, accepted and rejected steps,
 function evaluations, average accepted step, final error, and observed order
-against the average accepted step. The fixed-step study separately checks
-third-order RK23 and fifth-order RK45 convergence.
+against the average accepted step. The constrained fixed-step studies separately
+check third-order RK23 and fifth-order RK45 convergence.
 
 Run with:
 
 ```bash
-ctest --test-dir build -R "verification_runge_kutta_(analytical|convergence)" --output-on-failure
+ctest --test-dir build -R '^verification_(ssp_rk3|rk23_adaptive|rk23_fixed_step|rk45_fixed_step)_convergence$' --output-on-failure
 ```

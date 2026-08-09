@@ -1,6 +1,7 @@
 #include "../verification_helpers.hpp"
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/distributions.hpp"
+#include "qmomkit/moment_reconstruction.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -8,6 +9,7 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace
@@ -575,6 +577,98 @@ void verify_configuration_independent_product_dimension_sweep()
     }
 }
 
+void verify_configuration_independent_product_mixture_marginal()
+{
+    constexpr double number_density = 2.75;
+    constexpr double mixture_density = 1.5 + 3.25;
+    constexpr double normal_mean = -0.4;
+    constexpr double normal_standard_deviation = 0.7;
+    const std::string configuration = R"(
+[phase_space]
+node_counts = 2, 2
+
+[initial]
+type = independent_product
+number_density = 2.75
+maximum_orders = 3, 3
+
+[initial.dimension.0]
+family = normal
+mean = -0.4
+standard_deviation = 0.7
+
+[initial.dimension.1]
+type = mixture
+
+[initial.dimension.1.mixture.component.0]
+family = lognormal
+number_density = 1.5
+mu_log = -0.3
+sigma_log = 0.25
+
+[initial.dimension.1.mixture.component.1]
+family = lognormal
+number_density = 3.25
+mu_log = 0.4
+sigma_log = 0.45
+)";
+
+    const auto initial = qmomkit::config::parse_cqmom_initial_condition(configuration);
+    QMOMKIT_VERIFY_CHECK(initial.ok());
+    const auto* const independent_product = std::get_if<qmomkit::config::IndependentProductInitialization>(&initial.value());
+    QMOMKIT_VERIFY_CHECK(independent_product != nullptr);
+    QMOMKIT_VERIFY_CHECK(independent_product->distribution.marginals.size() == 2);
+
+    const auto mixture_raw_moment = [](const std::size_t order)
+    { return 1.5 * log_normal_raw_moment(-0.3, 0.25, order) + 3.25 * log_normal_raw_moment(0.4, 0.45, order); };
+    const auto analytical_moment = [&](const qmomkit::MultiIndex& order)
+    {
+        return number_density * normal_raw_moment_sum(normal_mean, normal_standard_deviation, order[0]) * mixture_raw_moment(order[1]) /
+               mixture_density;
+    };
+
+    const std::vector<std::size_t> extents{4, 4};
+    std::vector<double> expected(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat_index = 0; flat_index < expected.size(); ++flat_index)
+    {
+        expected[flat_index] = analytical_moment(qmomkit::unflatten_multi_index(flat_index, extents));
+    }
+
+    const qmomkit::TensorMomentResult dense = qmomkit::compute_raw_moments(independent_product->distribution, {3, 3});
+    assert_tensor(dense, extents, expected, 1.0e-12, 1.0e-12);
+    assert_near_absolute_relative(dense.moments.values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);
+
+    const qmomkit::RawMomentRequest request{{{0, 0}, {1, 0}, {0, 1}, {1, 1}, {0, 2}, {2, 3}}};
+    const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(independent_product->distribution, request);
+    QMOMKIT_VERIFY_CHECK(selected.ok());
+    QMOMKIT_VERIFY_CHECK(selected.indices == request.indices);
+    for (std::size_t index = 0; index < request.indices.size(); ++index)
+    {
+        assert_near_absolute_relative(selected.values[index], analytical_moment(request.indices[index]), 1.0e-12, 1.0e-12);
+    }
+
+    const auto configured = qmomkit::config::parse_cqmom(configuration);
+    QMOMKIT_VERIFY_CHECK(configured.ok());
+    const qmomkit::CqmomState initial_state = configured.value().initial_state();
+    QMOMKIT_VERIFY_CHECK(initial_state.moment_indices().size() == initial_state.moment_values().size());
+    for (std::size_t index = 0; index < initial_state.moment_values().size(); ++index)
+    {
+        assert_near_absolute_relative(initial_state.moment_values()[index], analytical_moment(initial_state.moment_indices()[index]), 1.0e-12,
+                                      1.0e-12);
+    }
+
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(configured.value());
+    QMOMKIT_VERIFY_CHECK(cqmom.ok());
+    const qmomkit::SelectedRawMomentResult reconstructed =
+        qmomkit::reconstruct_raw_moments(cqmom.quadrature, qmomkit::RawMomentRequest{initial_state.moment_indices()});
+    QMOMKIT_VERIFY_CHECK(reconstructed.ok());
+    QMOMKIT_VERIFY_CHECK(reconstructed.indices == initial_state.moment_indices());
+    for (std::size_t index = 0; index < reconstructed.values.size(); ++index)
+    {
+        assert_near_absolute_relative(reconstructed.values[index], initial_state.moment_values()[index], 5.0e-10, 5.0e-10);
+    }
+}
+
 void verify_one_component_mixture_equivalence()
 {
     const qmomkit::DistributionMixture mixture{{{qmomkit::GammaDistribution{2.0, 3.0}, 2.5}}};
@@ -858,7 +952,7 @@ void verify_independent_product_tensor_overflow()
 
 } // namespace
 
-int main()
+void run_all_distribution_analytical_tests()
 {
     verify_standard_normal();
     verify_shifted_scaled_normal();
@@ -876,6 +970,7 @@ int main()
     verify_configuration_independent_product_normal_gamma();
     verify_configuration_independent_product_beta_log_normal_weibull();
     verify_configuration_independent_product_dimension_sweep();
+    verify_configuration_independent_product_mixture_marginal();
     verify_one_component_mixture_equivalence();
     verify_bimodal_normal_mixture();
     verify_heterogeneous_gamma_log_normal_mixture();
@@ -893,6 +988,93 @@ int main()
     verify_independent_product_signed_odd_moments();
     verify_independent_product_zero_density();
     verify_independent_product_tensor_overflow();
+}
+
+void run_distribution_family_analytical_tests()
+{
+    verify_standard_normal();
+    verify_shifted_scaled_normal();
+    verify_log_normal();
+    verify_beta();
+    verify_gamma();
+    verify_chi_squared();
+    verify_weibull_gamma_identity();
+    verify_chi();
+    verify_weibull();
+    verify_maximum_order_zero_and_invalid_parameters();
+}
+
+void run_mixture_analytical_tests()
+{
+    verify_one_component_mixture_equivalence();
+    verify_bimodal_normal_mixture();
+    verify_heterogeneous_gamma_log_normal_mixture();
+    verify_three_component_multimodal_mixture();
+    verify_zero_density_mixture_component_policy();
+    verify_strongly_unequal_component_densities();
+    verify_normal_odd_moment_cancellation();
+    verify_component_order_permutation_invariance();
+    verify_large_total_density_is_not_normalized();
+    verify_mixture_accumulation_overflow();
+    verify_invalid_mixture_density();
+}
+
+void run_independent_product_analytical_tests()
+{
+    verify_independent_product_one_dimensional_equivalence();
+    verify_independent_product_normal_gamma();
+    verify_independent_product_beta_log_normal_weibull();
+    verify_independent_product_signed_odd_moments();
+    verify_independent_product_zero_density();
+    verify_independent_product_tensor_overflow();
+}
+
+void run_configuration_initialization_tests()
+{
+    verify_configuration_distribution_initialization();
+    verify_configuration_mixture_initialization();
+    verify_configuration_independent_product_two_dimensional();
+    verify_configuration_independent_product_normal_gamma();
+    verify_configuration_independent_product_beta_log_normal_weibull();
+    verify_configuration_independent_product_dimension_sweep();
+    verify_configuration_independent_product_mixture_marginal();
+}
+
+int main(const int argc, char** argv)
+{
+    if (argc > 2)
+    {
+        std::cerr << "Usage: test_distributions_analytical [families|mixtures|independent_products|configuration_initialization]\n";
+        return 2;
+    }
+
+    const std::string selector = argc == 2 ? argv[1] : "";
+    if (selector.empty())
+    {
+        run_all_distribution_analytical_tests();
+    }
+    else if (selector == "families")
+    {
+        run_distribution_family_analytical_tests();
+    }
+    else if (selector == "mixtures")
+    {
+        run_mixture_analytical_tests();
+    }
+    else if (selector == "independent_products")
+    {
+        run_independent_product_analytical_tests();
+    }
+    else if (selector == "configuration_initialization")
+    {
+        run_configuration_initialization_tests();
+    }
+    else
+    {
+        std::cerr << "Unknown distribution analytical selector: " << selector << '\n';
+        return 2;
+    }
+
     std::cout << "maximum analytical absolute error: " << maximum_absolute_error << '\n';
     std::cout << "maximum analytical relative error: " << maximum_relative_error << '\n';
     return 0;

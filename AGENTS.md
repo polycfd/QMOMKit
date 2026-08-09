@@ -289,6 +289,15 @@ obvious code.
 
 Every behavioral change requires tests at the level that owns the behavior.
 
+### Debug Functional-Test Requirement
+
+Unit tests under `tests/unit/` intentionally use C/C++ `assert()`, and `NDEBUG`
+disables those checks. Build and run QMOMKit functional tests with
+`CMAKE_BUILD_TYPE=Debug`; Codex must use Debug by default when building,
+running, auditing, or validating the suite. A Release CTest result is not proof
+that the unit suite passed. Do not propose replacing the assertions unless the
+user explicitly requests a redesign of the unit-test mechanism.
+
 Use:
 
 ```text

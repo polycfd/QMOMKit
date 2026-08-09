@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <iostream>
 #include <limits>
 #include <optional>
 #include <sstream>
@@ -4191,7 +4192,7 @@ void test_lean_cqmom_failure_propagation_from_post_source_inversion()
 
 } // namespace
 
-int main()
+void run_all_phase_space_evolution_tests()
 {
     test_public_qmom_advection_stage_advances_canonical_state();
     test_public_qmom_advection_stage_failure_rolls_back();
@@ -4294,5 +4295,142 @@ int main()
     test_lean_cqmom_failure_propagation_from_reconstruction();
     test_lean_cqmom_failure_propagation_from_source_operator();
     test_lean_cqmom_failure_propagation_from_post_source_inversion();
-    return 0;
+}
+
+void run_qmom_phase_space_evolution_tests()
+{
+    test_public_qmom_advection_stage_advances_canonical_state();
+    test_public_qmom_advection_stage_failure_rolls_back();
+    test_public_qmom_moment_source_stage_fixed_mode_is_strict();
+    test_public_qmom_moment_source_stage_adaptive_policy();
+    test_public_qmom_moment_source_stage_failures_roll_back();
+    test_public_qmom_moment_source_stage_boundary_matches_source_update();
+    test_public_qmom_stage_composition_matches_strang_phase_space_evolution();
+    test_public_qmom_stage_composition_matches_lie_phase_space_evolution();
+    test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input();
+    test_advection_only_matches_direct_operator_qmom();
+    test_source_only_matches_direct_operator_qmom();
+    test_source_plus_boundary_matches_direct_operator_qmom();
+    test_state_qmom_phase_space_evolution_api_does_not_expose_moments();
+    test_qmom_state_copy_move_workflow();
+    test_qmom_initial_state_canonicalizes_adaptive_moments();
+    test_qmom_adaptive_phase_space_evolution_preserves_active_count_with_zero_source();
+    test_qmom_adaptive_post_source_reduction_and_growth_policy();
+    test_qmom_fixed_post_source_requires_configured_count();
+    test_first_order_schemes_differ_for_noncommuting_qmom();
+    test_diagnostics_are_aggregated();
+    test_qmom_phase_space_evolution_node_advection_scheme_selection();
+    test_failure_propagation_from_advection_operator();
+    test_failure_propagation_from_source_operator();
+    test_failure_propagation_from_boundary_contribution();
+    test_boundary_contribution_post_source_inversion_failure();
+    test_context_invalid_qmom_state_is_rejected_before_phase_space_evolution();
+}
+
+void run_cqmom_phase_space_evolution_tests()
+{
+    test_cqmom_initial_state_stores_accepted_quadrature_fixed_dense_and_lean();
+    test_cqmom_initial_state_stores_accepted_quadrature_adaptive_dense_and_lean();
+    test_cqmom_first_advection_stage_uses_initial_accepted_quadrature();
+    test_public_cqmom_advection_stage_preserves_topology();
+    test_public_cqmom_advection_stage_reconstructs_dense_and_lean_moments();
+    test_public_cqmom_moment_source_stage_adaptive_policy();
+    test_public_cqmom_moment_source_stage_growth_is_limited_to_one_node();
+    test_lean_cqmom_moment_source_stage_canonicalizes_adaptive_reduction();
+    test_public_cqmom_stage_composition_matches_phase_space_evolution();
+    test_cqmom_phase_space_evolution_success_materializes_an_independent_final_quadrature();
+    test_adaptive_cqmom_phase_space_evolution_state_counts_match_accepted_quadrature();
+    test_public_cqmom_stage_failures_roll_back();
+    test_cqmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input();
+    test_cqmom_macro_rollbacks_preserve_the_original_state_after_later_successes();
+    test_cqmom_macro_success_preserves_input_and_final_value_semantics();
+    test_public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution();
+    test_public_cqmom_stage_irrelevant_options_are_ignored();
+    test_adaptive_branch_specific_cqmom_case();
+    test_adaptive_state_initialization_preserves_policy();
+    test_adaptive_state_advection_phase_space_evolution_matches_dense();
+    test_adaptive_state_source_phase_space_evolution_changes_active_counts();
+    test_adaptive_state_preserves_branch_counts_across_steps();
+    test_adaptive_state_preserved_source_can_reduce_active_counts();
+    test_adaptive_state_source_policy_allows_growth_to_configured_maximum();
+    test_adaptive_state_source_growth_forces_adaptive_wheeler_without_mutating_qmom_options();
+    test_adaptive_state_source_growth_canonicalizes_between_steps();
+    test_adaptive_state_failed_growth_trial_keeps_current_count();
+    test_adaptive_state_bounded_support_rejects_post_source_growth();
+    test_dense_and_lean_bounded_post_source_reduction_are_equivalent();
+    test_adaptive_state_reduction_prevents_source_growth_trial();
+    test_adaptive_state_parent_growth_creates_unconstrained_descendants();
+    test_adaptive_state_preserved_source_invalidates_descendants_after_root_collapse();
+    test_adaptive_state_preserved_source_invalidates_grandchildren_after_second_level_collapse();
+    test_adaptive_state_initial_counts_preserve_nonidentity_conditioning_order();
+    test_fixed_state_phase_space_evolution_does_not_store_adaptive_branch_counts();
+    test_internal_cqmom_state_backend_accessors_are_explicit_and_guarded();
+    test_fixed_cqmom_phase_space_evolution_successors_share_prepared_metadata();
+    test_adaptive_state_rejects_duplicate_active_count_metadata();
+    test_adaptive_state_rejects_missing_active_count_metadata();
+    test_adaptive_state_failure_preserves_active_counts_for_retry();
+    test_adaptive_state_post_source_failure_preserves_active_counts_for_retry();
+    test_dense_and_lean_adaptive_state_active_count_persistence_are_equivalent();
+    test_adaptive_state_strang_phase_space_evolution_matches_dense();
+    test_adaptive_state_phase_space_evolution_reports_initial_failure();
+    test_lean_cqmom_strang_matches_dense_layout_closed_source();
+    test_lean_cqmom_cd_matches_dense_layout_closed_source();
+    test_lean_cqmom_dc_matches_dense_layout_closed_source();
+    test_explicit_dense_and_lean_adaptive_branch_options_are_equivalent();
+    test_explicit_dense_and_lean_diagnostic_level_none_is_propagated();
+    test_explicit_dense_and_lean_adaptive_options_are_equivalent();
+    test_explicit_dense_and_lean_source_options_are_equivalent();
+    test_explicit_dense_and_lean_accept_same_cqmom_native_source();
+    test_explicit_dense_and_lean_accept_same_cqmom_native_boundary();
+    test_explicit_dense_and_lean_cqmom_native_source_failures_are_equivalent();
+    test_explicit_dense_and_lean_cqmom_native_source_invalid_values_are_equivalent();
+    test_explicit_dense_and_lean_source_growth_is_automatic();
+    test_state_cqmom_phase_space_evolution_matches_lean_fixed_layout();
+    test_configured_dense_and_lean_state_phase_space_evolution_are_equivalent();
+    test_dense_and_lean_state_source_contexts_are_identical();
+    test_dense_state_reconstructs_dense_only_moments_after_moment_source_source();
+    test_dense_state_zero_source_keeps_full_dense_closure_consistent();
+    test_dense_state_reconstructs_dense_only_moments_after_source_and_boundary();
+    test_dense_state_reconstructs_dense_only_moments_after_repeated_source_steps();
+    test_dense_state_reconstructs_dense_only_moments_with_nonidentity_conditioning_order();
+    test_state_cqmom_phase_space_evolution_preserves_vandermonde_solver_policy();
+    test_cqmom_phase_space_evolution_vandermonde_policy_independent_of_diagnostic_level();
+    test_state_cqmom_source_evolution_matches_lean();
+    test_state_cqmom_failure_propagation_from_source_operator();
+    test_state_cqmom_phase_space_evolution_api_does_not_expose_moments();
+    test_cqmom_state_phase_space_evolution_node_advection_scheme_selection();
+    test_lean_cqmom_failure_propagation_from_inversion();
+    test_lean_cqmom_phase_space_evolution_preserves_invalid_state_messages();
+    test_lean_cqmom_failure_propagation_from_reconstruction();
+    test_lean_cqmom_failure_propagation_from_source_operator();
+    test_lean_cqmom_failure_propagation_from_post_source_inversion();
+}
+
+int main(const int argc, char** argv)
+{
+    if (argc > 2)
+    {
+        std::cerr << "Usage: test_phase_space_evolution [qmom|cqmom]\n";
+        return 2;
+    }
+
+    const std::string selector = argc == 2 ? argv[1] : "";
+    if (selector.empty())
+    {
+        run_all_phase_space_evolution_tests();
+        return 0;
+    }
+    if (selector == "qmom")
+    {
+        run_qmom_phase_space_evolution_tests();
+        return 0;
+    }
+    if (selector == "cqmom")
+    {
+        run_cqmom_phase_space_evolution_tests();
+        return 0;
+    }
+
+    std::cerr << "Unknown phase-space evolution selector: " << selector << '\n';
+    return 2;
 }

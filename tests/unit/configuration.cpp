@@ -8,6 +8,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -3454,7 +3455,7 @@ check_mode = final_only
 
 } // namespace
 
-int main()
+void run_all_configuration_tests()
 {
     test_configuration_result_api();
     test_valid_qmom_matches_programmatic_case();
@@ -3525,5 +3526,128 @@ int main()
     test_configuration_format_infers_formulation_from_phase_space();
     test_configuration_rejects_unsupported_or_ambiguous_format_fields();
     test_file_loading_and_file_failure();
-    return 0;
+}
+
+void run_initialization_tests()
+{
+    test_configuration_result_api();
+    test_valid_qmom_matches_programmatic_case();
+    test_qmom_distribution_initialization_matches_direct_api();
+    test_all_supported_distribution_families_parse();
+    test_qmom_mixture_initialization_matches_direct_api();
+    test_mixture_zero_density_component_is_skipped();
+    test_valid_cqmom_matches_programmatic_case();
+    test_cqmom_independent_product_initialization_matches_direct_api();
+    test_cqmom_independent_product_mixture_marginal_initialization();
+    test_lean_cqmom_initialization_matches_dense_subselection();
+    test_lean_cqmom_initialization_matches_example_flow();
+    test_lean_cqmom_initialization_omits_maximum_orders();
+    test_dense_cqmom_initialization_omits_maximum_orders();
+    test_lean_cqmom_initialization_selects_explicit_dense_tensor();
+}
+
+void run_cqmom_case_state_tests()
+{
+    test_cqmom_lean_case_uses_selected_analytical_moments();
+    test_cqmom_lean_case_matches_dense_case_path();
+    test_cqmom_lean_case_selects_explicit_dense_tensor();
+    test_cqmom_case_uses_selected_analytical_moments();
+    test_cqmom_case_accepts_explicit_dense_tensor();
+    test_cqmom_case_parses_coordinate_support();
+    test_cqmom_factories_preserve_coordinate_support();
+    test_cqmom_case_rejects_invalid_coordinate_support();
+    test_cqmom_case_moment_storage_selection();
+    test_cqmom_case_initial_state_preserves_case_settings();
+    test_cqmom_case_replaces_dense_initial_moments_immutably();
+    test_cqmom_case_replaces_lean_initial_moments_immutably();
+    test_fixed_cqmom_prepared_metadata_ownership();
+    test_fixed_cqmom_prepared_metadata_is_concurrently_readable();
+    test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility();
+    test_cqmom_case_replacement_rejects_structural_tensor_errors();
+    test_cqmom_case_replacement_defers_realizability();
+    test_cqmom_case_file_loading();
+    test_cqmom_independent_product_zero_density_skips_marginal_validation();
+}
+
+void run_runtime_option_tests()
+{
+    test_cqmom_adaptive_options_are_independent();
+    test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom();
+    test_cqmom_diagnostic_level_parses_values();
+    test_cqmom_vandermonde_solver_parses_values();
+    test_cqmom_case_and_state_report_vandermonde_solver();
+    test_realizability_policy_defaults_to_disabled();
+    test_realizability_policy_parses_check_modes();
+    test_realizability_policy_parses_support_and_bounded_interval();
+    test_realizability_policy_rejects_invalid_values();
+    test_realizability_policy_rejects_invalid_bounded_interval();
+    test_realizability_policy_rejects_unknown_entries();
+    test_qmom_case_parsing_tolerates_realizability_policy_without_installing_it();
+    test_case_parsing_validates_realizability_policy_without_owning_it();
+    test_case_parsing_rejects_invalid_realizability_policy();
+    test_phase_space_evolution_scheme_defaults_and_parses_values();
+    test_phase_space_evolution_scheme_rejects_invalid_values();
+    test_node_advection_options_defaults_and_parses_schemes();
+    test_node_advection_options_parse_rk23_controls();
+    test_node_advection_options_reject_invalid_scheme_values();
+    test_node_advection_options_reject_invalid_rk23_controls();
+    test_removed_cqmom_source_policy_key_is_unknown();
+    test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
+    test_phase_space_evolution_options_loaders_reject_invalid_values();
+    test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();
+    test_output_options_default_to_disabled();
+    test_output_options_parse_enabled_fields();
+    test_output_options_reject_invalid_values();
+    test_qmom_case_parsing_tolerates_scheme();
+    test_case_parsing_rejects_invalid_runtime_phase_space_evolution_settings();
+    test_qmom_case_parsing_tolerates_output_options_without_installing_them();
+}
+
+void run_failure_path_tests()
+{
+    test_duplicate_and_missing_entries();
+    test_malformed_nonfinite_invalid_order_and_unknown_key();
+    test_explicit_moments_take_precedence_over_initial_distribution();
+    test_configuration_format_infers_formulation_from_phase_space();
+    test_configuration_rejects_unsupported_or_ambiguous_format_fields();
+    test_file_loading_and_file_failure();
+}
+
+int main(const int argc, char** argv)
+{
+    if (argc > 2)
+    {
+        std::cerr << "Usage: test_configuration [initialization|cqmom_case_state|runtime_options|failure_paths]\n";
+        return 2;
+    }
+
+    const std::string selector = argc == 2 ? argv[1] : "";
+    if (selector.empty())
+    {
+        run_all_configuration_tests();
+        return 0;
+    }
+    if (selector == "initialization")
+    {
+        run_initialization_tests();
+        return 0;
+    }
+    if (selector == "cqmom_case_state")
+    {
+        run_cqmom_case_state_tests();
+        return 0;
+    }
+    if (selector == "runtime_options")
+    {
+        run_runtime_option_tests();
+        return 0;
+    }
+    if (selector == "failure_paths")
+    {
+        run_failure_path_tests();
+        return 0;
+    }
+
+    std::cerr << "Unknown configuration selector: " << selector << '\n';
+    return 2;
 }

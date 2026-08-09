@@ -11,17 +11,19 @@ QMOMKit package.
 2. `qmom_distribution_initialization/` if you want QMOMKit to generate
    moments from an analytical distribution.
 3. `qmom_1d_minimal/` for the smallest complete QMOM phase-space evolution loop.
-4. `qmom_1d_explicit_strang_splitting/` for application-managed adaptive QMOM
+4. `qmom_1d_aerosol_evaporation/` for a configuration-driven six-node QMOM
+   aerosol evaporation workflow using node advection.
+5. `qmom_1d_explicit_strang_splitting/` for application-managed adaptive QMOM
    Strang splitting with the public advection and moment-source-evolution stage API.
-5. `qmom_1d_breakage_advection/` for configuration-driven QMOM phase-space evolution
+6. `qmom_1d_breakage_advection/` for configuration-driven QMOM phase-space evolution
    with advection and moment-source physics.
-6. `cqmom_independent_product_initialization/` for the smallest
+7. `cqmom_independent_product_initialization/` for the smallest
    multidimensional initialization workflow.
-7. `cqmom_phase_space_evolution/` for the canonical CQMOM phase-space evolution workflow
+8. `cqmom_phase_space_evolution/` for the canonical CQMOM phase-space evolution workflow
    with custom velocity, source, and boundary contribution callbacks, as well as
    output.
 
-`qmom_1d_minimal/`, `qmom_1d_explicit_strang_splitting/`,
+`qmom_1d_minimal/`, `qmom_1d_aerosol_evaporation/`, `qmom_1d_explicit_strang_splitting/`,
 `qmom_1d_breakage_advection/`, and
 `cqmom_phase_space_evolution/` are the primary examples for physics callbacks. The
 callback requirements are documented in the [phase-space evolution guide](../docs/user/phase_space_evolution.md). Each example

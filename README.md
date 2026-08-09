@@ -37,6 +37,7 @@ QMOMKit/
 │   ├── user/                         # User-oriented documentation
 │   └── developer/                    # Developer-oriented documentation
 ├── examples/                         # Standalone installed-package examples
+├── paper/                            # QMOMKit paper, its examples and verification
 ├── tests/                            # Unit, regression, and verification tests
 ├── tools/
 │   ├── galerkin_element_coupling/    # Galerkin coupling demonstrator
@@ -80,7 +81,7 @@ The standalone examples progress from basic QMOM and CQMOM reconstruction and in
 
 ## Testing
 
-The repository contains over 100 individual tests:
+The repository contains **over 100 individual tests**:
 
 - unit tests for local behavior and failure paths;
 - component regression tests for important interactions;

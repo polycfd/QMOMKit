@@ -1,0 +1,78 @@
+# 1D QMOM Aerosol Evaporation
+
+This example evolves a one-dimensional aerosol diameter distribution through
+evaporation with a fixed six-node QMOM quadrature. The phase-space coordinate
+is particle diameter, `d`, in micrometres. QMOM weights carry number density,
+so the raw moments are
+
+$$
+M_k = \int_0^\infty d^k n(d)\,\mathrm{d}d.
+$$
+
+In particular, $M_0$ is the total number density and is not normalized away.
+
+## Model
+
+The initial distribution is a three-component log-normal mixture defined in
+`configuration.qmom`. QMOMKit generates the raw moments through order 11 from
+that analytical mixture, which is exactly the number needed to reconstruct the
+fixed six-node quadrature.
+
+The evaporation law is the d-squared law,
+
+$$
+\frac{\mathrm{d}(d^2)}{\mathrm{d}t} = -500,
+$$
+
+or equivalently
+
+$$
+\frac{\mathrm{d}d}{\mathrm{d}t} = -\frac{500}{2d}.
+$$
+
+Diameter is in micrometres and time is in seconds. The negative sign moves
+the QMOM abscissas toward smaller diameters. A residual diameter of
+$0.8\,\mathrm{\mu m}$ is retained after each node-advection step.
+
+`main.cpp` shows the complete QMOMKit workflow:
+
+```text
+configuration -> raw moments -> six-node QMOM reconstruction
+              -> native node advection -> updated raw moments and output
+```
+
+`physics.hpp` declares the example-local callback, and `physics.cpp` contains
+the evaporation law and residual-diameter condition. `main.cpp` contains no
+aerosol-model equations.
+
+Node advection preserves all six weights,
+and QMOMKit reconstructs the raw moments from the moved quadrature.
+
+## Build and run
+
+Install QMOMKit first, then configure this standalone example against that
+installation:
+
+```bash
+cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="$PWD/install"
+cmake --build build
+cmake --install build
+
+cd examples/qmom_1d_aerosol_evaporation
+cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
+cmake --build build
+cd build
+./qmom_1d_aerosol_evaporation_example
+```
+
+The executable prints the configured node count, initial and final total number
+density and mean diameter, plus the initial and final six-node quadratures. It
+also writes QMOMKit-native whitespace-delimited histories:
+
+- `output/moments.txt`
+- `output/quadrature.txt`
+
+The output directory and cadence are configured in the `[output]` section of
+`configuration.qmom`.

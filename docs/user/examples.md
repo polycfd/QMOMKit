@@ -178,6 +178,17 @@ user-supplied velocity and source callbacks.
 Example README:
 [`examples/qmom_1d_minimal/README.md`](../../examples/qmom_1d_minimal/README.md)
 
+### `qmom_1d_aerosol_evaporation`
+
+Purpose: initialize a fixed six-node QMOM quadrature from an analytical
+log-normal aerosol mixture, then evolve its diameters through evaporation.
+
+Use this example when you want a configuration-driven, one-dimensional QMOM
+node-advection workflow with one velocity callback and no moment source.
+
+Example README:
+[`examples/qmom_1d_aerosol_evaporation/README.md`](../../examples/qmom_1d_aerosol_evaporation/README.md)
+
 ### `qmom_1d_explicit_strang_splitting`
 
 Purpose: advance an adaptive one-dimensional QMOM state with application-owned

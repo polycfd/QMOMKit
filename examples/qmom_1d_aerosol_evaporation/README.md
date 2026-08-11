@@ -2,23 +2,15 @@
 
 This example evolves a one-dimensional aerosol diameter distribution through
 evaporation with a fixed six-node QMOM quadrature. The phase-space coordinate
-is particle diameter, `d`, in micrometres. QMOM weights carry number density,
-so the raw moments are
-
-$$
-M_k = \int_0^\infty d^k n(d)\,\mathrm{d}d.
-$$
-
-In particular, $M_0$ is the total number density and is not normalized away.
+is the particle diameter, `d`, in micrometres. 
 
 ## Model
 
 The initial distribution is a three-component log-normal mixture defined in
-`configuration.qmom`. QMOMKit generates the raw moments through order 11 from
-that analytical mixture, which is exactly the number needed to reconstruct the
-fixed six-node quadrature.
+`configuration.qmom`. QMOMKit generates the raw moments $M_0,...,M_{11}$ from
+that analytical definition.
 
-The evaporation law is the d-squared law,
+The evaporation law is the $d^2$-law,
 
 $$
 \frac{\mathrm{d}(d^2)}{\mathrm{d}t} = -500,
@@ -30,23 +22,23 @@ $$
 \frac{\mathrm{d}d}{\mathrm{d}t} = -\frac{500}{2d}.
 $$
 
-Diameter is in micrometres and time is in seconds. The negative sign moves
+The particle diameter is defined in micrometres and time is defined in seconds. The negative sign moves
 the QMOM abscissas toward smaller diameters. A residual diameter of
 $0.8\,\mathrm{\mu m}$ is retained after each node-advection step.
 
 `main.cpp` shows the complete QMOMKit workflow:
 
 ```text
-configuration -> raw moments -> six-node QMOM reconstruction
-              -> native node advection -> updated raw moments and output
+configuration 
+    -> raw moments 
+    -> six-node QMOM reconstruction
+    -> native node advection 
+    -> updated raw moments and output
 ```
 
-`physics.hpp` declares the example-local callback, and `physics.cpp` contains
-the evaporation law and residual-diameter condition. `main.cpp` contains no
-aerosol-model equations.
+`physics.cpp/.hpp` declare the callback function for the evaporation law and residual-diameter condition.
 
-Node advection preserves all six weights,
-and QMOMKit reconstructs the raw moments from the moved quadrature.
+The advection of the quadrature nodes preserves all six weights and QMOMKit reconstructs the raw moments from the moved quadrature.
 
 ## Build and run
 
@@ -69,7 +61,7 @@ cd build
 
 The executable prints the configured node count, initial and final total number
 density and mean diameter, plus the initial and final six-node quadratures. It
-also writes QMOMKit-native whitespace-delimited histories:
+also writes QMOMKit-native moment and quadrature histories:
 
 - `output/moments.txt`
 - `output/quadrature.txt`

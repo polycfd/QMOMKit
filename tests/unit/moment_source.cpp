@@ -96,41 +96,86 @@ void test_reject_negative_moments_predicate_accepts_nonnegative_update()
     assert_vector_near(result.moments, {0.2, 0.8}, 1.0e-15);
 }
 
-void test_retry_behavior_first_step_rejected_then_halved_step_succeeds()
+void test_retry_behavior_completes_requested_interval_from_unchanged_state()
 {
     qmomkit::MomentSourceUpdateOptions options;
-    options.ssp_rk3_options.accept = [](const std::vector<double>& state) { return state[0] >= 0.0; };
+    std::size_t acceptance_calls = 0;
+    options.ssp_rk3_options.accept = [&acceptance_calls](const std::vector<double>&)
+    {
+        ++acceptance_calls;
+        return acceptance_calls != 1;
+    };
     options.ssp_rk3_options.max_retries = 2;
+    options.ssp_rk3_options.min_time_step = 0.25;
 
-    const qmomkit::MomentSourceUpdateResult result =
-        qmomkit::advance_moments_with_source({1.0}, 0.0, 1.0, [](double, const std::vector<double>&) { return std::vector<double>{-2.0}; }, options);
+    std::vector<double> initial_stage_values;
+    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+        {0.0}, 0.0, 1.0,
+        [&initial_stage_values](const double stage_time, const std::vector<double>& state)
+        {
+            if (stage_time == 0.0)
+            {
+                initial_stage_values.push_back(state[0]);
+            }
+            return std::vector<double>{1.0};
+        },
+        options);
 
     assert(result.ok());
     assert(result.diagnostics.accepted);
     assert(result.diagnostics.rejected);
     assert(result.diagnostics.retries == 1);
     assert_near(result.diagnostics.time_step_used, 0.5, 1.0e-15);
-    assert_near(result.moments[0], 0.0, 1.0e-15);
+    assert_vector_near(initial_stage_values, {0.0, 0.0}, 1.0e-15);
+    assert_near(result.moments[0], 1.0, 1.0e-15);
 }
 
-void test_failure_behavior_predicate_rejects_all_attempts_and_preserves_original_state()
+void test_repeated_reduced_steps_complete_requested_interval()
+{
+    qmomkit::MomentSourceUpdateOptions options;
+    options.ssp_rk3_options.min_time_step = 0.1;
+    options.ssp_rk3_options.max_retries = 1;
+    std::size_t acceptance_calls = 0;
+    options.ssp_rk3_options.accept = [&acceptance_calls](const std::vector<double>&)
+    {
+        ++acceptance_calls;
+        return acceptance_calls == 2 || acceptance_calls == 4 || acceptance_calls == 6 || acceptance_calls == 7;
+    };
+
+    const qmomkit::MomentSourceUpdateResult result =
+        qmomkit::advance_moments_with_source({0.0}, 0.0, 1.0, [](double, const std::vector<double>&) { return std::vector<double>{1.0}; }, options);
+
+    assert(result.ok());
+    assert(result.diagnostics.rejected);
+    assert(result.diagnostics.retries == 3);
+    assert_near(result.diagnostics.time_step_used, 0.125, 1.0e-15);
+    assert_near(result.moments[0], 1.0, 1.0e-15);
+}
+
+void test_failure_after_accepted_retry_preserves_original_state()
 {
     const std::vector<double> initial{1.0, -2.0};
 
     qmomkit::MomentSourceUpdateOptions options;
-    options.ssp_rk3_options.accept = [](const std::vector<double>&) { return false; };
-    options.ssp_rk3_options.max_retries = 2;
+    std::size_t acceptance_calls = 0;
+    options.ssp_rk3_options.accept = [&acceptance_calls](const std::vector<double>&)
+    {
+        ++acceptance_calls;
+        return acceptance_calls == 2;
+    };
+    options.ssp_rk3_options.max_retries = 1;
+    options.ssp_rk3_options.min_time_step = 0.3;
 
     const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
-        initial, 0.0, 1.0, [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 0.0); }, options);
+        initial, 0.0, 1.0, [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 1.0); }, options);
 
     assert(!result.ok());
-    assert(result.status == qmomkit::MomentSourceUpdateStatus::rejected_by_predicate);
-    assert(result.diagnostics.ssp_rk3_status == qmomkit::SspRk3Status::rejected_by_predicate);
+    assert(result.status == qmomkit::MomentSourceUpdateStatus::minimum_timestep_reached);
+    assert(result.diagnostics.ssp_rk3_status == qmomkit::SspRk3Status::minimum_timestep_reached);
     assert(!result.diagnostics.accepted);
     assert(result.diagnostics.rejected);
-    assert(result.diagnostics.retries == 2);
-    assert_near(result.diagnostics.time_step_used, 0.25, 1.0e-15);
+    assert(result.diagnostics.retries == 1);
+    assert_near(result.diagnostics.time_step_used, 0.5, 1.0e-15);
     assert(result.moments == initial);
 }
 
@@ -495,8 +540,9 @@ int main()
 {
     test_accept_all_predicate();
     test_reject_negative_moments_predicate_accepts_nonnegative_update();
-    test_retry_behavior_first_step_rejected_then_halved_step_succeeds();
-    test_failure_behavior_predicate_rejects_all_attempts_and_preserves_original_state();
+    test_retry_behavior_completes_requested_interval_from_unchanged_state();
+    test_repeated_reduced_steps_complete_requested_interval();
+    test_failure_after_accepted_retry_preserves_original_state();
     test_failure_behavior_minimum_timestep_preserves_original_state();
     test_cqmom_moment_data_zero_source_preserves_state();
     test_cqmom_source_context_exposes_moment_metadata();

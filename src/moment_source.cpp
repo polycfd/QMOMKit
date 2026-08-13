@@ -432,11 +432,36 @@ MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& 
 
     try
     {
-        const SspRk3Result step = ssp_rk3_step(moments, t, time_step, source, options.ssp_rk3_options);
-        const MomentSourceUpdateStatus status = status_from_ssp_rk3(step.status);
-        const MomentSourceUpdateDiagnostics diagnostics = diagnostics_from_ssp_rk3(step, status);
-        const std::string message = diagnostics.message;
-        return MomentSourceUpdateResult{step.state, status, diagnostics, message};
+        std::vector<double> state = moments;
+        double current_time = t;
+        double remaining_time = time_step;
+        std::size_t retries = 0;
+        bool rejected = false;
+        MomentSourceUpdateDiagnostics diagnostics;
+
+        while (true)
+        {
+            const SspRk3Result step = ssp_rk3_step(state, current_time, remaining_time, source, options.ssp_rk3_options);
+            const MomentSourceUpdateStatus status = status_from_ssp_rk3(step.status);
+            diagnostics = diagnostics_from_ssp_rk3(step, status);
+            retries += step.retries;
+            rejected = rejected || diagnostics.rejected;
+            diagnostics.retries = retries;
+            diagnostics.rejected = rejected;
+
+            if (status != MomentSourceUpdateStatus::success)
+            {
+                return MomentSourceUpdateResult{moments, status, diagnostics, diagnostics.message};
+            }
+            if (step.time_step_used == remaining_time)
+            {
+                return MomentSourceUpdateResult{step.state, status, diagnostics, diagnostics.message};
+            }
+
+            state = step.state;
+            current_time += step.time_step_used;
+            remaining_time -= step.time_step_used;
+        }
     }
     catch (const std::exception& error)
     {

@@ -54,7 +54,7 @@ int main()
     const std::filesystem::path configuration_file = "configuration.qmom";
     const double initial_time = 0.0;
     constexpr double final_time = 1.0;
-    constexpr std::size_t outer_step_count = 100;
+    constexpr double time_step = 0.01;
 
     try
     {
@@ -71,7 +71,6 @@ int main()
             return 1;
         }
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
-        const double outer_time_step = final_time / static_cast<double>(outer_step_count);
 
         const std::optional<std::string> configuration_text = cqmom_condensing_droplets::read_configuration_text(configuration_file);
         if (!configuration_text.has_value())
@@ -159,21 +158,10 @@ int main()
         }
         const qmomkit::AdaptiveRkOptions mc_advection_options = phase_space_evolution_options.node_options.adaptive_options;
 
-        const auto aligned_outer_step = [&](const double time)
+        if (nucleation_parameters.start_time < initial_time || nucleation_parameters.end_time <= nucleation_parameters.start_time ||
+            nucleation_parameters.end_time > final_time)
         {
-            const double unrounded_step = (time - initial_time) / outer_time_step;
-            const auto outer_step = static_cast<std::size_t>(std::llround(unrounded_step));
-            if (std::abs(unrounded_step - static_cast<double>(outer_step)) > 1.0e-12 * std::max(1.0, std::abs(unrounded_step)))
-            {
-                throw std::runtime_error("The nucleation interval does not align with the application outer time grid.");
-            }
-            return outer_step;
-        };
-        const std::size_t nucleation_start_step = aligned_outer_step(nucleation_parameters.start_time);
-        const std::size_t nucleation_end_step = aligned_outer_step(nucleation_parameters.end_time);
-        if (nucleation_end_step <= nucleation_start_step || nucleation_end_step > outer_step_count)
-        {
-            std::cerr << "Invalid nucleation interval on the application outer time grid.\n";
+            std::cerr << "Invalid nucleation interval.\n";
             return 1;
         }
 
@@ -277,13 +265,21 @@ int main()
         }
         write_comparison(initial_time, quadrature);
 
-        for (std::size_t outer_step = 0; outer_step < outer_step_count; ++outer_step)
+        // Each physical birth event needs a distinct deterministic sample.
+        std::size_t birth_event_index = 0;
+        double time = initial_time;
+        while (time < final_time)
         {
-            const double step_start_time = initial_time + static_cast<double>(outer_step) * outer_time_step;
-            const double output_time =
-                outer_step + 1 == outer_step_count ? final_time : initial_time + static_cast<double>(outer_step + 1) * outer_time_step;
-            const double current_step = output_time - step_start_time;
-            const bool nucleation_active = outer_step >= nucleation_start_step && outer_step < nucleation_end_step;
+            double current_step = std::min(time_step, final_time - time);
+            if (time < nucleation_parameters.start_time)
+            {
+                current_step = std::min(current_step, nucleation_parameters.start_time - time);
+            }
+            else if (time < nucleation_parameters.end_time)
+            {
+                current_step = std::min(current_step, nucleation_parameters.end_time - time);
+            }
+            const bool nucleation_active = time >= nucleation_parameters.start_time && time < nucleation_parameters.end_time;
             const qmomkit::CqmomMomentBoundaryContribution boundary_contribution =
                 [nucleation_active, nucleation_flux](double, const qmomkit::CqmomSourceContext& context)
             {
@@ -306,9 +302,9 @@ int main()
                 return qmomkit::CqmomMomentRate{std::move(rates)};
             };
             const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
-                nucleation_active ? qmomkit::advance_cqmom_phase_space(state, step_start_time, current_step, velocity, zero_moment_source,
-                                                                       boundary_contribution, phase_space_evolution_options)
-                                  : qmomkit::advance_cqmom_advection(state, step_start_time, current_step, velocity, phase_space_evolution_options);
+                nucleation_active ? qmomkit::advance_cqmom_phase_space(state, time, current_step, velocity, zero_moment_source, boundary_contribution,
+                                                                       phase_space_evolution_options)
+                                  : qmomkit::advance_cqmom_advection(state, time, current_step, velocity, phase_space_evolution_options);
             if (!phase_space_evolved.ok())
             {
                 std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
@@ -321,17 +317,17 @@ int main()
             }
             state = phase_space_evolved.state;
             quadrature = *phase_space_evolved.quadrature;
-            if (std::abs(phase_space_evolved.final_time - output_time) > 1.0e-12 * std::max(1.0, std::abs(output_time)))
+            if (std::abs(phase_space_evolved.final_time - (time + current_step)) > 1.0e-12 * std::max(1.0, std::abs(time + current_step)))
             {
-                std::cerr << "CQMOM phase-space evolution did not reach the prescribed outer-step endpoint.\n";
+                std::cerr << "CQMOM phase-space evolution did not reach the prescribed step endpoint.\n";
                 return 1;
             }
 
             if (nucleation_active)
             {
-                const double source_time = step_start_time + 0.5 * current_step;
+                const double source_time = time + 0.5 * current_step;
                 qmomkit::monte_carlo::EnsembleEvolutionResult mc_first_half_advection =
-                    qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, step_start_time, source_time, mc_advection_options);
+                    qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, source_time, mc_advection_options);
                 if (!mc_first_half_advection.ok())
                 {
                     std::cerr << "First-half Monte Carlo advection failed: " << mc_first_half_advection.message << '\n';
@@ -339,7 +335,8 @@ int main()
                 }
                 ensemble = std::move(mc_first_half_advection.ensemble);
                 const std::size_t ensemble_size_before_birth = ensemble.size();
-                const unsigned long long birth_seed = cqmom_condensing_droplets::initialization_seed + static_cast<unsigned long long>(outer_step);
+                const unsigned long long birth_seed =
+                    cqmom_condensing_droplets::initialization_seed + static_cast<unsigned long long>(birth_event_index++);
                 const qmomkit::monte_carlo::PopulationBirthResult birth = qmomkit::monte_carlo::inject_population(
                     ensemble, number_density, nucleation_flux * current_step, sample_nucleated_droplet, birth_seed);
                 if (!birth.ok())
@@ -359,7 +356,7 @@ int main()
                 ensemble = birth.ensemble;
                 number_density = birth.number_density;
                 qmomkit::monte_carlo::EnsembleEvolutionResult mc_second_half_advection =
-                    qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, source_time, output_time, mc_advection_options);
+                    qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, source_time, time + current_step, mc_advection_options);
                 if (!mc_second_half_advection.ok())
                 {
                     std::cerr << "Second-half Monte Carlo advection failed: " << mc_second_half_advection.message << '\n';
@@ -370,7 +367,7 @@ int main()
             else
             {
                 qmomkit::monte_carlo::EnsembleEvolutionResult mc_advection =
-                    qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, step_start_time, output_time, mc_advection_options);
+                    qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + current_step, mc_advection_options);
                 if (!mc_advection.ok())
                 {
                     std::cerr << "Monte Carlo advection failed: " << mc_advection.message << '\n';
@@ -379,13 +376,14 @@ int main()
                 ensemble = std::move(mc_advection.ensemble);
             }
 
-            quadrature_history.emplace_back(output_time, quadrature);
+            time += current_step;
+            quadrature_history.emplace_back(time, quadrature);
             mc_final_moments = estimate_mc_moments(moment_output_request);
             if (mc_moment_history_writer.has_value())
             {
-                mc_moment_history_writer->write(output_time, qmomkit::create_cqmom_moment_data(moment_output_layout, mc_final_moments));
+                mc_moment_history_writer->write(time, qmomkit::create_cqmom_moment_data(moment_output_layout, mc_final_moments));
             }
-            write_comparison(output_time, quadrature);
+            write_comparison(time, quadrature);
         }
 
         if (output_options.write_moments)
@@ -416,13 +414,12 @@ int main()
             std::cerr << "CQMOM moment reconstruction failed while producing the summary.\n";
             return 1;
         }
-        cqmom_condensing_droplets::print_result_summary(initial_moments, final_moments, quadrature, output_options.directory,
-                                                        cqmom_condensing_droplets::initialization_sample_count,
-                                                        cqmom_condensing_droplets::initialization_seed, outer_time_step, final_time,
-                                                        output_options.write_moments, output_options.write_quadrature);
+        cqmom_condensing_droplets::print_result_summary(
+            initial_moments, final_moments, quadrature, output_options.directory, cqmom_condensing_droplets::initialization_sample_count,
+            cqmom_condensing_droplets::initialization_seed, time_step, final_time, output_options.write_moments, output_options.write_quadrature);
         cqmom_condensing_droplets::print_monte_carlo_result_summary(
             mc_initial_moments, mc_final_moments, output_options.directory, ensemble.size(), cqmom_condensing_droplets::initialization_sample_count,
-            cqmom_condensing_droplets::initialization_seed, outer_time_step, final_time, output_options.write_moments);
+            cqmom_condensing_droplets::initialization_seed, time_step, final_time, output_options.write_moments);
     }
     catch (const std::exception& error)
     {

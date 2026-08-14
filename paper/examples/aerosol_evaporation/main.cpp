@@ -27,7 +27,7 @@ int main()
     constexpr double retained_number_density = 2.23e5;
     constexpr double initial_time = 0.0;
     constexpr double final_time = 20.0;
-    constexpr std::size_t outer_step_count = 100;
+    constexpr double time_step = 0.2;
     const std::filesystem::path configuration_file = "configuration.qmom";
 
     try
@@ -246,18 +246,16 @@ int main()
         }
         mc_output << initial_time << ' ' << initial_moment_estimate.moments[0] << ' ' << initial_mc_d32 << ' ' << initial_mc_variance << '\n';
 
-        const double outer_time_step = final_time / static_cast<double>(outer_step_count);
-        for (std::size_t outer_step = 0; outer_step < outer_step_count; ++outer_step)
+        double time = initial_time;
+        while (time < final_time)
         {
-            const double step_start_time = initial_time + static_cast<double>(outer_step) * outer_time_step;
-            const double output_time =
-                outer_step + 1 == outer_step_count ? final_time : initial_time + static_cast<double>(outer_step + 1) * outer_time_step;
+            const double step = std::min(time_step, final_time - time);
 
             for (std::size_t case_index = 0; case_index < fixed_node_counts.size(); ++case_index)
             {
                 const std::size_t node_count = fixed_node_counts[case_index];
-                const qmomkit::QmomNodeAdvectionResult qmom_advection = qmomkit::advance_nodes(
-                    qmom_quadratures[case_index], step_start_time, output_time - step_start_time, velocity, node_advection_options);
+                const qmomkit::QmomNodeAdvectionResult qmom_advection =
+                    qmomkit::advance_nodes(qmom_quadratures[case_index], time, step, velocity, node_advection_options);
                 if (!qmom_advection.ok())
                 {
                     std::cerr << "QMOM advection failed for N=" << node_count << ": " << qmom_advection.message << '\n';
@@ -294,11 +292,11 @@ int main()
                 {
                     throw std::runtime_error("QMOM diameter statistics are non-finite.");
                 }
-                qmom_outputs[case_index] << output_time << ' ' << qmom_moments[0] << ' ' << qmom_d32 << ' ' << qmom_variance << '\n';
+                qmom_outputs[case_index] << time + step << ' ' << qmom_moments[0] << ' ' << qmom_d32 << ' ' << qmom_variance << '\n';
             }
 
             const qmomkit::monte_carlo::EnsembleEvolutionResult mc_advection =
-                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, step_start_time, output_time, mc_advection_options);
+                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + step, mc_advection_options);
             if (!mc_advection.ok())
             {
                 std::cerr << "Monte Carlo advection failed: " << mc_advection.message << '\n';
@@ -329,7 +327,8 @@ int main()
             {
                 throw std::runtime_error("Monte Carlo diameter statistics are non-finite.");
             }
-            mc_output << output_time << ' ' << mc_moment_estimate.moments[0] << ' ' << mc_d32 << ' ' << mc_variance << '\n';
+            time += step;
+            mc_output << time << ' ' << mc_moment_estimate.moments[0] << ' ' << mc_d32 << ' ' << mc_variance << '\n';
         }
 
         std::cout << "generated_sample_count = " << sample_count << '\n';

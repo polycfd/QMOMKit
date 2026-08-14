@@ -26,7 +26,7 @@ int main()
     const std::filesystem::path configuration_file = "configuration.qmom";
     const double initial_time = 0.0;
     constexpr double final_time = 13.9;
-    constexpr std::size_t outer_step_count = 100;
+    constexpr double time_step = 0.139;
 
     try
     {
@@ -43,8 +43,6 @@ int main()
             return 1;
         }
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
-        const double outer_time_step = final_time / static_cast<double>(outer_step_count);
-
         const std::optional<std::string> configuration_text = cqmom_polydisperse_cavitation::read_configuration_text(configuration_file);
         if (!configuration_text.has_value())
         {
@@ -187,15 +185,12 @@ int main()
         }
         write_comparison(initial_time, quadrature);
 
-        for (std::size_t outer_step = 0; outer_step < outer_step_count; ++outer_step)
+        double time = initial_time;
+        while (time < final_time)
         {
-            const double step_start_time = initial_time + static_cast<double>(outer_step) * outer_time_step;
-            const double output_time = outer_step + 1 == outer_step_count
-                                           ? final_time
-                                           : initial_time + static_cast<double>(outer_step + 1) * outer_time_step;
-            const double current_step = output_time - step_start_time;
+            const double current_step = std::min(time_step, final_time - time);
             const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
-                qmomkit::advance_cqmom_advection(state, step_start_time, current_step, velocity, phase_space_evolution_options);
+                qmomkit::advance_cqmom_advection(state, time, current_step, velocity, phase_space_evolution_options);
             if (!phase_space_evolved.ok())
             {
                 std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
@@ -208,14 +203,14 @@ int main()
             }
             state = phase_space_evolved.state;
             quadrature = *phase_space_evolved.quadrature;
-            if (std::abs(phase_space_evolved.final_time - output_time) > 1.0e-12 * std::max(1.0, std::abs(output_time)))
+            if (std::abs(phase_space_evolved.final_time - (time + current_step)) > 1.0e-12 * std::max(1.0, std::abs(time + current_step)))
             {
-                std::cerr << "CQMOM phase-space evolution did not reach the prescribed outer-step endpoint.\n";
+                std::cerr << "CQMOM phase-space evolution did not reach the prescribed step endpoint.\n";
                 return 1;
             }
 
             qmomkit::monte_carlo::EnsembleEvolutionResult mc_advection =
-                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, step_start_time, output_time, mc_advection_options);
+                qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + current_step, mc_advection_options);
             if (!mc_advection.ok())
             {
                 std::cerr << "Advection particle step failed: " << mc_advection.message << '\n';
@@ -223,13 +218,14 @@ int main()
             }
             ensemble = std::move(mc_advection.ensemble);
 
-            quadrature_history.emplace_back(output_time, quadrature);
+            time += current_step;
+            quadrature_history.emplace_back(time, quadrature);
             mc_final_moments = cqmom_polydisperse_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents);
             if (mc_moment_history_writer.has_value())
             {
-                mc_moment_history_writer->write(output_time, mc_final_moments);
+                mc_moment_history_writer->write(time, mc_final_moments);
             }
-            write_comparison(output_time, quadrature);
+            write_comparison(time, quadrature);
         }
 
         if (output_options.write_moments)
@@ -264,12 +260,11 @@ int main()
         }
         cqmom_polydisperse_cavitation::print_result_summary(
             initial_moments, final_moments, quadrature, output_options.directory, cqmom_polydisperse_cavitation::initialization_sample_count,
-            cqmom_polydisperse_cavitation::initialization_seed, outer_time_step, final_time, output_options.write_moments,
-            output_options.write_quadrature);
+            cqmom_polydisperse_cavitation::initialization_seed, time_step, final_time, output_options.write_moments, output_options.write_quadrature);
         cqmom_polydisperse_cavitation::print_monte_carlo_result_summary(
             mc_initial_moments, mc_final_moments, moment_output_layout.required_indices, output_options.directory, ensemble.size(),
-            cqmom_polydisperse_cavitation::initialization_sample_count, cqmom_polydisperse_cavitation::initialization_seed, outer_time_step,
-            final_time, output_options.write_moments);
+            cqmom_polydisperse_cavitation::initialization_sample_count, cqmom_polydisperse_cavitation::initialization_seed, time_step, final_time,
+            output_options.write_moments);
     }
     catch (const std::exception& error)
     {

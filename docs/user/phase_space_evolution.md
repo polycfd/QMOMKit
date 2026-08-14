@@ -425,27 +425,25 @@ instead of assuming a two-dimensional phase space.
 
 When a `CqmomCase` or `CqmomState` carries coordinate support from
 `phase_space.support_lower` and `phase_space.support_upper`, every CQMOM
-reconstruction for that coordinate uses the same support-aware acceptance check.
-This includes initial inversion, post-source inversion, current active-count
-preservation, and adaptive growth attempts.
+reconstruction for that coordinate checks the returned abscissas against the
+same interval. This includes initial inversion, post-source inversion, current
+active-count preservation, and adaptive growth attempts.
 
-Fixed branch counts are strict: if the configured count is not realizable on the
+Fixed branch counts are strict: if reconstruction returns nodes outside the
 declared interval, the stage fails and the returned state rolls back to the
 input state. Adaptive branch counts first try to preserve the current count,
-then reduce to a feasible lower count when needed. Growth trials are allowed
-only toward the configured maximum; if a growth candidate violates support, the
-current feasible count is retained.
+then reduce to a lower count when needed. Growth trials are allowed only toward
+the configured maximum; if a growth candidate returns out-of-interval nodes,
+the current accepted count is retained.
 
-After bounded realizability succeeds, QMOMKit verifies the returned nodes using
-the production realizability tolerance. Boundary nodes and nodes inside the
-interval within that tolerance are accepted unchanged. Nodes outside the
-interval by more than the tolerance are rejected. QMOMKit does not clip,
-project, or otherwise move nodes to fit the interval.
+QMOMKit verifies the returned nodes using the quadrature-bound tolerance.
+Boundary nodes and nodes inside the interval within that tolerance are accepted
+unchanged. Nodes outside the interval by more than the tolerance are rejected.
+QMOMKit does not clip, project, or otherwise move nodes to fit the interval.
 
 Successful post-source stages store canonical moments reconstructed from the
-accepted quadrature and active counts. A moment-source candidate whose higher-order
-moments would require unsupported nodes is not preserved as an infeasible
-sequence; the returned state contains the accepted bounded quadrature closure.
+accepted quadrature and active counts. The returned state contains the accepted
+bounded quadrature closure.
 
 ## Time Integration
 

@@ -2653,7 +2653,6 @@ void test_adaptive_state_bounded_support_rejects_post_source_growth()
     assert(diagnostic.bounded_candidate_attempt_type == "growth");
     assert(diagnostic.bounded_candidate_node_count == 3);
     assert(diagnostic.bounded_accepted_fallback_node_count == 2);
-    assert(!diagnostic.bounded_support_determinants.empty());
     assert_cqmom_state_active_counts_match_accepted_quadrature(phase_space_evolved.state);
 }
 

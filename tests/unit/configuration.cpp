@@ -206,6 +206,21 @@ void assert_coordinate_support_matches_shifted_interval(const qmomkit::CqmomCoor
     assert_near(support[1]->upper, 5.0);
 }
 
+void assert_realizability_policies_match(const qmomkit::RealizabilityPolicy& actual, const qmomkit::RealizabilityPolicy& expected)
+{
+    assert(actual.check_mode == expected.check_mode);
+    assert(actual.support == expected.support);
+    assert(actual.accept_boundary == expected.accept_boundary);
+    assert_near(actual.options.tolerance, expected.options.tolerance);
+    assert(actual.options.relative_tolerance == expected.options.relative_tolerance);
+    assert(actual.interval.has_value() == expected.interval.has_value());
+    if (actual.interval.has_value())
+    {
+        assert_near(actual.interval->lower, expected.interval->lower);
+        assert_near(actual.interval->upper, expected.interval->upper);
+    }
+}
+
 struct MoveOnlyValue
 {
     explicit MoveOnlyValue(const int input) : value(std::make_unique<int>(input)) {}
@@ -1970,6 +1985,108 @@ support = real_line
     assert(qmom_case.ok());
 }
 
+void test_quadrature_bounds_do_not_alter_coordinate_realizability_policy()
+{
+    const std::string first = R"(
+[phase_space]
+node_counts = 1, 1
+support_lower = -2.0, 10.0
+support_upper = 2.0, 20.0
+
+[moments]
+extents = 2, 2
+M[0,0] = 1.0
+M[0,1] = 0.0
+M[1,0] = 0.0
+M[1,1] = 0.0
+
+[time_integration.realizability.1]
+check_mode = final_only
+support = bounded_interval
+lower = 0.0
+upper = 1.0
+tolerance = 1e-10
+relative_tolerance = false
+accept_boundary = false
+)";
+    const std::string second = R"(
+[phase_space]
+node_counts = 1, 1
+support_lower = -7.0, -5.0
+support_upper = 7.0, 5.0
+
+[moments]
+extents = 2, 2
+M[0,0] = 1.0
+M[0,1] = 0.0
+M[1,0] = 0.0
+M[1,1] = 0.0
+
+[time_integration.realizability.1]
+check_mode = final_only
+support = bounded_interval
+lower = 0.0
+upper = 1.0
+tolerance = 1e-10
+relative_tolerance = false
+accept_boundary = false
+)";
+
+    assert(qmomkit::config::parse_cqmom(first).ok());
+    assert(qmomkit::config::parse_cqmom(second).ok());
+    const auto first_policies = qmomkit::config::parse_coordinate_realizability_policies(first);
+    const auto second_policies = qmomkit::config::parse_coordinate_realizability_policies(second);
+    assert(first_policies.ok());
+    assert(second_policies.ok());
+    assert(first_policies.value().size() == 2);
+    assert(second_policies.value().size() == 2);
+    assert(first_policies.value()[1].has_value());
+    assert(second_policies.value()[1].has_value());
+    assert_realizability_policies_match(*first_policies.value()[1], *second_policies.value()[1]);
+}
+
+void test_coordinate_realizability_policy_does_not_alter_quadrature_bounds()
+{
+    const std::string without_policy = R"(
+[phase_space]
+node_counts = 1, 1
+support_lower = none, 2.0
+support_upper = none, 5.0
+
+[moments]
+extents = 2, 2
+M[0,0] = 1.0
+M[0,1] = 0.0
+M[1,0] = 0.0
+M[1,1] = 0.0
+)";
+    const std::string with_policy = without_policy + R"(
+
+[time_integration.realizability.0]
+check_mode = every_stage
+support = bounded_interval
+lower = -1.0
+upper = 1.0
+)";
+
+    const auto without_policy_case = qmomkit::config::parse_cqmom(without_policy);
+    const auto with_policy_case = qmomkit::config::parse_cqmom(with_policy);
+    assert(without_policy_case.ok());
+    assert(with_policy_case.ok());
+    const qmomkit::CqmomCoordinateSupport& expected = without_policy_case.value().coordinate_support();
+    const qmomkit::CqmomCoordinateSupport& actual = with_policy_case.value().coordinate_support();
+    assert(actual.size() == expected.size());
+    for (std::size_t dimension = 0; dimension < expected.size(); ++dimension)
+    {
+        assert(actual[dimension].has_value() == expected[dimension].has_value());
+        if (expected[dimension].has_value())
+        {
+            assert_near(actual[dimension]->lower, expected[dimension]->lower);
+            assert_near(actual[dimension]->upper, expected[dimension]->upper);
+        }
+    }
+}
+
 void test_realizability_policy_rejects_invalid_values()
 {
     const auto unknown_check_mode = qmomkit::config::parse_realizability_policy(R"(
@@ -3586,6 +3703,8 @@ void run_all_configuration_tests()
     test_realizability_policy_parses_check_modes();
     test_realizability_policy_parses_support_and_bounded_interval();
     test_coordinate_realizability_policies_parse_sparse_numbered_sections();
+    test_quadrature_bounds_do_not_alter_coordinate_realizability_policy();
+    test_coordinate_realizability_policy_does_not_alter_quadrature_bounds();
     test_realizability_policy_rejects_invalid_values();
     test_realizability_policy_rejects_invalid_bounded_interval();
     test_realizability_policy_rejects_unknown_entries();
@@ -3668,6 +3787,8 @@ void run_runtime_option_tests()
     test_realizability_policy_parses_check_modes();
     test_realizability_policy_parses_support_and_bounded_interval();
     test_coordinate_realizability_policies_parse_sparse_numbered_sections();
+    test_quadrature_bounds_do_not_alter_coordinate_realizability_policy();
+    test_coordinate_realizability_policy_does_not_alter_quadrature_bounds();
     test_realizability_policy_rejects_invalid_values();
     test_realizability_policy_rejects_invalid_bounded_interval();
     test_realizability_policy_rejects_unknown_entries();

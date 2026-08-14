@@ -816,8 +816,6 @@ void test_recursive_bounded_support_accepts_feasible_branch()
     assert(!result.diagnostics.empty());
     assert(result.diagnostics.front().bounded_support_checked);
     assert(result.diagnostics.front().bounded_candidate_node_count == 2);
-    assert(result.diagnostics.front().bounded_realizability_status == qmomkit::RealizabilityStatus::strictly_realizable);
-    assert(!result.diagnostics.front().bounded_support_determinants.empty());
 }
 
 void test_recursive_shifted_bounded_support_accepts_feasible_fixed_branch()
@@ -857,10 +855,6 @@ void test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive()
     const std::vector<std::vector<double>> abscissas{{3.0, 7.0}, {0.0, 0.0}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
     const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, interval);
-    const qmomkit::MomentSet root_sequence({1.0, 5.0, 29.0, 185.0});
-    assert(qmomkit::check_realizability(root_sequence, qmomkit::MomentSupport::real_line).realizable());
-    assert(qmomkit::check_realizability(root_sequence, qmomkit::MomentSupport::nonnegative).realizable());
-    assert(!qmomkit::check_realizability(root_sequence, interval).realizable());
 
     const qmomkit::internal::RecursiveQuadratureResult fixed = qmomkit::internal::compute_recursive_quadrature(
         {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
@@ -868,9 +862,10 @@ void test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive()
     assert(fixed.failed_conditioning_level == 0);
     assert(!fixed.diagnostics.empty());
     assert(fixed.diagnostics.front().bounded_support_checked);
-    assert(fixed.diagnostics.front().bounded_realizability_status == qmomkit::RealizabilityStatus::not_realizable);
-    assert(fixed.diagnostics.front().bounded_failed_matrix.find("L_upper") != std::string::npos);
-    assert(fixed.message.find("Bounded-support") != std::string::npos);
+    assert(fixed.diagnostics.front().bounded_returned_nodes.size() == 2);
+    assert(std::any_of(fixed.diagnostics.front().bounded_returned_nodes.begin(), fixed.diagnostics.front().bounded_returned_nodes.end(),
+                       [interval](const double node) { return node > interval.upper; }));
+    assert(fixed.message.find("returned nodes outside") != std::string::npos);
 
     const qmomkit::WheelerOptions adaptive_wheeler{true, 1.0e-10, 1.0e-10, 1.0e-12};
     const qmomkit::internal::RecursiveQuadratureResult adaptive =
@@ -910,40 +905,10 @@ void test_recursive_bounded_support_rejects_fixed_infeasible_count()
     assert(result.diagnostics.front().bounded_support_checked);
     assert(result.diagnostics.front().bounded_candidate_attempt_type == "fixed");
     assert(result.diagnostics.front().bounded_candidate_node_count == 2);
-    assert(result.diagnostics.front().bounded_realizability_status == qmomkit::RealizabilityStatus::not_realizable);
-    assert(!result.diagnostics.front().bounded_support_determinants.empty());
-    assert(result.message.find("Bounded-support") != std::string::npos);
-}
-
-void test_recursive_bounded_support_diagnostic_terminology_is_precise()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
-    const std::vector<std::vector<double>> abscissas{{2.0, 2.0, 3.0, 3.0}, {-1.0, 1.0, -1.0, 1.0}};
-    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
-
-    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature(
-        {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support});
-
-    assert(!result.ok());
-    assert(!result.diagnostics.empty());
-    const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic = result.diagnostics.front();
-    assert(diagnostic.bounded_failed_matrix.find("L_upper") != std::string::npos);
-    assert(!diagnostic.bounded_support_determinants.empty());
-    bool found_upper_support_family = false;
-    bool found_lower_support_family = false;
-    for (const qmomkit::CqmomBoundedSupportDeterminantDiagnostics& determinant : diagnostic.bounded_support_determinants)
-    {
-        assert(determinant.matrix_family.find("Hankel-Hadamard") == std::string::npos);
-        found_upper_support_family =
-            found_upper_support_family || determinant.matrix_family.find("upper-support localizing determinant") != std::string::npos;
-        found_lower_support_family =
-            found_lower_support_family || determinant.matrix_family.find("lower-support localizing determinant") != std::string::npos;
-    }
-    assert(found_upper_support_family);
-    assert(found_lower_support_family);
+    assert(result.diagnostics.front().bounded_returned_nodes.size() == 2);
+    assert(std::all_of(result.diagnostics.front().bounded_returned_nodes.begin(), result.diagnostics.front().bounded_returned_nodes.end(),
+                       [](const double node) { return node > 1.0; }));
+    assert(result.message.find("returned nodes outside") != std::string::npos);
 }
 
 void test_recursive_bounded_support_adaptive_falls_back_to_supported_count()
@@ -977,9 +942,7 @@ void test_recursive_bounded_support_adaptive_falls_back_to_supported_count()
     const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic = result.diagnostics.front();
     assert(diagnostic.bounded_support_checked);
     assert(diagnostic.bounded_candidate_node_count == 3);
-    assert(diagnostic.bounded_realizability_status == qmomkit::RealizabilityStatus::not_realizable);
     assert(diagnostic.bounded_accepted_fallback_node_count == 2);
-    assert(!diagnostic.bounded_support_determinants.empty());
     assert(diagnostic.adaptive_node_count_reduced);
 }
 
@@ -1081,7 +1044,7 @@ void test_recursive_bounded_support_applies_to_conditional_phase_space_dimension
 void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
 {
     const qmomkit::BoundedInterval interval{2.0, 5.0};
-    const double tolerance = qmomkit::RealizabilityOptions{}.tolerance;
+    constexpr double tolerance = 1.0e-12;
     const double weight = 0.01;
     const qmomkit::PhaseSpaceHierarchy hierarchy({1});
     const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(1, 0, interval);
@@ -1124,8 +1087,6 @@ void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
     assert(!upper_rejected.diagnostics.empty());
     assert(lower_rejected.diagnostics.front().bounded_support_checked);
     assert(upper_rejected.diagnostics.front().bounded_support_checked);
-    assert(lower_rejected.diagnostics.front().bounded_realizability_status == qmomkit::RealizabilityStatus::boundary);
-    assert(upper_rejected.diagnostics.front().bounded_realizability_status == qmomkit::RealizabilityStatus::boundary);
     assert(lower_rejected.diagnostics.front().bounded_returned_nodes.size() == 1);
     assert(upper_rejected.diagnostics.front().bounded_returned_nodes.size() == 1);
     assert(lower_rejected.message.find("returned nodes outside") != std::string::npos);
@@ -1155,8 +1116,6 @@ void test_public_dense_and_lean_bounded_support_parity()
     assert(!lean.diagnostics.empty());
     assert(dense.diagnostics.front().bounded_support_checked);
     assert(lean.diagnostics.front().bounded_support_checked);
-    assert(!dense.diagnostics.front().bounded_support_determinants.empty());
-    assert(!lean.diagnostics.front().bounded_support_determinants.empty());
 }
 
 void test_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts()
@@ -1915,7 +1874,6 @@ void run_all_recursive_quadrature_tests()
     test_recursive_shifted_bounded_support_accepts_feasible_fixed_branch();
     test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive();
     test_recursive_bounded_support_rejects_fixed_infeasible_count();
-    test_recursive_bounded_support_diagnostic_terminology_is_precise();
     test_recursive_bounded_support_adaptive_falls_back_to_supported_count();
     test_recursive_bounded_support_rejects_growth_and_preserves_current_count();
     test_recursive_bounded_support_uses_phase_space_coordinate_index();
@@ -1996,7 +1954,6 @@ void run_bounded_support_tests()
     test_recursive_shifted_bounded_support_accepts_feasible_fixed_branch();
     test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive();
     test_recursive_bounded_support_rejects_fixed_infeasible_count();
-    test_recursive_bounded_support_diagnostic_terminology_is_precise();
     test_recursive_bounded_support_adaptive_falls_back_to_supported_count();
     test_recursive_bounded_support_rejects_growth_and_preserves_current_count();
     test_recursive_bounded_support_uses_phase_space_coordinate_index();

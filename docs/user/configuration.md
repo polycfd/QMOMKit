@@ -588,14 +588,14 @@ reconstructed, even though it is the root coordinate in the conditioning order.
 The same rule applies when a bounded coordinate is reconstructed at an
 intermediate or final conditional level.
 
-For a bounded coordinate, QMOMKit checks each branch-local CQMOM candidate with
-the bounded-interval realizability test before accepting it. The support is
-carried by `CqmomCase` and `CqmomState`, so it is used for the initial
-configuration reconstruction and later phase-space evolution stage reconstructions. In
-adaptive branch-count mode, an unsupported candidate retries lower node counts
-down to one. In fixed-count mode, an unsupported requested count fails with
-diagnostics. This is a support-aware acceptance test; returned nodes are not
-clipped or projected.
+For a bounded coordinate, QMOMKit accepts a reconstructed CQMOM candidate only
+when its returned abscissas lie inside the configured interval. The bounds are
+carried by `CqmomCase` and `CqmomState`, so they apply to initial configuration
+reconstruction and later phase-space evolution stage reconstructions. In
+adaptive branch-count mode, a candidate with out-of-interval nodes retries
+lower node counts down to one. In fixed-count mode, such a candidate fails with
+diagnostics. Returned nodes are not clipped or projected. These bounds constrain
+quadrature abscissas only; they do not configure moment realizability.
 
 ### Advanced: Explicit Dense Representation Workflow
 

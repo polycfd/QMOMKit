@@ -87,6 +87,36 @@ M[3,3] = 95.45
 )";
 }
 
+std::string bounded_abscissa_violation_configuration()
+{
+    // This contains no realizability policy. Before the separation cleanup,
+    // the bounded candidate was rejected by a Hausdorff check before Wheeler
+    // could return its nodes. The current path must reach Wheeler and reject
+    // only the returned node above the configured quadrature interval.
+    return R"([phase_space]
+names = x, y
+node_counts = 2, 1
+conditioning_order = 0, 1
+adaptive_branch_counts = false
+support_lower = 0.0, none
+support_upper = 1.0, none
+
+[qmom]
+adaptive = false
+
+[moments]
+extents = 4, 2
+M[0,0] = 1.0
+M[0,1] = 0.0
+M[1,0] = 0.75
+M[1,1] = 0.0
+M[2,0] = 0.8125
+M[2,1] = 0.0
+M[3,0] = 0.984375
+M[3,1] = 0.0
+)";
+}
+
 void verify_nonrealizable_result(const std::string& workflow_name, const qmomkit::CqmomResult& result)
 {
     QMOMKIT_VERIFY_CHECK(!result.ok());
@@ -121,6 +151,39 @@ void verify_nonrealizable_public_workflows()
     verify_nonrealizable_result("default CqmomCase", qmomkit::compute_cqmom(default_case.value()));
     verify_nonrealizable_result("dense CqmomDenseCase", qmomkit::compute_cqmom(dense_case.value()));
     verify_nonrealizable_result("lean CqmomLeanCase", qmomkit::compute_cqmom(lean_case.value()));
+}
+
+void verify_bounded_abscissa_violation_reaches_wheeler()
+{
+    const auto configured = qmomkit::config::parse_cqmom(bounded_abscissa_violation_configuration(), "bounded_abscissa_violation");
+    QMOMKIT_VERIFY_CHECK(configured.ok());
+
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(configured.value());
+    QMOMKIT_VERIFY_CHECK(!result.ok());
+    QMOMKIT_VERIFY_CHECK(result.status == qmomkit::CqmomStatus::qmom_failed);
+    QMOMKIT_VERIFY_CHECK(result.failed_phase_space_dimension == 0);
+    QMOMKIT_VERIFY_CHECK(result.diagnostics.size() == 1);
+
+    const qmomkit::CqmomDiagnostics& diagnostic = result.diagnostics.front();
+    QMOMKIT_VERIFY_CHECK(diagnostic.phase_space_dimension == 0);
+    QMOMKIT_VERIFY_CHECK(diagnostic.bounded_support_checked);
+    QMOMKIT_VERIFY_CHECK(diagnostic.bounded_candidate_node_count == 2);
+    QMOMKIT_VERIFY_CHECK(diagnostic.bounded_returned_nodes.size() == 2);
+    QMOMKIT_VERIFY_CHECK(diagnostic.bounded_returned_weights.size() == 2);
+    QMOMKIT_VERIFY_NEAR(diagnostic.bounded_returned_nodes[0], 0.25, 1.0e-12);
+    QMOMKIT_VERIFY_NEAR(diagnostic.bounded_returned_nodes[1], 1.25, 1.0e-12);
+    QMOMKIT_VERIFY_NEAR(diagnostic.bounded_returned_weights[0], 0.5, 1.0e-12);
+    QMOMKIT_VERIFY_NEAR(diagnostic.bounded_returned_weights[1], 0.5, 1.0e-12);
+    QMOMKIT_VERIFY_CHECK(contains_text(result.message, "returned nodes outside the configured interval"));
+    QMOMKIT_VERIFY_CHECK(!contains_text(result.message, "Bounded-support realizability check failed"));
+    QMOMKIT_VERIFY_CHECK(!contains_text(result.message, "Support: bounded_interval"));
+    QMOMKIT_VERIFY_CHECK(!contains_text(result.message, "L_lower"));
+    QMOMKIT_VERIFY_CHECK(!contains_text(diagnostic.message, "Bounded-support realizability check failed"));
+    QMOMKIT_VERIFY_CHECK(!contains_text(diagnostic.message, "Support: bounded_interval"));
+    QMOMKIT_VERIFY_CHECK(!contains_text(diagnostic.message, "L_lower"));
+
+    std::cout << std::left << std::setw(34) << "bounded abscissa violation" << std::setw(22) << "qmom_failed"
+              << "returned node above interval\n";
 }
 
 void verify_dense_invalid_result(const std::string& case_name, const qmomkit::CqmomResult& result, const std::string& expected_message)
@@ -231,6 +294,7 @@ int main()
     std::cout << std::string(82, '-') << '\n';
 
     verify_nonrealizable_public_workflows();
+    verify_bounded_abscissa_violation_reaches_wheeler();
     verify_dense_invalid_inputs();
     verify_lean_invalid_inputs();
     verify_adaptive_policy_rejection();

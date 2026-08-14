@@ -853,10 +853,11 @@ candidate values would leave high-order entries inconsistent with the accepted
 bounded quadrature.
 
 Fixed-count bounded failures fail the stage and return the unchanged input
-state. Adaptive bounded reconstruction may reduce a branch to the largest
-accepted feasible count. It may also try one-node growth toward the configured
-maximum; if that growth candidate is support-infeasible, the current feasible
-count is retained. When a parent branch changes count, descendant branches and
+state. Adaptive bounded reconstruction may reduce a branch to the largest count
+whose reconstructed abscissas satisfy the configured bounds. It may also try
+one-node growth toward the configured maximum; if that growth candidate returns
+an abscissa outside the configured bounds, the current accepted count is
+retained. When a parent branch changes count, descendant branches and
 active-count metadata are rebuilt from the accepted quadrature. Coordinate
 support metadata is preserved across these state transitions. Failed
 post-source inversions roll back both stored moments and active counts.

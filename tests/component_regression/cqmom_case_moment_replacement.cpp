@@ -128,7 +128,6 @@ void assert_diagnostics_match(const std::vector<qmomkit::CqmomDiagnostics>& actu
         QMOMKIT_VERIFY_CHECK(lhs.message == rhs.message);
         QMOMKIT_VERIFY_CHECK(lhs.bounded_support_checked == rhs.bounded_support_checked);
         QMOMKIT_VERIFY_CHECK(lhs.bounded_support_interval_present == rhs.bounded_support_interval_present);
-        QMOMKIT_VERIFY_CHECK(lhs.bounded_realizability_status == rhs.bounded_realizability_status);
     }
 }
 

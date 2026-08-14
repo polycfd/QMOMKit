@@ -284,15 +284,9 @@ struct RecursiveQuadratureBranchDiagnostics
     std::optional<std::size_t> bounded_previous_active_node_count;
     std::size_t bounded_candidate_node_count = 0;
     std::string bounded_candidate_attempt_type;
-    std::vector<double> bounded_candidate_moments;
-    RealizabilityStatus bounded_realizability_status = RealizabilityStatus::invalid_input;
-    double bounded_effective_tolerance = 0.0;
-    std::string bounded_failed_matrix;
-    double bounded_minimum_margin = 0.0;
     std::size_t bounded_accepted_fallback_node_count = 0;
     std::vector<double> bounded_returned_nodes;
     std::vector<double> bounded_returned_weights;
-    std::vector<CqmomBoundedSupportDeterminantDiagnostics> bounded_support_determinants;
 };
 
 struct RecursiveQuadratureResult

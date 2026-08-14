@@ -75,21 +75,9 @@ void assert_cqmom_diagnostic_equal(const qmomkit::CqmomDiagnostics& actual, cons
     assert(actual.bounded_previous_active_node_count == expected.bounded_previous_active_node_count);
     assert(actual.bounded_candidate_node_count == expected.bounded_candidate_node_count);
     assert(actual.bounded_candidate_attempt_type == expected.bounded_candidate_attempt_type);
-    assert_vector_near(actual.bounded_candidate_moments, expected.bounded_candidate_moments);
-    assert(actual.bounded_realizability_status == expected.bounded_realizability_status);
-    assert_near(actual.bounded_effective_tolerance, expected.bounded_effective_tolerance);
-    assert(actual.bounded_failed_matrix == expected.bounded_failed_matrix);
-    assert_near(actual.bounded_minimum_margin, expected.bounded_minimum_margin);
     assert(actual.bounded_accepted_fallback_node_count == expected.bounded_accepted_fallback_node_count);
     assert_vector_near(actual.bounded_returned_nodes, expected.bounded_returned_nodes);
     assert_vector_near(actual.bounded_returned_weights, expected.bounded_returned_weights);
-    assert(actual.bounded_support_determinants.size() == expected.bounded_support_determinants.size());
-    for (std::size_t i = 0; i < actual.bounded_support_determinants.size(); ++i)
-    {
-        assert(actual.bounded_support_determinants[i].matrix_family == expected.bounded_support_determinants[i].matrix_family);
-        assert(actual.bounded_support_determinants[i].matrix_order == expected.bounded_support_determinants[i].matrix_order);
-        assert_near(actual.bounded_support_determinants[i].determinant, expected.bounded_support_determinants[i].determinant);
-    }
 }
 
 void assert_cqmom_diagnostics_equal(const std::vector<qmomkit::CqmomDiagnostics>& actual, const std::vector<qmomkit::CqmomDiagnostics>& expected)

@@ -95,13 +95,6 @@ using CqmomCoordinateSupport = std::vector<std::optional<BoundedInterval>>;
 [[nodiscard]] std::string format_cqmom_settings(CqmomMomentStorage storage, bool adaptive_branch_counts, VandermondeSolver vandermonde_solver,
                                                 CqmomDiagnosticLevel diagnostic_level);
 
-struct CqmomBoundedSupportDeterminantDiagnostics
-{
-    std::string matrix_family;
-    std::size_t matrix_order = 0;
-    double determinant = 0.0;
-};
-
 struct CqmomDiagnostics
 {
     std::size_t conditioning_level = 0;
@@ -124,15 +117,9 @@ struct CqmomDiagnostics
     std::optional<std::size_t> bounded_previous_active_node_count;
     std::size_t bounded_candidate_node_count = 0;
     std::string bounded_candidate_attempt_type;
-    std::vector<double> bounded_candidate_moments;
-    RealizabilityStatus bounded_realizability_status = RealizabilityStatus::invalid_input;
-    double bounded_effective_tolerance = 0.0;
-    std::string bounded_failed_matrix;
-    double bounded_minimum_margin = 0.0;
     std::size_t bounded_accepted_fallback_node_count = 0;
     std::vector<double> bounded_returned_nodes;
     std::vector<double> bounded_returned_weights;
-    std::vector<CqmomBoundedSupportDeterminantDiagnostics> bounded_support_determinants;
 };
 
 /**

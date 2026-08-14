@@ -92,6 +92,16 @@ void test_support_and_interval_are_forwarded()
     assert(!qmomkit::accepts_realizability_policy(interval_policy, {1.0, 2.0}, identity_moments));
 }
 
+void test_explicit_bounded_interval_policy_accepts_realizable_moments()
+{
+    qmomkit::RealizabilityPolicy policy;
+    policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    policy.support = qmomkit::MomentSupport::bounded_interval;
+    policy.interval = qmomkit::BoundedInterval{0.0, 1.0};
+
+    assert(qmomkit::accepts_realizability_policy(policy, {1.0, 0.5, 1.0 / 3.0}, identity_moments));
+}
+
 void test_strict_boundary_and_failure_statuses()
 {
     qmomkit::RealizabilityPolicy policy;
@@ -206,6 +216,7 @@ int main()
     test_final_only_policy_invokes_converter_once();
     test_every_stage_policy_uses_stage_predicate();
     test_support_and_interval_are_forwarded();
+    test_explicit_bounded_interval_policy_accepts_realizable_moments();
     test_strict_boundary_and_failure_statuses();
     test_numerically_indeterminate_is_rejected();
     test_converter_failures_propagate();

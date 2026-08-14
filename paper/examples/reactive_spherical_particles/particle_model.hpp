@@ -13,18 +13,9 @@ struct ParticleModelParameters
     double fluid_prandtl_number = 0.71;
     double particle_density = 1800.0;
     double particle_specific_heat = 900.0;
-    double particle_thermal_conductivity = 1.5;
-    double gravity = 9.81;
-    double attrition_rate = 1.0e-4;
-    double minimum_attrition_diameter = 0.0;
-    double attrition_transition_diameter = 1.0e-5;
-    double attrition_velocity_scale = 5.0;
-    double surface_rate = 1.2e-4;
-    double surface_temperature_transition_width = 0.010;
-    double surface_diameter_transition = 1.0e-5;
-    double carrier_temperature_center = 0.900;
-    double carrier_temperature_amplitude = 0.020;
-    double carrier_temperature_angular_frequency = 12.566370614359172;
+    // A 250 micrometre particle loses 12.5% of its diameter over one second.
+    double surface_recession_rate = 3.125e-5;
+    double carrier_temperature = 0.950;
     double diameter_regularization = 1.0e-8;
 };
 

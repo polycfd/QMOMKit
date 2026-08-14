@@ -13,10 +13,8 @@ constexpr unsigned long long breakage_seed = 67890;
 
 struct BinaryFragmentationParameters
 {
-    double fragmentation_rate_constant = 1.0e8;
-    double fragmentation_power = 2.0;
-    double minimum_fragmentation_diameter = 1.0e-6;
-    double recoil_velocity_standard_deviation = 0.5;
+    double fragmentation_rate = 0.5;
+    double minimum_fragmentation_diameter = 1.0e-4;
 };
 
 [[nodiscard]] BinaryFragmentationParameters binary_fragmentation_parameters();

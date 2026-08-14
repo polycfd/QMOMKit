@@ -27,8 +27,8 @@ int main()
 {
     const std::filesystem::path configuration_file = "configuration.qmom";
     const double initial_time = 0.0;
-    constexpr double final_time = 0.1;
-    double time_step = 0.005;
+    constexpr double final_time = 1.0;
+    constexpr double time_step = 0.005;
 
     try
     {
@@ -83,18 +83,13 @@ int main()
             return 1;
         }
 
-        // The inherited CQMOM and MC paths intentionally start from this one
-        // fixed-seed ensemble; the paper CSV evaluates raw moments from it directly.
+        // CQMOM uses the configured analytical independent-product moments.
+        // The companion independently samples those same marginals with a
+        // fixed seed, so its finite-ensemble uncertainty remains visible.
         qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(ensemble.size());
         const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
-        auto sampled_case_result = qmomkit::config::with_initial_moments(configured.value(), std::move(sampled->moments.moments));
-        if (!sampled_case_result)
-        {
-            cqmom_reactive_spherical_particles::print_configuration_errors(sampled_case_result.error());
-            return 1;
-        }
-        const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
+        const qmomkit::CqmomCase cqmom_case = std::move(configured).value();
         const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
         if (!cqmom.ok())
         {
@@ -111,8 +106,6 @@ int main()
         const qmomkit::CqmomMomentSource source = cqmom_reactive_spherical_particles::binary_breakage_source(cqmom_case, breakage_parameters);
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
         qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
-        phase_space_evolution_options.source_options.ssp_rk3_options.max_retries = 8;
-        phase_space_evolution_options.source_options.ssp_rk3_options.min_time_step = 1.0e-5;
         if (phase_space_evolution_options.node_options.scheme != qmomkit::NodeAdvectionScheme::rk23)
         {
             std::cerr << "The paper Monte Carlo reference requires RK23 node advection.\n";
@@ -123,9 +116,7 @@ int main()
                                                     cqmom_case.diagnostic_level());
         std::cout << qmomkit::format_node_advection_options(phase_space_evolution_options.node_options);
 
-        // The configured phase-space order is (d, u, v, w, T). Theta_u,
-        // Theta_v, and Theta_w are the componentwise raw-moment quantities
-        // M_02000/M_00000 - (M_01000/M_00000)^2 and its v/w analogues.
+        // The configured phase-space order is (d, u, v, w, T).
         const std::array<qmomkit::MultiIndex, 16> comparison_indices{{
             {0, 0, 0, 0, 0},
             {3, 0, 0, 0, 0},
@@ -144,9 +135,10 @@ int main()
             {1, 0, 0, 0, 0},
             {1, 0, 0, 0, 1},
         }};
-        const std::array<const char*, 11> comparison_labels{{"M_00000", "M_30000/M_20000", "mean_temperature_kK", "M_31000/M_00000",
-                                                             "M_30100/M_00000", "M_30010/M_00000", "Theta_u", "Theta_v", "Theta_w",
-                                                             "temperature_variance_kK2", "diameter_temperature_covariance_m_kK"}};
+        const std::array<const char*, 14> comparison_labels{
+            {"M_00000", "M_30000/M_20000", "mean_diameter_m", "diameter_variance_m2", "mean_u_m_per_s", "velocity_u_variance_m2_per_s2",
+             "mean_v_m_per_s", "velocity_v_variance_m2_per_s2", "mean_w_m_per_s", "velocity_w_variance_m2_per_s2", "mean_temperature_kK",
+             "temperature_variance_kK2", "diameter_temperature_covariance_m_kK", "M_31000/M_00000"}};
         const std::array<const char*, 4> topology_labels{{"active_root_diameter_node_count", "minimum_active_temperature_node_count",
                                                           "maximum_active_temperature_node_count", "active_terminal_node_count"}};
         const qmomkit::RawMomentRequest comparison_request{std::vector<qmomkit::MultiIndex>(comparison_indices.begin(), comparison_indices.end())};
@@ -182,17 +174,20 @@ int main()
             const double mean_v = checked_ratio(moments[10], m00000, "M_00100/M_00000", time);
             const double mean_w = checked_ratio(moments[12], m00000, "M_00010/M_00000", time);
             const double mean_diameter = checked_ratio(moments[14], m00000, "M_10000/M_00000", time);
-            return std::array<double, 11>{m00000,
+            return std::array<double, 14>{m00000,
                                           checked_ratio(moments[1], moments[2], "M_30000/M_20000", time),
+                                          mean_diameter,
+                                          checked_ratio(moments[2], m00000, "M_20000/M_00000", time) - mean_diameter * mean_diameter,
+                                          mean_u,
+                                          checked_ratio(moments[7], m00000, "M_02000/M_00000", time) - mean_u * mean_u,
+                                          mean_v,
+                                          checked_ratio(moments[9], m00000, "M_00200/M_00000", time) - mean_v * mean_v,
+                                          mean_w,
+                                          checked_ratio(moments[11], m00000, "M_00020/M_00000", time) - mean_w * mean_w,
                                           mean_temperature,
-                                          checked_ratio(moments[4], m00000, "M_31000/M_00000", time),
-                                          checked_ratio(moments[5], m00000, "M_30100/M_00000", time),
-                                          checked_ratio(moments[6], m00000, "M_30010/M_00000", time),
-                                          checked_ratio(moments[7], m00000, "Theta_u", time) - mean_u * mean_u,
-                                          checked_ratio(moments[9], m00000, "Theta_v", time) - mean_v * mean_v,
-                                          checked_ratio(moments[11], m00000, "Theta_w", time) - mean_w * mean_w,
                                           checked_ratio(moments[13], m00000, "M_00002/M_00000", time) - mean_temperature * mean_temperature,
-                                          checked_ratio(moments[15], m00000, "M_10001/M_00000", time) - mean_diameter * mean_temperature};
+                                          checked_ratio(moments[15], m00000, "M_10001/M_00000", time) - mean_diameter * mean_temperature,
+                                          checked_ratio(moments[4], m00000, "M_31000/M_00000", time)};
         };
         const auto topology_values = [](const qmomkit::CqmomState& current_state, const qmomkit::CqmomQuadrature& current_quadrature)
         {
@@ -241,8 +236,8 @@ int main()
             {
                 throw std::runtime_error("CQMOM paper moment reconstruction failed: " + qmomkit_moments.message);
             }
-            const std::array<double, 11> qmomkit_values = calculate_comparison_values(qmomkit_moments.values, time);
-            const std::array<double, 11> mc_values = calculate_comparison_values(estimate_mc_moments(), time);
+            const std::array<double, 14> qmomkit_values = calculate_comparison_values(qmomkit_moments.values, time);
+            const std::array<double, 14> mc_values = calculate_comparison_values(estimate_mc_moments(), time);
             for (std::size_t index = 0; index < comparison_labels.size(); ++index)
             {
                 comparison_file << time << ',' << comparison_labels[index] << ',' << qmomkit_values[index] << ',' << mc_values[index] << '\n';

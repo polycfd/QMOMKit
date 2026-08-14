@@ -23,32 +23,11 @@ constexpr double daughter_diameter_factor = 0.7937005259840997373758528196361541
     return std::isfinite(value) && value >= 0.0;
 }
 
-[[nodiscard]] bool is_positive_finite(const double value)
-{
-    return std::isfinite(value) && value > 0.0;
-}
-
 void require_nonnegative_finite(const double value, const char* name)
 {
     if (!is_nonnegative_finite(value))
     {
         throw std::invalid_argument(std::string("Binary fragmentation parameter '") + name + "' must be supplied as a non-negative finite value.");
-    }
-}
-
-void require_positive_finite(const double value, const char* name)
-{
-    if (!is_positive_finite(value))
-    {
-        throw std::invalid_argument(std::string("Binary fragmentation parameter '") + name + "' must be supplied as a positive finite value.");
-    }
-}
-
-void require_finite(const double value, const char* name)
-{
-    if (!std::isfinite(value))
-    {
-        throw std::invalid_argument(std::string("Binary fragmentation parameter '") + name + "' must be supplied as a finite value.");
     }
 }
 
@@ -70,50 +49,6 @@ void require_sample(const qmomkit::monte_carlo::Sample& sample)
     return value;
 }
 
-[[nodiscard]] double binomial(const std::size_t n, std::size_t k)
-{
-    if (k > n)
-    {
-        return 0.0;
-    }
-    k = std::min(k, n - k);
-    double coefficient = 1.0;
-    for (std::size_t i = 1; i <= k; ++i)
-    {
-        coefficient *= static_cast<double>(n - k + i);
-        coefficient /= static_cast<double>(i);
-    }
-    return coefficient;
-}
-
-[[nodiscard]] double odd_double_factorial_for_even_order(const std::size_t order)
-{
-    if (order == 0)
-    {
-        return 1.0;
-    }
-
-    double value = 1.0;
-    for (std::size_t factor = 1; factor < order; factor += 2)
-    {
-        value *= static_cast<double>(factor);
-    }
-    return value;
-}
-
-[[nodiscard]] double gaussian_shifted_raw_moment(const double x, const double sigma, const std::size_t order)
-{
-    // Evaluate E[(x + xi)^k] for a centered Gaussian recoil. Odd Gaussian
-    // moments vanish, so only even terms of the binomial expansion contribute.
-    double moment = 0.0;
-    for (std::size_t gaussian_order = 0; gaussian_order <= order; gaussian_order += 2)
-    {
-        moment += binomial(order, gaussian_order) * integer_power(x, order - gaussian_order) * integer_power(sigma, gaussian_order) *
-                  odd_double_factorial_for_even_order(gaussian_order);
-    }
-    return moment;
-}
-
 [[nodiscard]] double daughter_diameter(const double parent_diameter)
 {
     return daughter_diameter_factor * parent_diameter;
@@ -126,12 +61,7 @@ void require_sample(const qmomkit::monte_carlo::Sample& sample)
         return 0.0;
     }
 
-    const double rate = parameters.fragmentation_rate_constant * std::pow(diameter, parameters.fragmentation_power);
-    if (!std::isfinite(rate) || rate < 0.0)
-    {
-        throw std::runtime_error("Binary fragmentation produced a non-finite or negative event rate.");
-    }
-    return rate;
+    return parameters.fragmentation_rate;
 }
 
 [[nodiscard]] double parent_monomial(const std::vector<std::vector<double>>& abscissas, const std::size_t node, const qmomkit::MultiIndex& order)
@@ -144,18 +74,15 @@ void require_sample(const qmomkit::monte_carlo::Sample& sample)
     return value;
 }
 
-[[nodiscard]] double expected_daughter_monomial(const std::vector<std::vector<double>>& abscissas, const std::size_t node,
-                                                const qmomkit::MultiIndex& order, const BinaryFragmentationParameters& parameters)
+[[nodiscard]] double daughter_monomial(const std::vector<std::vector<double>>& abscissas, const std::size_t node, const qmomkit::MultiIndex& order)
 {
     const double d = abscissas[0][node];
     const double u = abscissas[1][node];
     const double v = abscissas[2][node];
     const double w = abscissas[3][node];
     const double temperature = abscissas[4][node];
-    const double sigma = parameters.recoil_velocity_standard_deviation;
-
-    return integer_power(daughter_diameter(d), order[0]) * gaussian_shifted_raw_moment(u, sigma, order[1]) *
-           gaussian_shifted_raw_moment(v, sigma, order[2]) * gaussian_shifted_raw_moment(w, sigma, order[3]) * integer_power(temperature, order[4]);
+    return integer_power(daughter_diameter(d), order[0]) * integer_power(u, order[1]) * integer_power(v, order[2]) * integer_power(w, order[3]) *
+           integer_power(temperature, order[4]);
 }
 
 } // namespace
@@ -167,10 +94,8 @@ BinaryFragmentationParameters binary_fragmentation_parameters()
 
 void validate_binary_fragmentation_parameters(const BinaryFragmentationParameters& parameters)
 {
-    require_nonnegative_finite(parameters.fragmentation_rate_constant, "fragmentation_rate_constant");
-    require_finite(parameters.fragmentation_power, "fragmentation_power");
+    require_nonnegative_finite(parameters.fragmentation_rate, "fragmentation_rate");
     require_nonnegative_finite(parameters.minimum_fragmentation_diameter, "minimum_fragmentation_diameter");
-    require_nonnegative_finite(parameters.recoil_velocity_standard_deviation, "recoil_velocity_standard_deviation");
 }
 
 qmomkit::CqmomMomentSource binary_breakage_source(const qmomkit::CqmomCase& cqmom_case, const BinaryFragmentationParameters& parameters)
@@ -227,8 +152,7 @@ qmomkit::CqmomMomentSource binary_breakage_source(const qmomkit::CqmomCase& cqmo
                 // One parent is removed and two statistically identical daughters
                 // are created, giving beta(d) * (2D - P) before quadrature weighting.
                 source[moment_index] +=
-                    weights[node] * beta *
-                    (2.0 * expected_daughter_monomial(abscissas, node, order, parameters) - parent_monomial(abscissas, node, order));
+                    weights[node] * beta * (2.0 * daughter_monomial(abscissas, node, order) - parent_monomial(abscissas, node, order));
             }
         }
         return qmomkit::CqmomMomentRate{std::move(source)};
@@ -248,8 +172,6 @@ void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, const doubl
     survivors.reserve(ensemble.size());
     std::vector<std::pair<qmomkit::monte_carlo::Sample, double>> pending;
     pending.reserve(2 * ensemble.size());
-    std::normal_distribution<double> recoil(0.0, parameters.recoil_velocity_standard_deviation);
-
     for (qmomkit::monte_carlo::Sample sample : ensemble)
     {
         require_sample(sample);
@@ -280,14 +202,10 @@ void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, const doubl
 
             const double child_remaining_time = remaining_time - event_time;
             const double daughter_d = daughter_diameter(particle[0]);
-            const double xi_u = recoil(generator);
-            const double xi_v = recoil(generator);
-            const double xi_w = recoil(generator);
-
-            qmomkit::monte_carlo::Sample daughter_plus{daughter_d, particle[1] + xi_u, particle[2] + xi_v, particle[3] + xi_w, particle[4]};
-            qmomkit::monte_carlo::Sample daughter_minus{daughter_d, particle[1] - xi_u, particle[2] - xi_v, particle[3] - xi_w, particle[4]};
-            pending.emplace_back(std::move(daughter_plus), child_remaining_time);
-            pending.emplace_back(std::move(daughter_minus), child_remaining_time);
+            qmomkit::monte_carlo::Sample daughter{daughter_d, particle[1], particle[2], particle[3], particle[4]};
+            qmomkit::monte_carlo::Sample second_daughter = daughter;
+            pending.emplace_back(std::move(daughter), child_remaining_time);
+            pending.emplace_back(std::move(second_daughter), child_remaining_time);
         }
     }
 

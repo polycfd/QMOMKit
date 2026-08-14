@@ -1,6 +1,7 @@
 #pragma once
 
 #include "qmomkit/cqmom.hpp"
+#include "qmomkit/realizability_policy.hpp"
 #include "qmomkit/runge_kutta.hpp"
 
 #include <cstddef>
@@ -118,6 +119,7 @@ enum class MomentSourceUpdateStatus
 struct MomentSourceUpdateOptions
 {
     SspRk3Options ssp_rk3_options;
+    std::vector<std::optional<RealizabilityPolicy>> coordinate_realizability_policies;
 };
 
 struct MomentSourceUpdateDiagnostics

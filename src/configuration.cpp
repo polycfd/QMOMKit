@@ -1534,6 +1534,26 @@ std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(Parsed
     return policy;
 }
 
+std::vector<std::optional<RealizabilityPolicy>> parse_coordinate_realizability_policies_from_parsed(ParsedFile& parsed,
+                                                                                                    const std::string& source_name)
+{
+    const std::vector<std::pair<std::size_t, std::string>> sections = coordinate_realizability_sections(parsed);
+    std::vector<std::optional<RealizabilityPolicy>> policies;
+    for (const auto& item : sections)
+    {
+        const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, item.second, source_name);
+        if (policy.has_value())
+        {
+            if (policies.size() <= item.first)
+            {
+                policies.resize(item.first + 1);
+            }
+            policies[item.first] = *policy;
+        }
+    }
+    return policies;
+}
+
 std::optional<CqmomDiagnosticLevel> parse_cqmom_diagnostic_level_value(ParsedFile& parsed, const Entry& entry, const std::string& source_name)
 {
     if (entry.value == "detailed")
@@ -2557,21 +2577,7 @@ ConfigurationResult<std::vector<std::optional<RealizabilityPolicy>>> parse_coord
 
     reject_unknown_phase_space_evolution_sections(parsed, source_name);
     reject_unknown_phase_space_evolution_keys(parsed, source_name);
-    const std::vector<std::pair<std::size_t, std::string>> sections = coordinate_realizability_sections(parsed);
-
-    std::vector<std::optional<RealizabilityPolicy>> policies;
-    for (const auto& item : sections)
-    {
-        const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, item.second, source_name);
-        if (policy.has_value())
-        {
-            if (policies.size() <= item.first)
-            {
-                policies.resize(item.first + 1);
-            }
-            policies[item.first] = *policy;
-        }
-    }
+    std::vector<std::optional<RealizabilityPolicy>> policies = parse_coordinate_realizability_policies_from_parsed(parsed, source_name);
 
     if (!parsed.errors.empty())
     {
@@ -2657,6 +2663,7 @@ ConfigurationResult<CqmomPhaseSpaceEvolutionOptions> parse_cqmom_phase_space_evo
     reject_unknown_phase_space_evolution_keys(parsed, source_name);
     const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
+    std::vector<std::optional<RealizabilityPolicy>> coordinate_policies = parse_coordinate_realizability_policies_from_parsed(parsed, source_name);
 
     if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value())
     {
@@ -2666,6 +2673,7 @@ ConfigurationResult<CqmomPhaseSpaceEvolutionOptions> parse_cqmom_phase_space_evo
     CqmomPhaseSpaceEvolutionOptions options;
     options.scheme = *scheme;
     options.node_options = *node_options;
+    options.source_options.coordinate_realizability_policies = std::move(coordinate_policies);
     return ConfigurationResult<CqmomPhaseSpaceEvolutionOptions>{std::move(options)};
 }
 

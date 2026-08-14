@@ -2552,6 +2552,10 @@ scheme = rk23
 [time_integration.node_advection.adaptive]
 absolute_tolerance = 1.0e-12
 max_step = 0.025
+
+[time_integration.realizability.1]
+check_mode = every_stage
+support = nonnegative
 )";
     const auto cqmom_options = qmomkit::config::parse_cqmom_phase_space_evolution_options(cqmom_runtime);
     assert(cqmom_options.ok());
@@ -2561,6 +2565,11 @@ max_step = 0.025
     assert_near(cqmom_options.value().node_options.adaptive_options.max_step, 0.025);
     assert(!cqmom_options.value().source_options.ssp_rk3_options.accept);
     assert(!cqmom_options.value().source_options.ssp_rk3_options.stage_accept);
+    assert(cqmom_options.value().source_options.coordinate_realizability_policies.size() == 2);
+    assert(!cqmom_options.value().source_options.coordinate_realizability_policies[0].has_value());
+    assert(cqmom_options.value().source_options.coordinate_realizability_policies[1].has_value());
+    assert(cqmom_options.value().source_options.coordinate_realizability_policies[1]->check_mode == qmomkit::RealizabilityCheckMode::EveryStage);
+    assert(cqmom_options.value().source_options.coordinate_realizability_policies[1]->support == qmomkit::MomentSupport::nonnegative);
 
     const std::filesystem::path filename = std::filesystem::temp_directory_path() / "qmomkit_phase_space_evolution_options_configuration_test.qmom";
     {

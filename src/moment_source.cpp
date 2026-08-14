@@ -154,6 +154,78 @@ void validate_cqmom_stage_state(const std::vector<double>& state, const CqmomMom
     }
 }
 
+void validate_coordinate_realizability_policies(const CqmomMomentLayout& layout, const std::vector<std::optional<RealizabilityPolicy>>& policies)
+{
+    const std::size_t dimensions = layout.hierarchy.number_of_dimensions();
+    for (std::size_t coordinate = dimensions; coordinate < policies.size(); ++coordinate)
+    {
+        if (policies[coordinate].has_value())
+        {
+            throw std::invalid_argument("CQMOM coordinate realizability policy index is outside the phase-space dimension.");
+        }
+    }
+}
+
+[[nodiscard]] bool has_coordinate_realizability_policy(const std::vector<std::optional<RealizabilityPolicy>>& policies,
+                                                       const RealizabilityCheckMode check_mode)
+{
+    return std::any_of(policies.begin(), policies.end(), [check_mode](const std::optional<RealizabilityPolicy>& policy)
+                       { return policy.has_value() && policy->check_mode == check_mode; });
+}
+
+[[nodiscard]] std::vector<double> extract_coordinate_marginal(const std::vector<double>& state, const CqmomMomentLayout& layout,
+                                                              const std::size_t coordinate)
+{
+    std::vector<std::pair<std::size_t, std::size_t>> orders_and_positions;
+    for (std::size_t position = 0; position < layout.required_indices.size(); ++position)
+    {
+        const MultiIndex& index = layout.required_indices[position];
+        bool pure_coordinate = true;
+        for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
+        {
+            if (dimension != coordinate && index[dimension] != 0)
+            {
+                pure_coordinate = false;
+                break;
+            }
+        }
+        if (pure_coordinate)
+        {
+            orders_and_positions.emplace_back(index[coordinate], position);
+        }
+    }
+
+    std::sort(orders_and_positions.begin(), orders_and_positions.end());
+    std::vector<double> marginal;
+    marginal.reserve(orders_and_positions.size());
+    for (const auto& order_and_position : orders_and_positions)
+    {
+        marginal.push_back(state[order_and_position.second]);
+    }
+    return marginal;
+}
+
+[[nodiscard]] bool accepts_coordinate_realizability_policies(const std::vector<double>& state, const CqmomMomentLayout& layout,
+                                                             const std::vector<std::optional<RealizabilityPolicy>>& policies,
+                                                             const RealizabilityCheckMode check_mode)
+{
+    for (std::size_t coordinate = 0; coordinate < policies.size(); ++coordinate)
+    {
+        const std::optional<RealizabilityPolicy>& policy = policies[coordinate];
+        if (!policy.has_value() || policy->check_mode != check_mode)
+        {
+            continue;
+        }
+
+        const std::vector<double> marginal = extract_coordinate_marginal(state, layout, coordinate);
+        if (!accepts_realizability_policy(*policy, marginal, [](const std::vector<double>& moments) { return MomentSet(moments); }))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 [[nodiscard]] std::invalid_argument boundary_callback_error(const std::exception& error)
 {
     return std::invalid_argument(std::string("Moment-boundary contribution callback failed: ") + error.what());
@@ -227,6 +299,7 @@ void validate_moment_data_request(const CqmomMomentData& moments, const double t
 {
     validate_fixed_cqmom_moment_data(moments, "CQMOM moment-source update");
     validate_cqmom_source_update_controls(t, time_step, source, options);
+    validate_coordinate_realizability_policies(moments.layout, options.coordinate_realizability_policies);
 }
 
 void validate_trusted_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
@@ -235,6 +308,7 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
     internal::validate_cqmom_moment_values_match_layout(
         moments, {"", "CQMOM moment-source update values must match the fixed layout size.", "CQMOM moment-source update values must be finite."});
     validate_cqmom_source_update_controls(t, time_step, source, options);
+    validate_coordinate_realizability_policies(moments.layout, options.coordinate_realizability_policies);
 }
 
 void validate_moment_data_request(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
@@ -328,11 +402,33 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
             return rate.values;
         };
 
-        SspRk3Result step = ssp_rk3_step(moments.values, t, time_step, rhs, options.ssp_rk3_options);
-        const MomentSourceUpdateStatus status = status_from_ssp_rk3(step.status);
-        const MomentSourceUpdateDiagnostics diagnostics = diagnostics_from_ssp_rk3(step, status);
-        const std::string message = diagnostics.message;
-        return CqmomMomentSourceUpdateResult{CqmomMomentData{layout, std::move(step.state)}, status, diagnostics, message};
+        SspRk3Options ssp_rk3_options = options.ssp_rk3_options;
+        const std::vector<std::optional<RealizabilityPolicy>>& coordinate_policies = options.coordinate_realizability_policies;
+        if (has_coordinate_realizability_policy(coordinate_policies, RealizabilityCheckMode::FinalOnly))
+        {
+            const StateAcceptancePredicate existing_accept = ssp_rk3_options.accept;
+            ssp_rk3_options.accept = [&layout, &coordinate_policies, existing_accept](const std::vector<double>& state)
+            {
+                return (!existing_accept || existing_accept(state)) &&
+                       accepts_coordinate_realizability_policies(state, layout, coordinate_policies, RealizabilityCheckMode::FinalOnly);
+            };
+        }
+        if (has_coordinate_realizability_policy(coordinate_policies, RealizabilityCheckMode::EveryStage))
+        {
+            const StageAcceptancePredicate existing_stage_accept = ssp_rk3_options.stage_accept;
+            ssp_rk3_options.stage_accept =
+                [&layout, &coordinate_policies, existing_stage_accept](const SspRk3Stage stage, const std::vector<double>& state)
+            {
+                return (!existing_stage_accept || existing_stage_accept(stage, state)) &&
+                       accepts_coordinate_realizability_policies(state, layout, coordinate_policies, RealizabilityCheckMode::EveryStage);
+            };
+        }
+
+        MomentSourceUpdateOptions composed_options = options;
+        composed_options.ssp_rk3_options = std::move(ssp_rk3_options);
+        MomentSourceUpdateResult update = advance_moments_with_source(moments.values, t, time_step, rhs, composed_options);
+        return CqmomMomentSourceUpdateResult{CqmomMomentData{layout, std::move(update.moments)}, update.status, std::move(update.diagnostics),
+                                             std::move(update.message)};
     }
     catch (const std::exception& error)
     {

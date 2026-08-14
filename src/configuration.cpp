@@ -81,6 +81,40 @@ bool parse_size(const std::string& text, std::size_t& value)
     return result.ec == std::errc() && result.ptr == last;
 }
 
+bool parse_coordinate_realizability_section(const std::string& section, std::size_t& coordinate)
+{
+    if (section.rfind(std::string(realizability_key_prefix), 0) != 0)
+    {
+        return false;
+    }
+    return parse_size(section.substr(realizability_key_prefix.size()), coordinate);
+}
+
+bool is_coordinate_realizability_key(const std::string& key)
+{
+    if (key.rfind(std::string(realizability_key_prefix), 0) != 0)
+    {
+        return false;
+    }
+    const std::size_t coordinate_end = key.find('.', realizability_key_prefix.size());
+    if (coordinate_end == std::string::npos)
+    {
+        return false;
+    }
+    std::size_t coordinate = 0;
+    return parse_size(key.substr(realizability_key_prefix.size(), coordinate_end - realizability_key_prefix.size()), coordinate);
+}
+
+bool is_configured_coordinate_realizability_key(const ParsedFile& parsed, const std::string& key)
+{
+    if (!is_coordinate_realizability_key(key))
+    {
+        return false;
+    }
+    const std::size_t coordinate_end = key.find('.', realizability_key_prefix.size());
+    return parsed.sections.find(key.substr(0, coordinate_end)) != parsed.sections.end();
+}
+
 bool parse_double(const std::string& text, double& value)
 {
     try
@@ -310,6 +344,7 @@ void reject_unknown_keys(ParsedFile& parsed, const std::vector<std::string>& all
     for (const auto& item : parsed.scalars)
     {
         bool allowed_key = std::find(allowed.begin(), allowed.end(), item.first) != allowed.end();
+        allowed_key = allowed_key || is_configured_coordinate_realizability_key(parsed, item.first);
         for (const std::string& prefix : allowed_prefixes)
         {
             allowed_key = allowed_key || item.first.rfind(prefix, 0) == 0;
@@ -327,6 +362,8 @@ void reject_unknown_sections(ParsedFile& parsed, const std::vector<std::string>&
     for (const auto& item : parsed.sections)
     {
         bool allowed_section = std::find(allowed.begin(), allowed.end(), item.first) != allowed.end();
+        std::size_t coordinate = 0;
+        allowed_section = allowed_section || parse_coordinate_realizability_section(item.first, coordinate);
         for (const std::string& prefix : allowed_prefixes)
         {
             allowed_section = allowed_section || item.first.rfind(prefix, 0) == 0;
@@ -1182,18 +1219,39 @@ bool has_realizability_section(const ParsedFile& parsed)
                        [](const auto& item) { return item.first.rfind(std::string(realizability_key_prefix), 0) == 0; });
 }
 
+bool has_unnumbered_realizability_section(const ParsedFile& parsed)
+{
+    if (parsed.sections.find(std::string(realizability_section)) != parsed.sections.end())
+    {
+        return true;
+    }
+    return std::any_of(parsed.scalars.begin(), parsed.scalars.end(), [](const auto& item)
+                       { return item.first.rfind(std::string(realizability_key_prefix), 0) == 0 && !is_coordinate_realizability_key(item.first); });
+}
+
+std::vector<std::pair<std::size_t, std::string>> coordinate_realizability_sections(const ParsedFile& parsed)
+{
+    std::vector<std::pair<std::size_t, std::string>> sections;
+    for (const auto& item : parsed.sections)
+    {
+        std::size_t coordinate = 0;
+        if (parse_coordinate_realizability_section(item.first, coordinate))
+        {
+            sections.emplace_back(coordinate, item.first);
+        }
+    }
+    return sections;
+}
+
 bool is_realizability_key(const std::string& key)
 {
     return key.rfind(std::string(realizability_key_prefix), 0) == 0;
 }
 
-const std::vector<std::string>& realizability_allowed_keys()
+const std::vector<std::string>& realizability_policy_fields()
 {
-    static const std::vector<std::string> allowed{
-        "time_integration.realizability.check_mode", "time_integration.realizability.accept_boundary",    "time_integration.realizability.support",
-        "time_integration.realizability.tolerance",  "time_integration.realizability.relative_tolerance", "time_integration.realizability.lower",
-        "time_integration.realizability.upper"};
-    return allowed;
+    static const std::vector<std::string> fields{"check_mode", "accept_boundary", "support", "tolerance", "relative_tolerance", "lower", "upper"};
+    return fields;
 }
 
 bool is_node_advection_key(const std::string& key)
@@ -1275,20 +1333,20 @@ std::optional<RealizabilityCheckMode> parse_realizability_check_mode_value(Parse
     return std::nullopt;
 }
 
-std::optional<RealizabilityCheckMode> parse_realizability_check_mode(ParsedFile& parsed, const std::string& source_name)
+std::optional<RealizabilityCheckMode> parse_realizability_check_mode(ParsedFile& parsed, const std::string& key, const std::string& source_name)
 {
-    const Entry* check_mode = find_entry(parsed, "time_integration.realizability.check_mode");
+    const Entry* check_mode = find_entry(parsed, key);
     if (check_mode != nullptr)
     {
-        return parse_realizability_check_mode_value(parsed, *check_mode, "time_integration.realizability.check_mode", source_name);
+        return parse_realizability_check_mode_value(parsed, *check_mode, key, source_name);
     }
 
     return RealizabilityCheckMode::None;
 }
 
-std::optional<MomentSupport> parse_moment_support(ParsedFile& parsed, const std::string& source_name)
+std::optional<MomentSupport> parse_moment_support(ParsedFile& parsed, const std::string& key, const std::string& source_name)
 {
-    const Entry* entry = require_entry(parsed, "time_integration.realizability.support", source_name);
+    const Entry* entry = require_entry(parsed, key, source_name);
     if (entry == nullptr)
     {
         return std::nullopt;
@@ -1305,8 +1363,7 @@ std::optional<MomentSupport> parse_moment_support(ParsedFile& parsed, const std:
     {
         return MomentSupport::bounded_interval;
     }
-    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line,
-              "time_integration.realizability.support must be real_line, nonnegative, or bounded_interval.");
+    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line, key + " must be real_line, nonnegative, or bounded_interval.");
     return std::nullopt;
 }
 
@@ -1396,27 +1453,33 @@ std::optional<NodeAdvectionOptions> parse_node_advection_options_from_parsed(Par
     return options;
 }
 
-std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(ParsedFile& parsed, const std::string& source_name)
+std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(ParsedFile& parsed, const std::string& section,
+                                                                          const std::string& source_name)
 {
-    if (!has_realizability_section(parsed))
-    {
-        return RealizabilityPolicy{};
-    }
+    const std::string key_prefix = section + ".";
 
     for (const auto& item : parsed.scalars)
     {
-        if (!is_realizability_key(item.first))
+        if (item.first.rfind(key_prefix, 0) != 0 || (section == realizability_section && is_coordinate_realizability_key(item.first)))
         {
             continue;
         }
-        const std::vector<std::string>& allowed = realizability_allowed_keys();
-        if (std::find(allowed.begin(), allowed.end(), item.first) == allowed.end())
+        const std::string field = item.first.substr(key_prefix.size());
+        if (std::find(realizability_policy_fields().begin(), realizability_policy_fields().end(), field) == realizability_policy_fields().end())
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
         }
     }
 
-    std::optional<RealizabilityCheckMode> check_mode = parse_realizability_check_mode(parsed, source_name);
+    const std::string check_mode_key = key_prefix + "check_mode";
+    const std::string support_key = key_prefix + "support";
+    const std::string accept_boundary_key = key_prefix + "accept_boundary";
+    const std::string tolerance_key = key_prefix + "tolerance";
+    const std::string relative_tolerance_key = key_prefix + "relative_tolerance";
+    const std::string lower_key = key_prefix + "lower";
+    const std::string upper_key = key_prefix + "upper";
+
+    std::optional<RealizabilityCheckMode> check_mode = parse_realizability_check_mode(parsed, check_mode_key, source_name);
     if (!check_mode.has_value())
     {
         return std::nullopt;
@@ -1424,19 +1487,19 @@ std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(Parsed
 
     RealizabilityPolicy policy;
     policy.check_mode = *check_mode;
-    parse_optional_bool(parsed, "time_integration.realizability.accept_boundary", source_name, policy.accept_boundary);
-    parse_optional_double(parsed, "time_integration.realizability.tolerance", source_name, policy.options.tolerance);
-    parse_optional_bool(parsed, "time_integration.realizability.relative_tolerance", source_name, policy.options.relative_tolerance);
+    parse_optional_bool(parsed, accept_boundary_key, source_name, policy.accept_boundary);
+    parse_optional_double(parsed, tolerance_key, source_name, policy.options.tolerance);
+    parse_optional_bool(parsed, relative_tolerance_key, source_name, policy.options.relative_tolerance);
     if (policy.options.tolerance <= 0.0)
     {
-        const Entry* entry = find_entry(parsed, "time_integration.realizability.tolerance");
+        const Entry* entry = find_entry(parsed, tolerance_key);
         add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
-                  "time_integration.realizability.tolerance must be positive.");
+                  tolerance_key + " must be positive.");
     }
 
-    if (policy.check_mode != RealizabilityCheckMode::None || find_entry(parsed, "time_integration.realizability.support") != nullptr)
+    if (policy.check_mode != RealizabilityCheckMode::None || find_entry(parsed, support_key) != nullptr)
     {
-        std::optional<MomentSupport> support = parse_moment_support(parsed, source_name);
+        std::optional<MomentSupport> support = parse_moment_support(parsed, support_key, source_name);
         if (support.has_value())
         {
             policy.support = *support;
@@ -1447,15 +1510,15 @@ std::optional<RealizabilityPolicy> parse_realizability_policy_from_parsed(Parsed
     {
         double lower = 0.0;
         double upper = 0.0;
-        const bool parsed_lower = parse_required_double(parsed, "time_integration.realizability.lower", source_name, lower);
-        const bool parsed_upper = parse_required_double(parsed, "time_integration.realizability.upper", source_name, upper);
+        const bool parsed_lower = parse_required_double(parsed, lower_key, source_name, lower);
+        const bool parsed_upper = parse_required_double(parsed, upper_key, source_name, upper);
         if (parsed_lower && parsed_upper)
         {
             if (lower >= upper)
             {
-                const Entry* entry = find_entry(parsed, "time_integration.realizability.lower");
+                const Entry* entry = find_entry(parsed, lower_key);
                 add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
-                          "time_integration.realizability.lower must be less than upper.");
+                          lower_key + " must be less than upper.");
             }
             else
             {
@@ -1595,15 +1658,24 @@ void validate_optional_node_advection_options(ParsedFile& parsed, const std::str
 
 void validate_optional_realizability_policy(ParsedFile& parsed, const std::string& source_name)
 {
-    static_cast<void>(parse_realizability_policy_from_parsed(parsed, source_name));
+    if (has_unnumbered_realizability_section(parsed))
+    {
+        static_cast<void>(parse_realizability_policy_from_parsed(parsed, std::string(realizability_section), source_name));
+    }
+    for (const auto& item : coordinate_realizability_sections(parsed))
+    {
+        static_cast<void>(parse_realizability_policy_from_parsed(parsed, item.second, source_name));
+    }
 }
 
 void reject_unknown_phase_space_evolution_sections(ParsedFile& parsed, const std::string& source_name)
 {
     for (const auto& item : parsed.sections)
     {
+        std::size_t coordinate = 0;
         if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
-            item.first != adaptive_section && item.first != cqmom_time_integration_section)
+            item.first != adaptive_section && item.first != cqmom_time_integration_section &&
+            !parse_coordinate_realizability_section(item.first, coordinate))
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
@@ -1618,7 +1690,10 @@ void reject_unknown_phase_space_evolution_keys(ParsedFile& parsed, const std::st
         {
             continue;
         }
-        if (item.first == std::string(phase_space_evolution_scheme_key) || is_realizability_key(item.first) || is_node_advection_key(item.first))
+        if (item.first == std::string(phase_space_evolution_scheme_key) ||
+            (is_realizability_key(item.first) &&
+             (!is_coordinate_realizability_key(item.first) || is_configured_coordinate_realizability_key(parsed, item.first))) ||
+            is_node_advection_key(item.first))
         {
             continue;
         }
@@ -2463,12 +2538,46 @@ ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::s
         }
     }
 
-    const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, source_name);
+    const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, std::string(realizability_section), source_name);
     if (!parsed.errors.empty() || !policy.has_value())
     {
         return failure_result<RealizabilityPolicy>(std::move(parsed));
     }
     return ConfigurationResult<RealizabilityPolicy>{*policy};
+}
+
+ConfigurationResult<std::vector<std::optional<RealizabilityPolicy>>> parse_coordinate_realizability_policies(const std::string_view text,
+                                                                                                             std::string source_name)
+{
+    ParsedFile parsed = parse_file(text, source_name);
+    if (!parsed.errors.empty())
+    {
+        return failure_result<std::vector<std::optional<RealizabilityPolicy>>>(std::move(parsed));
+    }
+
+    reject_unknown_phase_space_evolution_sections(parsed, source_name);
+    reject_unknown_phase_space_evolution_keys(parsed, source_name);
+    const std::vector<std::pair<std::size_t, std::string>> sections = coordinate_realizability_sections(parsed);
+
+    std::vector<std::optional<RealizabilityPolicy>> policies;
+    for (const auto& item : sections)
+    {
+        const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, item.second, source_name);
+        if (policy.has_value())
+        {
+            if (policies.size() <= item.first)
+            {
+                policies.resize(item.first + 1);
+            }
+            policies[item.first] = *policy;
+        }
+    }
+
+    if (!parsed.errors.empty())
+    {
+        return failure_result<std::vector<std::optional<RealizabilityPolicy>>>(std::move(parsed));
+    }
+    return ConfigurationResult<std::vector<std::optional<RealizabilityPolicy>>>{std::move(policies)};
 }
 
 ConfigurationResult<PhaseSpaceEvolutionScheme> parse_phase_space_evolution_scheme(const std::string_view text, std::string source_name)

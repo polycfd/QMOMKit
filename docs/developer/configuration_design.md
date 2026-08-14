@@ -343,6 +343,15 @@ policy is inert until a driver wires it into an acceptance predicate or another
 runtime check. Support is explicit; it is not inferred from distribution family,
 phase-space name, or coordinate label.
 
+The unnumbered `[time_integration.realizability]` section remains the
+one-dimensional policy form. Sparse coordinate policies use numbered sections
+such as `[time_integration.realizability.3]` and parse through
+`parse_coordinate_realizability_policies(...)` into a
+`std::vector<std::optional<RealizabilityPolicy>>` indexed by phase-space
+coordinate. The standalone parser validates policy contents but has no
+phase-space dimension, so coordinate-range validation belongs to a
+case/configuration-validation layer that has that information.
+
 Output configuration maps to `OutputOptions`. Numerical algorithms do not write
 files because output settings are present. Drivers choose whether and how to
 connect those options to output helpers.
@@ -412,7 +421,8 @@ Public configuration capabilities include:
 - `parse_qmom_phase_space_evolution_options(...)`, `load_qmom_phase_space_evolution_options(...)`,
   `parse_cqmom_phase_space_evolution_options(...)`, and
   `load_cqmom_phase_space_evolution_options(...)`;
-- `parse_realizability_policy(...)` and `load_realizability_policy(...)`;
+- `parse_realizability_policy(...)`, `load_realizability_policy(...)`, and
+  `parse_coordinate_realizability_policies(...)`;
 - `parse_output_options(...)` and `load_output_options(...)`;
 - `ConfigurationResult<T>`, `ConfigurationError`, and
   `ConfigurationErrorCode`.

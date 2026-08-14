@@ -213,6 +213,10 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Parse optional runtime realizability policy configuration. */
 [[nodiscard]] ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(std::string_view text, std::string source_name = "<string>");
 
+/** Parse sparse, phase-space-coordinate-indexed runtime realizability policies. */
+[[nodiscard]] ConfigurationResult<std::vector<std::optional<RealizabilityPolicy>>>
+parse_coordinate_realizability_policies(std::string_view text, std::string source_name = "<string>");
+
 /** Parse an optional phase-space evolution scheme configuration. */
 [[nodiscard]] ConfigurationResult<PhaseSpaceEvolutionScheme> parse_phase_space_evolution_scheme(std::string_view text,
                                                                                                 std::string source_name = "<string>");

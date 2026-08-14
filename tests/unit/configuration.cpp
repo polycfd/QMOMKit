@@ -1892,6 +1892,84 @@ upper = 2.0
     assert_near(bounded.value().interval->upper, 2.0);
 }
 
+void test_coordinate_realizability_policies_parse_sparse_numbered_sections()
+{
+    const auto real_line = qmomkit::config::parse_coordinate_realizability_policies(R"(
+[time_integration.realizability.0]
+check_mode = final_only
+support = real_line
+)");
+    assert(real_line.ok());
+    assert(real_line.value().size() == 1);
+    assert(real_line.value()[0].has_value());
+    assert(real_line.value()[0]->support == qmomkit::MomentSupport::real_line);
+
+    const auto nonnegative = qmomkit::config::parse_coordinate_realizability_policies(R"(
+[time_integration.realizability.1]
+check_mode = every_stage
+support = nonnegative
+)");
+    assert(nonnegative.ok());
+    assert(nonnegative.value().size() == 2);
+    assert(!nonnegative.value()[0].has_value());
+    assert(nonnegative.value()[1].has_value());
+    assert(nonnegative.value()[1]->support == qmomkit::MomentSupport::nonnegative);
+
+    const auto bounded_interval = qmomkit::config::parse_coordinate_realizability_policies(R"(
+[time_integration.realizability.2]
+check_mode = final_only
+support = bounded_interval
+lower = 0.0
+upper = 1.0
+)");
+    assert(bounded_interval.ok());
+    assert(bounded_interval.value().size() == 3);
+    assert(bounded_interval.value()[2].has_value());
+    assert(bounded_interval.value()[2]->support == qmomkit::MomentSupport::bounded_interval);
+    assert(bounded_interval.value()[2]->interval.has_value());
+    assert_near(bounded_interval.value()[2]->interval->lower, 0.0);
+    assert_near(bounded_interval.value()[2]->interval->upper, 1.0);
+
+    const std::string sparse_text = R"(
+[time_integration.realizability.0]
+check_mode = final_only
+support = real_line
+
+[time_integration.realizability.3]
+check_mode = every_stage
+support = nonnegative
+)";
+    const auto sparse = qmomkit::config::parse_coordinate_realizability_policies(sparse_text);
+    assert(sparse.ok());
+    assert(sparse.value().size() == 4);
+    assert(sparse.value()[0].has_value());
+    assert(!sparse.value()[1].has_value());
+    assert(!sparse.value()[2].has_value());
+    assert(sparse.value()[3].has_value());
+
+    const auto malformed = qmomkit::config::parse_coordinate_realizability_policies(R"(
+[time_integration.realizability.3]
+check_mode = final_only
+support = bounded_interval
+lower = 0.0
+)");
+    assert(!malformed.ok());
+    assert(has_failure(malformed));
+
+    const auto qmom_case = qmomkit::config::parse_qmom(R"(
+[phase_space]
+node_counts = 1
+
+[moments]
+values = 1.0, 0.0
+
+[time_integration.realizability.0]
+check_mode = final_only
+support = real_line
+)");
+    assert(qmom_case.ok());
+}
+
 void test_realizability_policy_rejects_invalid_values()
 {
     const auto unknown_check_mode = qmomkit::config::parse_realizability_policy(R"(
@@ -3498,6 +3576,7 @@ void run_all_configuration_tests()
     test_realizability_policy_defaults_to_disabled();
     test_realizability_policy_parses_check_modes();
     test_realizability_policy_parses_support_and_bounded_interval();
+    test_coordinate_realizability_policies_parse_sparse_numbered_sections();
     test_realizability_policy_rejects_invalid_values();
     test_realizability_policy_rejects_invalid_bounded_interval();
     test_realizability_policy_rejects_unknown_entries();
@@ -3579,6 +3658,7 @@ void run_runtime_option_tests()
     test_realizability_policy_defaults_to_disabled();
     test_realizability_policy_parses_check_modes();
     test_realizability_policy_parses_support_and_bounded_interval();
+    test_coordinate_realizability_policies_parse_sparse_numbered_sections();
     test_realizability_policy_rejects_invalid_values();
     test_realizability_policy_rejects_invalid_bounded_interval();
     test_realizability_policy_rejects_unknown_entries();

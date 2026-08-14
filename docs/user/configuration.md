@@ -916,6 +916,26 @@ lower = 0.0
 upper = 1.0
 ```
 
+For phase-space configurations, sparse coordinate-specific policies use a
+zero-based coordinate suffix:
+
+```text
+[time_integration.realizability.0]
+check_mode = final_only
+support = bounded_interval
+lower = 0.0
+upper = 1.0
+
+[time_integration.realizability.3]
+check_mode = every_stage
+support = real_line
+```
+
+Parse these sections with `parse_coordinate_realizability_policies(...)`. The
+returned vector is indexed by phase-space coordinate and contains
+`std::nullopt` for omitted coordinates. The parser validates each policy but
+does not validate coordinate indices against a phase-space dimension.
+
 Support is not inferred from a distribution family or a phase-space name.
 Configuration parsing creates the policy object; applications that want
 runtime rejection must wire the policy into the relevant time-integration

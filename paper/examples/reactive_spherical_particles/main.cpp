@@ -111,7 +111,9 @@ int main()
         const qmomkit::CqmomMomentSource source = cqmom_reactive_spherical_particles::binary_breakage_source(cqmom_case, breakage_parameters);
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
         const double outer_time_step = final_time / static_cast<double>(outer_step_count);
-        const qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
+        qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
+        phase_space_evolution_options.source_options.ssp_rk3_options.max_retries = 8;
+        phase_space_evolution_options.source_options.ssp_rk3_options.min_time_step = 1.0e-5;
         if (phase_space_evolution_options.node_options.scheme != qmomkit::NodeAdvectionScheme::rk23)
         {
             std::cerr << "The paper Monte Carlo reference requires RK23 node advection.\n";

@@ -275,10 +275,8 @@ int main()
                 qmomkit::advance_cqmom_phase_space(state, time, current_step, velocity, source, phase_space_evolution_options);
             if (!phase_space_evolved.ok())
             {
-                // std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
-                time_step *= 0.5;
-                continue;
-                // return 1;
+                std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
+                return 1;
             }
             if (!phase_space_evolved.quadrature.has_value())
             {

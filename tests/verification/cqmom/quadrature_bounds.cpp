@@ -23,7 +23,7 @@ std::vector<double> raw_moments(const std::vector<double>& weights, const std::v
     return moments;
 }
 
-qmomkit::CqmomDenseCase bounded_case(const std::vector<double>& moments, const qmomkit::BoundedInterval interval)
+qmomkit::CqmomDenseCase bounded_case(const std::vector<double>& moments, const qmomkit::CqmomAbscissaBounds interval)
 {
     qmomkit::CqmomDenseCase case_{qmomkit::PhaseSpaceHierarchy({2}), {{4}, moments}};
     case_.coordinate_support = {interval};
@@ -34,7 +34,7 @@ void verify_accepted_nodes_inside_interval()
 {
     const std::vector<double> weights{0.4, 0.6};
     const std::vector<double> nodes{2.25, 4.5};
-    const qmomkit::BoundedInterval interval{2.0, 5.0};
+    const qmomkit::CqmomAbscissaBounds interval{2.0, 5.0};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(bounded_case(raw_moments(weights, nodes), interval));
 
     QMOMKIT_VERIFY_CHECK(result.ok());
@@ -54,7 +54,7 @@ void verify_rejected_nodes_outside_interval()
 {
     const std::vector<double> weights{0.5, 0.5};
     const std::vector<double> nodes{0.25, 1.25};
-    const qmomkit::BoundedInterval interval{0.0, 1.0};
+    const qmomkit::CqmomAbscissaBounds interval{0.0, 1.0};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(bounded_case(raw_moments(weights, nodes), interval));
 
     QMOMKIT_VERIFY_CHECK(!result.ok());

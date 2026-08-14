@@ -835,7 +835,7 @@ struct BranchNodeCountLimit
         {
             continue;
         }
-        const BoundedInterval interval = *support[dimension];
+        const CqmomAbscissaBounds interval = *support[dimension];
         if (!std::isfinite(interval.lower) || !std::isfinite(interval.upper) || !(interval.lower < interval.upper))
         {
             message = "CQMOM coordinate_support bounded intervals must have finite lower < upper values.";
@@ -845,8 +845,8 @@ struct BranchNodeCountLimit
     return true;
 }
 
-[[nodiscard]] std::optional<BoundedInterval> support_interval_for_dimension(const CqmomCoordinateSupport& support,
-                                                                            const std::size_t phase_space_dimension)
+[[nodiscard]] std::optional<CqmomAbscissaBounds> support_interval_for_dimension(const CqmomCoordinateSupport& support,
+                                                                                const std::size_t phase_space_dimension)
 {
     if (support.empty())
     {
@@ -865,14 +865,14 @@ struct BoundedBranchCandidate
     std::string message;
 };
 
-[[nodiscard]] bool nodes_inside_interval(const std::vector<double>& nodes, const BoundedInterval interval, const double tolerance)
+[[nodiscard]] bool nodes_inside_interval(const std::vector<double>& nodes, const CqmomAbscissaBounds interval, const double tolerance)
 {
     return std::all_of(nodes.begin(), nodes.end(), [interval, tolerance](const double node)
                        { return std::isfinite(node) && node >= interval.lower - tolerance && node <= interval.upper + tolerance; });
 }
 
 [[nodiscard]] BoundedBranchCandidate evaluate_bounded_branch_candidate(const std::vector<double>& moment_sequence, const std::size_t node_count,
-                                                                       const BoundedInterval interval, const WheelerOptions& wheeler_options,
+                                                                       const CqmomAbscissaBounds interval, const WheelerOptions& wheeler_options,
                                                                        std::string attempt_type)
 {
     BoundedBranchCandidate candidate;
@@ -917,7 +917,7 @@ struct BoundedBranchCandidate
 }
 
 void record_bounded_candidate_diagnostics(internal::RecursiveQuadratureBranchDiagnostics& diagnostics, const BoundedBranchCandidate& candidate,
-                                          const BoundedInterval interval, const std::optional<std::size_t> previous_active_node_count,
+                                          const CqmomAbscissaBounds interval, const std::optional<std::size_t> previous_active_node_count,
                                           const std::size_t accepted_fallback_node_count)
 {
     diagnostics.bounded_support_checked = true;
@@ -949,7 +949,7 @@ struct BoundedBranchSelection
 
 [[nodiscard]] BoundedBranchSelection select_bounded_branch_quadrature(const std::vector<double>& moment_sequence,
                                                                       const BranchNodeCountLimit& node_count_limit,
-                                                                      const std::size_t configured_node_count, const BoundedInterval interval,
+                                                                      const std::size_t configured_node_count, const CqmomAbscissaBounds interval,
                                                                       const WheelerOptions& wheeler_options, const bool adaptive_branch_counts,
                                                                       const bool allow_active_branch_count_growth,
                                                                       internal::RecursiveQuadratureBranchDiagnostics& diagnostics)
@@ -1643,7 +1643,8 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             Quadrature1D quadrature;
             std::size_t selected_node_count_ceiling = node_count_limit.ceiling;
             bool support_driven_reduction = false;
-            const std::optional<BoundedInterval> support_interval = support_interval_for_dimension(request.coordinate_support, phase_space_dimension);
+            const std::optional<CqmomAbscissaBounds> support_interval =
+                support_interval_for_dimension(request.coordinate_support, phase_space_dimension);
             if (support_interval.has_value())
             {
                 BoundedBranchSelection bounded_selection =

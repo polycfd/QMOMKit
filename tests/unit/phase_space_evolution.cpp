@@ -2628,7 +2628,7 @@ void test_adaptive_state_bounded_support_rejects_post_source_growth()
     const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
     const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
     qmomkit::CqmomCoordinateSupport support(2);
-    support[0] = qmomkit::BoundedInterval{0.0, 1.0};
+    support[0] = qmomkit::CqmomAbscissaBounds{0.0, 1.0};
 
     qmomkit::CqmomLeanCase lean_case{initial_required, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true};
     lean_case.coordinate_support = support;
@@ -2674,7 +2674,7 @@ void test_dense_and_lean_bounded_post_source_reduction_are_equivalent()
     const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
     const qmomkit::CqmomMomentData source_candidate_required = qmomkit::extract_cqmom_moments(source_candidate_moments, layout);
     qmomkit::CqmomCoordinateSupport support(1);
-    support[0] = qmomkit::BoundedInterval{0.0, 1.0};
+    support[0] = qmomkit::CqmomAbscissaBounds{0.0, 1.0};
     const qmomkit::QmomOptions adaptive_options{true, 1.0e-10, 1.0e-10, 1.0e-12};
 
     qmomkit::CqmomDenseCase dense_case{hierarchy, initial_moments, {}, adaptive_options, true};

@@ -1813,7 +1813,7 @@ std::optional<CqmomCoordinateSupport> parse_cqmom_coordinate_support(ParsedFile&
                       "CQMOM bounded coordinate support requires lower < upper.");
             return std::nullopt;
         }
-        support[dimension] = BoundedInterval{*lower_values[dimension], *upper_values[dimension]};
+        support[dimension] = CqmomAbscissaBounds{*lower_values[dimension], *upper_values[dimension]};
     }
     return support;
 }

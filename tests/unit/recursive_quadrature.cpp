@@ -253,7 +253,7 @@ std::vector<qmomkit::CqmomDiagnosticLevel> diagnostic_levels()
 }
 
 qmomkit::CqmomCoordinateSupport bounded_support_for_dimension(const std::size_t dimensions, const std::size_t dimension,
-                                                              const qmomkit::BoundedInterval interval)
+                                                              const qmomkit::CqmomAbscissaBounds interval)
 {
     qmomkit::CqmomCoordinateSupport support(dimensions);
     support.at(dimension) = interval;
@@ -261,7 +261,7 @@ qmomkit::CqmomCoordinateSupport bounded_support_for_dimension(const std::size_t 
 }
 
 void assert_terminal_coordinate_inside_interval(const qmomkit::internal::RecursiveQuadratureResult& result, const std::size_t dimension,
-                                                const qmomkit::BoundedInterval interval, const double tolerance)
+                                                const qmomkit::CqmomAbscissaBounds interval, const double tolerance)
 {
     assert(result.ok());
     assert(dimension < result.quadrature.abscissas().size());
@@ -822,7 +822,7 @@ void test_recursive_shifted_bounded_support_accepts_feasible_fixed_branch()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 1});
     const std::vector<std::size_t> extents{4, 2};
-    const qmomkit::BoundedInterval interval{2.0, 5.0};
+    const qmomkit::CqmomAbscissaBounds interval{2.0, 5.0};
     const std::vector<double> weights{0.4, 0.6};
     const std::vector<std::vector<double>> abscissas{{2.25, 4.5}, {0.0, 0.0}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
@@ -850,7 +850,7 @@ void test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 1});
     const std::vector<std::size_t> extents{4, 2};
-    const qmomkit::BoundedInterval interval{2.0, 5.0};
+    const qmomkit::CqmomAbscissaBounds interval{2.0, 5.0};
     const std::vector<double> weights{0.5, 0.5};
     const std::vector<std::vector<double>> abscissas{{3.0, 7.0}, {0.0, 0.0}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
@@ -1010,7 +1010,7 @@ void test_recursive_bounded_support_applies_to_conditional_phase_space_dimension
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {0, 1});
     const std::vector<std::size_t> extents{4, 4};
-    const qmomkit::BoundedInterval interval{2.0, 5.0};
+    const qmomkit::CqmomAbscissaBounds interval{2.0, 5.0};
     const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
     const std::vector<std::vector<double>> abscissas{{-3.0, -3.0, 8.0, 8.0}, {2.25, 4.5, 2.5, 4.75}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
@@ -1043,7 +1043,7 @@ void test_recursive_bounded_support_applies_to_conditional_phase_space_dimension
 
 void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
 {
-    const qmomkit::BoundedInterval interval{2.0, 5.0};
+    const qmomkit::CqmomAbscissaBounds interval{2.0, 5.0};
     constexpr double tolerance = 1.0e-12;
     const double weight = 0.01;
     const qmomkit::PhaseSpaceHierarchy hierarchy({1});

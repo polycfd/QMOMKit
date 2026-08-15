@@ -22,22 +22,6 @@ target_link_libraries(
 )
 
 add_executable(
-    qmomkit_paper_reactive_spherical_particles
-    reactive_spherical_particles/main.cpp
-    reactive_spherical_particles/particle_model.cpp
-    reactive_spherical_particles/breakage_model.cpp
-    reactive_spherical_particles/particles_mc.cpp
-    reactive_spherical_particles/sampling.cpp
-    reactive_spherical_particles/utilities.cpp
-)
-target_link_libraries(
-    qmomkit_paper_reactive_spherical_particles
-    PRIVATE
-        qmomkit::qmomkit
-        qmomkit_monte_carlo::qmomkit_monte_carlo
-)
-
-add_executable(
     qmomkit_paper_condensing_droplets
     condensing_droplets/main.cpp
     condensing_droplets/droplet_model.cpp

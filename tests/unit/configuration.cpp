@@ -2625,6 +2625,7 @@ void test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_a
     assert(qmom_defaults.value().scheme == qmomkit::PhaseSpaceEvolutionScheme::strang);
     assert(qmom_defaults.value().node_options.scheme == qmomkit::NodeAdvectionScheme::rk23);
     assert(!qmom_defaults.value().qmom_options.adaptive);
+    assert(qmom_defaults.value().realizability_policy.check_mode == qmomkit::RealizabilityCheckMode::None);
     assert(!qmom_defaults.value().source_options.ssp_rk3_options.accept);
     assert(!qmom_defaults.value().source_options.ssp_rk3_options.stage_accept);
 
@@ -2641,6 +2642,10 @@ scheme = rk23
 [time_integration.node_advection.adaptive]
 relative_tolerance = 1.0e-7
 max_step = 0.05
+
+[time_integration.realizability]
+check_mode = final_only
+support = nonnegative
 )";
     const auto qmom_options = qmomkit::config::parse_qmom_phase_space_evolution_options(qmom_runtime);
     assert(qmom_options.ok());
@@ -2649,6 +2654,8 @@ max_step = 0.05
     assert_near(qmom_options.value().node_options.adaptive_options.relative_tolerance, 1.0e-7);
     assert_near(qmom_options.value().node_options.adaptive_options.max_step, 0.05);
     assert(qmom_options.value().qmom_options.adaptive);
+    assert(qmom_options.value().realizability_policy.check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
+    assert(qmom_options.value().realizability_policy.support == qmomkit::MomentSupport::nonnegative);
     assert(!qmom_options.value().source_options.ssp_rk3_options.accept);
     assert(!qmom_options.value().source_options.ssp_rk3_options.stage_accept);
 

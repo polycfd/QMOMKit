@@ -192,9 +192,10 @@ inside the allowed moment space.
 `accept_boundary = true` allows states classified as `boundary`. Set it to
 `false` if your workflow requires strictly realizable candidate states.
 
-Configuration parsing creates a `RealizabilityPolicy`, but the application
-decides where to use it. For a source update, adapt the policy to the
-SSP-RK3 options:
+For QMOM phase-space evolution, the settings in
+`[time_integration.realizability]` apply during moment-source SSP-RK3
+integration. They check moment realizability and do not affect node advection.
+For a standalone source update, adapt the policy to the SSP-RK3 options:
 
 ```cpp
 qmomkit::RealizabilityPolicy policy;

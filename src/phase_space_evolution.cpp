@@ -377,9 +377,25 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
                                                     std::optional<QmomPhaseSpaceEvolutionResult>& failure)
 {
     internal::performance::record_moment_source_operator_call();
+    MomentSourceUpdateOptions source_options = options.source_options;
+    const MomentStateConverter to_moment_set = [](const std::vector<double>& values) { return MomentSet(values); };
+    if (options.realizability_policy.check_mode == RealizabilityCheckMode::FinalOnly)
+    {
+        const StateAcceptancePredicate policy_accept = make_realizability_acceptance_predicate(options.realizability_policy, to_moment_set);
+        const StateAcceptancePredicate caller_accept = source_options.ssp_rk3_options.accept;
+        source_options.ssp_rk3_options.accept = [caller_accept, policy_accept](const std::vector<double>& candidate)
+        { return (!caller_accept || caller_accept(candidate)) && policy_accept(candidate); };
+    }
+    else if (options.realizability_policy.check_mode == RealizabilityCheckMode::EveryStage)
+    {
+        const StageAcceptancePredicate policy_accept = make_realizability_stage_acceptance_predicate(options.realizability_policy, to_moment_set);
+        const StageAcceptancePredicate caller_accept = source_options.ssp_rk3_options.stage_accept;
+        source_options.ssp_rk3_options.stage_accept = [caller_accept, policy_accept](const SspRk3Stage stage, const std::vector<double>& candidate)
+        { return (!caller_accept || caller_accept(stage, candidate)) && policy_accept(stage, candidate); };
+    }
     const MomentSourceUpdateResult source_update =
-        boundary == nullptr ? advance_moments_with_source(state.moments(), t, time_step, source, options.source_options)
-                            : advance_moments_with_source(state.moments(), t, time_step, source, *boundary, options.source_options);
+        boundary == nullptr ? advance_moments_with_source(state.moments(), t, time_step, source, source_options)
+                            : advance_moments_with_source(state.moments(), t, time_step, source, *boundary, source_options);
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
     {

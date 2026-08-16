@@ -1486,6 +1486,85 @@ void test_public_qmom_moment_source_stage_failures_roll_back()
     assert_qmom_quadrature_near(inversion_failure.state.quadrature(), state.quadrature(), 0.0);
 }
 
+void test_configured_qmom_source_realizability_policy_matches_programmatic_adapter()
+{
+    const qmomkit::QmomState state = qmom_state_from_moments({1.0, 0.0, 1.0, 0.0}, 2);
+    const auto source_with_negative_second_moment = [](std::size_t& calls)
+    {
+        return [&calls](double, const std::vector<double>& moments)
+        {
+            ++calls;
+            std::vector<double> rate(moments.size(), 0.0);
+            rate[2] = -10.0;
+            return rate;
+        };
+    };
+    const auto parse_options = [](const std::string& check_mode)
+    {
+        const auto parsed = qmomkit::config::parse_qmom_phase_space_evolution_options("[time_integration.realizability]\ncheck_mode = " + check_mode +
+                                                                                      "\nsupport = real_line\n");
+        assert(parsed.ok());
+        return parsed.value();
+    };
+
+    std::size_t disabled_calls = 0;
+    const qmomkit::QmomPhaseSpaceEvolutionResult disabled =
+        qmomkit::advance_qmom_moment_source(state, 2, 0.0, 0.2, source_with_negative_second_moment(disabled_calls), parse_options("none"));
+    assert(!disabled.ok());
+    assert(disabled.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
+    assert(disabled.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::success);
+    assert(disabled_calls == 3);
+
+    std::size_t final_only_calls = 0;
+    const qmomkit::QmomPhaseSpaceEvolutionOptions final_only_options = parse_options("final_only");
+    const qmomkit::QmomPhaseSpaceEvolutionResult final_only =
+        qmomkit::advance_qmom_moment_source(state, 2, 0.0, 0.2, source_with_negative_second_moment(final_only_calls), final_only_options);
+    assert(!final_only.ok());
+    assert(final_only.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
+    assert(final_only.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::rejected_by_predicate);
+    assert(final_only_calls == 3);
+    assert_vector_near(final_only.state.moments(), state.moments(), 0.0);
+
+    std::size_t boundary_calls = 0;
+    const qmomkit::MomentSource zero_source = [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 0.0); };
+    const qmomkit::MomentBoundaryContribution boundary_source = [&boundary_calls](double, const std::vector<double>& moments)
+    {
+        ++boundary_calls;
+        std::vector<double> rate(moments.size(), 0.0);
+        rate[2] = -10.0;
+        return qmomkit::MomentBoundaryRate{std::move(rate)};
+    };
+    const auto zero_velocity = [](double, const std::vector<double>& location) { return std::vector<double>(location.size(), 0.0); };
+    const qmomkit::QmomPhaseSpaceEvolutionResult boundary_phase_space =
+        qmomkit::advance_qmom_phase_space(state, 2, 0.0, 0.2, zero_velocity, zero_source, boundary_source, final_only_options);
+    assert(!boundary_phase_space.ok());
+    assert(boundary_phase_space.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
+    assert(boundary_phase_space.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::rejected_by_predicate);
+    assert(boundary_calls == 3);
+    assert_vector_near(boundary_phase_space.state.moments(), state.moments(), 0.0);
+
+    qmomkit::QmomPhaseSpaceEvolutionOptions programmatic_options;
+    programmatic_options.source_options.ssp_rk3_options.accept = qmomkit::make_realizability_acceptance_predicate(
+        final_only_options.realizability_policy, [](const std::vector<double>& values) { return qmomkit::MomentSet(values); });
+    std::size_t programmatic_calls = 0;
+    const qmomkit::QmomPhaseSpaceEvolutionResult programmatic =
+        qmomkit::advance_qmom_moment_source(state, 2, 0.0, 0.2, source_with_negative_second_moment(programmatic_calls), programmatic_options);
+    assert(!programmatic.ok());
+    assert(programmatic.status == final_only.status);
+    assert(programmatic.diagnostics.moment_source_status == final_only.diagnostics.moment_source_status);
+    assert(programmatic_calls == final_only_calls);
+    assert_vector_near(programmatic.state.moments(), final_only.state.moments(), 0.0);
+
+    std::size_t every_stage_calls = 0;
+    const qmomkit::QmomPhaseSpaceEvolutionResult every_stage =
+        qmomkit::advance_qmom_moment_source(state, 2, 0.0, 0.2, source_with_negative_second_moment(every_stage_calls), parse_options("every_stage"));
+    assert(!every_stage.ok());
+    assert(every_stage.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
+    assert(every_stage.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::rejected_by_predicate);
+    assert(every_stage_calls == 1);
+    assert_vector_near(every_stage.state.moments(), state.moments(), 0.0);
+}
+
 void test_public_qmom_moment_source_stage_boundary_matches_source_update()
 {
     const qmomkit::QmomState state = qmom_state_from_moments({1.0, 2.0}, 1);
@@ -4198,6 +4277,7 @@ void run_all_phase_space_evolution_tests()
     test_public_qmom_moment_source_stage_fixed_mode_is_strict();
     test_public_qmom_moment_source_stage_adaptive_policy();
     test_public_qmom_moment_source_stage_failures_roll_back();
+    test_configured_qmom_source_realizability_policy_matches_programmatic_adapter();
     test_public_qmom_moment_source_stage_boundary_matches_source_update();
     test_public_qmom_stage_composition_matches_strang_phase_space_evolution();
     test_public_qmom_stage_composition_matches_lie_phase_space_evolution();
@@ -4303,6 +4383,7 @@ void run_qmom_phase_space_evolution_tests()
     test_public_qmom_moment_source_stage_fixed_mode_is_strict();
     test_public_qmom_moment_source_stage_adaptive_policy();
     test_public_qmom_moment_source_stage_failures_roll_back();
+    test_configured_qmom_source_realizability_policy_matches_programmatic_adapter();
     test_public_qmom_moment_source_stage_boundary_matches_source_update();
     test_public_qmom_stage_composition_matches_strang_phase_space_evolution();
     test_public_qmom_stage_composition_matches_lie_phase_space_evolution();

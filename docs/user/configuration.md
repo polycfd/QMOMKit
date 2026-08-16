@@ -937,11 +937,10 @@ returned vector is indexed by phase-space coordinate and contains
 does not validate coordinate indices against a phase-space dimension.
 
 Support is not inferred from a distribution family or a phase-space name.
-Configuration parsing creates the policy object; applications that want
-runtime rejection must wire the policy into the relevant time-integration
-options. Case loading validates this section when it appears, but it does not
-install realizability predicates automatically. Load the policy explicitly
-with `parse_realizability_policy(...)` before wiring those predicates.
+For QMOM, the settings in `[time_integration.realizability]` apply during
+moment-source SSP-RK3 integration. For CQMOM, each coordinate-specific section
+applies to the marginal moment set of its corresponding phase-space coordinate.
+Other source-update workflows can configure their acceptance checks in C++.
 
 ## Practical Guidance
 

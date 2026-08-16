@@ -2638,8 +2638,10 @@ ConfigurationResult<QmomPhaseSpaceEvolutionOptions> parse_qmom_phase_space_evolu
     const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
     const std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
+    const std::optional<RealizabilityPolicy> realizability_policy =
+        parse_realizability_policy_from_parsed(parsed, std::string(realizability_section), source_name);
 
-    if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value() || !qmom_options.has_value())
+    if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value() || !qmom_options.has_value() || !realizability_policy.has_value())
     {
         return failure_result<QmomPhaseSpaceEvolutionOptions>(std::move(parsed));
     }
@@ -2648,6 +2650,7 @@ ConfigurationResult<QmomPhaseSpaceEvolutionOptions> parse_qmom_phase_space_evolu
     options.scheme = *scheme;
     options.node_options = *node_options;
     options.qmom_options = *qmom_options;
+    options.realizability_policy = *realizability_policy;
     return ConfigurationResult<QmomPhaseSpaceEvolutionOptions>{std::move(options)};
 }
 

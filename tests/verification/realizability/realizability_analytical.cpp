@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <qmomkit/distributions.hpp>
 #include <qmomkit/realizability.hpp>
 #include <string>
@@ -312,6 +313,16 @@ void verify_near_boundary_and_scaling()
         QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(scaled_moments(non_realizable, scale), MomentSupport::real_line).status ==
                              RealizabilityStatus::not_realizable);
     }
+
+    // The H_1 row sum overflows at this scale although its entries and
+    // eigenvalues remain finite. Relative classification must remain unchanged.
+    const MomentSet norm_overflow_non_realizable{1.0, 0.9, 0.1};
+    const double norm_overflow_scale = 0.6 * std::numeric_limits<double>::max();
+    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(norm_overflow_non_realizable, MomentSupport::real_line).status ==
+                         RealizabilityStatus::not_realizable);
+    QMOMKIT_VERIFY_CHECK(
+        qmomkit::check_realizability(scaled_moments(norm_overflow_non_realizable, norm_overflow_scale), MomentSupport::real_line).status ==
+        RealizabilityStatus::not_realizable);
 
     // Absolute tolerance remains an absolute threshold and intentionally does
     // not provide the relative mode's scaling invariance.

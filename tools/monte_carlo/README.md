@@ -97,18 +97,6 @@ cmake --build tools/monte_carlo/build-tests-debug
 ctest --test-dir tools/monte_carlo/build-tests-debug --output-on-failure
 ```
 
-Repeat with Release enabled:
-
-```bash
-cmake -S tools/monte_carlo -B tools/monte_carlo/build-tests-release \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_PREFIX_PATH="$PWD/install" \
-    -DBUILD_TESTING=ON
-
-cmake --build tools/monte_carlo/build-tests-release
-ctest --test-dir tools/monte_carlo/build-tests-release --output-on-failure
-```
-
 The registered tests are named for the behavior they check, such as
 `monte_carlo_sampling_moment_validation`,
 `monte_carlo_ensemble_evolution`, and

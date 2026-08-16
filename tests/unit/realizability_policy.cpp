@@ -112,6 +112,7 @@ void test_strict_boundary_and_failure_statuses()
     assert(qmomkit::accepts_realizability_policy(policy, {1.0, 2.0, 4.0}, identity_moments));
 
     policy.accept_boundary = false;
+    assert(qmomkit::accepts_realizability_policy(policy, {1.0e-14, 0.0, 1.0e-14}, identity_moments));
     assert(!qmomkit::accepts_realizability_policy(policy, {1.0, 2.0, 4.0}, identity_moments));
     assert(!qmomkit::accepts_realizability_policy(policy, {1.0, 0.0, -1.0}, identity_moments));
 }

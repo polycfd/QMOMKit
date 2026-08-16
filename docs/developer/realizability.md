@@ -157,9 +157,13 @@ or moment sequences that fail the support-specific realizability conditions. The
 all-zero sequence is treated as a boundary-realizable zero measure.
 
 `RealizabilityOptions` controls numerical tolerance. With relative tolerance
-enabled, the effective threshold scales with the checked matrix magnitude. Near
-the boundary, the implementation may report `numerically_indeterminate` rather
-than accepting or rejecting with false precision.
+enabled, the effective threshold, roundoff allowance, and numerical matrix
+analysis scale with the checked matrix magnitude. Positive number-density
+scaling therefore does not by itself change the classification within
+floating-point limits. With relative tolerance disabled, `tolerance` is an
+absolute threshold. Near the boundary, the implementation may report
+`numerically_indeterminate` rather than accepting or rejecting with false
+precision.
 
 ## Realizability Policies
 

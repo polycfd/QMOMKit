@@ -88,6 +88,11 @@ The most useful statuses for users are:
 `result.realizable()` is true for `strictly_realizable` and `boundary`.
 `result.on_boundary()` is true only for boundary states.
 
+With `relative_tolerance = true`, the numerical realizability criteria scale
+with the magnitude of the moment matrices, so positive number-density scaling
+does not by itself change the classification within floating-point limits. With
+`relative_tolerance = false`, `tolerance` is an absolute threshold.
+
 ## Support Constraints
 
 Choose the support that matches the physical variable represented by the

@@ -338,19 +338,14 @@ object directly to phase-space evolution options. This configuration choice affe
 advection quadrature-node trajectories; it does not configure moment-source
 integration, realizability policies, or phase-space evolution splitting.
 
-Runtime realizability configuration maps to `RealizabilityPolicy`. A parsed
-policy is inert until a driver wires it into an acceptance predicate or another
-runtime check. Support is explicit; it is not inferred from distribution family,
-phase-space name, or coordinate label.
-
-The unnumbered `[time_integration.realizability]` section remains the
-one-dimensional policy form. Sparse coordinate policies use numbered sections
-such as `[time_integration.realizability.3]` and parse through
-`parse_coordinate_realizability_policies(...)` into a
-`std::vector<std::optional<RealizabilityPolicy>>` indexed by phase-space
-coordinate. The standalone parser validates policy contents but has no
-phase-space dimension, so coordinate-range validation belongs to a
-case/configuration-validation layer that has that information.
+`[time_integration.realizability]` configures QMOM realizability checks during
+moment-source SSP-RK3 evolution. For CQMOM,
+`[time_integration.realizability.<coordinate>]` configures realizability
+checks for individual phase-space coordinates. When phase-space evolution
+options are loaded from the configuration file, the corresponding QMOM or
+CQMOM phase-space evolution path consumes these settings during its
+moment-source stage. Support is explicit; it is not inferred from distribution
+family, phase-space name, or coordinate label.
 
 Output configuration maps to `OutputOptions`. Numerical algorithms do not write
 files because output settings are present. Drivers choose whether and how to

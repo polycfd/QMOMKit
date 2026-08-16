@@ -254,9 +254,9 @@ scheme, while embedded-RK runs also report effective tolerances, the supplied
 initial-step value, and the maximum internal accepted-step count.
 
 Node advection does not perform realizability checks. It moves already
-reconstructed quadrature coordinates and preserves weights; realizability is
-checked through quadrature inversion or caller-supplied moment-state policies
-after reconstruction or source updates.
+reconstructed quadrature coordinates and preserves weights. Realizability
+checks apply to raw moment states during moment-source SSP-RK3 evolution.
+Quadrature reconstruction and inversion are separate numerical operations.
 
 For adaptive CQMOM phase-space evolution through `CqmomState`, active branch counts are part
 of accepted state metadata. `CqmomCase::initial_state()` seeds that metadata from
@@ -304,9 +304,12 @@ The solver supports:
 - minimum timestep enforcement.
 
 The solver itself is generic. It does not know about QMOM, CQMOM, moment
-realizability, particles, or phase-space coordinates. Realizability checks
-enter only through caller-supplied predicates or through subsequent
-quadrature inversion.
+realizability, particles, or phase-space coordinates. In phase-space
+evolution, the moment-source wrapper supplies configured realizability checks
+through the solver's acceptance interfaces. Later QMOM or CQMOM reconstruction
+is a separate numerical operation, not realizability checking. Realizability
+checks do not validate inversion, node counts, CQMOM branch topology, or
+reconstructed quadrature states.
 
 ## Time Integration Details
 
@@ -400,10 +403,11 @@ not the last rejected candidate. `time_step_used` records the accepted timestep
 on success and the last rejected timestep on failure. `retries` records the
 number of halving retries associated with the reported attempt.
 
-Realizability policies interact with SSP-RK3 only through predicates. A
-`FinalOnly` policy checks only the final candidate state; an `EveryStage` policy
-checks intermediate SSP-RK3 stage states and the final state. The solver remains
-agnostic to the meaning of those predicates.
+Within generic SSP-RK3, phase-space evolution evaluates configured
+realizability checks through acceptance predicates. A `FinalOnly` setting
+checks only the final raw-moment state; an `EveryStage` setting checks
+intermediate SSP-RK3 raw-moment states and the final state. The solver remains
+agnostic to the realizability mathematics.
 
 The optional error estimate is diagnostic; any external timestep adaptation is
 caller-owned. Phase-space evolution source updates use the predicate retry behavior; they

@@ -14,10 +14,18 @@ represent a physical distribution on the real line. A sequence may also be
 valid on one support but invalid on another; moments that are possible on the
 real line may be impossible if the variable must be nonnegative or bounded.
 
-Realizability matters because QMOM and CQMOM reconstruct quadrature nodes and
-weights from moments. If the moments are not mathematically consistent with a
-valid distribution, quadrature reconstruction may fail or an evolved state may
-need to be rejected before it is used.
+Realizability and quadrature reconstruction answer different questions:
+
+- moment realizability asks, "Can this moment sequence represent a valid
+  distribution on the selected support?"
+- quadrature reconstruction asks, "Can QMOM or CQMOM construct a finite
+  quadrature representation that matches these moments?"
+
+They are separate mathematical operations. A realizability check does not
+validate Wheeler inversion, recursive CQMOM reconstruction, requested node
+counts, or quadrature topology. Conversely, a reconstruction result reports
+whether the requested quadrature could be constructed; it is not a general
+support-aware realizability check.
 
 ## When Realizability Matters
 
@@ -125,7 +133,7 @@ const auto result = qmomkit::check_realizability(moments, support);
 
 For bounded intervals, `lower` must be strictly less than `upper`.
 
-## QMOM And CQMOM Status Handling
+## Reconstruction Status Is Separate
 
 QMOM and CQMOM reconstruction also report whether a requested quadrature was
 accepted.
@@ -142,8 +150,9 @@ if (!qmom.ok())
 }
 ```
 
-A QMOM result with status `not_realizable` means the supplied one-dimensional
-moment sequence could not be reconstructed as requested.
+A QMOM result with status `not_realizable` reports that the supplied
+one-dimensional moments could not be reconstructed as requested. It does not
+replace an explicit realizability check for a chosen support.
 
 For CQMOM:
 
@@ -157,20 +166,18 @@ if (!cqmom.ok())
 ```
 
 CQMOM diagnostics can identify the phase-space dimension or conditioning step
-where reconstruction failed. Use those diagnostics to trace which part of a
-multidimensional setup needs attention.
+where reconstruction failed. They describe recursive quadrature
+reconstruction, not multidimensional moment realizability.
 
-Explicit realizability checks are currently one-dimensional. In a CQMOM
-workflow, use them for one-dimensional moment sequences when a support-specific
-check is needed, and use CQMOM status and diagnostics for the full
-multidimensional reconstruction.
+Explicit realizability checks are one-dimensional. CQMOM runtime checks use
+only the configured coordinate marginals, as described below; they do not
+assess the full multidimensional reconstruction.
 
-## Runtime Policies
+## Runtime Realizability Checks
 
-For source-term evolution, QMOMKit can use a realizability policy as an
-acceptance check. This is useful when a source update may push moments outside
-the physical moment space and you want the timestepper to reject candidate
-states.
+For phase-space evolution, realizability settings check transported raw moments
+after moment-source evolution. They are useful when a source update may move
+moments outside the allowed moment space.
 
 The configuration form is:
 
@@ -185,40 +192,37 @@ relative_tolerance = true
 
 Supported check modes are:
 
-- `none`: do not install a runtime realizability acceptance check;
-- `final_only`: check the completed source-step candidate;
-- `every_stage`: check intermediate and final source-step candidates.
+- `none`: do not perform a runtime realizability check;
+- `final_only`: check after the complete moment-source integration step;
+- `every_stage`: check after each SSP-RK3 moment-source integration stage.
 
 Use `none` for workflows where you only want explicit checks or status
 handling. Use `final_only` when you want a practical guard on accepted source
 updates. Use `every_stage` when intermediate source-step states must also stay
 inside the allowed moment space.
 
-`accept_boundary = true` allows states classified as `boundary`. Set it to
-`false` if your workflow requires strictly realizable candidate states.
+`accept_boundary = true` allows moments classified as `boundary`. Set it to
+`false` if your workflow requires strictly realizable moments.
 
-For QMOM phase-space evolution, the settings in
-`[time_integration.realizability]` apply during moment-source SSP-RK3
-integration. They check moment realizability and do not affect node advection.
-For a standalone source update, adapt the policy to the SSP-RK3 options:
+For QMOM, `[time_integration.realizability]` enables checks for QMOM
+moment-source SSP-RK3 evolution. These checks apply to the transported moments
+after moment-source evolution. They do not apply to QMOM node advection,
+quadrature evolution, or reconstructed nodes and weights.
 
-```cpp
-qmomkit::RealizabilityPolicy policy;
-policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
-policy.support = qmomkit::MomentSupport::nonnegative;
+For CQMOM, configure realizability settings for individual phase-space
+coordinates with sections such as `[time_integration.realizability.0]`. Each
+configured coordinate checks only its one-dimensional marginal moment
+sequence:
 
-qmomkit::MomentSourceUpdateOptions options;
-options.ssp_rk3_options.accept =
-    qmomkit::make_realizability_acceptance_predicate(
-        policy,
-        [](const std::vector<double>& state)
-        {
-            return qmomkit::MomentSet(state);
-        });
-```
+\[
+M[0,\ldots,k_d,\ldots,0].
+\]
 
-For `every_stage`, use `make_realizability_stage_acceptance_predicate(...)`
-and assign the returned predicate to `options.ssp_rk3_options.stage_accept`.
+Mixed moments and conditional moments are not checked. The checks also do not
+include CQMOM quadrature reconstruction, adaptive topology, or branch counts.
+This is intentional: the runtime check is focused on the selected coordinate
+marginal. Use CQMOM reconstruction status and diagnostics separately when you
+need information about the quadrature result.
 
 ## Configuration Examples
 

@@ -72,7 +72,7 @@ through public types and options rather than through text sections:
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a dense tensor representation from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
-| phase-space evolution options | `[time_integration]`, `[time_integration.node_advection]`, `[time_integration.cqmom]`, and optional runtime realizability policy | set `QmomPhaseSpaceEvolutionOptions`, `CqmomPhaseSpaceEvolutionOptions`, `NodeAdvectionOptions`, source-update options, and realizability policies in C++ |
+| phase-space evolution options | `[time_integration]`, `[time_integration.node_advection]`, `[time_integration.cqmom]`, and optional realizability settings | set `QmomPhaseSpaceEvolutionOptions`, `CqmomPhaseSpaceEvolutionOptions`, `NodeAdvectionOptions`, source-update options, and realizability settings in C++ |
 | output choices | `[output]` directory, enabled outputs, and cadence | create and call `MomentWriter` or `QuadratureWriter` from the surrounding driver |
 
 This mapping is meant to orient application integration, not replace the public
@@ -231,7 +231,10 @@ The main sections are:
   integration scheme and embedded-RK controls.
 - `[time_integration.cqmom]`: optional CQMOM active node-count policy for
   moment-source stages.
-- `[time_integration.realizability]`: optional runtime realizability policy.
+- `[time_integration.realizability]`: optional QMOM moment-source
+  realizability settings.
+- `[time_integration.realizability.<coordinate>]`: optional CQMOM
+  coordinate-specific moment-source realizability settings.
 - `[output]`: optional output directory, enabled outputs, and cadence.
 
 Configuration files do not define physics callbacks, meshes, boundary
@@ -877,9 +880,11 @@ Moment output records native integer-order raw moments. Generalized moments
 with real exponents are evaluated by caller code from a valid quadrature result
 and are not part of the standard writer output.
 
-## Runtime Realizability Policy
+## Runtime Realizability Settings
 
-Configuration files may include an optional runtime realizability policy:
+For QMOM, the realizability settings in
+`[time_integration.realizability]` enable checks during moment-source SSP-RK3
+evolution:
 
 ```text
 [time_integration.realizability]
@@ -892,11 +897,11 @@ relative_tolerance = true
 
 Supported check modes are:
 
-```text
-none
-final_only
-every_stage
-```
+- `none`: do not perform a runtime realizability check;
+- `final_only`: check the transported moments after the complete
+  moment-source integration step;
+- `every_stage`: check the transported moments after each SSP-RK3
+  moment-source integration stage.
 
 Supported supports are:
 
@@ -916,8 +921,12 @@ lower = 0.0
 upper = 1.0
 ```
 
-For phase-space configurations, sparse coordinate-specific policies use a
-zero-based coordinate suffix:
+The QMOM settings apply only to moment-source evolution. They do not apply to
+node advection, quadrature evolution, or reconstructed nodes and weights.
+
+For CQMOM, use coordinate-specific realizability settings for the individual
+phase-space coordinates that require checks. A zero-based coordinate suffix
+identifies the coordinate:
 
 ```text
 [time_integration.realizability.0]
@@ -931,16 +940,18 @@ check_mode = every_stage
 support = real_line
 ```
 
-Parse these sections with `parse_coordinate_realizability_policies(...)`. The
-returned vector is indexed by phase-space coordinate and contains
-`std::nullopt` for omitted coordinates. The parser validates each policy but
-does not validate coordinate indices against a phase-space dimension.
-
 Support is not inferred from a distribution family or a phase-space name.
-For QMOM, the settings in `[time_integration.realizability]` apply during
-moment-source SSP-RK3 integration. For CQMOM, each coordinate-specific section
-applies to the marginal moment set of its corresponding phase-space coordinate.
-Other source-update workflows can configure their acceptance checks in C++.
+For CQMOM, each configured coordinate setting applies only to the corresponding
+one-dimensional marginal moment sequence:
+
+\[
+M[0,\ldots,k_d,\ldots,0].
+\]
+
+Coordinates without a setting are not checked. CQMOM realizability settings do
+not check mixed moments or conditional moments, and they do not validate
+quadrature reconstruction, adaptive topology, or branch counts. These are
+intentionally separate from the coordinate-marginal realizability checks.
 
 ## Practical Guidance
 

@@ -167,8 +167,16 @@ For source callbacks invoked through CQMOM phase-space evolution,
 `context.moment(alpha)` returns a tracked entry directly or lazily reconstructs
 the requested untracked raw moment from a quadrature built from the current
 SSP-RK stage. The reconstructed quadrature is context-local and is never taken
-from an accepted state at another RK stage. Source callbacks do not reconstruct
-CQMOM quadrature manually for these requests.
+from an accepted state at another RK stage. For quadrature-level source
+closures, `context.for_each_terminal_node(...)` visits the global weight and
+phase-space-order coordinates of each terminal node from that same cached
+quadrature. The coordinate reference is read-only and valid only during the
+visitor callback. Source callbacks do not reconstruct CQMOM quadrature
+manually for either access pattern.
+
+Generic source-only CQMOM contexts have no source-stage reconstruction
+metadata. They reject untracked `context.moment(alpha)` and terminal-node
+visitor requests rather than selecting an independent reconstruction policy.
 
 The source callback returns one derivative value per context entry in the same
 order. CQMOM boundary exchange uses the same representation-neutral context:

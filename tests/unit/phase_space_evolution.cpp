@@ -3493,6 +3493,47 @@ void test_cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage
     }
 }
 
+void test_cqmom_source_context_visits_terminal_nodes_from_each_rk_stage()
+{
+    for (const char* const storage : {"dense", "lean"})
+    {
+        const qmomkit::CqmomCase case_ = fixed_cqmom_case_with_storage(storage);
+        const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(case_);
+        assert(expected.ok());
+
+        std::size_t calls = 0;
+        const qmomkit::CqmomMomentSource source = [&](double, const qmomkit::CqmomSourceContext& context)
+        {
+            std::vector<double> weights;
+            std::vector<std::vector<double>> coordinates;
+            context.for_each_terminal_node(
+                [&weights, &coordinates](const double weight, const std::vector<double>& node_coordinates)
+                {
+                    weights.push_back(weight);
+                    coordinates.push_back(node_coordinates);
+                });
+
+            assert_vector_near(weights, expected.quadrature.weights(), 2.0e-10);
+            assert(coordinates.size() == expected.quadrature.total_nodes());
+            for (std::size_t node = 0; node < coordinates.size(); ++node)
+            {
+                assert(coordinates[node].size() == expected.quadrature.number_of_dimensions());
+                for (std::size_t dimension = 0; dimension < coordinates[node].size(); ++dimension)
+                {
+                    assert_near(coordinates[node][dimension], expected.quadrature.abscissas()[dimension][node], 2.0e-10);
+                }
+            }
+
+            ++calls;
+            return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)};
+        };
+
+        const qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_moment_source(case_.initial_state(), 0.0, 0.2, source);
+        assert(result.ok());
+        assert(calls == 3);
+    }
+}
+
 qmomkit::CqmomMomentSource proportional_cqmom_source(const double coefficient)
 {
     return [coefficient](double, const qmomkit::CqmomSourceContext& moments)
@@ -4437,6 +4478,7 @@ void run_all_phase_space_evolution_tests()
     test_configured_dense_and_lean_state_phase_space_evolution_are_equivalent();
     test_dense_and_lean_state_source_contexts_are_identical();
     test_cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage();
+    test_cqmom_source_context_visits_terminal_nodes_from_each_rk_stage();
     test_dense_state_reconstructs_dense_only_moments_after_moment_source_source();
     test_dense_state_zero_source_keeps_full_dense_closure_consistent();
     test_dense_state_reconstructs_dense_only_moments_after_source_and_boundary();
@@ -4562,6 +4604,7 @@ void run_cqmom_phase_space_evolution_tests()
     test_configured_dense_and_lean_state_phase_space_evolution_are_equivalent();
     test_dense_and_lean_state_source_contexts_are_identical();
     test_cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage();
+    test_cqmom_source_context_visits_terminal_nodes_from_each_rk_stage();
     test_dense_state_reconstructs_dense_only_moments_after_moment_source_source();
     test_dense_state_zero_source_keeps_full_dense_closure_consistent();
     test_dense_state_reconstructs_dense_only_moments_after_source_and_boundary();

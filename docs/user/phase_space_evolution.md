@@ -389,13 +389,19 @@ Use:
   entries return their current SSP-RK stage value directly; an untracked entry
   is evaluated from a quadrature built from that same stage's moments. During
   intermediate SSP-RK stages, this is not the accepted pre-source quadrature;
+- `context.for_each_terminal_node(...)` for a quadrature-level source closure.
+  It visits the global weight and phase-space-order coordinates of each
+  terminal node from that same stage quadrature. The coordinate reference is
+  read-only and valid only during its visitor callback;
 - `context.hierarchy()` for the CQMOM hierarchy associated with the state.
 
-Source callbacks do not need to reconstruct CQMOM quadrature manually to
-obtain an untracked raw moment during phase-space source evolution, where the
-CQMOM reconstruction metadata is available. Generic source-only and
-instantaneous-rate APIs do not carry that metadata and reject untracked
-`context.moment(...)` requests.
+Use `context.moment(...)` for moment-based source closures and
+`context.for_each_terminal_node(...)` for quadrature-level source closures.
+Source callbacks do not reconstruct CQMOM quadrature manually during
+phase-space source evolution; both operations use the same context-local
+stage reconstruction when needed. Generic source-only and instantaneous-rate
+APIs do not carry reconstruction metadata and reject untracked
+`context.moment(...)` and terminal-node visitor requests.
 
 The returned source values correspond to the context ordering. For entry `i`,
 compute the derivative for `context.index(i)` from the current state and write

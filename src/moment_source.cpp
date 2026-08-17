@@ -678,6 +678,38 @@ double CqmomSourceContext::moment(const MultiIndex& moment_index) const
         throw std::out_of_range("Requested CQMOM source moment is not tracked by this context.");
     }
 
+    const SelectedRawMomentResult result = reconstruct_raw_moments(reconstructed_stage_quadrature(), RawMomentRequest{{moment_index}});
+    return result.values.front();
+}
+
+void CqmomSourceContext::for_each_terminal_node(const std::function<void(double, const std::vector<double>&)>& callback) const
+{
+    if (!callback)
+    {
+        throw std::invalid_argument("CQMOM terminal-node visitor callback must be provided.");
+    }
+
+    const CqmomQuadrature& quadrature = reconstructed_stage_quadrature();
+    const std::vector<double>& weights = quadrature.weights();
+    const std::vector<std::vector<double>>& abscissas = quadrature.abscissas();
+    std::vector<double> coordinates(abscissas.size(), 0.0);
+    for (std::size_t node = 0; node < weights.size(); ++node)
+    {
+        for (std::size_t dimension = 0; dimension < abscissas.size(); ++dimension)
+        {
+            coordinates[dimension] = abscissas[dimension][node];
+        }
+        callback(weights[node], coordinates);
+    }
+}
+
+const CqmomQuadrature& CqmomSourceContext::reconstructed_stage_quadrature() const
+{
+    if (reconstruction_case_ == nullptr || active_branch_counts_ == nullptr)
+    {
+        throw std::out_of_range("CQMOM source-stage quadrature is unavailable for this context.");
+    }
+
     if (!reconstructed_stage_quadrature_.has_value())
     {
         const CqmomLeanCase stage_case{CqmomMomentData{reconstruction_case_->moments.layout, *values_},
@@ -695,9 +727,7 @@ double CqmomSourceContext::moment(const MultiIndex& moment_index) const
         }
         reconstructed_stage_quadrature_ = std::move(quadrature.quadrature);
     }
-
-    const SelectedRawMomentResult result = reconstruct_raw_moments(*reconstructed_stage_quadrature_, RawMomentRequest{{moment_index}});
-    return result.values.front();
+    return *reconstructed_stage_quadrature_;
 }
 
 const PhaseSpaceHierarchy& CqmomSourceContext::hierarchy() const noexcept

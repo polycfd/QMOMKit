@@ -94,7 +94,8 @@ using MomentBoundaryContribution = std::function<MomentBoundaryRate(double, cons
  * time passed as the first argument to the callback. That layout is independent
  * of the underlying dense or lean CQMOM moment storage backend.
  * Phase-space source contexts may cache a quadrature reconstructed from their
- * current stage values while evaluating an untracked requested moment.
+ * current stage values while evaluating an untracked requested moment or
+ * visiting terminal nodes.
  */
 class CqmomSourceContext
 {
@@ -120,6 +121,20 @@ public:
      * uses reject untracked requests.
      */
     [[nodiscard]] double moment(const MultiIndex& moment_index) const;
+    /**
+     * Visit the terminal nodes of the current source-stage CQMOM quadrature.
+     *
+     * During CQMOM phase-space source evolution, the quadrature is lazily
+     * reconstructed from the current SSP-RK stage using the state's active
+     * branch topology. The callback receives one global terminal weight and
+     * one phase-space-order coordinate vector per terminal node. The
+     * coordinate reference is read-only and valid only for the duration of
+     * that callback invocation.
+     *
+     * Contexts without source-stage reconstruction metadata reject this
+     * operation, as they do untracked `moment(...)` requests.
+     */
+    void for_each_terminal_node(const std::function<void(double weight, const std::vector<double>& coordinates)>& callback) const;
     [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
 
 private:
@@ -128,6 +143,8 @@ private:
     CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values,
                        const CqmomLeanCase& reconstruction_case, const std::vector<CqmomActiveBranchCount>& active_branch_counts,
                        const internal::PreparedFixedCqmomMetadata* prepared_fixed_metadata);
+
+    [[nodiscard]] const CqmomQuadrature& reconstructed_stage_quadrature() const;
 
     double time_ = 0.0;
     const PhaseSpaceHierarchy* hierarchy_;

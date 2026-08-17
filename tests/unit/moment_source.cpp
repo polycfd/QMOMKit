@@ -100,8 +100,8 @@ void test_accept_all_predicate()
     options.ssp_rk3_options.accept = [](const std::vector<double>&) { return true; };
     options.ssp_rk3_options.max_retries = 4;
 
-    const qmomkit::MomentSourceUpdateResult result =
-        qmomkit::advance_moments_with_source({1.0}, 0.0, 0.2, [](double, const std::vector<double>&) { return std::vector<double>{3.0}; }, options);
+    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+        {1.0}, 0.0, 0.2, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{3.0}; }, options);
 
     assert(result.ok());
     assert(result.diagnostics.accepted);
@@ -127,7 +127,7 @@ void test_reject_negative_moments_predicate_accepts_nonnegative_update()
     options.ssp_rk3_options.max_retries = 2;
 
     const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
-        {0.3, 1.0}, 0.0, 0.2, [](double, const std::vector<double>&) { return std::vector<double>{-0.5, -1.0}; }, options);
+        {0.3, 1.0}, 0.0, 0.2, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{-0.5, -1.0}; }, options);
 
     assert(result.ok());
     assert(result.diagnostics.accepted);
@@ -150,11 +150,11 @@ void test_retry_behavior_completes_requested_interval_from_unchanged_state()
     std::vector<double> initial_stage_values;
     const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
         {0.0}, 0.0, 1.0,
-        [&initial_stage_values](const double stage_time, const std::vector<double>& state)
+        [&initial_stage_values](const double stage_time, const qmomkit::QmomSourceContext& state)
         {
             if (stage_time == 0.0)
             {
-                initial_stage_values.push_back(state[0]);
+                initial_stage_values.push_back(state.value(0));
             }
             return std::vector<double>{1.0};
         },
@@ -181,8 +181,8 @@ void test_repeated_reduced_steps_complete_requested_interval()
         return acceptance_calls == 2 || acceptance_calls == 4 || acceptance_calls == 6 || acceptance_calls == 7;
     };
 
-    const qmomkit::MomentSourceUpdateResult result =
-        qmomkit::advance_moments_with_source({0.0}, 0.0, 1.0, [](double, const std::vector<double>&) { return std::vector<double>{1.0}; }, options);
+    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+        {0.0}, 0.0, 1.0, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{1.0}; }, options);
 
     assert(result.ok());
     assert(result.diagnostics.rejected);
@@ -206,7 +206,7 @@ void test_failure_after_accepted_retry_preserves_original_state()
     options.ssp_rk3_options.min_time_step = 0.3;
 
     const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
-        initial, 0.0, 1.0, [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 1.0); }, options);
+        initial, 0.0, 1.0, [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 1.0); }, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::MomentSourceUpdateStatus::minimum_timestep_reached);
@@ -228,7 +228,7 @@ void test_failure_behavior_minimum_timestep_preserves_original_state()
     options.ssp_rk3_options.min_time_step = 0.2;
 
     const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
-        initial, 0.0, 1.0, [](double, const std::vector<double>&) { return std::vector<double>{-8.0}; }, options);
+        initial, 0.0, 1.0, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{-8.0}; }, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::MomentSourceUpdateStatus::minimum_timestep_reached);
@@ -597,7 +597,8 @@ void test_boundary_contribution_adds_to_moment_source()
     const std::vector<double> initial{1.0, 2.0, -1.0};
     constexpr double time_step = 0.25;
 
-    const qmomkit::MomentSource source = [](double, const std::vector<double>& moments) { return std::vector<double>{1.0, 0.0, -0.5 * moments[2]}; };
+    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& moments)
+    { return std::vector<double>{1.0, 0.0, -0.5 * moments.value(2)}; };
     const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
     { return qmomkit::MomentBoundaryRate{std::vector<double>(moments.size(), 0.5)}; };
 
@@ -613,8 +614,8 @@ void test_qmom_boundary_rate_evaluator_matches_source_update()
     constexpr double initial_time = 0.15;
     constexpr double time_step = 0.2;
 
-    const qmomkit::MomentSource source = [](const double time, const std::vector<double>& moments)
-    { return std::vector<double>{0.2 + 0.1 * time + 0.05 * moments[0], -0.3 + 0.2 * moments[1], 0.4 * time - 0.1 * moments[2]}; };
+    const qmomkit::MomentSource source = [](const double time, const qmomkit::QmomSourceContext& moments)
+    { return std::vector<double>{0.2 + 0.1 * time + 0.05 * moments.value(0), -0.3 + 0.2 * moments.value(1), 0.4 * time - 0.1 * moments.value(2)}; };
     const qmomkit::MomentBoundaryContribution boundary = [](const double time, const std::vector<double>& moments)
     { return qmomkit::MomentBoundaryRate{std::vector<double>{0.1 * time, 0.05 + 0.02 * moments[0], -0.15 * moments[1]}}; };
 
@@ -646,7 +647,7 @@ void test_qmom_boundary_rate_evaluator_matches_source_update()
 void test_boundary_contribution_wrong_size_fails_with_boundary_message()
 {
     const std::vector<double> initial{1.0, 2.0};
-    const qmomkit::MomentSource source = [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 0.0); };
+    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
     const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
     { return qmomkit::MomentBoundaryRate{std::vector<double>(moments.size() + 1, 0.0)}; };
 
@@ -661,7 +662,7 @@ void test_boundary_contribution_wrong_size_fails_with_boundary_message()
 void test_boundary_contribution_non_finite_fails_with_boundary_message()
 {
     const std::vector<double> initial{1.0, 2.0};
-    const qmomkit::MomentSource source = [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 0.0); };
+    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
     const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
     {
         std::vector<double> rate(moments.size(), 0.0);
@@ -680,7 +681,7 @@ void test_boundary_contribution_non_finite_fails_with_boundary_message()
 void test_boundary_contribution_callback_exception_fails_with_boundary_message()
 {
     const std::vector<double> initial{1.0};
-    const qmomkit::MomentSource source = [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 0.0); };
+    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
     const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>&) -> qmomkit::MomentBoundaryRate
     { throw std::runtime_error("user model rejected the stage"); };
 
@@ -697,7 +698,7 @@ void test_boundary_contribution_callback_exception_fails_with_boundary_message()
 void test_source_callback_exception_keeps_source_message()
 {
     const std::vector<double> initial{1.0};
-    const qmomkit::MomentSource source = [](double, const std::vector<double>&) -> std::vector<double>
+    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext&) -> std::vector<double>
     { throw std::runtime_error("source model rejected the stage"); };
     const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
     { return qmomkit::MomentBoundaryRate{std::vector<double>(moments.size(), 0.0)}; };

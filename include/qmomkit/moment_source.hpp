@@ -15,17 +15,51 @@ namespace qmomkit
 namespace internal
 {
 class CqmomSourceContextAccess;
+class QmomSourceContextAccess;
 struct PreparedFixedCqmomMetadata;
 } // namespace internal
 
 /**
+ * Non-owning mathematical view of the current QMOM source state.
+ *
+ * The context refers to the current SSP-RK stage values. During QMOM
+ * phase-space source evolution, untracked moment requests may lazily
+ * reconstruct a quadrature from those stage values. The context is valid only
+ * for the callback invocation that received it.
+ */
+class QmomSourceContext
+{
+public:
+    QmomSourceContext(double time, const std::vector<double>& values);
+
+    [[nodiscard]] double time() const noexcept;
+    [[nodiscard]] std::size_t moment_count() const noexcept;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] const std::vector<double>& values() const noexcept;
+    [[nodiscard]] double value(std::size_t order) const;
+    [[nodiscard]] double moment(std::size_t order) const;
+
+private:
+    friend class internal::QmomSourceContextAccess;
+
+    QmomSourceContext(double time, const std::vector<double>& values, std::size_t reconstruction_node_count,
+                      const QmomOptions& reconstruction_options);
+
+    double time_ = 0.0;
+    const std::vector<double>* values_ = nullptr;
+    std::size_t reconstruction_node_count_ = 0;
+    const QmomOptions* reconstruction_options_ = nullptr;
+    mutable std::optional<QmomResult> reconstructed_stage_quadrature_;
+};
+
+/**
  * Generic moment-source callback.
  *
- * The state vector is an arbitrary raw-moment vector owned by the caller. The
- * returned vector must have the same size and represents dm/dt at the supplied
- * time. The library assigns no physical meaning to any component.
+ * The context exposes the current raw-moment SSP-RK stage. The returned vector
+ * must have the same size and represents dm/dt at the supplied time. The
+ * library assigns no physical meaning to any component.
  */
-using MomentSource = std::function<std::vector<double>(double, const std::vector<double>&)>;
+using MomentSource = std::function<std::vector<double>(double, const QmomSourceContext&)>;
 
 /**
  * One-dimensional raw-moment rate from phase-space boundary exchange.

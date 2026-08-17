@@ -199,12 +199,12 @@ void test_public_qmom_moment_source_rates_and_status_mapping()
     std::size_t calls = 0;
     const qmomkit::QmomMomentSourceRateResult success =
         qmomkit::evaluate_qmom_moment_source_rates(0.25, moments,
-                                                   [&calls](const double time, const std::vector<double>& state)
+                                                   [&calls](const double time, const qmomkit::QmomSourceContext& state)
                                                    {
                                                        ++calls;
                                                        assert_near(time, 0.25, 0.0);
-                                                       assert_vector_near(state, {1.0, 2.0, 3.0}, 0.0);
-                                                       return std::vector<double>{state[2], state[0], state[1]};
+                                                       assert_vector_near(state.values(), {1.0, 2.0, 3.0}, 0.0);
+                                                       return std::vector<double>{state.value(2), state.value(0), state.value(1)};
                                                    });
     assert(success.ok());
     assert(success.status == qmomkit::MomentSourceRateStatus::success);
@@ -212,14 +212,14 @@ void test_public_qmom_moment_source_rates_and_status_mapping()
     assert(calls == 1);
 
     const qmomkit::QmomMomentSourceRateResult invalid_rate = qmomkit::evaluate_qmom_moment_source_rates(
-        0.0, moments, [](double, const std::vector<double>& state) { return std::vector<double>(state.size() + 1, 0.0); });
+        0.0, moments, [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size() + 1, 0.0); });
     assert(!invalid_rate.ok());
     assert(invalid_rate.status == qmomkit::MomentSourceRateStatus::invalid_rate);
     assert(invalid_rate.message == "Moment-source callback rate values must match the moment state size.");
 
     const qmomkit::QmomMomentSourceRateResult non_finite_rate =
         qmomkit::evaluate_qmom_moment_source_rates(0.0, moments,
-                                                   [](double, const std::vector<double>& state)
+                                                   [](double, const qmomkit::QmomSourceContext& state)
                                                    {
                                                        std::vector<double> rates(state.size(), 0.0);
                                                        rates.back() = std::numeric_limits<double>::infinity();
@@ -235,7 +235,7 @@ void test_public_qmom_moment_source_rates_and_status_mapping()
     assert(invalid_input.rates.empty());
 
     const qmomkit::QmomMomentSourceRateResult source_failed = qmomkit::evaluate_qmom_moment_source_rates(
-        0.0, moments, [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("source failed"); });
+        0.0, moments, [](double, const qmomkit::QmomSourceContext&) -> std::vector<double> { throw std::runtime_error("source failed"); });
     assert(!source_failed.ok());
     assert(source_failed.status == qmomkit::MomentSourceRateStatus::source_failed);
     assert(source_failed.message.find("source failed") != std::string::npos);
@@ -251,13 +251,13 @@ void test_public_qmom_moment_source_rates_with_boundary()
 
     const qmomkit::QmomMomentSourceRateResult result = qmomkit::evaluate_qmom_moment_source_rates(
         0.25, moments,
-        [&moments, &source_calls, &callback_order](const double time, const std::vector<double>& state)
+        [&moments, &source_calls, &callback_order](const double time, const qmomkit::QmomSourceContext& state)
         {
             ++source_calls;
             assert(callback_order == 0);
             callback_order = 1;
             assert_near(time, 0.25, 0.0);
-            assert(&state == &moments);
+            assert(&state.values() == &moments);
             return std::vector<double>{1.0, 2.0, 3.0};
         },
         [&moments, &boundary_calls, &callback_order](const double time, const std::vector<double>& state)
@@ -283,7 +283,7 @@ void test_public_qmom_moment_source_rates_with_zero_boundary()
 {
     const std::vector<double> moments{1.0, 2.0};
     const qmomkit::QmomMomentSourceRateResult result = qmomkit::evaluate_qmom_moment_source_rates(
-        0.0, moments, [](double, const std::vector<double>&) { return std::vector<double>{3.0, -4.0}; },
+        0.0, moments, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{3.0, -4.0}; },
         [](double, const std::vector<double>& state) { return qmomkit::MomentBoundaryRate{std::vector<double>(state.size(), 0.0)}; });
 
     assert(result.ok());
@@ -294,7 +294,7 @@ void test_public_qmom_moment_source_rates_validate_inputs_before_callbacks()
 {
     bool source_called = false;
     bool boundary_called = false;
-    const qmomkit::MomentSource source = [&source_called](double, const std::vector<double>&)
+    const qmomkit::MomentSource source = [&source_called](double, const qmomkit::QmomSourceContext&)
     {
         source_called = true;
         return std::vector<double>{0.0};
@@ -332,7 +332,7 @@ void test_public_qmom_moment_source_rates_source_failure_prevents_boundary()
 {
     bool boundary_called = false;
     const qmomkit::QmomMomentSourceRateResult wrong_size = qmomkit::evaluate_qmom_moment_source_rates(
-        0.0, {1.0, 2.0}, [](double, const std::vector<double>&) { return std::vector<double>{0.0}; },
+        0.0, {1.0, 2.0}, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{0.0}; },
         [&boundary_called](double, const std::vector<double>& state)
         {
             boundary_called = true;
@@ -346,7 +346,7 @@ void test_public_qmom_moment_source_rates_source_failure_prevents_boundary()
 
     const qmomkit::QmomMomentSourceRateResult non_finite = qmomkit::evaluate_qmom_moment_source_rates(
         0.0, {1.0, 2.0},
-        [](double, const std::vector<double>& state)
+        [](double, const qmomkit::QmomSourceContext& state)
         {
             std::vector<double> rate(state.size(), 0.0);
             rate.front() = std::numeric_limits<double>::infinity();
@@ -364,7 +364,7 @@ void test_public_qmom_moment_source_rates_source_failure_prevents_boundary()
     assert(!boundary_called);
 
     const qmomkit::QmomMomentSourceRateResult thrown = qmomkit::evaluate_qmom_moment_source_rates(
-        0.0, {1.0}, [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("source failed"); },
+        0.0, {1.0}, [](double, const qmomkit::QmomSourceContext&) -> std::vector<double> { throw std::runtime_error("source failed"); },
         [&boundary_called](double, const std::vector<double>& state)
         {
             boundary_called = true;
@@ -382,7 +382,7 @@ void test_public_qmom_moment_source_rates_boundary_failures()
     const std::vector<double> moments{1.0, 2.0};
 
     const qmomkit::QmomMomentSourceRateResult wrong_size = qmomkit::evaluate_qmom_moment_source_rates(
-        0.0, moments, [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); },
+        0.0, moments, [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); },
         [](double, const std::vector<double>& state) { return qmomkit::MomentBoundaryRate{std::vector<double>(state.size() + 1, 0.0)}; });
     assert(!wrong_size.ok());
     assert(wrong_size.status == qmomkit::MomentSourceRateStatus::invalid_rate);
@@ -390,7 +390,7 @@ void test_public_qmom_moment_source_rates_boundary_failures()
     assert(wrong_size.rates.empty());
 
     const qmomkit::QmomMomentSourceRateResult non_finite = qmomkit::evaluate_qmom_moment_source_rates(
-        0.0, moments, [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); },
+        0.0, moments, [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); },
         [](double, const std::vector<double>& state)
         {
             std::vector<double> rate(state.size(), 0.0);
@@ -403,7 +403,7 @@ void test_public_qmom_moment_source_rates_boundary_failures()
     assert(non_finite.rates.empty());
 
     const qmomkit::QmomMomentSourceRateResult thrown = qmomkit::evaluate_qmom_moment_source_rates(
-        0.0, {1.0}, [](double, const std::vector<double>&) { return std::vector<double>{0.0}; },
+        0.0, {1.0}, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{0.0}; },
         [](double, const std::vector<double>&) -> qmomkit::MomentBoundaryRate { throw std::runtime_error("boundary failed"); });
     assert(!thrown.ok());
     assert(thrown.status == qmomkit::MomentSourceRateStatus::source_failed);
@@ -415,7 +415,7 @@ void test_public_qmom_moment_source_rates_detect_combined_overflow()
 {
     const double maximum = std::numeric_limits<double>::max();
     const qmomkit::QmomMomentSourceRateResult result = qmomkit::evaluate_qmom_moment_source_rates(
-        0.0, {1.0}, [maximum](double, const std::vector<double>&) { return std::vector<double>{maximum}; },
+        0.0, {1.0}, [maximum](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{maximum}; },
         [maximum](double, const std::vector<double>&) { return qmomkit::MomentBoundaryRate{std::vector<double>{maximum}}; });
 
     assert(!result.ok());

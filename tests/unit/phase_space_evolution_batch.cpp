@@ -313,12 +313,12 @@ qmomkit::PhaseSpaceVelocity ordinary_velocity()
 
 qmomkit::MomentSource ordinary_qmom_source()
 {
-    return [](double, const std::vector<double>& moments)
+    return [](double, const qmomkit::QmomSourceContext& moments)
     {
         std::vector<double> rate(moments.size(), 0.0);
         for (std::size_t i = 0; i < moments.size(); ++i)
         {
-            rate[i] = 0.1 * moments[i];
+            rate[i] = 0.1 * moments.value(i);
         }
         return rate;
     };
@@ -432,12 +432,12 @@ void test_qmom_batch_aware_scalar_equivalence()
     const std::vector<double> external{0.02, 0.05, 0.09};
     const qmomkit::BatchPhaseSpaceVelocity velocity = [&external](const std::size_t batch_index, double, const std::vector<double>& location)
     { return std::vector<double>(location.size(), external[batch_index]); };
-    const qmomkit::BatchMomentSource source = [&external](const std::size_t batch_index, double, const std::vector<double>& moments)
+    const qmomkit::BatchMomentSource source = [&external](const std::size_t batch_index, double, const qmomkit::QmomSourceContext& moments)
     {
         std::vector<double> rate(moments.size(), 0.0);
         for (std::size_t i = 0; i < moments.size(); ++i)
         {
-            rate[i] = external[batch_index] * moments[i];
+            rate[i] = external[batch_index] * moments.value(i);
         }
         return rate;
     };
@@ -467,7 +467,7 @@ void test_qmom_batch_aware_scalar_equivalence()
     {
         const qmomkit::PhaseSpaceVelocity scalar_velocity = [&velocity, i](double time, const std::vector<double>& location)
         { return velocity(i, time, location); };
-        const qmomkit::MomentSource scalar_source = [&source, i](double time, const std::vector<double>& moments)
+        const qmomkit::MomentSource scalar_source = [&source, i](double time, const qmomkit::QmomSourceContext& moments)
         { return source(i, time, moments); };
         const qmomkit::MomentBoundaryContribution scalar_boundary = [&boundary, i](double time, const std::vector<double>& moments)
         { return boundary(i, time, moments); };
@@ -774,7 +774,7 @@ void test_null_callbacks_preserve_scalar_behavior()
     const qmomkit::MomentBoundaryContribution empty_scalar_boundary;
     const qmomkit::BatchPhaseSpaceVelocity indexed_velocity = [&velocity](std::size_t, const double time, const std::vector<double>& location)
     { return velocity(time, location); };
-    const qmomkit::BatchMomentSource indexed_source = [&source](std::size_t, const double time, const std::vector<double>& moments)
+    const qmomkit::BatchMomentSource indexed_source = [&source](std::size_t, const double time, const qmomkit::QmomSourceContext& moments)
     { return source(time, moments); };
 
     const auto ordinary_advection = qmomkit::advance_qmom_advection_batch(states, 0.0, 0.2, nullptr, options);

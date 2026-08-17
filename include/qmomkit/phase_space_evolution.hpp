@@ -172,7 +172,7 @@ using BatchPhaseSpaceVelocity =
  * `batch_index` is the zero-based position of the state in the collection
  * supplied to a batch phase-space evolution operation.
  */
-using BatchMomentSource = std::function<std::vector<double>(std::size_t batch_index, double time, const std::vector<double>& moments)>;
+using BatchMomentSource = std::function<std::vector<double>(std::size_t batch_index, double time, const QmomSourceContext& context)>;
 
 /**
  * Batch-index-aware one-dimensional boundary-contribution callback.

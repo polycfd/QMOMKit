@@ -116,13 +116,18 @@ The public source callback is:
 
 ```cpp
 using MomentSource =
-    std::function<std::vector<double>(double, const std::vector<double>&)>;
+    std::function<std::vector<double>(double, const QmomSourceContext&)>;
 ```
 
-The callback receives the current time and a caller-owned raw-moment vector.
-It must return a derivative vector with the same size. QMOMKit validates the
-source result through the generic ODE solver path, but it does not know what
-individual moment components mean.
+The callback receives the current time and a non-owning view of the current
+raw-moment SSP-RK stage. It must return a derivative vector with the same
+size. `context.moment(order)` returns a tracked stage value directly; during
+QMOM phase-space source evolution, an untracked order is evaluated from a
+quadrature reconstructed lazily from that same stage. The context-local cache
+is never populated from an accepted quadrature from another stage. Generic
+source-only operations without QMOM reconstruction metadata reject untracked
+requests. QMOMKit validates the source result through the generic ODE solver
+path, but it does not know what individual moment components mean.
 
 Phase-space boundary exchange uses a separate public concept:
 

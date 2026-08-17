@@ -394,8 +394,10 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
         { return (!caller_accept || caller_accept(stage, candidate)) && policy_accept(stage, candidate); };
     }
     const MomentSourceUpdateResult source_update =
-        boundary == nullptr ? advance_moments_with_source(state.moments(), t, time_step, source, source_options)
-                            : advance_moments_with_source(state.moments(), t, time_step, source, *boundary, source_options);
+        boundary == nullptr ? internal::advance_trusted_qmom_moments_with_source(state.moments(), t, time_step, source, source_options,
+                                                                                 state.active_node_count(), options.qmom_options)
+                            : internal::advance_trusted_qmom_moments_with_source(state.moments(), t, time_step, source, *boundary, source_options,
+                                                                                 state.active_node_count(), options.qmom_options);
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
     {
@@ -1481,8 +1483,8 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch_with
                        [&](const std::size_t batch_index, const QmomState& state)
                        {
                            const MomentSource local_source =
-                               source ? MomentSource{[&source, batch_index](const double callback_time, const std::vector<double>& moments)
-                                                     { return source(batch_index, callback_time, moments); }}
+                               source ? MomentSource{[&source, batch_index](const double callback_time, const QmomSourceContext& context)
+                                                     { return source(batch_index, callback_time, context); }}
                                       : MomentSource{};
                            return advance_qmom_moment_source(state, maximum_node_count, time, time_step, local_source, options);
                        });
@@ -1513,10 +1515,10 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch_with
         states,
         [&](const std::size_t batch_index, const QmomState& state)
         {
-            const MomentSource local_source =
-                source ? MomentSource{[&source, batch_index](const double callback_time, const std::vector<double>& moments)
-                                      { return source(batch_index, callback_time, moments); }}
-                       : MomentSource{};
+            const MomentSource local_source = source
+                                                  ? MomentSource{[&source, batch_index](const double callback_time, const QmomSourceContext& context)
+                                                                 { return source(batch_index, callback_time, context); }}
+                                                  : MomentSource{};
             const MomentBoundaryContribution local_boundary =
                 boundary ? MomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const std::vector<double>& moments)
                                                       { return boundary(batch_index, callback_time, moments); }}
@@ -1560,10 +1562,10 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch_with_i
                 velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
                                               { return velocity(batch_index, callback_time, phase_space_location); }}
                          : PhaseSpaceVelocity{};
-            const MomentSource local_source =
-                source ? MomentSource{[&source, batch_index](const double callback_time, const std::vector<double>& moments)
-                                      { return source(batch_index, callback_time, moments); }}
-                       : MomentSource{};
+            const MomentSource local_source = source
+                                                  ? MomentSource{[&source, batch_index](const double callback_time, const QmomSourceContext& context)
+                                                                 { return source(batch_index, callback_time, context); }}
+                                                  : MomentSource{};
             return advance_qmom_phase_space(state, maximum_node_count, time, time_step, local_velocity, local_source, options);
         });
 }
@@ -1603,10 +1605,10 @@ advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states, 
                 velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
                                               { return velocity(batch_index, callback_time, phase_space_location); }}
                          : PhaseSpaceVelocity{};
-            const MomentSource local_source =
-                source ? MomentSource{[&source, batch_index](const double callback_time, const std::vector<double>& moments)
-                                      { return source(batch_index, callback_time, moments); }}
-                       : MomentSource{};
+            const MomentSource local_source = source
+                                                  ? MomentSource{[&source, batch_index](const double callback_time, const QmomSourceContext& context)
+                                                                 { return source(batch_index, callback_time, context); }}
+                                                  : MomentSource{};
             const MomentBoundaryContribution local_boundary =
                 boundary ? MomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const std::vector<double>& moments)
                                                       { return boundary(batch_index, callback_time, moments); }}

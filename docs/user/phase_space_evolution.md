@@ -175,20 +175,23 @@ the model:
 
 ```cpp
 qmomkit::MomentSource source =
-    [](double time, const std::vector<double>& moments)
+    [](double time, const qmomkit::QmomSourceContext& context)
     {
-        std::vector<double> derivative(moments.size(), 0.0);
+        std::vector<double> derivative(context.size(), 0.0);
         derivative[0] = 0.0;
-        derivative[1] = -0.1 * moments[1];
+        derivative[1] = -0.1 * context.value(1);
         return derivative;
     };
 ```
 
-The returned vector must have the same size as the input moment vector. QMOMKit
-does not know what each component means; the ordering must match the moment
-ordering used by your QMOM setup. CQMOM phase-space evolution uses the context-specific
-callback below so multidimensional source terms can follow the configured
-CQMOM moment layout.
+The returned vector must have the same size as the current stage vector.
+`context.moment(order)` returns a tracked stage value directly. During QMOM
+phase-space source evolution, it lazily evaluates an untracked order from a
+quadrature reconstructed from the same SSP-RK stage. QMOMKit does not know what
+each component means; the ordering must match the moment ordering used by your
+QMOM setup. CQMOM phase-space evolution uses the context-specific callback
+below so multidimensional source terms can follow the configured CQMOM moment
+layout.
 
 Use the advanced `advance_moments_with_source(...)` operation when you want to
 advance only the moment-source part of a workflow:
@@ -516,9 +519,9 @@ int main()
         };
 
     const qmomkit::MomentSource source =
-        [](double, const std::vector<double>& current_moments)
+        [](double, const qmomkit::QmomSourceContext& context)
         {
-            return std::vector<double>(current_moments.size(), 0.0);
+            return std::vector<double>(context.size(), 0.0);
         };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
@@ -915,12 +918,12 @@ const qmomkit::BatchPhaseSpaceVelocity indexed_velocity =
     };
 
 const qmomkit::BatchMomentSource indexed_source =
-    [&local_rates](std::size_t batch_index, double, const std::vector<double>& moments)
+    [&local_rates](std::size_t batch_index, double, const qmomkit::QmomSourceContext& context)
     {
-        std::vector<double> rates(moments.size(), 0.0);
-        for (std::size_t i = 0; i < moments.size(); ++i)
+        std::vector<double> rates(context.size(), 0.0);
+        for (std::size_t i = 0; i < context.size(); ++i)
         {
-            rates[i] = local_rates[batch_index] * moments[i];
+            rates[i] = local_rates[batch_index] * context.value(i);
         }
         return rates;
     };

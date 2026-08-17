@@ -337,26 +337,70 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
 {
     // Boundary exchange is an additive rate inside the moment-source
     // operator, so SSP-RK3 still sees a single combined RHS.
-    return [source, boundary](const double stage_time, const std::vector<double>& state)
+    return [source, boundary](const double stage_time, const QmomSourceContext& context)
     {
-        std::vector<double> source_rate = source(stage_time, state);
-        validate_source_rate(source_rate, state.size());
+        std::vector<double> source_rate = source(stage_time, context);
+        validate_source_rate(source_rate, context.size());
         MomentBoundaryRate boundary_rate;
         try
         {
-            boundary_rate = boundary(stage_time, state);
+            boundary_rate = boundary(stage_time, context.values());
         }
         catch (const std::exception& error)
         {
             throw boundary_callback_error(error);
         }
-        validate_boundary_rate(boundary_rate, state.size());
+        validate_boundary_rate(boundary_rate, context.size());
         for (std::size_t i = 0; i < source_rate.size(); ++i)
         {
             source_rate[i] += boundary_rate.values[i];
         }
         return source_rate;
     };
+}
+
+[[nodiscard]] MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, const double t, const double time_step,
+                                                                   const OdeRhs& source, const MomentSourceUpdateOptions& options)
+{
+    try
+    {
+        std::vector<double> state = moments;
+        double current_time = t;
+        double remaining_time = time_step;
+        std::size_t retries = 0;
+        bool rejected = false;
+        MomentSourceUpdateDiagnostics diagnostics;
+
+        while (true)
+        {
+            const SspRk3Result step = ssp_rk3_step(state, current_time, remaining_time, source, options.ssp_rk3_options);
+            const MomentSourceUpdateStatus status = status_from_ssp_rk3(step.status);
+            diagnostics = diagnostics_from_ssp_rk3(step, status);
+            retries += step.retries;
+            rejected = rejected || diagnostics.rejected;
+            diagnostics.retries = retries;
+            diagnostics.rejected = rejected;
+
+            if (status != MomentSourceUpdateStatus::success)
+            {
+                return MomentSourceUpdateResult{moments, status, diagnostics, diagnostics.message};
+            }
+            if (step.time_step_used == remaining_time)
+            {
+                return MomentSourceUpdateResult{step.state, status, diagnostics, diagnostics.message};
+            }
+
+            state = step.state;
+            current_time += step.time_step_used;
+            remaining_time -= step.time_step_used;
+        }
+    }
+    catch (const std::exception& error)
+    {
+        MomentSourceUpdateDiagnostics diagnostics;
+        diagnostics.message = error.what();
+        return MomentSourceUpdateResult{moments, MomentSourceUpdateStatus::source_failed, diagnostics, error.what()};
+    }
 }
 
 [[nodiscard]] CqmomMomentSource compose_cqmom_source_and_boundary(const CqmomMomentSource& source, const CqmomMomentBoundaryContribution& boundary)
@@ -450,6 +494,12 @@ advance_validated_cqmom_moments_with_source(const CqmomMomentData& moments, cons
 namespace internal
 {
 
+QmomSourceContext QmomSourceContextAccess::create(const double time, const std::vector<double>& values, const std::size_t reconstruction_node_count,
+                                                  const QmomOptions& reconstruction_options)
+{
+    return QmomSourceContext{time, values, reconstruction_node_count, reconstruction_options};
+}
+
 CqmomSourceContext CqmomSourceContextAccess::create(const double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices,
                                                     const std::vector<double>& values, const CqmomLeanCase& reconstruction_case,
                                                     const std::vector<CqmomActiveBranchCount>& active_branch_counts,
@@ -459,6 +509,78 @@ CqmomSourceContext CqmomSourceContextAccess::create(const double time, const Pha
 }
 
 } // namespace internal
+
+QmomSourceContext::QmomSourceContext(const double time, const std::vector<double>& values) : time_(time), values_(&values)
+{
+    if (!std::isfinite(time_))
+    {
+        throw std::invalid_argument("QMOM source context time must be finite.");
+    }
+}
+
+QmomSourceContext::QmomSourceContext(const double time, const std::vector<double>& values, const std::size_t reconstruction_node_count,
+                                     const QmomOptions& reconstruction_options)
+    : QmomSourceContext(time, values)
+{
+    if (reconstruction_node_count == 0)
+    {
+        throw std::invalid_argument("QMOM source-stage quadrature reconstruction requires at least one node.");
+    }
+    reconstruction_node_count_ = reconstruction_node_count;
+    reconstruction_options_ = &reconstruction_options;
+}
+
+double QmomSourceContext::time() const noexcept
+{
+    return time_;
+}
+
+std::size_t QmomSourceContext::moment_count() const noexcept
+{
+    return values_->size();
+}
+
+std::size_t QmomSourceContext::size() const noexcept
+{
+    return moment_count();
+}
+
+const std::vector<double>& QmomSourceContext::values() const noexcept
+{
+    return *values_;
+}
+
+double QmomSourceContext::value(const std::size_t order) const
+{
+    return values_->at(order);
+}
+
+double QmomSourceContext::moment(const std::size_t order) const
+{
+    if (order < values_->size())
+    {
+        return (*values_)[order];
+    }
+    if (reconstruction_options_ == nullptr)
+    {
+        throw std::out_of_range("Requested QMOM source moment is not tracked by this context.");
+    }
+
+    if (!reconstructed_stage_quadrature_.has_value())
+    {
+        QmomResult quadrature = compute_qmom(MomentSet(*values_), reconstruction_node_count_, *reconstruction_options_);
+        if (!quadrature.ok())
+        {
+            throw std::runtime_error("QMOM source-stage quadrature reconstruction failed: " + quadrature.message);
+        }
+        reconstructed_stage_quadrature_ = std::move(quadrature);
+    }
+
+    const QmomResult& quadrature = *reconstructed_stage_quadrature_;
+    const std::vector<double> moments =
+        reconstruct_raw_moments(Quadrature1D{quadrature.abscissas, quadrature.weights, QuadratureStatus::success, ""}, order + 1);
+    return moments.at(order);
+}
 
 CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierarchy& source_hierarchy, const std::vector<MultiIndex>& indices,
                                        const std::vector<double>& values)
@@ -595,45 +717,12 @@ MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& 
         return invalid_result(moments, error.what());
     }
 
-    try
+    const OdeRhs rhs = [&source](const double stage_time, const std::vector<double>& state)
     {
-        std::vector<double> state = moments;
-        double current_time = t;
-        double remaining_time = time_step;
-        std::size_t retries = 0;
-        bool rejected = false;
-        MomentSourceUpdateDiagnostics diagnostics;
-
-        while (true)
-        {
-            const SspRk3Result step = ssp_rk3_step(state, current_time, remaining_time, source, options.ssp_rk3_options);
-            const MomentSourceUpdateStatus status = status_from_ssp_rk3(step.status);
-            diagnostics = diagnostics_from_ssp_rk3(step, status);
-            retries += step.retries;
-            rejected = rejected || diagnostics.rejected;
-            diagnostics.retries = retries;
-            diagnostics.rejected = rejected;
-
-            if (status != MomentSourceUpdateStatus::success)
-            {
-                return MomentSourceUpdateResult{moments, status, diagnostics, diagnostics.message};
-            }
-            if (step.time_step_used == remaining_time)
-            {
-                return MomentSourceUpdateResult{step.state, status, diagnostics, diagnostics.message};
-            }
-
-            state = step.state;
-            current_time += step.time_step_used;
-            remaining_time -= step.time_step_used;
-        }
-    }
-    catch (const std::exception& error)
-    {
-        MomentSourceUpdateDiagnostics diagnostics;
-        diagnostics.message = error.what();
-        return MomentSourceUpdateResult{moments, MomentSourceUpdateStatus::source_failed, diagnostics, error.what()};
-    }
+        const QmomSourceContext context{stage_time, state};
+        return source(stage_time, context);
+    };
+    return advance_moments_with_source(moments, t, time_step, rhs, options);
 }
 
 MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, const double t, const double time_step,
@@ -685,6 +774,68 @@ CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomen
 
 namespace internal
 {
+
+MomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, const double t, const double time_step,
+                                                                  const MomentSource& source, const MomentSourceUpdateOptions& options,
+                                                                  const std::size_t reconstruction_node_count,
+                                                                  const QmomOptions& reconstruction_options)
+{
+    try
+    {
+        validate_request(moments, t, time_step, source, options);
+    }
+    catch (const std::exception& error)
+    {
+        return invalid_result(moments, error.what());
+    }
+
+    const OdeRhs rhs = [&source, reconstruction_node_count, &reconstruction_options](const double stage_time, const std::vector<double>& state)
+    {
+        const QmomSourceContext context = QmomSourceContextAccess::create(stage_time, state, reconstruction_node_count, reconstruction_options);
+        return source(stage_time, context);
+    };
+    return advance_moments_with_source(moments, t, time_step, rhs, options);
+}
+
+MomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, const double t, const double time_step,
+                                                                  const MomentSource& source, const MomentBoundaryContribution& boundary,
+                                                                  const MomentSourceUpdateOptions& options,
+                                                                  const std::size_t reconstruction_node_count,
+                                                                  const QmomOptions& reconstruction_options)
+{
+    try
+    {
+        validate_request(moments, t, time_step, source, boundary, options);
+    }
+    catch (const std::exception& error)
+    {
+        return invalid_result(moments, error.what());
+    }
+
+    const OdeRhs rhs =
+        [&source, &boundary, reconstruction_node_count, &reconstruction_options](const double stage_time, const std::vector<double>& state)
+    {
+        const QmomSourceContext context = QmomSourceContextAccess::create(stage_time, state, reconstruction_node_count, reconstruction_options);
+        std::vector<double> source_rate = source(stage_time, context);
+        validate_source_rate(source_rate, context.size());
+        MomentBoundaryRate boundary_rate;
+        try
+        {
+            boundary_rate = boundary(stage_time, context.values());
+        }
+        catch (const std::exception& error)
+        {
+            throw boundary_callback_error(error);
+        }
+        validate_boundary_rate(boundary_rate, context.size());
+        for (std::size_t i = 0; i < source_rate.size(); ++i)
+        {
+            source_rate[i] += boundary_rate.values[i];
+        }
+        return source_rate;
+    };
+    return advance_moments_with_source(moments, t, time_step, rhs, options);
+}
 
 CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, const double t, const double time_step,
                                                                         const CqmomMomentSource& source, const MomentSourceUpdateOptions& options)

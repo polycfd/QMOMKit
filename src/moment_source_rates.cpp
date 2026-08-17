@@ -98,7 +98,8 @@ QmomMomentSourceRateResult evaluate_qmom_moment_source_rates(const double time, 
     std::vector<double> rate;
     try
     {
-        rate = source(time, moments);
+        const QmomSourceContext context{time, moments};
+        rate = source(time, context);
     }
     catch (const std::exception& error)
     {
@@ -123,7 +124,7 @@ QmomMomentSourceRateResult evaluate_qmom_moment_source_rates(const double time, 
         return qmom_invalid_input("Moment-boundary contribution callback must be provided.");
     }
 
-    QmomMomentSourceRateResult source_result = evaluate_qmom_moment_source_rates(time, moments, source);
+    QmomMomentSourceRateResult source_result = internal::evaluate_qmom_moment_source_rates(time, moments, source);
     if (!source_result.ok())
     {
         return source_result;

@@ -43,7 +43,7 @@ int main()
         return 1;
     }
 
-    const qmomkit::MomentSource source = [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); };
+    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); };
     const qmomkit::QmomMomentSourceRateResult moment_source_rates = qmomkit::evaluate_qmom_moment_source_rates(0.0, moments.values(), source);
     if (!moment_source_rates.ok() || moment_source_rates.rates.size() != moments.values().size())
     {
@@ -72,7 +72,7 @@ int main()
 
     const qmomkit::BatchPhaseSpaceVelocity batch_velocity = [](std::size_t, double, const std::vector<double>& coordinate)
     { return std::vector<double>(coordinate.size(), 0.0); };
-    const qmomkit::BatchMomentSource batch_source = [](std::size_t, double, const std::vector<double>& state)
+    const qmomkit::BatchMomentSource batch_source = [](std::size_t, double, const qmomkit::QmomSourceContext& state)
     { return std::vector<double>(state.size(), 0.0); };
     const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> qmom_batch_aware =
         qmomkit::advance_qmom_phase_space_batch_with_index(qmom_states, 2, 0.0, 0.1, batch_velocity, batch_source, qmom_options);

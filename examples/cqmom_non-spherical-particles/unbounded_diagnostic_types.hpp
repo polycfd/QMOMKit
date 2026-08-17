@@ -70,7 +70,6 @@ struct SourceReplay
 {
     std::optional<qmomkit::CqmomMomentLayout> layout;
     std::vector<StageMoments> stages;
-    double max_difference_from_public_source_update = 0.0;
 };
 
 struct OffendingNode

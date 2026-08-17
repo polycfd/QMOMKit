@@ -107,7 +107,7 @@ int main()
         const qmomkit::RawMomentRequest file_moment_request{moment_output_layout.required_indices};
         const qmomkit::RawMomentRequest terminal_moment_request{
             cqmom_non_spherical_particles::select_terminal_moment_indices(moment_output_layout.required_indices)};
-        const qmomkit::CqmomMomentSource source = cqmom_non_spherical_particles::binary_breakage_source(cqmom_case, breakage_parameters);
+        const qmomkit::CqmomMomentSource source = cqmom_non_spherical_particles::binary_breakage_source(breakage_parameters);
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
         const qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
         if (phase_space_evolution_options.node_options.scheme != qmomkit::NodeAdvectionScheme::rk23)

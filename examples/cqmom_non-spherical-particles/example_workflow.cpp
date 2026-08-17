@@ -132,7 +132,7 @@ std::optional<PreparedCqmomExample> prepare_cqmom_example(const std::filesystem:
     qmomkit::RawMomentRequest file_moment_request{moment_output_layout.required_indices};
     const std::vector<qmomkit::MultiIndex> terminal_moment_indices = select_terminal_moment_indices(moment_output_layout.required_indices);
     qmomkit::RawMomentRequest terminal_moment_request{terminal_moment_indices};
-    qmomkit::CqmomMomentSource source = binary_breakage_source(cqmom_case, breakage_parameters);
+    qmomkit::CqmomMomentSource source = binary_breakage_source(breakage_parameters);
     qmomkit::CqmomState state = cqmom_case.initial_state();
 
     return PreparedCqmomExample{configuration_file,

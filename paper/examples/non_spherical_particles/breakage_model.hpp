@@ -1,7 +1,6 @@
 #pragma once
 
 #include "monte_carlo/ensemble.hpp"
-#include "qmomkit/cqmom.hpp"
 #include "qmomkit/moment_source.hpp"
 
 #include <random>
@@ -24,10 +23,9 @@ struct BinaryFragmentationParameters
 
 void validate_binary_fragmentation_parameters(const BinaryFragmentationParameters& parameters);
 
-// Builds the CQMOM moment source for binary fragmentation, capturing the
-// example parameters and CQMOM numerical options by value.
-[[nodiscard]] qmomkit::CqmomMomentSource binary_breakage_source(const qmomkit::CqmomCase& cqmom_case,
-                                                                const BinaryFragmentationParameters& parameters);
+// Builds the CQMOM moment source for binary fragmentation from the example
+// parameters. Terminal nodes are supplied by the source context.
+[[nodiscard]] qmomkit::CqmomMomentSource binary_breakage_source(const BinaryFragmentationParameters& parameters);
 
 // Applies one stochastic moment-source interval in place; the generator advances
 // by reference so the example seed controls reproducibility.

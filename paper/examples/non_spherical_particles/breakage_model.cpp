@@ -134,24 +134,24 @@ void require_sample(const qmomkit::monte_carlo::Sample& sample)
     return rate;
 }
 
-[[nodiscard]] double parent_monomial(const std::vector<std::vector<double>>& abscissas, const std::size_t node, const qmomkit::MultiIndex& order)
+[[nodiscard]] double parent_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndex& order)
 {
     double value = 1.0;
     for (std::size_t dimension = 0; dimension < dimension_count; ++dimension)
     {
-        value *= integer_power(abscissas[dimension][node], order[dimension]);
+        value *= integer_power(coordinates[dimension], order[dimension]);
     }
     return value;
 }
 
-[[nodiscard]] double expected_daughter_monomial(const std::vector<std::vector<double>>& abscissas, const std::size_t node,
-                                                const qmomkit::MultiIndex& order, const BinaryFragmentationParameters& parameters)
+[[nodiscard]] double expected_daughter_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndex& order,
+                                                const BinaryFragmentationParameters& parameters)
 {
-    const double d = abscissas[0][node];
-    const double chi = abscissas[1][node];
-    const double u = abscissas[2][node];
-    const double v = abscissas[3][node];
-    const double w = abscissas[4][node];
+    const double d = coordinates[0];
+    const double chi = coordinates[1];
+    const double u = coordinates[2];
+    const double v = coordinates[3];
+    const double w = coordinates[4];
     const double sigma = parameters.recoil_velocity_standard_deviation;
 
     return integer_power(daughter_diameter(d), order[0]) * integer_power(parameters.shape_relaxation_factor * chi, order[1]) *
@@ -175,20 +175,17 @@ void validate_binary_fragmentation_parameters(const BinaryFragmentationParameter
     require_nonnegative_finite(parameters.recoil_velocity_standard_deviation, "recoil_velocity_standard_deviation");
 }
 
-qmomkit::CqmomMomentSource binary_breakage_source(const qmomkit::CqmomCase& cqmom_case, const BinaryFragmentationParameters& parameters)
+qmomkit::CqmomMomentSource binary_breakage_source(const BinaryFragmentationParameters& parameters)
 {
     validate_binary_fragmentation_parameters(parameters);
-    const qmomkit::ConditionalMomentOptions conditional_options = cqmom_case.conditional_options();
-    const qmomkit::QmomOptions qmom_options = cqmom_case.qmom_options();
-    const bool adaptive_branch_counts = cqmom_case.adaptive_branch_counts();
-    const qmomkit::CqmomDiagnosticLevel diagnostic_level = cqmom_case.diagnostic_level();
-    const qmomkit::VandermondeSolver vandermonde_solver = cqmom_case.vandermonde_solver();
-    const qmomkit::CqmomCoordinateSupport coordinate_support = cqmom_case.coordinate_support();
 
-    return [parameters, conditional_options, qmom_options, adaptive_branch_counts, diagnostic_level, coordinate_support,
-            vandermonde_solver](double, const qmomkit::CqmomSourceContext& moments)
+    return [parameters](double, const qmomkit::CqmomSourceContext& moments)
     {
         std::vector<double> source(moments.size(), 0.0);
+        if (moments.dimension_count() != dimension_count)
+        {
+            throw std::invalid_argument("The 5D binary breakage source received a context with the wrong rank.");
+        }
         for (std::size_t index = 0; index < moments.size(); ++index)
         {
             if (moments.index(index).size() != dimension_count)
@@ -197,41 +194,22 @@ qmomkit::CqmomMomentSource binary_breakage_source(const qmomkit::CqmomCase& cqmo
             }
         }
 
-        // Reconstruct the active quadrature at the current moment-source stage before
-        // accumulating terminal-node contributions to the requested moment rates.
-        qmomkit::CqmomMomentLayout layout{moments.hierarchy(), moments.indices()};
-        qmomkit::CqmomMomentData moment_data{std::move(layout), moments.values()};
-        const qmomkit::CqmomLeanCase stage_case{std::move(moment_data), conditional_options, qmom_options,      adaptive_branch_counts,
-                                                diagnostic_level,       vandermonde_solver,  coordinate_support};
-        const qmomkit::CqmomResult stage_result = qmomkit::compute_cqmom(stage_case);
-        if (!stage_result.ok())
-        {
-            throw std::runtime_error("Binary fragmentation source could not reconstruct the stage CQMOM quadrature: " + stage_result.message);
-        }
-        const qmomkit::CqmomQuadrature& stage_quadrature = stage_result.quadrature;
-        if (stage_quadrature.number_of_dimensions() != dimension_count || stage_quadrature.abscissas().size() != dimension_count)
-        {
-            throw std::runtime_error("Binary fragmentation source reconstructed a quadrature with the wrong rank.");
-        }
-
-        const std::vector<double>& weights = stage_quadrature.weights();
-        const std::vector<std::vector<double>>& abscissas = stage_quadrature.abscissas();
         for (std::size_t moment_index = 0; moment_index < moments.size(); ++moment_index)
         {
             const qmomkit::MultiIndex& order = moments.index(moment_index);
-            for (std::size_t node = 0; node < weights.size(); ++node)
-            {
-                const double beta = breakage_rate(abscissas[0][node], parameters);
-                if (beta == 0.0)
+            moments.for_each_terminal_node(
+                [&source, &order, moment_index, &parameters](const double weight, const std::vector<double>& coordinates)
                 {
-                    continue;
-                }
-                // One parent is removed and two statistically identical daughters
-                // are created, giving beta(d) * (2D - P) before quadrature weighting.
-                source[moment_index] +=
-                    weights[node] * beta *
-                    (2.0 * expected_daughter_monomial(abscissas, node, order, parameters) - parent_monomial(abscissas, node, order));
-            }
+                    const double beta = breakage_rate(coordinates[0], parameters);
+                    if (beta == 0.0)
+                    {
+                        return;
+                    }
+                    // One parent is removed and two statistically identical daughters
+                    // are created, giving beta(d) * (2D - P) before quadrature weighting.
+                    source[moment_index] +=
+                        weight * beta * (2.0 * expected_daughter_monomial(coordinates, order, parameters) - parent_monomial(coordinates, order));
+                });
         }
         return qmomkit::CqmomMomentRate{std::move(source)};
     };

@@ -685,95 +685,27 @@ qmomkit::CqmomMomentLayout layout_from_state(const qmomkit::CqmomState& state)
     return qmomkit::CqmomMomentLayout{state.hierarchy(), state.moment_indices()};
 }
 
-qmomkit::CqmomQuadrature reconstruct_stage_quadrature(const cqmom_non_spherical_particles::PreparedCqmomExample& example,
-                                                      const qmomkit::CqmomMomentLayout& layout, const std::vector<double>& values)
+SourceReplay record_phase_space_source_stages(const BoundaryAdvance& boundary, const qmomkit::ConditioningPath& parent_path)
 {
-    qmomkit::CqmomMomentData data{layout, values};
-    qmomkit::CqmomLeanCase stage_case{std::move(data),
-                                      example.cqmom_case.conditional_options(),
-                                      example.cqmom_case.qmom_options(),
-                                      example.cqmom_case.adaptive_branch_counts(),
-                                      example.cqmom_case.diagnostic_level(),
-                                      example.cqmom_case.vandermonde_solver(),
-                                      example.cqmom_case.coordinate_support()};
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(stage_case);
-    if (!result.ok())
+    if (!boundary.pre_source_state.has_value() || !boundary.pre_source_quadrature.has_value() || !boundary.boundary_state.has_value() ||
+        !boundary.boundary_quadrature.has_value())
     {
-        throw std::runtime_error("Diagnostic stage CQMOM reconstruction failed: " + result.message);
+        throw std::runtime_error("The phase-space source-stage record is incomplete.");
     }
-    return result.quadrature;
-}
 
-SourceReplay replay_source_stages(const cqmom_non_spherical_particles::PreparedCqmomExample& example, const qmomkit::CqmomState& pre_source_state,
-                                  const qmomkit::ConditioningPath& parent_path, const double source_start_time, const double time_step)
-{
-    // QMOMKit's current moment-source update path is SSP-RK3. The replay uses
-    // the same callback, state, stage times, and coefficients, then verifies the
-    // final candidate against the public source-update API.
+    // The diagnostic records the states accepted by the same phase-space source
+    // operation that evaluates the breakage callback at its SSP-RK stages.
     SourceReplay replay;
-    replay.layout = layout_from_state(pre_source_state);
-    const std::vector<double> y0 = pre_source_state.moment_values();
-    const auto rhs = [&](const double stage_time, const std::vector<double>& values)
+    replay.layout = layout_from_state(*boundary.boundary_state);
+    const auto record = [&](const char* label, const double time, const qmomkit::CqmomState& state, const qmomkit::CqmomQuadrature& quadrature)
     {
-        const qmomkit::CqmomSourceContext context{stage_time, replay.layout->hierarchy, replay.layout->required_indices, values};
-        qmomkit::CqmomMomentRate rate = example.source(stage_time, context);
-        if (rate.values.size() != values.size())
-        {
-            throw std::runtime_error("Diagnostic source replay received a rate vector with the wrong size.");
-        }
-        return rate.values;
-    };
-    const auto branch_moments_for = [&](const std::vector<double>& values)
-    {
-        const qmomkit::CqmomQuadrature stage_quadrature = reconstruct_stage_quadrature(example, *replay.layout, values);
-        const ConditionalSolveDiagnostic solve = conditional_chi_solve(stage_quadrature, *replay.layout, values);
-        return branch_moment_row(solve, parent_path.node_index_at_level(0));
+        const qmomkit::CqmomMomentLayout layout = layout_from_state(state);
+        const ConditionalSolveDiagnostic solve = conditional_chi_solve(quadrature, layout, state.moment_values());
+        replay.stages.push_back({label, time, state.moment_values(), branch_moment_row(solve, parent_path.node_index_at_level(0))});
     };
 
-    replay.stages.push_back({"pre_source", source_start_time, y0, branch_moments_for(y0)});
-    const std::vector<double> k1 = rhs(source_start_time, y0);
-    std::vector<double> stage1(y0.size(), 0.0);
-    for (std::size_t i = 0; i < y0.size(); ++i)
-    {
-        stage1[i] = y0[i] + time_step * k1[i];
-    }
-    replay.stages.push_back({"stage1_candidate", source_start_time + time_step, stage1, branch_moments_for(stage1)});
-
-    const std::vector<double> k2 = rhs(source_start_time + time_step, stage1);
-    std::vector<double> embedded(y0.size(), 0.0);
-    std::vector<double> stage2(y0.size(), 0.0);
-    for (std::size_t i = 0; i < y0.size(); ++i)
-    {
-        embedded[i] = 0.5 * (y0[i] + (stage1[i] + time_step * k2[i]));
-        stage2[i] = 0.75 * y0[i] + 0.25 * (stage1[i] + time_step * k2[i]);
-    }
-    replay.stages.push_back({"stage2_candidate", source_start_time + 0.5 * time_step, stage2, branch_moments_for(stage2)});
-    replay.stages.push_back({"embedded_comparison_candidate", source_start_time + time_step, embedded, branch_moments_for(embedded)});
-
-    const std::vector<double> k3 = rhs(source_start_time + 0.5 * time_step, stage2);
-    std::vector<double> final(y0.size(), 0.0);
-    for (std::size_t i = 0; i < y0.size(); ++i)
-    {
-        final[i] = (y0[i] + 2.0 * (stage2[i] + time_step * k3[i])) / 3.0;
-    }
-    replay.stages.push_back({"accepted_post_source_pre_inversion", source_start_time + time_step, final, branch_moments_for(final)});
-
-    qmomkit::CqmomMomentData input_data{*replay.layout, y0};
-    const qmomkit::CqmomMomentSourceUpdateResult public_update = qmomkit::advance_cqmom_moments_with_source(
-        input_data, source_start_time, time_step, example.source, example.phase_space_evolution_options.source_options);
-    if (!public_update.ok())
-    {
-        throw std::runtime_error("Public moment-source update failed during diagnostic replay verification: " + public_update.message);
-    }
-    for (std::size_t i = 0; i < final.size(); ++i)
-    {
-        replay.max_difference_from_public_source_update =
-            std::max(replay.max_difference_from_public_source_update, std::abs(final[i] - public_update.moments.values[i]));
-    }
-    if (replay.max_difference_from_public_source_update > 1.0e-11)
-    {
-        throw std::runtime_error("Diagnostic moment-source replay does not match the public moment-source update.");
-    }
+    record("pre_source", boundary.source_start_time, *boundary.pre_source_state, *boundary.pre_source_quadrature);
+    record("accepted_post_source", boundary.boundary_time, *boundary.boundary_state, *boundary.boundary_quadrature);
     return replay;
 }
 
@@ -1009,12 +941,11 @@ DiagnosticReport build_report(const cqmom_non_spherical_particles::PreparedCqmom
     SourceReplay replay;
     try
     {
-        replay = replay_source_stages(unbounded, *unbounded_boundary.pre_source_state, parent_path, unbounded_boundary.source_start_time,
-                                      cqmom_non_spherical_particles::cqmom_time_step);
+        replay = record_phase_space_source_stages(unbounded_boundary, parent_path);
     }
     catch (const std::exception& error)
     {
-        throw std::runtime_error(std::string("source replay failed: ") + error.what());
+        throw std::runtime_error(std::string("phase-space source-stage record failed: ") + error.what());
     }
     ConditionalSolveDiagnostic solve;
     try

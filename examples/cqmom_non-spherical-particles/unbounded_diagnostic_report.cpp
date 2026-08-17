@@ -271,12 +271,9 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
     markdown << '\n';
 
     markdown << "## Moment-Source Evolution\n\n";
-    markdown
-        << "The source replay uses the same pre-source moment state, the same source callback, and the SSP-RK3 stage times and coefficients used by "
-           "`advance_cqmom_moments_with_source(...)`. QMOMKit currently exposes this moment-source update through SSP-RK3 options; this "
-           "example-local diagnostic should be extended before being used with any future selectable source scheme. The replay final candidate "
-           "agrees with the public moment-source update to "
-        << report.source_replay.max_difference_from_public_source_update << ".\n\n";
+    markdown << "The reported pre-source and accepted post-source states come directly from the same "
+                "`advance_cqmom_moment_source(...)` phase-space operation that evaluates the breakage callback. This preserves the active "
+                "adaptive CQMOM topology and source-stage representation used by the diagnostic run.\n\n";
     markdown << "| stage | time | m0 | m1 | m2 | m3 | m4 | m5 |\n";
     markdown << "|---|---:|---:|---:|---:|---:|---:|---:|\n";
     for (const StageMoments& stage : report.source_replay.stages)

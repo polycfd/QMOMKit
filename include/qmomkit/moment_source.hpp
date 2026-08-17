@@ -12,6 +12,11 @@
 
 namespace qmomkit
 {
+namespace internal
+{
+class CqmomSourceContextAccess;
+struct PreparedFixedCqmomMetadata;
+} // namespace internal
 
 /**
  * Generic moment-source callback.
@@ -54,6 +59,8 @@ using MomentBoundaryContribution = std::function<MomentBoundaryRate(double, cons
  * and moment values. The time is explicit and matches the stage or evaluation
  * time passed as the first argument to the callback. That layout is independent
  * of the underlying dense or lean CQMOM moment storage backend.
+ * Phase-space source contexts may cache a quadrature reconstructed from their
+ * current stage values while evaluating an untracked requested moment.
  */
 class CqmomSourceContext
 {
@@ -70,13 +77,32 @@ public:
     [[nodiscard]] double value(std::size_t i) const;
     [[nodiscard]] std::optional<std::size_t> position(const MultiIndex& moment_index) const;
     [[nodiscard]] std::optional<double> value(const MultiIndex& moment_index) const;
+    /**
+     * Return the current raw moment for `moment_index`.
+     *
+     * A tracked entry returns the current source-stage value directly. During
+     * CQMOM phase-space source evolution, an untracked entry is evaluated from
+     * a quadrature reconstructed from the current SSP-RK stage. Other context
+     * uses reject untracked requests.
+     */
+    [[nodiscard]] double moment(const MultiIndex& moment_index) const;
     [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
 
 private:
+    friend class internal::CqmomSourceContextAccess;
+
+    CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values,
+                       const CqmomLeanCase& reconstruction_case, const std::vector<CqmomActiveBranchCount>& active_branch_counts,
+                       const internal::PreparedFixedCqmomMetadata* prepared_fixed_metadata);
+
     double time_ = 0.0;
     const PhaseSpaceHierarchy* hierarchy_;
     const std::vector<MultiIndex>* indices_;
     const std::vector<double>* values_;
+    const CqmomLeanCase* reconstruction_case_ = nullptr;
+    const std::vector<CqmomActiveBranchCount>* active_branch_counts_ = nullptr;
+    const internal::PreparedFixedCqmomMetadata* prepared_fixed_metadata_ = nullptr;
+    mutable std::optional<CqmomQuadrature> reconstructed_stage_quadrature_;
 };
 
 /**

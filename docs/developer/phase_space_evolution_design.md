@@ -150,13 +150,20 @@ lean-backed `CqmomState` objects expose the same selected CQMOM phase-space evol
 layout; dense-only tensor entries remain internal unless they are part of that
 layout.
 
-The CQMOM source context exposes only:
+The CQMOM source context exposes:
 
 - the phase-space hierarchy;
 - the SSP-RK stage time;
 - the number of source moment entries;
 - the raw moment multi-index for each entry;
 - the raw moment value for each entry.
+
+For source callbacks invoked through CQMOM phase-space evolution,
+`context.moment(alpha)` returns a tracked entry directly or lazily reconstructs
+the requested untracked raw moment from a quadrature built from the current
+SSP-RK stage. The reconstructed quadrature is context-local and is never taken
+from an accepted state at another RK stage. Source callbacks do not reconstruct
+CQMOM quadrature manually for these requests.
 
 The source callback returns one derivative value per context entry in the same
 order. CQMOM boundary exchange uses the same representation-neutral context:

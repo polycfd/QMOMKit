@@ -1090,10 +1090,21 @@ struct CqmomPhaseSpaceEvolutionWorkingState
             source_layout = &*generated_source_layout;
         }
         CqmomMomentData source_moments = extract_cqmom_moments(dense_case->moments, *source_layout);
+        const CqmomLeanCase source_reconstruction_case{source_moments,
+                                                       dense_case->conditional_options,
+                                                       dense_case->qmom_options,
+                                                       dense_case->adaptive_branch_counts,
+                                                       dense_case->diagnostic_level,
+                                                       dense_case->vandermonde_solver,
+                                                       dense_case->coordinate_support};
         CqmomMomentSourceUpdateResult source_update =
             boundary == nullptr
-                ? internal::advance_trusted_cqmom_moments_with_source(source_moments, t, time_step, source, options.source_options)
-                : internal::advance_trusted_cqmom_moments_with_source(source_moments, t, time_step, source, *boundary, options.source_options);
+                ? internal::advance_trusted_cqmom_moments_with_source(source_moments, t, time_step, source, options.source_options,
+                                                                      source_reconstruction_case, *working_state.active_branch_counts,
+                                                                      prepared_fixed_metadata.get())
+                : internal::advance_trusted_cqmom_moments_with_source(source_moments, t, time_step, source, *boundary, options.source_options,
+                                                                      source_reconstruction_case, *working_state.active_branch_counts,
+                                                                      prepared_fixed_metadata.get());
         record_source_update_diagnostics(diagnostics, source_update);
         if (!source_update.ok())
         {
@@ -1143,8 +1154,10 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     const internal::PreparedFixedCqmomMetadataPtr& prepared_fixed_metadata = internal::CqmomConstructionAccess::state_prepared_fixed_metadata(state);
     CqmomMomentSourceUpdateResult source_update =
         boundary == nullptr
-            ? internal::advance_trusted_cqmom_moments_with_source(lean_case->moments, t, time_step, source, options.source_options)
-            : internal::advance_trusted_cqmom_moments_with_source(lean_case->moments, t, time_step, source, *boundary, options.source_options);
+            ? internal::advance_trusted_cqmom_moments_with_source(lean_case->moments, t, time_step, source, options.source_options, *lean_case,
+                                                                  *working_state.active_branch_counts, prepared_fixed_metadata.get())
+            : internal::advance_trusted_cqmom_moments_with_source(lean_case->moments, t, time_step, source, *boundary, options.source_options,
+                                                                  *lean_case, *working_state.active_branch_counts, prepared_fixed_metadata.get());
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
     {

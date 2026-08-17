@@ -376,7 +376,14 @@ Use:
 - `context.value(i)` for the current raw moment value of entry `i`;
 - `context.position(alpha)` or `context.value(alpha)` when a source term needs
   a particular retained moment by multi-index;
+- `context.moment(alpha)` to obtain a raw moment by multi-index. Retained
+  entries return their current SSP-RK stage value directly; an untracked entry
+  is evaluated from a quadrature built from that same stage's moments. During
+  intermediate SSP-RK stages, this is not the accepted pre-source quadrature;
 - `context.hierarchy()` for the CQMOM hierarchy associated with the state.
+
+Source callbacks do not need to reconstruct CQMOM quadrature manually to
+obtain an untracked raw moment.
 
 The returned source values correspond to the context ordering. For entry `i`,
 compute the derivative for `context.index(i)` from the current state and write

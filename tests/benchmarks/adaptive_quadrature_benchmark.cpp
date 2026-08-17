@@ -296,13 +296,13 @@ qmomkit::MomentSource qmom_source_to_target(const QmomEventFixture& fixture)
 {
     const std::vector<double> initial = fixture.initial_state.moments();
     const std::vector<double> target = fixture.target_moments;
-    return [initial, target](double, const std::vector<double>& state)
+    return [initial, target](double, const qmomkit::QmomSourceContext& context)
     {
-        if (state.size() != initial.size())
+        if (context.size() != initial.size())
         {
             throw std::runtime_error("QMOM source fixture received an unexpected moment layout.");
         }
-        std::vector<double> rate(state.size(), 0.0);
+        std::vector<double> rate(context.size(), 0.0);
         for (std::size_t i = 0; i < rate.size(); ++i)
         {
             rate[i] = target[i] - initial[i];

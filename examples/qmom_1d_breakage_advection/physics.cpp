@@ -30,14 +30,14 @@ qmomkit::PhaseSpaceVelocity advection_velocity()
 
 qmomkit::MomentSource binary_fragmentation_source()
 {
-    return [](double, const std::vector<double>& moments)
+    return [](double, const qmomkit::QmomSourceContext& context)
     {
-        std::vector<double> source(moments.size(), 0.0);
-        for (std::size_t order = 0; order < moments.size(); ++order)
+        std::vector<double> source(context.size(), 0.0);
+        for (std::size_t order = 0; order < context.size(); ++order)
         {
             // Binary fragmentation d -> d/2 gives dM_k/dt = lambda * (2^(1-k) - 1) * M_k.
             const double daughter_factor = std::pow(2.0, 1.0 - static_cast<double>(order));
-            source[order] = fragmentation_rate * (daughter_factor - 1.0) * moments[order];
+            source[order] = fragmentation_rate * (daughter_factor - 1.0) * context.value(order);
         }
         return source;
     };

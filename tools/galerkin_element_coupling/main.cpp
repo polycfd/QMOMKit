@@ -209,7 +209,8 @@ int main()
         // zero source leaves a pure phase-space advection problem.
         const qmomkit::QmomOptions qmom_options;
         const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.1}; };
-        const qmomkit::MomentSource zero_source = [](double, const std::vector<double>& moments) { return std::vector<double>(moments.size(), 0.0); };
+        const qmomkit::MomentSource zero_source = [](double, const qmomkit::QmomSourceContext& context)
+        { return std::vector<double>(context.size(), 0.0); };
 
         qmomkit::QmomPhaseSpaceEvolutionOptions evolution_options;
         evolution_options.qmom_options = qmom_options;

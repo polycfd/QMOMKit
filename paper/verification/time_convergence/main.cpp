@@ -183,12 +183,12 @@ qmomkit::PhaseSpaceVelocity noncommuting_velocity()
 
 qmomkit::MomentSource noncommuting_source()
 {
-    return [](double, const std::vector<double>& moments)
+    return [](double, const qmomkit::QmomSourceContext& context)
     {
-        std::vector<double> rate(moments.size(), 0.0);
-        for (std::size_t order = 1; order < moments.size(); ++order)
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t order = 1; order < context.size(); ++order)
         {
-            rate[order] = -noncommuting_gamma * static_cast<double>(order) * moments[order];
+            rate[order] = -noncommuting_gamma * static_cast<double>(order) * context.value(order);
         }
         return rate;
     };

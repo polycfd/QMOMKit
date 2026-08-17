@@ -45,7 +45,8 @@ int main()
     const double diameter = 2.0;
     const qmomkit::MomentSource source = qmom_1d_breakage_advection_mc_local_rates::binary_fragmentation_source();
     const std::vector<double> single_particle_moments{1.0, diameter, diameter * diameter};
-    const std::vector<double> breakage_rates = source(0.0, single_particle_moments);
+    const qmomkit::QmomSourceContext source_context{0.0, single_particle_moments};
+    const std::vector<double> breakage_rates = source(0.0, source_context);
     if (breakage_rates.size() != single_particle_moments.size() || std::abs(breakage_rates[1]) > tolerance)
     {
         std::cerr << "Binary breakage should conserve the first raw moment for one particle.\n";

@@ -812,27 +812,12 @@ MomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vec
         return invalid_result(moments, error.what());
     }
 
+    const MomentSource composed_source = compose_source_and_boundary(source, boundary);
     const OdeRhs rhs =
-        [&source, &boundary, reconstruction_node_count, &reconstruction_options](const double stage_time, const std::vector<double>& state)
+        [&composed_source, reconstruction_node_count, &reconstruction_options](const double stage_time, const std::vector<double>& state)
     {
         const QmomSourceContext context = QmomSourceContextAccess::create(stage_time, state, reconstruction_node_count, reconstruction_options);
-        std::vector<double> source_rate = source(stage_time, context);
-        validate_source_rate(source_rate, context.size());
-        MomentBoundaryRate boundary_rate;
-        try
-        {
-            boundary_rate = boundary(stage_time, context.values());
-        }
-        catch (const std::exception& error)
-        {
-            throw boundary_callback_error(error);
-        }
-        validate_boundary_rate(boundary_rate, context.size());
-        for (std::size_t i = 0; i < source_rate.size(); ++i)
-        {
-            source_rate[i] += boundary_rate.values[i];
-        }
-        return source_rate;
+        return composed_source(stage_time, context);
     };
     return advance_moments_with_source(moments, t, time_step, rhs, options);
 }

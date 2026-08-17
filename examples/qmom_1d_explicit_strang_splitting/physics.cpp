@@ -22,13 +22,13 @@ qmomkit::PhaseSpaceVelocity advection_velocity()
 
 qmomkit::MomentSource variance_injection_source()
 {
-    return [](const double time, const std::vector<double>& current_moments)
+    return [](const double time, const qmomkit::QmomSourceContext& context)
     {
         constexpr double source_start = 0.16;
         constexpr double source_end = 0.25;
         constexpr double variance_injection_rate = 12.0;
 
-        std::vector<double> derivative(current_moments.size(), 0.0);
+        std::vector<double> derivative(context.size(), 0.0);
         if (time >= source_start && time < source_end && derivative.size() > 2)
         {
             derivative[2] = variance_injection_rate;

@@ -94,7 +94,7 @@ void test_zero_advection_and_zero_source_preserve_qmom()
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(
         state, 2, 0.0, 0.4, [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); },
-        [](double, const std::vector<double>& state) { return std::vector<double>(state.size(), 0.0); }, options);
+        [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>(context.size(), 0.0); }, options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     assert_vector_near(result.state.moments(), moments, 1.0e-12);
@@ -114,12 +114,12 @@ void test_combined_advection_and_source_qmom_analytical()
         QMOMKIT_VERIFY_CHECK(xi.size() == 1);
         return std::vector<double>{shift_rate};
     };
-    const auto source = [](double, const std::vector<double>& state)
+    const auto source = [](double, const qmomkit::QmomSourceContext& context)
     {
-        std::vector<double> rhs(state.size(), 0.0);
-        for (std::size_t i = 0; i < state.size(); ++i)
+        std::vector<double> rhs(context.size(), 0.0);
+        for (std::size_t i = 0; i < context.size(); ++i)
         {
-            rhs[i] = source_rate * state[i];
+            rhs[i] = source_rate * context.value(i);
         }
         return rhs;
     };

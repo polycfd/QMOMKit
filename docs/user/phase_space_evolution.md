@@ -185,13 +185,14 @@ qmomkit::MomentSource source =
 ```
 
 The returned vector must have the same size as the current stage vector.
-`context.moment(order)` returns a tracked stage value directly. During QMOM
-phase-space source evolution, it lazily evaluates an untracked order from a
-quadrature reconstructed from the same SSP-RK stage. QMOMKit does not know what
-each component means; the ordering must match the moment ordering used by your
-QMOM setup. CQMOM phase-space evolution uses the context-specific callback
-below so multidimensional source terms can follow the configured CQMOM moment
-layout.
+`context.value(order)` accesses a tracked stage value directly. During QMOM
+phase-space source evolution, `context.moment(order)` can lazily evaluate an
+untracked order from a quadrature reconstructed from the same SSP-RK stage.
+That is available only where QMOM reconstruction metadata is present. QMOMKit
+does not know what each component means; the ordering must match the moment
+ordering used by your QMOM setup. CQMOM phase-space evolution uses the
+context-specific callback below so multidimensional source terms can follow the
+configured CQMOM moment layout.
 
 Use the advanced `advance_moments_with_source(...)` operation when you want to
 advance only the moment-source part of a workflow:
@@ -206,6 +207,9 @@ if (!update.ok())
     return 1;
 }
 ```
+
+Generic source-only updates do not carry reconstruction metadata. An untracked
+`context.moment(...)` request is therefore rejected.
 
 After a moment-source update, reconstruct quadrature before applying another
 phase-space advection step:
@@ -256,10 +260,12 @@ const qmomkit::QmomMomentSourceRateResult rates =
     qmomkit::evaluate_qmom_moment_source_rates(time, moments, source, boundary);
 ```
 
-It evaluates `source(time, moments) + boundary(time, moments)` without
-advancing time or reconstructing a quadrature; the source callback runs before
-the boundary callback. Use `advance_moments_with_source(...)` when QMOMKit
-should perform SSP-RK3 moment-source integration, or the phase-space evolution helpers when it
+It evaluates `source(time, context) + boundary(time, context.values())`
+without advancing time or reconstructing a quadrature; the source callback runs
+before the boundary callback. Instantaneous-rate APIs do not carry
+reconstruction metadata, so they reject untracked `context.moment(...)`
+requests. Use `advance_moments_with_source(...)` when QMOMKit should perform
+SSP-RK3 moment-source integration, or the phase-space evolution helpers when it
 should also own the configured operator-splitting sequence.
 
 For CQMOM, use `CqmomMomentBoundaryContribution`. It receives the same
@@ -386,7 +392,10 @@ Use:
 - `context.hierarchy()` for the CQMOM hierarchy associated with the state.
 
 Source callbacks do not need to reconstruct CQMOM quadrature manually to
-obtain an untracked raw moment.
+obtain an untracked raw moment during phase-space source evolution, where the
+CQMOM reconstruction metadata is available. Generic source-only and
+instantaneous-rate APIs do not carry that metadata and reject untracked
+`context.moment(...)` requests.
 
 The returned source values correspond to the context ordering. For entry `i`,
 compute the derivative for `context.index(i)` from the current state and write

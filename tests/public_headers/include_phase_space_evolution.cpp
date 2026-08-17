@@ -99,7 +99,7 @@ using CqmomBatchBoundaryPhaseSpaceEvolutionBatch = std::vector<qmomkit::CqmomPha
     const qmomkit::BatchCqmomMomentBoundaryContribution&, const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
 
 static_assert(std::is_same_v<qmomkit::BatchPhaseSpaceVelocity, std::function<std::vector<double>(std::size_t, double, const std::vector<double>&)>>);
-static_assert(std::is_same_v<qmomkit::BatchMomentSource, std::function<std::vector<double>(std::size_t, double, const std::vector<double>&)>>);
+static_assert(std::is_same_v<qmomkit::BatchMomentSource, std::function<std::vector<double>(std::size_t, double, const qmomkit::QmomSourceContext&)>>);
 static_assert(std::is_same_v<qmomkit::BatchMomentBoundaryContribution,
                              std::function<qmomkit::MomentBoundaryRate(std::size_t, double, const std::vector<double>&)>>);
 static_assert(std::is_same_v<qmomkit::BatchCqmomMomentSource,

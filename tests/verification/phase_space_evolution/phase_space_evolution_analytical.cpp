@@ -583,19 +583,19 @@ std::vector<double> commuting_velocity(double, const std::vector<double>& xi)
     return {commuting_a * xi[0]};
 }
 
-std::vector<double> commuting_source(double, const std::vector<double>& moments)
+std::vector<double> commuting_source(double, const qmomkit::QmomSourceContext& context)
 {
-    std::vector<double> rhs(moments.size(), 0.0);
-    for (std::size_t order = 1; order < moments.size(); ++order)
+    std::vector<double> rhs(context.size(), 0.0);
+    for (std::size_t order = 1; order < context.size(); ++order)
     {
-        rhs[order] = -commuting_lambda_scale * static_cast<double>(order) * moments[order];
+        rhs[order] = -commuting_lambda_scale * static_cast<double>(order) * context.value(order);
     }
     return rhs;
 }
 
-std::vector<double> zero_qmom_source(double, const std::vector<double>& moments)
+std::vector<double> zero_qmom_source(double, const qmomkit::QmomSourceContext& context)
 {
-    return std::vector<double>(moments.size(), 0.0);
+    return std::vector<double>(context.size(), 0.0);
 }
 
 qmomkit::MomentBoundaryRate qmom_boundary_injection_removal(double, const std::vector<double>& moments)
@@ -627,9 +627,9 @@ std::vector<double> qmom_constant_source_values(const std::size_t count)
     return rate;
 }
 
-std::vector<double> qmom_constant_source(double, const std::vector<double>& moments)
+std::vector<double> qmom_constant_source(double, const qmomkit::QmomSourceContext& context)
 {
-    return qmom_constant_source_values(moments.size());
+    return qmom_constant_source_values(context.size());
 }
 
 std::vector<double> noncommuting_exact(const std::vector<double>& initial, const double elapsed)
@@ -675,12 +675,12 @@ std::vector<double> noncommuting_velocity(double, const std::vector<double>&)
     return {noncommuting_b};
 }
 
-std::vector<double> noncommuting_source(double, const std::vector<double>& moments)
+std::vector<double> noncommuting_source(double, const qmomkit::QmomSourceContext& context)
 {
-    std::vector<double> rhs(moments.size(), 0.0);
-    for (std::size_t order = 1; order < moments.size(); ++order)
+    std::vector<double> rhs(context.size(), 0.0);
+    for (std::size_t order = 1; order < context.size(); ++order)
     {
-        rhs[order] = -noncommuting_gamma * static_cast<double>(order) * moments[order];
+        rhs[order] = -noncommuting_gamma * static_cast<double>(order) * context.value(order);
     }
     return rhs;
 }
@@ -1398,9 +1398,9 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
                          rk_minimum.diagnostics.total_node_advection_rejected_steps > 0 && rk_minimum.diagnostics.total_node_advection_steps > 0;
     verification.runs.push_back(rk_summary);
 
-    const auto nonrealizable_source = [](double, const std::vector<double>& moments)
+    const auto nonrealizable_source = [](double, const qmomkit::QmomSourceContext& context)
     {
-        std::vector<double> rates(moments.size(), 0.0);
+        std::vector<double> rates(context.size(), 0.0);
         if (!rates.empty())
         {
             rates.front() = -20.0;
@@ -1456,10 +1456,10 @@ VerificationResult run_qmom_phase_space_evolution_inversion_failures(const std::
     }
 
     bool source_called = false;
-    const qmomkit::MomentSource recording_source = [&source_called](double, const std::vector<double>& moments)
+    const qmomkit::MomentSource recording_source = [&source_called](double, const qmomkit::QmomSourceContext& context)
     {
         source_called = true;
-        return std::vector<double>(moments.size(), 0.0);
+        return std::vector<double>(context.size(), 0.0);
     };
     std::vector<double> one_node_moments(input.size(), 0.0);
     one_node_moments.front() = 1.0;

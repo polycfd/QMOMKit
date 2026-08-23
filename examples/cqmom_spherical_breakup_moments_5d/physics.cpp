@@ -22,6 +22,9 @@ constexpr double gas_u = 2.0;
 constexpr double gas_v = 1.5;
 constexpr double gas_w = 0.8;
 constexpr double breakup_rate = 20.0;
+constexpr double reference_diameter = 1.0e-4;
+constexpr double breakup_temperature_relaxation = 1.0e-2;
+constexpr double reference_volume = pi * reference_diameter * reference_diameter * reference_diameter / 6.0;
 
 double diameter_from_volume(const double volume)
 {
@@ -30,6 +33,24 @@ double diameter_from_volume(const double volume)
         throw std::invalid_argument("Particle volume must remain positive.");
     }
     return std::cbrt(6.0 * volume / pi);
+}
+
+double binomial_coefficient(const std::size_t n, const std::size_t k)
+{
+    double coefficient = 1.0;
+    for (std::size_t factor = 1; factor <= k; ++factor)
+    {
+        coefficient *= static_cast<double>(n - k + factor) / static_cast<double>(factor);
+    }
+    return coefficient;
+}
+
+double daughter_temperature(const double daughter_volume, const double parent_temperature)
+{
+    // V/S is the spherical thermal length and scales as V^(1/3). The small
+    // event-local relaxation models redistribution over the new daughter surface.
+    const double relaxation = breakup_temperature_relaxation * std::cbrt(daughter_volume / reference_volume);
+    return parent_temperature + relaxation * (gas_temperature - parent_temperature);
 }
 
 } // namespace
@@ -67,16 +88,44 @@ qmomkit::CqmomMomentSource breakup_source()
             throw std::invalid_argument("The thermal breakup source requires phase space (V,T,u,v,w).");
         }
         std::vector<double> rates(context.size(), 0.0);
+        const double daughter_temperature_factor = breakup_temperature_relaxation * std::cbrt(0.5 / reference_volume);
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
             const qmomkit::MultiIndex& order = context.index(entry);
-            const double p = static_cast<double>(order[0]);
-            const double daughter_factor = std::pow(2.0, 1.0 - p) - 1.0;
-            if (daughter_factor == 0.0)
+            const std::size_t p = order[0];
+            const std::size_t q = order[1];
+            double daughter_temperature_moment = 0.0;
+            for (std::size_t temperature_difference_order = 0; temperature_difference_order <= q; ++temperature_difference_order)
             {
-                continue;
+                const double volume_factor = std::pow(daughter_temperature_factor, static_cast<double>(temperature_difference_order));
+                for (std::size_t parent_temperature_order = 0; parent_temperature_order <= temperature_difference_order; ++parent_temperature_order)
+                {
+                    const std::size_t temperature_order = q - temperature_difference_order + parent_temperature_order;
+                    const double coefficient =
+                        binomial_coefficient(q, temperature_difference_order) *
+                        binomial_coefficient(temperature_difference_order, parent_temperature_order) * volume_factor *
+                        std::pow(gas_temperature, static_cast<double>(temperature_difference_order - parent_temperature_order)) *
+                        (parent_temperature_order % 2 == 0 ? 1.0 : -1.0);
+
+                    if (temperature_difference_order % 3 == 0)
+                    {
+                        daughter_temperature_moment +=
+                            coefficient * context.moment({p + temperature_difference_order / 3, temperature_order, order[2], order[3], order[4]});
+                    }
+                    else
+                    {
+                        // The V^(1/3) daughter-temperature factor is not in the
+                        // transported integer moment set, so obtain it from the
+                        // source-stage reconstructed quadrature.
+                        daughter_temperature_moment +=
+                            coefficient *
+                            context.generalized_moment({static_cast<double>(p) + static_cast<double>(temperature_difference_order) / 3.0,
+                                                        static_cast<double>(temperature_order), static_cast<double>(order[2]),
+                                                        static_cast<double>(order[3]), static_cast<double>(order[4])});
+                    }
+                }
             }
-            rates[entry] = breakup_rate * daughter_factor * context.value(entry);
+            rates[entry] = breakup_rate * (std::pow(2.0, 1.0 - static_cast<double>(p)) * daughter_temperature_moment - context.moment(order));
         }
         return qmomkit::CqmomMomentRate{std::move(rates)};
     };
@@ -105,6 +154,7 @@ void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, const double interv
                 continue;
             }
             parent[0] *= 0.5;
+            parent[1] = daughter_temperature(parent[0], parent[1]);
             const double remaining_after_event = remaining - event_time;
             pending.push_back({parent, remaining_after_event});
             pending.push_back({std::move(parent), remaining_after_event});

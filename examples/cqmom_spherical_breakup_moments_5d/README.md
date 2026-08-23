@@ -45,14 +45,15 @@ d(V)=\left(\frac{6V}{\pi}\right)^{1/3}.
 $$
 
 The fractional power of $V$ is evaluated directly at quadrature nodes by the
-continuous drag and heat-transfer callback. The constant-rate breakup source
-uses only tracked integer raw moments, avoiding artificial generalized-moment
-queries.
+continuous drag and heat-transfer callback. Breakup additionally uses a small
+volume-dependent temperature redistribution, so its moment source explicitly
+requests derived fractional-volume moments through
+`context.generalized_moment(...)`.
 
 ## Deterministic sampled initialization
 
-Both executables first regenerate 16,000 samples from the local
-independent-product initialization using seed `2026082311`. The CQMOM path
+Both executables first regenerate 10,000 samples from the local
+independent-product initialization. The CQMOM path
 uses the complete raw tensor estimated from this population with
 `with_initial_moments(...)`; the MC path evolves the population itself. They
 therefore start from the same finite-sample population rather than separately
@@ -132,22 +133,31 @@ $$
 
 Thus $\beta_0$ directly means breakup events per particle per unit time, with
 no size, velocity, slip, or empirical-correlation scaling. Each event replaces
-a parent by two daughters with $V'=V/2$; temperature and velocity are inherited
-exactly, and there is no recoil.
+a parent by two daughters with $V_d=V_p/2$ and no recoil; their velocities are
+inherited exactly.
 
-The source of $M_{p,q,r,s,t}$ is
+The daughter temperature makes a deliberately small, event-local relaxation
+toward the carrier temperature:
 
 $$
-\dot M_{p,q,r,s,t}^{\mathrm{br}}
-=\beta_0\left(2^{1-p}-1\right)M_{p,q,r,s,t}.
+T_d=T_p+\varepsilon\left(\frac{V_d}{V_{\mathrm{ref}}}\right)^{1/3}(T_g-T_p),
+\qquad \varepsilon=0.01,
 $$
 
-The factor $2^{1-p}-1$ is the exact daughter-minus-parent factor. This is a
-moment-based source: it reads each tracked raw moment directly and does not
-call `for_each_terminal_node(...)`. For $p=1$, the factor is zero, so total
-volume is exactly conserved by breakup. The inherited daughter velocity and
-temperature likewise conserve volume-weighted momentum and volume-weighted
-temperature under breakup alone. Starting from $N_0$,
+where $V_{\mathrm{ref}}$ is the volume of a $100\ \mu\mathrm{m}$ sphere. For a
+sphere, $V/S=d/6\propto V^{1/3}$ is the inverse surface-to-volume thermal
+length. The rule uses that normalized length as a simple surface-related
+redistribution scale; it is not a fragmentation submodel.
+
+For transported $M_{p,q,r,s,t}$, expanding $T_d^q$ introduces moments with
+volume order $p+k/3$. Integer cases are read with `context.moment(...)`; the
+non-integer cases are explicitly requested from the source-stage reconstructed
+quadrature with `context.generalized_moment(...)`. The breakup source therefore
+remains moment-based and does not call `for_each_terminal_node(...)`, while
+showing how QMOMKit supplies fractional moments that are absent from the
+transported integer moment set. For $q=0$, this reduces to the usual
+$\beta_0(2^{1-p}-1)M_{p,0,r,s,t}$ factor, so total volume remains exactly
+conserved. Starting from $N_0$,
 
 $$
 N(t)=N_0\exp(\beta_0t),

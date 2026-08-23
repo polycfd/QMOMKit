@@ -1,16 +1,22 @@
+#include "physics.hpp"
 #include "qmomkit/qmomkit.hpp"
-#include "thermal_particles.hpp"
+#include "sampling.hpp"
+#include "utilities.hpp"
 
 #include <algorithm>
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
 int main()
 {
     using namespace cqmom_thermal_spherical_breakup;
+    constexpr double initial_time = 0.0;
+    constexpr double final_time = 10.0e-2;
+    constexpr double time_step = 10.0e-4;
     try
     {
         const std::filesystem::path configuration_file = "configuration.qmom";
@@ -37,7 +43,10 @@ int main()
         }
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
         const qmomkit::RawMomentTensor mc_initial = ensemble_moments(sampled->sampling.ensemble, particle_weight, sampled->moments.moments.extents);
-        std::cout << "initial_sample_moment_max_abs_difference=" << maximum_tensor_difference(sampled->moments.moments, mc_initial) << '\n';
+        if (maximum_tensor_difference(sampled->moments.moments, mc_initial) != 0.0)
+        {
+            throw std::runtime_error("The sampled CQMOM and Monte Carlo initial moments differ.");
+        }
 
         const auto sampled_case = qmomkit::config::with_initial_moments(configured.value(), sampled->moments.moments);
         if (!sampled_case)
@@ -54,11 +63,11 @@ int main()
 
         qmomkit::CqmomState state = sampled_case.value().initial_state();
         qmomkit::CqmomQuadrature quadrature = initial.quadrature;
-        const qmomkit::RawMomentRequest request = diagnostic_request();
-        print_diagnostics("CQMOM initial", diagnostics(qmomkit::reconstruct_raw_moments(quadrature, request)));
+        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(sampled_case.value().hierarchy());
+        const qmomkit::RawMomentRequest request{layout.required_indices};
+        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(quadrature, request);
 
-        std::size_t generalized_requests = 0;
-        const qmomkit::CqmomMomentSource source = breakup_source(generalized_requests);
+        const qmomkit::CqmomMomentSource source = breakup_source();
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> history{{initial_time, quadrature}};
         const double output_interval = output.value().interval.value_or(final_time - initial_time);
         double time = initial_time;
@@ -84,8 +93,7 @@ int main()
                 }
             }
         }
-        print_diagnostics("CQMOM final", diagnostics(qmomkit::reconstruct_raw_moments(quadrature, request)));
-        std::cout << "fractional_generalized_moment_requests=" << generalized_requests << '\n';
+        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(quadrature, request);
 
         if (output.value().write_moments || output.value().write_quadrature)
         {
@@ -105,6 +113,24 @@ int main()
             for (const auto& [sample_time, sample_quadrature] : history)
             {
                 writer.write(sample_time, sample_quadrature);
+            }
+        }
+
+        std::cout << "5D CQMOM thermal spherical-particle breakup example\n";
+        std::cout << "phase-space ordering: (V,T,u,v,w)\n";
+        print_selected_moments("Initial tracked moments:", initial_moments);
+        std::cout << '\n';
+        print_selected_moments("Final tracked moments:", final_moments);
+        if (output.value().write_moments || output.value().write_quadrature)
+        {
+            std::cout << "\nOutputs written to:\n";
+            if (output.value().write_moments)
+            {
+                std::cout << (output.value().directory / "moment_history.txt").string() << '\n';
+            }
+            if (output.value().write_quadrature)
+            {
+                std::cout << (output.value().directory / "quadrature_history.txt").string() << '\n';
             }
         }
     }

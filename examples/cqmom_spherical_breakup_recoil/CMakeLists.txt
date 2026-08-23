@@ -4,10 +4,16 @@ project(QMOMKitCqmomSphericalBreakupRecoilExample LANGUAGES CXX)
 
 find_package(QMOMKitMonteCarlo CONFIG REQUIRED)
 
-add_executable(cqmom_spherical_breakup_recoil_example main.cpp spherical_particles.cpp)
+set(CQMOM_SPHERICAL_BREAKUP_RECOIL_SOURCES
+    physics.cpp
+    sampling.cpp
+    utilities.cpp
+)
+
+add_executable(cqmom_spherical_breakup_recoil_example main.cpp ${CQMOM_SPHERICAL_BREAKUP_RECOIL_SOURCES})
 target_link_libraries(cqmom_spherical_breakup_recoil_example PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo)
 
-add_executable(cqmom_spherical_breakup_recoil_mc_example main_mc.cpp spherical_particles.cpp)
+add_executable(cqmom_spherical_breakup_recoil_mc_example main_mc.cpp ${CQMOM_SPHERICAL_BREAKUP_RECOIL_SOURCES})
 target_link_libraries(cqmom_spherical_breakup_recoil_mc_example PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo)
 
 configure_file(configuration.qmom configuration.qmom COPYONLY)

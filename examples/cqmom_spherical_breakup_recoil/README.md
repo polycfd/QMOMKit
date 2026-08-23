@@ -1,37 +1,212 @@
 # 4D spherical-particle breakup with recoil
 
-This standalone pair compares CQMOM with a direct Monte Carlo reference for a
-homogeneous spherical-particle population in phase space `(d,u,v,w)`. Both use
-Schiller-Naumann drag in a constant carrier velocity, equal-volume binary
-breakup, and the same deterministic sampled initial population.
+## Purpose and workflows
 
-The CQMOM source deliberately evaluates every parent-loss/two-daughter-birth
-contribution through `CqmomSourceContext::for_each_terminal_node(...)`. The
-daughter pair has equal and opposite Gaussian recoil components, so its
-conditional expected raw moments are used in the terminal-quadrature source.
-The MC companion samples the same symmetric recoil pair at each event.
+This standalone example evolves a spatially homogeneous population of spherical
+particles in CQMOM and compares it with a direct Monte Carlo (MC) calculation.
+It demonstrates CQMOM phase-space advection coupled by Strang splitting to a
+breakup source evaluated from the reconstructed terminal quadrature. The source
+deliberately uses `CqmomSourceContext::for_each_terminal_node(...)`, rather
+than a moment closure.
 
-`configuration.qmom` controls the fixed hierarchy `(2,2,2,2)`, conditioning
-order, solver policy, Strang splitting, node-advection tolerances, and output.
-The application constants set a short `0.02 s` horizon and `0.001 s` macro
-step. The smaller-than-initially-targeted diameter count keeps the fixed-branch
-source evolution realizable for this lightweight sampled case.
+The directory contains two independent executables:
 
-Both executables regenerate the same 16,000-particle ensemble using seed
-`2026082301`; they print the maximum difference between the CQMOM input tensor
-and moments recomputed from that ensemble. The MC breakup stream uses seed
-`2026082302`. Reported diagnostics are number density, total particle volume,
-volume-weighted momentum, and volume-weighted `u^2`, which exposes recoil.
+- `cqmom_spherical_breakup_recoil_example` samples an initial population,
+  initializes a `CqmomCase` from its raw moments, reconstructs CQMOM, and
+  advances the CQMOM state.
+- `cqmom_spherical_breakup_recoil_mc_example` regenerates those same samples
+  and advances the particles directly with stochastic binary breakup.
 
-Build against installed QMOMKit and QMOMKitMonteCarlo:
+The MC run is a finite-sample reference, not an expectation of bitwise
+agreement with CQMOM. It samples individual breakup events and recoil vectors,
+while the CQMOM source uses their conditional expected contribution at terminal
+quadrature nodes.
+
+## Phase space and raw moments
+
+The phase-space coordinate order is
+
+$$
+\boldsymbol{\xi}=(d,u,v,w),
+$$
+
+where $d$ is diameter and $(u,v,w)$ is particle velocity. The raw,
+unnormalized number-density moments are
+
+$$
+M_{p,q,r,s} =
+\int d^p u^q v^r w^s f(d,u,v,w)
+\,\mathrm{d}d\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w.
+$$
+
+Thus $M_{0,0,0,0}$ is total number density; QMOMKit does not normalize it. For
+spherical particles, total particle volume is
+
+$$
+\mathcal V = \frac{\pi}{6}M_{3,0,0,0}.
+$$
+
+The same coordinate order is used by the configuration, sampled ensemble,
+CQMOM hierarchy, source callback, and output files.
+
+## Deterministic sampled initialization
+
+Both executables first construct the same finite population: 16,000 samples
+from the local independent-product initialization, with seed `2026082301`.
+The CQMOM executable passes the raw tensor estimated from those samples to
+`with_initial_moments(...)`; the MC executable uses the samples themselves.
+Consequently, the paths begin from the identical finite-sample population, not
+merely from equal analytical distributions. Each executable verifies this
+identity internally before advancing.
+
+The configured number density is $n_0=1$. The independent coordinates are
+
+$$
+\begin{aligned}
+d &\sim \operatorname{LogNormal}(-9.210340371976184,0.12^2),\\
+u &\sim \mathcal N(0.2,0.08^2),\\
+v &\sim \mathcal N(-0.1,0.08^2),\\
+w &\sim \mathcal N(0.05,0.08^2).
+\end{aligned}
+$$
+
+Every initial sample represents the constant statistical weight $n_0/N$. The
+independent MC event stream uses its own deterministic seed, `2026082302`.
+
+## Continuous phase-space evolution: Schiller–Naumann drag
+
+The carrier gas is uniform and has velocity
+
+$$
+\boldsymbol U_g=(2.0,1.5,0.8)\ \mathrm{m\,s^{-1}},
+$$
+
+density $\rho_g=1.2\ \mathrm{kg\,m^{-3}}$, and dynamic viscosity
+$\mu_g=1.8\times10^{-5}\ \mathrm{Pa\,s}$. The particles have material density
+$\rho_p=2000\ \mathrm{kg\,m^{-3}}$. With $\boldsymbol s=\boldsymbol U_g-\boldsymbol u$,
+
+$$
+\mathrm{Re}=\frac{\rho_g d|\boldsymbol s|}{\mu_g}, \qquad
+C_D=\frac{24}{\mathrm{Re}}\left(1+0.15\,\mathrm{Re}^{0.687}\right).
+$$
+
+The phase-space velocity callback returns zero diameter rate and the
+componentwise drag acceleration
+
+$$
+\frac{\mathrm{d}\boldsymbol u}{\mathrm{d}t}
+= \frac{3\rho_g}{4\rho_p d}C_D|\boldsymbol s|\boldsymbol s.
+$$
+
+Its low-Reynolds-number limit is evaluated directly as the Stokes response.
+This application-specific callback is supplied to QMOMKit's generic
+phase-space-advection operation.
+
+## Binary breakup and recoil
+
+Particles undergo constant-rate binary breakup,
+
+$$
+\beta=\beta_0, \qquad \beta_0=20\ \mathrm{s^{-1}}.
+$$
+
+Here $\beta_0$ directly means breakup events per particle per unit time; it
+has no size, velocity, slip, or empirical-correlation scaling. A parent
+produces two equal-volume daughters,
+
+$$
+d' = 2^{-1/3}d.
+$$
+
+For each daughter pair, the velocity is
+
+$$
+\boldsymbol u'_{\pm}=\boldsymbol u\pm\boldsymbol\eta,
+\qquad
+\eta_i\sim\mathcal N(0,\sigma_r^2),
+\qquad \sigma_r=10^{-3}\ \mathrm{m\,s^{-1}},
+$$
+
+with independent components. In the CQMOM source, the daughter monomial is
+the corresponding Gaussian expectation. For every requested integer raw
+moment, the source evaluates the parent loss and two-daughter birth term at
+each node yielded by `for_each_terminal_node(...)` and sums with its terminal
+weight. It does not invoke a moment-based breakup closure.
+
+The direct MC counterpart samples the same constant-rate event process and
+symmetric pair at each event, allowing later daughter events within the source
+interval. Starting from $N_0$, breakup alone gives
+
+$$
+N(t)=N_0\exp(\beta_0t).
+$$
+
+Over the $0.1\ \mathrm{s}$ run, the expected number-density increase is
+$\exp(2)\approx7.39$. Breakup alone conserves total volume and conserves
+volume-weighted momentum because the two recoils cancel. Its velocity-square
+diagnostic captures the additional recoil spread. Carrier-gas drag acts
+continuously, so it can change the population momentum over the full coupled
+run.
+
+## CQMOM configuration
+
+`configuration.qmom` is the source of standard QMOMKit numerical behavior:
+
+- phase-space names are `d, u, v, w`;
+- fixed node counts are `(2,2,2,2)` with conditioning order `(0,1,2,3)`;
+- both `adaptive_branch_counts` and `[qmom] adaptive` are `false`;
+- lean moment storage, basic diagnostics, and the automatic Vandermonde solver
+  are selected;
+- the phase-space/moment-source composition uses Strang splitting;
+- node advection uses adaptive RK23 with the listed tolerances and step bounds;
+- output cadence and enabled moment/quadrature files come from `[output]`.
+
+The application runs from $t=0$ to $0.1\ \mathrm{s}$ with a macro step of
+$0.001\ \mathrm{s}$. These time controls and the physical constants are local
+example choices; hierarchy and standard numerical options remain in the
+configuration file.
+
+## Build and run
+
+Install QMOMKit and the optional QMOMKitMonteCarlo companion into a common
+prefix, then configure this standalone consumer:
 
 ```bash
-cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/install
+cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_INSTALL_PREFIX="$PWD/install"
 cmake --build build
-cd build
+cmake --install build
+
+cmake -S tools/monte_carlo -B tools/monte_carlo/build \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_PREFIX_PATH="$PWD/install" \
+    -DCMAKE_INSTALL_PREFIX="$PWD/install"
+cmake --build tools/monte_carlo/build
+cmake --install tools/monte_carlo/build
+
+cmake -S examples/cqmom_spherical_breakup_recoil \
+    -B examples/cqmom_spherical_breakup_recoil/build \
+    -DCMAKE_PREFIX_PATH="$PWD/install"
+cmake --build examples/cqmom_spherical_breakup_recoil/build
+
+cd examples/cqmom_spherical_breakup_recoil/build
 ./cqmom_spherical_breakup_recoil_example
 ./cqmom_spherical_breakup_recoil_mc_example
 ```
 
-The CQMOM moment/quadrature histories and the MC diagnostic history are written
-under `output/` when enabled in the local configuration.
+## Output and interpretation
+
+Both executables print the initial and final tracked raw moments in the CQMOM
+transported-moment order. The console follows the normal QMOMKit example style:
+it prints the first twelve tracked moments as `M[p,q,r,s]` and directs the
+reader to the complete history when more are tracked. The CQMOM and MC labels
+and ordering are identical, so their values can be compared directly.
+
+When enabled, the CQMOM executable writes `output/moment_history.txt` and
+`output/quadrature_history.txt`. The MC executable writes the corresponding
+selected raw moments, in the same order, to `output/moment_history_mc.txt`.
+Compare matching rows at equal output times while allowing finite-MC event and
+recoil sampling variability. For example, $M_{3,0,0,0}$ is proportional to
+total volume and remains constant; the number-density moment rises under
+breakup.

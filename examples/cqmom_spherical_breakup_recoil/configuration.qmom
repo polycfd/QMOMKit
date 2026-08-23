@@ -1,18 +1,8 @@
 [phase_space]
 names = d, u, v, w
-node_counts = 2, 2, 2, 2
+node_counts = 3, 3, 3, 3
 conditioning_order = 0, 1, 2, 3
-adaptive_branch_counts = false
-
-[qmom]
-adaptive = false
-
-[cqmom]
-moment_storage = lean
-diagnostic_level = basic
-
-[vandermonde]
-solver = automatic
+adaptive_branch_counts = true
 
 [time_integration]
 scheme = strang

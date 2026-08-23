@@ -1,18 +1,25 @@
 #include "monte_carlo/evolution.hpp"
+#include "physics.hpp"
 #include "qmomkit/configuration.hpp"
-#include "thermal_particles.hpp"
+#include "qmomkit/output.hpp"
+#include "sampling.hpp"
+#include "utilities.hpp"
 
 #include <algorithm>
 #include <exception>
 #include <filesystem>
-#include <fstream>
-#include <iomanip>
 #include <iostream>
+#include <optional>
 #include <random>
+#include <stdexcept>
 
 int main()
 {
     using namespace cqmom_thermal_spherical_breakup;
+    constexpr unsigned long long breakup_seed = 2026082312ULL;
+    constexpr double initial_time = 0.0;
+    constexpr double final_time = 0.1;
+    constexpr double time_step = 0.001;
     try
     {
         const std::filesystem::path configuration_file = "configuration.qmom";
@@ -36,26 +43,22 @@ int main()
         qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(ensemble.size());
         qmomkit::RawMomentTensor moments = ensemble_moments(ensemble, particle_weight, sampled->moments.moments.extents);
-        std::cout << "initial_sample_moment_max_abs_difference=" << maximum_tensor_difference(sampled->moments.moments, moments) << '\n';
-        print_diagnostics("MC initial", diagnostics(moments));
+        if (maximum_tensor_difference(sampled->moments.moments, moments) != 0.0)
+        {
+            throw std::runtime_error("The sampled CQMOM and Monte Carlo initial moments differ.");
+        }
+        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(configured.value().hierarchy());
+        const qmomkit::RawMomentRequest request{layout.required_indices};
+        const qmomkit::SelectedRawMomentResult initial_moments = select_moments(moments, request);
 
-        std::ofstream history;
+        std::optional<qmomkit::MomentWriter> moment_history_writer;
         if (output.value().write_moments)
         {
             ensure_output_directory(output.value().directory);
-            history.open(output.value().directory / "diagnostics_mc.txt");
-            history << std::setprecision(17)
-                    << "# time N volume volume_temperature volume_momentum_u volume_momentum_v volume_momentum_w volume_u2\n";
+            moment_history_writer.emplace(
+                qmomkit::MomentWriter::for_cqmom(output.value().directory / "moment_history_mc.txt", moments.extents, request.indices));
+            moment_history_writer->write(initial_time, moments);
         }
-        const auto write_history = [&history](const double time, const Diagnostics& values)
-        {
-            if (history)
-            {
-                history << time << ' ' << values.number_density << ' ' << values.volume << ' ' << values.volume_temperature << ' '
-                        << values.momentum_u << ' ' << values.momentum_v << ' ' << values.momentum_w << ' ' << values.volume_u_square << '\n';
-            }
-        };
-        write_history(initial_time, diagnostics(moments));
 
         std::mt19937_64 generator(breakup_seed);
         const qmomkit::AdaptiveRkOptions advection;
@@ -82,15 +85,27 @@ int main()
             if (time + 1.0e-14 >= next_output || time >= final_time - 1.0e-14)
             {
                 moments = ensemble_moments(ensemble, particle_weight, sampled->moments.moments.extents);
-                write_history(time, diagnostics(moments));
+                if (moment_history_writer.has_value())
+                {
+                    moment_history_writer->write(time, moments);
+                }
                 while (next_output <= time + 1.0e-14)
                 {
                     next_output += output_interval;
                 }
             }
         }
-        print_diagnostics("MC final", diagnostics(moments));
-        std::cout << "final_particle_count=" << ensemble.size() << '\n';
+        const qmomkit::SelectedRawMomentResult final_moments = select_moments(moments, request);
+        std::cout << "5D direct Monte Carlo thermal spherical-particle breakup example\n";
+        std::cout << "phase-space ordering: (V,T,u,v,w)\n";
+        print_selected_moments("Initial tracked moments:", initial_moments);
+        std::cout << '\n';
+        print_selected_moments("Final tracked moments:", final_moments);
+        if (output.value().write_moments)
+        {
+            std::cout << "\nOutputs written to:\n";
+            std::cout << (output.value().directory / "moment_history_mc.txt").string() << '\n';
+        }
     }
     catch (const std::exception& error)
     {

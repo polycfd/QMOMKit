@@ -1,6 +1,6 @@
 [phase_space]
 names = V, T, u, v, w
-node_counts = 3, 3, 3, 3, 3
+node_counts = 4, 4, 4, 4, 4
 conditioning_order = 0, 1, 2, 3, 4
 adaptive_branch_counts = true
 

@@ -76,11 +76,6 @@ The paper quantities are:
   `M[1/3,1,0,0,0]`, and `M[4/3,1,0,0,0]`. This case demonstrates
   generalized-moment evaluation of fractional-volume moments.
 
-The two spherical-breakup cases use their copied `configuration.qmom` files,
-10,000 initialization samples, initialization seed `123`, breakup seed `321`,
-and end time `0.1`. Each target constructs that sampled population once, then
-uses it for both CQMOM initialization and the MC reference. Their comparison
-files contain raw moments only; no normalization is applied.
 
 NumPy and Matplotlib are required to produce the figures:
 

@@ -17,6 +17,8 @@ constexpr double particle_density = 2000.0;
 constexpr double gas_u = 2.0;
 constexpr double gas_v = 1.5;
 constexpr double gas_w = 0.8;
+// These constants define the deliberately simple breakup/recoil mapping used
+// to demonstrate terminal-quadrature source closure.
 constexpr double breakup_rate = 20.0;
 constexpr double recoil_standard_deviation = 0.001;
 constexpr double recoil_reference_diameter = 1.0e-4;
@@ -70,6 +72,8 @@ double parent_monomial(const std::vector<double>& coordinates, const qmomkit::Mu
 
 double expected_daughter_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndex& order)
 {
+    // Diameter-scaled recoil couples the daughter velocity factors to parent
+    // diameter and therefore generates mixed diameter-velocity moments.
     const double standard_deviation = recoil_standard_deviation * coordinates[0] / recoil_reference_diameter;
     return integer_power(daughter_diameter_factor * coordinates[0], order[0]) *
            shifted_gaussian_moment(coordinates[1], standard_deviation, order[1]) *
@@ -108,6 +112,8 @@ qmomkit::CqmomMomentSource breakup_source()
             throw std::invalid_argument("The spherical recoil source requires phase space (d,u,v,w).");
         }
         std::vector<double> rates(context.size(), 0.0);
+        // The nonlinear daughter-state transformation is evaluated on terminal
+        // nodes because its mixed moments are outside the finite transport set.
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
             const qmomkit::MultiIndex& order = context.index(entry);
@@ -124,6 +130,8 @@ qmomkit::CqmomMomentSource breakup_source()
 
 void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, const double interval, std::mt19937_64& generator)
 {
+    // The MC reference samples the same binary daughter mapping as the CQMOM
+    // source; only the population representation differs.
     qmomkit::monte_carlo::Ensemble completed;
     completed.reserve(2 * ensemble.size());
     for (const qmomkit::monte_carlo::Sample& sample : ensemble)
@@ -150,6 +158,8 @@ void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, const double interv
             const double rv = recoil(generator);
             const double rw = recoil(generator);
             const double remaining_after_event = remaining - event_time;
+            // Opposite recoil vectors preserve the pair's volume-weighted
+            // momentum while adding recoil-induced velocity spread.
             pending.push_back({{d, parent[1] + ru, parent[2] + rv, parent[3] + rw}, remaining_after_event});
             pending.push_back({{d, parent[1] - ru, parent[2] - rv, parent[3] - rw}, remaining_after_event});
         }

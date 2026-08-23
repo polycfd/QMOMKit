@@ -2,12 +2,19 @@
 
 ## Purpose and workflows
 
-This standalone example evolves a spatially homogeneous population of spherical
-particles in CQMOM and compares it with a direct Monte Carlo (MC) reference.
-It demonstrates CQMOM phase-space advection coupled by Strang splitting to a
-breakup source evaluated from the reconstructed terminal quadrature. The source
-deliberately uses `CqmomSourceContext::for_each_terminal_node(...)`, rather
-than a moment closure.
+This standalone example is a QMOMKit capability demonstration, not a detailed
+physical breakup model. It evolves a spatially homogeneous population in phase
+space $(d,u,v,w)$ with CQMOM and compares it with a direct Monte Carlo (MC)
+reference solution. It demonstrates terminal-quadrature evaluation of a
+nonlinear breakup/recoil source: the source deliberately uses
+`CqmomSourceContext::for_each_terminal_node(...)`, rather than a moment
+closure.
+
+The breakup physics is intentionally simple: constant-rate binary breakup into
+equal-volume daughters. However, the diameter-dependent recoil introduces higher-order 
+moments that are not part of the transported finite moment set. The source is 
+therefore evaluated by applying the nonlinear daughter mapping directly to the terminal 
+quadrature, which provides a natural closure of the population transformation.
 
 The directory contains two independent executables:
 
@@ -129,11 +136,13 @@ $$
 
 with independent components and $d_\mathrm{ref}=10^{-4}\ \mathrm{m}$. Thus the
 recoil scale is proportional to the parent diameter, while the two daughters
-receive opposite recoil vectors. In the CQMOM source, the daughter monomial is
-the corresponding Gaussian expectation. For every requested integer raw
-moment, the source evaluates the parent loss and two-daughter birth term at
-each node yielded by `for_each_terminal_node(...)` and sums with its terminal
-weight.
+receive opposite recoil vectors. This deliberately nonlinear daughter-state
+mapping is the breakup physics used to demonstrate the closure mechanism; it
+is not intended as a detailed recoil model. In the CQMOM source, the daughter
+monomial is the corresponding Gaussian expectation. For every requested
+integer raw moment, the source evaluates the parent loss and two-daughter birth
+term at each node yielded by `for_each_terminal_node(...)` and sums with its
+terminal weight.
 
 Terminal quadrature is required for this source. A velocity factor of even
 Gaussian order $2k$ introduces $(d/d_\mathrm{ref})^{2k}$ into the integrand;

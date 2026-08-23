@@ -21,6 +21,8 @@ constexpr double particle_heat_capacity = 1000.0;
 constexpr double gas_u = 2.0;
 constexpr double gas_v = 1.5;
 constexpr double gas_w = 0.8;
+// These constants define the deliberately simple breakup temperature mapping
+// used to demonstrate generalized-moment source closure.
 constexpr double breakup_rate = 20.0;
 constexpr double reference_diameter = 1.0e-4;
 constexpr double breakup_temperature_relaxation = 1.0e-2;
@@ -47,8 +49,8 @@ double binomial_coefficient(const std::size_t n, const std::size_t k)
 
 double daughter_temperature(const double daughter_volume, const double parent_temperature)
 {
-    // V/S is the spherical thermal length and scales as V^(1/3). The small
-    // event-local relaxation models redistribution over the new daughter surface.
+    // The daughter differs from its parent through a small, surface-related
+    // temperature redistribution. For a sphere, V/S scales as V^(1/3).
     const double relaxation = breakup_temperature_relaxation * std::cbrt(daughter_volume / reference_volume);
     return parent_temperature + relaxation * (gas_temperature - parent_temperature);
 }
@@ -88,6 +90,9 @@ qmomkit::CqmomMomentSource breakup_source()
             throw std::invalid_argument("The thermal breakup source requires phase space (V,T,u,v,w).");
         }
         std::vector<double> rates(context.size(), 0.0);
+        // Expanding the daughter-temperature mapping leaves integer volume
+        // terms available through context.moment(...) and exposes fractional
+        // V^(1/3) terms that require generalized_moment(...).
         const double daughter_temperature_factor = breakup_temperature_relaxation * std::cbrt(0.5 / reference_volume);
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
@@ -109,14 +114,15 @@ qmomkit::CqmomMomentSource breakup_source()
 
                     if (temperature_difference_order % 3 == 0)
                     {
+                        // Integer volume powers are ordinary raw moments.
                         daughter_temperature_moment +=
                             coefficient * context.moment({p + temperature_difference_order / 3, temperature_order, order[2], order[3], order[4]});
                     }
                     else
                     {
-                        // The V^(1/3) daughter-temperature factor is not in the
-                        // transported integer moment set, so obtain it from the
-                        // source-stage reconstructed quadrature.
+                        // Fractional volume powers are derived from the
+                        // source-stage quadrature without changing the
+                        // transported integer moment layout.
                         daughter_temperature_moment +=
                             coefficient *
                             context.generalized_moment({static_cast<double>(p) + static_cast<double>(temperature_difference_order) / 3.0,
@@ -133,6 +139,8 @@ qmomkit::CqmomMomentSource breakup_source()
 
 void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, const double interval, std::mt19937_64& generator)
 {
+    // The MC reference samples the same binary daughter mapping as the CQMOM
+    // source; only the population representation differs.
     qmomkit::monte_carlo::Ensemble completed;
     completed.reserve(2 * ensemble.size());
     for (const qmomkit::monte_carlo::Sample& sample : ensemble)

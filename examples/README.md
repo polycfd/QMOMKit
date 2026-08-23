@@ -44,6 +44,8 @@ not mandatory for every phase-space evolution workflow.
 - `cqmom_condensing_droplets/`: 3D CQMOM phase-space evolution example for a condensing droplet population, with matched Monte Carlo initialization and a companion direct Monte Carlo evolution executable. Builds `cqmom_condensing_droplets_example` and `cqmom_condensing_droplets_mc_example`.
 - `cqmom_polydisperse_cavitation/`: 2D CQMOM phase-space evolution example for a polydisperse cavitation population, with matched Monte Carlo initialization and a companion direct Monte Carlo evolution executable.
 - `cqmom_non-spherical-particles/`: 5D CQMOM example for nonspherical particles with bounded aspect-ratio support, adaptive branch counts, moment-source fragmentation, and a companion Monte Carlo workflow.
+- `cqmom_spherical_breakup_quadrature_4d/`: 4D spherical-particle `(diameter, velocity components)` example with constant-rate binary breakup and diameter-dependent recoil. It demonstrates terminal-quadrature source evaluation as the closure for a nonlinear daughter-state mapping.
+- `cqmom_spherical_breakup_moments_5d/`: 5D spherical-particle `(volume, temperature, velocity components)` example with constant-rate binary breakup and volume-dependent daughter-temperature redistribution. It demonstrates moment-source closure with fractional raw moments obtained through `CqmomSourceContext::generalized_moment(...)`.
 
 ## Package Dependencies
 

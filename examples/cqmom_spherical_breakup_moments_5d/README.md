@@ -2,11 +2,18 @@
 
 ## Purpose and workflows
 
-This standalone example evolves a spatially homogeneous spherical-particle
-population in CQMOM and compares it with a direct Monte Carlo (MC) reference.
-It combines Schiller–Naumann drag, Ranz–Marshall heat transfer, and equal-volume
-binary breakup. Its CQMOM breakup source is written directly in moment form;
-it does not traverse the terminal quadrature.
+This standalone example is a QMOMKit capability demonstration, not a detailed
+physical breakup model. It evolves a spatially homogeneous population in phase
+space $(V,T,u,v,w)$ with CQMOM and compares it with a direct Monte Carlo (MC)
+reference solution. It demonstrates moment-source closure with generalized
+moments: its CQMOM breakup source is written directly in moment form and does
+not traverse the terminal quadrature.
+
+The breakup physics is intentionally simple: constant-rate binary breakup into
+equal-volume daughters. The closure challenge comes from the
+daughter-temperature mapping. Its $V^{1/3}$ dependence introduces fractional
+volume moments, so the source explicitly requests them with
+`context.generalized_moment(...)`.
 
 The directory contains two independent executables:
 
@@ -46,8 +53,8 @@ $$
 
 The fractional power of $V$ is evaluated directly at quadrature nodes by the
 continuous drag and heat-transfer callback. Breakup additionally uses a small
-volume-dependent temperature redistribution, so its moment source explicitly
-requests derived fractional-volume moments through
+volume-dependent temperature redistribution. Its $V^{1/3}$ factor is why the
+moment source must explicitly request derived fractional-volume moments through
 `context.generalized_moment(...)`.
 
 ## Deterministic sampled initialization
@@ -136,8 +143,8 @@ no size, velocity, slip, or empirical-correlation scaling. Each event replaces
 a parent by two daughters with $V_d=V_p/2$ and no recoil; their velocities are
 inherited exactly.
 
-The daughter temperature makes a deliberately small, event-local relaxation
-toward the carrier temperature:
+The daughter temperature differs from the parent temperature through a
+deliberately small, event-local relaxation toward the carrier temperature:
 
 $$
 T_d=T_p+\varepsilon\left(\frac{V_d}{V_{\mathrm{ref}}}\right)^{1/3}(T_g-T_p),
@@ -147,7 +154,7 @@ $$
 where $V_{\mathrm{ref}}$ is the volume of a $100\ \mu\mathrm{m}$ sphere. For a
 sphere, $V/S=d/6\propto V^{1/3}$ is the inverse surface-to-volume thermal
 length. The rule uses that normalized length as a simple surface-related
-redistribution scale; it is not a fragmentation submodel.
+redistribution scale; it is not a detailed fragmentation submodel.
 
 For transported $M_{p,q,r,s,t}$, expanding $T_d^q$ introduces moments with
 volume order $p+k/3$. Integer cases are read with `context.moment(...)`; the

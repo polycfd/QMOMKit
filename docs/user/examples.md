@@ -253,6 +253,46 @@ dataset.
 Example README:
 [`examples/cqmom_2d_borderline_conditioning/README.md`](../../examples/cqmom_2d_borderline_conditioning/README.md)
 
+## Spherical Breakup Source-Term Closure
+
+These paired examples are QMOMKit capability demonstrations for two
+complementary CQMOM source-term closure approaches. They use simple,
+constant-rate binary breakup and matched Monte Carlo reference workflows; the
+focus is the numerical representation of the source term rather than a detailed
+breakup model.
+
+### `cqmom_spherical_breakup_quadrature_4d`
+
+Purpose: evaluate a nonlinear population mapping from terminal quadrature in a
+four-dimensional spherical-particle phase space `(d,u,v,w)`, where `d` is
+diameter and `(u,v,w)` are velocity components.
+
+Each parent becomes equal-volume daughters with diameter-dependent, symmetric
+recoil. The source is naturally expressed as a parent-particle to
+daughter-particles transformation, so the example evaluates that nonlinear
+daughter-state mapping at terminal nodes and sums the weighted contributions.
+This demonstrates terminal quadrature as the natural closure mechanism for the
+source.
+
+Example README:
+[`examples/cqmom_spherical_breakup_quadrature_4d/README.md`](../../examples/cqmom_spherical_breakup_quadrature_4d/README.md)
+
+### `cqmom_spherical_breakup_moments_5d`
+
+Purpose: evaluate a breakup source directly in moment space for the
+five-dimensional spherical-particle phase space `(V,T,u,v,w)`, where `V` is
+volume, `T` is temperature, and `(u,v,w)` are velocity components.
+
+Each parent becomes equal-volume daughters with a volume-dependent
+daughter-temperature redistribution. Expanding this moment-source formulation
+introduces non-integer volume orders through `V^(1/3)`, so the source accesses
+the required non-integer raw moments with
+`CqmomSourceContext::generalized_moment(...)`. This demonstrates moment-source
+closure when generalized moments are needed.
+
+Example README:
+[`examples/cqmom_spherical_breakup_moments_5d/README.md`](../../examples/cqmom_spherical_breakup_moments_5d/README.md)
+
 ## Monte Carlo Reference
 
 These examples require the optional QMOMKitMonteCarlo package. They are

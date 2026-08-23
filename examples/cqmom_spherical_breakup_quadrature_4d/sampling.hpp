@@ -11,8 +11,8 @@
 namespace cqmom_spherical_breakup_quadrature_4d
 {
 
-constexpr std::size_t initialization_sample_count = 16000;
-constexpr unsigned long long initialization_seed = 2026082301ULL;
+constexpr std::size_t initialization_sample_count = 10000;
+constexpr unsigned long long initialization_seed = 123;
 
 [[nodiscard]] std::optional<std::string> read_configuration_text(const std::filesystem::path& path);
 [[nodiscard]] std::optional<qmomkit::monte_carlo::TensorSampledInitialization>

@@ -51,8 +51,8 @@ CQMOM hierarchy, source callback, and output files.
 
 ## Deterministic sampled initialization
 
-Both executables first construct the same finite population: 16,000 samples
-from the local independent-product initialization, with seed `2026082301`.
+Both executables first construct the same finite population with 10,000 samples
+from the local independent-product initialization.
 The CQMOM executable passes the raw tensor estimated from those samples to
 `with_initial_moments(...)`; the MC executable uses the samples themselves.
 Consequently, the paths begin from the identical finite-sample population, not
@@ -71,7 +71,7 @@ w &\sim \mathcal N(0.05,0.08^2).
 $$
 
 Every initial sample represents the constant statistical weight $n_0/N$. The
-independent MC event stream uses its own deterministic seed, `2026082302`.
+independent MC event stream uses its own deterministic seed.
 
 ## Continuous phase-space evolution: Schiller–Naumann drag
 
@@ -121,17 +121,28 @@ $$
 For each daughter pair, the velocity is
 
 $$
-\boldsymbol u'_{\pm}=\boldsymbol u\pm\boldsymbol\eta,
+\boldsymbol u'_{\pm}=\boldsymbol u\pm\frac{d}{d_\mathrm{ref}}\boldsymbol\eta,
 \qquad
 \eta_i\sim\mathcal N(0,\sigma_r^2),
 \qquad \sigma_r=10^{-3}\ \mathrm{m\,s^{-1}},
 $$
 
-with independent components. In the CQMOM source, the daughter monomial is
+with independent components and $d_\mathrm{ref}=10^{-4}\ \mathrm{m}$. Thus the
+recoil scale is proportional to the parent diameter, while the two daughters
+receive opposite recoil vectors. In the CQMOM source, the daughter monomial is
 the corresponding Gaussian expectation. For every requested integer raw
 moment, the source evaluates the parent loss and two-daughter birth term at
 each node yielded by `for_each_terminal_node(...)` and sums with its terminal
-weight. It does not invoke a moment-based breakup closure.
+weight.
+
+Terminal quadrature is required for this source. A velocity factor of even
+Gaussian order $2k$ introduces $(d/d_\mathrm{ref})^{2k}$ into the integrand;
+for a moment $M_{p,q,r,s}$, its birth rate therefore needs parent moments with
+diameter order $p+2k$ (and analogous contributions from $r$ and $s$). Those
+higher diameter moments are outside the finite CQMOM transport layout—for
+example, the rate of tracked $M_{2,4,0,0}$ needs $M_{6,0,0,0}$. The terminal
+quadrature supplies this reconstruction-dependent closure without a
+moment-based breakup formula.
 
 The direct MC counterpart samples the same constant-rate event process and
 symmetric pair at each event, allowing later daughter events within the source

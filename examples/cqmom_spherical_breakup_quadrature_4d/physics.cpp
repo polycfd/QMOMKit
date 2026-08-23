@@ -19,6 +19,7 @@ constexpr double gas_v = 1.5;
 constexpr double gas_w = 0.8;
 constexpr double breakup_rate = 20.0;
 constexpr double recoil_standard_deviation = 0.001;
+constexpr double recoil_reference_diameter = 1.0e-4;
 constexpr double daughter_diameter_factor = 0.79370052598409973738;
 
 double integer_power(const double value, const std::size_t exponent)
@@ -42,7 +43,7 @@ double binomial(const std::size_t n, std::size_t k)
     return result;
 }
 
-double shifted_gaussian_moment(const double mean, const std::size_t order)
+double shifted_gaussian_moment(const double mean, const double standard_deviation, const std::size_t order)
 {
     double value = 0.0;
     for (std::size_t gaussian_order = 0; gaussian_order <= order; gaussian_order += 2)
@@ -50,7 +51,7 @@ double shifted_gaussian_moment(const double mean, const std::size_t order)
         double centered_moment = 1.0;
         for (std::size_t factor = 1; factor < gaussian_order; factor += 2)
         {
-            centered_moment *= static_cast<double>(factor) * recoil_standard_deviation * recoil_standard_deviation;
+            centered_moment *= static_cast<double>(factor) * standard_deviation * standard_deviation;
         }
         value += binomial(order, gaussian_order) * integer_power(mean, order - gaussian_order) * centered_moment;
     }
@@ -69,8 +70,11 @@ double parent_monomial(const std::vector<double>& coordinates, const qmomkit::Mu
 
 double expected_daughter_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndex& order)
 {
-    return integer_power(daughter_diameter_factor * coordinates[0], order[0]) * shifted_gaussian_moment(coordinates[1], order[1]) *
-           shifted_gaussian_moment(coordinates[2], order[2]) * shifted_gaussian_moment(coordinates[3], order[3]);
+    const double standard_deviation = recoil_standard_deviation * coordinates[0] / recoil_reference_diameter;
+    return integer_power(daughter_diameter_factor * coordinates[0], order[0]) *
+           shifted_gaussian_moment(coordinates[1], standard_deviation, order[1]) *
+           shifted_gaussian_moment(coordinates[2], standard_deviation, order[2]) *
+           shifted_gaussian_moment(coordinates[3], standard_deviation, order[3]);
 }
 
 } // namespace
@@ -122,7 +126,6 @@ void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, const double interv
 {
     qmomkit::monte_carlo::Ensemble completed;
     completed.reserve(2 * ensemble.size());
-    std::normal_distribution<double> recoil(0.0, recoil_standard_deviation);
     for (const qmomkit::monte_carlo::Sample& sample : ensemble)
     {
         std::vector<std::pair<qmomkit::monte_carlo::Sample, double>> pending{{sample, interval}};
@@ -142,6 +145,7 @@ void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, const double interv
                 continue;
             }
             const double d = daughter_diameter_factor * parent[0];
+            std::normal_distribution<double> recoil(0.0, recoil_standard_deviation * parent[0] / recoil_reference_diameter);
             const double ru = recoil(generator);
             const double rv = recoil(generator);
             const double rw = recoil(generator);

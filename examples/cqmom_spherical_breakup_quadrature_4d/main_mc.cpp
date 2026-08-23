@@ -16,7 +16,7 @@
 int main()
 {
     using namespace cqmom_spherical_breakup_quadrature_4d;
-    constexpr unsigned long long breakup_seed = 2026082302ULL;
+    constexpr unsigned long long breakup_seed = 321;
     constexpr double initial_time = 0.0;
     constexpr double final_time = 0.1;
     constexpr double time_step = 0.001;

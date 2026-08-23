@@ -74,7 +74,7 @@ w &\sim \mathcal N(0.05,0.08^2).
 $$
 
 Each initial sample carries weight $n_0/N$. The direct MC breakup stream uses
-the independent deterministic seed `2026082312`.
+its own independent deterministic seed.
 
 ## Drag and heat transfer
 

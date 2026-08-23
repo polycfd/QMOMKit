@@ -1,23 +1,23 @@
-# 5D thermal spherical-particle breakup
+# CQMOM spherical breakup: moment-based source term (5D)
 
 ## Purpose and workflows
 
 This standalone example evolves a spatially homogeneous spherical-particle
-population in CQMOM and compares it with a direct Monte Carlo (MC) calculation.
+population in CQMOM and compares it with a direct Monte Carlo (MC) reference.
 It combines Schiller–Naumann drag, Ranz–Marshall heat transfer, and equal-volume
 binary breakup. Its CQMOM breakup source is written directly in moment form;
-it does not traverse terminal quadrature nodes.
+it does not traverse the terminal quadrature.
 
 The directory contains two independent executables:
 
-- `cqmom_thermal_spherical_breakup_example` samples the initial population,
+- `cqmom_spherical_breakup_moments_5d_example` samples the initial population,
   converts its raw moments into the CQMOM initial state, and advances CQMOM.
-- `cqmom_thermal_spherical_breakup_mc_example` regenerates the same samples and
+- `cqmom_spherical_breakup_moments_5d_mc_example` regenerates the same samples and
   advances them with direct stochastic breakup events.
 
-The MC calculation is a finite-sample reference. It represents event sampling
+The MC reference is a finite-sample reference. It represents event sampling
 directly, while the CQMOM source evolves the analytical conditional moment
-rates. Close agreement in compatible diagnostics is expected, but not exact
+rates. Close agreement in compatible tracked raw moments is expected, but not exact
 agreement at finite MC sample count.
 
 ## Phase space and raw moments
@@ -194,14 +194,14 @@ cmake -S tools/monte_carlo -B tools/monte_carlo/build \
 cmake --build tools/monte_carlo/build
 cmake --install tools/monte_carlo/build
 
-cmake -S examples/cqmom_thermal_spherical_breakup \
-    -B examples/cqmom_thermal_spherical_breakup/build \
+cmake -S examples/cqmom_spherical_breakup_moments_5d \
+    -B examples/cqmom_spherical_breakup_moments_5d/build \
     -DCMAKE_PREFIX_PATH="$PWD/install"
-cmake --build examples/cqmom_thermal_spherical_breakup/build
+cmake --build examples/cqmom_spherical_breakup_moments_5d/build
 
-cd examples/cqmom_thermal_spherical_breakup/build
-./cqmom_thermal_spherical_breakup_example
-./cqmom_thermal_spherical_breakup_mc_example
+cd examples/cqmom_spherical_breakup_moments_5d/build
+./cqmom_spherical_breakup_moments_5d_example
+./cqmom_spherical_breakup_moments_5d_mc_example
 ```
 
 ## Output and interpretation

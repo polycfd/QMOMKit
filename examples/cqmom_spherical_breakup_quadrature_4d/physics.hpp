@@ -6,11 +6,11 @@
 
 #include <random>
 
-namespace cqmom_thermal_spherical_breakup
+namespace cqmom_spherical_breakup_quadrature_4d
 {
 
 [[nodiscard]] qmomkit::PhaseSpaceVelocity particle_velocity();
 [[nodiscard]] qmomkit::CqmomMomentSource breakup_source();
 void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, double interval, std::mt19937_64& generator);
 
-} // namespace cqmom_thermal_spherical_breakup
+} // namespace cqmom_spherical_breakup_quadrature_4d

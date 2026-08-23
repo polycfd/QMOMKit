@@ -15,8 +15,8 @@
 
 int main()
 {
-    using namespace cqmom_spherical_breakup_recoil;
-    constexpr unsigned long long breakup_seed = 2026082302ULL;
+    using namespace cqmom_spherical_breakup_moments_5d;
+    constexpr unsigned long long breakup_seed = 2026082312ULL;
     constexpr double initial_time = 0.0;
     constexpr double final_time = 0.1;
     constexpr double time_step = 0.001;
@@ -96,8 +96,8 @@ int main()
             }
         }
         const qmomkit::SelectedRawMomentResult final_moments = select_moments(moments, request);
-        std::cout << "4D direct Monte Carlo spherical-particle breakup with recoil example\n";
-        std::cout << "phase-space ordering: (d,u,v,w)\n";
+        std::cout << "5D direct Monte Carlo thermal spherical-particle breakup example\n";
+        std::cout << "phase-space ordering: (V,T,u,v,w)\n";
         print_selected_moments("Initial tracked moments:", initial_moments);
         std::cout << '\n';
         print_selected_moments("Final tracked moments:", final_moments);

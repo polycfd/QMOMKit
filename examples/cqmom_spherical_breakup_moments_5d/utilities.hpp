@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <vector>
 
-namespace cqmom_thermal_spherical_breakup
+namespace cqmom_spherical_breakup_moments_5d
 {
 
 [[nodiscard]] std::vector<std::size_t> maximum_orders(const std::vector<std::size_t>& extents);
@@ -17,4 +17,4 @@ namespace cqmom_thermal_spherical_breakup
 void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentResult& moments);
 void ensure_output_directory(const std::filesystem::path& path);
 
-} // namespace cqmom_thermal_spherical_breakup
+} // namespace cqmom_spherical_breakup_moments_5d

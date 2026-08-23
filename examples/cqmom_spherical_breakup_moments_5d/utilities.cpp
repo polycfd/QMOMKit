@@ -11,7 +11,7 @@
 #include <system_error>
 #include <utility>
 
-namespace cqmom_thermal_spherical_breakup
+namespace cqmom_spherical_breakup_moments_5d
 {
 namespace
 {
@@ -127,4 +127,4 @@ void ensure_output_directory(const std::filesystem::path& path)
     }
 }
 
-} // namespace cqmom_thermal_spherical_breakup
+} // namespace cqmom_spherical_breakup_moments_5d

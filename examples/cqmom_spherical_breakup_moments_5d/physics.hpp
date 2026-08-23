@@ -6,11 +6,11 @@
 
 #include <random>
 
-namespace cqmom_spherical_breakup_recoil
+namespace cqmom_spherical_breakup_moments_5d
 {
 
 [[nodiscard]] qmomkit::PhaseSpaceVelocity particle_velocity();
 [[nodiscard]] qmomkit::CqmomMomentSource breakup_source();
 void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, double interval, std::mt19937_64& generator);
 
-} // namespace cqmom_spherical_breakup_recoil
+} // namespace cqmom_spherical_breakup_moments_5d

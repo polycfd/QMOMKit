@@ -11,7 +11,7 @@
 #include <system_error>
 #include <utility>
 
-namespace cqmom_spherical_breakup_recoil
+namespace cqmom_spherical_breakup_quadrature_4d
 {
 namespace
 {
@@ -127,4 +127,4 @@ void ensure_output_directory(const std::filesystem::path& path)
     }
 }
 
-} // namespace cqmom_spherical_breakup_recoil
+} // namespace cqmom_spherical_breakup_quadrature_4d

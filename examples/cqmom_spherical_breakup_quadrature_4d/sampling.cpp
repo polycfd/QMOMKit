@@ -7,7 +7,7 @@
 #include <type_traits>
 #include <variant>
 
-namespace cqmom_spherical_breakup_recoil
+namespace cqmom_spherical_breakup_quadrature_4d
 {
 
 std::optional<std::string> read_configuration_text(const std::filesystem::path& path)
@@ -40,4 +40,4 @@ sample_initial_population(const qmomkit::config::InitialConditionSpecification& 
         initial_condition);
 }
 
-} // namespace cqmom_spherical_breakup_recoil
+} // namespace cqmom_spherical_breakup_quadrature_4d

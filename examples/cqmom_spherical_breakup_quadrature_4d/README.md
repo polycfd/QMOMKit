@@ -1,9 +1,9 @@
-# 4D spherical-particle breakup with recoil
+# CQMOM spherical breakup: terminal quadrature source (4D)
 
 ## Purpose and workflows
 
 This standalone example evolves a spatially homogeneous population of spherical
-particles in CQMOM and compares it with a direct Monte Carlo (MC) calculation.
+particles in CQMOM and compares it with a direct Monte Carlo (MC) reference.
 It demonstrates CQMOM phase-space advection coupled by Strang splitting to a
 breakup source evaluated from the reconstructed terminal quadrature. The source
 deliberately uses `CqmomSourceContext::for_each_terminal_node(...)`, rather
@@ -11,16 +11,16 @@ than a moment closure.
 
 The directory contains two independent executables:
 
-- `cqmom_spherical_breakup_recoil_example` samples an initial population,
+- `cqmom_spherical_breakup_quadrature_4d_example` samples an initial population,
   initializes a `CqmomCase` from its raw moments, reconstructs CQMOM, and
   advances the CQMOM state.
-- `cqmom_spherical_breakup_recoil_mc_example` regenerates those same samples
+- `cqmom_spherical_breakup_quadrature_4d_mc_example` regenerates those same samples
   and advances the particles directly with stochastic binary breakup.
 
-The MC run is a finite-sample reference, not an expectation of bitwise
+The MC reference is a finite-sample reference, not an expectation of bitwise
 agreement with CQMOM. It samples individual breakup events and recoil vectors,
-while the CQMOM source uses their conditional expected contribution at terminal
-quadrature nodes.
+while the CQMOM source uses their conditional expected contribution over the
+terminal quadrature.
 
 ## Phase space and raw moments
 
@@ -143,8 +143,8 @@ $$
 
 Over the $0.1\ \mathrm{s}$ run, the expected number-density increase is
 $\exp(2)\approx7.39$. Breakup alone conserves total volume and conserves
-volume-weighted momentum because the two recoils cancel. Its velocity-square
-diagnostic captures the additional recoil spread. Carrier-gas drag acts
+volume-weighted momentum because the two recoils cancel. The velocity-square
+raw moment captures the additional recoil spread. Carrier-gas drag acts
 continuously, so it can change the population momentum over the full coupled
 run.
 
@@ -153,10 +153,8 @@ run.
 `configuration.qmom` is the source of standard QMOMKit numerical behavior:
 
 - phase-space names are `d, u, v, w`;
-- fixed node counts are `(2,2,2,2)` with conditioning order `(0,1,2,3)`;
-- both `adaptive_branch_counts` and `[qmom] adaptive` are `false`;
-- lean moment storage, basic diagnostics, and the automatic Vandermonde solver
-  are selected;
+- maximum node counts are `(3,3,3,3)` with conditioning order `(0,1,2,3)`;
+- `adaptive_branch_counts` is `true`;
 - the phase-space/moment-source composition uses Strang splitting;
 - node advection uses adaptive RK23 with the listed tolerances and step bounds;
 - output cadence and enabled moment/quadrature files come from `[output]`.
@@ -185,14 +183,14 @@ cmake -S tools/monte_carlo -B tools/monte_carlo/build \
 cmake --build tools/monte_carlo/build
 cmake --install tools/monte_carlo/build
 
-cmake -S examples/cqmom_spherical_breakup_recoil \
-    -B examples/cqmom_spherical_breakup_recoil/build \
+cmake -S examples/cqmom_spherical_breakup_quadrature_4d \
+    -B examples/cqmom_spherical_breakup_quadrature_4d/build \
     -DCMAKE_PREFIX_PATH="$PWD/install"
-cmake --build examples/cqmom_spherical_breakup_recoil/build
+cmake --build examples/cqmom_spherical_breakup_quadrature_4d/build
 
-cd examples/cqmom_spherical_breakup_recoil/build
-./cqmom_spherical_breakup_recoil_example
-./cqmom_spherical_breakup_recoil_mc_example
+cd examples/cqmom_spherical_breakup_quadrature_4d/build
+./cqmom_spherical_breakup_quadrature_4d_example
+./cqmom_spherical_breakup_quadrature_4d_mc_example
 ```
 
 ## Output and interpretation

@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-namespace cqmom_spherical_breakup_recoil
+namespace cqmom_spherical_breakup_quadrature_4d
 {
 namespace
 {
@@ -153,4 +153,4 @@ void apply_breakup(qmomkit::monte_carlo::Ensemble& ensemble, const double interv
     ensemble = std::move(completed);
 }
 
-} // namespace cqmom_spherical_breakup_recoil
+} // namespace cqmom_spherical_breakup_quadrature_4d

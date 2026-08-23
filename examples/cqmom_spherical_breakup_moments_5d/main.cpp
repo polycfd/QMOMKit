@@ -13,7 +13,7 @@
 
 int main()
 {
-    using namespace cqmom_thermal_spherical_breakup;
+    using namespace cqmom_spherical_breakup_moments_5d;
     constexpr double initial_time = 0.0;
     constexpr double final_time = 10.0e-2;
     constexpr double time_step = 10.0e-4;

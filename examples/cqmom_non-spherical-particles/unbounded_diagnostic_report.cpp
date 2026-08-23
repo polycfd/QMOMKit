@@ -271,17 +271,27 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
     markdown << '\n';
 
     markdown << "## Moment-Source Evolution\n\n";
-    markdown << "The reported pre-source and accepted post-source states come directly from the same "
-                "`advance_cqmom_moment_source(...)` phase-space operation that evaluates the breakage callback. This preserves the active "
-                "adaptive CQMOM topology and source-stage representation used by the diagnostic run.\n\n";
+    markdown << "The pre-source and accepted post-source states come directly from the same `advance_cqmom_moment_source(...)` phase-space "
+                "operation that evaluates the breakage callback. The table displays branch-local moments derived from each corresponding quadrature; "
+                "when no pre-source quadrature is available, its moment entries are marked `n/a`.\n\n";
     markdown << "| stage | time | m0 | m1 | m2 | m3 | m4 | m5 |\n";
     markdown << "|---|---:|---:|---:|---:|---:|---:|---:|\n";
     for (const StageMoments& stage : report.source_replay.stages)
     {
         markdown << "| " << stage.label << " | " << stage.time;
-        for (const double moment : stage.branch_moments)
+        if (stage.branch_moments.empty())
         {
-            markdown << " | " << moment;
+            for (std::size_t order = 0; order < 6; ++order)
+            {
+                markdown << " | n/a";
+            }
+        }
+        else
+        {
+            for (const double moment : stage.branch_moments)
+            {
+                markdown << " | " << moment;
+            }
         }
         markdown << " |\n";
     }

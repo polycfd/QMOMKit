@@ -687,8 +687,7 @@ qmomkit::CqmomMomentLayout layout_from_state(const qmomkit::CqmomState& state)
 
 SourceReplay record_phase_space_source_stages(const BoundaryAdvance& boundary, const qmomkit::ConditioningPath& parent_path)
 {
-    if (!boundary.pre_source_state.has_value() || !boundary.pre_source_quadrature.has_value() || !boundary.boundary_state.has_value() ||
-        !boundary.boundary_quadrature.has_value())
+    if (!boundary.pre_source_state.has_value() || !boundary.boundary_state.has_value() || !boundary.boundary_quadrature.has_value())
     {
         throw std::runtime_error("The phase-space source-stage record is incomplete.");
     }
@@ -704,7 +703,14 @@ SourceReplay record_phase_space_source_stages(const BoundaryAdvance& boundary, c
         replay.stages.push_back({label, time, state.moment_values(), branch_moment_row(solve, parent_path.node_index_at_level(0))});
     };
 
-    record("pre_source", boundary.source_start_time, *boundary.pre_source_state, *boundary.pre_source_quadrature);
+    if (boundary.pre_source_quadrature.has_value())
+    {
+        record("pre_source", boundary.source_start_time, *boundary.pre_source_state, *boundary.pre_source_quadrature);
+    }
+    else
+    {
+        replay.stages.push_back({"pre_source_quadrature_unavailable", boundary.source_start_time, boundary.pre_source_state->moment_values(), {}});
+    }
     record("accepted_post_source", boundary.boundary_time, *boundary.boundary_state, *boundary.boundary_quadrature);
     return replay;
 }

@@ -757,21 +757,8 @@ std::vector<double> reconstruct_1d_moments(const qmomkit::Quadrature1D& quadratu
     return moments;
 }
 
-std::vector<double> reconstruct_1d_moments(const std::vector<double>& nodes, const std::vector<double>& weights, const std::size_t count)
-{
-    std::vector<double> moments(count, 0.0);
-    for (std::size_t order = 0; order < count; ++order)
-    {
-        for (std::size_t node = 0; node < nodes.size(); ++node)
-        {
-            moments[order] += weights[node] * std::pow(nodes[node], static_cast<double>(order));
-        }
-    }
-    return moments;
-}
-
 BoundedAcceptedBranch actual_bounded_branch_from_quadrature(const qmomkit::CqmomQuadrature& quadrature, const qmomkit::ConditioningPath& parent_path,
-                                                            const std::vector<double>& rejected_candidate_moments, const std::size_t accepted_count)
+                                                            const std::size_t accepted_count)
 {
     // The actual bounded closure is read from the accepted bounded quadrature.
     // This avoids presenting a diagnostic-only lower-count solve as production
@@ -811,15 +798,6 @@ BoundedAcceptedBranch actual_bounded_branch_from_quadrature(const qmomkit::Cqmom
         throw std::runtime_error("The accepted bounded chi branch count does not match the bounded branch diagnostic.");
     }
 
-    accepted.canonical_moments = reconstruct_1d_moments(accepted.chi_nodes, accepted.conditional_weights, rejected_candidate_moments.size());
-    const std::size_t retained_moment_count = std::min(rejected_candidate_moments.size(), 2 * accepted_count);
-    for (std::size_t order = 0; order < retained_moment_count; ++order)
-    {
-        const double absolute = std::abs(accepted.canonical_moments[order] - rejected_candidate_moments[order]);
-        const double relative = absolute / std::max(std::abs(rejected_candidate_moments[order]), std::numeric_limits<double>::min());
-        accepted.retained_prefix_absolute_residuals.push_back(absolute);
-        accepted.retained_prefix_relative_residuals.push_back(relative);
-    }
     return accepted;
 }
 
@@ -988,9 +966,8 @@ DiagnosticReport build_report(const cqmom_non_spherical_particles::PreparedCqmom
         // The comparison must use the bounded workflow's accepted post-source
         // quadrature, not a fresh lower-count solve on the rejected candidate.
         report.bounded_transition = find_branch_transition(bounded_boundary.moment_source_diagnostics.cqmom_node_count_transitions, parent_path);
-        report.bounded_accepted_branch =
-            actual_bounded_branch_from_quadrature(*bounded_boundary.boundary_quadrature, parent_path, bounded_branch->bounded_candidate_moments,
-                                                  bounded_branch->bounded_accepted_fallback_node_count);
+        report.bounded_accepted_branch = actual_bounded_branch_from_quadrature(*bounded_boundary.boundary_quadrature, parent_path,
+                                                                               bounded_branch->bounded_accepted_fallback_node_count);
     }
     report.conditional_solve = solve;
     report.source_replay = std::move(replay);

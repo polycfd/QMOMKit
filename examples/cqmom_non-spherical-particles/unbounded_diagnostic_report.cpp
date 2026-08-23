@@ -410,8 +410,6 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
         markdown << "| actual bounded branch path | `" << path_string(accepted.parent_path) << "` |\n";
         markdown << "| actual rejected candidate count | " << bounded_branch.bounded_candidate_node_count << " |\n";
         markdown << "| rejected candidate attempt type | " << bounded_branch.bounded_candidate_attempt_type << " |\n";
-        markdown << "| actual support margin | " << bounded_branch.bounded_minimum_margin << " |\n";
-        markdown << "| failed support matrix | " << bounded_branch.bounded_failed_matrix << " |\n";
         markdown << "| actual accepted node count | " << accepted.chi_nodes.size() << " |\n";
         if (report.bounded_transition.has_value())
         {
@@ -436,18 +434,6 @@ void write_report_file(const std::filesystem::path& directory, const DiagnosticR
         markdown << "| actual accepted conditional weights | `" << vector_string(accepted.conditional_weights) << "` |\n";
         markdown << "| actual accepted global weights | `" << vector_string(accepted.global_weights) << "` |\n";
         markdown << "| parent/global branch weight | " << accepted.parent_global_weight << " |\n\n";
-        markdown << "Actual rejected six-moment candidate: `" << vector_string(bounded_branch.bounded_candidate_moments) << "`\n\n";
-        markdown << "Actual canonicalized moments associated with the accepted bounded quadrature: `" << vector_string(accepted.canonical_moments)
-                 << "`\n\n";
-        markdown << "| retained prefix order | candidate moment | canonicalized moment | absolute residual | relative residual |\n";
-        markdown << "|---:|---:|---:|---:|---:|\n";
-        for (std::size_t order = 0; order < accepted.retained_prefix_absolute_residuals.size(); ++order)
-        {
-            markdown << "| " << order << " | " << bounded_branch.bounded_candidate_moments[order] << " | " << accepted.canonical_moments[order]
-                     << " | " << accepted.retained_prefix_absolute_residuals[order] << " | " << accepted.retained_prefix_relative_residuals[order]
-                     << " |\n";
-        }
-        markdown << '\n';
     }
     else
     {

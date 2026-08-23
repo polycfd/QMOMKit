@@ -91,9 +91,6 @@ struct BoundedAcceptedBranch
     std::vector<double> chi_nodes;
     std::vector<double> conditional_weights;
     std::vector<double> global_weights;
-    std::vector<double> canonical_moments;
-    std::vector<double> retained_prefix_absolute_residuals;
-    std::vector<double> retained_prefix_relative_residuals;
     double parent_global_weight = 0.0;
 };
 

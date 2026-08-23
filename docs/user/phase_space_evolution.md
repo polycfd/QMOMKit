@@ -385,10 +385,18 @@ Use:
 - `context.value(i)` for the current raw moment value of entry `i`;
 - `context.position(alpha)` or `context.value(alpha)` when a source term needs
   a particular retained moment by multi-index;
-- `context.moment(alpha)` to obtain a raw moment by multi-index. Retained
-  entries return their current SSP-RK stage value directly; an untracked entry
-  is evaluated from a quadrature built from that same stage's moments. During
-  intermediate SSP-RK stages, this is not the accepted pre-source quadrature;
+- `context.moment(alpha)` to obtain an ordinary integer-order raw moment by
+  `MultiIndex`. Retained entries return their current SSP-RK stage value
+  directly; an untracked entry is evaluated from a quadrature built from that
+  same stage's moments. During intermediate SSP-RK stages, this is not the
+  accepted pre-source quadrature;
+- `context.generalized_moment(orders)` to obtain a derived non-negative
+  real-order raw moment from that same source-stage quadrature. This uses the
+  same lazy, context-local quadrature cache as untracked `moment(alpha)`
+  requests and does not add a generalized moment to the transported state.
+  The order vector has one `double` per phase-space dimension. A negative
+  abscissa is valid only when its requested order is integral; a fractional
+  order at a negative abscissa has no real-valued result and is rejected;
 - `context.for_each_terminal_node(...)` for a quadrature-level source closure.
   It visits the global weight and phase-space-order coordinates of each
   terminal node from that same stage quadrature. The coordinate reference is
@@ -411,6 +419,20 @@ dimension order.
 QMOMKit may request only the moments required by the configured hierarchy, so
 CQMOM moment-source and boundary callbacks are most robust when they iterate over the
 context entries instead of assuming a dense rectangular tensor.
+
+For example, in a volume-based phase space `(V,T,u,v,w)`, a diameter factor
+is proportional to `V^(1/3)`. A breakup closure for transported order `p` can
+request its untracked fractional factor directly from the stage context:
+
+```cpp
+const double m = context.generalized_moment(
+    {static_cast<double>(p) + 1.0 / 3.0,
+     static_cast<double>(q), static_cast<double>(r),
+     static_cast<double>(s), static_cast<double>(t)});
+```
+
+This is a derived quadrature query only; it does not change CQMOM moment
+indices, hierarchy layout, or source-state storage.
 
 CQMOM moment-source callbacks usually look like this:
 

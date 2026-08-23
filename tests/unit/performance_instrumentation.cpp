@@ -513,6 +513,45 @@ void test_cqmom_source_update_reuses_stage_layout_when_enabled()
 #endif
 }
 
+void test_cqmom_generalized_source_moments_reuse_one_quadrature_per_stage_when_enabled()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomLeanCase lean_case{independent_product_moments(layout)};
+    const qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_case(lean_case).initial_state();
+    qmomkit::internal::performance::CounterSession session;
+    std::optional<qmomkit::CqmomPhaseSpaceEvolutionResult> result;
+    {
+        qmomkit::internal::performance::CounterScope scope(session);
+        result.emplace(qmomkit::advance_cqmom_moment_source(state, 0.0, 0.1,
+                                                            [](double, const qmomkit::CqmomSourceContext& context)
+                                                            {
+                                                                // Dimension one is strictly positive in independent_product_moments.
+                                                                const double first = context.generalized_moment({0.0, 1.0 / 3.0});
+                                                                const double second = context.generalized_moment({0.0, 4.0 / 3.0});
+                                                                const double repeated = context.generalized_moment({0.0, 1.0 / 3.0});
+                                                                assert(std::isfinite(first));
+                                                                assert(std::isfinite(second));
+                                                                assert_near(first, repeated);
+                                                                return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)};
+                                                            }));
+    }
+
+    assert(result.has_value());
+    assert(result->ok());
+    const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    // SSP-RK3 evaluates three source stages. Repeated generalized queries in
+    // each context share one stage quadrature; one additional reconstruction
+    // is the accepted post-source inversion.
+    assert(counters.reconstruction.cqmom_reconstructions == 4);
+    assert(counters.time_integration.source_rk_stages == 3);
+#else
+    assert(counters.reconstruction.cqmom_reconstructions == 0);
+    assert(counters.time_integration.source_rk_stages == 0);
+#endif
+}
+
 void test_trusted_cqmom_source_update_matches_general_path_and_skips_layout_validation()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -911,6 +950,7 @@ int main()
     test_explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_enabled();
     test_qmom_workflow_records_coarse_reconstruction_events_when_enabled();
     test_cqmom_source_update_reuses_stage_layout_when_enabled();
+    test_cqmom_generalized_source_moments_reuse_one_quadrature_per_stage_when_enabled();
     test_trusted_cqmom_source_update_matches_general_path_and_skips_layout_validation();
     test_trusted_cqmom_source_update_matches_general_boundary_failures();
     test_state_phase_space_evolution_source_update_skips_redundant_layout_validation_when_enabled();

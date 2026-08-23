@@ -122,6 +122,20 @@ public:
      */
     [[nodiscard]] double moment(const MultiIndex& moment_index) const;
     /**
+     * Return a derived raw moment with one non-negative real-valued order per
+     * phase-space dimension.
+     *
+     * The value is evaluated from the current source-stage CQMOM quadrature.
+     * As with an untracked integer `moment(...)` request, that quadrature is
+     * reconstructed lazily from the current SSP-RK stage and cached for this
+     * context. Generalized moments are not added to the transported state.
+     *
+     * Negative abscissas are valid only for integral requested orders. A
+     * fractional order at a negative abscissa has no real-valued result and
+     * throws `std::domain_error`.
+     */
+    [[nodiscard]] double generalized_moment(const std::vector<double>& orders) const;
+    /**
      * Visit the terminal nodes of the current source-stage CQMOM quadrature.
      *
      * During CQMOM phase-space source evolution, the quadrature is lazily

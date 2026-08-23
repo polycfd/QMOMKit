@@ -3559,6 +3559,91 @@ qmomkit::CqmomCase fixed_cqmom_case_with_hierarchy_and_storage(const qmomkit::Ra
     return parsed.value();
 }
 
+qmomkit::CqmomCase generalized_moment_cqmom_case()
+{
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    // The first coordinate is strictly positive for fractional powers; the
+    // second deliberately has negative nodes to exercise integral powers.
+    const std::vector<std::vector<double>> abscissas{{1.0, 1.0, 2.0, 2.0}, {-1.0, 1.0, -1.0, 1.0}};
+    return fixed_cqmom_case_with_hierarchy_and_storage({extents, raw_moments_from_terminals(extents, weights, abscissas)}, {0, 1}, "lean");
+}
+
+void test_cqmom_source_context_generalized_moments_use_stage_quadrature()
+{
+    const qmomkit::CqmomCase case_ = generalized_moment_cqmom_case();
+    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(case_);
+    assert(initial.ok());
+    const std::vector<double> fractional_orders{1.0 / 3.0, 0.0};
+    const std::vector<double> mixed_orders{4.0 / 3.0, 2.0};
+    const std::vector<double> integral_orders{2.0, 1.0};
+    const double expected_fractional = qmomkit::evaluate_generalized_moment(initial.quadrature, fractional_orders);
+    const double expected_mixed = qmomkit::evaluate_generalized_moment(initial.quadrature, mixed_orders);
+
+    std::size_t source_calls = 0;
+    const qmomkit::CqmomMomentSource source = [&](double, const qmomkit::CqmomSourceContext& context)
+    {
+        assert_near(context.generalized_moment(fractional_orders), expected_fractional, 2.0e-10);
+        assert_near(context.generalized_moment(mixed_orders), expected_mixed, 2.0e-10);
+        assert_near(context.generalized_moment(integral_orders), context.moment({2, 1}), 2.0e-10);
+        // Multiple requests in the same source stage must reuse the context's
+        // lazy source-stage quadrature rather than needing a second path.
+        assert_near(context.generalized_moment(fractional_orders), expected_fractional, 2.0e-10);
+        ++source_calls;
+        return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)};
+    };
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_moment_source(case_.initial_state(), 0.0, 0.1, source);
+    assert(result.ok());
+    assert(source_calls == 3);
+}
+
+void test_cqmom_source_context_generalized_moment_validation()
+{
+    const qmomkit::CqmomCase case_ = generalized_moment_cqmom_case();
+    bool checked = false;
+    const qmomkit::CqmomMomentSource source = [&](double, const qmomkit::CqmomSourceContext& context)
+    {
+        const auto expect_invalid_argument = [&context](const std::vector<double>& orders)
+        {
+            bool rejected = false;
+            try
+            {
+                static_cast<void>(context.generalized_moment(orders));
+            }
+            catch (const std::invalid_argument&)
+            {
+                rejected = true;
+            }
+            assert(rejected);
+        };
+        expect_invalid_argument({1.0});
+        expect_invalid_argument({-0.5, 0.0});
+        expect_invalid_argument({std::numeric_limits<double>::quiet_NaN(), 0.0});
+        expect_invalid_argument({std::numeric_limits<double>::infinity(), 0.0});
+        expect_invalid_argument({-std::numeric_limits<double>::infinity(), 0.0});
+
+        bool rejected_fractional_negative_abscissa = false;
+        try
+        {
+            static_cast<void>(context.generalized_moment({1.0, 0.5}));
+        }
+        catch (const std::domain_error&)
+        {
+            rejected_fractional_negative_abscissa = true;
+        }
+        assert(rejected_fractional_negative_abscissa);
+        // The same negative coordinate is valid for a real-valued integral order.
+        assert_near(context.generalized_moment({1.0, 3.0}), context.moment({1, 3}), 2.0e-10);
+        checked = true;
+        return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)};
+    };
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_moment_source(case_.initial_state(), 0.0, 0.1, source);
+    assert(result.ok());
+    assert(checked);
+}
+
 void assert_dense_and_lean_source_results_match(const qmomkit::CqmomPhaseSpaceEvolutionResult& dense,
                                                 const qmomkit::CqmomPhaseSpaceEvolutionResult& lean, const std::vector<std::size_t>& dense_extents,
                                                 const double tolerance)
@@ -4479,6 +4564,8 @@ void run_all_phase_space_evolution_tests()
     test_dense_and_lean_state_source_contexts_are_identical();
     test_cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage();
     test_cqmom_source_context_visits_terminal_nodes_from_each_rk_stage();
+    test_cqmom_source_context_generalized_moments_use_stage_quadrature();
+    test_cqmom_source_context_generalized_moment_validation();
     test_dense_state_reconstructs_dense_only_moments_after_moment_source_source();
     test_dense_state_zero_source_keeps_full_dense_closure_consistent();
     test_dense_state_reconstructs_dense_only_moments_after_source_and_boundary();

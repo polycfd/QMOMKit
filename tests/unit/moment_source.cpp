@@ -345,6 +345,23 @@ void test_cqmom_source_context_terminal_nodes_require_reconstruction_metadata()
     assert(rejected);
 }
 
+void test_cqmom_source_context_generalized_moments_require_reconstruction_metadata()
+{
+    const qmomkit::CqmomMomentData initial = create_moment_data();
+    const qmomkit::CqmomSourceContext context{0.0, initial.layout.hierarchy, initial.layout.required_indices, initial.values};
+    bool rejected = false;
+    try
+    {
+        static_cast<void>(context.generalized_moment({1.0, 0.0}));
+    }
+    catch (const std::out_of_range& error)
+    {
+        rejected = true;
+        assert(std::string(error.what()).find("source-stage quadrature") != std::string::npos);
+    }
+    assert(rejected);
+}
+
 void test_cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial()
 {
     const qmomkit::CqmomMomentData initial = create_moment_data();
@@ -790,6 +807,7 @@ int main()
     test_cqmom_source_context_exposes_moment_metadata();
     test_cqmom_source_context_validates_indices_and_values();
     test_cqmom_source_context_terminal_nodes_require_reconstruction_metadata();
+    test_cqmom_source_context_generalized_moments_require_reconstruction_metadata();
     test_cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial();
     test_cqmom_moment_data_rate_size_mismatch_fails();
     test_cqmom_moment_data_non_finite_source_fails();

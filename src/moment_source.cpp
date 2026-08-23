@@ -682,6 +682,26 @@ double CqmomSourceContext::moment(const MultiIndex& moment_index) const
     return result.values.front();
 }
 
+double CqmomSourceContext::generalized_moment(const std::vector<double>& orders) const
+{
+    if (orders.size() != dimension_count())
+    {
+        throw std::invalid_argument("Generalized CQMOM source moment order count must match the phase-space dimension count.");
+    }
+    for (const double order : orders)
+    {
+        if (!std::isfinite(order))
+        {
+            throw std::invalid_argument("Generalized CQMOM source moment orders must be finite.");
+        }
+        if (order < 0.0)
+        {
+            throw std::invalid_argument("Generalized CQMOM source moment orders must be non-negative.");
+        }
+    }
+    return evaluate_generalized_moment(reconstructed_stage_quadrature(), orders);
+}
+
 void CqmomSourceContext::for_each_terminal_node(const std::function<void(double, const std::vector<double>&)>& callback) const
 {
     if (!callback)

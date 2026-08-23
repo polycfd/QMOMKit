@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(QMOMKitCqmomSphericalBreakupRecoilExample LANGUAGES CXX)
+
+find_package(QMOMKitMonteCarlo CONFIG REQUIRED)
+
+add_executable(cqmom_spherical_breakup_recoil_example main.cpp spherical_particles.cpp)
+target_link_libraries(cqmom_spherical_breakup_recoil_example PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo)
+
+add_executable(cqmom_spherical_breakup_recoil_mc_example main_mc.cpp spherical_particles.cpp)
+target_link_libraries(cqmom_spherical_breakup_recoil_mc_example PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo)
+
+configure_file(configuration.qmom configuration.qmom COPYONLY)

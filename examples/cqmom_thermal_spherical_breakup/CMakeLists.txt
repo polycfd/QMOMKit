@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(QMOMKitCqmomThermalSphericalBreakupExample LANGUAGES CXX)
+
+find_package(QMOMKitMonteCarlo CONFIG REQUIRED)
+
+add_executable(cqmom_thermal_spherical_breakup_example main.cpp thermal_particles.cpp)
+target_link_libraries(cqmom_thermal_spherical_breakup_example PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo)
+
+add_executable(cqmom_thermal_spherical_breakup_mc_example main_mc.cpp thermal_particles.cpp)
+target_link_libraries(cqmom_thermal_spherical_breakup_mc_example PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo)
+
+configure_file(configuration.qmom configuration.qmom COPYONLY)

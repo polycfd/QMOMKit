@@ -2,10 +2,12 @@
 
 `paper/verification/` contains standalone, explicitly run numerical studies for
 the QMOMKit paper. They complement, but do not replace, the automated tests
-under `tests/`. `paper/examples/` contains standalone copies of three existing
+under `tests/`. `paper/examples/` contains standalone copies of five existing
 application examples: `examples/cqmom_non-spherical-particles/`,
 `examples/cqmom_condensing_droplets/`, and
-`examples/cqmom_polydisperse_cavitation/`.
+`examples/cqmom_polydisperse_cavitation/`,
+`examples/cqmom_spherical_breakup_quadrature_4d/`, and
+`examples/cqmom_spherical_breakup_moments_5d/`.
 
 Each paper example preserves its canonical physics, configuration, fixed-seed
 Monte Carlo sample, and final time. One sampled ensemble initializes QMOMKit
@@ -39,6 +41,12 @@ cd <paper-examples-build-dir>/condensing_droplets
 
 cd <paper-examples-build-dir>/polydisperse_cavitation
 ../qmomkit_paper_polydisperse_cavitation
+
+cd <paper-examples-build-dir>/cqmom_spherical_breakup_quadrature_4d
+../qmomkit_paper_cqmom_spherical_breakup_quadrature_4d
+
+cd <paper-examples-build-dir>/cqmom_spherical_breakup_moments_5d
+../qmomkit_paper_cqmom_spherical_breakup_moments_5d
 ```
 
 Each case writes its existing example outputs plus
@@ -57,6 +65,22 @@ The paper quantities are:
   `M_300/M_200` is plotted exactly, without an added factor of two.
 - Polydisperse cavitation `(R, U)`: `M_00`, `M_10/M_00`, `M_01/M_00`,
   `M_11/M_00`, `M_20/M_00`, and `M_02/M_00`.
+- Spherical breakup with recoil `(d, u, v, w)`: raw `M[0,0,0,0]`,
+  `M[3,0,0,0]`, `M[1,0,0,0]`, `M[2,0,0,0]`, `M[0,1,0,0]`,
+  `M[0,2,0,0]`, `M[2,1,0,0]`, `M[2,2,0,0]`, and `M[6,0,0,0]`.
+  This case demonstrates terminal-quadrature closure for nonlinear,
+  diameter-dependent recoil.
+- Thermal spherical breakup `(V, T, u, v, w)`: raw `M[0,0,0,0,0]`,
+  `M[1,0,0,0,0]`, `M[0,1,0,0,0]`, `M[0,2,0,0,0]`,
+  `M[1,1,0,0,0]`, `M[1/3,0,0,0,0]`, `M[4/3,0,0,0,0]`,
+  `M[1/3,1,0,0,0]`, and `M[4/3,1,0,0,0]`. This case demonstrates
+  generalized-moment evaluation of fractional-volume moments.
+
+The two spherical-breakup cases use their copied `configuration.qmom` files,
+10,000 initialization samples, initialization seed `123`, breakup seed `321`,
+and end time `0.1`. Each target constructs that sampled population once, then
+uses it for both CQMOM initialization and the MC reference. Their comparison
+files contain raw moments only; no normalization is applied.
 
 NumPy and Matplotlib are required to produce the figures:
 

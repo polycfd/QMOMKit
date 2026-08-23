@@ -62,8 +62,37 @@ target_link_libraries(
         qmomkit_monte_carlo::qmomkit_monte_carlo
 )
 
+add_executable(
+    qmomkit_paper_cqmom_spherical_breakup_quadrature_4d
+    cqmom_spherical_breakup_quadrature_4d/main.cpp
+    cqmom_spherical_breakup_quadrature_4d/physics.cpp
+    cqmom_spherical_breakup_quadrature_4d/sampling.cpp
+    cqmom_spherical_breakup_quadrature_4d/utilities.cpp
+)
+target_link_libraries(
+    qmomkit_paper_cqmom_spherical_breakup_quadrature_4d
+    PRIVATE
+        qmomkit::qmomkit
+        qmomkit_monte_carlo::qmomkit_monte_carlo
+)
+
+add_executable(
+    qmomkit_paper_cqmom_spherical_breakup_moments_5d
+    cqmom_spherical_breakup_moments_5d/main.cpp
+    cqmom_spherical_breakup_moments_5d/physics.cpp
+    cqmom_spherical_breakup_moments_5d/sampling.cpp
+    cqmom_spherical_breakup_moments_5d/utilities.cpp
+)
+target_link_libraries(
+    qmomkit_paper_cqmom_spherical_breakup_moments_5d
+    PRIVATE
+        qmomkit::qmomkit
+        qmomkit_monte_carlo::qmomkit_monte_carlo
+)
+
 configure_file(non_spherical_particles/configuration.qmom non_spherical_particles/configuration.qmom COPYONLY)
-configure_file(reactive_spherical_particles/configuration.qmom reactive_spherical_particles/configuration.qmom COPYONLY)
 configure_file(condensing_droplets/configuration.qmom condensing_droplets/configuration.qmom COPYONLY)
 configure_file(polydisperse_cavitation/configuration.qmom polydisperse_cavitation/configuration.qmom COPYONLY)
 configure_file(aerosol_evaporation/configuration.qmom aerosol_evaporation/configuration.qmom COPYONLY)
+configure_file(cqmom_spherical_breakup_quadrature_4d/configuration.qmom cqmom_spherical_breakup_quadrature_4d/configuration.qmom COPYONLY)
+configure_file(cqmom_spherical_breakup_moments_5d/configuration.qmom cqmom_spherical_breakup_moments_5d/configuration.qmom COPYONLY)

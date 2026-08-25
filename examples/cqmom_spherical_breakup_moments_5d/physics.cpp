@@ -15,7 +15,7 @@ constexpr double gas_density = 1.2;
 constexpr double gas_viscosity = 1.8e-5;
 constexpr double gas_thermal_conductivity = 0.026;
 constexpr double gas_prandtl_number = 0.71;
-constexpr double gas_temperature = 300.0;
+constexpr double gas_temperature = 300.0e-3;
 constexpr double particle_density = 2000.0;
 constexpr double particle_heat_capacity = 1000.0;
 constexpr double gas_u = 2.0;
@@ -23,7 +23,7 @@ constexpr double gas_v = 1.5;
 constexpr double gas_w = 0.8;
 // These constants define the deliberately simple breakup temperature mapping
 // used to demonstrate generalized-moment source closure.
-constexpr double breakup_rate = 20.0;
+constexpr double breakup_rate = 10.0;
 constexpr double reference_diameter = 1.0e-4;
 constexpr double breakup_temperature_relaxation = 1.0e-2;
 constexpr double reference_volume = pi * reference_diameter * reference_diameter * reference_diameter / 6.0;
@@ -71,9 +71,7 @@ qmomkit::PhaseSpaceVelocity particle_velocity()
         const double dw = gas_w - coordinates[4];
         const double slip = std::sqrt(du * du + dv * dv + dw * dw);
         const double reynolds = gas_density * d * slip / gas_viscosity;
-        const double drag = reynolds > 1.0e-14 ? 3.0 * gas_density / (4.0 * particle_density * d) *
-                                                     (24.0 / reynolds * (1.0 + 0.15 * std::pow(reynolds, 0.687))) * slip
-                                               : 18.0 * gas_viscosity / (particle_density * d * d);
+        const double drag = 3.0 * gas_density / (4.0 * particle_density * d) * (24.0 / reynolds * (1.0 + 0.15 * std::pow(reynolds, 0.687))) * slip;
         const double nusselt = 2.0 + 0.6 * std::sqrt(reynolds) * std::cbrt(gas_prandtl_number);
         const double temperature_rate =
             6.0 * gas_thermal_conductivity * nusselt / (particle_density * particle_heat_capacity * d * d) * (gas_temperature - coordinates[1]);

@@ -95,6 +95,13 @@ int main()
         }
         comparison_file << "time,quantity,qmomkit,monte_carlo\n";
         comparison_file << std::setprecision(17);
+        std::ofstream mc_generalized_moment_history_file(output_options.directory / "generalized_moment_history_mc.txt");
+        if (!mc_generalized_moment_history_file)
+        {
+            throw std::runtime_error("Could not open Monte Carlo generalized-moment history output.");
+        }
+        mc_generalized_moment_history_file << "# time M[4/3,0,0,0,0] M[4/3,1,0,0,0]\n";
+        mc_generalized_moment_history_file << std::setprecision(17);
         const auto write_comparison = [&](const double time, const qmomkit::CqmomQuadrature& current_quadrature)
         {
             const std::vector<double> qmomkit_values = paper_moments(current_quadrature);
@@ -107,9 +114,10 @@ int main()
             {
                 comparison_file << time << ',' << paper_moment_labels()[index] << ',' << qmomkit_values[index] << ',' << mc_values[index] << '\n';
             }
-            if (!comparison_file)
+            mc_generalized_moment_history_file << time << ' ' << mc_values[6] << ' ' << mc_values[8] << '\n';
+            if (!comparison_file || !mc_generalized_moment_history_file)
             {
-                throw std::runtime_error("Failed while writing paper moment-comparison output.");
+                throw std::runtime_error("Failed while writing paper moment output.");
             }
         };
 

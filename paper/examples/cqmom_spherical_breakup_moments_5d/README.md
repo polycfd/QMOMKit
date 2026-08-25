@@ -33,5 +33,10 @@ histories are also written according to `configuration.qmom`. Fractional
 moments use mathematical notation here; their CSV identifiers use names such
 as `M_1over3_*` and `M_4over3_*`.
 
+`output/generalized_moment_history_mc.txt` contains the two direct-ensemble
+Monte Carlo histories required by the 5D breakup closure:
+`M[4/3,0,0,0,0]` and `M[4/3,1,0,0,0]`. The latter uses the native kK
+temperature coordinate.
+
 The copied configuration controls CQMOM. The case uses 10,000 initialization
 samples with seed `123`, breakup seed `321`, and end time `0.1`.

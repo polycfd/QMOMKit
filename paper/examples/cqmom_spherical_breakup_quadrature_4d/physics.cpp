@@ -19,8 +19,8 @@ constexpr double gas_v = 1.5;
 constexpr double gas_w = 0.8;
 // These constants define the deliberately simple breakup/recoil mapping used
 // to demonstrate terminal-quadrature source closure.
-constexpr double breakup_rate = 20.0;
-constexpr double recoil_standard_deviation = 0.001;
+constexpr double breakup_rate = 10.0;
+constexpr double recoil_standard_deviation = 0.25;
 constexpr double recoil_reference_diameter = 1.0e-4;
 constexpr double daughter_diameter_factor = 0.79370052598409973738;
 
@@ -87,7 +87,7 @@ qmomkit::PhaseSpaceVelocity particle_velocity()
 {
     return [](double, const std::vector<double>& coordinates)
     {
-        if (coordinates.size() != 4 || !(coordinates[0] > 0.0))
+        if (coordinates.size() != 4)
         {
             throw std::invalid_argument("Particle coordinates must be ordered as positive (d,u,v,w).");
         }
@@ -96,9 +96,8 @@ qmomkit::PhaseSpaceVelocity particle_velocity()
         const double dw = gas_w - coordinates[3];
         const double slip = std::sqrt(du * du + dv * dv + dw * dw);
         const double reynolds = gas_density * coordinates[0] * slip / gas_viscosity;
-        const double drag = reynolds > 1.0e-14 ? 3.0 * gas_density / (4.0 * particle_density * coordinates[0]) *
-                                                     (24.0 / reynolds * (1.0 + 0.15 * std::pow(reynolds, 0.687))) * slip
-                                               : 18.0 * gas_viscosity / (particle_density * coordinates[0] * coordinates[0]);
+        const double drag =
+            3.0 * gas_density / (4.0 * particle_density * coordinates[0]) * (24.0 / reynolds * (1.0 + 0.15 * std::pow(reynolds, 0.687))) * slip;
         return std::vector<double>{0.0, drag * du, drag * dv, drag * dw};
     };
 }

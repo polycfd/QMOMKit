@@ -34,5 +34,10 @@ cd <build-dir>/cqmom_spherical_breakup_quadrature_4d
 post-processing. No normalization is applied. Native raw-moment and
 quadrature histories are also written according to `configuration.qmom`.
 
-The copied configuration controls CQMOM. The case uses 10,000 initialization
-samples with seed `123`, breakup seed `321`, and end time `0.1`.
+The copied configuration controls CQMOM. Its diameter marginal is a trimodal
+lognormal mixture: component number densities `0.40`, `0.50`, and `0.10`,
+median diameters `25`, `100`, and `400` micrometres, and the original
+log-space standard deviation `0.12`. The component number densities are normalized by
+the independent-product initialization before applying the global number
+density of one. The case uses 10,000 initialization samples with seed `123`,
+breakup seed `321`, and end time `0.1`.

@@ -1,8 +1,8 @@
 [phase_space]
 names = d, u, v, w
-node_counts = 3, 3, 3, 3
+node_counts = 2, 2, 2, 2
 conditioning_order = 0, 1, 2, 3
-adaptive_branch_counts = true
+adaptive_branch_counts = false
 
 [time_integration]
 scheme = strang
@@ -14,8 +14,8 @@ scheme = rk23
 relative_tolerance = 1.0e-6
 absolute_tolerance = 1.0e-10
 initial_step = 1.0e-4
-max_step = 4.0e-3
-min_step = 1.0e-10
+max_step = 1.0e-2
+min_step = 1.0e-6
 
 [initial]
 type = independent_product
@@ -28,18 +28,18 @@ sigma_log = 0.12
 
 [initial.dimension.1]
 family = normal
-mean = 0.2
-standard_deviation = 0.08
+mean = 0.0
+standard_deviation = 0.5
 
 [initial.dimension.2]
 family = normal
-mean = -0.1
-standard_deviation = 0.08
+mean = 0.0
+standard_deviation = 0.5
 
 [initial.dimension.3]
 family = normal
-mean = 0.05
-standard_deviation = 0.08
+mean = 0.0
+standard_deviation = 0.5
 
 [output]
 directory = output

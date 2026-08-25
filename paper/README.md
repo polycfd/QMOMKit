@@ -2,23 +2,37 @@
 
 `paper/verification/` contains standalone, explicitly run numerical studies for
 the QMOMKit paper. They complement, but do not replace, the automated tests
-under `tests/`. `paper/examples/` contains standalone copies of five existing
-application examples: `examples/cqmom_5d_non-spherical-particles/`,
-`examples/cqmom_3d_condensing-nucleating_droplets/`, and
-`examples/cqmom_2d_polydisperse_cavitation/`,
-`examples/cqmom_4d_spherical_breakup_quadrature/`, and
-`examples/cqmom_5d_spherical_breakup_moments/`. The frozen paper copies retain
-their historical directory names.
+under `tests/`. `paper/examples/` contains frozen, standalone application cases
+used for the paper; the user-facing examples under `examples/` are separate.
 
-Each paper example preserves its canonical physics, configuration, fixed-seed
-Monte Carlo sample, and final time. One sampled ensemble initializes QMOMKit
-and is then evolved as the MC reference. For the controlled comparison, MC
-uses the same outer timestep and continuous RK23 trajectory options as QMOMKit
-node advection, and both paths are output at identical physical times. This
-deliberately differs from a standalone canonical MC executable if its timestep
-or integration options differ.
+Each paper case preserves its configuration, physics, fixed-seed Monte Carlo
+sample, and final time. A single sampled ensemble initializes QMOMKit and is
+then evolved as the MC reference. MC uses the same outer timestep and
+continuous RK23 trajectory options as QMOMKit node advection, and both paths
+are output at identical physical times. This controlled comparison may differ
+from a user-facing MC executable with different timestep or integration
+options.
 
 ## Paper application examples
+
+The paper cases are:
+
+- `1d_aerosols_evaporation`: 1D QMOM evaporation of an aerosol diameter
+  distribution, with fixed-node-count reconstructions compared with its
+  fixed-seed Monte Carlo reference.
+- `2d_bubbles_cavitation`: 2D CQMOM evolution of a polydisperse bubble
+  population in radius and velocity, compared with Monte Carlo.
+- `3d_droplets_condensation-nucleation`: 3D CQMOM condensation and nucleation
+  of droplets in radius, vertical velocity, and temperature, including an
+  aligned Monte Carlo reference.
+- `4d_particles_breakup_recoil`: 4D CQMOM spherical-particle breakup with
+  nonlinear diameter-dependent recoil. It demonstrates terminal-quadrature
+  closure for the nonlinear daughter-state transformation rather than a
+  physical validation of a particular breakup model.
+- `5d_particles_breakup_heat-transfer`: 5D CQMOM spherical-particle breakup
+  with temperature and heat transfer. It demonstrates generalized-moment
+  evaluation of fractional-volume moments through terminal quadrature rather
+  than a physical validation of a particular breakup model.
 
 Install QMOMKit and QMOMKitMonteCarlo, then configure the paper examples as a
 standalone downstream consumer:
@@ -34,67 +48,57 @@ Run each executable from its corresponding build subdirectory so it uses the
 copied case configuration:
 
 ```bash
-cd <paper-examples-build-dir>/non_spherical_particles
-../qmomkit_paper_non_spherical_particles
+cd <paper-examples-build-dir>/1d_aerosols_evaporation
+../qmomkit_paper_1d_aerosols_evaporation
 
-cd <paper-examples-build-dir>/condensing_droplets
-../qmomkit_paper_condensing_droplets
+cd <paper-examples-build-dir>/2d_bubbles_cavitation
+../qmomkit_paper_2d_bubbles_cavitation
 
-cd <paper-examples-build-dir>/polydisperse_cavitation
-../qmomkit_paper_polydisperse_cavitation
+cd <paper-examples-build-dir>/3d_droplets_condensation-nucleation
+../qmomkit_paper_3d_droplets_condensation_nucleation
 
-cd <paper-examples-build-dir>/cqmom_spherical_breakup_quadrature_4d
-../qmomkit_paper_cqmom_spherical_breakup_quadrature_4d
+cd <paper-examples-build-dir>/4d_particles_breakup_recoil
+../qmomkit_paper_4d_particles_breakup_recoil
 
-cd <paper-examples-build-dir>/cqmom_spherical_breakup_moments_5d
-../qmomkit_paper_cqmom_spherical_breakup_moments_5d
+cd <paper-examples-build-dir>/5d_particles_breakup_heat-transfer
+../qmomkit_paper_5d_particles_breakup_heat_transfer
 ```
 
-Each case writes its existing example outputs plus
+Each CQMOM case writes its existing example outputs plus
 `output/moment_comparison.csv`, with the aligned columns `time`, `quantity`,
-`qmomkit`, and `monte_carlo`.
+`qmomkit`, and `monte_carlo`. The 1D aerosol case preserves its existing
+per-node QMOM and Monte Carlo moment-history outputs.
+
+The 4D and 5D breakup cases each use 10,000 initialization samples with seed
+`123`, breakup seed `321`, and end time `0.1`. The 4D case uses the `(d,u,v,w)`
+phase space, and the 5D case uses `(V,T,u,v,w)`. The 5D case also writes
+`output/generalized_moment_history_mc.txt` for direct-ensemble histories of
+`M[4/3,0,0,0,0]` and `M[4/3,1,0,0,0]`; CSV identifiers use forms such as
+`M_1over3_*` and `M_4over3_*`. Native raw-moment and quadrature histories are
+written according to each `configuration.qmom` without normalization.
+
+For reproducibility, the 4D diameter marginal is the configured trimodal
+lognormal mixture with component number densities `0.40`, `0.50`, and `0.10`,
+median diameters `25`, `100`, and `400` micrometres, and log-space standard
+deviation `0.12`; independent-product initialization normalizes those
+components before applying the global number density of one.
 
 The paper quantities are:
 
-- Non-spherical particles `(d, chi, u, v, w)`: `M_00000`,
-  `M_30000/M_20000`, `M_01000/M_00000`, `M_30100/M_00000`,
-  `M_30010/M_00000`, `M_30001/M_00000`, `Theta_x`, `Theta_y`, and
-  `Theta_z`, where `Theta_x = M_00200/M_00000 - (M_00100/M_00000)^2`
-  with analogous `y` and `z` formulas.
-- Condensing droplets `(r, w, T)`: `M_000`, `M_300/M_200`,
-  `M_010/M_000`, and `M_001/M_000`. Here `r` is radius; the requested
-  `M_300/M_200` is plotted exactly, without an added factor of two.
-- Polydisperse cavitation `(R, U)`: `M_00`, `M_10/M_00`, `M_01/M_00`,
-  `M_11/M_00`, `M_20/M_00`, and `M_02/M_00`.
-- Spherical breakup with recoil `(d, u, v, w)`: raw `M[0,0,0,0]`,
+- Aerosol evaporation `(d)`: raw moments and quadratures for 2, 4, 6, 8, and
+  10 QMOM nodes, alongside the sampled Monte Carlo moment history.
+- Bubble cavitation `(R, U)`: `M_00`, `M_10/M_00`, `M_01/M_00`, `M_11/M_00`,
+  `M_20/M_00`, and `M_02/M_00`.
+- Droplet condensation-nucleation `(r, w, T)`: `M_000`, `M_300/M_200`,
+  `M_010/M_000`, and `M_001/M_000`; `r` is radius and `M_300/M_200` is plotted
+  without an added factor of two.
+- Particle breakup with recoil `(d, u, v, w)`: raw `M[0,0,0,0]`,
   `M[3,0,0,0]`, `M[1,0,0,0]`, `M[2,0,0,0]`, `M[0,1,0,0]`,
   `M[0,2,0,0]`, `M[2,1,0,0]`, `M[2,2,0,0]`, and `M[6,0,0,0]`.
-  This case demonstrates terminal-quadrature closure for nonlinear,
-  diameter-dependent recoil.
-- Thermal spherical breakup `(V, T, u, v, w)`: raw `M[0,0,0,0,0]`,
-  `M[1,0,0,0,0]`, `M[0,1,0,0,0]`, `M[0,2,0,0,0]`,
+- Particle breakup with heat transfer `(V, T, u, v, w)`: raw
+  `M[0,0,0,0,0]`, `M[1,0,0,0,0]`, `M[0,1,0,0,0]`, `M[0,2,0,0,0]`,
   `M[1,1,0,0,0]`, `M[1/3,0,0,0,0]`, `M[4/3,0,0,0,0]`,
-  `M[1/3,1,0,0,0]`, and `M[4/3,1,0,0,0]`. This case demonstrates
-  generalized-moment evaluation of fractional-volume moments.
-
-
-NumPy and Matplotlib are required to produce the figures:
-
-```bash
-cd <paper-examples-build-dir>/non_spherical_particles
-python3 <source-dir>/paper/examples/non_spherical_particles/plot.py
-
-cd <paper-examples-build-dir>/condensing_droplets
-python3 <source-dir>/paper/examples/condensing_droplets/plot.py
-
-cd <paper-examples-build-dir>/polydisperse_cavitation
-python3 <source-dir>/paper/examples/polydisperse_cavitation/plot.py
-```
-
-The scripts write `non_spherical_particles_moments.pdf`,
-`condensing_droplets_moments.pdf`, and
-`polydisperse_cavitation_moments.pdf`, respectively, in the corresponding
-build directories.
+  `M[1/3,1,0,0,0]`, and `M[4/3,1,0,0,0]`.
 
 Install QMOMKit, then configure the verification project in an out-of-source
 directory:

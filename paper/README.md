@@ -3,11 +3,12 @@
 `paper/verification/` contains standalone, explicitly run numerical studies for
 the QMOMKit paper. They complement, but do not replace, the automated tests
 under `tests/`. `paper/examples/` contains standalone copies of five existing
-application examples: `examples/cqmom_non-spherical-particles/`,
-`examples/cqmom_condensing_droplets/`, and
-`examples/cqmom_polydisperse_cavitation/`,
-`examples/cqmom_spherical_breakup_quadrature_4d/`, and
-`examples/cqmom_spherical_breakup_moments_5d/`.
+application examples: `examples/cqmom_5d_non-spherical-particles/`,
+`examples/cqmom_3d_condensing-nucleating_droplets/`, and
+`examples/cqmom_2d_polydisperse_cavitation/`,
+`examples/cqmom_4d_spherical_breakup_quadrature/`, and
+`examples/cqmom_5d_spherical_breakup_moments/`. The frozen paper copies retain
+their historical directory names.
 
 Each paper example preserves its canonical physics, configuration, fixed-seed
 Monte Carlo sample, and final time. One sampled ensemble initializes QMOMKit

@@ -59,7 +59,10 @@ Use direct C++ construction when:
 Configuration files and direct C++ setup have the same boundary: they describe
 the QMOMKit case setup. Physics callbacks, model coefficients, mesh data,
 boundary conditions, units, timestep loops, and detailed phase-space evolution control remain
-application code.
+application code. Not every public C++ option has a `.qmom` key: `.qmom`
+exposes the supported case and runtime configuration surface, while advanced
+low-level controls, such as reconstruction thresholds and source-integration
+acceptance callbacks, remain API-only.
 
 ## Direct C++ Setup At A User Level
 
@@ -72,7 +75,7 @@ through public types and options rather than through text sections:
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a dense tensor representation from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
-| phase-space evolution options | `[time_integration]`, `[time_integration.node_advection]`, `[time_integration.cqmom]`, and optional realizability settings | set `QmomPhaseSpaceEvolutionOptions`, `CqmomPhaseSpaceEvolutionOptions`, `NodeAdvectionOptions`, source-update options, and realizability settings in C++ |
+| phase-space evolution options | `[time_integration]`, `[time_integration.node_advection]`, and optional realizability settings | set `QmomPhaseSpaceEvolutionOptions`, `CqmomPhaseSpaceEvolutionOptions`, `NodeAdvectionOptions`, source-update options, and realizability settings in C++ |
 | output choices | `[output]` directory, enabled outputs, and cadence | create and call `MomentWriter` or `QuadratureWriter` from the surrounding driver |
 
 This mapping is meant to orient application integration, not replace the public
@@ -229,8 +232,6 @@ The main sections are:
 - `[time_integration]`: phase-space evolution operator-ordering choices.
 - `[time_integration.node_advection]`: optional advection node-trajectory
   integration scheme and embedded-RK controls.
-- `[time_integration.cqmom]`: optional CQMOM active node-count policy for
-  moment-source stages.
 - `[time_integration.realizability]`: optional QMOM moment-source
   realizability settings.
 - `[time_integration.realizability.<coordinate>]`: optional CQMOM
@@ -373,6 +374,21 @@ chi-squared: degrees_of_freedom
 weibull:     shape, scale
 ```
 
+These canonical family names are preferred. The parser also accepts
+`log-normal` and `log_normal` for `lognormal`, and `chi_squared` and
+`chisquared` for `chi-squared`.
+
+All supplied distribution parameters must be finite. The remaining family
+constraints are:
+
+- `normal`: `standard_deviation > 0`; `mean` may be any finite value.
+- `lognormal`: `sigma_log > 0`; `mu_log` may be any finite value.
+- `beta`: `alpha > 0` and `beta > 0`; its support is `[0, 1]`.
+- `gamma` and `weibull`: `shape > 0` and `scale > 0`.
+- `chi` and `chi-squared`: `degrees_of_freedom > 0`.
+
+`number_density` for a single distribution must be finite and non-negative.
+
 ### Mixture Initialization
 
 Use `[initial] type = mixture` when one analytical distribution is not enough
@@ -409,7 +425,8 @@ m_0 = sum_r number_density_r
 ```
 
 Component sections must be contiguous starting at
-`[initial.mixture.component.0]`.
+`[initial.mixture.component.0]`. Each component `number_density` must be
+finite and non-negative, and at least one component must have positive density.
 
 ### QMOM Options
 
@@ -484,7 +501,11 @@ If `conditioning_order` is omitted, QMOMKit uses identity order:
 
 Use `[initial] type = independent_product` when a multidimensional initial
 condition can be described as independent one-dimensional marginals multiplied
-by one global number density:
+by one global number density. `initial.dimension.N` always refers to
+phase-space dimension `N`, not to CQMOM conditioning level `N`; dimension
+sections are contiguous from zero and follow coordinate and tensor-index order.
+Each marginal may be one supported distribution family or a `type = mixture`
+marginal. Different dimensions may use different families:
 
 ```text
 [phase_space]
@@ -503,24 +524,6 @@ shape = 3.0
 scale = 0.2
 
 [initial.dimension.1]
-family = normal
-mean = -0.5
-standard_deviation = 1.25
-```
-
-Each `[initial.dimension.N]` section is associated with phase-space dimension
-`N`, not with conditioning level `N`. This means the marginal sections follow
-the same order as callback coordinates and moment tensor indices. There is one
-global `number_density`; per-dimension number densities are not part of this
-model.
-
-A marginal may instead use the existing mixture syntax. The mixture component
-densities keep their ordinary absolute-density meaning, while the independent
-product normalizes the completed marginal through its zeroth raw moment before
-applying the one global `number_density`:
-
-```text
-[initial.dimension.1]
 type = mixture
 
 [initial.dimension.1.mixture.component.0]
@@ -535,6 +538,19 @@ number_density = 3.25
 mu_log = 0.4
 sigma_log = 0.45
 ```
+
+The nested component sections must be numbered contiguously from
+`initial.dimension.N.mixture.component.0`. Their `number_density` values are
+absolute contributions to that marginal mixture, not fractions. QMOMKit first
+normalizes each completed marginal through its zeroth raw moment, then combines
+the normalized marginals as an independent product and applies the global
+`initial.number_density` exactly once. Per-dimension number densities are not
+part of this model.
+
+This configuration represents independent products of marginals, including
+marginal mixtures. It does not represent correlated joint distributions,
+copulas, multidimensional mixture components, or mixtures of independent-product
+populations.
 
 For the normal `load_cqmom(...)` path, `node_counts` and
 `conditioning_order` determine which raw moments are required. Analytical
@@ -709,8 +725,11 @@ adaptive_branch_counts = true
 ```
 
 Enabling adaptive CQMOM branch counts automatically enables adaptive Wheeler
-for all marginal and conditional inversions. The `[qmom] adaptive` setting
-still controls standalone one-dimensional QMOM behavior.
+for all marginal and conditional inversions. In a CQMOM configuration,
+`[qmom] adaptive = true` therefore requires
+`phase_space.adaptive_branch_counts = true`; it is rejected for fixed-count
+CQMOM. The `[qmom] adaptive` setting remains valid for standalone
+one-dimensional QMOM.
 
 ## Phase-Space Evolution Options
 
@@ -926,7 +945,8 @@ node advection, quadrature evolution, or reconstructed nodes and weights.
 
 For CQMOM, use coordinate-specific realizability settings for the individual
 phase-space coordinates that require checks. A zero-based coordinate suffix
-identifies the coordinate:
+identifies the coordinate and must be smaller than the configured phase-space
+rank:
 
 ```text
 [time_integration.realizability.0]

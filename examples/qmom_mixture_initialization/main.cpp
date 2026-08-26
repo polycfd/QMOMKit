@@ -1,31 +1,23 @@
-#include "qmomkit/distributions.hpp"
-#include "qmomkit/qmom.hpp"
+#include "qmomkit/qmomkit.hpp"
 
 #include <cstddef>
+#include <filesystem>
 #include <iostream>
 
 int main()
 {
-    const std::size_t node_count = 3;
-    const std::size_t maximum_order = 2 * node_count - 1;
-    const double gamma_density = 1.5;
-    const double lognormal_density = 0.8;
-
-    const qmomkit::DistributionMixture mixture{
-        {{qmomkit::GammaDistribution{2.0, 0.4}, gamma_density}, {qmomkit::LogNormalDistribution{-0.2, 0.5}, lognormal_density}}};
-
-    const qmomkit::RawMomentResult moments = qmomkit::compute_raw_moments(mixture, maximum_order);
-    if (!moments.ok())
+    const auto configured = qmomkit::config::load_qmom(std::filesystem::path{"configuration.qmom"});
+    if (!configured)
     {
-        std::cerr << "Mixture moment generation failed: " << moments.message << '\n';
+        std::cerr << configured.error() << '\n';
         return 1;
     }
 
-    std::cout << "Absolute-density mixture -> raw moments -> QMOM\n";
-    std::cout << "component densities: " << gamma_density << " and " << lognormal_density << '\n';
-    std::cout << "m0 = " << moments.moments[0] << " = sum(component number densities)\n";
+    const qmomkit::QmomCase& qmom_case = configured.value();
+    std::cout << "Configuration-defined absolute-density mixture -> raw moments -> QMOM\n";
+    std::cout << "m0 = " << qmom_case.moments[0] << " = sum(component number densities)\n";
 
-    const qmomkit::QmomResult qmom = qmomkit::compute_qmom(moments.moments, node_count);
+    const qmomkit::QmomResult qmom = qmomkit::compute_qmom(qmom_case);
     if (!qmom.ok())
     {
         std::cerr << "QMOM failed: " << qmom.message << '\n';

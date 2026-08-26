@@ -1688,6 +1688,20 @@ void validate_optional_realizability_policy(ParsedFile& parsed, const std::strin
     }
 }
 
+void validate_cqmom_coordinate_realizability_ranks(ParsedFile& parsed, const std::string& source_name, const std::size_t dimensions)
+{
+    for (const auto& item : coordinate_realizability_sections(parsed))
+    {
+        if (item.first >= dimensions)
+        {
+            const auto section = parsed.sections.find(item.second);
+            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, section == parsed.sections.end() ? 0 : section->second.line,
+                      "CQMOM realizability coordinate index " + std::to_string(item.first) + " is outside the configured phase-space rank " +
+                          std::to_string(dimensions) + ".");
+        }
+    }
+}
+
 void reject_unknown_phase_space_evolution_sections(ParsedFile& parsed, const std::string& source_name)
 {
     for (const auto& item : parsed.sections)
@@ -1896,6 +1910,17 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
             add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, adaptive_branch_counts_entry->second.line,
                       "adaptive_branch_counts must be true or false.");
         }
+    }
+    if (qmom_options.has_value() && qmom_options->adaptive && !adaptive_branch_counts)
+    {
+        const Entry* adaptive_entry = find_entry(parsed, "qmom.adaptive");
+        add_error(
+            parsed, ConfigurationErrorCode::invalid_configuration, source_name, adaptive_entry == nullptr ? 0 : adaptive_entry->line,
+            "qmom.adaptive = true is incompatible with fixed-count CQMOM; set phase_space.adaptive_branch_counts = true or qmom.adaptive = false.");
+    }
+    if (!node_counts.empty())
+    {
+        validate_cqmom_coordinate_realizability_ranks(parsed, source_name, node_counts.size());
     }
     if (!parsed.errors.empty())
     {

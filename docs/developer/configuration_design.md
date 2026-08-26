@@ -39,6 +39,12 @@ Configuration is intentionally application agnostic. It does not define meshes,
 boundary conditions, CFD operators, source callbacks, velocity callbacks, MPI
 communication, units, or physical models.
 
+The `.qmom` format is deliberately narrower than the public C++ API. It maps
+the supported case and runtime configuration surface; advanced lower-level
+controls, such as reconstruction thresholds and source-integration acceptance
+callbacks, remain API-only unless they acquire a documented configuration
+contract.
+
 ## Configuration Architecture
 
 The conceptual flow is:
@@ -202,12 +208,12 @@ range, completeness, and that each extent is large enough for the requested node
 count in that dimension before creating a `CqmomDenseCase`. Recursive CQMOM
 success is still checked later by `compute_cqmom(...)`.
 
-The settings `phase_space.adaptive_branch_counts` and `[qmom] adaptive` are
-parsed independently. `phase_space.adaptive_branch_counts` controls whether
-CQMOM may accept branch-dependent quadrature counts and, when enabled,
-automatically enables adaptive Wheeler for all CQMOM marginal and conditional
-inversions. `[qmom] adaptive` still controls standalone one-dimensional QMOM
-behavior.
+`phase_space.adaptive_branch_counts` controls whether CQMOM may accept
+branch-dependent quadrature counts and, when enabled, automatically enables
+adaptive Wheeler for all CQMOM marginal and conditional inversions. A CQMOM
+configuration with `[qmom] adaptive = true` must enable adaptive branch counts;
+fixed-count CQMOM rejects that combination during configuration validation.
+`[qmom] adaptive` remains the standalone one-dimensional QMOM control.
 
 The optional `[cqmom] diagnostic_level = detailed|basic|none` setting maps to
 the CQMOM diagnostic policy stored in the loaded case. If omitted,
@@ -280,7 +286,6 @@ Configuration may include optional runtime settings that are useful to drivers:
 
 - phase-space evolution scheme selection;
 - node-advection scheme selection and embedded-RK controls;
-- CQMOM active branch-count policy for moment-source stages;
 - output options;
 - runtime realizability policy.
 
@@ -341,7 +346,8 @@ integration, realizability policies, or phase-space evolution splitting.
 `[time_integration.realizability]` configures QMOM realizability checks during
 moment-source SSP-RK3 evolution. For CQMOM,
 `[time_integration.realizability.<coordinate>]` configures realizability
-checks for individual phase-space coordinates. When phase-space evolution
+checks for individual phase-space coordinates; the zero-based coordinate index
+must be smaller than the configured phase-space rank. When phase-space evolution
 options are loaded from the configuration file, the corresponding QMOM or
 CQMOM phase-space evolution path consumes these settings during its
 moment-source stage. Support is explicit; it is not inferred from distribution

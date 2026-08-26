@@ -1648,12 +1648,17 @@ void assert_cqmom_adaptive_options(const bool adaptive, const bool adaptive_bran
     assert(configured.value().adaptive_branch_counts == adaptive_branch_counts);
 }
 
-void test_cqmom_adaptive_options_are_independent()
+void test_cqmom_adaptive_options_validate_compatibility()
 {
     assert_cqmom_adaptive_options(false, false);
-    assert_cqmom_adaptive_options(true, false);
     assert_cqmom_adaptive_options(false, true);
     assert_cqmom_adaptive_options(true, true);
+
+    const auto incompatible = qmomkit::config::parse_cqmom_dense(cqmom_adaptive_option_text(true, false));
+    assert(!incompatible.ok());
+    assert(has_failure(incompatible));
+    assert(has_message_fragment(incompatible, "qmom.adaptive = true is incompatible with fixed-count CQMOM"));
+    assert(has_message_fragment(incompatible, "phase_space.adaptive_branch_counts = true"));
 
     const auto omitted_qmom_adaptive = qmomkit::config::parse_cqmom_dense(R"(
 [phase_space]
@@ -1670,6 +1675,28 @@ M[1,1] = 6.0
     assert(omitted_qmom_adaptive.ok());
     assert(!omitted_qmom_adaptive.value().qmom_options.adaptive);
     assert(omitted_qmom_adaptive.value().adaptive_branch_counts);
+}
+
+void test_cqmom_case_parsing_validates_coordinate_realizability_rank()
+{
+    const auto valid = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(R"(
+
+[time_integration.realizability.1]
+check_mode = final_only
+support = nonnegative
+)"));
+    assert(valid.ok());
+
+    const auto invalid = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(R"(
+
+[time_integration.realizability.2]
+check_mode = final_only
+support = nonnegative
+)"));
+    assert(!invalid.ok());
+    assert(has_failure(invalid));
+    assert(has_message_fragment(invalid, "coordinate index 2"));
+    assert(has_message_fragment(invalid, "phase-space rank 2"));
 }
 
 void test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom()
@@ -3701,7 +3728,7 @@ void run_all_configuration_tests()
     test_cqmom_case_replacement_defers_realizability();
     test_cqmom_case_file_loading();
     test_cqmom_independent_product_zero_density_skips_marginal_validation();
-    test_cqmom_adaptive_options_are_independent();
+    test_cqmom_adaptive_options_validate_compatibility();
     test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom();
     test_cqmom_diagnostic_level_parses_values();
     test_cqmom_vandermonde_solver_parses_values();
@@ -3712,6 +3739,7 @@ void run_all_configuration_tests()
     test_coordinate_realizability_policies_parse_sparse_numbered_sections();
     test_quadrature_bounds_do_not_alter_coordinate_realizability_policy();
     test_coordinate_realizability_policy_does_not_alter_quadrature_bounds();
+    test_cqmom_case_parsing_validates_coordinate_realizability_rank();
     test_realizability_policy_rejects_invalid_values();
     test_realizability_policy_rejects_invalid_bounded_interval();
     test_realizability_policy_rejects_unknown_entries();
@@ -3785,7 +3813,7 @@ void run_cqmom_case_state_tests()
 
 void run_runtime_option_tests()
 {
-    test_cqmom_adaptive_options_are_independent();
+    test_cqmom_adaptive_options_validate_compatibility();
     test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom();
     test_cqmom_diagnostic_level_parses_values();
     test_cqmom_vandermonde_solver_parses_values();
@@ -3796,6 +3824,7 @@ void run_runtime_option_tests()
     test_coordinate_realizability_policies_parse_sparse_numbered_sections();
     test_quadrature_bounds_do_not_alter_coordinate_realizability_policy();
     test_coordinate_realizability_policy_does_not_alter_quadrature_bounds();
+    test_cqmom_case_parsing_validates_coordinate_realizability_rank();
     test_realizability_policy_rejects_invalid_values();
     test_realizability_policy_rejects_invalid_bounded_interval();
     test_realizability_policy_rejects_unknown_entries();

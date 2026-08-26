@@ -48,7 +48,6 @@ constexpr std::string_view adaptive_initial_step_key = "time_integration.node_ad
 constexpr std::string_view adaptive_max_step_key = "time_integration.node_advection.adaptive.max_step";
 constexpr std::string_view adaptive_min_step_key = "time_integration.node_advection.adaptive.min_step";
 constexpr std::string_view adaptive_max_steps_key = "time_integration.node_advection.adaptive.max_steps";
-constexpr std::string_view cqmom_time_integration_section = "time_integration.cqmom";
 constexpr std::string_view output_section = "output";
 constexpr std::string_view output_key_prefix = "output.";
 
@@ -787,8 +786,7 @@ std::vector<std::string> with_runtime_allowed_keys(std::vector<std::string> allo
 
 std::vector<std::string> time_integration_sections()
 {
-    return {"time_integration", "time_integration.realizability", "time_integration.node_advection", "time_integration.node_advection.adaptive",
-            "time_integration.cqmom"};
+    return {"time_integration", "time_integration.realizability", "time_integration.node_advection", "time_integration.node_advection.adaptive"};
 }
 
 void reject_unknown_qmom_sections(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
@@ -1708,8 +1706,7 @@ void reject_unknown_phase_space_evolution_sections(ParsedFile& parsed, const std
     {
         std::size_t coordinate = 0;
         if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
-            item.first != adaptive_section && item.first != cqmom_time_integration_section &&
-            !parse_coordinate_realizability_section(item.first, coordinate))
+            item.first != adaptive_section && !parse_coordinate_realizability_section(item.first, coordinate))
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
@@ -2577,7 +2574,7 @@ ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::s
     for (const auto& item : parsed.sections)
     {
         if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
-            item.first != adaptive_section && item.first != cqmom_time_integration_section)
+            item.first != adaptive_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }

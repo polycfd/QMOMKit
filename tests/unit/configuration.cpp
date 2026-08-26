@@ -2629,7 +2629,7 @@ growth_limit = 2.0
     assert(has_failure(unknown_rk23_key));
 }
 
-void test_removed_cqmom_source_policy_key_is_unknown()
+void test_removed_cqmom_source_policy_section_is_unknown()
 {
     const std::string removed_key = std::string("[time_integration.cqmom]\nsource_node_count_") + "evolution = preserve_active_" + "counts\n";
     const auto qmom = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(removed_key));
@@ -3752,7 +3752,7 @@ void run_all_configuration_tests()
     test_node_advection_options_parse_rk23_controls();
     test_node_advection_options_reject_invalid_scheme_values();
     test_node_advection_options_reject_invalid_rk23_controls();
-    test_removed_cqmom_source_policy_key_is_unknown();
+    test_removed_cqmom_source_policy_section_is_unknown();
     test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
     test_phase_space_evolution_options_loaders_reject_invalid_values();
     test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();
@@ -3837,7 +3837,7 @@ void run_runtime_option_tests()
     test_node_advection_options_parse_rk23_controls();
     test_node_advection_options_reject_invalid_scheme_values();
     test_node_advection_options_reject_invalid_rk23_controls();
-    test_removed_cqmom_source_policy_key_is_unknown();
+    test_removed_cqmom_source_policy_section_is_unknown();
     test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
     test_phase_space_evolution_options_loaders_reject_invalid_values();
     test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();

@@ -557,17 +557,27 @@ For the normal `load_cqmom(...)` path, `node_counts` and
 independent-product initialization generates only those required moments and
 does not construct a dense `RawMomentTensor`.
 
-`maximum_orders[d]` optionally gives the largest moment order to generate in
-dimension `d` when building a full tensor:
+`initial.maximum_orders` is an optional advanced setting for dense CQMOM
+initialization; it is not needed to specify the normal CQMOM moment set. With
+the default lean storage, it has no effect: QMOMKit evaluates the structured
+moment layout implied by `node_counts` and `conditioning_order`.
+
+With dense storage, `maximum_orders[d]` gives the largest raw-moment order in
+dimension `d` for the retained rectangular tensor:
 
 ```text
 extent[d] = maximum_orders[d] + 1
 ```
 
-`maximum_orders` and `node_counts` describe different parts of the workflow.
-Moment orders control how many raw tensor entries are generated for full tensor
-workflows. Node counts control the requested CQMOM quadrature size. New users
-following `load_cqmom(...)` do not need `maximum_orders`.
+When it is omitted, QMOMKit derives the minimum dense extent from the node
+count: `extent[d] = 2 * node_counts[d]`, or equivalently a maximum raw order
+of `2 * node_counts[d] - 1`. Supplied values must not be smaller than that
+minimum. Larger values retain additional initial raw moments in the dense
+state, which is useful when moments are evaluated from a sample population.
+They do not increase reconstruction order, branch capacity, the structured
+CQMOM layout, or the moments independently evolved by source callbacks.
+During dense phase-space evolution, those additional entries are regenerated
+from the reconstructed quadrature rather than transported independently.
 
 ### Optional CQMOM Coordinate Support
 
@@ -640,10 +650,13 @@ Applications that need this representation can load it with
 `load_cqmom_dense(...)` and use the explicit dense representation APIs.
 Independent-product configurations loaded through this dense representation
 workflow may omit `initial.maximum_orders`; QMOMKit then derives the minimum
-dense tensor extents from the configured quadrature. Explicit larger extents
-remain available for analytical and sampled initialization. Dense remains a
-first-class supported expert workflow for callers that intentionally manage
-full tensor moment storage.
+dense tensor extents from the configured quadrature. When supplied, each value
+must be at least `2 * node_counts[d] - 1` and selects a larger retained
+rectangular tensor only; it does not change the CQMOM reconstruction layout or
+branch counts. Sample-based initialization can use these larger extents when
+evaluating raw moments from its sample population. Dense remains a first-class
+supported expert workflow for callers that intentionally manage full tensor
+moment storage.
 
 ### Advanced: CQMOM Diagnostics And Solver Options
 
@@ -985,8 +998,10 @@ changes the setup to a unit-number-density problem.
 Generate enough moments. For `N` QMOM nodes, an analytical initialization needs
 `maximum_order >= 2 * N - 1`. For normal CQMOM configuration, `node_counts` and
 `conditioning_order` define the reconstruction setup. Explicit full-tensor
-workflows must choose tensor extents and `maximum_orders` large enough for the
-requested CQMOM node counts.
+workflows may omit `initial.maximum_orders`, in which case QMOMKit derives the
+minimum extents required by the requested CQMOM node counts. If values are
+supplied, they must meet that minimum and request only additional retained
+dense raw moments.
 
 Separate distribution settings from quadrature settings. Initial distributions
 describe raw moments. `node_counts`, `conditioning_order`, and adaptive options

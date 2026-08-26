@@ -168,10 +168,12 @@ RawMomentRequest
 CqmomMomentData
 ```
 
-For analytical independent-product initialization, configuration should generate
-only the moments required by `create_cqmom_moment_layout(...)` and adapts the
-selected result to `CqmomMomentData`. This path does not construct a dense
-`RawMomentTensor` and does not require `initial.maximum_orders`.
+For analytical independent-product initialization, configuration requests
+exactly `CqmomMomentLayout::required_indices` from
+`create_cqmom_moment_layout(...)` and adapts the selected result to
+`CqmomMomentData`. This path does not construct a dense
+`RawMomentTensor`; `initial.maximum_orders` has no effect on the requested
+lean moment layout.
 
 The explicit dense representation workflow maps parsed CQMOM setup data to:
 
@@ -185,7 +187,15 @@ intentionally choose full rectangular tensor moment storage for full tensor
 access, external data, validation, debugging, or interoperability. Analytical
 independent-product configuration on this path uses explicit
 `initial.maximum_orders` when present; when omitted, the dense tensor extents
-come from `PhaseSpaceHierarchy::moment_extents()`.
+come from `PhaseSpaceHierarchy::moment_extents()`. The derived extent in
+dimension `d` is `2 * node_counts[d]`, so the corresponding maximum raw order
+is `2 * node_counts[d] - 1`; explicit dense orders may be larger but not
+smaller. Reconstruction still consumes only the `CqmomMomentLayout` required
+by the hierarchy and conditioning order. A dense state retains the additional
+entries, but phase-space evolution regenerates them from reconstructed
+quadrature after evolving the required layout, rather than independently
+transporting them.
+
 `load_cqmom_lean(...)` exposes the explicit lean representation workflow and
 returns `CqmomLeanCase` directly for callers that intentionally manage the
 required CQMOM moment representation.
@@ -260,7 +270,12 @@ independent product marginals + global number_density + maximum_orders
 ```
 
 for the explicit dense representation workflow, where `maximum_orders` is
-required, and:
+optional configuration metadata: if it is omitted, case construction derives
+the minimum rectangular tensor extent from the CQMOM hierarchy. It can be
+provided to request a larger tensor, including when a sample-based
+initialization evaluates raw moments from a sample population. The required
+normal CQMOM moment set is not selected from this tensor extent. The lean
+path is:
 
 ```text
 independent product marginals + global number_density + CQMOM hierarchy

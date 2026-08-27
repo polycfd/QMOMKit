@@ -112,8 +112,8 @@ CTest names identify the tested contract. Several executables accept a local
 selector so independently meaningful groups can be registered separately. The
 individual CTest registrations are authoritative; running such an executable
 without a selector is a developer convenience, not an aggregate CTest contract.
-The current root suite has **104** registered CTest tests: 32 unit, 5
-component-regression, 66 verification, and 1 supporting public-header test.
+The current root suite has **107** registered CTest tests: 32 unit, 7
+component-regression, 67 verification, and 1 supporting public-header test.
 Obtain the current count from `ctest -N` (and confirm structured registration
 with `ctest --show-only=json-v1`), rather than maintaining it by arithmetic
 alone.
@@ -187,6 +187,12 @@ their primary purpose is regression protection. They are not failed
 verification tests, not a substitute for unit tests, and not replacements for
 verification tests when the behavior is a public mathematical workflow with an
 independent reference.
+
+Independent numerical verification requires an analytical, manufactured,
+convergence, conservation, or otherwise independent reference. Dense/lean or
+batch/scalar parity, round trips, captured fixtures, and comparisons between
+related production paths remain valuable consistency/regression evidence, but
+must not be presented as independent algorithm verification.
 
 ### Verification Tests
 
@@ -267,6 +273,11 @@ Convergence studies are useful for time integration and phase-space evolution. T
 test numerical order or monotonic error reduction using deterministic cases
 whose exact or high-confidence reference behavior is known.
 
+A convergence registration must identify its independent reference, refinement
+variable and sequence, error quantity, expected order or trend, and pass
+threshold. Tolerance refinement for adaptive methods is accuracy evidence; it
+is not a formal fixed-step order proof.
+
 Deterministic regression cases are useful for boundary behavior, diagnostics,
 and previously fragile numerical situations. They should preserve the meaningful
 status, tolerance, ordering, or reconstruction property rather than simply
@@ -325,7 +336,7 @@ Benchmark structure and interpretation belong in `benchmarks.md`.
 ## Registered Root CTest Inventory
 
 This inventory lists every root CTest registration exactly once. It is current
-at the documented count of 104 tests.
+at the documented count of 107 tests.
 
 ### Unit Tests (32)
 
@@ -364,86 +375,89 @@ at the documented count of 104 tests.
 | `unit_phase_space_evolution_batch` | Batch phase-space evolution APIs | Compares each batch result with its scalar API and separately checks ordering, isolation, and callback indexing; scalar parity is a dispatch oracle, not an independent numerical reference | Empty batches, indexed callbacks, normal failures, escaping exceptions, state isolation |
 | `unit_performance_instrumentation` | Optional performance instrumentation | Checks exact counter values and enabled/disabled semantics while verifying instrumentation preserves numerical routes/results | Solver/source/advection counters, metadata/layout reuse, fixed/dynamic state paths, counter isolation |
 
-### Component-Regression Tests (5)
+### Component-Regression Tests (7)
 
-| Test | Source | What | Method |
+| Component-regression test | What it verifies | How correctness is established | Important cases / criterion |
 |---|---|---|---|
-| `component_regression_moment_source` | `tests/component_regression/moment_source.cpp` | Moment-source component interactions | Deterministic regression contracts |
-| `component_regression_node_advection` | `tests/component_regression/node_advection.cpp` | Node-advection component interactions | Manufactured deterministic cases |
-| `component_regression_phase_space_evolution` | `tests/component_regression/phase_space_evolution.cpp` | Operator-split evolution interactions | Deterministic regression contracts |
-| `component_regression_cqmom_compute_failures` | `tests/component_regression/cqmom_compute_failures.cpp` | CQMOM failure/status propagation | Deliberate invalid and fragile cases |
-| `component_regression_cqmom_case_moment_replacement` | `tests/component_regression/cqmom_case_moment_replacement.cpp` | Immutable CQMOM moment replacement | Deterministic API contracts |
+| `component_regression_moment_source` | Moment-source component interactions | Deterministic source-update, status, and diagnostic regression contracts | Callback errors, retry/rollback, and propagated diagnostics |
+| `component_regression_node_advection` | Node-advection component interactions | Deterministic manufactured quadratures exercise node advancement, reconstruction, and failure paths | QMOM/CQMOM routes, adaptive topology, and callback failure propagation |
+| `component_regression_phase_space_evolution` | Operator-split phase-space-evolution composition | Deterministic state, stage-diagnostic, topology, and rollback contracts across composed workflows | Lie/Strang staging, source/advection interaction, dense/lean state handling |
+| `component_regression_cqmom_compute_failures` | CQMOM failure/status propagation | Deliberately invalid or fragile dense/lean inputs are checked for the documented status, diagnostics, and preserved failure behavior | Invalid tensors, conditional reconstruction failures, and adaptive/fixed policy failures |
+| `component_regression_cqmom_case_moment_replacement` | Immutable CQMOM case moment replacement | Replaces configured initial tensors and checks retained policies, storage, and state construction contracts | Dense/lean cases, support/options retention, invalid replacement data |
+| `component_regression_cqmom_dense_lean_parity_3d` | Dense and lean CQMOM representation/workflow consistency | Compares layouts, reconstructed states, quadratures, and diagnostics across routes sharing the same reconstruction machinery | Consistency/regression evidence only; it is not an independent mathematical CQMOM oracle |
+| `component_regression_cqmom_physical_transport_probe` | Captured CQMOM transport/reinversion regression behavior | Replays the historical fixture and checks its terminal paths, branch reductions, active counts, reinversion diagnostics, and state contracts | Protects the captured regression; it is not independently derived physical-transport verification |
 
-### Verification Tests (66)
+### Verification Tests (67)
 
-| Test | Source | What | Method |
+| Verification test | What it verifies | How correctness is established | Important cases / criterion |
 |---|---|---|---|
-| `verification_qmom_wheeler_analytical` | `tests/verification/qmom/wheeler_analytical.cpp` | Wheeler reconstruction | Closed-form/discrete reference |
-| `verification_qmom_compute_failures` | `tests/verification/qmom/qmom_compute_failures.cpp` | QMOM public failure behavior | Manufactured failure cases |
-| `verification_qmom_analytical_single_dirac` | `tests/verification/qmom/qmom_analytical.cpp` | One-node QMOM | Exact Dirac moments |
-| `verification_qmom_analytical_two_node_discrete` | `tests/verification/qmom/qmom_analytical.cpp` | Two-node QMOM | Exact discrete quadrature |
-| `verification_qmom_analytical_three_node_discrete` | `tests/verification/qmom/qmom_analytical.cpp` | Three-node QMOM | Exact discrete quadrature |
-| `verification_qmom_analytical_uniform_n2` | `tests/verification/qmom/qmom_analytical.cpp` | Uniform two-node reconstruction | Analytical moments |
-| `verification_qmom_analytical_uniform_n3` | `tests/verification/qmom/qmom_analytical.cpp` | Uniform three-node reconstruction | Analytical moments |
-| `verification_qmom_analytical_exponential_n2` | `tests/verification/qmom/qmom_analytical.cpp` | Exponential two-node reconstruction | Analytical moments |
-| `verification_qmom_analytical_exponential_n3` | `tests/verification/qmom/qmom_analytical.cpp` | Exponential three-node reconstruction | Analytical moments |
-| `verification_qmom_analytical_gaussian_n2` | `tests/verification/qmom/qmom_analytical.cpp` | Gaussian two-node reconstruction | Analytical moments |
-| `verification_qmom_analytical_gaussian_n3` | `tests/verification/qmom/qmom_analytical.cpp` | Gaussian three-node reconstruction | Analytical moments |
-| `verification_cqmom_recursive_quadrature_manufactured` | `tests/verification/cqmom/recursive_quadrature.cpp` | Recursive CQMOM reconstruction | Manufactured quadrature |
-| `verification_cqmom_quadrature_bounds` | `tests/verification/cqmom/quadrature_bounds.cpp` | CQMOM quadrature support bounds | Manufactured feasible and infeasible bounded-support cases |
-| `verification_cqmom_recursive_validation` | `tests/verification/cqmom/recursive_cqmom.cpp` | Fixed and adaptive recursive quadrature | Independent terminal rules |
-| `verification_cqmom_conditional_moments_analytical` | `tests/verification/cqmom/conditional_moments.cpp` | Conditional moments | Analytical formulas |
-| `verification_cqmom_dense_lean_parity_3d` | `tests/verification/cqmom/dense_lean_parity_3d.cpp` | Three-dimensional dense/lean parity | Manufactured moments and reconstruction |
-| `verification_cqmom_physical_transport_probe` | `tests/verification/cqmom/physical_transport_probe.cpp` | Captured CQMOM transport behavior | Deterministic regression probe |
-| `verification_cqmom_moment_reconstruction_selected` | `tests/verification/cqmom/moment_reconstruction.cpp` | Selected CQMOM moment reconstruction | Independent-product reference |
-| `verification_cqmom_public_workflows` | `tests/verification/cqmom/cqmom_public_workflows.cpp` | Dense, lean, and default workflows | Analytical terminal quadrature |
-| `verification_cqmom_independent_product` | `tests/verification/cqmom/cqmom_2d_analytical.cpp` | Two-dimensional independent product | Analytical moments/nodes |
-| `verification_cqmom_deterministic_affine` | `tests/verification/cqmom/cqmom_2d_analytical.cpp` | Two-dimensional affine conditionals | Manufactured quadrature |
-| `verification_cqmom_branch_dependent` | `tests/verification/cqmom/cqmom_2d_analytical.cpp` | Branch-dependent CQMOM | Manufactured quadrature |
-| `verification_cqmom_affine_chain_5d` | `tests/verification/cqmom/cqmom_high_dimensional_analytical.cpp` | Five-dimensional affine chain | Analytical recursion |
-| `verification_cqmom_independent_product_3d` | `tests/verification/cqmom/cqmom_high_dimensional_analytical.cpp` | Three-dimensional independent product | Analytical moments |
-| `verification_cqmom_independent_product_4d` | `tests/verification/cqmom/cqmom_high_dimensional_analytical.cpp` | Four-dimensional independent product | Analytical moments |
-| `verification_cqmom_independent_product_5d` | `tests/verification/cqmom/cqmom_high_dimensional_analytical.cpp` | Five-dimensional independent product | Analytical moments |
-| `verification_cqmom_independent_product_6d` | `tests/verification/cqmom/cqmom_high_dimensional_analytical.cpp` | Six-dimensional independent product | Analytical moments |
-| `verification_cqmom_mixed_affine_independent_4d` | `tests/verification/cqmom/cqmom_high_dimensional_analytical.cpp` | Mixed four-dimensional CQMOM | Manufactured analytical case |
-| `verification_distribution_families_analytical` | `tests/verification/distributions/distributions_analytical.cpp` | Normal, lognormal, beta, gamma, chi, and Weibull moments | Closed-form raw moments |
-| `verification_distribution_mixtures_analytical` | `tests/verification/distributions/distributions_analytical.cpp` | Mixture weights, permutations, and failures | Independent weighted sums |
-| `verification_distribution_independent_products_analytical` | `tests/verification/distributions/distributions_analytical.cpp` | Direct independent-product moments | Factorized analytical moments |
-| `verification_distribution_configuration_initialization` | `tests/verification/distributions/distributions_analytical.cpp` | Configuration initialization, including a normal × non-unit lognormal-mixture marginal | Analytical factorization, selected moments, and public CQMOM reconstruction |
-| `verification_realizability_analytical` | `tests/verification/realizability/realizability_analytical.cpp` | Realizability conditions | Analytical boundary and interior cases |
-| `verification_vandermonde_solver_selection` | `tests/verification/vandermonde/solver_selection.cpp` | Solver-policy selection | Independent quadrature/reconstruction |
-| `verification_runge_kutta_analytical` | `tests/verification/runge_kutta/runge_kutta_analytical.cpp` | RK solution/error behavior | Closed-form ODEs |
-| `verification_ssp_rk3_convergence` | `tests/verification/runge_kutta/runge_kutta_convergence.cpp` | SSP-RK3 global order | Exponential-decay refinement |
-| `verification_rk23_adaptive_convergence` | `tests/verification/runge_kutta/runge_kutta_convergence.cpp` | Adaptive RK23 tolerance trend | Exponential decay with accepted-step study |
-| `verification_rk23_fixed_step_convergence` | `tests/verification/runge_kutta/runge_kutta_convergence.cpp` | Fixed-step RK23 order | Exponential-decay refinement |
-| `verification_rk45_fixed_step_convergence` | `tests/verification/runge_kutta/runge_kutta_convergence.cpp` | Fixed-step RK45 order | Exponential-decay refinement |
-| `verification_node_advection_constant_velocity` | `tests/verification/node_advection/node_advection_analytical.cpp` | Constant node velocity | Closed-form translation |
-| `verification_node_advection_linear_growth` | `tests/verification/node_advection/node_advection_analytical.cpp` | Linear node growth | Closed-form scalar ODE |
-| `verification_node_advection_affine` | `tests/verification/node_advection/node_advection_analytical.cpp` | Affine node evolution | Closed-form affine ODE |
-| `verification_node_advection_linear_system_2d` | `tests/verification/node_advection/node_advection_analytical.cpp` | Two-dimensional linear node system | Matrix-exponential reference |
-| `verification_moment_source_order_dependent_relaxation` | `tests/verification/moment_source/moment_source_analytical.cpp` | QMOM order-dependent relaxation | Closed-form moment source |
-| `verification_moment_source_common_rate_relaxation` | `tests/verification/moment_source/moment_source_analytical.cpp` | CQMOM common-rate relaxation | Closed-form moment source |
-| `verification_moment_source_linear_coupled` | `tests/verification/moment_source/moment_source_analytical.cpp` | Coupled QMOM source wrapper | Closed-form solution, four refinements, and SSP-RK3 third-order check |
-| `verification_phase_space_evolution_commuting_qmom` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Commuting QMOM operators | Exact split solution |
-| `verification_phase_space_evolution_qmom_boundary_contribution` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | QMOM boundary contribution | Manufactured source term |
-| `verification_phase_space_evolution_qmom_phase_space_evolution_failures` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | QMOM evolution failures | Deliberate failure propagation |
-| `verification_phase_space_evolution_qmom_phase_space_evolution_inversion_failures` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | QMOM inversion failures | Deliberate failure propagation |
-| `verification_phase_space_evolution_noncommuting_convergence` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Noncommuting QMOM splitting order | Temporal refinement |
-| `verification_phase_space_evolution_noncommuting_cqmom_convergence` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Noncommuting CQMOM splitting order | Temporal refinement |
-| `verification_phase_space_evolution_commuting_cqmom_2d` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Commuting two-dimensional CQMOM | Exact split solution |
-| `verification_phase_space_evolution_cqmom_boundary_contribution` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | CQMOM boundary contribution | Manufactured source term |
-| `verification_phase_space_evolution_commuting_cqmom_state_adaptive_2d` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Adaptive CQMOM state evolution | Exact commuting case |
-| `verification_phase_space_evolution_cqmom_native_source` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Native CQMOM source callback | Closed-form source update |
-| `verification_phase_space_evolution_cqmom_combined_native_source` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Combined native source callback | Closed-form source update |
-| `verification_phase_space_evolution_cqmom_native_source_failures` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Native CQMOM source failures | Deliberate failure propagation |
-| `verification_phase_space_evolution_cqmom_phase_space_evolution_failures` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | CQMOM evolution failures | Deliberate failure propagation |
-| `verification_phase_space_evolution_cqmom_phase_space_evolution_inversion_failures` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | CQMOM inversion failures | Deliberate failure propagation |
-| `verification_phase_space_evolution_cqmom_dense_phase_space_evolution_failures` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Dense CQMOM evolution failures | Deliberate failure propagation |
-| `verification_phase_space_evolution_cqmom_dense_phase_space_evolution_inversion_failures` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Dense CQMOM inversion failures | Deliberate failure propagation |
-| `verification_phase_space_evolution_cqmom_lean_phase_space_evolution_failures` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Lean CQMOM evolution failures | Deliberate failure propagation |
-| `verification_phase_space_evolution_cqmom_lean_phase_space_evolution_inversion_failures` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | Lean CQMOM inversion failures | Deliberate failure propagation |
-| `verification_output_writer_workflows` | `tests/verification/output/output_workflows.cpp` | QMOM and CQMOM output workflows | Parsed output against known quadrature |
-| `verification_configuration_failure_paths` | `tests/verification/configuration/configuration_failures.cpp` | Invalid configuration files | Explicit parser failure corpus |
+| `verification_qmom_wheeler_analytical` | Wheeler reconstruction of prescribed one-, two-, and three-node rules | Independently specified discrete rules generate raw moments; recovered ordered nodes, weights, and reconstructed moments are compared with those rules | One--three nodes, input ordering, mass and moment recovery |
+| `verification_qmom_adaptive_reconstruction` | Public adaptive QMOM reduction to the supported node count | Six moments are independently summed from `(-0.75, 0.4)` and `(1.25, 0.6)`; a three-node request must recover that two-node rule | Nodes, weights, mass, and all six moments agree to about `1e-12` |
+| `verification_qmom_compute_failures` | Public QMOM failure/status behavior | Deliberately impossible or invalid moment sequences are required to return the documented status/message contract | Failure/status regression contract; not independent numerical verification |
+| `verification_qmom_analytical_single_dirac` | One-node QMOM for a Dirac measure | Prescribed node and weight define exact raw moments and the known one-node rule | Node, weight, and moments recover within `1e-12` |
+| `verification_qmom_analytical_two_node_discrete` | Two-node discrete QMOM | An independently prescribed two-node rule supplies moments and the expected quadrature | Ordered nodes, weights, and moments recover within `1e-12` |
+| `verification_qmom_analytical_three_node_discrete` | Three-node discrete QMOM | An independently prescribed three-node rule supplies moments and the expected quadrature | Ordered nodes, weights, and moments recover within `1e-12` |
+| `verification_qmom_analytical_uniform_n2` | Two-node quadrature for a uniform density | Mapped Gauss--Legendre nodes/weights and closed-form uniform moments are the reference | Known rule and moments recover within `1e-12` |
+| `verification_qmom_analytical_uniform_n3` | Three-node quadrature for a uniform density | Mapped three-point Gauss--Legendre rule and closed-form uniform moments are the reference | Known rule and moments recover within `1e-12` |
+| `verification_qmom_analytical_exponential_n2` | Two-node quadrature for an exponential density | Gauss--Laguerre rule and exponential raw moments are independently known | Nodes, weights, and moments recover within `1e-12` |
+| `verification_qmom_analytical_exponential_n3` | Three-node quadrature for an exponential density | Three-point Gauss--Laguerre rule and exponential raw moments are independently known | Nodes, weights, and moments recover within `1e-12` |
+| `verification_qmom_analytical_gaussian_n2` | Two-node quadrature for a standard Gaussian | Probabilists' Gauss--Hermite rule and Gaussian moments are the reference | Symmetric nodes/weights, vanishing odd moments, and recovery within `1e-12` |
+| `verification_qmom_analytical_gaussian_n3` | Three-node quadrature for a standard Gaussian | Three-point probabilists' Gauss--Hermite rule and Gaussian moments are the reference | Symmetry, zero odd moments, nodes, weights, and moments recover within `1e-12` |
+| `verification_cqmom_recursive_quadrature_manufactured` | Fixed and ragged recursive CQMOM construction | Test-local terminal rules independently generate raw tensors before recursive inversion | Topology, paths, local/global weights, abscissas, and reconstructed moments are compared with the prescribed rules |
+| `verification_cqmom_quadrature_bounds` | Bounded CQMOM reconstruction, including multidimensional recursion | Feasible/infeasible 1D rules are explicit. A 2D four-terminal rule uses conditioning `{1,0}`, x support `[1,4]`, and y support `[-2,0]` | 2D raw moments reproduce to `1e-12`; every terminal obeys its physical-coordinate support and branch diagnostics report y bounds at the root and x bounds on child branches |
+| `verification_cqmom_adaptive_branch_growth` | Adaptive CQMOM branch growth/reinjection through native source evolution | A constant independently prescribed moment-rate changes a `{2,2}`-maximum state from paths `{0,0},{1,0}` to a known three-terminal rule `{0,0},{1,0},{1,1}` | Checks growth transition, active counts, paths, nodes, weights, and target moments to about `5e-11`; an increased count alone is not sufficient |
+| `verification_cqmom_recursive_validation` | Fixed and adaptive recursive quadrature recovery | Independently built fixed and ragged terminal trees generate the input moments | Branch diagnostics, topology/paths, weights, abscissas, mass closure, and raw-moment errors meet case tolerances |
+| `verification_cqmom_conditional_moments_analytical` | Conditional raw-moment recovery | Parent nodes/weights and per-parent conditional sequences are explicitly composed into mixed moments | Conditional orders 0--3 and residual norms recover to `1e-13`/`1e-14` |
+| `verification_cqmom_moment_reconstruction_selected` | Selected raw-moment reconstruction from CQMOM quadrature | An independent-product configuration supplies analytical tensor moments and selected multi-index requests | Selected values, request order/duplicates, terminal quadrature, and reconstruction agree with the known product rule |
+| `verification_cqmom_public_workflows` | Dense, lean, and default `CqmomCase` workflows | An independently specified 2D product quadrature supplies moments, terminal nodes, and required lean layout | Each public route recovers the reference quadrature/moments and reports the expected layout and diagnostics |
+| `verification_cqmom_independent_product` | Fixed 2D independent-product CQMOM | Prescribed marginal rules define the product terminal quadrature and raw tensor | Parent/conditional nodes, local/global weights, paths, diagnostics, and reconstructed moments match the rule |
+| `verification_cqmom_deterministic_affine` | Fixed 2D affine conditional CQMOM | A prescribed x rule and deterministic affine y(x) conditional construction define terminal nodes and moments | Fixed topology, conditional nodes/weights, paths, and reconstructed moments match the construction |
+| `verification_cqmom_branch_dependent` | Adaptive 2D branch-dependent CQMOM | Prescribed conditional rules give different supported child counts on parent branches | Adaptive counts/reduction flags, ragged paths, local/global weights, nodes, and moments match the known tree |
+| `verification_cqmom_affine_chain_5d` | Five-dimensional affine-chain recursive CQMOM | A terminal rule with specified affine coordinate relations is summed independently into raw moments | Configured nontrivial conditioning, terminal paths/weights/nodes, local weights, affine relations, and moments are checked |
+| `verification_cqmom_independent_product_3d` | Three-dimensional product CQMOM | Independently prescribed one-dimensional rules are combined in phase-space order | Fixed terminal paths, per-level local rules, global weights, coordinates, and moments recover |
+| `verification_cqmom_independent_product_4d` | Four-dimensional product CQMOM | Independently prescribed one-dimensional rules are combined in phase-space order | Fixed topology and known rule/moment recovery, not dimension count alone |
+| `verification_cqmom_independent_product_5d` | Five-dimensional product CQMOM | Independently prescribed one-dimensional rules are combined in phase-space order | Fixed topology and known rule/moment recovery, including conditioning-order diagnostics |
+| `verification_cqmom_independent_product_6d` | Six-dimensional product CQMOM | Independently prescribed one-dimensional rules are combined in phase-space order | Fixed topology, paths, local/global weights, coordinates, and moments match the known rule |
+| `verification_cqmom_mixed_affine_independent_4d` | Four-dimensional mixed affine/independent CQMOM | A prescribed terminal construction combines affine relations with independent rules | Expected paths, branch counts, local/global weights, coordinates, affine relations, and moments are checked |
+| `verification_distribution_families_analytical` | Raw moments of normal, lognormal, beta, gamma, chi-square, chi, and Weibull families | Closed-form family formulas are evaluated independently of the implementation | Multiple parameters/orders, normalization, and invalid-parameter contracts; the Weibull--gamma identity is an additional consistency check |
+| `verification_distribution_mixtures_analytical` | Mixture raw-moment generation | Explicit component-density-weighted sums form the oracle | Bimodal/heterogeneous/multimodal mixtures, permutation invariance, odd-moment cancellation, zero density, and failures |
+| `verification_distribution_independent_products_analytical` | Multidimensional independent-product moments | Factorized marginal moments form each tensor entry independently | One- through three-dimensional products, signed odd moments, zero density, and overflow cases |
+| `verification_distribution_configuration_initialization` | Configuration-driven distribution initialization | Parsed configurations are compared with analytical moments, selected requests, and independently factorized product tensors | Families, mixtures, dimension sweep, non-unit lognormal-mixture marginal, dense/lean states, and public CQMOM reconstruction |
+| `verification_realizability_analytical` | Hamburger, Stieltjes, and Hausdorff realizability classification | Known normal, gamma/lognormal, beta/uniform, zero-measure, and non-realizable sequences have known support classifications | Strict interior, boundary, negative-mass/variance, localizing, and bounded-support failures with diagnostic matrix/order checks |
+| `verification_vandermonde_solver_selection` | Conditional Vandermonde solver policies | Every policy reconstructs a known prescribed product quadrature and its independently generated moments | Dense, Björck--Pereyra, pivoted QR, SVD, automatic/fallback; judged against the known rule, not solver-to-solver parity alone |
+| `verification_runge_kutta_analytical` | Public RK23, RK45, and SSP-RK3 solution/error behavior | Constant, exponential-decay, and oscillatory ODEs have closed-form solutions | Numerical states, embedded estimates, and method/status behavior meet case tolerances |
+| `verification_ssp_rk3_convergence` | SSP-RK3 global convergence | Integrates `y'=-y` to its exact exponential solution over five halved step sizes | Consecutive errors decrease; final two observed orders exceed about `2.85` |
+| `verification_rk23_adaptive_convergence` | Adaptive RK23 tolerance-refinement accuracy | Integrates `y'=-y` to the exact exponential solution under progressively tighter tolerances | Error decreases, accepted steps do not decrease, and final average-step observed trends exceed `2.2` |
+| `verification_rk23_fixed_step_convergence` | Fixed-step RK23 and embedded-estimate order | Four halved steps integrate `y'=-y` against the exact solution and one-step embedded difference | Solution and embedded behavior are both consistent with third order |
+| `verification_rk45_adaptive_convergence` | Adaptive RK45 tolerance-refinement accuracy | Integrates `y'=-y`, `y(0)=1`, to `T=2` against `exp(-2)` at tolerances `1e-4`, `1e-5`, `1e-6`, `1e-7` | Error decreases, accepted work does not decrease, and final average-step trends exceed `4.2`; this is not a formal fixed-step order proof |
+| `verification_rk45_fixed_step_convergence` | Fixed-step RK45 and embedded-estimate order | Four halved steps integrate `y'=-y` against the exact solution and one-step embedded difference | Solution and embedded behavior are both consistent with fifth order |
+| `verification_node_advection_constant_velocity` | QMOM constant-velocity node transport | Closed-form translation advances each prescribed node; weights are unchanged | Nodes, weights, reconstructed moments, and topology agree with the translated rule |
+| `verification_node_advection_linear_growth` | QMOM linear-growth node transport | The scalar exponential trajectory is the exact node reference | Nodes/moments recover the exponential solution; tighter adaptive controls reduce error |
+| `verification_node_advection_affine` | QMOM affine node transport | Closed-form affine ODE trajectory advances prescribed nodes | Nodes, weights, and reconstructed moments agree with the exact trajectory |
+| `verification_node_advection_linear_system_2d` | CQMOM coupled 2D linear node transport | Matrix-exponential trajectories advance an independently prescribed terminal rule | Terminal nodes/weights, paths, topology, and reconstructed tensor moments match the exact solution |
+| `verification_moment_source_order_dependent_relaxation` | QMOM order-dependent relaxation | The source has a closed-form exponential relaxation of each raw moment | Public source evolution is compared with the exact moment vector over configured time plans |
+| `verification_moment_source_common_rate_relaxation` | CQMOM common-rate relaxation | An independently specified target terminal rule defines the exact common-rate raw-moment relaxation | CQMOM moment evolution and reconstructed quadrature agree with the analytical target law |
+| `verification_moment_source_linear_coupled` | QMOM coupled linear source integration | The coupled linear system has an exact solution | Four halved plans give decreasing error; final two SSP-RK3 observed orders exceed `2.8` |
+| `verification_phase_space_evolution_commuting_qmom` | Commuting QMOM advection/source splitting | Scaling advection and diagonal source rates have an exact commuting moment solution | Public split state and reconstructed quadrature match the exact law; refinement checks the configured high-order source trend |
+| `verification_phase_space_evolution_qmom_boundary_contribution` | QMOM boundary contribution integration | Prescribed constant source/boundary rates give exact raw-moment increments | Boundary-only and combined increments, reconstructed moments, and failure contracts are checked |
+| `verification_phase_space_evolution_qmom_phase_space_evolution_failures` | QMOM evolution failure propagation | Deliberately failing velocity/RK cases have prescribed status, failed-stage, rollback, and diagnostic outcomes | Workflow/regression contract; not independent numerical verification |
+| `verification_phase_space_evolution_qmom_phase_space_evolution_inversion_failures` | QMOM post-source inversion failure propagation | A deliberately non-realizable post-source state has a prescribed failure time/status/diagnostic outcome | Workflow/regression contract; not independent numerical verification |
+| `verification_phase_space_evolution_noncommuting_convergence` | QMOM noncommuting operator-splitting order | An independently derived exact linear moment-system solution is compared over five halved refinements | Strang approaches second order; `advsrc` and `srcadv` approach first order and differ at finite step |
+| `verification_phase_space_evolution_noncommuting_cqmom_convergence` | CQMOM noncommuting operator-splitting order | An independently derived CQMOM moment reference is compared over five halved refinements | Strang approaches second order; `advsrc`/`srcadv` approach first order while topology/moments remain valid |
+| `verification_phase_space_evolution_commuting_cqmom_2d` | Commuting 2D CQMOM advection/source splitting | Prescribed terminal rule and commuting analytical rates provide exact moments/quadrature | Dense/lean workflow results, terminal topology, and reconstructed moments meet analytical tolerances |
+| `verification_phase_space_evolution_cqmom_boundary_contribution` | CQMOM boundary contribution integration | Prescribed CQMOM boundary/source rates give exact moment increments | Final stored/reconstructed moments, terminal quadrature, and boundary failure contracts are checked |
+| `verification_phase_space_evolution_commuting_cqmom_state_adaptive_2d` | Adaptive-state commuting CQMOM evolution | A commuting analytical rule is evolved from a known adaptive state | Active counts/topology are preserved as required and final moments/quadrature match the exact state |
+| `verification_phase_space_evolution_cqmom_native_source` | Native CQMOM source callback evolution | A closed-form source law supplies independently calculated required-moment values | Callback context, final time, state moments, and final quadrature meet analytical SSP-RK3 tolerance |
+| `verification_phase_space_evolution_cqmom_combined_native_source` | Combined CQMOM advection and native source evolution | Independently calculated split-reference moments combine the prescribed advection and source laws | Callback observes the post-advection context; final moments/quadrature and stage diagnostics meet tolerance |
+| `verification_phase_space_evolution_cqmom_native_source_failures` | Native CQMOM source failure propagation | Wrong-size, non-finite, and throwing callbacks have prescribed failure statuses/diagnostics | Workflow/regression contract; not independent numerical verification |
+| `verification_phase_space_evolution_cqmom_phase_space_evolution_failures` | CQMOM evolution failure propagation | Deliberately failing velocity/RK/source cases specify status, failed stage, rollback, and diagnostic expectations | Workflow/regression contract; not independent numerical verification |
+| `verification_phase_space_evolution_cqmom_phase_space_evolution_inversion_failures` | CQMOM post-source inversion failure propagation | A deliberately non-realizable post-source state specifies the failure status/time/diagnostics | Workflow/regression contract; not independent numerical verification |
+| `verification_phase_space_evolution_cqmom_dense_phase_space_evolution_failures` | Dense CQMOM evolution failure propagation | The dense workflow replays deliberate advection/source failures with prescribed status and state contracts | Workflow/regression contract; not independent numerical verification |
+| `verification_phase_space_evolution_cqmom_dense_phase_space_evolution_inversion_failures` | Dense CQMOM inversion-failure propagation | The dense workflow replays a prescribed non-realizable post-source state | Workflow/regression contract; not independent numerical verification |
+| `verification_phase_space_evolution_cqmom_lean_phase_space_evolution_failures` | Lean CQMOM evolution failure propagation | The lean workflow replays deliberate advection/source failures with prescribed status and state contracts | Workflow/regression contract; not independent numerical verification |
+| `verification_phase_space_evolution_cqmom_lean_phase_space_evolution_inversion_failures` | Lean CQMOM inversion-failure propagation | The lean workflow replays a prescribed non-realizable post-source state | Workflow/regression contract; not independent numerical verification |
+| `verification_output_writer_workflows` | QMOM/CQMOM output writer workflow | Parses generated output and compares headers, ordering, requested fields, and numerical columns with known quadrature/moment data | Workflow regression; it does not independently verify a numerical algorithm |
+| `verification_configuration_failure_paths` | Configuration parser failure behavior | A corpus of malformed/invalid configurations is required to produce specific parse/validation failures | Parser/failure contract; not independent numerical verification |
 
 ### Supporting/Public-Header Test (1)
 

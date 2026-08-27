@@ -1,5 +1,7 @@
 #include "../verification_helpers.hpp"
 #include "qmomkit/cqmom.hpp"
+#include "qmomkit/moment_reconstruction.hpp"
+#include "qmomkit/multi_index.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -21,6 +23,26 @@ std::vector<double> raw_moments(const std::vector<double>& weights, const std::v
         }
     }
     return moments;
+}
+
+qmomkit::RawMomentTensor raw_moments_from_terminals(const std::vector<std::size_t>& extents, const std::vector<double>& weights,
+                                                    const std::vector<std::vector<double>>& abscissas)
+{
+    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
+    for (std::size_t flat = 0; flat < moments.size(); ++flat)
+    {
+        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, extents);
+        for (std::size_t node = 0; node < weights.size(); ++node)
+        {
+            double contribution = weights[node];
+            for (std::size_t dimension = 0; dimension < abscissas.size(); ++dimension)
+            {
+                contribution *= std::pow(abscissas[dimension][node], static_cast<int>(index[dimension]));
+            }
+            moments[flat] += contribution;
+        }
+    }
+    return {extents, moments};
 }
 
 qmomkit::CqmomDenseCase bounded_case(const std::vector<double>& moments, const qmomkit::CqmomAbscissaBounds interval)
@@ -72,11 +94,70 @@ void verify_rejected_nodes_outside_interval()
     QMOMKIT_VERIFY_CHECK(diagnostic.bounded_returned_nodes[1] > interval.upper);
 }
 
+void verify_coordinate_specific_bounds_in_recursive_cqmom()
+{
+    // This terminal rule is prescribed in phase-space coordinate order (x, y),
+    // while CQMOM conditions in the non-identity order (y, x).  The disjoint
+    // supports make a conditioning-level/coordinate mix-up fail reconstruction.
+    const std::vector<double> weights{0.12, 0.18, 0.28, 0.42};
+    const std::vector<std::vector<double>> abscissas{{1.25, 3.5, 1.25, 3.5}, {-1.5, -1.5, -0.25, -0.25}};
+    const qmomkit::CqmomAbscissaBounds x_bounds{1.0, 4.0};
+    const qmomkit::CqmomAbscissaBounds y_bounds{-2.0, 0.0};
+    const qmomkit::RawMomentTensor expected = raw_moments_from_terminals({4, 4}, weights, abscissas);
+
+    qmomkit::CqmomDenseCase case_{qmomkit::PhaseSpaceHierarchy({2, 2}, {1, 0}), expected};
+    case_.coordinate_support = {x_bounds, y_bounds};
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+
+    QMOMKIT_VERIFY_CHECK(result.ok());
+    QMOMKIT_VERIFY_CHECK(result.quadrature.total_nodes() == weights.size());
+    QMOMKIT_VERIFY_CHECK(result.diagnostics.size() == 3);
+
+    const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(result.quadrature, expected.extents);
+    QMOMKIT_VERIFY_CHECK(reconstructed.values.size() == expected.values.size());
+    for (std::size_t moment = 0; moment < expected.values.size(); ++moment)
+    {
+        QMOMKIT_VERIFY_NEAR(reconstructed.values[moment], expected.values[moment], tolerance);
+    }
+
+    bool checked_y_root = false;
+    std::size_t checked_x_children = 0;
+    for (const qmomkit::CqmomDiagnostics& diagnostic : result.diagnostics)
+    {
+        QMOMKIT_VERIFY_CHECK(diagnostic.bounded_support_checked);
+        QMOMKIT_VERIFY_CHECK(diagnostic.bounded_support_interval_present);
+        if (diagnostic.phase_space_dimension == 1)
+        {
+            QMOMKIT_VERIFY_NEAR(diagnostic.bounded_support_interval.lower, y_bounds.lower, tolerance);
+            QMOMKIT_VERIFY_NEAR(diagnostic.bounded_support_interval.upper, y_bounds.upper, tolerance);
+            checked_y_root = true;
+        }
+        else
+        {
+            QMOMKIT_VERIFY_CHECK(diagnostic.phase_space_dimension == 0);
+            QMOMKIT_VERIFY_NEAR(diagnostic.bounded_support_interval.lower, x_bounds.lower, tolerance);
+            QMOMKIT_VERIFY_NEAR(diagnostic.bounded_support_interval.upper, x_bounds.upper, tolerance);
+            ++checked_x_children;
+        }
+    }
+    QMOMKIT_VERIFY_CHECK(checked_y_root);
+    QMOMKIT_VERIFY_CHECK(checked_x_children == 2);
+
+    for (std::size_t node = 0; node < result.quadrature.total_nodes(); ++node)
+    {
+        const double x = result.quadrature.abscissas()[0][node];
+        const double y = result.quadrature.abscissas()[1][node];
+        QMOMKIT_VERIFY_CHECK(x >= x_bounds.lower && x <= x_bounds.upper);
+        QMOMKIT_VERIFY_CHECK(y >= y_bounds.lower && y <= y_bounds.upper);
+    }
+}
+
 } // namespace
 
 int main()
 {
     verify_accepted_nodes_inside_interval();
     verify_rejected_nodes_outside_interval();
+    verify_coordinate_specific_bounds_in_recursive_cqmom();
     return 0;
 }

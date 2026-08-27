@@ -1,4 +1,4 @@
-#include "../verification_helpers.hpp"
+#include "../verification/verification_helpers.hpp"
 #include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "qmomkit/qmomkit.hpp"

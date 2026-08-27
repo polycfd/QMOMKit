@@ -81,3 +81,10 @@ distribution history for many moment-method workflows. `quadrature_history.txt`
 records the reconstructed node weights and abscissas, which are useful for
 inspecting the numerical representation. Both files are whitespace-delimited
 text tables written through QMOMKit-native writers.
+
+## What to expect
+
+The binary-fragmentation source increases total number density, while the
+advection law moves each abscissa toward `d = 1`. The final moments and
+quadrature therefore reflect both the increasing population count and the
+relaxing particle-diameter coordinates.

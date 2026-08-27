@@ -43,7 +43,7 @@ distribution
     -> phase-space advection + moment-source QMOM evolution
 ```
 
-Monte Carlo sampled distribution reference:
+Monte Carlo sampled-distribution companion:
 
 ```text
 distribution
@@ -71,9 +71,9 @@ although high-order moments and broad distributions may converge more slowly.
 The initial total number density is distributed across the samples as a
 constant statistical weight.
 
-The Monte Carlo workflow is not a validation comparison case. It does not
-compare against QMOM, estimate uncertainty, or evolve a separate reference
-model.
+The Monte Carlo workflow is a direct stochastic particle-based
+companion/reference realization, not an automated formal validation test. It
+does not estimate uncertainty or declare one history to be exact truth.
 
 ## QMOM evolution
 
@@ -179,7 +179,7 @@ These files are written with `qmomkit::MomentWriter` and
 `qmomkit::QuadratureWriter`. They are whitespace-delimited text tables with a
 commented header line.
 
-## Run the Monte Carlo Sample-Based Reference
+## Run the Direct Monte Carlo Companion
 
 From the same build directory, run:
 
@@ -196,3 +196,13 @@ The Monte Carlo moments use a constant per-sample statistical weight from the
 initial sampled ensemble and are written with `qmomkit::MomentWriter`.
 `particle_history.txt` is a custom particle snapshot table, not a QMOMKit
 moment or quadrature output.
+
+## What to expect
+
+Both executables reproduce the same fixed-seed sampled initialization, so their
+initial sampled moments describe the same finite ensemble. The direct Monte
+Carlo companion evolves particles stochastically, whereas QMOM evolves a finite
+quadrature closure of sampled moments. Compare trends such as number-density
+growth and moment evolution, but do not expect final histories to agree
+point-for-point: finite sampling variation and the different representations
+produce differences during evolution.

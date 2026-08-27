@@ -60,7 +60,7 @@ the complete sampled tensor, and creates an immutable replacement case with
 policies therefore remain those declared by `configuration.qmom`; sampling is
 only one possible producer of replacement raw moments.
 
-Monte Carlo sampled distribution reference:
+Monte Carlo sampled-distribution companion:
 
 ```text
 configuration
@@ -77,8 +77,9 @@ phase-space advection + stochastic moment-source evolution
 
 Both workflows use the same `configuration.qmom`, distribution, sample count,
 initialization seed, phase-space ordering, advection velocity, binary
-fragmentation model, and Strang splitting. The MC workflow is not used as
-a validation reference here, and no automatic CQMOM/MC comparison is performed.
+fragmentation model, and Strang splitting. The MC workflow is a direct
+stochastic particle-based companion/reference realization, not an automated
+formal validation test, and no automatic CQMOM/MC comparison is performed.
 
 The phase-space ordering is $(d,u)$,
 
@@ -279,3 +280,13 @@ raw moments, and the final sample count.
 commented header line. It uses a constant per-sample statistical weight from
 the initial sampled ensemble, so $M_{0,0}$ reflects the sample population
 increase caused by fragmentation.
+
+## What to expect
+
+Both paths use the same fixed-seed sampled initialization, phase-space order,
+and physical callbacks. Their initial sampled moments are therefore the useful
+first comparison. Later, compare broad trends such as fragmentation-driven
+number-density growth and coordinate-moment evolution. The direct Monte Carlo
+executable is a stochastic particle-based companion/reference realization, not
+an automated formal validation test, so its later history need not match the
+finite CQMOM quadrature closure point-for-point.

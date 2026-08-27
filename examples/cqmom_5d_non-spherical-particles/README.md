@@ -30,6 +30,17 @@ complete sampled moments. The configured hierarchy, support policy, storage
 selection, and reconstruction policies remain unchanged; the sampling utility
 is only one possible tensor producer.
 
+## QMOMKit focus
+
+This is an advanced recursive-CQMOM workflow. Focus first on the five-dimensional
+hierarchy, bounded aspect-ratio support, adaptive branch reduction, and the
+multimodal `u`-velocity marginal used for initialization. The paired bounded
+and unbounded CQMOM runs isolate the effect of declaring the physical support:
+the diagnostic explains the resulting conditional support loss, while the
+bounded workflow shows support-aware adaptive reconstruction. The Monte Carlo
+executable is a stochastic particle-based companion/reference realization for
+the same sampled initialization and particle model.
+
 ## Phase-space definition and raw moments
 
 The particle phase-space coordinate is

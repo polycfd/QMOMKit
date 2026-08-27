@@ -257,3 +257,12 @@ weights and abscissas. These quadrature files are useful for inspecting the
 representation and diagnosing reconstruction behavior. All four files are
 written through QMOMKit-native writers as whitespace-delimited text tables with
 commented headers.
+
+## What to expect
+
+The terminal nodes relax under the configured phase-space advection law. The
+fragmentation source and additive boundary birth both change the raw-moment
+history, so the output reflects their combined number-density and
+coordinate-moment effects rather than advection alone. Inspect the terminal
+quadrature history together with the moment history when adapting the callback
+combination to another model.

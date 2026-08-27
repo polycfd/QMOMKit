@@ -151,3 +151,11 @@ distribution. `quadrature.txt` records the reconstructed node weights and
 abscissas at the same output times so users can inspect the numerical
 representation. Both files are written through QMOMKit-native writers as
 whitespace-delimited text tables with commented headers.
+
+## What to expect
+
+The fragmentation source increases $M_0$, so the represented number density
+grows. At the same time, advection moves node diameters toward `d = 1`.
+Consequently, the higher raw moments and the final quadrature show the combined
+effect of population multiplication and diameter relaxation rather than either
+mechanism in isolation.

@@ -225,6 +225,17 @@ boundary rate and the Monte Carlo birth intensity:
 ./qmom_1d_breakage_advection_local_rates_with_mc_nucleation_balance_check
 ```
 
+## What to expect
+
+The QMOM history is produced by application-owned SSP-RK3 integration of the
+local rates; QMOMKit supplies those rates but does not own the moment state or
+time integrator. The source history includes binary-breakage growth and the
+small lower-boundary nucleation contribution. The balance-check executable
+verifies the analytical correspondence between that QMOM boundary rate and the
+Monte Carlo birth intensity. The direct Monte Carlo companion is a stochastic
+particle-based companion/reference realization, so its later moments need not
+match the local-rate history point-for-point.
+
 ## Limitations
 
 This is not a CG or DG solver. It does not include a mesh, basis functions,

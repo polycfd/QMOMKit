@@ -42,8 +42,7 @@ The advection of the quadrature nodes preserves all six weights and QMOMKit reco
 
 ## Build and run
 
-Install QMOMKit first, then configure this standalone example against that
-installation:
+From the repository root, install QMOMKit first:
 
 ```bash
 cmake -S . -B build \
@@ -68,3 +67,10 @@ also writes QMOMKit-native moment and quadrature histories:
 
 The output directory and cadence are configured in the `[output]` section of
 `configuration.qmom`.
+
+## What to expect
+
+This is pure node advection, so the quadrature weights and total particle
+number remain unchanged. Diameters move monotonically downward under
+evaporation, and the residual-diameter rule keeps every node at or above
+`0.8 µm`.

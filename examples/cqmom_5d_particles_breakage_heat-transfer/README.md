@@ -64,7 +64,7 @@ $$
 
 It therefore needs $M_{4/3,0,0,0,0}$ and $M_{4/3,1,0,0,0}$ to evaluate and close the source of a tracked moment; it does not need them to reconstruct that tracked moment. Their units are respectively number density times m$^4$ and number density times m$^4$ kK, so the factor $a$ supplies the inverse-length scale needed by the source. For $q=0$, the source reduces to $\beta(2^{1-p}-1)M_{p,0,r,s,t}$, preserving total volume.
 
-The MC companion samples the same constant-rate binary event process and applies the same daughter-volume and daughter-temperature mapping, allowing descendants to break again within an outer step. It is a finite-sample reference, not an exact duplicate of CQMOM.
+The MC companion samples the same constant-rate binary event process and applies the same daughter-volume and daughter-temperature mapping, allowing descendants to break again within an outer step. It is a stochastic particle-based companion/reference realization, not an exact duplicate of CQMOM.
 
 ## Run
 
@@ -90,3 +90,13 @@ than the CQMOM run because it evolves a finite population through breakage.
 ## Output
 
 The CQMOM executable writes `output/moment_history.txt` and `output/quadrature_history.txt` at the configured $0.0025$ s cadence. The first contains time and all transported raw moments; the second contains terminal-node weights and coordinates. The MC executable writes matching selected raw moments to `output/moment_history_mc.txt`. Both executables print the initial and final tracked moments (up to 20 on the console).
+
+## What to expect
+
+The equal-volume breakup transformation preserves total particle volume during
+the breakage source while increasing particle number. Heat-transfer advection
+changes the temperature moments, and the source evaluation exercises the
+fractional-volume generalized moments required by the daughter-temperature
+mapping. The Monte Carlo companion is a stochastic particle-based
+companion/reference realization, so it is useful for comparing trends rather
+than exact pointwise agreement.

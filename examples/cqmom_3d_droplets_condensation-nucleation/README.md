@@ -40,6 +40,15 @@ raw moments with the complete sampled tensor through `with_initial_moments(...)`
 The loaded hierarchy, support, storage selection, and reconstruction policies
 are retained; a sampler is only one possible source of the replacement tensor.
 
+## QMOMKit focus
+
+Read this as a three-dimensional CQMOM phase-space evolution example before
+focusing on the droplet correlations: it combines adaptive CQMOM reconstruction,
+condensation-driven node advection, and a finite-time CQMOM boundary birth
+contribution for nucleation. The direct Monte Carlo companion evolves the same
+sampled initialization, providing a stochastic particle-based
+companion/reference realization for comparing the two representations.
+
 ## Phase-space definition and raw moments
 
 The configured phase-space order is:

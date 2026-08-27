@@ -61,3 +61,9 @@ and reconstructed node weights and abscissas. The `x0` and `x1` labels in the
 terminal output are example-specific formatting for the shipped two-dimensional
 case: `x0` is `size` and `x1` is `velocity`. They are not a limitation of
 QMOMKit's multidimensional representation.
+
+## What to expect
+
+The shipped fixed `2 x 2` hierarchy produces four terminal CQMOM nodes. Their
+global weights sum to the configured total number density `2.5`, while their
+coordinates represent the independent `size` and `velocity` initialization.

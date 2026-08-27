@@ -212,6 +212,79 @@ void test_ssp_rk3_ignores_embedded_initial_step()
     assert_near(result.quadrature.abscissas[0], 1.5, 1.0e-15);
 }
 
+void test_cqmom_rk45_preserves_fixed_topology_and_advects_coordinates()
+{
+    const qmomkit::CqmomResult cqmom_result = make_fixed_two_dimensional_cqmom();
+    assert(cqmom_result.ok());
+
+    qmomkit::NodeAdvectionOptions options;
+    options.scheme = qmomkit::NodeAdvectionScheme::rk45;
+    const double time_step = 2.0 * qmomkit::default_adaptive_initial_step;
+    std::size_t velocity_calls = 0;
+    const qmomkit::CqmomNodeAdvectionResult result = qmomkit::advance_nodes(
+        cqmom_result.quadrature, 0.0, time_step,
+        [&velocity_calls](double, const std::vector<double>& coordinates)
+        {
+            ++velocity_calls;
+            assert(coordinates.size() == 2);
+            return std::vector<double>{2.0, -3.0};
+        },
+        options);
+
+    assert(result.ok());
+    assert(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk45);
+    assert(result.diagnostics.adaptive_status == qmomkit::AdaptiveRkStatus::success);
+    assert(result.diagnostics.step_count == 2);
+    assert(result.diagnostics.rhs_evaluations == 13);
+    assert(velocity_calls == result.diagnostics.rhs_evaluations * cqmom_result.quadrature.total_nodes());
+    assert(result.quadrature.hierarchy().node_counts() == cqmom_result.quadrature.hierarchy().node_counts());
+    assert(result.quadrature.has_rectangular_storage());
+    assert(result.quadrature.terminal_paths() == cqmom_result.quadrature.terminal_paths());
+    assert(result.quadrature.weights() == cqmom_result.quadrature.weights());
+    for (std::size_t node = 0; node < result.quadrature.total_nodes(); ++node)
+    {
+        assert_near(result.quadrature.abscissas()[0][node], cqmom_result.quadrature.abscissas()[0][node] + 2.0 * time_step, 1.0e-15);
+        assert_near(result.quadrature.abscissas()[1][node], cqmom_result.quadrature.abscissas()[1][node] - 3.0 * time_step, 1.0e-15);
+    }
+}
+
+void test_cqmom_ssp_rk3_preserves_fixed_topology_and_advects_coordinates()
+{
+    const qmomkit::CqmomResult cqmom_result = make_fixed_two_dimensional_cqmom();
+    assert(cqmom_result.ok());
+
+    qmomkit::NodeAdvectionOptions options;
+    options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    options.adaptive_options.initial_step = 1.0e-12;
+    constexpr double time_step = 0.25;
+    std::size_t velocity_calls = 0;
+    const qmomkit::CqmomNodeAdvectionResult result = qmomkit::advance_nodes(
+        cqmom_result.quadrature, 0.0, time_step,
+        [&velocity_calls](double, const std::vector<double>& coordinates)
+        {
+            ++velocity_calls;
+            assert(coordinates.size() == 2);
+            return std::vector<double>{2.0, -3.0};
+        },
+        options);
+
+    assert(result.ok());
+    assert(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
+    assert(result.diagnostics.step_count == 1);
+    assert(result.diagnostics.rhs_evaluations == 3);
+    assert(!result.diagnostics.adaptive_status.has_value());
+    assert(velocity_calls == result.diagnostics.rhs_evaluations * cqmom_result.quadrature.total_nodes());
+    assert(result.quadrature.hierarchy().node_counts() == cqmom_result.quadrature.hierarchy().node_counts());
+    assert(result.quadrature.has_rectangular_storage());
+    assert(result.quadrature.terminal_paths() == cqmom_result.quadrature.terminal_paths());
+    assert(result.quadrature.weights() == cqmom_result.quadrature.weights());
+    for (std::size_t node = 0; node < result.quadrature.total_nodes(); ++node)
+    {
+        assert_near(result.quadrature.abscissas()[0][node], cqmom_result.quadrature.abscissas()[0][node] + 2.0 * time_step, 1.0e-15);
+        assert_near(result.quadrature.abscissas()[1][node], cqmom_result.quadrature.abscissas()[1][node] - 3.0 * time_step, 1.0e-15);
+    }
+}
+
 void test_invalid_input_status_covers_quadrature_and_callback_contracts()
 {
     qmomkit::Quadrature1D quadrature;
@@ -386,6 +459,8 @@ int main()
     test_default_cqmom_rk23_uses_default_adaptive_initial_step();
     test_rk45_uses_default_adaptive_initial_step_when_omitted();
     test_ssp_rk3_ignores_embedded_initial_step();
+    test_cqmom_rk45_preserves_fixed_topology_and_advects_coordinates();
+    test_cqmom_ssp_rk3_preserves_fixed_topology_and_advects_coordinates();
     test_invalid_input_status_covers_quadrature_and_callback_contracts();
     test_wrong_size_velocity_diagnostic_reports_expected_and_returned_size();
     test_non_finite_velocity_diagnostic_reports_callback_context();

@@ -276,6 +276,22 @@ void test_cqmom_generalized_moment_rejects_exponent_count_mismatch()
                                            "Generalized moment exponent count must match the CQMOM phase-space dimension count.");
 }
 
+void test_cqmom_generalized_moment_rejects_negative_abscissa_for_fractional_exponent()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
+    const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, {}});
+    assert(cqmom.ok());
+
+    assert_throws_domain_error_message([&] { (void)qmomkit::evaluate_generalized_moment(cqmom.quadrature, {0.5, 0.0}); },
+                                       "Generalized moment evaluation requires non-negative abscissas for non-integer exponents.");
+
+    assert_near(qmomkit::evaluate_generalized_moment(cqmom.quadrature, {1.0, 0.0}), moments[4], 1.0e-10);
+}
+
 void test_cqmom_reconstructs_selected_requested_moments()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -690,6 +706,7 @@ int main()
     test_cqmom_reconstructs_fixed_non_identity_phase_order_moments();
     test_cqmom_evaluates_generalized_moment();
     test_cqmom_generalized_moment_rejects_exponent_count_mismatch();
+    test_cqmom_generalized_moment_rejects_negative_abscissa_for_fractional_exponent();
     test_cqmom_reconstructs_selected_requested_moments();
     test_cqmom_selected_reconstruction_preserves_duplicate_requests();
     test_cqmom_selected_reconstruction_rejects_rank_mismatch();

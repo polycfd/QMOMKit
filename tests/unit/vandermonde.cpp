@@ -3,6 +3,7 @@
 #include "internal/linear_algebra.hpp"
 #include "internal/performance.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -347,9 +348,58 @@ void test_zero_rhs_columns_success()
 
 void test_large_dynamic_range_rhs()
 {
-    assert_matches_dense_reference_relative(
-        {-0.75, -0.1, 0.4, 0.9}, {1.0e-3, -2.0, 5.0e2, -1.0e5},
-        make_solution({{1.0e-12, -1.0e12, 3.0}, {-2.0e-9, 4.0e9, -5.0}, {3.0e-6, -6.0e6, 7.0}, {-4.0e-3, 8.0e3, -9.0}}), 1.0e-2, 1.0e-10, 1.0e-1);
+    // The weighted system has an infinity-norm condition number of about
+    // 2e8. Keep its widely scaled right-hand sides, but use small manufactured
+    // coefficients that remain resolvable at that conditioning level.
+    const std::vector<double> abscissas{-0.75, -0.1, 0.4, 0.9};
+    const std::vector<double> weights{1.0e-3, -2.0, 5.0e2, -1.0e5};
+    const qmomkit::internal::DenseMatrix expected =
+        make_solution({{1.0e-4, -1.0e12, 3.0}, {-2.0e-4, 4.0e9, -5.0}, {3.0e-4, -6.0e6, 7.0}, {-4.0e-4, 8.0e3, -9.0}});
+    const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected);
+    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
+    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, singular_tolerance, false, 1.0e-10};
+    const qmomkit::internal::VandermondeSolveResult result =
+        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
+
+    assert(result.success);
+    assert(result.solution.rows() == expected.rows());
+    assert(result.solution.cols() == expected.cols());
+
+    constexpr double relative_solution_tolerance = 1.0e-6;
+    constexpr double near_zero_absolute_tolerance = 1.0e-12;
+    double expected_solution_infinity_norm = 0.0;
+    for (std::size_t row = 0; row < expected.rows(); ++row)
+    {
+        for (std::size_t column = 0; column < expected.cols(); ++column)
+        {
+            const double expected_value = expected(row, column);
+            const double solution_tolerance = near_zero_absolute_tolerance + relative_solution_tolerance * std::abs(expected_value);
+            assert(std::abs(result.solution(row, column) - expected_value) <= solution_tolerance);
+            expected_solution_infinity_norm = std::max(expected_solution_infinity_norm, std::abs(expected_value));
+        }
+    }
+
+    double system_infinity_norm = 0.0;
+    double rhs_infinity_norm = 0.0;
+    for (std::size_t row = 0; row < system.rows(); ++row)
+    {
+        double row_sum = 0.0;
+        for (std::size_t column = 0; column < system.cols(); ++column)
+        {
+            row_sum += std::abs(system(row, column));
+        }
+        system_infinity_norm = std::max(system_infinity_norm, row_sum);
+    }
+    for (std::size_t row = 0; row < rhs.rows(); ++row)
+    {
+        for (std::size_t column = 0; column < rhs.cols(); ++column)
+        {
+            rhs_infinity_norm = std::max(rhs_infinity_norm, std::abs(rhs(row, column)));
+        }
+    }
+
+    const double residual_scale = system_infinity_norm * expected_solution_infinity_norm + rhs_infinity_norm;
+    assert(qmomkit::internal::residual_norm(system, result.solution, rhs) <= 1.0e-10 * residual_scale);
 }
 
 void test_wrapper_forced_modes_match_dense_reference()

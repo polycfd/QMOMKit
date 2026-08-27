@@ -220,7 +220,7 @@ struct RecursiveQuadratureRequest
     ConditionalMomentOptions conditional_options;
     WheelerOptions wheeler_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
     CqmomCoordinateSupport coordinate_support;
 };
@@ -232,7 +232,7 @@ struct RecursiveQuadratureMomentViewRequest
     ConditionalMomentOptions conditional_options;
     WheelerOptions wheeler_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
     const CqmomMomentLayout* validated_layout = nullptr;
     std::vector<CqmomActiveBranchCount> active_branch_counts;
@@ -252,7 +252,7 @@ struct RecursiveQuadratureMomentDataRequest
     ConditionalMomentOptions conditional_options;
     WheelerOptions wheeler_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
     std::vector<CqmomActiveBranchCount> active_branch_counts;
     bool allow_active_branch_count_growth = false;

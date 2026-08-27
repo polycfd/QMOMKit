@@ -153,6 +153,8 @@ std::string cqmom_adaptive_branch_count_text_with_fixed_qmom(const std::vector<d
          << "adaptive_branch_counts = true\n\n"
          << "[qmom]\n"
          << "adaptive = false\n\n"
+         << "[cqmom]\n"
+         << "diagnostic_level = basic\n\n"
          << "[moments]\n"
          << "extents = 4, 4\n";
     for (std::size_t ix = 0; ix < 4; ++ix)
@@ -998,6 +1000,9 @@ void test_cqmom_case_parses_coordinate_support()
 [phase_space]
 support_lower = none, 1.0
 support_upper = none, 2.0
+
+[cqmom]
+diagnostic_level = basic
 )";
     const auto case_result = qmomkit::config::parse_cqmom(text, "cqmom-support");
     const auto dense = qmomkit::config::parse_cqmom_dense(text, "cqmom-support");
@@ -1758,7 +1763,7 @@ void test_cqmom_diagnostic_level_parses_values()
 {
     const auto omitted = qmomkit::config::parse_cqmom_dense(cqmom_diagnostic_level_text(""));
     assert(omitted.ok());
-    assert(omitted.value().diagnostic_level == qmomkit::CqmomDiagnosticLevel::detailed);
+    assert(omitted.value().diagnostic_level == qmomkit::CqmomDiagnosticLevel::none);
 
     const auto detailed = qmomkit::config::parse_cqmom_dense(cqmom_diagnostic_level_text("detailed"));
     assert(detailed.ok());
@@ -2285,7 +2290,7 @@ accept_boundary = false
     const auto cqmom_case = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(runtime));
     assert(cqmom_case.ok());
     assert(cqmom_case.value().moment_storage() == qmomkit::CqmomMomentStorage::lean);
-    assert(cqmom_case.value().diagnostic_level() == qmomkit::CqmomDiagnosticLevel::detailed);
+    assert(cqmom_case.value().diagnostic_level() == qmomkit::CqmomDiagnosticLevel::none);
     assert(cqmom_case.value().initial_state().moment_storage() == qmomkit::CqmomMomentStorage::lean);
 
     const auto policy = qmomkit::config::parse_realizability_policy(runtime);

@@ -7,6 +7,9 @@ adaptive_branch_counts = true
 # [0,1], but this file leaves coordinate support undeclared to demonstrate
 # unconstrained conditional CQMOM reconstruction outside that interval.
 
+[cqmom]
+diagnostic_level = detailed
+
 [time_integration]
 scheme = strang
 

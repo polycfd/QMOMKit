@@ -603,8 +603,8 @@ results, or success/failure status.
 
 Expensive diagnostic fields use optional values. Callers should treat absence as
 "not computed" rather than as a numerical value. The public API defaults to
-`detailed` to preserve diagnostic transparency unless the caller explicitly
-selects a lower diagnostic level.
+`none`; callers opt into `basic` structural records or `detailed` residual and
+condition diagnostics when they need them.
 
 Configuration files control the same request field with:
 

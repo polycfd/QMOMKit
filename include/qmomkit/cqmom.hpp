@@ -187,8 +187,9 @@ struct CqmomMomentData
  * `moments` is a raw multidimensional moment tensor flattened in phase-space
  * dimension order. `hierarchy` supplies the phase-space node counts and the
  * conditioning order used by the CQMOM construction. Diagnostic level
- * `detailed` preserves the default residual and condition-estimate reporting;
- * lower levels may leave optional expensive diagnostic values unavailable.
+ * Diagnostics are opt-in. `detailed` preserves residual and condition-estimate
+ * reporting; lower levels may leave optional expensive diagnostic values
+ * unavailable.
  */
 struct CqmomDenseCase
 {
@@ -197,7 +198,7 @@ struct CqmomDenseCase
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     CqmomCoordinateSupport coordinate_support;
 };
@@ -217,7 +218,7 @@ struct CqmomLeanCase
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     CqmomCoordinateSupport coordinate_support;
 };

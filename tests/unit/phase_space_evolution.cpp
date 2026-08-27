@@ -230,7 +230,7 @@ qmomkit::RawMomentTensor one_dimensional_cqmom_moments(const std::size_t configu
 
 qmomkit::CqmomState one_dimensional_adaptive_cqmom_state(const qmomkit::CqmomMomentData& moments)
 {
-    qmomkit::CqmomLeanCase lean_case{moments, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true};
+    qmomkit::CqmomLeanCase lean_case{moments, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic};
     return qmomkit::internal::CqmomConstructionAccess::create_state(lean_case);
 }
 
@@ -271,7 +271,7 @@ struct TestDenseCqmomPhaseSpaceEvolutionOptions : CqmomPhaseSpaceEvolutionOption
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
 };
 
@@ -280,7 +280,7 @@ struct TestLeanCqmomPhaseSpaceEvolutionOptions : CqmomPhaseSpaceEvolutionOptions
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
 };
 
@@ -593,7 +593,7 @@ std::string cqmom_case_text_from_moments(const qmomkit::RawMomentTensor& moments
 
 qmomkit::CqmomCase adaptive_cqmom_case()
 {
-    const std::string text = cqmom_case_text_from_moments(adaptive_cqmom_moments(), true, true);
+    const std::string text = cqmom_case_text_from_moments(adaptive_cqmom_moments(), true, true) + "\n[cqmom]\ndiagnostic_level = basic\n";
     const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case");
     assert(parsed.ok());
     return parsed.value();
@@ -609,7 +609,7 @@ qmomkit::CqmomCase adaptive_cqmom_case_from_moments(const qmomkit::RawMomentTens
 
 qmomkit::CqmomCase adaptive_cqmom_case_from_moments_with_fixed_qmom(const qmomkit::RawMomentTensor& moments)
 {
-    const std::string text = cqmom_case_text_from_moments(moments, true, false);
+    const std::string text = cqmom_case_text_from_moments(moments, true, false) + "\n[cqmom]\ndiagnostic_level = basic\n";
     const auto parsed = qmomkit::config::parse_cqmom(text, "adaptive-cqmom-case-from-moments-with-fixed-qmom");
     assert(parsed.ok());
     return parsed.value();
@@ -2755,7 +2755,7 @@ void test_adaptive_state_bounded_support_rejects_post_source_growth()
     qmomkit::CqmomCoordinateSupport support(2);
     support[0] = qmomkit::CqmomAbscissaBounds{0.0, 1.0};
 
-    qmomkit::CqmomLeanCase lean_case{initial_required, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true};
+    qmomkit::CqmomLeanCase lean_case{initial_required, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic};
     lean_case.coordinate_support = support;
     const qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(lean_case);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };

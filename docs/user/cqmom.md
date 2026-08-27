@@ -224,6 +224,23 @@ these paths. See [configuration.md](configuration.md) for exact syntax and
 policy behavior. Developer-level numerical details are in
 [Internal Linear Algebra](../developer/linear_algebra.md).
 
+### Reconstruction Diagnostics
+
+CQMOM always runs the numerical checks required to accept or reject a branch,
+including solver acceptance, eligible fallback, support validation, and
+adaptive branch selection. The optional `[cqmom] diagnostic_level` controls
+only retained observability data and defaults to `none`:
+
+```ini
+[cqmom]
+diagnostic_level = basic
+```
+
+Use `basic` for structural branch records and `detailed` when residual and
+condition-estimate diagnostics are needed; detailed reporting may perform extra
+work. A failed reconstruction still returns its status and available failure
+context at every level. See [configuration.md](configuration.md) for syntax.
+
 For this normal configuration path, the CQMOM hierarchy determines the
 required raw moments automatically. Advanced full-tensor workflows may also
 omit `maximum_orders`; QMOMKit then derives the minimum dense extents from the

@@ -49,6 +49,7 @@ qmomkit::CqmomDenseCase bounded_case(const std::vector<double>& moments, const q
 {
     qmomkit::CqmomDenseCase case_{qmomkit::PhaseSpaceHierarchy({2}), {{4}, moments}};
     case_.coordinate_support = {interval};
+    case_.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     return case_;
 }
 
@@ -107,6 +108,7 @@ void verify_coordinate_specific_bounds_in_recursive_cqmom()
 
     qmomkit::CqmomDenseCase case_{qmomkit::PhaseSpaceHierarchy({2, 2}, {1, 0}), expected};
     case_.coordinate_support = {x_bounds, y_bounds};
+    case_.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
 
     QMOMKIT_VERIFY_CHECK(result.ok());

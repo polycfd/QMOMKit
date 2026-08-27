@@ -22,7 +22,7 @@ struct TestDenseCqmomPhaseSpaceEvolutionOptions : CqmomPhaseSpaceEvolutionOption
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
 };
 
@@ -31,7 +31,7 @@ struct TestLeanCqmomPhaseSpaceEvolutionOptions : CqmomPhaseSpaceEvolutionOptions
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
 };
 

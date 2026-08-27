@@ -680,11 +680,12 @@ is reported by `CqmomCase::moment_storage()` and `CqmomState::moment_storage()`.
 This setting is distinct from `vandermonde.solver = dense`, which selects a
 linear solver for conditional reconstruction rather than moment storage.
 
-`diagnostic_level` controls reconstruction diagnostic retention and reporting
-only. It does not change solver selection, residual acceptance, fallback
-behavior, inversion results, phase-space evolution results, or success/failure status.
-Supported values are `detailed`, `basic`, and `none`. If omitted, `detailed` is
-used.
+`diagnostic_level` controls optional reconstruction observability only. Required
+numerical checks, solver acceptance, fallback behavior, support checks, adaptive
+branch selection, inversion results, and success/failure status are unchanged.
+If omitted, `none` is used. Select `basic` for structural branch diagnostics or
+`detailed` for residual and condition-estimate diagnostics; the latter may add
+diagnostic work.
 
 `vandermonde.solver` controls the branch-local conditional Vandermonde solve.
 Supported values are:

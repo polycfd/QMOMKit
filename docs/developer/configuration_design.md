@@ -227,7 +227,7 @@ fixed-count CQMOM rejects that combination during configuration validation.
 
 The optional `[cqmom] diagnostic_level = detailed|basic|none` setting maps to
 the CQMOM diagnostic policy stored in the loaded case. If omitted,
-configuration preserves the public default `CqmomDiagnosticLevel::detailed`.
+configuration preserves the public default `CqmomDiagnosticLevel::none`.
 
 ### Immutable Explicit-Moment Replacement
 

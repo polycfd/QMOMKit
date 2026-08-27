@@ -682,7 +682,8 @@ void assert_public_cqmom_matches_dense_recursive_reference(const qmomkit::PhaseS
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
     const qmomkit::internal::RecursiveQuadratureResult dense = qmomkit::internal::compute_recursive_quadrature(
         {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense});
-    const qmomkit::CqmomResult public_result = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, {}});
+    const qmomkit::CqmomDenseCase public_case{hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed};
+    const qmomkit::CqmomResult public_result = qmomkit::compute_cqmom(public_case);
 
     assert_cqmom_result_matches_recursive_result(public_result, dense, 1.0e-10);
     assert(public_result.ok());
@@ -1103,8 +1104,10 @@ void test_public_dense_and_lean_bounded_support_parity()
     const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
     qmomkit::CqmomDenseCase dense_case{hierarchy, moments};
     dense_case.coordinate_support = support;
+    dense_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy))};
     lean_case.coordinate_support = support;
+    lean_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
 
     const qmomkit::CqmomResult dense = qmomkit::compute_cqmom(dense_case);
     const qmomkit::CqmomResult lean = qmomkit::compute_cqmom(lean_case);

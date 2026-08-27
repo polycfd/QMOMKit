@@ -1199,7 +1199,7 @@ struct ParsedCqmomCaseSettings
     PhaseSpaceHierarchy hierarchy;
     QmomOptions qmom_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     CqmomCoordinateSupport coordinate_support;
     CqmomMomentStorage moment_storage = CqmomMomentStorage::lean;
@@ -1575,7 +1575,7 @@ std::optional<CqmomDiagnosticLevel> parse_cqmom_diagnostic_level(ParsedFile& par
     const Entry* entry = find_entry(parsed, "cqmom.diagnostic_level");
     if (entry == nullptr)
     {
-        return CqmomDiagnosticLevel::detailed;
+        return CqmomDiagnosticLevel::none;
     }
     return parse_cqmom_diagnostic_level_value(parsed, *entry, source_name);
 }
@@ -1929,7 +1929,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
         ParsedCqmomCaseSettings settings{PhaseSpaceHierarchy{std::move(node_counts), std::move(conditioning_order)},
                                          qmom_options.value_or(QmomOptions{}),
                                          adaptive_branch_counts,
-                                         diagnostic_level.value_or(CqmomDiagnosticLevel::detailed),
+                                         diagnostic_level.value_or(CqmomDiagnosticLevel::none),
                                          vandermonde_solver.value_or(VandermondeSolver::automatic),
                                          coordinate_support.value_or(CqmomCoordinateSupport{}),
                                          moment_storage.value_or(CqmomMomentStorage::lean),
@@ -2339,7 +2339,7 @@ ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditi
                                                               {},
                                                               qmom_options,
                                                               adaptive_branch_counts,
-                                                              CqmomDiagnosticLevel::detailed,
+                                                              CqmomDiagnosticLevel::none,
                                                               VandermondeSolver::automatic,
                                                               std::move(coordinate_support)}};
 }
@@ -2358,7 +2358,7 @@ ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialCondition
                                                             {},
                                                             qmom_options,
                                                             adaptive_branch_counts,
-                                                            CqmomDiagnosticLevel::detailed,
+                                                            CqmomDiagnosticLevel::none,
                                                             VandermondeSolver::automatic,
                                                             std::move(coordinate_support)}};
 }

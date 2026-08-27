@@ -133,7 +133,11 @@ void test_public_cqmom_advection_rates_preserve_layout_and_status()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomLeanCase lean_case{
-        cqmom_moment_data_from_terminals(layout, {0.2, 0.3, 0.1, 0.4}, {{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}})};
+        cqmom_moment_data_from_terminals(layout, {0.2, 0.3, 0.1, 0.4}, {{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}}),
+        {},
+        {},
+        false,
+        qmomkit::CqmomDiagnosticLevel::basic};
     const qmomkit::PhaseSpaceVelocity zero_velocity = [](double, const std::vector<double>& coordinate)
     { return std::vector<double>(coordinate.size(), 0.0); };
 

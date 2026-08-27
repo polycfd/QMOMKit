@@ -1,7 +1,7 @@
 #pragma once
 
 #include "qmomkit/cqmom.hpp"
-#include "qmomkit/distributions.hpp"
+#include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/multi_index.hpp"
 
 #include <cstddef>

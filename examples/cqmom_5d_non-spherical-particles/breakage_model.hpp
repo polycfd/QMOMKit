@@ -27,8 +27,8 @@ void validate_binary_fragmentation_parameters(const BinaryFragmentationParameter
 // parameters. Terminal nodes are supplied by the source context.
 [[nodiscard]] qmomkit::CqmomMomentSource binary_breakage_source(const BinaryFragmentationParameters& parameters);
 
-// Applies one stochastic moment-source interval in place; the generator advances
-// by reference so the example seed controls reproducibility.
+// Applies stochastic binary-breakage events to the independent particle
+// reference over one source interval.
 void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, double step_size, std::mt19937_64& generator,
                            const BinaryFragmentationParameters& parameters);
 

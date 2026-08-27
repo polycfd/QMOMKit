@@ -234,9 +234,6 @@ void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, const doubl
     {
         require_sample(sample);
         pending.emplace_back(std::move(sample), step_size);
-        // Advance one lineage through the remaining moment-source stage time.
-        // Daughters re-enter with only the unused interval, so repeated
-        // fragmentation is allowed without restarting the stage clock.
         while (!pending.empty())
         {
             qmomkit::monte_carlo::Sample particle = std::move(pending.back().first);

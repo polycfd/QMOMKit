@@ -94,8 +94,7 @@ void print_moment_tensor(const qmomkit::RawMomentTensor& moments, const std::vec
                 throw std::runtime_error("A terminal moment index is outside the Monte Carlo moment tensor extents.");
             }
         }
-        const std::size_t flat_index = qmomkit::flatten_multi_index(order, moments.extents);
-        print_moment_entry(order, moments.values[flat_index]);
+        print_moment_entry(order, moments.values[qmomkit::flatten_multi_index(order, moments.extents)]);
     }
 }
 
@@ -202,7 +201,7 @@ void print_monte_carlo_result_summary(const qmomkit::RawMomentTensor& initial_mo
                                       const bool wrote_moments)
 {
     std::cout << std::setprecision(12);
-    std::cout << "5D direct Monte Carlo non-spherical particle example\n";
+    std::cout << "5D Monte Carlo non-spherical particle reference\n";
     std::cout << "phase-space ordering: (d, chi, u, v, w)\n";
     print_run_metadata(sample_count, initialization_seed, time_step, final_time);
 

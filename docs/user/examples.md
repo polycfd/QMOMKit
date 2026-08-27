@@ -38,7 +38,9 @@ Reference workflows
   cqmom_2d_breakage_advection_mc_initialization
   cqmom_3d_condensing-nucleating_droplets
   cqmom_2d_polydisperse_cavitation
-  cqmom_5d_non-spherical-particles
+  cqmom_5d_non-spherical-particles  # 5D adaptive CQMOM with bounded support,
+                                     # a bimodal marginal mixture, and a
+                                     # bounded/unbounded support diagnostic
 ```
 
 For physics callbacks, start with `qmom_1d_minimal`,

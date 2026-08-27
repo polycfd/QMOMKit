@@ -18,17 +18,17 @@ It includes three executables:
   comparison for the same particle model and sampled initialization.
 
 The bounded CQMOM executable is the normal physical workflow. The unbounded
-diagnostic is not a different physical model; it omits only the aspect-ratio
-support declaration to show why finite conditional moments can be
+diagnostic uses the same initial population and physical model, but omits the
+aspect-ratio support declaration to show why finite conditional moments can be
 Stieltjes-realizable while failing bounded Hausdorff realizability on $[0,1]$.
 The Monte Carlo executable uses the same sampled initialization and particle
 model to provide an event-driven stochastic reference workflow.
 
-Each CQMOM workflow loads its normal case, then uses
+Each CQMOM workflow loads its configured case, then uses
 `with_initial_moments(...)` to replace only the initialized tensor with the
-complete sampled moments. The configured hierarchy, bounded support, storage
-selection, and reconstruction policies remain unchanged; the sampling utility is
-only one possible tensor producer.
+complete sampled moments. The configured hierarchy, support policy, storage
+selection, and reconstruction policies remain unchanged; the sampling utility
+is only one possible tensor producer.
 
 ## Phase-space definition and raw moments
 
@@ -245,22 +245,27 @@ $$
 }.
 $$
 
-It has units 1/s. This is algebraically equivalent to evaluating the drag
-force
+It has units 1/s. With projected spherical area $A=πd^2/4$, this is
+algebraically equivalent to evaluating the drag force
 
 $$
 \boldsymbol{F}_d
 =
 \frac{1}{2}
 \rho_f A
-\frac{24}{\mathrm{Re}}
-K
-\mathrm{Re}
+\left(
+\frac{24K(\chi,\mathrm{Re})}{\mathrm{Re}}
+\right)
 \left|\boldsymbol{U}_{\mathrm{rel}}\right|
 \boldsymbol{U}_{\mathrm{rel}}
 $$
 
-and dividing by the spherical particle mass. The velocity equations are
+and dividing by the spherical particle mass $\rho_p\pi d^3/6$. Substituting
+the Reynolds number gives
+$\boldsymbol{F}_d/(\rho_p\pi d^3/6)=\lambda_{\mathrm{drag}}\boldsymbol{U}_{\mathrm{rel}}$.
+The Reynolds-number dependence in $K(\chi,\mathrm{Re})$ remains part of the
+model; no additional Reynolds-number factor multiplies the force. The velocity
+equations are
 
 $$
 \begin{aligned}
@@ -559,15 +564,26 @@ velocity component, and attrition changes particle volume and diameter moments.
 
 ## Initialization shared by CQMOM and Monte Carlo
 
-The supplied initialization is an independent product distribution with total
+The supplied initialization is an independent-product distribution with total
 number density $n_0=1$. The coordinate distributions are configured in
 `configuration.qmom`:
 
 - $d$ is lognormal with `mu_log = -8.9596725473` and
   `sigma_log = 0.1529473098`.
 - $\chi$ is beta-distributed with `alpha = 6.0` and `beta = 14.0`.
-- $u$, $v$, and $w$ are normal with `mean = 0.0` and
+- $u$ uses the native CQMOM marginal-mixture syntax: two normal components,
+  each with `number_density = 0.5` and `standard_deviation = 0.5`, centered at
+  `mean = -1.0` and `mean = 1.0`, respectively.
+- $v$ and $w$ are normal with `mean = 0.0` and
   `standard_deviation = 0.5`.
+
+The $u$ marginal is therefore a bimodal distribution of two simultaneously
+present velocity subpopulations. It provides a simple phase-space
+representation of crossing velocity populations (and hence particle
+trajectory crossing in a population sense); it does not assign persistent
+individual identities or trajectories to CQMOM nodes. The configured
+independent-product initialization combines this marginal mixture with the
+other four marginals.
 
 The CQMOM drivers parse the independent-product initialization, sample `10000`
 particles with `initialization_seed = 12345`, and replace the distributional
@@ -596,11 +612,12 @@ maximum_orders = 5, 5, 5, 5, 5
 adaptive_branch_counts = true
 ```
 
-The supplied CQMOM phase-space evolution settings are:
+Both CQMOM configurations use Strang splitting for phase-space evolution and
+RK23 for node trajectories:
 
 ```text
 [time_integration]
-scheme = advsrc
+scheme = strang
 
 [time_integration.node_advection]
 scheme = rk23
@@ -626,11 +643,14 @@ final_time = 1.0
 time_step = 0.005
 ```
 
-The Monte Carlo driver currently uses `time_step = 0.01` and
-`final_time = 1.0`. The moment-source fragmentation source is advanced through
-QMOMKit's moment-source update path for CQMOM and through event-driven waiting
-times for Monte Carlo; no application physics is placed in the `.qmom`
-configuration files.
+The Monte Carlo driver uses `time_step = 0.01` and `final_time = 1.0`; the
+CQMOM driver uses the smaller `time_step = 0.005`. Both apply the same Strang
+operator order: advection half-step, fragmentation source stage, then
+advection half-step. The CQMOM `rk23` setting controls only quadrature-node
+trajectories within its advection stages. The moment-source fragmentation is
+advanced through QMOMKit's CQMOM update path and through event-driven waiting
+times for Monte Carlo, so the workflows remain a deterministic closure and a
+stochastic reference rather than numerically identical integrations.
 
 ## Bounded-support CQMOM workflow
 
@@ -649,10 +669,12 @@ prints only concise support topology events.
 
 ## Intentionally unbounded diagnostic workflow
 
-`configuration_unbounded.qmom` intentionally omits only the $\chi$ support
-declaration while preserving the same phase-space hierarchy, initialization,
-physical callbacks, integration settings, tolerances, and source model. Its
-output directory is `output/unbounded_diagnostic`.
+`configuration_unbounded.qmom` preserves the same hierarchy, initialization,
+physical callbacks, Strang splitting, RK23 settings, and source model, but
+omits the $\chi$ support declaration. It also selects the diagnostic output
+directory `output/unbounded_diagnostic` and a diagnostic-specific
+`max_steps` guard; neither changes the initialized population or physical
+model.
 
 The diagnostic advances the same physics to the first source boundary where
 ordinary unconstrained post-source inversion accepts a finite terminal node
@@ -673,11 +695,11 @@ Together, the bounded and unbounded workflows demonstrate:
 - how support-aware adaptive reconstruction resolves the issue without
   clipping node coordinates.
 
-The unbounded workflow is not a different physical model. It is included to
-show how a finite conditional moment sequence can leave the physical support
-even though the fragmentation daughter law preserves $\chi\le1$ when the
-parent is inside $[0,1]$. The bounded workflow demonstrates the generic
-support-aware response.
+The unbounded workflow is not a different physical model or initialization. It
+is included to show how a finite conditional moment sequence can leave the
+physical support even though the fragmentation daughter law preserves
+$\chi\le1$ when the parent is inside $[0,1]$. The bounded workflow demonstrates
+the generic support-aware response.
 
 ## Conditional support-loss mechanism
 
@@ -784,9 +806,10 @@ from the bounded post-source quadrature.
 the physical $\chi$ support interval and writes CQMOM output under `output`.
 
 `configuration_unbounded.qmom` intentionally removes only the $\chi$ support
-declaration and redirects diagnostic output to `output/unbounded_diagnostic`.
-It keeps the same phase-space hierarchy, initialization, phase-space evolution settings,
-tolerances, and physical source callbacks.
+declaration, redirects diagnostic output to `output/unbounded_diagnostic`, and
+sets a diagnostic-specific `max_steps` guard. It keeps the same phase-space
+hierarchy, initialization, Strang splitting, RK23 tolerances, and physical
+source callbacks.
 
 Both configuration files are copied into the example build directory by the
 standalone example CMake project.
@@ -852,15 +875,19 @@ The bounded CQMOM run remains within the declared $\chi$ support and reaches
 `final_time = 1.0`. It may report concise support-driven active-count
 reductions and support-infeasible growth rejections.
 
+The bounded five-dimensional CQMOM run can take noticeably longer than the
+introductory examples because it repeatedly reconstructs an adaptive 5D
+hierarchy.
+
 The unbounded diagnostic is expected to stop early after writing its report. In
 the supplied configuration it detects a small positive-weight $\chi$ node above
 one immediately after an accepted post-source reconstruction.
 
-The Monte Carlo executable is a direct stochastic comparison. It may take
-substantially longer than CQMOM because it starts with `10000` particles,
-fragmentation grows the ensemble, every particle follows advection dynamics,
-and dense moments are recomputed from the evolving ensemble. A long Monte Carlo
-runtime is expected behavior, not a defect.
+The Monte Carlo executable is a direct stochastic comparison and is
+substantially more expensive than the CQMOM run: it starts with `10000`
+particles, fragmentation grows the ensemble, every particle follows advection
+dynamics, and dense moments are recomputed from the evolving ensemble. A long
+Monte Carlo runtime is expected behavior, not a defect.
 
 ## Interpretation and limitations
 

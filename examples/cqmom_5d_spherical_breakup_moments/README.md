@@ -83,6 +83,10 @@ cd examples/cqmom_5d_spherical_breakup_moments/build
 
 The configured Strang-split CQMOM run and the MC companion advance from $0$ to $0.1$ s with an outer step of $0.001$ s. The MC path applies half continuous advection, breakup, then half continuous advection, with fixed initialization and breakup seeds.
 
+This advanced five-dimensional example can take longer than the introductory
+examples. The direct Monte Carlo companion is substantially more expensive
+than the CQMOM run because it evolves a finite population through breakup.
+
 ## Output
 
 The CQMOM executable writes `output/moment_history.txt` and `output/quadrature_history.txt` at the configured $0.0025$ s cadence. The first contains time and all transported raw moments; the second contains terminal-node weights and coordinates. The MC executable writes matching selected raw moments to `output/moment_history_mc.txt`. Both executables print the initial and final tracked moments (up to 20 on the console).

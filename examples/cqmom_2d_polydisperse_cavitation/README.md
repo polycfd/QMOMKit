@@ -260,7 +260,8 @@ interval = 0.1
 `configuration.qmom` does not contain an explicit `[time_integration]` section.
 The CQMOM executable loads the default phase-space evolution options and advances the
 accepted CQMOM state with `qmomkit::advance_cqmom_advection(...)`; the default
-node-advection scheme is `ssp_rk3`. During advection CQMOM phase-space
+node-advection scheme is adaptive RK23 (the Bogacki--Shampine 3(2) pair).
+During advection CQMOM phase-space
 advection, quadrature abscissas move and weights are preserved over the
 advection advancement; raw moments change because the abscissas change.
 

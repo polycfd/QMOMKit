@@ -35,8 +35,18 @@ alpha = 6.0
 beta = 14.0
 
 [initial.dimension.2]
+type = mixture
+
+[initial.dimension.2.mixture.component.0]
 family = normal
-mean = 0.0
+number_density = 0.5
+mean = -1.0
+standard_deviation = 0.5
+
+[initial.dimension.2.mixture.component.1]
+family = normal
+number_density = 0.5
+mean = 1.0
 standard_deviation = 0.5
 
 [initial.dimension.3]

@@ -124,7 +124,7 @@ void print_cqmom_run_configuration(const qmomkit::CqmomCase& cqmom_case,
     std::cout << "node_counts = ";
     print_index_vector(cqmom_case.hierarchy().node_counts());
     std::cout << '\n';
-    std::cout << "phase-space evolution: phase-space advection only\n";
+    std::cout << "phase-space evolution: Strang-split advection and boundary nucleation\n";
     std::cout << qmomkit::format_cqmom_settings(cqmom_case.moment_storage(), cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(),
                                                 cqmom_case.diagnostic_level());
     std::cout << qmomkit::format_node_advection_options(phase_space_evolution_options.node_options);
@@ -138,7 +138,7 @@ void print_monte_carlo_run_configuration(const qmomkit::CqmomCase& cqmom_case, c
     std::cout << "node_counts = ";
     print_index_vector(cqmom_case.hierarchy().node_counts());
     std::cout << '\n';
-    std::cout << "particle evolution: phase-space advection only\n";
+    std::cout << "particle evolution: Strang-split advection and population nucleation\n";
     std::cout << qmomkit::format_node_advection_options(node_options);
 }
 
@@ -148,7 +148,7 @@ void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moment
                           const double final_time, const bool wrote_moments, const bool wrote_quadrature)
 {
     std::cout << std::setprecision(12);
-    std::cout << "3D CQMOM condensing-droplet advection evolution example\n";
+    std::cout << "3D CQMOM condensing-droplet evolution with nucleation\n";
     std::cout << "phase-space ordering: (r,w,T)\n";
     print_run_metadata(sample_count, initialization_seed, time_step, final_time);
 
@@ -186,7 +186,7 @@ void print_monte_carlo_result_summary(const qmomkit::SelectedRawMomentResult& in
                                       const double final_time, const bool wrote_moments)
 {
     std::cout << std::setprecision(12);
-    std::cout << "3D direct Monte Carlo condensing-droplet advection evolution example\n";
+    std::cout << "3D direct Monte Carlo condensing-droplet evolution with nucleation\n";
     std::cout << "phase-space ordering: (r,w,T)\n";
     print_run_metadata(sample_count, initialization_seed, time_step, final_time);
 

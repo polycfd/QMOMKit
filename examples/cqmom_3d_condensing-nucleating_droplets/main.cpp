@@ -79,13 +79,32 @@ int main()
             return 1;
         }
 
+        const qmomkit::RawMomentRequest initial_number_request{std::vector<qmomkit::MultiIndex>{{0, 0, 0}}};
+        const qmomkit::SelectedRawMomentResult initial_number_moment = qmomkit::reconstruct_raw_moments(cqmom.quadrature, initial_number_request);
+        if (!initial_number_moment.ok() || initial_number_moment.values.size() != 1)
+        {
+            std::cerr << "Could not obtain initial M[0,0,0] for the nucleation model.\n";
+            return 1;
+        }
+        const cqmom_3d_condensing_nucleating_droplets::NucleationModel nucleation_model =
+            cqmom_3d_condensing_nucleating_droplets::make_nucleation_model(initial_number_moment.values.front());
+
         qmomkit::CqmomState state = cqmom_case.initial_state();
         qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices};
-        const auto velocity = cqmom_3d_condensing_nucleating_droplets::droplet_phase_space_velocity();
+        const qmomkit::PhaseSpaceVelocity velocity = cqmom_3d_condensing_nucleating_droplets::droplet_phase_space_velocity();
 
         qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
+        if (phase_space_evolution_options.scheme != qmomkit::PhaseSpaceEvolutionScheme::strang)
+        {
+            std::cerr << "The condensation-nucleation example requires configured Strang splitting.\n";
+            return 1;
+        }
+        cqmom_3d_condensing_nucleating_droplets::validate_nucleation_interval(initial_time, final_time);
+        const qmomkit::CqmomMomentSource zero_moment_source = [](double, const qmomkit::CqmomSourceContext& context)
+        { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+        const auto nucleation_boundary = cqmom_3d_condensing_nucleating_droplets::nucleation_boundary_contribution(nucleation_model);
         cqmom_3d_condensing_nucleating_droplets::print_cqmom_run_configuration(cqmom_case, phase_space_evolution_options);
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
@@ -95,9 +114,13 @@ int main()
         double next_output_time = initial_time + output_interval;
         while (time < final_time - 1.0e-12)
         {
-            const double current_step = std::min(time_step, final_time - time);
+            const double current_step =
+                cqmom_3d_condensing_nucleating_droplets::limit_step_to_nucleation_interval(time, std::min(time_step, final_time - time));
+            const bool nucleation_active = cqmom_3d_condensing_nucleating_droplets::nucleation_is_active(time);
             const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
-                qmomkit::advance_cqmom_advection(state, time, current_step, velocity, phase_space_evolution_options);
+                nucleation_active ? qmomkit::advance_cqmom_phase_space(state, time, current_step, velocity, zero_moment_source, nucleation_boundary,
+                                                                       phase_space_evolution_options)
+                                  : qmomkit::advance_cqmom_advection(state, time, current_step, velocity, phase_space_evolution_options);
             if (!phase_space_evolved.ok())
             {
                 std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';

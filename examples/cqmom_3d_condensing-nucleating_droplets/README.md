@@ -1,4 +1,4 @@
-# Condensing droplet CQMOM example
+# Condensing and nucleating droplet CQMOM example
 
 ## Purpose and workflows
 
@@ -14,19 +14,20 @@ droplet temperature. Positive $w$ is upward, so falling droplets have
 negative vertical velocity.
 
 The model contains phase-space evolution only. It does not include
-physical-space advection, a moment-source population source, breakup,
-coalescence, nucleation, a zero-radius boundary contribution, or gas-phase
-feedback from the droplets. The implemented callback advances radius,
-vertical velocity, and droplet temperature for prescribed uniform ambient
-conditions.
+physical-space advection, breakup, coalescence, or gas-phase feedback from the
+droplets. Existing droplets move through $(r,w,T)$ by condensation, drag, and
+heat transfer. During a finite interval, nucleation adds droplets at one
+specified birth state through a CQMOM phase-space boundary contribution.
 
 The example contains two executables:
 
 - `cqmom_3d_condensing_nucleating_droplets_example`: initializes CQMOM from empirical raw
   moments of a deterministic finite sampled population and advances the CQMOM
-  quadrature through the advection droplet phase-space velocity.
+  quadrature with Strang-split droplet advection and a nucleation boundary
+  contribution.
 - `cqmom_3d_condensing_nucleating_droplets_mc_example`: evolves the same deterministic finite
-  sampled population directly with the Monte Carlo companion utilities.
+  sampled population directly, using midpoint population injection for the
+  same nucleation model.
 
 Both workflows use the same `configuration.qmom`, distribution parameters,
 sample count, initialization seed, coordinate order, and droplet model
@@ -91,9 +92,10 @@ density, $(r_p,w_p,T_p)$ is sample $p$, and $n_0/N$ is the constant
 statistical weight carried by each sample.
 
 The direct Monte Carlo executable evaluates the configured selected moment
-request with QMOMKitMonteCarlo's native selective estimator, passing the total
-number density $n_0$. Request order and duplicate entries are preserved; no
-example-local monomial or per-particle-weight implementation is required.
+request with QMOMKitMonteCarlo's native selective estimator, passing the
+current total number density. Request order and duplicate entries are
+preserved; no example-local monomial or per-particle-weight implementation is
+required.
 
 ## Droplet model
 
@@ -108,9 +110,10 @@ $$
 \right).
 $$
 
-All physical constants in this section are compiled into `droplet_model.cpp`.
-They are example-local physics parameters, not entries in `configuration.qmom`
-and not generic QMOMKit settings.
+The condensation-model constants are compiled into `droplet_model.cpp`; the
+nucleation birth parameters are declared in `droplet_model.hpp`. They are
+example-local physics parameters, not entries in `configuration.qmom` and not
+generic QMOMKit settings.
 
 ### Ambient and material properties
 
@@ -316,6 +319,45 @@ A positive $\Delta_v$ gives droplet growth. The default ambient relative
 humidity and temperatures produce condensation for the supplied initial
 population.
 
+### Nucleation boundary contribution
+
+The example uses the paper model's prescribed constant birth flux, active only
+for
+
+$$
+0.20\ \mathrm{s} \le t < 0.40\ \mathrm{s}.
+$$
+
+Let $M_{0,0,0}(0)$ be the reconstructed initial number density. The birth flux
+is
+
+$$
+J = \frac{M_{0,0,0}(0)}{0.40\ \mathrm{s}-0.20\ \mathrm{s}},
+$$
+
+so nucleation adds one initial population over its active interval. $J$ has
+units of number density per second. Every newborn droplet has the deterministic
+phase-space state
+
+$$
+(r_n,w_n,T_n)=(5.0\times10^{-4}\ \mathrm{m},0\ \mathrm{m/s},298.15\ \mathrm{K}).
+$$
+
+Nucleation is a phase-space boundary birth, not a smooth velocity for existing
+nodes. For each configured raw moment $M_{a,b,c}$, the native
+`CqmomMomentBoundaryContribution` returns
+
+$$
+\left.\frac{\mathrm{d}M_{a,b,c}}{\mathrm{d}t}\right|_{\mathrm{nuc}}
+= J r_n^a w_n^b T_n^c.
+$$
+
+QMOMKit combines this rate with the zero volumetric moment source during the
+moment-source stage and reconstructs the updated CQMOM state. The application
+iterates the provided `CqmomSourceContext` entries, so it follows the moment
+layout selected by the configured hierarchy rather than assuming a dense
+tensor.
+
 ### Momentum equation
 
 If $w_{\mathrm{rel}}=0$, the drag acceleration is zero. Otherwise, for
@@ -477,6 +519,10 @@ population. Therefore, the initial CQMOM and Monte Carlo moment rows agree to
 roundoff; analytical distribution moments are not used as the production CQMOM
 initial condition in this example.
 
+This is an initially seeded population, not an initially droplet-free case.
+Those droplets condense from the beginning; nucleation adds the separate
+deterministic birth population only from $0.20$ to $0.40$ s.
+
 ## Numerical workflow and configuration
 
 The numerical CQMOM hierarchy is selected in `configuration.qmom`:
@@ -484,9 +530,12 @@ The numerical CQMOM hierarchy is selected in `configuration.qmom`:
 ```text
 [phase_space]
 names = r, w, T
-node_counts = 2, 2, 2
+node_counts = 3, 3, 3
 conditioning_order = 0, 1, 2
 adaptive_branch_counts = true
+
+[time_integration]
+scheme = strang
 
 [time_integration.node_advection]
 scheme = rk23
@@ -499,18 +548,19 @@ max_step = 1.0e-2
 min_step = 1.0e-9
 ```
 
-The `node_counts = 2, 2, 2` setting gives two nodes in $r$, two conditional
-nodes in $w$, and two conditional nodes in $T$, for up to eight terminal
-CQMOM nodes. The `conditioning_order = 0, 1, 2` setting reconstructs $r$,
-then $w$, then $T$. With `adaptive_branch_counts = true`, these configured
-node counts are maximum branch capacities and the accepted runtime topology may
-contain fewer active terminal nodes.
+The `node_counts = 3, 3, 3` setting gives up to three nodes in $r$, three
+conditional nodes in $w$, and three conditional nodes in $T$, for up to 27
+terminal CQMOM nodes. The `conditioning_order = 0,
+1, 2` setting reconstructs $r$, then $w$, then $T$. With
+`adaptive_branch_counts = true`, these configured node counts are maximum
+branch capacities and the accepted runtime topology may contain fewer active
+terminal nodes.
 
 The configuration does not set `initial.maximum_orders`. When the sampling
 helper does not receive explicit maximum orders, it uses the CQMOM hierarchy
 moment extents, which are $2$ times the configured node count in each
-dimension. For the default `2, 2, 2` hierarchy, that corresponds to sampled
-orders $0,\ldots,3$ in $r$, $w$, and $T$. The result files are written
+dimension. For the default `3, 3, 3` hierarchy, that corresponds to sampled
+orders $0,\ldots,5$ in $r$, $w$, and $T$. The result files are written
 with the hierarchy-defined required CQMOM moment layout; there is no hardcoded
 output-moment list in the example.
 
@@ -533,16 +583,21 @@ interval = 0.1
 ```
 
 The CQMOM executable reconstructs the initial three-dimensional CQMOM
-quadrature, creates a `qmomkit::CqmomState`, and advances it with
-`qmomkit::advance_cqmom_advection(...)`. The Monte Carlo executable advances
-each sampled droplet with `qmomkit::monte_carlo::evolve_ensemble(...)`. Both
-paths use the same droplet phase-space velocity callback and the configured
-adaptive embedded-RK node-advection tolerances.
+quadrature, creates a `qmomkit::CqmomState`, and uses
+`qmomkit::advance_cqmom_phase_space(...)` while nucleation is active.
+Configured Strang splitting applies advection for a half step, the boundary
+birth contribution for a full source step, then advection for a half step. At
+other times it uses the existing native advection workflow. Phase-space
+advection moves quadrature abscissas while preserving terminal weights; the
+boundary contribution changes raw moments and may change the accepted adaptive
+topology after source reconstruction.
 
-There is no moment-source or operator-split source stage in this
-example. Phase-space advection changes quadrature abscissas while
-preserving terminal weights during each advection advancement. Raw moments
-change because those abscissas move through phase space.
+The Monte Carlo executable uses the same advection callback and adaptive-RK
+tolerances. During the nucleation interval it advances the ensemble for a half
+step, calls `qmomkit::monte_carlo::inject_population(...)` with $J\Delta t$,
+then advances the enlarged ensemble for the second half step. The injection API
+keeps a common representative sample weight and returns the increased total
+number density.
 
 ## Build and run
 
@@ -627,11 +682,12 @@ The direct Monte Carlo executable writes:
 output/moment_history_mc.txt
 ```
 
-`moment_history_mc.txt` contains Monte Carlo estimated raw moments computed
-from the evolving finite sample with the constant per-sample weight $n_0/N$.
-It uses the same case-defined moment columns, labels, ordering, and output
-times as the CQMOM moment history. The initial rows agree to roundoff because
-both workflows start from the same deterministic finite sampled population.
+`moment_history_mc.txt` contains Monte Carlo estimated raw moments from the
+evolving finite sample. Population injection preserves a common representative
+sample weight while increasing both sample count and total number density. It
+uses the same case-defined moment columns, labels, ordering, and output times
+as the CQMOM moment history. The initial rows agree to roundoff because both
+workflows start from the same deterministic finite sampled population.
 
 ## Plotting
 
@@ -662,28 +718,26 @@ write PNG files next to the input file.
 ## Expected qualitative behavior
 
 For the default case, the vapor-drive term is positive for the supplied
-ambient and initial temperatures, so droplets grow by condensation. Droplet
-temperatures relax toward the prescribed ambient temperature while latent heat
-couples the radius change back into the temperature equation. Vertical
-velocities evolve under buoyancy-corrected gravity and drag, and droplets of
-different radii respond differently because the Reynolds number, drag
-coefficient, heat transfer, and mass transfer depend on $r$.
+ambient and initial temperatures, so seeded droplets grow by condensation.
+From $0.20$ to $0.40$ s, nucleation increases total droplet number by one
+initial population in CQMOM and by the corresponding Poisson realization in
+Monte Carlo. The newborn droplets then also condense. Droplet temperatures
+relax toward the prescribed ambient temperature while latent heat couples the
+radius change back into the temperature equation. Vertical velocities evolve
+under buoyancy-corrected gravity and drag, and droplets of different radii
+respond differently because the Reynolds number, drag coefficient, heat
+transfer, and mass transfer depend on $r$.
 
-The CQMOM and Monte Carlo initial moments agree up to sampled-moment and
-reconstruction precision because they come from the same deterministic finite
-sample. Later differences reflect the finite CQMOM representation, finite
-Monte Carlo sample, and numerical integration choices; exact agreement during
-evolution is not expected, and the default `2 x 2 x 2` topology is not claimed
-to be converged or optimal.
 
 ## Interpretation and limitations
 
 This example covers isolated droplets in prescribed spatially uniform ambient
 conditions. It does not include physical-space transport, gas-phase feedback,
-breakup, coalescence, nucleation, droplet-droplet interactions, zero-radius
-population boundary treatment, or any moment-source. The heat-transfer
-model uses the base Nusselt correlation without the evaporation-oriented
-wet-bulb correction from the reference paper.
+breakup, coalescence, droplet-droplet interactions, or a zero-radius
+population-boundary treatment. Its nucleation model is a prescribed
+finite-time birth flux, not a gas-phase-feedback or classical-nucleation
+closure. The heat-transfer model uses the base Nusselt correlation without the
+evaporation-oriented wet-bulb correction from the reference paper.
 
 The implemented constants are fixed example-local physics parameters, and the
 `.qmom` file describes numerical configuration rather than application

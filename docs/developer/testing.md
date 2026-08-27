@@ -28,6 +28,12 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
+Run one registered unit contract with:
+
+```bash
+ctest --test-dir build -R '^unit_wheeler$' --output-on-failure
+```
+
 Keep the existing assertion-based unit tests intact. Do not use a Release CTest
 result as evidence that the functional unit suite passed.
 
@@ -102,14 +108,15 @@ ctest --test-dir build --output-on-failure
 
 ### CTest Naming and Current Count
 
-CTest names identify the tested contract. Some executables accept a small local
-selector so independently meaningful groups can be registered separately;
-running such an executable with no selector remains a developer convenience and
-is not registered as an aggregate test. The current root suite has **103**
-registered CTest tests: 32 unit, 5 component-regression, 65 verification, and
-1 supporting public-header test. Obtain the current count from `ctest -N` (and
-confirm structured registration with `ctest --show-only=json-v1`), rather than
-maintaining it by arithmetic alone.
+CTest names identify the tested contract. Several executables accept a local
+selector so independently meaningful groups can be registered separately. The
+individual CTest registrations are authoritative; running such an executable
+without a selector is a developer convenience, not an aggregate CTest contract.
+The current root suite has **104** registered CTest tests: 32 unit, 5
+component-regression, 66 verification, and 1 supporting public-header test.
+Obtain the current count from `ctest -N` (and confirm structured registration
+with `ctest --show-only=json-v1`), rather than maintaining it by arithmetic
+alone.
 
 The test project currently registers CTest executables through these
 subdirectories:
@@ -318,44 +325,44 @@ Benchmark structure and interpretation belong in `benchmarks.md`.
 ## Registered Root CTest Inventory
 
 This inventory lists every root CTest registration exactly once. It is current
-at the documented count of 103 tests.
+at the documented count of 104 tests.
 
 ### Unit Tests (32)
 
-| Test | Source | What | Method |
+| Unit test | What it tests | How correctness is checked | Important cases covered |
 |---|---|---|---|
-| `unit_wheeler` | `tests/unit/wheeler.cpp` | Wheeler inversion and failures | Debug `assert()` contracts |
-| `unit_runge_kutta` | `tests/unit/runge_kutta.cpp` | RK step APIs and option failures | Debug `assert()` contracts |
-| `unit_recursive_indexing_layout` | `tests/unit/recursive_quadrature.cpp` | Recursive paths, multi-indices, and layouts | Debug `assert()` contracts |
-| `unit_recursive_lean_reconstruction` | `tests/unit/recursive_quadrature.cpp` | Lean moments and dense/lean reconstruction parity | Debug `assert()` contracts |
-| `unit_recursive_bounded_support` | `tests/unit/recursive_quadrature.cpp` | Bounded-support recursive CQMOM behavior | Debug `assert()` contracts |
-| `unit_recursive_solver_policy` | `tests/unit/recursive_quadrature.cpp` | Recursive solver selection and diagnostics | Debug `assert()` contracts |
-| `unit_conditional_moments` | `tests/unit/conditional_moments.cpp` | Conditional-moment calculations and validation | Debug `assert()` contracts |
-| `unit_moment_rates` | `tests/unit/moment_rates.cpp` | Generic moment-rate evaluation | Debug `assert()` contracts |
-| `unit_advection_moment_rates` | `tests/unit/advection_moment_rates.cpp` | Advection moment-rate construction | Debug `assert()` contracts |
-| `unit_moment_source_rates` | `tests/unit/moment_source_rates.cpp` | Moment-source rate construction | Debug `assert()` contracts |
-| `unit_bjorck_pereyra` | `tests/unit/bjorck_pereyra.cpp` | Björck-Pereyra linear solve | Debug `assert()` contracts |
-| `unit_householder_qr` | `tests/unit/householder_qr.cpp` | Householder QR linear solve | Debug `assert()` contracts |
-| `unit_jacobi_svd` | `tests/unit/jacobi_svd.cpp` | Jacobi SVD linear solve | Debug `assert()` contracts |
-| `unit_vandermonde` | `tests/unit/vandermonde.cpp` | Vandermonde solver behavior | Debug `assert()` contracts |
-| `unit_public_api` | `tests/unit/public_api.cpp` | Public QMOM/CQMOM workflow contracts | Debug `assert()` contracts |
-| `unit_configuration_initialization` | `tests/unit/configuration.cpp` | Parsed distribution and initial-moment construction | Debug `assert()` contracts |
-| `unit_configuration_cqmom_case_state` | `tests/unit/configuration.cpp` | CQMOM case, state, and ownership behavior | Debug `assert()` contracts |
-| `unit_configuration_runtime_options` | `tests/unit/configuration.cpp` | Runtime solver, RK, evolution, and output options | Debug `assert()` contracts |
-| `unit_configuration_failure_paths` | `tests/unit/configuration.cpp` | Parser and file failure behavior | Debug `assert()` contracts |
-| `unit_output` | `tests/unit/output.cpp` | Output requests and quadrature serialization | Debug `assert()` contracts |
-| `unit_distribution_selected_results` | `tests/unit/distributions.cpp` | Dense/selected raw-moment requests and errors | Debug `assert()` contracts |
-| `unit_distribution_mixtures` | `tests/unit/distributions.cpp` | Mixture masses, selected moments, and failures | Debug `assert()` contracts |
-| `unit_distribution_independent_products` | `tests/unit/distributions.cpp` | Independent products, marginal mixtures, and failures | Debug `assert()` contracts |
-| `unit_realizability` | `tests/unit/realizability.cpp` | Moment realizability diagnostics | Debug `assert()` contracts |
-| `unit_realizability_policy` | `tests/unit/realizability_policy.cpp` | Realizability-policy decisions | Debug `assert()` contracts |
-| `unit_node_advection` | `tests/unit/node_advection.cpp` | Node-advection stages and options | Debug `assert()` contracts |
-| `unit_moment_source` | `tests/unit/moment_source.cpp` | Moment-source update stages and diagnostics | Debug `assert()` contracts |
-| `unit_moment_reconstruction` | `tests/unit/moment_reconstruction.cpp` | Raw-moment reconstruction APIs | Debug `assert()` contracts |
-| `unit_qmom_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | QMOM state, stages, policies, and rollback | Debug `assert()` contracts |
-| `unit_cqmom_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | CQMOM topology, stages, policies, and rollback | Debug `assert()` contracts |
-| `unit_phase_space_evolution_batch` | `tests/unit/phase_space_evolution_batch.cpp` | Batched phase-space evolution | Debug `assert()` contracts |
-| `unit_performance_instrumentation` | `tests/unit/performance_instrumentation.cpp` | Optional performance-instrumentation counters | Debug `assert()` contracts |
+| `unit_wheeler` | One-dimensional Wheeler inversion and adaptive node reduction | Uses hard-coded quadrature-derived moments; compares recovered nodes, weights, ordering, and reconstructed moments, plus explicit statuses | One to three nodes, scaling, degenerate/non-realizable sequences, adaptive reduction, negative mass/variance, non-finite input, invalid options |
+| `unit_runge_kutta` | RK23, RK45, and SSP-RK3 contracts | Checks published tableau coefficients, independently evaluated scalar steps, callback/stage traces, and exact status/counter results | FSAL, forward/backward integration, retries, minimum/maximum step, maximum steps, invalid options, stage predicates |
+| `unit_recursive_indexing_layout` | CQMOM indexing, hierarchy, conditioning paths, and branch-local layouts | Compares hand-specified multi-indices, flattened indices, offsets, paths, and failure statuses | 1D--3D, unequal counts, identity/non-identity order, invalid hierarchy/index, branch diagnostics |
+| `unit_recursive_lean_reconstruction` | Lean CQMOM moment storage and recursive reconstruction interface | Checks required layouts and compares lean reconstruction/state mapping with dense representation; this establishes representation consistency, not an independent mathematical oracle | 2D/3D, non-identity order, unequal/adaptive counts, missing/non-finite/incompatible data |
+| `unit_recursive_bounded_support` | Bounded-support recursive CQMOM reconstruction | Uses explicit feasible/infeasible intervals; checks returned nodes remain within bounds without clipping and verifies fixed/adaptive statuses | Shifted intervals, coordinate-specific support, fixed/adaptive reduction and growth, dense/lean routes |
+| `unit_recursive_solver_policy` | Conditional Vandermonde policy selection inside recursive CQMOM | Uses manufactured reconstructions and compares quadrature/conditional values and diagnostics across solver policies | Dense, Björck--Pereyra, fallback, pivoted QR, SVD, automatic selection, failure diagnostics |
+| `unit_conditional_moments` | Conditional-moment sequence recovery | Hand-composes mixed raw moments from known parent nodes, weights, and conditional moments before numerical recovery | Non-identity conditioning, unused coordinates, singular/nearly singular systems, warnings/failures |
+| `unit_moment_rates` | Generic QMOM/CQMOM moment-rate interfaces | Uses callbacks with known rates and checks callback ordering, layout/index forwarding, status propagation, and output values | QMOM/CQMOM, callback errors, diagnostics, source contexts |
+| `unit_advection_moment_rates` | Quadrature-derived advection moment rates | Independently sums terminal-node velocity contributions and compares returned rates | QMOM/CQMOM, non-identity order, zero/linear velocity, adaptive topology, callback failures |
+| `unit_moment_source_rates` | Direct source-rate evaluation | Uses explicit callback outputs and invocation expectations; checks rates, layout/index forwarding, and error/status propagation | Malformed sizes, non-finite values, throwing callbacks, QMOM/CQMOM contexts |
+| `unit_bjorck_pereyra` | Transposed-Vandermonde Björck--Pereyra solve | Solves explicit manufactured systems with known coefficient matrices | Multiple/zero RHS, clustered nodes, repeated-node rejection, invalid dimensions/finite values/tolerances |
+| `unit_householder_qr` | Pivoted Householder QR solve | Checks known solutions, direct residual and normal-equation conditions, factor reuse, and pivot restoration | Square/tall/inconsistent systems, rank deficiency, invalid input |
+| `unit_jacobi_svd` | Jacobi SVD factorization and solve | Checks singular values, orthogonality, matrix reconstruction, rank, and known solutions | Rank deficiency, scaling, ill-conditioned systems, invalid matrices |
+| `unit_vandermonde` | Weighted conditional Vandermonde dispatch and policies | Uses manufactured coefficients, componentwise solution checks, scale-normalized residuals, and selected-solver/fallback diagnostics | All policies, fallbacks, clustered nodes, zero RHS, larger systems, invalid input; the large-dynamic-range case uses resolvable small coefficients with relative-plus-near-zero checks and an `A`/`x`/`b`-scaled residual |
+| `unit_public_api` | Public QMOM/CQMOM data, layout, and reconstruction contracts | Checks exact layout/index/value expectations, dense/lean and 1D-CQMOM/QMOM mapping, and invalid-input failures | Missing/extra/non-finite data, adaptive constraints, diagnostics |
+| `unit_configuration_initialization` | Configuration-driven QMOM/CQMOM initialization | Compares parsed cases and generated moments with direct/programmatic construction and analytical initialization APIs | Distributions, mixtures, independent products, dense/lean CQMOM, support settings |
+| `unit_configuration_cqmom_case_state` | `CqmomCase` and `CqmomState` contracts | Checks stored settings, moment data, prepared metadata, state compatibility, and replacement behavior | Dense/lean storage, support, immutable metadata, state compatibility |
+| `unit_configuration_runtime_options` | Runtime `.qmom` option mapping | Checks exact defaults and parsed enum/numeric values plus explicit invalid-option rejection | Diagnostics, solver, realizability, splitting, node-advection schemes, adaptive RK, output |
+| `unit_configuration_failure_paths` | Malformed and invalid configuration behavior | Uses intentionally malformed strings/files and explicit failure expectations | Missing/duplicate/unknown fields, non-finite values, incompatible options, invalid dimensions/ranks, ambiguous/missing files |
+| `unit_output` | Moment and quadrature output writers | Reads generated temporary files and compares headers, columns, ordering, and numerical values | Selected/duplicate requests, adaptive histories, CQMOM layouts, malformed input |
+| `unit_distribution_selected_results` | Analytical distribution raw-moment requests | Compares selected results with known values and dense generation; checks diagnostic/failure contracts | Request ordering, duplicate orders, rank, invalid parameters, overflow/underflow, zero density |
+| `unit_distribution_mixtures` | Mixture raw-moment generation | Compares explicit component-weighted sums with generated moments and checks component-index diagnostics | Heterogeneous families, zero-density components, empty/invalid mixtures, accumulation failures |
+| `unit_distribution_independent_products` | Multidimensional independent-product moment generation | Checks product moments, tensor flattening, selected/dense consistency, and normalization | Rank/order validation, zero global density, mixture marginals, per-dimension diagnostics |
+| `unit_realizability` | Raw-moment realizability diagnostics | Checks exact status, failed matrix/order, pivot metadata, and boundary classification for constructed sequences | Real-line/non-negative/bounded support, invalid input, mass policy, boundary/indeterminate cases |
+| `unit_realizability_policy` | Runtime realizability-policy adapters | Checks predicate/converter invocation counts and accept/reject/retry behavior | Disabled, final-only, every-stage, support forwarding, bounded interval, converter failures |
+| `unit_node_advection` | QMOM/CQMOM node advection and integrator selection | Uses analytically predictable velocity fields, expected node updates, preserved weights/topology, callback counts, and diagnostics | QMOM/CQMOM; RK23/RK45/SSP-RK3; adaptive topology; callback failures; option propagation. Direct CQMOM RK45 and SSP-RK3 cases use `xi(t + dt) = xi(t) + v dt` and check terminal paths and hierarchy counts |
+| `unit_moment_source` | Moment-source evolution and source-context contracts | Checks known source updates, retries/rollback, callback context access, and policy/error expectations | Generalized moments, boundary contributions, realizability policies, invalid values, callback exceptions |
+| `unit_moment_reconstruction` | Raw/generalized moment reconstruction from QMOM/CQMOM quadratures | Uses manufactured quadratures and independently summed moments, a finite-difference rate check, and explicit domain failures | Selected/duplicate moments, fixed/adaptive CQMOM, non-identity order, invalid powers/layouts; a negative CQMOM abscissa with fractional exponent throws `std::domain_error`, while the same coordinate with integer exponent remains valid |
+| `unit_qmom_phase_space_evolution` | QMOM phase-space evolution orchestration | Compares staged operations with composed public operations and checks state, diagnostics, and rollback; composition parity tests orchestration, not convergence | Advection, source, boundary, Lie/Strang composition, adaptive counts, policies/failures |
+| `unit_cqmom_phase_space_evolution` | CQMOM phase-space evolution orchestration | Checks dense/lean state equivalence, topology transitions, source contexts, support/policy behavior, and rollback | Fixed/adaptive branches, support bounds, solver policy, source/boundary callbacks, failures |
+| `unit_phase_space_evolution_batch` | Batch phase-space evolution APIs | Compares each batch result with its scalar API and separately checks ordering, isolation, and callback indexing; scalar parity is a dispatch oracle, not an independent numerical reference | Empty batches, indexed callbacks, normal failures, escaping exceptions, state isolation |
+| `unit_performance_instrumentation` | Optional performance instrumentation | Checks exact counter values and enabled/disabled semantics while verifying instrumentation preserves numerical routes/results | Solver/source/advection counters, metadata/layout reuse, fixed/dynamic state paths, counter isolation |
 
 ### Component-Regression Tests (5)
 
@@ -367,7 +374,7 @@ at the documented count of 103 tests.
 | `component_regression_cqmom_compute_failures` | `tests/component_regression/cqmom_compute_failures.cpp` | CQMOM failure/status propagation | Deliberate invalid and fragile cases |
 | `component_regression_cqmom_case_moment_replacement` | `tests/component_regression/cqmom_case_moment_replacement.cpp` | Immutable CQMOM moment replacement | Deterministic API contracts |
 
-### Verification Tests (65)
+### Verification Tests (66)
 
 | Test | Source | What | Method |
 |---|---|---|---|
@@ -383,6 +390,7 @@ at the documented count of 103 tests.
 | `verification_qmom_analytical_gaussian_n2` | `tests/verification/qmom/qmom_analytical.cpp` | Gaussian two-node reconstruction | Analytical moments |
 | `verification_qmom_analytical_gaussian_n3` | `tests/verification/qmom/qmom_analytical.cpp` | Gaussian three-node reconstruction | Analytical moments |
 | `verification_cqmom_recursive_quadrature_manufactured` | `tests/verification/cqmom/recursive_quadrature.cpp` | Recursive CQMOM reconstruction | Manufactured quadrature |
+| `verification_cqmom_quadrature_bounds` | `tests/verification/cqmom/quadrature_bounds.cpp` | CQMOM quadrature support bounds | Manufactured feasible and infeasible bounded-support cases |
 | `verification_cqmom_recursive_validation` | `tests/verification/cqmom/recursive_cqmom.cpp` | Fixed and adaptive recursive quadrature | Independent terminal rules |
 | `verification_cqmom_conditional_moments_analytical` | `tests/verification/cqmom/conditional_moments.cpp` | Conditional moments | Analytical formulas |
 | `verification_cqmom_dense_lean_parity_3d` | `tests/verification/cqmom/dense_lean_parity_3d.cpp` | Three-dimensional dense/lean parity | Manufactured moments and reconstruction |

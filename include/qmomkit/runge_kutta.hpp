@@ -102,7 +102,7 @@ inline constexpr double default_adaptive_initial_step = 1.0e-6;
  *
  * Scalar tolerances are applied componentwise with
  * scale_i = atol + max(|y_i|, |y_high_i|) * rtol. `initial_step` defaults to
- * 1.0e-6 s for continuous node advection and may be overridden. QMOMKit does
+ * 1.0e-6 s for phase-space advection and may be overridden. QMOMKit does
  * not estimate it from derivatives or tolerances.
  */
 struct AdaptiveRkOptions

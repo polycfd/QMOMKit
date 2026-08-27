@@ -31,12 +31,12 @@ individual cases, references, and tolerance choices in more detail.
 | QMOM | Verify public one-dimensional `compute_qmom(...)` success and representative direct-compute failures. | `verification_qmom_analytical_*`, `verification_qmom_compute_failures`, `verification_qmom_wheeler_analytical` | Manufactured discrete quadratures, classical Gaussian quadrature rules, public failure behavior |
 | CQMOM | Verify default, dense, and lean public CQMOM workflows, adaptive branch counts, and high-dimensional cases. | `verification_cqmom_public_workflows`, `verification_cqmom_*` analytical cases | Analytical product quadratures, manufactured affine/branch-dependent quadratures |
 | Recursive quadrature | Verify recursive CQMOM assembly conventions that are not exposed as standalone user workflows. | `verification_cqmom_recursive_quadrature_manufactured`, `verification_cqmom_recursive_validation` | Manufactured terminal quadratures and reconstruction identities |
-| Transport | Verify complete transport workflows, stage-order behavior, public diagnostics, and failure propagation. | `verification_transport_*` | Closed-form commuting/noncommuting evolution, manufactured transport compositions |
-| Source terms | Verify discontinuous raw-moment source updates for QMOM and CQMOM workflows. | `verification_moment_source_*` | Closed-form source ODE solutions |
-| Node advection | Verify continuous quadrature-node advection for QMOM and CQMOM workflows. | `verification_node_advection_*` | Closed-form node trajectories |
+| Phase-space evolution | Verify complete phase-space evolution workflows, stage-order behavior, public diagnostics, and failure propagation. | `verification_phase_space_evolution_*` | Closed-form commuting/noncommuting evolution, manufactured phase-space evolution compositions |
+| Source terms | Verify moment-source raw-moment source updates for QMOM and CQMOM workflows. | `verification_moment_source_*` | Closed-form source ODE solutions |
+| Node advection | Verify advection quadrature-node advection for QMOM and CQMOM workflows. | `verification_node_advection_*` | Closed-form node trajectories |
 | Realizability | Verify support-aware truncated-moment classification and diagnostics. | `verification_realizability_analytical` | Analytical Hamburger, Stieltjes, and Hausdorff moment examples |
-| Distributions | Verify analytical raw-moment generation and distribution-driven initialization workflows. | `verification_distributions_analytical` | Closed-form distribution moments, mixture sums, independent-product tensors |
-| Runge-Kutta | Verify standalone ODE utilities used by transport and source components. | `verification_runge_kutta_analytical`, `verification_runge_kutta_convergence` | Closed-form ODE solutions and convergence studies |
+| Distributions | Verify analytical distribution families, mixtures, independent products, and configuration-driven initialization, including configured mixture-marginal workflows. | `verification_distribution_families_analytical`<br>`verification_distribution_mixtures_analytical`<br>`verification_distribution_independent_products_analytical`<br>`verification_distribution_configuration_initialization` | Closed-form distribution moments, mixture sums, independent-product tensors |
+| Runge-Kutta | Verify standalone ODE utilities used by phase-space evolution and source components. | `verification_runge_kutta_analytical`<br>`verification_ssp_rk3_convergence`<br>`verification_rk23_adaptive_convergence`<br>`verification_rk23_fixed_step_convergence`<br>`verification_rk45_fixed_step_convergence` | Closed-form ODE solutions; SSP-RK3, RK23, and RK45 fixed-step formal convergence; adaptive RK23 tolerance-controlled behavior |
 | Output | Verify public text output workflows for moments and quadratures. | `output_workflows_verification` | Computed public results compared with analytical QMOM/CQMOM references |
 | Configuration | Verify representative user-facing configuration failure paths. | `configuration_failures_verification` | Invalid `.qmom` fixtures with expected failure messages and source/line diagnostics |
 | Vandermonde solver policy | Verify user-facing CQMOM Vandermonde solver selection. | `vandermonde_solver_selection_verification` | Analytical product CQMOM reference plus solver-policy diagnostics |
@@ -90,4 +90,4 @@ Every verification failure must:
 The suite treats two areas as unit or regression coverage rather than canonical
 verification: deterministic successful Vandermonde dense fallback, which lacks
 a natural successful public case, and additional failure-path/status variants
-beyond the representative transport cases.
+beyond the representative phase-space evolution cases.

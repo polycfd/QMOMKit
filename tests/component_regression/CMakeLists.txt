@@ -11,10 +11,10 @@ qmomkit_add_ctest(
     node_advection.cpp
 )
 qmomkit_add_ctest(
-    component_regression_transport_integrator
-    component_regression_transport_integrator
+    component_regression_phase_space_evolution
+    component_regression_phase_space_evolution
     component_regression
-    transport_integrator.cpp
+    phase_space_evolution.cpp
 )
 qmomkit_add_ctest(
     component_regression_cqmom_compute_failures
@@ -27,4 +27,16 @@ qmomkit_add_ctest(
     component_regression_cqmom_case_moment_replacement
     component_regression
     cqmom_case_moment_replacement.cpp
+)
+qmomkit_add_ctest(
+    component_regression_cqmom_dense_lean_parity_3d
+    component_regression_cqmom_dense_lean_parity_3d
+    component_regression
+    cqmom_dense_lean_parity_3d.cpp
+)
+qmomkit_add_ctest(
+    component_regression_cqmom_physical_transport_probe
+    component_regression_cqmom_physical_transport_probe
+    component_regression
+    cqmom_physical_transport_probe.cpp
 )

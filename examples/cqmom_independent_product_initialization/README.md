@@ -33,12 +33,12 @@ $$
 They are unnormalized, so $M_{0,0}$ is the total number density `2.5`.
 `compute_cqmom(...)` converts the configured moment tensor into the initial
 conditional quadrature. The executable then creates a `CqmomState` to show
-the state lifecycle but does not add continuous evolution, a discontinuous
-moment source, or a boundary contribution.
+the state lifecycle but does not add phase-space advection, a moment source,
+or a boundary contribution.
 
 `CqmomCase` is the immutable configuration and problem definition.
-`CqmomState` is the runtime state that a transport workflow evolves later.
-This example creates the state but does not add transport physics.
+`CqmomState` is the runtime state that a phase-space evolution workflow evolves later.
+This example creates the state but does not add phase-space evolution physics.
 
 Requires: QMOMKit.
 
@@ -61,3 +61,9 @@ and reconstructed node weights and abscissas. The `x0` and `x1` labels in the
 terminal output are example-specific formatting for the shipped two-dimensional
 case: `x0` is `size` and `x1` is `velocity`. They are not a limitation of
 QMOMKit's multidimensional representation.
+
+## What to expect
+
+The shipped fixed `2 x 2` hierarchy produces four terminal CQMOM nodes. Their
+global weights sum to the configured total number density `2.5`, while their
+coordinates represent the independent `size` and `velocity` initialization.

@@ -14,3 +14,5 @@ target_link_libraries(
     qmom_mixture_initialization_example
     PRIVATE qmomkit::qmomkit
 )
+
+configure_file(configuration.qmom configuration.qmom COPYONLY)

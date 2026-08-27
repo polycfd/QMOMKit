@@ -84,21 +84,21 @@ struct CqmomNodeAdvectionResult
 
 /**
  * Advanced composable operation: advance one-dimensional QMOM abscissas
- * through a continuous phase-space velocity field. Weights are unchanged.
+ * through a phase-space velocity field. Weights are unchanged.
  */
 [[nodiscard]] QmomNodeAdvectionResult advance_nodes(const Quadrature1D& quadrature, double t, double time_step, const PhaseSpaceVelocity& velocity,
                                                     const NodeAdvectionOptions& options = {});
 
 /**
  * Advanced composable operation: advance one-dimensional public QMOM output
- * through a continuous phase-space velocity field. Weights are unchanged.
+ * through a phase-space velocity field. Weights are unchanged.
  */
 [[nodiscard]] QmomNodeAdvectionResult advance_nodes(const QmomResult& quadrature, double t, double time_step, const PhaseSpaceVelocity& velocity,
                                                     const NodeAdvectionOptions& options = {});
 
 /**
  * Advanced composable operation: advance multidimensional CQMOM terminal
- * abscissas through a continuous phase-space velocity field. Weights and
+ * abscissas through a phase-space velocity field. Weights and
  * terminal paths are unchanged. Fixed rectangular and adaptive ragged
  * quadratures are both represented through their terminal-node arrays.
  */

@@ -44,18 +44,18 @@ operating instructions.
 - [Distribution Design](distributions_design.md): analytical distribution
   specifications, moment generation, mixtures, independent products, numerical
   failure behavior, and extension principles.
-- [Transport Design](transport_design.md): node advection, moment-source
+- [Phase-space evolution Design](phase_space_evolution_design.md): node advection, moment-source
   evolution, SSP-RK3, adaptive embedded RK23/RK45, Strang splitting, coupled-direction
-  schemes, status propagation, and transport API boundaries.
+  schemes, status propagation, and phase-space evolution API boundaries.
 - [Configuration Design](configuration_design.md): configuration philosophy,
   parsing and validation boundaries, mapping to QMOM cases, CQMOM cases,
-  distribution initialization, transport policies, output options, and extension
+  distribution initialization, phase-space evolution policies, output options, and extension
   principles.
 - [Output Design](output_design.md): output architecture, writer
   responsibilities, moment and quadrature history contracts, format
   conventions, and configuration interaction.
 - [Realizability](realizability.md): supported moment domains, realizability
-  checks, diagnostics, runtime acceptance policies, transport interaction, and
+  checks, diagnostics, runtime acceptance policies, phase-space evolution interaction, and
   failure classification.
 - [Testing](testing.md): testing philosophy, standalone test architecture, unit
   tests, verification tests, public-header tests, package-consumer tests, and

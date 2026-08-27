@@ -147,6 +147,50 @@ std::vector<AdaptiveRun> verify_rk23_convergence()
     return runs;
 }
 
+std::vector<AdaptiveRun> verify_rk45_adaptive_convergence()
+{
+    // Dormand-Prince RK45 advances the accepted fifth-order solution while
+    // selecting its own steps from the embedded fourth-order estimate.  The
+    // exact exponential solution supplies an independent error reference.
+    constexpr double final_time = 2.0;
+    const double exact = std::exp(-final_time);
+    const std::vector<double> tolerances{1.0e-4, 1.0e-5, 1.0e-6, 1.0e-7};
+    std::vector<AdaptiveRun> runs;
+
+    for (const double tolerance : tolerances)
+    {
+        qmomkit::AdaptiveRkOptions options;
+        options.relative_tolerance = tolerance;
+        options.absolute_tolerance = tolerance * 1.0e-3;
+        options.initial_step = 0.1;
+        options.max_step = final_time;
+
+        const qmomkit::AdaptiveRkResult result =
+            qmomkit::integrate_embedded_rk({1.0}, 0.0, final_time, exponential_decay_rhs(), qmomkit::EmbeddedRkMethod::rk45, options);
+        QMOMKIT_VERIFY_CHECK(result.status == qmomkit::AdaptiveRkStatus::success);
+        QMOMKIT_VERIFY_NEAR(result.t, final_time, 1.0e-14);
+        QMOMKIT_VERIFY_CHECK(result.accepted_steps > 0);
+        QMOMKIT_VERIFY_CHECK(result.function_evaluations >= 1 + 6 * result.accepted_steps);
+
+        runs.push_back(AdaptiveRun{tolerance, result.accepted_steps, result.rejected_steps, result.function_evaluations,
+                                   final_time / static_cast<double>(result.accepted_steps), std::abs(result.state[0] - exact),
+                                   std::numeric_limits<double>::quiet_NaN()});
+    }
+
+    for (std::size_t run = 1; run < runs.size(); ++run)
+    {
+        QMOMKIT_VERIFY_CHECK(runs[run].error < runs[run - 1].error);
+        QMOMKIT_VERIFY_CHECK(runs[run].accepted_steps >= runs[run - 1].accepted_steps);
+        runs[run].observed_order = observed_order(runs[run - 1].error, runs[run].error, runs[run - 1].average_step, runs[run].average_step);
+    }
+
+    // Adaptive step sizes do not form a fixed-step order study, but the fine
+    // refinements should still exhibit a distinctly fifth-order accepted trend.
+    QMOMKIT_VERIFY_CHECK(runs[runs.size() - 2].observed_order > 4.2);
+    QMOMKIT_VERIFY_CHECK(runs[runs.size() - 1].observed_order > 4.2);
+    return runs;
+}
+
 std::vector<EmbeddedFixedRun> verify_embedded_fixed_step_convergence(const qmomkit::EmbeddedRkMethod method, const double expected_solution_order,
                                                                      const double expected_embedded_order)
 {
@@ -210,6 +254,17 @@ void print_rk23_table(const std::vector<AdaptiveRun>& runs)
     }
 }
 
+void print_rk45_adaptive_table(const std::vector<AdaptiveRun>& runs)
+{
+    std::cout << "Adaptive RK45 convergence for y'=-y, y(0)=1, T=2\n";
+    std::cout << "tolerance accepted_steps rejected_steps function_evaluations average_step error observed_order\n";
+    for (const AdaptiveRun& run : runs)
+    {
+        std::cout << run.tolerance << ' ' << run.accepted_steps << ' ' << run.rejected_steps << ' ' << run.function_evaluations << ' '
+                  << run.average_step << ' ' << run.error << ' ' << run.observed_order << '\n';
+    }
+}
+
 void print_embedded_fixed_step_table(const char* const method, const std::vector<EmbeddedFixedRun>& runs)
 {
     std::cout << method << " fixed-step convergence for y'=-y, y(0)=1, T=1\n";
@@ -223,16 +278,54 @@ void print_embedded_fixed_step_table(const char* const method, const std::vector
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
+    if (argc > 2)
+    {
+        std::cerr << "Usage: test_runge_kutta_convergence [ssp_rk3|rk23_adaptive|rk23_fixed_step|rk45_adaptive|rk45_fixed_step]\n";
+        return 2;
+    }
+
     std::cout << std::setprecision(17);
-    const std::vector<FixedStepRun> ssp_runs = verify_ssp_rk3_convergence();
-    const std::vector<AdaptiveRun> rk23_runs = verify_rk23_convergence();
-    const std::vector<EmbeddedFixedRun> rk23_fixed_runs = verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk23, 3.0, 3.0);
-    const std::vector<EmbeddedFixedRun> rk45_fixed_runs = verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk45, 5.0, 5.0);
-    print_ssp_table(ssp_runs);
-    print_rk23_table(rk23_runs);
-    print_embedded_fixed_step_table("RK23", rk23_fixed_runs);
-    print_embedded_fixed_step_table("RK45", rk45_fixed_runs);
-    return 0;
+    const std::string selector = argc == 2 ? argv[1] : "";
+    if (selector.empty() || selector == "ssp_rk3")
+    {
+        print_ssp_table(verify_ssp_rk3_convergence());
+        if (!selector.empty())
+        {
+            return 0;
+        }
+    }
+    if (selector.empty() || selector == "rk23_adaptive")
+    {
+        print_rk23_table(verify_rk23_convergence());
+        if (!selector.empty())
+        {
+            return 0;
+        }
+    }
+    if (selector.empty() || selector == "rk23_fixed_step")
+    {
+        print_embedded_fixed_step_table("RK23", verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk23, 3.0, 3.0));
+        if (!selector.empty())
+        {
+            return 0;
+        }
+    }
+    if (selector.empty() || selector == "rk45_adaptive")
+    {
+        print_rk45_adaptive_table(verify_rk45_adaptive_convergence());
+        if (!selector.empty())
+        {
+            return 0;
+        }
+    }
+    if (selector.empty() || selector == "rk45_fixed_step")
+    {
+        print_embedded_fixed_step_table("RK45", verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk45, 5.0, 5.0));
+        return 0;
+    }
+
+    std::cerr << "Unknown Runge-Kutta convergence selector: " << selector << '\n';
+    return 2;
 }

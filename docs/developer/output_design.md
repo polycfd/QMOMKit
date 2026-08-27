@@ -18,7 +18,7 @@ applications can compare results across runs.
 Output is separate from numerical algorithms:
 
 - QMOM and CQMOM reconstruction do not write files.
-- Node advection, moment-source updates, and transport integrators do not write
+- Node advection, moment-source updates, and phase-space evolution facilities do not write
   files.
 - Writers do not schedule simulation steps, choose output cadence, or own
   physical model logic.
@@ -201,7 +201,7 @@ interval = 0.1
 ```
 
 Parsing this section creates an `OutputOptions` object. It does not modify
-`QmomCase`, `CqmomDenseCase`, transport options, time integrators, moment
+`QmomCase`, `CqmomDenseCase`, phase-space evolution options, time integrators, moment
 sources, or velocity callbacks.
 
 If no output section is present, parsed output options use the default

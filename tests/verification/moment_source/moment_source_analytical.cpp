@@ -40,6 +40,8 @@ struct VerificationResult
     ErrorMetrics errors;
     double coarse_error = 0.0;
     double refined_error = 0.0;
+    std::vector<double> refinement_errors;
+    std::vector<double> observed_orders;
 };
 
 struct CaseDefinition
@@ -291,8 +293,8 @@ std::vector<double> advance_qmom_plan(const CaseDefinition& definition, const st
     for (std::size_t step = 0; step < plan.steps; ++step)
     {
         const qmomkit::MomentSourceUpdateResult update = qmomkit::advance_moments_with_source(
-            current, time, plan.dt, [&definition](double, const std::vector<double>& moments) { return qmom_source(definition.name, moments); },
-            source_options());
+            current, time, plan.dt, [&definition](double, const qmomkit::QmomSourceContext& context)
+            { return qmom_source(definition.name, context.values()); }, source_options());
         verify_source_diagnostics(update, plan.dt, result);
         if (!update.ok())
         {
@@ -312,8 +314,8 @@ std::vector<double> advance_cqmom_plan(const qmomkit::RawMomentTensor& initial_t
     for (std::size_t step = 0; step < plan.steps; ++step)
     {
         const qmomkit::MomentSourceUpdateResult update = qmomkit::advance_moments_with_source(
-            current, time, plan.dt,
-            [&initial_tensor](double, const std::vector<double>& moments) { return common_rate_source(initial_tensor, moments); }, source_options());
+            current, time, plan.dt, [&initial_tensor](double, const qmomkit::QmomSourceContext& context)
+            { return common_rate_source(initial_tensor, context.values()); }, source_options());
         verify_source_diagnostics(update, plan.dt, result);
         if (!update.ok())
         {
@@ -444,16 +446,32 @@ void verify_linear_coupled_convergence(const std::filesystem::path& configuratio
         return;
     }
     const std::vector<double> initial = configured.value().moments.values();
-    const TimePlan coarse{0.0, 0.12, 4};
-    const TimePlan refined{0.0, 0.06, 8};
-    const std::vector<double> coarse_evolved = advance_qmom_plan(*find_case("linear_coupled"), initial, coarse, result);
-    const std::vector<double> refined_evolved = advance_qmom_plan(*find_case("linear_coupled"), initial, refined, result);
+    const std::vector<TimePlan> refinement_plans{{0.0, 0.12, 4}, {0.0, 0.06, 8}, {0.0, 0.03, 16}, {0.0, 0.015, 32}};
     const std::vector<double> exact = exact_linear_coupled(initial, 0.48);
-    result.coarse_error = maximum_abs_error(coarse_evolved, exact);
-    result.refined_error = maximum_abs_error(refined_evolved, exact);
-    if (!(result.refined_error < result.coarse_error))
+    const CaseDefinition* const definition = find_case("linear_coupled");
+    for (const TimePlan& plan : refinement_plans)
     {
-        append_failure(result, "Refined SSP-RK3 source step did not reduce the linear-coupled final moment error.");
+        result.refinement_errors.push_back(maximum_abs_error(advance_qmom_plan(*definition, initial, plan, result), exact));
+    }
+    result.coarse_error = result.refinement_errors.front();
+    result.refined_error = result.refinement_errors[1];
+
+    for (std::size_t level = 1; level < result.refinement_errors.size(); ++level)
+    {
+        const double coarse_error = result.refinement_errors[level - 1];
+        const double refined_error = result.refinement_errors[level];
+        if (!(refined_error < coarse_error))
+        {
+            append_failure(result, "Refined SSP-RK3 source step did not reduce the linear-coupled final moment error.");
+            continue;
+        }
+        result.observed_orders.push_back(std::log(coarse_error / refined_error) / std::log(2.0));
+    }
+
+    if (result.observed_orders.size() == refinement_plans.size() - 1 &&
+        (result.observed_orders[result.observed_orders.size() - 2] < 2.8 || result.observed_orders.back() < 2.8))
+    {
+        append_failure(result, "The two finest linear-coupled SSP-RK3 observed orders must both be at least 2.8.");
     }
 }
 
@@ -496,6 +514,21 @@ int main(const int argc, char** argv)
               << result.errors.moment_abs << std::setw(14) << result.errors.moment_rel << std::setw(14) << result.errors.reconstruction_abs
               << std::setw(14) << result.errors.reconstruction_rel << std::setw(14) << result.errors.conservation_abs << std::setw(14)
               << result.coarse_error << std::setw(14) << result.refined_error << std::setw(9) << (passed ? "PASS" : "FAIL") << '\n';
+
+    if (case_identifier == "linear_coupled")
+    {
+        std::cout << "SSP-RK3 linear-coupled refinement errors:";
+        for (const double error : result.refinement_errors)
+        {
+            std::cout << ' ' << error;
+        }
+        std::cout << '\n';
+        if (result.observed_orders.size() >= 2)
+        {
+            std::cout << "SSP-RK3 linear-coupled finest observed orders: " << result.observed_orders[result.observed_orders.size() - 2] << ' '
+                      << result.observed_orders.back() << '\n';
+        }
+    }
 
     if (!result.passed)
     {

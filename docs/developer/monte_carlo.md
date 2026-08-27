@@ -10,7 +10,7 @@ guidance, see `testing.md`.
 ## Package Role
 
 QMOMKitMonteCarlo provides finite ensemble sampling, ensemble moment estimation,
-continuous sample evolution, text output, and comparison utilities. It is a
+advection sample evolution, text output, and comparison utilities. It is a
 companion package for sample-based analysis and stochastic validation
 references.
 
@@ -90,6 +90,32 @@ xi = (xi_0, xi_1, ..., xi_(D-1))
 
 Coordinate names are metadata and must not change sampling, storage, evolution,
 moment-index, or output order.
+
+### Population birth/injection
+
+`inject_population(...)` is a local equally weighted birth operation. The
+caller supplies the integrated number-density amount `Delta n` for its own
+chosen interval and a callback sampling the normalized birth distribution. The
+companion package does not integrate a physical birth-rate law or own timing or
+operator splitting.
+
+For a valid existing ensemble with `N` samples and positive number density
+`n0`, its representative weight is `w = n0 / N`. The operation uses one local
+`std::mt19937_64` seeded by the public seed argument to draw
+`K ~ Poisson(Delta n / w)` and then to sample all `K` birth coordinates. It
+returns `n0_new = w * (N + K)`. Consequently the realized post-birth estimator
+is:
+
+```text
+M_alpha_new = w [sum_p xi_p^alpha + sum_r Y_r^alpha]
+```
+
+and its expected increment equals the caller's integrated birth contribution.
+Samples remain unweighted coordinate vectors; variable per-sample weights are
+not introduced. A deterministic callback may ignore the engine. A zero birth
+amount is a successful no-op. Positive birth into an empty or zero-density
+ensemble is deliberately unsupported because no positive representative weight
+can be inferred.
 
 ### Selective multidimensional estimation
 

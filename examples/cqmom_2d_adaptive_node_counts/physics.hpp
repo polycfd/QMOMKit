@@ -25,7 +25,7 @@ struct VarianceInjectionParameters
 
 [[nodiscard]] bool source_pulse_active(double time, const VarianceInjectionParameters& parameters);
 
-[[nodiscard]] qmomkit::PhaseSpaceVelocity continuous_velocity(const VarianceInjectionParameters& parameters);
+[[nodiscard]] qmomkit::PhaseSpaceVelocity advection_velocity(const VarianceInjectionParameters& parameters);
 
 [[nodiscard]] qmomkit::CqmomMomentSource variance_injection_source(const VarianceInjectionParameters& parameters);
 

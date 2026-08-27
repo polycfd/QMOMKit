@@ -8,6 +8,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -152,6 +153,8 @@ std::string cqmom_adaptive_branch_count_text_with_fixed_qmom(const std::vector<d
          << "adaptive_branch_counts = true\n\n"
          << "[qmom]\n"
          << "adaptive = false\n\n"
+         << "[cqmom]\n"
+         << "diagnostic_level = basic\n\n"
          << "[moments]\n"
          << "extents = 4, 4\n";
     for (std::size_t ix = 0; ix < 4; ++ix)
@@ -203,6 +206,21 @@ void assert_coordinate_support_matches_shifted_interval(const qmomkit::CqmomCoor
     assert(support[1].has_value());
     assert_near(support[1]->lower, 2.0);
     assert_near(support[1]->upper, 5.0);
+}
+
+void assert_realizability_policies_match(const qmomkit::RealizabilityPolicy& actual, const qmomkit::RealizabilityPolicy& expected)
+{
+    assert(actual.check_mode == expected.check_mode);
+    assert(actual.support == expected.support);
+    assert(actual.accept_boundary == expected.accept_boundary);
+    assert_near(actual.options.tolerance, expected.options.tolerance);
+    assert(actual.options.relative_tolerance == expected.options.relative_tolerance);
+    assert(actual.interval.has_value() == expected.interval.has_value());
+    if (actual.interval.has_value())
+    {
+        assert_near(actual.interval->lower, expected.interval->lower);
+        assert_near(actual.interval->upper, expected.interval->upper);
+    }
 }
 
 struct MoveOnlyValue
@@ -498,6 +516,64 @@ sigma_log = 0.2
     const auto dense_case = qmomkit::config::create_cqmom_dense_case(initial.value(), qmomkit::PhaseSpaceHierarchy({1, 1}));
     assert(dense_case.ok());
     assert_tensor_near(dense_case.value().moments, expected_tensor.moments);
+}
+
+void test_cqmom_independent_product_mixture_marginal_initialization()
+{
+    const auto initial = qmomkit::config::parse_cqmom_initial_condition(R"(
+[phase_space]
+node_counts = 1, 1
+
+[initial]
+type = independent_product
+number_density = 2.75
+maximum_orders = 1, 2
+
+[initial.dimension.0]
+family = normal
+mean = -0.4
+standard_deviation = 0.7
+
+[initial.dimension.1]
+type = mixture
+
+[initial.dimension.1.mixture.component.0]
+family = lognormal
+number_density = 1.5
+mu_log = -0.3
+sigma_log = 0.25
+
+[initial.dimension.1.mixture.component.1]
+family = lognormal
+number_density = 3.25
+mu_log = 0.4
+sigma_log = 0.45
+)");
+    assert(initial.ok());
+
+    const auto* independent_product = std::get_if<qmomkit::config::IndependentProductInitialization>(&initial.value());
+    assert(independent_product != nullptr);
+    assert(independent_product->distribution.number_density == 2.75);
+    assert(independent_product->distribution.marginals.size() == 2);
+    const auto* normal = std::get_if<qmomkit::DistributionSpecification>(&independent_product->distribution.marginals[0]);
+    const auto* mixture = std::get_if<qmomkit::DistributionMixture>(&independent_product->distribution.marginals[1]);
+    assert(normal != nullptr);
+    assert(mixture != nullptr);
+    assert(std::get<qmomkit::NormalDistribution>(*normal).mean == -0.4);
+    assert(std::get<qmomkit::NormalDistribution>(*normal).standard_deviation == 0.7);
+    assert(mixture->components.size() == 2);
+    assert(mixture->components[0].number_density == 1.5);
+    assert(mixture->components[1].number_density == 3.25);
+    assert(std::get<qmomkit::LogNormalDistribution>(mixture->components[0].distribution).normal_mean == -0.3);
+    assert(std::get<qmomkit::LogNormalDistribution>(mixture->components[1].distribution).normal_standard_deviation == 0.45);
+
+    const qmomkit::IndependentProductDistribution direct{{qmomkit::DistributionSpecification{qmomkit::NormalDistribution{-0.4, 0.7}}, *mixture},
+                                                         2.75};
+    const qmomkit::TensorMomentResult expected = qmomkit::compute_raw_moments(direct, {1, 2});
+    const auto initialized = qmomkit::config::initialize_cqmom_dense_moments(initial.value());
+    assert(expected.ok());
+    assert(initialized.ok());
+    assert_tensor_near(initialized.value(), expected.moments);
 }
 
 void test_lean_cqmom_initialization_matches_dense_subselection()
@@ -924,6 +1000,9 @@ void test_cqmom_case_parses_coordinate_support()
 [phase_space]
 support_lower = none, 1.0
 support_upper = none, 2.0
+
+[cqmom]
+diagnostic_level = basic
 )";
     const auto case_result = qmomkit::config::parse_cqmom(text, "cqmom-support");
     const auto dense = qmomkit::config::parse_cqmom_dense(text, "cqmom-support");
@@ -968,7 +1047,7 @@ void test_cqmom_factories_preserve_coordinate_support()
     assert(lean_default.value().coordinate_support.empty());
 
     qmomkit::CqmomCoordinateSupport support(2);
-    support[1] = qmomkit::BoundedInterval{2.0, 5.0};
+    support[1] = qmomkit::CqmomAbscissaBounds{2.0, 5.0};
 
     const auto dense = qmomkit::config::create_cqmom_dense_case(initial.value(), hierarchy, qmomkit::QmomOptions{}, false, "dense-factory", support);
     const auto lean = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy, qmomkit::QmomOptions{}, false, "lean-factory", support);
@@ -1105,7 +1184,7 @@ qmomkit::RawMomentTensor cqmom_replacement_tensor(const std::vector<double>& x_v
 qmomkit::CqmomCoordinateSupport cqmom_replacement_support()
 {
     qmomkit::CqmomCoordinateSupport support(2);
-    support[1] = qmomkit::BoundedInterval{0.0, 2.0};
+    support[1] = qmomkit::CqmomAbscissaBounds{0.0, 2.0};
     return support;
 }
 
@@ -1574,12 +1653,17 @@ void assert_cqmom_adaptive_options(const bool adaptive, const bool adaptive_bran
     assert(configured.value().adaptive_branch_counts == adaptive_branch_counts);
 }
 
-void test_cqmom_adaptive_options_are_independent()
+void test_cqmom_adaptive_options_validate_compatibility()
 {
     assert_cqmom_adaptive_options(false, false);
-    assert_cqmom_adaptive_options(true, false);
     assert_cqmom_adaptive_options(false, true);
     assert_cqmom_adaptive_options(true, true);
+
+    const auto incompatible = qmomkit::config::parse_cqmom_dense(cqmom_adaptive_option_text(true, false));
+    assert(!incompatible.ok());
+    assert(has_failure(incompatible));
+    assert(has_message_fragment(incompatible, "qmom.adaptive = true is incompatible with fixed-count CQMOM"));
+    assert(has_message_fragment(incompatible, "phase_space.adaptive_branch_counts = true"));
 
     const auto omitted_qmom_adaptive = qmomkit::config::parse_cqmom_dense(R"(
 [phase_space]
@@ -1596,6 +1680,28 @@ M[1,1] = 6.0
     assert(omitted_qmom_adaptive.ok());
     assert(!omitted_qmom_adaptive.value().qmom_options.adaptive);
     assert(omitted_qmom_adaptive.value().adaptive_branch_counts);
+}
+
+void test_cqmom_case_parsing_validates_coordinate_realizability_rank()
+{
+    const auto valid = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(R"(
+
+[time_integration.realizability.1]
+check_mode = final_only
+support = nonnegative
+)"));
+    assert(valid.ok());
+
+    const auto invalid = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(R"(
+
+[time_integration.realizability.2]
+check_mode = final_only
+support = nonnegative
+)"));
+    assert(!invalid.ok());
+    assert(has_failure(invalid));
+    assert(has_message_fragment(invalid, "coordinate index 2"));
+    assert(has_message_fragment(invalid, "phase-space rank 2"));
 }
 
 void test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom()
@@ -1657,7 +1763,7 @@ void test_cqmom_diagnostic_level_parses_values()
 {
     const auto omitted = qmomkit::config::parse_cqmom_dense(cqmom_diagnostic_level_text(""));
     assert(omitted.ok());
-    assert(omitted.value().diagnostic_level == qmomkit::CqmomDiagnosticLevel::detailed);
+    assert(omitted.value().diagnostic_level == qmomkit::CqmomDiagnosticLevel::none);
 
     const auto detailed = qmomkit::config::parse_cqmom_dense(cqmom_diagnostic_level_text("detailed"));
     assert(detailed.ok());
@@ -1833,6 +1939,186 @@ upper = 2.0
     assert_near(bounded.value().interval->upper, 2.0);
 }
 
+void test_coordinate_realizability_policies_parse_sparse_numbered_sections()
+{
+    const auto real_line = qmomkit::config::parse_coordinate_realizability_policies(R"(
+[time_integration.realizability.0]
+check_mode = final_only
+support = real_line
+)");
+    assert(real_line.ok());
+    assert(real_line.value().size() == 1);
+    assert(real_line.value()[0].has_value());
+    assert(real_line.value()[0]->support == qmomkit::MomentSupport::real_line);
+
+    const auto nonnegative = qmomkit::config::parse_coordinate_realizability_policies(R"(
+[time_integration.realizability.1]
+check_mode = every_stage
+support = nonnegative
+)");
+    assert(nonnegative.ok());
+    assert(nonnegative.value().size() == 2);
+    assert(!nonnegative.value()[0].has_value());
+    assert(nonnegative.value()[1].has_value());
+    assert(nonnegative.value()[1]->support == qmomkit::MomentSupport::nonnegative);
+
+    const auto bounded_interval = qmomkit::config::parse_coordinate_realizability_policies(R"(
+[time_integration.realizability.2]
+check_mode = final_only
+support = bounded_interval
+lower = 0.0
+upper = 1.0
+)");
+    assert(bounded_interval.ok());
+    assert(bounded_interval.value().size() == 3);
+    assert(bounded_interval.value()[2].has_value());
+    assert(bounded_interval.value()[2]->support == qmomkit::MomentSupport::bounded_interval);
+    assert(bounded_interval.value()[2]->interval.has_value());
+    assert_near(bounded_interval.value()[2]->interval->lower, 0.0);
+    assert_near(bounded_interval.value()[2]->interval->upper, 1.0);
+
+    const std::string sparse_text = R"(
+[time_integration.realizability.0]
+check_mode = final_only
+support = real_line
+
+[time_integration.realizability.3]
+check_mode = every_stage
+support = nonnegative
+)";
+    const auto sparse = qmomkit::config::parse_coordinate_realizability_policies(sparse_text);
+    assert(sparse.ok());
+    assert(sparse.value().size() == 4);
+    assert(sparse.value()[0].has_value());
+    assert(!sparse.value()[1].has_value());
+    assert(!sparse.value()[2].has_value());
+    assert(sparse.value()[3].has_value());
+
+    const auto malformed = qmomkit::config::parse_coordinate_realizability_policies(R"(
+[time_integration.realizability.3]
+check_mode = final_only
+support = bounded_interval
+lower = 0.0
+)");
+    assert(!malformed.ok());
+    assert(has_failure(malformed));
+
+    const auto qmom_case = qmomkit::config::parse_qmom(R"(
+[phase_space]
+node_counts = 1
+
+[moments]
+values = 1.0, 0.0
+
+[time_integration.realizability.0]
+check_mode = final_only
+support = real_line
+)");
+    assert(qmom_case.ok());
+}
+
+void test_quadrature_bounds_do_not_alter_coordinate_realizability_policy()
+{
+    const std::string first = R"(
+[phase_space]
+node_counts = 1, 1
+support_lower = -2.0, 10.0
+support_upper = 2.0, 20.0
+
+[moments]
+extents = 2, 2
+M[0,0] = 1.0
+M[0,1] = 0.0
+M[1,0] = 0.0
+M[1,1] = 0.0
+
+[time_integration.realizability.1]
+check_mode = final_only
+support = bounded_interval
+lower = 0.0
+upper = 1.0
+tolerance = 1e-10
+relative_tolerance = false
+accept_boundary = false
+)";
+    const std::string second = R"(
+[phase_space]
+node_counts = 1, 1
+support_lower = -7.0, -5.0
+support_upper = 7.0, 5.0
+
+[moments]
+extents = 2, 2
+M[0,0] = 1.0
+M[0,1] = 0.0
+M[1,0] = 0.0
+M[1,1] = 0.0
+
+[time_integration.realizability.1]
+check_mode = final_only
+support = bounded_interval
+lower = 0.0
+upper = 1.0
+tolerance = 1e-10
+relative_tolerance = false
+accept_boundary = false
+)";
+
+    assert(qmomkit::config::parse_cqmom(first).ok());
+    assert(qmomkit::config::parse_cqmom(second).ok());
+    const auto first_policies = qmomkit::config::parse_coordinate_realizability_policies(first);
+    const auto second_policies = qmomkit::config::parse_coordinate_realizability_policies(second);
+    assert(first_policies.ok());
+    assert(second_policies.ok());
+    assert(first_policies.value().size() == 2);
+    assert(second_policies.value().size() == 2);
+    assert(first_policies.value()[1].has_value());
+    assert(second_policies.value()[1].has_value());
+    assert_realizability_policies_match(*first_policies.value()[1], *second_policies.value()[1]);
+}
+
+void test_coordinate_realizability_policy_does_not_alter_quadrature_bounds()
+{
+    const std::string without_policy = R"(
+[phase_space]
+node_counts = 1, 1
+support_lower = none, 2.0
+support_upper = none, 5.0
+
+[moments]
+extents = 2, 2
+M[0,0] = 1.0
+M[0,1] = 0.0
+M[1,0] = 0.0
+M[1,1] = 0.0
+)";
+    const std::string with_policy = without_policy + R"(
+
+[time_integration.realizability.0]
+check_mode = every_stage
+support = bounded_interval
+lower = -1.0
+upper = 1.0
+)";
+
+    const auto without_policy_case = qmomkit::config::parse_cqmom(without_policy);
+    const auto with_policy_case = qmomkit::config::parse_cqmom(with_policy);
+    assert(without_policy_case.ok());
+    assert(with_policy_case.ok());
+    const qmomkit::CqmomCoordinateSupport& expected = without_policy_case.value().coordinate_support();
+    const qmomkit::CqmomCoordinateSupport& actual = with_policy_case.value().coordinate_support();
+    assert(actual.size() == expected.size());
+    for (std::size_t dimension = 0; dimension < expected.size(); ++dimension)
+    {
+        assert(actual[dimension].has_value() == expected[dimension].has_value());
+        if (expected[dimension].has_value())
+        {
+            assert_near(actual[dimension]->lower, expected[dimension]->lower);
+            assert_near(actual[dimension]->upper, expected[dimension]->upper);
+        }
+    }
+}
+
 void test_realizability_policy_rejects_invalid_values()
 {
     const auto unknown_check_mode = qmomkit::config::parse_realizability_policy(R"(
@@ -1973,7 +2259,7 @@ void test_case_parsing_validates_realizability_policy_without_owning_it()
     const std::string runtime = R"(
 
 [time_integration]
-scheme = dc
+scheme = srcadv
 
 [time_integration.node_advection]
 scheme = rk23
@@ -2004,7 +2290,7 @@ accept_boundary = false
     const auto cqmom_case = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(runtime));
     assert(cqmom_case.ok());
     assert(cqmom_case.value().moment_storage() == qmomkit::CqmomMomentStorage::lean);
-    assert(cqmom_case.value().diagnostic_level() == qmomkit::CqmomDiagnosticLevel::detailed);
+    assert(cqmom_case.value().diagnostic_level() == qmomkit::CqmomDiagnosticLevel::none);
     assert(cqmom_case.value().initial_state().moment_storage() == qmomkit::CqmomMomentStorage::lean);
 
     const auto policy = qmomkit::config::parse_realizability_policy(runtime);
@@ -2012,9 +2298,9 @@ accept_boundary = false
     assert(policy.value().check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
     assert(policy.value().support == qmomkit::MomentSupport::bounded_interval);
 
-    const auto scheme = qmomkit::config::parse_transport_scheme(runtime);
+    const auto scheme = qmomkit::config::parse_phase_space_evolution_scheme(runtime);
     assert(scheme.ok());
-    assert(scheme.value() == qmomkit::TransportScheme::dc);
+    assert(scheme.value() == qmomkit::PhaseSpaceEvolutionScheme::srcadv);
 
     const auto node_options = qmomkit::config::parse_node_advection_options(runtime);
     assert(node_options.ok());
@@ -2077,45 +2363,54 @@ enabled = true
     }
 }
 
-void test_scheme_defaults_and_parses_values()
+void test_phase_space_evolution_scheme_defaults_and_parses_values()
 {
-    const auto omitted = qmomkit::config::parse_transport_scheme(qmom_text);
+    const auto omitted = qmomkit::config::parse_phase_space_evolution_scheme(qmom_text);
     assert(omitted.ok());
-    assert(omitted.value() == qmomkit::TransportScheme::strang);
+    assert(omitted.value() == qmomkit::PhaseSpaceEvolutionScheme::strang);
 
-    const auto strang = qmomkit::config::parse_transport_scheme(R"(
+    const auto strang = qmomkit::config::parse_phase_space_evolution_scheme(R"(
 [time_integration]
 scheme = strang
 )");
     assert(strang.ok());
-    assert(strang.value() == qmomkit::TransportScheme::strang);
+    assert(strang.value() == qmomkit::PhaseSpaceEvolutionScheme::strang);
 
-    const auto cd = qmomkit::config::parse_transport_scheme(R"(
+    const auto advsrc = qmomkit::config::parse_phase_space_evolution_scheme(R"(
 [time_integration]
-scheme = cd
+scheme = advsrc
 )");
-    assert(cd.ok());
-    assert(cd.value() == qmomkit::TransportScheme::cd);
+    assert(advsrc.ok());
+    assert(advsrc.value() == qmomkit::PhaseSpaceEvolutionScheme::advsrc);
 
-    const auto dc = qmomkit::config::parse_transport_scheme(R"(
+    const auto srcadv = qmomkit::config::parse_phase_space_evolution_scheme(R"(
 [time_integration]
-scheme = dc
+scheme = srcadv
 )");
-    assert(dc.ok());
-    assert(dc.value() == qmomkit::TransportScheme::dc);
+    assert(srcadv.ok());
+    assert(srcadv.value() == qmomkit::PhaseSpaceEvolutionScheme::srcadv);
 }
 
-void test_scheme_rejects_invalid_values()
+void test_phase_space_evolution_scheme_rejects_invalid_values()
 {
-    const auto invalid = qmomkit::config::parse_transport_scheme(R"(
+    const auto invalid = qmomkit::config::parse_phase_space_evolution_scheme(R"(
 [time_integration]
 scheme = leapfrog
 )");
     assert(!invalid.ok());
     assert(has_failure(invalid));
-    assert(has_message_fragment(invalid, "strang, cd, or dc"));
+    assert(has_message_fragment(invalid, "strang, advsrc, or srcadv"));
 
-    const auto unknown_time_key = qmomkit::config::parse_transport_scheme(R"(
+    for (const char* obsolete_scheme : {"cd", "dc"})
+    {
+        const auto obsolete =
+            qmomkit::config::parse_phase_space_evolution_scheme(std::string("[time_integration]\n") + "scheme = " + obsolete_scheme + "\n");
+        assert(!obsolete.ok());
+        assert(has_failure(obsolete));
+        assert(has_message_fragment(obsolete, "strang, advsrc, or srcadv"));
+    }
+
+    const auto unknown_time_key = qmomkit::config::parse_phase_space_evolution_scheme(R"(
 [time_integration]
 stage_count = 3
 )");
@@ -2165,22 +2460,22 @@ scheme = rk45
     assert(rk45.ok());
     assert(rk45.value().scheme == qmomkit::NodeAdvectionScheme::rk45);
 
-    const auto alongside_transport_scheme = qmomkit::config::parse_node_advection_options(R"(
+    const auto alongside_phase_space_evolution_scheme = qmomkit::config::parse_node_advection_options(R"(
 [time_integration]
-scheme = cd
+scheme = advsrc
 
 [time_integration.node_advection]
 scheme = rk23
 )");
-    assert(alongside_transport_scheme.ok());
-    assert(alongside_transport_scheme.value().scheme == qmomkit::NodeAdvectionScheme::rk23);
+    assert(alongside_phase_space_evolution_scheme.ok());
+    assert(alongside_phase_space_evolution_scheme.value().scheme == qmomkit::NodeAdvectionScheme::rk23);
 }
 
 void test_node_advection_options_parse_rk23_controls()
 {
     const auto parsed = qmomkit::config::parse_node_advection_options(R"(
 [time_integration]
-scheme = cd
+scheme = advsrc
 
 [time_integration.node_advection]
 scheme = rk23
@@ -2339,7 +2634,7 @@ growth_limit = 2.0
     assert(has_failure(unknown_rk23_key));
 }
 
-void test_removed_cqmom_source_policy_key_is_unknown()
+void test_removed_cqmom_source_policy_section_is_unknown()
 {
     const std::string removed_key = std::string("[time_integration.cqmom]\nsource_node_count_") + "evolution = preserve_active_" + "counts\n";
     const auto qmom = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(removed_key));
@@ -2350,18 +2645,19 @@ void test_removed_cqmom_source_policy_key_is_unknown()
     assert(!cqmom.ok());
     assert(has_failure(cqmom));
 
-    const auto transport_options = qmomkit::config::parse_cqmom_transport_options(removed_key);
-    assert(!transport_options.ok());
-    assert(has_failure(transport_options));
+    const auto phase_space_evolution_options = qmomkit::config::parse_cqmom_phase_space_evolution_options(removed_key);
+    assert(!phase_space_evolution_options.ok());
+    assert(has_failure(phase_space_evolution_options));
 }
 
-void test_transport_options_loaders_parse_defaults_explicit_values_and_callbacks()
+void test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks()
 {
-    const auto qmom_defaults = qmomkit::config::parse_qmom_transport_options("");
+    const auto qmom_defaults = qmomkit::config::parse_qmom_phase_space_evolution_options("");
     assert(qmom_defaults.ok());
-    assert(qmom_defaults.value().scheme == qmomkit::TransportScheme::strang);
+    assert(qmom_defaults.value().scheme == qmomkit::PhaseSpaceEvolutionScheme::strang);
     assert(qmom_defaults.value().node_options.scheme == qmomkit::NodeAdvectionScheme::rk23);
     assert(!qmom_defaults.value().qmom_options.adaptive);
+    assert(qmom_defaults.value().realizability_policy.check_mode == qmomkit::RealizabilityCheckMode::None);
     assert(!qmom_defaults.value().source_options.ssp_rk3_options.accept);
     assert(!qmom_defaults.value().source_options.ssp_rk3_options.stage_accept);
 
@@ -2370,7 +2666,7 @@ void test_transport_options_loaders_parse_defaults_explicit_values_and_callbacks
 adaptive = true
 
 [time_integration]
-scheme = dc
+scheme = srcadv
 
 [time_integration.node_advection]
 scheme = rk23
@@ -2378,27 +2674,33 @@ scheme = rk23
 [time_integration.node_advection.adaptive]
 relative_tolerance = 1.0e-7
 max_step = 0.05
+
+[time_integration.realizability]
+check_mode = final_only
+support = nonnegative
 )";
-    const auto qmom_options = qmomkit::config::parse_qmom_transport_options(qmom_runtime);
+    const auto qmom_options = qmomkit::config::parse_qmom_phase_space_evolution_options(qmom_runtime);
     assert(qmom_options.ok());
-    assert(qmom_options.value().scheme == qmomkit::TransportScheme::dc);
+    assert(qmom_options.value().scheme == qmomkit::PhaseSpaceEvolutionScheme::srcadv);
     assert(qmom_options.value().node_options.scheme == qmomkit::NodeAdvectionScheme::rk23);
     assert_near(qmom_options.value().node_options.adaptive_options.relative_tolerance, 1.0e-7);
     assert_near(qmom_options.value().node_options.adaptive_options.max_step, 0.05);
     assert(qmom_options.value().qmom_options.adaptive);
+    assert(qmom_options.value().realizability_policy.check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
+    assert(qmom_options.value().realizability_policy.support == qmomkit::MomentSupport::nonnegative);
     assert(!qmom_options.value().source_options.ssp_rk3_options.accept);
     assert(!qmom_options.value().source_options.ssp_rk3_options.stage_accept);
 
-    const auto cqmom_defaults = qmomkit::config::parse_cqmom_transport_options("");
+    const auto cqmom_defaults = qmomkit::config::parse_cqmom_phase_space_evolution_options("");
     assert(cqmom_defaults.ok());
-    assert(cqmom_defaults.value().scheme == qmomkit::TransportScheme::strang);
+    assert(cqmom_defaults.value().scheme == qmomkit::PhaseSpaceEvolutionScheme::strang);
     assert(cqmom_defaults.value().node_options.scheme == qmomkit::NodeAdvectionScheme::rk23);
     assert(!cqmom_defaults.value().source_options.ssp_rk3_options.accept);
     assert(!cqmom_defaults.value().source_options.ssp_rk3_options.stage_accept);
 
     const std::string cqmom_runtime = R"(
 [time_integration]
-scheme = cd
+scheme = advsrc
 
 [time_integration.node_advection]
 scheme = rk23
@@ -2406,22 +2708,31 @@ scheme = rk23
 [time_integration.node_advection.adaptive]
 absolute_tolerance = 1.0e-12
 max_step = 0.025
+
+[time_integration.realizability.1]
+check_mode = every_stage
+support = nonnegative
 )";
-    const auto cqmom_options = qmomkit::config::parse_cqmom_transport_options(cqmom_runtime);
+    const auto cqmom_options = qmomkit::config::parse_cqmom_phase_space_evolution_options(cqmom_runtime);
     assert(cqmom_options.ok());
-    assert(cqmom_options.value().scheme == qmomkit::TransportScheme::cd);
+    assert(cqmom_options.value().scheme == qmomkit::PhaseSpaceEvolutionScheme::advsrc);
     assert(cqmom_options.value().node_options.scheme == qmomkit::NodeAdvectionScheme::rk23);
     assert_near(cqmom_options.value().node_options.adaptive_options.absolute_tolerance, 1.0e-12);
     assert_near(cqmom_options.value().node_options.adaptive_options.max_step, 0.025);
     assert(!cqmom_options.value().source_options.ssp_rk3_options.accept);
     assert(!cqmom_options.value().source_options.ssp_rk3_options.stage_accept);
+    assert(cqmom_options.value().source_options.coordinate_realizability_policies.size() == 2);
+    assert(!cqmom_options.value().source_options.coordinate_realizability_policies[0].has_value());
+    assert(cqmom_options.value().source_options.coordinate_realizability_policies[1].has_value());
+    assert(cqmom_options.value().source_options.coordinate_realizability_policies[1]->check_mode == qmomkit::RealizabilityCheckMode::EveryStage);
+    assert(cqmom_options.value().source_options.coordinate_realizability_policies[1]->support == qmomkit::MomentSupport::nonnegative);
 
-    const std::filesystem::path filename = std::filesystem::temp_directory_path() / "qmomkit_transport_options_configuration_test.qmom";
+    const std::filesystem::path filename = std::filesystem::temp_directory_path() / "qmomkit_phase_space_evolution_options_configuration_test.qmom";
     {
         std::ofstream output(filename);
         output << cqmom_runtime;
     }
-    const auto loaded = qmomkit::config::load_cqmom_transport_options(filename);
+    const auto loaded = qmomkit::config::load_cqmom_phase_space_evolution_options(filename);
     assert(loaded.ok());
     assert(loaded.value().scheme == cqmom_options.value().scheme);
     assert(loaded.value().node_options.scheme == cqmom_options.value().node_options.scheme);
@@ -2431,7 +2742,7 @@ max_step = 0.025
         std::ofstream output(filename);
         output << qmom_runtime;
     }
-    const auto loaded_qmom = qmomkit::config::load_qmom_transport_options(filename);
+    const auto loaded_qmom = qmomkit::config::load_qmom_phase_space_evolution_options(filename);
     assert(loaded_qmom.ok());
     assert(loaded_qmom.value().scheme == qmom_options.value().scheme);
     assert(loaded_qmom.value().node_options.scheme == qmom_options.value().node_options.scheme);
@@ -2439,16 +2750,16 @@ max_step = 0.025
     std::filesystem::remove(filename);
 }
 
-void test_transport_options_loaders_reject_invalid_values()
+void test_phase_space_evolution_options_loaders_reject_invalid_values()
 {
-    const auto invalid_scheme = qmomkit::config::parse_qmom_transport_options(R"(
+    const auto invalid_scheme = qmomkit::config::parse_qmom_phase_space_evolution_options(R"(
 [time_integration]
 scheme = leapfrog
 )");
     assert(!invalid_scheme.ok());
     assert(has_failure(invalid_scheme));
 
-    const auto invalid_qmom = qmomkit::config::parse_qmom_transport_options(R"(
+    const auto invalid_qmom = qmomkit::config::parse_qmom_phase_space_evolution_options(R"(
 [qmom]
 adaptive = sometimes
 )");
@@ -2456,34 +2767,34 @@ adaptive = sometimes
     assert(has_failure(invalid_qmom));
     assert(has_message_fragment(invalid_qmom, "qmom.adaptive"));
 
-    const auto unknown_qmom = qmomkit::config::parse_qmom_transport_options(R"(
+    const auto unknown_qmom = qmomkit::config::parse_qmom_phase_space_evolution_options(R"(
 [qmom]
 diagnostics = true
 )");
     assert(!unknown_qmom.ok());
     assert(has_failure(unknown_qmom));
 
-    const auto invalid_node = qmomkit::config::parse_cqmom_transport_options(R"(
+    const auto invalid_node = qmomkit::config::parse_cqmom_phase_space_evolution_options(R"(
 [time_integration.node_advection.adaptive]
 relative_tolerance = 0.0
 )");
     assert(!invalid_node.ok());
     assert(has_failure(invalid_node));
 
-    const auto removed_source_count =
-        qmomkit::config::parse_cqmom_transport_options(std::string("[time_integration.cqmom]\nsource_node_count_") + "evolution = freeze\n");
+    const auto removed_source_count = qmomkit::config::parse_cqmom_phase_space_evolution_options(
+        std::string("[time_integration.cqmom]\nsource_node_count_") + "evolution = freeze\n");
     assert(!removed_source_count.ok());
     assert(has_failure(removed_source_count));
 }
 
-void test_cqmom_transport_options_loader_result_drives_transport_path()
+void test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path()
 {
     const auto case_result = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(""));
     assert(case_result.ok());
 
-    const auto configured_options = qmomkit::config::parse_cqmom_transport_options(R"(
+    const auto configured_options = qmomkit::config::parse_cqmom_phase_space_evolution_options(R"(
 [time_integration]
-scheme = cd
+scheme = advsrc
 
 [time_integration.node_advection]
 scheme = rk23
@@ -2501,12 +2812,12 @@ max_step = 0.02
     const auto source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
-    const qmomkit::CqmomTransportResult transported =
-        qmomkit::advance_transport_cqmom(case_result.value().initial_state(), 0.0, 0.1, velocity, source, configured_options.value());
-    assert(transported.ok());
-    assert(transported.diagnostics.scheme == qmomkit::TransportScheme::cd);
-    assert(transported.diagnostics.first_continuous_diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk23);
-    assert(transported.diagnostics.first_continuous_diagnostics.adaptive_status == qmomkit::AdaptiveRkStatus::success);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
+        qmomkit::advance_cqmom_phase_space(case_result.value().initial_state(), 0.0, 0.1, velocity, source, configured_options.value());
+    assert(phase_space_evolved.ok());
+    assert(phase_space_evolved.diagnostics.scheme == qmomkit::PhaseSpaceEvolutionScheme::advsrc);
+    assert(phase_space_evolved.diagnostics.first_advection_diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk23);
+    assert(phase_space_evolved.diagnostics.first_advection_diagnostics.adaptive_status == qmomkit::AdaptiveRkStatus::success);
 }
 
 void test_output_options_default_to_disabled()
@@ -2623,7 +2934,7 @@ void test_qmom_case_parsing_tolerates_scheme()
 node_counts = 1
 
 [time_integration]
-scheme = dc
+scheme = srcadv
 
 [time_integration.node_advection]
 scheme = ssp_rk3
@@ -2641,7 +2952,7 @@ values = 1.0, 0.0
 node_counts = 1, 1
 
 [time_integration]
-scheme = cd
+scheme = advsrc
 
 [time_integration.node_advection]
 scheme = rk23
@@ -2686,7 +2997,7 @@ values = 1.0, 0.0
     assert(has_failure(invalid_node_advection));
 }
 
-void test_case_parsing_rejects_invalid_runtime_transport_settings()
+void test_case_parsing_rejects_invalid_runtime_phase_space_evolution_settings()
 {
     const std::vector<std::string> invalid_shared_blocks = {{
         R"(
@@ -2728,7 +3039,7 @@ relative_tolerence = 1.0e-7
         assert(has_failure(cqmom_case));
     }
 
-    const auto invalid_scheme = qmomkit::config::parse_transport_scheme(R"(
+    const auto invalid_scheme = qmomkit::config::parse_phase_space_evolution_scheme(R"(
 [time_integration]
 scheme = invalid
 )");
@@ -3335,18 +3646,18 @@ void test_file_loading_and_file_failure()
     assert(node_advection_scheme.ok());
     assert(node_advection_scheme.value().scheme == qmomkit::NodeAdvectionScheme::rk23);
 
-    const auto transport_options = qmomkit::config::load_cqmom_transport_options(filename);
-    assert(transport_options.ok());
-    assert(transport_options.value().node_options.scheme == qmomkit::NodeAdvectionScheme::rk23);
+    const auto phase_space_evolution_options = qmomkit::config::load_cqmom_phase_space_evolution_options(filename);
+    assert(phase_space_evolution_options.ok());
+    assert(phase_space_evolution_options.value().node_options.scheme == qmomkit::NodeAdvectionScheme::rk23);
     std::filesystem::remove(filename);
 
     const auto missing_node_advection = qmomkit::config::load_node_advection_options(filename);
     assert(!missing_node_advection.ok());
     assert(has_failure(missing_node_advection));
 
-    const auto missing_transport_options = qmomkit::config::load_cqmom_transport_options(filename);
-    assert(!missing_transport_options.ok());
-    assert(has_failure(missing_transport_options));
+    const auto missing_phase_space_evolution_options = qmomkit::config::load_cqmom_phase_space_evolution_options(filename);
+    assert(!missing_phase_space_evolution_options.ok());
+    assert(has_failure(missing_phase_space_evolution_options));
 
     {
         std::ofstream output(filename);
@@ -3387,7 +3698,7 @@ check_mode = final_only
 
 } // namespace
 
-int main()
+void run_all_configuration_tests()
 {
     test_configuration_result_api();
     test_valid_qmom_matches_programmatic_case();
@@ -3397,6 +3708,7 @@ int main()
     test_mixture_zero_density_component_is_skipped();
     test_valid_cqmom_matches_programmatic_case();
     test_cqmom_independent_product_initialization_matches_direct_api();
+    test_cqmom_independent_product_mixture_marginal_initialization();
     test_lean_cqmom_initialization_matches_dense_subselection();
     test_lean_cqmom_initialization_matches_example_flow();
     test_lean_cqmom_initialization_omits_maximum_orders();
@@ -3421,7 +3733,7 @@ int main()
     test_cqmom_case_replacement_defers_realizability();
     test_cqmom_case_file_loading();
     test_cqmom_independent_product_zero_density_skips_marginal_validation();
-    test_cqmom_adaptive_options_are_independent();
+    test_cqmom_adaptive_options_validate_compatibility();
     test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom();
     test_cqmom_diagnostic_level_parses_values();
     test_cqmom_vandermonde_solver_parses_values();
@@ -3429,27 +3741,31 @@ int main()
     test_realizability_policy_defaults_to_disabled();
     test_realizability_policy_parses_check_modes();
     test_realizability_policy_parses_support_and_bounded_interval();
+    test_coordinate_realizability_policies_parse_sparse_numbered_sections();
+    test_quadrature_bounds_do_not_alter_coordinate_realizability_policy();
+    test_coordinate_realizability_policy_does_not_alter_quadrature_bounds();
+    test_cqmom_case_parsing_validates_coordinate_realizability_rank();
     test_realizability_policy_rejects_invalid_values();
     test_realizability_policy_rejects_invalid_bounded_interval();
     test_realizability_policy_rejects_unknown_entries();
     test_qmom_case_parsing_tolerates_realizability_policy_without_installing_it();
     test_case_parsing_validates_realizability_policy_without_owning_it();
     test_case_parsing_rejects_invalid_realizability_policy();
-    test_scheme_defaults_and_parses_values();
-    test_scheme_rejects_invalid_values();
+    test_phase_space_evolution_scheme_defaults_and_parses_values();
+    test_phase_space_evolution_scheme_rejects_invalid_values();
     test_node_advection_options_defaults_and_parses_schemes();
     test_node_advection_options_parse_rk23_controls();
     test_node_advection_options_reject_invalid_scheme_values();
     test_node_advection_options_reject_invalid_rk23_controls();
-    test_removed_cqmom_source_policy_key_is_unknown();
-    test_transport_options_loaders_parse_defaults_explicit_values_and_callbacks();
-    test_transport_options_loaders_reject_invalid_values();
-    test_cqmom_transport_options_loader_result_drives_transport_path();
+    test_removed_cqmom_source_policy_section_is_unknown();
+    test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
+    test_phase_space_evolution_options_loaders_reject_invalid_values();
+    test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();
     test_output_options_default_to_disabled();
     test_output_options_parse_enabled_fields();
     test_output_options_reject_invalid_values();
     test_qmom_case_parsing_tolerates_scheme();
-    test_case_parsing_rejects_invalid_runtime_transport_settings();
+    test_case_parsing_rejects_invalid_runtime_phase_space_evolution_settings();
     test_qmom_case_parsing_tolerates_output_options_without_installing_them();
     test_duplicate_and_missing_entries();
     test_malformed_nonfinite_invalid_order_and_unknown_key();
@@ -3457,5 +3773,132 @@ int main()
     test_configuration_format_infers_formulation_from_phase_space();
     test_configuration_rejects_unsupported_or_ambiguous_format_fields();
     test_file_loading_and_file_failure();
-    return 0;
+}
+
+void run_initialization_tests()
+{
+    test_configuration_result_api();
+    test_valid_qmom_matches_programmatic_case();
+    test_qmom_distribution_initialization_matches_direct_api();
+    test_all_supported_distribution_families_parse();
+    test_qmom_mixture_initialization_matches_direct_api();
+    test_mixture_zero_density_component_is_skipped();
+    test_valid_cqmom_matches_programmatic_case();
+    test_cqmom_independent_product_initialization_matches_direct_api();
+    test_cqmom_independent_product_mixture_marginal_initialization();
+    test_lean_cqmom_initialization_matches_dense_subselection();
+    test_lean_cqmom_initialization_matches_example_flow();
+    test_lean_cqmom_initialization_omits_maximum_orders();
+    test_dense_cqmom_initialization_omits_maximum_orders();
+    test_lean_cqmom_initialization_selects_explicit_dense_tensor();
+}
+
+void run_cqmom_case_state_tests()
+{
+    test_cqmom_lean_case_uses_selected_analytical_moments();
+    test_cqmom_lean_case_matches_dense_case_path();
+    test_cqmom_lean_case_selects_explicit_dense_tensor();
+    test_cqmom_case_uses_selected_analytical_moments();
+    test_cqmom_case_accepts_explicit_dense_tensor();
+    test_cqmom_case_parses_coordinate_support();
+    test_cqmom_factories_preserve_coordinate_support();
+    test_cqmom_case_rejects_invalid_coordinate_support();
+    test_cqmom_case_moment_storage_selection();
+    test_cqmom_case_initial_state_preserves_case_settings();
+    test_cqmom_case_replaces_dense_initial_moments_immutably();
+    test_cqmom_case_replaces_lean_initial_moments_immutably();
+    test_fixed_cqmom_prepared_metadata_ownership();
+    test_fixed_cqmom_prepared_metadata_is_concurrently_readable();
+    test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility();
+    test_cqmom_case_replacement_rejects_structural_tensor_errors();
+    test_cqmom_case_replacement_defers_realizability();
+    test_cqmom_case_file_loading();
+    test_cqmom_independent_product_zero_density_skips_marginal_validation();
+}
+
+void run_runtime_option_tests()
+{
+    test_cqmom_adaptive_options_validate_compatibility();
+    test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom();
+    test_cqmom_diagnostic_level_parses_values();
+    test_cqmom_vandermonde_solver_parses_values();
+    test_cqmom_case_and_state_report_vandermonde_solver();
+    test_realizability_policy_defaults_to_disabled();
+    test_realizability_policy_parses_check_modes();
+    test_realizability_policy_parses_support_and_bounded_interval();
+    test_coordinate_realizability_policies_parse_sparse_numbered_sections();
+    test_quadrature_bounds_do_not_alter_coordinate_realizability_policy();
+    test_coordinate_realizability_policy_does_not_alter_quadrature_bounds();
+    test_cqmom_case_parsing_validates_coordinate_realizability_rank();
+    test_realizability_policy_rejects_invalid_values();
+    test_realizability_policy_rejects_invalid_bounded_interval();
+    test_realizability_policy_rejects_unknown_entries();
+    test_qmom_case_parsing_tolerates_realizability_policy_without_installing_it();
+    test_case_parsing_validates_realizability_policy_without_owning_it();
+    test_case_parsing_rejects_invalid_realizability_policy();
+    test_phase_space_evolution_scheme_defaults_and_parses_values();
+    test_phase_space_evolution_scheme_rejects_invalid_values();
+    test_node_advection_options_defaults_and_parses_schemes();
+    test_node_advection_options_parse_rk23_controls();
+    test_node_advection_options_reject_invalid_scheme_values();
+    test_node_advection_options_reject_invalid_rk23_controls();
+    test_removed_cqmom_source_policy_section_is_unknown();
+    test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
+    test_phase_space_evolution_options_loaders_reject_invalid_values();
+    test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();
+    test_output_options_default_to_disabled();
+    test_output_options_parse_enabled_fields();
+    test_output_options_reject_invalid_values();
+    test_qmom_case_parsing_tolerates_scheme();
+    test_case_parsing_rejects_invalid_runtime_phase_space_evolution_settings();
+    test_qmom_case_parsing_tolerates_output_options_without_installing_them();
+}
+
+void run_failure_path_tests()
+{
+    test_duplicate_and_missing_entries();
+    test_malformed_nonfinite_invalid_order_and_unknown_key();
+    test_explicit_moments_take_precedence_over_initial_distribution();
+    test_configuration_format_infers_formulation_from_phase_space();
+    test_configuration_rejects_unsupported_or_ambiguous_format_fields();
+    test_file_loading_and_file_failure();
+}
+
+int main(const int argc, char** argv)
+{
+    if (argc > 2)
+    {
+        std::cerr << "Usage: test_configuration [initialization|cqmom_case_state|runtime_options|failure_paths]\n";
+        return 2;
+    }
+
+    const std::string selector = argc == 2 ? argv[1] : "";
+    if (selector.empty())
+    {
+        run_all_configuration_tests();
+        return 0;
+    }
+    if (selector == "initialization")
+    {
+        run_initialization_tests();
+        return 0;
+    }
+    if (selector == "cqmom_case_state")
+    {
+        run_cqmom_case_state_tests();
+        return 0;
+    }
+    if (selector == "runtime_options")
+    {
+        run_runtime_option_tests();
+        return 0;
+    }
+    if (selector == "failure_paths")
+    {
+        run_failure_path_tests();
+        return 0;
+    }
+
+    std::cerr << "Unknown configuration selector: " << selector << '\n';
+    return 2;
 }

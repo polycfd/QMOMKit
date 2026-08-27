@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <optional>
 #include <random>
 #include <string>
 #include <utility>
@@ -219,25 +220,54 @@ SamplingResult sample_independent_product(const qmomkit::IndependentProductDistr
     {
         return invalid_sampling_result(options, "Number density must be finite and non-negative.");
     }
-    for (const qmomkit::DistributionSpecification& marginal : distribution.marginals)
+    std::vector<std::optional<SamplingResult>> mixture_samples(distribution.marginals.size());
+    for (std::size_t dimension = 0; dimension < distribution.marginals.size(); ++dimension)
     {
-        if (!valid_distribution(marginal))
+        const qmomkit::IndependentProductMarginal& marginal = distribution.marginals[dimension];
+        if (const auto* simple_distribution = std::get_if<qmomkit::DistributionSpecification>(&marginal))
         {
-            return invalid_sampling_result(options, "Independent-product marginal has invalid distribution parameters.");
+            if (!valid_distribution(*simple_distribution))
+            {
+                return invalid_sampling_result(options, "Independent-product marginal has invalid distribution parameters.");
+            }
+            continue;
         }
+
+        const qmomkit::DistributionMixture& mixture = std::get<qmomkit::DistributionMixture>(marginal);
+        const SamplingOptions marginal_options{options.sample_count,
+                                               options.seed + 0x9e3779b97f4a7c15ULL * static_cast<unsigned long long>(dimension + 1)};
+        SamplingResult sampled_mixture = sample_mixture(mixture, marginal_options);
+        if (!sampled_mixture.ok())
+        {
+            return SamplingResult{{},
+                                  0.0,
+                                  options.seed,
+                                  sampled_mixture.status,
+                                  "Independent-product mixture marginal " + std::to_string(dimension) + " failed: " + sampled_mixture.message};
+        }
+        mixture_samples[dimension] = std::move(sampled_mixture);
     }
 
-    // Independent-product sampling draws each phase-space coordinate from its
-    // marginal with the same engine stream. Correlations are intentionally not
-    // introduced by this companion utility.
+    // Independent-product sampling draws each phase-space coordinate
+    // independently. Correlations are intentionally not introduced by this
+    // companion utility.
     std::mt19937_64 engine(options.seed);
     Ensemble ensemble(options.sample_count);
-    for (Sample& sample : ensemble)
+    for (std::size_t sample_index = 0; sample_index < ensemble.size(); ++sample_index)
     {
+        Sample& sample = ensemble[sample_index];
         sample.resize(distribution.marginals.size());
         for (std::size_t dimension = 0; dimension < distribution.marginals.size(); ++dimension)
         {
-            sample[dimension] = sample_value(distribution.marginals[dimension], engine);
+            const qmomkit::IndependentProductMarginal& marginal = distribution.marginals[dimension];
+            if (const auto* simple_distribution = std::get_if<qmomkit::DistributionSpecification>(&marginal))
+            {
+                sample[dimension] = sample_value(*simple_distribution, engine);
+            }
+            else
+            {
+                sample[dimension] = mixture_samples[dimension]->ensemble[sample_index][0];
+            }
         }
     }
 

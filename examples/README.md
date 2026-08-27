@@ -5,43 +5,89 @@ They are small programs and configuration files meant for orientation. Each
 example is built like a separate project that links against an installed
 QMOMKit package.
 
-## Beginner Workflow
+## Getting Started
 
-1. `qmom_explicit_moments/` if you already have raw moments.
-2. `qmom_distribution_initialization/` if you want QMOMKit to generate
-   moments from an analytical distribution.
-3. `qmom_1d_minimal/` for the smallest complete QMOM transport loop.
-4. `qmom_1d_explicit_strang_splitting/` for application-managed adaptive QMOM
-   Strang splitting with the public continuous and discontinuous stage API.
-5. `qmom_1d_continuous_breakage/` for configuration-driven QMOM transport
-   with continuous and discontinuous physics.
-6. `cqmom_independent_product_initialization/` for the smallest
-   multidimensional initialization workflow.
-7. `cqmom_transport/` for the canonical CQMOM transport workflow
-   with custom velocity, source, and boundary contribution callbacks, as well as
-   output.
+For a short QMOM path, start with:
 
-`qmom_1d_minimal/`, `qmom_1d_explicit_strang_splitting/`,
-`qmom_1d_continuous_breakage/`, and
-`cqmom_transport/` are the primary examples for physics callbacks. The
-callback requirements are documented in the [transport guide](../docs/user/transport.md). Each example
-chooses the callbacks needed by its model; those combinations are illustrative,
-not mandatory for every transport workflow.
+1. `qmom_explicit_moments/` to reconstruct a quadrature from application-owned
+   raw moments.
+2. `qmom_distribution_initialization/` to generate moments from an analytical
+   distribution before reconstruction.
+3. `qmom_1d_minimal/` for the smallest complete QMOM phase-space evolution
+   workflow.
 
-## Advanced And Reference Workflows
+For the corresponding CQMOM path, continue with:
 
-- `qmom_mixture_initialization/`: optional QMOM initialization extension for
-  mixture distributions.
-- `realizability_check/`: example with explicit opt-in diagnostics for moment realizability.
-- `qmom_1d_explicit_strang_splitting/`: adaptive 1D QMOM transport example with application-managed Strang stages.
-- `cqmom_2d_adaptive_node_counts/`: 2D CQMOM transport example for adaptive branch-local node-count reduction, persistence, and controlled recovery.
-- `cqmom_2d_borderline_conditioning/`: static 2D CQMOM reconstruction sweep for conditioning-order sensitivity, borderline Vandermonde systems, solver comparisons, failed-stage interpretation, lower-node reconstructions, and human-readable plus flat diagnostic reports.
-- `qmom_1d_continuous_breakage_mc_initialization/`: 1D example with continuous and discontinuous physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.
-- `qmom_1d_continuous_breakage_mc_local_rates/`: 1D example with the same Monte Carlo initialization and physics as the previous example, but with application-managed moment-space SSP-RK3 integration through the public local moment-rate APIs.
-- `cqmom_2d_continuous_breakage_mc_initialization/`: 2D example with continuous and discontinuous physics, with initial raw moments estimated from a fixed-seed Monte Carlo sample and a companion direct Monte Carlo evolution executable.
-- `cqmom_condensing_droplets/`: 3D CQMOM continuous phase-space transport example for a condensing droplet population, with matched Monte Carlo initialization and a companion direct Monte Carlo evolution executable. Builds `cqmom_condensing_droplets_example` and `cqmom_condensing_droplets_mc_example`.
-- `cqmom_polydisperse_cavitation/`: 2D CQMOM continuous phase-space evolution example for a polydisperse cavitation population, with matched Monte Carlo initialization and a companion direct Monte Carlo evolution executable.
-- `cqmom_non-spherical-particles/`: 5D CQMOM example for nonspherical particles with bounded aspect-ratio support, adaptive branch counts, discontinuous fragmentation, and a companion Monte Carlo workflow.
+1. `cqmom_independent_product_initialization/` for the normal multidimensional
+   configuration and initialization lifecycle.
+2. `cqmom_2d_minimal/` for canonical CQMOM phase-space evolution with velocity,
+   source, and boundary-contribution callbacks.
+
+The [user example guide](../docs/user/examples.md) explains the learning path,
+optional branches, and prerequisites in more detail.
+
+## Initialization And Diagnostics
+
+- `qmom_mixture_initialization/`: generate QMOM moments from an
+  absolute-density mixture when a single analytical distribution is not enough.
+- `realizability_check/`: explicitly classify a raw 1D moment sequence under a
+  declared support assumption before attempting reconstruction.
+
+## QMOM Evolution
+
+- `qmom_1d_aerosol_evaporation/`: configuration-driven six-node, node-advection
+  workflow without a moment source.
+- `qmom_1d_breakage_advection/`: normal library-managed QMOM evolution with
+  node advection, a fragmentation source, and configured Strang splitting.
+- `qmom_1d_explicit_strang_splitting/`: advanced application-owned Strang
+  staging through the public advection and moment-source stage APIs; use after
+  the library-managed workflow.
+- `qmom_1d_breakage_advection_local-rates_with-mc/`: advanced host-solver
+  pattern in which the application integrates moments with QMOMKit local rates.
+
+The callback requirements are documented in the
+[phase-space evolution guide](../docs/user/phase_space_evolution.md). Each
+example chooses the callbacks needed by its model; those combinations are
+illustrative, not mandatory for every workflow.
+
+## CQMOM Numerical Controls
+
+- `cqmom_2d_adaptive_node_counts/`: adaptive conditional branch reduction,
+  persistence, and controlled recovery during phase-space evolution.
+- `cqmom_2d_borderline_conditioning/`: static reconstruction sweep for
+  conditioning order, Vandermonde solver policy, failed-stage interpretation,
+  and lower-node adaptive reconstruction.
+
+## Monte Carlo Companion/Reference Workflows
+
+These examples require QMOMKitMonteCarlo. Their direct particle executables
+are stochastic companion/reference realizations for the same sampled
+initialization and physical model; they are not automatic formal validation
+tests or exact solutions.
+
+- `qmom_1d_breakage_advection_with-mc/`: sampled 1D initialization with normal
+  QMOM evolution and a direct particle companion.
+- `qmom_1d_breakage_advection_local-rates_with-mc/`: sampled 1D local-rate
+  host-solver workflow and its particle companion.
+- `cqmom_2d_breakage_advection_with-mc/`: sampled 2D CQMOM initialization,
+  evolution, and direct particle companion.
+- `cqmom_2d_bubbles_cavitation/`: nonlinear 2D bubble-cavitation node advection
+  with a direct sampled-population companion.
+- `cqmom_3d_droplets_condensation-nucleation/`: 3D condensation and finite-time
+  nucleation boundary birth with a direct droplet-population companion.
+
+## Advanced Physical And Source-Closure Examples
+
+- `cqmom_4d_particles_breakage_recoil/`: terminal-quadrature traversal closes a
+  nonlinear daughter-state transformation with diameter-dependent recoil and a
+  direct MC companion.
+- `cqmom_5d_particles_breakage_heat-transfer/`: generalized fractional moments
+  close a moment-space breakup source with daughter-temperature redistribution
+  and a direct MC companion.
+- `cqmom_5d_non-spherical-particles/`: 5D recursive CQMOM with bounded
+  aspect-ratio support, adaptive branches, a multimodal velocity marginal, and
+  a paired bounded/unbounded reconstruction diagnostic plus a direct MC
+  companion.
 
 ## Package Dependencies
 
@@ -123,13 +169,13 @@ and are not QMOMKit moment or quadrature files.
 
 ## Configuration Files
 
-Small QMOMKit-only `.qmom` examples are provided for:
+Configuration files are kept with the executable workflows that use them. For
+example, see `qmom_mixture_initialization/configuration.qmom`,
+`qmom_1d_breakage_advection/configuration.qmom`, and
+`cqmom_2d_minimal/configuration.qmom`. The user configuration guide also
+includes inline syntax for explicit moments and runtime realizability settings.
 
-- `qmom_explicit_moments.qmom`
-- `qmom_mixture_absolute_density.qmom`
-- `realizability_policy_nonnegative.qmom`
-
-Monte Carlo validation configuration examples live with the companion package
+Monte Carlo companion configuration examples live with the companion package
 under `tools/monte_carlo/configuration/`:
 
 - `qmom_distribution_lognormal.qmom`

@@ -25,6 +25,7 @@ find_package(QMOMKit CONFIG REQUIRED)
 
 add_library(
     qmomkit_monte_carlo
+    src/birth.cpp
     src/comparison.cpp
     src/evolution.cpp
     src/moments.cpp
@@ -57,6 +58,11 @@ add_executable(monte_carlo_sample_based_initialization_example examples/sample_b
 target_link_libraries(monte_carlo_sample_based_initialization_example PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
 
 if(BUILD_TESTING)
+    add_executable(monte_carlo_population_birth_tests tests/population_birth.cpp)
+    target_link_libraries(monte_carlo_population_birth_tests PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
+    add_test(NAME monte_carlo_population_birth COMMAND monte_carlo_population_birth_tests)
+    set_tests_properties(monte_carlo_population_birth PROPERTIES LABELS monte_carlo)
+
     add_executable(monte_carlo_sampling_moment_validation_tests tests/sampling_moment_validation.cpp)
     target_link_libraries(monte_carlo_sampling_moment_validation_tests PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
     add_test(NAME monte_carlo_sampling_moment_validation COMMAND monte_carlo_sampling_moment_validation_tests)

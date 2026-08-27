@@ -1,0 +1,41 @@
+[phase_space]
+names = d
+node_counts = 10
+
+[qmom]
+adaptive = false
+
+[time_integration.node_advection]
+scheme = rk23
+
+[time_integration.node_advection.adaptive]
+relative_tolerance = 1.0e-6
+absolute_tolerance = 1.0e-3
+initial_step = 1.0e-4
+max_step = 1.0e-2
+min_step = 1.0e-9
+
+[initial]
+type = mixture
+maximum_order = 19
+
+[initial.mixture.component.0]
+family = lognormal
+number_density = 8.7e4
+mu_log = 0.47000362924573563
+sigma_log = 0.22314355131420976
+
+[initial.mixture.component.1]
+family = lognormal
+number_density = 1.2e5
+mu_log = 0.53062825106217041
+sigma_log = 0.51879379341516751
+
+[initial.mixture.component.2]
+family = lognormal
+number_density = 1.6e4
+mu_log = 4.8121843553724173
+sigma_log = 0.60813380623298863
+
+[output]
+directory = output

@@ -124,7 +124,7 @@ focused comparison is more useful than running the full executable:
 ./build-benchmarks/adaptive_quadrature_benchmark --benchmark_filter='Direct|Fallback'
 ./build-benchmarks/adaptive_quadrature_benchmark \
     --benchmark_filter='Retain/N2_Max2|RejectedGrowth/N2_Max3|ConditionalRetainN2_Max2|ConditionalRejectedGrowth'
-./build-benchmarks/performance_instrumentation_benchmark --benchmark_filter=performance_cqmom_transport
+./build-benchmarks/performance_instrumentation_benchmark --benchmark_filter=performance_cqmom_phase_space_evolution
 ./build-benchmarks/performance_instrumentation_benchmark --benchmark_filter=performance_node_advection_scheme
 ```
 
@@ -196,7 +196,7 @@ Use Google Benchmark filters for focused runs:
 
 ```bash
 ./build-benchmarks/performance_instrumentation_benchmark \
-    --benchmark_filter=performance_cqmom_transport
+    --benchmark_filter=performance_cqmom_phase_space_evolution
 
 ./build-benchmarks/performance_instrumentation_benchmark \
     --benchmark_filter=performance_vandermonde
@@ -310,7 +310,7 @@ tests/benchmarks/adaptive_quadrature_benchmark.cpp
 These benchmarks measure the current adaptive QMOM and recursive CQMOM
 reconstruction policy without adding production diagnostics or changing node
 selection. They provide paired reconstruction-only and complete accepted
-transport-step timings for retained counts, rejected growth trials, reductions,
+phase-space evolution-step timings for retained counts, rejected growth trials, reductions,
 and accepted one-node growth. Benchmark counters identify stable fixture
 metadata such as active node counts, configured terminal capacity, accepted
 terminal nodes, storage representation, and moment count. Use the paired
@@ -366,7 +366,7 @@ internal workload counters, such as reconstruction calls, branch solves,
 Wheeler calls, Vandermonde solves, fallback counts, terminal node assembly,
 fixed prepared-metadata builds and uses, dynamic-metadata builds,
 adaptive active-count derivations, validations, and transition builds,
-transport operator calls, source SSP-RK stages, and node RHS evaluations.
+phase-space evolution operator calls, moment-source SSP-RK stages, and node RHS evaluations.
 
 This benchmark is intended for:
 
@@ -388,11 +388,11 @@ result.
 
 The current instrumentation benchmark categories are:
 
-- CQMOM transport workload: constructs one `CqmomCase`, creates many
+- CQMOM phase-space evolution workload: constructs one `CqmomCase`, creates many
   independent `CqmomState` objects, and repeatedly advances them through
-  `advance_transport_cqmom(...)` with deterministic velocity, source, and
-  boundary callbacks. Strang, continuous-discontinuous, and
-  discontinuous-continuous splitting variants make the expected operator
+  `advance_cqmom_phase_space(...)` with deterministic velocity, source, and
+  boundary callbacks. Strang, advection-moment-source, and
+  moment-source-advection splitting variants make the expected operator
   sequence visible in normalized counters.
 - CQMOM reconstruction and Vandermonde policy comparisons: explicit dynamic
   lean rows retain the `performance_vandermonde_*` names. Separate
@@ -407,16 +407,16 @@ The current instrumentation benchmark categories are:
   remain on the dynamic path. Together, the rows distinguish one-time case
   cost from repeated normal-case reconstruction and make prepared-versus-dynamic
   counter use visible.
-- CQMOM source integration and layout comparisons: repeatedly call
+- CQMOM moment-source integration and layout comparisons: repeatedly call
   `advance_cqmom_moments_with_source(...)` with a deterministic source model
-  to expose source SSP-RK stage counts, retry behavior, and layout construction.
+  to expose moment-source SSP-RK stage counts, retry behavior, and layout construction.
   Companion variants measure source callback evaluation alone,
-  `CqmomMomentData` copying, and SSP-RK3 source integration around an already
+  `CqmomMomentData` copying, and SSP-RK3 moment-source integration around an already
   available layout.
-- CQMOM transport component comparisons: isolate continuous node advection,
-  discontinuous/source update, raw-moment reconstruction from an existing
+- CQMOM phase-space evolution component comparisons: isolate phase-space advection,
+  moment-source update, raw-moment reconstruction from an existing
   quadrature, and CQMOM inversion for a common 2D 2 x 2 workload. Use these
-  with the complete transport variants to check whether integrated transport
+  with the complete phase-space evolution variants to check whether integrated phase-space evolution
   cost is consistent with the isolated kernels.
 - Node-advection scheme comparisons: call `advance_nodes(...)` directly for
   small 1D QMOM and 2D 2 x 2 CQMOM quadratures. Constant-velocity cases show
@@ -424,8 +424,8 @@ The current instrumentation benchmark categories are:
   simple trajectory. Affine-velocity cases add an analytical non-trivial
   trajectory so the benchmark can report both workload counters and maximum
   trajectory error. These variants compare `NodeAdvectionScheme::ssp_rk3` with
-  `NodeAdvectionScheme::rk23` without changing transport splitting,
-  source integration, or node-advection methods.
+  `NodeAdvectionScheme::rk23` without changing phase-space evolution splitting,
+  moment-source integration, or node-advection methods.
 - Instrumentation overhead comparisons: run equivalent no-session workloads
   against instrumentation-enabled and instrumentation-disabled QMOMKit builds.
   Enabled-session variants then show the additional cost of active counter
@@ -441,7 +441,7 @@ Useful focused filters are:
     --benchmark_filter='performance_vandermonde_(auto_basic|bp_basic|dense_basic|auto_detailed)'
 
 ./build-benchmarks/performance_instrumentation_benchmark \
-    --benchmark_filter='performance_transport_component|performance_cqmom_transport_(strang|cd|dc)'
+    --benchmark_filter='performance_phase_space_evolution_component|performance_cqmom_phase_space_evolution_(strang|advsrc|srcadv)'
 
 ./build-benchmarks/performance_instrumentation_benchmark \
     --benchmark_filter=performance_node_advection_scheme
@@ -507,11 +507,11 @@ the corresponding enabled-session families, such as:
 
 ```bash
 ./build-benchmarks-instrumented/performance_instrumentation_benchmark \
-    --benchmark_filter='performance_cqmom_transport_strang|performance_vandermonde_auto_basic_2d_2x2|performance_source_normal'
+    --benchmark_filter='performance_cqmom_phase_space_evolution_strang|performance_vandermonde_auto_basic_2d_2x2|performance_source_normal'
 ```
 
-Compare runtime per reconstruction, runtime per source update, and runtime per
-transport state-step. These comparisons quantify instrumentation cost for the
+Compare runtime per reconstruction, runtime per moment-source update, and runtime per
+phase-space evolution state-step. These comparisons quantify instrumentation cost for the
 selected workload only; they do not prove anything about unrelated application
 workloads.
 
@@ -527,18 +527,18 @@ workloads.
 The report sections are:
 
 - Workload: benchmark name, workload type, phase-space dimensions, node counts,
-  requested terminal nodes, moment counts, transport scheme, node-advection
+  requested terminal nodes, moment counts, phase-space evolution scheme, node-advection
   scheme, state count, and step count when applicable.
 - Timing: total measured benchmark-body runtime and average runtime per
-  reconstruction, source update, node update, or state-step. This answers how
+  reconstruction, moment-source update, node update, or state-step. This answers how
   expensive the measured workload was.
 - Reconstruction counters: CQMOM/QMOM reconstruction counts, Wheeler calls,
   branch solves, terminal node assembly, moment-layout construction, and fixed
   prepared-versus-dynamic metadata events.
 - Linear algebra counters: Vandermonde solves, solver-path counts, dense
   fallback counts, residual checks, and condition estimates.
-- Transport/time-integration counters: continuous/discontinuous operator
-  applications, moment reconstruction calls, post-source inversions, source
+- Phase-space evolution/time-integration counters: advection/moment-source operator
+  applications, moment reconstruction calls, post-source inversions, moment-source
   SSP-RK stages and retries, node RHS evaluations, and adaptive embedded-RK step
   counts when RK23 or RK45 node advection is selected.
 - Node-advection diagnostics: scheme-neutral node-advection steps, rejected
@@ -554,7 +554,7 @@ The report sections are:
   errors.
 - Derived metrics: normalized ratios such as Wheeler calls per reconstruction,
   Vandermonde solves per reconstruction, dense fallback percentage, and
-  transport operations per state update.
+  phase-space evolution operations per state update.
 
 Interpret timing and counters together. Timing tells how expensive a workload
 was; counters help explain why.
@@ -567,7 +567,7 @@ Example interpretations:
 - High Vandermonde solves per reconstruction indicate conditional
   reconstruction is prominent in the workload. Dense fallback percentage helps
   distinguish ordinary branch traversal from difficult conditioning.
-- High node RHS evaluations per state update indicate continuous node
+- High node RHS evaluations per state update indicate advection node
   advection work. Profile the velocity callback and node-advection scheme
   settings before changing reconstruction code.
 - Node-advection scheme-comparison benchmarks should be interpreted as a
@@ -576,9 +576,9 @@ Example interpretations:
   timestep. Adaptive RK23 may perform substantially more RHS evaluations
   because it estimates error and adjusts internal substeps. The resulting
   trajectory error depends on the velocity field, tolerance settings, and
-  supplied transport timestep, so the useful scheme choice is application
+  supplied phase-space evolution timestep, so the useful scheme choice is application
   dependent.
-- High source SSP-RK stages with low reconstruction and Vandermonde counts
+- High moment-source SSP-RK stages with low reconstruction and Vandermonde counts
   indicate source-update cost, callback cost, or CQMOM moment-context
   construction may dominate that benchmark.
 
@@ -726,7 +726,7 @@ Do not treat one benchmark number as a universal metric for QMOMKit performance.
 When adding a benchmark, identify the numerical operation being measured before
 choosing a fixture. The benchmark should make the cost boundary obvious: for
 example, Wheeler inversion, conditional moment reconstruction, full recursive
-CQMOM, transport composition, or output formatting.
+CQMOM, phase-space evolution composition, or output formatting.
 
 Prefer measuring the kernel of interest. If setup is not part of the intended
 measurement, construct inputs outside the measured loop and verify that the

@@ -1,0 +1,23 @@
+[phase_space]
+names = R, U
+node_counts = 2, 2
+conditioning_order = 0, 1
+
+[initial]
+type = independent_product
+number_density = 1.0
+
+[initial.dimension.0]
+family = lognormal
+mu_log = -0.02
+sigma_log = 0.2
+
+[initial.dimension.1]
+family = normal
+mean = 0.0
+standard_deviation = 0.2
+
+[output]
+directory = output
+write_moments = true
+write_quadrature = true

@@ -4,7 +4,6 @@
 #include "qmomkit/conditioning_path.hpp"
 #include "qmomkit/phase_space_hierarchy.hpp"
 #include "qmomkit/qmom.hpp"
-#include "qmomkit/realizability.hpp"
 #include "qmomkit/vandermonde_solver.hpp"
 
 #include <cstddef>
@@ -89,18 +88,20 @@ enum class CqmomMomentStorage
     dense
 };
 
-using CqmomCoordinateSupport = std::vector<std::optional<BoundedInterval>>;
+/**
+ * Bounds on reconstructed CQMOM quadrature abscissas for one coordinate.
+ */
+struct CqmomAbscissaBounds
+{
+    double lower = 0.0;
+    double upper = 1.0;
+};
+
+using CqmomCoordinateSupport = std::vector<std::optional<CqmomAbscissaBounds>>;
 
 [[nodiscard]] std::string to_string(CqmomMomentStorage storage);
 [[nodiscard]] std::string format_cqmom_settings(CqmomMomentStorage storage, bool adaptive_branch_counts, VandermondeSolver vandermonde_solver,
                                                 CqmomDiagnosticLevel diagnostic_level);
-
-struct CqmomBoundedSupportDeterminantDiagnostics
-{
-    std::string matrix_family;
-    std::size_t matrix_order = 0;
-    double determinant = 0.0;
-};
 
 struct CqmomDiagnostics
 {
@@ -120,19 +121,13 @@ struct CqmomDiagnostics
     std::string message;
     bool bounded_support_checked = false;
     bool bounded_support_interval_present = false;
-    BoundedInterval bounded_support_interval;
+    CqmomAbscissaBounds bounded_support_interval;
     std::optional<std::size_t> bounded_previous_active_node_count;
     std::size_t bounded_candidate_node_count = 0;
     std::string bounded_candidate_attempt_type;
-    std::vector<double> bounded_candidate_moments;
-    RealizabilityStatus bounded_realizability_status = RealizabilityStatus::invalid_input;
-    double bounded_effective_tolerance = 0.0;
-    std::string bounded_failed_matrix;
-    double bounded_minimum_margin = 0.0;
     std::size_t bounded_accepted_fallback_node_count = 0;
     std::vector<double> bounded_returned_nodes;
     std::vector<double> bounded_returned_weights;
-    std::vector<CqmomBoundedSupportDeterminantDiagnostics> bounded_support_determinants;
 };
 
 /**
@@ -192,8 +187,9 @@ struct CqmomMomentData
  * `moments` is a raw multidimensional moment tensor flattened in phase-space
  * dimension order. `hierarchy` supplies the phase-space node counts and the
  * conditioning order used by the CQMOM construction. Diagnostic level
- * `detailed` preserves the default residual and condition-estimate reporting;
- * lower levels may leave optional expensive diagnostic values unavailable.
+ * Diagnostics are opt-in. `detailed` preserves residual and condition-estimate
+ * reporting; lower levels may leave optional expensive diagnostic values
+ * unavailable.
  */
 struct CqmomDenseCase
 {
@@ -202,7 +198,7 @@ struct CqmomDenseCase
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     CqmomCoordinateSupport coordinate_support;
 };
@@ -222,7 +218,7 @@ struct CqmomLeanCase
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     CqmomCoordinateSupport coordinate_support;
 };
@@ -231,9 +227,9 @@ struct CqmomLeanCase
  * User-facing mutable CQMOM runtime state.
  *
  * A state owns the current CQMOM moments and reconstruction policies while
- * hiding the storage representation used internally. Normal CQMOM transport
+ * hiding the storage representation used internally. Normal CQMOM phase-space evolution
  * creates this state from `CqmomCase` and passes it to
- * `advance_transport_cqmom(...)`.
+ * `advance_cqmom_phase_space(...)`.
  */
 class CqmomState
 {
@@ -326,7 +322,7 @@ struct CqmomResult
  * node counts are enabled explicitly with `CqmomDenseCase::adaptive_branch_counts`
  * and automatically enable adaptive Wheeler for all marginal and conditional
  * inversions. Standalone QMOM remains independently configurable. This does
- * not implement transport or operator splitting.
+ * not implement phase-space evolution or operator splitting.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomDenseCase& dense_case);
 

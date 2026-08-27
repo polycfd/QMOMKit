@@ -9,7 +9,7 @@ can also create and configure QMOMKit cases directly through the C++ API.
 `.qmom` files provide a convenient way to describe reproducible cases. They are
 especially useful for examples, standalone workflows, testing, and studies that
 vary initial distributions, node counts, conditioning order, output cadence, or
-transport scheme without recompiling C++.
+phase-space evolution scheme without recompiling C++.
 
 Applications that already manage simulation setup in C++ can configure QMOMKit
 directly instead. Both approaches describe the same numerical setup and lead to
@@ -31,7 +31,7 @@ application.
 
 For CQMOM, `load_cqmom(...)` returns a `CqmomCase`: the configured problem
 definition used to compute quadrature and, when needed, create an initial
-transport state. Direct C++ setup that bypasses configuration text uses the
+phase-space evolution state. Direct C++ setup that bypasses configuration text uses the
 public explicit CQMOM case types, such as `CqmomDenseCase` for full tensor
 moments or `CqmomLeanCase` for required moment data. These explicit cases are
 ordinary public workflows for applications that intentionally manage moment
@@ -58,8 +58,11 @@ Use direct C++ construction when:
 
 Configuration files and direct C++ setup have the same boundary: they describe
 the QMOMKit case setup. Physics callbacks, model coefficients, mesh data,
-boundary conditions, units, timestep loops, and detailed transport control remain
-application code.
+boundary conditions, units, timestep loops, and detailed phase-space evolution control remain
+application code. Not every public C++ option has a `.qmom` key: `.qmom`
+exposes the supported case and runtime configuration surface, while advanced
+low-level controls, such as reconstruction thresholds and source-integration
+acceptance callbacks, remain API-only.
 
 ## Direct C++ Setup At A User Level
 
@@ -72,7 +75,7 @@ through public types and options rather than through text sections:
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a dense tensor representation from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
-| transport options | `[time_integration]`, `[time_integration.node_advection]`, `[time_integration.cqmom]`, and optional runtime realizability policy | set `QmomTransportOptions`, `CqmomTransportOptions`, `NodeAdvectionOptions`, source-update options, and realizability policies in C++ |
+| phase-space evolution options | `[time_integration]`, `[time_integration.node_advection]`, and optional realizability settings | set `QmomPhaseSpaceEvolutionOptions`, `CqmomPhaseSpaceEvolutionOptions`, `NodeAdvectionOptions`, source-update options, and realizability settings in C++ |
 | output choices | `[output]` directory, enabled outputs, and cadence | create and call `MomentWriter` or `QuadratureWriter` from the surrounding driver |
 
 This mapping is meant to orient application integration, not replace the public
@@ -178,21 +181,21 @@ required CQMOM moments. If you want QMOMKit to derive required CQMOM moments
 from a configured independent-product initialization, `load_cqmom(...)` remains
 the most concise route to the representation-neutral `CqmomCase`.
 
-Transport is still optional. QMOM transport advances a `QmomState` created from
-`QmomCase`. CQMOM transport advances a `CqmomState` created from `CqmomCase`:
+Phase-space evolution is still optional. QMOM phase-space evolution advances a `QmomState` created from
+`QmomCase`. CQMOM phase-space evolution advances a `CqmomState` created from `CqmomCase`:
 
 ```cpp
 qmomkit::QmomState qmom_state = qmom_case.initial_state();
-const qmomkit::QmomTransportResult qmom_next =
-    qmomkit::advance_transport_qmom(qmom_state, qmom_case.node_count, time, time_step, velocity, source, options);
+const qmomkit::QmomPhaseSpaceEvolutionResult qmom_next =
+    qmomkit::advance_qmom_phase_space(qmom_state, qmom_case.node_count, time, time_step, velocity, source, options);
 
 qmomkit::CqmomState state = cqmom_case.initial_state();
-const qmomkit::CqmomTransportResult next =
-    qmomkit::advance_transport_cqmom(state, time, time_step, velocity, source, options);
+const qmomkit::CqmomPhaseSpaceEvolutionResult next =
+    qmomkit::advance_cqmom_phase_space(state, time, time_step, velocity, source, options);
 ```
 
-The `velocity`, `source`, and transport options are application code. The
-[Transport](transport.md) guide explains those callbacks and options in detail.
+The `velocity`, `source`, and phase-space evolution options are application code. The
+[Phase-space evolution](phase_space_evolution.md) guide explains those callbacks and options in detail.
 
 ## File Structure
 
@@ -226,12 +229,13 @@ The main sections are:
 - `[initial]`: distribution-based moment initialization.
 - `[qmom]`: one-dimensional inversion options shared by QMOM and CQMOM.
 - `[cqmom]`: CQMOM-specific reconstruction options.
-- `[time_integration]`: transport operator-ordering choices.
-- `[time_integration.node_advection]`: optional continuous node-trajectory
+- `[time_integration]`: phase-space evolution operator-ordering choices.
+- `[time_integration.node_advection]`: optional advection node-trajectory
   integration scheme and embedded-RK controls.
-- `[time_integration.cqmom]`: optional CQMOM state-transport source-stage
-  active node-count policy.
-- `[time_integration.realizability]`: optional runtime realizability policy.
+- `[time_integration.realizability]`: optional QMOM moment-source
+  realizability settings.
+- `[time_integration.realizability.<coordinate>]`: optional CQMOM
+  coordinate-specific moment-source realizability settings.
 - `[output]`: optional output directory, enabled outputs, and cadence.
 
 Configuration files do not define physics callbacks, meshes, boundary
@@ -288,14 +292,14 @@ if (!result.ok())
 ```
 
 `CqmomCase` stores the setup loaded from the file and does not change during
-transport. `compute_cqmom(...)` returns the quadrature result for that setup; it
+phase-space evolution. `compute_cqmom(...)` returns the quadrature result for that setup; it
 does not return a `CqmomState`. `CqmomCase::initial_state()` creates the
-evolving `CqmomState` used by optional CQMOM transport. QMOM transport is also
+evolving `CqmomState` used by optional CQMOM phase-space evolution. QMOM phase-space evolution is also
 optional and advances an evolving `QmomState` created from `QmomCase`. Use
 `load_cqmom_dense(...)` only when an application deliberately chooses the
 explicit dense representation workflow. Optional output settings are loaded
-separately with `load_output_options(...)`; transport controls are loaded with
-`load_qmom_transport_options(...)` or `load_cqmom_transport_options(...)`.
+separately with `load_output_options(...)`; phase-space evolution controls are loaded with
+`load_qmom_phase_space_evolution_options(...)` or `load_cqmom_phase_space_evolution_options(...)`.
 
 ## QMOM Configuration
 
@@ -370,6 +374,21 @@ chi-squared: degrees_of_freedom
 weibull:     shape, scale
 ```
 
+These canonical family names are preferred. The parser also accepts
+`log-normal` and `log_normal` for `lognormal`, and `chi_squared` and
+`chisquared` for `chi-squared`.
+
+All supplied distribution parameters must be finite. The remaining family
+constraints are:
+
+- `normal`: `standard_deviation > 0`; `mean` may be any finite value.
+- `lognormal`: `sigma_log > 0`; `mu_log` may be any finite value.
+- `beta`: `alpha > 0` and `beta > 0`; its support is `[0, 1]`.
+- `gamma` and `weibull`: `shape > 0` and `scale > 0`.
+- `chi` and `chi-squared`: `degrees_of_freedom > 0`.
+
+`number_density` for a single distribution must be finite and non-negative.
+
 ### Mixture Initialization
 
 Use `[initial] type = mixture` when one analytical distribution is not enough
@@ -406,7 +425,8 @@ m_0 = sum_r number_density_r
 ```
 
 Component sections must be contiguous starting at
-`[initial.mixture.component.0]`.
+`[initial.mixture.component.0]`. Each component `number_density` must be
+finite and non-negative, and at least one component must have positive density.
 
 ### QMOM Options
 
@@ -436,8 +456,8 @@ configuration
 
 After reconstruction, users may inspect the quadrature, evaluate derived
 quantities, write output, or optionally evolve the distribution. Optional CQMOM
-transport creates a `CqmomState` with `CqmomCase::initial_state()` and advances
-that state with `advance_transport_cqmom(...)`.
+phase-space evolution creates a `CqmomState` with `CqmomCase::initial_state()` and advances
+that state with `advance_cqmom_phase_space(...)`.
 
 An application that loads a normal `CqmomCase` and later supplies complete raw
 tensor moments may create a replacement case with
@@ -481,7 +501,11 @@ If `conditioning_order` is omitted, QMOMKit uses identity order:
 
 Use `[initial] type = independent_product` when a multidimensional initial
 condition can be described as independent one-dimensional marginals multiplied
-by one global number density:
+by one global number density. `initial.dimension.N` always refers to
+phase-space dimension `N`, not to CQMOM conditioning level `N`; dimension
+sections are contiguous from zero and follow coordinate and tensor-index order.
+Each marginal may be one supported distribution family or a `type = mixture`
+marginal. Different dimensions may use different families:
 
 ```text
 [phase_space]
@@ -500,33 +524,60 @@ shape = 3.0
 scale = 0.2
 
 [initial.dimension.1]
-family = normal
-mean = -0.5
-standard_deviation = 1.25
+type = mixture
+
+[initial.dimension.1.mixture.component.0]
+family = lognormal
+number_density = 1.5
+mu_log = -0.3
+sigma_log = 0.25
+
+[initial.dimension.1.mixture.component.1]
+family = lognormal
+number_density = 3.25
+mu_log = 0.4
+sigma_log = 0.45
 ```
 
-Each `[initial.dimension.N]` section is associated with phase-space dimension
-`N`, not with conditioning level `N`. This means the marginal sections follow
-the same order as callback coordinates and moment tensor indices. There is one
-global `number_density`; per-dimension number densities are not part of this
-model.
+The nested component sections must be numbered contiguously from
+`initial.dimension.N.mixture.component.0`. Their `number_density` values are
+absolute contributions to that marginal mixture, not fractions. QMOMKit first
+normalizes each completed marginal through its zeroth raw moment, then combines
+the normalized marginals as an independent product and applies the global
+`initial.number_density` exactly once. Per-dimension number densities are not
+part of this model.
+
+This configuration represents independent products of marginals, including
+marginal mixtures. It does not represent correlated joint distributions,
+copulas, multidimensional mixture components, or mixtures of independent-product
+populations.
 
 For the normal `load_cqmom(...)` path, `node_counts` and
 `conditioning_order` determine which raw moments are required. Analytical
 independent-product initialization generates only those required moments and
 does not construct a dense `RawMomentTensor`.
 
-`maximum_orders[d]` optionally gives the largest moment order to generate in
-dimension `d` when building a full tensor:
+`initial.maximum_orders` is an optional advanced setting for dense CQMOM
+initialization; it is not needed to specify the normal CQMOM moment set. With
+the default lean storage, it has no effect: QMOMKit evaluates the structured
+moment layout implied by `node_counts` and `conditioning_order`.
+
+With dense storage, `maximum_orders[d]` gives the largest raw-moment order in
+dimension `d` for the retained rectangular tensor:
 
 ```text
 extent[d] = maximum_orders[d] + 1
 ```
 
-`maximum_orders` and `node_counts` describe different parts of the workflow.
-Moment orders control how many raw tensor entries are generated for full tensor
-workflows. Node counts control the requested CQMOM quadrature size. New users
-following `load_cqmom(...)` do not need `maximum_orders`.
+When it is omitted, QMOMKit derives the minimum dense extent from the node
+count: `extent[d] = 2 * node_counts[d]`, or equivalently a maximum raw order
+of `2 * node_counts[d] - 1`. Supplied values must not be smaller than that
+minimum. Larger values retain additional initial raw moments in the dense
+state, which is useful when moments are evaluated from a sample population.
+They do not increase reconstruction order, branch capacity, the structured
+CQMOM layout, or the moments independently evolved by source callbacks.
+During dense phase-space evolution, those additional entries are regenerated
+from the reconstructed quadrature rather than transported independently.
 
 ### Optional CQMOM Coordinate Support
 
@@ -566,14 +617,14 @@ reconstructed, even though it is the root coordinate in the conditioning order.
 The same rule applies when a bounded coordinate is reconstructed at an
 intermediate or final conditional level.
 
-For a bounded coordinate, QMOMKit checks each branch-local CQMOM candidate with
-the bounded-interval realizability test before accepting it. The support is
-carried by `CqmomCase` and `CqmomState`, so it is used for the initial
-configuration reconstruction and later transport-stage reconstructions. In
-adaptive branch-count mode, an unsupported candidate retries lower node counts
-down to one. In fixed-count mode, an unsupported requested count fails with
-diagnostics. This is a support-aware acceptance test; returned nodes are not
-clipped or projected.
+For a bounded coordinate, QMOMKit accepts a reconstructed CQMOM candidate only
+when its returned abscissas lie inside the configured interval. The bounds are
+carried by `CqmomCase` and `CqmomState`, so they apply to initial configuration
+reconstruction and later phase-space evolution stage reconstructions. In
+adaptive branch-count mode, a candidate with out-of-interval nodes retries
+lower node counts down to one. In fixed-count mode, such a candidate fails with
+diagnostics. Returned nodes are not clipped or projected. These bounds constrain
+quadrature abscissas only; they do not configure moment realizability.
 
 ### Advanced: Explicit Dense Representation Workflow
 
@@ -599,10 +650,13 @@ Applications that need this representation can load it with
 `load_cqmom_dense(...)` and use the explicit dense representation APIs.
 Independent-product configurations loaded through this dense representation
 workflow may omit `initial.maximum_orders`; QMOMKit then derives the minimum
-dense tensor extents from the configured quadrature. Explicit larger extents
-remain available for analytical and sampled initialization. Dense remains a
-first-class supported expert workflow for callers that intentionally manage
-full tensor moment storage.
+dense tensor extents from the configured quadrature. When supplied, each value
+must be at least `2 * node_counts[d] - 1` and selects a larger retained
+rectangular tensor only; it does not change the CQMOM reconstruction layout or
+branch counts. Sample-based initialization can use these larger extents when
+evaluating raw moments from its sample population. Dense remains a first-class
+supported expert workflow for callers that intentionally manage full tensor
+moment storage.
 
 ### Advanced: CQMOM Diagnostics And Solver Options
 
@@ -626,11 +680,12 @@ is reported by `CqmomCase::moment_storage()` and `CqmomState::moment_storage()`.
 This setting is distinct from `vandermonde.solver = dense`, which selects a
 linear solver for conditional reconstruction rather than moment storage.
 
-`diagnostic_level` controls reconstruction diagnostic retention and reporting
-only. It does not change solver selection, residual acceptance, fallback
-behavior, inversion results, transport results, or success/failure status.
-Supported values are `detailed`, `basic`, and `none`. If omitted, `detailed` is
-used.
+`diagnostic_level` controls optional reconstruction observability only. Required
+numerical checks, solver acceptance, fallback behavior, support checks, adaptive
+branch selection, inversion results, and success/failure status are unchanged.
+If omitted, `none` is used. Select `basic` for structural branch diagnostics or
+`detailed` for residual and condition-estimate diagnostics; the latter may add
+diagnostic work.
 
 `vandermonde.solver` controls the branch-local conditional Vandermonde solve.
 Supported values are:
@@ -684,15 +739,18 @@ adaptive_branch_counts = true
 ```
 
 Enabling adaptive CQMOM branch counts automatically enables adaptive Wheeler
-for all marginal and conditional inversions. The `[qmom] adaptive` setting
-still controls standalone one-dimensional QMOM behavior.
+for all marginal and conditional inversions. In a CQMOM configuration,
+`[qmom] adaptive = true` therefore requires
+`phase_space.adaptive_branch_counts = true`; it is rejected for fixed-count
+CQMOM. The `[qmom] adaptive` setting remains valid for standalone
+one-dimensional QMOM.
 
-## Transport Options
+## Phase-Space Evolution Options
 
-A `.qmom` file may contain both case settings and transport settings.
+A `.qmom` file may contain both case settings and phase-space evolution settings.
 `load_qmom(...)` and `load_cqmom(...)` return only the case configuration, but
-they validate all recognized settings in the file. Transport settings must
-still be loaded into transport options explicitly.
+they validate all recognized settings in the file. Phase-space evolution settings must
+still be loaded into phase-space evolution options explicitly.
 
 | Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
 | --- | --- | --- | --- |
@@ -702,7 +760,7 @@ still be loaded into transport options explicitly.
 | `time_integration.node_advection.*` | yes | no | yes |
 | `time_integration.realizability.*` | yes | no | yes |
 
-A configuration file may select the transport operator-ordering scheme:
+A configuration file may select the phase-space evolution operator-ordering scheme:
 
 ```text
 [time_integration]
@@ -713,16 +771,16 @@ Supported values are:
 
 ```text
 strang
-cd
-dc
+advsrc
+srcadv
 ```
 
-These choose how a transport driver composes continuous node evolution and
-discontinuous moment-source updates. If `scheme` is omitted, the default is
+These choose how a phase-space evolution driver composes phase-space advection and
+moment-source evolution. If `scheme` is omitted, the default is
 `strang`, the usual second-order composition for cases where both parts are
 active.
 
-A configuration file may also select the continuous node-advection scheme:
+A configuration file may also select the advection node-advection scheme:
 
 ```text
 [time_integration.node_advection]
@@ -741,8 +799,8 @@ ssp_rk3
 `rk45` is the adaptive Dormand-Prince RK5(4)7M pair from Table 2 of Dormand
 and Prince (1980). `ssp_rk3` is a distinct fixed-stage method that advances
 exactly over the timestep supplied by the application. The choice affects only
-continuous quadrature-node trajectories; it does not change source integration,
-realizability policy, or transport splitting.
+advection quadrature-node trajectories; it does not change moment-source integration,
+realizability policy, or phase-space evolution splitting.
 
 The adaptive controls apply to `rk23` and `rk45` and live under a shared nested
 section. `initial_step` defaults to `1.0e-6 s` and may be overridden:
@@ -787,12 +845,12 @@ the effective scheme and controls. For fixed-step node advection, that summary
 reports the selected scheme only; it does not imply that adaptive controls are
 active.
 
-### CQMOM Source Active Counts
+### CQMOM Moment-Source Active Counts
 
 When adaptive branch counts are enabled, QMOMKit automatically reduces
-branch-local node counts when moment information collapses. Continuous
-phase-space transport cannot increase active counts. After an accepted
-discontinuous source update, each existing branch may increase by at most one
+branch-local node counts when moment information collapses. Phase-space
+advection cannot increase active counts. After an accepted
+moment-source update, each existing branch may increase by at most one
 node toward its configured maximum when the updated moments support that
 additional node.
 
@@ -800,13 +858,13 @@ Initial reconstruction starts each branch from the configured maximum and lets
 adaptive Wheeler determine the active count. Newly created descendant branches
 also begin from the configured maximum and adapt downward. Users configure the
 maximum node counts, whether CQMOM branch counts are adaptive, and adaptive
-Wheeler tolerances; source node-count evolution is automatic.
+Wheeler tolerances; moment-source node-count evolution is automatic.
 
 The configuration file stores runtime numerical choices and the initial
-numerical setup. Your application still provides the continuous velocity and
-source callbacks, model coefficients, and timestep plan. Load QMOM transport
-controls with `load_qmom_transport_options(...)` and CQMOM transport controls
-with `load_cqmom_transport_options(...)`; these return complete transport
+numerical setup. Your application still provides the advection velocity and
+source callbacks, model coefficients, and timestep plan. Load QMOM phase-space evolution
+controls with `load_qmom_phase_space_evolution_options(...)` and CQMOM phase-space evolution controls
+with `load_cqmom_phase_space_evolution_options(...)`; these return complete phase-space evolution
 option objects with default empty runtime callbacks.
 
 ## Output Options
@@ -855,9 +913,11 @@ Moment output records native integer-order raw moments. Generalized moments
 with real exponents are evaluated by caller code from a valid quadrature result
 and are not part of the standard writer output.
 
-## Runtime Realizability Policy
+## Runtime Realizability Settings
 
-Configuration files may include an optional runtime realizability policy:
+For QMOM, the realizability settings in
+`[time_integration.realizability]` enable checks during moment-source SSP-RK3
+evolution:
 
 ```text
 [time_integration.realizability]
@@ -870,11 +930,11 @@ relative_tolerance = true
 
 Supported check modes are:
 
-```text
-none
-final_only
-every_stage
-```
+- `none`: do not perform a runtime realizability check;
+- `final_only`: check the transported moments after the complete
+  moment-source integration step;
+- `every_stage`: check the transported moments after each SSP-RK3
+  moment-source integration stage.
 
 Supported supports are:
 
@@ -894,12 +954,38 @@ lower = 0.0
 upper = 1.0
 ```
 
+The QMOM settings apply only to moment-source evolution. They do not apply to
+node advection, quadrature evolution, or reconstructed nodes and weights.
+
+For CQMOM, use coordinate-specific realizability settings for the individual
+phase-space coordinates that require checks. A zero-based coordinate suffix
+identifies the coordinate and must be smaller than the configured phase-space
+rank:
+
+```text
+[time_integration.realizability.0]
+check_mode = final_only
+support = bounded_interval
+lower = 0.0
+upper = 1.0
+
+[time_integration.realizability.3]
+check_mode = every_stage
+support = real_line
+```
+
 Support is not inferred from a distribution family or a phase-space name.
-Configuration parsing creates the policy object; applications that want
-runtime rejection must wire the policy into the relevant time-integration
-options. Case loading validates this section when it appears, but it does not
-install realizability predicates automatically. Load the policy explicitly
-with `parse_realizability_policy(...)` before wiring those predicates.
+For CQMOM, each configured coordinate setting applies only to the corresponding
+one-dimensional marginal moment sequence:
+
+\[
+M[0,\ldots,k_d,\ldots,0].
+\]
+
+Coordinates without a setting are not checked. CQMOM realizability settings do
+not check mixed moments or conditional moments, and they do not validate
+quadrature reconstruction, adaptive topology, or branch counts. These are
+intentionally separate from the coordinate-marginal realizability checks.
 
 ## Practical Guidance
 
@@ -913,8 +999,10 @@ changes the setup to a unit-number-density problem.
 Generate enough moments. For `N` QMOM nodes, an analytical initialization needs
 `maximum_order >= 2 * N - 1`. For normal CQMOM configuration, `node_counts` and
 `conditioning_order` define the reconstruction setup. Explicit full-tensor
-workflows must choose tensor extents and `maximum_orders` large enough for the
-requested CQMOM node counts.
+workflows may omit `initial.maximum_orders`, in which case QMOMKit derives the
+minimum extents required by the requested CQMOM node counts. If values are
+supplied, they must meet that minimum and request only additional retained
+dense raw moments.
 
 Separate distribution settings from quadrature settings. Initial distributions
 describe raw moments. `node_counts`, `conditioning_order`, and adaptive options
@@ -934,16 +1022,15 @@ moments are used.
 
 ## Example Files
 
-Small QMOMKit configuration examples live under `examples/configuration/`:
+The inline examples in this guide cover explicit moments, mixture
+initialization, and runtime realizability settings. Executable examples keep
+their complete configurations alongside the corresponding workflow.
 
-- `qmom_explicit_moments.qmom`
-- `qmom_mixture_absolute_density.qmom`
-- `realizability_policy_nonnegative.qmom`
+Phase-space evolution examples with local configuration files include:
 
-Transport examples with local configuration files include:
-
-- `examples/qmom_1d_continuous_breakage/configuration.qmom`
-- `examples/cqmom_transport/configuration.qmom`
+- `examples/qmom_mixture_initialization/configuration.qmom`
+- `examples/qmom_1d_breakage_advection/configuration.qmom`
+- `examples/cqmom_2d_minimal/configuration.qmom`
 
 Monte Carlo companion examples live under `tools/monte_carlo/configuration/`:
 

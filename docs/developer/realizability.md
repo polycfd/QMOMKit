@@ -5,8 +5,8 @@ a developer reference for maintainers, contributors, and AI-assisted development
 workflows.
 
 For raw-moment, number-density, and storage conventions, see
-`numerical_conventions.md`. For source updates and transport composition, see
-`transport_design.md`. For configuration mapping of runtime policies, see
+`numerical_conventions.md`. For source updates and phase-space evolution composition, see
+`phase_space_evolution_design.md`. For configuration mapping of runtime policies, see
 `configuration_design.md`.
 
 ## Role Of Realizability
@@ -24,16 +24,17 @@ automatically an admissible moment sequence. For example, a one-dimensional
 sequence can have nonnegative `m_0` while implying an impossible variance or a
 mean outside the allowed support.
 
-Realizability matters because QMOM and CQMOM reconstruct quadrature
-representations from moments. Reconstruction algorithms assume the moment data
-are mathematically consistent with an admissible distribution and with the
-requested quadrature. If moment evolution, initialization, or external data
-produce an inadmissible sequence, inversion may fail or a candidate source-step
-state should be rejected before it becomes the next runtime state.
+Realizability and quadrature reconstruction are separate mathematical
+operations. Realizability asks whether a moment sequence can represent a valid
+distribution on an explicit support. Reconstruction asks whether QMOM or CQMOM
+can construct a finite quadrature representation matching the supplied
+moments. A realizability check does not validate Wheeler inversion, recursive
+CQMOM reconstruction, node counts, or quadrature topology. Reconstruction
+status does not replace a support-aware realizability check.
 
 QMOMKit treats realizability as an explicit numerical contract. The library
-provides opt-in checks and policy adapters; it does not silently repair moment
-sets, renormalize moments, or infer supports from coordinate names.
+provides opt-in checks; it does not silently repair moment sets, renormalize
+moments, or infer supports from coordinate names.
 
 ## Supported Moment Domains
 
@@ -157,80 +158,47 @@ or moment sequences that fail the support-specific realizability conditions. The
 all-zero sequence is treated as a boundary-realizable zero measure.
 
 `RealizabilityOptions` controls numerical tolerance. With relative tolerance
-enabled, the effective threshold scales with the checked matrix magnitude. Near
-the boundary, the implementation may report `numerically_indeterminate` rather
-than accepting or rejecting with false precision.
+enabled, the effective threshold, roundoff allowance, and numerical matrix
+analysis scale with the checked matrix magnitude. Positive number-density
+scaling therefore does not by itself change the classification within
+floating-point limits. With relative tolerance disabled, `tolerance` is an
+absolute threshold. Near the boundary, the implementation may report
+`numerically_indeterminate` rather than accepting or rejecting with false
+precision.
 
-## Realizability Policies
+## Runtime Checks In Phase-Space Evolution
 
-`RealizabilityPolicy` is an opt-in runtime policy for accepting or rejecting
-generic candidate states. It is separate from the realizability check itself and
-from the generic Runge-Kutta solvers.
+Runtime realizability checks apply only to transported raw moments during
+moment-source SSP-RK3 evolution. They are independent of node advection:
+neither QMOM nor CQMOM node trajectories, quadrature evolution, nor
+reconstructed nodes and weights are realizability-check inputs.
 
-The policy contains:
+For QMOM, `[time_integration.realizability]` configures the check. The setting
+is part of `QmomPhaseSpaceEvolutionOptions` when the phase-space evolution
+options are loaded from the configuration file. `FinalOnly` checks after the
+complete moment-source integration step; `EveryStage` checks after every
+moment-source SSP-RK3 stage. `None` performs no runtime check.
 
-- `check_mode`;
-- support or bounded interval;
-- numerical check options;
-- `accept_boundary`.
+For CQMOM, realizability settings are configured separately for individual
+phase-space coordinates. Each configured setting checks exactly the
+one-dimensional marginal sequence for coordinate `d`:
 
-The supported check modes are:
+\[
+M[0,\ldots,k_d,\ldots,0].
+\]
 
-- `None`: install no acceptance predicate and accept without conversion;
-- `FinalOnly`: check completed candidate states;
-- `EveryStage`: check intermediate SSP-RK3 stage states and final states.
+Only coordinates with explicit settings are checked. Mixed moments and
+conditional moments are not checked. CQMOM quadrature reconstruction, adaptive
+topology, and branch counts are also outside realizability checking. This is an
+intentional separation between coordinate-marginal moment validation and
+recursive quadrature reconstruction.
 
-Runtime policies operate through caller-provided conversion from a generic state
-vector to `MomentSet`:
-
-```text
-std::vector<double> state -> MomentSet
-```
-
-This conversion is caller-owned because QMOMKit cannot infer which components of
-an arbitrary state vector are a one-dimensional moment sequence. Converter
-exceptions propagate through the predicate path; the policy adapters do not
-hide them.
-
-`accept_boundary` controls whether `boundary` is accepted. Strictly realizable
-states are accepted. `not_realizable`, `invalid_input`, and
-`numerically_indeterminate` are rejected.
-
-## Interaction With Transport
-
-Transport uses realizability policies through SSP-RK3 acceptance predicates for
-moment-source evolution. A source update can propose candidate raw moments that
-leave the admissible moment space. A policy adapter can reject that candidate so
-the SSP-RK3 retry logic may reduce the timestep according to its configured
-retry and minimum-timestep behavior.
-
-The public adapters are:
-
-```cpp
-make_realizability_acceptance_predicate(...)
-make_realizability_stage_acceptance_predicate(...)
-```
-
-`make_realizability_acceptance_predicate(...)` returns a final-candidate
-predicate only for `FinalOnly` policies. `None` and `EveryStage` return an empty
-final-candidate predicate.
-
-`make_realizability_stage_acceptance_predicate(...)` returns:
-
-- an empty predicate for `None`;
-- a stage-aware predicate that checks only `SspRk3Stage::Final` for
-  `FinalOnly`;
-- a stage-aware predicate that checks every supplied SSP-RK3 stage for
-  `EveryStage`.
-
-Transport does not install these policies automatically. Configuration parsing
-can create a `RealizabilityPolicy`, but the application or driver must wire the
-policy into the relevant time-integration options.
-
-When a source update is rejected by a realizability predicate and retries cannot
-produce an accepted state, the source-update layer reports predicate or
-minimum-timestep failure. High-level transport maps source-update failure to the
-transport source-failure path and records subsystem diagnostics.
+`accept_boundary` determines whether a `boundary` classification is accepted.
+Strictly realizable moments are accepted; `not_realizable`, `invalid_input`,
+and `numerically_indeterminate` classifications are rejected. If a source
+integration attempt is rejected and the configured retry controls cannot obtain
+an accepted moment state, moment-source evolution reports failure through its
+normal status and diagnostics.
 
 ## Interaction With QMOM And CQMOM
 
@@ -239,13 +207,13 @@ for QMOM or CQMOM reconstruction status.
 
 For one-dimensional QMOM, explicit checks can be used before calling
 `compute_qmom(...)` when the workflow needs support-aware validation. Wheeler
-inversion still performs its own reconstruction and status handling for the
-requested node count and options.
+inversion remains a separate reconstruction operation with its own status
+handling for the requested node count and options.
 
-For CQMOM, explicit realizability checks are currently one-dimensional. They can
-be applied to one-dimensional moment sequences or branch-local states when the
-caller has such a representation. Full multidimensional recursive CQMOM
-validity is reported through `compute_cqmom(...)` status and diagnostics.
+For CQMOM, realizability checks are one-dimensional coordinate-marginal checks;
+they do not establish full multidimensional moment validity. Recursive CQMOM
+reconstruction reports the outcome of its own quadrature construction through
+`compute_cqmom(...)` status and diagnostics.
 
 Initialization workflows should distinguish between configuration validity,
 moment realizability, and reconstruction success:
@@ -264,23 +232,24 @@ success in a later one.
 
 Realizability APIs use explicit result objects rather than exceptions for normal
 classification failure. Callers should check `RealizabilityResult::status` or
-`realizable()` before using a moment sequence as accepted input under a support
-policy.
+`realizable()` before using a moment sequence as accepted input under the
+selected support settings.
 
 Failure handling rules are:
 
 - `invalid_input` means the check request is malformed or unsupported;
 - `not_realizable` means the moments are incompatible with the selected support;
 - `numerically_indeterminate` means the sequence is too close to the configured
-  tolerance boundary and should not be treated as accepted by runtime policies;
-- `boundary` is mathematically accepted but may require caller policy;
+  tolerance boundary and should not be accepted by runtime checks;
+- `boundary` is mathematically accepted but may require an explicit acceptance
+  setting;
 - `strictly_realizable` is accepted by the check.
 
 QMOMKit does not automatically correct failed sequences. It does not alter the
 moments, adjust supports, relax tolerances, or reduce quadrature orders as part
-of explicit realizability checking. Retry behavior exists only where the check
-is used as an acceptance predicate inside a timestepper that has its own retry
-policy.
+of explicit realizability checking. Retry behavior applies only to
+moment-source integration with runtime checking enabled and configured retry
+controls.
 
 ## Public API Boundary
 
@@ -325,12 +294,13 @@ Realizability changes should preserve these rules:
   diagnostics;
 - use result/status objects for classification and diagnostics;
 - do not silently normalize, repair, or reinterpret moments;
-- reject numerically indeterminate states in runtime acceptance policies;
-- keep runtime policies opt-in and caller-wired;
+- reject numerically indeterminate states in runtime realizability checks;
+- keep runtime realizability checks opt-in and scoped to moment-source
+  evolution;
 - validate new checks against analytical, manufactured, or independently
   generated moment cases;
-- document any new support domain, status, or policy behavior before exposing it
-  through public configuration.
+- document any new support domain, status, or runtime-check behavior before
+  exposing it through public configuration.
 
 The goal is conservative numerical validation: realizability support should help
 developers and drivers detect invalid moment states early without hiding the

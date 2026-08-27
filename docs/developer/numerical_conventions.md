@@ -12,8 +12,8 @@ Algorithm-specific details belong in:
 
 - `qmom_wheeler.md` for Wheeler inversion and adaptive one-dimensional QMOM.
 - `cqmom_recursive.md` for recursive CQMOM traversal and branch-local data.
-- `transport_design.md` for time integration, node advection, moment sources,
-  and transport composition.
+- `phase_space_evolution_design.md` for time integration, node advection, moment sources,
+  and phase-space evolution composition.
 - `configuration_design.md` for parser behavior and configuration-to-request
   mapping.
 
@@ -167,7 +167,7 @@ ordinary phase-space dimensions. A workflow that uses both velocity and
 internal coordinates must define one explicit phase-space order and use it
 consistently in moments, quadrature, callbacks, output, and validation.
 
-For transport callbacks, a node coordinate vector is ordered by phase-space
+For phase-space evolution callbacks, a node coordinate vector is ordered by phase-space
 dimension:
 
 ```text
@@ -175,7 +175,7 @@ coordinates[r] corresponds to phase-space dimension r
 ```
 
 The returned phase-space velocity vector uses the same order and size. See
-`transport_design.md` for transport-specific callback behavior.
+`phase_space_evolution_design.md` for phase-space evolution-specific callback behavior.
 
 ## Conditioning Order Conventions
 

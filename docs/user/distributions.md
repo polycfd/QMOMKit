@@ -63,6 +63,14 @@ families:
 - chi-squared, parameterized by degrees of freedom;
 - Weibull, parameterized by shape and scale.
 
+All parameters must be finite. Normal and log-normal location parameters may
+be any finite value, but their standard deviations must be positive. Beta
+requires positive `alpha` and `beta` and has support `[0, 1]`; gamma and
+Weibull require positive shape and scale; chi and chi-squared require positive
+degrees of freedom. In `.qmom` files, use the canonical family names
+`lognormal` and `chi-squared`; `log-normal`, `log_normal`, `chi_squared`, and
+`chisquared` are also accepted aliases.
+
 The C++ API uses typed distribution specifications, for example
 `NormalDistribution`, `LogNormalDistribution`, and `GammaDistribution`. The
 configuration-file guide uses the corresponding field names accepted by the
@@ -137,6 +145,8 @@ m_0 = sum_r number_density_r
 ```
 
 QMOMKit does not normalize component densities.
+Component densities must be finite and non-negative, and a mixture must contain
+at least one component with positive density.
 
 ```cpp
 #include <qmomkit/qmomkit.hpp>
@@ -172,8 +182,15 @@ The generated `MomentSet` can be passed directly to `compute_qmom`.
 
 For multidimensional CQMOM, independent-product initialization covers cases
 where the initial coordinates can be described as independent marginal
-distributions. Each phase-space dimension gets one normalized marginal, and
-the product has one global `number_density`.
+distributions. Each phase-space dimension gets one simple distribution or
+mixture marginal, normalized through its zeroth raw moment, and the product has
+one global `number_density`. Mixture component densities retain their usual
+absolute-density meaning.
+
+This is not a general joint-distribution interface: correlated distributions,
+copulas, multidimensional mixture components, and mixtures of independent
+products are not represented. See the configuration guide for the nested
+`.qmom` marginal-mixture syntax.
 
 For the normal configured workflow, describe those marginals in a
 multidimensional `.qmom` configuration file and load it with `load_cqmom(...)`.

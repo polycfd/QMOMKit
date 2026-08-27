@@ -54,8 +54,8 @@ Gauss-Hermite nodes for `exp(-x^2)`: the standard-normal/probabilists nodes are
 larger by a factor of `sqrt(2)` after converting the weight convention. The
 verification includes `gaussian_n2.qmom` and `gaussian_n3.qmom`.
 
-Each continuous case uses exactly the first `2N` raw moments, `m_0` through
-`m_(2N-1)`. For these three continuous families, `m_0 = 1` because the chosen
+Each advection case uses exactly the first `2N` raw moments, `m_0` through
+`m_(2N-1)`. For these three advection families, `m_0 = 1` because the chosen
 weight functions are normalized probability densities, not because QMOMKit
 normalizes raw moments.
 

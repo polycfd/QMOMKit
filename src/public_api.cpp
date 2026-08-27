@@ -695,15 +695,9 @@ namespace
     converted.bounded_previous_active_node_count = diagnostics.bounded_previous_active_node_count;
     converted.bounded_candidate_node_count = diagnostics.bounded_candidate_node_count;
     converted.bounded_candidate_attempt_type = diagnostics.bounded_candidate_attempt_type;
-    converted.bounded_candidate_moments = diagnostics.bounded_candidate_moments;
-    converted.bounded_realizability_status = diagnostics.bounded_realizability_status;
-    converted.bounded_effective_tolerance = diagnostics.bounded_effective_tolerance;
-    converted.bounded_failed_matrix = diagnostics.bounded_failed_matrix;
-    converted.bounded_minimum_margin = diagnostics.bounded_minimum_margin;
     converted.bounded_accepted_fallback_node_count = diagnostics.bounded_accepted_fallback_node_count;
     converted.bounded_returned_nodes = diagnostics.bounded_returned_nodes;
     converted.bounded_returned_weights = diagnostics.bounded_returned_weights;
-    converted.bounded_support_determinants = diagnostics.bounded_support_determinants;
     return converted;
 }
 

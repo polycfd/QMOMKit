@@ -103,7 +103,7 @@ copy it into their `build/` directory during CMake configuration.
 
 `QMOMKitMonteCarlo` is an optional companion package under
 `tools/monte_carlo/`. It provides finite ensemble sampling, sample-derived raw
-moments, continuous sample evolution, and moment-history comparison utilities.
+moments, advection sample evolution, and moment-history comparison utilities.
 It is not needed for ordinary QMOM or CQMOM use.
 
 Build and install QMOMKit first, using the commands above. Then configure the

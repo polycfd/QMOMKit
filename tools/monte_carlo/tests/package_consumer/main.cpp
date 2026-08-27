@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <monte_carlo/birth.hpp>
 #include <monte_carlo/moments.hpp>
 
 int main()
@@ -10,6 +11,12 @@ int main()
 
     if (!estimate.ok() || estimate.indices != request.indices || estimate.values.size() != request.indices.size() ||
         estimate.standard_errors.size() != request.indices.size())
+    {
+        return 1;
+    }
+
+    const qmomkit::monte_carlo::PopulationBirthResult no_birth = qmomkit::monte_carlo::inject_population(ensemble, 2.0, 0.0, {}, 1701);
+    if (!no_birth.ok() || no_birth.ensemble != ensemble || no_birth.number_density != 2.0)
     {
         return 1;
     }

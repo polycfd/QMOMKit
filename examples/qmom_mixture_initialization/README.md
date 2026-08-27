@@ -1,7 +1,8 @@
 # QMOM Mixture Initialization Example
 
-This example generates raw moments from an absolute-density distribution
-mixture and reconstructs a one-dimensional QMOM quadrature.
+This example loads an absolute-density distribution mixture from
+`configuration.qmom`, lets QMOMKit generate its raw moments, and reconstructs a
+one-dimensional QMOM quadrature.
 
 The phase-space coordinate is the scalar distribution variable $\xi$. The
 mixture contains:
@@ -17,11 +18,12 @@ analytical moment is multiplied by its absolute number density and the
 components are added. QMOMKit requests moments through order `5` for the
 requested three-node quadrature.
 
-Requires: QMOMKit.
+The native configuration syntax is `type = mixture` with contiguous
+`[initial.mixture.component.K]` sections. Each component supplies its
+`number_density` in the `.qmom` file; QMOMKit performs the mixture moment
+generation during `load_qmom(...)`.
 
-Required: mixture components in `main.cpp` and an installed QMOMKit package.
-Optional: use this after `qmom_distribution_initialization` when one
-analytical family is not enough.
+Requires an installed QMOMKit package.
 
 Build and run from this example directory:
 
@@ -33,6 +35,6 @@ cd build
 ./qmom_mixture_initialization_example
 ```
 
-The executable writes no files. It prints the component densities and $m_0$,
-then prints the reconstructed QMOM weights and abscissas. The quadrature is a
-three-node representation of the combined mixture.
+The executable writes no files. It prints $m_0$, then the reconstructed QMOM
+weights and abscissas. The quadrature is a three-node representation of the
+combined mixture.

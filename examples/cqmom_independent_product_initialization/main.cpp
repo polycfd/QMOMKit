@@ -27,14 +27,14 @@ int main()
         return 1;
     }
 
-    // CqmomState is the runtime state passed to transport workflows.
+    // CqmomState is the runtime state passed to phase-space evolution workflows.
     const qmomkit::CqmomState state = cqmom_case.initial_state();
 
     const qmomkit::CqmomQuadrature& quadrature = cqmom.quadrature;
     const qmomkit::PhaseSpaceHierarchy& hierarchy = cqmom_case.hierarchy();
     std::cout << "configuration -> CqmomCase -> compute_cqmom -> initial_state -> CqmomState\n";
     std::cout << "CqmomCase: immutable configuration/problem definition\n";
-    std::cout << "CqmomState: evolving transport state created from the case\n";
+    std::cout << "CqmomState: evolving phase-space evolution state created from the case\n";
     std::cout << "node_counts = {" << hierarchy.node_counts()[0] << ", " << hierarchy.node_counts()[1] << "}\n";
     std::cout << "conditioning_order = {" << hierarchy.conditioning_order()[0] << ", " << hierarchy.conditioning_order()[1] << "}\n";
     (void)state;

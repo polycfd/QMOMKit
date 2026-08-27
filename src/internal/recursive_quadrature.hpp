@@ -147,7 +147,7 @@ struct BranchMomentSlice
  * Fixed results keep rectangular phase-space-order storage. Adaptive
  * branch-specific results keep a ragged tree plus terminal quadrature arrays in
  * deterministic traversal order. This container performs no Wheeler inversion,
- * conditional-moment reconstruction, or transport update.
+ * conditional-moment reconstruction, or phase-space evolution update.
  */
 class RecursiveQuadrature
 {
@@ -220,7 +220,7 @@ struct RecursiveQuadratureRequest
     ConditionalMomentOptions conditional_options;
     WheelerOptions wheeler_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
     CqmomCoordinateSupport coordinate_support;
 };
@@ -232,7 +232,7 @@ struct RecursiveQuadratureMomentViewRequest
     ConditionalMomentOptions conditional_options;
     WheelerOptions wheeler_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
     const CqmomMomentLayout* validated_layout = nullptr;
     std::vector<CqmomActiveBranchCount> active_branch_counts;
@@ -252,7 +252,7 @@ struct RecursiveQuadratureMomentDataRequest
     ConditionalMomentOptions conditional_options;
     WheelerOptions wheeler_options;
     bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::detailed;
+    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
     std::vector<CqmomActiveBranchCount> active_branch_counts;
     bool allow_active_branch_count_growth = false;
@@ -280,19 +280,13 @@ struct RecursiveQuadratureBranchDiagnostics
     std::string message;
     bool bounded_support_checked = false;
     bool bounded_support_interval_present = false;
-    BoundedInterval bounded_support_interval;
+    CqmomAbscissaBounds bounded_support_interval;
     std::optional<std::size_t> bounded_previous_active_node_count;
     std::size_t bounded_candidate_node_count = 0;
     std::string bounded_candidate_attempt_type;
-    std::vector<double> bounded_candidate_moments;
-    RealizabilityStatus bounded_realizability_status = RealizabilityStatus::invalid_input;
-    double bounded_effective_tolerance = 0.0;
-    std::string bounded_failed_matrix;
-    double bounded_minimum_margin = 0.0;
     std::size_t bounded_accepted_fallback_node_count = 0;
     std::vector<double> bounded_returned_nodes;
     std::vector<double> bounded_returned_weights;
-    std::vector<CqmomBoundedSupportDeterminantDiagnostics> bounded_support_determinants;
 };
 
 struct RecursiveQuadratureResult

@@ -46,7 +46,7 @@ namespace
 
     const std::size_t dimensions = abscissas.size();
     const std::size_t nodes = abscissas.front().size();
-    // Continuous transport integrates node coordinates only, packed node-major
+    // Phase-space advection integrates node coordinates only, packed node-major
     // as [node0_dim0, node0_dim1, ...]; weights are not part of the RK state.
     std::vector<double> state(nodes * dimensions, 0.0);
     for (std::size_t node = 0; node < nodes; ++node)

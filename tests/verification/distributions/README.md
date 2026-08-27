@@ -15,6 +15,9 @@ The cases exercise:
 - independent-product CQMOM tensors with one global number density;
 - configuration parsing paths that construct QMOM and CQMOM moment states from
   distribution specifications.
+- a configuration-driven independent product with a normal marginal and a
+  non-unit-total-mass lognormal-mixture marginal, analytical moment comparison,
+  and public/default CQMOM reconstruction.
 
 Closed-form references are preferred. A small number of identity checks compare
 equivalent distribution APIs, such as chi-squared as a gamma distribution and
@@ -27,8 +30,15 @@ where floating-point products, powers, or gamma-function evaluations amplify
 roundoff. These tolerances should remain tied to the analytical formula and
 moment scale, not to the behavior of a previous implementation.
 
-Run with:
+The CTest registrations are:
+
+- `verification_distribution_families_analytical`;
+- `verification_distribution_mixtures_analytical`;
+- `verification_distribution_independent_products_analytical`;
+- `verification_distribution_configuration_initialization`.
+
+Run all distribution analytical verification groups with:
 
 ```bash
-ctest --test-dir build -R verification_distributions_analytical --output-on-failure
+ctest --test-dir build -R '^verification_distribution_' --output-on-failure
 ```

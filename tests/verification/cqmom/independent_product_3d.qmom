@@ -7,6 +7,9 @@ adaptive_branch_counts = false
 [qmom]
 adaptive = false
 
+[cqmom]
+diagnostic_level = basic
+
 [moments]
 extents = 4, 4, 4
 M[0,0,0] = 1

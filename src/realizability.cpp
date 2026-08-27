@@ -31,7 +31,6 @@ namespace
 
 using internal::DenseMatrix;
 using internal::EigenDecomposition;
-using internal::matrix_infinity_norm;
 
 enum class MatrixStatus
 {
@@ -48,7 +47,6 @@ struct MatrixAnalysis
     MatrixStatus status = MatrixStatus::not_positive_semidefinite;
     double minimum_eigenvalue = 0.0;
     double tolerance = 0.0;
-    double scale = 1.0;
     EigenDecomposition eigensystem{std::vector<double>{}, DenseMatrix(0, 0)};
 };
 
@@ -78,18 +76,9 @@ struct ClassificationState
     return RealizabilityResult{status, checked_order, matrix_order, matrix_name, minimum_pivot, tolerance, std::move(message)};
 }
 
-[[nodiscard]] double effective_tolerance(const DenseMatrix& matrix, const RealizabilityOptions& options)
-{
-    if (!options.relative_tolerance)
-    {
-        return options.tolerance;
-    }
-    return options.tolerance * std::max(1.0, (matrix_infinity_norm)(matrix));
-}
-
 [[nodiscard]] double vector_scale(const std::vector<double>& values)
 {
-    double scale = 1.0;
+    double scale = 0.0;
     for (const double value : values)
     {
         scale = std::max(scale, std::abs(value));
@@ -97,27 +86,79 @@ struct ClassificationState
     return scale;
 }
 
-[[nodiscard]] EigenDecomposition symmetric_jacobi_eigen(DenseMatrix matrix)
+[[nodiscard]] EigenDecomposition symmetric_jacobi_eigen(DenseMatrix matrix, const double matrix_scale)
 {
     const std::size_t n = matrix.rows();
     constexpr std::size_t max_sweeps_per_node = 80;
     constexpr double diagonalization_tolerance = 1.0e-14;
     const std::size_t max_sweeps = max_sweeps_per_node * std::max<std::size_t>(n, 1);
-    return internal::symmetric_jacobi_eigen(matrix, {diagonalization_tolerance, max_sweeps, 0});
+
+    if (matrix_scale == 0.0 || !std::isfinite(matrix_scale))
+    {
+        return internal::symmetric_jacobi_eigen(matrix, {diagonalization_tolerance, max_sweeps, 0});
+    }
+
+    // The Jacobi convergence tolerance is absolute. Scale this temporary
+    // matrix so its convergence test is independent of the physical moment
+    // magnitude, then restore the original eigenvalue scale for all
+    // realizability comparisons. Positive scalar scaling leaves eigenvectors
+    // unchanged.
+    for (std::size_t row = 0; row < matrix.rows(); ++row)
+    {
+        for (std::size_t col = 0; col < matrix.cols(); ++col)
+        {
+            matrix(row, col) /= matrix_scale;
+        }
+    }
+
+    EigenDecomposition eigensystem = internal::symmetric_jacobi_eigen(matrix, {diagonalization_tolerance, max_sweeps, 0});
+    for (double& eigenvalue : eigensystem.eigenvalues)
+    {
+        eigenvalue *= matrix_scale;
+    }
+    return eigensystem;
 }
 
 [[nodiscard]] MatrixAnalysis analyze_matrix(std::string name, const std::size_t order, const DenseMatrix& matrix, const RealizabilityOptions& options)
 {
     MatrixAnalysis analysis{std::move(name), order};
-    analysis.scale = std::max(1.0, (matrix_infinity_norm)(matrix));
-    analysis.tolerance = effective_tolerance(matrix, options);
-    analysis.eigensystem = symmetric_jacobi_eigen(matrix);
+    double normalization_scale = 0.0;
+    for (std::size_t row = 0; row < matrix.rows(); ++row)
+    {
+        for (std::size_t col = 0; col < matrix.cols(); ++col)
+        {
+            const double value = std::abs(matrix(row, col));
+            if (!std::isfinite(value))
+            {
+                analysis.status = MatrixStatus::numerically_indeterminate;
+                return analysis;
+            }
+            normalization_scale = std::max(normalization_scale, value);
+        }
+    }
+
+    double normalized_infinity_norm = 0.0;
+    if (normalization_scale > 0.0)
+    {
+        for (std::size_t row = 0; row < matrix.rows(); ++row)
+        {
+            double row_sum = 0.0;
+            for (std::size_t col = 0; col < matrix.cols(); ++col)
+            {
+                row_sum += std::abs(matrix(row, col)) / normalization_scale;
+            }
+            normalized_infinity_norm = std::max(normalized_infinity_norm, row_sum);
+        }
+    }
+
+    analysis.tolerance = options.relative_tolerance ? options.tolerance * normalization_scale * normalized_infinity_norm : options.tolerance;
+    analysis.eigensystem = symmetric_jacobi_eigen(matrix, normalization_scale);
     analysis.minimum_eigenvalue = analysis.eigensystem.eigenvalues.empty() ? 0.0 : analysis.eigensystem.eigenvalues.front();
 
     // Positive semidefinite matrices indicate realizability on the boundary;
     // near-zero negative eigenvalues are reported as indeterminate instead of
     // changing the mathematical classification on roundoff alone.
-    const double diagonalization_roundoff = 1000.0 * std::numeric_limits<double>::epsilon() * analysis.scale;
+    const double diagonalization_roundoff = 1000.0 * std::numeric_limits<double>::epsilon() * normalization_scale * normalized_infinity_norm;
 
     if (!internal::all_finite(analysis.eigensystem.eigenvalues))
     {
@@ -260,8 +301,7 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     // For a singular moment/localizing matrix, the next extension column must
     // lie in its range. Projection onto nullspace eigenvectors detects failure.
     maximum_kernel_projection = 0.0;
-    const double scale = std::max(analysis.scale, vector_scale(vector));
-    const double tolerance = options.relative_tolerance ? options.tolerance * scale : options.tolerance;
+    const double tolerance = options.relative_tolerance ? std::max(analysis.tolerance, options.tolerance * vector_scale(vector)) : options.tolerance;
 
     for (std::size_t col = 0; col < analysis.eigensystem.eigenvalues.size(); ++col)
     {
@@ -299,8 +339,7 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
         return true;
     }
 
-    const double scale = std::max(analysis.scale, vector_scale(vector));
-    const double tolerance = options.relative_tolerance ? options.tolerance * scale : options.tolerance;
+    const double tolerance = options.relative_tolerance ? std::max(analysis.tolerance, options.tolerance * vector_scale(vector)) : options.tolerance;
     state.result =
         make_result(status, checked_order, name, analysis.order, maximum_kernel_projection, tolerance,
                     status == RealizabilityStatus::not_realizable

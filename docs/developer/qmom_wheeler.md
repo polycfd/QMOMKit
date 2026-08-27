@@ -181,7 +181,7 @@ Non-success statuses may still carry diagnostic fallback data. This behavior
 is intentional and supports downstream diagnostics or controlled failure
 handling. Fallback values may not preserve the original moment sequence and
 must not be treated as a successful quadrature rule. Callers should check the
-status before using abscissas or weights in reconstruction, transport,
+status before using abscissas or weights in reconstruction, phase-space evolution,
 validation, or output.
 
 Numerical conditioning is most sensitive when moments are high order, nodes
@@ -277,5 +277,5 @@ Existing coverage includes:
 - deterministic verification against known quadrature rules.
 
 Any Wheeler behavior change must update the relevant unit and verification
-tests before QMOM, CQMOM, transport, configuration parsing, or validation
+tests before QMOM, CQMOM, phase-space evolution, configuration parsing, or validation
 workflows rely on it.

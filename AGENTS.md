@@ -3,9 +3,9 @@
 ## Project and Priorities
 
 QMOMKit is an application-agnostic C++ library for quadrature-based moment
-methods, including one-dimensional QMOM, multidimensional and recursive CQMOM,
+methods, including one-dimensional QMOM, multidimensional CQMOM,
 raw-moment initialization, realizability diagnostics, quadrature
-reconstruction, and moment-transport utilities.
+reconstruction, and phase-space evolution utilities.
 
 QMOMKit converts raw moments of a number density function into quadrature
 representations that can be embedded in larger simulation, validation, or
@@ -13,13 +13,13 @@ analysis codes. It does not own meshes, cells, spatial discretizations, MPI
 communication, physical boundary conditions, particle models, or
 application-specific source terms.
 
-Code clarity, algorithmic correctness, and computational efficiency are the
-three guiding principles of QMOMKit and are of the utmost priority.
-
 Prefer the simplest implementation that satisfies the mathematical,
 performance, and API requirements. Do not introduce additional abstractions,
 namespaces, directory layers, configuration mechanisms, or dependencies
 without a concrete need.
+
+**Code clarity, algorithmic correctness, and computational efficiency are the
+three guiding principles of QMOMKit and are of the utmost priority!**
 
 ## Documentation
 
@@ -31,7 +31,7 @@ docs/user/
     usage.
 
 docs/developer/
-    Architecture, numerical conventions, algorithm design, transport,
+    Architecture, numerical conventions, algorithm design, phase-space evolution,
     validation, testing, benchmarking, and engineering practices.
 
 examples/
@@ -167,7 +167,7 @@ including:
 - diagnostics;
 - moment containers;
 - quadrature representations;
-- transport state;
+- phase-space evolution state;
 - documented algorithm entry points.
 
 Do not expose parser internals, temporary solver workspaces, private
@@ -187,7 +187,11 @@ Changes to numerical conventions are high-risk. Preserve the contracts in
 `docs/developer/numerical_conventions.md` unless a change is intentional,
 documented, tested, and independently validated.
 
-In particular:
+When a convention is ambiguous, make the assumption explicit and support it
+with an analytical, manufactured, convergence, or independently generated
+validation case.
+
+The following conventions must not be changed:
 
 - Moments are raw moments of the number density function.
 - `m_0` and `M[0,...,0]` represent total number density and must not be
@@ -206,11 +210,7 @@ In particular:
 - A successful numerical result must not depend on silently relaxed tolerances
   or suppressed failure conditions.
 
-When a convention is ambiguous, make the assumption explicit and support it
-with an analytical, manufactured, convergence, or independently generated
-validation case.
-
-## Transport and Time Integration
+## Phase-Space Evolution and Time Integration
 
 QMOMKit provides numerical operations for advancing moments and quadrature
 states. Application physics enters through callbacks or caller-provided rate
@@ -219,9 +219,7 @@ evaluators.
 Case and state objects carry numerical configuration and evolving numerical
 state. They do not store user physical models.
 
-Generic ODE utilities such as SSP-RK3 and adaptive RK23 must remain independent
-of:
-
+Generic ODE utilities, such as the implemented Runge-Kutta schemes (SSP-RK3, RK23, RK45) must remain independent of:
 - particle size or shape;
 - specific phase-space coordinate meanings;
 - spatial meshes or cells;
@@ -232,12 +230,12 @@ QMOMKit does not implement general spatial PDE boundary conditions. Injection,
 removal, nucleation, or other phase-space boundary contributions may be
 represented through documented moment-rate callbacks.
 
-### Transport terminology
+### Phase-Space Evolution Terminology
 
 Use established numerical-method terminology accurately.
 
-QMOMKit applies operator splitting for the continuous phase-space and
-discontinuous source operators. Strang splitting is one of the implemented
+QMOMKit applies operator splitting for the phase-space advection and
+moment-source operators. Strang splitting is one of the implemented
 splitting schemes.
 
 Terms such as “operator splitting,” “Lie splitting,” “Strang splitting,”
@@ -245,10 +243,10 @@ Terms such as “operator splitting,” “Lie splitting,” “Strang splitting
 “splitting order” are valid and should be used where mathematically
 appropriate.
 
-Avoid misleading descriptions such as “hybrid transport” when referring to the
+Avoid misleading descriptions such as “hybrid phase-space evolution” when referring to the
 standard operator-splitting workflow.
 
-See `docs/developer/transport_design.md` for the current transport workflow,
+See `docs/developer/phase_space_evolution_design.md` for the current phase-space evolution workflow,
 callback contracts, status propagation, and validation requirements.
 
 ## Implementation Principles
@@ -275,8 +273,8 @@ Public algorithm behavior should use explicit option, result, status, and
 diagnostic types where these improve the caller contract. Failure paths must
 remain visible and checkable.
 
-Do not weaken mathematical checks merely to make a test or example pass.
-Investigate the numerical cause and preserve useful diagnostics.
+Never weaken mathematical checks merely to make a test or example pass.
+Investigate the numerical cause, report suspicious behavior, and preserve useful diagnostics.
 
 Modified C++ files must be formatted with the repository `.clang-format`. New
 code must remain compatible with the repository `.clang-tidy` configuration.
@@ -288,6 +286,15 @@ obvious code.
 ## Testing and Validation
 
 Every behavioral change requires tests at the level that owns the behavior.
+
+### Debug Functional-Test Requirement
+
+Unit tests under `tests/unit/` intentionally use C/C++ `assert()`, and `NDEBUG`
+disables those checks. Build and run QMOMKit functional tests with
+`CMAKE_BUILD_TYPE=Debug`. In general, use Debug by default when building,
+running, auditing, or validating the suite. A Release CTest result is not proof
+that the unit suite passed. Do not propose replacing the assertions unless the
+user explicitly requests a redesign of the unit-test mechanism.
 
 Use:
 
@@ -313,8 +320,8 @@ tests/benchmarks/
     Performance measurement only.
 ```
 
-Numerical algorithm changes require evidence beyond agreement with the previous
-implementation. Validate them against analytical results, manufactured cases,
+Numerical algorithm changes must be supported by evidence beyond agreement with the 
+previous implementation. Validate them against analytical results, manufactured cases,
 convergence behavior, independent implementations, or independently generated
 reference data as appropriate.
 
@@ -322,7 +329,7 @@ Do not use benchmark timings as correctness evidence.
 
 Do not hide discrepancies by silently loosening tolerances. Changes to
 tolerances, acceptance criteria, node reduction, fallback behavior, node
-ordering, or status mapping require focused tests and documented justification.
+ordering, or status mapping require explicit approval, focused tests, and documented justification.
 
 Validation changes must state:
 

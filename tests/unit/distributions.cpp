@@ -4,7 +4,9 @@
 
 #include <cassert>
 #include <cmath>
+#include <iostream>
 #include <limits>
+#include <string>
 #include <vector>
 
 namespace
@@ -690,6 +692,33 @@ void test_independent_product_row_major_flattening_spots()
     assert_near(result.moments.values[qmomkit::flatten_multi_index({1, 2}, result.moments.extents)], 12.0, 1.0e-14);
 }
 
+void test_independent_product_mixture_marginal_is_normalized()
+{
+    const qmomkit::NormalDistribution normal{-0.4, 0.7};
+    const qmomkit::DistributionMixture mixture{
+        {{qmomkit::LogNormalDistribution{-0.3, 0.25}, 1.5}, {qmomkit::LogNormalDistribution{0.4, 0.45}, 3.25}}};
+    const double number_density = 2.75;
+    const qmomkit::IndependentProductDistribution product{{qmomkit::DistributionSpecification{normal}, mixture}, number_density};
+
+    const qmomkit::RawMomentResult normal_moments = qmomkit::compute_raw_moments(normal, 1, 1.0);
+    const qmomkit::RawMomentResult mixture_moments = qmomkit::compute_raw_moments(mixture, 2);
+    const qmomkit::TensorMomentResult result = qmomkit::compute_raw_moments(product, {1, 2});
+
+    assert(normal_moments.ok());
+    assert(mixture_moments.ok());
+    assert(result.ok());
+    assert_near(result.moments.values[qmomkit::flatten_multi_index({0, 0}, result.moments.extents)], number_density, 0.0);
+    assert_near(result.moments.values[qmomkit::flatten_multi_index({1, 0}, result.moments.extents)],
+                number_density * normal_moments.moments[1] / normal_moments.moments[0], 1.0e-14);
+    assert_near(result.moments.values[qmomkit::flatten_multi_index({0, 1}, result.moments.extents)],
+                number_density * mixture_moments.moments[1] / mixture_moments.moments[0], 1.0e-14);
+    assert_near(result.moments.values[qmomkit::flatten_multi_index({1, 1}, result.moments.extents)],
+                number_density * normal_moments.moments[1] / normal_moments.moments[0] * mixture_moments.moments[1] / mixture_moments.moments[0],
+                1.0e-14);
+    assert_near(result.moments.values[qmomkit::flatten_multi_index({0, 2}, result.moments.extents)],
+                number_density * mixture_moments.moments[2] / mixture_moments.moments[0], 1.0e-14);
+}
+
 void assert_selected_product_matches_dense(const qmomkit::IndependentProductDistribution& product, const qmomkit::RawMomentRequest& request,
                                            const std::vector<std::size_t>& maximum_orders, const double tolerance)
 {
@@ -717,6 +746,15 @@ void test_selected_independent_product_two_dimensional_nonrectangular_matches_de
 {
     const qmomkit::IndependentProductDistribution product{{qmomkit::NormalDistribution{2.0, 1.0}, qmomkit::GammaDistribution{1.0, 1.0}}, 3.0};
     assert_selected_product_matches_dense(product, {{{0, 0}, {2, 1}, {1, 3}}}, {2, 3}, 1.0e-12);
+}
+
+void test_selected_independent_product_mixture_marginal_matches_dense()
+{
+    const qmomkit::DistributionMixture mixture{
+        {{qmomkit::LogNormalDistribution{-0.3, 0.25}, 1.5}, {qmomkit::LogNormalDistribution{0.4, 0.45}, 3.25}}};
+    const qmomkit::IndependentProductDistribution product{{qmomkit::DistributionSpecification{qmomkit::NormalDistribution{-0.4, 0.7}}, mixture},
+                                                          2.75};
+    assert_selected_product_matches_dense(product, {{{1, 0}, {0, 1}, {1, 1}, {0, 2}}}, {1, 2}, 1.0e-12);
 }
 
 void test_selected_independent_product_three_dimensional_matches_dense()
@@ -849,7 +887,7 @@ void test_selected_independent_product_matches_cqmom_layout_subselection()
 
 } // namespace
 
-int main()
+void run_all_distribution_tests()
 {
     test_selected_raw_moment_result_preserves_request_order();
     test_selected_raw_moment_result_accepts_noncontiguous_multidimensional_indices();
@@ -901,8 +939,10 @@ int main()
     test_independent_product_zero_global_density_still_validates_extents();
     test_independent_product_tensor_size_overflow();
     test_independent_product_row_major_flattening_spots();
+    test_independent_product_mixture_marginal_is_normalized();
     test_selected_independent_product_one_dimensional_matches_dense();
     test_selected_independent_product_two_dimensional_nonrectangular_matches_dense();
+    test_selected_independent_product_mixture_marginal_matches_dense();
     test_selected_independent_product_three_dimensional_matches_dense();
     test_selected_independent_product_preserves_reordered_and_duplicate_indices();
     test_selected_independent_product_zero_global_density_skips_marginals();
@@ -914,5 +954,115 @@ int main()
     test_selected_independent_product_product_overflow_reports_full_order();
     test_selected_independent_product_product_underflow_reports_full_order();
     test_selected_independent_product_matches_cqmom_layout_subselection();
-    return 0;
+}
+
+void run_selected_result_tests()
+{
+    test_selected_raw_moment_result_preserves_request_order();
+    test_selected_raw_moment_result_accepts_noncontiguous_multidimensional_indices();
+    test_selected_raw_moment_result_preserves_duplicate_indices();
+    test_selected_raw_moment_empty_request_is_valid();
+    test_selected_raw_moment_invalid_requests();
+    test_selected_distribution_contiguous_orders_match_dense();
+    test_selected_distribution_noncontiguous_orders_match_dense();
+    test_selected_distribution_reordered_and_duplicate_orders_match_dense();
+    test_selected_distribution_high_order_gaps_match_dense();
+    test_selected_distribution_zero_total_weight();
+    test_selected_distribution_invalid_request_rank();
+    test_selected_distribution_overflow_and_underflow_failures();
+    test_variant_dispatch_and_nonunit_weight();
+    test_maximum_order_zero();
+    test_zero_total_weight_returns_zero_sequence();
+    test_invalid_total_weight();
+    test_invalid_distribution_parameters();
+    test_overflow_status();
+    test_underflow_status();
+}
+
+void run_mixture_tests()
+{
+    test_empty_mixture_is_invalid();
+    test_mixture_maximum_order_zero();
+    test_one_component_mixture_matches_distribution_result();
+    test_heterogeneous_mixture_dispatch();
+    test_zero_density_component_is_skipped();
+    test_zero_density_extreme_component_is_skipped();
+    test_invalid_mixture_densities();
+    test_all_zero_density_mixture_is_invalid();
+    test_positive_component_failure_reports_index();
+    test_surrounded_positive_component_failure_reports_index();
+    test_mixture_accumulation_overflow_reports_index();
+    test_selected_one_component_mixture_matches_dense_subselection();
+    test_selected_heterogeneous_mixture_matches_dense_subselection();
+    test_selected_mixture_preserves_reordered_and_duplicate_requests();
+    test_selected_mixture_zero_density_component_is_skipped();
+    test_selected_mixture_empty_request_is_valid_for_valid_mixture();
+    test_selected_mixture_invalid_component_failure_reports_index();
+    test_selected_mixture_overflow_propagates_component_and_order();
+    test_selected_mixture_underflow_propagates_component_and_order();
+    test_selected_mixture_accumulation_overflow_reports_index();
+}
+
+void run_independent_product_tests()
+{
+    test_independent_product_zero_dimension_is_invalid();
+    test_independent_product_rank_mismatch_is_invalid();
+    test_independent_product_maximum_order_overflow_guard();
+    test_independent_product_invalid_global_number_density();
+    test_independent_product_invalid_marginal_reports_dimension();
+    test_independent_product_marginal_failure_reports_order();
+    test_independent_product_maximum_orders_zero();
+    test_independent_product_zero_global_density_skips_marginals();
+    test_independent_product_zero_global_density_still_validates_extents();
+    test_independent_product_tensor_size_overflow();
+    test_independent_product_row_major_flattening_spots();
+    test_independent_product_mixture_marginal_is_normalized();
+    test_selected_independent_product_one_dimensional_matches_dense();
+    test_selected_independent_product_two_dimensional_nonrectangular_matches_dense();
+    test_selected_independent_product_mixture_marginal_matches_dense();
+    test_selected_independent_product_three_dimensional_matches_dense();
+    test_selected_independent_product_preserves_reordered_and_duplicate_indices();
+    test_selected_independent_product_zero_global_density_skips_marginals();
+    test_selected_independent_product_empty_request_is_valid();
+    test_selected_independent_product_invalid_rank_reports_order();
+    test_selected_independent_product_oversized_order_reports_dimension();
+    test_selected_independent_product_marginal_failure_reports_dimension();
+    test_selected_independent_product_marginal_overflow_reports_full_order();
+    test_selected_independent_product_product_overflow_reports_full_order();
+    test_selected_independent_product_product_underflow_reports_full_order();
+    test_selected_independent_product_matches_cqmom_layout_subselection();
+}
+
+int main(const int argc, char** argv)
+{
+    if (argc > 2)
+    {
+        std::cerr << "Usage: test_distributions [selected_results|mixtures|independent_products]\n";
+        return 2;
+    }
+
+    const std::string selector = argc == 2 ? argv[1] : "";
+    if (selector.empty())
+    {
+        run_all_distribution_tests();
+        return 0;
+    }
+    if (selector == "selected_results")
+    {
+        run_selected_result_tests();
+        return 0;
+    }
+    if (selector == "mixtures")
+    {
+        run_mixture_tests();
+        return 0;
+    }
+    if (selector == "independent_products")
+    {
+        run_independent_product_tests();
+        return 0;
+    }
+
+    std::cerr << "Unknown distribution selector: " << selector << '\n';
+    return 2;
 }

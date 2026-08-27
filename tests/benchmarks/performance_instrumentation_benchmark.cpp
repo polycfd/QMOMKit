@@ -36,7 +36,7 @@ struct BenchmarkSummary
     std::string workload_kind;
     std::vector<std::size_t> node_counts;
     std::string solver_policy;
-    std::string transport_scheme;
+    std::string phase_space_evolution_scheme;
     std::string node_advection_scheme;
     std::string instrumentation_mode;
     std::size_t state_count = 0;
@@ -172,11 +172,11 @@ bool has_linear_algebra_counters(const perf::PerformanceCounters& counters)
            counters.linear_algebra.residual_checks != 0 || counters.linear_algebra.condition_estimates != 0;
 }
 
-bool has_transport_counters(const perf::PerformanceCounters& counters)
+bool has_phase_space_evolution_counters(const perf::PerformanceCounters& counters)
 {
-    return counters.transport.transport_macro_steps != 0 || counters.transport.continuous_operator_calls != 0 ||
-           counters.transport.discontinuous_operator_calls != 0 || counters.transport.moment_reconstruction_calls != 0 ||
-           counters.transport.post_source_inversions != 0 || counters.time_integration.source_rk_stages != 0 ||
+    return counters.phase_space_evolution.phase_space_evolution_macro_steps != 0 || counters.phase_space_evolution.advection_operator_calls != 0 ||
+           counters.phase_space_evolution.moment_source_operator_calls != 0 || counters.phase_space_evolution.moment_reconstruction_calls != 0 ||
+           counters.phase_space_evolution.post_source_inversions != 0 || counters.time_integration.source_rk_stages != 0 ||
            counters.time_integration.source_rk_retries != 0 || counters.time_integration.node_rhs_evaluations != 0 ||
            counters.time_integration.embedded_rk_accepted_steps != 0 || counters.time_integration.embedded_rk_rejected_steps != 0;
 }
@@ -222,11 +222,11 @@ public:
             const std::size_t total_operations = summary.operations_per_iteration * summary.iterations;
             const std::size_t reconstructions = summary.counters.reconstruction.cqmom_reconstructions;
             const std::size_t vandermonde_solves = summary.counters.linear_algebra.vandermonde_solves;
-            const std::size_t transport_ops =
-                summary.counters.transport.continuous_operator_calls + summary.counters.transport.discontinuous_operator_calls;
+            const std::size_t phase_space_evolution_ops =
+                summary.counters.phase_space_evolution.advection_operator_calls + summary.counters.phase_space_evolution.moment_source_operator_calls;
             const bool has_reconstruction = has_reconstruction_counters(summary.counters);
             const bool has_linear_algebra = has_linear_algebra_counters(summary.counters);
-            const bool has_transport = has_transport_counters(summary.counters);
+            const bool has_phase_space_evolution = has_phase_space_evolution_counters(summary.counters);
             const bool has_cqmom_topology = has_cqmom_topology_counters(summary.counters);
 
             std::cout << "\n" << summary.name << "\n";
@@ -245,9 +245,9 @@ public:
             {
                 std::cout << "    solver policy: " << summary.solver_policy << '\n';
             }
-            if (!summary.transport_scheme.empty())
+            if (!summary.phase_space_evolution_scheme.empty())
             {
-                std::cout << "    transport scheme: " << summary.transport_scheme << '\n';
+                std::cout << "    phase-space evolution scheme: " << summary.phase_space_evolution_scheme << '\n';
             }
             if (!summary.node_advection_scheme.empty())
             {
@@ -306,15 +306,15 @@ public:
                 print_counter_line("condition estimates", summary.counters.linear_algebra.condition_estimates);
             }
 
-            if (has_transport)
+            if (has_phase_space_evolution)
             {
-                std::cout << "  Transport/time-integration counters\n";
-                print_counter_line("continuous operators", summary.counters.transport.continuous_operator_calls);
-                print_counter_line("discontinuous operators", summary.counters.transport.discontinuous_operator_calls);
-                print_counter_line("moment reconstructions", summary.counters.transport.moment_reconstruction_calls);
-                print_counter_line("post-source inversions", summary.counters.transport.post_source_inversions);
-                print_counter_line("source SSP-RK stages", summary.counters.time_integration.source_rk_stages);
-                print_counter_line("source retries", summary.counters.time_integration.source_rk_retries);
+                std::cout << "  Phase-space evolution/time-integration counters\n";
+                print_counter_line("advection operators", summary.counters.phase_space_evolution.advection_operator_calls);
+                print_counter_line("moment-source operators", summary.counters.phase_space_evolution.moment_source_operator_calls);
+                print_counter_line("moment reconstructions", summary.counters.phase_space_evolution.moment_reconstruction_calls);
+                print_counter_line("post-source inversions", summary.counters.phase_space_evolution.post_source_inversions);
+                print_counter_line("moment-source SSP-RK stages", summary.counters.time_integration.source_rk_stages);
+                print_counter_line("moment-source retries", summary.counters.time_integration.source_rk_retries);
                 print_counter_line("node RHS evaluations", summary.counters.time_integration.node_rhs_evaluations);
                 print_counter_line("adaptive embedded-RK accepted/rejected", summary.counters.time_integration.embedded_rk_accepted_steps +
                                                                                  summary.counters.time_integration.embedded_rk_rejected_steps);
@@ -341,7 +341,7 @@ public:
                 }
             }
 
-            if (has_reconstruction || has_linear_algebra || has_transport || has_cqmom_topology)
+            if (has_reconstruction || has_linear_algebra || has_phase_space_evolution || has_cqmom_topology)
             {
                 std::cout << "  Derived metrics\n";
                 if (has_reconstruction)
@@ -358,12 +358,12 @@ public:
                     print_metric_line("dense fallback percentage",
                                       percentage(summary.counters.linear_algebra.dense_vandermonde_fallbacks, vandermonde_solves), "%");
                 }
-                if (has_transport && total_operations > 0)
+                if (has_phase_space_evolution && total_operations > 0)
                 {
-                    print_metric_line("transport operators / update", safe_ratio(transport_ops, total_operations));
+                    print_metric_line("phase-space evolution operators / update", safe_ratio(phase_space_evolution_ops, total_operations));
                     print_metric_line("node RHS evaluations / update",
                                       safe_ratio(summary.counters.time_integration.node_rhs_evaluations, total_operations));
-                    print_metric_line("source SSP-RK stages / update",
+                    print_metric_line("moment-source SSP-RK stages / update",
                                       safe_ratio(summary.counters.time_integration.source_rk_stages, total_operations));
                 }
                 if (has_cqmom_topology && total_operations > 0)
@@ -476,7 +476,7 @@ CqmomWorkload make_workload(const std::vector<std::size_t>& node_counts,
     return {std::move(hierarchy), std::move(dense_moments), std::move(lean_moments), std::move(lean_case), std::move(case_)};
 }
 
-qmomkit::RawMomentTensor ragged_transport_moments()
+qmomkit::RawMomentTensor ragged_phase_space_evolution_moments()
 {
     const std::vector<std::size_t> extents{4, 4};
     const std::vector<double> weights{0.2, 0.3, 0.5};
@@ -498,7 +498,7 @@ qmomkit::RawMomentTensor ragged_transport_moments()
     return {extents, std::move(moments)};
 }
 
-qmomkit::RawMomentTensor ragged_transport_moments_3d()
+qmomkit::RawMomentTensor ragged_phase_space_evolution_moments_3d()
 {
     const std::vector<std::size_t> extents{4, 4, 4};
     const std::vector<double> weights{0.25, 0.25, 0.5};
@@ -520,7 +520,8 @@ qmomkit::RawMomentTensor ragged_transport_moments_3d()
     return {extents, std::move(moments)};
 }
 
-CqmomWorkload make_transport_workload(const std::vector<std::size_t>& node_counts, const qmomkit::CqmomMomentStorage storage, const bool adaptive)
+CqmomWorkload make_phase_space_evolution_workload(const std::vector<std::size_t>& node_counts, const qmomkit::CqmomMomentStorage storage,
+                                                  const bool adaptive)
 {
     qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
     qmomkit::RawMomentTensor dense_moments = independent_product_moments(node_counts);
@@ -528,15 +529,15 @@ CqmomWorkload make_transport_workload(const std::vector<std::size_t>& node_count
     {
         if (node_counts == nodes_2x2())
         {
-            dense_moments = ragged_transport_moments();
+            dense_moments = ragged_phase_space_evolution_moments();
         }
         else if (node_counts == nodes_2x2x2())
         {
-            dense_moments = ragged_transport_moments_3d();
+            dense_moments = ragged_phase_space_evolution_moments_3d();
         }
         else
         {
-            throw std::invalid_argument("No adaptive CQMOM transport benchmark fixture is available for these node counts.");
+            throw std::invalid_argument("No adaptive CQMOM phase-space evolution benchmark fixture is available for these node counts.");
         }
     }
     qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -575,12 +576,13 @@ qmomkit::CqmomState state_without_accepted_quadrature(const qmomkit::CqmomState&
     const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::CqmomConstructionAccess::state_lean_case(state);
     if (lean_case == nullptr)
     {
-        throw std::logic_error("CQMOM transport benchmark state has unknown storage.");
+        throw std::logic_error("CQMOM phase-space evolution benchmark state has unknown storage.");
     }
     return qmomkit::internal::CqmomConstructionAccess::create_state(*lean_case, state.active_branch_counts(), prepared_fixed_metadata);
 }
 
-std::vector<qmomkit::CqmomState> make_transport_states(const qmomkit::CqmomCase& case_, const std::size_t state_count, const bool cache_miss)
+std::vector<qmomkit::CqmomState> make_phase_space_evolution_states(const qmomkit::CqmomCase& case_, const std::size_t state_count,
+                                                                   const bool cache_miss)
 {
     std::vector<qmomkit::CqmomState> states = make_states(case_, state_count);
     if (cache_miss)
@@ -746,28 +748,28 @@ enum class CounterMode
     timing_only
 };
 
-enum class CqmomTransportWorkflow
+enum class CqmomPhaseSpaceEvolutionWorkflow
 {
-    continuous,
-    discontinuous,
-    cd,
-    dc,
+    advection,
+    moment_source,
+    advsrc,
+    srcadv,
     strang
 };
 
-std::string transport_workflow_name(const CqmomTransportWorkflow workflow)
+std::string phase_space_evolution_workflow_name(const CqmomPhaseSpaceEvolutionWorkflow workflow)
 {
     switch (workflow)
     {
-    case CqmomTransportWorkflow::continuous:
-        return "continuous";
-    case CqmomTransportWorkflow::discontinuous:
-        return "discontinuous";
-    case CqmomTransportWorkflow::cd:
-        return "cd";
-    case CqmomTransportWorkflow::dc:
-        return "dc";
-    case CqmomTransportWorkflow::strang:
+    case CqmomPhaseSpaceEvolutionWorkflow::advection:
+        return "advection";
+    case CqmomPhaseSpaceEvolutionWorkflow::moment_source:
+        return "moment_source";
+    case CqmomPhaseSpaceEvolutionWorkflow::advsrc:
+        return "advsrc";
+    case CqmomPhaseSpaceEvolutionWorkflow::srcadv:
+        return "srcadv";
+    case CqmomPhaseSpaceEvolutionWorkflow::strang:
         return "strang";
     }
     return "unknown";
@@ -825,16 +827,16 @@ std::string diagnostic_name(const qmomkit::CqmomDiagnosticLevel level)
     return "unknown";
 }
 
-std::string transport_scheme_name(const qmomkit::TransportScheme scheme)
+std::string phase_space_evolution_scheme_name(const qmomkit::PhaseSpaceEvolutionScheme scheme)
 {
     switch (scheme)
     {
-    case qmomkit::TransportScheme::strang:
+    case qmomkit::PhaseSpaceEvolutionScheme::strang:
         return "strang";
-    case qmomkit::TransportScheme::cd:
-        return "cd";
-    case qmomkit::TransportScheme::dc:
-        return "dc";
+    case qmomkit::PhaseSpaceEvolutionScheme::advsrc:
+        return "advsrc";
+    case qmomkit::PhaseSpaceEvolutionScheme::srcadv:
+        return "srcadv";
     }
     return "unknown";
 }
@@ -894,14 +896,14 @@ void publish_workload_counters(benchmark::State& state, const perf::PerformanceC
         publish_counter(state, "residual_checks", counters.linear_algebra.residual_checks);
         publish_counter(state, "condition_estimates", counters.linear_algebra.condition_estimates);
     }
-    if (has_transport_counters(counters))
+    if (has_phase_space_evolution_counters(counters))
     {
-        publish_counter(state, "continuous_ops", counters.transport.continuous_operator_calls);
-        publish_counter(state, "discontinuous_ops", counters.transport.discontinuous_operator_calls);
-        publish_counter(state, "moment_reconstructions", counters.transport.moment_reconstruction_calls);
-        publish_counter(state, "post_source_inversions", counters.transport.post_source_inversions);
+        publish_counter(state, "advection_ops", counters.phase_space_evolution.advection_operator_calls);
+        publish_counter(state, "moment_source_ops", counters.phase_space_evolution.moment_source_operator_calls);
+        publish_counter(state, "moment_reconstructions", counters.phase_space_evolution.moment_reconstruction_calls);
+        publish_counter(state, "post_source_inversions", counters.phase_space_evolution.post_source_inversions);
         publish_counter(state, "source_rk_stages", counters.time_integration.source_rk_stages);
-        publish_counter(state, "source_retries", counters.time_integration.source_rk_retries);
+        publish_counter(state, "moment_source_retries", counters.time_integration.source_rk_retries);
         publish_counter(state, "node_rhs_evals", counters.time_integration.node_rhs_evaluations);
         publish_counter(state, "embedded_rk_accepted", counters.time_integration.embedded_rk_accepted_steps);
         publish_counter(state, "embedded_rk_rejected", counters.time_integration.embedded_rk_rejected_steps);
@@ -926,7 +928,7 @@ void publish_node_advection_diagnostics(benchmark::State& state, const std::size
 void publish_normalized_counters(benchmark::State& state, const perf::PerformanceCounters& counters, const std::size_t operations_per_iteration)
 {
     if (operations_per_iteration == 0 || (!has_reconstruction_counters(counters) && !has_linear_algebra_counters(counters) &&
-                                          !has_transport_counters(counters) && !has_cqmom_topology_counters(counters)))
+                                          !has_phase_space_evolution_counters(counters) && !has_cqmom_topology_counters(counters)))
     {
         return;
     }
@@ -951,7 +953,7 @@ void publish_normalized_counters(benchmark::State& state, const perf::Performanc
                 ? 0.0
                 : static_cast<double>(counters.linear_algebra.residual_checks) / static_cast<double>(counters.linear_algebra.vandermonde_solves);
     }
-    if (has_transport_counters(counters))
+    if (has_phase_space_evolution_counters(counters))
     {
         state.counters["node_rhs_per_op"] =
             benchmark::Counter(static_cast<double>(counters.time_integration.node_rhs_evaluations) / operations, benchmark::Counter::kAvgIterations);
@@ -998,8 +1000,8 @@ BenchmarkSummary make_summary(const std::string& name, const std::string& worklo
     return summary;
 }
 
-void bm_cqmom_transport_workload(benchmark::State& state, const qmomkit::TransportScheme scheme, const CounterMode counter_mode,
-                                 const std::string name)
+void bm_cqmom_phase_space_evolution_workload(benchmark::State& state, const qmomkit::PhaseSpaceEvolutionScheme scheme, const CounterMode counter_mode,
+                                             const std::string name)
 {
     if (counter_mode == CounterMode::enabled_session && !instrumentation_is_available(state))
     {
@@ -1012,7 +1014,7 @@ void bm_cqmom_transport_workload(benchmark::State& state, const qmomkit::Transpo
     const qmomkit::PhaseSpaceVelocity velocity = velocity_model();
     const qmomkit::CqmomMomentSource source = source_model();
     const qmomkit::CqmomMomentBoundaryContribution boundary = zero_boundary_model();
-    qmomkit::CqmomTransportOptions options;
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.scheme = scheme;
     options.node_options.adaptive_options.initial_step = 0.0025;
     options.node_options.adaptive_options.max_step = 0.0025;
@@ -1032,11 +1034,11 @@ void bm_cqmom_transport_workload(benchmark::State& state, const qmomkit::Transpo
                 const double time = 0.0025 * static_cast<double>(step);
                 for (qmomkit::CqmomState& cqmom_state : states)
                 {
-                    qmomkit::CqmomTransportResult result =
-                        qmomkit::advance_transport_cqmom(cqmom_state, time, 0.0025, velocity, source, boundary, options);
+                    qmomkit::CqmomPhaseSpaceEvolutionResult result =
+                        qmomkit::advance_cqmom_phase_space(cqmom_state, time, 0.0025, velocity, source, boundary, options);
                     if (!result.ok())
                     {
-                        state.SkipWithError(result.message.empty() ? "CQMOM transport workload failed." : result.message.c_str());
+                        state.SkipWithError(result.message.empty() ? "CQMOM phase-space evolution workload failed." : result.message.c_str());
                         return false;
                     }
                     cqmom_state = std::move(result.state);
@@ -1072,17 +1074,17 @@ void bm_cqmom_transport_workload(benchmark::State& state, const qmomkit::Transpo
     publish_workload_counters(state, counters);
     publish_normalized_counters(state, counters, state_steps);
     state.SetItemsProcessed(static_cast<int64_t>(state.iterations() * state_steps));
-    BenchmarkSummary summary = make_summary(name, "CQMOM transport", {2, 2}, workload, counters, measured_seconds,
+    BenchmarkSummary summary = make_summary(name, "CQMOM phase-space evolution", {2, 2}, workload, counters, measured_seconds,
                                             static_cast<std::size_t>(state.iterations()), state_steps, "state-step", counter_mode);
-    summary.transport_scheme = transport_scheme_name(scheme);
+    summary.phase_space_evolution_scheme = phase_space_evolution_scheme_name(scheme);
     summary.state_count = state_count;
     summary.steps_per_state = steps_per_state;
     record_summary(std::move(summary));
 }
 
-void bm_cqmom_transport_ownership_workload(benchmark::State& state, const CqmomTransportWorkflow workflow, const qmomkit::CqmomMomentStorage storage,
-                                           const std::vector<std::size_t>& node_counts, const bool adaptive, const bool cache_miss,
-                                           const std::string& name)
+void bm_cqmom_phase_space_evolution_ownership_workload(benchmark::State& state, const CqmomPhaseSpaceEvolutionWorkflow workflow,
+                                                       const qmomkit::CqmomMomentStorage storage, const std::vector<std::size_t>& node_counts,
+                                                       const bool adaptive, const bool cache_miss, const std::string& name)
 {
     if (!instrumentation_is_available(state))
     {
@@ -1091,24 +1093,24 @@ void bm_cqmom_transport_ownership_workload(benchmark::State& state, const CqmomT
 
     const std::size_t state_count = static_cast<std::size_t>(state.range(0));
     const std::size_t steps_per_state = static_cast<std::size_t>(state.range(1));
-    const CqmomWorkload workload = make_transport_workload(node_counts, storage, adaptive);
+    const CqmomWorkload workload = make_phase_space_evolution_workload(node_counts, storage, adaptive);
     const qmomkit::PhaseSpaceVelocity velocity = velocity_model();
     const qmomkit::CqmomMomentSource source = source_model();
-    qmomkit::CqmomTransportOptions options;
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.node_options.adaptive_options.initial_step = 0.0025;
     options.node_options.adaptive_options.max_step = 0.0025;
     switch (workflow)
     {
-    case CqmomTransportWorkflow::cd:
-        options.scheme = qmomkit::TransportScheme::cd;
+    case CqmomPhaseSpaceEvolutionWorkflow::advsrc:
+        options.scheme = qmomkit::PhaseSpaceEvolutionScheme::advsrc;
         break;
-    case CqmomTransportWorkflow::dc:
-        options.scheme = qmomkit::TransportScheme::dc;
+    case CqmomPhaseSpaceEvolutionWorkflow::srcadv:
+        options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
         break;
-    case CqmomTransportWorkflow::strang:
-    case CqmomTransportWorkflow::continuous:
-    case CqmomTransportWorkflow::discontinuous:
-        options.scheme = qmomkit::TransportScheme::strang;
+    case CqmomPhaseSpaceEvolutionWorkflow::strang:
+    case CqmomPhaseSpaceEvolutionWorkflow::advection:
+    case CqmomPhaseSpaceEvolutionWorkflow::moment_source:
+        options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
         break;
     }
 
@@ -1117,7 +1119,7 @@ void bm_cqmom_transport_ownership_workload(benchmark::State& state, const CqmomT
     for (auto _ : state)
     {
         state.PauseTiming();
-        std::vector<qmomkit::CqmomState> states = make_transport_states(workload.case_, state_count, cache_miss);
+        std::vector<qmomkit::CqmomState> states = make_phase_space_evolution_states(workload.case_, state_count, cache_miss);
         state.ResumeTiming();
 
         const auto run_steps = [&]() -> bool
@@ -1127,24 +1129,25 @@ void bm_cqmom_transport_ownership_workload(benchmark::State& state, const CqmomT
                 const double time = 0.0025 * static_cast<double>(step);
                 for (qmomkit::CqmomState& cqmom_state : states)
                 {
-                    qmomkit::CqmomTransportResult result = [&]()
+                    qmomkit::CqmomPhaseSpaceEvolutionResult result = [&]()
                     {
                         switch (workflow)
                         {
-                        case CqmomTransportWorkflow::continuous:
-                            return qmomkit::advance_cqmom_continuous(cqmom_state, time, 0.0025, velocity, options);
-                        case CqmomTransportWorkflow::discontinuous:
-                            return qmomkit::advance_cqmom_discontinuous(cqmom_state, time, 0.0025, source, options);
-                        case CqmomTransportWorkflow::cd:
-                        case CqmomTransportWorkflow::dc:
-                        case CqmomTransportWorkflow::strang:
-                            return qmomkit::advance_transport_cqmom(cqmom_state, time, 0.0025, velocity, source, options);
+                        case CqmomPhaseSpaceEvolutionWorkflow::advection:
+                            return qmomkit::advance_cqmom_advection(cqmom_state, time, 0.0025, velocity, options);
+                        case CqmomPhaseSpaceEvolutionWorkflow::moment_source:
+                            return qmomkit::advance_cqmom_moment_source(cqmom_state, time, 0.0025, source, options);
+                        case CqmomPhaseSpaceEvolutionWorkflow::advsrc:
+                        case CqmomPhaseSpaceEvolutionWorkflow::srcadv:
+                        case CqmomPhaseSpaceEvolutionWorkflow::strang:
+                            return qmomkit::advance_cqmom_phase_space(cqmom_state, time, 0.0025, velocity, source, options);
                         }
-                        throw std::logic_error("Unsupported CQMOM transport benchmark workflow.");
+                        throw std::logic_error("Unsupported CQMOM phase-space evolution benchmark workflow.");
                     }();
                     if (!result.ok())
                     {
-                        state.SkipWithError(result.message.empty() ? "CQMOM transport ownership workload failed." : result.message.c_str());
+                        state.SkipWithError(result.message.empty() ? "CQMOM phase-space evolution ownership workload failed."
+                                                                   : result.message.c_str());
                         return false;
                     }
                     cqmom_state = std::move(result.state);
@@ -1175,9 +1178,10 @@ void bm_cqmom_transport_ownership_workload(benchmark::State& state, const CqmomT
     publish_workload_counters(state, counters);
     publish_normalized_counters(state, counters, state_steps);
     state.SetItemsProcessed(static_cast<int64_t>(state.iterations() * state_steps));
-    BenchmarkSummary summary = make_summary(name, "CQMOM accepted-quadrature ownership transport", node_counts, workload, counters, measured_seconds,
-                                            static_cast<std::size_t>(state.iterations()), state_steps, "state-step", CounterMode::enabled_session);
-    summary.transport_scheme = transport_workflow_name(workflow);
+    BenchmarkSummary summary =
+        make_summary(name, "CQMOM accepted-quadrature ownership phase-space evolution", node_counts, workload, counters, measured_seconds,
+                     static_cast<std::size_t>(state.iterations()), state_steps, "state-step", CounterMode::enabled_session);
+    summary.phase_space_evolution_scheme = phase_space_evolution_workflow_name(workflow);
     summary.state_count = state_count;
     summary.steps_per_state = steps_per_state;
     record_summary(std::move(summary));
@@ -1387,7 +1391,7 @@ void bm_cqmom_adaptive_reconstruction_control(benchmark::State& state, const std
         return;
     }
 
-    const CqmomWorkload workload = make_transport_workload(nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true);
+    const CqmomWorkload workload = make_phase_space_evolution_workload(nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true);
     perf::CounterSession session;
     double measured_seconds = 0.0;
     for (auto _ : state)
@@ -1456,7 +1460,7 @@ void bm_cqmom_source_integration_workload(benchmark::State& state, const Counter
                         qmomkit::advance_cqmom_moments_with_source(moment_data, time, 0.001, source, options);
                     if (!result.ok())
                     {
-                        state.SkipWithError(result.message.empty() ? "CQMOM source integration workload failed." : result.message.c_str());
+                        state.SkipWithError(result.message.empty() ? "CQMOM moment-source integration workload failed." : result.message.c_str());
                         return false;
                     }
                     moment_data = std::move(result.moments);
@@ -1493,13 +1497,13 @@ void bm_cqmom_source_integration_workload(benchmark::State& state, const Counter
     publish_normalized_counters(state, counters, source_steps);
     state.SetItemsProcessed(static_cast<int64_t>(state.iterations() * source_steps));
     BenchmarkSummary summary = make_summary(name, workload_kind, node_counts, workload, counters, measured_seconds,
-                                            static_cast<std::size_t>(state.iterations()), source_steps, "source update", counter_mode);
+                                            static_cast<std::size_t>(state.iterations()), source_steps, "moment-source update", counter_mode);
     summary.state_count = state_count;
     summary.steps_per_state = steps_per_state;
     record_summary(std::move(summary));
 }
 
-void bm_cqmom_trusted_discontinuous_state_workload(benchmark::State& state, const std::vector<std::size_t> node_counts, const std::string name)
+void bm_cqmom_trusted_moment_source_state_workload(benchmark::State& state, const std::vector<std::size_t> node_counts, const std::string name)
 {
     if (!instrumentation_is_available(state))
     {
@@ -1510,7 +1514,7 @@ void bm_cqmom_trusted_discontinuous_state_workload(benchmark::State& state, cons
     const std::size_t steps_per_state = static_cast<std::size_t>(state.range(1));
     const CqmomWorkload workload = make_workload(node_counts);
     const qmomkit::CqmomMomentSource source = source_model();
-    qmomkit::CqmomTransportOptions options;
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.source_options.ssp_rk3_options.estimate_error = true;
 
     perf::CounterSession session;
@@ -1528,10 +1532,10 @@ void bm_cqmom_trusted_discontinuous_state_workload(benchmark::State& state, cons
                 const double time = 0.001 * static_cast<double>(step);
                 for (qmomkit::CqmomState& cqmom_state : states)
                 {
-                    qmomkit::CqmomTransportResult result = qmomkit::advance_cqmom_discontinuous(cqmom_state, time, 0.001, source, options);
+                    qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_moment_source(cqmom_state, time, 0.001, source, options);
                     if (!result.ok())
                     {
-                        state.SkipWithError(result.message.empty() ? "Trusted CQMOM discontinuous-state workload failed." : result.message.c_str());
+                        state.SkipWithError(result.message.empty() ? "Trusted CQMOM moment-source state workload failed." : result.message.c_str());
                         return false;
                     }
                     cqmom_state = std::move(result.state);
@@ -1563,7 +1567,7 @@ void bm_cqmom_trusted_discontinuous_state_workload(benchmark::State& state, cons
     publish_normalized_counters(state, counters, source_steps);
     state.SetItemsProcessed(static_cast<int64_t>(state.iterations() * source_steps));
     BenchmarkSummary summary =
-        make_summary(name, "CQMOM trusted discontinuous state transport", node_counts, workload, counters, measured_seconds,
+        make_summary(name, "CQMOM trusted moment-source state phase-space evolution", node_counts, workload, counters, measured_seconds,
                      static_cast<std::size_t>(state.iterations()), source_steps, "source state-step", CounterMode::enabled_session);
     summary.state_count = state_count;
     summary.steps_per_state = steps_per_state;
@@ -1684,9 +1688,9 @@ void bm_cqmom_ssp_source_existing_layout(benchmark::State& state)
     publish_workload_counters(state, counters);
     publish_normalized_counters(state, counters, source_steps);
     state.SetItemsProcessed(static_cast<int64_t>(state.iterations() * source_steps));
-    BenchmarkSummary summary =
-        make_summary("performance_ssp_source_existing_layout_2d_3x3", "SSP-RK3 source with existing layout", {3, 3}, workload, counters,
-                     measured_seconds, static_cast<std::size_t>(state.iterations()), source_steps, "source update", CounterMode::enabled_session);
+    BenchmarkSummary summary = make_summary("performance_ssp_source_existing_layout_2d_3x3", "SSP-RK3 source with existing layout", {3, 3}, workload,
+                                            counters, measured_seconds, static_cast<std::size_t>(state.iterations()), source_steps,
+                                            "moment-source update", CounterMode::enabled_session);
     summary.state_count = state_count;
     summary.steps_per_state = steps_per_state;
     record_summary(std::move(summary));
@@ -1816,7 +1820,7 @@ void bm_cqmom_node_advection_scheme(benchmark::State& state, const qmomkit::Node
     state.SetItemsProcessed(static_cast<int64_t>(state.iterations()));
     BenchmarkSummary summary =
         make_summary(name, "CQMOM node advection, " + node_trajectory_name(trajectory) + " trajectory", {2, 2}, workload, counters, measured_seconds,
-                     static_cast<std::size_t>(state.iterations()), 1, "continuous update", CounterMode::enabled_session);
+                     static_cast<std::size_t>(state.iterations()), 1, "advection update", CounterMode::enabled_session);
     summary.node_advection_scheme = node_advection_scheme_name(scheme);
     summary.reconstructed_moments = workload.lean_moments.values.size();
     summary.diagnostic_node_advection_steps = diagnostic_steps;
@@ -1848,8 +1852,8 @@ void bm_cqmom_moment_reconstruction_only(benchmark::State& state)
     publish_geometry_counters(state, {2, 2}, workload);
     state.counters["reconstructed_moments"] = static_cast<double>(workload.lean_moments.values.size());
     BenchmarkSummary summary =
-        make_summary("performance_transport_component_moment_reconstruction_2d_2x2", "CQMOM raw-moment reconstruction", {2, 2}, workload, {},
-                     measured_seconds, static_cast<std::size_t>(state.iterations()), 1, "moment reconstruction", CounterMode::timing_only);
+        make_summary("performance_phase_space_evolution_component_moment_reconstruction_2d_2x2", "CQMOM raw-moment reconstruction", {2, 2}, workload,
+                     {}, measured_seconds, static_cast<std::size_t>(state.iterations()), 1, "moment reconstruction", CounterMode::timing_only);
     summary.reconstructed_moments = workload.lean_moments.values.size();
     record_summary(std::move(summary));
 }
@@ -1857,28 +1861,28 @@ void bm_cqmom_moment_reconstruction_only(benchmark::State& state)
 void bm_cqmom_inversion_only(benchmark::State& state)
 {
     bm_cqmom_reconstruction_scaling(state, {2, 2}, qmomkit::VandermondeSolver::automatic, qmomkit::CqmomDiagnosticLevel::basic,
-                                    CounterMode::enabled_session, "performance_transport_component_inversion_2d_2x2");
+                                    CounterMode::enabled_session, "performance_phase_space_evolution_component_inversion_2d_2x2");
 }
 
-BENCHMARK_CAPTURE(bm_cqmom_transport_workload, strang_2d_2x2, qmomkit::TransportScheme::strang, CounterMode::enabled_session,
-                  "performance_cqmom_transport_strang_2d_2x2")
-    ->Name("performance_cqmom_transport_strang_2d_2x2")
+BENCHMARK_CAPTURE(bm_cqmom_phase_space_evolution_workload, strang_2d_2x2, qmomkit::PhaseSpaceEvolutionScheme::strang, CounterMode::enabled_session,
+                  "performance_cqmom_phase_space_evolution_strang_2d_2x2")
+    ->Name("performance_cqmom_phase_space_evolution_strang_2d_2x2")
     ->Args({32, 4});
-BENCHMARK_CAPTURE(bm_cqmom_transport_workload, cd_2d_2x2, qmomkit::TransportScheme::cd, CounterMode::enabled_session,
-                  "performance_cqmom_transport_cd_2d_2x2")
-    ->Name("performance_cqmom_transport_cd_2d_2x2")
+BENCHMARK_CAPTURE(bm_cqmom_phase_space_evolution_workload, advsrc_2d_2x2, qmomkit::PhaseSpaceEvolutionScheme::advsrc, CounterMode::enabled_session,
+                  "performance_cqmom_phase_space_evolution_advsrc_2d_2x2")
+    ->Name("performance_cqmom_phase_space_evolution_advsrc_2d_2x2")
     ->Args({32, 4});
-BENCHMARK_CAPTURE(bm_cqmom_transport_workload, dc_2d_2x2, qmomkit::TransportScheme::dc, CounterMode::enabled_session,
-                  "performance_cqmom_transport_dc_2d_2x2")
-    ->Name("performance_cqmom_transport_dc_2d_2x2")
-    ->Args({32, 4});
-
-BENCHMARK_CAPTURE(bm_cqmom_transport_workload, overhead_no_session_2d_2x2, qmomkit::TransportScheme::strang, CounterMode::enabled_no_session,
-                  "performance_instrumentation_overhead_transport_no_session_2d_2x2")
-    ->Name("performance_instrumentation_overhead_transport_no_session_2d_2x2")
+BENCHMARK_CAPTURE(bm_cqmom_phase_space_evolution_workload, srcadv_2d_2x2, qmomkit::PhaseSpaceEvolutionScheme::srcadv, CounterMode::enabled_session,
+                  "performance_cqmom_phase_space_evolution_srcadv_2d_2x2")
+    ->Name("performance_cqmom_phase_space_evolution_srcadv_2d_2x2")
     ->Args({32, 4});
 
-const bool ownership_transport_benchmarks_registered = []
+BENCHMARK_CAPTURE(bm_cqmom_phase_space_evolution_workload, overhead_no_session_2d_2x2, qmomkit::PhaseSpaceEvolutionScheme::strang,
+                  CounterMode::enabled_no_session, "performance_instrumentation_overhead_phase_space_evolution_no_session_2d_2x2")
+    ->Name("performance_instrumentation_overhead_phase_space_evolution_no_session_2d_2x2")
+    ->Args({32, 4});
+
+const bool ownership_phase_space_evolution_benchmarks_registered = []
 {
     struct Fixture
     {
@@ -1898,18 +1902,20 @@ const bool ownership_transport_benchmarks_registered = []
                                         {"lean_adaptive_ragged_2d_cache_miss", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true, true},
                                         {"dense_adaptive_ragged_2d_cache_miss", nodes_2x2(), qmomkit::CqmomMomentStorage::dense, true, true},
                                         {"lean_adaptive_ragged_3d_cache_miss", nodes_2x2x2(), qmomkit::CqmomMomentStorage::lean, true, true}};
-    const std::vector<CqmomTransportWorkflow> workflows{CqmomTransportWorkflow::continuous, CqmomTransportWorkflow::discontinuous,
-                                                        CqmomTransportWorkflow::cd, CqmomTransportWorkflow::dc, CqmomTransportWorkflow::strang};
+    const std::vector<CqmomPhaseSpaceEvolutionWorkflow> workflows{
+        CqmomPhaseSpaceEvolutionWorkflow::advection, CqmomPhaseSpaceEvolutionWorkflow::moment_source, CqmomPhaseSpaceEvolutionWorkflow::advsrc,
+        CqmomPhaseSpaceEvolutionWorkflow::srcadv, CqmomPhaseSpaceEvolutionWorkflow::strang};
     for (const Fixture& fixture : fixtures)
     {
-        for (const CqmomTransportWorkflow workflow : workflows)
+        for (const CqmomPhaseSpaceEvolutionWorkflow workflow : workflows)
         {
-            const std::string name = "performance_cqmom_transport_ownership_" + std::string(fixture.name) + "_" + transport_workflow_name(workflow);
+            const std::string name = "performance_cqmom_phase_space_evolution_ownership_" + std::string(fixture.name) + "_" +
+                                     phase_space_evolution_workflow_name(workflow);
             benchmark::RegisterBenchmark(name.c_str(),
                                          [fixture, workflow, name](benchmark::State& state)
                                          {
-                                             bm_cqmom_transport_ownership_workload(state, workflow, fixture.storage, fixture.node_counts,
-                                                                                   fixture.adaptive, fixture.cache_miss, name);
+                                             bm_cqmom_phase_space_evolution_ownership_workload(state, workflow, fixture.storage, fixture.node_counts,
+                                                                                               fixture.adaptive, fixture.cache_miss, name);
                                          })
                 ->Args({32, fixture.cache_miss ? 1 : 4});
         }
@@ -2010,20 +2016,20 @@ BENCHMARK_CAPTURE(bm_cqmom_adaptive_reconstruction_control, normal_lean_2d_2x2, 
     ->Name("performance_cqmom_reconstruction_adaptive_normal_lean_2d_2x2");
 
 BENCHMARK_CAPTURE(bm_cqmom_source_integration_workload, source_normal_2d_3x3, CounterMode::enabled_session, nodes_3x3(),
-                  "performance_source_normal_2d_3x3", "CQMOM source integration")
+                  "performance_source_normal_2d_3x3", "CQMOM moment-source integration")
     ->Name("performance_source_normal_2d_3x3")
     ->Args({64, 8});
 BENCHMARK_CAPTURE(bm_cqmom_source_integration_workload, source_no_session_2d_3x3, CounterMode::enabled_no_session, nodes_3x3(),
-                  "performance_instrumentation_overhead_source_no_session_2d_3x3", "CQMOM source integration")
+                  "performance_instrumentation_overhead_source_no_session_2d_3x3", "CQMOM moment-source integration")
     ->Name("performance_instrumentation_overhead_source_no_session_2d_3x3")
     ->Args({64, 8});
-BENCHMARK_CAPTURE(bm_cqmom_trusted_discontinuous_state_workload, trusted_state_2d_2x2, nodes_2x2(), "performance_source_trusted_state_2d_2x2")
+BENCHMARK_CAPTURE(bm_cqmom_trusted_moment_source_state_workload, trusted_state_2d_2x2, nodes_2x2(), "performance_source_trusted_state_2d_2x2")
     ->Name("performance_source_trusted_state_2d_2x2")
     ->Args({32, 4});
-BENCHMARK_CAPTURE(bm_cqmom_trusted_discontinuous_state_workload, trusted_state_2d_3x3, nodes_3x3(), "performance_source_trusted_state_2d_3x3")
+BENCHMARK_CAPTURE(bm_cqmom_trusted_moment_source_state_workload, trusted_state_2d_3x3, nodes_3x3(), "performance_source_trusted_state_2d_3x3")
     ->Name("performance_source_trusted_state_2d_3x3")
     ->Args({64, 8});
-BENCHMARK_CAPTURE(bm_cqmom_trusted_discontinuous_state_workload, trusted_state_3d_2x2x2, nodes_2x2x2(), "performance_source_trusted_state_3d_2x2x2")
+BENCHMARK_CAPTURE(bm_cqmom_trusted_moment_source_state_workload, trusted_state_3d_2x2x2, nodes_2x2x2(), "performance_source_trusted_state_3d_2x2x2")
     ->Name("performance_source_trusted_state_3d_2x2x2")
     ->Args({16, 2});
 BENCHMARK(bm_cqmom_source_callback_only)->Name("performance_source_callback_only_2d_3x3")->Args({64, 8});
@@ -2055,11 +2061,11 @@ BENCHMARK_CAPTURE(bm_cqmom_node_advection_scheme, affine_ssp_rk3_2d_2x2, qmomkit
 BENCHMARK_CAPTURE(bm_cqmom_node_advection_scheme, affine_rk23_2d_2x2, qmomkit::NodeAdvectionScheme::rk23, NodeTrajectory::affine,
                   "performance_node_advection_scheme_cqmom_affine_2d_2x2_rk23")
     ->Name("performance_node_advection_scheme_cqmom_affine_2d_2x2_rk23");
-BENCHMARK_CAPTURE(bm_cqmom_source_integration_workload, transport_component_source_2d_2x2, CounterMode::enabled_session, nodes_2x2(),
-                  "performance_transport_component_source_update_2d_2x2", "CQMOM discontinuous/source update")
-    ->Name("performance_transport_component_source_update_2d_2x2")
+BENCHMARK_CAPTURE(bm_cqmom_source_integration_workload, phase_space_evolution_component_source_2d_2x2, CounterMode::enabled_session, nodes_2x2(),
+                  "performance_phase_space_evolution_component_source_update_2d_2x2", "CQMOM moment-source update")
+    ->Name("performance_phase_space_evolution_component_source_update_2d_2x2")
     ->Args({32, 4});
-BENCHMARK(bm_cqmom_moment_reconstruction_only)->Name("performance_transport_component_moment_reconstruction_2d_2x2");
-BENCHMARK(bm_cqmom_inversion_only)->Name("performance_transport_component_inversion_2d_2x2");
+BENCHMARK(bm_cqmom_moment_reconstruction_only)->Name("performance_phase_space_evolution_component_moment_reconstruction_2d_2x2");
+BENCHMARK(bm_cqmom_inversion_only)->Name("performance_phase_space_evolution_component_inversion_2d_2x2");
 
 } // namespace

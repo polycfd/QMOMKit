@@ -8,7 +8,7 @@
 namespace qmom_1d_minimal
 {
 
-qmomkit::PhaseSpaceVelocity continuous_velocity()
+qmomkit::PhaseSpaceVelocity advection_velocity()
 {
     return [](double, const std::vector<double>& coordinates)
     {
@@ -24,15 +24,15 @@ qmomkit::PhaseSpaceVelocity continuous_velocity()
 
 qmomkit::MomentSource fragmentation_source()
 {
-    return [](double, const std::vector<double>& current_moments)
+    return [](double, const qmomkit::QmomSourceContext& context)
     {
         constexpr double fragmentation_rate = 0.5;
 
-        std::vector<double> derivative(current_moments.size(), 0.0);
-        for (std::size_t order = 0; order < current_moments.size(); ++order)
+        std::vector<double> derivative(context.size(), 0.0);
+        for (std::size_t order = 0; order < context.size(); ++order)
         {
             const double daughter_factor = std::pow(2.0, 1.0 - static_cast<double>(order));
-            derivative[order] = fragmentation_rate * (daughter_factor - 1.0) * current_moments[order];
+            derivative[order] = fragmentation_rate * (daughter_factor - 1.0) * context.value(order);
         }
         return derivative;
     };

@@ -80,7 +80,7 @@ bool source_pulse_active(const double time, const VarianceInjectionParameters& p
     return time + time_tolerance >= parameters.pulse_start && time < parameters.pulse_end - time_tolerance;
 }
 
-qmomkit::PhaseSpaceVelocity continuous_velocity(const VarianceInjectionParameters& parameters)
+qmomkit::PhaseSpaceVelocity advection_velocity(const VarianceInjectionParameters& parameters)
 {
     return [parameters](double, const std::vector<double>& coordinates)
     {

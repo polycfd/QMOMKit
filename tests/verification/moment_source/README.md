@@ -1,6 +1,6 @@
-# Discontinuous Moment-Source Analytical Verification
+# Moment-Source Analytical Verification
 
-These cases exercise the public discontinuous source update,
+These cases exercise the public moment-source update,
 `qmomkit::advance_moments_with_source(...)`, which advances raw moments through
 a caller-supplied source term. The verification workflow then separately checks
 final QMOM/CQMOM inversion and raw-moment reconstruction so the evolved moments
@@ -10,8 +10,8 @@ coefficients and SSP-RK3 step plans live in the verifier because the current
 configuration format does not define source-model parameters or SSP-RK3
 time-integration options.
 
-These are source-operator tests only. They do not include continuous node
-advection or full transport composition.
+These are source-operator tests only. They do not include advection node
+advection or full phase-space evolution composition.
 
 `moment_source_analytical.cpp` is the canonical verification driver for this
 area. It uses named `.qmom` configurations, closed-form source solutions, and
@@ -117,9 +117,11 @@ with `dt=0.08`, and eight outer steps from `t=-0.2` with `dt=0.06`. The chosen
 coefficients preserve realizability over the tested interval, so the final
 two-node QMOM inversion remains meaningful.
 
-The convergence sanity check runs the same final time `tau = 0.48` with
-`dt=0.12` and `dt=0.06`, requiring the refined final moment error to decrease.
-It is not a formal order-of-accuracy study.
+The convergence study retains the same closed-form coupled source problem and
+advances to the same final time, `tau = 0.48`, at four timestep refinement
+levels. It computes the observed SSP-RK3 order from adjacent final-moment
+errors. The two finest observed orders must satisfy `p >= 2.8`, explicitly
+verifying third-order temporal behavior of the public moment-source wrapper.
 
 ## Invariants And Tolerances
 
@@ -143,7 +145,7 @@ zeroth-moment conservation error <= 2e-8
 ```
 
 The moment tolerance reflects fixed-step SSP-RK3 truncation error against
-continuous exact exponentials. It was selected after keeping the time steps
+advection exact exponentials. It was selected after keeping the time steps
 small enough that the analytical discrepancy is several orders below the
 source magnitudes.
 

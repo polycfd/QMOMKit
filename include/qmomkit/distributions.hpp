@@ -87,9 +87,11 @@ struct DistributionMixture
     std::vector<DistributionComponent> components;
 };
 
+using IndependentProductMarginal = std::variant<DistributionSpecification, DistributionMixture>;
+
 struct IndependentProductDistribution
 {
-    std::vector<DistributionSpecification> marginals;
+    std::vector<IndependentProductMarginal> marginals;
     double number_density = 1.0;
 };
 
@@ -225,8 +227,8 @@ struct TensorMomentResult
 /**
  * Generate a raw moment tensor for an independent multidimensional product.
  *
- * Marginals are normalized one-dimensional probability distributions. The
- * global number density is applied exactly once:
+ * Marginals are normalized through their zeroth raw moments. The global number
+ * density is applied exactly once:
  *
  *     M[k_0, ..., k_D-1] = number_density * product_d E[xi_d^k_d]
  *

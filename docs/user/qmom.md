@@ -6,7 +6,7 @@ full distribution function, a caller provides raw moments such as `m0`, `m1`,
 and `m2`. QMOMKit reconstructs weights and abscissas whose raw moments match
 the supplied sequence.
 
-This is useful when an application naturally stores or transports moments, but
+This is useful when an application naturally stores or evolves moments, but
 later needs representative nodes for evaluation, evolution, output, or
 coupling to another numerical step.
 
@@ -51,8 +51,8 @@ The inputs and outputs are:
 
 After reconstruction, a QMOM workflow may inspect the quadrature, evaluate
 derived quantities, write output, or optionally evolve the distribution. QMOM
-transport advances an accepted `QmomState` from `QmomCase::initial_state()`
-with `advance_transport_qmom(...)`. `QmomState` exposes read-only `moments()`
+phase-space evolution advances an accepted `QmomState` from `QmomCase::initial_state()`
+with `advance_qmom_phase_space(...)`. `QmomState` exposes read-only `moments()`
 and `quadrature()` accessors; its stored moments are canonicalized from its
 accepted quadrature. Users may copy and move accepted states, but direct
 construction from independent moments and quadrature is intentionally
@@ -119,7 +119,7 @@ distribution guide.
 
 Native QMOM and CQMOM moments remain integer-order polynomial moments. QMOMKit
 reconstructs integer-order moments from quadrature when it needs raw moments
-for reconstruction handoff, transport, output, or validation workflows. These
+for reconstruction handoff, phase-space evolution, output, or validation workflows. These
 moments use orders such as `m0`, `m1`, and `m2`, or integer-valued
 multidimensional raw-moment indices.
 
@@ -146,7 +146,7 @@ const double m_one_third =
 Generalized moment evaluation applies the quadrature formula directly. The same
 idea is available for CQMOM quadrature with a phase-space-order exponent vector.
 These values are post-processing quantities, not QMOM or CQMOM inversion inputs,
-transported state, native `MomentSet` values, `CqmomMomentData`, or
+phase_space_evolved state, native `MomentSet` values, `CqmomMomentData`, or
 `RawMomentTensor` entries. Non-integer exponents require non-negative abscissas.
 
 ## Options And Diagnostics

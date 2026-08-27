@@ -32,10 +32,10 @@ int main()
             cqmom_2d_adaptive_node_counts::print_configuration_errors(output_configured.error());
             return 1;
         }
-        auto transport_configured = qmomkit::config::load_cqmom_transport_options(configuration_file);
-        if (!transport_configured)
+        auto phase_space_evolution_configured = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
+        if (!phase_space_evolution_configured)
         {
-            cqmom_2d_adaptive_node_counts::print_configuration_errors(transport_configured.error());
+            cqmom_2d_adaptive_node_counts::print_configuration_errors(phase_space_evolution_configured.error());
             return 1;
         }
 
@@ -66,9 +66,9 @@ int main()
             std::cerr << "Adaptive node-count moment-layout validation failed: " << moment_layout_message << '\n';
             return 1;
         }
-        const qmomkit::PhaseSpaceVelocity velocity = cqmom_2d_adaptive_node_counts::continuous_velocity(source_parameters);
+        const qmomkit::PhaseSpaceVelocity velocity = cqmom_2d_adaptive_node_counts::advection_velocity(source_parameters);
         const qmomkit::CqmomMomentSource source = cqmom_2d_adaptive_node_counts::variance_injection_source(source_parameters);
-        qmomkit::CqmomTransportOptions transport_options = std::move(transport_configured).value();
+        qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
         std::vector<cqmom_2d_adaptive_node_counts::HistorySample> step_history{cqmom_2d_adaptive_node_counts::make_history_sample(
@@ -83,29 +83,29 @@ int main()
         while (time < final_time - 1.0e-12)
         {
             const double current_step = std::min(time_step, final_time - time);
-            const qmomkit::CqmomTransportResult transported =
-                qmomkit::advance_transport_cqmom(state, time, current_step, velocity, source, transport_options);
-            if (!transported.ok())
+            const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
+                qmomkit::advance_cqmom_phase_space(state, time, current_step, velocity, source, phase_space_evolution_options);
+            if (!phase_space_evolved.ok())
             {
-                std::cerr << "CQMOM transport failed: " << transported.message << '\n';
+                std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
                 return 1;
             }
-            if (!transported.quadrature.has_value())
+            if (!phase_space_evolved.quadrature.has_value())
             {
-                std::cerr << "CQMOM transport did not return a quadrature.\n";
+                std::cerr << "CQMOM phase-space evolution did not return a quadrature.\n";
                 return 1;
             }
 
-            state = transported.state;
-            quadrature = *transported.quadrature;
-            time = transported.final_time;
+            state = phase_space_evolved.state;
+            quadrature = *phase_space_evolved.quadrature;
+            time = phase_space_evolved.final_time;
 
             step_history.push_back(
                 cqmom_2d_adaptive_node_counts::make_history_sample(time, cqmom_2d_adaptive_node_counts::source_pulse_active(time, source_parameters),
                                                                    quadrature, state.active_branch_counts(), velocity_dimension));
             cqmom_2d_adaptive_node_counts::append_active_count_transitions(
                 time, step_history[step_history.size() - 2].quadrature, step_history.back().quadrature,
-                transported.diagnostics.cqmom_node_count_transitions, active_count_transitions, velocity_dimension);
+                phase_space_evolved.diagnostics.cqmom_node_count_transitions, active_count_transitions, velocity_dimension);
 
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {

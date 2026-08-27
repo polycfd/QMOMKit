@@ -1,6 +1,7 @@
 #pragma once
 
 #include "qmomkit/cqmom.hpp"
+#include "qmomkit/realizability_policy.hpp"
 #include "qmomkit/runge_kutta.hpp"
 
 #include <cstddef>
@@ -11,15 +12,54 @@
 
 namespace qmomkit
 {
+namespace internal
+{
+class CqmomSourceContextAccess;
+class QmomSourceContextAccess;
+struct PreparedFixedCqmomMetadata;
+} // namespace internal
+
+/**
+ * Non-owning mathematical view of the current QMOM source state.
+ *
+ * The context refers to the current SSP-RK stage values. During QMOM
+ * phase-space source evolution, untracked moment requests may lazily
+ * reconstruct a quadrature from those stage values. The context is valid only
+ * for the callback invocation that received it.
+ */
+class QmomSourceContext
+{
+public:
+    QmomSourceContext(double time, const std::vector<double>& values);
+
+    [[nodiscard]] double time() const noexcept;
+    [[nodiscard]] std::size_t moment_count() const noexcept;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] const std::vector<double>& values() const noexcept;
+    [[nodiscard]] double value(std::size_t order) const;
+    [[nodiscard]] double moment(std::size_t order) const;
+
+private:
+    friend class internal::QmomSourceContextAccess;
+
+    QmomSourceContext(double time, const std::vector<double>& values, std::size_t reconstruction_node_count,
+                      const QmomOptions& reconstruction_options);
+
+    double time_ = 0.0;
+    const std::vector<double>* values_ = nullptr;
+    std::size_t reconstruction_node_count_ = 0;
+    const QmomOptions* reconstruction_options_ = nullptr;
+    mutable std::optional<QmomResult> reconstructed_stage_quadrature_;
+};
 
 /**
  * Generic moment-source callback.
  *
- * The state vector is an arbitrary raw-moment vector owned by the caller. The
- * returned vector must have the same size and represents dm/dt at the supplied
- * time. The library assigns no physical meaning to any component.
+ * The context exposes the current raw-moment SSP-RK stage. The returned vector
+ * must have the same size and represents dm/dt at the supplied time. The
+ * library assigns no physical meaning to any component.
  */
-using MomentSource = std::function<std::vector<double>(double, const std::vector<double>&)>;
+using MomentSource = std::function<std::vector<double>(double, const QmomSourceContext&)>;
 
 /**
  * One-dimensional raw-moment rate from phase-space boundary exchange.
@@ -49,10 +89,13 @@ using MomentBoundaryContribution = std::function<MomentBoundaryRate(double, cons
  *
  * Entries are ordered consistently with the derivative values expected from a
  * `CqmomMomentSource`. The context exposes the CQMOM moment layout selected for
- * transport, along with phase-space hierarchy, stage time, moment multi-indices,
+ * phase-space evolution, along with phase-space hierarchy, stage time, moment multi-indices,
  * and moment values. The time is explicit and matches the stage or evaluation
  * time passed as the first argument to the callback. That layout is independent
  * of the underlying dense or lean CQMOM moment storage backend.
+ * Phase-space source contexts may cache a quadrature reconstructed from their
+ * current stage values while evaluating an untracked requested moment or
+ * visiting terminal nodes.
  */
 class CqmomSourceContext
 {
@@ -69,13 +112,62 @@ public:
     [[nodiscard]] double value(std::size_t i) const;
     [[nodiscard]] std::optional<std::size_t> position(const MultiIndex& moment_index) const;
     [[nodiscard]] std::optional<double> value(const MultiIndex& moment_index) const;
+    /**
+     * Return the current raw moment for `moment_index`.
+     *
+     * A tracked entry returns the current source-stage value directly. During
+     * CQMOM phase-space source evolution, an untracked entry is evaluated from
+     * a quadrature reconstructed from the current SSP-RK stage. Other context
+     * uses reject untracked requests.
+     */
+    [[nodiscard]] double moment(const MultiIndex& moment_index) const;
+    /**
+     * Return a derived raw moment with one non-negative real-valued order per
+     * phase-space dimension.
+     *
+     * The value is evaluated from the current source-stage CQMOM quadrature.
+     * As with an untracked integer `moment(...)` request, that quadrature is
+     * reconstructed lazily from the current SSP-RK stage and cached for this
+     * context. Generalized moments are not added to the transported state.
+     *
+     * Negative abscissas are valid only for integral requested orders. A
+     * fractional order at a negative abscissa has no real-valued result and
+     * throws `std::domain_error`.
+     */
+    [[nodiscard]] double generalized_moment(const std::vector<double>& orders) const;
+    /**
+     * Visit the terminal nodes of the current source-stage CQMOM quadrature.
+     *
+     * During CQMOM phase-space source evolution, the quadrature is lazily
+     * reconstructed from the current SSP-RK stage using the state's active
+     * branch topology. The callback receives one global terminal weight and
+     * one phase-space-order coordinate vector per terminal node. The
+     * coordinate reference is read-only and valid only for the duration of
+     * that callback invocation.
+     *
+     * Contexts without source-stage reconstruction metadata reject this
+     * operation, as they do untracked `moment(...)` requests.
+     */
+    void for_each_terminal_node(const std::function<void(double weight, const std::vector<double>& coordinates)>& callback) const;
     [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
 
 private:
+    friend class internal::CqmomSourceContextAccess;
+
+    CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values,
+                       const CqmomLeanCase& reconstruction_case, const std::vector<CqmomActiveBranchCount>& active_branch_counts,
+                       const internal::PreparedFixedCqmomMetadata* prepared_fixed_metadata);
+
+    [[nodiscard]] const CqmomQuadrature& reconstructed_stage_quadrature() const;
+
     double time_ = 0.0;
     const PhaseSpaceHierarchy* hierarchy_;
     const std::vector<MultiIndex>* indices_;
     const std::vector<double>* values_;
+    const CqmomLeanCase* reconstruction_case_ = nullptr;
+    const std::vector<CqmomActiveBranchCount>* active_branch_counts_ = nullptr;
+    const internal::PreparedFixedCqmomMetadata* prepared_fixed_metadata_ = nullptr;
+    mutable std::optional<CqmomQuadrature> reconstructed_stage_quadrature_;
 };
 
 /**
@@ -90,7 +182,7 @@ struct CqmomMomentRate
 };
 
 /**
- * CQMOM-native source callback over the transport CQMOM moment layout.
+ * CQMOM-native source callback over the phase-space evolution CQMOM moment layout.
  *
  * The callback receives the current CQMOM source context and returns one
  * derivative value per context entry, in context order.
@@ -118,6 +210,7 @@ enum class MomentSourceUpdateStatus
 struct MomentSourceUpdateOptions
 {
     SspRk3Options ssp_rk3_options;
+    std::vector<std::optional<RealizabilityPolicy>> coordinate_realizability_policies;
 };
 
 struct MomentSourceUpdateDiagnostics
@@ -159,7 +252,7 @@ struct CqmomMomentSourceUpdateResult
 
 /**
  * Advanced composable operation: advance a raw-moment vector through a
- * discontinuous source operator using the existing SSP-RK3 integrator.
+ * moment-source operator using the existing SSP-RK3 integrator.
  * Optional acceptability checks are supplied through
  * `options.ssp_rk3_options.accept`; rejected candidates use the SSP-RK3 retry
  * policy with timestep halving.
@@ -168,9 +261,9 @@ struct CqmomMomentSourceUpdateResult
                                                                    const MomentSource& source, const MomentSourceUpdateOptions& options = {});
 
 /**
- * Advanced composable operation: advance raw moments through a generic source
+ * Advanced composable operation: advance raw moments through a generic moment source
  * plus an additive phase-space boundary exchange contribution using the same
- * SSP-RK3 source-update path.
+ * SSP-RK3 moment-source update path.
  */
 [[nodiscard]] MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, double t, double time_step,
                                                                    const MomentSource& source, const MomentBoundaryContribution& boundary,
@@ -178,7 +271,7 @@ struct CqmomMomentSourceUpdateResult
 
 /**
  * Advanced composable operation: advance fixed-layout CQMOM moments through a
- * source operator using the existing vector SSP-RK3 integrator. The RK stages
+ * moment-source operator using the existing vector SSP-RK3 integrator. The RK stages
  * are exposed to the CQMOM source callback through `CqmomSourceContext`.
  */
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
@@ -187,7 +280,7 @@ struct CqmomMomentSourceUpdateResult
 
 /**
  * Advanced composable operation: advance fixed-layout CQMOM moments through a
- * generic source plus an additive phase-space boundary exchange contribution
+ * generic moment source plus an additive phase-space boundary exchange contribution
  * using the same SSP-RK3 source-update path.
  */
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,

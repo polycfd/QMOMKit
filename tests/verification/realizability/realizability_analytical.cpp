@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <qmomkit/distributions.hpp>
 #include <qmomkit/realizability.hpp>
 #include <string>
@@ -50,6 +51,16 @@ bool contains_text(const std::string& text, const std::string& fragment)
         }
     }
     return MomentSet(std::move(moments));
+}
+
+[[nodiscard]] MomentSet scaled_moments(const MomentSet& moments, const double scale)
+{
+    std::vector<double> scaled = moments.values();
+    for (double& value : scaled)
+    {
+        value *= scale;
+    }
+    return MomentSet(std::move(scaled));
 }
 
 [[nodiscard]] MomentSet uniform_01_moments(const std::size_t maximum_order)
@@ -219,7 +230,7 @@ void verify_boundary_diagnostics()
 void verify_hamburger()
 {
     // Hamburger checks cover moments on the full real line: strictly
-    // realizable continuous moments, boundary atomic measures, and basic
+    // realizable advection moments, boundary atomic measures, and basic
     // positivity/range violations.
     expect_status(standard_normal_moments(5), MomentSupport::real_line, RealizabilityStatus::strictly_realizable, "normal order 5");
     expect_status(discrete_moments({2.0}, {-1.5}, 5), MomentSupport::real_line, RealizabilityStatus::boundary, "single Dirac order 5");
@@ -270,9 +281,9 @@ void verify_hausdorff()
 
 void verify_near_boundary_and_scaling()
 {
-    // Near-boundary cases make tolerance semantics explicit, and the scaling
-    // loop verifies that relative tolerance handling does not change the
-    // realizability classification of a strictly realizable sequence.
+    // Near-boundary cases make tolerance semantics explicit. Relative tolerance
+    // and its roundoff allowance scale with the tested matrix, so positive
+    // number-density scaling preserves a strict classification.
     RealizabilityOptions loose;
     loose.tolerance = 1.0e-8;
     QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0, 0.0, -1.0e-10}, MomentSupport::real_line, loose).status ==
@@ -284,17 +295,44 @@ void verify_near_boundary_and_scaling()
     QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0e-6}, MomentSupport::real_line, loose).status ==
                          RealizabilityStatus::strictly_realizable);
 
-    const auto base = standard_normal_moments(4).values();
-    for (const double scale : {1.0e-6, 1.0, 1.0e6})
+    const MomentSet strict = standard_normal_moments(4);
+    for (const double scale : {1.0, 1.0e-14, 1.0e-50, 1.0e-100, 1.0e-200, 1.0e50})
     {
-        std::vector<double> scaled = base;
-        for (double& value : scaled)
-        {
-            value *= scale;
-        }
-        const auto result = qmomkit::check_realizability(MomentSet(std::move(scaled)), MomentSupport::real_line);
+        const auto result = qmomkit::check_realizability(scaled_moments(strict, scale), MomentSupport::real_line);
         QMOMKIT_VERIFY_CHECK(result.status == RealizabilityStatus::strictly_realizable);
     }
+
+    // Non-diagonal matrices exercise Jacobi rotations. These boundary and
+    // non-realizable cases must retain their classifications at low density.
+    const MomentSet boundary{1.0, 1.0, 1.0};
+    const MomentSet non_realizable{1.0, 2.0, 1.0};
+    for (const double scale : {1.0, 1.0e-50})
+    {
+        QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(scaled_moments(boundary, scale), MomentSupport::real_line).status ==
+                             RealizabilityStatus::boundary);
+        QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(scaled_moments(non_realizable, scale), MomentSupport::real_line).status ==
+                             RealizabilityStatus::not_realizable);
+    }
+
+    // The H_1 row sum overflows at this scale although its entries and
+    // eigenvalues remain finite. Relative classification must remain unchanged.
+    const MomentSet norm_overflow_non_realizable{1.0, 0.9, 0.1};
+    const double norm_overflow_scale = 0.6 * std::numeric_limits<double>::max();
+    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(norm_overflow_non_realizable, MomentSupport::real_line).status ==
+                         RealizabilityStatus::not_realizable);
+    QMOMKIT_VERIFY_CHECK(
+        qmomkit::check_realizability(scaled_moments(norm_overflow_non_realizable, norm_overflow_scale), MomentSupport::real_line).status ==
+        RealizabilityStatus::not_realizable);
+
+    // Absolute tolerance remains an absolute threshold and intentionally does
+    // not provide the relative mode's scaling invariance.
+    RealizabilityOptions absolute;
+    absolute.tolerance = 1.0e-8;
+    absolute.relative_tolerance = false;
+    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0}, MomentSupport::real_line, absolute).status ==
+                         RealizabilityStatus::strictly_realizable);
+    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0e-14, 0.0, 1.0e-14}, MomentSupport::real_line, absolute).status ==
+                         RealizabilityStatus::numerically_indeterminate);
 }
 
 } // namespace

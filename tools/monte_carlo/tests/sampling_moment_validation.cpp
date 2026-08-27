@@ -157,6 +157,15 @@ void test_independent_product_validation()
         std::vector<std::size_t>{1, 2, 2}, SamplingOptions{180000, 7102});
 }
 
+void test_independent_product_mixture_marginal_validation()
+{
+    const qmomkit::DistributionMixture mixture{
+        {{qmomkit::LogNormalDistribution{-0.3, 0.25}, 1.5}, {qmomkit::LogNormalDistribution{0.4, 0.45}, 3.25}}};
+    compare_product_to_analytical(
+        qmomkit::IndependentProductDistribution{{qmomkit::DistributionSpecification{qmomkit::NormalDistribution{-0.4, 0.7}}, mixture}, 2.75},
+        std::vector<std::size_t>{1, 2}, SamplingOptions{180000, 7103});
+}
+
 void test_standard_error_convergence()
 {
     const qmomkit::DistributionSpecification distribution = qmomkit::NormalDistribution{0.2, 1.1};
@@ -244,6 +253,7 @@ int main()
     test_single_distribution_validation();
     test_mixture_validation();
     test_independent_product_validation();
+    test_independent_product_mixture_marginal_validation();
     test_standard_error_convergence();
     test_asymmetric_tensor_moment_layout();
     test_invalid_inputs_and_output();

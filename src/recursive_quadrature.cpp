@@ -835,7 +835,7 @@ struct BranchNodeCountLimit
         {
             continue;
         }
-        const BoundedInterval interval = *support[dimension];
+        const CqmomAbscissaBounds interval = *support[dimension];
         if (!std::isfinite(interval.lower) || !std::isfinite(interval.upper) || !(interval.lower < interval.upper))
         {
             message = "CQMOM coordinate_support bounded intervals must have finite lower < upper values.";
@@ -845,8 +845,8 @@ struct BranchNodeCountLimit
     return true;
 }
 
-[[nodiscard]] std::optional<BoundedInterval> support_interval_for_dimension(const CqmomCoordinateSupport& support,
-                                                                            const std::size_t phase_space_dimension)
+[[nodiscard]] std::optional<CqmomAbscissaBounds> support_interval_for_dimension(const CqmomCoordinateSupport& support,
+                                                                                const std::size_t phase_space_dimension)
 {
     if (support.empty())
     {
@@ -859,150 +859,20 @@ struct BoundedBranchCandidate
 {
     std::size_t node_count = 0;
     std::string attempt_type;
-    std::vector<double> moments;
-    RealizabilityResult realizability;
     Quadrature1D quadrature;
     bool inversion_attempted = false;
-    bool nodes_inside_support = false;
     bool accepted = false;
     std::string message;
 };
 
-[[nodiscard]] bool nodes_inside_interval(const std::vector<double>& nodes, const BoundedInterval interval, const double tolerance)
+[[nodiscard]] bool nodes_inside_interval(const std::vector<double>& nodes, const CqmomAbscissaBounds interval, const double tolerance)
 {
     return std::all_of(nodes.begin(), nodes.end(), [interval, tolerance](const double node)
                        { return std::isfinite(node) && node >= interval.lower - tolerance && node <= interval.upper + tolerance; });
 }
 
-[[nodiscard]] DenseMatrix bounded_hankel_hadamard_matrix(const std::vector<double>& moments, const std::size_t order)
-{
-    DenseMatrix matrix(order + 1, order + 1);
-    for (std::size_t row = 0; row <= order; ++row)
-    {
-        for (std::size_t col = 0; col <= order; ++col)
-        {
-            matrix(row, col) = moments[row + col];
-        }
-    }
-    return matrix;
-}
-
-[[nodiscard]] DenseMatrix bounded_linear_localizing_matrix(const std::vector<double>& moments, const BoundedInterval interval,
-                                                           const std::size_t order, const bool lower_bound)
-{
-    DenseMatrix matrix(order + 1, order + 1);
-    for (std::size_t row = 0; row <= order; ++row)
-    {
-        for (std::size_t col = 0; col <= order; ++col)
-        {
-            const std::size_t index = row + col;
-            matrix(row, col) =
-                lower_bound ? moments[index + 1] - interval.lower * moments[index] : interval.upper * moments[index] - moments[index + 1];
-        }
-    }
-    return matrix;
-}
-
-[[nodiscard]] DenseMatrix bounded_quadratic_localizing_matrix(const std::vector<double>& moments, const BoundedInterval interval,
-                                                              const std::size_t order)
-{
-    DenseMatrix matrix(order + 1, order + 1);
-    for (std::size_t row = 0; row <= order; ++row)
-    {
-        for (std::size_t col = 0; col <= order; ++col)
-        {
-            const std::size_t index = row + col;
-            matrix(row, col) =
-                (interval.lower + interval.upper) * moments[index + 1] - interval.lower * interval.upper * moments[index] - moments[index + 2];
-        }
-    }
-    return matrix;
-}
-
-[[nodiscard]] double determinant(DenseMatrix matrix)
-{
-    if (matrix.rows() != matrix.cols())
-    {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-
-    double value = 1.0;
-    for (std::size_t pivot_col = 0; pivot_col < matrix.rows(); ++pivot_col)
-    {
-        std::size_t pivot_row = pivot_col;
-        double pivot_abs = std::abs(matrix(pivot_col, pivot_col));
-        for (std::size_t row = pivot_col + 1; row < matrix.rows(); ++row)
-        {
-            const double candidate = std::abs(matrix(row, pivot_col));
-            if (candidate > pivot_abs)
-            {
-                pivot_abs = candidate;
-                pivot_row = row;
-            }
-        }
-        if (pivot_abs == 0.0)
-        {
-            return 0.0;
-        }
-        if (pivot_row != pivot_col)
-        {
-            for (std::size_t col = 0; col < matrix.cols(); ++col)
-            {
-                std::swap(matrix(pivot_col, col), matrix(pivot_row, col));
-            }
-            value = -value;
-        }
-        const double pivot = matrix(pivot_col, pivot_col);
-        value *= pivot;
-        for (std::size_t row = pivot_col + 1; row < matrix.rows(); ++row)
-        {
-            const double factor = matrix(row, pivot_col) / pivot;
-            for (std::size_t col = pivot_col + 1; col < matrix.cols(); ++col)
-            {
-                matrix(row, col) -= factor * matrix(pivot_col, col);
-            }
-        }
-    }
-    return value;
-}
-
-[[nodiscard]] std::vector<CqmomBoundedSupportDeterminantDiagnostics> bounded_support_determinants(const std::vector<double>& moments,
-                                                                                                  const BoundedInterval interval)
-{
-    std::vector<CqmomBoundedSupportDeterminantDiagnostics> diagnostics;
-    if (moments.empty())
-    {
-        return diagnostics;
-    }
-
-    const std::size_t checked_order = moments.size() - 1;
-    const std::size_t order = checked_order / 2;
-    if (checked_order == 0)
-    {
-        diagnostics.push_back({"classical Hankel-Hadamard determinant Delta_0", 0, determinant(bounded_hankel_hadamard_matrix(moments, 0))});
-    }
-    else if (checked_order % 2 == 1)
-    {
-        diagnostics.push_back({"lower-support localizing determinant Delta_lower_" + std::to_string(order), order,
-                               determinant(bounded_linear_localizing_matrix(moments, interval, order, true))});
-        diagnostics.push_back({"upper-support localizing determinant Delta_upper_" + std::to_string(order), order,
-                               determinant(bounded_linear_localizing_matrix(moments, interval, order, false))});
-    }
-    else
-    {
-        diagnostics.push_back({"classical Hankel-Hadamard determinant Delta_" + std::to_string(order), order,
-                               determinant(bounded_hankel_hadamard_matrix(moments, order))});
-        if (order > 0)
-        {
-            diagnostics.push_back({"interval quadratic localizing determinant Delta_interval_" + std::to_string(order - 1), order - 1,
-                                   determinant(bounded_quadratic_localizing_matrix(moments, interval, order - 1))});
-        }
-    }
-    return diagnostics;
-}
-
 [[nodiscard]] BoundedBranchCandidate evaluate_bounded_branch_candidate(const std::vector<double>& moment_sequence, const std::size_t node_count,
-                                                                       const BoundedInterval interval, const WheelerOptions& wheeler_options,
+                                                                       const CqmomAbscissaBounds interval, const WheelerOptions& wheeler_options,
                                                                        std::string attempt_type)
 {
     BoundedBranchCandidate candidate;
@@ -1015,21 +885,12 @@ struct BoundedBranchCandidate
         candidate.message = "Bounded-support branch candidate does not have enough conditional moments.";
         return candidate;
     }
-    candidate.moments.assign(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(required_moment_count));
-
-    const RealizabilityOptions realizability_options{};
-    candidate.realizability = check_realizability(MomentSet(candidate.moments), interval, realizability_options);
-    if (!candidate.realizability.realizable())
-    {
-        candidate.quadrature.status = QuadratureStatus::not_realizable;
-        candidate.message = "Bounded-support realizability check failed: " + candidate.realizability.message;
-        return candidate;
-    }
+    std::vector<double> candidate_moments(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(required_moment_count));
 
     WheelerOptions fixed_candidate_options = wheeler_options;
     fixed_candidate_options.adaptive = false;
     candidate.inversion_attempted = true;
-    candidate.quadrature = compute_branch_quadrature(candidate.moments, node_count, fixed_candidate_options);
+    candidate.quadrature = compute_branch_quadrature(std::move(candidate_moments), node_count, fixed_candidate_options);
     if (!candidate.quadrature.ok())
     {
         candidate.message = "Bounded-support Wheeler inversion failed: " + candidate.quadrature.message;
@@ -1042,8 +903,8 @@ struct BoundedBranchCandidate
         return candidate;
     }
 
-    candidate.nodes_inside_support = nodes_inside_interval(candidate.quadrature.abscissas, interval, realizability_options.tolerance);
-    if (!candidate.nodes_inside_support)
+    constexpr double coordinate_support_tolerance = 1.0e-12;
+    if (!nodes_inside_interval(candidate.quadrature.abscissas, interval, coordinate_support_tolerance))
     {
         candidate.quadrature.status = QuadratureStatus::not_realizable;
         candidate.message = "Bounded-support Wheeler inversion returned nodes outside the configured interval.";
@@ -1056,8 +917,8 @@ struct BoundedBranchCandidate
 }
 
 void record_bounded_candidate_diagnostics(internal::RecursiveQuadratureBranchDiagnostics& diagnostics, const BoundedBranchCandidate& candidate,
-                                          const BoundedInterval interval, const std::optional<std::size_t> previous_active_node_count,
-                                          const std::size_t accepted_fallback_node_count, const bool include_determinants)
+                                          const CqmomAbscissaBounds interval, const std::optional<std::size_t> previous_active_node_count,
+                                          const std::size_t accepted_fallback_node_count)
 {
     diagnostics.bounded_support_checked = true;
     diagnostics.bounded_support_interval_present = true;
@@ -1065,20 +926,11 @@ void record_bounded_candidate_diagnostics(internal::RecursiveQuadratureBranchDia
     diagnostics.bounded_previous_active_node_count = previous_active_node_count;
     diagnostics.bounded_candidate_node_count = candidate.node_count;
     diagnostics.bounded_candidate_attempt_type = candidate.attempt_type;
-    diagnostics.bounded_candidate_moments = candidate.moments;
-    diagnostics.bounded_realizability_status = candidate.realizability.status;
-    diagnostics.bounded_effective_tolerance = candidate.realizability.tolerance_used;
-    diagnostics.bounded_failed_matrix = candidate.realizability.failed_matrix;
-    diagnostics.bounded_minimum_margin = candidate.realizability.minimum_pivot;
     diagnostics.bounded_accepted_fallback_node_count = accepted_fallback_node_count;
     if (candidate.inversion_attempted)
     {
         diagnostics.bounded_returned_nodes = candidate.quadrature.abscissas;
         diagnostics.bounded_returned_weights = candidate.quadrature.weights;
-    }
-    if (!candidate.accepted || include_determinants)
-    {
-        diagnostics.bounded_support_determinants = bounded_support_determinants(candidate.moments, interval);
     }
 }
 
@@ -1097,9 +949,9 @@ struct BoundedBranchSelection
 
 [[nodiscard]] BoundedBranchSelection select_bounded_branch_quadrature(const std::vector<double>& moment_sequence,
                                                                       const BranchNodeCountLimit& node_count_limit,
-                                                                      const std::size_t configured_node_count, const BoundedInterval interval,
+                                                                      const std::size_t configured_node_count, const CqmomAbscissaBounds interval,
                                                                       const WheelerOptions& wheeler_options, const bool adaptive_branch_counts,
-                                                                      const bool allow_active_branch_count_growth, const bool include_determinants,
+                                                                      const bool allow_active_branch_count_growth,
                                                                       internal::RecursiveQuadratureBranchDiagnostics& diagnostics)
 {
     BoundedBranchSelection selection;
@@ -1111,14 +963,13 @@ struct BoundedBranchSelection
         BoundedBranchCandidate fixed = evaluate_bounded_branch_candidate(moment_sequence, configured_node_count, interval, wheeler_options, "fixed");
         if (!fixed.accepted)
         {
-            record_bounded_candidate_diagnostics(diagnostics, fixed, interval, node_count_limit.active_node_count, 0, include_determinants);
+            record_bounded_candidate_diagnostics(diagnostics, fixed, interval, node_count_limit.active_node_count, 0);
             selection.quadrature = std::move(fixed.quadrature);
             selection.selected_node_count_ceiling = configured_node_count;
             selection.message = fixed.message;
             return selection;
         }
-        record_bounded_candidate_diagnostics(diagnostics, fixed, interval, node_count_limit.active_node_count, configured_node_count,
-                                             include_determinants);
+        record_bounded_candidate_diagnostics(diagnostics, fixed, interval, node_count_limit.active_node_count, configured_node_count);
         selection.quadrature = std::move(fixed.quadrature);
         selection.selected_node_count_ceiling = configured_node_count;
         selection.success = true;
@@ -1137,12 +988,11 @@ struct BoundedBranchSelection
             {
                 selection.reduced = true;
                 record_bounded_candidate_diagnostics(diagnostics, rejected_candidate.value_or(candidate), interval,
-                                                     node_count_limit.active_node_count, candidate_count, include_determinants);
+                                                     node_count_limit.active_node_count, candidate_count);
             }
             else
             {
-                record_bounded_candidate_diagnostics(diagnostics, candidate, interval, node_count_limit.active_node_count, candidate_count,
-                                                     include_determinants);
+                record_bounded_candidate_diagnostics(diagnostics, candidate, interval, node_count_limit.active_node_count, candidate_count);
             }
             selection.quadrature = std::move(candidate.quadrature);
             selection.selected_node_count_ceiling = candidate_count;
@@ -1155,8 +1005,7 @@ struct BoundedBranchSelection
         }
         if (candidate_count == 1)
         {
-            record_bounded_candidate_diagnostics(diagnostics, *rejected_candidate, interval, node_count_limit.active_node_count, 0,
-                                                 include_determinants);
+            record_bounded_candidate_diagnostics(diagnostics, *rejected_candidate, interval, node_count_limit.active_node_count, 0);
             selection.quadrature = std::move(candidate.quadrature);
             selection.selected_node_count_ceiling = first_count;
             selection.message = candidate.message;
@@ -1172,8 +1021,7 @@ struct BoundedBranchSelection
         BoundedBranchCandidate growth = evaluate_bounded_branch_candidate(moment_sequence, growth_count, interval, wheeler_options, "growth");
         if (growth.accepted)
         {
-            record_bounded_candidate_diagnostics(diagnostics, growth, interval, node_count_limit.active_node_count, growth_count,
-                                                 include_determinants);
+            record_bounded_candidate_diagnostics(diagnostics, growth, interval, node_count_limit.active_node_count, growth_count);
             selection.quadrature = std::move(growth.quadrature);
             selection.selected_node_count_ceiling = growth_count;
             selection.reduced = false;
@@ -1181,7 +1029,7 @@ struct BoundedBranchSelection
         else
         {
             record_bounded_candidate_diagnostics(diagnostics, growth, interval, node_count_limit.active_node_count,
-                                                 selection.quadrature.weights.size(), include_determinants);
+                                                 selection.quadrature.weights.size());
         }
     }
 
@@ -1795,12 +1643,13 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             Quadrature1D quadrature;
             std::size_t selected_node_count_ceiling = node_count_limit.ceiling;
             bool support_driven_reduction = false;
-            const std::optional<BoundedInterval> support_interval = support_interval_for_dimension(request.coordinate_support, phase_space_dimension);
+            const std::optional<CqmomAbscissaBounds> support_interval =
+                support_interval_for_dimension(request.coordinate_support, phase_space_dimension);
             if (support_interval.has_value())
             {
-                BoundedBranchSelection bounded_selection = select_bounded_branch_quadrature(
-                    moment_sequence, node_count_limit, configured_node_count, *support_interval, wheeler_options, request.adaptive_branch_counts,
-                    request.allow_active_branch_count_growth, request.diagnostic_level == CqmomDiagnosticLevel::detailed, branch_diagnostics);
+                BoundedBranchSelection bounded_selection =
+                    select_bounded_branch_quadrature(moment_sequence, node_count_limit, configured_node_count, *support_interval, wheeler_options,
+                                                     request.adaptive_branch_counts, request.allow_active_branch_count_growth, branch_diagnostics);
                 quadrature = std::move(bounded_selection.quadrature);
                 selected_node_count_ceiling = bounded_selection.selected_node_count_ceiling;
                 support_driven_reduction = bounded_selection.reduced;

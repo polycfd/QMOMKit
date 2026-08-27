@@ -2,7 +2,7 @@
 
 This example checks a raw moment sequence against the QMOMKit realizability
 utilities and reports the resulting status. It is a diagnostic of moment
-validity only; it does not reconstruct a quadrature or advance a transport
+validity only; it does not reconstruct a quadrature or advance a phase-space evolution
 state.
 
 The sequence used by `main.cpp` is

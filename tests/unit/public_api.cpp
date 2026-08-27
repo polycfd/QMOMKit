@@ -1,3 +1,4 @@
+#include "internal/performance.hpp"
 #include "qmomkit/qmomkit.hpp"
 
 #include <algorithm>
@@ -722,7 +723,8 @@ void test_cqmom_public_api_two_dimensional_manufactured_case()
     }
 
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, {}});
+    const qmomkit::CqmomDenseCase case_{hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed};
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
 
     assert(result.ok());
     assert(result.status == qmomkit::CqmomStatus::success);
@@ -794,7 +796,9 @@ void test_cqmom_public_api_exposes_adaptive_branch_counts()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0}, {-2.0, 2.0, 3.0}};
     const std::vector<double> moments = raw_moments_from_terminals(extents, weights, abscissas);
 
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true});
+    const qmomkit::CqmomDenseCase case_{
+        hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic};
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
 
     assert(result.ok());
     assert(result.quadrature.adaptive_branch_counts_enabled());
@@ -854,19 +858,34 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.5, 1.5}, {0.25, 2.0, 0.25, 2.0}};
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
 
-    qmomkit::CqmomDenseCase detailed_case{hierarchy, {extents, moments}, {}, {}};
-    const qmomkit::CqmomResult default_result = qmomkit::compute_cqmom(detailed_case);
-    assert(default_result.ok());
-    assert(!default_result.diagnostics.empty());
-    assert(default_result.diagnostics.front().conditional_moment_diagnostics.residual_norm.has_value());
-    assert(default_result.diagnostics.front().conditional_moment_diagnostics.condition_estimate.has_value());
+    qmomkit::CqmomDenseCase default_case{hierarchy, {extents, moments}, {}, {}};
+    assert(default_case.diagnostic_level == qmomkit::CqmomDiagnosticLevel::none);
 
-    qmomkit::CqmomDenseCase basic_case = detailed_case;
+    qmomkit::internal::performance::CounterSession default_session;
+    const qmomkit::CqmomResult default_result = [&]()
+    {
+        qmomkit::internal::performance::CounterScope scope(default_session);
+        return qmomkit::compute_cqmom(default_case);
+    }();
+    assert(default_result.ok());
+    assert(default_result.diagnostics.empty());
+    assert(default_session.snapshot().linear_algebra.condition_estimates == 0);
+
+    qmomkit::CqmomDenseCase detailed_case = default_case;
+    detailed_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
+    const qmomkit::CqmomResult detailed_result = qmomkit::compute_cqmom(detailed_case);
+    assert(detailed_result.ok());
+    assert_same_quadrature(default_result.quadrature, detailed_result.quadrature, 1.0e-13);
+    assert(!detailed_result.diagnostics.empty());
+    assert(detailed_result.diagnostics.front().conditional_moment_diagnostics.residual_norm.has_value());
+    assert(detailed_result.diagnostics.front().conditional_moment_diagnostics.condition_estimate.has_value());
+
+    qmomkit::CqmomDenseCase basic_case = default_case;
     basic_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     const qmomkit::CqmomResult basic_result = qmomkit::compute_cqmom(basic_case);
     assert(basic_result.ok());
     assert_same_quadrature(default_result.quadrature, basic_result.quadrature, 1.0e-13);
-    assert(basic_result.diagnostics.size() == default_result.diagnostics.size());
+    assert(basic_result.diagnostics.size() == detailed_result.diagnostics.size());
     for (const qmomkit::CqmomDiagnostics& diagnostics : basic_result.diagnostics)
     {
         assert(diagnostics.qmom_status == qmomkit::QmomStatus::success);
@@ -876,7 +895,7 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
         assert(!diagnostics.conditional_moment_diagnostics.conditioning_warning);
     }
 
-    qmomkit::CqmomDenseCase none_case = detailed_case;
+    qmomkit::CqmomDenseCase none_case = default_case;
     none_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::none;
     const qmomkit::CqmomResult none_result = qmomkit::compute_cqmom(none_case);
     assert(none_result.ok());

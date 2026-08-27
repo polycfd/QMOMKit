@@ -489,7 +489,7 @@ bool validate_history(const std::vector<HistorySample>& history, const double in
     }
     if (maximum_mean_error > 5.0e-5)
     {
-        message = "Velocity mean deviated from the continuous relaxation reference by more than 5e-5.";
+        message = "Velocity mean deviated from the advection relaxation reference by more than 5e-5.";
         return false;
     }
     if (!std::isfinite(variance_before_pulse) || maximum_pulse_variance <= variance_before_pulse + 1.0e-4)
@@ -498,7 +498,7 @@ bool validate_history(const std::vector<HistorySample>& history, const double in
         return false;
     }
 
-    message = "mass conserved, velocity mean follows continuous relaxation, and pulse increases velocity variance";
+    message = "mass conserved, velocity mean follows advection relaxation, and pulse increases velocity variance";
     return true;
 }
 
@@ -648,7 +648,7 @@ void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moment
     std::cout << std::left << std::setw(22) << "Equilibrium velocity" << std::scientific << std::setprecision(6) << equilibrium_velocity << '\n';
     std::cout << std::left << std::setw(22) << "Pulse interval" << '[' << std::scientific << std::setprecision(6) << pulse_start << ", " << pulse_end
               << ")\n";
-    std::cout << std::left << std::setw(22) << "Source rate" << std::scientific << std::setprecision(6) << source_rate << '\n';
+    std::cout << std::left << std::setw(22) << "Moment-source rate" << std::scientific << std::setprecision(6) << source_rate << '\n';
     std::cout << std::left << std::setw(22) << "Velocity displacement" << std::scientific << std::setprecision(6) << velocity_displacement << '\n';
     std::cout << std::left << std::setw(22) << "Time step" << std::scientific << std::setprecision(6) << time_step << '\n';
     std::cout << std::left << std::setw(22) << "Final time" << std::scientific << std::setprecision(6) << final_time << '\n';

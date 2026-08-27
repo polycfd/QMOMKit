@@ -1021,16 +1021,15 @@ moments are used.
 
 ## Example Files
 
-Small QMOMKit configuration examples live under `examples/configuration/`:
-
-- `qmom_explicit_moments.qmom`
-- `qmom_mixture_absolute_density.qmom`
-- `realizability_policy_nonnegative.qmom`
+The inline examples in this guide cover explicit moments, mixture
+initialization, and runtime realizability settings. Executable examples keep
+their complete configurations alongside the corresponding workflow.
 
 Phase-space evolution examples with local configuration files include:
 
+- `examples/qmom_mixture_initialization/configuration.qmom`
 - `examples/qmom_1d_breakage_advection/configuration.qmom`
-- `examples/cqmom_phase_space_evolution/configuration.qmom`
+- `examples/cqmom_2d_minimal/configuration.qmom`
 
 Monte Carlo companion examples live under `tools/monte_carlo/configuration/`:
 

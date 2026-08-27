@@ -6,7 +6,7 @@ raw-moment reconstruction, moment-source operator calls, repeated moment/quadrat
 representation changes, diagnostics, and phase-space evolution scheme behavior for
 `strang`, `advsrc`, and `srcadv`. They are automated analytical tests that complement
 the user-facing phase-space evolution examples under `examples/qmom_1d_breakage_advection/`
-and `examples/cqmom_phase_space_evolution/`.
+and `examples/cqmom_2d_minimal/`.
 
 All initial QMOMKit cases are loaded from `.qmom` files through the public
 configuration API. Configuration may define the initial numerical setup and the

@@ -26,25 +26,25 @@ Primary onboarding
     qmom_1d_breakage_advection
   CQMOM
     cqmom_independent_product_initialization
-    cqmom_phase_space_evolution
+    cqmom_2d_minimal
 
 Reference workflows
   qmom_mixture_initialization
   realizability_check
   cqmom_2d_adaptive_node_counts
   cqmom_2d_borderline_conditioning
-  qmom_1d_breakage_advection_mc_initialization
-  qmom_1d_breakage_advection_mc_local_rates
-  cqmom_2d_breakage_advection_mc_initialization
-  cqmom_3d_condensing-nucleating_droplets
-  cqmom_2d_polydisperse_cavitation
+  qmom_1d_breakage_advection_with-mc
+  qmom_1d_breakage_advection_local-rates_with-mc
+  cqmom_2d_breakage_advection_with-mc
+  cqmom_3d_droplets_condensation-nucleation
+  cqmom_2d_bubbles_cavitation
   cqmom_5d_non-spherical-particles  # 5D adaptive CQMOM with bounded support,
                                      # a bimodal marginal mixture, and a
                                      # bounded/unbounded support diagnostic
 ```
 
 For physics callbacks, start with `qmom_1d_minimal`,
-`qmom_1d_breakage_advection`, or `cqmom_phase_space_evolution`. The callback contract is
+`qmom_1d_breakage_advection`, or `cqmom_2d_minimal`. The callback contract is
 explained in `phase_space_evolution.md`.
 
 ### Beginner QMOM Workflow
@@ -78,7 +78,7 @@ explained in `phase_space_evolution.md`.
    `load_cqmom(...) -> CqmomCase -> compute_cqmom(...) -> CqmomQuadrature`.
    When phase-space evolution is needed, the same case can then create `CqmomState`.
 
-6. `cqmom_phase_space_evolution`
+6. `cqmom_2d_minimal`
 
    Use this canonical CQMOM phase-space evolution example when your workflow needs custom
    phase-space velocity, moment-source evolution, and
@@ -142,16 +142,13 @@ Example README:
 Use these examples when you want to load input data from `.qmom` files or
 check moment validity before using a state.
 
-### Configuration snippets
+### Configuration syntax
 
-Purpose: provide small `.qmom` files for explicit moments, mixtures, and
-runtime realizability policy settings.
-
-Use these files when you want to see the configuration syntax without a full
-application around it.
-
-Configuration directory:
-[`examples/configuration/`](../../examples/configuration/)
+The [configuration guide](configuration.md) contains inline syntax for
+explicit moments, mixtures, and runtime realizability policy settings. For
+complete workflow configurations, use the `.qmom` files kept with executable
+examples such as `qmom_mixture_initialization` and
+`qmom_1d_breakage_advection`.
 
 ### `realizability_check`
 
@@ -215,7 +212,7 @@ reconstruction, phase-space advection half-step.
 Example README:
 [`examples/qmom_1d_breakage_advection/README.md`](../../examples/qmom_1d_breakage_advection/README.md)
 
-### `cqmom_phase_space_evolution`
+### `cqmom_2d_minimal`
 
 Purpose: initialize and evolve a CQMOM state with phase-space advection
 velocity and a moment-source fragmentation source. The shipped configuration
@@ -226,7 +223,7 @@ Use this example when your workflow needs multidimensional moments, a CQMOM
 hierarchy, and terminal quadrature output over time.
 
 Example README:
-[`examples/cqmom_phase_space_evolution/README.md`](../../examples/cqmom_phase_space_evolution/README.md)
+[`examples/cqmom_2d_minimal/README.md`](../../examples/cqmom_2d_minimal/README.md)
 
 ### `cqmom_2d_adaptive_node_counts`
 
@@ -263,7 +260,7 @@ constant-rate binary breakup and matched Monte Carlo reference workflows; the
 focus is the numerical representation of the source term rather than a detailed
 breakup model.
 
-### `cqmom_4d_spherical_breakup_quadrature`
+### `cqmom_4d_particles_breakage_recoil`
 
 Purpose: evaluate a nonlinear population mapping from terminal quadrature in a
 four-dimensional spherical-particle phase space `(d,u,v,w)`, where `d` is
@@ -277,9 +274,9 @@ This demonstrates terminal quadrature as the natural closure mechanism for the
 source.
 
 Example README:
-[`examples/cqmom_4d_spherical_breakup_quadrature/README.md`](../../examples/cqmom_4d_spherical_breakup_quadrature/README.md)
+[`examples/cqmom_4d_particles_breakage_recoil/README.md`](../../examples/cqmom_4d_particles_breakage_recoil/README.md)
 
-### `cqmom_5d_spherical_breakup_moments`
+### `cqmom_5d_particles_breakage_heat-transfer`
 
 Purpose: evaluate a breakup source directly in moment space for the
 five-dimensional spherical-particle phase space `(V,T,u,v,w)`, where `V` is
@@ -293,7 +290,7 @@ the required non-integer raw moments with
 closure when generalized moments are needed.
 
 Example README:
-[`examples/cqmom_5d_spherical_breakup_moments/README.md`](../../examples/cqmom_5d_spherical_breakup_moments/README.md)
+[`examples/cqmom_5d_particles_breakage_heat-transfer/README.md`](../../examples/cqmom_5d_particles_breakage_heat-transfer/README.md)
 
 ## Monte Carlo Reference
 
@@ -313,7 +310,7 @@ roles:
 The sampled ensemble is finite, so its moments include statistical sampling
 uncertainty. Increasing the sample count generally reduces that uncertainty.
 
-### `qmom_1d_breakage_advection_mc_initialization`
+### `qmom_1d_breakage_advection_with-mc`
 
 Purpose: initialize a one-dimensional QMOM workflow from a fixed-seed Monte
 Carlo sample and provide a companion direct Monte Carlo evolution executable.
@@ -323,9 +320,9 @@ sample-derived initialization, or when you want a one-dimensional sampled
 sample realization and reference workflow.
 
 Example README:
-[`examples/qmom_1d_breakage_advection_mc_initialization/README.md`](../../examples/qmom_1d_breakage_advection_mc_initialization/README.md)
+[`examples/qmom_1d_breakage_advection_with-mc/README.md`](../../examples/qmom_1d_breakage_advection_with-mc/README.md)
 
-### `qmom_1d_breakage_advection_mc_local_rates`
+### `qmom_1d_breakage_advection_local-rates_with-mc`
 
 Purpose: keep one-dimensional raw moments as application-owned state while
 calling QMOMKit's advection and moment-source local moment-rate APIs inside
@@ -335,9 +332,9 @@ Use this example when integrating QMOMKit's local rate operations into a host
 solver or finite-element/finite-volume residual workflow.
 
 Example README:
-[`examples/qmom_1d_breakage_advection_mc_local_rates/README.md`](../../examples/qmom_1d_breakage_advection_mc_local_rates/README.md)
+[`examples/qmom_1d_breakage_advection_local-rates_with-mc/README.md`](../../examples/qmom_1d_breakage_advection_local-rates_with-mc/README.md)
 
-### `cqmom_2d_breakage_advection_mc_initialization`
+### `cqmom_2d_breakage_advection_with-mc`
 
 Purpose: initialize a two-dimensional CQMOM workflow from a fixed-seed Monte
 Carlo sample and provide a companion direct Monte Carlo evolution executable.
@@ -347,23 +344,23 @@ workflow with shared phase-space ordering, velocity callbacks, output
 conventions, and a direct sampled-ensemble reference path.
 
 Example README:
-[`examples/cqmom_2d_breakage_advection_mc_initialization/README.md`](../../examples/cqmom_2d_breakage_advection_mc_initialization/README.md)
+[`examples/cqmom_2d_breakage_advection_with-mc/README.md`](../../examples/cqmom_2d_breakage_advection_with-mc/README.md)
 
-### `cqmom_3d_condensing-nucleating_droplets`
+### `cqmom_3d_droplets_condensation-nucleation`
 
 Purpose: initialize and evolve a three-dimensional CQMOM representation of a
 condensing droplet population with a companion direct Monte Carlo evolution
 executable.
 
-Directory: `examples/cqmom_3d_condensing-nucleating_droplets`
+Directory: `examples/cqmom_3d_droplets_condensation-nucleation`
 
 Phase space: `(r,w,T)`, where `r` is radius, `w` is vertical velocity, and `T`
 is droplet temperature.
 
 Executables:
 
-- `cqmom_3d_condensing_nucleating_droplets_example`
-- `cqmom_3d_condensing_nucleating_droplets_mc_example`
+- `cqmom_3d_droplets_condensation_nucleation_example`
+- `cqmom_3d_droplets_condensation_nucleation_mc_example`
 
 Use this example when you want a 3D sampled-initialization workflow where
 CQMOM and Monte Carlo start from the same finite sample realization and evolve
@@ -374,12 +371,12 @@ Carlo driver calls `qmomkit::monte_carlo::evolve_ensemble(...)`.
 Build and run it with the normal standalone example pattern:
 
 ```bash
-cd examples/cqmom_3d_condensing-nucleating_droplets
+cd examples/cqmom_3d_droplets_condensation-nucleation
 cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
 cmake --build build
 cd build
-./cqmom_3d_condensing_nucleating_droplets_example
-./cqmom_3d_condensing_nucleating_droplets_mc_example
+./cqmom_3d_droplets_condensation_nucleation_example
+./cqmom_3d_droplets_condensation_nucleation_mc_example
 ```
 
 The default run writes `output/initial_moments.txt`,
@@ -388,9 +385,9 @@ The default run writes `output/initial_moments.txt`,
 the same case-defined moment columns, labels, ordering, and output times.
 
 Example README:
-[`examples/cqmom_3d_condensing-nucleating_droplets/README.md`](../../examples/cqmom_3d_condensing-nucleating_droplets/README.md)
+[`examples/cqmom_3d_droplets_condensation-nucleation/README.md`](../../examples/cqmom_3d_droplets_condensation-nucleation/README.md)
 
-### `cqmom_2d_polydisperse_cavitation`
+### `cqmom_2d_bubbles_cavitation`
 
 Purpose: evolve a two-dimensional `(R,U)` CQMOM representation of a
 polydisperse bubble population through advection cavitation dynamics, with a
@@ -400,7 +397,7 @@ Use this example when you want a nonlinear advection-only CQMOM application
 with matching sampled-population and quadrature workflows.
 
 Example README:
-[`examples/cqmom_2d_polydisperse_cavitation/README.md`](../../examples/cqmom_2d_polydisperse_cavitation/README.md)
+[`examples/cqmom_2d_bubbles_cavitation/README.md`](../../examples/cqmom_2d_bubbles_cavitation/README.md)
 
 For broader Monte Carlo guidance, see `monte_carlo.md`.
 
@@ -413,7 +410,7 @@ If you are new to QMOMKit, a practical order is:
 3. `qmom_1d_minimal`
 4. `qmom_1d_breakage_advection`
 5. `cqmom_independent_product_initialization`
-6. `cqmom_phase_space_evolution`
+6. `cqmom_2d_minimal`
 7. Optional initialization examples only when needed:
    `qmom_mixture_initialization`.
 8. Reference examples only when needed: `realizability_check` and Monte Carlo

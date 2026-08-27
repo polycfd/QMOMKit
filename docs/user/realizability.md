@@ -254,11 +254,8 @@ lower = 0.0
 upper = 1.0
 ```
 
-The repository includes a small configuration example at:
-
-```text
-examples/configuration/realizability_policy_nonnegative.qmom
-```
+Include the applicable form above in the configuration file for the workflow
+that performs the runtime realizability check.
 
 ## Practical Guidance
 

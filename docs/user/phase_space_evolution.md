@@ -917,7 +917,7 @@ it to `QmomPhaseSpaceEvolutionOptions` or `CqmomPhaseSpaceEvolutionOptions`. See
 
 ```text
 examples/qmom_1d_breakage_advection/
-examples/cqmom_phase_space_evolution/
+examples/cqmom_2d_minimal/
 ```
 
 ## Batch Convenience Wrappers

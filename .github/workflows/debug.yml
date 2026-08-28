@@ -1,0 +1,46 @@
+name: CI-Debug
+
+on: 
+# Runs on every push on main branch. If a push contains multiple commits, it will be ran on the latest one.
+  push:
+    # Runs on every push on main branch
+    branches:
+      - main
+  pull_request:
+    paths-ignore:
+      - 'doc/**'
+      - 'examples/**'
+    
+# Cancels running instances when a pull request is updated by a commit
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  cancel-in-progress: ${{github.event_name == 'pull_request'}}
+
+
+env:
+  COMPILE_JOBS: 8
+  TEST_JOBS: 8
+
+jobs:
+  build:
+    name: Build
+    runs-on: self-hosted
+
+    strategy:
+      fail-fast: false
+    
+    steps:
+
+      # Checks-out Lethe with branch of triggering commit
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Compile QMOMKit (Debug)
+        run: |
+          cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
+          cmake --build build-tests -j${{ env.COMPILE_JOBS}} 
+
+      # These tests require a single core each so we will run them in parallel
+      - name: Run QMOMKit tests (Debug)
+        run: |
+          ctest --test-dir build-tests --output-on-failure -j${{ env.TEST_JOBS }} 

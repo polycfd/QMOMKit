@@ -1,5 +1,9 @@
 # QMOMKit
 
+[![CI-Release](https://github.com/polycfd/QMOMKit/actions/workflows/release.yml/badge.svg)](https://github.com/polycfd/QMOMKit/actions/workflows/release.yml)
+[![CI-Debug](https://github.com/polycfd/QMOMKit/actions/workflows/debug.yml/badge.svg)](https://github.com/polycfd/QMOMKit/actions/workflows/debug.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 **QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number-density functions in arbitrary-dimensional phase spaces**
 
 QMOMKit reconstructs quadrature nodes and weights from raw moments and utilities for the evolution of moments and the corresponding quadratures in phase space. It is independent of any physical application or host code coupling and, hence, leaves transport of moments in the physical space, the representation and discretization of the physical space and overall simulation workflow to the host application. The QMOMKit library has **no third-party dependencies**.

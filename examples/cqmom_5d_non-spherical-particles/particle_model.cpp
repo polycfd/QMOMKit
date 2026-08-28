@@ -10,7 +10,6 @@ namespace cqmom_5d_non_spherical_particles
 namespace
 {
 constexpr double spherical_limit_tolerance = 0.001;
-constexpr double pi = 3.141592653589793238462643383279502884;
 
 [[nodiscard]] bool is_positive_finite(const double value)
 {
@@ -107,10 +106,6 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
         const double u = state[2];
         const double v = state[3];
         const double w = state[4];
-
-        // const double d_safe = d; // std::clamp(d, 5.0e-7, 1.0e12);
-        // const double chi_safe = chi;
-        // std::clamp(chi, 1.0e-6, 1.0 - 1.0e-6);
 
         const double fluid_velocity_x = parameters.fluid_velocity_amplitude_x * std::cos(parameters.oscillation_angular_frequency * time);
 

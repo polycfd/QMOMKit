@@ -887,10 +887,8 @@ struct BoundedBranchCandidate
     }
     std::vector<double> candidate_moments(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(required_moment_count));
 
-    WheelerOptions fixed_candidate_options = wheeler_options;
-    fixed_candidate_options.adaptive = false;
     candidate.inversion_attempted = true;
-    candidate.quadrature = compute_branch_quadrature(std::move(candidate_moments), node_count, fixed_candidate_options);
+    candidate.quadrature = compute_branch_quadrature(std::move(candidate_moments), node_count, wheeler_options);
     if (!candidate.quadrature.ok())
     {
         candidate.message = "Bounded-support Wheeler inversion failed: " + candidate.quadrature.message;

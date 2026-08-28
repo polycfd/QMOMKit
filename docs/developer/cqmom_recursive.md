@@ -560,6 +560,9 @@ For a bounded coordinate, Wheeler inversion is run for each branch-local
 within the quadrature-bound tolerance. This is an acceptance criterion, not a
 node clipping or projection step. Coordinate bounds constrain quadrature
 abscissas only; they do not select or parameterize moment-realizability logic.
+For adaptive branches, bounded candidates must also pass the same Wheeler
+relative-weight and dimensionless abscissa-separation checks as unbounded
+candidates; support membership is an additional condition.
 
 Adaptive branch-count reconstruction retries bounded candidates from the
 current ceiling down to one node. When active branch-count metadata permits a

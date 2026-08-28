@@ -211,7 +211,11 @@ struct WheelerAttemptResult
     double max_farthest = *std::max_element(farthest_distances.begin() + 1, farthest_distances.end());
     if (abscissas.size() == 2)
     {
-        max_farthest = 1.0;
+        max_farthest = std::max(std::abs(abscissas[0]), std::abs(abscissas[1]));
+        if (max_farthest == 0.0)
+        {
+            return false;
+        }
     }
 
     return min_nearest / max_farthest > options.eabs;

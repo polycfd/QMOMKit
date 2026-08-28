@@ -59,6 +59,64 @@ std::vector<double> reconstruct_moments(const qmomkit::Quadrature1D& quadrature,
     return moments;
 }
 
+qmomkit::MomentSet moments_from_nodes(const std::vector<double>& abscissas, const std::vector<double>& weights)
+{
+    return qmomkit::MomentSet(reconstruct_moments(qmomkit::Quadrature1D{abscissas, weights}, 2 * weights.size()));
+}
+
+void test_adaptive_two_node_relative_separation_rejects_nearby_nonzero_nodes()
+{
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+    options.eabs = 0.1;
+
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments_from_nodes({1.0, 1.01}, {0.5, 0.5}), 2, options);
+
+    assert(quadrature.ok());
+    assert(quadrature.weights.size() == 1);
+    assert(quadrature.abscissas.size() == 1);
+}
+
+void test_adaptive_two_node_relative_separation_accepts_small_symmetric_pair()
+{
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+    options.eabs = 0.1;
+
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments_from_nodes({-1.0e-6, 1.0e-6}, {0.5, 0.5}), 2, options);
+
+    assert(quadrature.ok());
+    assert(quadrature.weights.size() == 2);
+    assert_vector_near(quadrature.abscissas, {-1.0e-6, 1.0e-6}, 1.0e-14);
+}
+
+void test_adaptive_two_node_zero_scale_reduces_without_nonfinite_values()
+{
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments_from_nodes({0.0, 0.0}, {0.5, 0.5}), 2, options);
+
+    assert(quadrature.ok());
+    assert(quadrature.weights.size() == 1);
+    assert(quadrature.abscissas.size() == 1);
+    assert(std::isfinite(quadrature.weights.front()));
+    assert(std::isfinite(quadrature.abscissas.front()));
+}
+
+void test_adaptive_three_node_relative_separation_uses_quadrature_span()
+{
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+    options.eabs = 0.01;
+
+    const qmomkit::Quadrature1D quadrature =
+        qmomkit::compute_quadrature(moments_from_nodes({-1.0, -0.99, 1.0}, {1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0}), 3, options);
+
+    assert(quadrature.ok());
+    assert(quadrature.weights.size() < 3);
+}
+
 void test_adaptive_near_duplicate_nodes_collapse()
 {
     const qmomkit::MomentSet moments{1.0, 1.0000000000005, 1.000000000001, 1.0000000000015001};
@@ -331,6 +389,10 @@ void test_invalid_wheeler_options_fail_before_inversion()
 
 int main()
 {
+    test_adaptive_two_node_relative_separation_rejects_nearby_nonzero_nodes();
+    test_adaptive_two_node_relative_separation_accepts_small_symmetric_pair();
+    test_adaptive_two_node_zero_scale_reduces_without_nonfinite_values();
+    test_adaptive_three_node_relative_separation_uses_quadrature_span();
     test_adaptive_near_duplicate_nodes_collapse();
     test_adaptive_tiny_weight_node_collapse();
     test_scaled_weights_transform_quadrature();

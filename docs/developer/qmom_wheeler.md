@@ -122,7 +122,7 @@ Adaptive behavior is controlled by `QmomOptions` or `WheelerOptions`:
 
 - `adaptive`: enables adaptive node reduction.
 - `rmin`: minimum accepted ratio between the smallest and largest weight.
-- `eabs`: minimum accepted relative node separation.
+- `eabs`: dimensionless minimum accepted relative node separation.
 - `cutoff`: small positive threshold for near-zero mass and adaptive
   recurrence checks.
 
@@ -142,6 +142,13 @@ on the condition that produced it. Callers must use `ok()` or the explicit
 status value, not vector non-emptiness, to determine whether an inversion
 succeeded and whether the returned node count is acceptable for the caller's
 workflow.
+
+For a candidate with more than two nodes, the separation ratio is the minimum
+pairwise abscissa distance divided by the maximum pairwise distance. For a
+two-node candidate, it is the node distance divided by the larger abscissa
+magnitude. Thus `eabs` is dimensionless for every multi-node candidate. A
+two-node candidate whose abscissas both equal zero is degenerate and does not
+pass the separation criterion.
 
 Adaptive Wheeler is a one-dimensional inversion policy. In recursive CQMOM,
 enabling branch-specific adaptive node counts automatically uses adaptive

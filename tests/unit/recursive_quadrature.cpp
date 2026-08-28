@@ -947,6 +947,58 @@ void test_recursive_bounded_support_adaptive_falls_back_to_supported_count()
     assert(diagnostic.adaptive_node_count_reduced);
 }
 
+void test_recursive_bounded_support_adaptive_applies_relative_separation()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 1});
+    const std::vector<std::size_t> extents{4, 2};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature({{1.0, 1.01}, {0.0, 0.0}}, {0.5, 0.5}, extents);
+    const qmomkit::WheelerOptions wheeler_options{true, 1.0e-10, 0.1, 1.0e-12};
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 2.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult result =
+        qmomkit::internal::compute_recursive_quadrature({hierarchy,
+                                                         {extents, moments},
+                                                         {},
+                                                         wheeler_options,
+                                                         true,
+                                                         qmomkit::CqmomDiagnosticLevel::detailed,
+                                                         qmomkit::VandermondeSolver::dense,
+                                                         support});
+
+    assert(result.ok());
+    assert(result.quadrature.total_nodes() == 1);
+    assert(!result.diagnostics.empty());
+    assert(result.diagnostics.front().bounded_candidate_node_count == 2);
+    assert(result.diagnostics.front().bounded_accepted_fallback_node_count == 1);
+    assert(result.diagnostics.front().adaptive_node_count_reduced);
+}
+
+void test_recursive_bounded_support_adaptive_applies_relative_weight_check()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 1});
+    const std::vector<std::size_t> extents{4, 2};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature({{0.2, 0.8}, {0.0, 0.0}}, {0.99, 0.01}, extents);
+    const qmomkit::WheelerOptions wheeler_options{true, 0.1, 1.0e-10, 1.0e-12};
+    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult result =
+        qmomkit::internal::compute_recursive_quadrature({hierarchy,
+                                                         {extents, moments},
+                                                         {},
+                                                         wheeler_options,
+                                                         true,
+                                                         qmomkit::CqmomDiagnosticLevel::detailed,
+                                                         qmomkit::VandermondeSolver::dense,
+                                                         support});
+
+    assert(result.ok());
+    assert(result.quadrature.total_nodes() == 1);
+    assert(!result.diagnostics.empty());
+    assert(result.diagnostics.front().bounded_candidate_node_count == 2);
+    assert(result.diagnostics.front().bounded_accepted_fallback_node_count == 1);
+    assert(result.diagnostics.front().adaptive_node_count_reduced);
+}
+
 void test_recursive_bounded_support_rejects_growth_and_preserves_current_count()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({3, 1});
@@ -1878,6 +1930,8 @@ void run_all_recursive_quadrature_tests()
     test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive();
     test_recursive_bounded_support_rejects_fixed_infeasible_count();
     test_recursive_bounded_support_adaptive_falls_back_to_supported_count();
+    test_recursive_bounded_support_adaptive_applies_relative_separation();
+    test_recursive_bounded_support_adaptive_applies_relative_weight_check();
     test_recursive_bounded_support_rejects_growth_and_preserves_current_count();
     test_recursive_bounded_support_uses_phase_space_coordinate_index();
     test_recursive_bounded_support_applies_to_conditional_phase_space_dimension();
@@ -1958,6 +2012,8 @@ void run_bounded_support_tests()
     test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive();
     test_recursive_bounded_support_rejects_fixed_infeasible_count();
     test_recursive_bounded_support_adaptive_falls_back_to_supported_count();
+    test_recursive_bounded_support_adaptive_applies_relative_separation();
+    test_recursive_bounded_support_adaptive_applies_relative_weight_check();
     test_recursive_bounded_support_rejects_growth_and_preserves_current_count();
     test_recursive_bounded_support_uses_phase_space_coordinate_index();
     test_recursive_bounded_support_applies_to_conditional_phase_space_dimension();

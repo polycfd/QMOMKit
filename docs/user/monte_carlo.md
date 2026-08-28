@@ -92,6 +92,127 @@ This builds the Monte Carlo library and the user-facing
 the companion package into the same repository-local `install/` prefix as
 QMOMKit. It does not run tests.
 
+## Using The C++ API
+
+The optional package can also be used directly as an installed C++ library,
+without using the supplied drivers. It provides reusable finite-ensemble
+infrastructure; an application supplies its own physical event models. For
+example, generic breakup, collision, recoil, and other model-specific rules in
+the Monte Carlo companion examples are example-local code built on top of this
+package, not library features.
+
+Consume the separately installed package with its exported target. It brings
+the required core QMOMKit package dependency with it:
+
+```cmake
+find_package(QMOMKitMonteCarlo CONFIG REQUIRED)
+target_link_libraries(my_application
+    PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo)
+```
+
+Public headers are included as `#include <monte_carlo/...>` and their types
+live in `qmomkit::monte_carlo`. Build and installation steps remain the same as
+in the preceding section and in [installation.md](installation.md).
+
+| Task | Public header / API family | Purpose |
+|---|---|---|
+| Represent a finite population | `ensemble.hpp`: `Sample`, `Ensemble`, `SamplingOptions` | Store generic phase-space samples in QMOMKit phase-space order. |
+| Sample analytical or discrete data | `sampling.hpp`, `explicit_distribution.hpp` | Sample supported distributions, mixtures, independent products, or an explicit weighted discrete distribution. |
+| Initialize from one finite realization | `sampled_initialization.hpp`: `sample_initialization(...)` | Pair an ensemble with the raw moments estimated from that same sample. |
+| Estimate raw moments | `moments.hpp`: `compute_ensemble_moments(...)`, `compute_requested_ensemble_moments(...)` | Estimate complete one-dimensional/tensor moments or only requested multi-indices, with standard errors. |
+| Advect samples or explicit quadrature nodes | `evolution.hpp`: `evolve_ensemble(...)`, `evolve_quadrature_nodes(...)`, `evolve_explicit_quadrature(...)` | Advance coordinates through a caller-supplied `PhaseSpaceVelocity`. |
+| Add a stochastic birth | `birth.hpp`: `inject_population(...)` | Add samples for a caller-supplied integrated birth amount and normalized birth sampler. |
+| Write or compare estimates | `output.hpp`, `comparison.hpp` | Write moment estimates and compare QMOM/CQMOM raw moments with Monte Carlo estimates. |
+
+The public-header comments are the detailed API reference. Most operations
+return a result object with `ok()`, `status`, and `message`; use its payload
+only after `ok()` succeeds. `sample_initialization(...)` follows the same
+pattern and exposes both its `sampling` and `moments` results.
+
+### Sample And Initialize From One Realization
+
+This small example samples a log-normal population and computes moments from
+that exact realization. Those moments can initialize a corresponding QMOM
+calculation, while `initialization.sampling.ensemble` remains available as the
+stochastic companion population.
+
+```cpp
+#include <monte_carlo/sampled_initialization.hpp>
+#include <qmomkit/distributions.hpp>
+
+#include <iostream>
+
+int main()
+{
+    const auto initialization = qmomkit::monte_carlo::sample_initialization(
+        qmomkit::LogNormalDistribution{-0.2, 0.4},
+        2.5,
+        3,
+        qmomkit::monte_carlo::SamplingOptions{10000, 1201});
+
+    if (!initialization.ok())
+    {
+        std::cerr << "Sampling: " << initialization.sampling.message
+                  << "\nMoment estimation: " << initialization.moments.message << '\n';
+        return 1;
+    }
+
+    const qmomkit::monte_carlo::Ensemble& ensemble = initialization.sampling.ensemble;
+    const qmomkit::MomentSet& moments = initialization.moments.moments;
+    std::cout << "samples=" << ensemble.size() << ", m0=" << moments[0] << '\n';
+    return 0;
+}
+```
+
+For an existing ensemble, `compute_ensemble_moments(...)` estimates a complete
+one-dimensional `MomentSet` or multidimensional `RawMomentTensor` and their
+standard errors. `compute_requested_ensemble_moments(...)` evaluates only the
+multi-indices in a `qmomkit::RawMomentRequest`; it preserves request order and
+does not allocate an omitted dense tensor. These raw moments provide the common
+quantities for comparison with QMOM or CQMOM results.
+
+### Evolve An Ensemble
+
+`evolve_ensemble(...)` independently advances every sample with the supplied
+phase-space velocity. It performs coordinate advection only: moment sources,
+boundary rules, and event physics remain application code.
+
+```cpp
+#include <monte_carlo/evolution.hpp>
+
+#include <iostream>
+#include <vector>
+
+int main()
+{
+    const qmomkit::monte_carlo::Ensemble ensemble{{0.5}, {1.0}, {2.0}};
+    const qmomkit::PhaseSpaceVelocity velocity =
+        [](double, const std::vector<double>& coordinates)
+        {
+            return std::vector<double>{-0.1 * coordinates[0]};
+        };
+
+    const auto evolved =
+        qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, 0.0, 0.1);
+    if (!evolved.ok())
+    {
+        std::cerr << evolved.message << '\n';
+        return 1;
+    }
+
+    const qmomkit::monte_carlo::Ensemble& next_ensemble = evolved.ensemble;
+    std::cout << "first evolved coordinate=" << next_ensemble.front()[0] << '\n';
+    return 0;
+}
+```
+
+The companion examples show how reusable sampling, moment estimation, and
+advection utilities can be combined with application-specific particle models.
+They are stochastic particle-based companion/reference realizations, not exact
+truth solvers, so their later moments need not match deterministic QMOM/CQMOM
+results exactly. See the Monte Carlo entries in the [examples guide](examples.md)
+for the current 1D and multidimensional workflows.
+
 ## Run The Example Driver
 
 The sample-based initialization driver reads an analytical QMOM or CQMOM

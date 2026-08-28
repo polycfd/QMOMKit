@@ -105,4 +105,5 @@ The registered tests are named for the behavior they check, such as
 ## Documentation
 
 - User guide: `docs/user/monte_carlo.md`
+- Direct installed C++ API: [Using the C++ API](../../docs/user/monte_carlo.md#using-the-c-api)
 - Developer guide: `docs/developer/monte_carlo.md`

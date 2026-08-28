@@ -455,8 +455,14 @@ void test_wrapper_svd_solves_weighted_system_without_residual_by_default()
 
 void test_wrapper_svd_honors_optional_residual_validation()
 {
+    // The clustered abscissas below give a weighted Vandermonde system with a
+    // condition number near 6.7e10, so the solution can only be pinned down to
+    // roughly eps * cond = 1.5e-5. Compare against that floor with a safety
+    // margin: a tighter bound would make the test depend on which rounding a
+    // given toolchain happens to produce.
+    constexpr double ill_conditioned_solution_tolerance = 1.0e-3;
     assert_svd_success({1.0, 1.0 + 1.0e-5, 1.0 + 3.0e-5}, {0.75, -1.5, 2.25}, make_solution({{1.0, 0.25}, {-0.5, 2.0}, {3.0, -4.0}}), true, 1.0e-10,
-                       1, 2.0e-5, 1.0e-10);
+                       1, ill_conditioned_solution_tolerance, 1.0e-10);
 }
 
 void test_wrapper_svd_zero_rhs_columns_success()

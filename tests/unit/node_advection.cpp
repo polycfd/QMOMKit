@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <iostream>
 #include <limits>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -22,6 +23,49 @@ void assert_contains(const std::string& text, const std::string& needle)
     {
         std::cerr << "Missing expected text:\n" << needle << "\nActual message:\n" << text << '\n';
         assert(false);
+    }
+}
+
+// Diagnostic vectors are printed with the full round-trippable precision of a
+// double, so their digits depend on the toolchain. Parse the formatted list and
+// compare the values numerically instead of matching the text verbatim.
+std::vector<double> parse_diagnostic_vector(const std::string& text, const std::string& label)
+{
+    const std::size_t label_position = text.find(label);
+    assert(label_position != std::string::npos);
+    const std::size_t open = text.find('[', label_position);
+    assert(open != std::string::npos);
+    const std::size_t close = text.find(']', open);
+    assert(close != std::string::npos);
+
+    std::vector<double> values;
+    std::istringstream entries(text.substr(open + 1, close - open - 1));
+    std::string entry;
+    while (std::getline(entries, entry, ','))
+    {
+        values.push_back(std::stod(entry));
+    }
+    return values;
+}
+
+void assert_diagnostic_vector_near(const std::string& text, const std::string& label, const std::vector<double>& expected, const double tolerance)
+{
+    const std::vector<double> values = parse_diagnostic_vector(text, label);
+    assert(values.size() == expected.size());
+    for (std::size_t i = 0; i < values.size(); ++i)
+    {
+        if (std::isnan(expected[i]))
+        {
+            assert(std::isnan(values[i]));
+        }
+        else if (std::isinf(expected[i]))
+        {
+            assert(values[i] == expected[i]);
+        }
+        else
+        {
+            assert_near(values[i], expected[i], tolerance);
+        }
     }
 }
 
@@ -356,8 +400,8 @@ void test_non_finite_velocity_diagnostic_reports_callback_context()
     assert_contains(result.message, "time: 0.125");
     assert_contains(result.message, "dimension: 1");
     assert_contains(result.message, "value: -inf");
-    assert_contains(result.message, "state: [-1, -0.49999999999999972]");
-    assert_contains(result.message, "velocity: [-0.875, -inf]");
+    assert_diagnostic_vector_near(result.message, "state:", {-1.0, -0.5}, 1.0e-12);
+    assert_diagnostic_vector_near(result.message, "velocity:", {-0.875, -std::numeric_limits<double>::infinity()}, 1.0e-12);
 }
 
 void test_rk23_failure_diagnostics_are_reported()

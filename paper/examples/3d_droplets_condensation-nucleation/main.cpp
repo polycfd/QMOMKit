@@ -1,5 +1,4 @@
 #include "droplet_model.hpp"
-#include "monte_carlo/birth.hpp"
 #include "monte_carlo/evolution.hpp"
 #include "monte_carlo/moments.hpp"
 #include "qmomkit/qmomkit.hpp"
@@ -16,38 +15,10 @@
 #include <iostream>
 #include <limits>
 #include <optional>
-#include <random>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
-
-namespace
-{
-
-struct NucleationParameters
-{
-    double radius = 50.0e-5;
-    double vertical_velocity = 0.0;
-    double temperature = 298.15;
-    double start_time = 0.20;
-    double end_time = 0.40;
-    double relative_population_increase = 1.0;
-};
-
-constexpr NucleationParameters nucleation_parameters{};
-
-[[nodiscard]] double integer_power(const double base, const std::size_t exponent) noexcept
-{
-    double result = 1.0;
-    for (std::size_t power = 0; power < exponent; ++power)
-    {
-        result *= base;
-    }
-    return result;
-}
-
-} // namespace
 
 int main()
 {
@@ -132,14 +103,8 @@ int main()
             std::cerr << "Could not obtain a positive initial M_000 for the nucleation flux.\n";
             return 1;
         }
-        const double initial_number_density = initial_number_moment.values.front();
-        const double nucleation_duration = nucleation_parameters.end_time - nucleation_parameters.start_time;
-        const double nucleation_flux = nucleation_parameters.relative_population_increase * initial_number_density / nucleation_duration;
-        if (!std::isfinite(nucleation_flux) || nucleation_flux <= 0.0)
-        {
-            std::cerr << "Invalid nucleation flux.\n";
-            return 1;
-        }
+        const paper_3d_droplets_condensation_nucleation::NucleationModel nucleation_model =
+            paper_3d_droplets_condensation_nucleation::make_nucleation_model(initial_number_moment.values.front());
 
         qmomkit::CqmomState state = cqmom_case.initial_state();
         qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
@@ -159,20 +124,12 @@ int main()
         }
         const qmomkit::AdaptiveRkOptions mc_advection_options = phase_space_evolution_options.node_options.adaptive_options;
 
-        if (nucleation_parameters.start_time < initial_time || nucleation_parameters.end_time <= nucleation_parameters.start_time ||
-            nucleation_parameters.end_time > final_time)
-        {
-            std::cerr << "Invalid nucleation interval.\n";
-            return 1;
-        }
+        paper_3d_droplets_condensation_nucleation::validate_nucleation_interval(initial_time, final_time);
 
         const qmomkit::CqmomMomentSource zero_moment_source = [](double, const qmomkit::CqmomSourceContext& context)
         { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
-        const qmomkit::monte_carlo::BirthCoordinateSampler sample_nucleated_droplet = [](std::mt19937_64&)
-        {
-            return qmomkit::monte_carlo::Sample{nucleation_parameters.radius, nucleation_parameters.vertical_velocity,
-                                                nucleation_parameters.temperature};
-        };
+        const qmomkit::CqmomMomentBoundaryContribution nucleation_boundary =
+            paper_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(nucleation_model);
 
         paper_3d_droplets_condensation_nucleation::print_cqmom_run_configuration(cqmom_case, phase_space_evolution_options);
 
@@ -271,39 +228,11 @@ int main()
         double time = initial_time;
         while (time < final_time)
         {
-            double current_step = std::min(time_step, final_time - time);
-            if (time < nucleation_parameters.start_time)
-            {
-                current_step = std::min(current_step, nucleation_parameters.start_time - time);
-            }
-            else if (time < nucleation_parameters.end_time)
-            {
-                current_step = std::min(current_step, nucleation_parameters.end_time - time);
-            }
-            const bool nucleation_active = time >= nucleation_parameters.start_time && time < nucleation_parameters.end_time;
-            const qmomkit::CqmomMomentBoundaryContribution boundary_contribution =
-                [nucleation_active, nucleation_flux](double, const qmomkit::CqmomSourceContext& context)
-            {
-                std::vector<double> rates(context.size(), 0.0);
-                if (!nucleation_active)
-                {
-                    return qmomkit::CqmomMomentRate{std::move(rates)};
-                }
-                for (std::size_t index = 0; index < context.size(); ++index)
-                {
-                    const qmomkit::MultiIndex& order = context.index(index);
-                    if (order.size() != 3)
-                    {
-                        throw std::runtime_error("The condensing-droplet nucleation contribution requires the phase-space order (r,w,T).");
-                    }
-                    rates[index] = nucleation_flux * integer_power(nucleation_parameters.radius, order[0]) *
-                                   integer_power(nucleation_parameters.vertical_velocity, order[1]) *
-                                   integer_power(nucleation_parameters.temperature, order[2]);
-                }
-                return qmomkit::CqmomMomentRate{std::move(rates)};
-            };
+            const double current_step =
+                paper_3d_droplets_condensation_nucleation::limit_step_to_nucleation_interval(time, std::min(time_step, final_time - time));
+            const bool nucleation_active = paper_3d_droplets_condensation_nucleation::nucleation_is_active(time);
             const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
-                nucleation_active ? qmomkit::advance_cqmom_phase_space(state, time, current_step, velocity, zero_moment_source, boundary_contribution,
+                nucleation_active ? qmomkit::advance_cqmom_phase_space(state, time, current_step, velocity, zero_moment_source, nucleation_boundary,
                                                                        phase_space_evolution_options)
                                   : qmomkit::advance_cqmom_advection(state, time, current_step, velocity, phase_space_evolution_options);
             if (!phase_space_evolved.ok())
@@ -335,24 +264,14 @@ int main()
                     return 1;
                 }
                 ensemble = std::move(mc_first_half_advection.ensemble);
-                const std::size_t ensemble_size_before_birth = ensemble.size();
                 const unsigned long long birth_seed =
                     paper_3d_droplets_condensation_nucleation::initialization_seed + static_cast<unsigned long long>(birth_event_index++);
-                const qmomkit::monte_carlo::PopulationBirthResult birth = qmomkit::monte_carlo::inject_population(
-                    ensemble, number_density, nucleation_flux * current_step, sample_nucleated_droplet, birth_seed);
+                const qmomkit::monte_carlo::PopulationBirthResult birth = paper_3d_droplets_condensation_nucleation::inject_nucleated_droplets(
+                    nucleation_model, ensemble, number_density, time, current_step, birth_seed);
                 if (!birth.ok())
                 {
                     std::cerr << "Monte Carlo population injection failed: " << birth.message << '\n';
                     return 1;
-                }
-                for (std::size_t sample = ensemble_size_before_birth; sample < birth.ensemble.size(); ++sample)
-                {
-                    if (birth.ensemble[sample] != qmomkit::monte_carlo::Sample{nucleation_parameters.radius, nucleation_parameters.vertical_velocity,
-                                                                               nucleation_parameters.temperature})
-                    {
-                        std::cerr << "Monte Carlo population injection returned an unexpected birth coordinate.\n";
-                        return 1;
-                    }
                 }
                 ensemble = birth.ensemble;
                 number_density = birth.number_density;

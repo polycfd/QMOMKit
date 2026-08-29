@@ -1,8 +1,10 @@
 #include "droplet_model.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -94,6 +96,16 @@ void require_finite(const double value, const char* name)
     return {};
 }
 
+[[nodiscard]] double integer_power(const double base, const std::size_t exponent) noexcept
+{
+    double result = 1.0;
+    for (std::size_t power = 0; power < exponent; ++power)
+    {
+        result *= base;
+    }
+    return result;
+}
+
 void validate_temperature_for_air_properties(const double temperature, const char* name)
 {
     require_positive_finite(temperature, name);
@@ -183,11 +195,6 @@ void validate_temperature_for_water_properties(const double temperature, const D
     return transfer_number(reynolds, air.dynamic_viscosity / (air.density * diffusivity));
 }
 
-[[nodiscard]] double base_nusselt_number(const double reynolds, const MoistAirProperties& air)
-{
-    return transfer_number(reynolds, air.dynamic_viscosity * air.heat_capacity / air.thermal_conductivity);
-}
-
 [[nodiscard]] double radius_rate_at_temperature(const DropletState& state, const AmbientConditions& ambient, const DropletModelParameters& parameters,
                                                 const double sherwood, const double droplet_temperature)
 {
@@ -200,10 +207,7 @@ void validate_temperature_for_water_properties(const double temperature, const D
 
 [[nodiscard]] double nusselt_number(const MoistAirProperties& air, const double reynolds)
 {
-    // This condensation-only example uses the base heat-transfer correlation
-    // from Eq. (23) and deliberately omits the evaporation-oriented wet-bulb
-    // correction from Eqs. (22), (25), and (26).
-    return base_nusselt_number(reynolds, air);
+    return transfer_number(reynolds, air.dynamic_viscosity * air.heat_capacity / air.thermal_conductivity);
 }
 
 [[nodiscard]] double vertical_drag_acceleration(const DropletState& state, const AmbientConditions& ambient, const MoistAirProperties& air,
@@ -306,6 +310,87 @@ qmomkit::PhaseSpaceVelocity droplet_phase_space_velocity()
         const DropletRates rates = evaluate_droplet_rates({coordinates[0], coordinates[1], coordinates[2]}, ambient, parameters);
         return std::vector<double>{rates.radius_rate, rates.vertical_velocity_rate, rates.temperature_rate};
     };
+}
+
+NucleationModel make_nucleation_model(const double initial_number_density)
+{
+    require_positive_finite(initial_number_density, "initial_number_density");
+    require_positive_finite(nucleation_parameters.relative_population_increase, "nucleation.relative_population_increase");
+    const double duration = nucleation_parameters.end_time - nucleation_parameters.start_time;
+    require_positive_finite(duration, "nucleation duration");
+
+    return {nucleation_parameters.relative_population_increase * initial_number_density / duration};
+}
+
+void validate_nucleation_interval(const double initial_time, const double final_time)
+{
+    require_finite(initial_time, "initial_time");
+    require_finite(final_time, "final_time");
+    if (nucleation_parameters.start_time < initial_time || nucleation_parameters.end_time <= nucleation_parameters.start_time ||
+        nucleation_parameters.end_time > final_time)
+    {
+        throw std::invalid_argument("The nucleation interval must lie within the driver time interval.");
+    }
+}
+
+double limit_step_to_nucleation_interval(const double time, const double maximum_step)
+{
+    require_finite(time, "time");
+    require_positive_finite(maximum_step, "nucleation time_step");
+    if (time < nucleation_parameters.start_time)
+    {
+        return std::min(maximum_step, nucleation_parameters.start_time - time);
+    }
+    if (time < nucleation_parameters.end_time)
+    {
+        return std::min(maximum_step, nucleation_parameters.end_time - time);
+    }
+    return maximum_step;
+}
+
+bool nucleation_is_active(const double time) noexcept
+{
+    return time >= nucleation_parameters.start_time && time < nucleation_parameters.end_time;
+}
+
+qmomkit::CqmomMomentBoundaryContribution nucleation_boundary_contribution(const NucleationModel& model)
+{
+    require_positive_finite(model.flux, "nucleation flux");
+
+    return [flux = model.flux](double, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rates(context.size(), 0.0);
+        for (std::size_t entry = 0; entry < context.size(); ++entry)
+        {
+            const qmomkit::MultiIndex& order = context.index(entry);
+            if (order.size() != 3)
+            {
+                throw std::runtime_error("The nucleation contribution requires phase-space order (r,w,T).");
+            }
+            rates[entry] = flux * integer_power(nucleation_parameters.radius, order[0]) *
+                           integer_power(nucleation_parameters.vertical_velocity, order[1]) *
+                           integer_power(nucleation_parameters.temperature, order[2]);
+        }
+        return qmomkit::CqmomMomentRate{std::move(rates)};
+    };
+}
+
+qmomkit::monte_carlo::PopulationBirthResult inject_nucleated_droplets(const NucleationModel& model, const qmomkit::monte_carlo::Ensemble& ensemble,
+                                                                      const double number_density, const double time, const double time_step,
+                                                                      const unsigned long long random_seed)
+{
+    require_positive_finite(model.flux, "nucleation flux");
+    require_positive_finite(time_step, "nucleation time_step");
+    if (!nucleation_is_active(time))
+    {
+        throw std::invalid_argument("Nucleation injection requested outside the active interval.");
+    }
+
+    const qmomkit::monte_carlo::BirthCoordinateSampler sample_nucleated_droplet = [](std::mt19937_64&)
+    {
+        return qmomkit::monte_carlo::Sample{nucleation_parameters.radius, nucleation_parameters.vertical_velocity, nucleation_parameters.temperature};
+    };
+    return qmomkit::monte_carlo::inject_population(ensemble, number_density, model.flux * time_step, sample_nucleated_droplet, random_seed);
 }
 
 } // namespace paper_3d_droplets_condensation_nucleation

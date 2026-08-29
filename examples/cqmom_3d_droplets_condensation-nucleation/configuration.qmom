@@ -1,7 +1,7 @@
 [phase_space]
 names = r, w, T
 node_counts = 3, 3, 3
-conditioning_order = 0, 1, 2
+conditioning_order = 0, 2, 1
 adaptive_branch_counts = true
 
 [time_integration]
@@ -24,7 +24,7 @@ number_density = 1.0
 [initial.dimension.0]
 family = gamma
 shape = 16.0
-scale = 1.875e-5
+scale = 18.75
 
 [initial.dimension.1]
 family = normal

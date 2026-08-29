@@ -77,7 +77,7 @@ void print_index_vector(const std::vector<std::size_t>& values)
 
 void print_quadrature(const qmomkit::CqmomQuadrature& quadrature)
 {
-    std::cout << "node  path       weight          r               w               T\n";
+    std::cout << "node  path       weight          r [um]          w [m/s]         T [K]\n";
     for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
     {
         std::cout << node << "     ";
@@ -117,7 +117,7 @@ void print_cqmom_run_configuration(const qmomkit::CqmomCase& cqmom_case,
 {
     std::cout << std::setprecision(12);
     std::cout << "phase-space dimensions: 3\n";
-    std::cout << "phase-space ordering: (r,w,T)\n";
+    std::cout << "phase-space ordering: (r [um],w [m/s],T [K])\n";
     std::cout << "conditioning_order = ";
     print_index_vector(cqmom_case.hierarchy().conditioning_order());
     std::cout << '\n';
@@ -134,7 +134,7 @@ void print_monte_carlo_run_configuration(const qmomkit::CqmomCase& cqmom_case, c
 {
     std::cout << std::setprecision(12);
     std::cout << "phase-space dimensions: 3\n";
-    std::cout << "phase-space ordering: (r,w,T)\n";
+    std::cout << "phase-space ordering: (r [um],w [m/s],T [K])\n";
     std::cout << "node_counts = ";
     print_index_vector(cqmom_case.hierarchy().node_counts());
     std::cout << '\n';
@@ -149,7 +149,7 @@ void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moment
 {
     std::cout << std::setprecision(12);
     std::cout << "3D CQMOM droplets: condensation and nucleation\n";
-    std::cout << "phase-space ordering: (r,w,T)\n";
+    std::cout << "phase-space ordering: (r [um],w [m/s],T [K])\n";
     print_run_metadata(sample_count, initialization_seed, time_step, final_time);
 
     std::cout << '\n';
@@ -187,7 +187,7 @@ void print_monte_carlo_result_summary(const qmomkit::SelectedRawMomentResult& in
 {
     std::cout << std::setprecision(12);
     std::cout << "3D direct Monte Carlo droplets: condensation and nucleation\n";
-    std::cout << "phase-space ordering: (r,w,T)\n";
+    std::cout << "phase-space ordering: (r [um],w [m/s],T [K])\n";
     print_run_metadata(sample_count, initialization_seed, time_step, final_time);
 
     std::cout << '\n';

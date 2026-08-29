@@ -9,9 +9,9 @@ $$
 \boldsymbol{\xi}=(r,w,T),
 $$
 
-where $r$ is droplet radius, $w$ is vertical droplet velocity, and $T$ is
-droplet temperature. Positive $w$ is upward, so falling droplets have
-negative vertical velocity.
+where $r$ is droplet radius represented in micrometres, $w$ is vertical droplet
+velocity in m/s, and $T$ is droplet temperature in K. Positive $w$ is upward,
+so falling droplets have negative vertical velocity.
 
 The model contains phase-space evolution only. It does not include
 physical-space advection, breakup, coalescence, or gas-phase feedback from the
@@ -54,12 +54,18 @@ companion/reference realization for comparing the two representations.
 The configured phase-space order is:
 
 ```text
-(r, w, T)
+(r\ [\mathrm{\mu m}], w\ [\mathrm{m/s}], T\ [\mathrm{K}])
 ```
 
 The same positional order is used by `configuration.qmom`, samples, the
 phase-space velocity callback, CQMOM moment exponents, quadrature abscissas,
 and output files.
+
+The radius coordinate and its moments use micrometres, which keeps their
+numerical magnitudes convenient. Inside the physical callback,
+`droplet_model.cpp` explicitly converts $r_{\mathrm{\mu m}}$ to the SI radius
+$r_{\mathrm{m}}=10^{-6}r_{\mathrm{\mu m}}$ before evaluating physical
+correlations.
 
 For a number density function $f(r,w,T)$, the raw unnormalized moments are
 
@@ -108,12 +114,12 @@ required.
 
 ## Droplet model
 
-The advection callback receives coordinates ordered as $(r,w,T)$ and
+The advection callback receives coordinates ordered as $(r_{\mathrm{\mu m}},w,T)$ and
 returns
 
 $$
 \left(
-\frac{\mathrm{d}r}{\mathrm{d}t},
+\frac{\mathrm{d}r_{\mathrm{\mu m}}}{\mathrm{d}t},
 \frac{\mathrm{d}w}{\mathrm{d}t},
 \frac{\mathrm{d}T}{\mathrm{d}t}
 \right).
@@ -123,6 +129,10 @@ The condensation-model constants are compiled into `droplet_model.cpp`; the
 nucleation birth parameters are declared in `droplet_model.hpp`. They are
 example-local physics parameters, not entries in `configuration.qmom` and not
 generic QMOMKit settings.
+
+The callback evaluates the physical model with $r_{\mathrm{m}}$ and its SI rate
+$\mathrm{d}r_{\mathrm{m}}/\mathrm{d}t$, then returns
+$\mathrm{d}r_{\mathrm{\mu m}}/\mathrm{d}t = 10^6\,\mathrm{d}r_{\mathrm{m}}/\mathrm{d}t$.
 
 The droplet model is a simplified version of the model used by [Denner (IJMF, 2026)](https://www.doi.org/10.1016/j.ijmultiphaseflow.2026.105696) for water droplets in air.
 
@@ -248,10 +258,10 @@ $$
 \begin{aligned}
 \mathrm{Re}
 &=
-\frac{2r\rho_a |w_{\mathrm{rel}}|}{\mu_a}, \\
+\frac{2r_{\mathrm{m}}\rho_a |w_{\mathrm{rel}}|}{\mu_a}, \\
 \mathrm{We}
 &=
-\frac{2r\rho_a w_{\mathrm{rel}}^2}{\sigma}.
+\frac{2r_{\mathrm{m}}\rho_a w_{\mathrm{rel}}^2}{\sigma}.
 \end{aligned}
 $$
 
@@ -316,12 +326,12 @@ The implemented radius rate is
 
 $$
 \begin{aligned}
-\frac{\mathrm{d}r}{\mathrm{d}t}
+\frac{\mathrm{d}r_{\mathrm{m}}}{\mathrm{d}t}
 &=
 \frac{
 \mathrm{Sh}\,D_v\,M_w\,\Delta_v
 }{
-2r\rho_l R_g
+2r_{\mathrm{m}}\rho_l R_g
 }.
 \end{aligned}
 $$
@@ -351,7 +361,7 @@ units of number density per second. Every newborn droplet has the deterministic
 phase-space state
 
 $$
-(r_n,w_n,T_n)=(5.0\times10^{-5}\ \mathrm{m},0\ \mathrm{m/s},298.15\ \mathrm{K}).
+(r_n,w_n,T_n)=(50.0\ \mathrm{\mu m},0\ \mathrm{m/s},298.15\ \mathrm{K}).
 $$
 
 Nucleation is a phase-space boundary birth, not a smooth velocity for existing
@@ -381,7 +391,7 @@ a_{\mathrm{drag}}
 \frac{
 4.5\,\mu_a\,w_{\mathrm{rel}}
 }{
-\rho_l r^2
+\rho_l r_{\mathrm{m}}^2
 }.
 \end{aligned}
 $$
@@ -440,7 +450,7 @@ a_{\mathrm{drag}}
 \frac{
 3\rho_a C_d |w_{\mathrm{rel}}| w_{\mathrm{rel}}
 }{
-8\rho_l r
+8\rho_l r_{\mathrm{m}}
 }.
 \end{aligned}
 $$
@@ -468,15 +478,15 @@ $$
 \begin{aligned}
 \frac{\mathrm{d}T}{\mathrm{d}t}
 &=
-\frac{3}{r c_l}
+\frac{3}{r_{\mathrm{m}} c_l}
 \left[
 \frac{
 \mathrm{Nu}\,k_a\,(T_\infty-T)
 }{
-2r\rho_l
+2r_{\mathrm{m}}\rho_l
 }
 +
-L(T)\frac{\mathrm{d}r}{\mathrm{d}t}
+L(T)\frac{\mathrm{d}r_{\mathrm{m}}}{\mathrm{d}t}
 \right].
 \end{aligned}
 $$
@@ -496,7 +506,7 @@ $$
 
 The configured marginals are:
 
-- $r$ is gamma-distributed with `shape = 16.0` and `scale = 1.875e-5`.
+- $r$ is gamma-distributed in micrometres with `shape = 16.0` and `scale = 18.75`.
 - $w$ is normal with `mean = -2.0` and `standard_deviation = 1.0`.
 - $T$ is normal with `mean = 293.15` and `standard_deviation = 3.0`.
 
@@ -504,13 +514,13 @@ For the implemented gamma parameterization,
 
 $$
 \begin{aligned}
-\mathbb{E}[r]
+\mathbb{E}[r_{\mathrm{\mu m}}]
 &=
 k\theta_r
 =
-16.0 \times 1.875\times 10^{-5}
+16.0 \times 18.75
 =
-3.0\times 10^{-4}\ \mathrm{m},
+300\ \mathrm{\mu m},
 \end{aligned}
 $$
 
@@ -542,7 +552,7 @@ The numerical CQMOM hierarchy is selected in `configuration.qmom`:
 [phase_space]
 names = r, w, T
 node_counts = 3, 3, 3
-conditioning_order = 0, 1, 2
+conditioning_order = 0, 2, 1
 adaptive_branch_counts = true
 
 [time_integration]
@@ -561,8 +571,10 @@ min_step = 1.0e-9
 
 The `node_counts = 3, 3, 3` setting gives up to three nodes in $r$, three
 conditional nodes in $w$, and three conditional nodes in $T$, for up to 27
-terminal CQMOM nodes. The `conditioning_order = 0,
-1, 2` setting reconstructs $r$, then $w$, then $T$. With
+terminal CQMOM nodes. The phase-space coordinate order remains $(r,w,T)$,
+while `conditioning_order = 0, 2, 1` reconstructs $r$, then $T$, then $w$.
+The CQMOM conditioning order is independent of the phase-space coordinate
+order. With
 `adaptive_branch_counts = true`, these configured node counts are maximum
 branch capacities and the accepted runtime topology may contain fewer active
 terminal nodes.
@@ -684,7 +696,8 @@ containing `time` followed by moment labels such as `M[0,0,0]`.
 
 `quadrature_history.txt` contains terminal CQMOM nodes over time. It is a
 `QuadratureWriter` table with time, public node index, conditioning path
-entries, terminal weight, and abscissas ordered as $r$, $w$, and $T$.
+entries, terminal weight, and abscissas ordered as $r$ in micrometres, $w$ in
+m/s, and $T$ in K.
 This example does not write `initial_quadrature.txt`.
 
 The direct Monte Carlo executable writes:

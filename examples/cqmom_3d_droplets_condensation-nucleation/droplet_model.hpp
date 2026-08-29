@@ -9,7 +9,7 @@ namespace cqmom_3d_droplets_condensation_nucleation
 
 struct NucleationParameters
 {
-    double radius = 5.0e-5;
+    double radius = 50.0;
     double vertical_velocity = 0.0;
     double temperature = 298.15;
     double start_time = 0.20;

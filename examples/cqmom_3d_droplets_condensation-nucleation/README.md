@@ -124,6 +124,8 @@ nucleation birth parameters are declared in `droplet_model.hpp`. They are
 example-local physics parameters, not entries in `configuration.qmom` and not
 generic QMOMKit settings.
 
+The droplet model is a simplified version of the model used by [Denner (IJMF, 2026)](https://www.doi.org/10.1016/j.ijmultiphaseflow.2026.105696) for water droplets in air.
+
 ### Ambient and material properties
 
 The prescribed ambient state is:
@@ -349,7 +351,7 @@ units of number density per second. Every newborn droplet has the deterministic
 phase-space state
 
 $$
-(r_n,w_n,T_n)=(5.0\times10^{-4}\ \mathrm{m},0\ \mathrm{m/s},298.15\ \mathrm{K}).
+(r_n,w_n,T_n)=(5.0\times10^{-5}\ \mathrm{m},0\ \mathrm{m/s},298.15\ \mathrm{K}).
 $$
 
 Nucleation is a phase-space boundary birth, not a smooth velocity for existing
@@ -517,7 +519,7 @@ where $k$ is the gamma shape and $\theta_r$ is the gamma scale.
 Both executables draw
 
 ```text
-sample_count = 20000
+sample_count = 10000
 initialization_seed = 20260199
 ```
 

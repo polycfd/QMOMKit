@@ -133,7 +133,7 @@ int main()
 
         paper_3d_droplets_condensation_nucleation::print_cqmom_run_configuration(cqmom_case, phase_space_evolution_options);
 
-        // The configured phase-space order is (r, w, T). The requested
+        // The configured phase-space order is (r_um, w, T). The requested
         // Sauter-mean quantity is M_300/M_200 without a factor of two.
         const std::array<qmomkit::MultiIndex, 7> comparison_indices{{{0, 0, 0}, {3, 0, 0}, {2, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 0}, {1, 0, 1}}};
         const std::array<const char*, 6> comparison_labels{{"M_000", "M_300/M_200", "M_010/M_000", "M_001/M_000", "sigma_r^2", "cov_r_T"}};

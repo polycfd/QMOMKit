@@ -579,9 +579,9 @@ CQMOM layout, or the moments independently evolved by source callbacks.
 During dense phase-space evolution, those additional entries are regenerated
 from the reconstructed quadrature rather than transported independently.
 
-### Optional CQMOM Coordinate Support
+### Optional Quadrature Abscissa Bounds
 
-CQMOM coordinates are unconstrained by default, which means real-line
+QMOM and CQMOM coordinates are unconstrained by default, which means real-line
 reconstruction is used for every coordinate. When a phase-space coordinate has a
 known closed bounded support, declare it with paired phase-space-order
 `support_lower` and `support_upper` lists:
@@ -611,20 +611,29 @@ support_lower = none, 2.0
 support_upper = none, 5.0
 ```
 
+For one-dimensional QMOM, provide one entry per key:
+
+```text
+[phase_space]
+node_counts = 2
+support_lower = 0.0
+support_upper = 1.0
+```
+
 Support is indexed by phase-space dimension, not by conditioning level. In the
 example above, the second coordinate is constrained to `[2, 5]` wherever it is
 reconstructed, even though it is the root coordinate in the conditioning order.
 The same rule applies when a bounded coordinate is reconstructed at an
 intermediate or final conditional level.
 
-For a bounded coordinate, QMOMKit accepts a reconstructed CQMOM candidate only
-when its returned abscissas lie inside the configured interval. The bounds are
-carried by `CqmomCase` and `CqmomState`, so they apply to initial configuration
-reconstruction and later phase-space evolution stage reconstructions. In
-adaptive branch-count mode, a candidate with out-of-interval nodes retries
-lower node counts down to one. In fixed-count mode, such a candidate fails with
-diagnostics. Returned nodes are not clipped or projected. These bounds constrain
-quadrature abscissas only; they do not configure moment realizability.
+For a bounded coordinate, QMOMKit accepts a reconstructed QMOM or CQMOM
+candidate only when its returned abscissas lie inside the configured interval.
+The bounds are carried by the corresponding case and evolution state, so they
+apply to initial reconstruction and later reconstruction stages. In adaptive
+mode, a candidate with out-of-interval nodes retries lower node counts down to
+one. In fixed-count mode, such a candidate fails with diagnostics. Returned
+nodes are not clipped or projected. These bounds constrain quadrature
+abscissas only; they do not configure moment realizability.
 
 ### Advanced: Explicit Dense Representation Workflow
 

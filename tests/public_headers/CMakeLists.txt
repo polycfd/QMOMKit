@@ -1,6 +1,7 @@
 add_executable(
     test_public_headers
     main.cpp
+    include_abscissa_bounds.cpp
     include_conditional_moments.cpp
     include_conditioning_path.cpp
     include_configuration.cpp

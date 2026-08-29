@@ -73,6 +73,7 @@ install(
 
 install(
     FILES
+        include/qmomkit/abscissa_bounds.hpp
         include/qmomkit/conditional_moments.hpp
         include/qmomkit/conditioning_path.hpp
         include/qmomkit/configuration.hpp

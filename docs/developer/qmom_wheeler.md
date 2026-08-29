@@ -136,6 +136,22 @@ reduced one-node quadrature when that one-node rule is mathematically defined.
 Therefore, `success` means the returned rule was accepted; it does not
 guarantee that the originally requested node count was retained.
 
+## Optional Abscissa-Bound Acceptance
+
+`AbscissaBounds` adds an optional acceptance condition around ordinary Wheeler
+inversion. It is not a bounded Wheeler variant and does not change recurrence,
+Jacobi, or eigensolver mathematics. A fixed candidate succeeds only when its
+returned nodes lie in the configured interval within the shared `1e-12`
+abscissa-bound tolerance. Adaptive bounded reconstruction evaluates explicit
+candidate counts from the requested count down to one and accepts the highest
+admissible exact-count candidate. An out-of-interval node is never clipped or
+projected.
+
+The same internal one-dimensional selection is used by direct QMOM and by
+recursive CQMOM branches. `AbscissaBounds` remains separate from
+`BoundedInterval`, which is the input type for bounded-interval moment
+realizability analysis.
+
 If a mathematically defined one-node fallback is available, the result may
 contain that fallback with either success or a non-success status, depending
 on the condition that produced it. Callers must use `ok()` or the explicit

@@ -733,6 +733,8 @@ std::vector<std::string> qmom_allowed_keys()
     return {"format_version",
             "phase_space.names",
             "phase_space.node_counts",
+            "phase_space.support_lower",
+            "phase_space.support_upper",
             "qmom.adaptive",
             "moments.values",
             "initial.type",
@@ -806,9 +808,10 @@ void reject_unknown_qmom_keys(ParsedFile& parsed, const bool explicit_moments, c
 {
     if (explicit_moments)
     {
-        reject_unknown_keys(
-            parsed, with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "qmom.adaptive", "moments.values"}),
-            {"initial."}, source_name);
+        reject_unknown_keys(parsed,
+                            with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.support_lower",
+                                                       "phase_space.support_upper", "qmom.adaptive", "moments.values"}),
+                            {"initial."}, source_name);
         return;
     }
     reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_allowed_keys()), {std::string(mixture_component_section_prefix)}, source_name);
@@ -1767,7 +1770,7 @@ void validate_optional_vandermonde_solver(ParsedFile& parsed, const std::string&
     static_cast<void>(parse_vandermonde_solver(parsed, source_name));
 }
 
-std::optional<CqmomCoordinateSupport> parse_cqmom_coordinate_support(ParsedFile& parsed, const std::string& source_name, const std::size_t dimensions)
+std::optional<CqmomCoordinateSupport> parse_coordinate_support(ParsedFile& parsed, const std::string& source_name, const std::size_t dimensions)
 {
     const Entry* lower_entry = find_entry(parsed, "phase_space.support_lower");
     const Entry* upper_entry = find_entry(parsed, "phase_space.support_upper");
@@ -1811,7 +1814,7 @@ std::optional<CqmomCoordinateSupport> parse_cqmom_coordinate_support(ParsedFile&
         if (lower_values[dimension].has_value() != upper_values[dimension].has_value())
         {
             add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, lower_entry->line,
-                      "Each CQMOM coordinate support must configure both lower and upper or use none for both.");
+                      "Each coordinate support must configure both lower and upper or use none for both.");
             return std::nullopt;
         }
         if (!lower_values[dimension].has_value())
@@ -1821,7 +1824,7 @@ std::optional<CqmomCoordinateSupport> parse_cqmom_coordinate_support(ParsedFile&
         if (!(*lower_values[dimension] < *upper_values[dimension]))
         {
             add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, lower_entry->line,
-                      "CQMOM bounded coordinate support requires lower < upper.");
+                      "Bounded coordinate support requires lower < upper.");
             return std::nullopt;
         }
         support[dimension] = CqmomAbscissaBounds{*lower_values[dimension], *upper_values[dimension]};
@@ -1892,7 +1895,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
                   conditioning_entry == parsed.scalars.end() ? 0 : conditioning_entry->second.line,
                   "conditioning_order must be a permutation of the phase-space dimensions.");
     }
-    std::optional<CqmomCoordinateSupport> coordinate_support = parse_cqmom_coordinate_support(parsed, source_name, node_counts.size());
+    std::optional<CqmomCoordinateSupport> coordinate_support = parse_coordinate_support(parsed, source_name, node_counts.size());
 
     bool adaptive_branch_counts = false;
     const auto adaptive_branch_counts_entry = parsed.scalars.find("phase_space.adaptive_branch_counts");
@@ -2267,7 +2270,7 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
 }
 
 ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, const std::size_t node_count,
-                                               const QmomOptions& options, std::string source_name)
+                                               const QmomOptions& options, std::string source_name, std::optional<AbscissaBounds> abscissa_bounds)
 {
     if (node_count == 0)
     {
@@ -2284,7 +2287,7 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
         return failure_result<QmomCase>(
             {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, "QMOM requires at least 2 * node_count moments."});
     }
-    return ConfigurationResult<QmomCase>{QmomCase{std::move(initialized).value(), node_count, options}};
+    return ConfigurationResult<QmomCase>{QmomCase{std::move(initialized).value(), node_count, options, std::move(abscissa_bounds)}};
 }
 
 ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditionSpecification& initial_condition,
@@ -2453,12 +2456,20 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
         return failure_result<QmomCase>(std::move(parsed));
     }
 
+    std::optional<CqmomCoordinateSupport> coordinate_support = parse_coordinate_support(parsed, source_name, node_counts.size());
+    if (!coordinate_support.has_value() || !parsed.errors.empty())
+    {
+        return failure_result<QmomCase>(std::move(parsed));
+    }
+
     ConfigurationResult<InitialConditionSpecification> initial_condition = parse_qmom_initial_condition(text, source_name);
     if (!initial_condition)
     {
         return ConfigurationResult<QmomCase>::failure(initial_condition.error());
     }
-    return create_qmom_case(initial_condition.value(), node_counts[0], qmom_options.value_or(QmomOptions{}), std::move(source_name));
+    const CqmomCoordinateSupport& parsed_support = coordinate_support.value();
+    const std::optional<AbscissaBounds> abscissa_bounds = parsed_support.empty() ? std::nullopt : parsed_support.front();
+    return create_qmom_case(initial_condition.value(), node_counts[0], qmom_options.value_or(QmomOptions{}), std::move(source_name), abscissa_bounds);
 }
 
 ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(const std::string_view text, std::string source_name)

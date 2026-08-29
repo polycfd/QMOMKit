@@ -160,7 +160,8 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 
 /** Create a QMOM case from an already parsed initialization specification. */
 [[nodiscard]] ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, std::size_t node_count,
-                                                             const QmomOptions& options = {}, std::string source_name = "<initialization>");
+                                                             const QmomOptions& options = {}, std::string source_name = "<initialization>",
+                                                             std::optional<AbscissaBounds> abscissa_bounds = {});
 
 /**
  * Advanced: create an explicit dense CQMOM case from parsed initialization.

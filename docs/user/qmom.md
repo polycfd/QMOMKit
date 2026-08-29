@@ -168,6 +168,28 @@ options.adaptive = true;
 const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, node_count, options);
 ```
 
+### Optional Abscissa Bounds
+
+`AbscissaBounds` optionally requires returned QMOM nodes to lie in a closed
+interval. QMOMKit still performs ordinary Wheeler inversion; it accepts the
+candidate only when every returned node is inside the interval within the
+numerical reconstruction tolerance. Nodes are never clipped or projected.
+
+```cpp
+const qmomkit::QmomResult result =
+    qmomkit::compute_qmom(moments, node_count, {}, qmomkit::AbscissaBounds{0.0, 1.0});
+```
+
+In fixed-count mode, an out-of-interval candidate fails. In adaptive mode,
+QMOMKit tries lower explicit node counts and accepts the highest admissible
+count. These bounds constrain reconstructed abscissas only; they are separate
+from the `MomentSupport` choices used by realizability checks.
+
+Store bounds in `QmomCase::abscissa_bounds` when creating an evolving state.
+The accepted `QmomState` retains them across advection and source evolution.
+Advection itself does not clip or reject nodes for crossing the interval;
+bounds are enforced at subsequent reconstruction boundaries.
+
 `result.ok()` identifies whether the quadrature is a successful
 reconstruction. In adaptive mode, Wheeler may retry candidates at lower node
 counts. A valid reduced reconstruction, including a one-node fallback, is a

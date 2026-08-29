@@ -1,3 +1,4 @@
+#include "internal/bounded_quadrature.hpp"
 #include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
@@ -145,12 +146,31 @@ QmomResult compute_qmom(const MomentSet& moments, const std::size_t node_count, 
     return QmomResult{result.abscissas, result.weights, to_qmom_status(result.status), result.message};
 }
 
-QmomResult compute_qmom(const QmomCase& case_)
+QmomResult compute_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
+                        const std::optional<AbscissaBounds> abscissa_bounds)
 {
-    return compute_qmom(case_.moments, case_.node_count, case_.options);
+    if (!abscissa_bounds.has_value())
+    {
+        return compute_qmom(moments, node_count, options);
+    }
+
+    internal::performance::record_qmom_reconstruction();
+    const internal::BoundedQuadratureSelectionRequest request{node_count, node_count, std::nullopt, options.adaptive, false};
+    const internal::BoundedQuadratureSelection selection =
+        internal::select_bounded_quadrature(moments.values(), request, *abscissa_bounds, to_wheeler_options(options));
+    return QmomResult{selection.quadrature.abscissas, selection.quadrature.weights, to_qmom_status(selection.quadrature.status),
+                      selection.quadrature.message};
 }
 
-QmomState::QmomState(std::vector<double> moments, QmomResult quadrature) : moments_(std::move(moments)), quadrature_(std::move(quadrature)) {}
+QmomResult compute_qmom(const QmomCase& case_)
+{
+    return compute_qmom(case_.moments, case_.node_count, case_.options, case_.abscissa_bounds);
+}
+
+QmomState::QmomState(std::vector<double> moments, QmomResult quadrature, std::optional<AbscissaBounds> abscissa_bounds)
+    : moments_(std::move(moments)), quadrature_(std::move(quadrature)), abscissa_bounds_(std::move(abscissa_bounds))
+{
+}
 
 QmomState QmomCase::initial_state() const
 {
@@ -159,7 +179,7 @@ QmomState QmomCase::initial_state() const
     {
         throw std::runtime_error("QMOM initial state reconstruction failed: " + quadrature.message);
     }
-    return internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size());
+    return internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size(), abscissa_bounds);
 }
 
 struct CqmomCase::Data

@@ -111,9 +111,10 @@ std::vector<double> raw_moments_1d(const std::vector<double>& abscissas, const s
     return moments;
 }
 
-qmomkit::QmomState qmom_state_from_moments(const std::vector<double>& moments, const std::size_t node_count, const qmomkit::QmomOptions& options = {})
+qmomkit::QmomState qmom_state_from_moments(const std::vector<double>& moments, const std::size_t node_count, const qmomkit::QmomOptions& options = {},
+                                           std::optional<qmomkit::AbscissaBounds> abscissa_bounds = {})
 {
-    return qmomkit::QmomCase{qmomkit::MomentSet(moments), node_count, options}.initial_state();
+    return qmomkit::QmomCase{qmomkit::MomentSet(moments), node_count, options, std::move(abscissa_bounds)}.initial_state();
 }
 
 qmomkit::MomentSource qmom_source_from_to(const std::vector<double>& initial, const std::vector<double>& target)
@@ -1406,6 +1407,38 @@ void test_public_qmom_advection_stage_failure_rolls_back()
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::first_advection_half_step);
     assert_vector_near(result.state.moments(), state.moments(), 0.0);
     assert_qmom_quadrature_near(result.state.quadrature(), state.quadrature(), 0.0);
+}
+
+void test_qmom_bounded_state_advection_and_source_reconstruction_semantics()
+{
+    const qmomkit::AbscissaBounds bounds{0.0, 1.0};
+    const qmomkit::QmomState initial = qmom_state_from_moments({1.0, 0.5}, 1, {}, bounds);
+    const auto outward_velocity = [](double, const std::vector<double>&) { return std::vector<double>{2.0}; };
+
+    const qmomkit::QmomPhaseSpaceEvolutionResult advected = qmomkit::advance_qmom_advection(initial, 0.0, 1.0, outward_velocity);
+    assert(advected.ok());
+    assert(advected.state.abscissa_bounds().has_value());
+    assert(advected.state.abscissa_bounds()->lower == bounds.lower);
+    assert(advected.state.abscissa_bounds()->upper == bounds.upper);
+    assert(advected.state.quadrature().abscissas[0] > bounds.upper);
+
+    const qmomkit::MomentSource untracked_moment_source = [](double, const qmomkit::QmomSourceContext& context)
+    {
+        static_cast<void>(context.moment(2));
+        return std::vector<double>(context.size(), 0.0);
+    };
+    const qmomkit::QmomPhaseSpaceEvolutionResult lazy_reconstruction =
+        qmomkit::advance_qmom_moment_source(advected.state, 1, 1.0, 0.1, untracked_moment_source);
+    assert(!lazy_reconstruction.ok());
+    assert(lazy_reconstruction.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
+    assert(lazy_reconstruction.message.find("source-stage quadrature reconstruction failed") != std::string::npos);
+
+    const qmomkit::MomentSource move_outside_bounds = [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>{0.0, 1.0}; };
+    const qmomkit::QmomPhaseSpaceEvolutionResult post_source = qmomkit::advance_qmom_moment_source(initial, 1, 0.0, 1.0, move_outside_bounds);
+    assert(!post_source.ok());
+    assert(post_source.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
+    assert(post_source.diagnostics.post_source_qmom_status == qmomkit::QmomStatus::not_realizable);
+    assert_vector_near(post_source.state.moments(), initial.moments(), 0.0);
 }
 
 void test_public_qmom_moment_source_stage_fixed_mode_is_strict()
@@ -4491,6 +4524,7 @@ void run_all_phase_space_evolution_tests()
 {
     test_public_qmom_advection_stage_advances_canonical_state();
     test_public_qmom_advection_stage_failure_rolls_back();
+    test_qmom_bounded_state_advection_and_source_reconstruction_semantics();
     test_public_qmom_moment_source_stage_fixed_mode_is_strict();
     test_public_qmom_moment_source_stage_adaptive_policy();
     test_public_qmom_moment_source_stage_failures_roll_back();
@@ -4602,6 +4636,7 @@ void run_qmom_phase_space_evolution_tests()
 {
     test_public_qmom_advection_stage_advances_canonical_state();
     test_public_qmom_advection_stage_failure_rolls_back();
+    test_qmom_bounded_state_advection_and_source_reconstruction_semantics();
     test_public_qmom_moment_source_stage_fixed_mode_is_strict();
     test_public_qmom_moment_source_stage_adaptive_policy();
     test_public_qmom_moment_source_stage_failures_roll_back();

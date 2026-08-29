@@ -6,6 +6,7 @@
 #include "qmomkit/quadrature.hpp"
 
 #include <cstddef>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -16,7 +17,8 @@ namespace qmomkit::internal
 class QmomStateAccess
 {
 public:
-    [[nodiscard]] static QmomState from_quadrature(QmomResult quadrature, const std::size_t moment_count)
+    [[nodiscard]] static QmomState from_quadrature(QmomResult quadrature, const std::size_t moment_count,
+                                                   std::optional<AbscissaBounds> abscissa_bounds = {})
     {
         if (moment_count == 0)
         {
@@ -41,7 +43,7 @@ public:
 
         const std::vector<double> moments =
             reconstruct_raw_moments(Quadrature1D{quadrature.abscissas, quadrature.weights, QuadratureStatus::success, ""}, moment_count);
-        return QmomState{std::move(moments), std::move(quadrature)};
+        return QmomState{std::move(moments), std::move(quadrature), std::move(abscissa_bounds)};
     }
 };
 

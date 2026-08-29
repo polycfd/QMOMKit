@@ -10,7 +10,7 @@ class QmomSourceContextAccess
 {
 public:
     [[nodiscard]] static QmomSourceContext create(double time, const std::vector<double>& values, std::size_t reconstruction_node_count,
-                                                  const QmomOptions& reconstruction_options);
+                                                  const QmomOptions& reconstruction_options, std::optional<AbscissaBounds> reconstruction_bounds);
 };
 
 class CqmomSourceContextAccess
@@ -28,12 +28,14 @@ public:
 [[nodiscard]] MomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step,
                                                                                 const MomentSource& source, const MomentSourceUpdateOptions& options,
                                                                                 std::size_t reconstruction_node_count,
-                                                                                const QmomOptions& reconstruction_options);
+                                                                                const QmomOptions& reconstruction_options,
+                                                                                std::optional<AbscissaBounds> reconstruction_bounds);
 
 [[nodiscard]] MomentSourceUpdateResult
 advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step, const MomentSource& source,
                                          const MomentBoundaryContribution& boundary, const MomentSourceUpdateOptions& options,
-                                         std::size_t reconstruction_node_count, const QmomOptions& reconstruction_options);
+                                         std::size_t reconstruction_node_count, const QmomOptions& reconstruction_options,
+                                         std::optional<AbscissaBounds> reconstruction_bounds);
 
 // This entry point is for validated CqmomState phase-space evolution only. The caller owns
 // the proof that the fixed source layout is immutable and valid; evolving

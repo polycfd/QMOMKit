@@ -277,6 +277,56 @@ void test_valid_qmom_matches_programmatic_case()
     assert(adaptive.value().options.adaptive);
 }
 
+void test_qmom_case_parses_abscissa_bounds()
+{
+    const auto unbounded = qmomkit::config::parse_qmom(qmom_text, "qmom-unbounded");
+    assert(unbounded.ok());
+    assert(!unbounded.value().abscissa_bounds.has_value());
+
+    const auto bounded = qmomkit::config::parse_qmom(R"(
+[phase_space]
+node_counts = 2
+support_lower = 0.0
+support_upper = 1.0
+
+[moments]
+values = 1.0, 0.5, 0.3125, 0.21875
+)",
+                                                     "qmom-bounded");
+    assert(bounded.ok());
+    assert(bounded.value().abscissa_bounds.has_value());
+    assert_near(bounded.value().abscissa_bounds->lower, 0.0);
+    assert_near(bounded.value().abscissa_bounds->upper, 1.0);
+
+    const auto explicitly_unbounded = qmomkit::config::parse_qmom(R"(
+[phase_space]
+node_counts = 1
+support_lower = none
+support_upper = none
+
+[moments]
+values = 1.0, 0.5
+)");
+    assert(explicitly_unbounded.ok());
+    assert(!explicitly_unbounded.value().abscissa_bounds.has_value());
+
+    const auto rejected = [](const char* support_entries)
+    {
+        const auto result = qmomkit::config::parse_qmom(std::string(R"(
+[phase_space]
+node_counts = 1
+)") + support_entries + R"(
+[moments]
+values = 1.0, 0.5
+)");
+        assert(!result.ok());
+    };
+    rejected("support_lower = 0.0\n");
+    rejected("support_lower = none\nsupport_upper = 1.0\n");
+    rejected("support_lower = 0.0, 1.0\nsupport_upper = 1.0, 2.0\n");
+    rejected("support_lower = 1.0\nsupport_upper = 1.0\n");
+}
+
 void test_qmom_distribution_initialization_matches_direct_api()
 {
     const std::string omitted_order_text = R"(
@@ -3702,6 +3752,7 @@ void run_all_configuration_tests()
 {
     test_configuration_result_api();
     test_valid_qmom_matches_programmatic_case();
+    test_qmom_case_parses_abscissa_bounds();
     test_qmom_distribution_initialization_matches_direct_api();
     test_all_supported_distribution_families_parse();
     test_qmom_mixture_initialization_matches_direct_api();
@@ -3779,6 +3830,7 @@ void run_initialization_tests()
 {
     test_configuration_result_api();
     test_valid_qmom_matches_programmatic_case();
+    test_qmom_case_parses_abscissa_bounds();
     test_qmom_distribution_initialization_matches_direct_api();
     test_all_supported_distribution_families_parse();
     test_qmom_mixture_initialization_matches_direct_api();

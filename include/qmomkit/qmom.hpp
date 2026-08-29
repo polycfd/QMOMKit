@@ -1,8 +1,10 @@
 #pragma once
 
+#include "qmomkit/abscissa_bounds.hpp"
 #include "qmomkit/moment_set.hpp"
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -78,12 +80,18 @@ public:
         return quadrature_.weights.size();
     }
 
+    [[nodiscard]] const std::optional<AbscissaBounds>& abscissa_bounds() const noexcept
+    {
+        return abscissa_bounds_;
+    }
+
 private:
-    QmomState(std::vector<double> moments, QmomResult quadrature);
+    QmomState(std::vector<double> moments, QmomResult quadrature, std::optional<AbscissaBounds> abscissa_bounds);
     friend class internal::QmomStateAccess;
 
     std::vector<double> moments_;
     QmomResult quadrature_;
+    std::optional<AbscissaBounds> abscissa_bounds_;
 };
 
 /**
@@ -98,6 +106,7 @@ struct QmomCase
     MomentSet moments;
     std::size_t node_count = 0;
     QmomOptions options;
+    std::optional<AbscissaBounds> abscissa_bounds;
 
     /**
      * Construct the accepted initial phase-space evolution state from the configured maximum
@@ -113,6 +122,13 @@ struct QmomCase
  * sorted in ascending order, and weights use the same ordering.
  */
 [[nodiscard]] QmomResult compute_qmom(const MomentSet& moments, std::size_t node_count, const QmomOptions& options = {});
+
+/**
+ * Construct a one-dimensional QMOM quadrature and require returned abscissas
+ * to lie in the optional closed interval.
+ */
+[[nodiscard]] QmomResult compute_qmom(const MomentSet& moments, std::size_t node_count, const QmomOptions& options,
+                                      std::optional<AbscissaBounds> abscissa_bounds);
 
 /**
  * Construct a one-dimensional QMOM quadrature from a case object.

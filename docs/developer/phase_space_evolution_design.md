@@ -717,6 +717,13 @@ Node advection preserves weights and moves an already accepted quadrature.
 The moment reconstruction after node advection is a deterministic summation
 from the moved quadrature; it is not a separate physical source model.
 
+Optional QMOM and CQMOM abscissa bounds are retained as state reconstruction
+metadata. Advection does not clip, project, or reject a node for crossing an
+interval. Bounds are enforced only when a quadrature is reconstructed from
+moments, including lazy source-stage reconstruction and post-source inversion;
+a failed bounded inversion follows the ordinary stage or macro-step rollback
+contract.
+
 ## Public API Boundary
 
 Public phase-space evolution and time-evolution entry points include:

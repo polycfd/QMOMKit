@@ -1,5 +1,6 @@
 #include "qmomkit/phase_space_evolution.hpp"
 
+#include "internal/bounded_quadrature.hpp"
 #include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
@@ -246,8 +247,19 @@ void record_failure_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, con
 }
 
 [[nodiscard]] QmomResult select_post_source_qmom(const std::vector<double>& post_source_moments, const std::size_t active_node_count,
-                                                 const std::size_t maximum_node_count, const QmomOptions& options)
+                                                 const std::size_t maximum_node_count, const QmomOptions& options,
+                                                 const std::optional<AbscissaBounds>& abscissa_bounds)
 {
+    if (abscissa_bounds.has_value())
+    {
+        const internal::BoundedQuadratureSelectionRequest request{options.adaptive ? active_node_count : maximum_node_count, maximum_node_count,
+                                                                  options.adaptive ? std::optional<std::size_t>{active_node_count} : std::nullopt,
+                                                                  options.adaptive, options.adaptive};
+        const internal::BoundedQuadratureSelection selection = internal::select_bounded_quadrature(
+            post_source_moments, request, *abscissa_bounds, WheelerOptions{options.adaptive, options.rmin, options.eabs, options.cutoff});
+        return qmom_from_quadrature(selection.quadrature);
+    }
+
     if (!options.adaptive)
     {
         QmomResult fixed = compute_qmom(MomentSet(post_source_moments), maximum_node_count, options);
@@ -341,7 +353,8 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
     try
     {
         internal::performance::record_moment_reconstruction_call();
-        accepted_state = internal::QmomStateAccess::from_quadrature(qmom_from_quadrature(advection.quadrature), state.moments().size());
+        accepted_state =
+            internal::QmomStateAccess::from_quadrature(qmom_from_quadrature(advection.quadrature), state.moments().size(), state.abscissa_bounds());
         if (final_advection)
         {
             diagnostics.final_reconstruction_diagnostics = successful_reconstruction(accepted_state.moments().size());
@@ -394,10 +407,11 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
         { return (!caller_accept || caller_accept(stage, candidate)) && policy_accept(stage, candidate); };
     }
     const MomentSourceUpdateResult source_update =
-        boundary == nullptr ? internal::advance_trusted_qmom_moments_with_source(state.moments(), t, time_step, source, source_options,
-                                                                                 state.active_node_count(), options.qmom_options)
-                            : internal::advance_trusted_qmom_moments_with_source(state.moments(), t, time_step, source, *boundary, source_options,
-                                                                                 state.active_node_count(), options.qmom_options);
+        boundary == nullptr
+            ? internal::advance_trusted_qmom_moments_with_source(state.moments(), t, time_step, source, source_options, state.active_node_count(),
+                                                                 options.qmom_options, state.abscissa_bounds())
+            : internal::advance_trusted_qmom_moments_with_source(state.moments(), t, time_step, source, *boundary, source_options,
+                                                                 state.active_node_count(), options.qmom_options, state.abscissa_bounds());
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
     {
@@ -408,7 +422,7 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
 
     internal::performance::record_post_source_inversion();
     QmomResult selected_quadrature =
-        select_post_source_qmom(source_update.moments, state.active_node_count(), maximum_node_count, options.qmom_options);
+        select_post_source_qmom(source_update.moments, state.active_node_count(), maximum_node_count, options.qmom_options, state.abscissa_bounds());
     diagnostics.post_source_qmom_status = selected_quadrature.status;
     if (!selected_quadrature.ok())
     {
@@ -419,7 +433,7 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
     try
     {
         internal::performance::record_moment_reconstruction_call();
-        accepted_state = internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moments().size());
+        accepted_state = internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moments().size(), state.abscissa_bounds());
     }
     catch (const std::exception& error)
     {

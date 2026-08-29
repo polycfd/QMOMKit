@@ -115,6 +115,7 @@ For one-dimensional QMOM, configuration maps to:
 MomentSet
 node_count
 QmomOptions
+optional AbscissaBounds
 QmomCase
 ```
 
@@ -133,6 +134,13 @@ that at least `2 * node_count` moments are available before creating a
 
 QMOM configuration requires exactly one phase-space node count. A file with
 multiple node counts is not a QMOM case.
+
+Optional paired `[phase_space]` `support_lower` and `support_upper` entries
+map to `QmomCase::abscissa_bounds`. QMOM requires exactly one entry in each
+list. Both keys may be omitted, or both entries may be `none`, for unbounded
+reconstruction. Numeric entries must be finite and satisfy `lower < upper`.
+This reconstruction metadata is distinct from the bounded-interval
+`MomentSupport` configuration used by realizability policies.
 
 The `[qmom] adaptive` setting maps to `QmomOptions::adaptive`. It controls the
 one-dimensional inversion behavior used by both ordinary QMOM and branch-local

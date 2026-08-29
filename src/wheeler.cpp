@@ -1,5 +1,6 @@
 #include "qmomkit/wheeler.hpp"
 
+#include "internal/bounded_quadrature.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
@@ -384,5 +385,137 @@ Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_
 
     return attempt_quadrature_count(moments, max_nodes, options).quadrature;
 }
+
+namespace internal
+{
+
+BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& moment_sequence, const BoundedQuadratureSelectionRequest& request,
+                                                     const AbscissaBounds interval, const WheelerOptions& wheeler_options)
+{
+    const auto evaluate = [&](const std::size_t node_count, std::string attempt_type)
+    {
+        BoundedQuadratureCandidate candidate;
+        candidate.node_count = node_count;
+        candidate.attempt_type = std::move(attempt_type);
+        const std::size_t required_moment_count = 2 * node_count;
+        if (node_count == 0 || moment_sequence.size() < required_moment_count)
+        {
+            candidate.quadrature.status = QuadratureStatus::invalid_input;
+            candidate.message = "Bounded-support candidate does not have enough moments.";
+            return candidate;
+        }
+        if (!std::isfinite(interval.lower) || !std::isfinite(interval.upper) || !(interval.lower < interval.upper))
+        {
+            candidate.quadrature.status = QuadratureStatus::invalid_input;
+            candidate.message = "Bounded-support interval must have finite lower < upper values.";
+            return candidate;
+        }
+
+        candidate.inversion_attempted = true;
+        candidate.quadrature = compute_quadrature(
+            MomentSet(std::vector<double>(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(required_moment_count))),
+            node_count, wheeler_options);
+        if (!candidate.quadrature.ok())
+        {
+            candidate.message = "Bounded-support Wheeler inversion failed: " + candidate.quadrature.message;
+            return candidate;
+        }
+        if (candidate.quadrature.weights.size() != node_count || candidate.quadrature.abscissas.size() != node_count)
+        {
+            candidate.quadrature.status = QuadratureStatus::not_realizable;
+            candidate.message = "Bounded-support Wheeler inversion returned an unexpected node count.";
+            return candidate;
+        }
+
+        constexpr double coordinate_support_tolerance = 1.0e-12;
+        const bool nodes_inside_interval = std::all_of(candidate.quadrature.abscissas.begin(), candidate.quadrature.abscissas.end(),
+                                                       [interval](const double node)
+                                                       {
+                                                           return std::isfinite(node) && node >= interval.lower - coordinate_support_tolerance &&
+                                                                  node <= interval.upper + coordinate_support_tolerance;
+                                                       });
+        if (!nodes_inside_interval)
+        {
+            candidate.quadrature.status = QuadratureStatus::not_realizable;
+            candidate.message = "Bounded-support Wheeler inversion returned nodes outside the configured interval.";
+            return candidate;
+        }
+
+        candidate.accepted = true;
+        candidate.message = "Bounded-support candidate accepted.";
+        return candidate;
+    };
+
+    BoundedQuadratureSelection selection;
+    if (!request.adaptive)
+    {
+        BoundedQuadratureCandidate fixed = evaluate(request.configured_node_count, "fixed");
+        selection.quadrature = fixed.quadrature;
+        selection.selected_node_count_ceiling = request.configured_node_count;
+        selection.success = fixed.accepted;
+        selection.diagnostic_candidate = std::move(fixed);
+        selection.accepted_fallback_node_count = selection.success ? request.configured_node_count : 0;
+        if (!selection.success)
+        {
+            selection.quadrature.message = selection.diagnostic_candidate.message;
+        }
+        return selection;
+    }
+
+    const std::size_t first_count = request.initial_node_count;
+    std::optional<BoundedQuadratureCandidate> rejected_candidate;
+    for (std::size_t candidate_count = first_count; candidate_count >= 1; --candidate_count)
+    {
+        const char* attempt_type =
+            candidate_count == first_count ? (request.previous_active_node_count.has_value() ? "current" : "configured") : "fallback";
+        BoundedQuadratureCandidate candidate = evaluate(candidate_count, attempt_type);
+        if (candidate.accepted)
+        {
+            const bool reduced = candidate_count < first_count;
+            selection.diagnostic_candidate = reduced ? *rejected_candidate : candidate;
+            selection.quadrature = std::move(candidate.quadrature);
+            selection.selected_node_count_ceiling = candidate_count;
+            selection.reduced = reduced;
+            selection.success = true;
+            selection.accepted_fallback_node_count = candidate_count;
+            break;
+        }
+        if (!rejected_candidate.has_value())
+        {
+            rejected_candidate = candidate;
+        }
+        if (candidate_count == 1)
+        {
+            selection.quadrature = std::move(candidate.quadrature);
+            selection.selected_node_count_ceiling = first_count;
+            selection.diagnostic_candidate = std::move(*rejected_candidate);
+            selection.quadrature.message = candidate.message;
+            return selection;
+        }
+    }
+
+    if (request.allow_growth && request.adaptive && wheeler_options.adaptive && request.previous_active_node_count.has_value() &&
+        selection.quadrature.ok() && selection.quadrature.weights.size() == *request.previous_active_node_count &&
+        *request.previous_active_node_count < request.configured_node_count)
+    {
+        const std::size_t growth_count = *request.previous_active_node_count + 1;
+        BoundedQuadratureCandidate growth = evaluate(growth_count, "growth");
+        selection.diagnostic_candidate = growth;
+        if (growth.accepted)
+        {
+            selection.quadrature = std::move(growth.quadrature);
+            selection.selected_node_count_ceiling = growth_count;
+            selection.reduced = false;
+            selection.accepted_fallback_node_count = growth_count;
+        }
+        else
+        {
+            selection.accepted_fallback_node_count = selection.quadrature.weights.size();
+        }
+    }
+    return selection;
+}
+
+} // namespace internal
 
 } // namespace qmomkit

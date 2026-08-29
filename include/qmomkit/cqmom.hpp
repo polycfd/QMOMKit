@@ -1,5 +1,6 @@
 #pragma once
 
+#include "qmomkit/abscissa_bounds.hpp"
 #include "qmomkit/conditional_moments.hpp"
 #include "qmomkit/conditioning_path.hpp"
 #include "qmomkit/phase_space_hierarchy.hpp"
@@ -91,11 +92,7 @@ enum class CqmomMomentStorage
 /**
  * Bounds on reconstructed CQMOM quadrature abscissas for one coordinate.
  */
-struct CqmomAbscissaBounds
-{
-    double lower = 0.0;
-    double upper = 1.0;
-};
+using CqmomAbscissaBounds = AbscissaBounds;
 
 using CqmomCoordinateSupport = std::vector<std::optional<CqmomAbscissaBounds>>;
 

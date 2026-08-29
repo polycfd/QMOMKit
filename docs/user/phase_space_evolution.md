@@ -122,6 +122,12 @@ const std::vector<double> moments =
     qmomkit::reconstruct_raw_moments(advanced.quadrature, moment_count);
 ```
 
+Configured abscissa bounds do not alter node trajectories: node advection does
+not clip, reflect, project, or reject a node solely because it crosses a
+configured interval. Bounds are instead checked when QMOM or CQMOM reconstructs
+quadrature from moments, including source-stage reconstructions and accepted
+post-source inversions.
+
 For CQMOM, use the overload that accepts `CqmomQuadrature`. This is a
 lower-level operation for workflows that only need to move node coordinates:
 

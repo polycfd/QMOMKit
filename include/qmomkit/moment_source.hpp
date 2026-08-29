@@ -43,12 +43,13 @@ private:
     friend class internal::QmomSourceContextAccess;
 
     QmomSourceContext(double time, const std::vector<double>& values, std::size_t reconstruction_node_count,
-                      const QmomOptions& reconstruction_options);
+                      const QmomOptions& reconstruction_options, std::optional<AbscissaBounds> reconstruction_bounds);
 
     double time_ = 0.0;
     const std::vector<double>* values_ = nullptr;
     std::size_t reconstruction_node_count_ = 0;
     const QmomOptions* reconstruction_options_ = nullptr;
+    std::optional<AbscissaBounds> reconstruction_bounds_;
     mutable std::optional<QmomResult> reconstructed_stage_quadrature_;
 };
 

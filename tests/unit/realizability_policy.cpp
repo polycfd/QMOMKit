@@ -27,11 +27,11 @@ void test_disabled_policy_does_not_invoke_converter()
     const qmomkit::RealizabilityPolicy policy;
     bool converter_called = false;
     const bool accepted = qmomkit::accepts_realizability_policy(policy, {1.0, 0.0, -1.0},
-                                                                  [&](const std::vector<double>& state)
-                                                                  {
-                                                                      converter_called = true;
-                                                                      return qmomkit::MomentSet(state);
-                                                                  });
+                                                                [&](const std::vector<double>& state)
+                                                                {
+                                                                    converter_called = true;
+                                                                    return qmomkit::MomentSet(state);
+                                                                });
 
     assert(accepted);
     assert(!converter_called);
@@ -44,11 +44,11 @@ void test_final_only_policy_invokes_converter_once()
 
     int converter_calls = 0;
     const qmomkit::StateAcceptancePredicate predicate = qmomkit::make_realizability_acceptance_predicate(policy,
-                                                                                                             [&](const std::vector<double>& state)
-                                                                                                             {
-                                                                                                                 ++converter_calls;
-                                                                                                                 return qmomkit::MomentSet(state);
-                                                                                                             });
+                                                                                                         [&](const std::vector<double>& state)
+                                                                                                         {
+                                                                                                             ++converter_calls;
+                                                                                                             return qmomkit::MomentSet(state);
+                                                                                                         });
 
     assert(predicate);
     assert(predicate({1.0, 0.0, 1.0}));
@@ -61,13 +61,12 @@ void test_every_stage_policy_uses_stage_predicate()
     policy.check_mode = qmomkit::RealizabilityCheckMode::EveryStage;
 
     int converter_calls = 0;
-    const qmomkit::StageAcceptancePredicate predicate =
-        qmomkit::make_realizability_stage_acceptance_predicate(policy,
-                                                                 [&](const std::vector<double>& state)
-                                                                 {
-                                                                     ++converter_calls;
-                                                                     return qmomkit::MomentSet(state);
-                                                                 });
+    const qmomkit::StageAcceptancePredicate predicate = qmomkit::make_realizability_stage_acceptance_predicate(policy,
+                                                                                                               [&](const std::vector<double>& state)
+                                                                                                               {
+                                                                                                                   ++converter_calls;
+                                                                                                                   return qmomkit::MomentSet(state);
+                                                                                                               });
 
     assert(predicate);
     assert(predicate(qmomkit::SspRk3Stage::Stage1, {1.0, 0.0, 1.0}));
@@ -136,7 +135,7 @@ void test_converter_failures_propagate()
     try
     {
         (void)qmomkit::accepts_realizability_policy(policy, {1.0}, [](const std::vector<double>&) -> qmomkit::MomentSet
-                                                      { throw std::runtime_error("converter failed"); });
+                                                    { throw std::runtime_error("converter failed"); });
     }
     catch (const std::runtime_error&)
     {
@@ -170,11 +169,11 @@ void test_ssp_rk3_rejects_and_retries_with_realizability_predicate()
     int converter_calls = 0;
     qmomkit::SspRk3Options options;
     options.accept = qmomkit::make_realizability_acceptance_predicate(policy,
-                                                                        [&](const std::vector<double>& state)
-                                                                        {
-                                                                            ++converter_calls;
-                                                                            return qmomkit::MomentSet(state);
-                                                                        });
+                                                                      [&](const std::vector<double>& state)
+                                                                      {
+                                                                          ++converter_calls;
+                                                                          return qmomkit::MomentSet(state);
+                                                                      });
     options.max_retries = 2;
 
     const auto rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, -2.0}; };
@@ -193,11 +192,11 @@ void test_ssp_rk3_disabled_policy_installs_no_predicate()
 
     qmomkit::SspRk3Options options;
     options.accept = qmomkit::make_realizability_acceptance_predicate(policy,
-                                                                        [&](const std::vector<double>& state)
-                                                                        {
-                                                                            ++converter_calls;
-                                                                            return qmomkit::MomentSet(state);
-                                                                        });
+                                                                      [&](const std::vector<double>& state)
+                                                                      {
+                                                                          ++converter_calls;
+                                                                          return qmomkit::MomentSet(state);
+                                                                      });
 
     const auto rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, -2.0}; };
     const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({1.0, 0.0, 1.0}, 0.0, 1.0, rhs, options);

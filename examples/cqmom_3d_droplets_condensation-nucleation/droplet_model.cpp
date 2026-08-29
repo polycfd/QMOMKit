@@ -195,11 +195,6 @@ void validate_temperature_for_water_properties(const double temperature, const D
     return transfer_number(reynolds, air.dynamic_viscosity / (air.density * diffusivity));
 }
 
-[[nodiscard]] double base_nusselt_number(const double reynolds, const MoistAirProperties& air)
-{
-    return transfer_number(reynolds, air.dynamic_viscosity * air.heat_capacity / air.thermal_conductivity);
-}
-
 [[nodiscard]] double radius_rate_at_temperature(const DropletState& state, const AmbientConditions& ambient, const DropletModelParameters& parameters,
                                                 const double sherwood, const double droplet_temperature)
 {
@@ -212,10 +207,7 @@ void validate_temperature_for_water_properties(const double temperature, const D
 
 [[nodiscard]] double nusselt_number(const MoistAirProperties& air, const double reynolds)
 {
-    // This condensation-only example uses the base heat-transfer correlation
-    // from Eq. (23) and deliberately omits the evaporation-oriented wet-bulb
-    // correction from Eqs. (22), (25), and (26).
-    return base_nusselt_number(reynolds, air);
+    return transfer_number(reynolds, air.dynamic_viscosity * air.heat_capacity / air.thermal_conductivity);
 }
 
 [[nodiscard]] double vertical_drag_acceleration(const DropletState& state, const AmbientConditions& ambient, const MoistAirProperties& air,

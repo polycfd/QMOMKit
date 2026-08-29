@@ -89,12 +89,7 @@ enum class CqmomMomentStorage
     dense
 };
 
-/**
- * Bounds on reconstructed CQMOM quadrature abscissas for one coordinate.
- */
-using CqmomAbscissaBounds = AbscissaBounds;
-
-using CqmomCoordinateSupport = std::vector<std::optional<CqmomAbscissaBounds>>;
+using CqmomCoordinateSupport = std::vector<std::optional<AbscissaBounds>>;
 
 [[nodiscard]] std::string to_string(CqmomMomentStorage storage);
 [[nodiscard]] std::string format_cqmom_settings(CqmomMomentStorage storage, bool adaptive_branch_counts, VandermondeSolver vandermonde_solver,
@@ -118,7 +113,7 @@ struct CqmomDiagnostics
     std::string message;
     bool bounded_support_checked = false;
     bool bounded_support_interval_present = false;
-    CqmomAbscissaBounds bounded_support_interval;
+    AbscissaBounds bounded_support_interval;
     std::optional<std::size_t> bounded_previous_active_node_count;
     std::size_t bounded_candidate_node_count = 0;
     std::string bounded_candidate_attempt_type;

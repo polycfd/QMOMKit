@@ -1827,7 +1827,7 @@ std::optional<CqmomCoordinateSupport> parse_coordinate_support(ParsedFile& parse
                       "Bounded coordinate support requires lower < upper.");
             return std::nullopt;
         }
-        support[dimension] = CqmomAbscissaBounds{*lower_values[dimension], *upper_values[dimension]};
+        support[dimension] = AbscissaBounds{*lower_values[dimension], *upper_values[dimension]};
     }
     return support;
 }

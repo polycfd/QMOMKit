@@ -548,8 +548,7 @@ that data is not a valid reconstructed multidimensional quadrature.
 
 ### Bounded Coordinate Support
 
-Recursive CQMOM accepts optional `CqmomAbscissaBounds` (an alias of the generic
-`AbscissaBounds`) in phase-space dimension
+Recursive CQMOM accepts optional `AbscissaBounds` in phase-space dimension
 order. These bounds apply only to reconstructed CQMOM quadrature abscissas. An
 empty support vector means every coordinate is unconstrained, which preserves
 the ordinary Wheeler reconstruction path. A nonempty vector must have one entry

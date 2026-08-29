@@ -694,7 +694,7 @@ namespace
 
 [[nodiscard]] CqmomDiagnostics to_cqmom_diagnostics(const internal::RecursiveQuadratureBranchDiagnostics& diagnostics)
 {
-    CqmomDiagnostics converted;
+    CqmomDiagnostics converted{};
     converted.conditioning_level = diagnostics.conditioning_level;
     converted.parent_path = diagnostics.path;
     converted.phase_space_dimension = diagnostics.phase_space_dimension;

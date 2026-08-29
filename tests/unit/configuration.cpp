@@ -1097,7 +1097,7 @@ void test_cqmom_factories_preserve_coordinate_support()
     assert(lean_default.value().coordinate_support.empty());
 
     qmomkit::CqmomCoordinateSupport support(2);
-    support[1] = qmomkit::CqmomAbscissaBounds{2.0, 5.0};
+    support[1] = qmomkit::AbscissaBounds{2.0, 5.0};
 
     const auto dense = qmomkit::config::create_cqmom_dense_case(initial.value(), hierarchy, qmomkit::QmomOptions{}, false, "dense-factory", support);
     const auto lean = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy, qmomkit::QmomOptions{}, false, "lean-factory", support);
@@ -1234,7 +1234,7 @@ qmomkit::RawMomentTensor cqmom_replacement_tensor(const std::vector<double>& x_v
 qmomkit::CqmomCoordinateSupport cqmom_replacement_support()
 {
     qmomkit::CqmomCoordinateSupport support(2);
-    support[1] = qmomkit::CqmomAbscissaBounds{0.0, 2.0};
+    support[1] = qmomkit::AbscissaBounds{0.0, 2.0};
     return support;
 }
 

@@ -280,7 +280,7 @@ struct RecursiveQuadratureBranchDiagnostics
     std::string message;
     bool bounded_support_checked = false;
     bool bounded_support_interval_present = false;
-    CqmomAbscissaBounds bounded_support_interval;
+    AbscissaBounds bounded_support_interval;
     std::optional<std::size_t> bounded_previous_active_node_count;
     std::size_t bounded_candidate_node_count = 0;
     std::string bounded_candidate_attempt_type;

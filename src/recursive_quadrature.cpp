@@ -836,7 +836,7 @@ struct BranchNodeCountLimit
         {
             continue;
         }
-        const CqmomAbscissaBounds interval = *support[dimension];
+        const AbscissaBounds interval = *support[dimension];
         if (!std::isfinite(interval.lower) || !std::isfinite(interval.upper) || !(interval.lower < interval.upper))
         {
             message = "CQMOM coordinate_support bounded intervals must have finite lower < upper values.";
@@ -846,8 +846,8 @@ struct BranchNodeCountLimit
     return true;
 }
 
-[[nodiscard]] std::optional<CqmomAbscissaBounds> support_interval_for_dimension(const CqmomCoordinateSupport& support,
-                                                                                const std::size_t phase_space_dimension)
+[[nodiscard]] std::optional<AbscissaBounds> support_interval_for_dimension(const CqmomCoordinateSupport& support,
+                                                                           const std::size_t phase_space_dimension)
 {
     if (support.empty())
     {
@@ -857,7 +857,7 @@ struct BranchNodeCountLimit
 }
 
 void record_bounded_candidate_diagnostics(internal::RecursiveQuadratureBranchDiagnostics& diagnostics,
-                                          const internal::BoundedQuadratureCandidate& candidate, const CqmomAbscissaBounds interval,
+                                          const internal::BoundedQuadratureCandidate& candidate, const AbscissaBounds interval,
                                           const std::optional<std::size_t> previous_active_node_count, const std::size_t accepted_fallback_node_count)
 {
     diagnostics.bounded_support_checked = true;
@@ -1461,7 +1461,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
                 record_failure(result, RecursiveQuadratureStatus::invalid_input, branch.path, level, ex.what());
                 return result;
             }
-            RecursiveQuadratureBranchDiagnostics branch_diagnostics;
+            RecursiveQuadratureBranchDiagnostics branch_diagnostics{};
             branch_diagnostics.conditioning_level = level;
             branch_diagnostics.path = branch.path;
             branch_diagnostics.phase_space_dimension = phase_space_dimension;
@@ -1485,8 +1485,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             Quadrature1D quadrature;
             std::size_t selected_node_count_ceiling = node_count_limit.ceiling;
             bool support_driven_reduction = false;
-            const std::optional<CqmomAbscissaBounds> support_interval =
-                support_interval_for_dimension(request.coordinate_support, phase_space_dimension);
+            const std::optional<AbscissaBounds> support_interval = support_interval_for_dimension(request.coordinate_support, phase_space_dimension);
             if (support_interval.has_value())
             {
                 const internal::BoundedQuadratureSelectionRequest bounded_request{

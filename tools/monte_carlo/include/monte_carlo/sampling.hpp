@@ -1,9 +1,9 @@
 #pragma once
 
-#include "qmomkit/distributions.hpp"
 #include "monte_carlo/ensemble.hpp"
 #include "monte_carlo/explicit_distribution.hpp"
 #include "monte_carlo/status.hpp"
+#include "qmomkit/distributions.hpp"
 
 #include <string>
 
@@ -103,8 +103,7 @@ struct ExplicitDiscreteSamplingResult
  * The distribution's `number_density` supplies the absolute density scale for
  * later raw-moment estimation.
  */
-[[nodiscard]] SamplingResult sample_independent_product(const qmomkit::IndependentProductDistribution& distribution,
-                                                        const SamplingOptions& options);
+[[nodiscard]] SamplingResult sample_independent_product(const qmomkit::IndependentProductDistribution& distribution, const SamplingOptions& options);
 
 /**
  * Draw samples from an explicit weighted node distribution.

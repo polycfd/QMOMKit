@@ -109,3 +109,6 @@ docs/latex/
 
 # Python environments 
 .venv
+
+# clang-format binaries installed by tools/download_clang_format
+tools/programs/

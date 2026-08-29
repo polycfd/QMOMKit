@@ -1,0 +1,42 @@
+name: CI-Indentation
+
+on:
+# Runs on every push on main branch. If a push contains multiple commits, it will be ran on the latest one.
+  push:
+    # Runs on every push on main branch
+    branches:
+      - main
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+
+# Cancels running instances when a pull request is updated by a commit
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  cancel-in-progress: ${{github.event_name == 'pull_request'}}
+
+permissions:
+  contents: read
+
+jobs:
+  indent:
+    name: Indent
+    runs-on: self-hosted
+
+    steps:
+
+      # Checks-out QMOMKit with branch of triggering commit
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Installs clang-format 22.1 into tools/programs/, unless a previous
+      # run on this self-hosted runner already did so
+      - name: Install clang-format
+        run: |
+          if [ ! -x tools/programs/clang-22.1/bin/clang-format ]; then
+            ./tools/download_clang_format
+          fi
+
+      - name: Check indentation
+        run: |
+          ./tools/check_indentation.sh

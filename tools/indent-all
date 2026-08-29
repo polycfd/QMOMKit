@@ -1,0 +1,100 @@
+#!/bin/bash
+## -----------------------------------------------------------------------------
+##
+## SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception OR LGPL-2.1-or-later
+## Copyright (C) 2012 - 2025 by the deal.II authors
+##
+## This file was adapted for QMOMKit from the deal.II library:
+##   https://github.com/dealii/dealii/blob/master/contrib/utilities/indent-all
+##
+## Changes with respect to the original:
+##   - clang-format 22.1 is required instead of clang-format 16.0.
+##   - The script lives in QMOMKit's tools/ directory instead of deal.II's
+##     contrib/utilities/ directory, and processes QMOMKit's source tree
+##     (include, src, tests, examples, tools) with the .cpp/.hpp extensions
+##     used here.
+##   - The clang-format binary is selected with QMOMKIT_CLANG_FORMAT instead
+##     of DEAL_II_CLANG_FORMAT.
+##   - deal.II-specific steps (.inst.in files, Python bindings, doc/news)
+##     were removed.
+##
+## Detailed license information governing the original source code can be
+## found in LICENSE.md and CONTRIBUTING.md at the top level directory of
+## deal.II.
+##
+## -----------------------------------------------------------------------------
+
+#
+# This script indents all source files of QMOMKit according to our usual
+# code formatting standards. It is used to ensure that our code base looks
+# uniform, as uniformity helps make code easier to read.
+#
+# While we're already touching every file, this script also makes
+# sure we set permissions correctly and checks for correct unix-style line
+# endings.
+#
+# The script needs to be executed as
+#   ./tools/indent-all
+# from the top-level directory of the source tree.
+#
+# The script can be invoked with QMOMKIT_CLANG_FORMAT to change
+# the default version of clang-format. For example:
+#   QMOMKIT_CLANG_FORMAT=clang-format-22 ./tools/indent-all
+#
+# Note: If the script is invoked with REPORT_ONLY=true set,
+#   REPORT_ONLY=true ./tools/indent-all
+# then indentation errors will only be reported without any actual file
+# changes.
+#
+
+if [ ! -f tools/indent-all ]; then
+  echo "*** This script must be run from the top-level directory of QMOMKit."
+  exit 1
+fi
+
+if [ ! -f tools/indent_common.sh ]; then
+  echo "*** This script requires tools/indent_common.sh."
+  exit 1
+fi
+
+source tools/indent_common.sh
+
+#
+# Run sanity checks:
+#
+
+checks
+
+#
+# The directories that hold source code, and the files within them that are
+# subject to our formatting standards:
+#
+
+SOURCE_DIRECTORIES="include src tests examples tools"
+SOURCE_FILES=".*\.(cpp|hpp)"
+
+#
+# Process all source and header files:
+#
+
+process "${SOURCE_DIRECTORIES}" "${SOURCE_FILES}" format_file
+
+#
+# Fix permissions and convert to unix line ending if necessary:
+#
+
+process "${SOURCE_DIRECTORIES}" "${SOURCE_FILES}" fix_permissions
+
+process "${SOURCE_DIRECTORIES}" "${SOURCE_FILES}" dos_to_unix
+
+#
+# Removing trailing whitespace
+#
+
+process "${SOURCE_DIRECTORIES}" "${SOURCE_FILES}" remove_trailing_whitespace
+
+#
+# Ensure only a single newline at end of files
+#
+
+process "${SOURCE_DIRECTORIES}" "${SOURCE_FILES}" ensure_single_trailing_newline

@@ -919,6 +919,15 @@ void test_cqmom_none_diagnostics_preserves_failure_context()
     assert(!result.diagnostics.front().message.empty());
 }
 
+void test_cqmom_diagnostics_default_bounded_support_placeholder()
+{
+    const qmomkit::CqmomDiagnostics diagnostics;
+    assert(!diagnostics.bounded_support_checked);
+    assert(!diagnostics.bounded_support_interval_present);
+    assert_near(diagnostics.bounded_support_interval.lower, 0.0, 0.0);
+    assert_near(diagnostics.bounded_support_interval.upper, 0.0, 0.0);
+}
+
 void test_cqmom_storage_settings_format()
 {
     assert(qmomkit::to_string(qmomkit::CqmomMomentStorage::lean) == "lean");
@@ -980,6 +989,7 @@ int main()
     test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts();
     test_cqmom_diagnostic_levels_control_expensive_diagnostics();
     test_cqmom_none_diagnostics_preserves_failure_context();
+    test_cqmom_diagnostics_default_bounded_support_placeholder();
     test_cqmom_storage_settings_format();
     return 0;
 }

@@ -400,7 +400,7 @@ write PNG files next to the input file.
 ## Expected qualitative behavior
 
 The pressure coefficient in the implemented ODE excites radius and
-radial-velocity evolution from the initially polydisperse distribution.
+radial-velocity evolution from the initially monodisperse distribution.
 Surface-tension and viscous terms, represented by the Weber and Reynolds
 parameters, influence the oscillation frequency and damping. CQMOM represents
 the evolving population with a finite conditional quadrature, while the direct
@@ -411,17 +411,3 @@ reconstruction precision because they come from the same deterministic finite
 sample. Later differences reflect the finite CQMOM representation, finite
 Monte Carlo sample, and numerical integration choices; exact agreement during
 evolution is not expected.
-
-## Interpretation and limitations
-
-This example is a compact phase-space advection cavitation workflow, not a
-complete cavitating-flow solver. It does not include physical-space advection,
-mesh coupling, gas-liquid feedback, collapse removal, breakup, coalescence,
-moment-sources, or CHyQMOM. The implemented constants are fixed
-example-local physics parameters, and the `.qmom` file describes numerical
-configuration rather than application physics.
-
-The Monte Carlo executable is useful for inspecting the direct evolution of
-the same finite sampled population used for CQMOM initialization. It is not an
-independent analytical reference, and the default `2 x 2` CQMOM topology is not
-claimed to be converged or optimal.

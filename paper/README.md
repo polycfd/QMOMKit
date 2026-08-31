@@ -20,7 +20,7 @@ The paper cases are:
 - `1d_aerosols_evaporation`: 1D QMOM evaporation of an aerosol diameter
   distribution, with fixed-node-count reconstructions compared with its
   fixed-seed Monte Carlo reference.
-- `2d_bubbles_cavitation`: 2D CQMOM evolution of a polydisperse bubble
+- `2d_bubbles_cavitation`: 2D CQMOM evolution of a monodisperse bubble
   population in radius and velocity, compared with Monte Carlo.
 - `3d_droplets_condensation-nucleation`: 3D CQMOM condensation and nucleation
   of droplets in radius, vertical velocity, and temperature, including an

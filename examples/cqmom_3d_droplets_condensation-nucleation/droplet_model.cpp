@@ -16,8 +16,6 @@ namespace
 constexpr double kelvin_offset = 273.15;
 constexpr double minimum_liquid_water_temperature = 273.15;
 constexpr double low_reynolds_number = 1.0e-8;
-constexpr double metres_per_micrometre = 1.0e-6;
-constexpr double micrometres_per_metre = 1.0e6;
 
 struct DropletState
 {
@@ -309,12 +307,8 @@ qmomkit::PhaseSpaceVelocity droplet_phase_space_velocity()
             throw std::invalid_argument("The condensing-droplet example expects phase-space coordinates ordered as (r,w,T).");
         }
 
-        // QMOMKit stores the radius coordinate in micrometres. The physical
-        // correlations use SI radius and return its rate in metres per second.
-        const double radius_m = metres_per_micrometre * coordinates[0];
-        const DropletRates rates = evaluate_droplet_rates({radius_m, coordinates[1], coordinates[2]}, ambient, parameters);
-        const double radius_rate_um = micrometres_per_metre * rates.radius_rate;
-        return std::vector<double>{radius_rate_um, rates.vertical_velocity_rate, rates.temperature_rate};
+        const DropletRates rates = evaluate_droplet_rates({coordinates[0], coordinates[1], coordinates[2]}, ambient, parameters);
+        return std::vector<double>{rates.radius_rate, rates.vertical_velocity_rate, rates.temperature_rate};
     };
 }
 

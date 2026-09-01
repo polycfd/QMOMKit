@@ -9,7 +9,7 @@ $$
 \boldsymbol{\xi}=(r,w,T),
 $$
 
-where $r$ is droplet radius represented in micrometres, $w$ is vertical droplet
+where $r$ is droplet radius in metres, $w$ is vertical droplet
 velocity in m/s, and $T$ is droplet temperature in K. Positive $w$ is upward,
 so falling droplets have negative vertical velocity.
 
@@ -54,18 +54,17 @@ companion/reference realization for comparing the two representations.
 The configured phase-space order is:
 
 ```text
-(r\ [\mathrm{\mu m}], w\ [\mathrm{m/s}], T\ [\mathrm{K}])
+(r\ [\mathrm{m}], w\ [\mathrm{m/s}], T\ [\mathrm{K}])
 ```
 
 The same positional order is used by `configuration.qmom`, samples, the
 phase-space velocity callback, CQMOM moment exponents, quadrature abscissas,
 and output files.
 
-The radius coordinate and its moments use micrometres, which keeps their
-numerical magnitudes convenient. Inside the physical callback,
-`droplet_model.cpp` explicitly converts $r_{\mathrm{\mu m}}$ to the SI radius
-$r_{\mathrm{m}}=10^{-6}r_{\mathrm{\mu m}}$ before evaluating physical
-correlations.
+The radius coordinate and its moments use SI metres. The configuration enables
+QMOMKit's native automatic reconstruction scaling, so reconstruction remains
+well conditioned without example-local phase-space rescaling. The physical
+callback therefore receives the SI radius directly.
 
 For a number density function $f(r,w,T)$, the raw unnormalized moments are
 
@@ -114,12 +113,12 @@ required.
 
 ## Droplet model
 
-The advection callback receives coordinates ordered as $(r_{\mathrm{\mu m}},w,T)$ and
+The advection callback receives coordinates ordered as $(r_{\mathrm{m}},w,T)$ and
 returns
 
 $$
 \left(
-\frac{\mathrm{d}r_{\mathrm{\mu m}}}{\mathrm{d}t},
+\frac{\mathrm{d}r_{\mathrm{m}}}{\mathrm{d}t},
 \frac{\mathrm{d}w}{\mathrm{d}t},
 \frac{\mathrm{d}T}{\mathrm{d}t}
 \right).
@@ -130,9 +129,8 @@ nucleation birth parameters are declared in `droplet_model.hpp`. They are
 example-local physics parameters, not entries in `configuration.qmom` and not
 generic QMOMKit settings.
 
-The callback evaluates the physical model with $r_{\mathrm{m}}$ and its SI rate
-$\mathrm{d}r_{\mathrm{m}}/\mathrm{d}t$, then returns
-$\mathrm{d}r_{\mathrm{\mu m}}/\mathrm{d}t = 10^6\,\mathrm{d}r_{\mathrm{m}}/\mathrm{d}t$.
+The callback evaluates and returns the physical model directly in SI units,
+including $\mathrm{d}r_{\mathrm{m}}/\mathrm{d}t$.
 
 The droplet model is a simplified version of the model used by [Denner (IJMF, 2026)](https://www.doi.org/10.1016/j.ijmultiphaseflow.2026.105696) for water droplets in air.
 
@@ -361,7 +359,7 @@ units of number density per second. Every newborn droplet has the deterministic
 phase-space state
 
 $$
-(r_n,w_n,T_n)=(50.0\ \mathrm{\mu m},0\ \mathrm{m/s},298.15\ \mathrm{K}).
+(r_n,w_n,T_n)=(50.0\times10^{-6}\ \mathrm{m},0\ \mathrm{m/s},298.15\ \mathrm{K}).
 $$
 
 Nucleation is a phase-space boundary birth, not a smooth velocity for existing
@@ -506,7 +504,7 @@ $$
 
 The configured marginals are:
 
-- $r$ is gamma-distributed in micrometres with `shape = 16.0` and `scale = 18.75`.
+- $r$ is gamma-distributed in metres with `shape = 16.0` and `scale = 18.75e-6`.
 - $w$ is normal with `mean = -2.0` and `standard_deviation = 1.0`.
 - $T$ is normal with `mean = 293.15` and `standard_deviation = 3.0`.
 
@@ -554,6 +552,7 @@ names = r, w, T
 node_counts = 3, 3, 3
 conditioning_order = 0, 2, 1
 adaptive_branch_counts = true
+automatic_scaling = true
 
 [time_integration]
 scheme = strang
@@ -696,7 +695,7 @@ containing `time` followed by moment labels such as `M[0,0,0]`.
 
 `quadrature_history.txt` contains terminal CQMOM nodes over time. It is a
 `QuadratureWriter` table with time, public node index, conditioning path
-entries, terminal weight, and abscissas ordered as $r$ in micrometres, $w$ in
+entries, terminal weight, and abscissas ordered as $r$ in metres, $w$ in
 m/s, and $T$ in K.
 This example does not write `initial_quadrature.txt`.
 

@@ -9,6 +9,7 @@
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
 #include "internal/qmom_state_access.hpp"
+#include "internal/reconstruction_scaling.hpp"
 #include "internal/recursive_quadrature.hpp"
 #include "qmomkit/multi_index.hpp"
 #include "qmomkit/quadrature.hpp"
@@ -255,9 +256,30 @@ void record_failure_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, con
         const internal::BoundedQuadratureSelectionRequest request{options.adaptive ? active_node_count : maximum_node_count, maximum_node_count,
                                                                   options.adaptive ? std::optional<std::size_t>{active_node_count} : std::nullopt,
                                                                   options.adaptive, options.adaptive};
+        const auto unscaled = [&]()
+        {
+            const internal::BoundedQuadratureSelection selection = internal::select_bounded_quadrature(
+                post_source_moments, request, *abscissa_bounds, WheelerOptions{options.adaptive, options.rmin, options.eabs, options.cutoff});
+            return qmom_from_quadrature(selection.quadrature);
+        };
+        if (!options.automatic_scaling)
+        {
+            return unscaled();
+        }
+
+        const std::optional<internal::QmomScalingContext> scaling = internal::make_qmom_scaling_context(post_source_moments, abscissa_bounds);
+        if (!scaling.has_value())
+        {
+            return unscaled();
+        }
         const internal::BoundedQuadratureSelection selection = internal::select_bounded_quadrature(
-            post_source_moments, request, *abscissa_bounds, WheelerOptions{options.adaptive, options.rmin, options.eabs, options.cutoff});
-        return qmom_from_quadrature(selection.quadrature);
+            scaling->moments, request, *scaling->abscissa_bounds, WheelerOptions{options.adaptive, options.rmin, options.eabs, options.cutoff});
+        QmomResult scaled_result = qmom_from_quadrature(selection.quadrature);
+        if (!internal::restore_abscissas(scaled_result.abscissas, scaling->scale))
+        {
+            return unscaled();
+        }
+        return scaled_result;
     }
 
     if (!options.adaptive)

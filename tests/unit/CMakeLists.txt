@@ -16,6 +16,7 @@ qmomkit_add_ctest(test_householder_qr unit_householder_qr unit householder_qr.cp
 qmomkit_add_ctest(test_jacobi_svd unit_jacobi_svd unit jacobi_svd.cpp)
 qmomkit_add_ctest(test_vandermonde unit_vandermonde unit vandermonde.cpp)
 qmomkit_add_ctest(test_public_api unit_public_api unit public_api.cpp)
+target_include_directories(test_public_api PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src")
 add_executable(test_configuration configuration.cpp)
 target_include_directories(test_configuration PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src")
 target_link_libraries(test_configuration PRIVATE qmomkit)

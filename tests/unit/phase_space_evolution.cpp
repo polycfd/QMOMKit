@@ -1441,6 +1441,46 @@ void test_qmom_bounded_state_advection_and_source_reconstruction_semantics()
     assert_vector_near(post_source.state.moments(), initial.moments(), 0.0);
 }
 
+void test_qmom_bounded_post_source_automatic_scaling_is_unit_covariant()
+{
+    const std::vector<double> reference_nodes{1.0, 1.0001};
+    const std::vector<double> weights{0.5, 0.5};
+    qmomkit::QmomOptions qmom_options;
+    qmom_options.adaptive = true;
+    qmom_options.automatic_scaling = true;
+
+    for (const double factor : std::vector<double>{1.0e-9, 1.0e6})
+    {
+        std::vector<double> physical_nodes = reference_nodes;
+        for (double& node : physical_nodes)
+        {
+            node *= factor;
+        }
+        const qmomkit::AbscissaBounds bounds{0.5 * factor, 1.5 * factor};
+        const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d(physical_nodes, weights, 4), 2, qmom_options, bounds);
+        const qmomkit::MomentSource zero_source = [](double, const qmomkit::QmomSourceContext& context)
+        { return std::vector<double>(context.size(), 0.0); };
+
+        qmomkit::QmomPhaseSpaceEvolutionOptions scaled_options;
+        scaled_options.qmom_options = qmom_options;
+        const qmomkit::QmomPhaseSpaceEvolutionResult scaled = qmomkit::advance_qmom_moment_source(state, 2, 0.0, 1.0, zero_source, scaled_options);
+        assert(scaled.ok());
+        assert(scaled.state.active_node_count() == 2);
+        for (std::size_t node = 0; node < reference_nodes.size(); ++node)
+        {
+            assert_near(scaled.state.quadrature().weights[node], weights[node], 1.0e-10);
+            assert_near(scaled.state.quadrature().abscissas[node] / factor, reference_nodes[node], 1.0e-8);
+        }
+
+        qmomkit::QmomPhaseSpaceEvolutionOptions unscaled_options = scaled_options;
+        unscaled_options.qmom_options.automatic_scaling = false;
+        const qmomkit::QmomPhaseSpaceEvolutionResult unscaled =
+            qmomkit::advance_qmom_moment_source(state, 2, 0.0, 1.0, zero_source, unscaled_options);
+        assert(unscaled.ok());
+        assert(unscaled.state.active_node_count() == 1);
+    }
+}
+
 void test_public_qmom_moment_source_stage_fixed_mode_is_strict()
 {
     const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.0}, {0.4, 0.6}, 4), 2);
@@ -1524,8 +1564,10 @@ void test_public_qmom_moment_source_stage_failures_roll_back()
 void test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature()
 {
     const std::vector<double> initial_moments = raw_moments_1d({-0.5, 1.25}, {0.4, 0.6}, 4);
-    const qmomkit::QmomState state = qmom_state_from_moments(initial_moments, 2);
-    const qmomkit::QmomResult initial_quadrature = qmomkit::compute_qmom(qmomkit::MomentSet(initial_moments), 2);
+    qmomkit::QmomOptions qmom_options;
+    qmom_options.automatic_scaling = true;
+    const qmomkit::QmomState state = qmom_state_from_moments(initial_moments, 2, qmom_options);
+    const qmomkit::QmomResult initial_quadrature = qmomkit::compute_qmom(qmomkit::MomentSet(initial_moments), 2, qmom_options);
     assert(initial_quadrature.ok());
     const qmomkit::Quadrature1D quadrature{initial_quadrature.abscissas, initial_quadrature.weights, qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> initial_extended = qmomkit::reconstruct_raw_moments(quadrature, 6);
@@ -1549,10 +1591,12 @@ void test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature()
     };
 
     qmomkit::internal::performance::CounterSession session;
+    qmomkit::QmomPhaseSpaceEvolutionOptions evolution_options;
+    evolution_options.qmom_options = qmom_options;
     std::optional<qmomkit::QmomPhaseSpaceEvolutionResult> result;
     {
         qmomkit::internal::performance::CounterScope scope(session);
-        result.emplace(qmomkit::advance_qmom_moment_source(state, 2, 0.0, time_step, source));
+        result.emplace(qmomkit::advance_qmom_moment_source(state, 2, 0.0, time_step, source, evolution_options));
     }
 
     assert(result->ok());
@@ -4525,6 +4569,7 @@ void run_all_phase_space_evolution_tests()
     test_public_qmom_advection_stage_advances_canonical_state();
     test_public_qmom_advection_stage_failure_rolls_back();
     test_qmom_bounded_state_advection_and_source_reconstruction_semantics();
+    test_qmom_bounded_post_source_automatic_scaling_is_unit_covariant();
     test_public_qmom_moment_source_stage_fixed_mode_is_strict();
     test_public_qmom_moment_source_stage_adaptive_policy();
     test_public_qmom_moment_source_stage_failures_roll_back();

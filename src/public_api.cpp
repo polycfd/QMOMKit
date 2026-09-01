@@ -5,6 +5,7 @@
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
 #include "internal/qmom_state_access.hpp"
+#include "internal/reconstruction_scaling.hpp"
 #include "internal/recursive_quadrature.hpp"
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
@@ -26,6 +27,47 @@ namespace
 [[nodiscard]] WheelerOptions to_wheeler_options(const QmomOptions& options)
 {
     return WheelerOptions{options.adaptive, options.rmin, options.eabs, options.cutoff};
+}
+
+[[nodiscard]] QmomStatus to_qmom_status(QuadratureStatus status);
+
+[[nodiscard]] QmomResult compute_qmom_unscaled(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
+                                               const std::optional<AbscissaBounds> abscissa_bounds)
+{
+    internal::performance::record_qmom_reconstruction();
+    if (!abscissa_bounds.has_value())
+    {
+        const Quadrature1D result = compute_quadrature(moments, node_count, to_wheeler_options(options));
+        return QmomResult{result.abscissas, result.weights, to_qmom_status(result.status), result.message};
+    }
+
+    const internal::BoundedQuadratureSelectionRequest request{node_count, node_count, std::nullopt, options.adaptive, false};
+    const internal::BoundedQuadratureSelection selection =
+        internal::select_bounded_quadrature(moments.values(), request, *abscissa_bounds, to_wheeler_options(options));
+    return QmomResult{selection.quadrature.abscissas, selection.quadrature.weights, to_qmom_status(selection.quadrature.status),
+                      selection.quadrature.message};
+}
+
+[[nodiscard]] QmomResult compute_qmom_with_automatic_scaling(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
+                                                             const std::optional<AbscissaBounds> abscissa_bounds)
+{
+    if (!options.automatic_scaling)
+    {
+        return compute_qmom_unscaled(moments, node_count, options, abscissa_bounds);
+    }
+
+    const std::optional<internal::QmomScalingContext> scaling = internal::make_qmom_scaling_context(moments.values(), abscissa_bounds);
+    if (!scaling.has_value())
+    {
+        return compute_qmom_unscaled(moments, node_count, options, abscissa_bounds);
+    }
+
+    QmomResult scaled_result = compute_qmom_unscaled(MomentSet{scaling->moments}, node_count, options, scaling->abscissa_bounds);
+    if (!internal::restore_abscissas(scaled_result.abscissas, scaling->scale))
+    {
+        return compute_qmom_unscaled(moments, node_count, options, abscissa_bounds);
+    }
+    return scaled_result;
 }
 
 [[nodiscard]] QmomStatus to_qmom_status(const QuadratureStatus status)
@@ -141,25 +183,13 @@ using CqmomCaseVariant = std::variant<CqmomDenseCase, CqmomLeanCase>;
 
 QmomResult compute_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options)
 {
-    internal::performance::record_qmom_reconstruction();
-    const Quadrature1D result = compute_quadrature(moments, node_count, to_wheeler_options(options));
-    return QmomResult{result.abscissas, result.weights, to_qmom_status(result.status), result.message};
+    return compute_qmom_with_automatic_scaling(moments, node_count, options, std::nullopt);
 }
 
 QmomResult compute_qmom(const MomentSet& moments, const std::size_t node_count, const QmomOptions& options,
                         const std::optional<AbscissaBounds> abscissa_bounds)
 {
-    if (!abscissa_bounds.has_value())
-    {
-        return compute_qmom(moments, node_count, options);
-    }
-
-    internal::performance::record_qmom_reconstruction();
-    const internal::BoundedQuadratureSelectionRequest request{node_count, node_count, std::nullopt, options.adaptive, false};
-    const internal::BoundedQuadratureSelection selection =
-        internal::select_bounded_quadrature(moments.values(), request, *abscissa_bounds, to_wheeler_options(options));
-    return QmomResult{selection.quadrature.abscissas, selection.quadrature.weights, to_qmom_status(selection.quadrature.status),
-                      selection.quadrature.message};
+    return compute_qmom_with_automatic_scaling(moments, node_count, options, abscissa_bounds);
 }
 
 QmomResult compute_qmom(const QmomCase& case_)
@@ -692,7 +722,8 @@ namespace
     return CqmomStatus::invalid_input;
 }
 
-[[nodiscard]] CqmomDiagnostics to_cqmom_diagnostics(const internal::RecursiveQuadratureBranchDiagnostics& diagnostics)
+[[nodiscard]] CqmomDiagnostics to_cqmom_diagnostics(const internal::RecursiveQuadratureBranchDiagnostics& diagnostics,
+                                                    const std::vector<double>* const scales = nullptr)
 {
     CqmomDiagnostics converted{};
     converted.conditioning_level = diagnostics.conditioning_level;
@@ -718,17 +749,30 @@ namespace
     converted.bounded_accepted_fallback_node_count = diagnostics.bounded_accepted_fallback_node_count;
     converted.bounded_returned_nodes = diagnostics.bounded_returned_nodes;
     converted.bounded_returned_weights = diagnostics.bounded_returned_weights;
+    if (scales != nullptr && converted.phase_space_dimension < scales->size())
+    {
+        const double scale = scales->at(converted.phase_space_dimension);
+        if (converted.bounded_support_interval_present && !internal::restore_bounds(converted.bounded_support_interval, scale))
+        {
+            converted.bounded_support_interval_present = false;
+        }
+        if (!internal::restore_abscissas(converted.bounded_returned_nodes, scale))
+        {
+            converted.bounded_returned_nodes.clear();
+        }
+    }
     return converted;
 }
 
 [[nodiscard]] std::vector<CqmomDiagnostics>
-to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagnostics>& branch_diagnostics)
+to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagnostics>& branch_diagnostics,
+                     const std::vector<double>* const scales = nullptr)
 {
     std::vector<CqmomDiagnostics> diagnostics;
     diagnostics.reserve(branch_diagnostics.size());
     for (const internal::RecursiveQuadratureBranchDiagnostics& diagnostic : branch_diagnostics)
     {
-        diagnostics.push_back(to_cqmom_diagnostics(diagnostic));
+        diagnostics.push_back(to_cqmom_diagnostics(diagnostic, scales));
     }
     return diagnostics;
 }
@@ -769,13 +813,19 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
     return failed_dimension;
 }
 
-[[nodiscard]] CqmomResult to_cqmom_result(const internal::RecursiveQuadratureResult& result, const PhaseSpaceHierarchy& hierarchy)
+[[nodiscard]] CqmomResult to_cqmom_result(const internal::RecursiveQuadratureResult& result, const PhaseSpaceHierarchy& hierarchy,
+                                          const std::vector<double>* const scales = nullptr)
 {
-    return CqmomResult{internal::CqmomConstructionAccess::create_quadrature(
-                           result.quadrature.hierarchy(), result.quadrature.weights(), result.quadrature.abscissas(),
-                           result.quadrature.adaptive_branch_counts_enabled(), result.quadrature.has_rectangular_storage(),
-                           terminal_paths_for_public_quadrature(result.quadrature)),
-                       to_cqmom_status(result.status), result.message, to_cqmom_diagnostics(result.diagnostics),
+    std::vector<std::vector<double>> abscissas = result.quadrature.abscissas();
+    if (scales != nullptr)
+    {
+        (void)internal::restore_cqmom_abscissas(abscissas, *scales);
+    }
+    return CqmomResult{internal::CqmomConstructionAccess::create_quadrature(result.quadrature.hierarchy(), result.quadrature.weights(),
+                                                                            std::move(abscissas), result.quadrature.adaptive_branch_counts_enabled(),
+                                                                            result.quadrature.has_rectangular_storage(),
+                                                                            terminal_paths_for_public_quadrature(result.quadrature)),
+                       to_cqmom_status(result.status), result.message, to_cqmom_diagnostics(result.diagnostics, scales),
                        failed_phase_space_dimension(result, hierarchy)};
 }
 } // namespace
@@ -788,6 +838,29 @@ CqmomResult compute_cqmom(const CqmomDenseCase& dense_case)
 CqmomResult compute_cqmom(const CqmomLeanCase& lean_case)
 {
     const PhaseSpaceHierarchy& hierarchy = lean_case.moments.layout.hierarchy;
+    if (lean_case.qmom_options.automatic_scaling)
+    {
+        const std::optional<internal::CqmomScalingContext> scaling =
+            internal::make_cqmom_scaling_context(lean_case.moments, lean_case.coordinate_support);
+        if (scaling.has_value())
+        {
+            const internal::RecursiveQuadratureResult result =
+                internal::compute_recursive_quadrature_from_moment_data({hierarchy,
+                                                                         scaling->moments,
+                                                                         lean_case.conditional_options,
+                                                                         to_wheeler_options(lean_case.qmom_options),
+                                                                         lean_case.adaptive_branch_counts,
+                                                                         lean_case.diagnostic_level,
+                                                                         lean_case.vandermonde_solver,
+                                                                         {},
+                                                                         false,
+                                                                         scaling->coordinate_support});
+            if (internal::can_restore_cqmom_result(result, scaling->scales))
+            {
+                return to_cqmom_result(result, hierarchy, &scaling->scales);
+            }
+        }
+    }
     const internal::RecursiveQuadratureResult result =
         internal::compute_recursive_quadrature_from_moment_data({hierarchy,
                                                                  lean_case.moments,
@@ -839,6 +912,21 @@ CqmomResult compute_cqmom_internal(const CqmomDenseCase& dense_case, std::vector
     }
     if (lean_moments.has_value())
     {
+        if (dense_case.qmom_options.automatic_scaling)
+        {
+            const std::optional<CqmomScalingContext> scaling = make_cqmom_scaling_context(*lean_moments, dense_case.coordinate_support);
+            if (scaling.has_value())
+            {
+                result = compute_recursive_quadrature_from_moment_data(
+                    {dense_case.hierarchy, scaling->moments, dense_case.conditional_options, to_wheeler_options(dense_case.qmom_options),
+                     dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver, active_branch_counts,
+                     allow_active_branch_count_growth, scaling->coordinate_support, prepared_fixed_metadata, require_prepared_fixed_metadata});
+                if (can_restore_cqmom_result(result, scaling->scales))
+                {
+                    return to_cqmom_result(result, dense_case.hierarchy, &scaling->scales);
+                }
+            }
+        }
         result = compute_recursive_quadrature_from_moment_data(
             {dense_case.hierarchy, *lean_moments, dense_case.conditional_options, to_wheeler_options(dense_case.qmom_options),
              dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver, std::move(active_branch_counts),
@@ -857,6 +945,21 @@ CqmomResult compute_cqmom_internal(const CqmomLeanCase& lean_case, std::vector<C
         throw std::logic_error("Fixed normal CQMOM reconstruction requires prepared metadata.");
     }
     const PhaseSpaceHierarchy& hierarchy = lean_case.moments.layout.hierarchy;
+    if (lean_case.qmom_options.automatic_scaling)
+    {
+        const std::optional<CqmomScalingContext> scaling = make_cqmom_scaling_context(lean_case.moments, lean_case.coordinate_support);
+        if (scaling.has_value())
+        {
+            const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
+                {hierarchy, scaling->moments, lean_case.conditional_options, to_wheeler_options(lean_case.qmom_options),
+                 lean_case.adaptive_branch_counts, lean_case.diagnostic_level, lean_case.vandermonde_solver, active_branch_counts,
+                 allow_active_branch_count_growth, scaling->coordinate_support, prepared_fixed_metadata, require_prepared_fixed_metadata});
+            if (can_restore_cqmom_result(result, scaling->scales))
+            {
+                return to_cqmom_result(result, hierarchy, &scaling->scales);
+            }
+        }
+    }
     const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
         {hierarchy, lean_case.moments, lean_case.conditional_options, to_wheeler_options(lean_case.qmom_options), lean_case.adaptive_branch_counts,
          lean_case.diagnostic_level, lean_case.vandermonde_solver, std::move(active_branch_counts), allow_active_branch_count_growth,

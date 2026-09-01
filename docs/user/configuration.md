@@ -223,8 +223,8 @@ phase-space dimensionality.
 
 The main sections are:
 
-- `[phase_space]`: phase-space names, node counts, conditioning order, and
-  adaptive-branch settings.
+- `[phase_space]`: phase-space names, node counts, conditioning order,
+  adaptive-branch settings, and optional automatic reconstruction scaling.
 - `[moments]`: explicit raw moments supplied by the user.
 - `[initial]`: distribution-based moment initialization.
 - `[qmom]`: one-dimensional inversion options shared by QMOM and CQMOM.
@@ -634,6 +634,31 @@ mode, a candidate with out-of-interval nodes retries lower node counts down to
 one. In fixed-count mode, such a candidate fails with diagnostics. Returned
 nodes are not clipped or projected. These bounds constrain quadrature
 abscissas only; they do not configure moment realizability.
+
+### Optional Automatic Reconstruction Scaling
+
+Set `automatic_scaling = true` in `[phase_space]` to normalize coordinates
+locally for a QMOM or CQMOM reconstruction:
+
+```text
+[phase_space]
+node_counts = 2
+automatic_scaling = true
+```
+
+The default is `false`. Scaling is reconstruction-local: raw moments, source
+callbacks, phase-space states, configured bounds, returned nodes, and bounded
+support diagnostics remain in physical coordinates. QMOMKit selects one
+positive scale per physical coordinate from the current raw moments, preferring
+the RMS scale `sqrt(M[2e_d] / M[0])`, then the magnitude of the mean, and
+finally one. It does not center coordinates or normalize total number density.
+For CQMOM, scales are selected once from the complete required moment set before
+recursive conditioning; branch-local scaling is not used.
+
+Configured bounds are mapped to the normalized reconstruction only internally.
+The bounded-reconstruction tolerance therefore applies in normalized
+coordinates. If a safe transformation cannot be formed, QMOMKit follows the
+ordinary unscaled reconstruction path.
 
 ### Advanced: Explicit Dense Representation Workflow
 

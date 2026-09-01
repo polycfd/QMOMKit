@@ -264,6 +264,7 @@ void test_valid_qmom_matches_programmatic_case()
     assert(configured.value().node_count == direct.node_count);
     assert(configured.value().moments.values() == direct.moments.values());
     assert(!configured.value().options.adaptive);
+    assert(!configured.value().options.automatic_scaling);
 
     const auto configured_result = qmomkit::compute_qmom(configured.value());
     const auto direct_result = qmomkit::compute_qmom(direct);
@@ -484,6 +485,7 @@ void test_valid_cqmom_matches_programmatic_case()
     assert(configured.value().moments.values == direct.moments.values);
     assert(configured.value().adaptive_branch_counts);
     assert(configured.value().qmom_options.adaptive);
+    assert(!configured.value().qmom_options.automatic_scaling);
 
     const auto configured_result = qmomkit::compute_cqmom(configured.value());
     const auto direct_result = qmomkit::compute_cqmom(direct);
@@ -494,6 +496,39 @@ void test_valid_cqmom_matches_programmatic_case()
     {
         assert_near(configured_result.quadrature.abscissas()[dimension][0], direct_result.quadrature.abscissas()[dimension][0]);
     }
+}
+
+void test_phase_space_automatic_scaling_parses_for_qmom_and_cqmom()
+{
+    const auto qmom = qmomkit::config::parse_qmom(R"(
+[phase_space]
+node_counts = 1
+automatic_scaling = true
+
+[moments]
+values = 1.0, 0.0
+)");
+    assert(qmom.ok());
+    assert(qmom.value().options.automatic_scaling);
+
+    const auto cqmom = qmomkit::config::parse_cqmom_lean(R"(
+[phase_space]
+node_counts = 1, 1
+automatic_scaling = true
+
+[moments]
+extents = 2, 2
+M[0,0] = 1.0
+M[0,1] = 0.0
+M[1,0] = 0.0
+M[1,1] = 0.0
+)");
+    assert(cqmom.ok());
+    assert(cqmom.value().qmom_options.automatic_scaling);
+
+    const auto invalid = qmomkit::config::parse_qmom("[phase_space]\nnode_counts = 1\nautomatic_scaling = yes\n[moments]\nvalues = 1.0, 0.0\n");
+    assert(!invalid.ok());
+    assert(has_message_fragment(invalid, "automatic_scaling must be true or false"));
 }
 
 void test_cqmom_independent_product_initialization_matches_direct_api()
@@ -3752,6 +3787,7 @@ void run_all_configuration_tests()
 {
     test_configuration_result_api();
     test_valid_qmom_matches_programmatic_case();
+    test_phase_space_automatic_scaling_parses_for_qmom_and_cqmom();
     test_qmom_case_parses_abscissa_bounds();
     test_qmom_distribution_initialization_matches_direct_api();
     test_all_supported_distribution_families_parse();

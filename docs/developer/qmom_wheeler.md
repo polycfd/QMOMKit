@@ -69,9 +69,12 @@ rules:
 sum_i w_i = m_0
 ```
 
-QMOMKit does not normalize the input moments before Wheeler inversion. A
-moment sequence with `m_0 = 1` is treated as a unit-number-density sequence,
-not as a separate probability convention.
+With `automatic_scaling = false`, QMOMKit passes physical raw moments to
+Wheeler unchanged. With optional automatic reconstruction scaling enabled, the
+reconstruction wrapper supplies coordinate-scaled raw moments as numerical
+preconditioning; Wheeler still operates on raw moments and does not perform
+centering or `m_0` normalization. A moment sequence with `m_0 = 1` is treated
+as a unit-number-density sequence, not as a separate probability convention.
 
 ## Algorithm Overview
 

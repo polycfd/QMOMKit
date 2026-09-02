@@ -3,6 +3,7 @@ names = r, w, T
 node_counts = 3, 3, 3
 conditioning_order = 0, 2, 1
 adaptive_branch_counts = true
+automatic_scaling = true
 
 [time_integration.node_advection]
 scheme = rk23
@@ -21,7 +22,7 @@ number_density = 10000.0
 [initial.dimension.0]
 family = gamma
 shape = 16.0
-scale = 18.75
+scale = 18.75e-6
 
 [initial.dimension.1]
 family = normal

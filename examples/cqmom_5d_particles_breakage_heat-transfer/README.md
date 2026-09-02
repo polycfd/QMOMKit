@@ -2,13 +2,13 @@
 
 This standalone capability example evolves a spatially homogeneous particle population in phase space $(V,T,u,v,w)$. It pairs fixed CQMOM with a direct Monte Carlo (MC) companion and demonstrates the complementary source-closure route to the 4D particle breakage and recoil example: the breakage source is formulated in moment space and closed with integer and generalized moments, alongside heat-transfer advection.
 
-The coordinate order is volume $V$ in m$^3$, numerical temperature $T$ in kK, and velocity components $(u,v,w)$ in m s$^{-1}$. The raw number-density moments are
+The coordinate order is volume $V$ in m$^3$, temperature $T$ in K, and velocity components $(u,v,w)$ in m s$^{-1}$. The raw number-density moments are
 
 $$
 M_{p,q,r,s,t}=\int V^pT^qu^rv^sw^t f(V,T,u,v,w)\,\mathrm{d}V\,\mathrm{d}T\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w.
 $$
 
-Thus $M_{0,0,0,0,0}$ is number density and $M_{1,0,0,0,0}$ is total particle volume. The configuration fixes two CQMOM nodes in every dimension, disables adaptive branch counts, and uses conditioning order $(0,1,2,3,4)$.
+Thus $M_{0,0,0,0,0}$ is number density and $M_{1,0,0,0,0}$ is total particle volume. The configuration fixes two CQMOM nodes in every dimension, disables adaptive branch counts, uses conditioning order $(0,1,2,3,4)$, and enables QMOMKit's automatic reconstruction scaling. The physical phase space is therefore $(V,T,u,v,w)$ with $V$ in m$^3$, $T$ in K, and velocities in m s$^{-1}$; no artificial reduced-temperature representation is required for reconstruction conditioning.
 
 ## Initialization and continuous evolution
 
@@ -16,15 +16,15 @@ Each executable deterministically samples 10,000 particles from the same indepen
 
 $$
 V\sim\operatorname{LogNormal}(-28.278050699307204,0.36^2),\quad
-T\sim\mathcal N(0.350,0.050^2)\ \mathrm{kK},\quad
+T\sim\mathcal N(350,50^2)\ \mathrm{K},\quad
 u,v,w\sim\mathcal N(0,0.5^2).
 $$
 
-The temperature distribution is therefore centered at 350 K with a 50 K standard deviation, but the stored numerical coordinate is kK. The volume distribution is exactly the spherical transformation of the 4D example's diameter distribution: for $V=\pi d^3/6$, its lognormal parameters are $\ln(\pi/6)+3(-9.210340371976184)=-28.278050699307204$ and $3(0.12)=0.36$.
+The temperature distribution is centered at 350 K with a 50 K standard deviation. The volume distribution is exactly the spherical transformation of the 4D example's diameter distribution: for $V=\pi d^3/6$, its lognormal parameters are $\ln(\pi/6)+3(-9.210340371976184)=-28.278050699307204$ and $3(0.12)=0.36$.
 
 The CQMOM path initializes from moments estimated from this ensemble; the MC path advances the ensemble itself. Both verify that tensor before evolution. The physical diameter used by the transport models is $d(V)=(6V/\pi)^{1/3}$.
 
-The carrier gas has $(\rho_g,\mu_g)=(1.2\ \mathrm{kg\,m^{-3}},1.8\times10^{-5}\ \mathrm{Pa\,s})$, velocity $(2.0,1.5,0.8)$ m s$^{-1}$, thermal conductivity $0.026$ W m$^{-1}$ K$^{-1}$, Prandtl number $0.71$, and temperature $T_g=0.300$ kK. Particles have density $2000$ kg m$^{-3}$ and heat capacity $1000$ J kg$^{-1}$ K$^{-1}$. With $\boldsymbol{s}=\boldsymbol{U}_g-\boldsymbol{u}$, the phase-space callback uses
+The carrier gas has $(\rho_g,\mu_g)=(1.2\ \mathrm{kg\,m^{-3}},1.8\times10^{-5}\ \mathrm{Pa\,s})$, velocity $(2.0,1.5,0.8)$ m s$^{-1}$, thermal conductivity $0.026$ W m$^{-1}$ K$^{-1}$, Prandtl number $0.71$, and temperature $T_g=300$ K. Particles have density $2000$ kg m$^{-3}$ and heat capacity $1000$ J kg$^{-1}$ K$^{-1}$. With $\boldsymbol{s}=\boldsymbol{U}_g-\boldsymbol{u}$, the phase-space callback uses
 
 $$
 \mathrm{Re}=\frac{\rho_gd|\boldsymbol{s}|}{\mu_g},\qquad
@@ -41,7 +41,7 @@ $$
 \frac{6k_g\mathrm{Nu}}{\rho_pc_pd^2}(T_g-T).
 $$
 
-Temperature is expressed in kK in this equation and in all moment indices; $\mathrm{d}V/\mathrm{d}t=0$.
+Temperature is expressed directly in K in this equation and in all moment indices; $\mathrm{d}V/\mathrm{d}t=0$.
 
 ## Breakage source and generalized moments
 
@@ -62,7 +62,7 @@ $$
 =\beta a\left(T_gM_{4/3,0,0,0,0}-M_{4/3,1,0,0,0}\right).
 $$
 
-It therefore needs $M_{4/3,0,0,0,0}$ and $M_{4/3,1,0,0,0}$ to evaluate and close the source of a tracked moment; it does not need them to reconstruct that tracked moment. Their units are respectively number density times m$^4$ and number density times m$^4$ kK, so the factor $a$ supplies the inverse-length scale needed by the source. For $q=0$, the source reduces to $\beta(2^{1-p}-1)M_{p,0,r,s,t}$, preserving total volume.
+It therefore needs $M_{4/3,0,0,0,0}$ and $M_{4/3,1,0,0,0}$ to evaluate and close the source of a tracked moment; it does not need them to reconstruct that tracked moment. Their units are respectively number density times m$^4$ and number density times m$^4$ K, so the factor $a$ supplies the inverse-length scale needed by the source. For $q=0$, the source reduces to $\beta(2^{1-p}-1)M_{p,0,r,s,t}$, preserving total volume.
 
 The MC companion samples the same constant-rate binary event process and applies the same daughter-volume and daughter-temperature mapping, allowing descendants to break again within an outer step. It is a stochastic particle-based companion/reference realization, not an exact duplicate of CQMOM.
 

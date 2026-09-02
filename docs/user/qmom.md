@@ -67,6 +67,19 @@ m0, m1, ..., m(2N-1)
 Returned abscissas are sorted in ascending order. Weights are stored in the
 same order, so `weights[i]` belongs to `abscissas[i]`.
 
+## Automatic Reconstruction Scaling
+
+For moment sets whose coordinate magnitude makes raw-moment powers poorly
+scaled, set `QmomOptions::automatic_scaling = true`. QMOMKit chooses a
+positive scale from the current `m0`, `m1`, and `m2`, reconstructs in the
+scaled coordinate, and returns nodes in the original physical coordinate.
+Weights and the unnormalized `m0` convention are unchanged. The default is
+`false`; an unusable transformation follows the ordinary unscaled path.
+
+In a `.qmom` case, use `automatic_scaling = true` in `[phase_space]`, not in
+`[qmom]`. Physical support bounds are returned and diagnosed in their configured
+coordinates.
+
 Choose `node_count` according to the resolution your closure or downstream
 model needs. More nodes require more moments and can represent richer
 one-dimensional structure; fewer nodes are cheaper and may be more robust when

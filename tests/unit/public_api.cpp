@@ -1,4 +1,5 @@
 #include "internal/performance.hpp"
+#include "internal/reconstruction_scaling.hpp"
 #include "qmomkit/qmomkit.hpp"
 
 #include <algorithm>
@@ -16,6 +17,11 @@ namespace
 void assert_near(const double actual, const double expected, const double tolerance)
 {
     assert(std::abs(actual - expected) <= tolerance);
+}
+
+void assert_relative_near(const double actual, const double expected, const double tolerance)
+{
+    assert(std::abs(actual - expected) <= tolerance * std::max(1.0, std::abs(expected)));
 }
 
 bool contains_index(const std::vector<qmomkit::MultiIndex>& indices, const qmomkit::MultiIndex& index)
@@ -679,6 +685,106 @@ void test_qmom_public_api_matches_wheeler()
     }
 }
 
+void test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds()
+{
+    const std::vector<double> abscissas{2.0e50, 5.0e50};
+    const std::vector<double> weights{0.25, 0.75};
+    const qmomkit::MomentSet moments(raw_moments_1d(abscissas, weights, 4));
+    qmomkit::QmomOptions options;
+    options.automatic_scaling = true;
+
+    const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, 2, options, qmomkit::AbscissaBounds{1.0e50, 6.0e50});
+
+    assert(result.ok());
+    assert(result.abscissas.size() == abscissas.size());
+    for (std::size_t node = 0; node < abscissas.size(); ++node)
+    {
+        assert_relative_near(result.abscissas[node], abscissas[node], 1.0e-12);
+        assert_near(result.weights[node], weights[node], 1.0e-12);
+    }
+}
+
+void test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments()
+{
+    const std::vector<double> reference_abscissas{-0.5, 1.75};
+    const std::vector<double> weights{0.25, 0.75};
+    qmomkit::QmomOptions options;
+    options.automatic_scaling = true;
+    const qmomkit::QmomResult reference = qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d(reference_abscissas, weights, 4)), 2, options);
+    assert(reference.ok());
+
+    for (const double factor : std::vector<double>{1.0e-9, 1.0e-6, 1.0, 1.0e3, 1.0e6})
+    {
+        std::vector<double> scaled_abscissas = reference_abscissas;
+        for (double& abscissa : scaled_abscissas)
+        {
+            abscissa *= factor;
+        }
+        const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d(scaled_abscissas, weights, 4)), 2, options);
+        assert(result.ok());
+        assert(result.weights.size() == reference.weights.size());
+        for (std::size_t node = 0; node < result.weights.size(); ++node)
+        {
+            assert_near(result.weights[node], reference.weights[node], 1.0e-12);
+            assert_near(result.abscissas[node] / factor, reference.abscissas[node], 1.0e-12);
+        }
+    }
+
+    const qmomkit::QmomResult mean_fallback = qmomkit::compute_qmom(qmomkit::MomentSet({2.0, 6.0}), 1, options);
+    assert(mean_fallback.ok());
+    assert_near(mean_fallback.weights.front(), 2.0, 1.0e-13);
+    assert_near(mean_fallback.abscissas.front(), 3.0, 1.0e-13);
+
+    const qmomkit::QmomResult identity_fallback = qmomkit::compute_qmom(qmomkit::MomentSet({2.0, 0.0}), 1, options);
+    assert(identity_fallback.ok());
+    assert_near(identity_fallback.weights.front(), 2.0, 1.0e-13);
+    assert_near(identity_fallback.abscissas.front(), 0.0, 1.0e-13);
+
+    qmomkit::QmomOptions adaptive_options = options;
+    adaptive_options.adaptive = true;
+    const qmomkit::QmomResult adaptive_reference = qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d({0.25}, {1.0}, 4)), 2, adaptive_options);
+    assert(adaptive_reference.ok());
+    for (const double factor : std::vector<double>{1.0e-9, 1.0e6})
+    {
+        const qmomkit::QmomResult adaptive_result =
+            qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d({0.25 * factor}, {1.0}, 4)), 2, adaptive_options);
+        assert(adaptive_result.ok());
+        assert(adaptive_result.weights.size() == adaptive_reference.weights.size());
+        assert_near(adaptive_result.abscissas.front() / factor, adaptive_reference.abscissas.front(), 1.0e-12);
+    }
+}
+
+void test_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction()
+{
+    const double denormal = std::numeric_limits<double>::denorm_min();
+    const std::vector<double> moments{denormal, 1.0, 1.0, denormal};
+    const auto scaling = qmomkit::internal::make_qmom_scaling_context(moments, std::nullopt);
+    assert(!scaling.has_value());
+
+    qmomkit::QmomOptions options;
+    options.automatic_scaling = true;
+    const qmomkit::QmomResult scaled = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2, options);
+    options.automatic_scaling = false;
+    const qmomkit::QmomResult unscaled = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2, options);
+    assert(scaled.status == unscaled.status);
+    assert(scaled.message == unscaled.message);
+    assert(scaled.abscissas == unscaled.abscissas);
+    assert(scaled.weights == unscaled.weights);
+}
+
+void test_cqmom_automatic_scaling_does_not_change_required_layout()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3, 2}, {2, 0, 1});
+    const qmomkit::CqmomMomentLayout layout_without_scaling = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentLayout layout_with_scaling = qmomkit::create_cqmom_moment_layout(hierarchy);
+    qmomkit::QmomOptions options;
+    options.automatic_scaling = true;
+    const qmomkit::CqmomLeanCase scaling_case{
+        qmomkit::CqmomMomentData{layout_with_scaling, std::vector<double>(layout_with_scaling.required_indices.size(), 0.0)}, {}, options};
+
+    assert(layout_without_scaling.required_indices == scaling_case.moments.layout.required_indices);
+}
+
 void test_one_dimensional_cqmom_agrees_with_qmom()
 {
     const std::vector<double> moments = raw_moments_1d({-1.0, 2.0}, {0.4, 0.6}, 4);
@@ -756,6 +862,89 @@ void test_cqmom_public_api_two_dimensional_manufactured_case()
     assert_near(first_node[1], y[0], 1.0e-12);
     assert_near(last_node[0], x[1], 1.0e-12);
     assert_near(last_node[1], y[1], 1.0e-12);
+}
+
+void test_cqmom_automatic_scaling_restores_each_physical_coordinate()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> x{2.0e50, 5.0e50};
+    const std::vector<double> y{-4.0e-50, 3.0e-50};
+    const std::vector<double> x_weights{0.25, 0.75};
+    const std::vector<double> y_weights{0.6, 0.4};
+    std::vector<double> weights(hierarchy.total_nodes(), 0.0);
+    std::vector<std::vector<double>> abscissas(2, std::vector<double>(hierarchy.total_nodes(), 0.0));
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+        for (std::size_t j = 0; j < 2; ++j)
+        {
+            const std::size_t flat = hierarchy.flatten_node_index({i, j});
+            weights[flat] = x_weights[i] * y_weights[j];
+            abscissas[0][flat] = x[i];
+            abscissas[1][flat] = y[j];
+        }
+    }
+
+    qmomkit::QmomOptions options;
+    options.automatic_scaling = true;
+    qmomkit::CqmomDenseCase case_{hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, abscissas)},
+                                  {},        options,
+                                  false,     qmomkit::CqmomDiagnosticLevel::detailed};
+    case_.coordinate_support = {qmomkit::AbscissaBounds{1.0e50, 6.0e50}, qmomkit::AbscissaBounds{-5.0e-50, 4.0e-50}};
+    qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments(case_.moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
+                                     {},
+                                     options,
+                                     false,
+                                     qmomkit::CqmomDiagnosticLevel::detailed};
+    lean_case.coordinate_support = case_.coordinate_support;
+
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+    const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(lean_case);
+
+    const std::vector<double> reference_x{2.0, 5.0};
+    const std::vector<double> reference_y{-4.0, 3.0};
+    std::vector<std::vector<double>> reference_abscissas(2, std::vector<double>(hierarchy.total_nodes(), 0.0));
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+        for (std::size_t j = 0; j < 2; ++j)
+        {
+            const std::size_t flat = hierarchy.flatten_node_index({i, j});
+            reference_abscissas[0][flat] = reference_x[i];
+            reference_abscissas[1][flat] = reference_y[j];
+        }
+    }
+    const qmomkit::CqmomDenseCase reference_case{hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, reference_abscissas)},
+                                                 {},        options,
+                                                 false,     qmomkit::CqmomDiagnosticLevel::detailed};
+    const qmomkit::CqmomResult reference = qmomkit::compute_cqmom(reference_case);
+
+    assert(result.ok());
+    assert(lean_result.ok());
+    assert(reference.ok());
+    for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(hierarchy))
+    {
+        const std::size_t flat = hierarchy.flatten_node_index(node_index);
+        assert_near(result.quadrature.weight(node_index), weights[flat], 1.0e-12);
+        assert_relative_near(result.quadrature.abscissa(0, node_index), abscissas[0][flat], 1.0e-11);
+        assert_relative_near(result.quadrature.abscissa(1, node_index), abscissas[1][flat], 1.0e-11);
+        assert_near(lean_result.quadrature.weight(node_index), result.quadrature.weight(node_index), 1.0e-12);
+        assert_relative_near(lean_result.quadrature.abscissa(0, node_index), result.quadrature.abscissa(0, node_index), 1.0e-12);
+        assert_relative_near(lean_result.quadrature.abscissa(1, node_index), result.quadrature.abscissa(1, node_index), 1.0e-12);
+        assert_near(result.quadrature.weight(node_index), reference.quadrature.weight(node_index), 1.0e-12);
+        assert_relative_near(result.quadrature.abscissa(0, node_index) / 1.0e50, reference.quadrature.abscissa(0, node_index), 1.0e-11);
+        assert_relative_near(result.quadrature.abscissa(1, node_index) / 1.0e-50, reference.quadrature.abscissa(1, node_index), 1.0e-11);
+    }
+    assert(!result.diagnostics.empty());
+    for (const qmomkit::CqmomDiagnostics& diagnostics : result.diagnostics)
+    {
+        if (!diagnostics.bounded_support_interval_present)
+        {
+            continue;
+        }
+        const qmomkit::AbscissaBounds expected = case_.coordinate_support[diagnostics.phase_space_dimension].value();
+        assert_relative_near(diagnostics.bounded_support_interval.lower, expected.lower, 1.0e-12);
+        assert_relative_near(diagnostics.bounded_support_interval.upper, expected.upper, 1.0e-12);
+    }
 }
 
 void test_cqmom_public_api_reports_conditional_moment_failure()
@@ -982,8 +1171,13 @@ int main()
     test_cqmom_public_api_reports_missing_required_dense_moment();
     test_cqmom_public_api_preserves_dense_invalid_input_messages();
     test_qmom_public_api_matches_wheeler();
+    test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds();
+    test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments();
+    test_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction();
+    test_cqmom_automatic_scaling_does_not_change_required_layout();
     test_one_dimensional_cqmom_agrees_with_qmom();
     test_cqmom_public_api_two_dimensional_manufactured_case();
+    test_cqmom_automatic_scaling_restores_each_physical_coordinate();
     test_cqmom_public_api_reports_conditional_moment_failure();
     test_cqmom_public_api_exposes_adaptive_branch_counts();
     test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts();

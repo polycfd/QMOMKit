@@ -3,6 +3,7 @@ names = V, T, u, v, w
 node_counts = 2, 2, 2, 2, 2
 conditioning_order = 0, 1, 2, 3, 4
 adaptive_branch_counts = false
+automatic_scaling = true
 
 [time_integration]
 scheme = strang
@@ -28,8 +29,8 @@ sigma_log = 0.36
 
 [initial.dimension.1]
 family = normal
-mean = 350.0e-3
-standard_deviation = 50.0e-3
+mean = 350.0
+standard_deviation = 50.0
 
 [initial.dimension.2]
 family = normal

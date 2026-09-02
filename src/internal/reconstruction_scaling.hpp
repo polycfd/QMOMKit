@@ -1,0 +1,37 @@
+#pragma once
+
+#include "qmomkit/cqmom.hpp"
+
+#include <optional>
+#include <vector>
+
+namespace qmomkit::internal
+{
+
+struct RecursiveQuadratureResult;
+
+struct QmomScalingContext
+{
+    std::vector<double> moments;
+    std::optional<AbscissaBounds> abscissa_bounds;
+    double scale = 1.0;
+};
+
+struct CqmomScalingContext
+{
+    CqmomMomentData moments;
+    CqmomCoordinateSupport coordinate_support;
+    std::vector<double> scales;
+};
+
+[[nodiscard]] std::optional<QmomScalingContext> make_qmom_scaling_context(const std::vector<double>& moments,
+                                                                          std::optional<AbscissaBounds> abscissa_bounds);
+[[nodiscard]] std::optional<CqmomScalingContext> make_cqmom_scaling_context(const CqmomMomentData& moments,
+                                                                            const CqmomCoordinateSupport& coordinate_support);
+
+[[nodiscard]] bool restore_abscissas(std::vector<double>& abscissas, double scale);
+[[nodiscard]] bool restore_cqmom_abscissas(std::vector<std::vector<double>>& abscissas, const std::vector<double>& scales);
+[[nodiscard]] bool restore_bounds(AbscissaBounds& bounds, double scale);
+[[nodiscard]] bool can_restore_cqmom_result(const RecursiveQuadratureResult& result, const std::vector<double>& scales);
+
+} // namespace qmomkit::internal

@@ -35,6 +35,7 @@ add_library(
     src/node_advection.cpp
     src/output.cpp
     src/public_api.cpp
+    src/reconstruction_scaling.cpp
     src/moment_reconstruction.cpp
     src/realizability.cpp
     src/recursive_quadrature.cpp

@@ -233,6 +233,28 @@ nodes; active counts cannot grow in this stage. The verifier checks that the
 reconstructed full moments follow the advection analytical reference above
 with the source term omitted.
 
+## Automatic Scaling Through Adaptive CQMOM Evolution
+
+The `automatic_scaling_cqmom_state_adaptive_{reference,rescaled}.qmom`
+fixtures use the normal configured public workflow with
+`automatic_scaling = true`, adaptive `{2,2}` capacity, and non-identity
+conditioning order `{1,0}`. They represent the same ragged physical rule
+`(-1,-1,0.10)`, `(1,-1,0.30)`, `(0.5,2,0.60)` in units `(1,1)` and
+`(1e6,1e-6)`.
+
+One Strang macro step applies constant physical node velocities
+`(0.4,-0.25)` and the CQMOM-native source `dM_alpha/dt = 0.1 M_alpha`.
+Constant advection is exact under the selected SSP-RK3 node step; the source
+oracle is the independently evaluated SSP-RK3 polynomial
+`P(z)=1+z+z^2/2+z^3/6`. The verifier checks final ragged paths, weights,
+coordinates, and all `4 x 4` reconstructed moments against that manufactured
+rule. Its source callback uses only `CqmomSourceContext::for_each_terminal_node`
+and verifies that source-stage coordinates are in the configured physical
+units after the first advection half-step, not normalized internal units.
+
+The `2e-9` scaled tolerance covers reconstruction and source-stage roundoff;
+the observed normalized errors are near machine precision.
+
 ## CQMOM-Native Source Callback
 
 Configuration: `cqmom_native_source.qmom`
@@ -437,6 +459,7 @@ ctest --test-dir build -R verification_phase_space_evolution_qmom_phase_space_ev
 ctest --test-dir build -R verification_phase_space_evolution_noncommuting_convergence --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_commuting_cqmom_2d --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_commuting_cqmom_state_adaptive_2d --output-on-failure
+ctest --test-dir build -R 'verification_phase_space_evolution_automatic_scaling_cqmom_(reference|rescaled)' --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_cqmom_native_source --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_cqmom_combined_native_source --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_cqmom_native_source_failures --output-on-failure

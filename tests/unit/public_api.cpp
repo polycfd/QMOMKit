@@ -670,6 +670,8 @@ void test_cqmom_public_api_preserves_dense_invalid_input_messages()
 
 void test_qmom_public_api_matches_wheeler()
 {
+    // Public-wrapper consistency: the unscaled public result must preserve the underlying Wheeler result; analytical Wheeler correctness is verified
+    // separately.
     const std::vector<double> moments = raw_moments_1d({-0.5, 1.75}, {0.25, 0.75}, 4);
 
     const qmomkit::QmomResult qmom = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2);

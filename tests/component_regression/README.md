@@ -31,4 +31,8 @@ Current component regression coverage includes:
   representations;
 - direct moment-source update behavior and diagnostics;
 - direct node-advection behavior and diagnostics;
-- focused phase-space evolution integrator composition and phase-space ordering behavior.
+- focused phase-space evolution integrator composition and phase-space ordering behavior;
+- a historical CQMOM fixture regression for adaptive terminal reduction/ragged
+  reinversion and active-count persistence through zero-rate state evolution.
+  Its original generation provenance is not recoverable, so it is not
+  independent numerical verification.

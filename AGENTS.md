@@ -21,9 +21,38 @@ without a concrete need.
 **Code clarity, algorithmic correctness, and computational efficiency are the
 three guiding principles of QMOMKit and are of the utmost priority!**
 
+## Agent Operating Rules
+
+Before editing, inspect staged, unstaged, and untracked changes. Distinguish
+pre-existing work from task changes, preserve unrelated work, and do not assume
+every modified path belongs to the current task. Never reset, restore, clean,
+discard, overwrite, stage, or commit unrelated changes. If unexpected unrelated
+changes affect the requested scope, report them rather than silently
+incorporating them. Do not stage or commit.
+
+When multiple repositories or adjacent workspaces are present, identify their
+boundaries and treat their Git states separately. Do not assume similarly named
+paths belong to one repository and do not modify adjacent repositories or
+manuscript material unless explicitly requested.
+
+Verify actual paths, public APIs, options, repository state, commands,
+numerical results, and validation evidence. Distinguish observed facts from
+assumptions. Never invent citations, commands, test outcomes, validation
+results, API names, options, paths, or repository state.
+
+Stop and report a precise blocker when the requested behavior is unsupported by
+the public API or configuration, source reality contradicts a key assumption,
+the task requires an unrequested redesign, or required information is genuinely
+unavailable. Do not add an expedient local workaround merely to complete a
+task.
+
 ## Documentation
 
-Use the repository documentation as the source of truth before making changes.
+Read the relevant repository documentation before making changes. Use it as
+design guidance, and verify public behavior against current headers, source,
+configuration, and tests when necessary. Report conflicts rather than assuming
+that stale prose or a prompt is authoritative. Use primary literature or
+independently established evidence for scientific claims.
 
 ```text
 docs/user/
@@ -56,6 +85,12 @@ Documentation must describe the current design rather than development history.
 Do not preserve obsolete implementation stages, previous task instructions, or
 superseded terminology.
 
+Update only documentation relevant to the change. Use code comments for
+non-obvious implementation invariants, developer documentation for algorithms,
+architecture, and extension behavior, user documentation for public API,
+configuration, assumptions, units, and usage, and example README files for
+physical examples. Do not broadly rewrite unrelated documentation.
+
 ## Tests and Examples
 
 Tests and examples are strictly separate and must never be conflated.
@@ -64,6 +99,8 @@ Tests and examples are strictly separate and must never be conflated.
   regression, verification, and public-header coverage.
 - Examples belong under `examples/` and provide clear user-facing workflows
   demonstrating how to use QMOMKit.
+- Examples must follow the native-QMOMKit-first rule below, remain small and
+  explicit, and must not become local frameworks.
 - An example must never be registered with CTest or treated as an automated
   test, including as a smoke test.
 - Example CMake projects must not call `enable_testing()` or `add_test()`.
@@ -73,6 +110,18 @@ Tests and examples are strictly separate and must never be conflated.
   demonstrated workflow is invalid, but those checks do not make the example a
   test.
 - Tests must not invoke example executables or depend on example output.
+- Run changed examples and check their numerical behavior; compilation alone is
+  not sufficient. Document relevant physical assumptions and units, and preserve
+  Monte Carlo or reference companions when they are part of the example design.
+  Examples are user-facing documentation and application-level evidence, not
+  replacements for focused tests or verification.
+
+## Paper and Manuscript Boundary
+
+`paper/examples/` and `paper/verification/` are paper-specific studies,
+distinct from standard examples and the test suite. Do not modify manuscript
+repositories, generated manuscript data, or manuscript text unless explicitly
+requested.
 
 ## Package and Dependency Boundaries
 
@@ -139,6 +188,13 @@ callers that intentionally manage their own moment storage or data transfer.
 Do not expose parser internals, recursive storage details, or solver workspaces
 through configuration or ordinary public workflows.
 
+If requested behavior is available through QMOMKit's public API or `.qmom`
+configuration, use that mechanism. Do not duplicate, override, bypass, or
+reimplement configurable QMOMKit behavior in examples, paper studies, tools, or
+application code. If the supported public/configuration path cannot perform the
+requested task, stop and report the precise blocker instead of adding a local
+workaround.
+
 See `docs/developer/configuration_design.md` for configuration mapping and
 extension rules.
 
@@ -179,7 +235,11 @@ advanced users. Such APIs should be clearly identified and documented as
 advanced rather than disguised as ordinary workflow APIs.
 
 Public API changes require deliberate review, focused tests, documentation
-updates, and corresponding public-header coverage.
+updates, and corresponding public-header coverage. When a change affects public
+or configurable behavior, consider public headers, defaults, configuration
+parsing and backward compatibility where applicable, observable diagnostics and
+output semantics, source/state/evolution behavior, existing examples, and
+installed downstream consumers where relevant.
 
 ## Numerical Contracts
 
@@ -278,6 +338,9 @@ Investigate the numerical cause, report suspicious behavior, and preserve useful
 
 Modified C++ files must be formatted with the repository `.clang-format`. New
 code must remain compatible with the repository `.clang-tidy` configuration.
+Format only changed or relevant files and avoid wholesale formatting churn.
+Keep temporary builds and numerical probes outside the repository unless they
+are intended committed artifacts. Run `git diff --check` before final reporting.
 
 Comments should explain mathematical intent, non-obvious assumptions, and
 local constraints. They should not record development history or restate
@@ -286,6 +349,14 @@ obvious code.
 ## Testing and Validation
 
 Every behavioral change requires tests at the level that owns the behavior.
+
+A genuine user-facing QMOMKit feature must include suitable unit, regression,
+and/or verification coverage; a physically meaningful example using the public
+API or `.qmom` configuration, or a justified extension of an existing example;
+appropriate user documentation; developer documentation where appropriate; and
+code-level explanation for important non-obvious invariants. A narrow bug fix,
+documentation correction, or internal-only refactor does not automatically
+require a new physical example.
 
 ### Debug Functional-Test Requirement
 
@@ -325,6 +396,12 @@ previous implementation. Validate them against analytical results, manufactured 
 convergence behavior, independent implementations, or independently generated
 reference data as appropriate.
 
+Passing the pre-existing test suite is necessary but does not, by itself,
+verify newly introduced numerical behavior. Support new numerical functionality
+with evidence proportionate to the change, such as focused unit or regression
+tests, analytical or manufactured verification, convergence evidence,
+independent numerical comparison, or established literature results.
+
 Do not use benchmark timings as correctness evidence.
 
 Do not hide discrepancies by silently loosening tolerances. Changes to
@@ -350,9 +427,13 @@ docs/developer/validation.md
 
 The root project owns and installs the core QMOMKit package.
 
-Tests, examples, benchmarks, package-consumer checks, and companion tools
-should exercise the installed package rather than relying on private root-build
-state.
+The normal root CTest suite runs in a Debug build against the build-tree
+`qmomkit` target. Installed-package validation is separate:
+`tests/package_consumer/` is the dedicated installed-package consumer check.
+Examples, benchmarks, and companion tools may also consume an installed package
+where appropriate. Run installed-package validation when changing installation,
+exports, package metadata, installed public headers, or public behavior whose
+downstream consumption is relevant.
 
 Tests are plain C++ executables registered with CTest. Do not introduce a test
 framework dependency unless explicitly requested and documented.

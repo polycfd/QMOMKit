@@ -39,7 +39,7 @@ individual cases, references, and tolerance choices in more detail.
 | Runge-Kutta | Verify standalone ODE utilities used by phase-space evolution and source components. | `verification_runge_kutta_analytical`<br>`verification_ssp_rk3_convergence`<br>`verification_rk23_adaptive_convergence`<br>`verification_rk23_fixed_step_convergence`<br>`verification_rk45_fixed_step_convergence` | Closed-form ODE solutions; SSP-RK3, RK23, and RK45 fixed-step formal convergence; adaptive RK23 tolerance-controlled behavior |
 | Output | Verify public text output workflows for moments and quadratures. | `output_workflows_verification` | Computed public results compared with analytical QMOM/CQMOM references |
 | Configuration | Verify representative user-facing configuration failure paths. | `configuration_failures_verification` | Invalid `.qmom` fixtures with expected failure messages and source/line diagnostics |
-| Vandermonde solver policy | Verify user-facing CQMOM Vandermonde solver selection. | `vandermonde_solver_selection_verification` | Analytical product CQMOM reference plus solver-policy diagnostics |
+| Vandermonde solver policy | Verify user-facing CQMOM Vandermonde solver selection on ordinary and clustered conditional systems. | `verification_vandermonde_solver_selection`<br>`verification_vandermonde_solver_policy_clustered` | Analytical product rule plus independently prescribed branch-dependent clustered CQMOM quadrature |
 
 ## Test Styles
 

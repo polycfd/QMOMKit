@@ -112,8 +112,8 @@ CTest names identify the tested contract. Several executables accept a local
 selector so independently meaningful groups can be registered separately. The
 individual CTest registrations are authoritative; running such an executable
 without a selector is a developer convenience, not an aggregate CTest contract.
-The current root suite has **112** registered CTest tests: 32 unit, 7
-component-regression, 72 verification, and 1 supporting public-header test.
+The current root suite has **113** registered CTest tests: 32 unit, 7
+component-regression, 73 verification, and 1 supporting public-header test.
 Obtain the current count from `ctest -N` (and confirm structured registration
 with `ctest --show-only=json-v1`), rather than maintaining it by arithmetic
 alone.
@@ -336,7 +336,7 @@ Benchmark structure and interpretation belong in `benchmarks.md`.
 ## Registered Root CTest Inventory
 
 This inventory lists every root CTest registration exactly once. It is current
-at the documented count of 112 tests.
+at the documented count of 113 tests.
 
 ### Unit Tests (32)
 
@@ -425,7 +425,8 @@ at the documented count of 112 tests.
 | `verification_distribution_independent_products_analytical` | Multidimensional independent-product moments | Factorized marginal moments form each tensor entry independently | One- through three-dimensional products, signed odd moments, zero density, and overflow cases |
 | `verification_distribution_configuration_initialization` | Configuration-driven distribution initialization | Parsed configurations are compared with analytical moments, selected requests, and independently factorized product tensors | Families, mixtures, dimension sweep, non-unit lognormal-mixture marginal, dense/lean states, and public CQMOM reconstruction |
 | `verification_realizability_analytical` | Hamburger, Stieltjes, and Hausdorff realizability classification | Known normal, gamma/lognormal, beta/uniform, zero-measure, and non-realizable sequences have known support classifications | Strict interior, boundary, negative-mass/variance, localizing, and bounded-support failures with diagnostic matrix/order checks |
-| `verification_vandermonde_solver_selection` | Conditional Vandermonde solver policies | Every policy reconstructs a known prescribed product quadrature and its independently generated moments | Dense, Björck--Pereyra, pivoted QR, SVD, automatic/fallback; judged against the known rule, not solver-to-solver parity alone |
+| `verification_vandermonde_solver_selection` | Conditional Vandermonde solver policies on an ordinary product case | Every policy reconstructs a known prescribed product quadrature and its independently generated moments | Dense, Björck--Pereyra, pivoted QR, SVD, automatic/fallback; judged against the known rule, not solver-to-solver parity alone |
+| `verification_vandermonde_solver_policy_clustered` | Conditional Vandermonde policies on a clustered, branch-dependent 2D CQMOM rule | A prescribed positive six-terminal rule independently generates the `6 x 4` mixed-moment tensor; the root weighted `3 x 3` system has `kappa_2` about `2.33e5` | Every public policy recovers the fixed topology, nodes, weights, and moments; diagnostics show requested/selected policy and no fallback on this solvable case |
 | `verification_runge_kutta_analytical` | Public RK23, RK45, and SSP-RK3 solution/error behavior | Constant, exponential-decay, and oscillatory ODEs have closed-form solutions | Numerical states, embedded estimates, and method/status behavior meet case tolerances |
 | `verification_ssp_rk3_convergence` | SSP-RK3 global convergence | Integrates `y'=-y` to its exact exponential solution over five halved step sizes | Consecutive errors decrease; final two observed orders exceed about `2.85` |
 | `verification_rk23_adaptive_convergence` | Adaptive RK23 tolerance-refinement accuracy | Integrates `y'=-y` to the exact exponential solution under progressively tighter tolerances | Error decreases, accepted steps do not decrease, and final average-step observed trends exceed `2.2` |

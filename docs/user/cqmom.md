@@ -227,7 +227,6 @@ This line may be omitted when using the default. Supported values are:
 | `pivoted_qr` | Uses pivoted QR with numerical-rank detection. |
 | `svd` | Uses SVD with rank and convergence checks. |
 | `bjorck_pereyra` | Uses Björck-Pereyra. |
-| `bjorck_pereyra_with_dense_fallback` | Uses Björck-Pereyra and retries with the dense solver if that solve fails or is rejected. |
 
 QR and SVD rank-deficient systems fail, and SVD nonconvergence also fails.
 QMOMKit does not silently return a pseudoinverse or regularized solution in
@@ -238,7 +237,7 @@ policy behavior. Developer-level numerical details are in
 ### Reconstruction Diagnostics
 
 CQMOM always runs the numerical checks required to accept or reject a branch,
-including solver acceptance, eligible fallback, support validation, and
+including solver acceptance, support validation, and
 adaptive branch selection. The optional `[cqmom] diagnostic_level` controls
 only retained observability data and defaults to `none`:
 

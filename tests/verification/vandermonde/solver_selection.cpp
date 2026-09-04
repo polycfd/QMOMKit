@@ -33,7 +33,6 @@ struct SolverCase
     qmomkit::VandermondeSolver requested_solver = qmomkit::VandermondeSolver::automatic;
     qmomkit::VandermondeSolver expected_selected_solver = qmomkit::VandermondeSolver::automatic;
     qmomkit::internal::VandermondeAlgorithm expected_algorithm = qmomkit::internal::VandermondeAlgorithm::dense;
-    bool expected_fallback = false;
 };
 
 struct ErrorMetrics
@@ -82,8 +81,6 @@ const char* solver_name(const qmomkit::VandermondeSolver solver)
         return "svd";
     case qmomkit::VandermondeSolver::bjorck_pereyra:
         return "bjorck_pereyra";
-    case qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback:
-        return "bjorck_pereyra_with_dense_fallback";
     }
     return "unknown";
 }
@@ -225,10 +222,6 @@ void verify_solver_diagnostics(const SolverCase& solver_case, const qmomkit::Cqm
         {
             append_failure(verification, solver_case.name + " diagnostics reported the wrong algorithm actually used.");
         }
-        if (diagnostics.dense_vandermonde_fallback_occurred != solver_case.expected_fallback)
-        {
-            append_failure(verification, solver_case.name + " diagnostics reported an unexpected dense fallback flag.");
-        }
     }
     if (!saw_conditional_solve)
     {
@@ -314,19 +307,15 @@ int main(const int argc, char** argv)
 
     const std::filesystem::path case_directory = argv[1];
     const std::vector<SolverCase> cases{{"automatic", case_directory / "automatic.qmom", qmomkit::VandermondeSolver::automatic,
-                                         qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false},
+                                         qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra},
                                         {"dense", case_directory / "dense.qmom", qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::dense,
-                                         qmomkit::internal::VandermondeAlgorithm::dense, false},
+                                         qmomkit::internal::VandermondeAlgorithm::dense},
                                         {"pivoted_qr", case_directory / "pivoted_qr.qmom", qmomkit::VandermondeSolver::pivoted_qr,
-                                         qmomkit::VandermondeSolver::pivoted_qr, qmomkit::internal::VandermondeAlgorithm::pivoted_qr, false},
+                                         qmomkit::VandermondeSolver::pivoted_qr, qmomkit::internal::VandermondeAlgorithm::pivoted_qr},
                                         {"svd", case_directory / "svd.qmom", qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd,
-                                         qmomkit::internal::VandermondeAlgorithm::svd, false},
+                                         qmomkit::internal::VandermondeAlgorithm::svd},
                                         {"bjorck_pereyra", case_directory / "bjorck_pereyra.qmom", qmomkit::VandermondeSolver::bjorck_pereyra,
-                                         qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false},
-                                        {"bjorck_pereyra_with_dense_fallback", case_directory / "bjorck_pereyra_with_dense_fallback.qmom",
-                                         qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback,
-                                         qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback,
-                                         qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false}};
+                                         qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra}};
 
     VerificationResult verification;
     std::vector<qmomkit::CqmomResult> computed;
@@ -407,14 +396,12 @@ int main(const int argc, char** argv)
     std::cout << "QMOMKit Vandermonde solver selection verification\n";
     std::cout << "Reference: fixed 2D independent-product CQMOM system\n";
     std::cout << "Tolerance: " << std::scientific << reference_tolerance << " absolute\n\n";
-    std::cout << std::left << std::setw(38) << "solver policy" << std::setw(38) << "selected policy" << std::setw(20) << "algorithm used"
-              << "fallback\n";
-    std::cout << std::string(105, '-') << '\n';
+    std::cout << std::left << std::setw(38) << "solver policy" << std::setw(38) << "selected policy" << "algorithm used\n";
+    std::cout << std::string(96, '-') << '\n';
     for (const SolverCase& solver_case : cases)
     {
         std::cout << std::left << std::setw(38) << solver_name(solver_case.requested_solver) << std::setw(38)
-                  << solver_name(solver_case.expected_selected_solver) << std::setw(20) << algorithm_name(solver_case.expected_algorithm)
-                  << (solver_case.expected_fallback ? "yes" : "no") << '\n';
+                  << solver_name(solver_case.expected_selected_solver) << algorithm_name(solver_case.expected_algorithm) << '\n';
     }
     std::cout << '\n';
     std::cout << std::left << std::setw(30) << "reference node error" << std::right << std::scientific << std::setprecision(4) << std::setw(14)

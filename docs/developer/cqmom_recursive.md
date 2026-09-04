@@ -331,7 +331,7 @@ C[i, q] = Y[i, q] / w_i
 ```
 
 The adapter owns the conditional-system validation, weight transformation,
-solver selection, residual acceptance, dense fallback, and diagnostics. The
+solver selection, QR/SVD residual acceptance, and diagnostics. The
 Björck-Pereyra kernel owns only the internal unweighted transposed Vandermonde
 solve and its node-separation checks. Numerical kernel details, tolerance
 definitions, and the complete solver-selection table are documented in
@@ -346,22 +346,17 @@ Vandermonde solver. The user-facing solver choices are:
 - Björck-Pereyra Vandermonde solver: the unweighted BP transform plus
   adapter-owned weight recovery.
 - Automatic solver: the default; it resolves to Björck-Pereyra.
-- Björck-Pereyra with dense fallback: tries BP, requires BP residual acceptance,
-  and retries with the dense solver when the BP attempt fails or is rejected.
 
 The distinction between requested solver and actual algorithm is deliberate.
 Diagnostics record the requested Vandermonde solver, the selected solver after
 automatic resolution, the algorithm actually used (`dense`, `pivoted_qr`,
-`svd`, or `bjorck_pereyra`), and whether dense fallback occurred. For example, the
+`svd`, or `bjorck_pereyra`). For example, the
 default request is `automatic`; recursive CQMOM resolves that to
 `bjorck_pereyra` and reports the Björck-Pereyra algorithm.
-An explicitly requested `bjorck_pereyra_with_dense_fallback` policy may instead
-report the dense algorithm and that dense fallback occurred.
 
 The default behavior is automatic Björck-Pereyra. Explicit pivoted QR and SVD
-honor the adapter residual-validation option when requested, but residual
-rejection is a failed conditional Vandermonde solve rather than a fallback
-trigger. Recursive
+honor the adapter residual-validation option when requested. Residual rejection
+is a failed conditional Vandermonde solve. Recursive
 diagnostic level controls diagnostic retention and expensive diagnostic
 computations; it does not itself request residual rejection. Solver thresholds
 and performance measurements belong in `linear_algebra.md`, source comments,
@@ -469,8 +464,8 @@ reduction occurs before the conditional Vandermonde solve and is separate from
 QR or SVD solver selection.
 
 The compact `output/report.md` makes the outcomes easy to compare:
-weak parent conditional systems, later Wheeler failures, the dense retry, and
-successful lower-node reconstructions. The complete
+weak parent conditional systems, later Wheeler failures, and successful
+lower-node reconstructions. The complete
 `output/diagnostics.txt` file remains available when residuals,
 condition-estimate values, moment errors, or individual solver rows require
 closer inspection.
@@ -478,9 +473,7 @@ closer inspection.
 The four direct solver columns show whether a failure depends on the linear
 solver. A common Dense/BP/QR/SVD failure means that the represented two-node
 system has lost numerical independence; changing solver backends cannot
-recover missing information. BP+dense is useful when it isolates a BP-specific
-failure that a dense retry accepts, and remains available in the flat
-diagnostics even though it is not a separate column in the report tables.
+recover missing information.
 
 The report distinguishes the relative singular value (independence), the
 2-norm condition number (sensitivity), moment error (reconstruction accuracy),
@@ -536,8 +529,8 @@ entries include:
 - adaptive branch-count flags;
 - mapped Wheeler/QMOM status;
 - conditional-moment status;
-- requested Vandermonde solver, selected solver, algorithm used, and dense
-  fallback flag when available;
+- requested Vandermonde solver, selected solver, and algorithm used when
+  available;
 - Vandermonde residual, condition estimate, and warning flag when available;
 - message.
 
@@ -590,8 +583,8 @@ to construct the quadrature. The CQMOM diagnostic setting on the loaded case or
 explicit representation case selects how much diagnostic work is performed:
 
 `CqmomDiagnosticLevel` controls diagnostic retention and reporting only. It does
-not alter Vandermonde solver selection, residual acceptance, dense fallback
-behavior, inversion results, active node counts, quadrature values, phase-space evolution
+not alter Vandermonde solver selection, residual acceptance, inversion results,
+active node counts, quadrature values, phase-space evolution
 results, or success/failure status.
 
 - `CqmomDiagnosticLevel::detailed` preserves full diagnostic reporting. It

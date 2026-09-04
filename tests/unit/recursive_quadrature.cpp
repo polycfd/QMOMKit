@@ -1472,7 +1472,7 @@ void test_recursive_failure_diagnostics_identify_failing_branch()
     assert(result.diagnostics.back().wheeler_status == qmomkit::QuadratureStatus::not_realizable);
 }
 
-void test_recursive_dense_and_bp_fallback_equivalence_fixed()
+void test_recursive_dense_and_bp_equivalence_fixed()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
     const std::vector<std::size_t> extents{4, 4, 4};
@@ -1484,13 +1484,8 @@ void test_recursive_dense_and_bp_fallback_equivalence_fixed()
 
     const qmomkit::internal::RecursiveQuadratureRequest dense_request{
         hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense};
-    const qmomkit::internal::RecursiveQuadratureRequest bp_request{hierarchy,
-                                                                   {extents, moments},
-                                                                   {},
-                                                                   {},
-                                                                   false,
-                                                                   qmomkit::CqmomDiagnosticLevel::detailed,
-                                                                   qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback};
+    const qmomkit::internal::RecursiveQuadratureRequest bp_request{
+        hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::bjorck_pereyra};
 
     const qmomkit::internal::RecursiveQuadratureResult dense = qmomkit::internal::compute_recursive_quadrature(dense_request);
     const qmomkit::internal::RecursiveQuadratureResult bp = qmomkit::internal::compute_recursive_quadrature(bp_request);
@@ -1502,10 +1497,9 @@ void test_recursive_dense_and_bp_fallback_equivalence_fixed()
     {
         if (diagnostics.conditioning_level + 1 < hierarchy.number_of_dimensions())
         {
-            assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
-            assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
+            assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
+            assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
             assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra);
-            assert(!diagnostics.dense_vandermonde_fallback_occurred);
         }
     }
 }
@@ -1538,7 +1532,6 @@ void test_recursive_dense_and_pivoted_qr_equivalence_fixed()
             assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::pivoted_qr);
             assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::pivoted_qr);
             assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::pivoted_qr);
-            assert(!diagnostics.dense_vandermonde_fallback_occurred);
         }
     }
 }
@@ -1571,7 +1564,6 @@ void test_recursive_dense_and_svd_equivalence_fixed()
             assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::svd);
             assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::svd);
             assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::svd);
-            assert(!diagnostics.dense_vandermonde_fallback_occurred);
         }
     }
 }
@@ -1590,7 +1582,7 @@ void test_recursive_bp_success_independent_of_diagnostic_level()
     for (const qmomkit::CqmomDiagnosticLevel level : diagnostic_levels())
     {
         results.push_back(qmomkit::internal::compute_recursive_quadrature(
-            {hierarchy, {extents, moments}, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback}));
+            {hierarchy, {extents, moments}, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra}));
     }
 
     assert(results.front().ok());
@@ -1607,7 +1599,6 @@ void test_recursive_bp_success_independent_of_diagnostic_level()
             if (diagnostics.conditioning_level + 1 < hierarchy.number_of_dimensions())
             {
                 assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra);
-                assert(!diagnostics.dense_vandermonde_fallback_occurred);
             }
         }
     }
@@ -1639,7 +1630,6 @@ void test_recursive_automatic_uses_plain_bp_for_small_branches()
             assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::automatic);
             assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
             assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra);
-            assert(!diagnostics.dense_vandermonde_fallback_occurred);
         }
     }
 }
@@ -1666,7 +1656,7 @@ void test_recursive_automatic_independent_of_diagnostic_level()
     }
 }
 
-void test_recursive_dense_and_bp_fallback_equivalence_adaptive()
+void test_recursive_dense_and_bp_equivalence_adaptive()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2});
     const std::vector<std::size_t> extents{4, 4, 4};
@@ -1677,13 +1667,8 @@ void test_recursive_dense_and_bp_fallback_equivalence_adaptive()
 
     const qmomkit::internal::RecursiveQuadratureRequest dense_request{
         hierarchy, {extents, moments}, {}, wheeler_options, true, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::VandermondeSolver::dense};
-    const qmomkit::internal::RecursiveQuadratureRequest bp_request{hierarchy,
-                                                                   {extents, moments},
-                                                                   {},
-                                                                   wheeler_options,
-                                                                   true,
-                                                                   qmomkit::CqmomDiagnosticLevel::basic,
-                                                                   qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback};
+    const qmomkit::internal::RecursiveQuadratureRequest bp_request{
+        hierarchy, {extents, moments}, {}, wheeler_options, true, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::VandermondeSolver::bjorck_pereyra};
 
     const qmomkit::internal::RecursiveQuadratureResult dense = qmomkit::internal::compute_recursive_quadrature(dense_request);
     const qmomkit::internal::RecursiveQuadratureResult bp = qmomkit::internal::compute_recursive_quadrature(bp_request);
@@ -1730,60 +1715,6 @@ void test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch(
     assert(found_branch);
 }
 
-void test_recursive_dense_and_bp_fallback_equivalence_difficult_branches()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> weights{0.40, 0.10, 0.20, 0.30};
-    const std::vector<std::vector<double>> abscissas{{1.0, 1.00001, -1.0, 2.0}, {-2.0, 0.5, -0.5, 1.5}};
-    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-
-    const qmomkit::ConditionalMomentOptions conditional_options{1.0e-14, 1.0e12};
-    const qmomkit::internal::RecursiveQuadratureRequest dense_request{
-        hierarchy, {extents, moments}, conditional_options, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense};
-    const qmomkit::internal::RecursiveQuadratureRequest bp_request{hierarchy,
-                                                                   {extents, moments},
-                                                                   conditional_options,
-                                                                   {},
-                                                                   false,
-                                                                   qmomkit::CqmomDiagnosticLevel::detailed,
-                                                                   qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback};
-
-    const qmomkit::internal::RecursiveQuadratureResult dense = qmomkit::internal::compute_recursive_quadrature(dense_request);
-    const qmomkit::internal::RecursiveQuadratureResult bp = qmomkit::internal::compute_recursive_quadrature(bp_request);
-
-    assert_recursive_results_equivalent(bp, dense, 1.0e-5);
-}
-
-void test_recursive_bp_rejection_failure_independent_of_diagnostic_level()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> weights{0.40, 0.10, 0.20, 0.30};
-    const std::vector<std::vector<double>> abscissas{{1.0, 1.00001, -1.0, 2.0}, {-2.0, 0.5, -0.5, 1.5}};
-    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-    const qmomkit::ConditionalMomentOptions conditional_options{1.0e-14, 1.0e12};
-
-    std::vector<qmomkit::internal::RecursiveQuadratureResult> results;
-    for (const qmomkit::CqmomDiagnosticLevel level : diagnostic_levels())
-    {
-        results.push_back(qmomkit::internal::compute_recursive_quadrature(
-            {hierarchy, {extents, moments}, conditional_options, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback}));
-    }
-
-    assert(!results.front().ok());
-    for (const qmomkit::internal::RecursiveQuadratureResult& result : results)
-    {
-        assert_recursive_numerics_equivalent(result, results.front(), 1.0e-5);
-    }
-    for (const qmomkit::internal::RecursiveQuadratureResult& result : results)
-    {
-        assert(result.status == results.front().status);
-        assert(result.failed_conditioning_level == results.front().failed_conditioning_level);
-        assert(result.failed_path == results.front().failed_path);
-    }
-}
-
 void test_public_dense_and_lean_bp_success_independent_of_diagnostic_level()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
@@ -1800,10 +1731,10 @@ void test_public_dense_and_lean_bp_success_independent_of_diagnostic_level()
     std::vector<qmomkit::CqmomResult> lean_results;
     for (const qmomkit::CqmomDiagnosticLevel level : diagnostic_levels())
     {
-        dense_results.push_back(qmomkit::compute_cqmom(
-            qmomkit::CqmomDenseCase{hierarchy, moments, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback}));
-        lean_results.push_back(qmomkit::compute_cqmom(
-            qmomkit::CqmomLeanCase{lean_moments, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback}));
+        dense_results.push_back(
+            qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, moments, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra}));
+        lean_results.push_back(
+            qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{lean_moments, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra}));
     }
 
     assert(dense_results.front().ok());
@@ -1820,50 +1751,7 @@ void test_public_dense_and_lean_bp_success_independent_of_diagnostic_level()
     {
         assert(!dense_results[i].diagnostics.empty());
         assert(!lean_results[i].diagnostics.empty());
-        for (const qmomkit::CqmomDiagnostics& diagnostics : dense_results[i].diagnostics)
-        {
-            assert(!diagnostics.dense_vandermonde_fallback_occurred);
-        }
-        for (const qmomkit::CqmomDiagnostics& diagnostics : lean_results[i].diagnostics)
-        {
-            assert(!diagnostics.dense_vandermonde_fallback_occurred);
-        }
     }
-}
-
-void test_recursive_dense_and_bp_fallback_equivalence_failure()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const std::vector<double> parent_abscissas{-1.0, 1.0};
-    const std::vector<double> parent_weights{0.5, 0.5};
-    const std::vector<std::size_t> extents{4, 4};
-    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
-    const std::vector<std::vector<double>> conditional_moments{{1.0, 0.0, 1.0, 0.0}, {1.0, 0.0, -1.0, 0.0}};
-    for (std::size_t flat_index = 0; flat_index < moments.size(); ++flat_index)
-    {
-        const qmomkit::MultiIndex moment_index = qmomkit::unflatten_multi_index(flat_index, extents);
-        for (std::size_t parent_node = 0; parent_node < parent_abscissas.size(); ++parent_node)
-        {
-            moments[flat_index] += parent_weights[parent_node] * std::pow(parent_abscissas[parent_node], static_cast<int>(moment_index[0])) *
-                                   conditional_moments[parent_node][moment_index[1]];
-        }
-    }
-
-    const qmomkit::internal::RecursiveQuadratureRequest dense_request{
-        hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense};
-    const qmomkit::internal::RecursiveQuadratureRequest bp_request{hierarchy,
-                                                                   {extents, moments},
-                                                                   {},
-                                                                   {},
-                                                                   false,
-                                                                   qmomkit::CqmomDiagnosticLevel::detailed,
-                                                                   qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback};
-
-    const qmomkit::internal::RecursiveQuadratureResult dense = qmomkit::internal::compute_recursive_quadrature(dense_request);
-    const qmomkit::internal::RecursiveQuadratureResult bp = qmomkit::internal::compute_recursive_quadrature(bp_request);
-
-    assert_recursive_results_equivalent(bp, dense, 0.0);
-    assert(!bp.ok());
 }
 
 void test_recursive_bp_failure_independent_of_diagnostic_level()
@@ -1888,7 +1776,7 @@ void test_recursive_bp_failure_independent_of_diagnostic_level()
     for (const qmomkit::CqmomDiagnosticLevel level : diagnostic_levels())
     {
         results.push_back(qmomkit::internal::compute_recursive_quadrature(
-            {hierarchy, {extents, moments}, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback}));
+            {hierarchy, {extents, moments}, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra}));
     }
 
     assert(!results.front().ok());
@@ -1949,18 +1837,15 @@ void run_all_recursive_quadrature_tests()
     test_invalid_hierarchy_inputs();
     test_invalid_index_inputs();
     test_recursive_failure_diagnostics_identify_failing_branch();
-    test_recursive_dense_and_bp_fallback_equivalence_fixed();
+    test_recursive_dense_and_bp_equivalence_fixed();
     test_recursive_dense_and_pivoted_qr_equivalence_fixed();
     test_recursive_dense_and_svd_equivalence_fixed();
     test_recursive_bp_success_independent_of_diagnostic_level();
     test_recursive_automatic_uses_plain_bp_for_small_branches();
     test_recursive_automatic_independent_of_diagnostic_level();
-    test_recursive_dense_and_bp_fallback_equivalence_adaptive();
+    test_recursive_dense_and_bp_equivalence_adaptive();
     test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch();
-    test_recursive_dense_and_bp_fallback_equivalence_difficult_branches();
-    test_recursive_bp_rejection_failure_independent_of_diagnostic_level();
     test_public_dense_and_lean_bp_success_independent_of_diagnostic_level();
-    test_recursive_dense_and_bp_fallback_equivalence_failure();
     test_recursive_bp_failure_independent_of_diagnostic_level();
 }
 
@@ -2023,18 +1908,15 @@ void run_bounded_support_tests()
 
 void run_solver_policy_tests()
 {
-    test_recursive_dense_and_bp_fallback_equivalence_fixed();
+    test_recursive_dense_and_bp_equivalence_fixed();
     test_recursive_dense_and_pivoted_qr_equivalence_fixed();
     test_recursive_dense_and_svd_equivalence_fixed();
     test_recursive_bp_success_independent_of_diagnostic_level();
     test_recursive_automatic_uses_plain_bp_for_small_branches();
     test_recursive_automatic_independent_of_diagnostic_level();
-    test_recursive_dense_and_bp_fallback_equivalence_adaptive();
+    test_recursive_dense_and_bp_equivalence_adaptive();
     test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch();
-    test_recursive_dense_and_bp_fallback_equivalence_difficult_branches();
-    test_recursive_bp_rejection_failure_independent_of_diagnostic_level();
     test_public_dense_and_lean_bp_success_independent_of_diagnostic_level();
-    test_recursive_dense_and_bp_fallback_equivalence_failure();
     test_recursive_bp_failure_independent_of_diagnostic_level();
 }
 

@@ -31,11 +31,6 @@ namespace
     return true;
 }
 
-[[nodiscard]] bool result_is_finite(const LinearSolveResult& result)
-{
-    return !result.success || matrix_all_finite(result.solution);
-}
-
 [[nodiscard]] LinearSolveResult failure_result(const std::size_t rows, const std::size_t cols, const std::string& message)
 {
     return LinearSolveResult{DenseMatrix(rows, cols), false, message};
@@ -58,19 +53,16 @@ namespace
     case VandermondeSolver::pivoted_qr:
     case VandermondeSolver::svd:
     case VandermondeSolver::bjorck_pereyra:
-    case VandermondeSolver::bjorck_pereyra_with_dense_fallback:
         return requested_solver;
     }
     return VandermondeSolver::dense;
 }
 
 [[nodiscard]] VandermondeSolveResult vandermonde_result(LinearSolveResult result, const VandermondeSolver requested_solver,
-                                                        const VandermondeSolver selected_solver, const VandermondeAlgorithm algorithm_used,
-                                                        const bool dense_fallback_occurred)
+                                                        const VandermondeSolver selected_solver, const VandermondeAlgorithm algorithm_used)
 {
     return VandermondeSolveResult{std::move(result.solution), result.success,  std::move(result.message),
-                                  requested_solver,           selected_solver, algorithm_used,
-                                  dense_fallback_occurred};
+                                  requested_solver,           selected_solver, algorithm_used};
 }
 
 [[nodiscard]] LinearSolveResult qr_linear_solve_result(QrSolveResult result, const std::size_t rows, const std::size_t cols,
@@ -118,11 +110,6 @@ namespace
     return residual <= tolerance * scale;
 }
 
-[[nodiscard]] bool residual_validation_required(const VandermondeSolver selected_solver)
-{
-    return selected_solver == VandermondeSolver::bjorck_pereyra_with_dense_fallback;
-}
-
 } // namespace
 
 DenseMatrix make_conditional_vandermonde_matrix(const std::vector<double>& nodes, const std::vector<double>& weights)
@@ -147,22 +134,17 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
     const VandermondeSolver requested_solver = options.solver;
     const VandermondeSolver selected_solver = resolve_solver(requested_solver, nodes.size(), rhs.cols());
 
-    // Solver choice is part of diagnostics: forced dense uses Gaussian
-    // elimination, forced Bjorck-Pereyra reports that result directly, and
-    // The fallback-capable policy validates the structured solve before using
-    // dense. Automatic resolves to the same plain BP path as an explicit
-    // bjorck_pereyra request.
     if (selected_solver == VandermondeSolver::dense)
     {
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::dense);
         if (weights.size() != n || rhs.rows() != n)
         {
             return vandermonde_result(failure_result(n, rhs_cols, "Weighted Vandermonde dimensions are inconsistent."), requested_solver,
-                                      selected_solver, VandermondeAlgorithm::dense, false);
+                                      selected_solver, VandermondeAlgorithm::dense);
         }
         DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
         return vandermonde_result(solve_dense(std::move(system), std::move(rhs), options.singular_tolerance, singular_message), requested_solver,
-                                  selected_solver, VandermondeAlgorithm::dense, false);
+                                  selected_solver, VandermondeAlgorithm::dense);
     }
 
     if (selected_solver == VandermondeSolver::pivoted_qr)
@@ -171,23 +153,23 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         if (weights.size() != n || rhs.rows() != n)
         {
             return vandermonde_result(failure_result(n, rhs_cols, "Weighted Vandermonde dimensions are inconsistent."), requested_solver,
-                                      selected_solver, VandermondeAlgorithm::pivoted_qr, false);
+                                      selected_solver, VandermondeAlgorithm::pivoted_qr);
         }
 
         const DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
         LinearSolveResult pivoted_qr = qr_linear_solve_result(solve_qr(system, rhs), n, rhs_cols, singular_message);
         if (!pivoted_qr.success)
         {
-            return vandermonde_result(std::move(pivoted_qr), requested_solver, selected_solver, VandermondeAlgorithm::pivoted_qr, false);
+            return vandermonde_result(std::move(pivoted_qr), requested_solver, selected_solver, VandermondeAlgorithm::pivoted_qr);
         }
 
         if (options.validate_residual && !residual_is_accepted(system, pivoted_qr.solution, rhs, options.residual_tolerance))
         {
             return vandermonde_result(failure_result(n, rhs_cols, singular_message), requested_solver, selected_solver,
-                                      VandermondeAlgorithm::pivoted_qr, false);
+                                      VandermondeAlgorithm::pivoted_qr);
         }
 
-        return vandermonde_result(std::move(pivoted_qr), requested_solver, selected_solver, VandermondeAlgorithm::pivoted_qr, false);
+        return vandermonde_result(std::move(pivoted_qr), requested_solver, selected_solver, VandermondeAlgorithm::pivoted_qr);
     }
 
     if (selected_solver == VandermondeSolver::svd)
@@ -196,23 +178,22 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         if (weights.size() != n || rhs.rows() != n)
         {
             return vandermonde_result(failure_result(n, rhs_cols, "Weighted Vandermonde dimensions are inconsistent."), requested_solver,
-                                      selected_solver, VandermondeAlgorithm::svd, false);
+                                      selected_solver, VandermondeAlgorithm::svd);
         }
 
         const DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
         LinearSolveResult svd = svd_linear_solve_result(solve_svd(system, rhs), n, rhs_cols, singular_message);
         if (!svd.success)
         {
-            return vandermonde_result(std::move(svd), requested_solver, selected_solver, VandermondeAlgorithm::svd, false);
+            return vandermonde_result(std::move(svd), requested_solver, selected_solver, VandermondeAlgorithm::svd);
         }
 
         if (options.validate_residual && !residual_is_accepted(system, svd.solution, rhs, options.residual_tolerance))
         {
-            return vandermonde_result(failure_result(n, rhs_cols, singular_message), requested_solver, selected_solver, VandermondeAlgorithm::svd,
-                                      false);
+            return vandermonde_result(failure_result(n, rhs_cols, singular_message), requested_solver, selected_solver, VandermondeAlgorithm::svd);
         }
 
-        return vandermonde_result(std::move(svd), requested_solver, selected_solver, VandermondeAlgorithm::svd, false);
+        return vandermonde_result(std::move(svd), requested_solver, selected_solver, VandermondeAlgorithm::svd);
     }
 
     performance::record_vandermonde_solve(performance::VandermondeSolveKind::bjorck_pereyra);
@@ -274,35 +255,7 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
         }
     }
 
-    if (bjorck_pereyra.success && result_is_finite(bjorck_pereyra))
-    {
-        const bool validate_residual = options.validate_residual || residual_validation_required(selected_solver);
-        if (!validate_residual)
-        {
-            return vandermonde_result(bjorck_pereyra, requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra, false);
-        }
-        const DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
-        if (residual_is_accepted(system, bjorck_pereyra.solution, rhs, options.residual_tolerance))
-        {
-            return vandermonde_result(bjorck_pereyra, requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra, false);
-        }
-    }
-
-    if (selected_solver == VandermondeSolver::bjorck_pereyra)
-    {
-        return vandermonde_result(bjorck_pereyra, requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra, false);
-    }
-
-    if (weights.size() != n || rhs.rows() != n)
-    {
-        return vandermonde_result(bjorck_pereyra, requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra, false);
-    }
-
-    DenseMatrix system = make_conditional_vandermonde_matrix(nodes, weights);
-    performance::record_vandermonde_fallback();
-    performance::record_vandermonde_solve(performance::VandermondeSolveKind::dense);
-    return vandermonde_result(solve_dense(std::move(system), std::move(rhs), options.singular_tolerance, singular_message), requested_solver,
-                              selected_solver, VandermondeAlgorithm::dense, true);
+    return vandermonde_result(std::move(bjorck_pereyra), requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra);
 }
 
 } // namespace qmomkit::internal

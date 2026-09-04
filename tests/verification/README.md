@@ -87,7 +87,6 @@ Every verification failure must:
 
 ## Remaining Framework Gaps
 
-The suite treats two areas as unit or regression coverage rather than canonical
-verification: deterministic successful Vandermonde dense fallback, which lacks
-a natural successful public case, and additional failure-path/status variants
-beyond the representative phase-space evolution cases.
+The suite treats additional failure-path/status variants beyond the
+representative phase-space evolution cases as unit or regression coverage
+rather than canonical verification.

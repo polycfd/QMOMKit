@@ -363,7 +363,7 @@ The `performance_instrumentation_benchmark` executable provides representative
 QMOMKit workload measurements using the optional performance instrumentation
 layer. It reports Google Benchmark wall-clock/CPU timing together with
 internal workload counters, such as reconstruction calls, branch solves,
-Wheeler calls, Vandermonde solves, fallback counts, terminal node assembly,
+Wheeler calls, Vandermonde solves, terminal node assembly,
 fixed prepared-metadata builds and uses, dynamic-metadata builds,
 adaptive active-count derivations, validations, and transition builds,
 phase-space evolution operator calls, moment-source SSP-RK stages, and node RHS evaluations.
@@ -535,8 +535,8 @@ The report sections are:
 - Reconstruction counters: CQMOM/QMOM reconstruction counts, Wheeler calls,
   branch solves, terminal node assembly, moment-layout construction, and fixed
   prepared-versus-dynamic metadata events.
-- Linear algebra counters: Vandermonde solves, solver-path counts, dense
-  fallback counts, residual checks, and condition estimates.
+- Linear algebra counters: Vandermonde solves, solver-path counts, residual
+  checks, and condition estimates.
 - Phase-space evolution/time-integration counters: advection/moment-source operator
   applications, moment reconstruction calls, post-source inversions, moment-source
   SSP-RK stages and retries, node RHS evaluations, and adaptive embedded-RK step
@@ -553,7 +553,7 @@ The report sections are:
   units as the phase-space coordinate being advanced; they are not relative
   errors.
 - Derived metrics: normalized ratios such as Wheeler calls per reconstruction,
-  Vandermonde solves per reconstruction, dense fallback percentage, and
+  Vandermonde solves per reconstruction, and
   phase-space evolution operations per state update.
 
 Interpret timing and counters together. Timing tells how expensive a workload
@@ -565,8 +565,7 @@ Example interpretations:
   branch solves. Compare this with dimensions, node counts, and terminal node
   assembly before optimizing Wheeler itself.
 - High Vandermonde solves per reconstruction indicate conditional
-  reconstruction is prominent in the workload. Dense fallback percentage helps
-  distinguish ordinary branch traversal from difficult conditioning.
+  reconstruction is prominent in the workload.
 - High node RHS evaluations per state update indicate advection node
   advection work. Profile the velocity callback and node-advection scheme
   settings before changing reconstruction code.
@@ -648,9 +647,8 @@ stable representative difficult systems.
 ### Solver Selection
 
 Solver-selection benchmarks exercise the Vandermonde solver wrapper with
-`dense`, `bjorck_pereyra`, `bjorck_pereyra_with_dense_fallback`, and
-`automatic` modes. They report counters for the selected solver, algorithm
-actually used, and dense fallback occurrence. These counters make policy
+`dense`, `bjorck_pereyra`, and `automatic` modes. They report counters for the
+selected solver and algorithm actually used. These counters make policy
 behavior visible in benchmark output and help verify the public CQMOM
 configuration setting.
 

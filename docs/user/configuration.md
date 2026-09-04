@@ -715,7 +715,7 @@ This setting is distinct from `vandermonde.solver = dense`, which selects a
 linear solver for conditional reconstruction rather than moment storage.
 
 `diagnostic_level` controls optional reconstruction observability only. Required
-numerical checks, solver acceptance, fallback behavior, support checks, adaptive
+numerical checks, solver acceptance, support checks, adaptive
 branch selection, inversion results, and success/failure status are unchanged.
 If omitted, `none` is used. Select `basic` for structural branch diagnostics or
 `detailed` for residual and condition-estimate diagnostics; the latter may add
@@ -731,7 +731,6 @@ Supported values are:
 | `pivoted_qr` | Uses pivoted QR with numerical-rank detection. |
 | `svd` | Uses SVD with rank and convergence checks. |
 | `bjorck_pereyra` | Uses Björck-Pereyra. |
-| `bjorck_pereyra_with_dense_fallback` | Uses Björck-Pereyra and retries with the dense solver if that solve fails or is rejected. |
 
 If omitted, `automatic` is used. The `pivoted_qr` and `svd` policies solve the
 weighted conditional Vandermonde system directly and are selected only when
@@ -742,8 +741,7 @@ requested explicitly:
 solver = svd
 ```
 
-Neither explicit direct policy falls back to the dense solver if it fails. A
-rank-deficient conditional Vandermonde matrix makes the solve fail, and SVD
+A rank-deficient conditional Vandermonde matrix makes the solve fail, and SVD
 Jacobi nonconvergence is also reported as a failure. QMOMKit does not compute a
 truncated, regularized, minimum-norm, or pseudoinverse solution in these paths.
 SVD rank and Jacobi tolerances are internal defaults and are not configurable

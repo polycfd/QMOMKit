@@ -57,9 +57,8 @@ solve_conditional_vandermonde_system(...)
 
 The adapter constructs the weighted matrix, resolves the selected
 `VandermondeSolver` policy, dispatches to the numerical kernels, performs
-Björck-Pereyra (BP) weight recovery, validates residuals when required, applies
-BP-to-dense fallback, records performance counters, and returns solver
-diagnostics.
+Björck-Pereyra (BP) weight recovery, validates QR and SVD residuals when
+requested, records performance counters, and returns solver diagnostics.
 
 ### Recursive CQMOM Integration
 
@@ -88,12 +87,12 @@ Vandermonde systems used in production CQMOM reconstruction are square.
 
 ## Solver Comparison
 
-| Solver | Mathematical system | Type | Supported shapes | Multiple RHS | Rank diagnostics | Current Vandermonde policy | Fallback role |
-|---|---|---|---|---|---|---|---|
-| Dense Gaussian elimination | \(AX=B\) | Generic dense | Square | Yes | No; reports singular-pivot failure | `dense` | Dense fallback target for fallback-capable BP |
-| Björck-Pereyra | \(V^T Y=B\) | Structured, unweighted Vandermonde | Square Vandermonde | Yes | No; reports node-separation failure | `bjorck_pereyra`; first backend for `automatic` | May trigger dense fallback through adapter policy |
-| Pivoted Householder QR | \(AP=QR\), solve \(AX\approx B\) | Generic dense | Square and tall, \(m\ge n\) | Yes | Numerical rank | `pivoted_qr` | None |
-| One-sided Jacobi SVD | \(A=U\Sigma V^T\), solve \(AX\approx B\) | Generic dense | Square and tall, \(m\ge n\) | Yes | Singular values and numerical rank | `svd` | None |
+| Solver | Mathematical system | Type | Supported shapes | Multiple RHS | Rank diagnostics | Current Vandermonde policy |
+|---|---|---|---|---|---|---|
+| Dense Gaussian elimination | \(AX=B\) | Generic dense | Square | Yes | No; reports singular-pivot failure | `dense` |
+| Björck-Pereyra | \(V^T Y=B\) | Structured, unweighted Vandermonde | Square Vandermonde | Yes | No; reports node-separation failure | `bjorck_pereyra`; first backend for `automatic` |
+| Pivoted Householder QR | \(AP=QR\), solve \(AX\approx B\) | Generic dense | Square and tall, \(m\ge n\) | Yes | Numerical rank | `pivoted_qr` |
+| One-sided Jacobi SVD | \(A=U\Sigma V^T\), solve \(AX\approx B\) | Generic dense | Square and tall, \(m\ge n\) | Yes | Singular values and numerical rank | `svd` |
 
 The table summarizes capabilities and ownership. It is not a benchmark or an
 accuracy ranking.
@@ -103,8 +102,7 @@ accuracy ranking.
 ### Purpose
 
 `solve_dense(...)` is the simple generic square dense solver. It provides a
-baseline for dense square systems, the explicit `dense` Vandermonde policy, and
-the dense fallback target for fallback-capable BP policies.
+baseline for dense square systems and the explicit `dense` Vandermonde policy.
 
 ### Mathematical Problem
 
@@ -153,8 +151,7 @@ solution.
 
 ### Current QMOMKit Role
 
-The dense solver is used by the explicit `dense` Vandermonde policy and as the
-dense fallback target for `bjorck_pereyra_with_dense_fallback`. The public
+The dense solver is used by the explicit `dense` Vandermonde policy. The public
 one-level conditional-moment utility also solves its weighted system directly
 with the dense solver.
 
@@ -169,8 +166,7 @@ API.
 ### Purpose
 
 `solve_bjorck_pereyra(...)` exploits Vandermonde structure for the conditional
-Vandermonde pathway. It is the structured kernel used before optional dense
-fallback in the default CQMOM policy.
+Vandermonde pathway.
 
 ### Mathematical Problem
 
@@ -227,19 +223,17 @@ node-separation denominator is treated as singular when
 \]
 
 The kernel reports this as a transposed Vandermonde singular failure. It does
-not perform weighted residual validation or fallback.
+not perform weighted residual validation.
 
 ### Current QMOMKit Role
 
-BP is used by the explicit `bjorck_pereyra` policy, as the first backend for
-`automatic`, and as the first backend for
-`bjorck_pereyra_with_dense_fallback`.
+BP is used by the explicit `bjorck_pereyra` policy and by `automatic`.
 
 ### Limitations And Non-Goals
 
 The BP kernel is Vandermonde-specific, unweighted, and square-only. It does not
-construct conditional systems, divide by quadrature weights, provide rank
-diagnostics, or own fallback policy.
+construct conditional systems, divide by quadrature weights, or provide rank
+diagnostics.
 
 ## Pivoted Householder QR Solver
 
@@ -300,8 +294,7 @@ configurable through `.qmom` files.
 
 QR is available to recursive CQMOM only through the explicit `pivoted_qr`
 Vandermonde policy. It solves the complete weighted conditional matrix
-directly. `automatic` does not select QR, and QR failures do not trigger dense
-fallback.
+directly. `automatic` does not select QR.
 
 ### Limitations And Non-Goals
 
@@ -386,8 +379,7 @@ defaults and are not configurable through `.qmom` files.
 
 SVD is available to recursive CQMOM only through the explicit `svd`
 Vandermonde policy. It solves the complete weighted conditional matrix
-directly. `automatic` does not select SVD, and SVD failures do not trigger
-dense fallback.
+directly. `automatic` does not select SVD.
 
 ### Limitations And Non-Goals
 
@@ -425,7 +417,7 @@ the adapter recover conditional moments by dividing by weights.
 
 The adapter owns dimension and finite-input validation, policy resolution,
 weighted matrix construction, weight-singularity protection for BP, residual
-acceptance, fallback, diagnostics, and performance counters.
+acceptance, diagnostics, and performance counters.
 
 ### Björck-Pereyra Weight Recovery
 
@@ -450,12 +442,12 @@ Before this division, the adapter rejects weights satisfying
 ### Diagnostics And Performance Counters
 
 Adapter results record the requested solver, selected solver after policy
-resolution, algorithm used internally, and whether dense fallback occurred.
+resolution, and algorithm used internally.
 Recursive CQMOM propagates the public diagnostic fields it exposes and records
 branch-local residual and condition diagnostics when detailed diagnostics are
 requested. Performance counters distinguish Vandermonde solves, dense solves,
-BP solves, QR solves, SVD solves, residual checks, condition estimates, and
-dense Vandermonde fallbacks when instrumentation is enabled.
+BP solves, QR solves, SVD solves, residual checks, and condition estimates when
+instrumentation is enabled.
 
 ## Solver-Selection Policy
 
@@ -469,12 +461,9 @@ Vandermonde solves. User-facing syntax and examples belong in
 | `pivoted_qr` | Pivoted QR solve |
 | `svd` | SVD solve |
 | `bjorck_pereyra` | Björck-Pereyra solve |
-| `bjorck_pereyra_with_dense_fallback` | Björck-Pereyra solve, then dense retry if needed |
 | `automatic` | Björck-Pereyra solve |
 
 `automatic` resolves to `bjorck_pereyra`. QR and SVD are explicit policies.
-The conditional Vandermonde adapter owns the dense retry for
-`bjorck_pereyra_with_dense_fallback`.
 
 ## Failure, Rank, Residual, And Tolerance Semantics
 
@@ -491,11 +480,9 @@ minimum-norm solutions.
 
 ### Residual Validation
 
-Explicit BP, QR, and SVD policies use residual validation when requested by
-`VandermondeSolveOptions::validate_residual`. BP-with-dense-fallback requires
-BP residual acceptance before retaining the BP result. Residual rejection in
-that fallback-capable policy may lead to a dense retry.
-Explicit QR and SVD residual rejection returns failure without fallback.
+Explicit QR and SVD policies use residual validation when requested by
+`VandermondeSolveOptions::validate_residual`. Residual rejection returns
+failure.
 Recursive diagnostics do not themselves request residual validation; they
 compute diagnostic residuals after successful branch-local solves when detailed
 diagnostics are enabled.
@@ -551,14 +538,14 @@ Linear-algebra coverage should remain layered with the implementation:
 
 [`examples/cqmom_2d_borderline_conditioning/`](../../examples/cqmom_2d_borderline_conditioning/)
 is a worked example for studying conditional Vandermonde
-conditioning, explicit solver policies, fallback, residuals, and fixed-count
-failure alongside lower-node Wheeler reconstructions. It uses a deterministic
-four-atom population and diagnostics reported by CQMOM; its local 2x2 matrix
-analysis is example-side diagnostic data, not production QR or SVD metadata.
+conditioning, explicit solver policies, residuals, and fixed-count failure
+alongside lower-node Wheeler reconstructions. It uses a deterministic four-atom
+population and diagnostics reported by CQMOM; its local 2x2 matrix analysis is
+example-side diagnostic data, not production QR or SVD metadata.
 
 The example produces two complementary outputs. `output/report.md` is the
-human-readable comparison of solver outcomes, failed stages, the dense retry,
-and lower-node reconstructions. `output/diagnostics.txt` is the complete flat dataset for
+human-readable comparison of solver outcomes, failed stages, and lower-node
+reconstructions. `output/diagnostics.txt` is the complete flat dataset for
 scripts, plotting, residual analysis, condition-estimate inspection, and
 detailed numerical comparison. Start with the report for interpretation and use
 the flat file when individual rows or diagnostic values are needed.
@@ -568,9 +555,7 @@ reconstruction depends on the linear solver. Dense, Björck–Pereyra, pivoted Q
 and SVD take different numerical routes through the same formulation.
 Disagreement can expose solver-specific sensitivity. If all four fail the same
 two-node reconstruction, the formulation has lost numerical independence and
-changing the solver cannot recover the missing information. The BP-with-dense-
-fallback policy is useful for identifying a BP-specific failure that a dense
-retry can accept; it does not repair rank loss in the represented system.
+changing the solver cannot recover the missing information.
 
 The example keeps three metrics conceptually separate:
 
@@ -579,25 +564,24 @@ The example keeps three metrics conceptually separate:
 - the reconstructed-moment error measures accuracy for the current data.
 
 A residual is a backward-error-style consistency check, not a robustness
-metric. The Markdown tables compare the four direct solvers and omit BP+dense
-as a separate column; the flat diagnostics file retains every requested policy
-and every reported field.
+metric. The Markdown tables and flat diagnostics file retain every requested
+policy and reported field.
 
 Use the example as a workflow for evaluating another CQMOM formulation:
 
 1. Run the example unchanged and inspect the grouped metrics in
    `output/report.md`.
 2. Compare `x_then_y` and `y_then_x` at the same separation.
-3. Compare explicit solver and fallback outcomes at the same separation.
-4. Inspect failures and fallback rows, then use `output/diagnostics.txt` for
+3. Compare explicit solver outcomes at the same separation.
+4. Inspect failures, then use `output/diagnostics.txt` for
    residual, condition-estimate, and moment-error detail.
 5. Change one formulation parameter at a time and repeat the comparison.
 6. Enable adaptation separately to determine whether a lower-node quadrature
    remains valid.
 
 The case can show sensitivity to conditioning order, weak parent systems,
-solver-policy and fallback outcomes, reported failure location, and successful
-lower-node reconstructions. It cannot directly show production QR diagonal
+solver-policy outcomes, reported failure location, and successful lower-node
+reconstructions. It cannot directly show production QR diagonal
 values, production SVD singular values or sweep counts, or internal algorithm
 metadata beyond the selected policy reported by the example. It is a focused
 workflow, not a generic production diagnostic API, and its threshold values
@@ -611,7 +595,7 @@ for the prescribed population, interpretation, and standalone build command.
 The following behaviors are not currently implemented:
 
 - automatic selection of QR or SVD;
-- QR or SVD fallback chains;
+- solver chains;
 - pseudoinverse, truncated-SVD, regularized, or minimum-norm recovery solves;
 - underdetermined systems;
 - `.qmom` configuration of QR or SVD rank tolerances;

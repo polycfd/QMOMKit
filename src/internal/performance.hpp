@@ -35,7 +35,6 @@ struct LinearAlgebraCounters
     std::size_t pivoted_qr_solves = 0;
     std::size_t svd_solves = 0;
     std::size_t dense_linear_solves = 0;
-    std::size_t dense_vandermonde_fallbacks = 0;
     std::size_t residual_checks = 0;
     std::size_t condition_estimates = 0;
 };
@@ -244,14 +243,6 @@ inline void record_dense_linear_solve() noexcept
     }
 }
 
-inline void record_vandermonde_fallback() noexcept
-{
-    if (PerformanceCounters* counters = active_counters())
-    {
-        ++counters->linear_algebra.dense_vandermonde_fallbacks;
-    }
-}
-
 inline void record_residual_check() noexcept
 {
     if (PerformanceCounters* counters = active_counters())
@@ -408,7 +399,6 @@ inline void record_cqmom_dynamic_metadata_build() noexcept {}
 inline void record_vandermonde_solve(VandermondeSolveKind) noexcept {}
 inline void record_bjorck_pereyra_transform_update() noexcept {}
 inline void record_dense_linear_solve() noexcept {}
-inline void record_vandermonde_fallback() noexcept {}
 inline void record_residual_check() noexcept {}
 inline void record_condition_estimate() noexcept {}
 inline void record_phase_space_evolution_macro_step() noexcept {}

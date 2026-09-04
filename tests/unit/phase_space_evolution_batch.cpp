@@ -66,7 +66,6 @@ void assert_cqmom_diagnostic_equal(const qmomkit::CqmomDiagnostics& actual, cons
     assert(actual.conditional_moment_diagnostics.conditioning_warning == expected.conditional_moment_diagnostics.conditioning_warning);
     assert(actual.conditional_vandermonde_requested_solver == expected.conditional_vandermonde_requested_solver);
     assert(actual.conditional_vandermonde_selected_solver == expected.conditional_vandermonde_selected_solver);
-    assert(actual.dense_vandermonde_fallback_occurred == expected.dense_vandermonde_fallback_occurred);
     assert(actual.message == expected.message);
     assert(actual.bounded_support_checked == expected.bounded_support_checked);
     assert(actual.bounded_support_interval_present == expected.bounded_support_interval_present);

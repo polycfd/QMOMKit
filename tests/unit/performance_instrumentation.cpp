@@ -398,7 +398,6 @@ void test_explicit_svd_vandermonde_records_only_svd_counter_when_enabled()
     assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
     assert(counters.linear_algebra.pivoted_qr_solves == 0);
     assert(counters.linear_algebra.dense_linear_solves == 0);
-    assert(counters.linear_algebra.dense_vandermonde_fallbacks == 0);
     assert(counters.linear_algebra.residual_checks == 1);
 #else
     assert(counters.linear_algebra.vandermonde_solves == 0);
@@ -406,7 +405,6 @@ void test_explicit_svd_vandermonde_records_only_svd_counter_when_enabled()
     assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
     assert(counters.linear_algebra.pivoted_qr_solves == 0);
     assert(counters.linear_algebra.dense_linear_solves == 0);
-    assert(counters.linear_algebra.dense_vandermonde_fallbacks == 0);
     assert(counters.linear_algebra.residual_checks == 0);
 #endif
 }
@@ -433,7 +431,6 @@ void test_explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_en
     assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
     assert(counters.linear_algebra.pivoted_qr_solves == 0);
     assert(counters.linear_algebra.dense_linear_solves == 0);
-    assert(counters.linear_algebra.dense_vandermonde_fallbacks == 0);
     assert(counters.linear_algebra.residual_checks == 0);
 #else
     assert(counters.linear_algebra.vandermonde_solves == 0);
@@ -441,7 +438,6 @@ void test_explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_en
     assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
     assert(counters.linear_algebra.pivoted_qr_solves == 0);
     assert(counters.linear_algebra.dense_linear_solves == 0);
-    assert(counters.linear_algebra.dense_vandermonde_fallbacks == 0);
     assert(counters.linear_algebra.residual_checks == 0);
 #endif
 }
@@ -709,8 +705,6 @@ void test_state_phase_space_evolution_source_update_skips_redundant_layout_valid
     assert(dense_counters.time_integration.source_rk_stages == 3);
     assert(lean_counters.phase_space_evolution.post_source_inversions == 1);
     assert(dense_counters.phase_space_evolution.post_source_inversions == 1);
-    assert(lean_counters.linear_algebra.dense_vandermonde_fallbacks == 0);
-    assert(dense_counters.linear_algebra.dense_vandermonde_fallbacks == 0);
 #else
     assert(lean_counters.reconstruction.moment_layout_builds == 0);
     assert(dense_counters.reconstruction.moment_layout_builds == 0);

@@ -193,7 +193,7 @@ The fixed-count sweep uses node counts $(2,2)$, fixed branch counts, and
 It produces
 
 $$
-8\ \delta\text{ values}\times2\ \text{orders}\times5\ \text{policies}=80
+8\ \delta\text{ values}\times2\ \text{orders}\times4\ \text{policies}=64
 $$
 
 fixed-count rows.
@@ -202,7 +202,7 @@ Two separate adaptive references use $\delta=0$ with adaptive branch counts
 enabled. Adaptive reduction occurs during Wheeler inversion, before the
 conditional Vandermonde solve. It is not triggered by QR or SVD. The adaptive
 rows represent lower-order quadratures and are not solver alternatives for the
-fixed two-node formulation.
+fixed two-node formulation. Together, the example produces 66 total rows.
 
 ## Build And Run
 

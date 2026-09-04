@@ -462,7 +462,7 @@ void write_markdown_report(const std::vector<RunRecord>& records, const std::fil
               "from the prescribed population, not copied from an internal QR or SVD factorization.\n\n";
 
     report << "## Results For Fixed Node Counts\n\n"
-              "The fixed sweep contains 80 reconstructions. "
+              "The fixed sweep contains 64 reconstructions. "
            << successful_fixed << " succeeded, " << conditional_failures << " failed in a conditional Vandermonde solve, and " << qmom_failures
            << " failed in a Wheeler or broader QMOM stage.\n\n"
               "| outcome | fixed-count rows |\n"

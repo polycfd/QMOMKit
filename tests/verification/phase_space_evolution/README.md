@@ -253,7 +253,12 @@ and verifies that source-stage coordinates are in the configured physical
 units after the first advection half-step, not normalized internal units.
 
 The `2e-9` scaled tolerance covers reconstruction and source-stage roundoff;
-the observed normalized errors are near machine precision.
+the observed normalized errors are near machine precision. This is
+scaling-enabled evolution interaction evidence: it verifies physical semantics
+through evolution, not that scaling is numerically necessary for this
+particular representation. The separate CQMOM feature-sensitive scaling
+verification establishes that necessity on a deliberately difficult raw-moment
+representation.
 
 ## CQMOM-Native Source Callback
 

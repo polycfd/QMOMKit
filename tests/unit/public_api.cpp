@@ -776,27 +776,25 @@ void test_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction
 
 void test_cqmom_automatic_scaling_falls_back_atomically_when_preparation_is_unsafe()
 {
-    // A denormal M[0,0] with finite second moments yields large physical
-    // coordinate scales.  The nonzero mixed M[1,1] cannot be represented
-    // after division by both scales, so preparation must be rejected before
-    // recursive CQMOM sees transformed data.  This deliberately fragile input
-    // is not a successful physical quadrature oracle; the contract tested here
-    // is that the public scaled request returns exactly the untouched unscaled
-    // failure result, including its physical diagnostics and empty quadrature.
+    // Finite normal second moments produce 1e-100 coordinate scales. The
+    // finite normal mixed M[1,1] then overflows when divided by both scales,
+    // so preparation must be rejected before recursive CQMOM sees transformed
+    // data. This is not a successful physical quadrature oracle; the contract
+    // is that the scaled request returns the untouched unscaled failure result,
+    // including physical diagnostics and empty quadrature.
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     qmomkit::CqmomMomentData moments{layout, std::vector<double>(layout.required_indices.size(), 1.0)};
-    const double denormal = std::numeric_limits<double>::denorm_min();
     const auto set_required = [&moments](const qmomkit::MultiIndex& index, const double value)
     {
         const auto found = std::find(moments.layout.required_indices.begin(), moments.layout.required_indices.end(), index);
         assert(found != moments.layout.required_indices.end());
         moments.values[static_cast<std::size_t>(std::distance(moments.layout.required_indices.begin(), found))] = value;
     };
-    set_required({0, 0}, 2.0 * denormal);
-    set_required({1, 0}, denormal);
-    set_required({0, 1}, denormal);
-    set_required({1, 1}, denormal);
+    set_required({0, 0}, 1.0);
+    set_required({2, 0}, 1.0e-200);
+    set_required({0, 2}, 1.0e-200);
+    set_required({1, 1}, 1.0e200);
 
     const auto scaling = qmomkit::internal::make_cqmom_scaling_context(moments, {});
     assert(!scaling.has_value());

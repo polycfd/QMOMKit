@@ -336,7 +336,7 @@ Benchmark structure and interpretation belong in `benchmarks.md`.
 ## Registered Root CTest Inventory
 
 This inventory lists every root CTest registration exactly once. It is current
-at the documented count of 113 tests.
+at the documented count of 114 tests.
 
 ### Unit Tests (32)
 
@@ -387,7 +387,7 @@ at the documented count of 113 tests.
 | `component_regression_cqmom_dense_lean_parity_3d` | Dense and lean CQMOM representation/workflow consistency | Compares layouts, reconstructed states, quadratures, and diagnostics across routes sharing the same reconstruction machinery | Consistency/regression evidence only; it is not an independent mathematical CQMOM oracle |
 | `component_regression_cqmom_physical_transport_probe` | Historical adaptive CQMOM ragged reinversion/state regression | Replays captured fixture data whose original generation provenance is not recoverable; it is therefore non-independent regression evidence | Four expected terminal paths recover, each final `u` branch reduces from two requested nodes to one, and active counts persist through two zero-rate state advances |
 
-### Verification Tests (72)
+### Verification Tests (74)
 
 | Verification test | What it verifies | How correctness is established | Important cases / criterion |
 |---|---|---|---|
@@ -420,6 +420,7 @@ at the documented count of 113 tests.
 | `verification_cqmom_independent_product_6d` | Six-dimensional product CQMOM | Independently prescribed one-dimensional rules are combined in phase-space order | Fixed topology, paths, local/global weights, coordinates, and moments match the known rule |
 | `verification_cqmom_mixed_affine_independent_4d` | Four-dimensional mixed affine/independent CQMOM | A prescribed terminal construction combines affine relations with independent rules | Expected paths, branch counts, local/global weights, coordinates, affine relations, and moments are checked |
 | `verification_cqmom_automatic_scaling_reference`, `verification_cqmom_automatic_scaling_rescaled` | Adaptive 3D automatic-scaling CQMOM covariance | A prescribed five-terminal ragged rule independently generates two complete configured tensors in units `(1,1,1)` and `(1e6,1e-6,1e3)` | Non-identity conditioning `{2,0,1}`, dense/lean routes, paths, active counts, physical coordinates, weights, mixed moments, and required-layout invariance |
+| `verification_cqmom_automatic_scaling_feature_sensitive` | Scaling-sensitive 3D adaptive CQMOM reconstruction | A prescribed five-terminal ragged physical rule in units `(1e8,1e-8,1e4)` independently generates the complete raw tensor | Scaling on recovers paths, topology, physical nodes, weights, and moments; scaling off must lose the prescribed five-terminal topology |
 | `verification_distribution_families_analytical` | Raw moments of normal, lognormal, beta, gamma, chi-square, chi, and Weibull families | Closed-form family formulas are evaluated independently of the implementation | Multiple parameters/orders, normalization, and invalid-parameter contracts; the Weibull--gamma identity is an additional consistency check |
 | `verification_distribution_mixtures_analytical` | Mixture raw-moment generation | Explicit component-density-weighted sums form the oracle | Bimodal/heterogeneous/multimodal mixtures, permutation invariance, odd-moment cancellation, zero density, and failures |
 | `verification_distribution_independent_products_analytical` | Multidimensional independent-product moments | Factorized marginal moments form each tensor entry independently | One- through three-dimensional products, signed odd moments, zero density, and overflow cases |

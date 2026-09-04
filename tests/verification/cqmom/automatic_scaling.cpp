@@ -15,6 +15,7 @@ namespace
 {
 
 constexpr double tolerance = 2.0e-10;
+constexpr double feature_sensitive_tolerance = 1.0e-10;
 
 struct Terminal
 {
@@ -92,8 +93,30 @@ std::vector<Terminal> recovered_terminals(const qmomkit::CqmomQuadrature& quadra
     return terminals;
 }
 
+qmomkit::RawMomentTensor moments_from_terminals(const std::vector<Terminal>& terminals, const std::vector<std::size_t>& extents)
+{
+    qmomkit::RawMomentTensor moments{extents, {}};
+    for (std::size_t a0 = 0; a0 < extents[0]; ++a0)
+    {
+        for (std::size_t a1 = 0; a1 < extents[1]; ++a1)
+        {
+            for (std::size_t a2 = 0; a2 < extents[2]; ++a2)
+            {
+                double value = 0.0;
+                for (const Terminal& terminal : terminals)
+                {
+                    value += terminal.weight * std::pow(terminal.coordinates[0], static_cast<int>(a0)) *
+                             std::pow(terminal.coordinates[1], static_cast<int>(a1)) * std::pow(terminal.coordinates[2], static_cast<int>(a2));
+                }
+                moments.values.push_back(value);
+            }
+        }
+    }
+    return moments;
+}
+
 void check_result(const std::string& route, const qmomkit::CqmomResult& result, const qmomkit::RawMomentTensor& configured,
-                  const std::vector<double>& units, Errors& errors, bool& passed)
+                  const std::vector<double>& units, Errors& errors, bool& passed, const bool require_diagnostic_counts = true)
 {
     if (!result.ok())
     {
@@ -142,7 +165,7 @@ void check_result(const std::string& route, const qmomkit::CqmomResult& result, 
             passed = false;
         }
     }
-    if (actual_counts != expected_counts)
+    if (require_diagnostic_counts && actual_counts != expected_counts)
     {
         std::cerr << route << " active branch counts differ from the prescribed ragged topology.\n";
         passed = false;
@@ -155,13 +178,76 @@ void check_result(const std::string& route, const qmomkit::CqmomResult& result, 
     }
 }
 
+int run_feature_sensitive_case()
+{
+    // The same prescribed ragged terminal rule as the covariance interaction
+    // case is represented in deliberately disparate physical units. The
+    // factors create mixed raw moments from approximately 1e-24 to 1e36 while
+    // the normalized terminal rule and its moments remain O(1). The neighboring
+    // probe at (1e6, 1e-6, 1e3) reconstructs without scaling; this stronger,
+    // but still finite and non-singular, representation establishes that the
+    // automatic-scaling path changes the outcome.
+    const std::vector<double> units{1.0e8, 1.0e-8, 1.0e4};
+    const std::vector<Terminal> expected = physical_reference(units);
+    const qmomkit::RawMomentTensor moments = moments_from_terminals(expected, {4, 4, 4});
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
+
+    qmomkit::QmomOptions scaled_options;
+    scaled_options.adaptive = true;
+    scaled_options.automatic_scaling = true;
+    const qmomkit::CqmomDenseCase scaled_case{hierarchy, moments, {}, scaled_options, true};
+
+    bool passed = true;
+    Errors scaled_errors;
+    const qmomkit::CqmomResult scaled = qmomkit::compute_cqmom(scaled_case);
+    check_result("feature-sensitive scaled", scaled, moments, units, scaled_errors, passed, false);
+    if (scaled_errors.node > feature_sensitive_tolerance || scaled_errors.weight > feature_sensitive_tolerance ||
+        scaled_errors.moment > feature_sensitive_tolerance)
+    {
+        std::cerr << "automatic scaling did not recover the independently prescribed physical rule.\n";
+        passed = false;
+    }
+
+    qmomkit::CqmomDenseCase unscaled_case = scaled_case;
+    unscaled_case.qmom_options.automatic_scaling = false;
+    const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(unscaled_case);
+    const std::size_t unscaled_terminal_count = unscaled.ok() ? unscaled.quadrature.weights().size() : 0;
+    if (!unscaled.ok() || unscaled_terminal_count >= expected.size())
+    {
+        std::cerr << "The deliberately difficult unscaled representation did not lose the prescribed five-terminal topology.\n";
+        passed = false;
+    }
+
+    double unscaled_moment_error = 0.0;
+    if (unscaled.ok())
+    {
+        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(unscaled.quadrature, moments.extents);
+        for (std::size_t index = 0; index < moments.values.size(); ++index)
+        {
+            unscaled_moment_error = std::max(unscaled_moment_error, relative_error(reconstructed.values[index], moments.values[index]));
+        }
+    }
+
+    std::cout << std::scientific << std::setprecision(4)
+              << "feature_sensitive units=(1e8,1e-8,1e4) scaled_terminals=" << (scaled.ok() ? scaled.quadrature.weights().size() : 0)
+              << " scaled_node_error=" << scaled_errors.node << " scaled_weight_error=" << scaled_errors.weight
+              << " scaled_moment_error=" << scaled_errors.moment << " scaled_tolerance=" << feature_sensitive_tolerance
+              << " unscaled_terminals=" << unscaled_terminal_count << " unscaled_moment_error=" << unscaled_moment_error
+              << " verdict=" << (passed ? "PASS" : "FAIL") << '\n';
+    return passed ? 0 : 1;
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "feature-sensitive")
+    {
+        return run_feature_sensitive_case();
+    }
     if (argc != 3)
     {
-        std::cerr << "Usage: automatic_scaling <configuration.qmom> <reference|rescaled>\n";
+        std::cerr << "Usage: automatic_scaling <configuration.qmom> <reference|rescaled> | feature-sensitive\n";
         return 2;
     }
 

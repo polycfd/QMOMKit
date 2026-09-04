@@ -17,8 +17,7 @@ to build and run the test suite.
 From the repository root, configure, build, and install the core package:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
+cmake -S . -B build 
 cmake --build build
 cmake --install build
 ```
@@ -54,30 +53,13 @@ Normal unit, regression, verification, and public-header tests link the current
 build-tree QMOMKit target. Installation is not required:
 
 ```bash
-cmake -S . -B build-tests \
-    -DQMOMKIT_BUILD_TESTS=ON \
-    -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build-tests -DQMOMKIT_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
 cmake --build build-tests
 ctest --test-dir build-tests --output-on-failure
 ```
 
 For more detailed test selection, such as running only unit or verification
-tests, see `tests/README.md`.
-
-The package consumer tests installation and downstream `find_package` behavior.
-It is separate from the normal correctness test suite:
-
-```bash
-cmake -S . -B build \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
-cmake --build build --target install
-
-cmake -S tests/package_consumer \
-    -B build-package-consumer \
-    -DCMAKE_PREFIX_PATH="$PWD/install"
-cmake --build build-package-consumer
-./build-package-consumer/consumer
-```
+tests, see [tests/README.md](../../tests/README.md).
 
 ## Build Examples
 
@@ -86,10 +68,7 @@ from its own directory after installing QMOMKit:
 
 ```bash
 cd examples/qmom_explicit_moments
-
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../../install"
-
+cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
 cmake --build build
 cd build
 ./qmom_explicit_moments_example
@@ -124,17 +103,6 @@ This builds the Monte Carlo library and the user-facing
 the companion package into the same repository-local `install/` prefix. It
 does not run tests.
 
-Run the sample-based QMOM example with:
-
-```bash
-./tools/monte_carlo/build/monte_carlo_sample_based_initialization_example \
-    tools/monte_carlo/configuration/qmom_distribution_lognormal.qmom \
-    tools/monte_carlo/build/sample_based_qmom
-```
-
-The driver writes `.txt` text tables with commented headers and
-whitespace-delimited columns.
-
 Run Monte Carlo tests separately when developing or validating the package:
 
 ```bash
@@ -151,8 +119,7 @@ An example or separate project that uses the companion package can point
 `CMAKE_PREFIX_PATH` at the shared prefix:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="/path/to/QMOMKit/install"
+cmake -S . -B build -DCMAKE_PREFIX_PATH="/path/to/QMOMKit/install"
 ```
 
 For more detail, see [Monte Carlo Companion Package](monte_carlo.md).

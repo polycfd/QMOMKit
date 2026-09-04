@@ -11,7 +11,7 @@ Copyright (c) 2021 - 2023 jothepro
 
 html {
     /* primary theme color. This will affect the entire websites color scheme: links, arrows, labels, ... */
-    --primary-color: #1779c4;
+    --primary-color: #5e754b;
     --primary-dark-color: #335c80;
     --primary-light-color: #70b1e9;
 
@@ -169,7 +169,7 @@ html {
     html:not(.light-mode) {
         color-scheme: dark;
 
-        --primary-color: #1982d2;
+        --primary-color: #a0c285;
         --primary-dark-color: #86a9c4;
         --primary-light-color: #4779ac;
 
@@ -230,7 +230,7 @@ html {
 html.dark-mode {
     color-scheme: dark;
 
-    --primary-color: #1982d2;
+    --primary-color: #a0c285;
     --primary-dark-color: #86a9c4;
     --primary-light-color: #4779ac;
 

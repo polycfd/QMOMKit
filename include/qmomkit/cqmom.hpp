@@ -177,8 +177,8 @@ struct CqmomMomentData
  *
  * `moments` is a raw multidimensional moment tensor flattened in phase-space
  * dimension order. `hierarchy` supplies the phase-space node counts and the
- * conditioning order used by the CQMOM construction. Diagnostic level
- * Diagnostics are opt-in. `detailed` preserves residual and condition-estimate
+ * conditioning order used by the CQMOM construction. Diagnostics are opt-in.
+ * `detailed` preserves residual and condition-estimate
  * reporting; lower levels may leave optional expensive diagnostic values
  * unavailable.
  */

@@ -83,11 +83,10 @@ one global weight and one abscissa per phase-space dimension.
 Set `QmomOptions::automatic_scaling = true` on the shared CQMOM QMOM options,
 or set `automatic_scaling = true` in the configuration `[phase_space]`
 section. The default is `false`. CQMOM selects one scale for each physical
-coordinate from the complete current required moment set, transforms the whole
-recursive problem once, and converts terminal nodes and bounded-support
-diagnostics back to physical coordinates. It never applies branch-local second
-scaling. Raw moments, weights, callbacks, states, and configured coordinate
-supports keep their physical meaning.
+coordinate from the complete current required moment set, transforms the
+recursive problem, then returns nodes and bounded-support diagnostics in
+physical coordinates. Raw moments, weights, callbacks, states, and configured
+coordinate supports keep their physical meaning.
 
 `CqmomCase` is the representation-neutral immutable setup produced by the normal
 configuration loader. Normal CQMOM phase-space evolution creates `CqmomState` from
@@ -228,10 +227,9 @@ This line may be omitted when using the default. Supported values are:
 | `svd` | Uses SVD with rank and convergence checks. |
 | `bjorck_pereyra` | Uses Björck-Pereyra. |
 
-QR and SVD rank-deficient systems fail, and SVD nonconvergence also fails.
-QMOMKit does not silently return a pseudoinverse or regularized solution in
-these paths. See [configuration.md](configuration.md) for exact syntax and
-policy behavior. Developer-level numerical details are in
+QR and SVD report rank-deficient systems; SVD also reports nonconvergence. See
+[configuration.md](configuration.md) for exact syntax and policy behavior.
+Developer-level numerical details are in
 [Internal Linear Algebra](../developer/linear_algebra.md).
 
 ### Reconstruction Diagnostics

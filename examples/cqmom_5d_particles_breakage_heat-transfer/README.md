@@ -8,7 +8,7 @@ $$
 M_{p,q,r,s,t}=\int V^pT^qu^rv^sw^t f(V,T,u,v,w)\,\mathrm{d}V\,\mathrm{d}T\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w.
 $$
 
-Thus $M_{0,0,0,0,0}$ is number density and $M_{1,0,0,0,0}$ is total particle volume. The configuration fixes two CQMOM nodes in every dimension, disables adaptive branch counts, uses conditioning order $(0,1,2,3,4)$, and enables QMOMKit's automatic reconstruction scaling. The physical phase space is therefore $(V,T,u,v,w)$ with $V$ in m$^3$, $T$ in K, and velocities in m s$^{-1}$; no artificial reduced-temperature representation is required for reconstruction conditioning.
+Thus $M_{0,0,0,0,0}$ is number density and $M_{1,0,0,0,0}$ is total particle volume. The configuration uses two fixed CQMOM nodes in every dimension, conditioning order $(0,1,2,3,4)$, and automatic reconstruction scaling. The physical phase space is $(V,T,u,v,w)$ with $V$ in m$^3$, $T$ in K, and velocities in m s$^{-1}$.
 
 ## Initialization and continuous evolution
 
@@ -81,7 +81,7 @@ cd examples/cqmom_5d_particles_breakage_heat-transfer/build
 ./cqmom_5d_particles_breakage_heat_transfer_mc_example
 ```
 
-The configured Strang-split CQMOM run and the MC companion advance from $0$ to $0.1$ s with an outer step of $0.001$ s. The MC path applies half continuous heat-transfer advection, breakage, then half continuous advection, with fixed initialization and breakage seeds.
+The configured Strang-split CQMOM run and the MC companion advance from $0$ to $0.1$ s with an outer step of $0.001$ s. The MC path applies half-step heat-transfer advection, breakage, then another half step, with fixed initialization and breakage seeds.
 
 This advanced five-dimensional example can take longer than the introductory
 examples. The direct Monte Carlo companion is substantially more expensive

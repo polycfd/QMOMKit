@@ -9,9 +9,9 @@ moment-source representation of binary breakup. The MC executable uses the
 same sampled initial population and physical rules, but realizes breakup as
 stochastic particle events.
 
-The example concerns phase-space evolution only. It does not model a mesh,
-physical-space transport, particle-particle collisions, or feedback to a
-carrier-flow solver.
+The example advances a spatially uniform phase-space population. A host
+application would supply any physical-space transport, collisions, or
+carrier-flow coupling.
 
 ## Phase space and moments
 
@@ -46,8 +46,7 @@ M_{a,b,c,e,g} =
 \,\mathrm{d}d\,\mathrm{d}\chi\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w.
 $$
 
-In particular, `M[0,0,0,0,0]` is total number density; QMOMKit does not
-implicitly normalize it to one.
+In particular, `M[0,0,0,0,0]` is total number density.
 
 ## Particle phase-space model
 
@@ -104,8 +103,8 @@ $$
 \frac{\mathrm{d}\chi}{\mathrm{d}t} = \frac{1-\chi}{2\ \mathrm{s}}.
 $$
 
-The physical domain of the shape correlation is `0 <= chi <= 1`. The model
-does not clamp `chi` in the velocity callback.
+The shape correlation uses `0 <= chi <= 1`; the configuration supplies this
+interval as CQMOM support.
 
 ## Binary breakup
 

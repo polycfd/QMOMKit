@@ -108,55 +108,20 @@ target_link_libraries(example_target PRIVATE qmomkit_monte_carlo::qmomkit_monte_
 
 ## Build Pattern
 
-From the repository root, install QMOMKit into the repository-local `install/`
-prefix:
-
-```bash
-cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
-
-cmake --build build
-cmake --install build
-```
-
-For Monte Carlo examples, install the companion package into the same prefix:
-
-```bash
-cmake -S tools/monte_carlo -B tools/monte_carlo/build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_PREFIX_PATH="$PWD/install" \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
-
-cmake --build tools/monte_carlo/build
-cmake --install tools/monte_carlo/build
-```
-
-From an individual standard QMOMKit example directory, configure against an
-installed QMOMKit package:
+Install QMOMKit first, as described in the [installation guide](../docs/user/installation.md).
+From an example directory, configure against that install prefix:
 
 ```bash
 cd examples/example_name
-
-cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/qmomkit
 cmake --build build
-```
-
-Examples using the Monte Carlo package use the same prefix:
-
-```bash
-cd examples/example_name
-
-cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
-cmake --build build
-```
-
-Run from the example build directory:
-
-```bash
 cd build
 ./example_executable
 ```
+
+Examples using the Monte Carlo companion ti produce reference results
+need `QMOMKitMonteCarlo` installed to the same prefix;
+see its [README](../tools/monte_carlo/README.md).
 
 Examples with a local `configuration.qmom` copy it into `build/` during CMake
 configuration, so generated output is written under the build directory.

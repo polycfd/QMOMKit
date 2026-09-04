@@ -204,7 +204,7 @@ tests/
             README.md
             runge_kutta_analytical.cpp
             runge_kutta_convergence.cpp
-        phase-space evolution/
+        phase_space_evolution/
             README.md
             phase_space_evolution_analytical.cpp
             *.qmom

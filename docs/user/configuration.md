@@ -651,9 +651,8 @@ callbacks, phase-space states, configured bounds, returned nodes, and bounded
 support diagnostics remain in physical coordinates. QMOMKit selects one
 positive scale per physical coordinate from the current raw moments, preferring
 the RMS scale `sqrt(M[2e_d] / M[0])`, then the magnitude of the mean, and
-finally one. It does not center coordinates or normalize total number density.
-For CQMOM, scales are selected once from the complete required moment set before
-recursive conditioning; branch-local scaling is not used.
+finally one. For CQMOM, scales are selected once from the complete required
+moment set before recursive conditioning.
 
 Configured bounds are mapped to the normalized reconstruction only internally.
 The bounded-reconstruction tolerance therefore applies in normalized
@@ -741,12 +740,9 @@ requested explicitly:
 solver = svd
 ```
 
-A rank-deficient conditional Vandermonde matrix makes the solve fail, and SVD
-Jacobi nonconvergence is also reported as a failure. QMOMKit does not compute a
-truncated, regularized, minimum-norm, or pseudoinverse solution in these paths.
-SVD rank and Jacobi tolerances are internal defaults and are not configurable
-through `.qmom` files. Loaded CQMOM cases and states expose the configured
-policy through `vandermonde_solver()`.
+Rank-deficient systems and SVD nonconvergence are reported as failures. SVD
+rank and Jacobi tolerances are internal defaults. Loaded CQMOM cases and states
+expose the configured policy through `vandermonde_solver()`.
 
 ### Fixed And Adaptive CQMOM
 

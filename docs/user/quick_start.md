@@ -1,16 +1,10 @@
 # QMOMKit Quick Start
 
-QMOMKit turns raw moments into quadrature representations that can be used by a
-larger application or validation workflow. This is useful when a research code
-stores a reduced set of moments, but a modelling step needs representative
-weighted nodes: for example to evaluate a closure, move a population through
-phase space, write interpretable output, or compare with sampled data.
-
-QMOMKit does not define a physical model, mesh, PDE discretization, solver loop,
-or persistent probability-density object. It converts moments to quadrature,
-stores the case setup, and, when phase-space evolution is used, tracks the state advanced by
-the phase-space evolution helper. Your application defines the meaning of the coordinates
-and the equations that generate or evolve the moments.
+QMOMKit turns raw moments into quadrature representations for use in a larger
+application or validation workflow. Use the resulting weighted nodes to
+evaluate closures, evolve a population through phase space, write output, or
+compare with sampled data. Your application supplies the coordinate meanings
+and physical rate laws.
 
 The basic workflow is:
 

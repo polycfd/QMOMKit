@@ -6,15 +6,10 @@ full distribution function, a caller provides raw moments such as `m0`, `m1`,
 and `m2`. QMOMKit reconstructs weights and abscissas whose raw moments match
 the supplied sequence.
 
-This is useful when an application naturally stores or evolves moments, but
-later needs representative nodes for evaluation, evolution, output, or
-coupling to another numerical step.
-
-In a modelling workflow, the split of responsibilities is simple. The
-application decides what the coordinate represents, how moments are obtained,
-and how reconstructed nodes are used. QMOMKit checks the numerical request,
-performs the inversion, keeps weights aligned with sorted abscissas, and
-reports whether the requested quadrature was accepted.
+Use it when an application stores or evolves moments and needs representative
+nodes for evaluation, output, or another numerical step. The application
+defines the coordinate and moment model; QMOMKit performs the inversion and
+reports whether the quadrature was accepted.
 
 QMOMKit uses raw, unnormalized moments:
 
@@ -74,7 +69,7 @@ scaled, set `QmomOptions::automatic_scaling = true`. QMOMKit chooses a
 positive scale from the current `m0`, `m1`, and `m2`, reconstructs in the
 scaled coordinate, and returns nodes in the original physical coordinate.
 Weights and the unnormalized `m0` convention are unchanged. The default is
-`false`; an unusable transformation follows the ordinary unscaled path.
+`false`.
 
 In a `.qmom` case, use `automatic_scaling = true` in `[phase_space]`, not in
 `[qmom]`. Physical support bounds are returned and diagnosed in their configured
@@ -158,9 +153,8 @@ const double m_one_third =
 
 Generalized moment evaluation applies the quadrature formula directly. The same
 idea is available for CQMOM quadrature with a phase-space-order exponent vector.
-These values are post-processing quantities, not QMOM or CQMOM inversion inputs,
-phase_space_evolved state, native `MomentSet` values, `CqmomMomentData`, or
-`RawMomentTensor` entries. Non-integer exponents require non-negative abscissas.
+These values are derived post-processing quantities. Non-integer exponents
+require non-negative abscissas.
 
 ## Options And Diagnostics
 

@@ -6,7 +6,7 @@ workflow.
 
 QMOMKit helps when a model is naturally expressed through moments of a number
 density function, but a later step needs a compact quadrature representation.
-For example, a population-balance or reduced-order model may phase-space evolution raw
+For example, a population-balance or reduced-order model may evolve raw
 moments, then need weighted nodes for evaluating closures, evolving
 phase-space coordinates, writing diagnostics, or comparing against a reference
 calculation.
@@ -25,10 +25,9 @@ QMOMKit provides the reusable numerical pieces for that workflow:
   realizations and validation references.
 
 QMOMKit keeps moment ordering consistent, reconstructs quadrature rules,
-initializes configured cases, reports failures, and updates phase-space evolution state when
-phase-space evolution is used. Your application provides the physical interpretation:
-variables, units, meshes or sample locations, velocity and source callbacks,
-timestep policy, boundary conditions, and application-specific physics.
+initializes configured cases, reports failures, and updates phase-space
+evolution state. Your application provides the coordinate meanings, units,
+velocity and source callbacks, timestep policy, and application physics.
 
 ## Intended Audience
 

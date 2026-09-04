@@ -106,6 +106,8 @@ callgrind.out.*
 # Generated documentation
 docs/html/
 docs/latex/
+docs/doxygen/html/
+docs/doxygen/DoxygenWarningLog.txt
 
 # Python environments 
 .venv

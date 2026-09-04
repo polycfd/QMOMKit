@@ -222,12 +222,12 @@ This line may be omitted when using the default. Supported values are:
 
 | Value | Practical meaning |
 |---|---|
-| `automatic` | Recommended general default; currently uses Björck-Pereyra with eligible dense fallback. |
-| `dense` | Explicit dense Gaussian-elimination solve. |
-| `pivoted_qr` | Explicit pivoted-QR solve with numerical-rank detection and no fallback. |
-| `svd` | Explicit SVD solve with rank and convergence checks and no fallback. |
-| `bjorck_pereyra` | Explicit structured Vandermonde solve with no fallback. |
-| `bjorck_pereyra_with_dense_fallback` | Structured solve followed by eligible dense fallback. |
+| `automatic` | Default policy; uses Björck-Pereyra. |
+| `dense` | Uses dense Gaussian elimination. |
+| `pivoted_qr` | Uses pivoted QR with numerical-rank detection. |
+| `svd` | Uses SVD with rank and convergence checks. |
+| `bjorck_pereyra` | Uses Björck-Pereyra. |
+| `bjorck_pereyra_with_dense_fallback` | Uses Björck-Pereyra and retries with the dense solver if that solve fails or is rejected. |
 
 QR and SVD rank-deficient systems fail, and SVD nonconvergence also fails.
 QMOMKit does not silently return a pseudoinverse or regularized solution in

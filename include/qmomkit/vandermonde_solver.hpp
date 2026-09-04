@@ -6,11 +6,10 @@ namespace qmomkit
 /**
  * User-facing Vandermonde solver selection for CQMOM conditional moment solves.
  *
- * `automatic` preserves QMOMKit's default behavior: try the
- * Vandermonde-specific Björck-Pereyra algorithm with residual validation and
- * use the dense solver as fallback when validation or the fast solve fails.
- * `pivoted_qr` and `svd` are explicit policies and are not selected by
- * `automatic`.
+ * `automatic` is the default policy and uses the Björck-Pereyra solver.
+ * `bjorck_pereyra_with_dense_fallback` retries with the dense solver when the
+ * Björck-Pereyra solve fails or is rejected.
+ * `pivoted_qr` and `svd` select their respective direct solvers.
  */
 enum class VandermondeSolver
 {

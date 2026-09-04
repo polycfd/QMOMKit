@@ -232,7 +232,7 @@ int main(const int argc, char** argv)
     verify_configured_moments(configured.value().moments, prescribed_moments);
 
     const std::vector<SolverPolicy> policies{
-        {qmomkit::VandermondeSolver::automatic, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, "automatic"},
+        {qmomkit::VandermondeSolver::automatic, qmomkit::VandermondeSolver::bjorck_pereyra, "automatic"},
         {qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::dense, "dense"},
         {qmomkit::VandermondeSolver::pivoted_qr, qmomkit::VandermondeSolver::pivoted_qr, "pivoted_qr"},
         {qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd, "svd"},

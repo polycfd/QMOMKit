@@ -119,8 +119,10 @@ construction. Fixed normal CQMOM workflows also report prepared-metadata
 builds, prepared-metadata uses, and dynamic-metadata builds.
 
 Linear algebra counters summarize Vandermonde and dense solve work, including
-Vandermonde solves, solver paths, dense fallback usage, residual checks, and
-condition estimates.
+Vandermonde solves, solver paths, BP transform updates, dense fallback usage,
+residual checks, and condition estimates. BP transform updates count the
+innermost-loop RHS updates in the two BP transforms; they are deterministic
+kernel-work counts, not timings.
 
 Phase-space evolution counters summarize operator-split phase-space evolution work, including macro
 steps, advection and moment-source operator applications, moment

@@ -1613,7 +1613,7 @@ void test_recursive_bp_success_independent_of_diagnostic_level()
     }
 }
 
-void test_recursive_automatic_uses_bp_fallback_for_small_branches()
+void test_recursive_automatic_uses_plain_bp_for_small_branches()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
     const std::vector<std::size_t> extents{4, 4};
@@ -1637,7 +1637,7 @@ void test_recursive_automatic_uses_bp_fallback_for_small_branches()
         if (diagnostics.conditioning_level + 1 < hierarchy.number_of_dimensions())
         {
             assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::automatic);
-            assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
+            assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
             assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra);
             assert(!diagnostics.dense_vandermonde_fallback_occurred);
         }
@@ -1953,7 +1953,7 @@ void run_all_recursive_quadrature_tests()
     test_recursive_dense_and_pivoted_qr_equivalence_fixed();
     test_recursive_dense_and_svd_equivalence_fixed();
     test_recursive_bp_success_independent_of_diagnostic_level();
-    test_recursive_automatic_uses_bp_fallback_for_small_branches();
+    test_recursive_automatic_uses_plain_bp_for_small_branches();
     test_recursive_automatic_independent_of_diagnostic_level();
     test_recursive_dense_and_bp_fallback_equivalence_adaptive();
     test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch();
@@ -2027,7 +2027,7 @@ void run_solver_policy_tests()
     test_recursive_dense_and_pivoted_qr_equivalence_fixed();
     test_recursive_dense_and_svd_equivalence_fixed();
     test_recursive_bp_success_independent_of_diagnostic_level();
-    test_recursive_automatic_uses_bp_fallback_for_small_branches();
+    test_recursive_automatic_uses_plain_bp_for_small_branches();
     test_recursive_automatic_independent_of_diagnostic_level();
     test_recursive_dense_and_bp_fallback_equivalence_adaptive();
     test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch();

@@ -341,28 +341,27 @@ QMOMKit calls the numerical policy that solves this conditional system the
 Vandermonde solver. The user-facing solver choices are:
 
 - Dense solver: a generic dense linear solve of the weighted system.
-- Pivoted-QR solver: an explicit direct solve of the weighted system with no
-  fallback.
-- SVD solver: an explicit direct solve of the weighted system with no fallback.
-- Björck-Pereyra Vandermonde solver: the structured unweighted BP transform plus
-  adapter-owned weight recovery, without fallback.
-- Automatic solver: the default; it resolves to the fallback-capable
-  Björck-Pereyra policy.
+- Pivoted-QR solver: an explicit direct solve of the weighted system.
+- SVD solver: an explicit direct solve of the weighted system.
+- Björck-Pereyra Vandermonde solver: the unweighted BP transform plus
+  adapter-owned weight recovery.
+- Automatic solver: the default; it resolves to Björck-Pereyra.
 - Björck-Pereyra with dense fallback: tries BP, requires BP residual acceptance,
-  and uses the dense solver when the BP attempt fails or is rejected.
+  and retries with the dense solver when the BP attempt fails or is rejected.
 
 The distinction between requested solver and actual algorithm is deliberate.
 Diagnostics record the requested Vandermonde solver, the selected solver after
 automatic resolution, the algorithm actually used (`dense`, `pivoted_qr`,
 `svd`, or `bjorck_pereyra`), and whether dense fallback occurred. For example, the
 default request is `automatic`; recursive CQMOM resolves that to
-`bjorck_pereyra_with_dense_fallback`; a difficult branch may then report that
-the dense algorithm was actually used and that dense fallback occurred.
+`bjorck_pereyra` and reports the Björck-Pereyra algorithm.
+An explicitly requested `bjorck_pereyra_with_dense_fallback` policy may instead
+report the dense algorithm and that dense fallback occurred.
 
-The default behavior remains automatic Björck-Pereyra with residual validation
-and dense fallback. Explicit pivoted QR and SVD honor the adapter
-residual-validation option when requested, but residual rejection is a failed
-conditional Vandermonde solve rather than a fallback trigger. Recursive
+The default behavior is automatic Björck-Pereyra. Explicit pivoted QR and SVD
+honor the adapter residual-validation option when requested, but residual
+rejection is a failed conditional Vandermonde solve rather than a fallback
+trigger. Recursive
 diagnostic level controls diagnostic retention and expensive diagnostic
 computations; it does not itself request residual rejection. Solver thresholds
 and performance measurements belong in `linear_algebra.md`, source comments,

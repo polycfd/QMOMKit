@@ -313,20 +313,20 @@ int main(const int argc, char** argv)
     }
 
     const std::filesystem::path case_directory = argv[1];
-    const std::vector<SolverCase> cases{
-        {"automatic", case_directory / "automatic.qmom", qmomkit::VandermondeSolver::automatic,
-         qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false},
-        {"dense", case_directory / "dense.qmom", qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::dense,
-         qmomkit::internal::VandermondeAlgorithm::dense, false},
-        {"pivoted_qr", case_directory / "pivoted_qr.qmom", qmomkit::VandermondeSolver::pivoted_qr, qmomkit::VandermondeSolver::pivoted_qr,
-         qmomkit::internal::VandermondeAlgorithm::pivoted_qr, false},
-        {"svd", case_directory / "svd.qmom", qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd,
-         qmomkit::internal::VandermondeAlgorithm::svd, false},
-        {"bjorck_pereyra", case_directory / "bjorck_pereyra.qmom", qmomkit::VandermondeSolver::bjorck_pereyra,
-         qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false},
-        {"bjorck_pereyra_with_dense_fallback", case_directory / "bjorck_pereyra_with_dense_fallback.qmom",
-         qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback,
-         qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false}};
+    const std::vector<SolverCase> cases{{"automatic", case_directory / "automatic.qmom", qmomkit::VandermondeSolver::automatic,
+                                         qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false},
+                                        {"dense", case_directory / "dense.qmom", qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::dense,
+                                         qmomkit::internal::VandermondeAlgorithm::dense, false},
+                                        {"pivoted_qr", case_directory / "pivoted_qr.qmom", qmomkit::VandermondeSolver::pivoted_qr,
+                                         qmomkit::VandermondeSolver::pivoted_qr, qmomkit::internal::VandermondeAlgorithm::pivoted_qr, false},
+                                        {"svd", case_directory / "svd.qmom", qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd,
+                                         qmomkit::internal::VandermondeAlgorithm::svd, false},
+                                        {"bjorck_pereyra", case_directory / "bjorck_pereyra.qmom", qmomkit::VandermondeSolver::bjorck_pereyra,
+                                         qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false},
+                                        {"bjorck_pereyra_with_dense_fallback", case_directory / "bjorck_pereyra_with_dense_fallback.qmom",
+                                         qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback,
+                                         qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback,
+                                         qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false}};
 
     VerificationResult verification;
     std::vector<qmomkit::CqmomResult> computed;

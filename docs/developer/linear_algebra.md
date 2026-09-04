@@ -154,9 +154,9 @@ solution.
 ### Current QMOMKit Role
 
 The dense solver is used by the explicit `dense` Vandermonde policy and as the
-dense fallback target for `automatic` and
-`bjorck_pereyra_with_dense_fallback`. The public one-level conditional-moment
-utility also solves its weighted system directly with the dense solver.
+dense fallback target for `bjorck_pereyra_with_dense_fallback`. The public
+one-level conditional-moment utility also solves its weighted system directly
+with the dense solver.
 
 ### Limitations And Non-Goals
 
@@ -192,10 +192,14 @@ weights belong to the conditional Vandermonde adapter.
 
 ### Algorithm
 
-The implementation applies structured \(O(n^2)\) Vandermonde transformations
+The implementation applies structured \(\Theta(n^2 r)\) Vandermonde transformations
 equivalent to divided-difference and Newton-basis operations. It avoids forming
 or factoring a generic dense matrix and applies the same structured operations
-to every right-hand-side column.
+to every right-hand-side column, where \(n\) is the Vandermonde size and \(r\)
+is the right-hand-side width. For fixed \(r\), the kernel work is
+\(\Theta(n^2)\). Optional internal instrumentation counts the executed
+transform updates exactly as \(n(n-1)r\); this is a deterministic work-structure
+check, not a wall-clock performance guarantee.
 
 ### Supported Shapes And Right-Hand Sides
 
@@ -461,17 +465,16 @@ Vandermonde solves. User-facing syntax and examples belong in
 
 | Requested policy | Backend sequence |
 |---|---|
-| `dense` | Dense only |
-| `pivoted_qr` | Pivoted QR only |
-| `svd` | SVD only |
-| `bjorck_pereyra` | BP only |
-| `bjorck_pereyra_with_dense_fallback` | BP, followed by eligible dense fallback |
-| `automatic` | BP with eligible dense fallback |
+| `dense` | Dense solve |
+| `pivoted_qr` | Pivoted QR solve |
+| `svd` | SVD solve |
+| `bjorck_pereyra` | Björck-Pereyra solve |
+| `bjorck_pereyra_with_dense_fallback` | Björck-Pereyra solve, then dense retry if needed |
+| `automatic` | Björck-Pereyra solve |
 
-`automatic` currently resolves to `bjorck_pereyra_with_dense_fallback`. QR and
-SVD are explicit-only policies. They are not selected by `automatic`, and they
-do not fall back to dense or any other backend. Fallback is owned by the
-conditional Vandermonde adapter, not by the numerical kernels.
+`automatic` resolves to `bjorck_pereyra`. QR and SVD are explicit policies.
+The conditional Vandermonde adapter owns the dense retry for
+`bjorck_pereyra_with_dense_fallback`.
 
 ## Failure, Rank, Residual, And Tolerance Semantics
 
@@ -489,9 +492,9 @@ minimum-norm solutions.
 ### Residual Validation
 
 Explicit BP, QR, and SVD policies use residual validation when requested by
-`VandermondeSolveOptions::validate_residual`. BP-with-dense-fallback and
-`automatic` require BP residual acceptance before retaining the BP result.
-Residual rejection in fallback-capable policies may lead to a dense retry.
+`VandermondeSolveOptions::validate_residual`. BP-with-dense-fallback requires
+BP residual acceptance before retaining the BP result. Residual rejection in
+that fallback-capable policy may lead to a dense retry.
 Explicit QR and SVD residual rejection returns failure without fallback.
 Recursive diagnostics do not themselves request residual validation; they
 compute diagnostic residuals after successful branch-local solves when detailed

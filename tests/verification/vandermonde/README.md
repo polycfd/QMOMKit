@@ -42,8 +42,8 @@ resolution:
 - `bjorck_pereyra`
 
 For this well-conditioned case, `automatic` is expected to resolve to
-`bjorck_pereyra_with_dense_fallback` and use the Björck-Pereyra algorithm
-without dense fallback. `pivoted_qr` is an explicit policy only and is expected
+`bjorck_pereyra` and use the Björck-Pereyra algorithm without dense fallback.
+`pivoted_qr` is an explicit policy only and is expected
 to solve the weighted conditional Vandermonde system directly. `svd` is also an
 explicit policy only and is expected to solve the weighted conditional
 Vandermonde system directly without dense fallback.
@@ -108,12 +108,11 @@ clustered enough to make the conditional solve meaningful without approaching
 the effectively unstable `delta = 0.001` geometry.
 
 Every policy must recover the independently prescribed fixed topology, nodes,
-weights, and all mixed moments. `automatic` resolves to
-`bjorck_pereyra_with_dense_fallback`; both fallback-capable policies are
-required to retain their Björck-Pereyra result here, so a dense fallback would
-be a failure. The public diagnostics verify requested/selected policy and the
-fallback flag; the internal backend is intentionally not treated as a public
-contract.
+weights, and all mixed moments. `automatic` resolves to `bjorck_pereyra`; the
+explicit fallback-capable policy is required to retain its Björck-Pereyra
+result here, so a dense fallback would be a failure. The public diagnostics
+verify requested/selected policy and the fallback flag; the internal backend is
+intentionally not treated as a public contract.
 
 The node tolerance is `5e-4`, about ten times the observed maximum error
 on the selected system and below one tenth of the parent spacing. The weight

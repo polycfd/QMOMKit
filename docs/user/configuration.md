@@ -726,12 +726,12 @@ Supported values are:
 
 | Value | Behavior |
 |---|---|
-| `automatic` | Default; currently resolves to Björck-Pereyra with eligible dense fallback. |
-| `dense` | Dense Gaussian-elimination solve only. |
-| `pivoted_qr` | Pivoted-QR solve only, with numerical-rank detection and no fallback. |
-| `svd` | SVD solve only, with rank and convergence checks and no fallback. |
-| `bjorck_pereyra` | Structured Björck-Pereyra solve only, with no fallback. |
-| `bjorck_pereyra_with_dense_fallback` | Björck-Pereyra followed by eligible dense fallback. |
+| `automatic` | Default policy; uses Björck-Pereyra. |
+| `dense` | Uses dense Gaussian elimination. |
+| `pivoted_qr` | Uses pivoted QR with numerical-rank detection. |
+| `svd` | Uses SVD with rank and convergence checks. |
+| `bjorck_pereyra` | Uses Björck-Pereyra. |
+| `bjorck_pereyra_with_dense_fallback` | Uses Björck-Pereyra and retries with the dense solver if that solve fails or is rejected. |
 
 If omitted, `automatic` is used. The `pivoted_qr` and `svd` policies solve the
 weighted conditional Vandermonde system directly and are selected only when

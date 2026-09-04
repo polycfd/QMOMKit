@@ -43,9 +43,7 @@ namespace
 
 [[nodiscard]] VandermondeSolver select_automatic_solver()
 {
-    // Automatic favors the structured Vandermonde solve, while retaining the
-    // dense path as a residual-checked fallback for difficult node sets.
-    return VandermondeSolver::bjorck_pereyra_with_dense_fallback;
+    return VandermondeSolver::bjorck_pereyra;
 }
 
 [[nodiscard]] VandermondeSolver resolve_solver(const VandermondeSolver requested_solver, const std::size_t n, const std::size_t rhs_cols)
@@ -120,9 +118,9 @@ namespace
     return residual <= tolerance * scale;
 }
 
-[[nodiscard]] bool residual_validation_required(const VandermondeSolver requested_solver, const VandermondeSolver selected_solver)
+[[nodiscard]] bool residual_validation_required(const VandermondeSolver selected_solver)
 {
-    return requested_solver == VandermondeSolver::automatic || selected_solver == VandermondeSolver::bjorck_pereyra_with_dense_fallback;
+    return selected_solver == VandermondeSolver::bjorck_pereyra_with_dense_fallback;
 }
 
 } // namespace
@@ -151,7 +149,9 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
 
     // Solver choice is part of diagnostics: forced dense uses Gaussian
     // elimination, forced Bjorck-Pereyra reports that result directly, and
-    // automatic/fallback validates the structured solve before using dense.
+    // The fallback-capable policy validates the structured solve before using
+    // dense. Automatic resolves to the same plain BP path as an explicit
+    // bjorck_pereyra request.
     if (selected_solver == VandermondeSolver::dense)
     {
         performance::record_vandermonde_solve(performance::VandermondeSolveKind::dense);
@@ -276,7 +276,7 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
 
     if (bjorck_pereyra.success && result_is_finite(bjorck_pereyra))
     {
-        const bool validate_residual = options.validate_residual || residual_validation_required(requested_solver, selected_solver);
+        const bool validate_residual = options.validate_residual || residual_validation_required(selected_solver);
         if (!validate_residual)
         {
             return vandermonde_result(bjorck_pereyra, requested_solver, selected_solver, VandermondeAlgorithm::bjorck_pereyra, false);

@@ -48,11 +48,11 @@ QMOMKit/
 │   ├── galerkin_element_coupling/    # Galerkin coupling demonstrator
 │   ├── monte_carlo/                  # Monte Carlo companion code
 │   └── plotting/                     # Plotting scripts
+├── AGENTS.md
 ├── CMakeLists.txt
 ├── LICENSE
 └── README.md
 ```
-
 
 ## Installation
 
@@ -86,7 +86,7 @@ In addition, QMOMKit has several companion tools:
 
 ## Testing
 
-The repository contains **over 100 individual tests**:
+The repository contains over 100 individual tests:
 
 - unit tests for local behavior and failure paths;
 - component regression tests for important interactions;
@@ -115,8 +115,43 @@ and [benchmarks guide](docs/developer/benchmarks.md) for details.
 - **Optional Monte Carlo tooling:** [Monte Carlo companion guide](docs/user/monte_carlo.md).
 - **Development:** [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), [testing](docs/developer/testing.md), and [benchmarks](docs/developer/benchmarks.md).
 
+## Development, verification, and generative AI
+
+Generative AI tools have been used extensively during the development of
+QMOMKit, including for code drafting and refactoring, numerical investigations,
+test development, documentation, and repository review. Their use has
+reinforced a central principle of the project: confidence in scientific
+software should come from evidence rather than from the origin of an
+implementation. Neither human-written nor AI-assisted code is inherently correct.
+
+Because AI-assistant code generation can accelerate development without providing evidence
+of correctness, QMOMKit has adopted a deliberately rigorous approach to
+testing and numerical validation. New functionality is supported, as
+appropriate, by unit and regression tests, manufactured or analytical
+verification cases, independent numerical comparisons, and physically
+meaningful examples. This philosophy has resulted in a comprehensive test
+suite and a broad collection of examples that serve both to demonstrate the
+public functionality of QMOMKit and to provide additional evidence that its
+numerical methods behave as intended.
+
+Documentation is treated as another essential part of this process. Numerical
+assumptions, algorithms, interfaces, and intended usage are documented at
+several levels, from focused comments in the implementation to dedicated
+[developer](docs/developer/README.md) and [user](docs/user/README.md) documentation. 
+The [examples](examples/) complement this documentation by showing how the library is 
+applied to  concrete physical problems through its public API and configuration system.
+
+The same evidentiary standard applies to scientific content. Scientific
+claims, references, numerical methods, and validation results must be checked
+against primary sources or independently established evidence. AI-generated
+explanations, references, or numerical conclusions are not authoritative sources.
+
+QMOMKit will continue to follow this development philosophy irrespective of
+whether future contributions are produced manually or with the assistance of
+generative AI. The relevant standards are the correctness, traceability, verification, 
+documentation, and maintainability of the resulting software.
+
 ## Contributing
 
-Contributions to improve and extend QMOMKit are very welcome. Before contributing, read the relevant documentation, preserve public interfaces and numerical conventions, add tests or verification cases for all new features and functionalities, and update the documentation where appropriate.
-
-QMOMKit aims to remain a focused scientific computing library with clear interfaces, minimal dependencies, and carefully tested numerical behavior.
+Contributions are welcome. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for 
+development, testing, and review.

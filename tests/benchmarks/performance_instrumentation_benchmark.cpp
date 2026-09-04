@@ -168,8 +168,8 @@ bool has_linear_algebra_counters(const perf::PerformanceCounters& counters)
 {
     return counters.linear_algebra.vandermonde_solves != 0 || counters.linear_algebra.bjorck_pereyra_solves != 0 ||
            counters.linear_algebra.pivoted_qr_solves != 0 || counters.linear_algebra.svd_solves != 0 ||
-           counters.linear_algebra.dense_linear_solves != 0 || counters.linear_algebra.dense_vandermonde_fallbacks != 0 ||
-           counters.linear_algebra.residual_checks != 0 || counters.linear_algebra.condition_estimates != 0;
+           counters.linear_algebra.dense_linear_solves != 0 || counters.linear_algebra.residual_checks != 0 ||
+           counters.linear_algebra.condition_estimates != 0;
 }
 
 bool has_phase_space_evolution_counters(const perf::PerformanceCounters& counters)
@@ -301,7 +301,6 @@ public:
                 print_counter_line("pivoted QR solves", summary.counters.linear_algebra.pivoted_qr_solves);
                 print_counter_line("SVD solves", summary.counters.linear_algebra.svd_solves);
                 print_counter_line("dense linear solves", summary.counters.linear_algebra.dense_linear_solves);
-                print_counter_line("dense Vandermonde fallbacks", summary.counters.linear_algebra.dense_vandermonde_fallbacks);
                 print_counter_line("residual checks", summary.counters.linear_algebra.residual_checks);
                 print_counter_line("condition estimates", summary.counters.linear_algebra.condition_estimates);
             }
@@ -355,8 +354,6 @@ public:
                     print_metric_line("Vandermonde solves / reconstruction", safe_ratio(vandermonde_solves, reconstructions));
                     print_metric_line("residual checks / Vandermonde solve",
                                       safe_ratio(summary.counters.linear_algebra.residual_checks, vandermonde_solves));
-                    print_metric_line("dense fallback percentage",
-                                      percentage(summary.counters.linear_algebra.dense_vandermonde_fallbacks, vandermonde_solves), "%");
                 }
                 if (has_phase_space_evolution && total_operations > 0)
                 {
@@ -807,8 +804,6 @@ std::string solver_name(const qmomkit::VandermondeSolver solver)
         return "svd";
     case qmomkit::VandermondeSolver::bjorck_pereyra:
         return "bjorck_pereyra";
-    case qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback:
-        return "bjorck_pereyra_with_dense_fallback";
     }
     return "unknown";
 }
@@ -892,7 +887,6 @@ void publish_workload_counters(benchmark::State& state, const perf::PerformanceC
         publish_counter(state, "qr_solves", counters.linear_algebra.pivoted_qr_solves);
         publish_counter(state, "svd_solves", counters.linear_algebra.svd_solves);
         publish_counter(state, "dense_solves", counters.linear_algebra.dense_linear_solves);
-        publish_counter(state, "dense_fallbacks", counters.linear_algebra.dense_vandermonde_fallbacks);
         publish_counter(state, "residual_checks", counters.linear_algebra.residual_checks);
         publish_counter(state, "condition_estimates", counters.linear_algebra.condition_estimates);
     }

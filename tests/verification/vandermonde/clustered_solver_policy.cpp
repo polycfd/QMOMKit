@@ -49,7 +49,6 @@ struct PolicyReport
 {
     const char* name = "";
     bool success = false;
-    bool fallback = false;
     ErrorMetrics errors;
 };
 
@@ -177,8 +176,6 @@ PolicyReport verify_policy(const SolverPolicy& policy, qmomkit::CqmomDenseCase c
                 std::string(policy.name) + " reported the wrong requested public solver policy.");
         require(diagnostics.conditional_vandermonde_selected_solver == policy.selected,
                 std::string(policy.name) + " reported the wrong selected public solver policy.");
-        require(!diagnostics.dense_vandermonde_fallback_occurred,
-                std::string(policy.name) + " unexpectedly used dense fallback on the solvable clustered case.");
         require(diagnostics.conditional_moment_diagnostics.condition_estimate.has_value(),
                 std::string(policy.name) + " did not report the root conditional condition estimate.");
         require(diagnostics.conditional_moment_diagnostics.residual_norm.has_value(),
@@ -186,7 +183,6 @@ PolicyReport verify_policy(const SolverPolicy& policy, qmomkit::CqmomDenseCase c
 
         report.errors.condition = *diagnostics.conditional_moment_diagnostics.condition_estimate;
         report.errors.residual = *diagnostics.conditional_moment_diagnostics.residual_norm;
-        report.fallback = diagnostics.dense_vandermonde_fallback_occurred;
     }
     require(saw_root_conditional_system, std::string(policy.name) + " did not report a root conditional Vandermonde system.");
     require(report.errors.condition >= minimum_condition_estimate && report.errors.condition <= maximum_condition_estimate,
@@ -200,16 +196,15 @@ void print_report(const std::vector<PolicyReport>& reports)
 {
     std::cout << "QMOMKit clustered CQMOM solver-policy verification\n";
     std::cout << "Conditional system: A(p,i) = w_i x_i^p, x = {1, 1.007, 1.014}, kappa_2(A) about 2.33e5\n\n";
-    std::cout << std::left << std::setw(40) << "policy" << std::setw(12) << "status" << std::setw(12) << "fallback" << std::setw(16) << "node error"
-              << std::setw(16) << "weight error" << std::setw(16) << "moment error" << std::setw(16) << "residual"
+    std::cout << std::left << std::setw(40) << "policy" << std::setw(12) << "status" << std::setw(16) << "node error" << std::setw(16)
+              << "weight error" << std::setw(16) << "moment error" << std::setw(16) << "residual"
               << "condition" << '\n';
-    std::cout << std::string(142, '-') << '\n';
+    std::cout << std::string(130, '-') << '\n';
     for (const PolicyReport& report : reports)
     {
-        std::cout << std::left << std::setw(40) << report.name << std::setw(12) << (report.success ? "success" : "failure") << std::setw(12)
-                  << (report.fallback ? "yes" : "no") << std::scientific << std::setprecision(4) << std::setw(16) << report.errors.node
-                  << std::setw(16) << report.errors.weight << std::setw(16) << report.errors.moment << std::setw(16) << report.errors.residual
-                  << report.errors.condition << '\n';
+        std::cout << std::left << std::setw(40) << report.name << std::setw(12) << (report.success ? "success" : "failure") << std::scientific
+                  << std::setprecision(4) << std::setw(16) << report.errors.node << std::setw(16) << report.errors.weight << std::setw(16)
+                  << report.errors.moment << std::setw(16) << report.errors.residual << report.errors.condition << '\n';
     }
 }
 
@@ -232,13 +227,11 @@ int main(const int argc, char** argv)
     verify_configured_moments(configured.value().moments, prescribed_moments);
 
     const std::vector<SolverPolicy> policies{
-        {qmomkit::VandermondeSolver::automatic, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, "automatic"},
+        {qmomkit::VandermondeSolver::automatic, qmomkit::VandermondeSolver::bjorck_pereyra, "automatic"},
         {qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::dense, "dense"},
         {qmomkit::VandermondeSolver::pivoted_qr, qmomkit::VandermondeSolver::pivoted_qr, "pivoted_qr"},
         {qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd, "svd"},
-        {qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::VandermondeSolver::bjorck_pereyra, "bjorck_pereyra"},
-        {qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback,
-         "bjorck_pereyra_with_dense_fallback"}};
+        {qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::VandermondeSolver::bjorck_pereyra, "bjorck_pereyra"}};
 
     std::vector<PolicyReport> reports;
     reports.reserve(policies.size());

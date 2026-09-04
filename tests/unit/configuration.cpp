@@ -1913,10 +1913,6 @@ void test_cqmom_vandermonde_solver_parses_values()
     assert(bp.ok());
     assert(bp.value().vandermonde_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
 
-    const auto fallback = qmomkit::config::parse_cqmom_dense(cqmom_vandermonde_solver_text("bjorck_pereyra_with_dense_fallback"));
-    assert(fallback.ok());
-    assert(fallback.value().vandermonde_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
-
     const auto automatic = qmomkit::config::parse_cqmom_lean(cqmom_vandermonde_solver_text("automatic"));
     assert(automatic.ok());
     assert(automatic.value().vandermonde_solver == qmomkit::VandermondeSolver::automatic);
@@ -1949,8 +1945,6 @@ void test_cqmom_case_and_state_report_vandermonde_solver()
     assert_cqmom_case_reports_vandermonde_solver("pivoted_qr", qmomkit::VandermondeSolver::pivoted_qr);
     assert_cqmom_case_reports_vandermonde_solver("svd", qmomkit::VandermondeSolver::svd);
     assert_cqmom_case_reports_vandermonde_solver("bjorck_pereyra", qmomkit::VandermondeSolver::bjorck_pereyra);
-    assert_cqmom_case_reports_vandermonde_solver("bjorck_pereyra_with_dense_fallback",
-                                                 qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback);
 }
 
 void test_realizability_policy_defaults_to_disabled()

@@ -52,7 +52,6 @@ struct BranchSolveStats
     std::size_t selected_bp_count = 0;
     std::size_t selected_qr_count = 0;
     std::size_t selected_svd_count = 0;
-    std::size_t fallback_count = 0;
     double total_node_count = 0.0;
     double total_rhs_width = 0.0;
     std::size_t max_node_count = 0;
@@ -274,8 +273,7 @@ BranchSolveStats collect_branch_solve_stats(const CqmomFixture& fixture, const q
         {
             ++stats.svd_count;
         }
-        if (diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra ||
-            diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback)
+        if (diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::bjorck_pereyra)
         {
             ++stats.selected_bp_count;
         }
@@ -286,10 +284,6 @@ BranchSolveStats collect_branch_solve_stats(const CqmomFixture& fixture, const q
         if (diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::svd)
         {
             ++stats.selected_svd_count;
-        }
-        if (diagnostics.dense_vandermonde_fallback_occurred)
-        {
-            ++stats.fallback_count;
         }
     }
     return stats;
@@ -343,7 +337,6 @@ void set_branch_solve_counters(benchmark::State& state, const BranchSolveStats& 
     state.counters["selected_bp_fraction"] = static_cast<double>(stats.selected_bp_count) / solve_count;
     state.counters["selected_qr_fraction"] = static_cast<double>(stats.selected_qr_count) / solve_count;
     state.counters["selected_svd_fraction"] = static_cast<double>(stats.selected_svd_count) / solve_count;
-    state.counters["dense_fallback_fraction"] = static_cast<double>(stats.fallback_count) / solve_count;
     state.counters["avg_branch_nodes"] = stats.total_node_count / solve_count;
     state.counters["avg_rhs_width"] = stats.total_rhs_width / solve_count;
     state.counters["max_branch_nodes"] = static_cast<double>(stats.max_node_count);

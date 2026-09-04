@@ -20,7 +20,7 @@ namespace cqmom_2d_borderline_conditioning
 namespace
 {
 
-constexpr std::size_t solver_count = 5;
+constexpr std::size_t solver_count = 4;
 
 std::string optional_value(const std::optional<double>& value)
 {
@@ -43,7 +43,7 @@ std::string order_name(const std::vector<std::size_t>& conditioning_order)
 
 void write_header(std::ostream& stream)
 {
-    stream << "# mode delta conditioning_order requested_solver selected_solver success status fallback active_counts diagnostic_level parent_path "
+    stream << "# mode delta conditioning_order requested_solver selected_solver success status active_counts diagnostic_level parent_path "
               "condition_estimate_inf sigma_min_over_sigma_max local_svd_rank condition_number_2 residual_norm moment_error failed_dimension "
               "message\n";
 }
@@ -52,10 +52,9 @@ void write_row(std::ostream& stream, const RunRecord& record)
 {
     stream << record.mode << '\t' << std::scientific << std::setprecision(6) << record.delta << '\t' << record.conditioning_order << '\t'
            << record.requested_solver << '\t' << record.selected_solver << '\t' << (record.success ? "true" : "false") << '\t' << record.status
-           << '\t' << (record.fallback ? "true" : "false") << '\t' << record.active_counts << '\t' << record.diagnostic_level << '\t'
-           << record.parent_path << '\t' << optional_value(record.condition_estimate_inf) << '\t'
-           << optional_value(std::optional<double>{record.matrix.ratio}) << '\t' << record.matrix.rank << '\t'
-           << optional_value(record.matrix.condition_number) << '\t' << optional_value(record.residual_norm) << '\t'
+           << '\t' << record.active_counts << '\t' << record.diagnostic_level << '\t' << record.parent_path << '\t'
+           << optional_value(record.condition_estimate_inf) << '\t' << optional_value(std::optional<double>{record.matrix.ratio}) << '\t'
+           << record.matrix.rank << '\t' << optional_value(record.matrix.condition_number) << '\t' << optional_value(record.residual_norm) << '\t'
            << optional_value(record.moment_error) << '\t' << record.failed_dimension << '\t' << record.message << '\n';
 }
 
@@ -84,7 +83,7 @@ std::string outcome_code(const RunRecord& record)
 {
     if (record.success)
     {
-        return record.fallback ? "OK→dense" : "OK";
+        return "OK";
     }
     if (record.status == "conditional_moment_failed")
     {
@@ -124,10 +123,6 @@ std::string concise_solver_name(const std::string& label)
     {
         return "BP";
     }
-    if (label == "bjorck_pereyra_with_dense_fallback")
-    {
-        return "BP+dense";
-    }
     if (label == "pivoted_qr")
     {
         return "QR";
@@ -146,8 +141,6 @@ struct FailureGroup
     std::vector<std::string> affected_policies;
     std::string stage;
     std::string message;
-    bool fallback_attempted = false;
-    bool fallback_succeeded = false;
 };
 
 std::vector<FailureGroup> group_failure_details(const std::vector<RunRecord>& records)
@@ -156,8 +149,7 @@ std::vector<FailureGroup> group_failure_details(const std::vector<RunRecord>& re
     for (const RunRecord& record : records)
     {
         const bool fixed_failure = record.mode == "fixed" && !record.success;
-        const bool successful_fallback = record.success && record.fallback;
-        if (!fixed_failure && !successful_fallback)
+        if (!fixed_failure)
         {
             continue;
         }
@@ -171,12 +163,10 @@ std::vector<FailureGroup> group_failure_details(const std::vector<RunRecord>& re
                                   });
         if (group == groups.end())
         {
-            groups.push_back({record.delta, record.conditioning_order, {}, stage, record.message, false, false});
+            groups.push_back({record.delta, record.conditioning_order, {}, stage, record.message});
             group = std::prev(groups.end());
         }
         group->affected_policies.push_back(concise_solver_name(record.requested_solver));
-        group->fallback_attempted = group->fallback_attempted || record.fallback;
-        group->fallback_succeeded = group->fallback_succeeded || (record.success && record.fallback);
     }
     return groups;
 }
@@ -229,10 +219,6 @@ const char* solver_column_name(const SolverChoice& choice)
     if (choice.solver == qmomkit::VandermondeSolver::bjorck_pereyra)
     {
         return "BP";
-    }
-    if (choice.solver == qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback)
-    {
-        return "BP+dense";
     }
     if (choice.solver == qmomkit::VandermondeSolver::pivoted_qr)
     {
@@ -310,16 +296,10 @@ void validate_report_file(const std::filesystem::path& filename)
             throw std::runtime_error("The Markdown report contains an obsolete metric heading: " + obsolete_heading);
         }
     }
-    if (report.find("lost numerical independence") == std::string::npos ||
-        report.find("does not establish a universal solver ranking") == std::string::npos)
+    if (report.find("four direct solvers") == std::string::npos || report.find("does not establish a universal solver ranking") == std::string::npos)
     {
         throw std::runtime_error("The Markdown report is missing its solver-comparison conclusion.");
     }
-    if (report.find("| BP+dense |") != std::string::npos)
-    {
-        throw std::runtime_error("The fallback policy must not appear as a principal solver-table column.");
-    }
-
     for (const std::string& conditioning_order : {"(0,1)", "(1,0)"})
     {
         const std::string section = report_section(report, conditioning_order == "(0,1)" ? "### x_then_y" : "### y_then_x");
@@ -482,7 +462,7 @@ void write_markdown_report(const std::vector<RunRecord>& records, const std::fil
               "from the prescribed population, not copied from an internal QR or SVD factorization.\n\n";
 
     report << "## Results For Fixed Node Counts\n\n"
-              "The fixed sweep contains 80 reconstructions. "
+              "The fixed sweep contains 64 reconstructions. "
            << successful_fixed << " succeeded, " << conditional_failures << " failed in a conditional Vandermonde solve, and " << qmom_failures
            << " failed in a Wheeler or broader QMOM stage.\n\n"
               "| outcome | fixed-count rows |\n"
@@ -512,13 +492,11 @@ void write_markdown_report(const std::vector<RunRecord>& records, const std::fil
     report << "## Effect Of The Vandermonde Solver\n\n"
               "The four direct solvers are compared to determine whether a failed reconstruction depends on the linear solver. If their outcomes "
               "disagree, the case may be sensitive to solver-specific rank or pivot decisions. If they fail at the same stage, the failure is not "
-              "fixed by changing the solver. The BP+dense policy tries a dense solve after a BP failure; it is useful for identifying a BP-specific "
-              "rejection, but it cannot restore a two-node system that has lost numerical independence.\n\n"
+              "fixed by changing the solver.\n\n"
               "The outcome codes used in the tables are:\n\n"
               "| Code | Meaning |\n"
               "|---|---|\n"
               "| OK | Successful reconstruction |\n"
-              "| OK→dense | Successful reconstruction after dense fallback |\n"
               "| FAIL-C | Conditional-moment / conditional Vandermonde failure |\n"
               "| FAIL-W | Wheeler or broader QMOM reconstruction failure |\n"
               "| FAIL | Other failed reconstruction |\n\n";
@@ -535,17 +513,14 @@ void write_markdown_report(const std::vector<RunRecord>& records, const std::fil
               "The reported stage distinguishes a conditional Vandermonde failure from a Wheeler/QMOM failure. The latter covers a failed Wheeler "
               "recurrence, either in a marginal reconstruction or later in the recursive calculation. Identical failures are combined into one row "
               "so the table shows which solver policies share the same observed result.\n\n"
-              "| delta | order | solvers with this result | stage | dense retry | message |\n"
-              "|---:|---|---|---|---|---|\n";
+              "| delta | order | solvers with this result | stage | message |\n"
+              "|---:|---|---|---|---|\n";
     for (const FailureGroup& group : failure_groups)
     {
-        const std::string fallback_result =
-            !group.fallback_attempted ? "-" : (group.fallback_succeeded ? "accepted after dense retry" : "dense retry also failed");
         report << "| " << report_number(group.delta) << " | " << group.conditioning_order << " | " << join_policies(group.affected_policies) << " | "
-               << group.stage << " | " << fallback_result << " | " << group.message << " |\n";
+               << group.stage << " | " << group.message << " |\n";
     }
-    report << "\nThe BP+dense row remains in diagnostics.txt. In this run, the dense retry did not turn any failed fixed-count reconstruction into a "
-              "success.\n\n";
+    report << '\n';
 
     report << "## Results With Adaptive Node Counts\n\n"
               "| order | outcome | active/requested branch counts | interpretation |\n"
@@ -564,16 +539,16 @@ void write_markdown_report(const std::vector<RunRecord>& records, const std::fil
               "fixed two-node request well conditioned. Node reduction occurs in Wheeler inversion before the conditional Vandermonde solve; QR and "
               "SVD do not trigger it.\n\n";
 
-    report << "## Main Observations\n\n"
-              "1. As $\\delta$ decreases, $r_\\sigma$ decreases and $\\kappa_2$ increases for the x-parent.\n"
-              "2. At $\\delta = 2.00e-14$, all four direct solvers fail in the same conditional Vandermonde solve.\n"
-              "3. At $\\delta=0$, x_then_y fails after the x-parent collapses, while y_then_x reaches a Wheeler failure after its well-conditioned "
-              "y-parent step.\n"
-              "4. A small residual or small moment error describes the current computed result; neither proves robustness as the nodes coalesce.\n"
-              "5. The adaptive cases succeed because they use fewer active nodes. They are lower-node reconstructions, not solver fixes.\n\n"
-              "These results describe this prescribed population. This example does not establish a universal solver ranking. The complete 82-row "
-              "dataset, "
-              "including BP+dense, is available in [diagnostics.txt](diagnostics.txt).\n";
+    report
+        << "## Main Observations\n\n"
+           "1. As $\\delta$ decreases, $r_\\sigma$ decreases and $\\kappa_2$ increases for the x-parent.\n"
+           "2. At $\\delta = 2.00e-14$, all four direct solvers fail in the same conditional Vandermonde solve.\n"
+           "3. At $\\delta=0$, x_then_y fails after the x-parent collapses, while y_then_x reaches a Wheeler failure after its well-conditioned "
+           "y-parent step.\n"
+           "4. A small residual or small moment error describes the current computed result; neither proves robustness as the nodes coalesce.\n"
+           "5. The adaptive cases succeed because they use fewer active nodes. They are lower-node reconstructions, not solver fixes.\n\n"
+           "These results describe this prescribed population. This example does not establish a universal solver ranking. The complete dataset is "
+           "available in [diagnostics.txt](diagnostics.txt).\n";
 
     report.flush();
     if (!report)

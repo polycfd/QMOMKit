@@ -34,7 +34,6 @@ struct RunRecord
     std::string selected_solver;
     bool success = false;
     std::string status;
-    bool fallback = false;
     std::string active_counts;
     std::string diagnostic_level;
     std::string parent_path;
@@ -46,15 +45,14 @@ struct RunRecord
     std::string message;
 };
 
-inline const std::array<SolverChoice, 5> solver_choices{{
+inline const std::array<SolverChoice, 4> solver_choices{{
     {qmomkit::VandermondeSolver::dense, "dense"},
     {qmomkit::VandermondeSolver::bjorck_pereyra, "bjorck_pereyra"},
-    {qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback, "bjorck_pereyra_with_dense_fallback"},
     {qmomkit::VandermondeSolver::pivoted_qr, "pivoted_qr"},
     {qmomkit::VandermondeSolver::svd, "svd"},
 }};
 
-inline const std::array<std::size_t, 4> report_solver_indices{{0, 1, 3, 4}};
+inline const std::array<std::size_t, 4> report_solver_indices{{0, 1, 2, 3}};
 
 inline const std::array<double, 8> delta_values{{1.0e-1, 1.0e-6, 1.0e-10, 1.0e-12, 1.0e-13, 2.5e-14, 2.0e-14, 0.0}};
 

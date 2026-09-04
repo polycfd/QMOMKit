@@ -1,5 +1,7 @@
 #include "internal/bjorck_pereyra.hpp"
 
+#include "internal/performance.hpp"
+
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -164,6 +166,59 @@ void test_invalid_inputs_fail()
     assert(result.message == "Transposed Vandermonde inputs must be finite.");
 }
 
+qmomkit::internal::DenseMatrix make_benign_solution(const std::size_t n, const std::size_t rhs_cols)
+{
+    qmomkit::internal::DenseMatrix solution(n, rhs_cols);
+    for (std::size_t row = 0; row < n; ++row)
+    {
+        for (std::size_t col = 0; col < rhs_cols; ++col)
+        {
+            solution(row, col) = static_cast<double>((row + 1) * (col + 1)) / static_cast<double>(n + rhs_cols);
+        }
+    }
+    return solution;
+}
+
+std::vector<double> make_well_separated_nodes(const std::size_t n)
+{
+    std::vector<double> nodes(n);
+    for (std::size_t node = 0; node < n; ++node)
+    {
+        nodes[node] = static_cast<double>(node) / static_cast<double>(n);
+    }
+    return nodes;
+}
+
+void assert_bjorck_pereyra_transform_updates(const std::size_t n, const std::size_t rhs_cols)
+{
+    const std::vector<double> nodes = make_well_separated_nodes(n);
+    const qmomkit::internal::DenseMatrix rhs = make_transposed_vandermonde_rhs(nodes, make_benign_solution(n, rhs_cols));
+
+    qmomkit::internal::performance::CounterSession session;
+    qmomkit::internal::LinearSolveResult result{qmomkit::internal::DenseMatrix(0, 0), false, ""};
+    {
+        qmomkit::internal::performance::CounterScope scope(session);
+        result = qmomkit::internal::solve_bjorck_pereyra(nodes, rhs, singular_tolerance);
+    }
+
+    assert(result.success);
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(session.snapshot().linear_algebra.bjorck_pereyra_transform_updates == n * (n - 1) * rhs_cols);
+#endif
+}
+
+void test_transform_update_count_scaling()
+{
+    constexpr std::size_t fixed_rhs_cols = 3;
+    for (const std::size_t n : {std::size_t{4}, std::size_t{8}, std::size_t{16}, std::size_t{32}})
+    {
+        assert_bjorck_pereyra_transform_updates(n, fixed_rhs_cols);
+    }
+
+    assert_bjorck_pereyra_transform_updates(8, 1);
+    assert_bjorck_pereyra_transform_updates(8, 5);
+}
+
 } // namespace
 
 int main()
@@ -175,6 +230,7 @@ int main()
     test_clustered_distinct_nodes();
     test_repeated_nodes_fail();
     test_invalid_inputs_fail();
+    test_transform_update_count_scaling();
 
     return 0;
 }

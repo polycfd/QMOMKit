@@ -31,7 +31,6 @@ the product formula, independently of the solver implementation.
 - `pivoted_qr`
 - `svd`
 - `bjorck_pereyra`
-- `bjorck_pereyra_with_dense_fallback`
 
 The algorithm actually used is the numerical path selected after policy
 resolution:
@@ -42,15 +41,15 @@ resolution:
 - `bjorck_pereyra`
 
 For this well-conditioned case, `automatic` is expected to resolve to
-`bjorck_pereyra_with_dense_fallback` and use the Björck-Pereyra algorithm
-without dense fallback. `pivoted_qr` is an explicit policy only and is expected
+`bjorck_pereyra` and use the Björck-Pereyra algorithm.
+`pivoted_qr` is an explicit policy only and is expected
 to solve the weighted conditional Vandermonde system directly. `svd` is also an
 explicit policy only and is expected to solve the weighted conditional
-Vandermonde system directly without dense fallback.
+Vandermonde system directly.
 
 The public CQMOM result exposes branch success diagnostics, the requested
-Vandermonde solver, the selected solver after policy resolution, and whether
-dense fallback occurred. The internal `VandermondeAlgorithm` field identifies
+Vandermonde solver, and the selected solver after policy resolution. The
+internal `VandermondeAlgorithm` field identifies
 the backend actually used (`dense`, `pivoted_qr`, `svd`, or `bjorck_pereyra`);
 that algorithm-used field is not exposed as the same public CQMOM diagnostic
 field. This verifier loads public `.qmom` files, verifies public CQMOM results,
@@ -67,7 +66,7 @@ The verifier:
   quadrature;
 - reconstructs every configured raw moment from the computed quadrature;
 - checks that diagnostics report the requested solver policy, selected policy,
-  algorithm actually used, and fallback flag;
+  and algorithm actually used;
 - compares dense and Björck-Pereyra results as an additional consistency check.
 
 Dense/Björck-Pereyra comparison is not the only reference. Every solver policy
@@ -108,12 +107,9 @@ clustered enough to make the conditional solve meaningful without approaching
 the effectively unstable `delta = 0.001` geometry.
 
 Every policy must recover the independently prescribed fixed topology, nodes,
-weights, and all mixed moments. `automatic` resolves to
-`bjorck_pereyra_with_dense_fallback`; both fallback-capable policies are
-required to retain their Björck-Pereyra result here, so a dense fallback would
-be a failure. The public diagnostics verify requested/selected policy and the
-fallback flag; the internal backend is intentionally not treated as a public
-contract.
+weights, and all mixed moments. `automatic` resolves to `bjorck_pereyra`. The
+public diagnostics verify requested and selected policy; the internal backend
+is intentionally not treated as a public contract.
 
 The node tolerance is `5e-4`, about ten times the observed maximum error
 on the selected system and below one tenth of the parent spacing. The weight
@@ -121,17 +117,6 @@ tolerance is `2e-5`, and every moment uses an absolute-plus-relative tolerance
 of `1e-7 + 1e-8 max(1, |M|)`. These leave cross-platform margin while still
 rejecting a materially wrong terminal rule. The independent quadrature, rather
 than residual alone, is the primary oracle.
-
-## Fallback Behavior
-
-This verification does not force dense fallback. The existing successful unit
-fallback fixture deliberately uses a negative parent weight and a residual
-tolerance of `-1.0`; neither is an observable valid public CQMOM input (Wheeler
-parent weights are positive and the public recursive path uses its fixed
-residual validation). Repeated-node or singular artificial systems therefore
-do not provide a successful public workflow for this verification. The gap is
-kept explicit until the public contract exposes a valid deterministic fallback
-case; no production behavior is changed to manufacture one.
 
 ## Tolerance Policy
 

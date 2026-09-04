@@ -38,8 +38,8 @@ condition estimates, and related information needed to interpret the validity
 and numerical path of a result.
 
 Performance instrumentation counts computational work. It records events such
-as reconstruction calls, Wheeler calls, Vandermonde solver usage, fallback
-usage, phase-space evolution operator applications, adaptive CQMOM active-count derivation,
+as reconstruction calls, Wheeler calls, Vandermonde solver usage,
+phase-space evolution operator applications, adaptive CQMOM active-count derivation,
 validation, and transition construction, moment-source SSP-RK stages, moment-source retries,
 node RHS evaluations, and adaptive embedded-RK node-advection steps. These
 counters describe workload composition, not correctness.
@@ -119,8 +119,10 @@ construction. Fixed normal CQMOM workflows also report prepared-metadata
 builds, prepared-metadata uses, and dynamic-metadata builds.
 
 Linear algebra counters summarize Vandermonde and dense solve work, including
-Vandermonde solves, solver paths, dense fallback usage, residual checks, and
-condition estimates.
+Vandermonde solves, solver paths, BP transform updates,
+residual checks, and condition estimates. BP transform updates count the
+innermost-loop RHS updates in the two BP transforms; they are deterministic
+kernel-work counts, not timings.
 
 Phase-space evolution counters summarize operator-split phase-space evolution work, including macro
 steps, advection and moment-source operator applications, moment
@@ -151,12 +153,6 @@ A high Wheeler-call count may indicate frequent reconstruction, many CQMOM
 branches, many phase-space evolution macro steps, or a modeling choice that requires
 repeated inversion. It does not by itself prove that Wheeler inversion is the
 runtime bottleneck.
-
-A high dense Vandermonde fallback count may indicate difficult conditioning,
-an intentionally conservative solver policy, or a workload where fallback
-robustness dominates the conditional reconstruction path. It may suggest an
-optimization opportunity, but only profiling and benchmark comparisons can
-show whether that opportunity is meaningful.
 
 A high moment-layout-build count indicates metadata preparation work: required
 CQMOM moment-layout generation, branch-local layout construction, or validation
@@ -272,9 +268,7 @@ Use these baselines as workload fingerprints, not just timing rows:
 
 - High Wheeler counts indicate recursive reconstruction complexity, usually
   from more branches or repeated phase-space evolution inversions.
-- Vandermonde solves indicate conditional reconstruction work; dense fallback
-  counts, when nonzero, point to difficult conditional solves or conservative
-  solver policy.
+- Vandermonde solves indicate conditional reconstruction work.
 - Layout builds indicate metadata preparation work. Public paths may retain
   validation layout builds by design; trusted `CqmomCase` and `CqmomState`
   workflows should avoid repeated immutable global-layout validation.

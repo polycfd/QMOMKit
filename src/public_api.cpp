@@ -174,8 +174,6 @@ using CqmomCaseVariant = std::variant<CqmomDenseCase, CqmomLeanCase>;
         return "svd";
     case VandermondeSolver::bjorck_pereyra:
         return "bjorck_pereyra";
-    case VandermondeSolver::bjorck_pereyra_with_dense_fallback:
-        return "bjorck_pereyra_with_dense_fallback";
     }
     return "unknown";
 }
@@ -738,7 +736,6 @@ namespace
     converted.conditional_moment_diagnostics = diagnostics.conditional_moment_diagnostics;
     converted.conditional_vandermonde_requested_solver = diagnostics.conditional_vandermonde_requested_solver;
     converted.conditional_vandermonde_selected_solver = diagnostics.conditional_vandermonde_selected_solver;
-    converted.dense_vandermonde_fallback_occurred = diagnostics.dense_vandermonde_fallback_occurred;
     converted.message = diagnostics.message;
     converted.bounded_support_checked = diagnostics.bounded_support_checked;
     converted.bounded_support_interval_present = diagnostics.bounded_support_interval_present;

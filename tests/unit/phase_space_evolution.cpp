@@ -3889,18 +3889,6 @@ qmomkit::RawMomentTensor phase_space_evolution_vandermonde_policy_moments()
     return fixed_cqmom_moments();
 }
 
-bool cqmom_diagnostics_saw_dense_fallback(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics)
-{
-    for (const qmomkit::CqmomDiagnostics& diagnostic : diagnostics)
-    {
-        if (diagnostic.dense_vandermonde_fallback_occurred)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
 void test_cqmom_phase_space_evolution_vandermonde_policy_independent_of_diagnostic_level()
 {
     const qmomkit::RawMomentTensor moments = phase_space_evolution_vandermonde_policy_moments();
@@ -3918,11 +3906,10 @@ void test_cqmom_phase_space_evolution_vandermonde_policy_independent_of_diagnost
     for (const qmomkit::CqmomDiagnosticLevel level :
          {qmomkit::CqmomDiagnosticLevel::none, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::CqmomDiagnosticLevel::detailed})
     {
-        const qmomkit::CqmomDenseCase dense_case{
-            hierarchy, moments, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback};
+        const qmomkit::CqmomDenseCase dense_case{hierarchy, moments, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra};
         const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-        const qmomkit::CqmomLeanCase lean_case{
-            qmomkit::extract_cqmom_moments(moments, layout), {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra_with_dense_fallback};
+        const qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments(moments, layout), {}, {}, false, level,
+                                               qmomkit::VandermondeSolver::bjorck_pereyra};
 
         const qmomkit::CqmomPhaseSpaceEvolutionResult dense = qmomkit::advance_cqmom_phase_space(
             qmomkit::internal::CqmomConstructionAccess::create_state(dense_case), 0.0, 0.1, zero_velocity, zero_source, options);
@@ -3952,14 +3939,6 @@ void test_cqmom_phase_space_evolution_vandermonde_policy_independent_of_diagnost
             assert(dense.diagnostics.post_source_cqmom_diagnostics.empty());
             assert(lean.diagnostics.post_source_cqmom_diagnostics.empty());
         }
-        else
-        {
-            assert(!cqmom_diagnostics_saw_dense_fallback(dense.diagnostics.initial_cqmom_diagnostics));
-            assert(!cqmom_diagnostics_saw_dense_fallback(lean.diagnostics.initial_cqmom_diagnostics));
-            assert(!cqmom_diagnostics_saw_dense_fallback(dense.diagnostics.post_source_cqmom_diagnostics));
-            assert(!cqmom_diagnostics_saw_dense_fallback(lean.diagnostics.post_source_cqmom_diagnostics));
-        }
-
         if (!reference_dense.has_value())
         {
             reference_dense = dense;

@@ -1,6 +1,7 @@
 #include "bjorck_pereyra.hpp"
 
 #include "numeric_utils.hpp"
+#include "performance.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -75,6 +76,7 @@ LinearSolveResult solve_bjorck_pereyra(const std::vector<double>& nodes, DenseMa
             for (std::size_t col = 0; col < rhs_cols; ++col)
             {
                 rhs(i + 1, col) -= nodes[k] * rhs(i, col);
+                performance::record_bjorck_pereyra_transform_update();
             }
         }
     }
@@ -95,6 +97,7 @@ LinearSolveResult solve_bjorck_pereyra(const std::vector<double>& nodes, DenseMa
                 const double value = rhs(i, col) / denominator;
                 rhs(i - 1, col) -= value;
                 rhs(i, col) = value;
+                performance::record_bjorck_pereyra_transform_update();
             }
         }
     }

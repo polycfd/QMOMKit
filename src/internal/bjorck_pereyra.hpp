@@ -14,7 +14,7 @@ namespace qmomkit::internal
  *
  * Rows of rhs are powers 0..N-1, rows of the returned solution are nodes, and
  * each rhs column is solved independently. This kernel does not know about
- * quadrature weights, conditional moments, solver policy, or dense fallback.
+ * quadrature weights, conditional moments, or solver policy.
  */
 [[nodiscard]] LinearSolveResult solve_bjorck_pereyra(const std::vector<double>& nodes, DenseMatrix rhs, double singular_tolerance);
 

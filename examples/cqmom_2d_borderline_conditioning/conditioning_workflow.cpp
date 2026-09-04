@@ -285,7 +285,6 @@ RunRecord run_reconstruction(const double delta, const std::vector<std::size_t>&
     record.selected_solver = diagnostic.has_value() ? solver_name(diagnostic->conditional_vandermonde_selected_solver) : "-";
     record.success = result.ok();
     record.status = status_name(result.status);
-    record.fallback = diagnostic.has_value() && diagnostic->dense_vandermonde_fallback_occurred;
     record.active_counts = active_counts(result);
     record.diagnostic_level = diagnostic.has_value() ? std::to_string(diagnostic->conditioning_level) : "-";
     record.parent_path = diagnostic.has_value() ? format_path(diagnostic->parent_path) : "-";

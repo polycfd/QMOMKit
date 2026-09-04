@@ -101,11 +101,10 @@ the underlying degeneracy.
 
 ## Why Compare Several Solvers?
 
-The fixed-count sweep requests five explicit policies:
+The fixed-count sweep requests four explicit policies:
 
 - Dense;
 - Björck–Pereyra (BP);
-- BP with dense fallback;
 - pivoted QR; and
 - SVD.
 
@@ -116,12 +115,6 @@ solver-specific sensitivity, such as pivot detection or backend rank handling.
 A common failure across all four means that the two-node system has lost
 numerical independence, so selecting a different solver cannot restore the
 missing information.
-
-BP with dense fallback is a solver policy that answers a narrower question: did
-BP reject a case that a dense retry could still accept? The report tables show
-the four direct algorithms; every BP+dense row remains in
-output/diagnostics.txt. This run produces no distinct successful fallback
-outcome.
 
 ## What The Diagnostics Mean
 
@@ -200,7 +193,7 @@ The fixed-count sweep uses node counts $(2,2)$, fixed branch counts, and
 It produces
 
 $$
-8\ \delta\text{ values}\times2\ \text{orders}\times5\ \text{policies}=80
+8\ \delta\text{ values}\times2\ \text{orders}\times4\ \text{policies}=64
 $$
 
 fixed-count rows.
@@ -209,7 +202,7 @@ Two separate adaptive references use $\delta=0$ with adaptive branch counts
 enabled. Adaptive reduction occurs during Wheeler inversion, before the
 conditional Vandermonde solve. It is not triggered by QR or SVD. The adaptive
 rows represent lower-order quadratures and are not solver alternatives for the
-fixed two-node formulation.
+fixed two-node formulation. Together, the example produces 66 total rows.
 
 ## Build And Run
 
@@ -236,7 +229,7 @@ order, lists the observed failed stages, and shows the lower-node cases.
 
 ### output/diagnostics.txt
 
-This is the complete 82-row dataset. It retains all five
+This is the complete 66-row dataset. It retains all four
 requested fixed-count policies, the reported diagnostics, local matrix values,
 residuals, moment errors, failure messages, and adaptive rows. It is
 whitespace-delimited with a commented header and uses a dash for unavailable
@@ -274,5 +267,5 @@ the observed run; its threshold values are not portable guarantees.
 This is an artificial static four-atom population. The local diagnostic covers
 only the known weighted $2\times2$ parent matrix and cannot expose production
 QR/SVD factorization data. The example does not implement pseudoinverse,
-truncation, regularization, minimum-norm recovery, automatic QR/SVD fallback,
+truncation, regularization, minimum-norm recovery, automatic QR/SVD selection,
 or adaptive node-count changes based on QR/SVD rank.

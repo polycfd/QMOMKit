@@ -291,7 +291,6 @@ void compare_diagnostics(const std::vector<qmomkit::CqmomDiagnostics>& dense, co
         QMOMKIT_VERIFY_CHECK(dense[i].conditional_moment_status == lean[i].conditional_moment_status);
         QMOMKIT_VERIFY_CHECK(dense[i].conditional_vandermonde_requested_solver == lean[i].conditional_vandermonde_requested_solver);
         QMOMKIT_VERIFY_CHECK(dense[i].conditional_vandermonde_selected_solver == lean[i].conditional_vandermonde_selected_solver);
-        QMOMKIT_VERIFY_CHECK(dense[i].dense_vandermonde_fallback_occurred == lean[i].dense_vandermonde_fallback_occurred);
         QMOMKIT_VERIFY_CHECK(dense[i].message == lean[i].message);
     }
 }

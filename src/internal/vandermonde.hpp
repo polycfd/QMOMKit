@@ -33,7 +33,6 @@ struct VandermondeSolveResult
     VandermondeSolver requested_solver = VandermondeSolver::automatic;
     VandermondeSolver selected_solver = VandermondeSolver::dense;
     VandermondeAlgorithm algorithm_used = VandermondeAlgorithm::dense;
-    bool dense_fallback_occurred = false;
 };
 
 /**

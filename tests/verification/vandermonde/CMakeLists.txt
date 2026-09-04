@@ -9,3 +9,14 @@ add_test(
         ${CMAKE_CURRENT_LIST_DIR}
 )
 set_tests_properties(verification_vandermonde_solver_selection PROPERTIES LABELS verification)
+
+add_executable(clustered_solver_policy_verification clustered_solver_policy.cpp)
+target_link_libraries(clustered_solver_policy_verification PRIVATE qmomkit)
+
+add_test(
+    NAME verification_vandermonde_solver_policy_clustered
+    COMMAND
+        clustered_solver_policy_verification
+        ${CMAKE_CURRENT_LIST_DIR}/clustered_policy_automatic.qmom
+)
+set_tests_properties(verification_vandermonde_solver_policy_clustered PROPERTIES LABELS verification)

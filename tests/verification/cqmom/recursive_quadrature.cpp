@@ -236,6 +236,8 @@ void assert_ragged_tree_consistent(const qmomkit::internal::RecursiveQuadrature&
 
 void test_recursive_1d_reduces_to_wheeler()
 {
+    // Structural dimensional-reduction consistency: 1D recursive CQMOM must match Wheeler; independent Wheeler correctness is covered by separate
+    // analytical tests.
     const qmomkit::PhaseSpaceHierarchy hierarchy({2});
     const std::vector<double> moments{1.0, 0.7, 1.9, 3.7};
 

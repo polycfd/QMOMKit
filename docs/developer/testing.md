@@ -112,8 +112,8 @@ CTest names identify the tested contract. Several executables accept a local
 selector so independently meaningful groups can be registered separately. The
 individual CTest registrations are authoritative; running such an executable
 without a selector is a developer convenience, not an aggregate CTest contract.
-The current root suite has **107** registered CTest tests: 32 unit, 7
-component-regression, 67 verification, and 1 supporting public-header test.
+The current root suite has **114** registered CTest tests: 32 unit, 7
+component-regression, 74 verification, and 1 supporting public-header test.
 Obtain the current count from `ctest -N` (and confirm structured registration
 with `ctest --show-only=json-v1`), rather than maintaining it by arithmetic
 alone.
@@ -336,7 +336,7 @@ Benchmark structure and interpretation belong in `benchmarks.md`.
 ## Registered Root CTest Inventory
 
 This inventory lists every root CTest registration exactly once. It is current
-at the documented count of 107 tests.
+at the documented count of 114 tests.
 
 ### Unit Tests (32)
 
@@ -385,9 +385,9 @@ at the documented count of 107 tests.
 | `component_regression_cqmom_compute_failures` | CQMOM failure/status propagation | Deliberately invalid or fragile dense/lean inputs are checked for the documented status, diagnostics, and preserved failure behavior | Invalid tensors, conditional reconstruction failures, and adaptive/fixed policy failures |
 | `component_regression_cqmom_case_moment_replacement` | Immutable CQMOM case moment replacement | Replaces configured initial tensors and checks retained policies, storage, and state construction contracts | Dense/lean cases, support/options retention, invalid replacement data |
 | `component_regression_cqmom_dense_lean_parity_3d` | Dense and lean CQMOM representation/workflow consistency | Compares layouts, reconstructed states, quadratures, and diagnostics across routes sharing the same reconstruction machinery | Consistency/regression evidence only; it is not an independent mathematical CQMOM oracle |
-| `component_regression_cqmom_physical_transport_probe` | Captured CQMOM transport/reinversion regression behavior | Replays the historical fixture and checks its terminal paths, branch reductions, active counts, reinversion diagnostics, and state contracts | Protects the captured regression; it is not independently derived physical-transport verification |
+| `component_regression_cqmom_physical_transport_probe` | Historical adaptive CQMOM ragged reinversion/state regression | Replays captured fixture data whose original generation provenance is not recoverable; it is therefore non-independent regression evidence | Four expected terminal paths recover, each final `u` branch reduces from two requested nodes to one, and active counts persist through two zero-rate state advances |
 
-### Verification Tests (67)
+### Verification Tests (74)
 
 | Verification test | What it verifies | How correctness is established | Important cases / criterion |
 |---|---|---|---|
@@ -419,12 +419,15 @@ at the documented count of 107 tests.
 | `verification_cqmom_independent_product_5d` | Five-dimensional product CQMOM | Independently prescribed one-dimensional rules are combined in phase-space order | Fixed topology and known rule/moment recovery, including conditioning-order diagnostics |
 | `verification_cqmom_independent_product_6d` | Six-dimensional product CQMOM | Independently prescribed one-dimensional rules are combined in phase-space order | Fixed topology, paths, local/global weights, coordinates, and moments match the known rule |
 | `verification_cqmom_mixed_affine_independent_4d` | Four-dimensional mixed affine/independent CQMOM | A prescribed terminal construction combines affine relations with independent rules | Expected paths, branch counts, local/global weights, coordinates, affine relations, and moments are checked |
+| `verification_cqmom_automatic_scaling_reference`, `verification_cqmom_automatic_scaling_rescaled` | Adaptive 3D automatic-scaling CQMOM covariance | A prescribed five-terminal ragged rule independently generates two complete configured tensors in units `(1,1,1)` and `(1e6,1e-6,1e3)` | Non-identity conditioning `{2,0,1}`, dense/lean routes, paths, active counts, physical coordinates, weights, mixed moments, and required-layout invariance |
+| `verification_cqmom_automatic_scaling_feature_sensitive` | Scaling-sensitive 3D adaptive CQMOM reconstruction | A prescribed five-terminal ragged physical rule in units `(1e8,1e-8,1e4)` independently generates the complete raw tensor | Scaling on recovers paths, topology, physical nodes, weights, and moments; scaling off must lose the prescribed five-terminal topology |
 | `verification_distribution_families_analytical` | Raw moments of normal, lognormal, beta, gamma, chi-square, chi, and Weibull families | Closed-form family formulas are evaluated independently of the implementation | Multiple parameters/orders, normalization, and invalid-parameter contracts; the Weibull--gamma identity is an additional consistency check |
 | `verification_distribution_mixtures_analytical` | Mixture raw-moment generation | Explicit component-density-weighted sums form the oracle | Bimodal/heterogeneous/multimodal mixtures, permutation invariance, odd-moment cancellation, zero density, and failures |
 | `verification_distribution_independent_products_analytical` | Multidimensional independent-product moments | Factorized marginal moments form each tensor entry independently | One- through three-dimensional products, signed odd moments, zero density, and overflow cases |
 | `verification_distribution_configuration_initialization` | Configuration-driven distribution initialization | Parsed configurations are compared with analytical moments, selected requests, and independently factorized product tensors | Families, mixtures, dimension sweep, non-unit lognormal-mixture marginal, dense/lean states, and public CQMOM reconstruction |
 | `verification_realizability_analytical` | Hamburger, Stieltjes, and Hausdorff realizability classification | Known normal, gamma/lognormal, beta/uniform, zero-measure, and non-realizable sequences have known support classifications | Strict interior, boundary, negative-mass/variance, localizing, and bounded-support failures with diagnostic matrix/order checks |
-| `verification_vandermonde_solver_selection` | Conditional Vandermonde solver policies | Every policy reconstructs a known prescribed product quadrature and its independently generated moments | Dense, Björck--Pereyra, pivoted QR, SVD, automatic/fallback; judged against the known rule, not solver-to-solver parity alone |
+| `verification_vandermonde_solver_selection` | Conditional Vandermonde solver policies on an ordinary product case | Every policy reconstructs a known prescribed product quadrature and its independently generated moments | Dense, Björck--Pereyra, pivoted QR, SVD, automatic/fallback; judged against the known rule, not solver-to-solver parity alone |
+| `verification_vandermonde_solver_policy_clustered` | Conditional Vandermonde policies on a clustered, branch-dependent 2D CQMOM rule | A prescribed positive six-terminal rule independently generates the `6 x 4` mixed-moment tensor; the root weighted `3 x 3` system has `kappa_2` about `2.33e5` | Every public policy recovers the fixed topology, nodes, weights, and moments; diagnostics show requested/selected policy and no fallback on this solvable case |
 | `verification_runge_kutta_analytical` | Public RK23, RK45, and SSP-RK3 solution/error behavior | Constant, exponential-decay, and oscillatory ODEs have closed-form solutions | Numerical states, embedded estimates, and method/status behavior meet case tolerances |
 | `verification_ssp_rk3_convergence` | SSP-RK3 global convergence | Integrates `y'=-y` to its exact exponential solution over five halved step sizes | Consecutive errors decrease; final two observed orders exceed about `2.85` |
 | `verification_rk23_adaptive_convergence` | Adaptive RK23 tolerance-refinement accuracy | Integrates `y'=-y` to the exact exponential solution under progressively tighter tolerances | Error decreases, accepted steps do not decrease, and final average-step observed trends exceed `2.2` |
@@ -447,6 +450,7 @@ at the documented count of 107 tests.
 | `verification_phase_space_evolution_commuting_cqmom_2d` | Commuting 2D CQMOM advection/source splitting | Prescribed terminal rule and commuting analytical rates provide exact moments/quadrature | Dense/lean workflow results, terminal topology, and reconstructed moments meet analytical tolerances |
 | `verification_phase_space_evolution_cqmom_boundary_contribution` | CQMOM boundary contribution integration | Prescribed CQMOM boundary/source rates give exact moment increments | Final stored/reconstructed moments, terminal quadrature, and boundary failure contracts are checked |
 | `verification_phase_space_evolution_commuting_cqmom_state_adaptive_2d` | Adaptive-state commuting CQMOM evolution | A commuting analytical rule is evolved from a known adaptive state | Active counts/topology are preserved as required and final moments/quadrature match the exact state |
+| `verification_phase_space_evolution_automatic_scaling_cqmom_reference`, `verification_phase_space_evolution_automatic_scaling_cqmom_rescaled` | Automatic scaling through adaptive CQMOM Strang evolution | Constant physical node translation and the SSP-RK3 polynomial for `dM_alpha/dt=0.1M_alpha` define the manufactured result | Configured physical units, source-context coordinates, ragged paths, final weights/nodes, and full moments match the oracle |
 | `verification_phase_space_evolution_cqmom_native_source` | Native CQMOM source callback evolution | A closed-form source law supplies independently calculated required-moment values | Callback context, final time, state moments, and final quadrature meet analytical SSP-RK3 tolerance |
 | `verification_phase_space_evolution_cqmom_combined_native_source` | Combined CQMOM advection and native source evolution | Independently calculated split-reference moments combine the prescribed advection and source laws | Callback observes the post-advection context; final moments/quadrature and stage diagnostics meet tolerance |
 | `verification_phase_space_evolution_cqmom_native_source_failures` | Native CQMOM source failure propagation | Wrong-size, non-finite, and throwing callbacks have prescribed failure statuses/diagnostics | Workflow/regression contract; not independent numerical verification |

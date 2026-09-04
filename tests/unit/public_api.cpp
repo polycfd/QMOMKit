@@ -670,6 +670,8 @@ void test_cqmom_public_api_preserves_dense_invalid_input_messages()
 
 void test_qmom_public_api_matches_wheeler()
 {
+    // Public-wrapper consistency: the unscaled public result must preserve the underlying Wheeler result; analytical Wheeler correctness is verified
+    // separately.
     const std::vector<double> moments = raw_moments_1d({-0.5, 1.75}, {0.25, 0.75}, 4);
 
     const qmomkit::QmomResult qmom = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2);
@@ -772,17 +774,58 @@ void test_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction
     assert(scaled.weights == unscaled.weights);
 }
 
-void test_cqmom_automatic_scaling_does_not_change_required_layout()
+void test_cqmom_automatic_scaling_falls_back_atomically_when_preparation_is_unsafe()
 {
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3, 2}, {2, 0, 1});
-    const qmomkit::CqmomMomentLayout layout_without_scaling = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomMomentLayout layout_with_scaling = qmomkit::create_cqmom_moment_layout(hierarchy);
+    // Finite normal second moments produce 1e-100 coordinate scales. The
+    // finite normal mixed M[1,1] then overflows when divided by both scales,
+    // so preparation must be rejected before recursive CQMOM sees transformed
+    // data. This is not a successful physical quadrature oracle; the contract
+    // is that the scaled request returns the untouched unscaled failure result,
+    // including physical diagnostics and empty quadrature.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    qmomkit::CqmomMomentData moments{layout, std::vector<double>(layout.required_indices.size(), 1.0)};
+    const auto set_required = [&moments](const qmomkit::MultiIndex& index, const double value)
+    {
+        const auto found = std::find(moments.layout.required_indices.begin(), moments.layout.required_indices.end(), index);
+        assert(found != moments.layout.required_indices.end());
+        moments.values[static_cast<std::size_t>(std::distance(moments.layout.required_indices.begin(), found))] = value;
+    };
+    set_required({0, 0}, 1.0);
+    set_required({2, 0}, 1.0e-200);
+    set_required({0, 2}, 1.0e-200);
+    set_required({1, 1}, 1.0e200);
+
+    const auto scaling = qmomkit::internal::make_cqmom_scaling_context(moments, {});
+    assert(!scaling.has_value());
+
     qmomkit::QmomOptions options;
     options.automatic_scaling = true;
-    const qmomkit::CqmomLeanCase scaling_case{
-        qmomkit::CqmomMomentData{layout_with_scaling, std::vector<double>(layout_with_scaling.required_indices.size(), 0.0)}, {}, options};
+    const qmomkit::CqmomResult scaled = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{moments, {}, options});
+    options.automatic_scaling = false;
+    const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{moments, {}, options});
 
-    assert(layout_without_scaling.required_indices == scaling_case.moments.layout.required_indices);
+    assert(scaled.status == unscaled.status);
+    assert(scaled.message == unscaled.message);
+    assert(scaled.failed_phase_space_dimension == unscaled.failed_phase_space_dimension);
+    assert(scaled.quadrature.weights() == unscaled.quadrature.weights());
+    assert(scaled.quadrature.abscissas() == unscaled.quadrature.abscissas());
+    assert(scaled.diagnostics.size() == unscaled.diagnostics.size());
+    for (std::size_t diagnostic = 0; diagnostic < scaled.diagnostics.size(); ++diagnostic)
+    {
+        const qmomkit::CqmomDiagnostics& scaled_diagnostic = scaled.diagnostics[diagnostic];
+        const qmomkit::CqmomDiagnostics& unscaled_diagnostic = unscaled.diagnostics[diagnostic];
+        assert(scaled_diagnostic.conditioning_level == unscaled_diagnostic.conditioning_level);
+        assert(scaled_diagnostic.parent_path == unscaled_diagnostic.parent_path);
+        assert(scaled_diagnostic.phase_space_dimension == unscaled_diagnostic.phase_space_dimension);
+        assert(scaled_diagnostic.requested_node_count == unscaled_diagnostic.requested_node_count);
+        assert(scaled_diagnostic.actual_node_count == unscaled_diagnostic.actual_node_count);
+        assert(scaled_diagnostic.qmom_status == unscaled_diagnostic.qmom_status);
+        assert(scaled_diagnostic.conditional_moment_status == unscaled_diagnostic.conditional_moment_status);
+        assert(scaled_diagnostic.message == unscaled_diagnostic.message);
+        assert(scaled_diagnostic.bounded_returned_nodes == unscaled_diagnostic.bounded_returned_nodes);
+        assert(scaled_diagnostic.bounded_returned_weights == unscaled_diagnostic.bounded_returned_weights);
+    }
 }
 
 void test_one_dimensional_cqmom_agrees_with_qmom()
@@ -1174,7 +1217,7 @@ int main()
     test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds();
     test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments();
     test_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction();
-    test_cqmom_automatic_scaling_does_not_change_required_layout();
+    test_cqmom_automatic_scaling_falls_back_atomically_when_preparation_is_unsafe();
     test_one_dimensional_cqmom_agrees_with_qmom();
     test_cqmom_public_api_two_dimensional_manufactured_case();
     test_cqmom_automatic_scaling_restores_each_physical_coordinate();

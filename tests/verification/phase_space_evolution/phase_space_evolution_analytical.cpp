@@ -3773,6 +3773,155 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
     return verification;
 }
 
+VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::filesystem::path& configuration_path, const std::vector<double>& units)
+{
+    // This manufactured CQMOM state is the ragged rule
+    // (-1,-1,0.10), (1,-1,0.30), (0.5,2,0.60), conditioned as (xi1,xi0).
+    // The two fixtures express that same physical rule in units (1,1) and
+    // (1e6,1e-6). Constant physical advection is exact under SSP-RK3, while
+    // dM_alpha/dt = gamma M_alpha has the independent SSP-RK3 polynomial
+    // oracle P(gamma dt). The source callback visits public terminal nodes,
+    // proving source-stage reconstruction presents physical coordinates.
+    VerificationResult verification;
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    if (!configured.ok())
+    {
+        print_configuration_errors(configured);
+        append_failure(verification, "unable to load automatic-scaling CQMOM evolution configuration.");
+        return verification;
+    }
+
+    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    if (!cqmom_case.qmom_options().automatic_scaling || !cqmom_case.qmom_options().adaptive || !cqmom_case.adaptive_branch_counts() ||
+        cqmom_case.hierarchy().conditioning_order() != std::vector<std::size_t>({1, 0}))
+    {
+        append_failure(verification, "automatic-scaling evolution configuration did not retain its adaptive non-identity CQMOM policy.");
+        return verification;
+    }
+
+    constexpr double dt = 0.2;
+    constexpr double gamma = 0.1;
+    const std::vector<std::vector<double>> initial_canonical{{-1.0, -1.0}, {1.0, -1.0}, {0.5, 2.0}};
+    const std::vector<double> initial_weights{0.10, 0.30, 0.60};
+    const std::vector<double> canonical_velocity{0.4, -0.25};
+    const double source_factor = ssp_rk3_linear_affine_factor(gamma * dt);
+    bool callback_coordinates_physical = true;
+    std::size_t callback_visits = 0;
+
+    const auto velocity = [&units, &canonical_velocity](double, const std::vector<double>&)
+    { return std::vector<double>{canonical_velocity[0] * units[0], canonical_velocity[1] * units[1]}; };
+    const auto source = [&units, &initial_canonical, &canonical_velocity, &callback_coordinates_physical,
+                         &callback_visits](double, const qmomkit::CqmomSourceContext& context)
+    {
+        context.for_each_terminal_node(
+            [&](double, const std::vector<double>& coordinates)
+            {
+                ++callback_visits;
+                bool matched = false;
+                for (const std::vector<double>& initial : initial_canonical)
+                {
+                    const double x = (initial[0] + 0.5 * dt * canonical_velocity[0]) * units[0];
+                    const double y = (initial[1] + 0.5 * dt * canonical_velocity[1]) * units[1];
+                    if (std::abs(coordinates[0] - x) <= 2.0e-9 * std::max(1.0, std::abs(x)) &&
+                        std::abs(coordinates[1] - y) <= 2.0e-9 * std::max(1.0, std::abs(y)))
+                    {
+                        matched = true;
+                    }
+                }
+                callback_coordinates_physical = callback_coordinates_physical && matched;
+            });
+        std::vector<double> rates(context.size(), 0.0);
+        for (std::size_t entry = 0; entry < context.size(); ++entry)
+        {
+            rates[entry] = gamma * context.value(entry);
+        }
+        return qmomkit::CqmomMomentRate{std::move(rates)};
+    };
+
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const qmomkit::CqmomPhaseSpaceEvolutionResult result =
+        qmomkit::advance_cqmom_phase_space(cqmom_case.initial_state(), 0.0, dt, velocity, source, options);
+
+    RunSummary summary;
+    summary.scheme = options.scheme;
+    summary.dt = dt;
+    summary.steps = 1;
+    summary.final_time = result.final_time;
+    summary.retry_count = result.diagnostics.moment_source_retries;
+    summary.success = result.ok() && cqmom_diagnostics_are_successful(result.diagnostics) && callback_coordinates_physical && callback_visits != 0;
+    summary.output_row = true;
+    if (!summary.success)
+    {
+        append_failure(verification, "automatic-scaling CQMOM evolution did not complete all physical reconstruction stages.");
+    }
+    if (!result.quadrature.has_value())
+    {
+        append_failure(verification, "automatic-scaling CQMOM evolution did not retain a final quadrature.");
+        summary.success = false;
+        verification.runs.push_back(summary);
+        return verification;
+    }
+
+    const qmomkit::CqmomQuadrature& quadrature = *result.quadrature;
+    if (quadrature.has_rectangular_storage() || !quadrature.adaptive_branch_counts_enabled() || quadrature.total_nodes() != initial_weights.size())
+    {
+        append_failure(verification, "automatic-scaling CQMOM evolution did not preserve the expected ragged topology.");
+        summary.success = false;
+    }
+    std::vector<std::size_t> actual_paths;
+    for (const qmomkit::ConditioningPath& path : quadrature.terminal_paths())
+    {
+        actual_paths.push_back(path.node_index_at_level(0) * 2 + path.node_index_at_level(1));
+    }
+    std::sort(actual_paths.begin(), actual_paths.end());
+    if (actual_paths != std::vector<std::size_t>({0, 1, 2}))
+    {
+        append_failure(verification, "automatic-scaling CQMOM evolution changed terminal conditioning paths.");
+        summary.success = false;
+    }
+
+    std::vector<std::vector<double>> expected_coordinates;
+    std::vector<double> expected_weights;
+    for (std::size_t node = 0; node < initial_weights.size(); ++node)
+    {
+        expected_coordinates.push_back({(initial_canonical[node][0] + dt * canonical_velocity[0]) * units[0],
+                                        (initial_canonical[node][1] + dt * canonical_velocity[1]) * units[1]});
+        expected_weights.push_back(initial_weights[node] * source_factor);
+    }
+    for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
+    {
+        const qmomkit::ConditioningPath& path = quadrature.terminal_paths()[node];
+        const std::size_t expected_node = path.node_index_at_level(0) == 0 ? path.node_index_at_level(1) : 2;
+        update_errors(summary.errors, {quadrature.weights()[node]}, {expected_weights[expected_node]});
+        for (std::size_t dimension = 0; dimension < units.size(); ++dimension)
+        {
+            update_errors(summary.errors, {quadrature.abscissas()[dimension][node]}, {expected_coordinates[expected_node][dimension]});
+        }
+    }
+    std::vector<double> analytical(16, 0.0);
+    for (std::size_t flat = 0; flat < analytical.size(); ++flat)
+    {
+        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, {4, 4});
+        for (std::size_t node = 0; node < expected_weights.size(); ++node)
+        {
+            analytical[flat] += expected_weights[node] * integer_power(expected_coordinates[node][0], index[0]) *
+                                integer_power(expected_coordinates[node][1], index[1]);
+        }
+    }
+    const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(quadrature, {4, 4});
+    update_reconstruction_errors(summary.errors, reconstructed.values, analytical);
+    summary.error_norm = scaled_infinity_error(reconstructed.values, analytical);
+    if (summary.errors.moment_scaled > 2.0e-9 || summary.errors.reconstruction_scaled > 2.0e-9)
+    {
+        append_failure(verification, "automatic-scaling CQMOM evolution exceeded the manufactured physical tolerance.");
+        summary.success = false;
+    }
+    verification.runs.push_back(summary);
+    return verification;
+}
+
 void print_summary(const std::string& case_name, const VerificationResult& result)
 {
     std::cout << std::setprecision(17);
@@ -3910,6 +4059,14 @@ int main(int argc, char** argv)
     else if (case_name == "commuting_cqmom_state_adaptive_2d")
     {
         result = run_commuting_cqmom_state_adaptive_2d(configuration_path);
+    }
+    else if (case_name == "automatic_scaling_cqmom_state_adaptive_reference")
+    {
+        result = run_automatic_scaling_cqmom_state_adaptive_2d(configuration_path, {1.0, 1.0});
+    }
+    else if (case_name == "automatic_scaling_cqmom_state_adaptive_rescaled")
+    {
+        result = run_automatic_scaling_cqmom_state_adaptive_2d(configuration_path, {1.0e6, 1.0e-6});
     }
     else
     {

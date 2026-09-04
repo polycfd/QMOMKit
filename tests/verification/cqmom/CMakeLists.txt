@@ -4,6 +4,21 @@ qmomkit_add_ctest(test_cqmom_adaptive_branch_growth verification_cqmom_adaptive_
 qmomkit_add_ctest(test_recursive_validation verification_cqmom_recursive_validation verification recursive_cqmom.cpp)
 qmomkit_add_ctest(test_conditional_moments_analytical verification_cqmom_conditional_moments_analytical verification conditional_moments.cpp)
 
+add_executable(cqmom_automatic_scaling_verification automatic_scaling.cpp)
+target_link_libraries(cqmom_automatic_scaling_verification PRIVATE qmomkit)
+foreach(representation IN ITEMS reference rescaled)
+    add_test(
+        NAME verification_cqmom_automatic_scaling_${representation}
+        COMMAND cqmom_automatic_scaling_verification ${CMAKE_CURRENT_LIST_DIR}/automatic_scaling_${representation}_3d.qmom ${representation}
+    )
+    set_tests_properties(verification_cqmom_automatic_scaling_${representation} PROPERTIES LABELS verification)
+endforeach()
+add_test(
+    NAME verification_cqmom_automatic_scaling_feature_sensitive
+    COMMAND cqmom_automatic_scaling_verification feature-sensitive
+)
+set_tests_properties(verification_cqmom_automatic_scaling_feature_sensitive PROPERTIES LABELS verification)
+
 add_executable(moment_reconstruction_verification moment_reconstruction.cpp)
 target_link_libraries(moment_reconstruction_verification PRIVATE qmomkit)
 add_test(

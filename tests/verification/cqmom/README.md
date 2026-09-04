@@ -429,6 +429,62 @@ because the 6D fixed product case exercises several nested Vandermonde solves
 and 4096 moment entries; observed relative moment errors remain near machine
 precision.
 
+## Automatic Scaling CQMOM Verification
+
+`automatic_scaling.cpp` verifies automatic reconstruction scaling through real
+configuration loading for a prescribed 3D ragged terminal rule.  The hierarchy
+requests `{2,2,2}` nodes in phase-space order but recurses in the non-identity
+order `{2,0,1}`.  Its five paths are `{0,0,0}`, `{0,0,1}`, `{1,0,0}`,
+`{1,1,0}`, and `{1,1,1}`: the level-one branches have active counts one and
+two, and the final branches have counts two, one, and two.
+
+The fixtures `automatic_scaling_reference_3d.qmom` and
+`automatic_scaling_rescaled_3d.qmom` prescribe the same terminal rule in
+physical coordinate units `(1,1,1)` and `(1e6,1e-6,1e3)`. Every complete
+`4 x 4 x 4` tensor is independently summed from the terminal rule. The
+physical rescaled tensor has `M'_alpha = (s0^a0 s1^a1 s2^a2) M_alpha`; the
+automatic-scaling normalization checked by this test is therefore
+
+```text
+Mhat_a0,a1,a2 = M'_a0,a1,a2 / (s0^a0 s1^a1 s2^a2)
+```
+
+when read back in canonical units, irrespective of the recursive order. The
+verifier loads both dense and lean configured cases, confirms the configured
+automatic-scaling/adaptive policy, reconstructs each route, and checks paths,
+active branch counts, global weights, physical coordinates, and all 64 raw
+moments against the terminal-rule oracle.  It also compares the lean
+required-index layout with an otherwise identical case whose scaling option is
+off, while both configured scaling routes perform real reconstruction.  This
+is scaling-enabled interaction and covariance evidence: it covers adaptive
+topology, non-identity conditioning, dense/lean paths, configuration
+propagation, physical-unit restoration, and required-layout invariance. It
+does not claim scaling is necessary for the `(1e6,1e-6,1e3)` representation.
+
+The tolerance is `2e-10` for unit-floored relative node and moment errors and
+absolute weights. It leaves cross-platform margin for nested adaptive
+inversions; observed errors are near machine precision.
+
+`verification_cqmom_automatic_scaling_feature_sensitive` uses the same
+independently prescribed five-terminal rule through the direct public dense
+CQMOM route, but represents its coordinates in units `(1e8,1e-8,1e4)`. The
+complete `4 x 4 x 4` raw tensor is explicitly summed from those physical
+nodes and positive weights, so the terminal rule remains the oracle. The
+physical factors create mixed moments from approximately `1e-24` to `1e36`;
+automatic scaling computes each coordinate scale from its marginal second
+moment and returns the normalized problem to O(1) coordinates.
+
+With scaling on, the verifier requires the exact ragged five-terminal topology,
+paths, physical nodes, weights, and all raw moments to agree with the oracle
+to `1e-10` (unit-floored relative errors for nodes and
+moments, absolute error for weights). With scaling off, the same physical
+moment tensor must lose the prescribed topology. The test only requires a
+meaningful topology loss, rather than a platform-specific incorrect node value.
+The selected factors are comfortably beyond the nearby `(1e6,1e-6,1e3)`
+interaction case, which reconstructs without scaling, while retaining finite
+ordinary floating-point moments and a well-separated five-versus-three-terminal
+outcome in the design probe.
+
 ## High-Dimensional Running
 
 Run all high-dimensional cases:
@@ -446,4 +502,6 @@ ctest --test-dir build -R verification_cqmom_independent_product_4d --output-on-
 ctest --test-dir build -R verification_cqmom_independent_product_5d --output-on-failure
 ctest --test-dir build -R verification_cqmom_independent_product_6d --output-on-failure
 ctest --test-dir build -R verification_cqmom_mixed_affine_independent_4d --output-on-failure
+ctest --test-dir build -R 'verification_cqmom_automatic_scaling_(reference|rescaled)' --output-on-failure
+ctest --test-dir build -R verification_cqmom_automatic_scaling_feature_sensitive --output-on-failure
 ```

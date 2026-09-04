@@ -118,7 +118,7 @@ implementation pass without establishing why the change is justified.
 
 ## Pull requests
 
-A pull request should explain:
+A pull request should use the provided [PR template](.github/pull_request_template.md) and explain:
 
 - what changed;
 - why the change is needed;

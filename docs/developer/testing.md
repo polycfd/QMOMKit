@@ -112,8 +112,8 @@ CTest names identify the tested contract. Several executables accept a local
 selector so independently meaningful groups can be registered separately. The
 individual CTest registrations are authoritative; running such an executable
 without a selector is a developer convenience, not an aggregate CTest contract.
-The current root suite has **113** registered CTest tests: 32 unit, 7
-component-regression, 73 verification, and 1 supporting public-header test.
+The current root suite has **114** registered CTest tests: 32 unit, 7
+component-regression, 74 verification, and 1 supporting public-header test.
 Obtain the current count from `ctest -N` (and confirm structured registration
 with `ctest --show-only=json-v1`), rather than maintaining it by arithmetic
 alone.

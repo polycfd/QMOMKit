@@ -793,7 +793,7 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
 
     std::vector<ConditioningPath> paths;
     paths.reserve(quadrature.weights().size());
-    for (const MultiIndex& node_index : enumerate_quadrature_node_multi_indices(quadrature.hierarchy()))
+    for (const MultiIndex& node_index : enumerate_multi_indices(quadrature.hierarchy().node_counts()))
     {
         paths.push_back(phase_space_index_to_conditioning_path(quadrature.hierarchy(), node_index));
     }

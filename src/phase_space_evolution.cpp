@@ -96,7 +96,7 @@ template <typename ApplyAdvection, typename ApplySource>
         {
             return false;
         }
-        if (!apply_source(t + half_step))
+        if (!apply_source(t))
         {
             return false;
         }

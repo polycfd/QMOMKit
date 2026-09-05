@@ -348,6 +348,12 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return false;
 }
 
+[[nodiscard]] std::size_t numerical_rank(const MatrixAnalysis& analysis)
+{
+    return static_cast<std::size_t>(std::count_if(analysis.eigensystem.eigenvalues.begin(), analysis.eigensystem.eigenvalues.end(),
+                                                  [&analysis](const double eigenvalue) { return eigenvalue > analysis.tolerance; }));
+}
+
 [[nodiscard]] RealizabilityResult finish_classification(ClassificationState state, const std::size_t checked_order, const MomentSupport support)
 {
     state.result.checked_order = checked_order;
@@ -402,7 +408,8 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
 [[nodiscard]] RealizabilityResult check_hamburger(const MomentSet& moments, const RealizabilityOptions& options)
 {
     // Hamburger realizability on the real line is governed by PSD Hankel moment
-    // matrices; odd truncation also requires the next column to be range-valid.
+    // matrices. A singular even truncation must be a flat extension of its
+    // preceding moment matrix; odd truncations require next-column range validity.
     const std::size_t checked_order = moments.size() - 1;
     const std::size_t hankel_order = checked_order / 2;
     ClassificationState state;
@@ -422,6 +429,21 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
                                            options))
         {
             return state.result;
+        }
+    }
+    else if (hankel_order > 0 && moment_matrix.status == MatrixStatus::positive_semidefinite)
+    {
+        const MatrixAnalysis preceding_matrix =
+            analyze_matrix("H_" + std::to_string(hankel_order - 1), hankel_order - 1, hankel_matrix(moments, hankel_order - 1, 0), options);
+        if (!incorporate_matrix(state, preceding_matrix, checked_order))
+        {
+            return state.result;
+        }
+        if (numerical_rank(moment_matrix) != numerical_rank(preceding_matrix))
+        {
+            return make_result(RealizabilityStatus::not_realizable, checked_order, "H_" + std::to_string(hankel_order) + "_flat_extension",
+                               hankel_order, moment_matrix.minimum_eigenvalue, moment_matrix.tolerance,
+                               "Moment sequence is not realizable: singular Hamburger moment matrix is not a flat extension.");
         }
     }
 

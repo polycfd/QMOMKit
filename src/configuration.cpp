@@ -2698,7 +2698,12 @@ ConfigurationResult<QmomPhaseSpaceEvolutionOptions> parse_qmom_phase_space_evolu
     reject_unknown_qmom_option_keys(parsed, source_name);
     const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
-    const std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
+    std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
+    const std::optional<bool> automatic_scaling = parse_automatic_scaling_from_parsed(parsed, source_name);
+    if (qmom_options.has_value() && automatic_scaling.has_value())
+    {
+        qmom_options->automatic_scaling = *automatic_scaling;
+    }
     const std::optional<RealizabilityPolicy> realizability_policy =
         parse_realizability_policy_from_parsed(parsed, std::string(realizability_section), source_name);
 

@@ -531,6 +531,35 @@ M[1,1] = 0.0
     assert(has_message_fragment(invalid, "automatic_scaling must be true or false"));
 }
 
+void test_qmom_automatic_scaling_handoff_to_evolution_options()
+{
+    // One .qmom file defines the reconstruction policy for both initial
+    // inversion and subsequent QMOM post-source reconstructions.
+    const std::string scaled_case = R"(
+[phase_space]
+node_counts = 1
+automatic_scaling = true
+
+[moments]
+values = 1.0, 0.0
+)";
+    const auto qmom_case = qmomkit::config::parse_qmom(scaled_case);
+    const auto evolution = qmomkit::config::parse_qmom_phase_space_evolution_options(scaled_case);
+    assert(qmom_case.ok());
+    assert(evolution.ok());
+    assert(qmom_case.value().options.automatic_scaling);
+
+    // Explicit false and an omitted key retain the documented default.
+    const auto explicitly_unscaled =
+        qmomkit::config::parse_qmom_phase_space_evolution_options("[phase_space]\nnode_counts = 1\nautomatic_scaling = false\n");
+    const auto omitted = qmomkit::config::parse_qmom_phase_space_evolution_options("[phase_space]\nnode_counts = 1\n");
+    assert(explicitly_unscaled.ok());
+    assert(omitted.ok());
+    assert(!explicitly_unscaled.value().qmom_options.automatic_scaling);
+    assert(!omitted.value().qmom_options.automatic_scaling);
+    assert(evolution.value().qmom_options.automatic_scaling);
+}
+
 void test_cqmom_independent_product_initialization_matches_direct_api()
 {
     const auto configured = qmomkit::config::parse_cqmom_dense(R"(
@@ -3840,6 +3869,7 @@ void run_all_configuration_tests()
     test_node_advection_options_reject_invalid_rk23_controls();
     test_removed_cqmom_source_policy_section_is_unknown();
     test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
+    test_qmom_automatic_scaling_handoff_to_evolution_options();
     test_phase_space_evolution_options_loaders_reject_invalid_values();
     test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();
     test_output_options_default_to_disabled();
@@ -3926,6 +3956,7 @@ void run_runtime_option_tests()
     test_node_advection_options_reject_invalid_rk23_controls();
     test_removed_cqmom_source_policy_section_is_unknown();
     test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
+    test_qmom_automatic_scaling_handoff_to_evolution_options();
     test_phase_space_evolution_options_loaders_reject_invalid_values();
     test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();
     test_output_options_default_to_disabled();

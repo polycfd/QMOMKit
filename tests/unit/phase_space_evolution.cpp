@@ -1743,7 +1743,7 @@ void test_public_qmom_stage_composition_matches_strang_phase_space_evolution()
     const qmomkit::QmomPhaseSpaceEvolutionResult high_level = qmomkit::advance_qmom_phase_space(state, 2, 0.0, dt, velocity, source, options);
     const qmomkit::QmomPhaseSpaceEvolutionResult first = qmomkit::advance_qmom_advection(state, 0.0, 0.5 * dt, velocity, options);
     assert(first.ok());
-    const qmomkit::QmomPhaseSpaceEvolutionResult moment_source = qmomkit::advance_qmom_moment_source(first.state, 2, 0.5 * dt, dt, source, options);
+    const qmomkit::QmomPhaseSpaceEvolutionResult moment_source = qmomkit::advance_qmom_moment_source(first.state, 2, 0.0, dt, source, options);
     assert(moment_source.ok());
     const qmomkit::QmomPhaseSpaceEvolutionResult second = qmomkit::advance_qmom_advection(moment_source.state, 0.5 * dt, 0.5 * dt, velocity, options);
 
@@ -2096,8 +2096,7 @@ void assert_public_cqmom_stage_composition_matches_phase_space_evolution(const q
     {
         const qmomkit::CqmomPhaseSpaceEvolutionResult first = qmomkit::advance_cqmom_advection(state, 0.0, 0.5 * dt, velocity, options);
         assert(first.ok());
-        const qmomkit::CqmomPhaseSpaceEvolutionResult moment_source =
-            qmomkit::advance_cqmom_moment_source(first.state, 0.5 * dt, dt, source, options);
+        const qmomkit::CqmomPhaseSpaceEvolutionResult moment_source = qmomkit::advance_cqmom_moment_source(first.state, 0.0, dt, source, options);
         assert(moment_source.ok());
         explicit_result = qmomkit::advance_cqmom_advection(moment_source.state, 0.5 * dt, 0.5 * dt, velocity, options);
     }
@@ -4235,6 +4234,45 @@ void test_first_order_schemes_differ_for_noncommuting_qmom()
     assert(std::abs(advsrc.state.moments()[1] - srcadv.state.moments()[1]) > 1.0e-4);
 }
 
+void test_strang_source_uses_physical_time_interval_for_nonautonomous_source()
+{
+    // With zero advection, dm0/dt = time has exact physical update
+    // m0(t + h) = m0(t) + t h + h^2 / 2.  SSP-RK3 is exact for this
+    // linear-in-time rate, so this checks the clock, not RK truncation error.
+    const qmomkit::QmomState state = qmom_state_from_moments({1.0, 0.0}, 1);
+    std::vector<double> callback_times;
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto source = [&callback_times](const double time, const qmomkit::QmomSourceContext& moments)
+    {
+        callback_times.push_back(time);
+        return std::vector<double>{time, 0.0};
+    };
+
+    qmomkit::QmomPhaseSpaceEvolutionOptions options;
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const qmomkit::QmomPhaseSpaceEvolutionResult source_only = qmomkit::advance_qmom_moment_source(state, 1, 2.0, 1.0, source, options);
+    assert(source_only.ok());
+    assert_near(source_only.state.moments()[0], 3.5, 1.0e-12);
+    qmomkit::QmomPhaseSpaceEvolutionOptions advsrc_options = options;
+    advsrc_options.scheme = qmomkit::PhaseSpaceEvolutionScheme::advsrc;
+    const qmomkit::QmomPhaseSpaceEvolutionResult advsrc =
+        qmomkit::advance_qmom_phase_space(state, 1, 2.0, 1.0, zero_velocity, source, advsrc_options);
+    assert(advsrc.ok());
+    assert_near(advsrc.state.moments()[0], 3.5, 1.0e-12);
+    qmomkit::QmomPhaseSpaceEvolutionOptions srcadv_options = options;
+    srcadv_options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
+    const qmomkit::QmomPhaseSpaceEvolutionResult srcadv =
+        qmomkit::advance_qmom_phase_space(state, 1, 2.0, 1.0, zero_velocity, source, srcadv_options);
+    assert(srcadv.ok());
+    assert_near(srcadv.state.moments()[0], 3.5, 1.0e-12);
+    callback_times.clear();
+    const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(state, 1, 2.0, 1.0, zero_velocity, source, options);
+    assert(result.ok());
+    assert_vector_near(callback_times, {2.0, 3.0, 2.5}, 0.0);
+    assert_near(result.state.moments()[0], 3.5, 1.0e-12);
+}
+
 void test_diagnostics_are_aggregated()
 {
     const std::vector<double> moments = raw_moments_1d({1.0}, {2.0}, 2);
@@ -4641,6 +4679,7 @@ void run_all_phase_space_evolution_tests()
     test_qmom_adaptive_post_source_reduction_and_growth_policy();
     test_qmom_fixed_post_source_requires_configured_count();
     test_first_order_schemes_differ_for_noncommuting_qmom();
+    test_strang_source_uses_physical_time_interval_for_nonautonomous_source();
     test_diagnostics_are_aggregated();
     test_qmom_phase_space_evolution_node_advection_scheme_selection();
     test_cqmom_state_phase_space_evolution_node_advection_scheme_selection();
@@ -4679,6 +4718,7 @@ void run_qmom_phase_space_evolution_tests()
     test_qmom_adaptive_post_source_reduction_and_growth_policy();
     test_qmom_fixed_post_source_requires_configured_count();
     test_first_order_schemes_differ_for_noncommuting_qmom();
+    test_strang_source_uses_physical_time_interval_for_nonautonomous_source();
     test_diagnostics_are_aggregated();
     test_qmom_phase_space_evolution_node_advection_scheme_selection();
     test_failure_propagation_from_advection_operator();

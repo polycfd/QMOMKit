@@ -1410,7 +1410,7 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const qmomkit::QmomPhaseSpaceEvolutionResult post_source_inversion =
         qmomkit::advance_qmom_phase_space(initial_state, qmom_case.node_count, 0.0, dt, zero_velocity, nonrealizable_source, options);
-    verify_qmom_post_source_inversion_failure_result(post_source_inversion, 0.5 * dt, verification);
+    verify_qmom_post_source_inversion_failure_result(post_source_inversion, 0.0, verification);
 
     RunSummary reconstruction_summary;
     reconstruction_summary.scheme = options.scheme;
@@ -3169,7 +3169,7 @@ VerificationResult run_cqmom_phase_space_evolution_failures(const std::filesyste
     };
     const qmomkit::CqmomPhaseSpaceEvolutionResult post_source_inversion =
         qmomkit::advance_cqmom_phase_space(state, 0.0, dt, zero_velocity, nonrealizable_source, options);
-    verify_cqmom_post_source_inversion_failure_result(post_source_inversion, 0.5 * dt, verification);
+    verify_cqmom_post_source_inversion_failure_result(post_source_inversion, 0.0, verification);
 
     RunSummary summary;
     summary.scheme = options.scheme;
@@ -3318,7 +3318,7 @@ VerificationResult run_cqmom_dense_phase_space_evolution_failures(const std::fil
     };
     const qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult post_source_inversion =
         qmomkit::advance_cqmom_phase_space(dense_case.moments, dense_case.hierarchy, 0.0, dt, zero_velocity, nonrealizable_source, options);
-    verify_cqmom_dense_post_source_inversion_failure_result(post_source_inversion, 0.5 * dt, verification);
+    verify_cqmom_dense_post_source_inversion_failure_result(post_source_inversion, 0.0, verification);
 
     RunSummary inversion_summary;
     inversion_summary.scheme = options.scheme;
@@ -3426,7 +3426,7 @@ VerificationResult run_cqmom_lean_phase_space_evolution_failures(const std::file
     };
     const qmomkit::TestLeanCqmomPhaseSpaceEvolutionResult post_source_inversion =
         qmomkit::advance_cqmom_phase_space(initial_state, 0.0, dt, zero_velocity, nonrealizable_source, options);
-    verify_cqmom_lean_post_source_inversion_failure_result(post_source_inversion, 0.5 * dt, verification);
+    verify_cqmom_lean_post_source_inversion_failure_result(post_source_inversion, 0.0, verification);
 
     RunSummary inversion_summary;
     inversion_summary.scheme = options.scheme;
@@ -3557,9 +3557,9 @@ void verify_cqmom_native_source_failure_result(const std::string& case_name, con
         append_failure(verification, case_name + " unexpectedly reached post-source CQMOM reconstruction.");
     }
     if (result.diagnostics.final_reconstruction_diagnostics.success || result.diagnostics.second_advection_diagnostics.step_count > 0 ||
-        result.final_time <= 0.0)
+        std::abs(result.final_time) > 1.0e-14)
     {
-        append_failure(verification, case_name + " reported later-stage progress after source callback failure.");
+        append_failure(verification, case_name + " advanced final_time past the source callback failure.");
     }
 }
 

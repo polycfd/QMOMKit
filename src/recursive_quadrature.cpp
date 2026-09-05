@@ -1165,7 +1165,7 @@ namespace
 {
     std::vector<ConditioningPath> paths;
     paths.reserve(hierarchy.total_nodes());
-    for (const MultiIndex& node_index : enumerate_quadrature_node_multi_indices(hierarchy))
+    for (const MultiIndex& node_index : enumerate_multi_indices(hierarchy.node_counts()))
     {
         paths.push_back(phase_space_node_index_to_path(hierarchy, node_index));
     }

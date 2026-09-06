@@ -174,6 +174,15 @@ qmomkit::RawMomentTensor adaptive_cqmom_moments()
     return {extents, raw_moments_from_terminals(extents, weights, abscissas)};
 }
 
+qmomkit::RawMomentTensor near_collapsed_adaptive_cqmom_moments()
+{
+    const std::vector<std::size_t> extents{4, 4};
+    constexpr double secondary_weight = 1.0e-12;
+    const std::vector<double> weights{1.0 - secondary_weight, secondary_weight};
+    const std::vector<std::vector<double>> abscissas{{0.0, 1.0}, {0.0, 0.0}};
+    return {extents, raw_moments_from_terminals(extents, weights, abscissas)};
+}
+
 qmomkit::RawMomentTensor branch_specific_ragged_cqmom_moments()
 {
     const std::vector<std::size_t> extents{4, 4};
@@ -1835,6 +1844,38 @@ void test_cqmom_initial_state_stores_accepted_quadrature_adaptive_dense_and_lean
     assert(dense_quadrature->terminal_paths() == lean_quadrature->terminal_paths());
     assert(active_counts_equal(dense_state.active_branch_counts(), lean_state.active_branch_counts()));
     assert(active_counts_equal(dense_state.active_branch_counts(), qmomkit::internal::active_branch_counts_from_quadrature(*dense_quadrature)));
+}
+
+void test_cqmom_initial_state_canonicalizes_adaptively_reduced_moments()
+{
+    const qmomkit::RawMomentTensor moments = near_collapsed_adaptive_cqmom_moments();
+    constexpr double tolerance = 1.0e-30;
+
+    for (const char* const storage : {"dense", "lean"})
+    {
+        const qmomkit::CqmomState initial = adaptive_cqmom_case_from_moments_with_storage(moments, storage).initial_state();
+        const std::optional<qmomkit::CqmomQuadrature>& accepted = qmomkit::internal::CqmomConstructionAccess::state_accepted_quadrature(initial);
+
+        assert(accepted.has_value());
+        assert(accepted->total_nodes() == 1);
+        assert_cqmom_state_moments_match_quadrature(initial, *accepted, tolerance);
+
+        std::size_t source_calls = 0;
+        const qmomkit::CqmomMomentSource zero_source = [&source_calls](double, const qmomkit::CqmomSourceContext& context)
+        {
+            ++source_calls;
+            assert_near(context.moment({3, 0}), context.generalized_moment({3.0, 0.0}), 1.0e-30);
+            return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)};
+        };
+
+        const qmomkit::CqmomPhaseSpaceEvolutionResult advanced = qmomkit::advance_cqmom_moment_source(initial, 0.0, 0.1, zero_source);
+        assert(advanced.ok());
+        assert(advanced.quadrature.has_value());
+        assert(source_calls == 3);
+        assert_vector_near(advanced.state.moment_values(), initial.moment_values(), tolerance);
+        assert_cqmom_quadrature_near(*advanced.quadrature, *accepted, 1.0e-20);
+        assert_cqmom_state_moments_match_quadrature(advanced.state, *advanced.quadrature, tolerance);
+    }
 }
 
 void test_cqmom_first_advection_stage_uses_initial_accepted_quadrature()
@@ -4732,6 +4773,7 @@ void run_cqmom_phase_space_evolution_tests()
 {
     test_cqmom_initial_state_stores_accepted_quadrature_fixed_dense_and_lean();
     test_cqmom_initial_state_stores_accepted_quadrature_adaptive_dense_and_lean();
+    test_cqmom_initial_state_canonicalizes_adaptively_reduced_moments();
     test_cqmom_first_advection_stage_uses_initial_accepted_quadrature();
     test_public_cqmom_advection_stage_preserves_topology();
     test_public_cqmom_advection_stage_reconstructs_dense_and_lean_moments();

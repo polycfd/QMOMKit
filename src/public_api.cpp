@@ -2,6 +2,7 @@
 #include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
+#include "internal/moment_reconstruction.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
 #include "internal/qmom_state_access.hpp"
@@ -325,12 +326,28 @@ CqmomState CqmomCase::initial_state() const
     std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(accepted_quadrature);
     return std::visit(Overloaded{[&active_counts, &accepted_quadrature, &prepared_fixed_metadata](const CqmomDenseCase& dense_case)
                                  {
-                                     return internal::CqmomConstructionAccess::create_state(dense_case, std::move(active_counts),
+                                     CqmomDenseCase canonical_case{dense_case.hierarchy,
+                                                                   reconstruct_raw_moments(accepted_quadrature, dense_case.moments.extents),
+                                                                   dense_case.conditional_options,
+                                                                   dense_case.qmom_options,
+                                                                   dense_case.adaptive_branch_counts,
+                                                                   dense_case.diagnostic_level,
+                                                                   dense_case.vandermonde_solver,
+                                                                   dense_case.coordinate_support};
+                                     return internal::CqmomConstructionAccess::create_state(std::move(canonical_case), std::move(active_counts),
                                                                                             std::move(accepted_quadrature), prepared_fixed_metadata);
                                  },
                                  [&active_counts, &accepted_quadrature, &prepared_fixed_metadata](const CqmomLeanCase& lean_case)
                                  {
-                                     return internal::CqmomConstructionAccess::create_state(lean_case, std::move(active_counts),
+                                     CqmomLeanCase canonical_case{
+                                         internal::reconstruct_trusted_cqmom_moments(accepted_quadrature, lean_case.moments.layout),
+                                         lean_case.conditional_options,
+                                         lean_case.qmom_options,
+                                         lean_case.adaptive_branch_counts,
+                                         lean_case.diagnostic_level,
+                                         lean_case.vandermonde_solver,
+                                         lean_case.coordinate_support};
+                                     return internal::CqmomConstructionAccess::create_state(std::move(canonical_case), std::move(active_counts),
                                                                                             std::move(accepted_quadrature), prepared_fixed_metadata);
                                  }},
                       data_->case_);

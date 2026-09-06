@@ -86,6 +86,10 @@ QmomMomentSourceRateResult evaluate_qmom_moment_source_rates(const double time, 
     {
         return qmom_invalid_input("Moment-source rate evaluation requires at least one moment.");
     }
+    if (!all_finite(moments))
+    {
+        return qmom_invalid_input("Moment-source rate evaluation input moments must be finite.");
+    }
     if (!std::isfinite(time))
     {
         return qmom_invalid_input("Moment-source rate evaluation time must be finite.");

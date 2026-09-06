@@ -336,6 +336,12 @@ QrSolveResult solve_qr(const PivotedQrFactorization& factorization, DenseMatrix 
         }
     }
 
+    if (!finite_matrix(solution))
+    {
+        return solve_failure_result(factorization.cols, rhs_cols, factorization.numerical_rank, QrStatus::invalid_input,
+                                    "QR solve produced non-finite solution values.");
+    }
+
     return QrSolveResult{std::move(solution), factorization.numerical_rank, QrStatus::success, ""};
 }
 

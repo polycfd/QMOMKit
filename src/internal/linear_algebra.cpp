@@ -10,6 +10,25 @@
 
 namespace qmomkit::internal
 {
+namespace
+{
+
+[[nodiscard]] bool matrix_all_finite(const DenseMatrix& matrix)
+{
+    for (std::size_t row = 0; row < matrix.rows(); ++row)
+    {
+        for (std::size_t col = 0; col < matrix.cols(); ++col)
+        {
+            if (!std::isfinite(matrix(row, col)))
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+} // namespace
 
 double matrix_infinity_norm(const DenseMatrix& matrix)
 {
@@ -108,6 +127,11 @@ LinearSolveResult solve_dense(DenseMatrix matrix, DenseMatrix rhs, const double 
             }
             solution(row, rhs_col) = value / matrix(row, row);
         }
+    }
+
+    if (!matrix_all_finite(solution))
+    {
+        return LinearSolveResult{DenseMatrix(n, rhs_cols), false, "Dense linear solve produced non-finite solution values."};
     }
 
     return LinearSolveResult{std::move(solution), true, ""};

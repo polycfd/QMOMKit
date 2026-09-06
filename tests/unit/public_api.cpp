@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <numeric>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -1053,6 +1054,36 @@ void test_cqmom_public_api_exposes_adaptive_branch_counts()
     assert(saw_reduced_branch);
 }
 
+void test_cqmom_adaptive_root_branch_uses_relative_rmin_only()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const double density_scale = 0.05;
+    const std::vector<double> weights(4, 0.25 * density_scale);
+    const std::vector<std::vector<double>> abscissas{{10.0, 10.0, 20.0, 20.0}, {-1.0, 1.0, -1.0, 1.0}};
+    const qmomkit::QmomOptions qmom_options{true, 0.1, 1.0e-10, 1.0e-30};
+    const qmomkit::CqmomDenseCase case_{
+        hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, {}, qmom_options, true, qmomkit::CqmomDiagnosticLevel::basic};
+
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+
+    assert(result.ok());
+    assert(result.quadrature.total_nodes() == 4);
+    assert_near(std::accumulate(result.quadrature.weights().begin(), result.quadrature.weights().end(), 0.0), density_scale, 1.0e-14);
+
+    bool saw_unreduced_root = false;
+    for (const qmomkit::CqmomDiagnostics& diagnostics : result.diagnostics)
+    {
+        if (diagnostics.conditioning_level == 0)
+        {
+            saw_unreduced_root = true;
+            assert(diagnostics.actual_node_count == 2);
+            assert(!diagnostics.adaptive_node_count_reduced);
+        }
+    }
+    assert(saw_unreduced_root);
+}
+
 void test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -1223,6 +1254,7 @@ int main()
     test_cqmom_automatic_scaling_restores_each_physical_coordinate();
     test_cqmom_public_api_reports_conditional_moment_failure();
     test_cqmom_public_api_exposes_adaptive_branch_counts();
+    test_cqmom_adaptive_root_branch_uses_relative_rmin_only();
     test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts();
     test_cqmom_diagnostic_levels_control_expensive_diagnostics();
     test_cqmom_none_diagnostics_preserves_failure_context();

@@ -209,14 +209,10 @@ struct WheelerAttemptResult
     }
 
     const double min_nearest = *std::min_element(nearest_distances.begin() + 1, nearest_distances.end());
-    double max_farthest = *std::max_element(farthest_distances.begin() + 1, farthest_distances.end());
-    if (abscissas.size() == 2)
+    const double max_farthest = *std::max_element(farthest_distances.begin() + 1, farthest_distances.end());
+    if (!std::isfinite(min_nearest) || !std::isfinite(max_farthest) || max_farthest <= 0.0)
     {
-        max_farthest = std::max(std::abs(abscissas[0]), std::abs(abscissas[1]));
-        if (max_farthest == 0.0)
-        {
-            return false;
-        }
+        return false;
     }
 
     return min_nearest / max_farthest > options.eabs;
@@ -351,12 +347,8 @@ Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_
         return Quadrature1D{{0.0}, {1.0}, QuadratureStatus::not_realizable, "Moment sequence has m0 < cutoff."};
     }
 
-    if (max_nodes == 1 || (options.adaptive && moments[0] <= options.rmin))
+    if (max_nodes == 1)
     {
-        if (max_nodes > 1 && options.adaptive)
-        {
-            internal::performance::record_wheeler_adaptive_reduction();
-        }
         return one_node_result(moments, QuadratureStatus::success, "");
     }
 

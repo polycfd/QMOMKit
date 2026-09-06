@@ -947,7 +947,7 @@ void test_recursive_bounded_support_adaptive_falls_back_to_supported_count()
     assert(diagnostic.adaptive_node_count_reduced);
 }
 
-void test_recursive_bounded_support_adaptive_applies_relative_separation()
+void test_recursive_bounded_support_adaptive_two_node_uses_span_separation()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 1});
     const std::vector<std::size_t> extents{4, 2};
@@ -966,11 +966,11 @@ void test_recursive_bounded_support_adaptive_applies_relative_separation()
                                                          support});
 
     assert(result.ok());
-    assert(result.quadrature.total_nodes() == 1);
+    assert(result.quadrature.total_nodes() == 2);
     assert(!result.diagnostics.empty());
     assert(result.diagnostics.front().bounded_candidate_node_count == 2);
-    assert(result.diagnostics.front().bounded_accepted_fallback_node_count == 1);
-    assert(result.diagnostics.front().adaptive_node_count_reduced);
+    assert(result.diagnostics.front().bounded_accepted_fallback_node_count == 2);
+    assert(!result.diagnostics.front().adaptive_node_count_reduced);
 }
 
 void test_recursive_bounded_support_adaptive_applies_relative_weight_check()
@@ -1861,7 +1861,7 @@ void run_all_recursive_quadrature_tests()
     test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive();
     test_recursive_bounded_support_rejects_fixed_infeasible_count();
     test_recursive_bounded_support_adaptive_falls_back_to_supported_count();
-    test_recursive_bounded_support_adaptive_applies_relative_separation();
+    test_recursive_bounded_support_adaptive_two_node_uses_span_separation();
     test_recursive_bounded_support_adaptive_applies_relative_weight_check();
     test_recursive_bounded_support_rejects_growth_and_preserves_current_count();
     test_recursive_bounded_support_uses_phase_space_coordinate_index();
@@ -1941,7 +1941,7 @@ void run_bounded_support_tests()
     test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive();
     test_recursive_bounded_support_rejects_fixed_infeasible_count();
     test_recursive_bounded_support_adaptive_falls_back_to_supported_count();
-    test_recursive_bounded_support_adaptive_applies_relative_separation();
+    test_recursive_bounded_support_adaptive_two_node_uses_span_separation();
     test_recursive_bounded_support_adaptive_applies_relative_weight_check();
     test_recursive_bounded_support_rejects_growth_and_preserves_current_count();
     test_recursive_bounded_support_uses_phase_space_coordinate_index();

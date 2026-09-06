@@ -413,6 +413,29 @@ void test_ssp_rk3_rejects_initial_step_below_minimum()
     assert(threw);
 }
 
+void test_ssp_rk3_rejects_retry_that_underflows_to_zero()
+{
+    std::size_t rhs_calls = 0;
+    qmomkit::SspRk3Options options;
+    options.accept = [](const std::vector<double>&) { return false; };
+    options.max_retries = 1;
+
+    const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step(
+        {0.0}, 0.0, std::numeric_limits<double>::denorm_min(),
+        [&rhs_calls](double, const std::vector<double>&)
+        {
+            ++rhs_calls;
+            return std::vector<double>{0.0};
+        },
+        options);
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::SspRk3Status::minimum_timestep_reached);
+    assert(result.retries == 0);
+    assert(result.time_step_used == std::numeric_limits<double>::denorm_min());
+    assert(rhs_calls == 3);
+}
+
 void test_ssp_rk3_without_stage_callback_accepts_unchecked_candidate()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, -2.0}; };
@@ -858,6 +881,7 @@ int main()
     test_ssp_rk3_failure_after_max_retries();
     test_ssp_rk3_failure_after_reaching_minimum_timestep();
     test_ssp_rk3_rejects_initial_step_below_minimum();
+    test_ssp_rk3_rejects_retry_that_underflows_to_zero();
     test_ssp_rk3_without_stage_callback_accepts_unchecked_candidate();
     test_ssp_rk3_final_only_callback_invoked_once();
     test_ssp_rk3_stage_callback_invoked_for_each_stage();

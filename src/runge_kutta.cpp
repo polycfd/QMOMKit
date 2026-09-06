@@ -186,7 +186,8 @@ SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, cons
     {
         throw std::invalid_argument("SSP-RK3 input contains non-finite values.");
     }
-    if (time_step <= 0.0 || options.min_time_step < 0.0 || (options.min_time_step > 0.0 && time_step < options.min_time_step))
+    if (time_step <= 0.0 || !std::isfinite(options.min_time_step) || options.min_time_step < 0.0 ||
+        (options.min_time_step > 0.0 && time_step < options.min_time_step))
     {
         throw std::invalid_argument("SSP-RK3 timestep controls must be positive.");
     }
@@ -210,7 +211,7 @@ SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, cons
         }
 
         const double next_dt = 0.5 * candidate_dt;
-        if (options.min_time_step > 0.0 && next_dt < options.min_time_step)
+        if (!std::isfinite(next_dt) || next_dt <= 0.0 || next_dt >= candidate_dt || (options.min_time_step > 0.0 && next_dt < options.min_time_step))
         {
             return SspRk3Result{state, std::nullopt, SspRk3Status::minimum_timestep_reached, retries, candidate_dt};
         }

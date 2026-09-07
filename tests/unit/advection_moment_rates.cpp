@@ -4,6 +4,7 @@
 #include "internal/moment_reconstruction.hpp"
 #include "internal/performance.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -450,16 +451,19 @@ void test_new_evaluators_do_not_record_native_node_rhs_counters()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_qmom_one_node_constant_velocity();
-    test_qmom_two_node_distinct_velocities_and_independent_composition();
-    test_qmom_zero_and_linear_velocity();
-    test_qmom_failure_paths();
-    test_cqmom_identity_ordering_and_independent_composition();
-    test_cqmom_non_identity_ordering_and_global_terminal_weights();
-    test_cqmom_zero_velocity_and_adaptive_terminal_arrays();
-    test_cqmom_failure_paths();
-    test_new_evaluators_do_not_record_native_node_rhs_counters();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"qmom_one_node_constant_velocity", test_qmom_one_node_constant_velocity},
+            {"qmom_two_node_distinct_velocities_and_independent_composition", test_qmom_two_node_distinct_velocities_and_independent_composition},
+            {"qmom_zero_and_linear_velocity", test_qmom_zero_and_linear_velocity},
+            {"qmom_failure_paths", test_qmom_failure_paths},
+            {"cqmom_identity_ordering_and_independent_composition", test_cqmom_identity_ordering_and_independent_composition},
+            {"cqmom_non_identity_ordering_and_global_terminal_weights", test_cqmom_non_identity_ordering_and_global_terminal_weights},
+            {"cqmom_zero_velocity_and_adaptive_terminal_arrays", test_cqmom_zero_velocity_and_adaptive_terminal_arrays},
+            {"cqmom_failure_paths", test_cqmom_failure_paths},
+            {"new_evaluators_do_not_record_native_node_rhs_counters", test_new_evaluators_do_not_record_native_node_rhs_counters},
+        });
 }

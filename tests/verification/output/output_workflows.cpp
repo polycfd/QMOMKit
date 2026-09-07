@@ -257,15 +257,21 @@ int main(const int argc, char** argv)
     // Output verification is intentionally workflow-level: compute public QMOM
     // and CQMOM quadratures, write moments/quadrature with OutputOptions, and
     // parse the files back as a downstream text consumer would.
-    if (argc != 4)
+    if (argc != 5)
     {
-        std::cerr << "Usage: output_workflows_verification <qmom.qmom> <cqmom.qmom> <output-directory>\n";
+        std::cerr << "Usage: output_workflows_verification <qmom.qmom> <cqmom.qmom> <output-directory> <qmom|cqmom>\n";
         return 2;
     }
 
     const std::filesystem::path qmom_configuration = argv[1];
     const std::filesystem::path cqmom_configuration = argv[2];
     const std::filesystem::path output_directory = argv[3];
+    const std::string selected_case = argv[4];
+    if (selected_case != "qmom" && selected_case != "cqmom")
+    {
+        std::cerr << "Unknown output workflow case '" << selected_case << "'.\n";
+        return 2;
+    }
 
     std::filesystem::create_directories(output_directory);
     remove_known_outputs(output_directory);
@@ -288,19 +294,23 @@ int main(const int argc, char** argv)
     const qmomkit::CqmomResult cqmom_result = qmomkit::compute_cqmom(configured_cqmom.value());
     QMOMKIT_VERIFY_CHECK(cqmom_result.status == qmomkit::CqmomStatus::success);
 
-    const qmomkit::OutputOptions disabled_options{output_directory, false, false, std::nullopt};
-    write_qmom_outputs(disabled_options, "disabled", configured_qmom.value(), qmom_result);
-    QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_moments.txt"));
-    QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_quadrature.txt"));
-
     const qmomkit::OutputOptions enabled_options{output_directory, true, true, 0.5};
-    write_qmom_outputs(enabled_options, "qmom", configured_qmom.value(), qmom_result);
-    write_cqmom_outputs(enabled_options, "cqmom", cqmom_result);
-
-    verify_qmom_moment_output(output_directory / "qmom_moments.txt", configured_qmom.value().moments);
-    verify_qmom_quadrature_output(output_directory / "qmom_quadrature.txt", qmom_result);
-    verify_cqmom_moment_output(output_directory / "cqmom_moments.txt");
-    verify_cqmom_quadrature_output(output_directory / "cqmom_quadrature.txt", cqmom_result.quadrature);
+    if (selected_case == "qmom")
+    {
+        const qmomkit::OutputOptions disabled_options{output_directory, false, false, std::nullopt};
+        write_qmom_outputs(disabled_options, "disabled", configured_qmom.value(), qmom_result);
+        QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_moments.txt"));
+        QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_quadrature.txt"));
+        write_qmom_outputs(enabled_options, "qmom", configured_qmom.value(), qmom_result);
+        verify_qmom_moment_output(output_directory / "qmom_moments.txt", configured_qmom.value().moments);
+        verify_qmom_quadrature_output(output_directory / "qmom_quadrature.txt", qmom_result);
+    }
+    else
+    {
+        write_cqmom_outputs(enabled_options, "cqmom", cqmom_result);
+        verify_cqmom_moment_output(output_directory / "cqmom_moments.txt");
+        verify_cqmom_quadrature_output(output_directory / "cqmom_quadrature.txt", cqmom_result.quadrature);
+    }
 
     std::cout << "QMOMKit output writer workflow verification\n";
     std::cout << "QMOM configuration: " << qmom_configuration << '\n';

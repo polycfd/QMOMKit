@@ -1,48 +1,32 @@
-qmomkit_add_ctest(test_wheeler unit_wheeler unit wheeler.cpp)
-qmomkit_add_ctest(test_runge_kutta unit_runge_kutta unit runge_kutta.cpp)
-add_executable(test_recursive_quadrature recursive_quadrature.cpp)
-target_include_directories(test_recursive_quadrature PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src")
-target_link_libraries(test_recursive_quadrature PRIVATE qmomkit)
-foreach(case_name IN ITEMS indexing_layout lean_reconstruction bounded_support solver_policy)
-    add_test(NAME unit_recursive_${case_name} COMMAND test_recursive_quadrature ${case_name})
-    set_tests_properties(unit_recursive_${case_name} PROPERTIES LABELS unit)
+set(unit_test_sources
+    wheeler.cpp
+    runge_kutta.cpp
+    recursive_quadrature.cpp
+    conditional_moments.cpp
+    moment_rates.cpp
+    advection_moment_rates.cpp
+    moment_source_rates.cpp
+    bjorck_pereyra.cpp
+    householder_qr.cpp
+    jacobi_svd.cpp
+    vandermonde.cpp
+    public_api.cpp
+    configuration.cpp
+    output.cpp
+    distributions.cpp
+    realizability.cpp
+    realizability_policy.cpp
+    node_advection.cpp
+    moment_source.cpp
+    moment_reconstruction.cpp
+    phase_space_evolution.cpp
+    phase_space_evolution_batch.cpp
+    performance_instrumentation.cpp
+)
+
+foreach(source_file IN LISTS unit_test_sources)
+    get_filename_component(test_name "${source_file}" NAME_WE)
+    set(target_name "test_${test_name}")
+    qmomkit_add_test_executable(${target_name} "${source_file}")
+    qmomkit_register_source_test_cases(${target_name} unit "${CMAKE_CURRENT_LIST_DIR}/${source_file}")
 endforeach()
-qmomkit_add_ctest(test_conditional_moments unit_conditional_moments unit conditional_moments.cpp)
-qmomkit_add_ctest(test_moment_rates unit_moment_rates unit moment_rates.cpp)
-qmomkit_add_ctest(test_advection_moment_rates unit_advection_moment_rates unit advection_moment_rates.cpp)
-qmomkit_add_ctest(test_moment_source_rates unit_moment_source_rates unit moment_source_rates.cpp)
-qmomkit_add_ctest(test_bjorck_pereyra unit_bjorck_pereyra unit bjorck_pereyra.cpp)
-qmomkit_add_ctest(test_householder_qr unit_householder_qr unit householder_qr.cpp)
-qmomkit_add_ctest(test_jacobi_svd unit_jacobi_svd unit jacobi_svd.cpp)
-qmomkit_add_ctest(test_vandermonde unit_vandermonde unit vandermonde.cpp)
-qmomkit_add_ctest(test_public_api unit_public_api unit public_api.cpp)
-target_include_directories(test_public_api PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src")
-add_executable(test_configuration configuration.cpp)
-target_include_directories(test_configuration PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src")
-target_link_libraries(test_configuration PRIVATE qmomkit)
-foreach(case_name IN ITEMS initialization cqmom_case_state runtime_options failure_paths)
-    add_test(NAME unit_configuration_${case_name} COMMAND test_configuration ${case_name})
-    set_tests_properties(unit_configuration_${case_name} PROPERTIES LABELS unit)
-endforeach()
-qmomkit_add_ctest(test_output unit_output unit output.cpp)
-add_executable(test_distributions distributions.cpp)
-target_include_directories(test_distributions PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src")
-target_link_libraries(test_distributions PRIVATE qmomkit)
-foreach(case_name IN ITEMS selected_results mixtures independent_products)
-    add_test(NAME unit_distribution_${case_name} COMMAND test_distributions ${case_name})
-    set_tests_properties(unit_distribution_${case_name} PROPERTIES LABELS unit)
-endforeach()
-qmomkit_add_ctest(test_realizability unit_realizability unit realizability.cpp)
-qmomkit_add_ctest(test_realizability_policy unit_realizability_policy unit realizability_policy.cpp)
-qmomkit_add_ctest(test_node_advection unit_node_advection unit node_advection.cpp)
-qmomkit_add_ctest(test_moment_source unit_moment_source unit moment_source.cpp)
-qmomkit_add_ctest(test_moment_reconstruction unit_moment_reconstruction unit moment_reconstruction.cpp)
-add_executable(test_phase_space_evolution phase_space_evolution.cpp)
-target_include_directories(test_phase_space_evolution PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src")
-target_link_libraries(test_phase_space_evolution PRIVATE qmomkit)
-foreach(case_name IN ITEMS qmom cqmom)
-    add_test(NAME unit_${case_name}_phase_space_evolution COMMAND test_phase_space_evolution ${case_name})
-    set_tests_properties(unit_${case_name}_phase_space_evolution PROPERTIES LABELS unit)
-endforeach()
-qmomkit_add_ctest(test_phase_space_evolution_batch unit_phase_space_evolution_batch unit phase_space_evolution_batch.cpp)
-qmomkit_add_ctest(test_performance_instrumentation unit_performance_instrumentation unit performance_instrumentation.cpp)

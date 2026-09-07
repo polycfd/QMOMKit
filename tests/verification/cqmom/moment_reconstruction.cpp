@@ -242,9 +242,9 @@ int main(const int argc, char** argv)
     // Reconstruct raw moments from independent 1D and 2D quadratures using the
     // public dense, selected, and CQMOM-required-layout APIs. The reference
     // values are evaluated analytically from the defining terminal rules.
-    if (argc != 2)
+    if (argc != 2 && argc != 3)
     {
-        std::cerr << "Usage: moment_reconstruction_verification <independent_product.qmom>\n";
+        std::cerr << "Usage: moment_reconstruction_verification <independent_product.qmom> [case-name]\n";
         return 2;
     }
 
@@ -269,11 +269,35 @@ int main(const int argc, char** argv)
         return 1;
     }
 
+    const std::string selected_case = argc == 3 ? argv[2] : "";
+    const auto selected = [&selected_case](const std::string& name) { return selected_case.empty() || selected_case == name; };
+    bool matched = selected_case.empty();
     VerificationResult verification;
-    verify_qmom_dense_reconstruction(verification);
-    verify_selected_cqmom_reconstruction(cqmom.quadrature, verification);
-    verify_cqmom_required_layout_reconstruction(cqmom.quadrature, lean.value().moments.layout, verification);
-    verify_cqmom_reconstruction_failures(cqmom.quadrature, lean.value().moments.layout, verification);
+    if (selected("qmom_dense"))
+    {
+        matched = true;
+        verify_qmom_dense_reconstruction(verification);
+    }
+    if (selected("cqmom_selected"))
+    {
+        matched = true;
+        verify_selected_cqmom_reconstruction(cqmom.quadrature, verification);
+    }
+    if (selected("cqmom_required_layout"))
+    {
+        matched = true;
+        verify_cqmom_required_layout_reconstruction(cqmom.quadrature, lean.value().moments.layout, verification);
+    }
+    if (selected("failure_paths"))
+    {
+        matched = true;
+        verify_cqmom_reconstruction_failures(cqmom.quadrature, lean.value().moments.layout, verification);
+    }
+    if (!matched)
+    {
+        std::cerr << "Unknown moment-reconstruction case '" << selected_case << "'.\n";
+        return 2;
+    }
 
     std::cout << "QMOMKit raw moment reconstruction verification\n";
     std::cout << "Configuration: " << configuration_path << '\n';

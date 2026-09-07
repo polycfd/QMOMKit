@@ -1,4 +1,5 @@
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -437,33 +438,39 @@ void test_invalid_wheeler_options_fail_before_inversion()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_adaptive_density_above_cutoff_is_not_reduced_by_rmin();
-    test_cutoff_remains_the_absolute_population_gate();
-    test_adaptive_two_node_span_separation_is_translation_invariant();
-    test_adaptive_two_node_span_separation_is_scale_invariant();
-    test_adaptive_two_node_relative_separation_accepts_small_symmetric_pair();
-    test_adaptive_two_node_zero_span_reduces_without_nonfinite_values();
-    test_adaptive_three_node_relative_separation_uses_quadrature_span();
-    test_adaptive_near_duplicate_nodes_collapse();
-    test_adaptive_tiny_weight_node_collapse();
-    test_scaled_weights_transform_quadrature();
-    test_scaled_abscissas_transform_quadrature();
-    test_adaptive_exact_degenerate_sequence_reduces_before_finite_check();
-    test_adaptive_exact_large_abscissa_degenerate_sequence_reduces();
-    test_adaptive_roundoff_positive_degenerate_sequence_reduces();
-    test_adaptive_relative_weight_threshold_rejection_falls_back_to_one_node();
-    test_adaptive_requested_two_node_negative_variance_recovers_one_node();
-    test_adaptive_requested_three_node_high_rank_sigma_recovers_two_nodes();
-    test_nonadaptive_singular_sequence_reports_failure();
-    test_fixed_count_negative_variance_remains_strict_failure();
-    test_adaptive_scaled_requested_two_node_negative_variance_recovers_one_node();
-    test_adaptive_negative_mass_remains_failure();
-    test_invalid_input_requires_two_moments_per_node();
-    test_zero_requested_nodes_reports_invalid_input();
-    test_nonfinite_moment_reports_invalid_input();
-    test_invalid_wheeler_options_fail_before_inversion();
-
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"adaptive_two_node_span_separation_is_translation_invariant", test_adaptive_two_node_span_separation_is_translation_invariant},
+            {"adaptive_two_node_span_separation_is_scale_invariant", test_adaptive_two_node_span_separation_is_scale_invariant},
+            {"adaptive_two_node_relative_separation_accepts_small_symmetric_pair",
+             test_adaptive_two_node_relative_separation_accepts_small_symmetric_pair},
+            {"adaptive_two_node_zero_span_reduces_without_nonfinite_values", test_adaptive_two_node_zero_span_reduces_without_nonfinite_values},
+            {"adaptive_density_above_cutoff_is_not_reduced_by_rmin", test_adaptive_density_above_cutoff_is_not_reduced_by_rmin},
+            {"cutoff_remains_the_absolute_population_gate", test_cutoff_remains_the_absolute_population_gate},
+            {"adaptive_three_node_relative_separation_uses_quadrature_span", test_adaptive_three_node_relative_separation_uses_quadrature_span},
+            {"adaptive_near_duplicate_nodes_collapse", test_adaptive_near_duplicate_nodes_collapse},
+            {"adaptive_tiny_weight_node_collapse", test_adaptive_tiny_weight_node_collapse},
+            {"scaled_weights_transform_quadrature", test_scaled_weights_transform_quadrature},
+            {"scaled_abscissas_transform_quadrature", test_scaled_abscissas_transform_quadrature},
+            {"adaptive_exact_degenerate_sequence_reduces_before_finite_check", test_adaptive_exact_degenerate_sequence_reduces_before_finite_check},
+            {"adaptive_exact_large_abscissa_degenerate_sequence_reduces", test_adaptive_exact_large_abscissa_degenerate_sequence_reduces},
+            {"adaptive_roundoff_positive_degenerate_sequence_reduces", test_adaptive_roundoff_positive_degenerate_sequence_reduces},
+            {"adaptive_relative_weight_threshold_rejection_falls_back_to_one_node",
+             test_adaptive_relative_weight_threshold_rejection_falls_back_to_one_node},
+            {"adaptive_requested_two_node_negative_variance_recovers_one_node", test_adaptive_requested_two_node_negative_variance_recovers_one_node},
+            {"adaptive_requested_three_node_high_rank_sigma_recovers_two_nodes",
+             test_adaptive_requested_three_node_high_rank_sigma_recovers_two_nodes},
+            {"nonadaptive_singular_sequence_reports_failure", test_nonadaptive_singular_sequence_reports_failure},
+            {"fixed_count_negative_variance_remains_strict_failure", test_fixed_count_negative_variance_remains_strict_failure},
+            {"adaptive_scaled_requested_two_node_negative_variance_recovers_one_node",
+             test_adaptive_scaled_requested_two_node_negative_variance_recovers_one_node},
+            {"adaptive_negative_mass_remains_failure", test_adaptive_negative_mass_remains_failure},
+            {"invalid_input_requires_two_moments_per_node", test_invalid_input_requires_two_moments_per_node},
+            {"zero_requested_nodes_reports_invalid_input", test_zero_requested_nodes_reports_invalid_input},
+            {"nonfinite_moment_reports_invalid_input", test_nonfinite_moment_reports_invalid_input},
+            {"invalid_wheeler_options_fail_before_inversion", test_invalid_wheeler_options_fail_before_inversion},
+        });
 }

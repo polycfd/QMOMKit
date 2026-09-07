@@ -2,6 +2,7 @@
 
 #include "internal/performance.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -269,14 +270,17 @@ void test_direct_evaluators_do_not_integrate_retry_or_reconstruct()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_qmom_success_ordering_and_single_invocation();
-    test_qmom_failure_paths();
-    test_qmom_non_finite_input_is_rejected_before_callback();
-    test_cqmom_identity_context_ordering_and_layout_preservation();
-    test_cqmom_non_identity_ordering();
-    test_cqmom_failure_paths();
-    test_direct_evaluators_do_not_integrate_retry_or_reconstruct();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"qmom_success_ordering_and_single_invocation", test_qmom_success_ordering_and_single_invocation},
+            {"qmom_failure_paths", test_qmom_failure_paths},
+            {"qmom_non_finite_input_is_rejected_before_callback", test_qmom_non_finite_input_is_rejected_before_callback},
+            {"cqmom_identity_context_ordering_and_layout_preservation", test_cqmom_identity_context_ordering_and_layout_preservation},
+            {"cqmom_non_identity_ordering", test_cqmom_non_identity_ordering},
+            {"cqmom_failure_paths", test_cqmom_failure_paths},
+            {"direct_evaluators_do_not_integrate_retry_or_reconstruct", test_direct_evaluators_do_not_integrate_retry_or_reconstruct},
+        });
 }

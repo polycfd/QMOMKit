@@ -1,4 +1,5 @@
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -850,37 +851,44 @@ void test_cqmom_boundary_contribution_uses_source_context_ordering()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_accept_all_predicate();
-    test_reject_negative_moments_predicate_accepts_nonnegative_update();
-    test_retry_behavior_completes_requested_interval_from_unchanged_state();
-    test_repeated_reduced_steps_complete_requested_interval();
-    test_failure_after_accepted_retry_preserves_original_state();
-    test_failure_behavior_minimum_timestep_preserves_original_state();
-    test_reduced_accepted_step_must_reduce_remaining_interval();
-    test_nan_minimum_timestep_is_invalid();
-    test_cqmom_moment_data_zero_source_preserves_state();
-    test_cqmom_source_context_exposes_moment_metadata();
-    test_cqmom_source_context_validates_indices_and_values();
-    test_cqmom_source_context_terminal_nodes_require_reconstruction_metadata();
-    test_cqmom_source_context_generalized_moments_require_reconstruction_metadata();
-    test_cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial();
-    test_cqmom_moment_data_rate_size_mismatch_fails();
-    test_cqmom_moment_data_non_finite_source_fails();
-    test_cqmom_moment_data_rk_failure_propagates_and_preserves_state();
-    test_cqmom_coordinate_final_only_policy_rejects_final_candidate();
-    test_cqmom_coordinate_every_stage_policy_rejects_stage_candidate();
-    test_cqmom_coordinate_policies_check_configured_marginals_only();
-    test_cqmom_coordinate_policies_preserve_caller_predicates();
-    test_cqmom_coordinate_policy_rejects_out_of_range_coordinate();
-    test_cqmom_coordinate_policy_retry_completes_source_interval();
-    test_boundary_contribution_adds_to_moment_source();
-    test_qmom_boundary_rate_evaluator_matches_source_update();
-    test_boundary_contribution_wrong_size_fails_with_boundary_message();
-    test_boundary_contribution_non_finite_fails_with_boundary_message();
-    test_boundary_contribution_callback_exception_fails_with_boundary_message();
-    test_source_callback_exception_keeps_source_message();
-    test_cqmom_boundary_contribution_uses_source_context_ordering();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"accept_all_predicate", test_accept_all_predicate},
+            {"reject_negative_moments_predicate_accepts_nonnegative_update", test_reject_negative_moments_predicate_accepts_nonnegative_update},
+            {"retry_behavior_completes_requested_interval_from_unchanged_state",
+             test_retry_behavior_completes_requested_interval_from_unchanged_state},
+            {"repeated_reduced_steps_complete_requested_interval", test_repeated_reduced_steps_complete_requested_interval},
+            {"failure_after_accepted_retry_preserves_original_state", test_failure_after_accepted_retry_preserves_original_state},
+            {"failure_behavior_minimum_timestep_preserves_original_state", test_failure_behavior_minimum_timestep_preserves_original_state},
+            {"reduced_accepted_step_must_reduce_remaining_interval", test_reduced_accepted_step_must_reduce_remaining_interval},
+            {"nan_minimum_timestep_is_invalid", test_nan_minimum_timestep_is_invalid},
+            {"cqmom_moment_data_zero_source_preserves_state", test_cqmom_moment_data_zero_source_preserves_state},
+            {"cqmom_source_context_exposes_moment_metadata", test_cqmom_source_context_exposes_moment_metadata},
+            {"cqmom_source_context_validates_indices_and_values", test_cqmom_source_context_validates_indices_and_values},
+            {"cqmom_source_context_terminal_nodes_require_reconstruction_metadata",
+             test_cqmom_source_context_terminal_nodes_require_reconstruction_metadata},
+            {"cqmom_source_context_generalized_moments_require_reconstruction_metadata",
+             test_cqmom_source_context_generalized_moments_require_reconstruction_metadata},
+            {"cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial", test_cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial},
+            {"cqmom_moment_data_rate_size_mismatch_fails", test_cqmom_moment_data_rate_size_mismatch_fails},
+            {"cqmom_moment_data_non_finite_source_fails", test_cqmom_moment_data_non_finite_source_fails},
+            {"cqmom_moment_data_rk_failure_propagates_and_preserves_state", test_cqmom_moment_data_rk_failure_propagates_and_preserves_state},
+            {"cqmom_coordinate_final_only_policy_rejects_final_candidate", test_cqmom_coordinate_final_only_policy_rejects_final_candidate},
+            {"cqmom_coordinate_every_stage_policy_rejects_stage_candidate", test_cqmom_coordinate_every_stage_policy_rejects_stage_candidate},
+            {"cqmom_coordinate_policies_check_configured_marginals_only", test_cqmom_coordinate_policies_check_configured_marginals_only},
+            {"cqmom_coordinate_policies_preserve_caller_predicates", test_cqmom_coordinate_policies_preserve_caller_predicates},
+            {"cqmom_coordinate_policy_rejects_out_of_range_coordinate", test_cqmom_coordinate_policy_rejects_out_of_range_coordinate},
+            {"cqmom_coordinate_policy_retry_completes_source_interval", test_cqmom_coordinate_policy_retry_completes_source_interval},
+            {"boundary_contribution_adds_to_moment_source", test_boundary_contribution_adds_to_moment_source},
+            {"qmom_boundary_rate_evaluator_matches_source_update", test_qmom_boundary_rate_evaluator_matches_source_update},
+            {"boundary_contribution_wrong_size_fails_with_boundary_message", test_boundary_contribution_wrong_size_fails_with_boundary_message},
+            {"boundary_contribution_non_finite_fails_with_boundary_message", test_boundary_contribution_non_finite_fails_with_boundary_message},
+            {"boundary_contribution_callback_exception_fails_with_boundary_message",
+             test_boundary_contribution_callback_exception_fails_with_boundary_message},
+            {"source_callback_exception_keeps_source_message", test_source_callback_exception_keeps_source_message},
+            {"cqmom_boundary_contribution_uses_source_context_ordering", test_cqmom_boundary_contribution_uses_source_context_ordering},
+        });
 }

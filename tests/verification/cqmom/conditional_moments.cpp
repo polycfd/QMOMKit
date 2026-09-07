@@ -1,5 +1,6 @@
 #include "../verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -96,10 +97,12 @@ void test_analytically_known_2d_quadrature_reference_case()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_two_parent_nodes_conditional_orders_zero_to_three();
-    test_analytically_known_2d_quadrature_reference_case();
-
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"two_parent_nodes_conditional_orders_zero_to_three", test_two_parent_nodes_conditional_orders_zero_to_three},
+            {"analytically_known_2d_quadrature_reference_case", test_analytically_known_2d_quadrature_reference_case},
+        });
 }

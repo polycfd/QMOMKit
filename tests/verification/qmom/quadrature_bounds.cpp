@@ -1,5 +1,6 @@
 #include "../verification_helpers.hpp"
 #include "qmomkit/qmom.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -72,10 +73,14 @@ void verify_adaptive_bounded_qmom_uses_highest_admissible_count()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    verify_fixed_bounded_qmom_accepts_nodes_inside_interval();
-    verify_fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping();
-    verify_adaptive_bounded_qmom_uses_highest_admissible_count();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"fixed_bounded_qmom_accepts_nodes_inside_interval", verify_fixed_bounded_qmom_accepts_nodes_inside_interval},
+            {"fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping",
+             verify_fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping},
+            {"adaptive_bounded_qmom_uses_highest_admissible_count", verify_adaptive_bounded_qmom_uses_highest_admissible_count},
+        });
 }

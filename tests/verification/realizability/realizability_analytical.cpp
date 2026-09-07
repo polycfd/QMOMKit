@@ -1,4 +1,5 @@
 #include "../verification_helpers.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -337,15 +338,16 @@ void verify_near_boundary_and_scaling()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    verify_hamburger();
-    verify_stieltjes();
-    verify_hausdorff();
-    verify_near_boundary_and_scaling();
-    verify_diagnostic_success_cases();
-    verify_diagnostic_failure_cases();
-    verify_boundary_diagnostics();
-    std::cout << "QMOMKit one-dimensional realizability analytical verification passed\n";
-    return 0;
+    return qmomkit::test::dispatch_test_case(argc, argv,
+                                             {
+                                                 {"diagnostic_success_cases", verify_diagnostic_success_cases},
+                                                 {"diagnostic_failure_cases", verify_diagnostic_failure_cases},
+                                                 {"boundary_diagnostics", verify_boundary_diagnostics},
+                                                 {"hamburger", verify_hamburger},
+                                                 {"stieltjes", verify_stieltjes},
+                                                 {"hausdorff", verify_hausdorff},
+                                                 {"near_boundary_and_scaling", verify_near_boundary_and_scaling},
+                                             });
 }

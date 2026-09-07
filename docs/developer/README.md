@@ -4,6 +4,9 @@ The developer guide is for QMOMKit maintainers, contributors, advanced
 developers, and AI-assisted development workflows. It documents stable
 engineering knowledge needed to maintain and extend the core numerical library.
 
+The CTest suite contains more than 800 individually registered logical runtime
+tests; see [Testing](testing.md) for the current inventory and selection commands.
+
 This guide describes the current design of QMOMKit:
 
 - architecture;

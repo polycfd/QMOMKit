@@ -1,4 +1,5 @@
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -542,18 +543,23 @@ void test_public_cqmom_moment_source_rates_preserve_layout_and_status()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_public_qmom_advection_rates_and_status_mapping();
-    test_public_cqmom_advection_rates_preserve_layout_and_status();
-    test_public_cqmom_advection_rates_preserve_adaptive_layout();
-    test_public_qmom_moment_source_rates_and_status_mapping();
-    test_public_qmom_moment_source_rates_with_boundary();
-    test_public_qmom_moment_source_rates_with_zero_boundary();
-    test_public_qmom_moment_source_rates_validate_inputs_before_callbacks();
-    test_public_qmom_moment_source_rates_source_failure_prevents_boundary();
-    test_public_qmom_moment_source_rates_boundary_failures();
-    test_public_qmom_moment_source_rates_detect_combined_overflow();
-    test_public_cqmom_moment_source_rates_preserve_layout_and_status();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"public_qmom_advection_rates_and_status_mapping", test_public_qmom_advection_rates_and_status_mapping},
+            {"public_cqmom_advection_rates_preserve_layout_and_status", test_public_cqmom_advection_rates_preserve_layout_and_status},
+            {"public_cqmom_advection_rates_preserve_adaptive_layout", test_public_cqmom_advection_rates_preserve_adaptive_layout},
+            {"public_qmom_moment_source_rates_and_status_mapping", test_public_qmom_moment_source_rates_and_status_mapping},
+            {"public_qmom_moment_source_rates_with_boundary", test_public_qmom_moment_source_rates_with_boundary},
+            {"public_qmom_moment_source_rates_with_zero_boundary", test_public_qmom_moment_source_rates_with_zero_boundary},
+            {"public_qmom_moment_source_rates_validate_inputs_before_callbacks",
+             test_public_qmom_moment_source_rates_validate_inputs_before_callbacks},
+            {"public_qmom_moment_source_rates_source_failure_prevents_boundary",
+             test_public_qmom_moment_source_rates_source_failure_prevents_boundary},
+            {"public_qmom_moment_source_rates_boundary_failures", test_public_qmom_moment_source_rates_boundary_failures},
+            {"public_qmom_moment_source_rates_detect_combined_overflow", test_public_qmom_moment_source_rates_detect_combined_overflow},
+            {"public_cqmom_moment_source_rates_preserve_layout_and_status", test_public_cqmom_moment_source_rates_preserve_layout_and_status},
+        });
 }

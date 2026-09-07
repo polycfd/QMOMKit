@@ -1,5 +1,6 @@
 #include "../verification/verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -89,10 +90,12 @@ void test_vector_valued_coupled_source_term()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_constant_source_term();
-    test_linear_source_term();
-    test_vector_valued_coupled_source_term();
-    return 0;
+    return qmomkit::test::dispatch_test_case(argc, argv,
+                                             {
+                                                 {"constant_source_term", test_constant_source_term},
+                                                 {"linear_source_term", test_linear_source_term},
+                                                 {"vector_valued_coupled_source_term", test_vector_valued_coupled_source_term},
+                                             });
 }

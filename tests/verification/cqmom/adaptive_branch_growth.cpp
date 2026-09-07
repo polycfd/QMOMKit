@@ -1,5 +1,6 @@
 #include "../verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -140,8 +141,10 @@ void verify_adaptive_branch_reinjection()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    verify_adaptive_branch_reinjection();
-    return 0;
+    return qmomkit::test::dispatch_test_case(argc, argv,
+                                             {
+                                                 {"adaptive_branch_reinjection", verify_adaptive_branch_reinjection},
+                                             });
 }

@@ -82,9 +82,9 @@ void verify_case(const ExpectedFailure& expected, const std::filesystem::path& d
 
 int main(const int argc, char** argv)
 {
-    if (argc < 10)
+    if (argc < 2 || argc > 2)
     {
-        std::cerr << "Usage: configuration_failures_verification <failure-case.qmom>...\n";
+        std::cerr << "Usage: configuration_failures_verification <failure-case.qmom>\n";
         return 2;
     }
 
@@ -129,12 +129,24 @@ int main(const int argc, char** argv)
         {"cqmom_incomplete_tensor.qmom", Loader::cqmom, "moment tensor is incomplete", false},
     };
 
+    bool matched = false;
+    const std::string selected_filename = std::filesystem::path(argv[1]).filename().string();
     for (const ExpectedFailure& failure : failures)
     {
+        if (failure.filename != selected_filename)
+        {
+            continue;
+        }
+        matched = true;
         verify_case(failure, case_directory);
+    }
+    if (!matched)
+    {
+        std::cerr << "Unknown configuration failure case '" << selected_filename << "'.\n";
+        return 2;
     }
 
     std::cout << "QMOMKit configuration failure-path verification\n";
-    std::cout << "Verified " << failures.size() << " invalid .qmom files through public load_qmom/load_cqmom workflows.\n";
+    std::cout << "Verified " << selected_filename << " through public load_qmom/load_cqmom workflows.\n";
     return 0;
 }

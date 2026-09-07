@@ -1,6 +1,7 @@
 #include "../verification/verification_helpers.hpp"
 #include "internal/cqmom_case.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -172,10 +173,13 @@ void test_cqmom_case_preserves_phase_space_ordering()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_zero_advection_and_zero_source_preserve_qmom();
-    test_combined_advection_and_source_qmom_analytical();
-    test_cqmom_case_preserves_phase_space_ordering();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"zero_advection_and_zero_source_preserve_qmom", test_zero_advection_and_zero_source_preserve_qmom},
+            {"combined_advection_and_source_qmom_analytical", test_combined_advection_and_source_qmom_analytical},
+            {"cqmom_case_preserves_phase_space_ordering", test_cqmom_case_preserves_phase_space_ordering},
+        });
 }

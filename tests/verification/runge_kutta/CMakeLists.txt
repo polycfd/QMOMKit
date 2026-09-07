@@ -1,4 +1,5 @@
-qmomkit_add_ctest(test_runge_kutta_analytical verification_runge_kutta_analytical verification runge_kutta_analytical.cpp)
+qmomkit_add_test_executable(test_runge_kutta_analytical runge_kutta_analytical.cpp)
+qmomkit_register_source_logical_cases(test_runge_kutta_analytical verification "${CMAKE_CURRENT_LIST_DIR}/runge_kutta_analytical.cpp")
 add_executable(test_runge_kutta_convergence runge_kutta_convergence.cpp)
 target_include_directories(test_runge_kutta_convergence PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src")
 target_link_libraries(test_runge_kutta_convergence PRIVATE qmomkit)

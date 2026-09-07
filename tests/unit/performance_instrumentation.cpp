@@ -4,6 +4,7 @@
 #include "internal/vandermonde.hpp"
 #include "qmomkit/qmom.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -935,24 +936,35 @@ void test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_me
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_instrumentation_mode_matches_build_option();
-    test_counter_scope_records_direct_events_when_enabled();
-    test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_enabled();
-    test_explicit_svd_vandermonde_records_only_svd_counter_when_enabled();
-    test_explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_enabled();
-    test_qmom_workflow_records_coarse_reconstruction_events_when_enabled();
-    test_cqmom_source_update_reuses_stage_layout_when_enabled();
-    test_cqmom_generalized_source_moments_reuse_one_quadrature_per_stage_when_enabled();
-    test_trusted_cqmom_source_update_matches_general_path_and_skips_layout_validation();
-    test_trusted_cqmom_source_update_matches_general_boundary_failures();
-    test_state_phase_space_evolution_source_update_skips_redundant_layout_validation_when_enabled();
-    test_ssp_node_advection_does_not_record_source_rk_stages_when_enabled();
-    test_public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_enabled();
-    test_trusted_cqmom_case_reconstruction_skips_global_layout_validation_when_enabled();
-    test_fixed_and_dynamic_cqmom_metadata_counters();
-    test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_metadata();
-
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"instrumentation_mode_matches_build_option", test_instrumentation_mode_matches_build_option},
+            {"counter_scope_records_direct_events_when_enabled", test_counter_scope_records_direct_events_when_enabled},
+            {"adaptive_cqmom_phase_space_evolution_records_active_count_work_when_enabled",
+             test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_enabled},
+            {"explicit_svd_vandermonde_records_only_svd_counter_when_enabled", test_explicit_svd_vandermonde_records_only_svd_counter_when_enabled},
+            {"explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_enabled",
+             test_explicit_svd_vandermonde_rank_deficiency_still_records_attempt_when_enabled},
+            {"qmom_workflow_records_coarse_reconstruction_events_when_enabled", test_qmom_workflow_records_coarse_reconstruction_events_when_enabled},
+            {"cqmom_source_update_reuses_stage_layout_when_enabled", test_cqmom_source_update_reuses_stage_layout_when_enabled},
+            {"cqmom_generalized_source_moments_reuse_one_quadrature_per_stage_when_enabled",
+             test_cqmom_generalized_source_moments_reuse_one_quadrature_per_stage_when_enabled},
+            {"trusted_cqmom_source_update_matches_general_path_and_skips_layout_validation",
+             test_trusted_cqmom_source_update_matches_general_path_and_skips_layout_validation},
+            {"trusted_cqmom_source_update_matches_general_boundary_failures", test_trusted_cqmom_source_update_matches_general_boundary_failures},
+            {"state_phase_space_evolution_source_update_skips_redundant_layout_validation_when_enabled",
+             test_state_phase_space_evolution_source_update_skips_redundant_layout_validation_when_enabled},
+            {"ssp_node_advection_does_not_record_source_rk_stages_when_enabled",
+             test_ssp_node_advection_does_not_record_source_rk_stages_when_enabled},
+            {"public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_enabled",
+             test_public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_enabled},
+            {"trusted_cqmom_case_reconstruction_skips_global_layout_validation_when_enabled",
+             test_trusted_cqmom_case_reconstruction_skips_global_layout_validation_when_enabled},
+            {"fixed_and_dynamic_cqmom_metadata_counters", test_fixed_and_dynamic_cqmom_metadata_counters},
+            {"every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_metadata",
+             test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_metadata},
+        });
 }

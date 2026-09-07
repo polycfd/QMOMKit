@@ -1,22 +1,11 @@
-add_executable(vandermonde_solver_selection_verification solver_selection.cpp)
-target_include_directories(vandermonde_solver_selection_verification PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src")
-target_link_libraries(vandermonde_solver_selection_verification PRIVATE qmomkit)
+qmomkit_add_test_executable(vandermonde_solver_selection_verification solver_selection.cpp)
+foreach(case_name IN ITEMS automatic dense pivoted_qr svd bjorck_pereyra)
+    qmomkit_register_test_case(vandermonde_solver_selection_verification "verification_vandermonde_solver_${case_name}" verification
+        "${CMAKE_CURRENT_LIST_DIR};${case_name}")
+endforeach()
 
-add_test(
-    NAME verification_vandermonde_solver_selection
-    COMMAND
-        vandermonde_solver_selection_verification
-        ${CMAKE_CURRENT_LIST_DIR}
-)
-set_tests_properties(verification_vandermonde_solver_selection PROPERTIES LABELS verification)
-
-add_executable(clustered_solver_policy_verification clustered_solver_policy.cpp)
-target_link_libraries(clustered_solver_policy_verification PRIVATE qmomkit)
-
-add_test(
-    NAME verification_vandermonde_solver_policy_clustered
-    COMMAND
-        clustered_solver_policy_verification
-        ${CMAKE_CURRENT_LIST_DIR}/clustered_policy_automatic.qmom
-)
-set_tests_properties(verification_vandermonde_solver_policy_clustered PROPERTIES LABELS verification)
+qmomkit_add_test_executable(clustered_solver_policy_verification clustered_solver_policy.cpp)
+foreach(case_name IN ITEMS automatic dense pivoted_qr svd bjorck_pereyra)
+    qmomkit_register_test_case(clustered_solver_policy_verification "verification_vandermonde_clustered_${case_name}" verification
+        "${CMAKE_CURRENT_LIST_DIR}/clustered_policy_automatic.qmom;${case_name}")
+endforeach()

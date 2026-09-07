@@ -197,30 +197,44 @@ void verify_dense_invalid_result(const std::string& case_name, const qmomkit::Cq
     std::cout << std::left << std::setw(34) << case_name << std::setw(22) << "invalid_input" << expected_message << '\n';
 }
 
-void verify_dense_invalid_inputs()
+void verify_dense_invalid_inputs(const std::string& selected_case = {})
 {
     // Dense invalid-input cases represent structural caller mistakes in a full
     // raw tensor: rank mismatch, wrong value count, non-finite data, or missing
     // moments required by the configured hierarchy.
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
 
-    verify_dense_invalid_result(
-        "dense extent rank mismatch",
-        qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, qmomkit::RawMomentTensor{{4}, std::vector<double>(4, 1.0)}, {}, {}}),
-        "extents must match");
+    if (selected_case.empty() || selected_case == "dense_extent_rank")
+    {
+        verify_dense_invalid_result(
+            "dense extent rank mismatch",
+            qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, qmomkit::RawMomentTensor{{4}, std::vector<double>(4, 1.0)}, {}, {}}),
+            "extents must match");
+    }
 
-    verify_dense_invalid_result(
-        "dense value count mismatch",
-        qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, qmomkit::RawMomentTensor{{4, 4}, std::vector<double>(15, 1.0)}, {}, {}}),
-        "data size");
+    if (selected_case.empty() || selected_case == "dense_value_count")
+    {
+        verify_dense_invalid_result(
+            "dense value count mismatch",
+            qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, qmomkit::RawMomentTensor{{4, 4}, std::vector<double>(15, 1.0)}, {}, {}}),
+            "data size");
+    }
 
-    qmomkit::RawMomentTensor nonfinite{{4, 4}, std::vector<double>(16, 1.0)};
-    nonfinite.values[0] = std::numeric_limits<double>::infinity();
-    verify_dense_invalid_result("dense non-finite moment", qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, nonfinite, {}, {}}), "finite");
+    if (selected_case.empty() || selected_case == "dense_nonfinite_moment")
+    {
+        qmomkit::RawMomentTensor nonfinite{{4, 4}, std::vector<double>(16, 1.0)};
+        nonfinite.values[0] = std::numeric_limits<double>::infinity();
+        verify_dense_invalid_result("dense non-finite moment", qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, nonfinite, {}, {}}),
+                                    "finite");
+    }
 
-    verify_dense_invalid_result(
-        "dense missing required moment",
-        qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, qmomkit::RawMomentTensor{{3, 4}, indexed_values({3, 4})}, {}, {}}), "at least 2*N");
+    if (selected_case.empty() || selected_case == "dense_missing_required_moment")
+    {
+        verify_dense_invalid_result(
+            "dense missing required moment",
+            qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, qmomkit::RawMomentTensor{{3, 4}, indexed_values({3, 4})}, {}, {}}),
+            "at least 2*N");
+    }
 }
 
 void verify_lean_invalid_result(const std::string& case_name, const qmomkit::CqmomResult& result, const std::string& expected_message)
@@ -233,7 +247,7 @@ void verify_lean_invalid_result(const std::string& case_name, const qmomkit::Cqm
     std::cout << std::left << std::setw(34) << case_name << std::setw(22) << "invalid_input" << expected_message << '\n';
 }
 
-void verify_lean_invalid_inputs()
+void verify_lean_invalid_inputs(const std::string& selected_case = {})
 {
     // Lean invalid-input cases exercise the selected required-moment API:
     // missing values, non-finite required moments, and a layout whose hierarchy
@@ -242,19 +256,29 @@ void verify_lean_invalid_inputs()
     const std::vector<std::size_t> extents{4, 4};
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
 
-    qmomkit::CqmomMomentData missing_values = qmomkit::extract_cqmom_moments({extents, indexed_values(extents)}, layout);
-    missing_values.values.pop_back();
-    verify_lean_invalid_result("lean missing required value", qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{missing_values}), "values must match");
+    if (selected_case.empty() || selected_case == "lean_missing_required_value")
+    {
+        qmomkit::CqmomMomentData missing_values = qmomkit::extract_cqmom_moments({extents, indexed_values(extents)}, layout);
+        missing_values.values.pop_back();
+        verify_lean_invalid_result("lean missing required value", qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{missing_values}),
+                                   "values must match");
+    }
 
-    qmomkit::CqmomMomentData nonfinite_values = qmomkit::extract_cqmom_moments({extents, indexed_values(extents)}, layout);
-    nonfinite_values.values[0] = std::numeric_limits<double>::quiet_NaN();
-    verify_lean_invalid_result("lean non-finite value", qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{nonfinite_values}), "finite");
+    if (selected_case.empty() || selected_case == "lean_nonfinite_value")
+    {
+        qmomkit::CqmomMomentData nonfinite_values = qmomkit::extract_cqmom_moments({extents, indexed_values(extents)}, layout);
+        nonfinite_values.values[0] = std::numeric_limits<double>::quiet_NaN();
+        verify_lean_invalid_result("lean non-finite value", qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{nonfinite_values}), "finite");
+    }
 
-    const qmomkit::PhaseSpaceHierarchy incompatible_hierarchy({2, 2, 2}, {2, 0, 1});
-    const qmomkit::CqmomMomentLayout incompatible_layout = qmomkit::create_cqmom_moment_layout(incompatible_hierarchy);
-    qmomkit::CqmomMomentData incompatible = qmomkit::extract_cqmom_moments({{4, 4, 4}, indexed_values({4, 4, 4})}, incompatible_layout);
-    incompatible.layout.hierarchy = qmomkit::PhaseSpaceHierarchy({2, 2, 2});
-    verify_lean_invalid_result("lean incompatible layout", qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{incompatible}), "layout");
+    if (selected_case.empty() || selected_case == "lean_incompatible_layout")
+    {
+        const qmomkit::PhaseSpaceHierarchy incompatible_hierarchy({2, 2, 2}, {2, 0, 1});
+        const qmomkit::CqmomMomentLayout incompatible_layout = qmomkit::create_cqmom_moment_layout(incompatible_hierarchy);
+        qmomkit::CqmomMomentData incompatible = qmomkit::extract_cqmom_moments({{4, 4, 4}, indexed_values({4, 4, 4})}, incompatible_layout);
+        incompatible.layout.hierarchy = qmomkit::PhaseSpaceHierarchy({2, 2, 2});
+        verify_lean_invalid_result("lean incompatible layout", qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{incompatible}), "layout");
+    }
 }
 
 void verify_adaptive_policy_rejection()
@@ -284,7 +308,7 @@ void verify_adaptive_policy_rejection()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
     // Direct CQMOM compute failures distinguish invalid public requests from
     // mathematically non-realizable moment sets, and confirm that dense, lean,
@@ -293,11 +317,35 @@ int main()
     std::cout << std::left << std::setw(34) << "case" << std::setw(22) << "expected status" << "expected reason\n";
     std::cout << std::string(82, '-') << '\n';
 
-    verify_nonrealizable_public_workflows();
-    verify_bounded_abscissa_violation_reaches_wheeler();
-    verify_dense_invalid_inputs();
-    verify_lean_invalid_inputs();
-    verify_adaptive_policy_rejection();
+    const std::string selected_case = argc == 2 ? argv[1] : "";
+    if (argc > 2)
+    {
+        std::cerr << "Usage: cqmom_compute_failures [case-name]\n";
+        return 2;
+    }
+    if (selected_case.empty())
+    {
+        verify_nonrealizable_public_workflows();
+        verify_bounded_abscissa_violation_reaches_wheeler();
+        verify_dense_invalid_inputs();
+        verify_lean_invalid_inputs();
+        verify_adaptive_policy_rejection();
+    }
+    else if (selected_case == "nonrealizable_public_workflow")
+        verify_nonrealizable_public_workflows();
+    else if (selected_case == "bounded_abscissa_violation")
+        verify_bounded_abscissa_violation_reaches_wheeler();
+    else if (selected_case.rfind("dense_", 0) == 0)
+        verify_dense_invalid_inputs(selected_case);
+    else if (selected_case.rfind("lean_", 0) == 0)
+        verify_lean_invalid_inputs(selected_case);
+    else if (selected_case == "adaptive_policy")
+        verify_adaptive_policy_rejection();
+    else
+    {
+        std::cerr << "Unknown CQMOM failure case '" << selected_case << "'.\n";
+        return 2;
+    }
 
     return 0;
 }

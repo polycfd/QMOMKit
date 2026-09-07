@@ -1,6 +1,7 @@
 #include "internal/performance.hpp"
 #include "internal/reconstruction_scaling.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -1254,53 +1255,62 @@ void test_cqmom_storage_settings_format()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_moment_set_public_container_behavior();
-    test_cqmom_moment_layout_two_dimensional_reduced_set();
-    test_cqmom_moment_layout_three_dimensional_recursive_indices();
-    test_cqmom_moment_layout_non_identity_conditioning_order();
-    test_cqmom_moment_layout_unequal_node_counts();
-    test_select_cqmom_moments_extracts_required_dense_values();
-    test_cqmom_moment_data_lookup_reflects_public_value_updates();
-    test_select_cqmom_moments_respects_non_identity_conditioning_order();
-    test_select_cqmom_moments_handles_unequal_node_counts();
-    test_select_cqmom_moments_reports_missing_dense_moment();
-    test_create_cqmom_moment_data_converts_valid_selected_result();
-    test_create_cqmom_moment_data_rejects_failed_selected_result();
-    test_create_cqmom_moment_data_rejects_index_order_mismatch();
-    test_create_cqmom_moment_data_rejects_missing_values();
-    test_create_cqmom_moment_data_rejects_extra_values();
-    test_create_cqmom_moment_data_rejects_non_finite_values();
-    test_create_cqmom_moment_data_from_independent_product_selected_moments();
-    test_lean_cqmom_public_api_matches_dense_two_dimensional();
-    test_lean_cqmom_public_api_matches_dense_three_dimensional();
-    test_lean_cqmom_public_api_matches_dense_non_identity();
-    test_lean_cqmom_public_api_matches_dense_unequal_node_counts();
-    test_lean_cqmom_public_api_matches_dense_adaptive();
-    test_lean_cqmom_public_api_rejects_missing_values();
-    test_lean_cqmom_public_api_rejects_non_finite_values();
-    test_lean_cqmom_public_api_rejects_invalid_options();
-    test_lean_cqmom_public_api_rejects_incompatible_layout();
-    test_cqmom_public_api_reports_missing_required_dense_moment();
-    test_cqmom_public_api_preserves_dense_invalid_input_messages();
-    test_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage();
-    test_qmom_public_api_matches_wheeler();
-    test_qmom_rejects_node_count_with_unrepresentable_moment_requirement();
-    test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds();
-    test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments();
-    test_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction();
-    test_cqmom_automatic_scaling_falls_back_atomically_when_preparation_is_unsafe();
-    test_one_dimensional_cqmom_agrees_with_qmom();
-    test_cqmom_public_api_two_dimensional_manufactured_case();
-    test_cqmom_automatic_scaling_restores_each_physical_coordinate();
-    test_cqmom_public_api_reports_conditional_moment_failure();
-    test_cqmom_public_api_exposes_adaptive_branch_counts();
-    test_cqmom_adaptive_root_branch_uses_relative_rmin_only();
-    test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts();
-    test_cqmom_diagnostic_levels_control_expensive_diagnostics();
-    test_cqmom_none_diagnostics_preserves_failure_context();
-    test_cqmom_diagnostics_default_bounded_support_placeholder();
-    test_cqmom_storage_settings_format();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"moment_set_public_container_behavior", test_moment_set_public_container_behavior},
+            {"cqmom_moment_layout_two_dimensional_reduced_set", test_cqmom_moment_layout_two_dimensional_reduced_set},
+            {"cqmom_moment_layout_three_dimensional_recursive_indices", test_cqmom_moment_layout_three_dimensional_recursive_indices},
+            {"cqmom_moment_layout_non_identity_conditioning_order", test_cqmom_moment_layout_non_identity_conditioning_order},
+            {"cqmom_moment_layout_unequal_node_counts", test_cqmom_moment_layout_unequal_node_counts},
+            {"select_cqmom_moments_extracts_required_dense_values", test_select_cqmom_moments_extracts_required_dense_values},
+            {"cqmom_moment_data_lookup_reflects_public_value_updates", test_cqmom_moment_data_lookup_reflects_public_value_updates},
+            {"select_cqmom_moments_respects_non_identity_conditioning_order", test_select_cqmom_moments_respects_non_identity_conditioning_order},
+            {"select_cqmom_moments_handles_unequal_node_counts", test_select_cqmom_moments_handles_unequal_node_counts},
+            {"select_cqmom_moments_reports_missing_dense_moment", test_select_cqmom_moments_reports_missing_dense_moment},
+            {"create_cqmom_moment_data_converts_valid_selected_result", test_create_cqmom_moment_data_converts_valid_selected_result},
+            {"create_cqmom_moment_data_rejects_failed_selected_result", test_create_cqmom_moment_data_rejects_failed_selected_result},
+            {"create_cqmom_moment_data_rejects_index_order_mismatch", test_create_cqmom_moment_data_rejects_index_order_mismatch},
+            {"create_cqmom_moment_data_rejects_missing_values", test_create_cqmom_moment_data_rejects_missing_values},
+            {"create_cqmom_moment_data_rejects_extra_values", test_create_cqmom_moment_data_rejects_extra_values},
+            {"create_cqmom_moment_data_rejects_non_finite_values", test_create_cqmom_moment_data_rejects_non_finite_values},
+            {"create_cqmom_moment_data_from_independent_product_selected_moments",
+             test_create_cqmom_moment_data_from_independent_product_selected_moments},
+            {"lean_cqmom_public_api_matches_dense_two_dimensional", test_lean_cqmom_public_api_matches_dense_two_dimensional},
+            {"lean_cqmom_public_api_matches_dense_three_dimensional", test_lean_cqmom_public_api_matches_dense_three_dimensional},
+            {"lean_cqmom_public_api_matches_dense_non_identity", test_lean_cqmom_public_api_matches_dense_non_identity},
+            {"lean_cqmom_public_api_matches_dense_unequal_node_counts", test_lean_cqmom_public_api_matches_dense_unequal_node_counts},
+            {"lean_cqmom_public_api_matches_dense_adaptive", test_lean_cqmom_public_api_matches_dense_adaptive},
+            {"lean_cqmom_public_api_rejects_missing_values", test_lean_cqmom_public_api_rejects_missing_values},
+            {"lean_cqmom_public_api_rejects_non_finite_values", test_lean_cqmom_public_api_rejects_non_finite_values},
+            {"lean_cqmom_public_api_rejects_invalid_options", test_lean_cqmom_public_api_rejects_invalid_options},
+            {"lean_cqmom_public_api_rejects_incompatible_layout", test_lean_cqmom_public_api_rejects_incompatible_layout},
+            {"cqmom_public_api_reports_missing_required_dense_moment", test_cqmom_public_api_reports_missing_required_dense_moment},
+            {"cqmom_public_api_preserves_dense_invalid_input_messages", test_cqmom_public_api_preserves_dense_invalid_input_messages},
+            {"cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage",
+             test_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage},
+            {"qmom_public_api_matches_wheeler", test_qmom_public_api_matches_wheeler},
+            {"qmom_rejects_node_count_with_unrepresentable_moment_requirement", test_qmom_rejects_node_count_with_unrepresentable_moment_requirement},
+            {"qmom_automatic_scaling_restores_physical_abscissas_and_bounds", test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds},
+            {"qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments",
+             test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments},
+            {"qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction",
+             test_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction},
+            {"cqmom_automatic_scaling_falls_back_atomically_when_preparation_is_unsafe",
+             test_cqmom_automatic_scaling_falls_back_atomically_when_preparation_is_unsafe},
+            {"one_dimensional_cqmom_agrees_with_qmom", test_one_dimensional_cqmom_agrees_with_qmom},
+            {"cqmom_public_api_two_dimensional_manufactured_case", test_cqmom_public_api_two_dimensional_manufactured_case},
+            {"cqmom_automatic_scaling_restores_each_physical_coordinate", test_cqmom_automatic_scaling_restores_each_physical_coordinate},
+            {"cqmom_public_api_reports_conditional_moment_failure", test_cqmom_public_api_reports_conditional_moment_failure},
+            {"cqmom_public_api_exposes_adaptive_branch_counts", test_cqmom_public_api_exposes_adaptive_branch_counts},
+            {"cqmom_adaptive_root_branch_uses_relative_rmin_only", test_cqmom_adaptive_root_branch_uses_relative_rmin_only},
+            {"cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts",
+             test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts},
+            {"cqmom_diagnostic_levels_control_expensive_diagnostics", test_cqmom_diagnostic_levels_control_expensive_diagnostics},
+            {"cqmom_none_diagnostics_preserves_failure_context", test_cqmom_none_diagnostics_preserves_failure_context},
+            {"cqmom_diagnostics_default_bounded_support_placeholder", test_cqmom_diagnostics_default_bounded_support_placeholder},
+            {"cqmom_storage_settings_format", test_cqmom_storage_settings_format},
+        });
 }

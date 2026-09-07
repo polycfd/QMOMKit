@@ -519,29 +519,75 @@ RaggedAdaptiveCase make_4d_adversarial_adaptive_case()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    (void)validate_case("1d", make_1d_case(), {4}, 1.0e-12, 1.0e-12);
-    (void)validate_case("2d_identity", make_2d_identity_case(), {4, 4}, 1.0e-10, 1.0e-10);
-    (void)validate_case("2d_reversed", make_2d_reversed_case(), {4, 4}, 1.0e-10, 1.0e-10);
-    (void)validate_case("3d_non_identity", make_3d_non_identity_case(), {4, 6, 4}, 1.0e-7, 1.0e-8);
-    (void)validate_case("non_uniform_fixed_counts", make_non_uniform_case(), {4, 6}, 1.0e-8, 1.0e-8);
+    const std::string selected_case = argc == 2 ? argv[1] : "";
+    if (argc > 2)
+    {
+        std::cerr << "Usage: recursive_cqmom [case-name]\n";
+        return 2;
+    }
+    const auto selected = [&selected_case](const std::string& name) { return selected_case.empty() || selected_case == name; };
+    bool matched = selected_case.empty();
+    if (selected("1d"))
+    {
+        matched = true;
+        (void)validate_case("1d", make_1d_case(), {4}, 1.0e-12, 1.0e-12);
+    }
+    if (selected("2d_identity"))
+    {
+        matched = true;
+        (void)validate_case("2d_identity", make_2d_identity_case(), {4, 4}, 1.0e-10, 1.0e-10);
+    }
+    if (selected("2d_reversed"))
+    {
+        matched = true;
+        (void)validate_case("2d_reversed", make_2d_reversed_case(), {4, 4}, 1.0e-10, 1.0e-10);
+    }
+    if (selected("3d_non_identity"))
+    {
+        matched = true;
+        (void)validate_case("3d_non_identity", make_3d_non_identity_case(), {4, 6, 4}, 1.0e-7, 1.0e-8);
+    }
+    if (selected("non_uniform_fixed_counts"))
+    {
+        matched = true;
+        (void)validate_case("non_uniform_fixed_counts", make_non_uniform_case(), {4, 6}, 1.0e-8, 1.0e-8);
+    }
     const qmomkit::internal::RecursiveQuadrature adversarial_4d = make_4d_adversarial_non_identity_case();
-    (void)validate_case("4d_adversarial_non_identity", adversarial_4d, {4, 6, 4, 4}, 1.0e-9, 1.0e-8);
-    const std::vector<double> adversarial_moments = raw_moments_from_quadrature(adversarial_4d, {4, 6, 4, 4});
-    const qmomkit::internal::RecursiveQuadratureResult adversarial_result = qmomkit::internal::compute_recursive_quadrature(
-        {adversarial_4d.hierarchy(), {{4, 6, 4, 4}, adversarial_moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic});
-    QMOMKIT_VERIFY_CHECK(adversarial_result.ok());
-    assert_4d_adversarial_phase_order_storage(adversarial_result.quadrature);
-    (void)validate_adaptive_case("4d_adversarial_adaptive_non_identity", make_4d_adversarial_adaptive_case(), 1.0e-9, 1.0e-8);
+    if (selected("4d_adversarial_non_identity"))
+    {
+        matched = true;
+        (void)validate_case("4d_adversarial_non_identity", adversarial_4d, {4, 6, 4, 4}, 1.0e-9, 1.0e-8);
+        const std::vector<double> adversarial_moments = raw_moments_from_quadrature(adversarial_4d, {4, 6, 4, 4});
+        const qmomkit::internal::RecursiveQuadratureResult adversarial_result = qmomkit::internal::compute_recursive_quadrature(
+            {adversarial_4d.hierarchy(), {{4, 6, 4, 4}, adversarial_moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic});
+        QMOMKIT_VERIFY_CHECK(adversarial_result.ok());
+        assert_4d_adversarial_phase_order_storage(adversarial_result.quadrature);
+    }
+    if (selected("4d_adversarial_adaptive_non_identity"))
+    {
+        matched = true;
+        (void)validate_adaptive_case("4d_adversarial_adaptive_non_identity", make_4d_adversarial_adaptive_case(), 1.0e-9, 1.0e-8);
+    }
 
     const std::vector<std::vector<std::size_t>> sweep_node_counts{{2, 3}, {2, 2, 3}, {2, 3, 2, 2}, {2, 2, 3, 2, 2}, {2, 2, 2, 3, 2, 2}};
     const std::vector<std::vector<std::size_t>> sweep_orders{{1, 0}, {2, 0, 1}, {2, 0, 3, 1}, {4, 2, 0, 3, 1}, {5, 2, 0, 4, 1, 3}};
     for (std::size_t case_index = 0; case_index < sweep_node_counts.size(); ++case_index)
     {
-        const qmomkit::internal::RecursiveQuadrature sweep_case = make_dimension_sweep_case(sweep_node_counts[case_index], sweep_orders[case_index]);
         const std::string name = "dimension_sweep_D" + std::to_string(sweep_node_counts[case_index].size());
-        (void)validate_moment_closure_case(name, sweep_case, moment_extents_for_node_counts(sweep_node_counts[case_index]), 1.0e-12);
+        if (selected(name))
+        {
+            matched = true;
+            const qmomkit::internal::RecursiveQuadrature sweep_case =
+                make_dimension_sweep_case(sweep_node_counts[case_index], sweep_orders[case_index]);
+            (void)validate_moment_closure_case(name, sweep_case, moment_extents_for_node_counts(sweep_node_counts[case_index]), 1.0e-12);
+        }
+    }
+    if (!matched)
+    {
+        std::cerr << "Unknown recursive CQMOM case '" << selected_case << "'.\n";
+        return 2;
     }
     return 0;
 }

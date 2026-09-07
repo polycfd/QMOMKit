@@ -1,6 +1,7 @@
 #include "internal/bjorck_pereyra.hpp"
 
 #include "internal/performance.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -221,16 +222,17 @@ void test_transform_update_count_scaling()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_exact_transposed_vandermonde_solve();
-    test_multiple_rhs_columns();
-    test_zero_rhs_columns_success();
-    test_mixed_sign_nodes();
-    test_clustered_distinct_nodes();
-    test_repeated_nodes_fail();
-    test_invalid_inputs_fail();
-    test_transform_update_count_scaling();
-
-    return 0;
+    return qmomkit::test::dispatch_test_case(argc, argv,
+                                             {
+                                                 {"exact_transposed_vandermonde_solve", test_exact_transposed_vandermonde_solve},
+                                                 {"multiple_rhs_columns", test_multiple_rhs_columns},
+                                                 {"zero_rhs_columns_success", test_zero_rhs_columns_success},
+                                                 {"mixed_sign_nodes", test_mixed_sign_nodes},
+                                                 {"clustered_distinct_nodes", test_clustered_distinct_nodes},
+                                                 {"repeated_nodes_fail", test_repeated_nodes_fail},
+                                                 {"invalid_inputs_fail", test_invalid_inputs_fail},
+                                                 {"transform_update_count_scaling", test_transform_update_count_scaling},
+                                             });
 }

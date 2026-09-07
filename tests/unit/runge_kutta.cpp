@@ -1,6 +1,7 @@
 #include "qmomkit/runge_kutta.hpp"
 
 #include "internal/embedded_runge_kutta.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <array>
 #include <cassert>
@@ -865,43 +866,48 @@ void test_rk23_max_step_changes_observable_diagnostics()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_embedded_rk_tableaus_match_primary_papers();
-    test_embedded_rk_one_steps_match_independent_scalar_formulae();
-    test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs();
-    test_adaptive_initial_step_default_and_override();
-    test_embedded_rk_default_initial_step_is_used_for_both_methods();
-    test_embedded_rk_fsal_reuses_accepted_endpoint_derivative();
-    test_embedded_rk_adaptive_controls_for_both_methods();
-    test_embedded_rk_public_backward_integration();
-    test_ssp_rk3_accept_all_predicate();
-    test_ssp_rk3_reject_negative_values_then_success();
-    test_ssp_rk3_multiple_retries();
-    test_ssp_rk3_failure_after_max_retries();
-    test_ssp_rk3_failure_after_reaching_minimum_timestep();
-    test_ssp_rk3_rejects_initial_step_below_minimum();
-    test_ssp_rk3_rejects_retry_that_underflows_to_zero();
-    test_ssp_rk3_without_stage_callback_accepts_unchecked_candidate();
-    test_ssp_rk3_final_only_callback_invoked_once();
-    test_ssp_rk3_stage_callback_invoked_for_each_stage();
-    test_ssp_rk3_failed_stage_check_retries_with_smaller_timestep();
-    test_ssp_rk3_stage2_rejection_skips_k3_and_retries_from_original_state();
-    test_ssp_rk3_final_stage_rejection_short_circuits_final_accept();
-    test_ssp_rk3_stage_rejection_exhaustion_preserves_original_state();
-    test_ssp_rk3_stage_rejection_minimum_timestep_preserves_original_state();
-    test_ssp_rk3_rhs_stage_audit_preserves_times_and_retry_states();
-    test_rk23_rejects_overly_large_initial_step();
-    test_rk23_zero_rhs_has_no_timestep_pathology();
-    test_rk23_invalid_options_fail_before_loop();
-    test_rk23_rejects_nonfinite_trial_state();
-    test_rk23_initial_request_below_minimum_uses_minimum_step();
-    test_rk23_accepts_finite_update_at_minimum_step();
-    test_rk23_rejected_request_clamps_to_minimum_step();
-    test_rk23_accepts_final_remainder_below_minimum_step();
-    test_rk23_accepts_complete_interval_below_minimum_step();
-    test_rk23_reports_maximum_step_count_failure();
-    test_rk23_max_step_changes_observable_diagnostics();
-
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"embedded_rk_tableaus_match_primary_papers", test_embedded_rk_tableaus_match_primary_papers},
+            {"embedded_rk_one_steps_match_independent_scalar_formulae", test_embedded_rk_one_steps_match_independent_scalar_formulae},
+            {"embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs",
+             test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs},
+            {"adaptive_initial_step_default_and_override", test_adaptive_initial_step_default_and_override},
+            {"embedded_rk_default_initial_step_is_used_for_both_methods", test_embedded_rk_default_initial_step_is_used_for_both_methods},
+            {"embedded_rk_fsal_reuses_accepted_endpoint_derivative", test_embedded_rk_fsal_reuses_accepted_endpoint_derivative},
+            {"embedded_rk_adaptive_controls_for_both_methods", test_embedded_rk_adaptive_controls_for_both_methods},
+            {"embedded_rk_public_backward_integration", test_embedded_rk_public_backward_integration},
+            {"ssp_rk3_accept_all_predicate", test_ssp_rk3_accept_all_predicate},
+            {"ssp_rk3_reject_negative_values_then_success", test_ssp_rk3_reject_negative_values_then_success},
+            {"ssp_rk3_multiple_retries", test_ssp_rk3_multiple_retries},
+            {"ssp_rk3_failure_after_max_retries", test_ssp_rk3_failure_after_max_retries},
+            {"ssp_rk3_failure_after_reaching_minimum_timestep", test_ssp_rk3_failure_after_reaching_minimum_timestep},
+            {"ssp_rk3_rejects_initial_step_below_minimum", test_ssp_rk3_rejects_initial_step_below_minimum},
+            {"ssp_rk3_rejects_retry_that_underflows_to_zero", test_ssp_rk3_rejects_retry_that_underflows_to_zero},
+            {"ssp_rk3_without_stage_callback_accepts_unchecked_candidate", test_ssp_rk3_without_stage_callback_accepts_unchecked_candidate},
+            {"ssp_rk3_final_only_callback_invoked_once", test_ssp_rk3_final_only_callback_invoked_once},
+            {"ssp_rk3_stage_callback_invoked_for_each_stage", test_ssp_rk3_stage_callback_invoked_for_each_stage},
+            {"ssp_rk3_failed_stage_check_retries_with_smaller_timestep", test_ssp_rk3_failed_stage_check_retries_with_smaller_timestep},
+            {"ssp_rk3_stage2_rejection_skips_k3_and_retries_from_original_state",
+             test_ssp_rk3_stage2_rejection_skips_k3_and_retries_from_original_state},
+            {"ssp_rk3_final_stage_rejection_short_circuits_final_accept", test_ssp_rk3_final_stage_rejection_short_circuits_final_accept},
+            {"ssp_rk3_stage_rejection_exhaustion_preserves_original_state", test_ssp_rk3_stage_rejection_exhaustion_preserves_original_state},
+            {"ssp_rk3_stage_rejection_minimum_timestep_preserves_original_state",
+             test_ssp_rk3_stage_rejection_minimum_timestep_preserves_original_state},
+            {"ssp_rk3_rhs_stage_audit_preserves_times_and_retry_states", test_ssp_rk3_rhs_stage_audit_preserves_times_and_retry_states},
+            {"rk23_rejects_overly_large_initial_step", test_rk23_rejects_overly_large_initial_step},
+            {"rk23_zero_rhs_has_no_timestep_pathology", test_rk23_zero_rhs_has_no_timestep_pathology},
+            {"rk23_invalid_options_fail_before_loop", test_rk23_invalid_options_fail_before_loop},
+            {"rk23_rejects_nonfinite_trial_state", test_rk23_rejects_nonfinite_trial_state},
+            {"rk23_initial_request_below_minimum_uses_minimum_step", test_rk23_initial_request_below_minimum_uses_minimum_step},
+            {"rk23_accepts_finite_update_at_minimum_step", test_rk23_accepts_finite_update_at_minimum_step},
+            {"rk23_rejected_request_clamps_to_minimum_step", test_rk23_rejected_request_clamps_to_minimum_step},
+            {"rk23_accepts_final_remainder_below_minimum_step", test_rk23_accepts_final_remainder_below_minimum_step},
+            {"rk23_accepts_complete_interval_below_minimum_step", test_rk23_accepts_complete_interval_below_minimum_step},
+            {"rk23_reports_maximum_step_count_failure", test_rk23_reports_maximum_step_count_failure},
+            {"rk23_max_step_changes_observable_diagnostics", test_rk23_max_step_changes_observable_diagnostics},
+        });
 }

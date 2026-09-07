@@ -4,7 +4,7 @@ QMOMKit configuration files describe the repeatable numerical part of a
 moment-method workflow in a small text format. They are optional: applications
 can also create and configure QMOMKit cases directly through the C++ API.
 
-## Configuration Files And Direct C++ Setup
+## Configuration Files and Direct C++ Setup
 
 `.qmom` files provide a convenient way to describe reproducible cases. They are
 especially useful for examples, standalone workflows, testing, and studies that
@@ -69,7 +69,7 @@ acceptance callbacks, remain API-only.
 Direct C++ setup supplies the same concepts that appear in a `.qmom` file, but
 through public types and options rather than through text sections:
 
-| Concept | Configuration file | Direct C++ setup |
+| Concept | `.qmom` file | Direct C++ setup |
 |---|---|---|
 | phase space | `[phase_space]` names, node counts, conditioning order, adaptive branch settings | construct `QmomCase` or a public CQMOM case with the desired coordinate count, node counts, hierarchy, and ordering |
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a dense tensor representation from application data |
@@ -77,11 +77,6 @@ through public types and options rather than through text sections:
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
 | phase-space evolution options | `[time_integration]`, `[time_integration.node_advection]`, and optional realizability settings | set `QmomPhaseSpaceEvolutionOptions`, `CqmomPhaseSpaceEvolutionOptions`, `NodeAdvectionOptions`, source-update options, and realizability settings in C++ |
 | output choices | `[output]` directory, enabled outputs, and cadence | create and call `MomentWriter` or `QuadratureWriter` from the surrounding driver |
-
-This mapping is meant to orient application integration, not replace the public
-API reference or examples. Use direct setup when the surrounding simulation
-already owns configuration data, creates moments at runtime, or needs to choose
-options programmatically.
 
 ## Example: Direct C++ Setup
 
@@ -197,13 +192,13 @@ const qmomkit::CqmomPhaseSpaceEvolutionResult next =
 The `velocity`, `source`, and phase-space evolution options are application code. The
 [Phase-space evolution](phase_space_evolution.md) guide explains those callbacks and options in detail.
 
-## File Structure
+## `.qmom` File Structure 
 
 QMOMKit case configuration files use the `.qmom` extension.
 
 Every QMOMKit case configuration defines a phase space:
 
-```text
+```ini
 [phase_space]
 names = xi
 node_counts = 2
@@ -213,10 +208,6 @@ The phase-space structure determines the configured formulation. A
 one-dimensional phase space uses QMOM. A phase space with more than one
 dimension uses CQMOM. Coordinate names are labels only; QMOMKit does not infer
 physics or method choice from names such as `d`, `u`, or `T`.
-
-`format_version = 1` is optional. If omitted, QMOMKit assumes the current
-format. If an unsupported version is written explicitly, loading fails with a
-configuration error.
 
 The current `.qmom` case format selects only between QMOM and CQMOM from
 phase-space dimensionality.
@@ -241,9 +232,9 @@ The main sections are:
 Configuration files do not define physics callbacks, meshes, boundary
 conditions, or solver loops. Those remain application code.
 
-## Loading A Configuration
+## Loading A Configuration From File
 
-Applications can load a configuration through the public configuration API:
+Applications can load a configuration from a `.qmom` file through the public configuration API:
 
 ```cpp
 #include <qmomkit/qmomkit.hpp>
@@ -301,7 +292,7 @@ explicit dense representation workflow. Optional output settings are loaded
 separately with `load_output_options(...)`; phase-space evolution controls are loaded with
 `load_qmom_phase_space_evolution_options(...)` or `load_cqmom_phase_space_evolution_options(...)`.
 
-## QMOM Configuration
+## [QMOM](./qmom.md) Configuration
 
 Use a one-dimensional phase space for QMOM: a workflow with one phase-space
 coordinate and a raw moment sequence `m0, m1, ...`. In this case, `node_counts`
@@ -312,7 +303,7 @@ contains exactly one positive integer: the requested number of QMOM nodes.
 Use explicit moments when another code, measurement pipeline, or data file
 already provides raw moments:
 
-```text
+```ini
 [phase_space]
 names = xi
 node_counts = 2
@@ -323,7 +314,7 @@ values = 1.0, 0.8, 2.8, 4.4
 
 `values` are raw moments in ascending order:
 
-```text
+```ini
 m0, m1, m2, ...
 ```
 
@@ -336,7 +327,7 @@ Use `[initial] type = distribution` when the initial condition is easier to
 describe as an analytical one-dimensional distribution than as a table of raw
 moments:
 
-```text
+```ini
 [phase_space]
 names = xi
 node_counts = 2
@@ -395,7 +386,7 @@ Use `[initial] type = mixture` when one analytical distribution is not enough
 to describe the initial population, such as a population with multiple modes
 or regimes:
 
-```text
+```ini
 [phase_space]
 names = xi
 node_counts = 3
@@ -433,18 +424,36 @@ finite and non-negative, and at least one component must have positive density.
 The optional `[qmom]` section controls the one-dimensional inversion options
 available through configuration:
 
-```text
+```ini
 [qmom]
 adaptive = true
 ```
 
 For ordinary fixed-node QMOM, omit the section or set `adaptive = false`.
 
-## CQMOM Configuration
+
+### Optional Quadrature Abscissa Bounds
+
+A QMOM coordinate is unconstrained by default, which means abscissas are placed on
+the real-line. When the phase-space coordinate has a
+known closed bounded support, declare it with `support_lower` and `support_upper` definitions:
+
+```ini
+[phase_space]
+node_counts = 2
+support_lower = 0.0
+support_upper = 1.0
+```
+
+Use `none` for unconstrained coordinates. Numeric lower and upper entries must be
+finite values configured together, one entry per phase-space dimension, with
+`lower < upper`. Supports are generic numerical bounds. They are not inferred
+from coordinate names and do not assign physical units or particle semantics.
+
+## [CQMOM](./cqmom.md) Configuration
 
 Use a multidimensional phase space for CQMOM: a workflow with several
-phase-space coordinates and a coupled quadrature representation. A file-based
-CQMOM reconstruction path is:
+phase-space coordinates. A file-based CQMOM reconstruction path is:
 
 ```text
 configuration
@@ -473,7 +482,7 @@ conditioning order. These settings connect the configuration file to the
 physical model: every callback coordinate vector, output column, and moment
 multi-index follows the same phase-space dimension order.
 
-```text
+```ini
 [phase_space]
 names = size, velocity
 node_counts = 2, 2
@@ -507,7 +516,7 @@ sections are contiguous from zero and follow coordinate and tensor-index order.
 Each marginal may be one supported distribution family or a `type = mixture`
 marginal. Different dimensions may use different families:
 
-```text
+```ini
 [phase_space]
 names = size, velocity
 node_counts = 2, 2
@@ -581,12 +590,12 @@ from the reconstructed quadrature rather than transported independently.
 
 ### Optional Quadrature Abscissa Bounds
 
-QMOM and CQMOM coordinates are unconstrained by default, which means real-line
+CQMOM coordinates are unconstrained by default, which means real-line
 reconstruction is used for every coordinate. When a phase-space coordinate has a
 known closed bounded support, declare it with paired phase-space-order
 `support_lower` and `support_upper` lists:
 
-```text
+```ini
 [phase_space]
 names = d, chi, u
 node_counts = 2, 3, 2
@@ -602,7 +611,7 @@ from coordinate names and do not assign physical units or particle semantics.
 
 A shifted interval uses the same syntax:
 
-```text
+```ini
 [phase_space]
 names = x, y
 node_counts = 2, 2
@@ -610,16 +619,6 @@ conditioning_order = 1, 0
 support_lower = none, 2.0
 support_upper = none, 5.0
 ```
-
-For one-dimensional QMOM, provide one entry per key:
-
-```text
-[phase_space]
-node_counts = 2
-support_lower = 0.0
-support_upper = 1.0
-```
-
 Support is indexed by phase-space dimension, not by conditioning level. In the
 example above, the second coordinate is constrained to `[2, 5]` wherever it is
 reconstructed, even though it is the root coordinate in the conditioning order.
@@ -640,7 +639,7 @@ abscissas only; they do not configure moment realizability.
 Set `automatic_scaling = true` in `[phase_space]` to normalize coordinates
 locally for a QMOM or CQMOM reconstruction:
 
-```text
+```ini
 [phase_space]
 node_counts = 2
 automatic_scaling = true
@@ -664,7 +663,7 @@ ordinary unscaled reconstruction path.
 Use explicit tensor moments when your application already has a full raw
 moment tensor from external data, validation, debugging, or interoperability:
 
-```text
+```ini
 [phase_space]
 node_counts = 1, 1
 conditioning_order = 0, 1
@@ -697,7 +696,7 @@ Most applications can omit the `[cqmom]` and `[vandermonde]` sections. Add
 them when you need more or less reconstruction diagnostics, or when a
 validation study deliberately compares solver policies:
 
-```text
+```ini
 [cqmom]
 moment_storage = lean
 diagnostic_level = detailed|basic|none
@@ -735,7 +734,7 @@ If omitted, `automatic` is used. The `pivoted_qr` and `svd` policies solve the
 weighted conditional Vandermonde system directly and are selected only when
 requested explicitly:
 
-```text
+```ini
 [vandermonde]
 solver = svd
 ```
@@ -749,7 +748,7 @@ expose the configured policy through `vandermonde_solver()`.
 The default CQMOM setup is fixed, which gives a rectangular quadrature layout
 and is usually the clearest starting point:
 
-```text
+```ini
 adaptive_branch_counts = false
 
 [qmom]
@@ -759,7 +758,7 @@ adaptive = false
 Adaptive branch quadrature is requested explicitly when a workflow can accept
 branch-local node reduction:
 
-```text
+```ini
 [phase_space]
 node_counts = 2, 2
 conditioning_order = 0, 1
@@ -773,7 +772,7 @@ for all marginal and conditional inversions. In a CQMOM configuration,
 CQMOM. The `[qmom] adaptive` setting remains valid for standalone
 one-dimensional QMOM.
 
-## Phase-Space Evolution Options
+## [Phase-Space Evolution](./phase_space_evolution.md) Configuration
 
 A `.qmom` file may contain both case settings and phase-space evolution settings.
 `load_qmom(...)` and `load_cqmom(...)` return only the case configuration, but
@@ -790,14 +789,14 @@ still be loaded into phase-space evolution options explicitly.
 
 A configuration file may select the phase-space evolution operator-ordering scheme:
 
-```text
+```ini
 [time_integration]
 scheme = strang
 ```
 
 Supported values are:
 
-```text
+```ini
 strang
 advsrc
 srcadv
@@ -810,30 +809,28 @@ active.
 
 A configuration file may also select the advection node-advection scheme:
 
-```text
+```ini
 [time_integration.node_advection]
 scheme = rk23
 ```
 
 Supported values are:
 
-```text
+```ini
 rk23
 rk45
 ssp_rk3
 ```
 
-`rk23` is the default. It is the adaptive Bogacki-Shampine 3(2) pair.
-`rk45` is the adaptive Dormand-Prince RK5(4)7M pair from Table 2 of Dormand
-and Prince (1980). `ssp_rk3` is a distinct fixed-stage method that advances
-exactly over the timestep supplied by the application. The choice affects only
-advection quadrature-node trajectories; it does not change moment-source integration,
+`rk23` is embedded third-order RK scheme of [Bogacki & Shampine (1989)](https://www.doi.org/10.1016/0893-9659(89)90079-7) and chosen by default. 
+The embedded fifth-order RK scheme of [Dormand & Prince (1980)](https://www.doi.org/10.1016/0771-050X(80)90013-3), `rk45`, and the third-order SPP-RK 3 scheme of [Shu & Osher (1988)](https://www.doi.org/10.1016/0021-9991(88)90177-5), `ssp_rk3`, are available as alternatives. 
+The choice affects only advection quadrature-node trajectories; it does not change moment-source integration,
 realizability policy, or phase-space evolution splitting.
 
 The adaptive controls apply to `rk23` and `rk45` and live under a shared nested
 section. `initial_step` defaults to `1.0e-6 s` and may be overridden:
 
-```text
+```ini
 [time_integration.node_advection]
 scheme = rk23
 
@@ -848,7 +845,7 @@ max_steps = 200000
 
 Supported adaptive embedded-RK keys are:
 
-```text
+```ini
 relative_tolerance
 absolute_tolerance
 initial_step
@@ -900,7 +897,7 @@ option objects with default empty runtime callbacks.
 Examples can use `[output]` to decide where and when to write moment or
 quadrature histories:
 
-```text
+```ini
 [output]
 directory = output
 write_moments = true
@@ -919,7 +916,7 @@ that is not written through the QMOMKit output helpers.
 
 CQMOM quadrature output uses one row per active terminal node:
 
-```text
+```ini
 time node_index path_0 ... weight x0 ...
 ```
 
@@ -929,7 +926,7 @@ saved terminal quadrature.
 
 QMOM quadrature output also uses one row per active node:
 
-```text
+```ini
 time node_index weight x0
 ```
 
@@ -941,13 +938,13 @@ Moment output records native integer-order raw moments. Generalized moments
 with real exponents are evaluated by caller code from a valid quadrature result
 and are not part of the standard writer output.
 
-## Runtime Realizability Settings
+## [Runtime Realizability](./realizability.md) Settings
 
 For QMOM, the realizability settings in
 `[time_integration.realizability]` enable checks during moment-source SSP-RK3
 evolution:
 
-```text
+```ini
 [time_integration.realizability]
 check_mode = final_only
 support = nonnegative
@@ -966,7 +963,7 @@ Supported check modes are:
 
 Supported supports are:
 
-```text
+```ini
 real_line
 nonnegative
 bounded_interval
@@ -974,7 +971,7 @@ bounded_interval
 
 For bounded intervals, provide explicit bounds:
 
-```text
+```ini
 [time_integration.realizability]
 check_mode = final_only
 support = bounded_interval
@@ -990,7 +987,7 @@ phase-space coordinates that require checks. A zero-based coordinate suffix
 identifies the coordinate and must be smaller than the configured phase-space
 rank:
 
-```text
+```ini
 [time_integration.realizability.0]
 check_mode = final_only
 support = bounded_interval
@@ -1004,11 +1001,8 @@ support = real_line
 
 Support is not inferred from a distribution family or a phase-space name.
 For CQMOM, each configured coordinate setting applies only to the corresponding
-one-dimensional marginal moment sequence:
+one-dimensional marginal moment sequence: $M[0,\ldots,k_d,\ldots,0]$.
 
-\[
-M[0,\ldots,k_d,\ldots,0].
-\]
 
 Coordinates without a setting are not checked. CQMOM realizability settings do
 not check mixed moments or conditional moments, and they do not validate
@@ -1056,15 +1050,15 @@ their complete configurations alongside the corresponding workflow.
 
 Phase-space evolution examples with local configuration files include:
 
-- `examples/qmom_mixture_initialization/configuration.qmom`
-- `examples/qmom_1d_breakage_advection/configuration.qmom`
-- `examples/cqmom_2d_minimal/configuration.qmom`
+- [examples/qmom_mixture_initialization/configuration.qmom](../../examples/qmom_mixture_initialization/configuration.qmom)
+- [examples/qmom_1d_breakage_advection/configuration.qmom](../../examples/qmom_1d_breakage_advection/configuration.qmom)
+- [examples/cqmom_2d_minimal/configuration.qmom](../../examples/cqmom_2d_minimal/configuration.qmom)
 
-Monte Carlo companion examples live under `tools/monte_carlo/configuration/`:
+Monte Carlo companion examples live under [tools/monte_carlo/configuration/](../../tools/monte_carlo/configuration/):
 
-- `qmom_distribution_lognormal.qmom`
-- `cqmom_independent_product_2d.qmom`
+- [qmom_distribution_lognormal.qmom](../../tools/monte_carlo/configuration/qmom_distribution_lognormal.qmom)
+- [cqmom_independent_product_2d.qmom](../../tools/monte_carlo/configuration/cqmom_independent_product_2d.qmom)
 
-Build and run examples as described in `installation.md`, then edit the
+Build and run examples as described in the [QMOMKIt Installation Guide](./installation.md), then edit the
 configuration files to explore different initial moments, node counts, and
 output settings.

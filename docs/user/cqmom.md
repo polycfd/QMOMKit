@@ -1,31 +1,27 @@
-# Multidimensional CQMOM
+# CQMOM
 
-CQMOM, the Conditional Quadrature Method of Moments, extends moment-based
-quadrature reconstruction to multidimensional phase spaces. A multidimensional
-distribution may depend on coordinates such as size, velocity, or any other
-application-defined variables. QMOMKit treats those coordinates generically as
+CQMOM, the Conditional Quadrature Method of Moments [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)], extends quadrature-based
+moment reconstruction to multidimensional phase spaces. A multidimensional
+population may depend on variables such as size, velocity, temperature, or any
+other application-defined properties. QMOMKit treats these generically as
 phase-space dimensions.
 
-Use CQMOM when the modelled population cannot be represented adequately by one
-coordinate. The result is still a compact quadrature representation, but each
-terminal node has one global weight and one abscissa in every configured
-phase-space dimension. This lets another part of the simulation evaluate
-multidimensional closures or evolve a coupled set of coordinates while
-continuing to store raw moments between reconstructions.
+Use CQMOM when the population is described by a joint distribution over several
+phase-space variables and the dependence between those variables matters. The
+reconstructed quadrature consists of terminal nodes, each with one global
+weight and one abscissa in every configured phase-space dimension. This
+provides a compact representation that can be used to evaluate multidimensional
+closures or evolve coupled phase-space dynamics.
 
-In one dimension, QMOM reconstructs nodes and weights from a raw moment
-sequence. In multiple dimensions, CQMOM reconstructs a multidimensional
-quadrature from a CQMOM case. The case records the phase-space dimensions,
-requested node counts, conditioning order, initial moments, and reconstruction
-options so these choices remain consistent across initialization, phase-space evolution,
-output, and validation.
+In one dimension, QMOM reconstructs a quadrature from a raw moment sequence.
+In multiple dimensions, CQMOM reconstructs the quadrature recursively through
+marginal and conditional one-dimensional reconstructions. A CQMOM case defines
+the phase-space dimensions, maximum node counts, conditioning order, initial
+moments, and reconstruction options used consistently throughout the
+calculation.
 
 QMOMKit uses raw, unnormalized tensor moments:
-
-```text
-M[k_0, ..., k_D-1] =
-    sum_j W_j product_d xi_(d,j)^k_d
-```
+$$M[k_0, ..., k_{D-1}] = \sum_j W_j \prod_d xi_{d,j}^{k_d}$$
 
 The zeroth tensor moment `M[0, ..., 0]` is the total quadrature weight or
 number density.
@@ -185,7 +181,7 @@ For a simple independent-product setup, the configuration file can look like
 this. The example describes a two-coordinate population with one global number
 density and one analytical marginal distribution per phase-space dimension:
 
-```text
+```ini
 [phase_space]
 names = size, velocity
 node_counts = 2, 2
@@ -228,9 +224,9 @@ This line may be omitted when using the default. Supported values are:
 | `bjorck_pereyra` | Uses Björck-Pereyra. |
 
 QR and SVD report rank-deficient systems; SVD also reports nonconvergence. See
-[configuration.md](configuration.md) for exact syntax and policy behavior.
-Developer-level numerical details are in
-[Internal Linear Algebra](../developer/linear_algebra.md).
+the [Configuration Guide](configuration.md) for exact syntax and policy behavior.
+Developer-level numerical details are in the
+[Linear Algebra Guide](../developer/linear_algebra.md).
 
 ### Reconstruction Diagnostics
 
@@ -247,7 +243,7 @@ diagnostic_level = basic
 Use `basic` for structural branch records and `detailed` when residual and
 condition-estimate diagnostics are needed; detailed reporting may perform extra
 work. A failed reconstruction still returns its status and available failure
-context at every level. See [configuration.md](configuration.md) for syntax.
+context at every level. See the [Configuration Guide](configuration.md) for the exact syntax.
 
 For this normal configuration path, the CQMOM hierarchy determines the
 required raw moments automatically. Advanced full-tensor workflows may also

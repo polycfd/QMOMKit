@@ -18,7 +18,7 @@ Quadrature representation
 Evolution/output
 ```
 
-QMOMKit uses raw, unnormalized moments. In one dimension, `m0` is the total
+QMOMKit uses raw, unnormalized moments. In one dimension, $m_0$ is the total
 quadrature weight or number density. In multiple dimensions, configured
 phase-space dimensions keep a stable order for moment indices, nodes,
 callbacks, and output columns.
@@ -34,9 +34,9 @@ In practice, a first QMOMKit integration usually asks four questions:
 
 ## QMOM
 
-Use QMOM when the represented population has one phase-space coordinate and
+Use QMOM [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] when the represented population has one phase-space coordinate and
 your model provides a raw moment sequence for that coordinate. QMOMKit
-reconstructs a one-dimensional quadrature rule: weights whose sum is `m0`, and
+reconstructs a one-dimensional quadrature rule: weights whose sum is $m_0$, and
 abscissas ordered along the coordinate.
 
 ```cpp
@@ -66,13 +66,14 @@ int main()
 }
 ```
 
-For an `N`-node QMOM inversion, provide at least `2 * N` raw moments:
-`m0, m1, ..., m(2N-1)`. Returned abscissas are sorted in ascending order, and
-weights use the same order.
+For an $N$-node QMOM inversion, provide at least $2N$ raw moments:
+$m_0, m_1, ..., m_{2N-1}$. The returned abscissas are sorted in ascending order, with
+the corresponding weights using the same order.
 
 ## CQMOM
 
-Use CQMOM when the represented population depends on several phase-space
+Use CQMOM [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)] 
+when the represented population depends on several phase-space
 coordinates, such as a size coordinate and a velocity coordinate. QMOMKit
 keeps the phase-space order, CQMOM conditioning order, required moments, and
 quadrature layout consistent. This quick start uses a configuration file because
@@ -83,7 +84,7 @@ an application already manages setup data in code.
 Save this minimal configuration as `configuration.qmom` next to the program
 below:
 
-```text
+```ini
 [phase_space]
 names = size, velocity
 node_counts = 2, 2
@@ -154,7 +155,8 @@ That state is passed to `advance_cqmom_phase_space(...)` in a phase-space evolut
 The configuration file defines the parts of the numerical setup that should be
 repeatable: phase-space names, node counts, conditioning order, and either an
 initial distribution or explicit moments. It does not define the physics
-callbacks used later for phase-space evolution. See `configuration.md` for complete
+callbacks used later for phase-space evolution. See [configuration.md](./configuration.md)
+ for complete
 configuration syntax and the relationship between `.qmom` files and direct C++
 setup.
 
@@ -183,6 +185,7 @@ Once you have a quadrature representation, a larger workflow can:
 writes reconstructed nodes and weights. Generalized moments are derived
 quantities evaluated separately from a valid quadrature result.
 
-See `configuration.md` for configuration-file examples, `phase_space_evolution.md` for
-time evolution, `realizability.md` for support-aware checks, and
-`monte_carlo.md` for Monte Carlo companion workflows.
+See [configuration.md](./configuration.md) for configuration-file examples, 
+[phase_space_evolution.md](./phase_space_evolution.md) for time evolution, 
+[realizability.md](./realizability.md) for support-aware checks, and
+[monte_carlo.md](./monte_carlo.md) for Monte Carlo companion workflows.

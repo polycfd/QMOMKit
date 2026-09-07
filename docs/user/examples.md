@@ -1,4 +1,4 @@
-# Choosing An Example
+# Examples
 
 QMOMKit examples are small standalone applications that consume an installed
 QMOMKit package. They demonstrate numerical workflows rather than complete

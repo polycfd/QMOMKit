@@ -4515,6 +4515,26 @@ void test_context_invalid_qmom_state_is_rejected_before_phase_space_evolution()
     assert_vector_near(result.state.moments(), invalid_state.moments(), 0.0);
 }
 
+void test_qmom_phase_space_evolution_rejects_unrepresentable_maximum_node_count()
+{
+    const qmomkit::QmomState state = qmom_state_from_moments({1.0, 0.0}, 1);
+    const std::size_t impossible_node_count = std::numeric_limits<std::size_t>::max() / 2 + 1;
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
+
+    const qmomkit::QmomPhaseSpaceEvolutionResult phase_space =
+        qmomkit::advance_qmom_phase_space(state, impossible_node_count, 0.0, 0.1, zero_velocity, zero_source);
+    const qmomkit::QmomPhaseSpaceEvolutionResult moment_source =
+        qmomkit::advance_qmom_moment_source(state, impossible_node_count, 0.0, 0.1, zero_source);
+
+    assert(!phase_space.ok());
+    assert(phase_space.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
+    assert(phase_space.message.find("too large") != std::string::npos);
+    assert(!moment_source.ok());
+    assert(moment_source.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
+    assert(moment_source.message.find("too large") != std::string::npos);
+}
+
 void test_lean_cqmom_failure_propagation_from_inversion()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -4729,6 +4749,7 @@ void run_all_phase_space_evolution_tests()
     test_failure_propagation_from_boundary_contribution();
     test_boundary_contribution_post_source_inversion_failure();
     test_context_invalid_qmom_state_is_rejected_before_phase_space_evolution();
+    test_qmom_phase_space_evolution_rejects_unrepresentable_maximum_node_count();
     test_lean_cqmom_failure_propagation_from_inversion();
     test_lean_cqmom_phase_space_evolution_preserves_invalid_state_messages();
     test_lean_cqmom_failure_propagation_from_reconstruction();
@@ -4767,6 +4788,7 @@ void run_qmom_phase_space_evolution_tests()
     test_failure_propagation_from_boundary_contribution();
     test_boundary_contribution_post_source_inversion_failure();
     test_context_invalid_qmom_state_is_rejected_before_phase_space_evolution();
+    test_qmom_phase_space_evolution_rejects_unrepresentable_maximum_node_count();
 }
 
 void run_cqmom_phase_space_evolution_tests()

@@ -277,6 +277,12 @@ void test_valid_qmom_matches_programmatic_case()
     const auto adaptive = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[qmom]\nadaptive=true\n[moments]\nvalues=1,0\n");
     assert(adaptive.ok());
     assert(adaptive.value().options.adaptive);
+
+    const std::size_t impossible_node_count = std::numeric_limits<std::size_t>::max() / 2 + 1;
+    const auto impossible =
+        qmomkit::config::parse_qmom("[phase_space]\nnode_counts=" + std::to_string(impossible_node_count) + "\n[moments]\nvalues=1,0\n");
+    assert(!impossible.ok());
+    assert(has_message_fragment(impossible, "too large"));
 }
 
 void test_qmom_case_parses_abscissa_bounds()
@@ -2142,6 +2148,15 @@ check_mode = final_only
 support = real_line
 )");
     assert(qmom_case.ok());
+
+    // Before the checked addition, SIZE_MAX + 1 wrapped to zero before an
+    // unchecked policies[SIZE_MAX] access. The bounded regression verifies
+    // the configuration error without attempting the unsafe old path.
+    const auto impossible_index = qmomkit::config::parse_coordinate_realizability_policies("[time_integration.realizability." +
+                                                                                           std::to_string(std::numeric_limits<std::size_t>::max()) +
+                                                                                           "]\ncheck_mode = final_only\nsupport = real_line\n");
+    assert(!impossible_index.ok());
+    assert(has_message_fragment(impossible_index, "cannot be represented"));
 }
 
 void test_quadrature_bounds_do_not_alter_coordinate_realizability_policy()

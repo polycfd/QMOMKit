@@ -1,6 +1,7 @@
 #include "internal/recursive_quadrature.hpp"
 
 #include "internal/bounded_quadrature.hpp"
+#include "internal/checked_size.hpp"
 #include "internal/cqmom_validation.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/numeric_utils.hpp"
@@ -383,11 +384,12 @@ void validate_positive_extents(const std::vector<std::size_t>& extents, const ch
 
 [[nodiscard]] std::size_t checked_multiply(const std::size_t lhs, const std::size_t rhs)
 {
-    if (rhs != 0 && lhs > std::numeric_limits<std::size_t>::max() / rhs)
+    const std::optional<std::size_t> product = internal::checked_size_multiply(lhs, rhs);
+    if (!product.has_value())
     {
         throw std::invalid_argument("Index extents overflow size_t.");
     }
-    return lhs * rhs;
+    return *product;
 }
 
 [[nodiscard]] std::vector<std::size_t> default_conditioning_order(const std::size_t dimensions)

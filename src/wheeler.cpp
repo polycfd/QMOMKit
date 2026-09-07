@@ -1,6 +1,7 @@
 #include "qmomkit/wheeler.hpp"
 
 #include "internal/bounded_quadrature.hpp"
+#include "internal/checked_size.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
@@ -328,11 +329,16 @@ Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_
     {
         return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "max_nodes must be positive."};
     }
-    if (moments.size() < 2 * max_nodes)
+    const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, max_nodes);
+    if (!required_moment_count.has_value())
+    {
+        return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "max_nodes is too large to derive the required moment count."};
+    }
+    if (moments.size() < *required_moment_count)
     {
         return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence has fewer than 2*n entries."};
     }
-    if (!required_moments_are_finite(moments, 2 * max_nodes))
+    if (!required_moments_are_finite(moments, *required_moment_count))
     {
         return Quadrature1D{{}, {}, QuadratureStatus::invalid_input, "Moment sequence contains non-finite values."};
     }
@@ -389,8 +395,8 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         BoundedQuadratureCandidate candidate;
         candidate.node_count = node_count;
         candidate.attempt_type = std::move(attempt_type);
-        const std::size_t required_moment_count = 2 * node_count;
-        if (node_count == 0 || moment_sequence.size() < required_moment_count)
+        const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, node_count);
+        if (node_count == 0 || !required_moment_count.has_value() || moment_sequence.size() < *required_moment_count)
         {
             candidate.quadrature.status = QuadratureStatus::invalid_input;
             candidate.message = "Bounded-support candidate does not have enough moments.";
@@ -405,7 +411,7 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
 
         candidate.inversion_attempted = true;
         candidate.quadrature = compute_quadrature(
-            MomentSet(std::vector<double>(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(required_moment_count))),
+            MomentSet(std::vector<double>(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(*required_moment_count))),
             node_count, wheeler_options);
         if (!candidate.quadrature.ok())
         {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "checked_size.hpp"
 #include "numeric_utils.hpp"
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/moment_source.hpp"
@@ -13,6 +14,18 @@
 
 namespace qmomkit::internal
 {
+
+[[nodiscard]] inline bool cqmom_required_moment_extents_representable(const PhaseSpaceHierarchy& hierarchy) noexcept
+{
+    for (const std::size_t node_count : hierarchy.node_counts())
+    {
+        if (!checked_size_multiply(node_count, 2).has_value())
+        {
+            return false;
+        }
+    }
+    return true;
+}
 
 [[nodiscard]] inline std::optional<std::size_t> raw_moment_tensor_value_count(const std::vector<std::size_t>& extents)
 {
@@ -139,7 +152,8 @@ inline void validate_dense_cqmom_reconstruction_tensor(const RawMomentTensor& mo
     validate_dense_cqmom_moment_tensor(moments, hierarchy, rank_message, value_count_message, finite_values_message);
     for (std::size_t dimension = 0; dimension < hierarchy.number_of_dimensions(); ++dimension)
     {
-        if (moments.extents[dimension] < 2 * hierarchy.node_count(dimension))
+        const std::optional<std::size_t> required_extent = checked_size_multiply(hierarchy.node_count(dimension), 2);
+        if (!required_extent.has_value() || moments.extents[dimension] < *required_extent)
         {
             throw std::invalid_argument(minimum_extents_message);
         }

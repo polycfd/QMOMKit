@@ -1,6 +1,7 @@
 #include "qmomkit/phase_space_evolution.hpp"
 
 #include "internal/bounded_quadrature.hpp"
+#include "internal/checked_size.hpp"
 #include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
@@ -129,7 +130,12 @@ void validate_qmom_input(const QmomState& state, const std::size_t maximum_node_
     {
         throw std::invalid_argument("QMOM phase-space evolution requires at least one configured node.");
     }
-    if (state.moments().size() < 2 * maximum_node_count)
+    const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, maximum_node_count);
+    if (!required_moment_count.has_value())
+    {
+        throw std::invalid_argument("QMOM phase-space evolution maximum node count is too large to derive the required moment count.");
+    }
+    if (state.moments().size() < *required_moment_count)
     {
         throw std::invalid_argument("QMOM phase-space evolution state has too few moments for the configured maximum node count.");
     }
@@ -332,7 +338,12 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
     {
         throw std::invalid_argument("QMOM phase-space evolution requires at least one configured node.");
     }
-    if (state.moments().size() < 2 * maximum_node_count)
+    const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, maximum_node_count);
+    if (!required_moment_count.has_value())
+    {
+        throw std::invalid_argument("QMOM phase-space evolution maximum node count is too large to derive the required moment count.");
+    }
+    if (state.moments().size() < *required_moment_count)
     {
         throw std::invalid_argument("QMOM phase-space evolution state has too few moments for the configured maximum node count.");
     }

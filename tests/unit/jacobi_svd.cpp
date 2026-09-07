@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <stdexcept>
 #include <vector>
 
 namespace
@@ -504,6 +505,21 @@ void test_success_requires_finite_solution()
     assert(result.status != qmomkit::internal::SvdStatus::success || std::isfinite(result.solution(0, 0)));
 }
 
+void test_dense_matrix_rejects_overflowing_storage_dimensions()
+{
+    const std::size_t overflowing_rows = std::numeric_limits<std::size_t>::max() / 2 + 1;
+    bool threw = false;
+    try
+    {
+        [[maybe_unused]] const qmomkit::internal::DenseMatrix matrix(overflowing_rows, 2);
+    }
+    catch (const std::length_error&)
+    {
+        threw = true;
+    }
+    assert(threw);
+}
+
 } // namespace
 
 int main()
@@ -522,6 +538,7 @@ int main()
     test_invalid_solve_input_and_malformed_metadata();
     test_zero_column_rhs_and_reuse_immutability();
     test_success_requires_finite_solution();
+    test_dense_matrix_rejects_overflowing_storage_dimensions();
 
     return 0;
 }

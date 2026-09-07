@@ -1,7 +1,6 @@
 # Coding Guidelines
 
-This page documents QMOMKit-specific development principles for maintainers and
-contributors. It complements the public API boundaries in
+This page documents QMOMKit-specific development principles. It complements the public API boundaries in
 [architecture.md](architecture.md), the mathematical conventions in
 [numerical_conventions.md](numerical_conventions.md), and the correctness,
 validation, and performance practices in [testing.md](testing.md),
@@ -13,7 +12,7 @@ for automated development tools.
 
 ## Project Philosophy
 
-QMOMKit is a reusable C++ library for QMOM, CQMOM, recursive CQMOM, and
+QMOMKit is a reusable C++ library for QMOM, CQMOM, and
 phase-space evolution algorithms. The core package remains independent of CFD
 frameworks, physical models, application domains, meshes, boundary conditions,
 and parallel-runtime assumptions.
@@ -166,7 +165,7 @@ Documentation should describe the current design. Avoid stage labels, migration
 notes, optimization history, temporary limitations, and roadmap language in
 developer references.
 
-User-facing behavior belongs in `docs/user/`. Stable engineering knowledge
+User-facing behavior belongs in `docs/user/`. Knowledge and guidelines for development
 belongs in `docs/developer/`. Local implementation details may be documented in
 source comments when they help explain mathematical intent, assumptions, or
 constraints.

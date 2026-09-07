@@ -1,21 +1,26 @@
 # QMOMKit User Guide
 
-This guide is for researchers who want to use QMOMKit as a numerical C++
-library inside their own modelling, simulation, analysis, or validation
-workflow.
+QMOMKit is a C++ library for the quadrature method of moments (QMOM) and
+conditional quadrature method of moments (CQMOM). It provides the numerical
+tools needed to represent and evolve a population in phase space using a finite
+set of raw moments.
 
-QMOMKit helps when a model is naturally expressed through moments of a number
-density function, but a later step needs a compact quadrature representation.
-For example, a population-balance or reduced-order model may evolve raw
-moments, then need weighted nodes for evaluating closures, evolving
-phase-space coordinates, writing diagnostics, or comparing against a reference
-calculation.
+QMOMKit can reconstruct one- and multidimensional quadratures from moments,
+evolve their abscissas under phase-space dynamics, and account for population
+changes through moment sources and phase-space boundary contributions. It can
+be used for standalone population models or embedded in a larger simulation
+code, while the application remains responsible for the physical model and,
+where applicable, transport and discretization in physical space.
+
+A typical QMOMKit workflow starts from a set of raw moments, reconstructs the
+corresponding quadrature, and then either uses that quadrature directly to
+evaluate population-dependent quantities or advances the moment state through
+phase-space evolution.
 
 QMOMKit provides the reusable numerical pieces for that workflow:
 
-- one-dimensional QMOM reconstruction from raw moment sequences;
-- multidimensional CQMOM reconstruction from tensor moments or configured
-  phase-space descriptions;
+- one-dimensional quadrature reconstruction from raw moment sets using the quadrature method of moments (QMOM) [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)];
+- multidimensional quadrature reconstruction from raw moment sets using the conditional quadrature method of moments (CQMOM) [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)];
 - analytical moment initialization for supported distributions and mixtures;
 - optional realizability diagnostics for checking whether moments are
   mathematically consistent with a chosen support;
@@ -24,23 +29,12 @@ QMOMKit provides the reusable numerical pieces for that workflow:
 - output helpers and optional Monte Carlo companion tooling for sample
   realizations and validation references.
 
-QMOMKit keeps moment ordering consistent, reconstructs quadrature rules,
-initializes configured cases, reports failures, and updates phase-space
-evolution state. Your application provides the coordinate meanings, units,
-velocity and source callbacks, timestep policy, and application physics.
-
-## Intended Audience
-
-Use this guide if you want to:
-
-- install and consume the QMOMKit CMake package;
-- decide whether QMOM or CQMOM matches a modelling problem;
-- construct one-dimensional QMOM quadratures;
-- construct multidimensional CQMOM quadratures;
-- generate raw moments from supported analytical distributions;
-- configure QMOMKit examples or workflows;
-- use phase-space evolution and source-evolution components;
-- run examples or Monte Carlo companion tools as a user.
+QMOMKit handles moment indexing, quadrature reconstruction, configured case
+setup, diagnostics, and local phase-space evolution. The application defines
+the physical meaning and units of the phase-space variables and supplies the
+model-specific velocity, source, and boundary callbacks. In coupled
+simulations, the application also remains responsible for physical-space
+transport, spatial discretization, and the surrounding solver infrastructure.
 
 ## Recommended Reading Path
 
@@ -55,15 +49,20 @@ installation
   -> examples / monte_carlo
 ```
 
-Start with installation and the quick start if you are using QMOMKit from
-another project. Use the QMOM page when the population is represented by one
-coordinate, and the CQMOM page when the state depends on several phase-space
-coordinates. Move to distribution initialization when initial conditions are
-easier to describe analytically than as moment tables, and to configuration
-once you want repeatable cases that can be run by examples or drivers.
-Phase-space evolution and realizability cover evolved states and support-aware checks.
-Examples and Monte Carlo documentation show complete workflows and
-validation-oriented usage.
+Start with the installation guide and quick start if you are using QMOMKit
+from another project. The QMOM guide covers one-dimensional populations,
+whereas the CQMOM guide introduces multidimensional phase spaces and
+conditional quadrature reconstruction.
+
+Use the distribution-initialization guide when initial conditions are more
+naturally specified through analytical distributions than explicit moment
+tables, and the configuration guide when you want reproducible cases defined
+through `.qmom` files. The phase-space evolution and realizability guides cover
+time-dependent population states, source and boundary contributions, and
+support-aware realizability checks.
+
+The examples and Monte Carlo documentation provide complete workflows and
+reference calculations for verification and comparison.
 
 If you already have a concrete modelling workflow, these entry points are often
 the most direct:
@@ -96,7 +95,7 @@ Most user extensions happen outside the core numerical algorithms:
 - provide physics callbacks for phase-space velocity, raw-moment source terms,
   and optional boundary contributions;
 - evaluate derived quantities from reconstructed quadrature in application code;
-- use `docs/developer/` when adding new numerical algorithms or changing
+- use the [developer documentation](../developer/README.md) when adding new numerical algorithms or changing
   QMOMKit internals.
 
 ## User Documents
@@ -121,9 +120,6 @@ Most user extensions happen outside the core numerical algorithms:
 - [Monte Carlo Companion Package](monte_carlo.md): sample realizations and
   stochastic validation-reference workflows.
 
-## Documentation Boundary
+## Examples
 
-Use this guide for installing QMOMKit, choosing QMOM or CQMOM, writing
-configuration files, running examples, and connecting phase-space evolution callbacks. For
-implementation rationale, test design, validation policy, benchmark guidance,
-and maintenance rules, use `docs/developer/`.
+For a more hands-on introduction, see the examples in [`examples/`](../../examples/). They provide complete, runnable QMOM and CQMOM cases of increasing complexity and show how configuration, quadrature reconstruction, phase-space evolution, sources, and boundary contributions fit together in practice.

@@ -1,24 +1,16 @@
-# One-Dimensional QMOM
+# QMOM
 
-QMOM, the Quadrature Method of Moments, represents a one-dimensional
+QMOM, the Quadrature Method of Moments [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)], represents a one-dimensional
 distribution by a small set of weighted quadrature nodes. Instead of carrying a
-full distribution function, a caller provides raw moments such as `m0`, `m1`,
-and `m2`. QMOMKit reconstructs weights and abscissas whose raw moments match
-the supplied sequence.
-
-Use it when an application stores or evolves moments and needs representative
-nodes for evaluation, output, or another numerical step. The application
-defines the coordinate and moment model; QMOMKit performs the inversion and
-reports whether the quadrature was accepted.
+full distribution function, a caller provides raw moments such as $m_0$, $m_1$,
+and $m_2$. QMOMKit reconstructs weights and abscissas whose raw moments match
+the supplied sequence using the Wheeler algorithm 
+[[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)].
 
 QMOMKit uses raw, unnormalized moments:
+$$m_k = \sum_i w_i x_i^k$$
 
-```text
-m_k = sum_i w_i x_i^k
-```
-
-`m0` is the total quadrature weight or number density. It is not normalized to
-one unless you supply moments with `m0 = 1`.
+$m_0$ is the total quadrature weight or number density. 
 
 ## QMOM Workflow
 
@@ -39,9 +31,9 @@ nodes and weights
 
 The inputs and outputs are:
 
-- `moments`: raw moment values in ascending order, `m0, m1, m2, ...`.
+- `moments`: raw moment values in ascending order, $m_0, m_1, m_2, ...$.
 - `node_count`: requested number of quadrature nodes.
-- `weights`: quadrature weights, whose sum reproduces `m0`.
+- `weights`: quadrature weights, whose sum reproduces $m_0$.
 - `abscissas`: node locations associated with the weights.
 
 After reconstruction, a QMOM workflow may inspect the quadrature, evaluate
@@ -53,11 +45,8 @@ accepted quadrature. Users may copy and move accepted states, but direct
 construction from independent moments and quadrature is intentionally
 unavailable.
 
-For `N` nodes, provide at least `2 * N` moments:
+For $N$ nodes, provide at least $2N$ moments: $m_0, m_1, ..., m_{2N-1}$
 
-```text
-m0, m1, ..., m(2N-1)
-```
 
 Returned abscissas are sorted in ascending order. Weights are stored in the
 same order, so `weights[i]` belongs to `abscissas[i]`.
@@ -128,7 +117,7 @@ distribution guide.
 Native QMOM and CQMOM moments remain integer-order polynomial moments. QMOMKit
 reconstructs integer-order moments from quadrature when it needs raw moments
 for reconstruction handoff, phase-space evolution, output, or validation workflows. These
-moments use orders such as `m0`, `m1`, and `m2`, or integer-valued
+moments use orders such as $m_0$, $m_1$, and $m_2$, or integer-valued
 multidimensional raw-moment indices.
 
 After checking that a quadrature result is valid, callers may also evaluate

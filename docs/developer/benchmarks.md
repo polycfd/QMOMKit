@@ -1,12 +1,10 @@
 # Benchmarks
 
 This page documents the QMOMKit benchmarking philosophy and benchmark project
-architecture for maintainers, contributors, and AI-assisted development
-workflows. It answers how QMOMKit measures and tracks computational performance.
+architecture.
 
-For package boundaries and standalone consumer structure, see `architecture.md`.
-For correctness testing, see `testing.md`. For numerical credibility and
-reference comparisons, see `validation.md`.
+For correctness testing, see [testing.md](testing.md). For numerical credibility and
+reference comparisons, see [validation.md](validation.md).
 
 ## Role Of Benchmarks
 

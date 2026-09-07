@@ -1,12 +1,10 @@
 # Phase-Space Evolution Design
 
-This page documents the current QMOMKit design for phase-space evolution and time
-integration. It is a developer reference for maintainers, contributors, and
-AI-assisted development workflows.
+This page documents the current QMOMKit design for phase-space evolution and time integration. 
 
 For raw-moment, tensor, phase-space, node, abscissa, and weight conventions,
-see `numerical_conventions.md`. For QMOM and CQMOM reconstruction behavior,
-see `qmom_wheeler.md` and `cqmom_recursive.md`.
+see [numerical_conventions.md](numerical_conventions.md). For QMOM and CQMOM reconstruction behavior,
+see [qmom_wheeler.md](qmom_wheeler.md) and [cqmom_recursive.md](cqmom_recursive.md).
 
 ## Phase-Space Evolution Architecture Overview
 
@@ -42,7 +40,7 @@ motion is represented by advancing quadrature nodes, while moment-source or
 source-like effects are represented by advancing raw moments. Physical-space
 transport of moments is not part of the supported QMOMKit phase-space evolution design.
 
-## Node Advection Design
+## Node Advection
 
 Node advection advances quadrature abscissas through a phase-space advection
 velocity field. It preserves quadrature weights and terminal paths.
@@ -59,7 +57,7 @@ The callback receives:
 - current time;
 - one node coordinate vector ordered by phase-space dimension.
 
-It returns `dxi/dt` with the same number of components. QMOMKit validates the
+It returns $\mathrm{d}\xi/\mathrm{d}t$ with the same number of components. QMOMKit validates the
 returned size and finiteness, but it does not assign physical meaning to any
 coordinate. A non-finite returned component is reported with the evaluation
 time, zero-based phase-space dimension, offending value, input coordinate
@@ -86,10 +84,8 @@ node advection.
 
 After a successful phase-space advection step, phase-space evolution reconstructs raw moments
 from the moved quadrature:
+$$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
 
-```text
-m_alpha = sum_j W_j product_r xi_(r,j)^alpha_r
-```
 
 This reconstruction is the handoff from phase-space advection node motion back to the
 moment representation used by moment-source evolution and later inversions.
@@ -243,9 +239,9 @@ dxi/dt = velocity(t, xi)
 
 The public `NodeAdvectionScheme` selects the trajectory integrator:
 
-- `rk23`: the default adaptive Bogacki-Shampine 3(2) pair;
-- `rk45`: the adaptive Dormand-Prince RK5(4)7M pair from Table 2;
-- `ssp_rk3`: a separate fixed-stage SSP-RK3 trajectory step.
+- `rk23`: the adaptive Bogacki-Shampine 3(2) scheme [[Bogacki & Shampine, 1989](https://www.doi.org/10.1016/0893-9659(89)90079-7)];
+- `rk45`: the adaptive Dormand-Prince RK5(4)7M scheme [[Dormand & Prince, 1980](https://www.doi.org/10.1016/0771-050X(80)90013-3)];
+- `ssp_rk3`: the fixed-stage SSP-RK3 scheme [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)].
 
 The choice is a user-facing trajectory-integration policy, not a change to the
 phase-space evolution composition. SSP-RK3 is appropriate when the surrounding application
@@ -304,8 +300,8 @@ accepting a configured case policy and replacing it with `false`, `detailed`,
 
 ### Moment-Source SSP-RK3
 
-Moment-source SSP-RK3 advances raw moment vectors through moment-source updates. It is
-an explicit third-order strong-stability-preserving Runge-Kutta step over a
+The moment-source SSP-RK3 advances raw moment vectors through moment-source updates. It is 
+an explicit third-order strong-stability-preserving Runge-Kutta step [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)] over a
 generic vector state.
 
 Phase-space evolution uses this path for the moment-source or source-like stage because
@@ -326,7 +322,7 @@ The solver supports:
 The solver itself is generic. It does not know about QMOM, CQMOM, moment
 realizability, particles, or phase-space coordinates. In phase-space
 evolution, the moment-source wrapper supplies configured realizability checks
-through the solver's acceptance interfaces. Later QMOM or CQMOM reconstruction
+through the solver's acceptance interfaces [[Nguyen et al., 2016](https://www.doi.org/10.1016/j.jcp.2016.08.017)]. Later QMOM or CQMOM reconstruction
 is a separate numerical operation, not realizability checking. Realizability
 checks do not validate inversion, node counts, CQMOM branch topology, or
 reconstructed quadrature states.
@@ -364,13 +360,9 @@ moment-source updates to `PhaseSpaceEvolutionStatus::moment_source_failed`.
 ### SSP-RK3 Details
 
 SSP-RK3 advances one raw-moment state over a requested timestep:
-
-```text
-y' = f(t, y)
-```
+$$y' = f(t, y)$$
 
 Conceptually, the step evaluates three explicit stages:
-
 ```text
 stage 1: forward Euler candidate from y_n
 stage 2: convex combination of y_n and a second Euler-like update
@@ -433,9 +425,9 @@ The optional error estimate is diagnostic; any external timestep adaptation is
 caller-owned. Phase-space evolution source updates use the predicate retry behavior; they
 do not silently change the mathematical source model.
 
-### Embedded RK23 and RK45 Details
+### Embedded Runge-Kutta schemes
 
-Adaptive embedded Runge-Kutta advances generic vector states from `t0` to
+The embedded Runge-Kutta schemes advances generic vector states from `t0` to
 `t_bound`. In phase-space evolution, the vector state is the packed collection of
 quadrature node coordinates, and the RHS is built from `PhaseSpaceVelocity`.
 
@@ -450,8 +442,8 @@ The internal engine uses immutable built-in tableaus with stage abscissae,
 strictly lower-triangular coefficients, higher and embedded weights, orders,
 and FSAL metadata. It evaluates every tableau stage, forms both solutions, and
 uses `y_high - y_low` as the error estimate. The accepted state is always the
-higher-order solution. `rk23` is the four-stage Bogacki-Shampine 3(2) pair;
-`rk45` is Dormand-Prince RK5(4)7M from Table 2. Both are FSAL, so an accepted
+higher-order solution. `rk23` is the four-stage Bogacki-Shampine 3(2) solver [[Bogacki & Shampine, 1989](https://www.doi.org/10.1016/0893-9659(89)90079-7)];
+`rk45` is the seven-stage Dormand-Prince RK5(4)7M solver [[Dormand & Prince, 1980](https://www.doi.org/10.1016/0771-050X(80)90013-3)]. Both are FSAL, so an accepted
 final derivative is reused for the next trial in the same public integration
 call. A rejected trial retains only the derivative at its unchanged starting
 state.
@@ -523,11 +515,6 @@ Node advection maps embedded-RK failure to
 inside scheme-specific diagnostics. Phase-space evolution aggregates scheme-neutral
 node-advection step, rejected-step, and RHS-evaluation counts.
 
-The embedded pairs are based on P. Bogacki and L. F. Shampine, “A 3(2) Pair of
-Runge–Kutta Formulas,” *Applied Mathematics Letters*, 2(4), 1989, 321–325, and
-J. R. Dormand and P. J. Prince, “A Family of Embedded Runge–Kutta Formulae,”
-*Journal of Computational and Applied Mathematics*, 6(1), 1980, 19–26.
-
 ## Phase-Space Evolution Composition
 
 The full phase-space evolution helpers compose the lower-level operations with a selected
@@ -573,8 +560,7 @@ diagnostic quadrature.
 
 ### Strang Splitting
 
-`PhaseSpaceEvolutionScheme::strang` is the default second-order Strang splitting
-composition:
+`PhaseSpaceEvolutionScheme::strang` is the default second-order Strang splitting:
 
 ```text
 advection half-step
@@ -592,7 +578,7 @@ The post-source inversion reconstructs quadrature from the updated moments.
 The second advection half-step advances the new quadrature and reconstructs
 final moments.
 
-### `advsrc`
+### Lie splitting
 
 `PhaseSpaceEvolutionScheme::advsrc` applies first-order advection-then-moment-source Lie
 splitting:
@@ -603,8 +589,6 @@ moment reconstruction
 moment-source full stage
 post-source inversion
 ```
-
-### `srcadv`
 
 `PhaseSpaceEvolutionScheme::srcadv` applies first-order moment-source-then-advection Lie
 splitting:
@@ -617,8 +601,7 @@ final moment reconstruction
 ```
 
 The `advsrc` and `srcadv` schemes are useful for comparisons, diagnostics, or
-applications that deliberately want a fixed first-order splitting order. They
-do not replace the default Strang splitting composition.
+applications that deliberately want a fixed first-order splitting order. 
 
 ### Extending Phase-Space Evolution Schemes
 
@@ -1001,7 +984,7 @@ Existing verification covers:
 - moment-source updates against analytical moment evolution;
 - complete QMOM phase-space evolution for commuting and noncommuting operators;
 - complete CQMOM phase-space evolution for a compact two-dimensional case;
-- Strang, `advsrc`, and `srcadv` scheme behavior;
+- Strang and Lie scheme behavior;
 - reconstruction error and zeroth-moment checks;
 - diagnostics for successful phase-space evolution runs.
 

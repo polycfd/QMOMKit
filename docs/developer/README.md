@@ -14,7 +14,7 @@ This guide describes the current design of QMOMKit:
 - benchmarks;
 - coding practices.
 
-It is distinct from `docs/user/`, which explains how to use QMOMKit from a
+It is distinct from the [user docs](../user/README.md), which explains how to use QMOMKit from a
 downstream application, example, or validation workflow. It is also distinct
 from source comments, which explain local implementation details close to the
 code they clarify.
@@ -84,8 +84,3 @@ The developer guide describes design rules and implementation contracts that
 help maintainers reason about the library. It stays focused on the core
 numerical library rather than application-specific physics, CFD framework
 integration, or one-off contributor procedures.
-
-Use this guide for design decisions and project-wide conventions. Use
-`docs/user/` for API examples and supported user workflows. Keep details that
-only clarify one function or source file close to that code as concise source
-comments.

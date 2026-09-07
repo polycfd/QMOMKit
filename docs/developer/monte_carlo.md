@@ -3,9 +3,8 @@
 This page documents the development and validation conventions for the optional
 QMOMKitMonteCarlo companion package under `tools/monte_carlo/`.
 
-For user-facing build and run instructions, see `docs/user/monte_carlo.md`. For
-general numerical validation policy, see `validation.md`. For test category
-guidance, see `testing.md`.
+For user-facing build and run instructions, see [docs/user/monte_carlo.md](../user/monte_carlo.md). For
+general numerical validation policy, see [validation.md](validation.md). For test category guidance, see [testing.md](testing.md).
 
 ## Package Role
 
@@ -33,7 +32,9 @@ Monte Carlo validation compares raw moment histories:
 
 ```text
 QMOMKit deterministic moments
+           |
         versus
+           |
 Monte Carlo estimated moments
 ```
 
@@ -60,33 +61,21 @@ also includes sampling error at the initial time.
 
 ## Moment Conventions
 
-For a multidimensional multi-index `alpha`:
-
-```text
-M_alpha = integral product_d xi_d^alpha_d n(xi) dxi
-```
+For a multidimensional multi-index $\alpha$:
+$$M_{\alpha} = \int \prod_{d} \xi_{d}^{\alpha_{d}} n(\xi) \ \mathrm{d} \xi$$
 
 For deterministic quadrature:
+$$M_{\alpha} = \sum_{i} W_i \prod_d \xi_{i,d}^{\alpha_d}$$
 
-```text
-M_alpha = sum_i W_i product_d xi_(i,d)^alpha_d
-```
-
-For a Monte Carlo ensemble with `N` samples and total number density `n0`:
-
-```text
-M_alpha = n0 / N * sum_p product_d xi_(p,d)^alpha_d
-```
+For a Monte Carlo ensemble with $N$ samples and total number density $n_0$:
+$$M_\alpha = \frac{n_0}{N} \sum_p \prod_d \xi_{p,d}^{\alpha_d}$$
 
 These are unnormalized raw moments of the number density function. They are not
-centered, standardized, divided by `M[0,...,0]`, or converted to probability
+centered, standardized, divided by $M[0,...,0]$, or converted to probability
 moments unless a case explicitly defines a unit-number-density problem.
 
 Sample coordinates use QMOMKit phase-space dimension order:
-
-```text
-xi = (xi_0, xi_1, ..., xi_(D-1))
-```
+$$\xi = \left(\xi_0, \xi_1, ..., \xi_{D-1}\right)$$
 
 Coordinate names are metadata and must not change sampling, storage, evolution,
 moment-index, or output order.
@@ -94,21 +83,18 @@ moment-index, or output order.
 ### Population birth/injection
 
 `inject_population(...)` is a local equally weighted birth operation. The
-caller supplies the integrated number-density amount `Delta n` for its own
+caller supplies the integrated number-density amount $\Delta n$ for its own
 chosen interval and a callback sampling the normalized birth distribution. The
 companion package does not integrate a physical birth-rate law or own timing or
 operator splitting.
 
-For a valid existing ensemble with `N` samples and positive number density
-`n0`, its representative weight is `w = n0 / N`. The operation uses one local
+For a valid existing ensemble with $N$ samples and positive number density
+$n_0$, its representative weight is $w = n_0 / N$. The operation uses one local
 `std::mt19937_64` seeded by the public seed argument to draw
-`K ~ Poisson(Delta n / w)` and then to sample all `K` birth coordinates. It
-returns `n0_new = w * (N + K)`. Consequently the realized post-birth estimator
-is:
-
-```text
-M_alpha_new = w [sum_p xi_p^alpha + sum_r Y_r^alpha]
-```
+$K \sim \mathrm{Poisson}(\Delta n / w)$ and then to sample all $K$ birth coordinates. 
+It returns $n_{0,\mathrm{new}} = w (N + K)$. Consequently the realized post-birth 
+estimator is:
+$$M_{\alpha,\mathrm{new}} = w \left[\sum_p \xi_{p}^{\alpha} + \sum_r Y_{r}^{\alpha}\right]$$
 
 and its expected increment equals the caller's integrated birth contribution.
 Samples remain unweighted coordinate vectors; variable per-sample weights are

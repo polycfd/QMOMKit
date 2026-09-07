@@ -9,7 +9,7 @@ the allowed phase-space domain?
 ```
 
 Not every list of numbers is a valid moment representation. For example, a
-one-dimensional sequence with positive `m0` but a negative variance cannot
+one-dimensional sequence with positive $m_0$ but a negative variance cannot
 represent a physical distribution on the real line. A sequence may also be
 valid on one support but invalid on another; moments that are possible on the
 real line may be impossible if the variable must be nonnegative or bounded.
@@ -181,7 +181,7 @@ moments outside the allowed moment space.
 
 The configuration form is:
 
-```text
+```ini
 [time_integration.realizability]
 check_mode = final_only
 support = nonnegative
@@ -212,11 +212,8 @@ quadrature evolution, or reconstructed nodes and weights.
 For CQMOM, configure realizability settings for individual phase-space
 coordinates with sections such as `[time_integration.realizability.0]`. Each
 configured coordinate checks only its one-dimensional marginal moment
-sequence:
+sequence: $M[0,\ldots,k_d,\ldots,0]$.
 
-\[
-M[0,\ldots,k_d,\ldots,0].
-\]
 
 Mixed moments and conditional moments are not checked. The checks also do not
 include CQMOM quadrature reconstruction, adaptive topology, or branch counts.
@@ -228,7 +225,7 @@ need information about the quadrature result.
 
 Use `support = real_line` for unconstrained one-dimensional variables:
 
-```text
+```ini
 [time_integration.realizability]
 check_mode = final_only
 support = real_line
@@ -236,7 +233,7 @@ support = real_line
 
 Use `support = nonnegative` for variables that cannot be negative:
 
-```text
+```ini
 [time_integration.realizability]
 check_mode = final_only
 support = nonnegative
@@ -246,7 +243,7 @@ accept_boundary = true
 Use `support = bounded_interval` with bounds for interval-constrained
 variables:
 
-```text
+```ini
 [time_integration.realizability]
 check_mode = final_only
 support = bounded_interval
@@ -260,7 +257,7 @@ that performs the runtime realizability check.
 ## Practical Guidance
 
 Start with physically meaningful moments of the number density function (NDF).
-`m0` should carry the intended total number density. Mixing normalized
+$m_0$ should carry the intended total number density. Mixing normalized
 probability moments with unnormalized raw moments changes the mathematical
 state being checked.
 

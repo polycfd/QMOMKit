@@ -1,40 +1,31 @@
 # QMOM Wheeler Inversion
 
 This page documents the current QMOMKit design for one-dimensional QMOM
-inversion with the Wheeler algorithm. It is a developer reference for
-maintainers, contributors, and AI-assisted development workflows.
+inversion with the Wheeler algorithm [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)].
 
 For raw-moment, node, abscissa, weight, and ordering conventions, see
-`numerical_conventions.md`. This page describes how those conventions are used
+[numerical_conventions.md](numerical_conventions.md). This page describes how those conventions are used
 by the Wheeler inversion implementation.
 
-## Role Of Wheeler Inversion
+## Role of Wheeler Inversion
 
 QMOM represents a one-dimensional number density function through a finite set
 of raw moments:
+$$m_k = \int \xi^k n(\xi) \ \mathrm{d}\xi$$
 
-```text
-m_k = integral xi^k n(xi) dxi
-```
+Many algorithms need an equivalent discrete quadrature:
+$$m_k = \sum_i w_i x_i^k$$
 
-Many algorithms need an equivalent discrete quadrature rule:
-
-```text
-m_k = sum_i w_i x_i^k
-```
 
 Wheeler inversion maps a supplied moment sequence to quadrature abscissas
-`x_i` and weights `w_i`. For an `N`-node rule, the inversion uses the first
-`2 * N` raw moments:
+$x_i$ and weights $w_i$. For an $N$-node quadrature, the inversion uses the first
+$2N$ raw moments: $m_0, m_1, ..., m_{2N-1}$.
 
-```text
-m_0, m_1, ..., m_(2N-1)
-```
 
 The resulting quadrature rule is the local one-dimensional representation used
 by public QMOM reconstruction and by CQMOM branch-local reconstructions. CQMOM
 conditioning, branch paths, and terminal multidimensional weights are separate
-topics for `cqmom_recursive.md`.
+topics for [cqmom_recursive.md](cqmom_recursive.md).
 
 ## QMOM Representation
 
@@ -64,16 +55,13 @@ returns the deterministic sorted convention.
 
 The zeroth moment is preserved as the total quadrature weight on successful
 rules:
-
-```text
-sum_i w_i = m_0
-```
+$$\sum_i w_i = m_0$$
 
 With `automatic_scaling = false`, QMOMKit passes physical raw moments to
 Wheeler unchanged. With optional automatic reconstruction scaling enabled, the
 reconstruction wrapper supplies coordinate-scaled raw moments as numerical
 preconditioning; Wheeler still operates on raw moments and does not perform
-centering or `m_0` normalization. A moment sequence with `m_0 = 1` is treated
+centering or $m_0$ normalization. A moment sequence with $m_0 = 1$ is treated
 as a unit-number-density sequence, not as a separate probability convention.
 
 ## Algorithm Overview
@@ -91,20 +79,16 @@ Conceptually, the inversion has four main steps:
 4. Diagonalize the Jacobi matrix, then form abscissas and weights from the
    eigenpairs.
 
-For a Jacobi matrix `J`, the quadrature abscissas are the eigenvalues:
+For a Jacobi matrix $J$, the quadrature abscissas are the eigenvalues:
+$$x_i = \lambda_i(J)$$
 
-```text
-x_i = lambda_i(J)
-```
 
 The weights are computed from the first component of the normalized
 eigenvectors:
+$$w_i = m_0 \, v_{0,i}^2$$
 
-```text
-w_i = m_0 * v_(0,i)^2
-```
 
-The multiplication by `m_0` preserves the total number density represented by
+The multiplication by $m_0$ preserves the total number density represented by
 the supplied moment sequence.
 
 The implementation uses QMOMKit's internal small dense linear-algebra
@@ -115,7 +99,7 @@ in implementation files and are not exposed as public API objects.
 
 ## Adaptive Wheeler
 
-Adaptive Wheeler allows a case for up to `N` nodes to return a smaller
+The adaptive Wheeler alogrithm [[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)] allows a case for up to $N$ nodes to return a smaller
 accepted quadrature rule when the supplied moments are effectively supported
 by fewer distinct nodes. This is important near the boundary of realizable
 moment space, where a fixed-node inversion can encounter nearly duplicate
@@ -180,17 +164,17 @@ The Wheeler implementation assumes:
 
 - moments are raw moments of the number density function;
 - one-dimensional moments are supplied in ascending order;
-- an `N`-node case provides at least `2 * N` moments;
+- an $N$-node case provides at least $2N$ moments;
 - all moments consumed by the requested reconstruction and all numerical
   options are finite;
-- `m_0` is the total number density and must not be negative;
+- $m_0$ is the total number density and must not be negative;
 - recurrence coefficients must remain finite;
 - recurrence coefficients that imply negative Jacobi off-diagonal squares
   indicate a non-realizable moment sequence;
 - abscissas and weights must remain finite after diagonalization.
 
 Cases with zero nodes, too few moments, non-finite moments, invalid options,
-negative `m_0`, near-zero `m_0`, non-finite recurrence data, negative
+negative $m_0$, near-zero $m_0$, non-finite recurrence data, negative
 recurrence data, or non-finite eigen output are reported through status
 values. Adaptive rejection of a multi-node candidate is not by itself a
 failure if the implementation reaches and accepts a reduced one-node rule.
@@ -287,10 +271,8 @@ structures unless QMOMKit deliberately adds a supported diagnostic API.
 
 Wheeler changes should preserve the core invariant that successful quadrature
 reconstructs the supplied raw moments to the documented tolerance:
+$$m_k \simeq \sum_i w_i x_i^k$$
 
-```text
-m_k ~= sum_i w_i x_i^k
-```
 
 Existing coverage includes:
 

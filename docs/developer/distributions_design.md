@@ -1,15 +1,13 @@
 # Distribution Design
 
 This page documents the current QMOMKit design for analytical distribution
-handling. It is a developer reference for how distribution specifications are
-represented, validated, and converted into raw moments for QMOM and CQMOM
-initialization.
+handling.
 
 For raw moments, number density function (NDF) conventions, tensor storage, and
 phase-space ordering, see [numerical_conventions.md](numerical_conventions.md).
 For configuration-file mapping, see
 [configuration_design.md](configuration_design.md). User-facing examples and
-workflow guidance live in `docs/user/distributions.md`.
+workflow guidance live in [docs/user/distributions.md](../user/distributions.md).
 
 ## Role Of Distributions
 
@@ -77,7 +75,7 @@ RawMomentResult compute_raw_moments(
 ```
 
 `maximum_order` is inclusive. A request with `maximum_order = 3` returns
-`m_0, m_1, m_2, m_3` on success.
+$m_0, m_1, m_2, m_3$ on success.
 
 Distributions also support a general selective raw-moment request:
 
@@ -98,14 +96,12 @@ products, each requested index has one component per phase-space dimension.
 
 For a single analytical distribution, the generated sequence follows the NDF
 moment convention:
+$$n(\xi) = n_0 p(\xi)$$
+$$m_k = n_0 E[\xi^k]$$
+$$m_0 = n_0$$
 
-```text
-n(xi) = n0 p(xi)
-m_k = n0 E[xi^k]
-m_0 = n0
-```
 
-where `p(xi)` is the normalized analytical shape and `n0` is the supplied
+where $p(\xi)$ is the normalized analytical shape and $n_0$ is the supplied
 `total_weight`. The result is not normalized away before being returned.
 
 ## Analytical Distribution Families
@@ -149,16 +145,14 @@ which contains `DistributionComponent` values. Each component has:
 - an absolute component number density.
 
 Mixture moments are accumulated as:
+$$m_k = \sum_r n_r E_r[\xi^k]$$
+$$m_0 = \sum_r n_r$$
 
-```text
-m_k = sum_r n_r E_r[xi^k]
-m_0 = sum_r n_r
-```
 
-The component values `n_r` are absolute number-density contributions. They are
+The component values $n_r$ are absolute number-density contributions. They are
 not fractions, are not normalized, and are not required to sum to one. A
 one-component mixture reproduces the corresponding single-distribution result
-with `total_weight = n_r`.
+with $\mathrm{total\ weight} = n_r$.
 
 Validation and failure behavior are part of the developer contract:
 
@@ -200,13 +194,11 @@ TensorMomentResult compute_raw_moments(
 ```
 
 The product convention is:
+$$n(\xi_0, ..., \xi_{(d-1)}) = n_0 \prod_r p_r(\xi_r)$$
+$$\int p_r(\xi_r)\ \mathrm{d}\xi_r = 1$$
+$$m_\alpha = n_0 \prod_r E_r[xi_{r}^{\alpha_r}]$$
+$$m_{[0, ..., 0]} = n_0$$
 
-```text
-n(xi_0, ..., xi_(d-1)) = n0 product_r p_r(xi_r)
-integral p_r(xi_r) dxi_r = 1
-m_alpha = n0 product_r E_r[xi_r^alpha_r]
-m_[0, ..., 0] = n0
-```
 
 Marginals are ordered by phase-space dimension, not by CQMOM conditioning order.
 `maximum_orders[r]` is inclusive and defines
@@ -231,10 +223,8 @@ without constructing the full tensor. It validates request rank, groups unique
 requested marginal orders per phase-space dimension, evaluates each marginal
 through the one-dimensional selective API, and reconstructs each requested
 multidimensional moment as:
+$$m_\alpha = n_0 \prod_r E_r[\xi_{r}^{\alpha_r}]$$
 
-```text
-m_alpha = n0 product_r E_r[xi_r^alpha_r]
-```
 
 The output preserves request order and duplicate requests.
 
@@ -398,7 +388,7 @@ initialization and reconstruction:
 
 - add a typed public representation for new supported analytical families;
 - define parameter validation and moment formulas explicitly;
-- preserve raw NDF moment conventions and `m_0`/`m_[0,...,0]` semantics;
+- preserve raw NDF moment conventions as well as $m_0$ and $m_{[0,...,0]}$ semantics;
 - define finite-value, overflow, underflow, and diagnostic behavior;
 - keep configuration string mapping separate from the numerical API;
 - add unit and verification coverage with independent analytical references;

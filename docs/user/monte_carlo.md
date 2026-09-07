@@ -6,9 +6,7 @@ moments, advection sample evolution, and moment-history comparison utilities.
 It is useful when you want a sampled reference beside a QMOM or CQMOM
 calculation.
 
-The companion package is not needed for ordinary QMOM or CQMOM reconstruction.
-It is not a production particle solver, a source-term model, or a replacement
-for QMOMKit phase-space evolution.
+The companion package is **not** needed for ordinary QMOM or CQMOM reconstruction.
 
 ## When To Use It
 
@@ -42,15 +40,15 @@ Carlo and deterministic paths.
 
 `inject_population(...)` adds a generic birth contribution to an existing
 Monte Carlo ensemble. The caller supplies the integrated birth amount
-`Delta n` for its chosen interval; the companion package does not own physical
+$\Delta n$ for its chosen interval; the companion package does not own physical
 rate laws, time stepping, or operator splitting.
 
-For an ensemble of `N` samples and positive number density `n0`, every sample
-has representative weight `w = n0 / N`. The operation draws
-`K ~ Poisson(Delta n / w)` and invokes the coordinate callback once per born
+For an ensemble of $N$ samples and positive number density $n_0$, every sample
+has representative weight $w = n_0 / N$. The operation draws
+$K \sim \mathrm{Poisson}(\Delta n / w)$ and invokes the coordinate callback once per born
 sample. That callback represents the normalized birth distribution and may
 ignore its supplied random engine for deterministic injection. The returned
-number density is `w * (N + K)`, so existing and new samples retain the same
+number density is $w (N + K)$, so existing and new samples retain the same
 representative weight.
 
 The operation owns one locally seeded `std::mt19937_64` for the Poisson draw
@@ -64,16 +62,14 @@ an empty or zero-density population is not supported by this initial API.
 Build and install the core QMOMKit package from the repository root first:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$PWD/install"
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/install"
 cmake --build build
 cmake --install build
 ```
 
 This writes the core package to `install/` in the repository root.
 
-## Build The Monte Carlo Package
+## Build the Monte Carlo Package
 
 Configure the companion package against the installed QMOMKit package:
 
@@ -367,6 +363,5 @@ A separate project that uses the companion package should point
 `CMAKE_PREFIX_PATH` at the shared install prefix:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="/path/to/QMOMKit/install"
+cmake -S . -B build -DCMAKE_PREFIX_PATH="/path/to/QMOMKit/install"
 ```

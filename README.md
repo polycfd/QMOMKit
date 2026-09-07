@@ -13,6 +13,7 @@ QMOMKit reconstructs quadrature nodes and weights from raw moments and utilities
 
 - [Fabian Denner](https://www.polymtl.ca/expertises/en/denner-fabian)
 - [Bruno Blais](https://www.polymtl.ca/expertises/en/blais-bruno)
+- Bruna Campos
 
 ## License
 
@@ -22,7 +23,8 @@ QMOMKit is released under the **Apache License 2.0**. See [LICENSE](LICENSE) for
 
 QMOMKit provides tools to:
 
-- reconstruct one-dimensional QMOM and multidimensional CQMOM quadratures;
+- use the quadrature method of moments (QMOM) [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] to reconstruct quadratures for one-dimensional phase space;
+- use the conditional quadrature method of moments (CQMOM) [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)] to reconstruct quadratures for multidimensional phase space;
 - configure phase-space conditioning order, bounded support, and adaptive branch-specific CQMOM node counts;
 - initialize moments from explicit moment definitions, analytical distributions, or Monte carlo sampling;
 - evolve states through phase-space advection and moment-source or boundary contributions;
@@ -86,7 +88,7 @@ In addition, QMOMKit has several companion tools:
 
 ## Testing
 
-The repository contains over 100 individual tests:
+The repository has a comprehensive test suite that covers all parts of the codebase:
 
 - unit tests for local behavior and failure paths;
 - component regression tests for important interactions;
@@ -98,9 +100,7 @@ To enable the core test suite, use a _Debug build_ because the unit tests use
 `assert()`:
 
 ```bash
-cmake -S . -B build-tests \
-    -DCMAKE_BUILD_TYPE=Debug \
-    -DQMOMKIT_BUILD_TESTS=ON
+cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
 cmake --build build-tests --parallel
 ctest --test-dir build-tests --output-on-failure
 ```

@@ -1,12 +1,6 @@
 # Output Design
 
-This page documents the current QMOMKit design for output handling. It is a
-developer reference for maintainers, contributors, and AI-assisted development
-workflows.
-
-For moment, tensor, phase-space, node, and weight conventions, see
-`numerical_conventions.md`. For configuration parsing and validation, see
-`configuration_design.md`.
+This page documents the current QMOMKit design for output handling. 
 
 ## Role Of Output
 
@@ -129,10 +123,7 @@ not require dense tensor extents or `RawMomentTensor` storage.
 Requested CQMOM moment output is constructed from a `RawMomentRequest` and
 writes rows from `CqmomQuadrature`. Each requested raw moment is reconstructed
 directly from the terminal quadrature nodes:
-
-```text
-m_alpha = sum_j W_j product_r xi_(r,j)^alpha_r
-```
+$$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
 
 Requested output preserves request order and duplicate requested indices. It
 does not create a dense `RawMomentTensor`.

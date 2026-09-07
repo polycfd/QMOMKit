@@ -1,15 +1,9 @@
 # Testing
 
 This page documents the current QMOMKit testing philosophy and test
-architecture for maintainers, contributors, and AI-assisted development
-workflows. It describes stable correctness expectations and the current root
+architecture. 
+It describes stable correctness expectations and the current root
 CTest inventory, not temporary CI setup.
-
-For package layout and consumer boundaries, see `architecture.md`. For moment,
-tensor, and phase-space conventions that tests must protect, see
-`numerical_conventions.md`. For realizability status behavior and runtime
-acceptance policies, see `realizability.md`. For Monte Carlo companion package
-validation guidance, see `monte_carlo.md`.
 
 ## Debug Build Requirement
 
@@ -55,14 +49,14 @@ The core testing principle is:
 ```text
 QMOMKit testing
 
-                    Test purpose
-                         |
-        -----------------------------------
-        |                 |               |
-      unit        component_regression   verification
-        |                 |               |
- isolated correctness   implementation   mathematical and
- local APIs             stability        workflow correctness
+                        Test purpose
+                              |
+        ---------------------------------------------
+        |                     |                     |
+      unit             component_regression     verification
+        |                     |                     |
+ isolated correctness    implementation      mathematical and
+ local APIs                stability        workflow correctness
 ```
 
 Analytical and manufactured solutions are especially important because they make
@@ -97,12 +91,8 @@ public headers. Installation is not required for the normal correctness suite.
 ### Running Tests
 
 ```bash
-cmake -S . -B build \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DQMOMKIT_BUILD_TESTS=ON
-
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
 cmake --build build --parallel
-
 ctest --test-dir build --output-on-failure
 ```
 
@@ -331,7 +321,7 @@ correctness test should not depend on timing-sensitive behavior. Performance
 work should preserve the same mathematical contracts checked by unit and
 verification tests.
 
-Benchmark structure and interpretation belong in `benchmarks.md`.
+Benchmark structure and interpretation belong in [benchmarks.md](benchmarks.md).
 
 ## Registered Root CTest Inventory
 

@@ -44,8 +44,7 @@ make it so.
 For a multidimensional independent product:
 
 ```text
-M[k_0, ..., k_D-1] =
-    number_density * product_d E[x_d^k_d]
+M[k_0, ..., k_D-1] = number_density * product_d E[x_d^k_d]
 M[0, ..., 0] = number_density
 ```
 
@@ -253,12 +252,12 @@ Keep these settings separate:
 - `conditioning_order` controls the CQMOM conditioning order. It does not
   change tensor storage order or select different marginals.
 
-## Configuration Files
+## Configuration Files (`.qmom`)
 
 The same distribution workflows are available through QMOMKit configuration
 files. For one-dimensional QMOM, use:
 
-```text
+```ini
 [initial]
 type = distribution
 family = lognormal
@@ -272,7 +271,7 @@ For multidimensional CQMOM independent products, use one section per
 phase-space dimension. The normal CQMOM configuration path derives the required
 raw moments from the configured CQMOM hierarchy:
 
-```text
+```ini
 [initial]
 type = independent_product
 number_density = 2.5
@@ -288,25 +287,25 @@ mean = 0.0
 standard_deviation = 1.0
 ```
 
-See `configuration.md` for complete configuration-file examples and field
+See [configuration.md](./configuration.md) for complete configuration-file examples and field
 semantics.
 
 ## Practical Considerations
 
 Keep the raw-moment convention consistent. Passing moments with their physical
-`m0` preserves the total number density; choosing `m0 = 1` represents a
+$m_0$ preserves the total number density; choosing $m_0 = 1$ represents a
 unit-density setup because the caller chose that normalization.
 
 Choose `number_density` with the same physical meaning as the total weight in
 your model. For mixtures, component densities are absolute contributions to
-the total `m0`.
+the total $m_0$.
 
 Keep parameter units consistent with the phase-space coordinate. If a gamma
 distribution represents a size coordinate, its scale has the same unit as that
 coordinate, and generated moments carry the corresponding powers of that unit.
 
-Generate enough moment orders for the requested quadrature. For `N` QMOM nodes,
-generate at least `2 * N - 1` as the inclusive maximum order. For normal CQMOM
+Generate enough moment orders for the requested quadrature. For $N$ QMOM nodes,
+generate at least $2N - 1$ as the inclusive maximum order. For normal CQMOM
 configuration, `node_counts` and `conditioning_order` define the selected
 moment request. For explicit full-tensor CQMOM workflows, choose
 `maximum_orders[d]` large enough for the node count in each phase-space

@@ -1,27 +1,21 @@
 # Realizability
 
-This page documents the current QMOMKit design for realizability handling. It is
-a developer reference for maintainers, contributors, and AI-assisted development
-workflows.
+This page documents the current QMOMKit design for realizability handling. 
 
 For raw-moment, number-density, and storage conventions, see
-`numerical_conventions.md`. For source updates and phase-space evolution composition, see
-`phase_space_evolution_design.md`. For configuration mapping of runtime policies, see
-`configuration_design.md`.
+[numerical_conventions.md](numerical_conventions.md). For source updates and phase-space evolution composition, see [phase_space_evolution_design.md](phase_space_evolution_design.md). For configuration mapping of runtime policies, see [configuration_design.md](configuration_design.md).
 
 ## Role Of Realizability
 
 Realizability is the question of whether a truncated raw moment sequence can
 come from a nonnegative number density function on an allowed support. QMOMKit
 moments are raw moments of the number density function:
+$$m_k = \int \xi^k n(\xi) \ \mathrm{d}\xi$$
 
-```text
-m_k = integral xi^k n(xi) dxi
-```
 
-with `m_0` equal to the total number density. A vector of finite numbers is not
+with $m_0$ equal to the total number density. A vector of finite numbers is not
 automatically an admissible moment sequence. For example, a one-dimensional
-sequence can have nonnegative `m_0` while implying an impossible variance or a
+sequence can have nonnegative $m_0$ while implying an impossible variance or a
 mean outside the allowed support.
 
 Realizability and quadrature reconstruction are separate mathematical
@@ -182,10 +176,7 @@ moment-source SSP-RK3 stage. `None` performs no runtime check.
 For CQMOM, realizability settings are configured separately for individual
 phase-space coordinates. Each configured setting checks exactly the
 one-dimensional marginal sequence for coordinate `d`:
-
-\[
-M[0,\ldots,k_d,\ldots,0].
-\]
+$$M[0,\ldots,k_d,\ldots,0].$$
 
 Only coordinates with explicit settings are checked. Mixed moments and
 conditional moments are not checked. CQMOM quadrature reconstruction, adaptive

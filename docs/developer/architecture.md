@@ -1,8 +1,6 @@
 # Architecture
 
-This page describes the current QMOMKit software architecture for maintainers,
-contributors, and AI-assisted development workflows. It documents stable
-package boundaries and repository responsibilities, not development history.
+This page describes the current QMOMKit software architecture.
 
 ## Project Overview
 
@@ -13,12 +11,12 @@ analysis codes.
 
 The core library provides:
 
-- one-dimensional QMOM reconstruction through Wheeler quadrature;
+- one-dimensional QMOM reconstruction using the Wheeler algorithm;
 - multidimensional CQMOM reconstruction with explicit phase-space hierarchy
   and conditioning order;
 - analytical moment initialization helpers;
 - realizability diagnostics and optional runtime acceptance predicates;
-- generic SSP-RK3 and adaptive embedded RK23/RK45 solvers;
+- SSP-RK3 and adaptive embedded RK solvers;
 - phase-space advection of quadrature nodes, moment-source updates,
   and operator-split phase-space evolution composition;
 - moment reconstruction/evaluation utilities, output helpers, and diagnostics.
@@ -27,7 +25,7 @@ The moment reconstruction utilities reconstruct native integer-order raw
 moments from quadrature for internal and output workflows. The same public
 module also evaluates generalized moments with finite real exponents as derived
 quantities from existing QMOM or CQMOM quadrature; generalized moments are not
-reconstruction inputs or phase_space_evolved state.
+reconstruction inputs or phase-space-evolved states.
 
 Moment generation, CQMOM reconstruction, and reconstruction-time storage are
 separate responsibilities. Analytical distributions can produce `MomentSet`
@@ -89,7 +87,7 @@ with `RawMomentTensor` and `CqmomLeanCase` with `CqmomMomentLayout` and
 `CqmomMomentData` remain supported advanced explicit representations for static
 inversion, specialized initialization, validation, and expert workflows.
 
-### QMOM And CQMOM Terminology
+### QMOM and CQMOM Terminology
 
 Use these QMOM and CQMOM terms consistently in developer documentation and
 implementation comments:
@@ -174,7 +172,7 @@ public dependency:
 ```text
 QMOMKitMonteCarlo
         |
-        PUBLIC
+      PUBLIC
         |
         v
 qmomkit::qmomkit
@@ -184,7 +182,7 @@ The companion package configuration calls `find_dependency(QMOMKit CONFIG
 REQUIRED)`, so downstream projects that consume QMOMKitMonteCarlo receive the
 core dependency through the exported Monte Carlo target.
 
-QMOMKitMonteCarlo is not part of the core library surface. Its headers live
+QMOMKitMonteCarlo is not part of the core library. Its headers live
 under `tools/monte_carlo/include/monte_carlo/`, not under
 `include/qmomkit/`.
 
@@ -213,7 +211,7 @@ docs/
 - `tools/monte_carlo/`: standalone QMOMKitMonteCarlo companion package and
   its tests, examples, scripts, headers, and sources.
 - `examples/`: standalone example applications. Core examples consume
-  QMOMKit; Monte Carlo examples consume QMOMKitMonteCarlo.
+  QMOMKit, Monte Carlo examples consume QMOMKitMonteCarlo.
 - `docs/`: user and developer documentation.
 
 Generated build and install directories may exist inside these trees during
@@ -378,8 +376,7 @@ QMOMKit architecture follows these stable principles:
   implementation files.
 - Prefer simple runtime-flexible abstractions over hard-coded dimensions,
   hard-coded node counts, or excessive template metaprogramming.
-- Keep dependencies minimal; do not require Eigen, BLAS, LAPACK, or a testing
-  framework for the core package.
+- The core code of QMOMKit should be free of third-party dependencies.
 - Use explicit result/status objects and diagnostics for numerical failures.
 - Validate numerical behavior through deterministic analytical,
   manufactured, and independent Monte Carlo workflows where appropriate.

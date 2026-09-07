@@ -1,8 +1,6 @@
 # QMOMKit Glossary
 
 This glossary explains common scientific terms used in the QMOMKit user guide.
-It is a quick navigation aid, not a replacement for the topic pages linked from
-each entry.
 
 ## Mathematical Concepts
 

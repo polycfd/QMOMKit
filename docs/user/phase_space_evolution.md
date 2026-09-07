@@ -89,7 +89,7 @@ qmomkit::PhaseSpaceVelocity velocity =
 ```
 
 The callback receives the current time and one node coordinate vector. It must
-return `dxi/dt` with the same number of components. QMOMKit does not assign a
+return $\mathrm{d}\xi/\mathrm{d}t$ with the same number of components. QMOMKit does not assign a
 physical meaning to those coordinates; `x`, `diameter`, `velocity`, or any
 other interpretation comes from your application and must match the
 phase-space order used elsewhere. If a returned component is non-finite, the
@@ -141,12 +141,9 @@ together with the reconstruction settings needed for the next step.
 
 `NodeAdvectionOptions::scheme` selects how node trajectories are integrated:
 
-- `NodeAdvectionScheme::rk23` is the default adaptive Bogacki-Shampine 3(2)
-  method.
-- `NodeAdvectionScheme::rk45` is the adaptive Dormand-Prince RK5(4)7M method
-  from Table 2 of Dormand and Prince (1980).
-- `NodeAdvectionScheme::ssp_rk3` takes one separate fixed three-stage step over
-  the supplied timestep.
+- `rk23`: the adaptive Bogacki-Shampine 3(2) scheme [[Bogacki & Shampine, 1989](https://www.doi.org/10.1016/0893-9659(89)90079-7)];
+- `rk45`: the adaptive Dormand-Prince RK5(4)7M scheme [[Dormand & Prince, 1980](https://www.doi.org/10.1016/0771-050X(80)90013-3)];
+- `ssp_rk3`: the fixed-stage SSP-RK3 scheme [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)].
 
 All three choices integrate the same advection quadrature-node trajectory equation.
 SSP-RK3 node advection does not retry, reduce the timestep, or perform
@@ -167,14 +164,14 @@ internally.
 ## Moment Source Terms
 
 Moment sources represent internal or volumetric changes that act directly on
-raw moments. Use them when the model gives rates for moments, or when an event
-changes weights or moments without being well described as smooth coordinate
+raw moments. They are integrated using the  explicit third-order strong-stability-preserving 
+Runge-Kutta step [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)].
+Use moment sources when the model gives rates for moments, or when an event
+changes moments without being well described as smooth coordinate
 motion. Examples include aggregation, fragmentation, relaxation, chemistry, or
 any other model that can be written as:
+$$\frac{\mathrm{d}m}{\mathrm{d}t} = S(t, m)$$
 
-```text
-dm/dt = source(t, m)
-```
 
 Users provide a `MomentSource` callback when moment-source evolution is part of
 the model:
@@ -192,7 +189,7 @@ qmomkit::MomentSource source =
 
 The returned vector must have the same size as the current stage vector.
 `context.value(order)` accesses a tracked stage value directly. During QMOM
-phase-space source evolution, `context.moment(order)` can lazily evaluate an
+phase-space source evolution, `context.moment(order)` can evaluate an
 untracked order from a quadrature reconstructed from the same SSP-RK stage.
 That is available only where QMOM reconstruction metadata is present. QMOMKit
 does not know what each component means; the ordering must match the moment
@@ -230,11 +227,10 @@ const qmomkit::QmomResult post_source =
 Boundary contributions are optional additive raw-moment rates caused by
 phase-space boundary exchange. Use `MomentBoundaryContribution` only when the
 model describes nucleation, injection, removal, evaporation/condensation
-exchange, or similar production/destruction through a phase-space boundary:
+exchange, or similar production/destruction $B$ through a phase-space boundary:
+$$\frac{\mathrm{d}m}{\mathrm{d}t} = S(t, m) + B(t, m)$$
 
-```text
-dm_k/dt = source_k(t, m) + boundary_k(t, m)
-```
+
 
 For one-dimensional QMOM:
 
@@ -342,10 +338,8 @@ the workflow.
 Advection physics moves quadrature nodes through phase space. Provide a
 `PhaseSpaceVelocity` callback only when the physical model can be written as a
 coordinate velocity:
+$$\frac{\mathrm{d}x}{\mathrm{d}t} = \dot{\xi}(t, x)$$
 
-```text
-dx/dt = velocity(t, x)
-```
 
 The callback receives the current time and one terminal node coordinate vector
 in phase-space dimension order. It returns one velocity component per
@@ -359,10 +353,8 @@ only for internal or volumetric moment evolution and, when needed, a
 `MomentBoundaryContribution` for phase-space boundary exchange. For CQMOM use
 `CqmomMomentSource` and `CqmomMomentBoundaryContribution`. The combined model
 is:
+$$\frac{\mathrm{d}M_\alpha}{\mathrm{d}t} = S_\alpha(t, M) + B_\alpha(t, M)$$
 
-```text
-dM_alpha/dt = source_alpha(t, M) + boundary_alpha(t, M)
-```
 
 This is the right place for effects that change moment values rather than
 by phase-space advection moving existing nodes. The phase-space evolution helpers compose phase-space advection
@@ -527,13 +519,15 @@ srcadv
 ```
 
 `strang` is the default. It applies a phase-space advection half-step, a moment-source full stage,
-and a second phase-space advection half-step. This is second-order Strang splitting and is
+and a second phase-space advection half-step. This is second-order Strang splitting 
+[[Strang, 1968)](https://www.doi.org/10.1137/0705041)] and is
 the usual choice when both phase-space advection and source-like moment
 evolution matter.
 
 `advsrc` applies phase-space advection first, then the moment-source update. `srcadv` applies
 the moment-source update first, then phase-space advection. These first-order Lie
-splitting schemes can be useful for comparisons, simple workflows, or cases
+splitting schemes [[Descombes et al., 2007](https://www.doi.org/10.1080/00207160701458716)] 
+can be useful for comparisons, simple workflows, or cases
 where your application deliberately wants a fixed splitting order.
 
 ## Full Phase-Space Evolution Step
@@ -846,14 +840,14 @@ Configuration files can select initialization, quadrature settings, phase-space 
 scheme, and output options for drivers that read those sections. The phase-space evolution
 scheme is set in:
 
-```text
+```ini
 [time_integration]
 scheme = strang
 ```
 
 Accepted values are:
 
-```text
+```ini
 strang
 advsrc
 srcadv
@@ -862,14 +856,14 @@ srcadv
 Node-advection integration is configured separately because it controls the
 phase-space advection trajectory integrator, not the operator-splitting scheme:
 
-```text
+```ini
 [time_integration.node_advection]
 scheme = rk23
 ```
 
 Accepted values are:
 
-```text
+```ini
 rk23
 rk45
 ssp_rk3
@@ -882,7 +876,7 @@ use their higher-order state for accepted steps and reuse FSAL derivatives.
 
 Adaptive controls are configured in a nested section:
 
-```text
+```ini
 [time_integration.node_advection]
 scheme = rk23
 
@@ -907,7 +901,7 @@ only the selected scheme. Moment-source integration is unchanged.
 
 Output can be requested with:
 
-```text
+```ini
 [output]
 directory = output
 write_moments = true

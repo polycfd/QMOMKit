@@ -1384,18 +1384,54 @@ void run_explicit_phase_space_evolution_parity()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
     const qmomkit::PhaseSpaceHierarchy identity({2, 2, 2}, {0, 1, 2});
     const qmomkit::PhaseSpaceHierarchy order_210({2, 2, 2}, {2, 1, 0});
 
-    run_static_parity_case("fixed 3D 2,2,2 identity order", identity, deterministic_rectangular_nodes(), false);
-    run_static_parity_case("fixed 3D 2,2,2 reverse order", order_210, independent_rectangular_nodes(), false);
-    run_static_parity_case("adaptive branch-specific 3D 2,2,2 identity order", identity, adaptive_rectangular_nodes(), true);
-    run_static_parity_case("near-degenerate conditional u branch", identity, near_degenerate_u_nodes(), false);
-    run_physical_analytical_contraction_case(identity);
-    run_failure_probe();
-    run_explicit_phase_space_evolution_parity();
+    const std::string selected_case = argc == 2 ? argv[1] : "";
+    const auto selected = [&selected_case](const std::string& name) { return selected_case.empty() || selected_case == name; };
+    bool matched = selected_case.empty();
+    if (selected("fixed_identity"))
+    {
+        matched = true;
+        run_static_parity_case("fixed 3D 2,2,2 identity order", identity, deterministic_rectangular_nodes(), false);
+    }
+    if (selected("fixed_reverse_order"))
+    {
+        matched = true;
+        run_static_parity_case("fixed 3D 2,2,2 reverse order", order_210, independent_rectangular_nodes(), false);
+    }
+    if (selected("adaptive_branch_specific"))
+    {
+        matched = true;
+        run_static_parity_case("adaptive branch-specific 3D 2,2,2 identity order", identity, adaptive_rectangular_nodes(), true);
+    }
+    if (selected("near_degenerate_conditional_branch"))
+    {
+        matched = true;
+        run_static_parity_case("near-degenerate conditional u branch", identity, near_degenerate_u_nodes(), false);
+    }
+    if (selected("physical_analytical_contraction"))
+    {
+        matched = true;
+        run_physical_analytical_contraction_case(identity);
+    }
+    if (selected("failure_status"))
+    {
+        matched = true;
+        run_failure_probe();
+    }
+    if (selected("phase_space_evolution"))
+    {
+        matched = true;
+        run_explicit_phase_space_evolution_parity();
+    }
+    if (!matched)
+    {
+        std::cerr << "Unknown dense/lean parity case '" << selected_case << "'.\n";
+        return 2;
+    }
 
     std::cout << "[dense/lean parity] Stage 1 diagnostic verification completed.\n";
     return 0;

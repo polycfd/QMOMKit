@@ -1,3 +1,5 @@
+#include "test_case_dispatch.hpp"
+
 #include <cassert>
 #include <qmomkit/realizability_policy.hpp>
 #include <stdexcept>
@@ -209,19 +211,22 @@ void test_ssp_rk3_disabled_policy_installs_no_predicate()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_default_policy_is_disabled();
-    test_disabled_policy_does_not_invoke_converter();
-    test_final_only_policy_invokes_converter_once();
-    test_every_stage_policy_uses_stage_predicate();
-    test_support_and_interval_are_forwarded();
-    test_explicit_bounded_interval_policy_accepts_realizable_moments();
-    test_strict_boundary_and_failure_statuses();
-    test_numerically_indeterminate_is_rejected();
-    test_converter_failures_propagate();
-    test_ssp_rk3_accepts_realizable_candidate();
-    test_ssp_rk3_rejects_and_retries_with_realizability_predicate();
-    test_ssp_rk3_disabled_policy_installs_no_predicate();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"default_policy_is_disabled", test_default_policy_is_disabled},
+            {"disabled_policy_does_not_invoke_converter", test_disabled_policy_does_not_invoke_converter},
+            {"final_only_policy_invokes_converter_once", test_final_only_policy_invokes_converter_once},
+            {"every_stage_policy_uses_stage_predicate", test_every_stage_policy_uses_stage_predicate},
+            {"support_and_interval_are_forwarded", test_support_and_interval_are_forwarded},
+            {"explicit_bounded_interval_policy_accepts_realizable_moments", test_explicit_bounded_interval_policy_accepts_realizable_moments},
+            {"strict_boundary_and_failure_statuses", test_strict_boundary_and_failure_statuses},
+            {"numerically_indeterminate_is_rejected", test_numerically_indeterminate_is_rejected},
+            {"converter_failures_propagate", test_converter_failures_propagate},
+            {"ssp_rk3_accepts_realizable_candidate", test_ssp_rk3_accepts_realizable_candidate},
+            {"ssp_rk3_rejects_and_retries_with_realizability_predicate", test_ssp_rk3_rejects_and_retries_with_realizability_predicate},
+            {"ssp_rk3_disabled_policy_installs_no_predicate", test_ssp_rk3_disabled_policy_installs_no_predicate},
+        });
 }

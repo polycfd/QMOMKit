@@ -1,4 +1,5 @@
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -495,21 +496,25 @@ void test_node_advection_options_formatting_reports_semantic_settings()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_adaptive_quadrature_structure_is_preserved();
-    test_default_scheme_is_rk23();
-    test_default_qmom_rk23_uses_default_adaptive_initial_step();
-    test_default_cqmom_rk23_uses_default_adaptive_initial_step();
-    test_rk45_uses_default_adaptive_initial_step_when_omitted();
-    test_ssp_rk3_ignores_embedded_initial_step();
-    test_cqmom_rk45_preserves_fixed_topology_and_advects_coordinates();
-    test_cqmom_ssp_rk3_preserves_fixed_topology_and_advects_coordinates();
-    test_invalid_input_status_covers_quadrature_and_callback_contracts();
-    test_wrong_size_velocity_diagnostic_reports_expected_and_returned_size();
-    test_non_finite_velocity_diagnostic_reports_callback_context();
-    test_rk23_failure_diagnostics_are_reported();
-    test_configured_adaptive_options_reach_node_advection();
-    test_node_advection_options_formatting_reports_semantic_settings();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"adaptive_quadrature_structure_is_preserved", test_adaptive_quadrature_structure_is_preserved},
+            {"default_scheme_is_rk23", test_default_scheme_is_rk23},
+            {"default_qmom_rk23_uses_default_adaptive_initial_step", test_default_qmom_rk23_uses_default_adaptive_initial_step},
+            {"default_cqmom_rk23_uses_default_adaptive_initial_step", test_default_cqmom_rk23_uses_default_adaptive_initial_step},
+            {"rk45_uses_default_adaptive_initial_step_when_omitted", test_rk45_uses_default_adaptive_initial_step_when_omitted},
+            {"ssp_rk3_ignores_embedded_initial_step", test_ssp_rk3_ignores_embedded_initial_step},
+            {"cqmom_rk45_preserves_fixed_topology_and_advects_coordinates", test_cqmom_rk45_preserves_fixed_topology_and_advects_coordinates},
+            {"cqmom_ssp_rk3_preserves_fixed_topology_and_advects_coordinates", test_cqmom_ssp_rk3_preserves_fixed_topology_and_advects_coordinates},
+            {"invalid_input_status_covers_quadrature_and_callback_contracts", test_invalid_input_status_covers_quadrature_and_callback_contracts},
+            {"wrong_size_velocity_diagnostic_reports_expected_and_returned_size",
+             test_wrong_size_velocity_diagnostic_reports_expected_and_returned_size},
+            {"non_finite_velocity_diagnostic_reports_callback_context", test_non_finite_velocity_diagnostic_reports_callback_context},
+            {"rk23_failure_diagnostics_are_reported", test_rk23_failure_diagnostics_are_reported},
+            {"configured_adaptive_options_reach_node_advection", test_configured_adaptive_options_reach_node_advection},
+            {"node_advection_options_formatting_reports_semantic_settings", test_node_advection_options_formatting_reports_semantic_settings},
+        });
 }

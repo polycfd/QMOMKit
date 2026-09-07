@@ -2,6 +2,7 @@
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -1042,40 +1043,42 @@ void run_configuration_initialization_tests()
 
 int main(const int argc, char** argv)
 {
-    if (argc > 2)
-    {
-        std::cerr << "Usage: test_distributions_analytical [families|mixtures|independent_products|configuration_initialization]\n";
-        return 2;
-    }
-
-    const std::string selector = argc == 2 ? argv[1] : "";
-    if (selector.empty())
-    {
-        run_all_distribution_analytical_tests();
-    }
-    else if (selector == "families")
-    {
-        run_distribution_family_analytical_tests();
-    }
-    else if (selector == "mixtures")
-    {
-        run_mixture_analytical_tests();
-    }
-    else if (selector == "independent_products")
-    {
-        run_independent_product_analytical_tests();
-    }
-    else if (selector == "configuration_initialization")
-    {
-        run_configuration_initialization_tests();
-    }
-    else
-    {
-        std::cerr << "Unknown distribution analytical selector: " << selector << '\n';
-        return 2;
-    }
-
-    std::cout << "maximum analytical absolute error: " << maximum_absolute_error << '\n';
-    std::cout << "maximum analytical relative error: " << maximum_relative_error << '\n';
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"standard_normal", verify_standard_normal},
+            {"shifted_scaled_normal", verify_shifted_scaled_normal},
+            {"log_normal", verify_log_normal},
+            {"beta", verify_beta},
+            {"gamma", verify_gamma},
+            {"chi_squared", verify_chi_squared},
+            {"weibull_gamma_identity", verify_weibull_gamma_identity},
+            {"chi", verify_chi},
+            {"weibull", verify_weibull},
+            {"maximum_order_zero_and_invalid_parameters", verify_maximum_order_zero_and_invalid_parameters},
+            {"configuration_distribution_initialization", verify_configuration_distribution_initialization},
+            {"configuration_mixture_initialization", verify_configuration_mixture_initialization},
+            {"configuration_independent_product_two_dimensional", verify_configuration_independent_product_two_dimensional},
+            {"configuration_independent_product_normal_gamma", verify_configuration_independent_product_normal_gamma},
+            {"configuration_independent_product_beta_log_normal_weibull", verify_configuration_independent_product_beta_log_normal_weibull},
+            {"configuration_independent_product_dimension_sweep", verify_configuration_independent_product_dimension_sweep},
+            {"configuration_independent_product_mixture_marginal", verify_configuration_independent_product_mixture_marginal},
+            {"one_component_mixture_equivalence", verify_one_component_mixture_equivalence},
+            {"bimodal_normal_mixture", verify_bimodal_normal_mixture},
+            {"heterogeneous_gamma_log_normal_mixture", verify_heterogeneous_gamma_log_normal_mixture},
+            {"three_component_multimodal_mixture", verify_three_component_multimodal_mixture},
+            {"zero_density_mixture_component_policy", verify_zero_density_mixture_component_policy},
+            {"strongly_unequal_component_densities", verify_strongly_unequal_component_densities},
+            {"normal_odd_moment_cancellation", verify_normal_odd_moment_cancellation},
+            {"component_order_permutation_invariance", verify_component_order_permutation_invariance},
+            {"large_total_density_is_not_normalized", verify_large_total_density_is_not_normalized},
+            {"mixture_accumulation_overflow", verify_mixture_accumulation_overflow},
+            {"invalid_mixture_density", verify_invalid_mixture_density},
+            {"independent_product_one_dimensional_equivalence", verify_independent_product_one_dimensional_equivalence},
+            {"independent_product_normal_gamma", verify_independent_product_normal_gamma},
+            {"independent_product_beta_log_normal_weibull", verify_independent_product_beta_log_normal_weibull},
+            {"independent_product_signed_odd_moments", verify_independent_product_signed_odd_moments},
+            {"independent_product_zero_density", verify_independent_product_zero_density},
+            {"independent_product_tensor_overflow", verify_independent_product_tensor_overflow},
+        });
 }

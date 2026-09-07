@@ -1,6 +1,7 @@
 #include "qmomkit/distributions.hpp"
 
 #include "qmomkit/cqmom.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -1035,34 +1036,81 @@ void run_independent_product_tests()
 
 int main(const int argc, char** argv)
 {
-    if (argc > 2)
-    {
-        std::cerr << "Usage: test_distributions [selected_results|mixtures|independent_products]\n";
-        return 2;
-    }
-
-    const std::string selector = argc == 2 ? argv[1] : "";
-    if (selector.empty())
-    {
-        run_all_distribution_tests();
-        return 0;
-    }
-    if (selector == "selected_results")
-    {
-        run_selected_result_tests();
-        return 0;
-    }
-    if (selector == "mixtures")
-    {
-        run_mixture_tests();
-        return 0;
-    }
-    if (selector == "independent_products")
-    {
-        run_independent_product_tests();
-        return 0;
-    }
-
-    std::cerr << "Unknown distribution selector: " << selector << '\n';
-    return 2;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"selected_raw_moment_result_preserves_request_order", test_selected_raw_moment_result_preserves_request_order},
+            {"selected_raw_moment_result_accepts_noncontiguous_multidimensional_indices",
+             test_selected_raw_moment_result_accepts_noncontiguous_multidimensional_indices},
+            {"selected_raw_moment_result_preserves_duplicate_indices", test_selected_raw_moment_result_preserves_duplicate_indices},
+            {"selected_raw_moment_empty_request_is_valid", test_selected_raw_moment_empty_request_is_valid},
+            {"selected_raw_moment_invalid_requests", test_selected_raw_moment_invalid_requests},
+            {"selected_distribution_contiguous_orders_match_dense", test_selected_distribution_contiguous_orders_match_dense},
+            {"selected_distribution_noncontiguous_orders_match_dense", test_selected_distribution_noncontiguous_orders_match_dense},
+            {"selected_distribution_reordered_and_duplicate_orders_match_dense",
+             test_selected_distribution_reordered_and_duplicate_orders_match_dense},
+            {"selected_distribution_high_order_gaps_match_dense", test_selected_distribution_high_order_gaps_match_dense},
+            {"selected_distribution_zero_total_weight", test_selected_distribution_zero_total_weight},
+            {"selected_distribution_invalid_request_rank", test_selected_distribution_invalid_request_rank},
+            {"selected_distribution_overflow_and_underflow_failures", test_selected_distribution_overflow_and_underflow_failures},
+            {"variant_dispatch_and_nonunit_weight", test_variant_dispatch_and_nonunit_weight},
+            {"maximum_order_zero", test_maximum_order_zero},
+            {"zero_total_weight_returns_zero_sequence", test_zero_total_weight_returns_zero_sequence},
+            {"invalid_total_weight", test_invalid_total_weight},
+            {"invalid_distribution_parameters", test_invalid_distribution_parameters},
+            {"overflow_status", test_overflow_status},
+            {"underflow_status", test_underflow_status},
+            {"empty_mixture_is_invalid", test_empty_mixture_is_invalid},
+            {"mixture_maximum_order_zero", test_mixture_maximum_order_zero},
+            {"one_component_mixture_matches_distribution_result", test_one_component_mixture_matches_distribution_result},
+            {"heterogeneous_mixture_dispatch", test_heterogeneous_mixture_dispatch},
+            {"zero_density_component_is_skipped", test_zero_density_component_is_skipped},
+            {"zero_density_extreme_component_is_skipped", test_zero_density_extreme_component_is_skipped},
+            {"invalid_mixture_densities", test_invalid_mixture_densities},
+            {"all_zero_density_mixture_is_invalid", test_all_zero_density_mixture_is_invalid},
+            {"positive_component_failure_reports_index", test_positive_component_failure_reports_index},
+            {"surrounded_positive_component_failure_reports_index", test_surrounded_positive_component_failure_reports_index},
+            {"mixture_accumulation_overflow_reports_index", test_mixture_accumulation_overflow_reports_index},
+            {"selected_one_component_mixture_matches_dense_subselection", test_selected_one_component_mixture_matches_dense_subselection},
+            {"selected_heterogeneous_mixture_matches_dense_subselection", test_selected_heterogeneous_mixture_matches_dense_subselection},
+            {"selected_mixture_preserves_reordered_and_duplicate_requests", test_selected_mixture_preserves_reordered_and_duplicate_requests},
+            {"selected_mixture_zero_density_component_is_skipped", test_selected_mixture_zero_density_component_is_skipped},
+            {"selected_mixture_empty_request_is_valid_for_valid_mixture", test_selected_mixture_empty_request_is_valid_for_valid_mixture},
+            {"selected_mixture_invalid_component_failure_reports_index", test_selected_mixture_invalid_component_failure_reports_index},
+            {"selected_mixture_overflow_propagates_component_and_order", test_selected_mixture_overflow_propagates_component_and_order},
+            {"selected_mixture_underflow_propagates_component_and_order", test_selected_mixture_underflow_propagates_component_and_order},
+            {"selected_mixture_accumulation_overflow_reports_index", test_selected_mixture_accumulation_overflow_reports_index},
+            {"independent_product_zero_dimension_is_invalid", test_independent_product_zero_dimension_is_invalid},
+            {"independent_product_rank_mismatch_is_invalid", test_independent_product_rank_mismatch_is_invalid},
+            {"independent_product_maximum_order_overflow_guard", test_independent_product_maximum_order_overflow_guard},
+            {"independent_product_invalid_global_number_density", test_independent_product_invalid_global_number_density},
+            {"independent_product_invalid_marginal_reports_dimension", test_independent_product_invalid_marginal_reports_dimension},
+            {"independent_product_marginal_failure_reports_order", test_independent_product_marginal_failure_reports_order},
+            {"independent_product_maximum_orders_zero", test_independent_product_maximum_orders_zero},
+            {"independent_product_zero_global_density_skips_marginals", test_independent_product_zero_global_density_skips_marginals},
+            {"independent_product_zero_global_density_still_validates_extents", test_independent_product_zero_global_density_still_validates_extents},
+            {"independent_product_tensor_size_overflow", test_independent_product_tensor_size_overflow},
+            {"independent_product_row_major_flattening_spots", test_independent_product_row_major_flattening_spots},
+            {"independent_product_mixture_marginal_is_normalized", test_independent_product_mixture_marginal_is_normalized},
+            {"selected_independent_product_one_dimensional_matches_dense", test_selected_independent_product_one_dimensional_matches_dense},
+            {"selected_independent_product_two_dimensional_nonrectangular_matches_dense",
+             test_selected_independent_product_two_dimensional_nonrectangular_matches_dense},
+            {"selected_independent_product_mixture_marginal_matches_dense", test_selected_independent_product_mixture_marginal_matches_dense},
+            {"selected_independent_product_three_dimensional_matches_dense", test_selected_independent_product_three_dimensional_matches_dense},
+            {"selected_independent_product_preserves_reordered_and_duplicate_indices",
+             test_selected_independent_product_preserves_reordered_and_duplicate_indices},
+            {"selected_independent_product_zero_global_density_skips_marginals",
+             test_selected_independent_product_zero_global_density_skips_marginals},
+            {"selected_independent_product_empty_request_is_valid", test_selected_independent_product_empty_request_is_valid},
+            {"selected_independent_product_invalid_rank_reports_order", test_selected_independent_product_invalid_rank_reports_order},
+            {"selected_independent_product_oversized_order_reports_dimension", test_selected_independent_product_oversized_order_reports_dimension},
+            {"selected_independent_product_marginal_failure_reports_dimension", test_selected_independent_product_marginal_failure_reports_dimension},
+            {"selected_independent_product_marginal_overflow_reports_full_order",
+             test_selected_independent_product_marginal_overflow_reports_full_order},
+            {"selected_independent_product_product_overflow_reports_full_order",
+             test_selected_independent_product_product_overflow_reports_full_order},
+            {"selected_independent_product_product_underflow_reports_full_order",
+             test_selected_independent_product_product_underflow_reports_full_order},
+            {"selected_independent_product_matches_cqmom_layout_subselection", test_selected_independent_product_matches_cqmom_layout_subselection},
+        });
 }

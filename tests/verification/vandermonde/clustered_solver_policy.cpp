@@ -212,9 +212,9 @@ void print_report(const std::vector<PolicyReport>& reports)
 
 int main(const int argc, char** argv)
 {
-    if (argc != 2)
+    if (argc != 2 && argc != 3)
     {
-        std::cerr << "Usage: clustered_solver_policy_verification <clustered automatic .qmom file>\n";
+        std::cerr << "Usage: clustered_solver_policy_verification <clustered automatic .qmom file> [solver]\n";
         return 2;
     }
 
@@ -233,11 +233,23 @@ int main(const int argc, char** argv)
         {qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd, "svd"},
         {qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::VandermondeSolver::bjorck_pereyra, "bjorck_pereyra"}};
 
+    const std::string selected_solver = argc == 3 ? argv[2] : "";
+    bool matched = selected_solver.empty();
     std::vector<PolicyReport> reports;
     reports.reserve(policies.size());
     for (const SolverPolicy& policy : policies)
     {
+        if (!selected_solver.empty() && selected_solver != policy.name)
+        {
+            continue;
+        }
+        matched = true;
         reports.push_back(verify_policy(policy, configured.value(), prescribed_rule, prescribed_moments));
+    }
+    if (!matched)
+    {
+        std::cerr << "Unknown clustered solver case '" << selected_solver << "'.\n";
+        return 2;
     }
     print_report(reports);
     return 0;

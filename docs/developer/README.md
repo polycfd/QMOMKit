@@ -4,6 +4,10 @@ The developer guide is for QMOMKit maintainers, contributors, advanced
 developers, and AI-assisted development workflows. It documents stable
 engineering knowledge needed to maintain and extend the core numerical library.
 
+The CTest suite contains more than 800 individually registered logical runtime
+tests; see [Testing](testing.md) for guidance and selection commands, and the
+[Test inventory](test_inventory.md) for the complete logical-test reference.
+
 This guide describes the current design of QMOMKit:
 
 - architecture;
@@ -60,8 +64,10 @@ operating instructions.
   checks, diagnostics, runtime acceptance policies, phase-space evolution interaction, and
   failure classification.
 - [Testing](testing.md): testing philosophy, standalone test architecture, unit
-  tests, verification tests, public-header tests, package-consumer tests, and
-  contributor expectations.
+tests, verification tests, public-header tests, package-consumer tests, and
+contributor expectations.
+- [Test Inventory](test_inventory.md): current CTest names, categories,
+  implementation sources, selectors, and claims for every logical runtime test.
 - [Validation](validation.md): numerical validation strategy, analytical and
   manufactured references, Monte Carlo validation, error interpretation, and
   reproducible validation case design.

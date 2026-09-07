@@ -2,6 +2,7 @@
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/multi_index.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -156,10 +157,13 @@ void verify_coordinate_specific_bounds_in_recursive_cqmom()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    verify_accepted_nodes_inside_interval();
-    verify_rejected_nodes_outside_interval();
-    verify_coordinate_specific_bounds_in_recursive_cqmom();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"accepted_nodes_inside_interval", verify_accepted_nodes_inside_interval},
+            {"rejected_nodes_outside_interval", verify_rejected_nodes_outside_interval},
+            {"coordinate_specific_bounds_in_recursive_cqmom", verify_coordinate_specific_bounds_in_recursive_cqmom},
+        });
 }

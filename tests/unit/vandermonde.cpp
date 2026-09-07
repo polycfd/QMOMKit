@@ -2,6 +2,7 @@
 
 #include "internal/linear_algebra.hpp"
 #include "internal/performance.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -761,37 +762,41 @@ void test_dense_success_requires_finite_solution()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_one_node_success();
-    test_well_conditioned_uniform_weights();
-    test_mixed_sign_abscissas();
-    test_clustered_nodes_match_dense_reference();
-    test_nearly_repeated_nodes_match_dense_reference();
-    test_larger_node_count_smoke_cases();
-    test_zero_rhs_columns_success();
-    test_large_dynamic_range_rhs();
-    test_wrapper_forced_modes_match_dense_reference();
-    test_wrapper_pivoted_qr_solves_weighted_system_without_residual_by_default();
-    test_wrapper_pivoted_qr_honors_optional_residual_validation();
-    test_wrapper_pivoted_qr_zero_rhs_columns_success();
-    test_wrapper_svd_solves_weighted_system_without_residual_by_default();
-    test_wrapper_svd_honors_optional_residual_validation();
-    test_wrapper_svd_zero_rhs_columns_success();
-    test_wrapper_automatic_selects_plain_bp_for_small_wide_system();
-    test_wrapper_automatic_selects_plain_bp_for_large_system();
-    test_wrapper_automatic_matches_plain_bp_without_forced_residual_validation();
-    test_repeated_nodes_fail();
-    test_nonuniform_weights();
-    test_small_weight_failure();
-    test_zero_weight_failure();
-    test_wrapper_pivoted_qr_reports_rank_deficiency();
-    test_wrapper_svd_reports_rank_deficiency();
-    test_wrapper_pivoted_qr_residual_rejection_fails();
-    test_wrapper_svd_residual_rejection_fails();
-    test_invalid_inputs_fail();
-    test_invalid_inputs_preserve_policy_diagnostics_and_counters();
-    test_dense_success_requires_finite_solution();
-
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"one_node_success", test_one_node_success},
+            {"well_conditioned_uniform_weights", test_well_conditioned_uniform_weights},
+            {"mixed_sign_abscissas", test_mixed_sign_abscissas},
+            {"clustered_nodes_match_dense_reference", test_clustered_nodes_match_dense_reference},
+            {"nearly_repeated_nodes_match_dense_reference", test_nearly_repeated_nodes_match_dense_reference},
+            {"larger_node_count_smoke_cases", test_larger_node_count_smoke_cases},
+            {"zero_rhs_columns_success", test_zero_rhs_columns_success},
+            {"large_dynamic_range_rhs", test_large_dynamic_range_rhs},
+            {"wrapper_forced_modes_match_dense_reference", test_wrapper_forced_modes_match_dense_reference},
+            {"wrapper_pivoted_qr_solves_weighted_system_without_residual_by_default",
+             test_wrapper_pivoted_qr_solves_weighted_system_without_residual_by_default},
+            {"wrapper_pivoted_qr_honors_optional_residual_validation", test_wrapper_pivoted_qr_honors_optional_residual_validation},
+            {"wrapper_pivoted_qr_zero_rhs_columns_success", test_wrapper_pivoted_qr_zero_rhs_columns_success},
+            {"wrapper_svd_solves_weighted_system_without_residual_by_default", test_wrapper_svd_solves_weighted_system_without_residual_by_default},
+            {"wrapper_svd_honors_optional_residual_validation", test_wrapper_svd_honors_optional_residual_validation},
+            {"wrapper_svd_zero_rhs_columns_success", test_wrapper_svd_zero_rhs_columns_success},
+            {"wrapper_automatic_selects_plain_bp_for_small_wide_system", test_wrapper_automatic_selects_plain_bp_for_small_wide_system},
+            {"wrapper_automatic_selects_plain_bp_for_large_system", test_wrapper_automatic_selects_plain_bp_for_large_system},
+            {"wrapper_automatic_matches_plain_bp_without_forced_residual_validation",
+             test_wrapper_automatic_matches_plain_bp_without_forced_residual_validation},
+            {"repeated_nodes_fail", test_repeated_nodes_fail},
+            {"nonuniform_weights", test_nonuniform_weights},
+            {"small_weight_failure", test_small_weight_failure},
+            {"zero_weight_failure", test_zero_weight_failure},
+            {"wrapper_pivoted_qr_reports_rank_deficiency", test_wrapper_pivoted_qr_reports_rank_deficiency},
+            {"wrapper_svd_reports_rank_deficiency", test_wrapper_svd_reports_rank_deficiency},
+            {"wrapper_pivoted_qr_residual_rejection_fails", test_wrapper_pivoted_qr_residual_rejection_fails},
+            {"wrapper_svd_residual_rejection_fails", test_wrapper_svd_residual_rejection_fails},
+            {"invalid_inputs_fail", test_invalid_inputs_fail},
+            {"invalid_inputs_preserve_policy_diagnostics_and_counters", test_invalid_inputs_preserve_policy_diagnostics_and_counters},
+            {"dense_success_requires_finite_solution", test_dense_success_requires_finite_solution},
+        });
 }

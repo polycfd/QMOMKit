@@ -53,7 +53,7 @@ void verify_failure_case(const FailureCase& failure_case)
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
     // These cases are intentionally small so the mathematical reason for each
     // failure is visible in the moment sequence itself.
@@ -68,8 +68,21 @@ int main()
     std::cout << std::left << std::setw(28) << "case" << std::setw(20) << "expected status" << "message fragment\n";
     std::cout << std::string(72, '-') << '\n';
 
+    const std::string selected_case = argc == 2 ? argv[1] : "";
+    if (argc > 2)
+    {
+        std::cerr << "Usage: qmom_compute_failures [case-name]\n";
+        return 2;
+    }
+
+    bool matched = selected_case.empty();
     for (const FailureCase& failure_case : cases)
     {
+        if (!selected_case.empty() && failure_case.name != selected_case)
+        {
+            continue;
+        }
+        matched = true;
         verify_failure_case(failure_case);
         std::cout << std::left << std::setw(28) << failure_case.name << std::setw(20);
         switch (failure_case.expected_status)
@@ -85,6 +98,12 @@ int main()
             break;
         }
         std::cout << failure_case.expected_message_fragment << '\n';
+    }
+
+    if (!matched)
+    {
+        std::cerr << "Unknown QMOM failure case '" << selected_case << "'.\n";
+        return 2;
     }
 
     return 0;

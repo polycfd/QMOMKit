@@ -239,19 +239,8 @@ int run_feature_sensitive_case()
 
 } // namespace
 
-int main(const int argc, char** argv)
+int run_configured_case(const std::filesystem::path& configuration_path, const std::string& representation)
 {
-    if (argc == 2 && std::string(argv[1]) == "feature-sensitive")
-    {
-        return run_feature_sensitive_case();
-    }
-    if (argc != 3)
-    {
-        std::cerr << "Usage: automatic_scaling <configuration.qmom> <reference|rescaled> | feature-sensitive\n";
-        return 2;
-    }
-
-    const std::string representation = argv[2];
     const std::vector<double> units = representation == "reference"  ? std::vector<double>{1.0, 1.0, 1.0}
                                       : representation == "rescaled" ? std::vector<double>{1.0e6, 1.0e-6, 1.0e3}
                                                                      : std::vector<double>{};
@@ -261,7 +250,6 @@ int main(const int argc, char** argv)
         return 2;
     }
 
-    const std::filesystem::path configuration_path = argv[1];
     const auto dense_configured = qmomkit::config::load_cqmom_dense(configuration_path);
     const auto lean_configured = qmomkit::config::load_cqmom_lean(configuration_path);
     if (!dense_configured.ok() || !lean_configured.ok())
@@ -302,4 +290,25 @@ int main(const int argc, char** argv)
               << " max_weight_error=" << errors.weight << " max_relative_moment_error=" << errors.moment << " tolerance=" << tolerance
               << " verdict=" << (passed ? "PASS" : "FAIL") << '\n';
     return passed ? 0 : 1;
+}
+
+int main(const int argc, char** argv)
+{
+    if (argc == 2 && std::string(argv[1]) == "feature-sensitive")
+    {
+        return run_feature_sensitive_case();
+    }
+    if (argc == 2 && std::string(argv[1]) == "unit-invariance")
+    {
+        const std::filesystem::path case_directory = std::filesystem::path(__FILE__).parent_path();
+        const int reference = run_configured_case(case_directory / "automatic_scaling_reference_3d.qmom", "reference");
+        const int rescaled = run_configured_case(case_directory / "automatic_scaling_rescaled_3d.qmom", "rescaled");
+        return reference == 0 && rescaled == 0 ? 0 : 1;
+    }
+    if (argc == 3)
+    {
+        return run_configured_case(argv[1], argv[2]);
+    }
+    std::cerr << "Usage: automatic_scaling <configuration.qmom> <reference|rescaled> | unit-invariance | feature-sensitive\n";
+    return 2;
 }

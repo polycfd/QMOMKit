@@ -1,6 +1,7 @@
 #include "internal/moment_reconstruction.hpp"
 
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -696,36 +697,43 @@ void test_generalized_moment_rejects_nonfinite_exponent()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_qmom_reconstructs_manufactured_moments();
-    test_qmom_evaluates_generalized_moment();
-    test_generalized_moment_zero_exponent_returns_total_weight();
-    test_generalized_moment_integer_exponents_match_raw_reconstruction();
-    test_generalized_moment_accepts_zero_abscissa_with_positive_fractional_exponent();
-    test_cqmom_reconstructs_fixed_non_identity_phase_order_moments();
-    test_cqmom_evaluates_generalized_moment();
-    test_cqmom_generalized_moment_rejects_exponent_count_mismatch();
-    test_cqmom_generalized_moment_rejects_negative_abscissa_for_fractional_exponent();
-    test_cqmom_reconstructs_selected_requested_moments();
-    test_cqmom_selected_reconstruction_preserves_duplicate_requests();
-    test_cqmom_selected_reconstruction_rejects_rank_mismatch();
-    test_cqmom_moment_data_reconstructs_2d_required_moments();
-    test_cqmom_moment_data_reconstructs_3d_required_moments();
-    test_cqmom_moment_data_preserves_non_identity_conditioning_order();
-    test_cqmom_moment_data_reconstructs_unequal_node_counts();
-    test_cqmom_reconstructs_adaptive_terminal_moments();
-    test_cqmom_moment_data_reconstructs_adaptive_quadrature();
-    test_advection_moment_rates_one_dimensional_cases();
-    test_advection_moment_rates_multidimensional_cases();
-    test_advection_moment_rates_match_finite_difference();
-    test_advection_moment_rates_reject_invalid_shapes();
-    test_cqmom_moment_data_rejects_mismatched_layout();
-    test_cqmom_moment_data_rejects_noncanonical_fixed_layout();
-    test_reconstruction_rejects_invalid_qmom_storage();
-    test_reconstruction_reports_nonfinite_output();
-    test_generalized_moment_rejects_negative_abscissa_for_non_integer_exponent();
-    test_generalized_moment_reports_zero_abscissa_negative_exponent_overflow();
-    test_generalized_moment_rejects_nonfinite_exponent();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"qmom_reconstructs_manufactured_moments", test_qmom_reconstructs_manufactured_moments},
+            {"qmom_evaluates_generalized_moment", test_qmom_evaluates_generalized_moment},
+            {"generalized_moment_zero_exponent_returns_total_weight", test_generalized_moment_zero_exponent_returns_total_weight},
+            {"generalized_moment_integer_exponents_match_raw_reconstruction", test_generalized_moment_integer_exponents_match_raw_reconstruction},
+            {"generalized_moment_accepts_zero_abscissa_with_positive_fractional_exponent",
+             test_generalized_moment_accepts_zero_abscissa_with_positive_fractional_exponent},
+            {"cqmom_reconstructs_fixed_non_identity_phase_order_moments", test_cqmom_reconstructs_fixed_non_identity_phase_order_moments},
+            {"cqmom_evaluates_generalized_moment", test_cqmom_evaluates_generalized_moment},
+            {"cqmom_generalized_moment_rejects_exponent_count_mismatch", test_cqmom_generalized_moment_rejects_exponent_count_mismatch},
+            {"cqmom_generalized_moment_rejects_negative_abscissa_for_fractional_exponent",
+             test_cqmom_generalized_moment_rejects_negative_abscissa_for_fractional_exponent},
+            {"cqmom_reconstructs_selected_requested_moments", test_cqmom_reconstructs_selected_requested_moments},
+            {"cqmom_selected_reconstruction_preserves_duplicate_requests", test_cqmom_selected_reconstruction_preserves_duplicate_requests},
+            {"cqmom_selected_reconstruction_rejects_rank_mismatch", test_cqmom_selected_reconstruction_rejects_rank_mismatch},
+            {"cqmom_moment_data_reconstructs_2d_required_moments", test_cqmom_moment_data_reconstructs_2d_required_moments},
+            {"cqmom_moment_data_reconstructs_3d_required_moments", test_cqmom_moment_data_reconstructs_3d_required_moments},
+            {"cqmom_moment_data_preserves_non_identity_conditioning_order", test_cqmom_moment_data_preserves_non_identity_conditioning_order},
+            {"cqmom_moment_data_reconstructs_unequal_node_counts", test_cqmom_moment_data_reconstructs_unequal_node_counts},
+            {"cqmom_reconstructs_adaptive_terminal_moments", test_cqmom_reconstructs_adaptive_terminal_moments},
+            {"cqmom_moment_data_reconstructs_adaptive_quadrature", test_cqmom_moment_data_reconstructs_adaptive_quadrature},
+            {"advection_moment_rates_one_dimensional_cases", test_advection_moment_rates_one_dimensional_cases},
+            {"advection_moment_rates_multidimensional_cases", test_advection_moment_rates_multidimensional_cases},
+            {"advection_moment_rates_match_finite_difference", test_advection_moment_rates_match_finite_difference},
+            {"advection_moment_rates_reject_invalid_shapes", test_advection_moment_rates_reject_invalid_shapes},
+            {"cqmom_moment_data_rejects_mismatched_layout", test_cqmom_moment_data_rejects_mismatched_layout},
+            {"cqmom_moment_data_rejects_noncanonical_fixed_layout", test_cqmom_moment_data_rejects_noncanonical_fixed_layout},
+            {"reconstruction_rejects_invalid_qmom_storage", test_reconstruction_rejects_invalid_qmom_storage},
+            {"reconstruction_reports_nonfinite_output", test_reconstruction_reports_nonfinite_output},
+            {"generalized_moment_rejects_negative_abscissa_for_non_integer_exponent",
+             test_generalized_moment_rejects_negative_abscissa_for_non_integer_exponent},
+            {"generalized_moment_reports_zero_abscissa_negative_exponent_overflow",
+             test_generalized_moment_reports_zero_abscissa_negative_exponent_overflow},
+            {"generalized_moment_rejects_nonfinite_exponent", test_generalized_moment_rejects_nonfinite_exponent},
+        });
 }

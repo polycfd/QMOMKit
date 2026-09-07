@@ -2,6 +2,7 @@
 
 #include "internal/householder_qr.hpp"
 #include "internal/linear_algebra.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -522,23 +523,25 @@ void test_dense_matrix_rejects_overflowing_storage_dimensions()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_factorization_identity_and_orthogonality();
-    test_known_singular_values();
-    test_ordering_and_repeated_singular_values();
-    test_square_solve_matches_dense();
-    test_tall_exact_and_inconsistent_least_squares();
-    test_multiple_rhs_and_qr_comparison();
-    test_rank_deficiency_cases_refuse_solve();
-    test_near_rank_deficiency_and_condition_numbers();
-    test_uniform_scaling_large_and_small();
-    test_nonconvergence_is_reported_and_refused();
-    test_invalid_factorization_input();
-    test_invalid_solve_input_and_malformed_metadata();
-    test_zero_column_rhs_and_reuse_immutability();
-    test_success_requires_finite_solution();
-    test_dense_matrix_rejects_overflowing_storage_dimensions();
-
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"factorization_identity_and_orthogonality", test_factorization_identity_and_orthogonality},
+            {"known_singular_values", test_known_singular_values},
+            {"ordering_and_repeated_singular_values", test_ordering_and_repeated_singular_values},
+            {"square_solve_matches_dense", test_square_solve_matches_dense},
+            {"tall_exact_and_inconsistent_least_squares", test_tall_exact_and_inconsistent_least_squares},
+            {"multiple_rhs_and_qr_comparison", test_multiple_rhs_and_qr_comparison},
+            {"rank_deficiency_cases_refuse_solve", test_rank_deficiency_cases_refuse_solve},
+            {"near_rank_deficiency_and_condition_numbers", test_near_rank_deficiency_and_condition_numbers},
+            {"uniform_scaling_large_and_small", test_uniform_scaling_large_and_small},
+            {"nonconvergence_is_reported_and_refused", test_nonconvergence_is_reported_and_refused},
+            {"invalid_factorization_input", test_invalid_factorization_input},
+            {"invalid_solve_input_and_malformed_metadata", test_invalid_solve_input_and_malformed_metadata},
+            {"zero_column_rhs_and_reuse_immutability", test_zero_column_rhs_and_reuse_immutability},
+            {"success_requires_finite_solution", test_success_requires_finite_solution},
+            {"dense_matrix_rejects_overflowing_storage_dimensions", test_dense_matrix_rejects_overflowing_storage_dimensions},
+        });
 }

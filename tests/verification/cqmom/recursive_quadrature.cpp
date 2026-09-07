@@ -2,6 +2,7 @@
 
 #include "../verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -535,17 +536,20 @@ void test_recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_ord
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_recursive_1d_reduces_to_wheeler();
-    test_recursive_2d_identity_conditioning_order();
-    test_recursive_2d_reversed_conditioning_order();
-    test_recursive_3d_non_identity_conditioning_order();
-    test_recursive_non_uniform_fixed_node_counts();
-    test_recursive_adaptive_2d_branch_specific_reduction();
-    test_recursive_adaptive_3d_branch_specific_reduction();
-    test_recursive_adaptive_non_identity_conditioning_order();
-    test_recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders();
-
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"recursive_1d_reduces_to_wheeler", test_recursive_1d_reduces_to_wheeler},
+            {"recursive_2d_identity_conditioning_order", test_recursive_2d_identity_conditioning_order},
+            {"recursive_2d_reversed_conditioning_order", test_recursive_2d_reversed_conditioning_order},
+            {"recursive_3d_non_identity_conditioning_order", test_recursive_3d_non_identity_conditioning_order},
+            {"recursive_non_uniform_fixed_node_counts", test_recursive_non_uniform_fixed_node_counts},
+            {"recursive_adaptive_2d_branch_specific_reduction", test_recursive_adaptive_2d_branch_specific_reduction},
+            {"recursive_adaptive_3d_branch_specific_reduction", test_recursive_adaptive_3d_branch_specific_reduction},
+            {"recursive_adaptive_non_identity_conditioning_order", test_recursive_adaptive_non_identity_conditioning_order},
+            {"recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders",
+             test_recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders},
+        });
 }

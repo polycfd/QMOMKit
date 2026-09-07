@@ -1,5 +1,6 @@
 #include "../verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -125,12 +126,15 @@ void test_input_node_order_does_not_change_moments_or_sorted_output()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_one_node_reference();
-    test_one_node_constructed_moment_reconstruction();
-    test_two_node_reference();
-    test_three_node_reference();
-    test_input_node_order_does_not_change_moments_or_sorted_output();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"one_node_reference", test_one_node_reference},
+            {"one_node_constructed_moment_reconstruction", test_one_node_constructed_moment_reconstruction},
+            {"two_node_reference", test_two_node_reference},
+            {"three_node_reference", test_three_node_reference},
+            {"input_node_order_does_not_change_moments_or_sorted_output", test_input_node_order_does_not_change_moments_or_sorted_output},
+        });
 }

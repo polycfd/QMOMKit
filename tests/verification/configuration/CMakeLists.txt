@@ -1,5 +1,4 @@
-add_executable(configuration_failures_verification configuration_failures.cpp)
-target_link_libraries(configuration_failures_verification PRIVATE qmomkit)
+qmomkit_add_test_executable(configuration_failures_verification configuration_failures.cpp)
 
 set(configuration_failure_cases
     malformed_syntax.qmom
@@ -13,12 +12,8 @@ set(configuration_failure_cases
     cqmom_incomplete_tensor.qmom
 )
 
-list(TRANSFORM configuration_failure_cases PREPEND "${CMAKE_CURRENT_LIST_DIR}/")
-
-add_test(
-    NAME verification_configuration_failure_paths
-    COMMAND
-        configuration_failures_verification
-        ${configuration_failure_cases}
-)
-set_tests_properties(verification_configuration_failure_paths PROPERTIES LABELS verification)
+foreach(case_name IN LISTS configuration_failure_cases)
+    get_filename_component(case_stem "${case_name}" NAME_WE)
+    qmomkit_register_test_case(configuration_failures_verification "verification_configuration_${case_stem}" verification
+        "${CMAKE_CURRENT_LIST_DIR}/${case_name}")
+endforeach()

@@ -2,6 +2,7 @@
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/qmom.hpp"
 #include "qmomkit/quadrature.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -60,8 +61,10 @@ void verify_adaptive_public_qmom_reconstruction()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    verify_adaptive_public_qmom_reconstruction();
-    return 0;
+    return qmomkit::test::dispatch_test_case(argc, argv,
+                                             {
+                                                 {"adaptive_public_qmom_reconstruction", verify_adaptive_public_qmom_reconstruction},
+                                             });
 }

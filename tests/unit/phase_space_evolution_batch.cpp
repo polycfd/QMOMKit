@@ -1,4 +1,5 @@
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -838,19 +839,22 @@ void test_null_callbacks_preserve_scalar_behavior()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_qmom_ordinary_scalar_equivalence();
-    test_cqmom_ordinary_scalar_equivalence();
-    test_qmom_batch_aware_scalar_equivalence();
-    test_cqmom_batch_aware_scalar_equivalence();
-    test_empty_batch_skips_scalar_validation_and_callbacks();
-    test_normal_failures_are_independent_and_ordered();
-    test_escaping_exception_stops_at_the_throwing_entry();
-    test_batch_index_remains_stable_for_repeated_callbacks();
-    test_cqmom_normal_failures_are_independent_and_ordered();
-    test_cqmom_escaping_exception_stops_at_the_throwing_entry();
-    test_cqmom_batch_index_remains_stable_for_repeated_callbacks();
-    test_null_callbacks_preserve_scalar_behavior();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"qmom_ordinary_scalar_equivalence", test_qmom_ordinary_scalar_equivalence},
+            {"cqmom_ordinary_scalar_equivalence", test_cqmom_ordinary_scalar_equivalence},
+            {"qmom_batch_aware_scalar_equivalence", test_qmom_batch_aware_scalar_equivalence},
+            {"cqmom_batch_aware_scalar_equivalence", test_cqmom_batch_aware_scalar_equivalence},
+            {"empty_batch_skips_scalar_validation_and_callbacks", test_empty_batch_skips_scalar_validation_and_callbacks},
+            {"normal_failures_are_independent_and_ordered", test_normal_failures_are_independent_and_ordered},
+            {"escaping_exception_stops_at_the_throwing_entry", test_escaping_exception_stops_at_the_throwing_entry},
+            {"batch_index_remains_stable_for_repeated_callbacks", test_batch_index_remains_stable_for_repeated_callbacks},
+            {"cqmom_normal_failures_are_independent_and_ordered", test_cqmom_normal_failures_are_independent_and_ordered},
+            {"cqmom_escaping_exception_stops_at_the_throwing_entry", test_cqmom_escaping_exception_stops_at_the_throwing_entry},
+            {"cqmom_batch_index_remains_stable_for_repeated_callbacks", test_cqmom_batch_index_remains_stable_for_repeated_callbacks},
+            {"null_callbacks_preserve_scalar_behavior", test_null_callbacks_preserve_scalar_behavior},
+        });
 }

@@ -1,1 +1,2 @@
-qmomkit_add_ctest(test_realizability_analytical verification_realizability_analytical verification realizability_analytical.cpp)
+qmomkit_add_test_executable(test_realizability_analytical realizability_analytical.cpp)
+qmomkit_register_source_logical_cases(test_realizability_analytical verification "${CMAKE_CURRENT_LIST_DIR}/realizability_analytical.cpp")

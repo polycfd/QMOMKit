@@ -34,16 +34,11 @@ foreach(case_name IN ITEMS commuting_qmom qmom_boundary_contribution qmom_phase_
     set_tests_properties(${test_name} PROPERTIES LABELS verification)
 endforeach()
 
-foreach(representation IN ITEMS reference rescaled)
-    add_test(
-        NAME verification_phase_space_evolution_automatic_scaling_cqmom_${representation}
-        COMMAND
-            phase_space_evolution_analytical_verification
-            ${CMAKE_CURRENT_LIST_DIR}/automatic_scaling_cqmom_state_adaptive_${representation}.qmom
-            automatic_scaling_cqmom_state_adaptive_${representation}
-    )
-    set_tests_properties(verification_phase_space_evolution_automatic_scaling_cqmom_${representation} PROPERTIES LABELS verification)
-endforeach()
+add_test(
+    NAME verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant
+    COMMAND phase_space_evolution_analytical_verification cqmom_automatic_scaling_is_unit_invariant
+)
+set_tests_properties(verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant PROPERTIES LABELS verification)
 
 add_custom_target(
     generate_phase_space_evolution_verification_outputs

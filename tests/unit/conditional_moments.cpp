@@ -1,4 +1,5 @@
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -177,13 +178,15 @@ void test_invalid_inputs_report_failure()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_non_identity_conditioning_order_uses_phase_space_moment_axes();
-    test_unused_phase_space_axes_are_read_at_zero_order();
-    test_singular_parent_abscissas_fail();
-    test_nearly_singular_parent_abscissas_warn();
-    test_invalid_inputs_report_failure();
-
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"non_identity_conditioning_order_uses_phase_space_moment_axes", test_non_identity_conditioning_order_uses_phase_space_moment_axes},
+            {"unused_phase_space_axes_are_read_at_zero_order", test_unused_phase_space_axes_are_read_at_zero_order},
+            {"singular_parent_abscissas_fail", test_singular_parent_abscissas_fail},
+            {"nearly_singular_parent_abscissas_warn", test_nearly_singular_parent_abscissas_warn},
+            {"invalid_inputs_report_failure", test_invalid_inputs_report_failure},
+        });
 }

@@ -1,3 +1,5 @@
+#include "test_case_dispatch.hpp"
+
 #include <cassert>
 #include <cmath>
 #include <limits>
@@ -125,13 +127,16 @@ void test_ssp_rk3_predicate_can_be_explicitly_wrapped()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_invalid_inputs();
-    test_m0_policy();
-    test_matrix_diagnostics();
-    test_status_helpers();
-    test_even_order_hamburger_singular_kernel_consistency();
-    test_ssp_rk3_predicate_can_be_explicitly_wrapped();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"invalid_inputs", test_invalid_inputs},
+            {"m0_policy", test_m0_policy},
+            {"matrix_diagnostics", test_matrix_diagnostics},
+            {"status_helpers", test_status_helpers},
+            {"even_order_hamburger_singular_kernel_consistency", test_even_order_hamburger_singular_kernel_consistency},
+            {"ssp_rk3_predicate_can_be_explicitly_wrapped", test_ssp_rk3_predicate_can_be_explicitly_wrapped},
+        });
 }

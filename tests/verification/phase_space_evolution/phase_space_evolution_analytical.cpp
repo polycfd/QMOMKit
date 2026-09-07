@@ -3937,6 +3937,27 @@ void print_summary(const std::string& case_name, const VerificationResult& resul
     }
 }
 
+int run_cqmom_automatic_scaling_is_unit_invariant()
+{
+    const std::filesystem::path case_directory = std::filesystem::path(__FILE__).parent_path();
+    const VerificationResult reference =
+        run_automatic_scaling_cqmom_state_adaptive_2d(case_directory / "automatic_scaling_cqmom_state_adaptive_reference.qmom", {1.0, 1.0});
+    const VerificationResult rescaled =
+        run_automatic_scaling_cqmom_state_adaptive_2d(case_directory / "automatic_scaling_cqmom_state_adaptive_rescaled.qmom", {1.0e6, 1.0e-6});
+
+    print_summary("automatic_scaling_cqmom_state_adaptive_reference", reference);
+    print_summary("automatic_scaling_cqmom_state_adaptive_rescaled", rescaled);
+    if (!reference.passed)
+    {
+        std::cerr << reference.message << '\n';
+    }
+    if (!rescaled.passed)
+    {
+        std::cerr << rescaled.message << '\n';
+    }
+    return reference.passed && rescaled.passed ? 0 : 1;
+}
+
 bool write_output_file(const std::filesystem::path& output_path, const std::string& case_name, const VerificationResult& result)
 {
     std::ofstream output(output_path);
@@ -3961,13 +3982,18 @@ bool write_output_file(const std::filesystem::path& output_path, const std::stri
 
 void print_usage()
 {
-    std::cerr << "Usage: phase_space_evolution_analytical_verification <configuration.qmom> <case_identifier> [--output <path>]\n";
+    std::cerr << "Usage: phase_space_evolution_analytical_verification <configuration.qmom> <case_identifier> [--output <path>] | "
+                 "cqmom_automatic_scaling_is_unit_invariant\n";
 }
 
 } // namespace
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "cqmom_automatic_scaling_is_unit_invariant")
+    {
+        return run_cqmom_automatic_scaling_is_unit_invariant();
+    }
     if (argc != 3 && argc != 5)
     {
         print_usage();
@@ -4059,14 +4085,6 @@ int main(int argc, char** argv)
     else if (case_name == "commuting_cqmom_state_adaptive_2d")
     {
         result = run_commuting_cqmom_state_adaptive_2d(configuration_path);
-    }
-    else if (case_name == "automatic_scaling_cqmom_state_adaptive_reference")
-    {
-        result = run_automatic_scaling_cqmom_state_adaptive_2d(configuration_path, {1.0, 1.0});
-    }
-    else if (case_name == "automatic_scaling_cqmom_state_adaptive_rescaled")
-    {
-        result = run_automatic_scaling_cqmom_state_adaptive_2d(configuration_path, {1.0e6, 1.0e-6});
     }
     else
     {

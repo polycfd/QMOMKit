@@ -2,6 +2,7 @@
 
 #include "internal/cqmom_case.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -531,24 +532,27 @@ void test_cqmom_quadrature_writer_rejects_malformed_terminal_storage()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_qmom_all_moments();
-    test_qmom_selected_moments();
-    test_cqmom_all_moments();
-    test_cqmom_selected_moments();
-    test_cqmom_moment_data_default_moments();
-    test_requested_cqmom_moments_are_reconstructed_from_quadrature();
-    test_requested_cqmom_moments_preserve_duplicate_columns();
-    test_cqmom_moment_data_writer_rejects_layout_mismatch();
-    test_requested_cqmom_writer_rejects_rank_mismatch();
-    test_writer_rejects_mismatched_inputs();
-    test_qmom_quadrature_output();
-    test_quadrature_1d_output();
-    test_qmom_adaptive_quadrature_output_accepts_changing_node_counts();
-    test_cqmom_quadrature_output();
-    test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts();
-    test_quadrature_writer_rejects_mismatched_inputs();
-    test_cqmom_quadrature_writer_rejects_malformed_terminal_storage();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"qmom_all_moments", test_qmom_all_moments},
+            {"qmom_selected_moments", test_qmom_selected_moments},
+            {"cqmom_all_moments", test_cqmom_all_moments},
+            {"cqmom_selected_moments", test_cqmom_selected_moments},
+            {"cqmom_moment_data_default_moments", test_cqmom_moment_data_default_moments},
+            {"requested_cqmom_moments_are_reconstructed_from_quadrature", test_requested_cqmom_moments_are_reconstructed_from_quadrature},
+            {"requested_cqmom_moments_preserve_duplicate_columns", test_requested_cqmom_moments_preserve_duplicate_columns},
+            {"cqmom_moment_data_writer_rejects_layout_mismatch", test_cqmom_moment_data_writer_rejects_layout_mismatch},
+            {"requested_cqmom_writer_rejects_rank_mismatch", test_requested_cqmom_writer_rejects_rank_mismatch},
+            {"writer_rejects_mismatched_inputs", test_writer_rejects_mismatched_inputs},
+            {"qmom_quadrature_output", test_qmom_quadrature_output},
+            {"quadrature_1d_output", test_quadrature_1d_output},
+            {"qmom_adaptive_quadrature_output_accepts_changing_node_counts", test_qmom_adaptive_quadrature_output_accepts_changing_node_counts},
+            {"cqmom_quadrature_output", test_cqmom_quadrature_output},
+            {"cqmom_adaptive_quadrature_output_accepts_changing_node_counts", test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts},
+            {"quadrature_writer_rejects_mismatched_inputs", test_quadrature_writer_rejects_mismatched_inputs},
+            {"cqmom_quadrature_writer_rejects_malformed_terminal_storage", test_cqmom_quadrature_writer_rejects_malformed_terminal_storage},
+        });
 }

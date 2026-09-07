@@ -1,33 +1,25 @@
-qmomkit_add_ctest(test_recursive_quadrature_manufactured verification_cqmom_recursive_quadrature_manufactured verification recursive_quadrature.cpp)
-qmomkit_add_ctest(test_cqmom_quadrature_bounds verification_cqmom_quadrature_bounds verification quadrature_bounds.cpp)
-qmomkit_add_ctest(test_cqmom_adaptive_branch_growth verification_cqmom_adaptive_branch_growth verification adaptive_branch_growth.cpp)
-qmomkit_add_ctest(test_recursive_validation verification_cqmom_recursive_validation verification recursive_cqmom.cpp)
-qmomkit_add_ctest(test_conditional_moments_analytical verification_cqmom_conditional_moments_analytical verification conditional_moments.cpp)
-
-add_executable(cqmom_automatic_scaling_verification automatic_scaling.cpp)
-target_link_libraries(cqmom_automatic_scaling_verification PRIVATE qmomkit)
-foreach(representation IN ITEMS reference rescaled)
-    add_test(
-        NAME verification_cqmom_automatic_scaling_${representation}
-        COMMAND cqmom_automatic_scaling_verification ${CMAKE_CURRENT_LIST_DIR}/automatic_scaling_${representation}_3d.qmom ${representation}
-    )
-    set_tests_properties(verification_cqmom_automatic_scaling_${representation} PROPERTIES LABELS verification)
+qmomkit_add_test_executable(test_recursive_quadrature_manufactured recursive_quadrature.cpp)
+qmomkit_register_source_logical_cases(test_recursive_quadrature_manufactured verification "${CMAKE_CURRENT_LIST_DIR}/recursive_quadrature.cpp")
+qmomkit_add_test_executable(test_cqmom_quadrature_bounds quadrature_bounds.cpp)
+qmomkit_register_source_logical_cases(test_cqmom_quadrature_bounds verification "${CMAKE_CURRENT_LIST_DIR}/quadrature_bounds.cpp")
+qmomkit_add_test_executable(test_cqmom_adaptive_branch_growth adaptive_branch_growth.cpp)
+qmomkit_register_source_logical_cases(test_cqmom_adaptive_branch_growth verification "${CMAKE_CURRENT_LIST_DIR}/adaptive_branch_growth.cpp")
+qmomkit_add_test_executable(test_recursive_validation recursive_cqmom.cpp)
+foreach(case_name IN ITEMS 1d 2d_identity 2d_reversed 3d_non_identity non_uniform_fixed_counts 4d_adversarial_non_identity 4d_adversarial_adaptive_non_identity dimension_sweep_D2 dimension_sweep_D3 dimension_sweep_D4 dimension_sweep_D5 dimension_sweep_D6)
+    qmomkit_register_test_case(test_recursive_validation "verification_cqmom_recursive_${case_name}" verification "${case_name}")
 endforeach()
-add_test(
-    NAME verification_cqmom_automatic_scaling_feature_sensitive
-    COMMAND cqmom_automatic_scaling_verification feature-sensitive
-)
-set_tests_properties(verification_cqmom_automatic_scaling_feature_sensitive PROPERTIES LABELS verification)
+qmomkit_add_test_executable(test_conditional_moments_analytical conditional_moments.cpp)
+qmomkit_register_source_logical_cases(test_conditional_moments_analytical verification "${CMAKE_CURRENT_LIST_DIR}/conditional_moments.cpp")
 
-add_executable(moment_reconstruction_verification moment_reconstruction.cpp)
-target_link_libraries(moment_reconstruction_verification PRIVATE qmomkit)
-add_test(
-    NAME verification_cqmom_moment_reconstruction_selected
-    COMMAND
-        moment_reconstruction_verification
-        ${CMAKE_CURRENT_LIST_DIR}/independent_product.qmom
-)
-set_tests_properties(verification_cqmom_moment_reconstruction_selected PROPERTIES LABELS verification)
+qmomkit_add_test_executable(cqmom_automatic_scaling_verification automatic_scaling.cpp)
+qmomkit_register_test_case(cqmom_automatic_scaling_verification verification_cqmom_automatic_scaling_unit_invariance verification unit-invariance)
+qmomkit_register_test_case(cqmom_automatic_scaling_verification verification_cqmom_automatic_scaling_feature_sensitive verification feature-sensitive)
+
+qmomkit_add_test_executable(moment_reconstruction_verification moment_reconstruction.cpp)
+foreach(case_name IN ITEMS qmom_dense cqmom_selected cqmom_required_layout failure_paths)
+    qmomkit_register_test_case(moment_reconstruction_verification "verification_cqmom_moment_reconstruction_${case_name}" verification
+        "${CMAKE_CURRENT_LIST_DIR}/independent_product.qmom;${case_name}")
+endforeach()
 
 add_executable(cqmom_public_workflows_verification cqmom_public_workflows.cpp)
 target_link_libraries(cqmom_public_workflows_verification PRIVATE qmomkit)

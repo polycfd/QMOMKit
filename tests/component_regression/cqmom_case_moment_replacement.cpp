@@ -1,5 +1,6 @@
 #include "../verification/verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cstddef>
 #include <vector>
@@ -196,8 +197,10 @@ void test_parsed_and_programmatic_replacement_match()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_parsed_and_programmatic_replacement_match();
-    return 0;
+    return qmomkit::test::dispatch_test_case(argc, argv,
+                                             {
+                                                 {"parsed_and_programmatic_replacement_match", test_parsed_and_programmatic_replacement_match},
+                                             });
 }

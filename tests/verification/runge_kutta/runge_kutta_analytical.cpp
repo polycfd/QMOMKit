@@ -1,5 +1,6 @@
 #include "../verification_helpers.hpp"
 #include "qmomkit/runge_kutta.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <vector>
@@ -105,12 +106,14 @@ void test_rk45_vector_coupled_linear_system()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_ssp_rk3_constant_rhs();
-    test_rk23_exponential_decay();
-    test_rk23_constant_rhs();
-    test_rk23_vector_coupled_linear_system();
-    test_rk45_vector_coupled_linear_system();
-    return 0;
+    return qmomkit::test::dispatch_test_case(argc, argv,
+                                             {
+                                                 {"ssp_rk3_constant_rhs", test_ssp_rk3_constant_rhs},
+                                                 {"rk23_exponential_decay", test_rk23_exponential_decay},
+                                                 {"rk23_constant_rhs", test_rk23_constant_rhs},
+                                                 {"rk23_vector_coupled_linear_system", test_rk23_vector_coupled_linear_system},
+                                                 {"rk45_vector_coupled_linear_system", test_rk45_vector_coupled_linear_system},
+                                             });
 }

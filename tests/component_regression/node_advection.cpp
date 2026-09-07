@@ -1,5 +1,6 @@
 #include "../verification/verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -242,13 +243,16 @@ void test_ssp_rk3_linear_phase_space_velocity_for_qmom()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_constant_phase_space_velocity_for_qmom();
-    test_linear_phase_space_velocity_for_qmom();
-    test_multi_dimensional_phase_space_evolution();
-    test_ssp_rk3_multi_dimensional_phase_space_evolution();
-    test_rk23_convergence_sanity_check();
-    test_ssp_rk3_linear_phase_space_velocity_for_qmom();
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"constant_phase_space_velocity_for_qmom", test_constant_phase_space_velocity_for_qmom},
+            {"linear_phase_space_velocity_for_qmom", test_linear_phase_space_velocity_for_qmom},
+            {"multi_dimensional_phase_space_evolution", test_multi_dimensional_phase_space_evolution},
+            {"ssp_rk3_multi_dimensional_phase_space_evolution", test_ssp_rk3_multi_dimensional_phase_space_evolution},
+            {"rk23_convergence_sanity_check", test_rk23_convergence_sanity_check},
+            {"ssp_rk3_linear_phase_space_velocity_for_qmom", test_ssp_rk3_linear_phase_space_velocity_for_qmom},
+        });
 }

@@ -382,8 +382,13 @@ void run_captured_physical_regression()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
+    if (argc > 2 || (argc == 2 && std::string(argv[1]) != "physical_transport"))
+    {
+        std::cerr << "Usage: cqmom_physical_transport_probe [physical_transport]\n";
+        return 2;
+    }
     const qmomkit::CqmomCase cqmom_case = exact_case();
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_case);
     QMOMKIT_VERIFY_CHECK(initial.ok());

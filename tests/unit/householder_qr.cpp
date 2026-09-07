@@ -2,6 +2,7 @@
 
 #include "internal/linear_algebra.hpp"
 #include "internal/vandermonde.hpp"
+#include "test_case_dispatch.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -468,22 +469,24 @@ void test_vandermonde_shaped_systems()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_square_full_rank_solve();
-    test_tall_exact_least_squares_system();
-    test_tall_inconsistent_least_squares_system();
-    test_nontrivial_column_pivot_restores_solution_order();
-    test_reusable_factorization();
-    test_rank_deficient_matrix_refuses_solve();
-    test_zero_matrix_reports_rank_zero();
-    test_nearly_dependent_columns_follow_relative_tolerance();
-    test_rank_decision_is_scaling_invariant();
-    test_invalid_input_reports_status();
-    test_malformed_full_rank_factorization_rejects_zero_diagonal();
-    test_factorization_identity();
-    test_vandermonde_shaped_systems();
-    test_success_requires_finite_solution();
-
-    return 0;
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"square_full_rank_solve", test_square_full_rank_solve},
+            {"tall_exact_least_squares_system", test_tall_exact_least_squares_system},
+            {"tall_inconsistent_least_squares_system", test_tall_inconsistent_least_squares_system},
+            {"nontrivial_column_pivot_restores_solution_order", test_nontrivial_column_pivot_restores_solution_order},
+            {"reusable_factorization", test_reusable_factorization},
+            {"rank_deficient_matrix_refuses_solve", test_rank_deficient_matrix_refuses_solve},
+            {"zero_matrix_reports_rank_zero", test_zero_matrix_reports_rank_zero},
+            {"nearly_dependent_columns_follow_relative_tolerance", test_nearly_dependent_columns_follow_relative_tolerance},
+            {"rank_decision_is_scaling_invariant", test_rank_decision_is_scaling_invariant},
+            {"invalid_input_reports_status", test_invalid_input_reports_status},
+            {"malformed_full_rank_factorization_rejects_zero_diagonal", test_malformed_full_rank_factorization_rejects_zero_diagonal},
+            {"factorization_identity", test_factorization_identity},
+            {"success_requires_finite_solution", test_success_requires_finite_solution},
+            {"vandermonde_shaped_systems", test_vandermonde_shaped_systems},
+        });
 }

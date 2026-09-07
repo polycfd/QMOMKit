@@ -299,9 +299,9 @@ int main(const int argc, char** argv)
     // Verify public Vandermonde solver selection policies on the same small
     // analytical CQMOM problem. The case files differ only by requested solver
     // policy, so any numerical difference or diagnostic mismatch is meaningful.
-    if (argc != 2)
+    if (argc != 2 && argc != 3)
     {
-        std::cerr << "Usage: vandermonde_solver_selection_verification <verification/vandermonde directory>\n";
+        std::cerr << "Usage: vandermonde_solver_selection_verification <verification/vandermonde directory> [solver]\n";
         return 2;
     }
 
@@ -317,6 +317,8 @@ int main(const int argc, char** argv)
                                         {"bjorck_pereyra", case_directory / "bjorck_pereyra.qmom", qmomkit::VandermondeSolver::bjorck_pereyra,
                                          qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra}};
 
+    const std::string selected_solver = argc == 3 ? argv[2] : "";
+    bool matched = selected_solver.empty();
     VerificationResult verification;
     std::vector<qmomkit::CqmomResult> computed;
     std::vector<qmomkit::CqmomDenseCase> loaded_cases;
@@ -325,6 +327,11 @@ int main(const int argc, char** argv)
 
     for (const SolverCase& solver_case : cases)
     {
+        if (!selected_solver.empty() && selected_solver != solver_case.name)
+        {
+            continue;
+        }
+        matched = true;
         const auto configured = qmomkit::config::load_cqmom_dense(solver_case.filename);
         if (!configured.ok())
         {
@@ -386,6 +393,12 @@ int main(const int argc, char** argv)
         {
             compare_dense_and_bp(*dense_result, *bp_result, dense_case->moments.extents, verification);
         }
+    }
+
+    if (!matched)
+    {
+        std::cerr << "Unknown Vandermonde solver case '" << selected_solver << "'.\n";
+        return 2;
     }
 
     const bool passed = verification.passed && verification.errors.reference_node <= reference_tolerance &&

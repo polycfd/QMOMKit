@@ -181,7 +181,8 @@ The Wheeler implementation assumes:
 - moments are raw moments of the number density function;
 - one-dimensional moments are supplied in ascending order;
 - an `N`-node case provides at least `2 * N` moments;
-- all supplied moments and numerical options are finite;
+- all moments consumed by the requested reconstruction and all numerical
+  options are finite;
 - `m_0` is the total number density and must not be negative;
 - recurrence coefficients must remain finite;
 - recurrence coefficients that imply negative Jacobi off-diagonal squares

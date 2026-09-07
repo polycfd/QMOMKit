@@ -155,9 +155,9 @@ struct ClassificationState
     analysis.eigensystem = symmetric_jacobi_eigen(matrix, normalization_scale);
     analysis.minimum_eigenvalue = analysis.eigensystem.eigenvalues.empty() ? 0.0 : analysis.eigensystem.eigenvalues.front();
 
-    // Positive semidefinite matrices indicate realizability on the boundary;
-    // near-zero negative eigenvalues are reported as indeterminate instead of
-    // changing the mathematical classification on roundoff alone.
+    // Positive semidefinite matrices indicate realizability on the boundary.
+    // Eigenvalues within the user tolerance but outside the tighter roundoff
+    // band are reported as indeterminate.
     const double diagonalization_roundoff = 1000.0 * std::numeric_limits<double>::epsilon() * normalization_scale * normalized_infinity_norm;
 
     if (!internal::all_finite(analysis.eigensystem.eigenvalues))
@@ -214,7 +214,8 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     {
         state.result =
             make_result(RealizabilityStatus::numerically_indeterminate, checked_order, analysis.name, analysis.order, analysis.minimum_eigenvalue,
-                        analysis.tolerance, "Realizability is numerically indeterminate: " + analysis.name + " has a near-zero negative eigenvalue.");
+                        analysis.tolerance,
+                        "Realizability is numerically indeterminate: " + analysis.name + " has an eigenvalue within the numerical tolerance.");
         return false;
     }
 

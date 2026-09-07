@@ -2,6 +2,7 @@
 
 #include "internal/cqmom_case.hpp"
 #include "qmomkit/distributions.hpp"
+#include "qmomkit/moment_reconstruction.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -276,6 +277,12 @@ void test_valid_qmom_matches_programmatic_case()
     const auto adaptive = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[qmom]\nadaptive=true\n[moments]\nvalues=1,0\n");
     assert(adaptive.ok());
     assert(adaptive.value().options.adaptive);
+
+    const std::size_t impossible_node_count = std::numeric_limits<std::size_t>::max() / 2 + 1;
+    const auto impossible =
+        qmomkit::config::parse_qmom("[phase_space]\nnode_counts=" + std::to_string(impossible_node_count) + "\n[moments]\nvalues=1,0\n");
+    assert(!impossible.ok());
+    assert(has_message_fragment(impossible, "too large"));
 }
 
 void test_qmom_case_parses_abscissa_bounds()
@@ -529,6 +536,35 @@ M[1,1] = 0.0
     const auto invalid = qmomkit::config::parse_qmom("[phase_space]\nnode_counts = 1\nautomatic_scaling = yes\n[moments]\nvalues = 1.0, 0.0\n");
     assert(!invalid.ok());
     assert(has_message_fragment(invalid, "automatic_scaling must be true or false"));
+}
+
+void test_qmom_automatic_scaling_handoff_to_evolution_options()
+{
+    // One .qmom file defines the reconstruction policy for both initial
+    // inversion and subsequent QMOM post-source reconstructions.
+    const std::string scaled_case = R"(
+[phase_space]
+node_counts = 1
+automatic_scaling = true
+
+[moments]
+values = 1.0, 0.0
+)";
+    const auto qmom_case = qmomkit::config::parse_qmom(scaled_case);
+    const auto evolution = qmomkit::config::parse_qmom_phase_space_evolution_options(scaled_case);
+    assert(qmom_case.ok());
+    assert(evolution.ok());
+    assert(qmom_case.value().options.automatic_scaling);
+
+    // Explicit false and an omitted key retain the documented default.
+    const auto explicitly_unscaled =
+        qmomkit::config::parse_qmom_phase_space_evolution_options("[phase_space]\nnode_counts = 1\nautomatic_scaling = false\n");
+    const auto omitted = qmomkit::config::parse_qmom_phase_space_evolution_options("[phase_space]\nnode_counts = 1\n");
+    assert(explicitly_unscaled.ok());
+    assert(omitted.ok());
+    assert(!explicitly_unscaled.value().qmom_options.automatic_scaling);
+    assert(!omitted.value().qmom_options.automatic_scaling);
+    assert(evolution.value().qmom_options.automatic_scaling);
 }
 
 void test_cqmom_independent_product_initialization_matches_direct_api()
@@ -1328,17 +1364,25 @@ void test_cqmom_case_replaces_dense_initial_moments_immutably()
     const qmomkit::CqmomState replaced_state = replaced_case.initial_state();
     assert(base_state.moment_storage() == qmomkit::CqmomMomentStorage::dense);
     assert(replaced_state.moment_storage() == qmomkit::CqmomMomentStorage::dense);
-    assert(base_state.moment_values() == dense_base.moments.values);
     assert(replaced_state.moment_indices() == qmomkit::enumerate_multi_indices(expected_replacement.extents));
-    assert(replaced_state.moment_values() == expected_replacement.values);
 
+    const qmomkit::CqmomResult base_result = qmomkit::compute_cqmom(base_case);
     const qmomkit::CqmomResult replaced_result = qmomkit::compute_cqmom(replaced_case);
+    const qmomkit::CqmomResult expected_base_result = qmomkit::compute_cqmom(dense_base);
     const qmomkit::CqmomResult expected_result = qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{
         dense_base.hierarchy, expected_replacement, dense_base.conditional_options, dense_base.qmom_options, dense_base.adaptive_branch_counts,
         dense_base.diagnostic_level, dense_base.vandermonde_solver, dense_base.coordinate_support});
+    assert(base_result.ok());
     assert(replaced_result.ok());
+    assert(expected_base_result.ok());
     assert(expected_result.ok());
+    assert_cqmom_quadratures_near(base_result.quadrature, expected_base_result.quadrature);
     assert_cqmom_quadratures_near(replaced_result.quadrature, expected_result.quadrature);
+
+    const qmomkit::RawMomentTensor canonical_base = qmomkit::reconstruct_raw_moments(base_result.quadrature, dense_base.moments.extents);
+    const qmomkit::RawMomentTensor canonical_replacement = qmomkit::reconstruct_raw_moments(replaced_result.quadrature, expected_replacement.extents);
+    assert_tensor_near({dense_base.moments.extents, base_state.moment_values()}, canonical_base);
+    assert_tensor_near({expected_replacement.extents, replaced_state.moment_values()}, canonical_replacement);
 }
 
 void test_cqmom_case_replaces_lean_initial_moments_immutably()
@@ -1368,9 +1412,18 @@ void test_cqmom_case_replaces_lean_initial_moments_immutably()
     assert(base_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(replaced_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(base_state.moment_indices() == layout.required_indices);
-    assert(base_state.moment_values() == lean_base.moments.values);
     assert(replaced_state.moment_indices() == expected_moments.layout.required_indices);
-    assert(replaced_state.moment_values() == expected_moments.values);
+
+    const qmomkit::CqmomResult base_result = qmomkit::compute_cqmom(base_case);
+    const qmomkit::CqmomResult replaced_result = qmomkit::compute_cqmom(replaced_case);
+    assert(base_result.ok());
+    assert(replaced_result.ok());
+    const qmomkit::CqmomMomentData canonical_base =
+        qmomkit::extract_cqmom_moments(qmomkit::reconstruct_raw_moments(base_result.quadrature, dense_base.moments.extents), layout);
+    const qmomkit::CqmomMomentData canonical_replacement =
+        qmomkit::extract_cqmom_moments(qmomkit::reconstruct_raw_moments(replaced_result.quadrature, replacement.extents), layout);
+    assert(base_state.moment_values() == canonical_base.values);
+    assert(replaced_state.moment_values() == canonical_replacement.values);
 }
 
 void test_fixed_cqmom_prepared_metadata_ownership()
@@ -1571,6 +1624,7 @@ void test_cqmom_case_replacement_rejects_structural_tensor_errors()
         dense_base.coordinate_support};
     const qmomkit::CqmomCase lean_case = qmomkit::internal::CqmomConstructionAccess::create_case(lean_base);
     const std::vector<double> base_values = dense_case.initial_state().moment_values();
+    const std::vector<double> lean_base_values = lean_case.initial_state().moment_values();
 
     const auto rank = qmomkit::config::with_initial_moments(dense_case, {{4}, std::vector<double>(4, 1.0)});
     assert(!rank.ok());
@@ -1603,7 +1657,7 @@ void test_cqmom_case_replacement_rejects_structural_tensor_errors()
     assert(has_message_fragment(lean_index, "required CQMOM moment index"));
 
     assert(dense_case.initial_state().moment_values() == base_values);
-    assert(lean_case.initial_state().moment_values() == lean_base.moments.values);
+    assert(lean_case.initial_state().moment_values() == lean_base_values);
 }
 
 void test_cqmom_case_replacement_defers_realizability()
@@ -2094,6 +2148,15 @@ check_mode = final_only
 support = real_line
 )");
     assert(qmom_case.ok());
+
+    // Before the checked addition, SIZE_MAX + 1 wrapped to zero before an
+    // unchecked policies[SIZE_MAX] access. The bounded regression verifies
+    // the configuration error without attempting the unsafe old path.
+    const auto impossible_index = qmomkit::config::parse_coordinate_realizability_policies("[time_integration.realizability." +
+                                                                                           std::to_string(std::numeric_limits<std::size_t>::max()) +
+                                                                                           "]\ncheck_mode = final_only\nsupport = real_line\n");
+    assert(!impossible_index.ok());
+    assert(has_message_fragment(impossible_index, "cannot be represented"));
 }
 
 void test_quadrature_bounds_do_not_alter_coordinate_realizability_policy()
@@ -3840,6 +3903,7 @@ void run_all_configuration_tests()
     test_node_advection_options_reject_invalid_rk23_controls();
     test_removed_cqmom_source_policy_section_is_unknown();
     test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
+    test_qmom_automatic_scaling_handoff_to_evolution_options();
     test_phase_space_evolution_options_loaders_reject_invalid_values();
     test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();
     test_output_options_default_to_disabled();
@@ -3926,6 +3990,7 @@ void run_runtime_option_tests()
     test_node_advection_options_reject_invalid_rk23_controls();
     test_removed_cqmom_source_policy_section_is_unknown();
     test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
+    test_qmom_automatic_scaling_handoff_to_evolution_options();
     test_phase_space_evolution_options_loaders_reject_invalid_values();
     test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();
     test_output_options_default_to_disabled();

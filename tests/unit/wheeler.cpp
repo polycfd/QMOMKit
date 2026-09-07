@@ -64,19 +64,34 @@ qmomkit::MomentSet moments_from_nodes(const std::vector<double>& abscissas, cons
     return qmomkit::MomentSet(reconstruct_moments(qmomkit::Quadrature1D{abscissas, weights}, 2 * weights.size()));
 }
 
-void test_adaptive_two_node_relative_separation_rejects_large_offset_nearby_nodes()
+void test_adaptive_two_node_span_separation_is_translation_invariant()
 {
     qmomkit::WheelerOptions options;
     options.adaptive = true;
-    // The absolute spacing is 0.01 > eabs, but the relative spacing is
-    // 0.01 / 10.01 < eabs.
     options.eabs = 0.005;
 
-    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments_from_nodes({10.0, 10.01}, {0.5, 0.5}), 2, options);
+    const qmomkit::Quadrature1D reference = qmomkit::compute_quadrature(moments_from_nodes({0.0, 0.01}, {0.5, 0.5}), 2, options);
+    const qmomkit::Quadrature1D translated = qmomkit::compute_quadrature(moments_from_nodes({10.0, 10.01}, {0.5, 0.5}), 2, options);
 
-    assert(quadrature.ok());
-    assert(quadrature.weights.size() == 1);
-    assert(quadrature.abscissas.size() == 1);
+    assert(reference.ok());
+    assert(translated.ok());
+    assert(reference.weights.size() == 2);
+    assert(translated.weights.size() == 2);
+}
+
+void test_adaptive_two_node_span_separation_is_scale_invariant()
+{
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+    options.eabs = 0.5;
+
+    const qmomkit::Quadrature1D reference = qmomkit::compute_quadrature(moments_from_nodes({0.0, 0.01}, {0.5, 0.5}), 2, options);
+    const qmomkit::Quadrature1D scaled = qmomkit::compute_quadrature(moments_from_nodes({0.0, 1.0}, {0.5, 0.5}), 2, options);
+
+    assert(reference.ok());
+    assert(scaled.ok());
+    assert(reference.weights.size() == 2);
+    assert(scaled.weights.size() == 2);
 }
 
 void test_adaptive_two_node_relative_separation_accepts_small_symmetric_pair()
@@ -92,7 +107,7 @@ void test_adaptive_two_node_relative_separation_accepts_small_symmetric_pair()
     assert_vector_near(quadrature.abscissas, {-1.0e-6, 1.0e-6}, 1.0e-14);
 }
 
-void test_adaptive_two_node_zero_scale_reduces_without_nonfinite_values()
+void test_adaptive_two_node_zero_span_reduces_without_nonfinite_values()
 {
     qmomkit::WheelerOptions options;
     options.adaptive = true;
@@ -104,6 +119,38 @@ void test_adaptive_two_node_zero_scale_reduces_without_nonfinite_values()
     assert(quadrature.abscissas.size() == 1);
     assert(std::isfinite(quadrature.weights.front()));
     assert(std::isfinite(quadrature.abscissas.front()));
+}
+
+void test_adaptive_density_above_cutoff_is_not_reduced_by_rmin()
+{
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+
+    // These scales straddle the default rmin value while remaining above the
+    // absolute cutoff. The wide support keeps the unchanged sigma criterion
+    // well away from its finite-precision reduction boundary.
+    for (const double density_scale : {5.0e-11, 2.0e-10})
+    {
+        const qmomkit::Quadrature1D quadrature =
+            qmomkit::compute_quadrature(moments_from_nodes({100.0, 200.0}, {0.5 * density_scale, 0.5 * density_scale}), 2, options);
+
+        assert(quadrature.ok());
+        assert(quadrature.weights.size() == 2);
+        assert_vector_near_relative(reconstruct_moments(quadrature, 4),
+                                    moments_from_nodes({100.0, 200.0}, {0.5 * density_scale, 0.5 * density_scale}).values(), 1.0e-13);
+    }
+}
+
+void test_cutoff_remains_the_absolute_population_gate()
+{
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments_from_nodes({100.0, 200.0}, {0.25e-30, 0.25e-30}), 2, options);
+
+    assert(!quadrature.ok());
+    assert(quadrature.status == qmomkit::QuadratureStatus::not_realizable);
+    assert(quadrature.message == "Moment sequence has m0 < cutoff.");
 }
 
 void test_adaptive_three_node_relative_separation_uses_quadrature_span()
@@ -212,18 +259,17 @@ void test_adaptive_roundoff_positive_degenerate_sequence_reduces()
     assert_vector_near(quadrature.weights, {1.0000000000000007}, 1.0e-14);
 }
 
-void test_adaptive_threshold_rejection_falls_back_to_one_node()
+void test_adaptive_relative_weight_threshold_rejection_falls_back_to_one_node()
 {
-    const qmomkit::MomentSet moments{1.0, 1.25, 3.25, 5.75};
     qmomkit::WheelerOptions options;
     options.adaptive = true;
-    options.rmin = 1.0;
+    options.rmin = 0.25;
 
-    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments_from_nodes({-1.0, 2.0}, {0.2, 0.8}), 2, options);
 
     assert(quadrature.ok());
     assert(quadrature.status == qmomkit::QuadratureStatus::success);
-    assert_vector_near(quadrature.abscissas, {1.25}, 1.0e-14);
+    assert_vector_near(quadrature.abscissas, {1.4}, 1.0e-14);
     assert_vector_near(quadrature.weights, {1.0}, 1.0e-14);
 }
 
@@ -393,9 +439,12 @@ void test_invalid_wheeler_options_fail_before_inversion()
 
 int main()
 {
-    test_adaptive_two_node_relative_separation_rejects_large_offset_nearby_nodes();
+    test_adaptive_density_above_cutoff_is_not_reduced_by_rmin();
+    test_cutoff_remains_the_absolute_population_gate();
+    test_adaptive_two_node_span_separation_is_translation_invariant();
+    test_adaptive_two_node_span_separation_is_scale_invariant();
     test_adaptive_two_node_relative_separation_accepts_small_symmetric_pair();
-    test_adaptive_two_node_zero_scale_reduces_without_nonfinite_values();
+    test_adaptive_two_node_zero_span_reduces_without_nonfinite_values();
     test_adaptive_three_node_relative_separation_uses_quadrature_span();
     test_adaptive_near_duplicate_nodes_collapse();
     test_adaptive_tiny_weight_node_collapse();
@@ -404,7 +453,7 @@ int main()
     test_adaptive_exact_degenerate_sequence_reduces_before_finite_check();
     test_adaptive_exact_large_abscissa_degenerate_sequence_reduces();
     test_adaptive_roundoff_positive_degenerate_sequence_reduces();
-    test_adaptive_threshold_rejection_falls_back_to_one_node();
+    test_adaptive_relative_weight_threshold_rejection_falls_back_to_one_node();
     test_adaptive_requested_two_node_negative_variance_recovers_one_node();
     test_adaptive_requested_three_node_high_rank_sigma_recovers_two_nodes();
     test_nonadaptive_singular_sequence_reports_failure();

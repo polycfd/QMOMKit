@@ -240,6 +240,61 @@ void test_failure_behavior_minimum_timestep_preserves_original_state()
     assert(result.moments == initial);
 }
 
+void test_reduced_accepted_step_must_reduce_remaining_interval()
+{
+    qmomkit::MomentSourceUpdateOptions options;
+    std::size_t acceptance_calls = 0;
+    std::size_t source_calls = 0;
+    options.ssp_rk3_options.accept = [&acceptance_calls](const std::vector<double>&)
+    {
+        ++acceptance_calls;
+        return acceptance_calls % 55 == 0;
+    };
+    options.ssp_rk3_options.max_retries = 54;
+
+    const std::vector<double> initial{0.0};
+    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+        initial, 0.0, 1.0,
+        [&source_calls](double, const qmomkit::QmomSourceContext& context)
+        {
+            ++source_calls;
+            return std::vector<double>(context.size(), 0.0);
+        },
+        options);
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::MomentSourceUpdateStatus::source_failed);
+    assert(result.moments == initial);
+    assert(result.diagnostics.ssp_rk3_status == qmomkit::SspRk3Status::success);
+    assert(result.diagnostics.accepted);
+    assert(result.diagnostics.rejected);
+    assert(result.diagnostics.retries == 54);
+    assert(result.diagnostics.time_step_used == std::ldexp(1.0, -54));
+    assert(result.message.find("representable interval progress") != std::string::npos);
+    assert(source_calls == 165);
+}
+
+void test_nan_minimum_timestep_is_invalid()
+{
+    qmomkit::MomentSourceUpdateOptions options;
+    options.ssp_rk3_options.min_time_step = std::numeric_limits<double>::quiet_NaN();
+    std::size_t source_calls = 0;
+
+    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+        {1.0}, 0.0, 0.1,
+        [&source_calls](double, const qmomkit::QmomSourceContext& context)
+        {
+            ++source_calls;
+            return std::vector<double>(context.size(), 0.0);
+        },
+        options);
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::MomentSourceUpdateStatus::invalid_input);
+    assert(result.moments == std::vector<double>{1.0});
+    assert(source_calls == 0);
+}
+
 void test_cqmom_moment_data_zero_source_preserves_state()
 {
     const qmomkit::CqmomMomentData initial = create_moment_data();
@@ -803,6 +858,8 @@ int main()
     test_repeated_reduced_steps_complete_requested_interval();
     test_failure_after_accepted_retry_preserves_original_state();
     test_failure_behavior_minimum_timestep_preserves_original_state();
+    test_reduced_accepted_step_must_reduce_remaining_interval();
+    test_nan_minimum_timestep_is_invalid();
     test_cqmom_moment_data_zero_source_preserves_state();
     test_cqmom_source_context_exposes_moment_metadata();
     test_cqmom_source_context_validates_indices_and_values();

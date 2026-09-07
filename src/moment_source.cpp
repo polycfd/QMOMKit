@@ -257,7 +257,7 @@ void validate_request(const std::vector<double>& moments, const double t, const 
     {
         throw std::invalid_argument("Moment-source callback must be provided.");
     }
-    if (options.ssp_rk3_options.min_time_step < 0.0 ||
+    if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0 ||
         (options.ssp_rk3_options.min_time_step > 0.0 && time_step < options.ssp_rk3_options.min_time_step))
     {
         throw std::invalid_argument("Moment-source update timestep controls are invalid.");
@@ -289,7 +289,7 @@ void validate_cqmom_source_update_controls(const double t, const double time_ste
     {
         throw std::invalid_argument("CQMOM source callback must be provided.");
     }
-    if (options.ssp_rk3_options.min_time_step < 0.0 ||
+    if (!std::isfinite(options.ssp_rk3_options.min_time_step) || options.ssp_rk3_options.min_time_step < 0.0 ||
         (options.ssp_rk3_options.min_time_step > 0.0 && time_step < options.ssp_rk3_options.min_time_step))
     {
         throw std::invalid_argument("CQMOM moment-source update timestep controls are invalid.");
@@ -385,6 +385,14 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
             {
                 return MomentSourceUpdateResult{moments, status, diagnostics, diagnostics.message};
             }
+
+            // Positive steps smaller than the remaining interval's spacing do not complete the interval.
+            const double next_remaining_time = remaining_time - step.time_step_used;
+            if (!std::isfinite(step.time_step_used) || step.time_step_used <= 0.0 || !(next_remaining_time < remaining_time))
+            {
+                diagnostics.message = "Moment-source accepted timestep did not make representable interval progress.";
+                return MomentSourceUpdateResult{moments, MomentSourceUpdateStatus::source_failed, diagnostics, diagnostics.message};
+            }
             if (step.time_step_used == remaining_time)
             {
                 return MomentSourceUpdateResult{step.state, status, diagnostics, diagnostics.message};
@@ -392,7 +400,7 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
 
             state = step.state;
             current_time += step.time_step_used;
-            remaining_time -= step.time_step_used;
+            remaining_time = next_remaining_time;
         }
     }
     catch (const std::exception& error)

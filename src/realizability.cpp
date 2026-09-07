@@ -155,9 +155,9 @@ struct ClassificationState
     analysis.eigensystem = symmetric_jacobi_eigen(matrix, normalization_scale);
     analysis.minimum_eigenvalue = analysis.eigensystem.eigenvalues.empty() ? 0.0 : analysis.eigensystem.eigenvalues.front();
 
-    // Positive semidefinite matrices indicate realizability on the boundary;
-    // near-zero negative eigenvalues are reported as indeterminate instead of
-    // changing the mathematical classification on roundoff alone.
+    // Positive semidefinite matrices indicate realizability on the boundary.
+    // Eigenvalues within the user tolerance but outside the tighter roundoff
+    // band are reported as indeterminate.
     const double diagonalization_roundoff = 1000.0 * std::numeric_limits<double>::epsilon() * normalization_scale * normalized_infinity_norm;
 
     if (!internal::all_finite(analysis.eigensystem.eigenvalues))
@@ -214,7 +214,8 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     {
         state.result =
             make_result(RealizabilityStatus::numerically_indeterminate, checked_order, analysis.name, analysis.order, analysis.minimum_eigenvalue,
-                        analysis.tolerance, "Realizability is numerically indeterminate: " + analysis.name + " has a near-zero negative eigenvalue.");
+                        analysis.tolerance,
+                        "Realizability is numerically indeterminate: " + analysis.name + " has an eigenvalue within the numerical tolerance.");
         return false;
     }
 
@@ -348,6 +349,12 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return false;
 }
 
+[[nodiscard]] std::size_t numerical_rank(const MatrixAnalysis& analysis)
+{
+    return static_cast<std::size_t>(std::count_if(analysis.eigensystem.eigenvalues.begin(), analysis.eigensystem.eigenvalues.end(),
+                                                  [&analysis](const double eigenvalue) { return eigenvalue > analysis.tolerance; }));
+}
+
 [[nodiscard]] RealizabilityResult finish_classification(ClassificationState state, const std::size_t checked_order, const MomentSupport support)
 {
     state.result.checked_order = checked_order;
@@ -402,7 +409,8 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
 [[nodiscard]] RealizabilityResult check_hamburger(const MomentSet& moments, const RealizabilityOptions& options)
 {
     // Hamburger realizability on the real line is governed by PSD Hankel moment
-    // matrices; odd truncation also requires the next column to be range-valid.
+    // matrices. A singular even truncation must be a flat extension of its
+    // preceding moment matrix; odd truncations require next-column range validity.
     const std::size_t checked_order = moments.size() - 1;
     const std::size_t hankel_order = checked_order / 2;
     ClassificationState state;
@@ -422,6 +430,21 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
                                            options))
         {
             return state.result;
+        }
+    }
+    else if (hankel_order > 0 && moment_matrix.status == MatrixStatus::positive_semidefinite)
+    {
+        const MatrixAnalysis preceding_matrix =
+            analyze_matrix("H_" + std::to_string(hankel_order - 1), hankel_order - 1, hankel_matrix(moments, hankel_order - 1, 0), options);
+        if (!incorporate_matrix(state, preceding_matrix, checked_order))
+        {
+            return state.result;
+        }
+        if (numerical_rank(moment_matrix) != numerical_rank(preceding_matrix))
+        {
+            return make_result(RealizabilityStatus::not_realizable, checked_order, "H_" + std::to_string(hankel_order) + "_flat_extension",
+                               hankel_order, moment_matrix.minimum_eigenvalue, moment_matrix.tolerance,
+                               "Moment sequence is not realizable: singular Hamburger moment matrix is not a flat extension.");
         }
     }
 

@@ -2,6 +2,7 @@
 #include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
+#include "internal/moment_reconstruction.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
 #include "internal/qmom_state_access.hpp"
@@ -325,12 +326,28 @@ CqmomState CqmomCase::initial_state() const
     std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(accepted_quadrature);
     return std::visit(Overloaded{[&active_counts, &accepted_quadrature, &prepared_fixed_metadata](const CqmomDenseCase& dense_case)
                                  {
-                                     return internal::CqmomConstructionAccess::create_state(dense_case, std::move(active_counts),
+                                     CqmomDenseCase canonical_case{dense_case.hierarchy,
+                                                                   reconstruct_raw_moments(accepted_quadrature, dense_case.moments.extents),
+                                                                   dense_case.conditional_options,
+                                                                   dense_case.qmom_options,
+                                                                   dense_case.adaptive_branch_counts,
+                                                                   dense_case.diagnostic_level,
+                                                                   dense_case.vandermonde_solver,
+                                                                   dense_case.coordinate_support};
+                                     return internal::CqmomConstructionAccess::create_state(std::move(canonical_case), std::move(active_counts),
                                                                                             std::move(accepted_quadrature), prepared_fixed_metadata);
                                  },
                                  [&active_counts, &accepted_quadrature, &prepared_fixed_metadata](const CqmomLeanCase& lean_case)
                                  {
-                                     return internal::CqmomConstructionAccess::create_state(lean_case, std::move(active_counts),
+                                     CqmomLeanCase canonical_case{
+                                         internal::reconstruct_trusted_cqmom_moments(accepted_quadrature, lean_case.moments.layout),
+                                         lean_case.conditional_options,
+                                         lean_case.qmom_options,
+                                         lean_case.adaptive_branch_counts,
+                                         lean_case.diagnostic_level,
+                                         lean_case.vandermonde_solver,
+                                         lean_case.coordinate_support};
+                                     return internal::CqmomConstructionAccess::create_state(std::move(canonical_case), std::move(active_counts),
                                                                                             std::move(accepted_quadrature), prepared_fixed_metadata);
                                  }},
                       data_->case_);
@@ -793,7 +810,7 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
 
     std::vector<ConditioningPath> paths;
     paths.reserve(quadrature.weights().size());
-    for (const MultiIndex& node_index : enumerate_quadrature_node_multi_indices(quadrature.hierarchy()))
+    for (const MultiIndex& node_index : enumerate_multi_indices(quadrature.hierarchy().node_counts()))
     {
         paths.push_back(phase_space_index_to_conditioning_path(quadrature.hierarchy(), node_index));
     }
@@ -825,6 +842,15 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
                        to_cqmom_status(result.status), result.message, to_cqmom_diagnostics(result.diagnostics, scales),
                        failed_phase_space_dimension(result, hierarchy)};
 }
+
+[[nodiscard]] CqmomResult invalid_cqmom_hierarchy_result(const PhaseSpaceHierarchy& hierarchy, const bool adaptive_branch_counts)
+{
+    return CqmomResult{internal::CqmomConstructionAccess::create_quadrature(hierarchy, {}, {}, adaptive_branch_counts, !adaptive_branch_counts, {}),
+                       CqmomStatus::invalid_input,
+                       "CQMOM node count is too large to derive the required moment extent.",
+                       {},
+                       0};
+}
 } // namespace
 
 CqmomResult compute_cqmom(const CqmomDenseCase& dense_case)
@@ -835,6 +861,10 @@ CqmomResult compute_cqmom(const CqmomDenseCase& dense_case)
 CqmomResult compute_cqmom(const CqmomLeanCase& lean_case)
 {
     const PhaseSpaceHierarchy& hierarchy = lean_case.moments.layout.hierarchy;
+    if (!internal::cqmom_required_moment_extents_representable(hierarchy))
+    {
+        return invalid_cqmom_hierarchy_result(hierarchy, lean_case.adaptive_branch_counts);
+    }
     if (lean_case.qmom_options.automatic_scaling)
     {
         const std::optional<internal::CqmomScalingContext> scaling =
@@ -880,6 +910,10 @@ CqmomResult compute_cqmom_internal(const CqmomDenseCase& dense_case, std::vector
                                    const bool allow_active_branch_count_growth, const PreparedFixedCqmomMetadata* const prepared_fixed_metadata,
                                    const bool require_prepared_fixed_metadata)
 {
+    if (!cqmom_required_moment_extents_representable(dense_case.hierarchy))
+    {
+        return invalid_cqmom_hierarchy_result(dense_case.hierarchy, dense_case.adaptive_branch_counts);
+    }
     if (require_prepared_fixed_metadata && !dense_case.adaptive_branch_counts && prepared_fixed_metadata == nullptr)
     {
         throw std::logic_error("Fixed normal CQMOM reconstruction requires prepared metadata.");
@@ -937,11 +971,15 @@ CqmomResult compute_cqmom_internal(const CqmomLeanCase& lean_case, std::vector<C
                                    const bool allow_active_branch_count_growth, const PreparedFixedCqmomMetadata* const prepared_fixed_metadata,
                                    const bool require_prepared_fixed_metadata)
 {
+    const PhaseSpaceHierarchy& hierarchy = lean_case.moments.layout.hierarchy;
+    if (!cqmom_required_moment_extents_representable(hierarchy))
+    {
+        return invalid_cqmom_hierarchy_result(hierarchy, lean_case.adaptive_branch_counts);
+    }
     if (require_prepared_fixed_metadata && !lean_case.adaptive_branch_counts && prepared_fixed_metadata == nullptr)
     {
         throw std::logic_error("Fixed normal CQMOM reconstruction requires prepared metadata.");
     }
-    const PhaseSpaceHierarchy& hierarchy = lean_case.moments.layout.hierarchy;
     if (lean_case.qmom_options.automatic_scaling)
     {
         const std::optional<CqmomScalingContext> scaling = make_cqmom_scaling_context(lean_case.moments, lean_case.coordinate_support);

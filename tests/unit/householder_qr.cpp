@@ -430,6 +430,15 @@ void test_factorization_identity()
     assert_matrix_near(qtq, identity, 1.0e-12);
 }
 
+void test_success_requires_finite_solution()
+{
+    // The relative rank criterion accepts this finite full-rank scalar system,
+    // but its exact solution 1e500 is not representable as double.
+    const qmomkit::internal::QrSolveResult result = qmomkit::internal::solve_qr(make_matrix({{1.0e-200}}), make_matrix({{1.0e300}}));
+
+    assert(result.status != qmomkit::internal::QrStatus::success || std::isfinite(result.solution(0, 0)));
+}
+
 void assert_vandermonde_case_matches_references(const std::vector<double>& abscissas, const std::vector<double>& weights,
                                                 const qmomkit::internal::DenseMatrix& expected_solution, const double tolerance)
 {
@@ -474,6 +483,7 @@ int main()
     test_malformed_full_rank_factorization_rejects_zero_diagonal();
     test_factorization_identity();
     test_vandermonde_shaped_systems();
+    test_success_requires_finite_solution();
 
     return 0;
 }

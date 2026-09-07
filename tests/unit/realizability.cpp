@@ -2,6 +2,7 @@
 #include <cmath>
 #include <limits>
 #include <qmomkit/realizability.hpp>
+#include <qmomkit/realizability_policy.hpp>
 #include <qmomkit/runge_kutta.hpp>
 #include <vector>
 
@@ -90,6 +91,24 @@ void test_status_helpers()
     assert(!small_positive.on_boundary());
 }
 
+void test_even_order_hamburger_singular_kernel_consistency()
+{
+    // m2 = integral(x^2 dn) = 0 forces any nonnegative representing
+    // measure on the real line to be concentrated at zero, hence m4 = 0.
+    // This exact sequence is therefore not Hamburger-realizable despite the
+    // PSD Hankel matrix diag(1, 0, 1).
+    const MomentSet inconsistent{1.0, 0.0, 0.0, 0.0, 1.0};
+    const auto result = qmomkit::check_realizability(inconsistent, MomentSupport::real_line);
+
+    assert(result.status == RealizabilityStatus::not_realizable);
+    assert(!result.realizable());
+    qmomkit::RealizabilityPolicy policy;
+    policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    policy.accept_boundary = true;
+    assert(
+        !qmomkit::accepts_realizability_policy(policy, inconsistent.values(), [](const std::vector<double>& values) { return MomentSet(values); }));
+}
+
 void test_ssp_rk3_predicate_can_be_explicitly_wrapped()
 {
     const auto rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, 0.0}; };
@@ -112,6 +131,7 @@ int main()
     test_m0_policy();
     test_matrix_diagnostics();
     test_status_helpers();
+    test_even_order_hamburger_singular_kernel_consistency();
     test_ssp_rk3_predicate_can_be_explicitly_wrapped();
     return 0;
 }

@@ -502,6 +502,12 @@ SvdSolveResult solve_svd(const SvdFactorization& factorization, DenseMatrix rhs)
         }
     }
 
+    if (!finite_matrix(solution))
+    {
+        return solve_failure_result(factorization.cols, rhs_cols, factorization.numerical_rank, SvdStatus::invalid_input,
+                                    "SVD solve produced non-finite solution values.");
+    }
+
     return SvdSolveResult{std::move(solution), factorization.numerical_rank, SvdStatus::success, ""};
 }
 

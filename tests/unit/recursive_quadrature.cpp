@@ -947,7 +947,7 @@ void test_recursive_bounded_support_adaptive_falls_back_to_supported_count()
     assert(diagnostic.adaptive_node_count_reduced);
 }
 
-void test_recursive_bounded_support_adaptive_applies_relative_separation()
+void test_recursive_bounded_support_adaptive_two_node_uses_span_separation()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 1});
     const std::vector<std::size_t> extents{4, 2};
@@ -966,11 +966,11 @@ void test_recursive_bounded_support_adaptive_applies_relative_separation()
                                                          support});
 
     assert(result.ok());
-    assert(result.quadrature.total_nodes() == 1);
+    assert(result.quadrature.total_nodes() == 2);
     assert(!result.diagnostics.empty());
     assert(result.diagnostics.front().bounded_candidate_node_count == 2);
-    assert(result.diagnostics.front().bounded_accepted_fallback_node_count == 1);
-    assert(result.diagnostics.front().adaptive_node_count_reduced);
+    assert(result.diagnostics.front().bounded_accepted_fallback_node_count == 2);
+    assert(!result.diagnostics.front().adaptive_node_count_reduced);
 }
 
 void test_recursive_bounded_support_adaptive_applies_relative_weight_check()
@@ -1057,6 +1057,49 @@ void test_recursive_bounded_support_uses_phase_space_coordinate_index()
     assert(result.diagnostics.front().conditioning_level == 0);
     assert(result.diagnostics.front().phase_space_dimension == 1);
     assert(result.diagnostics.front().bounded_support_checked);
+}
+
+void test_fixed_public_terminal_paths_align_with_physical_storage()
+{
+    // The manufactured terminals are deliberately distinct.  The vectors are
+    // in physical row-major order: (x, y) = 00, 01, 10, 11.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+
+    const std::vector<qmomkit::ConditioningPath> identity_paths{qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 1}),
+                                                                qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})};
+    const qmomkit::CqmomResult identity = qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{qmomkit::PhaseSpaceHierarchy({2, 2}), {extents, moments}});
+    assert(identity.ok());
+    assert(identity.quadrature.terminal_paths() == identity_paths);
+
+    const qmomkit::CqmomDenseCase cqmom_case{hierarchy, {extents, moments}};
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
+    assert(result.ok());
+    assert(result.quadrature.has_rectangular_storage());
+
+    // Row-major storage requires paths in conditioning-level order (y, x):
+    // physical 00, 01, 10, 11 map to paths 00, 10, 01, 11.
+    const std::vector<qmomkit::ConditioningPath> expected_paths{qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({1, 0}),
+                                                                qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({1, 1})};
+
+    // The quadrature values themselves retain their independently supplied
+    // physical-node identities and reconstruct every input raw moment.
+    for (std::size_t node = 0; node < weights.size(); ++node)
+    {
+        assert_near(result.quadrature.weights()[node], weights[node], 1.0e-12);
+        assert_near(result.quadrature.abscissas()[0][node], abscissas[0][node], 1.0e-12);
+        assert_near(result.quadrature.abscissas()[1][node], abscissas[1][node], 1.0e-12);
+    }
+    const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(result.quadrature, extents);
+    for (std::size_t moment = 0; moment < moments.size(); ++moment)
+    {
+        assert_near(reconstructed.values[moment], moments[moment], 1.0e-12);
+    }
+
+    assert(result.quadrature.terminal_paths() == expected_paths);
 }
 
 void test_recursive_bounded_support_applies_to_conditional_phase_space_dimension()
@@ -1818,10 +1861,11 @@ void run_all_recursive_quadrature_tests()
     test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive();
     test_recursive_bounded_support_rejects_fixed_infeasible_count();
     test_recursive_bounded_support_adaptive_falls_back_to_supported_count();
-    test_recursive_bounded_support_adaptive_applies_relative_separation();
+    test_recursive_bounded_support_adaptive_two_node_uses_span_separation();
     test_recursive_bounded_support_adaptive_applies_relative_weight_check();
     test_recursive_bounded_support_rejects_growth_and_preserves_current_count();
     test_recursive_bounded_support_uses_phase_space_coordinate_index();
+    test_fixed_public_terminal_paths_align_with_physical_storage();
     test_recursive_bounded_support_applies_to_conditional_phase_space_dimension();
     test_recursive_bounded_support_returned_node_tolerance_and_no_clipping();
     test_public_dense_and_lean_bounded_support_parity();
@@ -1897,10 +1941,11 @@ void run_bounded_support_tests()
     test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive();
     test_recursive_bounded_support_rejects_fixed_infeasible_count();
     test_recursive_bounded_support_adaptive_falls_back_to_supported_count();
-    test_recursive_bounded_support_adaptive_applies_relative_separation();
+    test_recursive_bounded_support_adaptive_two_node_uses_span_separation();
     test_recursive_bounded_support_adaptive_applies_relative_weight_check();
     test_recursive_bounded_support_rejects_growth_and_preserves_current_count();
     test_recursive_bounded_support_uses_phase_space_coordinate_index();
+    test_fixed_public_terminal_paths_align_with_physical_storage();
     test_recursive_bounded_support_applies_to_conditional_phase_space_dimension();
     test_recursive_bounded_support_returned_node_tolerance_and_no_clipping();
     test_public_dense_and_lean_bounded_support_parity();

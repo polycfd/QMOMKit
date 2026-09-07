@@ -1,7 +1,11 @@
 #pragma once
 
+#include "checked_size.hpp"
+
 #include <cassert>
 #include <cstddef>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -11,7 +15,7 @@ namespace qmomkit::internal
 class DenseMatrix
 {
 public:
-    DenseMatrix(const std::size_t rows, const std::size_t cols) : rows_(rows), cols_(cols), values_(rows * cols, 0.0) {}
+    DenseMatrix(const std::size_t rows, const std::size_t cols) : rows_(rows), cols_(cols), values_(storage_size(rows, cols), 0.0) {}
 
     [[nodiscard]] std::size_t rows() const noexcept
     {
@@ -42,6 +46,16 @@ public:
     }
 
 private:
+    [[nodiscard]] static std::size_t storage_size(const std::size_t rows, const std::size_t cols)
+    {
+        const std::optional<std::size_t> size = checked_size_multiply(rows, cols);
+        if (!size.has_value())
+        {
+            throw std::length_error("DenseMatrix storage dimensions overflow size_t.");
+        }
+        return *size;
+    }
+
     std::size_t rows_;
     std::size_t cols_;
     std::vector<double> values_;

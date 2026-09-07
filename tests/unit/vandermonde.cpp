@@ -748,6 +748,17 @@ void test_invalid_inputs_preserve_policy_diagnostics_and_counters()
                                     1, 0, 0, 0, 0});
 }
 
+void test_dense_success_requires_finite_solution()
+{
+    // This scalar weighted system passes dense elimination's absolute pivot
+    // threshold, but its exact solution 5e313 is not representable as double.
+    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::dense, singular_tolerance, false, 1.0e-10};
+    const qmomkit::internal::VandermondeSolveResult result =
+        qmomkit::internal::solve_conditional_vandermonde_system({0.0}, {2.0e-14}, make_solution({{1.0e300}}), options, singular_message);
+
+    assert(!result.success || std::isfinite(result.solution(0, 0)));
+}
+
 } // namespace
 
 int main()
@@ -780,6 +791,7 @@ int main()
     test_wrapper_svd_residual_rejection_fails();
     test_invalid_inputs_fail();
     test_invalid_inputs_preserve_policy_diagnostics_and_counters();
+    test_dense_success_requires_finite_solution();
 
     return 0;
 }

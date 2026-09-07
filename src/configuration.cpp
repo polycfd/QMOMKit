@@ -1,5 +1,6 @@
 #include "qmomkit/configuration.hpp"
 
+#include "internal/checked_size.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
 
@@ -1564,12 +1565,20 @@ std::vector<std::optional<RealizabilityPolicy>> parse_coordinate_realizability_p
     std::vector<std::optional<RealizabilityPolicy>> policies;
     for (const auto& item : sections)
     {
+        const std::optional<std::size_t> required_size = internal::checked_size_add(item.first, 1);
+        if (!required_size.has_value())
+        {
+            const auto section = parsed.sections.find(item.second);
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, section == parsed.sections.end() ? 0 : section->second.line,
+                      "Coordinate realizability policy index cannot be represented.");
+            continue;
+        }
         const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, item.second, source_name);
         if (policy.has_value())
         {
-            if (policies.size() <= item.first)
+            if (policies.size() < *required_size)
             {
-                policies.resize(item.first + 1);
+                policies.resize(*required_size);
             }
             policies[item.first] = *policy;
         }
@@ -2299,13 +2308,19 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
     {
         return failure_result<QmomCase>({ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count must be positive."});
     }
+    const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, node_count);
+    if (!required_moment_count.has_value())
+    {
+        return failure_result<QmomCase>(
+            {ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count is too large to derive the required moment count."});
+    }
 
     ConfigurationResult<MomentSet> initialized = initialize_moments(initial_condition, source_name);
     if (!initialized)
     {
         return ConfigurationResult<QmomCase>::failure(initialized.error());
     }
-    if (node_count <= std::numeric_limits<std::size_t>::max() / 2 && initialized.value().size() < 2 * node_count)
+    if (initialized.value().size() < *required_moment_count)
     {
         return failure_result<QmomCase>(
             {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, "QMOM requires at least 2 * node_count moments."});
@@ -2698,7 +2713,12 @@ ConfigurationResult<QmomPhaseSpaceEvolutionOptions> parse_qmom_phase_space_evolu
     reject_unknown_qmom_option_keys(parsed, source_name);
     const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
-    const std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
+    std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
+    const std::optional<bool> automatic_scaling = parse_automatic_scaling_from_parsed(parsed, source_name);
+    if (qmom_options.has_value() && automatic_scaling.has_value())
+    {
+        qmom_options->automatic_scaling = *automatic_scaling;
+    }
     const std::optional<RealizabilityPolicy> realizability_policy =
         parse_realizability_policy_from_parsed(parsed, std::string(realizability_section), source_name);
 

@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <numeric>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -668,6 +669,36 @@ void test_cqmom_public_api_preserves_dense_invalid_input_messages()
     assert(extents.message == "Raw moment extents must contain at least 2*N orders per dimension.");
 }
 
+template <typename Case> void assert_cqmom_rejects_unrepresentable_required_moment_extent(const Case& case_)
+{
+    bool leaked_length_error = false;
+    try
+    {
+        const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+        assert(!result.ok());
+        assert(result.status == qmomkit::CqmomStatus::invalid_input);
+        assert(result.message == "CQMOM node count is too large to derive the required moment extent.");
+    }
+    catch (const std::length_error&)
+    {
+        leaked_length_error = true;
+    }
+    assert(!leaked_length_error);
+}
+
+void test_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage()
+{
+    const std::size_t node_count = std::numeric_limits<std::size_t>::max() / 2 + 1;
+    const qmomkit::PhaseSpaceHierarchy hierarchy({node_count});
+
+    const qmomkit::CqmomDenseCase dense_case{hierarchy, {{1}, {1.0}}, {}, {}};
+    assert_cqmom_rejects_unrepresentable_required_moment_extent(dense_case);
+
+    const qmomkit::CqmomMomentData lean_moments{{hierarchy, {}}, {}};
+    const qmomkit::CqmomLeanCase lean_case{lean_moments};
+    assert_cqmom_rejects_unrepresentable_required_moment_extent(lean_case);
+}
+
 void test_qmom_public_api_matches_wheeler()
 {
     // Public-wrapper consistency: the unscaled public result must preserve the underlying Wheeler result; analytical Wheeler correctness is verified
@@ -685,6 +716,16 @@ void test_qmom_public_api_matches_wheeler()
         assert_near(qmom.abscissas[node], wheeler.abscissas[node], 1.0e-13);
         assert_near(qmom.weights[node], wheeler.weights[node], 1.0e-13);
     }
+}
+
+void test_qmom_rejects_node_count_with_unrepresentable_moment_requirement()
+{
+    const std::size_t impossible_node_count = std::numeric_limits<std::size_t>::max() / 2 + 1;
+    const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet{1.0, 0.0}, impossible_node_count);
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::QmomStatus::invalid_input);
+    assert(result.message.find("too large") != std::string::npos);
 }
 
 void test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds()
@@ -1053,6 +1094,36 @@ void test_cqmom_public_api_exposes_adaptive_branch_counts()
     assert(saw_reduced_branch);
 }
 
+void test_cqmom_adaptive_root_branch_uses_relative_rmin_only()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const double density_scale = 0.05;
+    const std::vector<double> weights(4, 0.25 * density_scale);
+    const std::vector<std::vector<double>> abscissas{{10.0, 10.0, 20.0, 20.0}, {-1.0, 1.0, -1.0, 1.0}};
+    const qmomkit::QmomOptions qmom_options{true, 0.1, 1.0e-10, 1.0e-30};
+    const qmomkit::CqmomDenseCase case_{
+        hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, {}, qmom_options, true, qmomkit::CqmomDiagnosticLevel::basic};
+
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+
+    assert(result.ok());
+    assert(result.quadrature.total_nodes() == 4);
+    assert_near(std::accumulate(result.quadrature.weights().begin(), result.quadrature.weights().end(), 0.0), density_scale, 1.0e-14);
+
+    bool saw_unreduced_root = false;
+    for (const qmomkit::CqmomDiagnostics& diagnostics : result.diagnostics)
+    {
+        if (diagnostics.conditioning_level == 0)
+        {
+            saw_unreduced_root = true;
+            assert(diagnostics.actual_node_count == 2);
+            assert(!diagnostics.adaptive_node_count_reduced);
+        }
+    }
+    assert(saw_unreduced_root);
+}
+
 void test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -1213,7 +1284,9 @@ int main()
     test_lean_cqmom_public_api_rejects_incompatible_layout();
     test_cqmom_public_api_reports_missing_required_dense_moment();
     test_cqmom_public_api_preserves_dense_invalid_input_messages();
+    test_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage();
     test_qmom_public_api_matches_wheeler();
+    test_qmom_rejects_node_count_with_unrepresentable_moment_requirement();
     test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds();
     test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments();
     test_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction();
@@ -1223,6 +1296,7 @@ int main()
     test_cqmom_automatic_scaling_restores_each_physical_coordinate();
     test_cqmom_public_api_reports_conditional_moment_failure();
     test_cqmom_public_api_exposes_adaptive_branch_counts();
+    test_cqmom_adaptive_root_branch_uses_relative_rmin_only();
     test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts();
     test_cqmom_diagnostic_levels_control_expensive_diagnostics();
     test_cqmom_none_diagnostics_preserves_failure_context();

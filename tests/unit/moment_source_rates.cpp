@@ -99,6 +99,27 @@ void test_qmom_failure_paths()
     assert(thrown.message.find("source model failed") != std::string::npos);
 }
 
+void test_qmom_non_finite_input_is_rejected_before_callback()
+{
+    for (const double non_finite :
+         {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()})
+    {
+        std::size_t calls = 0;
+        const qmomkit::QmomMomentSourceRateResult result =
+            qmomkit::evaluate_qmom_moment_source_rates(0.0, {1.0, non_finite, 3.0},
+                                                       [&calls](double, const qmomkit::QmomSourceContext& context)
+                                                       {
+                                                           ++calls;
+                                                           return std::vector<double>(context.size(), 2.0);
+                                                       });
+
+        assert(!result.ok());
+        assert(result.status == qmomkit::MomentSourceRateStatus::invalid_input);
+        assert(result.rates.empty());
+        assert(calls == 0);
+    }
+}
+
 void test_cqmom_identity_context_ordering_and_layout_preservation()
 {
     const qmomkit::CqmomMomentData moments = make_cqmom_moment_data(qmomkit::PhaseSpaceHierarchy({2, 2}));
@@ -252,6 +273,7 @@ int main()
 {
     test_qmom_success_ordering_and_single_invocation();
     test_qmom_failure_paths();
+    test_qmom_non_finite_input_is_rejected_before_callback();
     test_cqmom_identity_context_ordering_and_layout_preservation();
     test_cqmom_non_identity_ordering();
     test_cqmom_failure_paths();

@@ -25,6 +25,8 @@ operating instructions.
 
 ## Table Of Contents
 
+- [Implementation and Function Reference](function_reference/README.md): source-to-intent
+  mapping and function contracts for the current implementation.
 - [Developer Glossary](glossary.md): concise navigation guide for common
   QMOMKit developer symbols, functions, and concepts.
 - [Architecture](architecture.md): package layout, public/internal boundaries,

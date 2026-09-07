@@ -174,6 +174,15 @@ qmomkit::RawMomentTensor adaptive_cqmom_moments()
     return {extents, raw_moments_from_terminals(extents, weights, abscissas)};
 }
 
+qmomkit::RawMomentTensor near_collapsed_adaptive_cqmom_moments()
+{
+    const std::vector<std::size_t> extents{4, 4};
+    constexpr double secondary_weight = 1.0e-12;
+    const std::vector<double> weights{1.0 - secondary_weight, secondary_weight};
+    const std::vector<std::vector<double>> abscissas{{0.0, 1.0}, {0.0, 0.0}};
+    return {extents, raw_moments_from_terminals(extents, weights, abscissas)};
+}
+
 qmomkit::RawMomentTensor branch_specific_ragged_cqmom_moments()
 {
     const std::vector<std::size_t> extents{4, 4};
@@ -1743,7 +1752,7 @@ void test_public_qmom_stage_composition_matches_strang_phase_space_evolution()
     const qmomkit::QmomPhaseSpaceEvolutionResult high_level = qmomkit::advance_qmom_phase_space(state, 2, 0.0, dt, velocity, source, options);
     const qmomkit::QmomPhaseSpaceEvolutionResult first = qmomkit::advance_qmom_advection(state, 0.0, 0.5 * dt, velocity, options);
     assert(first.ok());
-    const qmomkit::QmomPhaseSpaceEvolutionResult moment_source = qmomkit::advance_qmom_moment_source(first.state, 2, 0.5 * dt, dt, source, options);
+    const qmomkit::QmomPhaseSpaceEvolutionResult moment_source = qmomkit::advance_qmom_moment_source(first.state, 2, 0.0, dt, source, options);
     assert(moment_source.ok());
     const qmomkit::QmomPhaseSpaceEvolutionResult second = qmomkit::advance_qmom_advection(moment_source.state, 0.5 * dt, 0.5 * dt, velocity, options);
 
@@ -1835,6 +1844,38 @@ void test_cqmom_initial_state_stores_accepted_quadrature_adaptive_dense_and_lean
     assert(dense_quadrature->terminal_paths() == lean_quadrature->terminal_paths());
     assert(active_counts_equal(dense_state.active_branch_counts(), lean_state.active_branch_counts()));
     assert(active_counts_equal(dense_state.active_branch_counts(), qmomkit::internal::active_branch_counts_from_quadrature(*dense_quadrature)));
+}
+
+void test_cqmom_initial_state_canonicalizes_adaptively_reduced_moments()
+{
+    const qmomkit::RawMomentTensor moments = near_collapsed_adaptive_cqmom_moments();
+    constexpr double tolerance = 1.0e-30;
+
+    for (const char* const storage : {"dense", "lean"})
+    {
+        const qmomkit::CqmomState initial = adaptive_cqmom_case_from_moments_with_storage(moments, storage).initial_state();
+        const std::optional<qmomkit::CqmomQuadrature>& accepted = qmomkit::internal::CqmomConstructionAccess::state_accepted_quadrature(initial);
+
+        assert(accepted.has_value());
+        assert(accepted->total_nodes() == 1);
+        assert_cqmom_state_moments_match_quadrature(initial, *accepted, tolerance);
+
+        std::size_t source_calls = 0;
+        const qmomkit::CqmomMomentSource zero_source = [&source_calls](double, const qmomkit::CqmomSourceContext& context)
+        {
+            ++source_calls;
+            assert_near(context.moment({3, 0}), context.generalized_moment({3.0, 0.0}), 1.0e-30);
+            return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)};
+        };
+
+        const qmomkit::CqmomPhaseSpaceEvolutionResult advanced = qmomkit::advance_cqmom_moment_source(initial, 0.0, 0.1, zero_source);
+        assert(advanced.ok());
+        assert(advanced.quadrature.has_value());
+        assert(source_calls == 3);
+        assert_vector_near(advanced.state.moment_values(), initial.moment_values(), tolerance);
+        assert_cqmom_quadrature_near(*advanced.quadrature, *accepted, 1.0e-20);
+        assert_cqmom_state_moments_match_quadrature(advanced.state, *advanced.quadrature, tolerance);
+    }
 }
 
 void test_cqmom_first_advection_stage_uses_initial_accepted_quadrature()
@@ -2096,8 +2137,7 @@ void assert_public_cqmom_stage_composition_matches_phase_space_evolution(const q
     {
         const qmomkit::CqmomPhaseSpaceEvolutionResult first = qmomkit::advance_cqmom_advection(state, 0.0, 0.5 * dt, velocity, options);
         assert(first.ok());
-        const qmomkit::CqmomPhaseSpaceEvolutionResult moment_source =
-            qmomkit::advance_cqmom_moment_source(first.state, 0.5 * dt, dt, source, options);
+        const qmomkit::CqmomPhaseSpaceEvolutionResult moment_source = qmomkit::advance_cqmom_moment_source(first.state, 0.0, dt, source, options);
         assert(moment_source.ok());
         explicit_result = qmomkit::advance_cqmom_advection(moment_source.state, 0.5 * dt, 0.5 * dt, velocity, options);
     }
@@ -4235,6 +4275,45 @@ void test_first_order_schemes_differ_for_noncommuting_qmom()
     assert(std::abs(advsrc.state.moments()[1] - srcadv.state.moments()[1]) > 1.0e-4);
 }
 
+void test_strang_source_uses_physical_time_interval_for_nonautonomous_source()
+{
+    // With zero advection, dm0/dt = time has exact physical update
+    // m0(t + h) = m0(t) + t h + h^2 / 2.  SSP-RK3 is exact for this
+    // linear-in-time rate, so this checks the clock, not RK truncation error.
+    const qmomkit::QmomState state = qmom_state_from_moments({1.0, 0.0}, 1);
+    std::vector<double> callback_times;
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto source = [&callback_times](const double time, const qmomkit::QmomSourceContext& moments)
+    {
+        callback_times.push_back(time);
+        return std::vector<double>{time, 0.0};
+    };
+
+    qmomkit::QmomPhaseSpaceEvolutionOptions options;
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const qmomkit::QmomPhaseSpaceEvolutionResult source_only = qmomkit::advance_qmom_moment_source(state, 1, 2.0, 1.0, source, options);
+    assert(source_only.ok());
+    assert_near(source_only.state.moments()[0], 3.5, 1.0e-12);
+    qmomkit::QmomPhaseSpaceEvolutionOptions advsrc_options = options;
+    advsrc_options.scheme = qmomkit::PhaseSpaceEvolutionScheme::advsrc;
+    const qmomkit::QmomPhaseSpaceEvolutionResult advsrc =
+        qmomkit::advance_qmom_phase_space(state, 1, 2.0, 1.0, zero_velocity, source, advsrc_options);
+    assert(advsrc.ok());
+    assert_near(advsrc.state.moments()[0], 3.5, 1.0e-12);
+    qmomkit::QmomPhaseSpaceEvolutionOptions srcadv_options = options;
+    srcadv_options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
+    const qmomkit::QmomPhaseSpaceEvolutionResult srcadv =
+        qmomkit::advance_qmom_phase_space(state, 1, 2.0, 1.0, zero_velocity, source, srcadv_options);
+    assert(srcadv.ok());
+    assert_near(srcadv.state.moments()[0], 3.5, 1.0e-12);
+    callback_times.clear();
+    const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(state, 1, 2.0, 1.0, zero_velocity, source, options);
+    assert(result.ok());
+    assert_vector_near(callback_times, {2.0, 3.0, 2.5}, 0.0);
+    assert_near(result.state.moments()[0], 3.5, 1.0e-12);
+}
+
 void test_diagnostics_are_aggregated()
 {
     const std::vector<double> moments = raw_moments_1d({1.0}, {2.0}, 2);
@@ -4434,6 +4513,26 @@ void test_context_invalid_qmom_state_is_rejected_before_phase_space_evolution()
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::none);
     assert(result.message.find("configured node count") != std::string::npos);
     assert_vector_near(result.state.moments(), invalid_state.moments(), 0.0);
+}
+
+void test_qmom_phase_space_evolution_rejects_unrepresentable_maximum_node_count()
+{
+    const qmomkit::QmomState state = qmom_state_from_moments({1.0, 0.0}, 1);
+    const std::size_t impossible_node_count = std::numeric_limits<std::size_t>::max() / 2 + 1;
+    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
+
+    const qmomkit::QmomPhaseSpaceEvolutionResult phase_space =
+        qmomkit::advance_qmom_phase_space(state, impossible_node_count, 0.0, 0.1, zero_velocity, zero_source);
+    const qmomkit::QmomPhaseSpaceEvolutionResult moment_source =
+        qmomkit::advance_qmom_moment_source(state, impossible_node_count, 0.0, 0.1, zero_source);
+
+    assert(!phase_space.ok());
+    assert(phase_space.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
+    assert(phase_space.message.find("too large") != std::string::npos);
+    assert(!moment_source.ok());
+    assert(moment_source.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
+    assert(moment_source.message.find("too large") != std::string::npos);
 }
 
 void test_lean_cqmom_failure_propagation_from_inversion()
@@ -4641,6 +4740,7 @@ void run_all_phase_space_evolution_tests()
     test_qmom_adaptive_post_source_reduction_and_growth_policy();
     test_qmom_fixed_post_source_requires_configured_count();
     test_first_order_schemes_differ_for_noncommuting_qmom();
+    test_strang_source_uses_physical_time_interval_for_nonautonomous_source();
     test_diagnostics_are_aggregated();
     test_qmom_phase_space_evolution_node_advection_scheme_selection();
     test_cqmom_state_phase_space_evolution_node_advection_scheme_selection();
@@ -4649,6 +4749,7 @@ void run_all_phase_space_evolution_tests()
     test_failure_propagation_from_boundary_contribution();
     test_boundary_contribution_post_source_inversion_failure();
     test_context_invalid_qmom_state_is_rejected_before_phase_space_evolution();
+    test_qmom_phase_space_evolution_rejects_unrepresentable_maximum_node_count();
     test_lean_cqmom_failure_propagation_from_inversion();
     test_lean_cqmom_phase_space_evolution_preserves_invalid_state_messages();
     test_lean_cqmom_failure_propagation_from_reconstruction();
@@ -4679,6 +4780,7 @@ void run_qmom_phase_space_evolution_tests()
     test_qmom_adaptive_post_source_reduction_and_growth_policy();
     test_qmom_fixed_post_source_requires_configured_count();
     test_first_order_schemes_differ_for_noncommuting_qmom();
+    test_strang_source_uses_physical_time_interval_for_nonautonomous_source();
     test_diagnostics_are_aggregated();
     test_qmom_phase_space_evolution_node_advection_scheme_selection();
     test_failure_propagation_from_advection_operator();
@@ -4686,12 +4788,14 @@ void run_qmom_phase_space_evolution_tests()
     test_failure_propagation_from_boundary_contribution();
     test_boundary_contribution_post_source_inversion_failure();
     test_context_invalid_qmom_state_is_rejected_before_phase_space_evolution();
+    test_qmom_phase_space_evolution_rejects_unrepresentable_maximum_node_count();
 }
 
 void run_cqmom_phase_space_evolution_tests()
 {
     test_cqmom_initial_state_stores_accepted_quadrature_fixed_dense_and_lean();
     test_cqmom_initial_state_stores_accepted_quadrature_adaptive_dense_and_lean();
+    test_cqmom_initial_state_canonicalizes_adaptively_reduced_moments();
     test_cqmom_first_advection_stage_uses_initial_accepted_quadrature();
     test_public_cqmom_advection_stage_preserves_topology();
     test_public_cqmom_advection_stage_reconstructs_dense_and_lean_moments();

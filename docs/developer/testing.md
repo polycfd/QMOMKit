@@ -105,6 +105,9 @@ without a selector is a developer convenience, not an aggregate CTest contract.
 The current root suite has **844** CTest registrations: **843 logical runtime
 tests** (649 unit, 31 component-regression, and 163 verification) and 1
 supporting public-header check.
+The complete logical-test inventory is maintained in
+[Test inventory](test_inventory.md); this page remains the conceptual and
+how-to guide.
 Obtain the current count from `ctest -N` (and confirm structured registration
 with `ctest --show-only=json-v1`), rather than maintaining it by arithmetic
 alone.

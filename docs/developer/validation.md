@@ -1,14 +1,7 @@
 # Validation
 
-This page documents the QMOMKit numerical validation strategy for maintainers,
-contributors, and AI-assisted development workflows. It answers how QMOMKit
+This page documents the QMOMKit numerical validation strategy. It answers how QMOMKit
 establishes that its numerical methods are correct and trustworthy.
-
-For software test architecture, see `testing.md`. For raw-moment, tensor, node,
-weight, and phase-space conventions, see `numerical_conventions.md`. For
-algorithm-specific contracts, see `qmom_wheeler.md` and `cqmom_recursive.md`.
-User-facing Monte Carlo workflow guidance lives in `docs/user/monte_carlo.md`.
-Developer guidance for the companion package lives in `monte_carlo.md`.
 
 ## Validation Philosophy
 
@@ -182,31 +175,22 @@ Standard errors and z-scores are interpretation aids. A large z-score is a
 diagnostic signal, not automatically a QMOMKit failure.
 
 For the detailed Monte Carlo reference-data and output conventions, see
-`monte_carlo.md`.
+[monte_carlo.md](monte_carlo.md).
 
 ## Validation Conventions
 
-Validation cases use the raw moment conventions in `numerical_conventions.md`.
-For a multidimensional multi-index `alpha`:
-
-```text
-M_alpha = integral product_d xi_d^alpha_d n(xi) dxi
-```
+Validation cases use the raw moment conventions in [numerical_conventions.md](numerical_conventions.md).
+For a multidimensional multi-index $\alpha$:
+$$M_\alpha = \int \prod_d \xi_d^{\alpha_d} n(\xi) \ \mathrm{d}\xi$$
 
 For deterministic quadrature:
+$$M_\alpha = \sum_i W_i \prod_d \xi_{i,d}^{\alpha_d}$$
 
-```text
-M_alpha = sum_i W_i product_d xi_(i,d)^alpha_d
-```
-
-For a Monte Carlo ensemble with `N` samples and total number density `n0`:
-
-```text
-M_alpha = n0 / N * sum_p product_d xi_(p,d)^alpha_d
-```
+For a Monte Carlo ensemble with $N$ samples and total number density $n_0$:
+$$M_\alpha = \frac{n_0}{N} \sum_p \prod_d \xi_{p,d}^{\alpha_d}$$
 
 These are unnormalized raw moments of the number density function. They are not
-centered, standardized, divided by `M[0,...,0]`, or converted to probability
+centered, standardized, divided by $M_{[0,...,0]}$, or converted to probability
 moments unless a validation case explicitly defines a unit-number-density
 problem.
 

@@ -1,41 +1,35 @@
-# Recursive CQMOM
+# CQMOM
 
 This page documents the current QMOMKit design for multidimensional CQMOM
-construction. It is a developer reference for maintainers, contributors, and
-AI-assisted development workflows.
+construction.
 
 For raw-moment definitions, tensor storage, phase-space dimension order,
 conditioning order, and node/weight terminology, see
-`numerical_conventions.md`. For the one-dimensional Wheeler inversion used at
-each recursive branch, see `qmom_wheeler.md`.
+[numerical_conventions.md](numerical_conventions.md). For the one-dimensional Wheeler inversion used at
+each recursive branch, see [qmom_wheeler.md](qmom_wheeler.md).
 
 ## Role Of Recursive CQMOM
 
-QMOM reconstructs a one-dimensional quadrature rule from a one-dimensional raw
-moment sequence. CQMOM extends this idea to multidimensional raw moment
+QMOM [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] reconstructs a one-dimensional quadrature rule from a one-dimensional raw
+moment sequence. CQMOM [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)] extends this idea to multidimensional raw moment
 tensors by reconstructing dimensions conditionally. A multidimensional moment
 has the form:
+$$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
 
-```text
-m_alpha = sum_j W_j product_r xi_(r,j)^alpha_r
-```
 
-where `alpha` is ordered by phase-space dimension. Directly inverting a full
-multidimensional tensor is not the QMOMKit design. Instead, CQMOM processes
+where $\alpha$ is ordered by phase-space dimension. CQMOM processes
 one phase-space dimension at a time. The first processed dimension is inverted
-with Wheeler. Later dimensions are reconstructed as conditional quadrature
+using the Wheeler alogrithm [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)]. 
+Later dimensions are reconstructed as conditional quadrature
 rules under the already selected parent nodes.
 
-Recursive CQMOM is the implementation strategy that applies this conditional
-construction through all dimensions in the configured conditioning order. The
-public API remains CQMOM:
+QMOMKit applies a recursive CQMOM, an implementation strategy that applies this conditional
+construction recursively through all dimensions in the configured conditioning order. 
+The public API for CQMOM is:
 
 ```text
 compute_cqmom(...)
 ```
-
-The recursion is how QMOMKit computes CQMOM internally; users still call the
-CQMOM API.
 
 ## Conditional Moment Representation
 
@@ -58,17 +52,12 @@ node_counts[r] == requested node count for phase-space dimension r
 ```
 
 For a parent dimension with known nodes and local weights:
+$$x_i, w_i, i = 0, ..., n_{\mathrm{parent}} - 1$$
 
-```text
-x_i, w_i, i = 0, ..., n_parent - 1
-```
 
 CQMOM reconstructs conditional raw moments for the next dimension by solving a
 weighted Vandermonde system:
-
-```text
-A * C = M
-```
+$$A \cdot C = M$$
 
 where:
 
@@ -177,7 +166,7 @@ then delegates through this same view-based recursive algorithm.
 
 ## Validated And Reused Setup Paths
 
-Recursive CQMOM has two validation boundaries.
+The CQMOM implementation of QMOMKit has two validation boundaries.
 
 Explicit representation workflows perform full metadata and value validation
 before reconstruction:
@@ -280,16 +269,11 @@ weight is the global multidimensional quadrature weight.
 Conditional moment reconstruction requires solving weighted Vandermonde
 systems. At each non-terminal recursive branch, Wheeler provides parent
 abscissas and local weights:
+$$x_i, w_i, i = 0, ..., n_{\mathrm{parent}} - 1$$
 
-```text
-x_i, w_i, i = 0, ..., n_parent - 1
-```
 
 The branch-local reconstruction solves:
-
-```text
-A * C = M
-```
+$$A \cdot C = M$$
 
 with:
 
@@ -304,38 +288,25 @@ parent node. The right-hand-side column `q` is a flattened trailing
 branch-local moment index.
 
 Equivalently, if
-
-```text
-V[i, p] = x_i^p
-```
-
+$$V[i, p] = x_i^p$$
 then the conditional matrix is:
-
-```text
-A = V^T diag(w)
-```
+$$A = V^T \mathrm{diag}(w)$$
 
 The dense, pivoted-QR, and SVD pathways build `A` and solve `A*C = M`
 directly. The Björck-Pereyra pathway is split into two internal layers: a
 structure-specific kernel solves the unweighted transposed Vandermonde system
-
-```text
-V^T Y = M
-```
+$$V^T Y = M$$
 
 and the conditional Vandermonde adapter recovers the conditional moments by
 dividing each solution row by the corresponding parent weight:
-
-```text
-C[i, q] = Y[i, q] / w_i
-```
+$$C[i, q] = Y[i, q] / w_i$$
 
 The adapter owns the conditional-system validation, weight transformation,
 solver selection, QR/SVD residual acceptance, and diagnostics. The
 Björck-Pereyra kernel owns only the internal unweighted transposed Vandermonde
 solve and its node-separation checks. Numerical kernel details, tolerance
 definitions, and the complete solver-selection table are documented in
-`linear_algebra.md`.
+[linear_algebra.md](linear_algebra.md).
 
 QMOMKit calls the numerical policy that solves this conditional system the
 Vandermonde solver. The user-facing solver choices are:
@@ -351,15 +322,15 @@ The distinction between requested solver and actual algorithm is deliberate.
 Diagnostics record the requested Vandermonde solver, the selected solver after
 automatic resolution, the algorithm actually used (`dense`, `pivoted_qr`,
 `svd`, or `bjorck_pereyra`). For example, the
-default request is `automatic`; recursive CQMOM resolves that to
+default request is `automatic`; CQMOM resolves that to
 `bjorck_pereyra` and reports the Björck-Pereyra algorithm.
 
-The default behavior is automatic Björck-Pereyra. Explicit pivoted QR and SVD
+Explicit pivoted QR and SVD
 honor the adapter residual-validation option when requested. Residual rejection
 is a failed conditional Vandermonde solve. Recursive
 diagnostic level controls diagnostic retention and expensive diagnostic
 computations; it does not itself request residual rejection. Solver thresholds
-and performance measurements belong in `linear_algebra.md`, source comments,
+and performance measurements belong in [linear_algebra.md](linear_algebra.md), source comments,
 and benchmark documentation according to their level of detail.
 
 ## Terminal Quadrature Representation
@@ -483,11 +454,11 @@ interpreted as interchangeable.
 When interpreting the example, read the reported failure location together
 with requested and active node counts, solver details, residuals, and condition
 estimates. For the related linear-algebra workflow and limitations,
-see [Internal Linear Algebra](linear_algebra.md#borderline-conditioning-example).
+see related [internal linear algebra](linear_algebra.md#borderline-conditioning-example).
 
 ## Numerical Assumptions And Failure Handling
 
-Recursive CQMOM assumes:
+The CQMOM implementation of QMOMKit assumes:
 
 - multidimensional moments are raw moments of the number density function;
 - `RawMomentTensor` extents and values are phase-space ordered;
@@ -691,10 +662,8 @@ Implementation details include:
 
 Successful CQMOM reconstruction is validated primarily by reconstructing raw
 moments from the recovered terminal quadrature:
+$$m_\alpha \simeq \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
 
-```text
-m_alpha ~= sum_j W_j product_r xi_(r,j)^alpha_r
-```
 
 Deterministic verification also checks terminal coordinates, global weights,
 local branch weights, conditioning paths, branch counts, diagnostics, and

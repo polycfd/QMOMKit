@@ -10,54 +10,44 @@ application-specific coordinate meaning.
 
 Algorithm-specific details belong in:
 
-- `qmom_wheeler.md` for Wheeler inversion and adaptive one-dimensional QMOM.
-- `cqmom_recursive.md` for recursive CQMOM traversal and branch-local data.
-- `phase_space_evolution_design.md` for time integration, node advection, moment sources,
+- [qmom_wheeler.md](qmom_wheeler.md) for Wheeler inversion and adaptive one-dimensional QMOM.
+- [cqmom_recursive.md](cqmom_recursive.md) for recursive CQMOM traversal and branch-local data.
+- [phase_space_evolution_design.md](phase_space_evolution_design.md) for time integration, node advection, moment sources,
   and phase-space evolution composition.
-- `configuration_design.md` for parser behavior and configuration-to-request
+- [configuration_design.md](configuration_design.md) for parser behavior and configuration-to-request
   mapping.
 
 ## Moment Conventions
 
 QMOMKit uses raw moments of the number density function (NDF). A
 one-dimensional raw moment is
-
-```text
-m_k = integral xi^k n(xi) dxi
-```
-
-where `n(xi)` is the number density function and `m_0` is the total number
+$$m_k = \int \xi^k n(\xi) \ \mathrm{d}\xi$$
+where $n(\xi)$ is the number density function and $m_0$ is the total number
 density.
 
 For a discrete quadrature representation, the same moment is
-
-```text
-m_k = sum_i w_i x_i^k
-```
-
-where `x_i` is an abscissa, `w_i` is its quadrature weight, and `k` is the
+$$m_k = \sum_i w_i x_i^k$$
+where $x_i$ is an abscissa, $w_i$ is its quadrature weight, and $k$ is the
 moment order. The weights are quadrature contributions to the number density
 distribution.
 
-Some initialization helpers start from a normalized distribution `p(xi)` and a
-specified total number density `n0`. In that case:
+Some initialization helpers start from a normalized distribution $p(\xi)$ and a
+specified total number density $n_0$. In that case:
 
-```text
-n(xi) = n0 p(xi)
-m_k = n0 E[xi^k]
-m_0 = n0
-```
+$$n(\xi) = n_0 p(\xi)$$
+$$m_k = n_0 E[\xi^k]$$
+$$m_0 = n_0$$
 
 This relation is an initialization convenience. The QMOM moments themselves
 are moments of the NDF, not probability-density moments with an implicit
 density factor.
 
-The value `m_0` is the total number density. It is not normalized away. A
-moment sequence with `m_0 = 1` is a unit-number-density sequence only because
+The value $m_0$ is the total number density. It is not normalized away. A
+moment sequence with $m_0 = 1$ is a unit-number-density sequence only because
 the caller or generator chose that total number density.
 
 QMOMKit algorithms assume unnormalized raw moments unless a specific API says
-otherwise. Do not divide moments by `m_0` before passing them to QMOMKit unless
+otherwise. Do not divide moments by $m_0$ before passing them to QMOMKit unless
 the intended mathematical problem is explicitly a unit-number-density problem.
 
 `qmomkit::MomentSet` stores one-dimensional moments in ascending order:
@@ -71,12 +61,8 @@ moments with real exponents may be evaluated from an existing quadrature rule
 as derived quantities, but they are not `MomentSet`, `RawMomentTensor`, or
 CQMOM inversion inputs.
 
-For an `N`-node one-dimensional QMOM inversion, callers provide at least
-`2 * N` moments:
-
-```text
-m_0, m_1, ..., m_(2N-1)
-```
+For an $N$-node one-dimensional QMOM inversion, callers provide at least
+$2N$ moments: $m_0, m_1, ..., m_{2N-1}$.
 
 All numerical storage currently uses `double` values in runtime-sized
 containers. Algorithms report invalid input or numerical failure through their
@@ -86,22 +72,14 @@ criterion.
 ## Tensor Moment Conventions
 
 A multidimensional raw moment uses a phase-space-order multi-index:
-
-```text
-alpha = [alpha_0, alpha_1, ..., alpha_(d-1)]
-```
+$$\alpha = [\alpha_0, \alpha_1, ..., \alpha_{d-1}]$$
 
 The corresponding raw tensor moment is
-
-```text
-m_alpha = sum_j W_j product_r xi_(r,j)^alpha_r
-```
-
-where `r` is a phase-space dimension, `W_j` is the global quadrature weight of
-terminal node `j`, and `xi_(r,j)` is that node's coordinate in dimension `r`.
+$$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
+where $r$ is a phase-space dimension, $W_j$ is the global quadrature weight of
+terminal node $j$, and $\xi_{r,j}$ is that node's coordinate in dimension $r$.
 
 `qmomkit::RawMomentTensor` stores multidimensional raw moments as:
-
 ```text
 extents[r] = number of stored moment orders in phase-space dimension r
 values[flatten_multi_index(alpha, extents)] = m_alpha
@@ -233,18 +211,10 @@ QMOMKit uses the terms node and abscissa as follows:
   density distribution.
 
 In one dimension, a quadrature rule represents the supplied moments by
-
-```text
-m_k = sum_i w_i x_i^k
-```
-
+$$m_k = \sum_i w_i x_i^k$$
 In multiple dimensions, terminal quadrature nodes represent moments by
-
-```text
-m_alpha = sum_j W_j product_r xi_(r,j)^alpha_r
-```
-
-where `W_j` is the global terminal-node weight.
+$$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
+where $W_j$ is the global terminal-node weight.
 
 One-dimensional Wheeler output is sorted by ascending abscissa, with weights
 permuted consistently:
@@ -271,7 +241,7 @@ paths rather than assuming rectangular storage.
 
 Local conditional weights that arise inside CQMOM reconstruction are not the
 same as final global weights. The distinction between local conditional
-weights and accumulated terminal weights belongs in `cqmom_recursive.md`.
+weights and accumulated terminal weights belongs in [cqmom_recursive.md](cqmom_recursive.md).
 
 ## Distribution And Initialization Conventions
 
@@ -281,38 +251,28 @@ moments. QMOM and CQMOM reconstruction do not retain a probability-density
 object.
 
 One-dimensional analytical distribution helpers interpret the supplied
-analytical distribution as a normalized shape `p(xi)` and the supplied `n0` as
+analytical distribution as a normalized shape $p(xi)$ and the supplied $n_0$ as
 the total number density:
-
-```text
-n(xi) = n0 p(xi)
-m_k = n0 E[xi^k]
-m_0 = n0
-```
-
-The value `n0` is an absolute total number density. It is not a fraction or a
+$$n(\xi) = n_0 p(\xi)$$
+$$m_k = n_0 E[\xi^k]$$
+$$m_0 = n_0$$
+The value $n_0$ is an absolute total number density. It is not a fraction or a
 probability unless the caller intentionally chooses a unit-number-density
 setup.
 
 One-dimensional mixtures use absolute component number densities:
-
-```text
-m_k = sum_s n_s E_s[xi^k]
-m_0 = sum_s n_s
-```
+$$m_k = \sum_s n_s E_s[\xi^k]$$
+$$m_0 = \sum_s n_s$$
 
 Component number densities are not normalized and are not required to sum to
 one. Zero-density components contribute zero.
 
 Independent multidimensional product initialization uses normalized
 one-dimensional marginals and one global total number density:
-
-```text
-n(xi_0, ..., xi_(d-1)) = n0 product_r p_r(xi_r)
-integral p_r(xi_r) dxi_r = 1
-m_alpha = n0 product_r E_r[xi_r^alpha_r]
-m_[0, ..., 0] = n0
-```
+$$n(\xi_0, ..., \xi_{d-1}) = n_0 \prod_r p_r(\xi_r)$$
+$$\int p_r(\xi_r) \ \mathrm{d}\xi_r = 1$$
+$$m_\alpha = n_0 \prod_r E_r[\xi_r^{\alpha_r}]$$
+$$m_{[0, ..., 0]} = n_0$$
 
 Marginals are ordered by phase-space dimension. The global number density is
 applied once. Per-dimension number densities, conditioning-order-dependent
@@ -327,7 +287,7 @@ Configuration files preserve the same conventions. Explicit moments are
 already raw moments. Distribution-based initialization is converted to raw
 moments before QMOM case objects or CQMOM case objects are constructed.
 Parser-specific
-precedence and field mapping belong in `configuration_design.md`.
+precedence and field mapping belong in [configuration_design.md](configuration_design.md).
 
 ## Rules For Maintainers
 

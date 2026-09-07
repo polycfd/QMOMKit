@@ -1,8 +1,6 @@
 # Configuration Design
 
-This page documents the current QMOMKit design for configuration handling. It
-is a developer reference for maintainers, contributors, and AI-assisted
-development workflows.
+This page documents the current QMOMKit design for configuration handling.
 
 Configuration files describe reproducible numerical setups. They do not replace
 the C++ API, own a simulation loop, define application physics, or execute
@@ -11,8 +9,8 @@ QMOMKit algorithms by themselves.
 QMOMKit case configuration files use the user-facing `.qmom` extension.
 
 For raw-moment, tensor, phase-space, conditioning-order, distribution, node, and
-weight conventions, see `numerical_conventions.md`. For phase-space evolution behavior, see
-`phase_space_evolution_design.md`.
+weight conventions, see [numerical_conventions.md](numerical_conventions.md). For phase-space evolution behavior, see
+[phase_space_evolution_design.md](phase_space_evolution_design.md).
 
 ## Configuration Philosophy
 
@@ -299,7 +297,7 @@ Mixture component densities are absolute number-density contributions. An
 independent-product initialization has one global number density; per-dimension
 number densities are not part of the CQMOM configuration model.
 
-Generated moments follow the conventions in `numerical_conventions.md`: `m0` is
+Generated moments follow the conventions in [numerical_conventions.md](numerical_conventions.md): $m_0$ is
 the total number density, moments are not normalized away, and multidimensional
 tensor entries follow phase-space dimension order.
 
@@ -478,7 +476,7 @@ Stable rules for adding configuration capabilities are:
 - validate all user input before constructing runtime objects;
 - reject unknown active keys and sections instead of ignoring misspellings;
 - keep phase-space dimensions, tensor ordering, conditioning order, and moment
-  normalization consistent with `numerical_conventions.md`;
+  normalization consistent with [numerical_conventions.md](numerical_conventions.md);
 - do not infer physics from names, units, distribution families, or output
   labels;
 - avoid coupling configuration to a single application, CFD framework, example,

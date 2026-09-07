@@ -4,11 +4,10 @@ This document defines the architecture, mathematical conventions, numerical
 behavior, and current QMOMKit roles of the internal dense linear-algebra kernels
 and the conditional Vandermonde adapter.
 
-The APIs described here live under `src/internal/` and are implementation
+The functionalities described here live under `src/internal/` and are implementation
 details, not public APIs. This page is for QMOMKit developers who need to
 maintain the numerical kernels or their CQMOM integration. User-facing
-configuration syntax belongs in [configuration.md](../user/configuration.md);
-recursive CQMOM workflow and branch traversal details belong in
+configuration syntax belongs in [configuration.md](../user/configuration.md); CQMOM workflow and branch traversal details belong in
 [cqmom_recursive.md](cqmom_recursive.md).
 
 ## Scope And Design Principles
@@ -60,14 +59,13 @@ The adapter constructs the weighted matrix, resolves the selected
 Björck-Pereyra (BP) weight recovery, validates QR and SVD residuals when
 requested, records performance counters, and returns solver diagnostics.
 
-### Recursive CQMOM Integration
+### CQMOM Integration
 
-Recursive CQMOM constructs branch-local conditional systems, propagates the
+CQMOM constructs branch-local conditional systems, propagates the
 configured `VandermondeSolver` policy to the adapter, maps failed adapter solves
 to CQMOM status values, and records branch diagnostics. It does not implement
 the dense, BP, QR, or SVD algorithms and does not perform numerical-rank-based
-recovery. See [cqmom_recursive.md](cqmom_recursive.md) for the recursive
-construction.
+recovery. See [cqmom_recursive.md](cqmom_recursive.md) for the CQMOM algorithm.
 
 ## Common Matrix And Solve Conventions
 
@@ -87,15 +85,90 @@ Vandermonde systems used in production CQMOM reconstruction are square.
 
 ## Solver Comparison
 
+Four solvers are available: a specialized Björck-Pereyra solver [[Björck & Pereyra, 1970](https://doi.org/10.2307/2004623)] as well as generic solvers based on Gauss eliminiation, QR-factorization, and singular-value decomposition [[Press, 1992](https://books.google.ca/books/about/Numerical_Recipes_in_FORTRAN_77_Volume_1.html?id=gn_4mpdN9WkC&redir_esc=y)].
+
 | Solver | Mathematical system | Type | Supported shapes | Multiple RHS | Rank diagnostics | Current Vandermonde policy |
 |---|---|---|---|---|---|---|
-| Dense Gaussian elimination | \(AX=B\) | Generic dense | Square | Yes | No; reports singular-pivot failure | `dense` |
-| Björck-Pereyra | \(V^T Y=B\) | Structured, unweighted Vandermonde | Square Vandermonde | Yes | No; reports node-separation failure | `bjorck_pereyra`; first backend for `automatic` |
-| Pivoted Householder QR | \(AP=QR\), solve \(AX\approx B\) | Generic dense | Square and tall, \(m\ge n\) | Yes | Numerical rank | `pivoted_qr` |
-| One-sided Jacobi SVD | \(A=U\Sigma V^T\), solve \(AX\approx B\) | Generic dense | Square and tall, \(m\ge n\) | Yes | Singular values and numerical rank | `svd` |
+| Björck-Pereyra | $V^T Y=B$ | Structured, unweighted Vandermonde | Square Vandermonde | Yes | No; reports node-separation failure | `bjorck_pereyra`; backend for `automatic` |
+| Dense Gaussian elimination | $AX=B$ | Generic dense | Square | Yes | No; reports singular-pivot failure | `dense` |
+| Pivoted Householder QR | $AP=QR$, solve $AX\approx B$ | Generic dense | Square and tall, $m\ge n$ | Yes | Numerical rank | `pivoted_qr` |
+| One-sided Jacobi SVD | $A=U\Sigma V^T$, solve $AX\approx B$ | Generic dense | Square and tall, $m\ge n$ | Yes | Singular values and numerical rank | `svd` |
 
-The table summarizes capabilities and ownership. It is not a benchmark or an
-accuracy ranking.
+
+## Björck-Pereyra Solver
+
+### Purpose
+
+`solve_bjorck_pereyra(...)` exploits Vandermonde structure for the conditional
+Vandermonde pathway.
+
+### Mathematical Problem
+
+For nodes `x_i`, define
+
+$$
+V_{i,p}=x_i^p.
+$$
+
+The BP kernel solves the unweighted transposed Vandermonde system
+
+$$
+V^T Y = B.
+$$
+
+Rows of `B` correspond to powers, rows of `Y` correspond to nodes, and columns
+of `B` are independent right-hand sides. The kernel is unweighted; quadrature
+weights belong to the conditional Vandermonde adapter.
+
+### Algorithm
+
+The implementation applies structured $\Theta(n^2 r)$ Vandermonde transformations
+equivalent to divided-difference and Newton-basis operations. It avoids forming
+or factoring a generic dense matrix and applies the same structured operations
+to every right-hand-side column, where $n$ is the Vandermonde size and $r$
+is the right-hand-side width. For fixed $r$, the kernel work is
+$\Theta(n^2)$. Optional internal instrumentation counts the executed
+transform updates exactly as $n(n-1)r$; this is a deterministic work-structure
+check, not a wall-clock performance guarantee.
+
+### Supported Shapes And Right-Hand Sides
+
+The BP kernel supports square Vandermonde systems with one node per unknown and
+one RHS row per power. It supports multiple right-hand-side columns. It is not a
+generic rectangular solver.
+
+### Numerical Characteristics
+
+BP exploits exact Vandermonde structure and avoids the overhead of a generic
+dense factorization. Its behavior depends on the structured problem, the node
+values, and node ordering. It is sensitive to node separation and does not
+provide a general numerical-rank estimate.
+
+### Failure Semantics
+
+The kernel rejects empty systems, inconsistent dimensions, invalid tolerances,
+non-finite inputs, non-finite outputs, and insufficiently separated nodes. A
+node-separation denominator is treated as singular when
+
+$$
+|x_i-x_j|
+\le
+\tau_{\mathrm{sing}}\max(1,|x_i|,|x_j|).
+$$
+
+The kernel reports this as a transposed Vandermonde singular failure. It does
+not perform weighted residual validation.
+
+### Current QMOMKit Role
+
+BP is the **default** solver, used by the explicit `bjorck_pereyra` policy and by `automatic`.
+
+### Limitations And Non-Goals
+
+The BP kernel is Vandermonde-specific, unweighted, and square-only. It does not
+construct conditional systems, divide by quadrature weights, or provide rank
+diagnostics.
+
 
 ## Dense Gaussian-Elimination Solver
 
@@ -108,11 +181,11 @@ baseline for dense square systems and the explicit `dense` Vandermonde policy.
 
 The dense solver computes `X` in
 
-\[
+$$
 A X = B,
 \qquad
 A \in \mathbb{R}^{n \times n}.
-\]
+$$
 
 `B` may contain one or more right-hand-side columns.
 
@@ -139,11 +212,11 @@ the conditional Vandermonde adapter.
 At elimination step `k`, the pivot is the largest absolute entry in column `k`
 over rows `k..n-1`. The solve fails when the selected pivot satisfies
 
-\[
+$$
 \max_{i \ge k} |a_{ik}|
 \le
 \tau_{\mathrm{sing}}\max(1,\|A\|_\infty),
-\]
+$$
 
 where the infinity norm is computed from the original matrix passed into the
 solve. Failure returns the caller-provided singular message and no accepted
@@ -151,7 +224,7 @@ solution.
 
 ### Current QMOMKit Role
 
-The dense solver is used by the explicit `dense` Vandermonde policy. The public
+The dense solver is used by the explicit `dense` policy. The public
 one-level conditional-moment utility also solves its weighted system directly
 with the dense solver.
 
@@ -160,80 +233,6 @@ with the dense solver.
 The dense solver is square-only. It does not report numerical rank, compute
 least-squares solutions, regularize singular systems, or expose a public matrix
 API.
-
-## Björck-Pereyra Solver
-
-### Purpose
-
-`solve_bjorck_pereyra(...)` exploits Vandermonde structure for the conditional
-Vandermonde pathway.
-
-### Mathematical Problem
-
-For nodes `x_i`, define
-
-\[
-V_{i,p}=x_i^p.
-\]
-
-The BP kernel solves the unweighted transposed Vandermonde system
-
-\[
-V^T Y = B.
-\]
-
-Rows of `B` correspond to powers, rows of `Y` correspond to nodes, and columns
-of `B` are independent right-hand sides. The kernel is unweighted; quadrature
-weights belong to the conditional Vandermonde adapter.
-
-### Algorithm
-
-The implementation applies structured \(\Theta(n^2 r)\) Vandermonde transformations
-equivalent to divided-difference and Newton-basis operations. It avoids forming
-or factoring a generic dense matrix and applies the same structured operations
-to every right-hand-side column, where \(n\) is the Vandermonde size and \(r\)
-is the right-hand-side width. For fixed \(r\), the kernel work is
-\(\Theta(n^2)\). Optional internal instrumentation counts the executed
-transform updates exactly as \(n(n-1)r\); this is a deterministic work-structure
-check, not a wall-clock performance guarantee.
-
-### Supported Shapes And Right-Hand Sides
-
-The BP kernel supports square Vandermonde systems with one node per unknown and
-one RHS row per power. It supports multiple right-hand-side columns. It is not a
-generic rectangular solver.
-
-### Numerical Characteristics
-
-BP exploits exact Vandermonde structure and avoids the overhead of a generic
-dense factorization. Its behavior depends on the structured problem, the node
-values, and node ordering. It is sensitive to node separation and does not
-provide a general numerical-rank estimate.
-
-### Failure Semantics
-
-The kernel rejects empty systems, inconsistent dimensions, invalid tolerances,
-non-finite inputs, non-finite outputs, and insufficiently separated nodes. A
-node-separation denominator is treated as singular when
-
-\[
-|x_i-x_j|
-\le
-\tau_{\mathrm{sing}}\max(1,|x_i|,|x_j|).
-\]
-
-The kernel reports this as a transposed Vandermonde singular failure. It does
-not perform weighted residual validation.
-
-### Current QMOMKit Role
-
-BP is used by the explicit `bjorck_pereyra` policy and by `automatic`.
-
-### Limitations And Non-Goals
-
-The BP kernel is Vandermonde-specific, unweighted, and square-only. It does not
-construct conditional systems, divide by quadrature weights, or provide rank
-diagnostics.
 
 ## Pivoted Householder QR Solver
 
@@ -247,9 +246,9 @@ QR is an explicit direct backend for the complete weighted system.
 
 The factorization is
 
-\[
+$$
 A P = Q R,
-\]
+$$
 
 for `A` with `m >= n`. The stored permutation satisfies
 
@@ -260,7 +259,7 @@ column_permutation[pivoted_column] = original_column.
 ### Algorithm
 
 The implementation uses Householder reflectors with column pivoting. Solves
-apply \(Q^T\) implicitly to the right-hand side and then use triangular
+apply $Q^T$ implicitly to the right-hand side and then use triangular
 back-substitution in the pivoted coordinates before unpermuting the solution.
 The factorization stores reflector data compactly in the factor matrix and a
 coefficient vector.
@@ -281,9 +280,9 @@ rank estimate and does not exploit Vandermonde structure.
 
 Numerical rank is determined from the diagonal of `R` with the threshold
 
-\[
+$$
 \tau_{\mathrm{rank}} = 10^{-14}|R_{00}|.
-\]
+$$
 
 The current relative rank tolerance is the internal default
 `relative_rank_tolerance = 1.0e-14`. Rank-deficient factorizations remain
@@ -292,9 +291,8 @@ configurable through `.qmom` files.
 
 ### Current QMOMKit Role
 
-QR is available to recursive CQMOM only through the explicit `pivoted_qr`
-Vandermonde policy. It solves the complete weighted conditional matrix
-directly. `automatic` does not select QR.
+QR is available to CQMOM through the explicit `pivoted_qr` policy. It solves the complete weighted conditional matrix
+directly.
 
 ### Limitations And Non-Goals
 
@@ -314,9 +312,9 @@ system.
 
 The factorization is
 
-\[
+$$
 A = U\Sigma V^T,
-\]
+$$
 
 for `A` with `m >= n`. The implementation stores thin left singular vectors
 `U` with dimensions `m x n`, a length-`n` singular-value vector in descending
@@ -332,7 +330,7 @@ the orthogonalized column norms and singular triplets are sorted consistently.
 
 ### Supported Shapes And Right-Hand Sides
 
-SVD supports square and tall matrices with `m >= n`. Square full-column-rank
+SVD supports square and tall matrices with $m \geq n$. Square full-column-rank
 systems are ordinary linear solves. Tall full-column-rank systems produce
 least-squares solutions. Factorizations can be reused for multiple RHS solves,
 and each solve may contain multiple RHS columns.
@@ -341,35 +339,34 @@ and each solve may contain multiple RHS columns.
 
 SVD exposes the singular-value spectrum, reports numerical rank, and has an
 explicit nonconvergence status for the Jacobi iteration. It performs more
-computational work than the simpler direct kernels, but this document does not
-make performance or accuracy rankings.
+computational work than the simpler direct kernels.
 
 ### Failure Semantics
 
 Numerical rank is determined from sorted singular values. A singular value is
 counted as active when
 
-\[
+$$
 \sigma_j > 10^{-14}\sigma_0.
-\]
+$$
 
 The current relative rank tolerance is the internal default
 `relative_rank_tolerance = 1.0e-14`. The default Jacobi convergence tolerance is
 resolved as
 
-\[
+$$
 \tau_{\mathrm{Jacobi}}
 =
 \max(10^{-14},10\epsilon\max(m,n)),
-\]
+$$
 
 and the default sweep limit is
 
-\[
+$$
 N_{\mathrm{sweeps}}
 =
 \max(32,8n).
-\]
+$$
 
 Rank-deficient and nonconverged factorizations remain inspectable, but
 `solve_svd(...)` refuses them. SVD rank and Jacobi controls are internal
@@ -377,33 +374,31 @@ defaults and are not configurable through `.qmom` files.
 
 ### Current QMOMKit Role
 
-SVD is available to recursive CQMOM only through the explicit `svd`
-Vandermonde policy. It solves the complete weighted conditional matrix
-directly. `automatic` does not select SVD.
+SVD is available to CQMOM through the explicit `svd` policy. It solves the complete weighted conditional matrix directly. 
 
 ### Limitations And Non-Goals
 
-SVD requires `m >= n`. Rank-deficient and nonconverged solves are refused. The
+SVD requires $m \geq n$. Rank-deficient and nonconverged solves are refused. The
 implementation does not produce pseudoinverse, truncated, regularized, or
 minimum-norm recovery solutions.
 
-## Conditional Vandermonde Adapter
+## Vandermonde Adapter
 
 ### Weighted Conditional System
 
 Conditional moment reconstruction solves
 
-\[
+$$
 A C = M,
-\]
+$$
 
 with
 
-\[
+$$
 A_{p,i}=w_i x_i^p,
 \qquad
 A=V^T\operatorname{diag}(w).
-\]
+$$
 
 Rows of `A` and `M` are parent moment orders, columns of `A` are parent nodes,
 rows of `C` are parent nodes, and columns of `C` and `M` are target moment
@@ -423,21 +418,21 @@ acceptance, diagnostics, and performance counters.
 
 For BP, the adapter solves
 
-\[
+$$
 V^T Y = M
-\]
+$$
 
 with the unweighted BP kernel. It then recovers conditional moments with
 
-\[
+$$
 C_{i,q}=Y_{i,q}/w_i.
-\]
+$$
 
 Before this division, the adapter rejects weights satisfying
 
-\[
+$$
 |w_i| \le \tau_{\mathrm{sing}}\max(1,\max_j |w_j|).
-\]
+$$
 
 ### Diagnostics And Performance Counters
 
@@ -463,7 +458,7 @@ Vandermonde solves. User-facing syntax and examples belong in
 | `bjorck_pereyra` | Björck-Pereyra solve |
 | `automatic` | Björck-Pereyra solve |
 
-`automatic` resolves to `bjorck_pereyra`. QR and SVD are explicit policies.
+`automatic` resolves to `bjorck_pereyra`. 
 
 ## Failure, Rank, Residual, And Tolerance Semantics
 
@@ -491,7 +486,7 @@ The adapter computes the residual magnitude with `residual_norm(...)`, which is
 a square-root sum of squared residual entries, and scales it with infinity
 norms. The acceptance criterion is
 
-\[
+$$
 \|AC-M\|_F
 \le
 \tau_{\mathrm{res}}
@@ -500,18 +495,18 @@ norms. The acceptance criterion is
 \|A\|_\infty\|C\|_\infty,
 \|M\|_\infty
 \right).
-\]
+$$
 
 ### Tolerance Inventory
 
 | Tolerance | Default | Meaning | Configurable through `.qmom` |
 |---|---:|---|---|
-| Vandermonde singular tolerance | \(10^{-14}\) | Dense pivots, BP node separation, and BP weight protection through their respective scaled criteria | No documented `.qmom` key; available through direct C++ conditional options |
-| Residual tolerance | \(10^{-10}\) | Conditional-system residual acceptance in the adapter | No |
-| QR relative-rank tolerance | \(10^{-14}\) | Threshold relative to \(|R_{00}|\) | No |
-| SVD relative-rank tolerance | \(10^{-14}\) | Threshold relative to \(\sigma_0\) | No |
-| SVD Jacobi tolerance | \(\max(10^{-14},10\epsilon\max(m,n))\) | Column-orthogonality convergence | No |
-| SVD maximum sweeps | \(\max(32,8n)\) | Jacobi iteration ceiling | No |
+| Vandermonde singular tolerance | $10^{-14}$ | Dense pivots, BP node separation, and BP weight protection through their respective scaled criteria | No documented `.qmom` key; available through direct C++ conditional options |
+| Residual tolerance | $10^{-10}$ | Conditional-system residual acceptance in the adapter | No |
+| QR relative-rank tolerance | $10^{-14}$ | Threshold relative to $|R_{00}|$ | No |
+| SVD relative-rank tolerance | $10^{-14}$ | Threshold relative to $\sigma_0$ | No |
+| SVD Jacobi tolerance | $\max(10^{-14},10\epsilon\max(m,n))$ | Column-orthogonality convergence | No |
+| SVD maximum sweeps | $\max(32,8n)$ | Jacobi iteration ceiling | No |
 
 Similarly named tolerances should not be conflated. The Vandermonde singular
 tolerance is not the QR or SVD rank tolerance, and SVD Jacobi convergence
@@ -589,17 +584,3 @@ must not be copied blindly into other formulations.
 
 See the [example README](../../examples/cqmom_2d_borderline_conditioning/README.md)
 for the prescribed population, interpretation, and standalone build command.
-
-## Current Limitations And Deferred Features
-
-The following behaviors are not currently implemented:
-
-- automatic selection of QR or SVD;
-- solver chains;
-- pseudoinverse, truncated-SVD, regularized, or minimum-norm recovery solves;
-- underdetermined systems;
-- `.qmom` configuration of QR or SVD rank tolerances;
-- public singular-value or numerical-rank diagnostics for CQMOM users;
-- adaptive CQMOM node-count changes based on QR or SVD numerical rank.
-
-These are current non-features, not roadmap commitments.

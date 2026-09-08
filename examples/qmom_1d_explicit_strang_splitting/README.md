@@ -9,8 +9,8 @@ C(dt/2) -> D(dt) -> C(dt/2)
 
 and calls the public stage API directly.
 
-The example-local velocity and source callbacks are defined in `physics.cpp`;
-the application-owned stage sequence remains visible in `main.cpp`.
+The example-local velocity and source callbacks are defined in [physics.cpp](./physics.cpp);
+the application-owned stage sequence remains visible in [main.cpp](./main.cpp).
 
 ## API Levels
 
@@ -40,7 +40,7 @@ $$
 \frac{\mathrm{d}u}{\mathrm{d}t} = -a u.
 $$
 
-with `a = 500`. For zero mean, the variance decays as
+with $a = 500$. For zero mean, the variance decays as
 
 $$
 \operatorname{Var}[u](t) = \operatorname{Var}[u](0)\exp(-2at).
@@ -57,7 +57,7 @@ $$
 \end{aligned}
 $$
 
-`S(t)` is positive only over the finite interval `[0.16, 0.25)`. The source
+$S(t)$ is positive only over the finite interval $[0.16, 0.25)$. The source
 preserves total mass and zero mean while allowing an adaptively reduced
 one-node state to regrow to two nodes.
 

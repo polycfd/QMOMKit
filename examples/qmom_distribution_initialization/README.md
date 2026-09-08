@@ -16,12 +16,6 @@ reconstruction. QMOMKit evaluates the analytical distribution moments, then
 abscissas. The printed weights and abscissas are the finite QMOM
 representation of the log-normal distribution, not samples from it.
 
-Requires: QMOMKit.
-
-Required: distribution parameters in `main.cpp` and an installed QMOMKit
-package. Optional: change the distribution family, number density, or node
-count.
-
 Build and run from this example directory:
 
 ```bash

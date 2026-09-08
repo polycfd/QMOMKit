@@ -19,8 +19,8 @@ advance_qmom_phase_space(...)
 QmomState
 ```
 
-The driver keeps top-level orchestration in `main.cpp`, while the example-local
-physics callbacks live in `physics.cpp`. The user provides:
+The driver keeps top-level orchestration in [main.cpp](./main.cpp), while the example-local
+physics callbacks live in [physics.cpp](./physics.cpp). The user provides:
 
 - initial raw moments;
 - a QMOM node count;
@@ -30,14 +30,13 @@ physics callbacks live in `physics.cpp`. The user provides:
 
 Those callbacks are required by this example because its model includes both
 advection motion and fragmentation. Other QMOMKit phase-space evolution workflows can use
-only the callbacks needed by their physics; see `docs/user/phase_space_evolution.md` for
+only the callbacks needed by their physics; see [phase_space_evolution.md](docs/user/phase_space_evolution.md) for
 the lower-level node-advection and moment-source routines.
 
 QMOMKit handles the quadrature representation, moment reconstruction, time
 integration, and phase-space evolution splitting inside `advance_qmom_phase_space(...)`.
 The accepted `QmomState` carries the canonical moments and quadrature from one
-step to the next. Users copy, move, and advance accepted states; they do not
-construct them directly from independent moments and quadrature.
+step to the next. 
 
 The phase-space evolution is
 
@@ -53,12 +52,6 @@ $$
 
 with the same raw-moment source formulation used by the full 1D advection
 breakage example.
-
-Requires: QMOMKit.
-
-Required for this example: initial raw moments, node count, velocity callback,
-source callback, and an installed QMOMKit package. Optional: change time
-controls or phase-space evolution options in `main.cpp`.
 
 Build and run from this example directory:
 
@@ -85,6 +78,6 @@ text tables written through QMOMKit-native writers.
 ## What to expect
 
 The binary-fragmentation source increases total number density, while the
-advection law moves each abscissa toward `d = 1`. The final moments and
+advection law moves each abscissa toward $d = 1$. The final moments and
 quadrature therefore reflect both the increasing population count and the
 relaxing particle-diameter coordinates.

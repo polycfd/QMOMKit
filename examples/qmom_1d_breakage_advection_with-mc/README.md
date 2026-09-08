@@ -5,9 +5,6 @@
 This tutorial-style example is the Monte Carlo sampled-initialization companion
 to `examples/qmom_1d_breakage_advection/`.
 
-This is an optional reference workflow. It is not required for ordinary QMOM
-phase-space evolution onboarding.
-
 Both examples use the same configured bimodal distribution,
 $0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)$. This directory contains two workflows
 that start from the same finite sampled ensemble. The Monte Carlo companion
@@ -52,8 +49,8 @@ distribution
     -> statistical moments
 ```
 
-The distribution remains defined in `configuration.qmom`. This example draws
-10,000 samples with a fixed seed. With `d` as the particle-diameter coordinate,
+The distribution remains defined in [configuration.qmom](./configuration.qmom). This example draws
+10,000 samples with a fixed seed. With $d$ as the particle-diameter coordinate,
 the QMOM workflow estimates raw, unnormalized moments from the ensemble as
 
 $$
@@ -91,14 +88,14 @@ Phase-space advection half-step
 ```
 
 The phase-space advection physics and moment-source binary fragmentation source are in
-`physics.cpp`. The time controls are local constants in `main.cpp`:
+[physics.cpp](./physics.cpp). The time controls are local constants in [main.cpp](./main.cpp):
 
 - `initial_time`
 - `final_time`
 - `time_step`
 
 The output directory, enabled files, and output cadence are read from
-`[output]` in `configuration.qmom`.
+`[output]` in [configuration.qmom](./configuration.qmom).
 
 ## Monte Carlo Moment Evolution
 
@@ -117,15 +114,10 @@ Advection sampled-ensemble half-step
 The advection sampled-ensemble update uses
 `qmomkit::monte_carlo::evolve_ensemble`.
 The stochastic breakage mechanics are local to this example in
-`particles_mc.cpp`. The advection velocity and fragmentation rate are shared
-with the QMOM workflow through `physics.cpp`.
+[particles_mc.cpp](./particles_mc.cpp). The advection velocity and fragmentation rate are shared
+with the QMOM workflow through [physics.cpp](./physics.cpp).
 
 ## Build
-
-Requires:
-
-- QMOMKit
-- QMOMKitMonteCarlo
 
 From the repository root, install both packages into the shared
 repository-local `install/` prefix:
@@ -157,7 +149,7 @@ cmake -S . -B build \
 cmake --build build
 ```
 
-The build copies `configuration.qmom` into `build/`.
+The build copies [configuration.qmom](./configuration.qmom) into `build/`.
 
 ## Run the QMOM example
 

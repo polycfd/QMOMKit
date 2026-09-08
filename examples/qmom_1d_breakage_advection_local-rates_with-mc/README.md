@@ -72,7 +72,7 @@ which returns the complete instantaneous rate to the application.
 The moment convention uses raw, unnormalized number-density moments:
 
 $$
-m_k = \int_{\mathbb{R}} d^k n(d)\,\mathrm{d}d.
+M_k = \int_{\mathbb{R}} d^k n(d)\,\mathrm{d}d.
 $$
 
 So constant-rate nucleation at diameter $d_{\mathrm{nuc}}$ contributes
@@ -91,8 +91,8 @@ only when it needs weights and abscissas for output.
 
 ## Monte Carlo Reference
 
-`main_mc.cpp` starts from the same configured distribution, sample count, and
-initialization seed as `main.cpp`. It interprets those samples as particles,
+[main_mc.cpp](./main_mc.cpp) starts from the same configured distribution, sample count, and
+initialization seed as [main.cpp](./main.cpp). It interprets those samples as particles,
 uses the shared advection velocity, applies the shared binary breakage event
 rate and daughter-state rule, and injects nucleated particles at the shared
 nucleation diameter.
@@ -129,16 +129,16 @@ limiters, or other coefficient-level criteria.
 
 ## Source Organization
 
-`physics.*` contains the shared physical model: advection velocity, binary
+[physics.cpp](./physics.cpp) contains the shared physical model: advection velocity, binary
 breakage rate, daughter state, nucleation rate, nucleation diameter, and the
-QMOM nucleation moment contribution. `local_rate_workflow.cpp` contains the
+QMOM nucleation moment contribution. [local_rate_workflow.cpp](./local_rate_workflow.cpp) contains the
 application-managed rate evaluation, SSP-RK3 integration, stage policy, and
-QMOM simulation loop; `main.cpp` only dispatches to that workflow.
-`main_mc.cpp` contains the Monte Carlo particle workflow.
-`particles_mc.*` adapts the shared physical model to the sampled-particle
-representation. `nucleation_balance_check.cpp` verifies the analytical
+QMOM simulation loop; [main.cpp](./main.cpp) only dispatches to that workflow.
+[main_mc.cpp](./main_mc.cpp) contains the Monte Carlo particle workflow.
+[particles_mc.cpp](./particles_mc.cpp) adapts the shared physical model to the sampled-particle
+representation. [nucleation_balance_check.cpp](./nucleation_balance_check.cpp) verifies the analytical
 correspondence between the QMOM nucleation moment rate and the MC birth
-intensity. `utilities.*` contains only output, filesystem, and reporting
+intensity. [utilities.cpp](./utilities.cpp) contains only output, filesystem, and reporting
 support.
 
 ## Output
@@ -169,11 +169,6 @@ nucleation number, and the nucleation contribution to $m_0$.
 `particle_history.txt` is a custom sampled-particle snapshot table.
 
 ## Build And Run
-
-Requires:
-
-- QMOMKit
-- QMOMKitMonteCarlo
 
 From the repository root, install both packages into the shared
 repository-local `install/` prefix:
@@ -206,7 +201,7 @@ cmake -S . -B build \
 cmake --build build
 ```
 
-The build copies `configuration.qmom` into `build/`. Run from the build
+The build copies [configuration.qmom](./configuration.qmom) into `build/`. Run from the build
 directory so generated output stays there. Run the QMOM local-rate executable
 first when you want the Monte Carlo executable to print direct comparison
 metrics against `output/moment_history.txt`:
@@ -224,22 +219,3 @@ boundary rate and the Monte Carlo birth intensity:
 ```bash
 ./qmom_1d_breakage_advection_local_rates_with_mc_nucleation_balance_check
 ```
-
-## What to expect
-
-The QMOM history is produced by application-owned SSP-RK3 integration of the
-local rates; QMOMKit supplies those rates but does not own the moment state or
-time integrator. The source history includes binary-breakage growth and the
-small lower-boundary nucleation contribution. The balance-check executable
-verifies the analytical correspondence between that QMOM boundary rate and the
-Monte Carlo birth intensity. The direct Monte Carlo companion is a stochastic
-particle-based companion/reference realization, so its later moments need not
-match the local-rate history point-for-point.
-
-## Limitations
-
-This is not a CG or DG solver. It does not include a mesh, basis functions,
-spatial quadrature, residual assembly, a mass matrix, physical-space fluxes,
-or spatial realizability limiting. Its purpose is to show the local QMOMKit
-rate call that a finite-element code would place inside its residual
-evaluation.

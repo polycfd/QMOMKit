@@ -1,29 +1,27 @@
 # QMOM Mixture Initialization Example
 
 This example loads an absolute-density distribution mixture from
-`configuration.qmom`, lets QMOMKit generate its raw moments, and reconstructs a
+[configuration.qmom](./configuration.qmom), lets QMOMKit generate its raw moments, and reconstructs a
 one-dimensional QMOM quadrature.
 
 The phase-space coordinate is the scalar distribution variable $\xi$. The
 mixture contains:
 
-- a gamma component with number density `1.5`, shape `2.0`, and scale `0.4`;
-- a log-normal component with number density `0.8`, logarithmic mean `-0.2`,
-  and logarithmic standard deviation `0.5`.
+- a gamma component with number density $1.5$, shape $2.0$, and scale $0.4$;
+- a log-normal component with number density $0.8$, logarithmic mean $-0.2$,
+  and logarithmic standard deviation $0.5$.
 
 The component densities are absolute number densities, not normalized mixture
 fractions. Therefore the total number density is
 $m_0 = 1.5 + 0.8 = 2.3$. For raw, unnormalized moments, each component's
 analytical moment is multiplied by its absolute number density and the
-components are added. QMOMKit requests moments through order `5` for the
+components are added. QMOMKit requests moments through order $5$ for the
 requested three-node quadrature.
 
 The native configuration syntax is `type = mixture` with contiguous
 `[initial.mixture.component.K]` sections. Each component supplies its
-`number_density` in the `.qmom` file; QMOMKit performs the mixture moment
+`number_density` in [configuration.qmom](./configuration.qmom); QMOMKit performs the mixture moment
 generation during `load_qmom(...)`.
-
-Requires an installed QMOMKit package.
 
 Build and run from this example directory:
 

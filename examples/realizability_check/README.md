@@ -5,7 +5,7 @@ utilities and reports the resulting status. It is a diagnostic of moment
 validity only; it does not reconstruct a quadrature or advance a phase-space evolution
 state.
 
-The sequence used by `main.cpp` is
+The sequence used by [main.cpp](./main.cpp) is
 $m_0=1$, $m_1=1$, $m_2=2$, and $m_3=6$. These are the raw, unnormalized
 moments through order three of a unit-density exponential distribution on the
 nonnegative real line. The check therefore uses
@@ -15,11 +15,6 @@ nonnegative real line. The check therefore uses
 The executable prints the selected support, status, and diagnostic message. A
 zero exit code means that `result.realizable()` is true; a nonzero exit code
 means that the supplied sequence was not accepted as realizable.
-
-This is a diagnostic/reference example, not part of the first QMOM or CQMOM
-workflow.
-
-Requires: QMOMKit.
 
 Build and run from this example directory:
 

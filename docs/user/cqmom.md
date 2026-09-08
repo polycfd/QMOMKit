@@ -1,6 +1,7 @@
 # CQMOM
 
-CQMOM, the Conditional Quadrature Method of Moments [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)], extends quadrature-based
+CQMOM, the Conditional Quadrature Method of Moments 
+[[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)], extends quadrature-based
 moment reconstruction to multidimensional phase spaces. A multidimensional
 population may depend on variables such as size, velocity, temperature, or any
 other application-defined properties. QMOMKit treats these generically as
@@ -14,15 +15,16 @@ provides a compact representation that can be used to evaluate multidimensional
 closures or evolve coupled phase-space dynamics.
 
 In one dimension, QMOM reconstructs a quadrature from a raw moment sequence.
-In multiple dimensions, CQMOM reconstructs the quadrature recursively through
-marginal and conditional one-dimensional reconstructions. A CQMOM case defines
-the phase-space dimensions, maximum node counts, conditioning order, initial
+In multiple dimensions, the CQMOM implementation of QMOMKit reconstructs the quadrature 
+recursively [[Bouguezzoul, 2026](https://publications.polymtl.ca/76505/)] 
+through marginal and conditional one-dimensional reconstructions. 
+
+A CQMOM case defines the phase-space dimensions, maximum node counts, conditioning order, initial
 moments, and reconstruction options used consistently throughout the
 calculation.
 
 QMOMKit uses raw, unnormalized tensor moments:
 $$M[k_0, ..., k_{D-1}] = \sum_j W_j \prod_d xi_{d,j}^{k_d}$$
-
 The zeroth tensor moment `M[0, ..., 0]` is the total quadrature weight or
 number density.
 
@@ -76,7 +78,7 @@ one global weight and one abscissa per phase-space dimension.
 
 ## Automatic Reconstruction Scaling
 
-Set `QmomOptions::automatic_scaling = true` on the shared CQMOM QMOM options,
+Set `QmomOptions::automatic_scaling = true` on the shared CQMOM/QMOM options,
 or set `automatic_scaling = true` in the configuration `[phase_space]`
 section. The default is `false`. CQMOM selects one scale for each physical
 coordinate from the complete current required moment set, transforms the
@@ -204,7 +206,7 @@ standard_deviation = 1.25
 
 ### Choosing The Vandermonde Solver
 
-Recursive CQMOM reconstructs conditional quantities by solving branch-local
+CQMOM reconstructs conditional quantities by solving branch-local
 conditional Vandermonde systems. QMOMKit provides several solver policies for
 those systems through the optional `[vandermonde]` section:
 

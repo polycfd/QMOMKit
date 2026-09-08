@@ -15,8 +15,6 @@ moment sequence. CQMOM [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.201
 tensors by reconstructing dimensions conditionally. A multidimensional moment
 has the form:
 $$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
-
-
 where $\alpha$ is ordered by phase-space dimension. CQMOM processes
 one phase-space dimension at a time. The first processed dimension is inverted
 using the Wheeler alogrithm [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)]. 
@@ -24,7 +22,9 @@ Later dimensions are reconstructed as conditional quadrature
 rules under the already selected parent nodes.
 
 QMOMKit applies a recursive CQMOM, an implementation strategy that applies this conditional
-construction recursively through all dimensions in the configured conditioning order. 
+construction recursively through all dimensions in the configured conditioning order 
+[[Bouguezzoul, 2026](https://publications.polymtl.ca/76505/)]. 
+
 The public API for CQMOM is:
 
 ```text

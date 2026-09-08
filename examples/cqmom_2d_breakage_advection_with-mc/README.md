@@ -4,10 +4,6 @@
 
 This example is the Monte Carlo sampled-initialization companion to
 `examples/cqmom_2d_minimal/`.
-
-This is an optional reference workflow. It is not required for ordinary CQMOM
-phase-space evolution onboarding.
-
 It contains two workflows that start from the same fixed-seed sampled ensemble.
 The first converts the ensemble into sampled raw moments, initializes a CQMOM
 case through the configuration API, and runs CQMOM. The second evolves the
@@ -77,9 +73,7 @@ phase-space advection + stochastic moment-source evolution
 
 Both workflows use the same `configuration.qmom`, distribution, sample count,
 initialization seed, phase-space ordering, advection velocity, binary
-fragmentation model, and Strang splitting. The MC workflow is a direct
-stochastic particle-based companion/reference realization, not an automated
-formal validation test, and no automatic CQMOM/MC comparison is performed.
+fragmentation model, and Strang splitting. 
 
 The phase-space ordering is $(d,u)$,
 
@@ -280,13 +274,3 @@ raw moments, and the final sample count.
 commented header line. It uses a constant per-sample statistical weight from
 the initial sampled ensemble, so $M_{0,0}$ reflects the sample population
 increase caused by fragmentation.
-
-## What to expect
-
-Both paths use the same fixed-seed sampled initialization, phase-space order,
-and physical callbacks. Their initial sampled moments are therefore the useful
-first comparison. Later, compare broad trends such as fragmentation-driven
-number-density growth and coordinate-moment evolution. The direct Monte Carlo
-executable is a stochastic particle-based companion/reference realization, not
-an automated formal validation test, so its later history need not match the
-finite CQMOM quadrature closure point-for-point.

@@ -16,7 +16,7 @@ CqmomCase
 ```
 
 The shipped configuration is two-dimensional and orders its phase space as
-`(size, velocity)`. It requests a fixed `2 x 2` CQMOM hierarchy with
+`(size, velocity)`. It requests a fixed $2 \times 2$ CQMOM hierarchy with
 `conditioning_order = 0, 1`: two size nodes and two conditional velocity
 nodes. The initial number density is `2.5`, with a gamma distribution in
 `size` (shape `3.0`, scale `0.2`) and a normal distribution in `velocity`
@@ -40,11 +40,6 @@ or a boundary contribution.
 `CqmomState` is the runtime state that a phase-space evolution workflow evolves later.
 This example creates the state but does not add phase-space evolution physics.
 
-Requires: QMOMKit.
-
-Required: `configuration.qmom`, `main.cpp`, and an installed QMOMKit package.
-Optional: adapt the distribution, `node_counts`, or `conditioning_order` in
-`configuration.qmom`.
 
 Build and run from this example directory:
 

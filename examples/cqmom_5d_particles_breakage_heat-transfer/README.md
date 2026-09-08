@@ -2,13 +2,13 @@
 
 This standalone capability example evolves a spatially homogeneous particle population in phase space $(V,T,u,v,w)$. It pairs fixed CQMOM with a direct Monte Carlo (MC) companion and demonstrates the complementary source-closure route to the 4D particle breakage and recoil example: the breakage source is formulated in moment space and closed with integer and generalized moments, alongside heat-transfer advection.
 
-The coordinate order is volume $V$ in m$^3$, temperature $T$ in K, and velocity components $(u,v,w)$ in m s$^{-1}$. The raw number-density moments are
+The coordinate order is volume $V$ in $\mathrm{m}^3$, temperature $T$ in K, and velocity components $(u,v,w)$ in $\mathrm{m/s}$. The raw number-density moments are
 
 $$
 M_{p,q,r,s,t}=\int V^pT^qu^rv^sw^t f(V,T,u,v,w)\,\mathrm{d}V\,\mathrm{d}T\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w.
 $$
 
-Thus $M_{0,0,0,0,0}$ is number density and $M_{1,0,0,0,0}$ is total particle volume. The configuration uses two fixed CQMOM nodes in every dimension, conditioning order $(0,1,2,3,4)$, and automatic reconstruction scaling. The physical phase space is $(V,T,u,v,w)$ with $V$ in m$^3$, $T$ in K, and velocities in m s$^{-1}$.
+Thus $M_{0,0,0,0,0}$ is number density and $M_{1,0,0,0,0}$ is total particle volume. The configuration uses two fixed CQMOM nodes in every dimension, conditioning order $(0,1,2,3,4)$, and automatic reconstruction scaling. 
 
 ## Initialization and continuous evolution
 
@@ -64,8 +64,6 @@ $$
 
 It therefore needs $M_{4/3,0,0,0,0}$ and $M_{4/3,1,0,0,0}$ to evaluate and close the source of a tracked moment; it does not need them to reconstruct that tracked moment. Their units are respectively number density times m$^4$ and number density times m$^4$ K, so the factor $a$ supplies the inverse-length scale needed by the source. For $q=0$, the source reduces to $\beta(2^{1-p}-1)M_{p,0,r,s,t}$, preserving total volume.
 
-The MC companion samples the same constant-rate binary event process and applies the same daughter-volume and daughter-temperature mapping, allowing descendants to break again within an outer step. It is a stochastic particle-based companion/reference realization, not an exact duplicate of CQMOM.
-
 ## Run
 
 Install QMOMKit and QMOMKitMonteCarlo to a common prefix, then configure the standalone consumer from the repository root:
@@ -81,7 +79,8 @@ cd examples/cqmom_5d_particles_breakage_heat-transfer/build
 ./cqmom_5d_particles_breakage_heat_transfer_mc_example
 ```
 
-The configured Strang-split CQMOM run and the MC companion advance from $0$ to $0.1$ s with an outer step of $0.001$ s. The MC path applies half-step heat-transfer advection, breakage, then another half step, with fixed initialization and breakage seeds.
+The configured Strang-split CQMOM run and the MC companion advance from $0$ to $0.1$ s with an outer step of $0.001$ s. 
+The MC path applies half-step heat-transfer advection, breakage, then another half step, with fixed initialization and breakage seeds.
 
 This advanced five-dimensional example can take longer than the introductory
 examples. The direct Monte Carlo companion is substantially more expensive

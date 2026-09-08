@@ -1,7 +1,7 @@
 # CQMOM: 2D Adaptive Node Counts
 
 This deterministic example evolves a two-dimensional CQMOM phase space ordered
-as `(d, u)`, where `d` is size and `u` is velocity. It demonstrates adaptive
+as $(d, u)$, where $d$ is size and $u$ is velocity. It demonstrates adaptive
 branch-local node counts: velocity branches reduce as variance collapses,
 persist at reduced counts during phase-space advection, recover by
 at most one node per accepted moment-source stage, and reduce again after
@@ -25,7 +25,7 @@ invariants lives in the root QMOMKit test suite.
 
 The key setup is:
 
-```text
+```ini
 [phase_space]
 names = d, u
 node_counts = 2, 2
@@ -48,7 +48,7 @@ dimension `u`; conditioning order only changes recursive reconstruction order.
 
 ## Evolution
 
-The phase-space velocity in `physics.cpp` is:
+The phase-space velocity in [physics.cpp](./physics.cpp) is:
 
 $$
 \begin{aligned}
@@ -73,10 +73,10 @@ parent state $(d,u)$, it applies the deliberately simple numerical validation
 event:
 
 $$
-(d,u) \to \frac{1}{2}(d,u-du) + \frac{1}{2}(d,u+du).
+(d,u) \to \frac{1}{2}(d,u-\Delta u) + \frac{1}{2}(d,u+\Delta u).
 $$
 
-Here $du$ is the configured velocity displacement and $\lambda$ is the
+Here $\Delta u$ is the configured velocity displacement and $\lambda$ is the
 moment-source rate.
 
 For the raw, unnormalized mixed moment

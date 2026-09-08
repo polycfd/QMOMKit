@@ -3,7 +3,7 @@
 ## Purpose
 
 This deterministic, static example studies a two-dimensional CQMOM
-reconstruction as two x-nodes approach one another. It explains three related
+reconstruction as two $x$-nodes approach one another. It explains three related
 effects:
 
 - conditioning order changes where a weak inversion appears;
@@ -164,9 +164,6 @@ small residual means the computed weights satisfy the represented system
 closely; it does not establish independent columns or a stable solution.
 Residuals remain available in the complete flat diagnostics file.
 
-The local matrix quantities are calculated by the example from the prescribed
-population. They are not production QR or SVD factorization metadata.
-
 ## Conditioning Orders
 
 ### x_then_y — (0,1)
@@ -245,11 +242,7 @@ values.
 5. Read the failed-stage table to distinguish a conditional Vandermonde
    failure from a Wheeler/QMOM failure.
 6. Compare fixed-count failure with the adaptive $\delta=0$ result as a
-   lower-node reconstruction, not as a solver rescue.
-
-The example does not provide a universal solver ranking. See
-[the internal linear-algebra guide](../../docs/developer/linear_algebra.md) for
-the broader solver and tolerance contract.
+   lower-node reconstruction.
 
 ## Expected Behavior
 
@@ -261,11 +254,3 @@ recover a lower-order representation.
 
 The exact transition is platform- and backend-sensitive. The report describes
 the observed run; its threshold values are not portable guarantees.
-
-## Limitations
-
-This is an artificial static four-atom population. The local diagnostic covers
-only the known weighted $2\times2$ parent matrix and cannot expose production
-QR/SVD factorization data. The example does not implement pseudoinverse,
-truncation, regularization, minimum-norm recovery, automatic QR/SVD selection,
-or adaptive node-count changes based on QR/SVD rank.

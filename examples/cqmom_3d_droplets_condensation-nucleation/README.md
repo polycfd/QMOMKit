@@ -3,21 +3,14 @@
 ## Purpose and workflows
 
 This standalone example evolves a spatially uniform polydisperse population of
-isolated water droplets in the three-dimensional phase space
-
-$$
-\boldsymbol{\xi}=(r,w,T),
-$$
-
-where $r$ is droplet radius in metres, $w$ is vertical droplet
+isolated water droplets in the three-dimensional phase space $\boldsymbol{\xi}=(r,w,T)$, where $r$ is droplet radius in metres, $w$ is vertical droplet
 velocity in m/s, and $T$ is droplet temperature in K. Positive $w$ is upward,
 so falling droplets have negative vertical velocity.
 
-The model contains phase-space evolution only. It does not include
-physical-space advection, breakup, coalescence, or gas-phase feedback from the
-droplets. Existing droplets move through $(r,w,T)$ by condensation, drag, and
-heat transfer. During a finite interval, nucleation adds droplets at one
-specified birth state through a CQMOM phase-space boundary contribution.
+The model contains phase-space evolution only. Existing droplets move through $(r,w,T)$ 
+by condensation, drag, and heat transfer. 
+During a finite interval, nucleation adds droplets at one
+specified birth state through a phase-space boundary contribution.
 
 The example contains two executables:
 
@@ -29,7 +22,7 @@ The example contains two executables:
   sampled population directly, using midpoint population injection for the
   same nucleation model.
 
-Both workflows use the same `configuration.qmom`, distribution parameters,
+Both workflows use the same [configuration.qmom](configuration.qmom), distribution parameters,
 sample count, initialization seed, coordinate order, and droplet model
 callback. The coordinate names and distributions are example choices; the
 configuration and sampled-initialization machinery are generic QMOMKit
@@ -52,12 +45,9 @@ companion/reference realization for comparing the two representations.
 ## Phase-space definition and raw moments
 
 The configured phase-space order is:
+$$(r\ [\mathrm{m}], w\ [\mathrm{m/s}], T\ [\mathrm{K}])$$
 
-```text
-(r\ [\mathrm{m}], w\ [\mathrm{m/s}], T\ [\mathrm{K}])
-```
-
-The same positional order is used by `configuration.qmom`, samples, the
+The same positional order is used by [configuration.qmom](configuration.qmom), samples, the
 phase-space velocity callback, CQMOM moment exponents, quadrature abscissas,
 and output files.
 
@@ -66,7 +56,7 @@ QMOMKit's native automatic reconstruction scaling, so reconstruction remains
 well conditioned without example-local phase-space rescaling. The physical
 callback therefore receives the SI radius directly.
 
-For a number density function $f(r,w,T)$, the raw unnormalized moments are
+For a number density function $n(r,w,T)$, the raw unnormalized moments are
 
 $$
 \begin{aligned}
@@ -76,15 +66,14 @@ M_{\alpha_r,\alpha_w,\alpha_T}
 r^{\alpha_r}
 w^{\alpha_w}
 T^{\alpha_T}
-f(r,w,T)
+n(r,w,T)
 \,\mathrm{d}r\,\mathrm{d}w\,\mathrm{d}T.
 \end{aligned}
 $$
 
 Here $\alpha_r$, $\alpha_w$, and $\alpha_T$ are nonnegative integer
 moment orders in radius, vertical velocity, and temperature. The zeroth moment
-$M_{0,0,0}$ is the total number density and is not normalized away by
-QMOMKit.
+$M_{0,0,0}$ is the total number density.
 
 For a finite sampled population, the implementation estimates the same raw
 moments as
@@ -113,26 +102,13 @@ required.
 
 ## Droplet model
 
-The advection callback receives coordinates ordered as $(r_{\mathrm{m}},w,T)$ and
+The advection callback receives coordinates ordered as $(r,w,T)$ and
 returns
+$$\left(\frac{\mathrm{d}r}{\mathrm{d}t}, \frac{\mathrm{d}w}{\mathrm{d}t}, \frac{\mathrm{d}T}{\mathrm{d}t} \right).$$
+The droplet model is a simplified version of the model used by [Denner (2026)](https://www.doi.org/10.1016/j.ijmultiphaseflow.2026.105696) for water droplets in air. 
+The condensation-model constants are compiled into [droplet_model.cpp](./droplet_model.cpp); the
+nucleation birth parameters are declared in [droplet_model.hpp](./droplet_model.hpp).
 
-$$
-\left(
-\frac{\mathrm{d}r_{\mathrm{m}}}{\mathrm{d}t},
-\frac{\mathrm{d}w}{\mathrm{d}t},
-\frac{\mathrm{d}T}{\mathrm{d}t}
-\right).
-$$
-
-The condensation-model constants are compiled into `droplet_model.cpp`; the
-nucleation birth parameters are declared in `droplet_model.hpp`. They are
-example-local physics parameters, not entries in `configuration.qmom` and not
-generic QMOMKit settings.
-
-The callback evaluates and returns the physical model directly in SI units,
-including $\mathrm{d}r_{\mathrm{m}}/\mathrm{d}t$.
-
-The droplet model is a simplified version of the model used by [Denner (IJMF, 2026)](https://www.doi.org/10.1016/j.ijmultiphaseflow.2026.105696) for water droplets in air.
 
 ### Ambient and material properties
 
@@ -256,14 +232,14 @@ $$
 \begin{aligned}
 \mathrm{Re}
 &=
-\frac{2r_{\mathrm{m}}\rho_a |w_{\mathrm{rel}}|}{\mu_a}, \\
+\frac{2r\rho_a |w_{\mathrm{rel}}|}{\mu_a}, \\
 \mathrm{We}
 &=
-\frac{2r_{\mathrm{m}}\rho_a w_{\mathrm{rel}}^2}{\sigma}.
+\frac{2r\rho_a w_{\mathrm{rel}}^2}{\sigma}.
 \end{aligned}
 $$
 
-The transfer-number helper is
+The transfer-number helper is [[Beard & Pruppacher, 1971](https://www.doi.org/10.1175/1520-0469(1971)028<1455:AWTIOT>2.0.CO;2)]
 
 $$
 \begin{aligned}
@@ -308,35 +284,17 @@ No wet-bulb correction is applied to $\mathrm{Nu}$ in this implementation.
 
 ### Condensation radius rate
 
-The vapor-drive term is
-
-$$
-\begin{aligned}
-\Delta_v
-&=
-\phi\frac{p_{\mathrm{sat}}(T_\infty)}{T_\infty}
--
-\frac{p_{\mathrm{sat}}(T)}{T}.
-\end{aligned}
-$$
-
 The implemented radius rate is
-
 $$
 \begin{aligned}
-\frac{\mathrm{d}r_{\mathrm{m}}}{\mathrm{d}t}
-&=
-\frac{
-\mathrm{Sh}\,D_v\,M_w\,\Delta_v
-}{
-2r_{\mathrm{m}}\rho_l R_g
-}.
+\frac{\mathrm{d}r}{\mathrm{d}t}
+&= 
+\frac{\mathrm{Sh}\,D_v\,M_w}{2r\rho_l R_g} \ \left(\phi\frac{p_{\mathrm{sat}}(T_\infty)}{T_\infty} - \frac{p_{\mathrm{sat}}(T)}{T}\right).
 \end{aligned}
 $$
 
-A positive $\Delta_v$ gives droplet growth. The default ambient relative
-humidity and temperatures produce condensation for the supplied initial
-population.
+The default ambient relative humidity and temperatures produce 
+condensation for the supplied initial population.
 
 ### Nucleation boundary contribution
 
@@ -362,8 +320,7 @@ $$
 (r_n,w_n,T_n)=(50.0\times10^{-6}\ \mathrm{m},0\ \mathrm{m/s},298.15\ \mathrm{K}).
 $$
 
-Nucleation is a phase-space boundary birth, not a smooth velocity for existing
-nodes. For each configured raw moment $M_{a,b,c}$, the native
+For each configured raw moment $M_{a,b,c}$, the native
 `CqmomMomentBoundaryContribution` returns
 
 $$
@@ -381,66 +338,19 @@ tensor.
 
 If $w_{\mathrm{rel}}=0$, the drag acceleration is zero. Otherwise, for
 $\mathrm{Re}<\mathrm{Re}_{\min}$, the low-Reynolds-number branch uses
-
-$$
-\begin{aligned}
-a_{\mathrm{drag}}
-&=
-\frac{
-4.5\,\mu_a\,w_{\mathrm{rel}}
-}{
-\rho_l r_{\mathrm{m}}^2
-}.
-\end{aligned}
-$$
-
+$$a_{\mathrm{drag}} = \frac{4.5\,\mu_a\,w_{\mathrm{rel}}}{\rho_l r^2}.$$
 For $\mathrm{Re}\ge \mathrm{Re}_{\min}$, the deformation factor is
-
-$$
-\begin{aligned}
-F_{\mathrm{def}}
-&=
-1
-+2.632
-\left[
-1
--
-\frac{1}{
-\left(1+0.19\sqrt{\mathrm{We}}\right)
-\left(1+0.19\sqrt{\mathrm{We}}\right)
-}
-\right],
-\end{aligned}
-$$
-
+[[Lie et al., 1993](https://saemobilus.sae.org/papers/modeling-effects-drop-drag-breakup-fuel-sprays-930072); 
+[Hsiang & Faeth, 1992](https://doi.org/10.1016/0301-9322(92)90036-G)]
+$$F_{\mathrm{def}} = 1 + 2.632 \left[ 1 - \frac{1}{\left(1+0.19\sqrt{\mathrm{We}}\right)^2} \right],$$
 the spherical drag coefficient correlation is
-
-$$
-\begin{aligned}
-C_{d,0}
-&=
-\frac{24}{\mathrm{Re}}
-\left[
-1
-+0.15\,\mathrm{Re}^{0.687}
-+
-\frac{0.0175\,\mathrm{Re}}{
-1+42500\,\mathrm{Re}^{-1.16}
-}
-\right],
-\end{aligned}
-$$
-
+[[Clift & Gauvin, 1971](https://doi.org/10.1002/cjce.5450490403)]
+$$C_{d,0} = \frac{24}{\mathrm{Re}}
+\left[1 +0.15\,\mathrm{Re}^{0.687} + \frac{0.0175\,\mathrm{Re}}{1+42500\,\mathrm{Re}^{-1.16}} \right],$$
 and
-
-$$
-\begin{aligned}
-C_d &= C_{d,0}F_{\mathrm{def}}.
-\end{aligned}
-$$
+$$C_d = C_{d,0}F_{\mathrm{def}}.$$
 
 The general drag acceleration is
-
 $$
 \begin{aligned}
 a_{\mathrm{drag}}
@@ -448,7 +358,7 @@ a_{\mathrm{drag}}
 \frac{
 3\rho_a C_d |w_{\mathrm{rel}}| w_{\mathrm{rel}}
 }{
-8\rho_l r_{\mathrm{m}}
+8\rho_l r
 }.
 \end{aligned}
 $$
@@ -476,15 +386,15 @@ $$
 \begin{aligned}
 \frac{\mathrm{d}T}{\mathrm{d}t}
 &=
-\frac{3}{r_{\mathrm{m}} c_l}
+\frac{3}{r c_l}
 \left[
 \frac{
 \mathrm{Nu}\,k_a\,(T_\infty-T)
 }{
-2r_{\mathrm{m}}\rho_l
+2r\rho_l
 }
 +
-L(T)\frac{\mathrm{d}r_{\mathrm{m}}}{\mathrm{d}t}
+L(T)\frac{\mathrm{d}r}{\mathrm{d}t}
 \right].
 \end{aligned}
 $$
@@ -524,29 +434,17 @@ $$
 
 where $k$ is the gamma shape and $\theta_r$ is the gamma scale.
 
-Both executables draw
-
-```text
-sample_count = 10000
-initialization_seed = 20260199
-```
-
-through the shared sampling helper. The CQMOM executable computes empirical raw
+Both executables start from the same sample of $10000$ droplets.
+The CQMOM executable computes empirical raw
 moments from that deterministic finite sample and builds a sampled-moment
 CQMOM case. The direct Monte Carlo executable evolves the same sampled
-population. Therefore, the initial CQMOM and Monte Carlo moment rows agree to
-roundoff; analytical distribution moments are not used as the production CQMOM
-initial condition in this example.
-
-This is an initially seeded population, not an initially droplet-free case.
-Those droplets condense from the beginning; nucleation adds the separate
-deterministic birth population only from $0.20$ to $0.40$ s.
+population.
 
 ## Numerical workflow and configuration
 
 The numerical CQMOM hierarchy is selected in `configuration.qmom`:
 
-```text
+```ini
 [phase_space]
 names = r, w, T
 node_counts = 3, 3, 3
@@ -588,7 +486,7 @@ output-moment list in the example.
 
 The driver time controls are compiled local constants:
 
-```text
+```ini
 initial_time = 0.0
 final_time = 1.0
 time_step = 0.01
@@ -596,7 +494,7 @@ time_step = 0.01
 
 The output settings are read from:
 
-```text
+```ini
 [output]
 directory = output
 write_moments = true
@@ -697,7 +595,6 @@ containing `time` followed by moment labels such as `M[0,0,0]`.
 `QuadratureWriter` table with time, public node index, conditioning path
 entries, terminal weight, and abscissas ordered as $r$ in metres, $w$ in
 m/s, and $T$ in K.
-This example does not write `initial_quadrature.txt`.
 
 The direct Monte Carlo executable writes:
 
@@ -750,19 +647,3 @@ radius change back into the temperature equation. Vertical velocities evolve
 under buoyancy-corrected gravity and drag, and droplets of different radii
 respond differently because the Reynolds number, drag coefficient, heat
 transfer, and mass transfer depend on $r$.
-
-
-## Interpretation and limitations
-
-This example covers isolated droplets in prescribed spatially uniform ambient
-conditions. It does not include physical-space transport, gas-phase feedback,
-breakup, coalescence, droplet-droplet interactions, or a zero-radius
-population-boundary treatment. Its nucleation model is a prescribed
-finite-time birth flux, not a gas-phase-feedback or classical-nucleation
-closure. The heat-transfer model uses the base Nusselt correlation without the
-evaporation-oriented wet-bulb correction from the reference paper.
-
-The implemented constants are fixed example-local physics parameters, and the
-`.qmom` file describes numerical configuration rather than application
-physics. The CQMOM result is a finite conditional quadrature representation and
-the direct Monte Carlo result is the evolution of a finite sampled population.

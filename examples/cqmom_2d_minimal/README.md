@@ -8,13 +8,8 @@ evolves that state with user-supplied advection and moment-source physics
 callbacks. The example also includes an optional phase-space boundary exchange
 callback to demonstrate nucleation-style moment production.
 
-The supplied configuration is two-dimensional so the output is easy to read:
-
-The phase-space ordering is $(d,u)$,
-
-where `d` is particle size and `u` is velocity. The implementation is written
-against coordinate vectors and CQMOM source contexts, so the physics callbacks
-do not require `D == 2`.
+The supplied configuration is two dimensional and the phase-space ordering is $(d,u)$,
+where $d$ is particle size and $u$ is velocity. 
 
 The workflow is:
 
@@ -53,10 +48,7 @@ only the callbacks required by their model.
 
 Edit `configuration.qmom` to change the distribution and CQMOM hierarchy. The
 example uses an independent-product initial distribution:
-
-$$
-f(d,u) = f_d(d)f_u(u).
-$$
+$$n(d,u) = n_d(d)n_u(u).$$
 
 The default configuration uses:
 
@@ -87,10 +79,7 @@ is the default adaptive Bogacki-Shampine 3(2) choice, and `scheme = rk45`
 selects Dormand-Prince RK5(4)7M. Embedded-RK controls can be supplied under
 `[time_integration.node_advection.adaptive]`; omitted values retain the
 `AdaptiveRkOptions` defaults, including `initial_step = 1.0e-6 s` for RK23
-and RK45. QMOMKit does not estimate the initial step from the state,
-derivatives, or tolerances. The executable prints the effective
-node-advection settings at startup. This choice does not change the
-Strang/`advsrc`/`srcadv` phase-space evolution ordering or the SSP-RK3 moment-source update.
+and RK45. 
 
 The default CQMOM hierarchy is `node_counts = 2, 2`, meaning:
 
@@ -112,8 +101,8 @@ phase-space dimension. The normal workflow still uses `load_cqmom(...)`.
 
 ## Advection Velocity
 
-The user-defined velocity is in `physics.cpp`. The default model treats
-coordinate `0` as the breakage/growth coordinate and relaxes every later
+The user-defined velocity is in [physics.cpp](./physics.cpp). The default model treats
+coordinate $0$ as the breakage/growth coordinate and relaxes every later
 coordinate toward zero:
 
 $$
@@ -129,8 +118,8 @@ the advection substeps.
 
 ## Moment Source
 
-The moment-source is also in `physics.cpp`. It models binary
-fragmentation with constant rate along coordinate `0`:
+The moment-source is also in [physics.cpp](./physics.cpp). It models binary
+fragmentation with constant rate along coordinate $0$:
 
 $$
 x_0 \to \frac{x_0}{2}.
@@ -170,7 +159,7 @@ without modifying QMOMKit.
 This is not a mesh boundary condition. It does not prescribe mesh faces,
 normals, or reflection behavior; it is an additive raw-moment rate supplied by
 a user-defined physics callback. To run the same example without boundary
-exchange, remove the `boundary` callback from `main.cpp` and call the
+exchange, remove the `boundary` callback from [main.cpp](./main.cpp) and call the
 source-only `advance_cqmom_phase_space(...)` overload.
 
 The example advances advection motion, the source, and the optional boundary
@@ -190,14 +179,14 @@ post-source CQMOM reconstruction
 advection half-step
 ```
 
-The time controls are local constants in `main.cpp`:
+The time controls are local constants in [main.cpp](./main.cpp):
 
 - `initial_time = 0.0`
 - `final_time = 1.0`
 - `time_step = 0.01`
 
 The output directory, enabled files, and output cadence are read from
-`[output]` in `configuration.qmom` through `qmomkit::OutputOptions`.
+`[output]` in [configuration.qmom](./configuration.qmom) through `qmomkit::OutputOptions`.
 
 The CQMOM source and boundary contribution callbacks receive a
 `qmomkit::CqmomSourceContext`. For entry `i`, `context.index(i)` is the moment
@@ -208,28 +197,22 @@ $\mathrm{d}M_{\boldsymbol{\alpha}}/\mathrm{d}t$ for `context.index(i)`.
 
 Most users adapting this example change:
 
-- `configuration.qmom`: phase-space names, node counts, conditioning order,
+- [configuration.qmom](./configuration.qmom): phase-space names, node counts, conditioning order,
   initial distributions, and `[output]` settings;
-- `physics.cpp`: `advection_velocity()`, `binary_fragmentation_source()`, and
+- [physics.cpp](./physics.cpp): `advection_velocity()`, `binary_fragmentation_source()`, and
   optional boundary exchange callbacks;
-- `main.cpp`: time controls and `CqmomPhaseSpaceEvolutionOptions`.
+- [main.cpp](./main.cpp): time controls and `CqmomPhaseSpaceEvolutionOptions`.
 
 ## Output
-
-Requires: QMOMKit.
-
-Required: `configuration.qmom`, `main.cpp`, `physics.cpp`, `utilities.cpp`,
-and an installed QMOMKit package. Optional: output-file analysis after the run.
 
 Build from this example directory:
 
 ```bash
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../../install"
+cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
 cmake --build build
 ```
 
-The build copies `configuration.qmom` into `build/`. Run from the build
+The build copies [configuration.qmom](./configuration.qmom) into `build/`. Run from the build
 directory so generated output stays there:
 
 ```bash

@@ -2,7 +2,7 @@
 
 This standalone capability example evolves a spatially homogeneous particle population in phase space $(d,u,v,w)$. It pairs a fixed CQMOM calculation with a direct Monte Carlo (MC) companion. Both use deliberately simple constant-rate binary breakage with recoil; the point is to demonstrate a nonlinear parent-to-daughter source transformation evaluated from the source-stage terminal quadrature.
 
-The coordinate order is diameter $d$ in m followed by particle velocity components $(u,v,w)$ in m s$^{-1}$. Raw number-density moments are
+The coordinate order is diameter $d$ in m followed by particle velocity components $(u,v,w)$ in $\mathrm{m/s}$. Raw number-density moments are
 
 $$
 M_{p,q,r,s}=\int d^p u^q v^r w^s f(d,u,v,w)\,\mathrm{d}d\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w.
@@ -21,7 +21,7 @@ $$
 
 The CQMOM calculation initializes from raw moments estimated from that ensemble; the MC calculation advances the ensemble itself. Both verify the sampled tensor before evolution, so they begin from the same finite-sample population.
 
-The carrier gas has $(\rho_g,\mu_g)=(1.2\ \mathrm{kg\,m^{-3}},1.8\times10^{-5}\ \mathrm{Pa\,s})$ and velocity $(2.0,1.5,0.8)$ m s$^{-1}$. Particles have density $2000$ kg m$^{-3}$. With slip $\boldsymbol{s}=\boldsymbol{U}_g-\boldsymbol{u}$, the phase-space callback uses the Schiller--Naumann form
+The carrier gas has $(\rho_g,\mu_g)=(1.2\ \mathrm{kg\,m^{-3}},1.8\times10^{-5}\ \mathrm{Pa\,s})$ and velocity $(2.0,1.5,0.8) \ \mathrm{m/s}$. Particles have density $2000 \ \mathrm{kg/m}^{3}$. With slip $\boldsymbol{s}=\boldsymbol{U}_g-\boldsymbol{u}$, the phase-space callback uses the Schiller--Naumann form
 
 $$
 \mathrm{Re}=\frac{\rho_gd|\boldsymbol{s}|}{\mu_g},\qquad
@@ -34,7 +34,7 @@ with $\mathrm{d}d/\mathrm{d}t=0$.
 
 ## Breakage source and terminal quadrature
 
-Each parent breaks at $\beta=10$ s$^{-1}$ into two equal-volume daughters,
+Each parent breaks at $\beta=10 \ \mathrm{s}^{-1}$ into two equal-volume daughters,
 
 $$
 d'=2^{-1/3}d,
@@ -54,7 +54,7 @@ $$
 \mathbb E[(u+r_u)^3]=u^3+3u\,\sigma_r(d)^2.
 $$
 
-Applying the nonlinear daughter mapping directly to terminal nodes supplies this reconstruction-dependent source closure naturally. It is not a claim that terminal quadrature is the only possible way to obtain an untracked moment.
+Applying the nonlinear daughter mapping directly to terminal nodes supplies this reconstruction-dependent source closure naturally.
 
 Breakage alone conserves total particle volume and volume-weighted momentum: the equal-volume daughters preserve $d^3$, and their opposite recoils cancel in the pair. It increases number density, while recoil increases velocity spread; drag can change momentum during the coupled run.
 

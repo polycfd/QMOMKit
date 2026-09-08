@@ -21,6 +21,18 @@ namespace
     return "M[" + std::to_string(order) + "]";
 }
 
+[[nodiscard]] std::string centered_column_label(const std::string& label, const std::size_t width)
+{
+    if (label.size() >= width)
+    {
+        return label;
+    }
+
+    const std::size_t padding = width - label.size();
+    const std::size_t left_padding = padding / 2;
+    return std::string(left_padding, ' ') + label + std::string(padding - left_padding, ' ');
+}
+
 [[nodiscard]] std::string cqmom_label(const MultiIndex& index)
 {
     std::ostringstream label;
@@ -140,45 +152,47 @@ namespace
 
 } // namespace
 
-MomentWriter MomentWriter::for_qmom(const std::filesystem::path& path, const std::size_t moment_count)
+MomentWriter MomentWriter::for_qmom(const std::filesystem::path& path, const std::size_t moment_count, const std::size_t precision)
 {
     const std::vector<std::size_t> indices = sequential_indices(moment_count);
-    return MomentWriter(path, MomentLayout::qmom, {moment_count}, indices, qmom_labels(indices));
+    return MomentWriter(path, MomentLayout::qmom, {moment_count}, indices, qmom_labels(indices), precision);
 }
 
-MomentWriter MomentWriter::for_qmom(const std::filesystem::path& path, std::vector<std::size_t> selected_orders)
+MomentWriter MomentWriter::for_qmom(const std::filesystem::path& path, std::vector<std::size_t> selected_orders, const std::size_t precision)
 {
     std::vector<std::size_t> extents;
-    return MomentWriter(path, MomentLayout::qmom, std::move(extents), selected_orders, qmom_labels(selected_orders));
+    return MomentWriter(path, MomentLayout::qmom, std::move(extents), selected_orders, qmom_labels(selected_orders), precision);
 }
 
-MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, std::vector<std::size_t> extents)
+MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, std::vector<std::size_t> extents, const std::size_t precision)
 {
     const std::vector<std::size_t> indices = sequential_indices(product_extents(extents));
     std::vector<std::string> labels = all_cqmom_labels(extents);
-    return MomentWriter(path, MomentLayout::cqmom_dense, std::move(extents), indices, std::move(labels));
+    return MomentWriter(path, MomentLayout::cqmom_dense, std::move(extents), indices, std::move(labels), precision);
 }
 
-MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, std::vector<std::size_t> extents, std::vector<MultiIndex> selected_moments)
+MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, std::vector<std::size_t> extents, std::vector<MultiIndex> selected_moments,
+                                     const std::size_t precision)
 {
     const std::vector<std::size_t> flat_indices = flatten_selected_indices(extents, selected_moments);
     std::vector<std::string> labels = cqmom_labels(selected_moments);
-    return MomentWriter(path, MomentLayout::cqmom_dense, std::move(extents), flat_indices, std::move(labels));
+    return MomentWriter(path, MomentLayout::cqmom_dense, std::move(extents), flat_indices, std::move(labels), precision);
 }
 
-MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const CqmomMomentLayout& layout)
+MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const CqmomMomentLayout& layout, const std::size_t precision)
 {
-    return MomentWriter(path, MomentLayout::cqmom_moment_data, layout, cqmom_labels(layout.required_indices));
+    return MomentWriter(path, MomentLayout::cqmom_moment_data, layout, cqmom_labels(layout.required_indices), precision);
 }
 
-MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const RawMomentRequest& request)
+MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const RawMomentRequest& request, const std::size_t precision)
 {
-    return MomentWriter(path, MomentLayout::cqmom_requested, request, cqmom_labels(request.indices));
+    return MomentWriter(path, MomentLayout::cqmom_requested, request, cqmom_labels(request.indices), precision);
 }
 
 MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, std::vector<std::size_t> extents,
-                           std::vector<std::size_t> flat_indices, std::vector<std::string> labels)
-    : output_(path), layout_(layout), extents_(std::move(extents)), flat_indices_(std::move(flat_indices)), labels_(std::move(labels))
+                           std::vector<std::size_t> flat_indices, std::vector<std::string> labels, const std::size_t precision)
+    : output_(path), layout_(layout), extents_(std::move(extents)), flat_indices_(std::move(flat_indices)), labels_(std::move(labels)),
+      precision(precision)
 {
     if (!output_)
     {
@@ -192,8 +206,8 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
 }
 
 MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, CqmomMomentLayout cqmom_layout,
-                           std::vector<std::string> labels)
-    : output_(path), layout_(layout), cqmom_layout_(std::move(cqmom_layout)), labels_(std::move(labels))
+                           std::vector<std::string> labels, const std::size_t precision)
+    : output_(path), layout_(layout), cqmom_layout_(std::move(cqmom_layout)), labels_(std::move(labels)), precision(precision)
 {
     if (!output_)
     {
@@ -206,8 +220,9 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
     write_header();
 }
 
-MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, RawMomentRequest request, std::vector<std::string> labels)
-    : output_(path), layout_(layout), raw_moment_request_(std::move(request)), labels_(std::move(labels))
+MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, RawMomentRequest request, std::vector<std::string> labels,
+                           const std::size_t precision)
+    : output_(path), layout_(layout), raw_moment_request_(std::move(request)), labels_(std::move(labels)), precision(precision)
 {
     if (!output_)
     {
@@ -222,10 +237,11 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
 
 void MomentWriter::write_header()
 {
-    output_ << "# time";
+    column_width = std::max(precision + 8, std::size_t(6));
+    output_ << centered_column_label("time", column_width);
     for (const std::string& label : labels_)
     {
-        output_ << ' ' << label;
+        output_ << ' ' << centered_column_label(label, column_width);
     }
     output_ << '\n';
     if (!output_)
@@ -245,14 +261,14 @@ void MomentWriter::write_row(const double time, const std::vector<double>& value
         throw std::invalid_argument("Moment output values must be finite.");
     }
 
-    output_ << std::setprecision(17) << time;
+    output_ << std::scientific << std::setprecision(precision) << std::setw(column_width) << time;
     for (const std::size_t flat_index : flat_indices_)
     {
         if (flat_index >= values.size())
         {
             throw std::out_of_range("Selected moment output index is outside the supplied moments.");
         }
-        output_ << ' ' << std::setprecision(17) << values[flat_index];
+        output_ << ' ' << std::setprecision(precision) << std::setw(column_width) << values[flat_index];
     }
     output_ << '\n';
     if (!output_)
@@ -276,10 +292,10 @@ void MomentWriter::write_aligned_row(const double time, const std::vector<double
         throw std::invalid_argument("Moment output row does not match the writer column count.");
     }
 
-    output_ << std::setprecision(17) << time;
+    output_ << std::setprecision(precision) << std::setw(column_width) << time;
     for (const double value : values)
     {
-        output_ << ' ' << std::setprecision(17) << value;
+        output_ << ' ' << std::setprecision(precision) << std::setw(column_width) << value;
     }
     output_ << '\n';
     if (!output_)

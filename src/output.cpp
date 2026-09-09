@@ -361,19 +361,20 @@ void MomentWriter::write(const double time, const CqmomQuadrature& quadrature)
     write_aligned_row(time, reconstructed.values);
 }
 
-QuadratureWriter QuadratureWriter::for_qmom(const std::filesystem::path& path, const std::size_t maximum_node_count)
+QuadratureWriter QuadratureWriter::for_qmom(const std::filesystem::path& path, const std::size_t maximum_node_count, const std::size_t precision)
 {
-    return QuadratureWriter(path, QuadratureLayout::qmom, 1, maximum_node_count, qmom_quadrature_labels(maximum_node_count));
+    return QuadratureWriter(path, QuadratureLayout::qmom, 1, maximum_node_count, qmom_quadrature_labels(maximum_node_count), precision);
 }
 
-QuadratureWriter QuadratureWriter::for_cqmom(const std::filesystem::path& path, const std::size_t dimension_count)
+QuadratureWriter QuadratureWriter::for_cqmom(const std::filesystem::path& path, const std::size_t dimension_count, const std::size_t precision)
 {
-    return QuadratureWriter(path, QuadratureLayout::cqmom, dimension_count, 0, cqmom_quadrature_labels(dimension_count));
+    return QuadratureWriter(path, QuadratureLayout::cqmom, dimension_count, 0, cqmom_quadrature_labels(dimension_count), precision);
 }
 
 QuadratureWriter::QuadratureWriter(const std::filesystem::path& path, const QuadratureLayout layout, const std::size_t dimension_count,
-                                   const std::size_t maximum_node_count, std::vector<std::string> labels)
-    : output_(path), layout_(layout), dimension_count_(dimension_count), maximum_node_count_(maximum_node_count), labels_(std::move(labels))
+                                   const std::size_t maximum_node_count, std::vector<std::string> labels, const std::size_t precision)
+    : output_(path), layout_(layout), dimension_count_(dimension_count), maximum_node_count_(maximum_node_count), labels_(std::move(labels)),
+      precision(precision)
 {
     if (!output_)
     {
@@ -388,10 +389,11 @@ QuadratureWriter::QuadratureWriter(const std::filesystem::path& path, const Quad
 
 void QuadratureWriter::write_header()
 {
-    output_ << "# time";
+    column_width = std::max(precision + 8, std::size_t(6));
+    output_ << centered_column_label("time", column_width);
     for (const std::string& label : labels_)
     {
-        output_ << ' ' << label;
+        output_ << ' ' << centered_column_label(label, column_width);
     }
     output_ << '\n';
     if (!output_)
@@ -415,10 +417,10 @@ void QuadratureWriter::write_row(const double time, const std::vector<double>& v
         throw std::invalid_argument("Quadrature output row does not match the writer column count.");
     }
 
-    output_ << std::setprecision(17) << time;
+    output_ << std::scientific << std::setprecision(precision) << std::setw(column_width) << time;
     for (const double value : values)
     {
-        output_ << ' ' << std::setprecision(17) << value;
+        output_ << ' ' << std::setprecision(precision) << std::setw(column_width) << value;
     }
     output_ << '\n';
     if (!output_)

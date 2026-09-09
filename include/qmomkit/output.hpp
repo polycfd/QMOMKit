@@ -129,10 +129,11 @@ public:
     ~QuadratureWriter() = default;
 
     /** Write one-dimensional nodes with at most `maximum_node_count` active nodes. */
-    [[nodiscard]] static QuadratureWriter for_qmom(const std::filesystem::path& path, std::size_t maximum_node_count);
+    [[nodiscard]] static QuadratureWriter for_qmom(const std::filesystem::path& path, std::size_t maximum_node_count,
+                                                   const std::size_t precision = 10);
 
     /** Write terminal multidimensional nodes as one row per active terminal node. */
-    [[nodiscard]] static QuadratureWriter for_cqmom(const std::filesystem::path& path, std::size_t dimension_count);
+    [[nodiscard]] static QuadratureWriter for_cqmom(const std::filesystem::path& path, std::size_t dimension_count, const std::size_t precision = 10);
 
     /** Append one row for a one-dimensional quadrature rule. */
     void write(double time, const Quadrature1D& quadrature);
@@ -151,7 +152,7 @@ private:
     };
 
     QuadratureWriter(const std::filesystem::path& path, QuadratureLayout layout, std::size_t dimension_count, std::size_t maximum_node_count,
-                     std::vector<std::string> labels);
+                     std::vector<std::string> labels, const std::size_t precision);
 
     void write_header();
     void write_row(double time, const std::vector<double>& values);
@@ -162,6 +163,8 @@ private:
     std::size_t dimension_count_ = 1;
     std::size_t maximum_node_count_ = 0;
     std::vector<std::string> labels_;
+    std::size_t precision;
+    std::size_t column_width;
 };
 
 } // namespace qmomkit

@@ -40,7 +40,7 @@ ABBREVIATE_BRIEF       = "The $name class" \
 
 ALWAYS_DETAILED_SEC    = NO
 INLINE_INHERITED_MEMB  = NO
-FULL_PATH_NAMES        = YES
+FULL_PATH_NAMES        = NO
 STRIP_FROM_PATH        =
 STRIP_FROM_INC_PATH    =
 SHORT_NAMES            = NO
@@ -139,7 +139,13 @@ WARN_LOGFILE           = DoxygenWarningLog.txt
 #---------------------------------------------------------------------------
 # Configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = ../../README.md ../../include ../../src
+INPUT                  = ../../README.md ../../include ../../src ../../docs \
+                         ../../examples/README.md \
+                         ../../tests/README.md \
+                         ../../tools/plotting/README.md \
+                         ../../tools/monte_carlo/README.md \
+                         ../../tools/galerkin_element_coupling/README.md \
+                         ../../CONTRIBUTING.md
 INPUT_ENCODING         = UTF-8
 INPUT_FILE_ENCODING    =
 FILE_PATTERNS          = *.c \
@@ -241,7 +247,7 @@ HTML_HEADER            =
 HTML_FOOTER            = 
 HTML_STYLESHEET        = stylesheet.css
 HTML_EXTRA_STYLESHEET  = doxygen-awesome.css
-HTML_EXTRA_FILES       =
+HTML_EXTRA_FILES       = ../../LICENSE
 HTML_COLORSTYLE        = AUTO_LIGHT
 HTML_COLORSTYLE_HUE    = 220
 HTML_COLORSTYLE_SAT    = 100

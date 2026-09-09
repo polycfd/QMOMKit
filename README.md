@@ -1,9 +1,9 @@
 # QMOMKit
 
-[![CI-Release](https://github.com/polycfd/QMOMKit/actions/workflows/release.yml/badge.svg)](https://github.com/polycfd/QMOMKit/actions/workflows/release.yml)
-[![CI-Debug](https://github.com/polycfd/QMOMKit/actions/workflows/debug.yml/badge.svg)](https://github.com/polycfd/QMOMKit/actions/workflows/debug.yml)
-[![CI-Indentation](https://github.com/polycfd/QMOMKit/actions/workflows/clang-format.yml/badge.svg)](https://github.com/polycfd/QMOMKit/actions/workflows/clang-format.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+<a href="https://github.com/polycfd/QMOMKit/actions/workflows/release.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/release.yml/badge.svg" alt="CI-Release"></a>
+<a href="https://github.com/polycfd/QMOMKit/actions/workflows/debug.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/debug.yml/badge.svg" alt="CI-Debug"></a>
+<a href="https://github.com/polycfd/QMOMKit/actions/workflows/clang-format.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/clang-format.yml/badge.svg" alt="CI-Indentation"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
 
 **QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number-density functions in arbitrary-dimensional phase spaces**
 

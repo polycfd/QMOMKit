@@ -1612,6 +1612,86 @@ void test_recursive_dense_and_svd_equivalence_fixed()
     }
 }
 
+void test_recursive_dense_and_moore_penrose_equivalence_fixed()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
+    const std::vector<std::size_t> extents{4, 4, 4};
+    const std::vector<double> weights{0.05, 0.15, 0.20, 0.10, 0.12, 0.18, 0.08, 0.12};
+    const std::vector<std::vector<double>> abscissas{{-1.5, 0.25, -0.75, 1.75, -1.25, 0.75, -0.10, 2.00},
+                                                     {-2.0, -1.0, 0.5, 1.5, -1.5, -0.5, 1.0, 2.0},
+                                                     {-0.80, -0.80, -0.20, -0.20, 0.60, 0.60, 1.20, 1.20}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+
+    const qmomkit::internal::RecursiveQuadratureRequest dense_request{
+        hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense};
+    qmomkit::ConditionalMomentOptions conditional_options;
+    conditional_options.moore_penrose_rcond = 1.0e-14;
+    const qmomkit::internal::RecursiveQuadratureRequest moore_penrose_request{hierarchy,
+                                                                              {extents, moments},
+                                                                              conditional_options,
+                                                                              {},
+                                                                              false,
+                                                                              qmomkit::CqmomDiagnosticLevel::detailed,
+                                                                              qmomkit::VandermondeSolver::moore_penrose};
+
+    const qmomkit::internal::RecursiveQuadratureResult dense = qmomkit::internal::compute_recursive_quadrature(dense_request);
+    const qmomkit::internal::RecursiveQuadratureResult moore_penrose = qmomkit::internal::compute_recursive_quadrature(moore_penrose_request);
+
+    assert_recursive_results_equivalent(moore_penrose, dense, 1.0e-9);
+    assert(moore_penrose.ok());
+    for (const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostics : moore_penrose.diagnostics)
+    {
+        if (diagnostics.conditioning_level + 1 < hierarchy.number_of_dimensions())
+        {
+            assert(diagnostics.conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::moore_penrose);
+            assert(diagnostics.conditional_vandermonde_selected_solver == qmomkit::VandermondeSolver::moore_penrose);
+            assert(diagnostics.conditional_vandermonde_algorithm_used == qmomkit::internal::VandermondeAlgorithm::moore_penrose);
+        }
+    }
+}
+
+void test_recursive_moore_penrose_rcond_changes_conditional_reconstruction()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 1});
+    const std::vector<std::size_t> extents{4, 2};
+    const std::vector<std::vector<double>> abscissas{{0.0, 1.0}, {0.0, 2.0}};
+    const std::vector<double> weights{1.0, 1.0};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+
+    qmomkit::ConditionalMomentOptions low_options;
+    low_options.moore_penrose_rcond = 0.1;
+    qmomkit::ConditionalMomentOptions high_options = low_options;
+    high_options.moore_penrose_rcond = 0.5;
+    const qmomkit::internal::RecursiveQuadratureRequest low_request{
+        hierarchy, {extents, moments}, low_options, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::moore_penrose};
+    const qmomkit::internal::RecursiveQuadratureRequest high_request{
+        hierarchy, {extents, moments}, high_options, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::moore_penrose};
+
+    const qmomkit::internal::RecursiveQuadratureResult low = qmomkit::internal::compute_recursive_quadrature(low_request);
+    const qmomkit::internal::RecursiveQuadratureResult high = qmomkit::internal::compute_recursive_quadrature(high_request);
+
+    // The root conditional system is [[1, 1], [0, 1]]. Its singular-value
+    // ratio is (3 - sqrt(5)) / 2, so rcond = 0.1 retains both directions and
+    // rcond = 0.5 retains only the larger direction.
+    const double square_root_five = std::sqrt(5.0);
+    const double golden_ratio = (1.0 + square_root_five) / 2.0;
+    const double retained_weight = (1.0 + golden_ratio) / (1.0 + golden_ratio * golden_ratio);
+
+    assert(low.ok());
+    assert(high.ok());
+    assert_near(low.quadrature.weight({0, 0}), 1.0, 1.0e-12);
+    assert_near(low.quadrature.weight({1, 0}), 1.0, 1.0e-12);
+    assert_near(high.quadrature.weight({0, 0}), retained_weight, 1.0e-12);
+    assert_near(high.quadrature.weight({1, 0}), golden_ratio * retained_weight, 1.0e-12);
+    assert_near(high.quadrature.abscissa(1, {0, 0}), square_root_five - 1.0, 1.0e-12);
+    assert_near(high.quadrature.abscissa(1, {1, 0}), square_root_five - 1.0, 1.0e-12);
+
+    assert(!low.diagnostics.empty());
+    assert(!high.diagnostics.empty());
+    assert(low.diagnostics.front().conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::moore_penrose);
+    assert(high.diagnostics.front().conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::moore_penrose);
+}
+
 void test_recursive_bp_success_independent_of_diagnostic_level()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
@@ -1885,6 +1965,8 @@ void run_all_recursive_quadrature_tests()
     test_recursive_dense_and_bp_equivalence_fixed();
     test_recursive_dense_and_pivoted_qr_equivalence_fixed();
     test_recursive_dense_and_svd_equivalence_fixed();
+    test_recursive_dense_and_moore_penrose_equivalence_fixed();
+    test_recursive_moore_penrose_rcond_changes_conditional_reconstruction();
     test_recursive_bp_success_independent_of_diagnostic_level();
     test_recursive_automatic_uses_plain_bp_for_small_branches();
     test_recursive_automatic_independent_of_diagnostic_level();
@@ -1957,6 +2039,8 @@ void run_solver_policy_tests()
     test_recursive_dense_and_bp_equivalence_fixed();
     test_recursive_dense_and_pivoted_qr_equivalence_fixed();
     test_recursive_dense_and_svd_equivalence_fixed();
+    test_recursive_dense_and_moore_penrose_equivalence_fixed();
+    test_recursive_moore_penrose_rcond_changes_conditional_reconstruction();
     test_recursive_bp_success_independent_of_diagnostic_level();
     test_recursive_automatic_uses_plain_bp_for_small_branches();
     test_recursive_automatic_independent_of_diagnostic_level();
@@ -2033,6 +2117,9 @@ int main(const int argc, char** argv)
             {"recursive_dense_and_bp_equivalence_fixed", test_recursive_dense_and_bp_equivalence_fixed},
             {"recursive_dense_and_pivoted_qr_equivalence_fixed", test_recursive_dense_and_pivoted_qr_equivalence_fixed},
             {"recursive_dense_and_svd_equivalence_fixed", test_recursive_dense_and_svd_equivalence_fixed},
+            {"recursive_dense_and_moore_penrose_equivalence_fixed", test_recursive_dense_and_moore_penrose_equivalence_fixed},
+            {"recursive_moore_penrose_rcond_changes_conditional_reconstruction",
+             test_recursive_moore_penrose_rcond_changes_conditional_reconstruction},
             {"recursive_bp_success_independent_of_diagnostic_level", test_recursive_bp_success_independent_of_diagnostic_level},
             {"recursive_automatic_uses_plain_bp_for_small_branches", test_recursive_automatic_uses_plain_bp_for_small_branches},
             {"recursive_automatic_independent_of_diagnostic_level", test_recursive_automatic_independent_of_diagnostic_level},

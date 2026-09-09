@@ -703,6 +703,7 @@ diagnostic_level = detailed|basic|none
 
 [vandermonde]
 solver = automatic
+rcond = 1.0e-14
 ```
 
 `moment_storage` selects the internal raw-moment representation for
@@ -728,9 +729,10 @@ Supported values are:
 | `dense` | Uses dense Gaussian elimination. |
 | `pivoted_qr` | Uses pivoted QR with numerical-rank detection. |
 | `svd` | Uses SVD with rank and convergence checks. |
+| `moore_penrose` | Uses a truncated SVD Moore-Penrose pseudoinverse. |
 | `bjorck_pereyra` | Uses Björck-Pereyra. |
 
-If omitted, `automatic` is used. The `pivoted_qr` and `svd` policies solve the
+If omitted, `automatic` is used. The `pivoted_qr`, `svd`, and `moore_penrose` policies solve the
 weighted conditional Vandermonde system directly and are selected only when
 requested explicitly:
 
@@ -739,9 +741,23 @@ requested explicitly:
 solver = svd
 ```
 
-Rank-deficient systems and SVD nonconvergence are reported as failures. SVD
-rank and Jacobi tolerances are internal defaults. Loaded CQMOM cases and states
-expose the configured policy through `vandermonde_solver()`.
+`vandermonde.rcond` controls the explicit `moore_penrose` policy. It defaults
+to `1.0e-14` and must be finite with `0 <= rcond < 1`, regardless of the
+selected solver. The pseudoinverse retains precisely the singular directions
+with `sigma > rcond * sigma_max`; discarded directions contribute zero. Its
+value is ignored by every other solver. For example:
+
+```ini
+[vandermonde]
+solver = moore_penrose
+rcond = 0.25
+```
+
+Rank-deficient systems and SVD nonconvergence remain failures for the regular
+`svd` policy. `moore_penrose` accepts a converged rank-deficient SVD and returns
+the finite truncated minimum-norm solution. SVD rank and Jacobi tolerances are
+internal defaults. Loaded CQMOM cases and states expose the configured policy
+through `vandermonde_solver()` and `rcond` through `conditional_options()`.
 
 ### Fixed And Adaptive CQMOM
 

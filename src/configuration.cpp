@@ -905,7 +905,7 @@ std::vector<std::string> cqmom_explicit_allowed_keys()
     return with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.conditioning_order",
                                       "phase_space.adaptive_branch_counts", "phase_space.automatic_scaling", "phase_space.support_lower",
                                       "phase_space.support_upper", "qmom.adaptive", "cqmom.diagnostic_level", "cqmom.moment_storage",
-                                      "vandermonde.solver", "moments.extents"});
+                                      "vandermonde.solver", "vandermonde.rcond", "moments.extents"});
 }
 
 std::vector<std::string> cqmom_initial_allowed_keys()
@@ -1208,6 +1208,7 @@ struct ParsedCqmomCaseSettings
     bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
+    double moore_penrose_rcond = 1.0e-14;
     CqmomCoordinateSupport coordinate_support;
     CqmomMomentStorage moment_storage = CqmomMomentStorage::lean;
     bool moment_storage_configured = false;
@@ -1656,13 +1657,35 @@ std::optional<VandermondeSolver> parse_vandermonde_solver_value(ParsedFile& pars
     {
         return VandermondeSolver::svd;
     }
+    if (entry.value == "moore_penrose")
+    {
+        return VandermondeSolver::moore_penrose;
+    }
     if (entry.value == "bjorck_pereyra")
     {
         return VandermondeSolver::bjorck_pereyra;
     }
     add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry.line,
-              "vandermonde.solver must be automatic, dense, pivoted_qr, svd, or bjorck_pereyra.");
+              "vandermonde.solver must be automatic, dense, pivoted_qr, svd, moore_penrose, or bjorck_pereyra.");
     return std::nullopt;
+}
+
+std::optional<double> parse_vandermonde_rcond(ParsedFile& parsed, const std::string& source_name)
+{
+    const Entry* entry = find_entry(parsed, "vandermonde.rcond");
+    if (entry == nullptr)
+    {
+        return 1.0e-14;
+    }
+
+    double rcond = 0.0;
+    if (!parse_double(entry->value, rcond) || rcond < 0.0 || rcond >= 1.0)
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->line,
+                  "vandermonde.rcond must be finite and satisfy 0 <= rcond < 1.");
+        return std::nullopt;
+    }
+    return rcond;
 }
 
 std::optional<VandermondeSolver> parse_vandermonde_solver(ParsedFile& parsed, const std::string& source_name)
@@ -1795,6 +1818,7 @@ void validate_optional_cqmom_moment_storage(ParsedFile& parsed, const std::strin
 void validate_optional_vandermonde_solver(ParsedFile& parsed, const std::string& source_name)
 {
     static_cast<void>(parse_vandermonde_solver(parsed, source_name));
+    static_cast<void>(parse_vandermonde_rcond(parsed, source_name));
 }
 
 std::optional<CqmomCoordinateSupport> parse_coordinate_support(ParsedFile& parsed, const std::string& source_name, const std::size_t dimensions)
@@ -1872,6 +1896,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
     const Entry* moment_storage_entry = find_entry(parsed, "cqmom.moment_storage");
     std::optional<CqmomMomentStorage> moment_storage = parse_cqmom_moment_storage(parsed, source_name);
     std::optional<VandermondeSolver> vandermonde_solver = parse_vandermonde_solver(parsed, source_name);
+    std::optional<double> moore_penrose_rcond = parse_vandermonde_rcond(parsed, source_name);
     std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
     const std::optional<bool> automatic_scaling = parse_automatic_scaling_from_parsed(parsed, source_name);
     if (qmom_options.has_value() && automatic_scaling.has_value())
@@ -1966,6 +1991,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
                                          adaptive_branch_counts,
                                          diagnostic_level.value_or(CqmomDiagnosticLevel::none),
                                          vandermonde_solver.value_or(VandermondeSolver::automatic),
+                                         moore_penrose_rcond.value_or(1.0e-14),
                                          coordinate_support.value_or(CqmomCoordinateSupport{}),
                                          moment_storage.value_or(CqmomMomentStorage::lean),
                                          moment_storage_entry != nullptr,
@@ -2540,6 +2566,7 @@ ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(const std::string_view tex
     {
         dense_case.value().diagnostic_level = settings.value().diagnostic_level;
         dense_case.value().vandermonde_solver = settings.value().vandermonde_solver;
+        dense_case.value().conditional_options.moore_penrose_rcond = settings.value().moore_penrose_rcond;
     }
     return dense_case;
 }
@@ -2569,6 +2596,7 @@ ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(const std::string_view text,
     {
         lean_case.value().diagnostic_level = settings.value().diagnostic_level;
         lean_case.value().vandermonde_solver = settings.value().vandermonde_solver;
+        lean_case.value().conditional_options.moore_penrose_rcond = settings.value().moore_penrose_rcond;
     }
     return lean_case;
 }
@@ -2598,6 +2626,7 @@ ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::str
         }
         dense_case.value().diagnostic_level = settings.value().diagnostic_level;
         dense_case.value().vandermonde_solver = settings.value().vandermonde_solver;
+        dense_case.value().conditional_options.moore_penrose_rcond = settings.value().moore_penrose_rcond;
         return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(std::move(dense_case).value())};
     }
 
@@ -2610,6 +2639,7 @@ ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::str
     }
     lean_case.value().diagnostic_level = settings.value().diagnostic_level;
     lean_case.value().vandermonde_solver = settings.value().vandermonde_solver;
+    lean_case.value().conditional_options.moore_penrose_rcond = settings.value().moore_penrose_rcond;
     return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(std::move(lean_case).value())};
 }
 

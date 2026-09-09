@@ -7,7 +7,8 @@ namespace qmomkit
  * User-facing Vandermonde solver selection for CQMOM conditional moment solves.
  *
  * `automatic` is the default policy and uses the Björck-Pereyra solver.
- * `pivoted_qr` and `svd` select their respective direct solvers.
+ * `pivoted_qr` and `svd` select direct solvers. `moore_penrose` selects a
+ * truncated SVD pseudoinverse solver.
  */
 enum class VandermondeSolver
 {
@@ -15,6 +16,7 @@ enum class VandermondeSolver
     dense,
     pivoted_qr,
     svd,
+    moore_penrose,
     bjorck_pereyra
 };
 

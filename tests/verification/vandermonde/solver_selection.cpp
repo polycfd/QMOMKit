@@ -79,6 +79,8 @@ const char* solver_name(const qmomkit::VandermondeSolver solver)
         return "pivoted_qr";
     case qmomkit::VandermondeSolver::svd:
         return "svd";
+    case qmomkit::VandermondeSolver::moore_penrose:
+        return "moore_penrose";
     case qmomkit::VandermondeSolver::bjorck_pereyra:
         return "bjorck_pereyra";
     }
@@ -95,6 +97,8 @@ const char* algorithm_name(const qmomkit::internal::VandermondeAlgorithm algorit
         return "pivoted_qr";
     case qmomkit::internal::VandermondeAlgorithm::svd:
         return "svd";
+    case qmomkit::internal::VandermondeAlgorithm::moore_penrose:
+        return "moore_penrose";
     case qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra:
         return "bjorck_pereyra";
     }
@@ -314,6 +318,8 @@ int main(const int argc, char** argv)
                                          qmomkit::VandermondeSolver::pivoted_qr, qmomkit::internal::VandermondeAlgorithm::pivoted_qr},
                                         {"svd", case_directory / "svd.qmom", qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd,
                                          qmomkit::internal::VandermondeAlgorithm::svd},
+                                        {"moore_penrose", case_directory / "moore_penrose.qmom", qmomkit::VandermondeSolver::moore_penrose,
+                                         qmomkit::VandermondeSolver::moore_penrose, qmomkit::internal::VandermondeAlgorithm::moore_penrose},
                                         {"bjorck_pereyra", case_directory / "bjorck_pereyra.qmom", qmomkit::VandermondeSolver::bjorck_pereyra,
                                          qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra}};
 

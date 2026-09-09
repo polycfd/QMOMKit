@@ -21,6 +21,7 @@ struct ConditionalMomentOptions
 {
     double singular_tolerance = 1.0e-14;
     double conditioning_warning_threshold = 1.0e12;
+    double moore_penrose_rcond = 1.0e-14;
 };
 
 /**

@@ -58,8 +58,8 @@ struct SvdSolveResult
  * right singular vectors V. Square full-rank factorizations support ordinary
  * linear solves; tall full-column-rank factorizations support least-squares
  * solves. Rank-deficient and non-converged factorizations remain inspectable,
- * but solve_svd refuses them and does not produce pseudoinverse, truncated,
- * regularized, or minimum-norm solutions.
+ * but solve_svd refuses them. solve_svd_pseudoinverse separately provides an
+ * explicit truncated minimum-norm path for converged factorizations.
  */
 [[nodiscard]] SvdFactorization factorize_svd(DenseMatrix matrix, const SvdOptions& options = {});
 
@@ -69,5 +69,11 @@ struct SvdSolveResult
 [[nodiscard]] SvdSolveResult solve_svd(const SvdFactorization& factorization, DenseMatrix rhs);
 
 [[nodiscard]] SvdSolveResult solve_svd(DenseMatrix matrix, DenseMatrix rhs, const SvdOptions& options = {});
+
+/**
+ * Reuse a converged SVD to form a truncated Moore-Penrose pseudoinverse
+ * solution. Singular directions satisfy sigma > rcond * sigma_max.
+ */
+[[nodiscard]] SvdSolveResult solve_svd_pseudoinverse(const SvdFactorization& factorization, DenseMatrix rhs, double rcond);
 
 } // namespace qmomkit::internal

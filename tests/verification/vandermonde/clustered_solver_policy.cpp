@@ -231,6 +231,7 @@ int main(const int argc, char** argv)
         {qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::dense, "dense"},
         {qmomkit::VandermondeSolver::pivoted_qr, qmomkit::VandermondeSolver::pivoted_qr, "pivoted_qr"},
         {qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd, "svd"},
+        {qmomkit::VandermondeSolver::moore_penrose, qmomkit::VandermondeSolver::moore_penrose, "moore_penrose"},
         {qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::VandermondeSolver::bjorck_pereyra, "bjorck_pereyra"}};
 
     const std::string selected_solver = argc == 3 ? argv[2] : "";

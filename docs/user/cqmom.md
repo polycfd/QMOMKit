@@ -222,11 +222,14 @@ This line may be omitted when using the default. Supported values are:
 | `automatic` | Default policy; uses Björck-Pereyra. |
 | `dense` | Uses dense Gaussian elimination. |
 | `pivoted_qr` | Uses pivoted QR with numerical-rank detection. |
-| `svd` | Uses SVD with rank and convergence checks. |
+| `svd` | Uses SVD with rank and convergence checks; rank-deficient systems are rejected. |
+| `moore_penrose` | Uses a truncated SVD Moore-Penrose pseudoinverse. |
 | `bjorck_pereyra` | Uses Björck-Pereyra. |
 
-QR and SVD report rank-deficient systems; SVD also reports nonconvergence. See
-the [Configuration Guide](configuration.md) for exact syntax and policy behavior.
+QR and SVD report rank-deficient systems; SVD also reports nonconvergence.
+`moore_penrose` uses a truncated SVD with cutoff controlled by `rcond`; see the
+[Configuration Guide](configuration.md) for its detailed `rcond` contract and
+exact policy behavior.
 Developer-level numerical details are in the
 [Linear Algebra Guide](../developer/linear_algebra.md).
 

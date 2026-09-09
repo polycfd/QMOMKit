@@ -486,7 +486,8 @@ struct ConditionalSliceResult
 [[nodiscard]] bool valid_conditional_options(const ConditionalMomentOptions& options)
 {
     return std::isfinite(options.singular_tolerance) && options.singular_tolerance > 0.0 && std::isfinite(options.conditioning_warning_threshold) &&
-           options.conditioning_warning_threshold > 0.0;
+           options.conditioning_warning_threshold > 0.0 && std::isfinite(options.moore_penrose_rcond) && options.moore_penrose_rcond >= 0.0 &&
+           options.moore_penrose_rcond < 1.0;
 }
 
 [[nodiscard]] bool valid_diagnostic_level(const CqmomDiagnosticLevel level)
@@ -573,7 +574,8 @@ struct ConditionalSliceResult
 
     // Solve (V^T diag(w)) C = RHS for C: branch-local conditional moments of
     // the remaining axes at each parent node.
-    const internal::VandermondeSolveOptions solve_options{vandermonde_solver, options.singular_tolerance, false, 1.0e-10};
+    const internal::VandermondeSolveOptions solve_options{vandermonde_solver, options.singular_tolerance, false, 1.0e-10,
+                                                          options.moore_penrose_rcond};
     internal::VandermondeSolveResult solve = internal::solve_conditional_vandermonde_system(parent_abscissas, parent_weights, rhs, solve_options,
                                                                                             "Branch-local weighted Vandermonde system is singular.");
     result.vandermonde_requested_solver = solve.requested_solver;

@@ -410,6 +410,9 @@ void test_wrapper_forced_modes_match_dense_reference()
                                            qmomkit::VandermondeSolver::pivoted_qr, qmomkit::internal::VandermondeAlgorithm::pivoted_qr, 1.0e-12);
     assert_wrapper_matches_dense_reference(abscissas, weights, expected_solution, qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd,
                                            qmomkit::internal::VandermondeAlgorithm::svd, 1.0e-11);
+    assert_wrapper_matches_dense_reference(abscissas, weights, expected_solution, qmomkit::VandermondeSolver::moore_penrose,
+                                           qmomkit::VandermondeSolver::moore_penrose, qmomkit::internal::VandermondeAlgorithm::moore_penrose,
+                                           1.0e-11);
 }
 
 void test_wrapper_pivoted_qr_solves_weighted_system_without_residual_by_default()
@@ -469,6 +472,67 @@ void test_wrapper_svd_zero_rhs_columns_success()
     assert(result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::svd);
     assert(result.solution.rows() == abscissas.size());
     assert(result.solution.cols() == 0);
+}
+
+void test_wrapper_moore_penrose_solves_rank_deficient_system_with_minimum_norm_solution()
+{
+    const std::vector<double> abscissas{1.0, 1.0};
+    const std::vector<double> weights{0.5, 0.5};
+    const qmomkit::internal::DenseMatrix rhs = make_solution({{1.0}, {1.0}});
+    qmomkit::internal::performance::CounterSession session;
+    qmomkit::internal::VandermondeSolveResult result{qmomkit::internal::DenseMatrix(0, 0),
+                                                     false,
+                                                     "",
+                                                     qmomkit::VandermondeSolver::moore_penrose,
+                                                     qmomkit::VandermondeSolver::moore_penrose,
+                                                     qmomkit::internal::VandermondeAlgorithm::moore_penrose};
+    {
+        qmomkit::internal::performance::CounterScope scope(session);
+        const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::moore_penrose, singular_tolerance, true, 1.0e-10,
+                                                                 1.0e-14};
+        result = qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
+    }
+
+    assert(result.success);
+    assert(result.requested_solver == qmomkit::VandermondeSolver::moore_penrose);
+    assert(result.selected_solver == qmomkit::VandermondeSolver::moore_penrose);
+    assert(result.algorithm_used == qmomkit::internal::VandermondeAlgorithm::moore_penrose);
+    assert_matrix_near(result.solution, make_solution({{1.0}, {1.0}}), 1.0e-12);
+
+    const qmomkit::internal::performance::PerformanceCounters counters = session.snapshot();
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(counters.linear_algebra.vandermonde_solves == 1);
+    assert(counters.linear_algebra.svd_solves == 1);
+    assert(counters.linear_algebra.pivoted_qr_solves == 0);
+    assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
+    assert(counters.linear_algebra.dense_linear_solves == 0);
+    assert(counters.linear_algebra.residual_checks == 1);
+#else
+    assert(counters.linear_algebra.vandermonde_solves == 0);
+    assert(counters.linear_algebra.svd_solves == 0);
+    assert(counters.linear_algebra.pivoted_qr_solves == 0);
+    assert(counters.linear_algebra.bjorck_pereyra_solves == 0);
+    assert(counters.linear_algebra.dense_linear_solves == 0);
+    assert(counters.linear_algebra.residual_checks == 0);
+#endif
+}
+
+void test_wrapper_moore_penrose_rcond_truncates_full_rank_system()
+{
+    const std::vector<double> abscissas{0.0, 1.0};
+    const std::vector<double> weights{1.0, 1.0};
+    const qmomkit::internal::DenseMatrix rhs = make_solution({{1.0}, {0.0}});
+    const qmomkit::internal::VandermondeSolveOptions low_rcond{qmomkit::VandermondeSolver::moore_penrose, singular_tolerance, false, 1.0e-10, 0.1};
+    const qmomkit::internal::VandermondeSolveOptions high_rcond{qmomkit::VandermondeSolver::moore_penrose, singular_tolerance, false, 1.0e-10, 0.5};
+    const qmomkit::internal::VandermondeSolveResult low =
+        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, low_rcond, singular_message);
+    const qmomkit::internal::VandermondeSolveResult high =
+        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, high_rcond, singular_message);
+
+    assert(low.success);
+    assert(high.success);
+    assert_matrix_near(low.solution, make_solution({{1.0}, {0.0}}), 1.0e-12);
+    assert_matrix_near(high.solution, make_solution({{0.276393202250021}, {0.447213595499958}}), 1.0e-12);
 }
 
 void test_wrapper_automatic_selects_plain_bp_for_small_wide_system()
@@ -783,6 +847,9 @@ int main(const int argc, char** argv)
             {"wrapper_svd_solves_weighted_system_without_residual_by_default", test_wrapper_svd_solves_weighted_system_without_residual_by_default},
             {"wrapper_svd_honors_optional_residual_validation", test_wrapper_svd_honors_optional_residual_validation},
             {"wrapper_svd_zero_rhs_columns_success", test_wrapper_svd_zero_rhs_columns_success},
+            {"wrapper_moore_penrose_solves_rank_deficient_system_with_minimum_norm_solution",
+             test_wrapper_moore_penrose_solves_rank_deficient_system_with_minimum_norm_solution},
+            {"wrapper_moore_penrose_rcond_truncates_full_rank_system", test_wrapper_moore_penrose_rcond_truncates_full_rank_system},
             {"wrapper_automatic_selects_plain_bp_for_small_wide_system", test_wrapper_automatic_selects_plain_bp_for_small_wide_system},
             {"wrapper_automatic_selects_plain_bp_for_large_system", test_wrapper_automatic_selects_plain_bp_for_large_system},
             {"wrapper_automatic_matches_plain_bp_without_forced_residual_validation",

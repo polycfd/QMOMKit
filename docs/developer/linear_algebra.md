@@ -20,7 +20,9 @@ policy, and algorithms proportional to the small dense systems used by CQMOM.
 
 Solver failures remain visible. QMOMKit does not silently change the
 mathematical problem by substituting pseudoinverse, truncated, regularized, or
-minimum-norm recovery paths when a configured solve is not accepted.
+minimum-norm recovery paths when a configured solve is not accepted. The
+explicit `moore_penrose` policy is the sole requested truncated pseudoinverse
+path.
 
 This layer does not own phase-space hierarchy, configuration parsing, recursive
 CQMOM traversal, application physics, or public workflow design. It also does
@@ -37,12 +39,14 @@ singularity or numerical-rank detection, and direct solve semantics:
 solve_dense(...)
 solve_bjorck_pereyra(...)
 factorize_qr(...) / solve_qr(...)
-factorize_svd(...) / solve_svd(...)
+factorize_svd(...) / solve_svd(...) / solve_svd_pseudoinverse(...)
 ```
 
 `solve_dense(...)`, `factorize_qr(...)`, `solve_qr(...)`, `factorize_svd(...)`,
-and `solve_svd(...)` are generic dense kernels. `solve_bjorck_pereyra(...)` is a
-structured, unweighted transposed Vandermonde kernel.
+and `solve_svd(...)` are generic dense kernels. `solve_svd_pseudoinverse(...)`
+forms an explicitly requested truncated SVD solution.
+`solve_bjorck_pereyra(...)` is a structured, unweighted transposed Vandermonde
+kernel.
 
 ### Conditional Vandermonde Adapter
 
@@ -56,7 +60,7 @@ solve_conditional_vandermonde_system(...)
 
 The adapter constructs the weighted matrix, resolves the selected
 `VandermondeSolver` policy, dispatches to the numerical kernels, performs
-Björck-Pereyra (BP) weight recovery, validates QR and SVD residuals when
+Björck-Pereyra (BP) weight recovery, validates QR, SVD, and Moore-Penrose residuals when
 requested, records performance counters, and returns solver diagnostics.
 
 ### CQMOM Integration
@@ -64,8 +68,9 @@ requested, records performance counters, and returns solver diagnostics.
 CQMOM constructs branch-local conditional systems, propagates the
 configured `VandermondeSolver` policy to the adapter, maps failed adapter solves
 to CQMOM status values, and records branch diagnostics. It does not implement
-the dense, BP, QR, or SVD algorithms and does not perform numerical-rank-based
-recovery. See [cqmom_recursive.md](cqmom_recursive.md) for the CQMOM algorithm.
+the dense, BP, QR, or SVD algorithms; explicitly requested Moore-Penrose
+recovery remains adapter-owned. See [cqmom_recursive.md](cqmom_recursive.md)
+for the CQMOM algorithm.
 
 ## Common Matrix And Solve Conventions
 
@@ -85,7 +90,7 @@ Vandermonde systems used in production CQMOM reconstruction are square.
 
 ## Solver Comparison
 
-Four solvers are available: a specialized Björck-Pereyra solver [[Björck & Pereyra, 1970](https://doi.org/10.2307/2004623)] as well as generic solvers based on Gauss eliminiation, QR-factorization, and singular-value decomposition [[Press, 1992](https://books.google.ca/books/about/Numerical_Recipes_in_FORTRAN_77_Volume_1.html?id=gn_4mpdN9WkC&redir_esc=y)].
+Five solver policies are available: a specialized Björck-Pereyra solver [[Björck & Pereyra, 1970](https://doi.org/10.2307/2004623)], a Moore-Penrose solver that relies on a pseudoinverse [[Marco & Martinez, 2019](https://www.doi.org/10.1016/j.cam.2018.10.009)], as well as generic solvers based on Gauss eliminiation, QR-factorization, and singular-value decomposition [[Press, 1992](https://books.google.ca/books/about/Numerical_Recipes_in_FORTRAN_77_Volume_1.html?id=gn_4mpdN9WkC&redir_esc=y)].
 
 | Solver | Mathematical system | Type | Supported shapes | Multiple RHS | Rank diagnostics | Current Vandermonde policy |
 |---|---|---|---|---|---|---|
@@ -93,6 +98,7 @@ Four solvers are available: a specialized Björck-Pereyra solver [[Björck & Per
 | Dense Gaussian elimination | $AX=B$ | Generic dense | Square | Yes | No; reports singular-pivot failure | `dense` |
 | Pivoted Householder QR | $AP=QR$, solve $AX\approx B$ | Generic dense | Square and tall, $m\ge n$ | Yes | Numerical rank | `pivoted_qr` |
 | One-sided Jacobi SVD | $A=U\Sigma V^T$, solve $AX\approx B$ | Generic dense | Square and tall, $m\ge n$ | Yes | Singular values and numerical rank | `svd` |
+| Truncated Moore-Penrose SVD | $A^+B$ | Generic dense | Square and tall, $m\ge n$ | Yes | Retained singular directions | `moore_penrose` |
 
 
 ## Björck-Pereyra Solver
@@ -369,18 +375,26 @@ N_{\mathrm{sweeps}}
 $$
 
 Rank-deficient and nonconverged factorizations remain inspectable, but
-`solve_svd(...)` refuses them. SVD rank and Jacobi controls are internal
-defaults and are not configurable through `.qmom` files.
+`solve_svd(...)` refuses them. `solve_svd_pseudoinverse(...)` accepts a
+converged full-rank or rank-deficient factorization and retains exactly
+$\sigma_j > rcond\,\sigma_0$. It zeros discarded directions, returns a finite
+zero solution when none are retained, and reports the retained rank. It rejects
+nonconverged factorizations and invalid `rcond` values. SVD rank and Jacobi
+controls are internal defaults and are not configurable through `.qmom` files.
 
 ### Current QMOMKit Role
 
-SVD is available to CQMOM through the explicit `svd` policy. It solves the complete weighted conditional matrix directly. 
+SVD is available to CQMOM through the explicit `svd` policy. It solves the
+complete weighted conditional matrix directly. The separately explicit
+`moore_penrose` policy reuses the Jacobi factorization and applies the
+configured `vandermonde.rcond` cutoff.
 
 ### Limitations And Non-Goals
 
-SVD requires $m \geq n$. Rank-deficient and nonconverged solves are refused. The
-implementation does not produce pseudoinverse, truncated, regularized, or
-minimum-norm recovery solutions.
+SVD requires $m \geq n$. Regular SVD solves and nonconverged factorizations are
+refused. The implementation does not provide regularization or an implicit
+recovery path; truncated minimum-norm recovery is available only through the
+explicit Moore-Penrose policy.
 
 ## Vandermonde Adapter
 
@@ -406,7 +420,7 @@ orders or flattened branch-local moment indices.
 
 ### Backend Responsibilities
 
-The dense, QR, and SVD backends build the complete weighted matrix `A` and solve
+The dense, QR, SVD, and Moore-Penrose backends build the complete weighted matrix `A` and solve
 `A C = M` directly. The BP backend uses the unweighted BP kernel and then lets
 the adapter recover conditional moments by dividing by weights.
 
@@ -455,6 +469,7 @@ Vandermonde solves. User-facing syntax and examples belong in
 | `dense` | Dense solve |
 | `pivoted_qr` | Pivoted QR solve |
 | `svd` | SVD solve |
+| `moore_penrose` | Truncated SVD pseudoinverse solve |
 | `bjorck_pereyra` | Björck-Pereyra solve |
 | `automatic` | Björck-Pereyra solve |
 
@@ -467,15 +482,18 @@ Vandermonde solves. User-facing syntax and examples belong in
 Dense failures are singular-pivot failures. BP failures are node-separation,
 invalid-input, structured-solve, or non-finite-output failures. QR failures
 include invalid inputs and numerical rank deficiency. SVD failures include
-invalid inputs, numerical rank deficiency, and Jacobi nonconvergence.
+invalid inputs, numerical rank deficiency, and Jacobi nonconvergence. The
+explicit Moore-Penrose policy accepts converged rank-deficient SVDs but still
+fails for invalid input, invalid `rcond`, and Jacobi nonconvergence.
 
 Residual rejection is an adapter-level failure. QMOMKit does not silently
 replace these failures with pseudoinverse, truncated, regularized, or
-minimum-norm solutions.
+minimum-norm solutions; the Moore-Penrose path is used only when explicitly
+requested.
 
 ### Residual Validation
 
-Explicit QR and SVD policies use residual validation when requested by
+Explicit QR, SVD, and Moore-Penrose policies use residual validation when requested by
 `VandermondeSolveOptions::validate_residual`. Residual rejection returns
 failure.
 Recursive diagnostics do not themselves request residual validation; they
@@ -507,6 +525,7 @@ $$
 | SVD relative-rank tolerance | $10^{-14}$ | Threshold relative to $\sigma_0$ | No |
 | SVD Jacobi tolerance | $\max(10^{-14},10\epsilon\max(m,n))$ | Column-orthogonality convergence | No |
 | SVD maximum sweeps | $\max(32,8n)$ | Jacobi iteration ceiling | No |
+| Moore-Penrose `rcond` | $10^{-14}$ | Strict relative singular-value cutoff for the explicit pseudoinverse | Yes, `vandermonde.rcond` |
 
 Similarly named tolerances should not be conflated. The Vandermonde singular
 tolerance is not the QR or SVD rank tolerance, and SVD Jacobi convergence

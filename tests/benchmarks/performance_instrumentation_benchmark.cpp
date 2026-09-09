@@ -802,6 +802,8 @@ std::string solver_name(const qmomkit::VandermondeSolver solver)
         return "pivoted_qr";
     case qmomkit::VandermondeSolver::svd:
         return "svd";
+    case qmomkit::VandermondeSolver::moore_penrose:
+        return "moore_penrose";
     case qmomkit::VandermondeSolver::bjorck_pereyra:
         return "bjorck_pereyra";
     }

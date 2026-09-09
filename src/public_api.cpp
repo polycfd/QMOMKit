@@ -173,6 +173,8 @@ using CqmomCaseVariant = std::variant<CqmomDenseCase, CqmomLeanCase>;
         return "pivoted_qr";
     case VandermondeSolver::svd:
         return "svd";
+    case VandermondeSolver::moore_penrose:
+        return "moore_penrose";
     case VandermondeSolver::bjorck_pereyra:
         return "bjorck_pereyra";
     }

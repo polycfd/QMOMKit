@@ -337,6 +337,78 @@ void test_rank_deficiency_cases_refuse_solve()
     }
 }
 
+void test_pseudoinverse_solves_rank_deficient_and_truncates_singular_directions()
+{
+    const qmomkit::internal::DenseMatrix matrix = make_matrix({{4.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 0.0}});
+    const qmomkit::internal::DenseMatrix rhs = make_matrix({{8.0}, {3.0}, {7.0}});
+    const qmomkit::internal::SvdFactorization factorization = qmomkit::internal::factorize_svd(matrix);
+    assert(factorization.status == qmomkit::internal::SvdStatus::rank_deficient);
+
+    const qmomkit::internal::SvdSolveResult retained = qmomkit::internal::solve_svd_pseudoinverse(factorization, rhs, 0.0);
+    assert(retained.status == qmomkit::internal::SvdStatus::success);
+    assert(retained.numerical_rank == 2);
+    assert_matrix_near(retained.solution, make_matrix({{2.0}, {3.0}, {0.0}}), default_tolerance);
+
+    const qmomkit::internal::SvdSolveResult truncated = qmomkit::internal::solve_svd_pseudoinverse(factorization, rhs, 0.5);
+    assert(truncated.status == qmomkit::internal::SvdStatus::success);
+    assert(truncated.numerical_rank == 1);
+    assert_matrix_near(truncated.solution, make_matrix({{2.0}, {0.0}, {0.0}}), default_tolerance);
+
+    // The second diagonal singular value satisfies sigma == rcond * sigma_max.
+    const qmomkit::internal::SvdFactorization cutoff_factorization =
+        qmomkit::internal::factorize_svd(make_matrix({{4.0, 0.0, 0.0}, {0.0, 2.0, 0.0}, {0.0, 0.0, 0.0}}));
+    const qmomkit::internal::SvdSolveResult cutoff_solution =
+        qmomkit::internal::solve_svd_pseudoinverse(cutoff_factorization, make_matrix({{8.0}, {6.0}, {7.0}}), 0.5);
+    assert(cutoff_solution.status == qmomkit::internal::SvdStatus::success);
+    assert(cutoff_solution.numerical_rank == 1);
+    assert_matrix_near(cutoff_solution.solution, make_matrix({{2.0}, {0.0}, {0.0}}), default_tolerance);
+
+    const qmomkit::internal::SvdFactorization zero = qmomkit::internal::factorize_svd(qmomkit::internal::DenseMatrix(2, 2));
+    const qmomkit::internal::SvdSolveResult zero_solution = qmomkit::internal::solve_svd_pseudoinverse(zero, make_matrix({{1.0}, {-2.0}}), 0.0);
+    assert(zero.status == qmomkit::internal::SvdStatus::rank_deficient);
+    assert(zero_solution.status == qmomkit::internal::SvdStatus::success);
+    assert(zero_solution.numerical_rank == 0);
+    assert_matrix_near(zero_solution.solution, make_matrix({{0.0}, {0.0}}), default_tolerance);
+}
+
+void test_pseudoinverse_matches_regular_svd_for_full_rank_system()
+{
+    const qmomkit::internal::DenseMatrix matrix = make_matrix({{3.0, -1.0}, {2.0, 4.0}});
+    const qmomkit::internal::DenseMatrix rhs = make_matrix({{5.0, -2.0}, {1.0, 7.0}});
+    const qmomkit::internal::SvdFactorization factorization = qmomkit::internal::factorize_svd(matrix);
+    const qmomkit::internal::SvdSolveResult regular = qmomkit::internal::solve_svd(factorization, rhs);
+    const qmomkit::internal::SvdSolveResult pseudoinverse = qmomkit::internal::solve_svd_pseudoinverse(factorization, rhs, 1.0e-14);
+    assert(regular.status == qmomkit::internal::SvdStatus::success);
+    assert(pseudoinverse.status == qmomkit::internal::SvdStatus::success);
+    assert_matrix_near(pseudoinverse.solution, regular.solution, default_tolerance);
+}
+
+void test_pseudoinverse_non_symmetric_rank_one_minimum_norm_solution()
+{
+    // A x = b requires x_0 + x_1 = 3. The minimum-norm solution is
+    // therefore x = (1.5, 1.5)^T.
+    const qmomkit::internal::DenseMatrix matrix = make_matrix({{1.0, 1.0}, {2.0, 2.0}});
+    const qmomkit::internal::DenseMatrix rhs = make_matrix({{3.0}, {6.0}});
+    const qmomkit::internal::SvdFactorization factorization = qmomkit::internal::factorize_svd(matrix);
+    const qmomkit::internal::SvdSolveResult result = qmomkit::internal::solve_svd_pseudoinverse(factorization, rhs, 0.0);
+
+    assert(factorization.status == qmomkit::internal::SvdStatus::rank_deficient);
+    assert(result.status == qmomkit::internal::SvdStatus::success);
+    assert(result.numerical_rank == 1);
+    assert_matrix_near(result.solution, make_matrix({{1.5}, {1.5}}), default_tolerance);
+}
+
+void test_pseudoinverse_rejects_invalid_rcond()
+{
+    const qmomkit::internal::SvdFactorization factorization = qmomkit::internal::factorize_svd(make_matrix({{2.0, 0.0}, {0.0, 1.0}}));
+    const qmomkit::internal::DenseMatrix rhs = make_matrix({{4.0}, {3.0}});
+    for (const double rcond : {-1.0, 1.0, 2.0, std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity()})
+    {
+        const qmomkit::internal::SvdSolveResult result = qmomkit::internal::solve_svd_pseudoinverse(factorization, rhs, rcond);
+        assert(result.status == qmomkit::internal::SvdStatus::invalid_input);
+    }
+}
+
 void test_near_rank_deficiency_and_condition_numbers()
 {
     const qmomkit::internal::SvdOptions options{1.0e-8, 0.0, 0};
@@ -535,6 +607,11 @@ int main(const int argc, char** argv)
             {"tall_exact_and_inconsistent_least_squares", test_tall_exact_and_inconsistent_least_squares},
             {"multiple_rhs_and_qr_comparison", test_multiple_rhs_and_qr_comparison},
             {"rank_deficiency_cases_refuse_solve", test_rank_deficiency_cases_refuse_solve},
+            {"pseudoinverse_solves_rank_deficient_and_truncates_singular_directions",
+             test_pseudoinverse_solves_rank_deficient_and_truncates_singular_directions},
+            {"pseudoinverse_matches_regular_svd_for_full_rank_system", test_pseudoinverse_matches_regular_svd_for_full_rank_system},
+            {"pseudoinverse_non_symmetric_rank_one_minimum_norm_solution", test_pseudoinverse_non_symmetric_rank_one_minimum_norm_solution},
+            {"pseudoinverse_rejects_invalid_rcond", test_pseudoinverse_rejects_invalid_rcond},
             {"near_rank_deficiency_and_condition_numbers", test_near_rank_deficiency_and_condition_numbers},
             {"uniform_scaling_large_and_small", test_uniform_scaling_large_and_small},
             {"nonconvergence_is_reported_and_refused", test_nonconvergence_is_reported_and_refused},

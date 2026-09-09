@@ -19,7 +19,7 @@ in [`vandermonde.hpp`](../../../src/internal/vandermonde.hpp). Recursive
 `reconstruct_child_slices` calls the adapter. Matrix construction loops over
 parent powers and nodes to form `w*x^p`, with no coordinate normalization here.
 
-`resolve_solver` retains explicit dense/QR/SVD/BP requests.
+`resolve_solver` retains explicit dense/QR/SVD/Moore-Penrose/BP requests.
 `select_automatic_solver` unconditionally returns BP; dimensions and RHS count
 are unused. There is **no solver fallback chain**. An unknown internal enum
 falls through to dense; the configuration parser rejects unknown textual values.
@@ -33,6 +33,11 @@ stages of that decision.
   tolerance. Rank deficiency maps to failure, not a lower-rank conditional rule.
   Optional `validate_residual` tests the computed result; recursive callers set
   this false regardless of diagnostic level.
+- **Moore-Penrose:** check dimensions, build `A`, factor it with the Jacobi
+  SVD, then retain precisely `sigma > rcond * sigma_max`. A converged
+  rank-deficient factorization is accepted; discarded singular directions are
+  zeroed. Invalid `rcond` and SVD nonconvergence fail. Optional residual
+  validation applies as for QR and SVD.
 - **BP:** reject empty/mismatched/non-finite inputs or nonpositive tolerance.
   Require every `abs(w)>singular_tolerance*max(1,max(abs(w)))`. Solve the
   unweighted transposed system `V^T*Y=R`, then divide every solution row by its
@@ -40,7 +45,8 @@ stages of that decision.
   weights are not excluded by this algebraic adapter; quadrature callers supply
   their own accepted weights.
 
-A successful dense, QR, SVD, or BP solve always returns finite solution values.
+A successful dense, QR, SVD, Moore-Penrose, or BP solve always returns finite
+solution values.
 Residual validation is a separate, optional policy where supported; rank, pivot,
 and convergence decisions remain specific to the selected solver. Success does
 not by itself establish favorable conditioning or a requested accuracy.
@@ -53,7 +59,8 @@ residual and condition information without turning warnings into rejection.
 
 Evidence: [`tests/unit/vandermonde.cpp`](../../../tests/unit/vandermonde.cpp)
 explicitly checks automatic BP at small/wide and larger sizes, forced modes,
-small/zero weights, rank deficiency, zero RHS columns, and optional QR/SVD
+small/zero weights, rank deficiency, zero RHS columns, Moore-Penrose
+truncation, and optional QR/SVD/Moore-Penrose
 residual rejection. Tests comparing to dense are parity evidence, while
 [`solver_selection.cpp`](../../../tests/verification/vandermonde/solver_selection.cpp)
 and [`clustered_solver_policy.cpp`](../../../tests/verification/vandermonde/clustered_solver_policy.cpp)
@@ -162,8 +169,10 @@ Non-finite completed output is rejected. The zero matrix returns rank deficient.
 
 `solve_svd` checks factor metadata/status, requires full column rank and
 convergence, then loops to compute `U^T*R`, divide by singular values, and multiply
-by `V`. It does not provide a truncated pseudoinverse, despite using SVD. The
-final assembled solution must be finite before the solve reports success.
+by `V`. `solve_svd_pseudoinverse` uses the same factorization after convergence,
+accepts rank-deficient metadata, and applies the strict `rcond` cutoff before
+the same `V` multiplication. The final assembled solution must be finite before
+either solve reports success.
 Sensitivities include nearly parallel columns, cross-product underflow, rank
 cutoffs, and amplification by small accepted singular values.
 

@@ -521,4 +521,81 @@ SvdSolveResult solve_svd(DenseMatrix matrix, DenseMatrix rhs, const SvdOptions& 
     return solve_svd(factorization, std::move(rhs));
 }
 
+SvdSolveResult solve_svd_pseudoinverse(const SvdFactorization& factorization, DenseMatrix rhs, const double rcond)
+{
+    const std::size_t rhs_cols = rhs.cols();
+    if (!factorization_metadata_is_consistent(factorization))
+    {
+        return solve_failure_result(factorization.cols, rhs_cols, diagnostic_rank_from_metadata(factorization), SvdStatus::invalid_input,
+                                    "SVD factorization metadata is inconsistent.");
+    }
+    if (rhs.rows() != factorization.rows)
+    {
+        return solve_failure_result(factorization.cols, rhs_cols, factorization.numerical_rank, SvdStatus::invalid_input,
+                                    "SVD solve right-hand side row count is inconsistent.");
+    }
+    if (!finite_matrix(rhs))
+    {
+        return solve_failure_result(factorization.cols, rhs_cols, factorization.numerical_rank, SvdStatus::invalid_input,
+                                    "SVD solve right-hand side entries must be finite.");
+    }
+    if (!std::isfinite(rcond) || rcond < 0.0 || rcond >= 1.0)
+    {
+        return solve_failure_result(factorization.cols, rhs_cols, factorization.numerical_rank, SvdStatus::invalid_input,
+                                    "SVD pseudoinverse rcond must be finite and satisfy 0 <= rcond < 1.");
+    }
+    if (factorization.status == SvdStatus::no_convergence)
+    {
+        return solve_failure_result(factorization.cols, rhs_cols, factorization.numerical_rank, SvdStatus::no_convergence,
+                                    "SVD pseudoinverse requires a converged factorization.");
+    }
+    if (factorization.status == SvdStatus::invalid_input)
+    {
+        return solve_failure_result(factorization.cols, rhs_cols, factorization.numerical_rank, factorization.status, factorization.message);
+    }
+
+    const double cutoff = rcond * factorization.singular_values.front();
+    DenseMatrix projected(factorization.cols, rhs_cols);
+    std::size_t retained_rank = 0;
+    for (std::size_t row = 0; row < factorization.cols; ++row)
+    {
+        const double singular_value = factorization.singular_values[row];
+        if (singular_value <= cutoff)
+        {
+            continue;
+        }
+        ++retained_rank;
+        for (std::size_t rhs_col = 0; rhs_col < rhs_cols; ++rhs_col)
+        {
+            double value = 0.0;
+            for (std::size_t k = 0; k < factorization.rows; ++k)
+            {
+                value += factorization.left_singular_vectors(k, row) * rhs(k, rhs_col);
+            }
+            projected(row, rhs_col) = value / singular_value;
+        }
+    }
+
+    DenseMatrix solution(factorization.cols, rhs_cols);
+    for (std::size_t row = 0; row < factorization.cols; ++row)
+    {
+        for (std::size_t rhs_col = 0; rhs_col < rhs_cols; ++rhs_col)
+        {
+            double value = 0.0;
+            for (std::size_t k = 0; k < factorization.cols; ++k)
+            {
+                value += factorization.right_singular_vectors(row, k) * projected(k, rhs_col);
+            }
+            solution(row, rhs_col) = value;
+        }
+    }
+
+    if (!finite_matrix(solution))
+    {
+        return solve_failure_result(factorization.cols, rhs_cols, retained_rank, SvdStatus::invalid_input,
+                                    "SVD pseudoinverse solve produced non-finite solution values.");
+    }
+    return SvdSolveResult{std::move(solution), retained_rank, SvdStatus::success, ""};
+}
+
 } // namespace qmomkit::internal

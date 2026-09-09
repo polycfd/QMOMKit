@@ -40,7 +40,8 @@ using internal::LinearSolveResult;
 [[nodiscard]] bool valid_options(const ConditionalMomentOptions& options)
 {
     return std::isfinite(options.singular_tolerance) && options.singular_tolerance > 0.0 && std::isfinite(options.conditioning_warning_threshold) &&
-           options.conditioning_warning_threshold > 0.0;
+           options.conditioning_warning_threshold > 0.0 && std::isfinite(options.moore_penrose_rcond) && options.moore_penrose_rcond >= 0.0 &&
+           options.moore_penrose_rcond < 1.0;
 }
 
 [[nodiscard]] DenseMatrix extract_rhs(const ConditionalMomentRequest& request, const std::size_t parent_dimension, const std::size_t target_dimension)

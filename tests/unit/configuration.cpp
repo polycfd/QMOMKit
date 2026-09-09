@@ -1924,16 +1924,25 @@ void test_cqmom_diagnostic_level_parses_values()
     assert(has_message_fragment(invalid, "detailed, basic, or none"));
 }
 
-std::string cqmom_vandermonde_solver_text(const std::string& solver)
+std::string cqmom_vandermonde_solver_text(const std::string& solver, const std::string& rcond = "")
 {
     std::string text = R"(
 [phase_space]
 node_counts = 1, 1
 
 )";
-    if (!solver.empty())
+    if (!solver.empty() || !rcond.empty())
     {
-        text += "[vandermonde]\nsolver = " + solver + "\n\n";
+        text += "[vandermonde]\n";
+        if (!solver.empty())
+        {
+            text += "solver = " + solver + "\n";
+        }
+        if (!rcond.empty())
+        {
+            text += "rcond = " + rcond + "\n";
+        }
+        text += "\n";
     }
     text += R"(
 [moments]
@@ -1964,6 +1973,11 @@ void test_cqmom_vandermonde_solver_parses_values()
     assert(svd.ok());
     assert(svd.value().vandermonde_solver == qmomkit::VandermondeSolver::svd);
 
+    const auto moore_penrose = qmomkit::config::parse_cqmom_dense(cqmom_vandermonde_solver_text("moore_penrose", "0.25"));
+    assert(moore_penrose.ok());
+    assert(moore_penrose.value().vandermonde_solver == qmomkit::VandermondeSolver::moore_penrose);
+    assert(std::abs(moore_penrose.value().conditional_options.moore_penrose_rcond - 0.25) <= 1.0e-15);
+
     const auto bp = qmomkit::config::parse_cqmom_lean(cqmom_vandermonde_solver_text("bjorck_pereyra"));
     assert(bp.ok());
     assert(bp.value().vandermonde_solver == qmomkit::VandermondeSolver::bjorck_pereyra);
@@ -1978,6 +1992,33 @@ void test_cqmom_vandermonde_solver_parses_values()
     assert(has_message_fragment(invalid, "vandermonde.solver"));
     assert(has_message_fragment(invalid, "svd"));
     assert(has_message_fragment(invalid, "pivoted_qr"));
+}
+
+void test_cqmom_vandermonde_rcond_parses_and_validates_for_all_solvers()
+{
+    const auto omitted = qmomkit::config::parse_cqmom_lean(cqmom_vandermonde_solver_text(""));
+    assert(omitted.ok());
+    assert(std::abs(omitted.value().conditional_options.moore_penrose_rcond - 1.0e-14) <= 1.0e-28);
+
+    const auto zero = qmomkit::config::parse_cqmom_lean(cqmom_vandermonde_solver_text("moore_penrose", "0"));
+    assert(zero.ok());
+    assert(zero.value().conditional_options.moore_penrose_rcond == 0.0);
+
+    const auto ignored_for_dense = qmomkit::config::parse_cqmom_dense(cqmom_vandermonde_solver_text("dense", "0.25"));
+    assert(ignored_for_dense.ok());
+    assert(std::abs(ignored_for_dense.value().conditional_options.moore_penrose_rcond - 0.25) <= 1.0e-15);
+
+    const auto representation_neutral = qmomkit::config::parse_cqmom(cqmom_vandermonde_solver_text("moore_penrose", "0.25"));
+    assert(representation_neutral.ok());
+    assert(std::abs(representation_neutral.value().conditional_options().moore_penrose_rcond - 0.25) <= 1.0e-15);
+    assert(std::abs(representation_neutral.value().initial_state().conditional_options().moore_penrose_rcond - 0.25) <= 1.0e-15);
+
+    for (const std::string& invalid_rcond : {"-0.1", "1", "1.1", "nan", "inf"})
+    {
+        const auto invalid = qmomkit::config::parse_cqmom_dense(cqmom_vandermonde_solver_text("dense", invalid_rcond));
+        assert(!invalid.ok());
+        assert(has_message_fragment(invalid, "vandermonde.rcond"));
+    }
 }
 
 void assert_cqmom_case_reports_vandermonde_solver(const std::string& configured_solver, const qmomkit::VandermondeSolver expected_solver)
@@ -1999,6 +2040,7 @@ void test_cqmom_case_and_state_report_vandermonde_solver()
     assert_cqmom_case_reports_vandermonde_solver("dense", qmomkit::VandermondeSolver::dense);
     assert_cqmom_case_reports_vandermonde_solver("pivoted_qr", qmomkit::VandermondeSolver::pivoted_qr);
     assert_cqmom_case_reports_vandermonde_solver("svd", qmomkit::VandermondeSolver::svd);
+    assert_cqmom_case_reports_vandermonde_solver("moore_penrose", qmomkit::VandermondeSolver::moore_penrose);
     assert_cqmom_case_reports_vandermonde_solver("bjorck_pereyra", qmomkit::VandermondeSolver::bjorck_pereyra);
 }
 
@@ -4060,6 +4102,7 @@ int main(const int argc, char** argv)
              test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom},
             {"cqmom_diagnostic_level_parses_values", test_cqmom_diagnostic_level_parses_values},
             {"cqmom_vandermonde_solver_parses_values", test_cqmom_vandermonde_solver_parses_values},
+            {"cqmom_vandermonde_rcond_parses_and_validates_for_all_solvers", test_cqmom_vandermonde_rcond_parses_and_validates_for_all_solvers},
             {"cqmom_case_and_state_report_vandermonde_solver", test_cqmom_case_and_state_report_vandermonde_solver},
             {"realizability_policy_defaults_to_disabled", test_realizability_policy_defaults_to_disabled},
             {"realizability_policy_parses_check_modes", test_realizability_policy_parses_check_modes},

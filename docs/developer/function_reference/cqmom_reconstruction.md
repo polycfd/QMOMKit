@@ -77,7 +77,7 @@ solver route is described in [conditional systems](conditional_systems.md).
 
 Evidence: the solver-policy and diagnostic-level cases in
 [recursive unit tests](../../../tests/unit/recursive_quadrature.cpp) compare
-moments and status across dense/BP/QR/SVD paths. Agreement on these cases is not an
+moments and status across dense/BP/QR/SVD/Moore-Penrose paths. Agreement on these cases is not an
 independent conditioning limit or evidence that every finite solution is accurate.
 
 ## Active topology and branch limits — Level A

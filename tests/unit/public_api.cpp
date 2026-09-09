@@ -1251,6 +1251,10 @@ void test_cqmom_storage_settings_format()
     const std::string svd = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false, qmomkit::VandermondeSolver::svd,
                                                            qmomkit::CqmomDiagnosticLevel::basic);
     assert(svd.find("Vandermonde solver = svd") != std::string::npos);
+
+    const std::string moore_penrose = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false,
+                                                                     qmomkit::VandermondeSolver::moore_penrose, qmomkit::CqmomDiagnosticLevel::basic);
+    assert(moore_penrose.find("Vandermonde solver = moore_penrose") != std::string::npos);
 }
 
 } // namespace

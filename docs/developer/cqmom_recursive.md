@@ -292,7 +292,8 @@ $$V[i, p] = x_i^p$$
 then the conditional matrix is:
 $$A = V^T \mathrm{diag}(w)$$
 
-The dense, pivoted-QR, and SVD pathways build `A` and solve `A*C = M`
+The dense, pivoted-QR, SVD, and Moore-Penrose pathways build `A` and solve
+`A*C = M`
 directly. The Björck-Pereyra pathway is split into two internal layers: a
 structure-specific kernel solves the unweighted transposed Vandermonde system
 $$V^T Y = M$$
@@ -302,7 +303,7 @@ dividing each solution row by the corresponding parent weight:
 $$C[i, q] = Y[i, q] / w_i$$
 
 The adapter owns the conditional-system validation, weight transformation,
-solver selection, QR/SVD residual acceptance, and diagnostics. The
+solver selection, QR/SVD/Moore-Penrose residual acceptance, and diagnostics. The
 Björck-Pereyra kernel owns only the internal unweighted transposed Vandermonde
 solve and its node-separation checks. Numerical kernel details, tolerance
 definitions, and the complete solver-selection table are documented in
@@ -314,6 +315,8 @@ Vandermonde solver. The user-facing solver choices are:
 - Dense solver: a generic dense linear solve of the weighted system.
 - Pivoted-QR solver: an explicit direct solve of the weighted system.
 - SVD solver: an explicit direct solve of the weighted system.
+- Moore-Penrose solver: an explicitly requested truncated SVD minimum-norm
+  solve with `sigma > rcond * sigma_max` retained.
 - Björck-Pereyra Vandermonde solver: the unweighted BP transform plus
   adapter-owned weight recovery.
 - Automatic solver: the default; it resolves to Björck-Pereyra.
@@ -321,11 +324,11 @@ Vandermonde solver. The user-facing solver choices are:
 The distinction between requested solver and actual algorithm is deliberate.
 Diagnostics record the requested Vandermonde solver, the selected solver after
 automatic resolution, the algorithm actually used (`dense`, `pivoted_qr`,
-`svd`, or `bjorck_pereyra`). For example, the
+`svd`, `moore_penrose`, or `bjorck_pereyra`). For example, the
 default request is `automatic`; CQMOM resolves that to
 `bjorck_pereyra` and reports the Björck-Pereyra algorithm.
 
-Explicit pivoted QR and SVD
+Explicit pivoted QR, SVD, and Moore-Penrose
 honor the adapter residual-validation option when requested. Residual rejection
 is a failed conditional Vandermonde solve. Recursive
 diagnostic level controls diagnostic retention and expensive diagnostic
@@ -471,7 +474,9 @@ The CQMOM implementation of QMOMKit assumes:
 - branch-local one-dimensional slices follow the same raw moment convention
   expected by Wheeler;
 - weighted Vandermonde systems must be nonsingular under the configured
-  singularity tolerance.
+  singularity tolerance unless the explicit Moore-Penrose policy is selected;
+  that policy accepts a converged rank-deficient SVD using its configured
+  truncation cutoff.
 
 The implementation reports failures with explicit status values. Public
 `CqmomStatus` values are:

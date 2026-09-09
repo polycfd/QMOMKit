@@ -14,6 +14,7 @@ enum class VandermondeAlgorithm
     dense,
     pivoted_qr,
     svd,
+    moore_penrose,
     bjorck_pereyra
 };
 
@@ -23,6 +24,7 @@ struct VandermondeSolveOptions
     double singular_tolerance = 1.0e-14;
     bool validate_residual = false;
     double residual_tolerance = 1.0e-10;
+    double moore_penrose_rcond = 1.0e-14;
 };
 
 struct VandermondeSolveResult

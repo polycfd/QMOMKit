@@ -279,6 +279,7 @@ void run_direct_solve(benchmark::State& state, const std::size_t n, const std::s
         return;
     case qmomkit::VandermondeSolver::pivoted_qr:
     case qmomkit::VandermondeSolver::svd:
+    case qmomkit::VandermondeSolver::moore_penrose:
     case qmomkit::VandermondeSolver::automatic:
         run_weighted_wrapper_solve(state, n, rhs_cols, numerical_case, solver);
         return;

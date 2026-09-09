@@ -524,6 +524,7 @@ the executable-body count.
 | `completed_factorization` | [324](../../../src/internal/jacobi_svd.cpp#L324) |
 | `factorize_svd` | [380](../../../src/internal/jacobi_svd.cpp#L380) |
 | `solve_svd` | [444](../../../src/internal/jacobi_svd.cpp#L444), [508](../../../src/internal/jacobi_svd.cpp#L508) |
+| `solve_svd_pseudoinverse` | [524](../../../src/internal/jacobi_svd.cpp#L524) |
 
 ### `src/internal/linear_algebra.cpp`
 

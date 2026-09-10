@@ -7,7 +7,7 @@
 
 **QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number-density functions in arbitrary-dimensional phase spaces**
 
-QMOMKit reconstructs quadrature nodes and weights from raw moments and utilities for the evolution of moments and the corresponding quadratures in phase space. It is independent of any physical application or host code coupling and, hence, leaves transport of moments in the physical space, the representation and discretization of the physical space and overall simulation workflow to the host application. The QMOMKit library has **no third-party dependencies**.
+QMOMKit reconstructs quadrature nodes and weights from raw moments and provides utilities for the evolution of moments and the corresponding quadratures in phase space. It is independent of any physical application or host code coupling and, hence, leaves transport of moments in the physical space, the representation and discretization of the physical space and overall simulation workflow to the host application. The QMOMKit library has **no third-party dependencies**.
 
 ## Authors
 
@@ -82,7 +82,7 @@ Point `CMAKE_PREFIX_PATH` at the QMOMKit install prefix when configuring your ap
 The standalone examples progress from basic QMOM and CQMOM reconstruction and initialization to phase-space evolution and operator-splitting workflows, adaptive quadrature and conditioning diagnostics, multidimensional physical-model demonstrations, and matched Monte Carlo comparisons. See the [examples repository index](examples/README.md) and the [user examples guide](docs/user/examples.md).
 
 In addition, QMOMKit has several companion tools:
-- `tools/monte_carlo/` provides Monte Carlo code that can be use to initialize and evolve population ensembles; see the [Monte Carlo guide](docs/user/monte_carlo.md).
+- `tools/monte_carlo/` provides Monte Carlo code that can be used to initialize and evolve population ensembles; see the [Monte Carlo guide](docs/user/monte_carlo.md).
 - `tools/plotting/` provides optional plotting helpers for QMOMKit-native histories; see the [plotting README](tools/plotting/README.md).
 
 ## Testing
@@ -138,7 +138,7 @@ assumptions, algorithms, interfaces, and intended usage are documented at
 several levels, from focused comments in the implementation to dedicated
 [developer](docs/developer/README.md) and [user](docs/user/README.md) documentation. 
 The [examples](examples/) complement this documentation by showing how the library is 
-applied to  concrete physical problems through its public API and configuration system.
+applied to concrete physical problems through its public API and configuration system.
 
 The same evidentiary standard applies to scientific content. Scientific
 claims, references, numerical methods, and validation results must be checked

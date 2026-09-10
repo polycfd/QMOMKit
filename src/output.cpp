@@ -184,6 +184,13 @@ MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const Cq
     return MomentWriter(path, MomentLayout::cqmom_moment_data, layout, cqmom_labels(layout.required_indices), precision);
 }
 
+MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const CqmomState& state, const std::size_t precision)
+{
+    std::vector<MultiIndex> indices = state.moment_indices();
+    std::vector<std::string> labels = cqmom_labels(indices);
+    return MomentWriter(path, MomentLayout::cqmom_state, std::move(indices), std::move(labels), precision);
+}
+
 MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const RawMomentRequest& request, const std::size_t precision)
 {
     return MomentWriter(path, MomentLayout::cqmom_requested, request, cqmom_labels(request.indices), precision);
@@ -216,6 +223,21 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
     if (layout_ != MomentLayout::cqmom_moment_data || !cqmom_layout_.has_value() || cqmom_layout_->required_indices.size() != labels_.size())
     {
         throw std::invalid_argument("CQMOM moment data output columns are inconsistent.");
+    }
+    write_header();
+}
+
+MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, std::vector<MultiIndex> state_indices,
+                           std::vector<std::string> labels, const std::size_t precision)
+    : output_(path), layout_(layout), state_indices_(std::move(state_indices)), labels_(std::move(labels)), precision(precision)
+{
+    if (!output_)
+    {
+        throw std::runtime_error("Could not open moment output file: " + path.string());
+    }
+    if (layout_ != MomentLayout::cqmom_state || state_indices_.empty() || state_indices_.size() != labels_.size())
+    {
+        throw std::invalid_argument("CQMOM state moment output columns are inconsistent.");
     }
     write_header();
 }
@@ -345,6 +367,19 @@ void MomentWriter::write(const double time, const CqmomMomentData& moments)
         throw std::invalid_argument("CQMOM moment data output layout does not match the writer layout.");
     }
     write_aligned_row(time, moments.values);
+}
+
+void MomentWriter::write(const double time, const CqmomState& state)
+{
+    if (layout_ != MomentLayout::cqmom_state)
+    {
+        throw std::invalid_argument("CQMOM state output cannot be written with this moment writer.");
+    }
+    if (state.moment_indices() != state_indices_)
+    {
+        throw std::invalid_argument("CQMOM state moment indices do not match the writer columns.");
+    }
+    write_aligned_row(time, state.moment_values());
 }
 
 void MomentWriter::write(const double time, const CqmomQuadrature& quadrature)

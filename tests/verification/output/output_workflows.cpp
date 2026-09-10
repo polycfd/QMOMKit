@@ -110,8 +110,8 @@ std::filesystem::path output_path(const qmomkit::OutputOptions& options, const s
 
 void remove_known_outputs(const std::filesystem::path& directory)
 {
-    for (const std::string& filename :
-         {"qmom_moments.txt", "qmom_quadrature.txt", "cqmom_moments.txt", "cqmom_quadrature.txt", "disabled_moments.txt", "disabled_quadrature.txt"})
+    for (const std::string& filename : {"qmom_moments.txt", "qmom_quadrature.txt", "cqmom_moments.txt", "cqmom_quadrature.txt",
+                                        "cqmom_lean_state.txt", "cqmom_dense_state.txt", "disabled_moments.txt", "disabled_quadrature.txt"})
     {
         std::filesystem::remove(directory / filename);
     }
@@ -151,6 +151,12 @@ void write_cqmom_outputs(const qmomkit::OutputOptions& options, const std::strin
         auto writer = qmomkit::QuadratureWriter::for_cqmom(output_path(options, stem, "quadrature"), 2);
         writer.write(output_time, result.quadrature);
     }
+}
+
+void write_cqmom_state_output(const std::filesystem::path& path, const qmomkit::CqmomState& state)
+{
+    qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, state);
+    writer.write(output_time, state);
 }
 
 double analytical_product_moment(const qmomkit::MultiIndex& index)
@@ -230,6 +236,38 @@ void verify_cqmom_moment_output(const std::filesystem::path& path)
     }
 }
 
+void verify_cqmom_state_output(const std::filesystem::path& path, const qmomkit::CqmomState& state)
+{
+    const ParsedOutput output = read_output_table(path);
+    QMOMKIT_VERIFY_CHECK(output.rows.size() == 1);
+    QMOMKIT_VERIFY_NEAR(output.rows[0][0], output_time, tolerance);
+
+    const std::vector<qmomkit::MultiIndex> indices = state.moment_indices();
+    QMOMKIT_VERIFY_CHECK(indices.size() == state.moment_values().size());
+    std::vector<std::string> labels;
+    labels.reserve(indices.size());
+    for (const qmomkit::MultiIndex& index : indices)
+    {
+        std::ostringstream label;
+        label << "M[";
+        for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
+        {
+            if (dimension != 0)
+            {
+                label << ',';
+            }
+            label << index[dimension];
+        }
+        label << ']';
+        labels.push_back(label.str());
+    }
+    verify_header_labels(output, labels);
+    for (std::size_t moment = 0; moment < state.moment_values().size(); ++moment)
+    {
+        QMOMKIT_VERIFY_NEAR(output.rows[0][moment + 1], state.moment_values()[moment], tolerance);
+    }
+}
+
 void verify_cqmom_quadrature_output(const std::filesystem::path& path, const qmomkit::CqmomQuadrature& quadrature)
 {
     const ParsedOutput output = read_output_table(path);
@@ -260,16 +298,17 @@ int main(const int argc, char** argv)
     // Output verification is intentionally workflow-level: compute public QMOM
     // and CQMOM quadratures, write moments/quadrature with OutputOptions, and
     // parse the files back as a downstream text consumer would.
-    if (argc != 5)
+    if (argc != 6)
     {
-        std::cerr << "Usage: output_workflows_verification <qmom.qmom> <cqmom.qmom> <output-directory> <qmom|cqmom>\n";
+        std::cerr << "Usage: output_workflows_verification <qmom.qmom> <cqmom.qmom> <dense-cqmom.qmom> <output-directory> <qmom|cqmom>\n";
         return 2;
     }
 
     const std::filesystem::path qmom_configuration = argv[1];
     const std::filesystem::path cqmom_configuration = argv[2];
-    const std::filesystem::path output_directory = argv[3];
-    const std::string selected_case = argv[4];
+    const std::filesystem::path dense_cqmom_configuration = argv[3];
+    const std::filesystem::path output_directory = argv[4];
+    const std::string selected_case = argv[5];
     if (selected_case != "qmom" && selected_case != "cqmom")
     {
         std::cerr << "Unknown output workflow case '" << selected_case << "'.\n";
@@ -313,11 +352,33 @@ int main(const int argc, char** argv)
         write_cqmom_outputs(enabled_options, "cqmom", cqmom_result);
         verify_cqmom_moment_output(output_directory / "cqmom_moments.txt");
         verify_cqmom_quadrature_output(output_directory / "cqmom_quadrature.txt", cqmom_result.quadrature);
+
+        const qmomkit::CqmomState lean_state = configured_cqmom.value().initial_state();
+        write_cqmom_state_output(output_directory / "cqmom_lean_state.txt", lean_state);
+        verify_cqmom_state_output(output_directory / "cqmom_lean_state.txt", lean_state);
+
+        const auto configured_dense_cqmom = qmomkit::config::load_cqmom(dense_cqmom_configuration);
+        if (!configured_dense_cqmom.ok())
+        {
+            print_configuration_errors(configured_dense_cqmom);
+            return 1;
+        }
+        const qmomkit::CqmomState dense_state = configured_dense_cqmom.value().initial_state();
+        write_cqmom_state_output(output_directory / "cqmom_dense_state.txt", dense_state);
+        verify_cqmom_state_output(output_directory / "cqmom_dense_state.txt", dense_state);
+
+        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense_state.hierarchy());
+        const std::vector<qmomkit::MultiIndex> dense_indices = dense_state.moment_indices();
+        const bool has_dense_only_moment = std::any_of(
+            dense_indices.begin(), dense_indices.end(), [&layout](const qmomkit::MultiIndex& index)
+            { return std::find(layout.required_indices.begin(), layout.required_indices.end(), index) == layout.required_indices.end(); });
+        QMOMKIT_VERIFY_CHECK(has_dense_only_moment);
     }
 
     std::cout << "QMOMKit output writer workflow verification\n";
     std::cout << "QMOM configuration: " << qmom_configuration << '\n';
     std::cout << "CQMOM configuration: " << cqmom_configuration << '\n';
+    std::cout << "Dense CQMOM configuration: " << dense_cqmom_configuration << '\n';
     std::cout << "Output directory: " << output_directory << '\n';
     std::cout << "Tolerance: " << std::scientific << tolerance << '\n';
     std::cout << "Verified moment and quadrature text output for public QMOM and CQMOM workflows.\n";

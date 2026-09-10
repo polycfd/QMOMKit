@@ -66,6 +66,9 @@ public:
     /** Write current CQMOM moment data in the layout's required-index order. */
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomMomentLayout& layout, const std::size_t precision = 17);
 
+    /** Write the moments represented by a CQMOM state. */
+    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomState& state, const std::size_t precision = 17);
+
     /** Write requested CQMOM moments reconstructed from quadrature in request order. */
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const RawMomentRequest& request, const std::size_t precision = 17);
 
@@ -78,6 +81,9 @@ public:
     /** Append one row for CQMOM required moment data. */
     void write(double time, const CqmomMomentData& moments);
 
+    /** Append one row for the moments represented by a CQMOM state. */
+    void write(double time, const CqmomState& state);
+
     /** Append one row for requested moments reconstructed from CQMOM quadrature. */
     void write(double time, const CqmomQuadrature& quadrature);
 
@@ -87,12 +93,15 @@ private:
         qmom,
         cqmom_dense,
         cqmom_moment_data,
+        cqmom_state,
         cqmom_requested
     };
 
     MomentWriter(const std::filesystem::path& path, MomentLayout layout, std::vector<std::size_t> extents, std::vector<std::size_t> flat_indices,
                  std::vector<std::string> labels, const std::size_t precision);
     MomentWriter(const std::filesystem::path& path, MomentLayout layout, CqmomMomentLayout cqmom_layout, std::vector<std::string> labels,
+                 const std::size_t precision);
+    MomentWriter(const std::filesystem::path& path, MomentLayout layout, std::vector<MultiIndex> state_indices, std::vector<std::string> labels,
                  const std::size_t precision);
     MomentWriter(const std::filesystem::path& path, MomentLayout layout, RawMomentRequest request, std::vector<std::string> labels,
                  const std::size_t precision);
@@ -106,6 +115,7 @@ private:
     std::vector<std::size_t> extents_;
     std::vector<std::size_t> flat_indices_;
     std::optional<CqmomMomentLayout> cqmom_layout_;
+    std::vector<MultiIndex> state_indices_;
     RawMomentRequest raw_moment_request_;
     std::vector<std::string> labels_;
     std::size_t precision;

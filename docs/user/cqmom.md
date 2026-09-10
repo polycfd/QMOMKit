@@ -179,6 +179,15 @@ from the same case and pass it to `advance_cqmom_phase_space(...)`:
 qmomkit::CqmomState state = cqmom_case.initial_state();
 ```
 
+Write the moments represented by the current state with a state-aware moment
+writer. Lean states write their hierarchy moments, while dense states write the
+complete configured tensor:
+
+```cpp
+qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom("moments.txt", state);
+writer.write(time, state);
+```
+
 For a simple independent-product setup, the configuration file can look like
 this. The example describes a two-coordinate population with one global number
 density and one analytical marginal distribution per phase-space dimension:

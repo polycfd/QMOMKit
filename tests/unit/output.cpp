@@ -42,6 +42,47 @@ namespace
     return output.str();
 }
 
+[[nodiscard]] std::string format_scientific(const double value)
+{
+    std::ostringstream output;
+    output << std::scientific << std::setprecision(17) << value;
+    return output.str();
+}
+
+[[nodiscard]] std::string normalize_line(const std::string& line)
+{
+    std::istringstream input(line);
+    std::ostringstream output;
+
+    std::string token;
+    bool first = true;
+
+    while (input >> token)
+    {
+        if (!first)
+            output << ' ';
+
+        output << token;
+        first = false;
+    }
+    return output.str();
+}
+
+void assert_text_ignore_whitespaces(const std::string& actual, const std::string& expected)
+{
+    std::istringstream actual_stream(actual);
+    std::istringstream expected_stream(expected);
+
+    std::string actual_line;
+    std::string expected_line;
+
+    while (std::getline(actual_stream, actual_line) && std::getline(expected_stream, expected_line))
+        assert(normalize_line(actual_line) == normalize_line(expected_line));
+
+    assert(!std::getline(actual_stream, actual_line));
+    assert(!std::getline(expected_stream, expected_line));
+}
+
 [[nodiscard]] std::string cqmom_label(const qmomkit::MultiIndex& index)
 {
     std::ostringstream label;
@@ -146,10 +187,11 @@ void test_qmom_all_moments()
         writer.write(0.1, qmomkit::MomentSet({2.0, 4.0, 6.0, 8.0}));
     }
 
-    const std::string expected = "# time M[0] M[1] M[2] M[3]\n" + format_double(0.0) + " " + format_double(1.0) + " " + format_double(1.0 / 3.0) +
-                                 " " + format_double(2.5) + " " + format_double(-4.0) + "\n" + format_double(0.1) + " " + format_double(2.0) + " " +
-                                 format_double(4.0) + " " + format_double(6.0) + " " + format_double(8.0) + "\n";
-    assert(read_text_file(path) == expected);
+    const std::string expected = "# time M[0] M[1] M[2] M[3]\n" + format_scientific(0.0) + " " + format_scientific(1.0) + " " +
+                                 format_scientific(1.0 / 3.0) + " " + format_scientific(2.5) + " " + format_scientific(-4.0) + "\n" +
+                                 format_scientific(0.1) + " " + format_scientific(2.0) + " " + format_scientific(4.0) + " " + format_scientific(6.0) +
+                                 " " + format_scientific(8.0) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -161,8 +203,9 @@ void test_qmom_selected_moments()
         writer.write(0.25, qmomkit::MomentSet({10.0, 20.0, 30.0, 40.0}));
     }
 
-    const std::string expected = "# time M[3] M[1]\n" + format_double(0.25) + " " + format_double(40.0) + " " + format_double(20.0) + "\n";
-    assert(read_text_file(path) == expected);
+    const std::string expected =
+        "# time M[3] M[1]\n" + format_scientific(0.25) + " " + format_scientific(40.0) + " " + format_scientific(20.0) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -174,10 +217,10 @@ void test_cqmom_all_moments()
         writer.write(0.0, qmomkit::RawMomentTensor{{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}});
     }
 
-    const std::string expected = "# time M[0,0] M[0,1] M[0,2] M[1,0] M[1,1] M[1,2]\n" + format_double(0.0) + " " + format_double(1.0) + " " +
-                                 format_double(2.0) + " " + format_double(3.0) + " " + format_double(4.0) + " " + format_double(5.0) + " " +
-                                 format_double(6.0) + "\n";
-    assert(read_text_file(path) == expected);
+    const std::string expected = "# time M[0,0] M[0,1] M[0,2] M[1,0] M[1,1] M[1,2]\n" + format_scientific(0.0) + " " + format_scientific(1.0) + " " +
+                                 format_scientific(2.0) + " " + format_scientific(3.0) + " " + format_scientific(4.0) + " " + format_scientific(5.0) +
+                                 " " + format_scientific(6.0) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -189,8 +232,9 @@ void test_cqmom_selected_moments()
         writer.write(0.5, qmomkit::RawMomentTensor{{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}});
     }
 
-    const std::string expected = "# time M[1,2] M[0,1]\n" + format_double(0.5) + " " + format_double(6.0) + " " + format_double(2.0) + "\n";
-    assert(read_text_file(path) == expected);
+    const std::string expected =
+        "# time M[1,2] M[0,1]\n" + format_scientific(0.5) + " " + format_scientific(6.0) + " " + format_scientific(2.0) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -216,13 +260,13 @@ void test_cqmom_moment_data_default_moments()
     {
         expected += " " + cqmom_label(moment_index);
     }
-    expected += "\n" + format_double(0.75);
+    expected += "\n" + format_scientific(0.75);
     for (const double value : values)
     {
-        expected += " " + format_double(value);
+        expected += " " + format_scientific(value);
     }
     expected += "\n";
-    assert(read_text_file(path) == expected);
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -244,9 +288,9 @@ void test_requested_cqmom_moments_are_reconstructed_from_quadrature()
         writer.write(0.875, result.quadrature);
     }
 
-    const std::string expected = "# time M[1,0] M[0,2] M[1,1]\n" + format_double(0.875) + " " + format_double(reconstructed.values[0]) + " " +
-                                 format_double(reconstructed.values[1]) + " " + format_double(reconstructed.values[2]) + "\n";
-    assert(read_text_file(path) == expected);
+    const std::string expected = "# time M[1,0] M[0,2] M[1,1]\n" + format_scientific(0.875) + " " + format_scientific(reconstructed.values[0]) + " " +
+                                 format_scientific(reconstructed.values[1]) + " " + format_scientific(reconstructed.values[2]) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -268,9 +312,9 @@ void test_requested_cqmom_moments_preserve_duplicate_columns()
         writer.write(1.0, result.quadrature);
     }
 
-    const std::string expected = "# time M[1,0] M[1,0] M[0,0]\n" + format_double(1.0) + " " + format_double(reconstructed.values[0]) + " " +
-                                 format_double(reconstructed.values[1]) + " " + format_double(reconstructed.values[2]) + "\n";
-    assert(read_text_file(path) == expected);
+    const std::string expected = "# time M[1,0] M[1,0] M[0,0]\n" + format_scientific(1.0) + " " + format_scientific(reconstructed.values[0]) + " " +
+                                 format_scientific(reconstructed.values[1]) + " " + format_scientific(reconstructed.values[2]) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -333,9 +377,10 @@ void test_qmom_quadrature_output()
         writer.write(0.0, qmomkit::QmomResult{{-1.0, 2.0}, {0.25, 0.75}});
     }
 
-    const std::string expected = "# time node_index weight x0\n" + format_double(0.0) + " 0 " + format_double(0.25) + " " + format_double(-1.0) +
-                                 "\n" + format_double(0.0) + " 1 " + format_double(0.75) + " " + format_double(2.0) + "\n";
-    assert(read_text_file(path) == expected);
+    const std::string expected = "# time node_index weight x0\n" + format_scientific(0.0) + " " + format_scientific(0.0) + " " +
+                                 format_scientific(0.25) + " " + format_scientific(-1.0) + "\n" + format_scientific(0.0) + " " +
+                                 format_scientific(1.0) + " " + format_scientific(0.75) + " " + format_scientific(2.0) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -347,9 +392,10 @@ void test_quadrature_1d_output()
         writer.write(0.125, qmomkit::Quadrature1D{{-0.75, 1.25}, {0.4, 0.6}});
     }
 
-    const std::string expected = "# time node_index weight x0\n" + format_double(0.125) + " 0 " + format_double(0.4) + " " + format_double(-0.75) +
-                                 "\n" + format_double(0.125) + " 1 " + format_double(0.6) + " " + format_double(1.25) + "\n";
-    assert(read_text_file(path) == expected);
+    const std::string expected = "# time node_index weight x0\n" + format_scientific(0.125) + " " + format_scientific(0.0) + " " +
+                                 format_scientific(0.4) + " " + format_scientific(-0.75) + "\n" + format_scientific(0.125) + " " +
+                                 format_scientific(1.0) + " " + format_scientific(0.6) + " " + format_scientific(1.25) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -364,13 +410,15 @@ void test_qmom_adaptive_quadrature_output_accepts_changing_node_counts()
         writer.write(0.25, qmomkit::QmomResult{{0.0}, {1.0}});
     }
 
-    const std::string expected = "# time node_index weight x0\n" + format_double(0.0) + " 0 " + format_double(0.5) + " " + format_double(-1.0) +
-                                 "\n" + format_double(0.0) + " 1 " + format_double(0.5) + " " + format_double(1.0) + "\n" + format_double(0.05) +
-                                 " 0 " + format_double(1.0) + " " + format_double(0.0) + "\n" + format_double(0.15) + " 0 " + format_double(0.5) +
-                                 " " + format_double(-0.8944271909999159) + "\n" + format_double(0.15) + " 1 " + format_double(0.5) + " " +
-                                 format_double(0.8944271909999159) + "\n" + format_double(0.25) + " 0 " + format_double(1.0) + " " +
-                                 format_double(0.0) + "\n";
-    assert(read_text_file(path) == expected);
+    const std::string expected =
+        "# time node_index weight x0\n" + format_scientific(0.0) + " " + format_scientific(0.0) + " " + format_scientific(0.5) + " " +
+        format_scientific(-1.0) + "\n" + format_scientific(0.0) + " " + format_scientific(1.0) + " " + format_scientific(0.5) + " " +
+        format_scientific(1.0) + "\n" + format_scientific(0.05) + " " + format_scientific(0.0) + " " + format_scientific(1.0) + " " +
+        format_scientific(0.0) + "\n" + format_scientific(0.15) + " " + format_scientific(0.0) + " " + format_scientific(0.5) + " " +
+        format_scientific(-0.8944271909999159) + "\n" + format_scientific(0.15) + " " + format_scientific(1.0) + " " + format_scientific(0.5) + " " +
+        format_scientific(0.8944271909999159) + "\n" + format_scientific(0.25) + " " + format_scientific(0.0) + " " + format_scientific(1.0) + " " +
+        format_scientific(0.0) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -401,19 +449,19 @@ void test_cqmom_quadrature_output()
     std::string expected = "# time node_index path_0 path_1 weight x0 x1\n";
     for (std::size_t node = 0; node < result.quadrature.total_nodes(); ++node)
     {
-        expected += format_double(0.5) + " " + std::to_string(node);
+        expected += format_scientific(0.5) + " " + format_scientific(static_cast<double>(node));
         for (std::size_t level = 0; level < result.quadrature.number_of_dimensions(); ++level)
         {
-            expected += " " + std::to_string(result.quadrature.terminal_paths()[node].node_index_at_level(level));
+            expected += " " + format_scientific(static_cast<double>(result.quadrature.terminal_paths()[node].node_index_at_level(level)));
         }
-        expected += " " + format_double(result.quadrature.weights()[node]);
+        expected += " " + format_scientific(result.quadrature.weights()[node]);
         for (std::size_t dimension = 0; dimension < result.quadrature.number_of_dimensions(); ++dimension)
         {
-            expected += " " + format_double(result.quadrature.abscissas()[dimension][node]);
+            expected += " " + format_scientific(result.quadrature.abscissas()[dimension][node]);
         }
         expected += "\n";
     }
-    assert(read_text_file(path) == expected);
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 
@@ -446,21 +494,21 @@ void test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts()
     std::string expected = "# time node_index path_0 path_1 weight x0 x1\n";
     for (std::size_t node = 0; node < fixed.quadrature.total_nodes(); ++node)
     {
-        expected += format_double(0.0) + " " + std::to_string(node) + " " +
-                    std::to_string(fixed.quadrature.terminal_paths()[node].node_index_at_level(0)) + " " +
-                    std::to_string(fixed.quadrature.terminal_paths()[node].node_index_at_level(1)) + " " +
-                    format_double(fixed.quadrature.weights()[node]) + " " + format_double(fixed.quadrature.abscissas()[0][node]) + " " +
-                    format_double(fixed.quadrature.abscissas()[1][node]) + "\n";
+        expected += format_scientific(0.0) + " " + format_scientific(static_cast<double>(node)) + " " +
+                    format_scientific(static_cast<double>(fixed.quadrature.terminal_paths()[node].node_index_at_level(0))) + " " +
+                    format_scientific(static_cast<double>(fixed.quadrature.terminal_paths()[node].node_index_at_level(1))) + " " +
+                    format_scientific(fixed.quadrature.weights()[node]) + " " + format_scientific(fixed.quadrature.abscissas()[0][node]) + " " +
+                    format_scientific(fixed.quadrature.abscissas()[1][node]) + "\n";
     }
     for (std::size_t node = 0; node < adaptive.quadrature.total_nodes(); ++node)
     {
-        expected += format_double(0.5) + " " + std::to_string(node) + " " +
-                    std::to_string(adaptive.quadrature.terminal_paths()[node].node_index_at_level(0)) + " " +
-                    std::to_string(adaptive.quadrature.terminal_paths()[node].node_index_at_level(1)) + " " +
-                    format_double(adaptive.quadrature.weights()[node]) + " " + format_double(adaptive.quadrature.abscissas()[0][node]) + " " +
-                    format_double(adaptive.quadrature.abscissas()[1][node]) + "\n";
+        expected += format_scientific(0.5) + " " + format_scientific(static_cast<double>(node)) + " " +
+                    format_scientific(static_cast<double>(adaptive.quadrature.terminal_paths()[node].node_index_at_level(0))) + " " +
+                    format_scientific(static_cast<double>(adaptive.quadrature.terminal_paths()[node].node_index_at_level(1))) + " " +
+                    format_scientific(adaptive.quadrature.weights()[node]) + " " + format_scientific(adaptive.quadrature.abscissas()[0][node]) + " " +
+                    format_scientific(adaptive.quadrature.abscissas()[1][node]) + "\n";
     }
-    assert(read_text_file(path) == expected);
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
 

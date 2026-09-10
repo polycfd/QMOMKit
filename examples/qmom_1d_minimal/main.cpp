@@ -18,6 +18,7 @@ int main()
     const double final_time = 1.0;
     const double time_step = 0.01;
     double time = initial_time;
+    const std::size_t precision = 6;
 
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_minimal::advection_velocity();
     const qmomkit::MomentSource source = qmom_1d_minimal::fragmentation_source();
@@ -35,9 +36,9 @@ int main()
 
     const std::filesystem::path output_directory = "output";
     std::filesystem::create_directories(output_directory);
-    qmomkit::MomentWriter moment_history_writer = qmomkit::MomentWriter::for_qmom(output_directory / "moment_history.txt", moments.size());
+    qmomkit::MomentWriter moment_history_writer = qmomkit::MomentWriter::for_qmom(output_directory / "moment_history.txt", moments.size(), precision);
     qmomkit::QuadratureWriter quadrature_history_writer =
-        qmomkit::QuadratureWriter::for_qmom(output_directory / "quadrature_history.txt", node_count);
+        qmomkit::QuadratureWriter::for_qmom(output_directory / "quadrature_history.txt", node_count, precision);
 
     std::optional<qmomkit::QmomState> initial_state;
     try

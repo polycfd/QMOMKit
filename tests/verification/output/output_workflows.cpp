@@ -74,7 +74,10 @@ ParsedOutput read_output_table(const std::filesystem::path& path)
     // Output files are documented as whitespace-delimited text with a commented
     // header, not CSV. CQMOM labels contain commas inside multi-indices, so the
     // row-level check focuses on data separation rather than label spelling.
-    QMOMKIT_VERIFY_CHECK(header_line.rfind("# ", 0) == 0);
+    // Header fields may be centered within fixed-width columns.
+    const std::size_t first_header_character = header_line.find_first_not_of(" \t");
+    QMOMKIT_VERIFY_CHECK(first_header_character != std::string::npos);
+    QMOMKIT_VERIFY_CHECK(header_line.compare(first_header_character, 6, "# time") == 0);
 
     ParsedOutput output{tokenize_header(header_line), {}};
     std::string data_line;

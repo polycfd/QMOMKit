@@ -950,9 +950,21 @@ Create `QuadratureWriter::for_qmom(path, maximum_node_count)` with the maximum
 active node count the file should accept. Fixed and adaptive QMOM use the same
 writer; inactive adaptive nodes are not padded or written as zero-weight nodes.
 
-Moment output records native integer-order raw moments. Generalized moments
-with real exponents are evaluated by caller code from a valid quadrature result
-and are not part of the standard writer output.
+Moment output records native integer-order raw moments. The same
+`output.generalized_moments` option can append quadrature-derived generalized
+moments for QMOM or CQMOM when a driver passes the parsed `OutputOptions` to a
+state-based writer. It is an ordered
+pipe-separated list of comma-separated exponent vectors: QMOM uses rank-one
+requests such as `0.5 | 1.5 | 2.5`; a two-dimensional CQMOM case can use
+`0.5, 0 | 1, 1.5`. Exponents must be finite and non-negative, and vectors must
+match the physical phase-space dimension.
+
+Normal state-based output passes the parsed `OutputOptions`, current state, and
+current quadrature to `MomentWriter`. Ordinary columns still come directly from
+the state. Generalized columns are appended last in configured order, use
+physical coordinate order, and do not change moment storage, reconstruction, or
+evolution. An integer-valued generalized request remains an explicit appended
+column even when the corresponding ordinary moment is already written.
 
 ## [Runtime Realizability](./realizability.md) Settings
 

@@ -12,19 +12,22 @@ and `qmomkit::QuadratureWriter`, declared in
 [output.hpp](../../../include/qmomkit/output.hpp). See
 [output design](../output_design.md).
 
-`MomentWriter::for_qmom` selects all orders or specified orders;
-`MomentWriter::for_cqmom` selects dense extents, selected indices, a required
-layout, or a raw-moment request evaluated from quadrature. Labels retain selected
-order and duplicates. Constructors open/truncate the output stream, validate
-writer layout, and write the header. They do not reconstruct a configured case.
+`MomentWriter::for_qmom` selects all orders or specified orders, or captures the
+moments represented by a `QmomState` together with configured generalized
+columns. `MomentWriter::for_cqmom` selects dense extents, selected indices, a
+required layout, a state with configured generalized columns, or a raw-moment
+request evaluated from quadrature. Labels retain selected order and duplicates.
+Constructors open/truncate the output stream, validate writer layout, and write
+the header. They do not reconstruct a configured case.
 
 `write_row` checks time and value shape/finiteness and emits whitespace-separated
 fields with precision 17. `write_aligned_row` expects values already aligned with
 the writer's selected required/requested layout. Public `write` overloads either
-select stored entries or call moment reconstruction from a quadrature before
-writing. Runtime selection can fail after earlier fields were streamed; output
-is not transactional. Callers should not assume a failed write leaves the file
-unchanged or contains a complete final row.
+select stored state or moment entries, evaluate configured generalized values
+from a supplied quadrature, or reconstruct a requested CQMOM moment from
+quadrature before writing. Runtime selection can fail after earlier fields were
+streamed; output is not transactional. Callers should not assume a failed write
+leaves the file unchanged or contains a complete final row.
 
 `QuadratureWriter::for_qmom` stores maximum node capacity; output may contain fewer
 nodes. `for_cqmom` stores hierarchy. QMOM `write_qmom_row` validates capacity,
@@ -39,7 +42,8 @@ capacity, but does not independently infer or reconstruct the tree. Fixed paths
 are aligned with physical row-major values under non-identity conditioning order.
 
 Evidence: [output unit tests](../../../tests/unit/output.cpp) compare headers and
-rows, selected/raw requests, append sequences, adaptive nodes, and malformed data.
+rows, selected/raw requests, state-based generalized output, append sequences,
+adaptive nodes, and malformed data.
 The inspected fixed-output case uses identity conditioning. Tests whose expected
 rows copy the object's own paths cannot independently establish path/value alignment.
 No direct transaction guarantee is inferred from successful file comparisons.

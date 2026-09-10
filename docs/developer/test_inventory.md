@@ -6,12 +6,12 @@ This reference inventory corresponds to the current root CTest registrations. Ea
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 626 |
+| Unit logical tests | 628 |
 | Component/regression logical tests | 31 |
 | Verification logical tests | 167 |
-| **Runtime logical tests** | **824** |
+| **Runtime logical tests** | **826** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **825** |
+| **Total CTest registrations** | **827** |
 
 Multiple parameter values or configurations used to establish one claim remain internal to that logical test and therefore do not increase the CTest count. The source, selector, and any configured internal case below identify how each registration is invoked.
 
@@ -374,7 +374,7 @@ Any addition, removal, split, or merge of a logical runtime CTest registration m
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 824 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
+The `public_headers` registration is not part of the 826 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -763,6 +763,8 @@ The `public_headers` registration is not part of the 824 runtime logical-test co
 | `unit_output_requested_cqmom_moments_preserve_duplicate_columns` | `tests/unit/output.cpp` | `requested_cqmom_moments_preserve_duplicate_columns` | Verifies requested CQMOM moments preserve duplicate columns. | — |
 | `unit_output_cqmom_moment_data_writer_rejects_layout_mismatch` | `tests/unit/output.cpp` | `cqmom_moment_data_writer_rejects_layout_mismatch` | Checks that moment data writer rejects layout mismatch in output configuration and writers. | — |
 | `unit_output_requested_cqmom_writer_rejects_rank_mismatch` | `tests/unit/output.cpp` | `requested_cqmom_writer_rejects_rank_mismatch` | Checks that requested CQMOM writer rejects rank mismatch in output configuration and writers. | — |
+| `unit_output_cqmom_state_generalized_moment_output` | `tests/unit/output.cpp` | `cqmom_state_generalized_moment_output` | Verifies generalized CQMOM state moment output from the current state and quadrature. | — |
+| `unit_output_qmom_state_generalized_moment_output` | `tests/unit/output.cpp` | `qmom_state_generalized_moment_output` | Verifies generalized QMOM state moment output from the current state and quadrature. | — |
 | `unit_output_writer_rejects_mismatched_inputs` | `tests/unit/output.cpp` | `writer_rejects_mismatched_inputs` | Checks that writer rejects mismatched inputs in output configuration and writers. | — |
 | `unit_output_qmom_quadrature_output` | `tests/unit/output.cpp` | `qmom_quadrature_output` | Verifies QMOM quadrature output. | — |
 | `unit_output_quadrature_1d_output` | `tests/unit/output.cpp` | `quadrature_1d_output` | Verifies quadrature 1d output. | — |

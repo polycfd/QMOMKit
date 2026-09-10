@@ -30,7 +30,7 @@ physics callbacks live in [physics.cpp](./physics.cpp). The user provides:
 
 Those callbacks are required by this example because its model includes both
 advection motion and fragmentation. Other QMOMKit phase-space evolution workflows can use
-only the callbacks needed by their physics; see [phase_space_evolution.md](docs/user/phase_space_evolution.md) for
+only the callbacks needed by their physics; see [phase_space_evolution.md](../../docs/user/phase_space_evolution.md) for
 the lower-level node-advection and moment-source routines.
 
 QMOMKit handles the quadrature representation, moment reconstruction, time

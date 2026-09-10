@@ -107,11 +107,11 @@ int main()
         if (output_options.write_moments)
         {
             qmomkit::MomentWriter initial_moment_writer =
-                qmomkit::MomentWriter::for_qmom(output_options.directory / "initial_moments.txt", initial_moments.size());
-            initial_moment_writer.write(initial_time, qmomkit::MomentSet(initial_moments));
+                qmomkit::MomentWriter::for_qmom(output_options.directory / "initial_moments.txt", state, output_options);
+            initial_moment_writer.write(initial_time, state, quadrature);
 
-            moment_history_writer.emplace(qmomkit::MomentWriter::for_qmom(output_options.directory / "moment_history.txt", initial_moments.size()));
-            moment_history_writer->write(initial_time, qmomkit::MomentSet(initial_moments));
+            moment_history_writer.emplace(qmomkit::MomentWriter::for_qmom(output_options.directory / "moment_history.txt", state, output_options));
+            moment_history_writer->write(initial_time, state, quadrature);
         }
         if (output_options.write_quadrature)
         {
@@ -155,7 +155,7 @@ int main()
             {
                 if (moment_history_writer.has_value())
                 {
-                    moment_history_writer->write(time, qmomkit::MomentSet(moments));
+                    moment_history_writer->write(time, state, quadrature);
                 }
                 if (quadrature_history_writer.has_value())
                 {

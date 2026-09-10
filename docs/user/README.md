@@ -80,10 +80,11 @@ the most direct:
 ## Output At A Glance
 
 QMOMKit-native output helpers write whitespace-delimited text tables.
-`MomentWriter` records native integer-order raw moments. `QuadratureWriter`
-records reconstructed node weights and abscissas. Generalized moments with real
-exponents are derived quantities evaluated separately from a valid quadrature
-result, so they are not part of the standard moment writer output.
+`MomentWriter` records native integer-order raw moments and, for state-aware
+writers configured with `OutputOptions`, can append generalized quadrature-
+derived columns. `QuadratureWriter` records reconstructed node weights and
+abscissas. Generalized moments remain derived quantities evaluated from a valid
+quadrature result; they do not become stored or reconstructed state moments.
 
 ## User Extension Points
 

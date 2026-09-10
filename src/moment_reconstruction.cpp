@@ -203,6 +203,12 @@ double evaluate_generalized_moment(const Quadrature1D& quadrature, const double 
     return value;
 }
 
+double evaluate_generalized_moment(const QmomResult& quadrature, const double exponent)
+{
+    const QuadratureStatus status = quadrature.ok() ? QuadratureStatus::success : QuadratureStatus::invalid_input;
+    return evaluate_generalized_moment(Quadrature1D{quadrature.abscissas, quadrature.weights, status, quadrature.message}, exponent);
+}
+
 RawMomentTensor reconstruct_raw_moments(const CqmomQuadrature& quadrature, const std::vector<std::size_t>& extents)
 {
     if (extents.size() != quadrature.number_of_dimensions())

@@ -128,6 +128,20 @@ template <class Function> void assert_throws_invalid_argument_message(Function&&
     assert(threw);
 }
 
+template <class Function> void assert_throws_domain_error(Function&& function)
+{
+    bool threw = false;
+    try
+    {
+        function();
+    }
+    catch (const std::domain_error&)
+    {
+        threw = true;
+    }
+    assert(threw);
+}
+
 void assert_near(const double actual, const double expected, const double tolerance)
 {
     assert(std::abs(actual - expected) <= tolerance);
@@ -350,6 +364,125 @@ void test_requested_cqmom_writer_rejects_rank_mismatch()
         assert_throws_invalid_argument([&writer, &result] { writer.write(0.0, result.quadrature); });
     }
     std::filesystem::remove(path);
+}
+
+void test_cqmom_state_generalized_moment_output()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.1, 0.2, 0.3, 0.4};
+    const std::vector<std::vector<double>> abscissas{{1.0, 4.0, 9.0, 16.0}, {4.0, 9.0, 16.0, 25.0}};
+    const qmomkit::CqmomQuadrature quadrature = qmomkit::internal::CqmomConstructionAccess::create_quadrature(
+        hierarchy, weights, abscissas, false, true,
+        {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})});
+
+    std::vector<double> dense_values = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
+    dense_values[qmomkit::flatten_multi_index({1, 0}, extents)] += 7.0;
+    const qmomkit::CqmomState dense_state =
+        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomDenseCase{hierarchy, {extents, dense_values}, {}, {}});
+
+    const std::vector<std::vector<double>> orders{{1.0, 1.5}, {0.5, 0.0}, {1.0, 1.5}};
+    qmomkit::OutputOptions output_options;
+    output_options.generalized_moment_orders = orders;
+    const std::filesystem::path dense_path = temporary_output_path("qmomkit_cqmom_state_generalized_dense");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(dense_path, dense_state, output_options);
+        writer.write(0.25, dense_state, quadrature);
+    }
+
+    std::string expected = "# time";
+    for (const qmomkit::MultiIndex& index : dense_state.moment_indices())
+    {
+        expected += " " + cqmom_label(index);
+    }
+    expected += " G[1,1.5] G[0.5,0] G[1,1.5]\n" + format_scientific(0.25);
+    for (const double value : dense_state.moment_values())
+    {
+        expected += " " + format_scientific(value);
+    }
+    // Independently prescribed positive nodes give G[1,1.5] = 995.2 and G[0.5,0] = 3.
+    expected += " " + format_scientific(995.2) + " " + format_scientific(3.0) + " " + format_scientific(995.2) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(dense_path), expected);
+
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    std::vector<double> lean_values;
+    lean_values.reserve(layout.required_indices.size());
+    for (const qmomkit::MultiIndex& index : layout.required_indices)
+    {
+        lean_values.push_back(dense_values[qmomkit::flatten_multi_index(index, extents)]);
+    }
+    const qmomkit::CqmomState lean_state =
+        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomLeanCase{qmomkit::CqmomMomentData{layout, lean_values}, {}, {}});
+    const std::filesystem::path lean_path = temporary_output_path("qmomkit_cqmom_state_generalized_lean");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(lean_path, lean_state, output_options);
+        writer.write(0.25, lean_state, quadrature);
+    }
+    const std::string lean_text = read_text_file(lean_path);
+    const std::size_t header_end = lean_text.find('\n');
+    assert(header_end != std::string::npos);
+    assert(normalize_line(lean_text.substr(0, header_end)).find("G[1,1.5] G[0.5,0] G[1,1.5]") != std::string::npos);
+    const std::size_t row_end = lean_text.find('\n', header_end + 1);
+    assert(row_end != std::string::npos);
+    assert(normalize_line(lean_text.substr(header_end + 1, row_end - header_end - 1))
+               .find(format_scientific(995.2) + " " + format_scientific(3.0) + " " + format_scientific(995.2)) != std::string::npos);
+
+    const std::filesystem::path invalid_path = temporary_output_path("qmomkit_cqmom_state_generalized_invalid");
+    qmomkit::OutputOptions invalid_rank_options;
+    invalid_rank_options.generalized_moment_orders = {{0.5}};
+    assert_throws_invalid_argument([&] { (void)qmomkit::MomentWriter::for_cqmom(invalid_path, dense_state, invalid_rank_options); });
+    const qmomkit::CqmomQuadrature negative = qmomkit::internal::CqmomConstructionAccess::create_quadrature(
+        hierarchy, weights, {{-1.0, 4.0, 9.0, 16.0}, abscissas[1]}, false, true,
+        {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})});
+    assert_throws_domain_error(
+        [&]
+        {
+            qmomkit::OutputOptions negative_node_options;
+            negative_node_options.generalized_moment_orders = {{0.5, 0.0}};
+            qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(invalid_path, dense_state, negative_node_options);
+            writer.write(0.0, dense_state, negative);
+        });
+
+    std::filesystem::remove(dense_path);
+    std::filesystem::remove(lean_path);
+    std::filesystem::remove(invalid_path);
+}
+
+void test_qmom_state_generalized_moment_output()
+{
+    const qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet{1.0, 4.0}, 1}.initial_state();
+    qmomkit::OutputOptions output_options;
+    output_options.generalized_moment_orders = {{0.5}, {2.0}, {1.5}};
+    const std::filesystem::path path = temporary_output_path("qmomkit_qmom_state_generalized");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(path, state, output_options);
+        writer.write(0.25, state, state.quadrature());
+    }
+
+    const std::string expected = "# time M[0] M[1] G[0.5] G[2] G[1.5]\n" + format_scientific(0.25) + " " + format_scientific(1.0) + " " +
+                                 format_scientific(4.0) + " " + format_scientific(2.0) + " " + format_scientific(16.0) + " " +
+                                 format_scientific(8.0) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(path), expected);
+
+    qmomkit::OutputOptions ordinary_options;
+    const std::filesystem::path ordinary_path = temporary_output_path("qmomkit_qmom_state_ordinary");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(ordinary_path, state, ordinary_options);
+        writer.write(0.25, state, state.quadrature());
+    }
+    const std::string ordinary_expected =
+        "# time M[0] M[1]\n" + format_scientific(0.25) + " " + format_scientific(1.0) + " " + format_scientific(4.0) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(ordinary_path), ordinary_expected);
+
+    const qmomkit::QmomResult negative_quadrature{{-1.0}, {1.0}};
+    assert_throws_domain_error(
+        [&]
+        {
+            qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(path, state, output_options);
+            writer.write(0.0, state, negative_quadrature);
+        });
+    std::filesystem::remove(path);
+    std::filesystem::remove(ordinary_path);
 }
 
 void test_writer_rejects_mismatched_inputs()
@@ -594,6 +727,8 @@ int main(const int argc, char** argv)
             {"requested_cqmom_moments_preserve_duplicate_columns", test_requested_cqmom_moments_preserve_duplicate_columns},
             {"cqmom_moment_data_writer_rejects_layout_mismatch", test_cqmom_moment_data_writer_rejects_layout_mismatch},
             {"requested_cqmom_writer_rejects_rank_mismatch", test_requested_cqmom_writer_rejects_rank_mismatch},
+            {"cqmom_state_generalized_moment_output", test_cqmom_state_generalized_moment_output},
+            {"qmom_state_generalized_moment_output", test_qmom_state_generalized_moment_output},
             {"writer_rejects_mismatched_inputs", test_writer_rejects_mismatched_inputs},
             {"qmom_quadrature_output", test_qmom_quadrature_output},
             {"quadrature_1d_output", test_quadrature_1d_output},

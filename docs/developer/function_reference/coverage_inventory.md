@@ -13,7 +13,7 @@ lambdas are documented with their owning function. Instrumentation definitions
 are included for its enabled preprocessor branch. Line links are navigation aids,
 not permanent API identifiers.
 
-The inventory includes **940 definition locations**, grouped by named function
+The inventory includes **916 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -614,17 +614,17 @@ the executable-body count.
 |---|---|
 | `integer_power` | [20](../../../src/moment_reconstruction.cpp#L20) |
 | `validate_reconstructed_value` | [40](../../../src/moment_reconstruction.cpp#L40) |
-| `is_integer_exponent` | [56](../../../src/moment_reconstruction.cpp#L56) |
-| `validate_generalized_value` | [61](../../../src/moment_reconstruction.cpp#L61) |
-| `validate_generalized_exponent` | [69](../../../src/moment_reconstruction.cpp#L69) |
-| `generalized_power` | [77](../../../src/moment_reconstruction.cpp#L77) |
-| `cqmom_reconstruction_quadrature_messages` | [89](../../../src/moment_reconstruction.cpp#L89) |
-| `reconstruct_cqmom_moment_value` | [149](../../../src/moment_reconstruction.cpp#L149) |
-| `reconstruct_cqmom_moments_impl` | [197](../../../src/moment_reconstruction.cpp#L197) |
-| `reconstruct_raw_moments` | [236](../../../src/moment_reconstruction.cpp#L236), [296](../../../src/moment_reconstruction.cpp#L296), [313](../../../src/moment_reconstruction.cpp#L313) |
-| `evaluate_generalized_moment` | [269](../../../src/moment_reconstruction.cpp#L269), [332](../../../src/moment_reconstruction.cpp#L332) |
-| `reconstruct_cqmom_moments` | [359](../../../src/moment_reconstruction.cpp#L359) |
-| `reconstruct_trusted_cqmom_moments` | [367](../../../src/moment_reconstruction.cpp#L367) |
+| `is_integer_exponent` | [48](../../../src/moment_reconstruction.cpp#L48) |
+| `validate_generalized_value` | [53](../../../src/moment_reconstruction.cpp#L53) |
+| `validate_generalized_exponent` | [61](../../../src/moment_reconstruction.cpp#L61) |
+| `generalized_power` | [69](../../../src/moment_reconstruction.cpp#L69) |
+| `cqmom_reconstruction_quadrature_messages` | [81](../../../src/moment_reconstruction.cpp#L81) |
+| `reconstruct_cqmom_moment_value` | [88](../../../src/moment_reconstruction.cpp#L88) |
+| `reconstruct_cqmom_moments_impl` | [107](../../../src/moment_reconstruction.cpp#L107) |
+| `reconstruct_raw_moments` | [146](../../../src/moment_reconstruction.cpp#L146), [212](../../../src/moment_reconstruction.cpp#L212), [229](../../../src/moment_reconstruction.cpp#L229) |
+| `evaluate_generalized_moment` | [179](../../../src/moment_reconstruction.cpp#L179), [206](../../../src/moment_reconstruction.cpp#L206), [248](../../../src/moment_reconstruction.cpp#L248) |
+| `reconstruct_cqmom_moments` | [275](../../../src/moment_reconstruction.cpp#L275) |
+| `reconstruct_trusted_cqmom_moments` | [283](../../../src/moment_reconstruction.cpp#L283) |
 
 ### `src/moment_source.cpp`
 
@@ -715,29 +715,29 @@ the executable-body count.
 | Function or overload family | Definition lines |
 |---|---|
 | `qmom_label` | [19](../../../src/output.cpp#L19) |
-| `cqmom_label` | [24](../../../src/output.cpp#L24) |
-| `sequential_indices` | [40](../../../src/output.cpp#L40) |
-| `qmom_labels` | [56](../../../src/output.cpp#L56) |
-| `cqmom_labels` | [72](../../../src/output.cpp#L72) |
-| `flatten_selected_indices` | [88](../../../src/output.cpp#L88) |
-| `all_cqmom_labels` | [99](../../../src/output.cpp#L99) |
-| `cqmom_abscissa_label` | [104](../../../src/output.cpp#L104) |
-| `qmom_quadrature_labels` | [109](../../../src/output.cpp#L109) |
-| `cqmom_quadrature_labels` | [119](../../../src/output.cpp#L119) |
-| `MomentWriter::for_qmom` | [143](../../../src/output.cpp#L143), [149](../../../src/output.cpp#L149) |
-| `MomentWriter::for_cqmom` | [155](../../../src/output.cpp#L155), [162](../../../src/output.cpp#L162), [169](../../../src/output.cpp#L169), [174](../../../src/output.cpp#L174) |
-| `MomentWriter::MomentWriter` | [179](../../../src/output.cpp#L179), [194](../../../src/output.cpp#L194), [209](../../../src/output.cpp#L209) |
-| `MomentWriter::write_header` | [223](../../../src/output.cpp#L223) |
-| `MomentWriter::write_row` | [237](../../../src/output.cpp#L237) |
-| `MomentWriter::write_aligned_row` | [264](../../../src/output.cpp#L264) |
-| `MomentWriter::write` | [291](../../../src/output.cpp#L291), [304](../../../src/output.cpp#L304), [321](../../../src/output.cpp#L321), [334](../../../src/output.cpp#L334) |
-| `QuadratureWriter::for_qmom` | [348](../../../src/output.cpp#L348) |
-| `QuadratureWriter::for_cqmom` | [353](../../../src/output.cpp#L353) |
-| `QuadratureWriter::QuadratureWriter` | [358](../../../src/output.cpp#L358) |
-| `QuadratureWriter::write_header` | [373](../../../src/output.cpp#L373) |
-| `QuadratureWriter::write_row` | [387](../../../src/output.cpp#L387) |
-| `QuadratureWriter::write_qmom_row` | [414](../../../src/output.cpp#L414) |
-| `QuadratureWriter::write` | [444](../../../src/output.cpp#L444), [449](../../../src/output.cpp#L449), [454](../../../src/output.cpp#L454) |
+| `cqmom_label` | [36](../../../src/output.cpp#L36) |
+| `sequential_indices` | [89](../../../src/output.cpp#L89) |
+| `qmom_labels` | [105](../../../src/output.cpp#L105) |
+| `cqmom_labels` | [121](../../../src/output.cpp#L121) |
+| `flatten_selected_indices` | [137](../../../src/output.cpp#L137) |
+| `all_cqmom_labels` | [148](../../../src/output.cpp#L148) |
+| `cqmom_abscissa_label` | [153](../../../src/output.cpp#L153) |
+| `qmom_quadrature_labels` | [158](../../../src/output.cpp#L158) |
+| `cqmom_quadrature_labels` | [168](../../../src/output.cpp#L168) |
+| `MomentWriter::for_qmom` | [192](../../../src/output.cpp#L192), [198](../../../src/output.cpp#L198), [204](../../../src/output.cpp#L204), [214](../../../src/output.cpp#L214) |
+| `MomentWriter::for_cqmom` | [225](../../../src/output.cpp#L225), [232](../../../src/output.cpp#L232), [238](../../../src/output.cpp#L238), [249](../../../src/output.cpp#L249), [254](../../../src/output.cpp#L254), [263](../../../src/output.cpp#L263), [273](../../../src/output.cpp#L273) |
+| `MomentWriter::MomentWriter` | [278](../../../src/output.cpp#L278), [295](../../../src/output.cpp#L295), [312](../../../src/output.cpp#L312), [328](../../../src/output.cpp#L328) |
+| `MomentWriter::write_header` | [343](../../../src/output.cpp#L343) |
+| `MomentWriter::write_row` | [358](../../../src/output.cpp#L358) |
+| `MomentWriter::write_aligned_row` | [385](../../../src/output.cpp#L385) |
+| `MomentWriter::write` | [416](../../../src/output.cpp#L416), [433](../../../src/output.cpp#L433), [456](../../../src/output.cpp#L456), [475](../../../src/output.cpp#L475), [494](../../../src/output.cpp#L494), [515](../../../src/output.cpp#L515), [542](../../../src/output.cpp#L542), [559](../../../src/output.cpp#L559), [572](../../../src/output.cpp#L572), [591](../../../src/output.cpp#L591) |
+| `QuadratureWriter::for_qmom` | [605](../../../src/output.cpp#L605) |
+| `QuadratureWriter::for_cqmom` | [610](../../../src/output.cpp#L610) |
+| `QuadratureWriter::QuadratureWriter` | [615](../../../src/output.cpp#L615) |
+| `QuadratureWriter::write_header` | [631](../../../src/output.cpp#L631) |
+| `QuadratureWriter::write_row` | [646](../../../src/output.cpp#L646) |
+| `QuadratureWriter::write_qmom_row` | [673](../../../src/output.cpp#L673) |
+| `QuadratureWriter::write` | [703](../../../src/output.cpp#L703), [708](../../../src/output.cpp#L708), [713](../../../src/output.cpp#L713) |
 
 ### `src/phase_space_evolution.cpp`
 
@@ -1007,7 +1007,7 @@ the executable-body count.
 | `product_extents` | [889](../../../src/recursive_quadrature.cpp#L889) |
 | `flatten_multi_index` | [901](../../../src/recursive_quadrature.cpp#L901) |
 | `unflatten_multi_index` | [921](../../../src/recursive_quadrature.cpp#L921) |
-| `enumerate_multi_indices` | [940](../../../src/recursive_quadrature.cpp#L940) |
+| `enumerate_multi_indices` | [944](../../../src/recursive_quadrature.cpp#L944) |
 | `PhaseSpaceHierarchy::PhaseSpaceHierarchy` | [952](../../../src/recursive_quadrature.cpp#L952), [959](../../../src/recursive_quadrature.cpp#L959) |
 | `PhaseSpaceHierarchy::number_of_dimensions` | [965](../../../src/recursive_quadrature.cpp#L965) |
 | `PhaseSpaceHierarchy::node_counts` | [970](../../../src/recursive_quadrature.cpp#L970) |

@@ -1,4 +1,5 @@
 #include "monte_carlo/evolution.hpp"
+#include "monte_carlo/output.hpp"
 #include "particles_mc.hpp"
 #include "physics.hpp"
 #include "qmomkit/configuration.hpp"
@@ -101,8 +102,11 @@ int main()
         if (output_options.write_moments)
         {
             std::filesystem::create_directories(output_options.directory);
-            moment_history_writer.emplace(qmomkit::MomentWriter::for_qmom(output_options.directory / "moment_history_mc.txt", final_moments.size()));
-            moment_history_writer->write(initial_time, qmomkit::MomentSet(final_moments));
+            moment_history_writer.emplace(qmomkit::monte_carlo::make_moment_history_writer(output_options.directory / "moment_history_mc.txt",
+                                                                                           final_moments.size(), output_options));
+            qmomkit::monte_carlo::write_moment_history_row(*moment_history_writer, initial_time, qmomkit::MomentSet(final_moments),
+                                                           qmom_1d_breakage_advection_with_mc::to_ensemble(particles),
+                                                           particle_weight * static_cast<double>(particles.size()), output_options);
         }
     }
     catch (const std::exception& error)
@@ -169,7 +173,9 @@ int main()
             {
                 try
                 {
-                    moment_history_writer->write(time, qmomkit::MomentSet(final_moments));
+                    qmomkit::monte_carlo::write_moment_history_row(*moment_history_writer, time, qmomkit::MomentSet(final_moments),
+                                                                   qmom_1d_breakage_advection_with_mc::to_ensemble(particles),
+                                                                   particle_weight * static_cast<double>(particles.size()), output_options);
                     for (const qmom_1d_breakage_advection_with_mc::Particle& particle : particles)
                     {
                         particle_history.emplace_back(time, particle.id, particle.diameter);

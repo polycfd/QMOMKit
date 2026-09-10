@@ -2,12 +2,15 @@
 #include "monte_carlo/output.hpp"
 #include "monte_carlo/sampling.hpp"
 #include "qmomkit/distributions.hpp"
+#include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/multi_index.hpp"
 #include "test_checks.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <sstream>
@@ -206,6 +209,82 @@ void test_asymmetric_tensor_moment_layout()
     CHECK(std::abs(estimate.moments.values.front() - number_density) < 1.0e-14);
 }
 
+void test_generalized_moment_output()
+{
+    const Ensemble ensemble{{1.0, 4.0}, {9.0, 16.0}};
+    const double number_density = 6.0;
+    const std::vector<std::vector<double>> orders{{0.5, 0.0}, {1.0, 1.5}};
+    const qmomkit::monte_carlo::GeneralizedEnsembleMomentEstimate estimate =
+        qmomkit::monte_carlo::compute_generalized_ensemble_moments(ensemble, number_density, orders);
+    CHECK(estimate.ok());
+    CHECK(estimate.orders == orders);
+    // Direct equal-weight calculation: 6 / 2 * (sqrt(1) + sqrt(9)) = 12,
+    // and 6 / 2 * (1 * 4^(3/2) + 9 * 16^(3/2)) = 1752.
+    CHECK_CLOSE(estimate.values[0], 12.0, 1.0e-14);
+    CHECK_CLOSE(estimate.values[1], 1752.0, 1.0e-14);
+
+    const qmomkit::monte_carlo::TensorMomentEstimate standard =
+        qmomkit::monte_carlo::compute_ensemble_moments(ensemble, number_density, std::vector<std::size_t>{1, 1});
+    CHECK(standard.ok());
+    qmomkit::OutputOptions output_options;
+    output_options.generalized_moment_orders = orders;
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "qmomkit_mc_generalized_moments.txt";
+    std::filesystem::remove(path);
+    {
+        qmomkit::MomentWriter writer = qmomkit::monte_carlo::make_moment_history_writer(path, standard.moments.extents, output_options);
+        qmomkit::monte_carlo::write_moment_history_row(writer, 0.0, standard.moments, ensemble, number_density, output_options);
+    }
+    std::ifstream input(path);
+    std::string header;
+    std::string row;
+    std::getline(input, header);
+    std::getline(input, row);
+    const auto normalize = [](const std::string& line)
+    {
+        std::istringstream tokens(line);
+        std::ostringstream normalized;
+        std::string token;
+        bool first = true;
+        while (tokens >> token)
+        {
+            if (!first)
+            {
+                normalized << ' ';
+            }
+            normalized << token;
+            first = false;
+        }
+        return normalized.str();
+    };
+    CHECK(normalize(header).find("M[0,0] M[0,1] M[1,0] M[1,1] G[0.5,0] G[1,1.5]") != std::string::npos);
+    CHECK(normalize(row).find("1.20000000000000000e+01") != std::string::npos);
+    CHECK(normalize(row).find("1.75200000000000000e+03") != std::string::npos);
+    std::filesystem::remove(path);
+
+    const qmomkit::monte_carlo::GeneralizedEnsembleMomentEstimate negative_coordinate =
+        qmomkit::monte_carlo::compute_generalized_ensemble_moments(Ensemble{{-1.0, 4.0}}, 1.0, {{0.5, 0.0}});
+    CHECK(!negative_coordinate.ok());
+    CHECK(negative_coordinate.status == qmomkit::monte_carlo::EnsembleMomentStatus::invalid_input);
+}
+
+void test_generalized_moment_matches_cqmom_quadrature()
+{
+    const Ensemble ensemble{{1.0, 4.0}, {1.0, 9.0}, {4.0, 4.0}, {4.0, 9.0}};
+    const std::vector<std::vector<double>> orders{{0.5, 0.0}, {1.0, 1.5}};
+    const qmomkit::monte_carlo::GeneralizedEnsembleMomentEstimate generalized =
+        qmomkit::monte_carlo::compute_generalized_ensemble_moments(ensemble, 1.0, orders);
+    CHECK(generalized.ok());
+    const qmomkit::monte_carlo::TensorMomentEstimate tensor =
+        qmomkit::monte_carlo::compute_ensemble_moments(ensemble, 1.0, std::vector<std::size_t>{3, 3});
+    CHECK(tensor.ok());
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom({qmomkit::PhaseSpaceHierarchy({2, 2}), tensor.moments, {}, {}});
+    CHECK(cqmom.ok());
+    for (std::size_t request = 0; request < orders.size(); ++request)
+    {
+        CHECK_CLOSE(qmomkit::evaluate_generalized_moment(cqmom.quadrature, orders[request]), generalized.values[request], 1.0e-12);
+    }
+}
+
 void test_invalid_inputs_and_output()
 {
     const qmomkit::monte_carlo::SamplingResult invalid =
@@ -256,6 +335,8 @@ int main()
     test_independent_product_mixture_marginal_validation();
     test_standard_error_convergence();
     test_asymmetric_tensor_moment_layout();
+    test_generalized_moment_output();
+    test_generalized_moment_matches_cqmom_quadrature();
     test_invalid_inputs_and_output();
 
     std::cout << "Monte Carlo sampling moment validation maximum analytical absolute error: " << global_maximum_error << '\n';

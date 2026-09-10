@@ -7,6 +7,7 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -71,6 +72,18 @@ int main()
         qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
+        if (output_options.write_moments || output_options.write_quadrature)
+        {
+            cqmom_2d_adaptive_node_counts::ensure_output_directory(output_options.directory);
+        }
+        std::optional<qmomkit::MomentWriter> moment_history_writer;
+        if (output_options.write_moments)
+        {
+            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", state, output_options)
+                .write(initial_time, state, quadrature);
+            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", state, output_options));
+            moment_history_writer->write(initial_time, state, quadrature);
+        }
         std::vector<cqmom_2d_adaptive_node_counts::HistorySample> step_history{cqmom_2d_adaptive_node_counts::make_history_sample(
             initial_time, cqmom_2d_adaptive_node_counts::source_pulse_active(initial_time, source_parameters), quadrature,
             state.active_branch_counts(), velocity_dimension)};
@@ -110,6 +123,10 @@ int main()
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
                 output_history.push_back(step_history.back());
+                if (moment_history_writer.has_value())
+                {
+                    moment_history_writer->write(time, state, quadrature);
+                }
                 while (next_output_time <= time + 1.0e-12)
                 {
                     next_output_time += output_interval;
@@ -117,23 +134,6 @@ int main()
             }
         }
 
-        if (output_options.write_quadrature)
-        {
-            cqmom_2d_adaptive_node_counts::ensure_output_directory(output_options.directory);
-        }
-        if (output_options.write_moments)
-        {
-            cqmom_2d_adaptive_node_counts::ensure_output_directory(output_options.directory);
-            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", moment_output_request)
-                .write(initial_time, cqmom.quadrature);
-
-            qmomkit::MomentWriter moment_history_writer =
-                qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", moment_output_request);
-            for (const cqmom_2d_adaptive_node_counts::HistorySample& sample : output_history)
-            {
-                moment_history_writer.write(sample.time, sample.quadrature);
-            }
-        }
         if (output_options.write_quadrature)
         {
             qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "initial_quadrature.txt", cqmom.quadrature.number_of_dimensions())

@@ -3013,6 +3013,7 @@ void test_output_options_default_to_disabled()
     assert(!options.value().write_moments);
     assert(!options.value().write_quadrature);
     assert(!options.value().interval.has_value());
+    assert(options.value().generalized_moment_orders.empty());
 
     const auto empty_section = qmomkit::config::parse_output_options(R"(
 [output]
@@ -3022,6 +3023,7 @@ void test_output_options_default_to_disabled()
     assert(!empty_section.value().write_moments);
     assert(!empty_section.value().write_quadrature);
     assert(!empty_section.value().interval.has_value());
+    assert(empty_section.value().generalized_moment_orders.empty());
 }
 
 void test_output_options_parse_enabled_fields()
@@ -3048,6 +3050,7 @@ directory = output
 write_moments = true
 write_quadrature = false
 interval = 0.1
+generalized_moments = 0.5, 0 | 1, 1.5 | 2, 0
 )");
     assert(all_fields.ok());
     assert(all_fields.value().directory == std::filesystem::path("output"));
@@ -3055,6 +3058,14 @@ interval = 0.1
     assert(!all_fields.value().write_quadrature);
     assert(all_fields.value().interval.has_value());
     assert_near(*all_fields.value().interval, 0.1);
+    assert((all_fields.value().generalized_moment_orders == std::vector<std::vector<double>>{{0.5, 0.0}, {1.0, 1.5}, {2.0, 0.0}}));
+
+    const auto one_dimensional = qmomkit::config::parse_output_options(R"(
+[output]
+generalized_moments = 0.5 | 2 | 1.5
+)");
+    assert(one_dimensional.ok());
+    assert((one_dimensional.value().generalized_moment_orders == std::vector<std::vector<double>>{{0.5}, {2.0}, {1.5}}));
 }
 
 void test_output_options_reject_invalid_values()
@@ -3110,6 +3121,27 @@ directory
 )");
     assert(!invalid_syntax.ok());
     assert(has_failure(invalid_syntax));
+
+    const auto negative_order = qmomkit::config::parse_output_options(R"(
+[output]
+generalized_moments = 1, -0.5
+)");
+    assert(!negative_order.ok());
+    assert(has_message_fragment(negative_order, "generalized_moments"));
+
+    const auto nonfinite_order = qmomkit::config::parse_output_options(R"(
+[output]
+generalized_moments = 1, nan
+)");
+    assert(!nonfinite_order.ok());
+    assert(has_message_fragment(nonfinite_order, "generalized_moments"));
+
+    const auto empty_order = qmomkit::config::parse_output_options(R"(
+[output]
+    generalized_moments =
+)");
+    assert(!empty_order.ok());
+    assert(has_failure(empty_order));
 }
 
 void test_qmom_case_parsing_tolerates_scheme()

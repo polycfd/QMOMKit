@@ -1,4 +1,5 @@
 #include "monte_carlo/evolution.hpp"
+#include "monte_carlo/output.hpp"
 #include "physics.hpp"
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/output.hpp"
@@ -55,9 +56,10 @@ int main()
         if (output.value().write_moments)
         {
             ensure_output_directory(output.value().directory);
-            moment_history_writer.emplace(
-                qmomkit::MomentWriter::for_cqmom(output.value().directory / "moment_history_mc.txt", moments.extents, request.indices));
-            moment_history_writer->write(initial_time, moments);
+            moment_history_writer.emplace(qmomkit::monte_carlo::make_moment_history_writer(output.value().directory / "moment_history_mc.txt",
+                                                                                           moments.extents, request.indices, output.value()));
+            qmomkit::monte_carlo::write_moment_history_row(*moment_history_writer, initial_time, moments, ensemble,
+                                                           particle_weight * static_cast<double>(ensemble.size()), output.value());
         }
 
         std::mt19937_64 generator(breakup_seed);
@@ -87,7 +89,8 @@ int main()
                 moments = ensemble_moments(ensemble, particle_weight, sampled->moments.moments.extents);
                 if (moment_history_writer.has_value())
                 {
-                    moment_history_writer->write(time, moments);
+                    qmomkit::monte_carlo::write_moment_history_row(*moment_history_writer, time, moments, ensemble,
+                                                                   particle_weight * static_cast<double>(ensemble.size()), output.value());
                 }
                 while (next_output <= time + 1.0e-14)
                 {

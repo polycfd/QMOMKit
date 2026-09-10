@@ -1,6 +1,7 @@
 #include "droplet_model.hpp"
 #include "monte_carlo/evolution.hpp"
 #include "monte_carlo/moments.hpp"
+#include "monte_carlo/output.hpp"
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/output.hpp"
@@ -114,8 +115,11 @@ int main()
         if (output_options.write_moments)
         {
             cqmom_3d_droplets_condensation_nucleation::ensure_output_directory(output_options.directory);
-            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history_mc.txt", moment_layout));
-            moment_history_writer->write(initial_time, qmomkit::create_cqmom_moment_data(moment_layout, final_moments));
+            moment_history_writer.emplace(
+                qmomkit::monte_carlo::make_moment_history_writer(output_options.directory / "moment_history_mc.txt", moment_layout, output_options));
+            qmomkit::monte_carlo::write_moment_history_row(*moment_history_writer, initial_time,
+                                                           qmomkit::create_cqmom_moment_data(moment_layout, final_moments), ensemble, number_density,
+                                                           output_options);
         }
 
         const double output_interval = output_options.interval.value_or(final_time - initial_time);
@@ -174,7 +178,9 @@ int main()
                     adapt_monte_carlo_result(qmomkit::monte_carlo::compute_requested_ensemble_moments(ensemble, number_density, moment_request));
                 if (moment_history_writer.has_value())
                 {
-                    moment_history_writer->write(time, qmomkit::create_cqmom_moment_data(moment_layout, final_moments));
+                    qmomkit::monte_carlo::write_moment_history_row(*moment_history_writer, time,
+                                                                   qmomkit::create_cqmom_moment_data(moment_layout, final_moments), ensemble,
+                                                                   number_density, output_options);
                 }
                 while (next_output_time <= time + 1.0e-12)
                 {

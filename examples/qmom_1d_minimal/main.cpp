@@ -36,7 +36,7 @@ int main()
 
     const std::filesystem::path output_directory = "output";
     std::filesystem::create_directories(output_directory);
-    qmomkit::MomentWriter moment_history_writer = qmomkit::MomentWriter::for_qmom(output_directory / "moment_history.txt", moments.size(), precision);
+    qmomkit::OutputOptions output_options;
     qmomkit::QuadratureWriter quadrature_history_writer =
         qmomkit::QuadratureWriter::for_qmom(output_directory / "quadrature_history.txt", node_count, precision);
 
@@ -51,8 +51,10 @@ int main()
         return 1;
     }
     qmomkit::QmomState state = *initial_state;
+    qmomkit::MomentWriter moment_history_writer =
+        qmomkit::MomentWriter::for_qmom(output_directory / "moment_history.txt", state, output_options, precision);
     moments = state.moments();
-    moment_history_writer.write(initial_time, qmomkit::MomentSet(moments));
+    moment_history_writer.write(initial_time, state, state.quadrature());
     quadrature_history_writer.write(initial_time, state.quadrature());
     qmomkit::QmomResult final_quadrature = state.quadrature();
 
@@ -71,7 +73,7 @@ int main()
         moments = state.moments();
         time = result.final_time;
         final_quadrature = state.quadrature();
-        moment_history_writer.write(time, qmomkit::MomentSet(moments));
+        moment_history_writer.write(time, state, state.quadrature());
         quadrature_history_writer.write(time, state.quadrature());
     }
 

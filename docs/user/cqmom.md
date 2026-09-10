@@ -179,6 +179,16 @@ from the same case and pass it to `advance_cqmom_phase_space(...)`:
 qmomkit::CqmomState state = cqmom_case.initial_state();
 ```
 
+Write the moments represented by the current state with a state-aware moment
+writer. Lean states write their hierarchy moments, while dense states write the
+complete configured tensor:
+
+```cpp
+qmomkit::OutputOptions output_options;
+qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom("moments.txt", state, output_options);
+writer.write(time, state, quadrature);
+```
+
 For a simple independent-product setup, the configuration file can look like
 this. The example describes a two-coordinate population with one global number
 density and one analytical marginal distribution per phase-space dimension:
@@ -369,7 +379,7 @@ const double derived =
 ```
 
 Generalized moment evaluation applies the terminal quadrature formula directly.
-These values are not CQMOM reconstruction inputs, phase_space_evolved state, or native
+These values are not CQMOM reconstruction inputs, phase-space-evolved state, or native
 `CqmomMomentData`/`RawMomentTensor` entries. Non-integer exponents require
 non-negative abscissas in the corresponding dimensions.
 

@@ -42,7 +42,8 @@ QuadratureWriter
 - output directory;
 - whether moment history output is requested;
 - whether quadrature history output is requested;
-- an optional output interval.
+- an optional output interval;
+- optional generalized moment exponent vectors for state-based moment output.
 
 The numerical algorithms do not consume `OutputOptions` directly. A driver may
 parse it from configuration, create directories, construct writers, and schedule
@@ -76,9 +77,10 @@ truncated or reshaped.
 ## Moment History Output
 
 Moment history output records native integer-order raw moments of the number
-density function at explicit times supplied by the caller. Generalized moments
-with real exponents are caller-evaluated post-processing quantities from
-quadrature and are not standard `MomentWriter` output.
+density function at explicit times supplied by the caller. A state-based writer
+may also append configured generalized quadrature moments. Ordinary columns
+always come directly from the state; generalized columns are derived from the
+current quadrature and never enter state storage or evolution.
 
 The text representation is space-separated. The first column is time. Remaining
 columns are moment values:
@@ -103,6 +105,23 @@ Selected one-dimensional moments use the exact order supplied to
 `MomentWriter::for_qmom(path, selected_orders)`. Selection is writer-local
 metadata. It does not modify `MomentSet`, `QmomCase`, or any numerical
 algorithm.
+
+The normal state-based interfaces are:
+
+```cpp
+auto qmom_writer = MomentWriter::for_qmom(path, qmom_state, output_options);
+qmom_writer.write(time, qmom_state, qmom_quadrature);
+
+auto cqmom_writer = MomentWriter::for_cqmom(path, cqmom_state, output_options);
+cqmom_writer.write(time, cqmom_state, cqmom_quadrature);
+```
+
+Both writers fix their complete schema at construction. With configured
+generalized requests, columns labelled `G[...]` are appended after all ordinary
+state columns in request order. QMOM requests have one exponent; CQMOM requests
+have one exponent per physical phase-space dimension. Exponents must be finite
+and non-negative. Integer-valued generalized requests remain explicit appended
+columns even when an equivalent ordinary moment is present.
 
 For dense CQMOM compatibility output, all-moment output uses the row-major
 `RawMomentTensor` storage convention. Multi-indices are enumerated in

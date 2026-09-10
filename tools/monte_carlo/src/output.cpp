@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <iomanip>
 #include <ostream>
+#include <stdexcept>
 #include <vector>
 
 namespace qmomkit::monte_carlo
@@ -61,6 +62,28 @@ void write_moment_text(std::ostream& output, const TensorMomentEstimate& estimat
         }
         output << estimate.moments.values[flat] << ' ' << estimate.standard_errors[flat] << '\n';
     }
+}
+
+void write_moment_history_row(qmomkit::MomentWriter& writer, const double time, const qmomkit::RawMomentTensor& moments, const Ensemble& ensemble,
+                              const double number_density, const std::vector<std::vector<double>>& generalized_moment_orders)
+{
+    const GeneralizedEnsembleMomentEstimate generalized = compute_generalized_ensemble_moments(ensemble, number_density, generalized_moment_orders);
+    if (!generalized.ok())
+    {
+        throw std::invalid_argument("Monte Carlo generalized moment output failed: " + generalized.message);
+    }
+    writer.write(time, moments, generalized.values);
+}
+
+void write_moment_history_row(qmomkit::MomentWriter& writer, const double time, const qmomkit::CqmomMomentData& moments, const Ensemble& ensemble,
+                              const double number_density, const std::vector<std::vector<double>>& generalized_moment_orders)
+{
+    const GeneralizedEnsembleMomentEstimate generalized = compute_generalized_ensemble_moments(ensemble, number_density, generalized_moment_orders);
+    if (!generalized.ok())
+    {
+        throw std::invalid_argument("Monte Carlo generalized moment output failed: " + generalized.message);
+    }
+    writer.write(time, moments, generalized.values);
 }
 
 } // namespace qmomkit::monte_carlo

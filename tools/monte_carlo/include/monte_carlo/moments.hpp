@@ -82,6 +82,25 @@ struct SelectedEnsembleMomentEstimate
 };
 
 /**
+ * Generalized raw moments estimated from an equally weighted finite ensemble.
+ *
+ * `orders` and `values` remain aligned in the input request order. The
+ * exponent vectors use physical phase-space dimension order.
+ */
+struct GeneralizedEnsembleMomentEstimate
+{
+    std::vector<std::vector<double>> orders;
+    std::vector<double> values;
+    EnsembleMomentStatus status = EnsembleMomentStatus::success;
+    std::string message;
+
+    [[nodiscard]] bool ok() const noexcept
+    {
+        return status == EnsembleMomentStatus::success;
+    }
+};
+
+/**
  * Estimate one-dimensional raw moments from equally weighted samples.
  *
  * For `N` one-dimensional samples `x_p` and total number density `n0`, the
@@ -127,5 +146,18 @@ struct SelectedEnsembleMomentEstimate
  */
 [[nodiscard]] SelectedEnsembleMomentEstimate compute_requested_ensemble_moments(const Ensemble& ensemble, double number_density,
                                                                                 const qmomkit::RawMomentRequest& request);
+
+/**
+ * Estimate requested generalized raw moments from equally weighted samples.
+ *
+ * For each exponent vector `alpha`, the estimator is:
+ *
+ *     M_alpha = n0 / N * sum_p product_d xi[p,d]^alpha[d]
+ *
+ * Exponents must be finite, non-negative, and have the sample phase-space
+ * rank. A negative coordinate with a non-integer exponent is invalid.
+ */
+[[nodiscard]] GeneralizedEnsembleMomentEstimate compute_generalized_ensemble_moments(const Ensemble& ensemble, double number_density,
+                                                                                     const std::vector<std::vector<double>>& orders);
 
 } // namespace qmomkit::monte_carlo

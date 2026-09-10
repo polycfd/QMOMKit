@@ -116,6 +116,36 @@ namespace
     return SelectedEnsembleMomentEstimate{{}, {}, {}, status, std::move(message)};
 }
 
+[[nodiscard]] GeneralizedEnsembleMomentEstimate generalized_failure(const std::vector<std::vector<double>>& orders, const EnsembleMomentStatus status,
+                                                                    std::string message)
+{
+    return GeneralizedEnsembleMomentEstimate{orders, {}, status, std::move(message)};
+}
+
+[[nodiscard]] bool is_integer(const double value)
+{
+    return std::trunc(value) == value;
+}
+
+[[nodiscard]] double generalized_monomial_value(const Sample& sample, const std::vector<double>& order, bool& domain_error)
+{
+    double value = 1.0;
+    for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
+    {
+        if (sample[dimension] < 0.0 && !is_integer(order[dimension]))
+        {
+            domain_error = true;
+            return std::numeric_limits<double>::quiet_NaN();
+        }
+        value *= std::pow(sample[dimension], order[dimension]);
+        if (!std::isfinite(value))
+        {
+            return std::numeric_limits<double>::quiet_NaN();
+        }
+    }
+    return value;
+}
+
 } // namespace
 
 OneDimensionalMomentEstimate compute_ensemble_moments(const Ensemble& ensemble, const double number_density, const std::size_t maximum_order)
@@ -330,6 +360,66 @@ SelectedEnsembleMomentEstimate compute_requested_ensemble_moments(const Ensemble
     }
 
     return SelectedEnsembleMomentEstimate{request.indices, std::move(values), std::move(errors), EnsembleMomentStatus::success, ""};
+}
+
+GeneralizedEnsembleMomentEstimate compute_generalized_ensemble_moments(const Ensemble& ensemble, const double number_density,
+                                                                       const std::vector<std::vector<double>>& orders)
+{
+    std::size_t dimensions = 0;
+    std::string message;
+    const EnsembleMomentStatus ensemble_status = validate_ensemble(ensemble, dimensions, message);
+    if (ensemble_status != EnsembleMomentStatus::success)
+    {
+        return generalized_failure(orders, ensemble_status, std::move(message));
+    }
+    if (!valid_number_density(number_density))
+    {
+        return generalized_failure(orders, EnsembleMomentStatus::invalid_input, "Number density must be finite and non-negative.");
+    }
+    for (const std::vector<double>& order : orders)
+    {
+        if (order.size() != dimensions)
+        {
+            return generalized_failure(orders, EnsembleMomentStatus::invalid_input,
+                                       "Generalized moment rank must match the sample phase-space dimension.");
+        }
+        if (!std::all_of(order.begin(), order.end(), [](const double exponent) { return std::isfinite(exponent) && exponent >= 0.0; }))
+        {
+            return generalized_failure(orders, EnsembleMomentStatus::invalid_input, "Generalized moment exponents must be finite and non-negative.");
+        }
+    }
+
+    std::vector<double> values(orders.size(), 0.0);
+    const double inverse_count = 1.0 / static_cast<double>(ensemble.size());
+    for (std::size_t requested = 0; requested < orders.size(); ++requested)
+    {
+        double sum = 0.0;
+        for (const Sample& sample : ensemble)
+        {
+            bool domain_error = false;
+            const double value = generalized_monomial_value(sample, orders[requested], domain_error);
+            if (domain_error)
+            {
+                return generalized_failure(orders, EnsembleMomentStatus::invalid_input,
+                                           "Generalized moment evaluation requires non-negative coordinates for non-integer exponents.");
+            }
+            if (!std::isfinite(value))
+            {
+                return generalized_failure(orders, EnsembleMomentStatus::non_finite_moment, "Generalized moment evaluation became non-finite.");
+            }
+            sum += value;
+            if (!std::isfinite(sum))
+            {
+                return generalized_failure(orders, EnsembleMomentStatus::non_finite_moment, "Generalized moment accumulation became non-finite.");
+            }
+        }
+        values[requested] = number_density * sum * inverse_count;
+        if (!std::isfinite(values[requested]))
+        {
+            return generalized_failure(orders, EnsembleMomentStatus::non_finite_moment, "Generalized moment evaluation became non-finite.");
+        }
+    }
+    return GeneralizedEnsembleMomentEstimate{orders, std::move(values), EnsembleMomentStatus::success, ""};
 }
 
 } // namespace qmomkit::monte_carlo

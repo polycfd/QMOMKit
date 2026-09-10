@@ -1,6 +1,7 @@
 #pragma once
 
 #include "monte_carlo/moments.hpp"
+#include "qmomkit/output.hpp"
 
 #include <iosfwd>
 
@@ -27,5 +28,17 @@ void write_moment_text(std::ostream& output, const OneDimensionalMomentEstimate&
  */
 void write_moment_text(std::ostream& output, const TensorMomentEstimate& estimate, std::size_t sample_count, unsigned long long seed,
                        double number_density);
+
+/**
+ * Append standard tensor moments and configured generalized moments to a
+ * QMOMKit moment-history writer. Generalized values use the same equally
+ * weighted sample convention as the standard Monte Carlo estimators.
+ */
+void write_moment_history_row(qmomkit::MomentWriter& writer, double time, const qmomkit::RawMomentTensor& moments, const Ensemble& ensemble,
+                              double number_density, const std::vector<std::vector<double>>& generalized_moment_orders);
+
+/** Append layout-ordered standard moments and configured generalized moments. */
+void write_moment_history_row(qmomkit::MomentWriter& writer, double time, const qmomkit::CqmomMomentData& moments, const Ensemble& ensemble,
+                              double number_density, const std::vector<std::vector<double>>& generalized_moment_orders);
 
 } // namespace qmomkit::monte_carlo

@@ -42,7 +42,8 @@ QMOMKit/
 ├── cmake/                            # CMake package templates
 ├── docs/
 │   ├── user/                         # User-oriented documentation
-│   └── developer/                    # Developer-oriented documentation
+│   ├── developer/                    # Developer-oriented documentation
+|   └── doxygen/                      # Doxygen documentation
 ├── examples/                         # Standalone installed-package examples
 ├── paper/                            # QMOMKit paper, its examples and verification
 ├── tests/                            # Unit, regression, and verification tests

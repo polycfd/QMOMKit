@@ -83,8 +83,7 @@ model-specific conservation law.
 Evidence: malformed layout, tensor, quadrature, and rate assertions in
 [public API](../../../tests/unit/public_api.cpp),
 [moment reconstruction](../../../tests/unit/moment_reconstruction.cpp),
-[source](../../../tests/unit/moment_source.cpp), and
-[rate tests](../../../tests/unit/moment_rates.cpp). These test the relevant public
+[source](../../../tests/unit/moment_source.cpp). These test the relevant public
 boundaries; they do not mean every trusted internal call revalidates everything.
 
 [numeric_utils.hpp](../../../src/internal/numeric_utils.hpp) supplies `all_finite`

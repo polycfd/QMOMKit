@@ -117,17 +117,6 @@ reconstruction; the application decides how to compose successful stages.
 Example README:
 [`examples/qmom_1d_explicit_strang_splitting/README.md`](../../examples/qmom_1d_explicit_strang_splitting/README.md)
 
-### `qmom_1d_breakage_advection_local-rates_with-mc`
-
-Use this host-solver branch when the application owns the raw-moment state and
-its SSP-RK3 integration. Unlike the native breakage example, QMOMKit supplies
-instantaneous local advection and source moment rates rather than advancing the
-whole state. This is useful when placing QMOMKit operations inside a residual,
-finite-element, or finite-volume time-integration workflow.
-
-Example README:
-[`examples/qmom_1d_breakage_advection_local-rates_with-mc/README.md`](../../examples/qmom_1d_breakage_advection_local-rates_with-mc/README.md)
-
 ## Stage 4: QMOM Monte Carlo Companion/Reference Workflow
 
 Prerequisite: understand the normal 1D breakage/advection workflow. MC examples
@@ -146,9 +135,6 @@ direct particle companion. It is the natural MC branch from
 
 Example README:
 [`examples/qmom_1d_breakage_advection_with-mc/README.md`](../../examples/qmom_1d_breakage_advection_with-mc/README.md)
-
-The Stage 3 local-rate example also includes an MC companion; choose it instead
-when application-owned moment integration is the point of interest.
 
 ## Stage 5: CQMOM Fundamentals
 

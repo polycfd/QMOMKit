@@ -144,7 +144,6 @@ INPUT                  = ../../README.md ../../include ../../src ../../docs \
                          ../../tests/README.md \
                          ../../tools/plotting/README.md \
                          ../../tools/monte_carlo/README.md \
-                         ../../tools/galerkin_element_coupling/README.md \
                          ../../CONTRIBUTING.md
 INPUT_ENCODING         = UTF-8
 INPUT_FILE_ENCODING    =

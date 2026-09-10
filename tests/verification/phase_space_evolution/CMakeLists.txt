@@ -2,15 +2,11 @@ add_executable(phase_space_evolution_analytical_verification phase_space_evoluti
 target_link_libraries(phase_space_evolution_analytical_verification PRIVATE qmomkit)
 add_executable(qmom_linear_advection_manufactured_verification qmom_linear_advection_manufactured.cpp)
 target_link_libraries(qmom_linear_advection_manufactured_verification PRIVATE qmomkit)
-foreach(case_name IN ITEMS rate_identity direct_advection cross_route combined_source)
-    if(case_name STREQUAL rate_identity)
-        set(test_name verification_qmom_advection_moment_rates_match_linear_velocity_oracle)
-    elseif(case_name STREQUAL direct_advection)
+foreach(case_name IN ITEMS direct_advection phase_space_source)
+    if(case_name STREQUAL direct_advection)
         set(test_name verification_qmom_advection_matches_exponential_phase_evolution)
-    elseif(case_name STREQUAL cross_route)
-        set(test_name verification_qmom_moment_rate_and_node_advection_converge_to_same_oracle)
     else()
-        set(test_name verification_qmom_moment_rates_and_phase_space_source_evolution_match_manufactured_solution)
+        set(test_name verification_qmom_phase_space_source_evolution_matches_manufactured_solution)
     endif()
     add_test(
         NAME ${test_name}

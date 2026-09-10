@@ -28,7 +28,7 @@ QMOMKit provides tools to:
 - configure phase-space conditioning order, bounded support, and adaptive branch-specific CQMOM node counts;
 - initialize moments from explicit moment definitions, analytical distributions, or Monte carlo sampling;
 - evolve states through phase-space advection and moment-source or boundary contributions;
-- use library-managed operator splitting or application-managed stage and local-rate workflows;
+- use library-managed operator splitting and source/advection stage workflows;
 - perform realizability checks and report phase-space evolution diagnostics;
 - write native results output;
 - use the optional Monte Carlo companion code for initialization of population ensembles and to produce reference solutions.
@@ -41,14 +41,13 @@ QMOMKit/
 ├── src/                              # Core implementation
 ├── cmake/                            # CMake package templates
 ├── docs/
-│   ├── user/                         # User-oriented documentation
 │   ├── developer/                    # Developer-oriented documentation
-|   └── doxygen/                      # Doxygen documentation
+|   ├── doxygen/                      # Doxygen documentation
+|   └── user/                         # User-oriented documentation
 ├── examples/                         # Standalone installed-package examples
 ├── paper/                            # QMOMKit paper, its examples and verification
 ├── tests/                            # Unit, regression, and verification tests
 ├── tools/
-│   ├── galerkin_element_coupling/    # Galerkin coupling demonstrator
 │   ├── monte_carlo/                  # Monte Carlo companion code
 │   └── plotting/                     # Plotting scripts
 ├── AGENTS.md
@@ -85,7 +84,6 @@ The standalone examples progress from basic QMOM and CQMOM reconstruction and in
 In addition, QMOMKit has several companion tools:
 - `tools/monte_carlo/` provides Monte Carlo code that can be use to initialize and evolve population ensembles; see the [Monte Carlo guide](docs/user/monte_carlo.md).
 - `tools/plotting/` provides optional plotting helpers for QMOMKit-native histories; see the [plotting README](tools/plotting/README.md).
-- `tools/galerkin_element_coupling/` demonstrates Galerkin coupling to local QMOMKit phase-space operations; see its [README](tools/galerkin_element_coupling/README.md).
 
 ## Testing
 

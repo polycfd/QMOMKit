@@ -6,12 +6,12 @@ This reference inventory corresponds to the current root CTest registrations. Ea
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 649 |
+| Unit logical tests | 626 |
 | Component/regression logical tests | 31 |
-| Verification logical tests | 163 |
-| **Runtime logical tests** | **843** |
+| Verification logical tests | 167 |
+| **Runtime logical tests** | **824** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **844** |
+| **Total CTest registrations** | **825** |
 
 Multiple parameter values or configurations used to establish one claim remain internal to that logical test and therefore do not increase the CTest count. The source, selector, and any configured internal case below identify how each registration is invoked.
 
@@ -329,10 +329,8 @@ Any addition, removal, split, or merge of a logical runtime CTest registration m
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
-| `verification_qmom_advection_moment_rates_match_linear_velocity_oracle` | `tests/verification/phase_space_evolution/qmom_linear_advection_manufactured.cpp` | `rate_identity` / `verify_instantaneous_rate_identity` | Verifies through the public QMOM advection-moment-rate API that linear phase-space velocity `dchi/dt = chi` gives the independent raw-moment identity `dM_k/dt = k M_k`, including `dM_0/dt = 0`. | Fixed positive three-node quadrature chi={0.5, 1.5, 3.0}, w={0.2, 0.3, 0.5}; orders 0 through 10; fixed QMOM without automatic scaling. |
+| `verification_qmom_phase_space_source_evolution_matches_manufactured_solution` | `tests/verification/phase_space_evolution/qmom_linear_advection_manufactured.cpp` | `phase_space_source` / `verify_phase_space_source_evolution` | Verifies native QMOM phase-space evolution against an independent noncommuting manufactured source/advection solution, including second-order Strang and first-order Lie convergence. | Fixed three-node QMOM; orders 0 through 5; T=0.1; dt={0.02, 0.01, 0.005, 0.0025}; linear velocity and constant positive source. |
 | `verification_qmom_advection_matches_exponential_phase_evolution` | `tests/verification/phase_space_evolution/qmom_linear_advection_manufactured.cpp` | `direct_advection` / `verify_direct_phase_space_advection` | Verifies public direct QMOM phase-space advection against `chi_alpha(t)=chi_alpha(0) exp(t)` and `M_k(t)=M_k(0) exp(k t)`, independently checking nodes, invariant weights, and reconstructed raw moments. | Fixed three-node quadrature; orders 0 through 10; T=0.1; fixed-step SSP-RK3 with dt=2.5e-4; fixed QMOM without automatic scaling or bounds. |
-| `verification_qmom_moment_rate_and_node_advection_converge_to_same_oracle` | `tests/verification/phase_space_evolution/qmom_linear_advection_manufactured.cpp` | `cross_route` / `verify_cross_route_ssp_rk3_convergence` | Verifies that public advection-moment-rate evolution and public direct QMOM node advection both converge at third order to `M_k(t)=M_k(0) exp(k t)` under the same SSP-RK3 macro steps; it deliberately does not require equal finite-step errors. | Fixed three-node quadrature; orders 0 through 10; T=0.1; dt={0.02, 0.01, 0.005, 0.0025}; fixed QMOM without automatic scaling or bounds. |
-| `verification_qmom_moment_rates_and_phase_space_source_evolution_match_manufactured_solution` | `tests/verification/phase_space_evolution/qmom_linear_advection_manufactured.cpp` | `combined_source` / `verify_combined_moment_rates_and_phase_space_source` | Verifies that the combined public QMOM advection-moment-rate and moment-source-rate formulation, integrated as one unsplit SSP-RK3 moment ODE, and native split QMOM phase-space/source evolution both converge to the same independent commuting and noncommuting manufactured moment solutions. It also verifies third-order unsplit rate integration, the documented Strang and Lie splitting orders, and the distinct `advsrc`/`srcadv` Lie compositions. | Three-node fixed QMOM, orders 0 through 5, T=0.1, and dt={0.02, 0.01, 0.005, 0.0025}; commuting `S_k=0.3M_k` runs strang/advsrc/srcadv, while noncommuting positive injection uses `S_k=0.1*1.0^k` and checks third-order combined rate integration, second-order Strang, first-order Lie convergence, and one-step Lie-composition signatures. |
 | `verification_phase_space_evolution_commuting_qmom` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | `commuting_qmom` (configuration: `commuting_qmom.qmom`) | Verifies the documented phase-space evolution result for the commuting QMOM case against its analytical or manufactured reference. | Configuration case `commuting_qmom.qmom` |
 | `verification_phase_space_evolution_qmom_boundary_contribution` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | `qmom_boundary_contribution` (configuration: `commuting_qmom.qmom`) | Verifies the documented phase-space evolution result for the QMOM boundary contribution case against its analytical or manufactured reference. | Configuration case `commuting_qmom.qmom` |
 | `verification_phase_space_evolution_qmom_phase_space_evolution_failures` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | `qmom_phase_space_evolution_failures` (configuration: `qmom_phase_space_evolution_failures.qmom`) | Verifies the documented phase-space evolution result for the QMOM phase-space evolution failures case against its analytical or manufactured reference. | Configuration case `qmom_phase_space_evolution_failures.qmom` |
@@ -376,7 +374,7 @@ Any addition, removal, split, or merge of a logical runtime CTest registration m
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 843 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
+The `public_headers` registration is not part of the 824 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -522,47 +520,10 @@ The `public_headers` registration is not part of the 843 runtime logical-test co
 | `unit_conditional_moments_nearly_singular_parent_abscissas_warn` | `tests/unit/conditional_moments.cpp` | `nearly_singular_parent_abscissas_warn` | Checks conditional-moment recovery reports a numerical warning for nearly singular parent abscissas. | — |
 | `unit_conditional_moments_invalid_inputs_report_failure` | `tests/unit/conditional_moments.cpp` | `invalid_inputs_report_failure` | Checks that conditional-moment reconstruction rejects the specified invalid input before producing result data. | — |
 
-### Moment-rate APIs
+
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
-| `unit_moment_rates_public_qmom_advection_rates_and_status_mapping` | `tests/unit/moment_rates.cpp` | `public_qmom_advection_rates_and_status_mapping` | Checks the public QMOM advection-rate API returns the native rates and maps reconstruction status to its public result. | — |
-| `unit_moment_rates_public_cqmom_advection_rates_preserve_layout_and_status` | `tests/unit/moment_rates.cpp` | `public_cqmom_advection_rates_preserve_layout_and_status` | Checks the public CQMOM advection-rate API retains the supplied moment layout and maps reconstruction status to its public result. | — |
-| `unit_moment_rates_public_cqmom_advection_rates_preserve_adaptive_layout` | `tests/unit/moment_rates.cpp` | `public_cqmom_advection_rates_preserve_adaptive_layout` | Checks public CQMOM advection rates retain adaptive branch layout metadata. | — |
-| `unit_moment_rates_public_qmom_moment_source_rates_and_status_mapping` | `tests/unit/moment_rates.cpp` | `public_qmom_moment_source_rates_and_status_mapping` | Checks the public QMOM moment-source-rate API returns native rates and maps source status to its public result. | — |
-| `unit_moment_rates_public_qmom_moment_source_rates_with_boundary` | `tests/unit/moment_rates.cpp` | `public_qmom_moment_source_rates_with_boundary` | Checks the QMOM source-rate API adds a supplied boundary contribution to the callback source rate. | — |
-| `unit_moment_rates_public_qmom_moment_source_rates_with_zero_boundary` | `tests/unit/moment_rates.cpp` | `public_qmom_moment_source_rates_with_zero_boundary` | Checks a zero QMOM boundary contribution leaves the callback source rate unchanged. | — |
-| `unit_moment_rates_public_qmom_moment_source_rates_validate_inputs_before_callbacks` | `tests/unit/moment_rates.cpp` | `public_qmom_moment_source_rates_validate_inputs_before_callbacks` | Checks invalid QMOM source-rate inputs are rejected before the source or boundary callback is invoked. | — |
-| `unit_moment_rates_public_qmom_moment_source_rates_source_failure_prevents_boundary` | `tests/unit/moment_rates.cpp` | `public_qmom_moment_source_rates_source_failure_prevents_boundary` | Checks a QMOM source callback failure prevents invocation of the boundary callback. | — |
-| `unit_moment_rates_public_qmom_moment_source_rates_boundary_failures` | `tests/unit/moment_rates.cpp` | `public_qmom_moment_source_rates_boundary_failures` | Checks boundary callback failures are returned by the QMOM source-rate API. | — |
-| `unit_moment_rates_public_qmom_moment_source_rates_detect_combined_overflow` | `tests/unit/moment_rates.cpp` | `public_qmom_moment_source_rates_detect_combined_overflow` | Checks that the public moment-rate API detects the tested arithmetic overflow instead of reporting success. | — |
-| `unit_moment_rates_public_cqmom_moment_source_rates_preserve_layout_and_status` | `tests/unit/moment_rates.cpp` | `public_cqmom_moment_source_rates_preserve_layout_and_status` | Checks the public CQMOM moment-source-rate API retains layout metadata and maps source status to its public result. | — |
-
-### Advection moment rates
-
-| CTest name | Source | Selector/function | Verifies | Internal cases |
-| --- | --- | --- | --- | --- |
-| `unit_advection_moment_rates_qmom_one_node_constant_velocity` | `tests/unit/advection_moment_rates.cpp` | `qmom_one_node_constant_velocity` | Checks one-node QMOM advection rates for a constant node velocity. | — |
-| `unit_advection_moment_rates_qmom_two_node_distinct_velocities_and_independent_composition` | `tests/unit/advection_moment_rates.cpp` | `qmom_two_node_distinct_velocities_and_independent_composition` | Checks two-node QMOM advection rates use distinct node velocities and compose independently. | — |
-| `unit_advection_moment_rates_qmom_zero_and_linear_velocity` | `tests/unit/advection_moment_rates.cpp` | `qmom_zero_and_linear_velocity` | Checks QMOM advection rates for zero and linearly varying node velocities. | — |
-| `unit_advection_moment_rates_qmom_failure_paths` | `tests/unit/advection_moment_rates.cpp` | `qmom_failure_paths` | Checks that advection moment-rate evaluation propagates the tested failure statuses without reporting a successful result. | — |
-| `unit_advection_moment_rates_cqmom_identity_ordering_and_independent_composition` | `tests/unit/advection_moment_rates.cpp` | `cqmom_identity_ordering_and_independent_composition` | Checks CQMOM advection rates with identity conditioning order and independently composed coordinates. | — |
-| `unit_advection_moment_rates_cqmom_non_identity_ordering_and_global_terminal_weights` | `tests/unit/advection_moment_rates.cpp` | `cqmom_non_identity_ordering_and_global_terminal_weights` | Checks CQMOM advection rates with non-identity conditioning order use global terminal weights. | — |
-| `unit_advection_moment_rates_cqmom_zero_velocity_and_adaptive_terminal_arrays` | `tests/unit/advection_moment_rates.cpp` | `cqmom_zero_velocity_and_adaptive_terminal_arrays` | Checks zero CQMOM velocity rates and the adaptive terminal-array representation. | — |
-| `unit_advection_moment_rates_cqmom_failure_paths` | `tests/unit/advection_moment_rates.cpp` | `cqmom_failure_paths` | Checks that advection moment-rate evaluation propagates the tested failure statuses without reporting a successful result. | — |
-| `unit_advection_moment_rates_new_evaluators_do_not_record_native_node_rhs_counters` | `tests/unit/advection_moment_rates.cpp` | `new_evaluators_do_not_record_native_node_rhs_counters` | Checks direct advection-rate evaluators do not increment native node right-hand-side counters. | — |
-
-### Moment-source rates
-
-| CTest name | Source | Selector/function | Verifies | Internal cases |
-| --- | --- | --- | --- | --- |
-| `unit_moment_source_rates_qmom_success_ordering_and_single_invocation` | `tests/unit/moment_source_rates.cpp` | `qmom_success_ordering_and_single_invocation` | Checks QMOM source-rate evaluation orders callback data consistently and invokes the callback once per node. | — |
-| `unit_moment_source_rates_qmom_failure_paths` | `tests/unit/moment_source_rates.cpp` | `qmom_failure_paths` | Checks that moment-source rate evaluation propagates the tested failure statuses without reporting a successful result. | — |
-| `unit_moment_source_rates_qmom_non_finite_input_is_rejected_before_callback` | `tests/unit/moment_source_rates.cpp` | `qmom_non_finite_input_is_rejected_before_callback` | Checks that moment-source rate evaluation detects the tested non-finite value and returns the documented failure. | — |
-| `unit_moment_source_rates_cqmom_identity_context_ordering_and_layout_preservation` | `tests/unit/moment_source_rates.cpp` | `cqmom_identity_context_ordering_and_layout_preservation` | Checks CQMOM source contexts use identity ordering and retain their moment layout. | — |
-| `unit_moment_source_rates_cqmom_non_identity_ordering` | `tests/unit/moment_source_rates.cpp` | `cqmom_non_identity_ordering` | Checks CQMOM source contexts expose non-identity conditioning order. | — |
-| `unit_moment_source_rates_cqmom_failure_paths` | `tests/unit/moment_source_rates.cpp` | `cqmom_failure_paths` | Checks that moment-source rate evaluation propagates the tested failure statuses without reporting a successful result. | — |
-| `unit_moment_source_rates_direct_evaluators_do_not_integrate_retry_or_reconstruct` | `tests/unit/moment_source_rates.cpp` | `direct_evaluators_do_not_integrate_retry_or_reconstruct` | Checks direct source-rate evaluators neither integrate, retry, nor reconstruct quadrature. | — |
 
 ### Björck-Pereyra solver
 
@@ -956,7 +917,6 @@ The `public_headers` registration is not part of the 843 runtime logical-test co
 | `unit_moment_source_cqmom_coordinate_policy_rejects_out_of_range_coordinate` | `tests/unit/moment_source.cpp` | `cqmom_coordinate_policy_rejects_out_of_range_coordinate` | Checks that coordinate policy rejects out of range coordinate in moment-source integration. | — |
 | `unit_moment_source_cqmom_coordinate_policy_retry_completes_source_interval` | `tests/unit/moment_source.cpp` | `cqmom_coordinate_policy_retry_completes_source_interval` | Verifies CQMOM coordinate policy retry completes source interval. | — |
 | `unit_moment_source_boundary_contribution_adds_to_moment_source` | `tests/unit/moment_source.cpp` | `boundary_contribution_adds_to_moment_source` | Verifies boundary contribution adds to moment source. | — |
-| `unit_moment_source_qmom_boundary_rate_evaluator_matches_source_update` | `tests/unit/moment_source.cpp` | `qmom_boundary_rate_evaluator_matches_source_update` | Checks that boundary rate evaluator matches source update in moment-source integration. | — |
 | `unit_moment_source_boundary_contribution_wrong_size_fails_with_boundary_message` | `tests/unit/moment_source.cpp` | `boundary_contribution_wrong_size_fails_with_boundary_message` | Verifies boundary contribution wrong size fails with boundary message. | — |
 | `unit_moment_source_boundary_contribution_non_finite_fails_with_boundary_message` | `tests/unit/moment_source.cpp` | `boundary_contribution_non_finite_fails_with_boundary_message` | Checks that moment-source integration detects the tested non-finite value and returns the documented failure. | — |
 | `unit_moment_source_boundary_contribution_callback_exception_fails_with_boundary_message` | `tests/unit/moment_source.cpp` | `boundary_contribution_callback_exception_fails_with_boundary_message` | Verifies boundary contribution callback exception fails with boundary message. | — |
@@ -984,10 +944,6 @@ The `public_headers` registration is not part of the 843 runtime logical-test co
 | `unit_moment_reconstruction_cqmom_moment_data_reconstructs_unequal_node_counts` | `tests/unit/moment_reconstruction.cpp` | `cqmom_moment_data_reconstructs_unequal_node_counts` | Checks that moment data reconstructs unequal node counts in moment reconstruction. | — |
 | `unit_moment_reconstruction_cqmom_reconstructs_adaptive_terminal_moments` | `tests/unit/moment_reconstruction.cpp` | `cqmom_reconstructs_adaptive_terminal_moments` | Checks that reconstructs adaptive terminal moments in moment reconstruction. | — |
 | `unit_moment_reconstruction_cqmom_moment_data_reconstructs_adaptive_quadrature` | `tests/unit/moment_reconstruction.cpp` | `cqmom_moment_data_reconstructs_adaptive_quadrature` | Checks that moment data reconstructs adaptive quadrature in moment reconstruction. | — |
-| `unit_moment_reconstruction_advection_moment_rates_one_dimensional_cases` | `tests/unit/moment_reconstruction.cpp` | `advection_moment_rates_one_dimensional_cases` | Verifies advection moment rates one dimensional cases. | — |
-| `unit_moment_reconstruction_advection_moment_rates_multidimensional_cases` | `tests/unit/moment_reconstruction.cpp` | `advection_moment_rates_multidimensional_cases` | Verifies advection moment rates multidimensional cases. | — |
-| `unit_moment_reconstruction_advection_moment_rates_match_finite_difference` | `tests/unit/moment_reconstruction.cpp` | `advection_moment_rates_match_finite_difference` | Verifies advection moment rates match finite difference. | — |
-| `unit_moment_reconstruction_advection_moment_rates_reject_invalid_shapes` | `tests/unit/moment_reconstruction.cpp` | `advection_moment_rates_reject_invalid_shapes` | Verifies advection moment rates reject invalid shapes. | — |
 | `unit_moment_reconstruction_cqmom_moment_data_rejects_mismatched_layout` | `tests/unit/moment_reconstruction.cpp` | `cqmom_moment_data_rejects_mismatched_layout` | Checks that moment data rejects mismatched layout in moment reconstruction. | — |
 | `unit_moment_reconstruction_cqmom_moment_data_rejects_noncanonical_fixed_layout` | `tests/unit/moment_reconstruction.cpp` | `cqmom_moment_data_rejects_noncanonical_fixed_layout` | Checks that moment data rejects noncanonical fixed layout in moment reconstruction. | — |
 | `unit_moment_reconstruction_reconstruction_rejects_invalid_qmom_storage` | `tests/unit/moment_reconstruction.cpp` | `reconstruction_rejects_invalid_qmom_storage` | Checks that reconstruction rejects invalid QMOM storage in moment reconstruction. | — |

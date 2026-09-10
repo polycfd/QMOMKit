@@ -102,8 +102,8 @@ CTest names identify the tested contract. Several executables accept a local
 selector so independently meaningful groups can be registered separately. The
 individual CTest registrations are authoritative; running such an executable
 without a selector is a developer convenience, not an aggregate CTest contract.
-The current root suite has **848** CTest registrations: **847 logical runtime
-tests** (649 unit, 31 component-regression, and 167 verification) and 1
+The current root suite has **825** CTest registrations: **824 logical runtime
+tests** (626 unit, 31 component-regression, and 167 verification) and 1
 supporting public-header check.
 The complete logical-test inventory is maintained in
 [Test inventory](test_inventory.md); this page remains the conceptual and
@@ -328,8 +328,8 @@ Benchmark structure and interpretation belong in [benchmarks.md](benchmarks.md).
 
 ## Registered Root CTest Inventory
 
-The root inventory contains 844 CTest registrations: 843 logical runtime tests
-across the three runtime tiers (649 unit, 31 component-regression, and 163
+The root inventory contains 825 CTest registrations: 824 logical runtime tests
+across the three runtime tiers (626 unit, 31 component-regression, and 167
 verification), plus the `public_headers` supporting compile/link check. CTest
 names use the tier prefix followed by a subsystem and a descriptive case name.
 

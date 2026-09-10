@@ -1,14 +1,12 @@
-# Moment evaluation and instantaneous rates
+# Moment evaluation
 
 The numerical definitions are in
-[moment_reconstruction.cpp](../../../src/moment_reconstruction.cpp),
-[advection_moment_rates.cpp](../../../src/advection_moment_rates.cpp), and
-[moment_source_rates.cpp](../../../src/moment_source_rates.cpp). Public declarations
-are in the corresponding [installed headers](../../../include/qmomkit).
+[moment_reconstruction.cpp](../../../src/moment_reconstruction.cpp). Public
+declarations are in the corresponding [installed headers](../../../include/qmomkit).
 See [numerical conventions](../numerical_conventions.md) and
 [phase-space design](../phase_space_evolution_design.md). Public functions are in
 `qmomkit`; the per-value arithmetic helpers are local, and trusted reconstruction
-and advection-rate helpers are in `qmomkit::internal`.
+helpers are in `qmomkit::internal`.
 
 ## Raw moments — Level A
 
@@ -67,70 +65,3 @@ Evidence: fractional/integer negative-node, zero-node, malformed exponent, and
 overflow assertions in [moment reconstruction tests](../../../tests/unit/moment_reconstruction.cpp).
 No operating envelope for exponents approaching an integer from either side,
 near-zero nodes with negative powers, or signed cancellation was identified.
-
-## Chain-rule advection rates — Level A
-
-Local `reconstruct_advection_moment_rate_value` and internal
-`reconstruct_advection_moment_rates` evaluate
-
-`dM_alpha/dt = sum_j W_j sum_d alpha[d] v[d,j] x[d,j]^(alpha[d]-1) product_(k!=d) x[k,j]^alpha[k]`.
-
-The loops respectively visit requested moments, terminal nodes, derivative
-coordinates, and monomial coordinates. Terms with zero `alpha[d]` are skipped
-before decrementing the exponent. The implementation uses powers rather than
-`M/x`, so zero abscissas cause no spurious division by zero. Zeroth-moment
-advection rate is zero because its derivative-coordinate sum is empty. Weights
-are held fixed; this generic identity does not imply conservation of nonzero-order
-moments under arbitrary caller velocity.
-
-`validate_advection_moment_rate_storage` checks the quadrature, velocity count,
-coordinate rank, and finite values. Every term/product/sum is checked; overflow
-throws. Complexity grows with requested moment count, terminal nodes, and rank;
-repeated powers are recomputed rather than globally cached.
-
-Public `evaluate_qmom_advection_moment_rates` and
-`evaluate_cqmom_advection_moment_rates` reconstruct a quadrature, evaluate terminal
-velocities, and then apply that identity. Internal terminal-velocity evaluation
-constructs a coordinate vector for each node and invokes the caller at the supplied
-time. Wrong size/nonfinite velocity or a caught callback exception becomes a
-velocity failure; reconstruction failure is separately reported. Final arithmetic
-overflow can propagate as an exception rather than a returned velocity status.
-These functions produce an instantaneous rate; they do not advance the state.
-
-Evidence: [moment reconstruction tests](../../../tests/unit/moment_reconstruction.cpp)
-compare advection derivatives with independently perturbed coordinates;
-[advection rate tests](../../../tests/unit/advection_moment_rates.cpp) exercise
-reconstruction, callback failures, and dense/lean interfaces. Fixed finite-difference
-examples do not measure loss of accuracy at very high order or cancellation.
-
-## Source-rate wrappers — Level B
-
-`evaluate_qmom_moment_source_rates` and `evaluate_cqmom_moment_source_rates` create
-borrowed source contexts and validate the returned rate shape/finiteness. They
-report invalid request, callback failure, or success without integration.
-Where a boundary callback overload is provided, source evaluation precedes
-boundary evaluation; a failed source prevents calling the boundary. The two rate
-vectors are added and the combined result checked. The boundary contribution is
-an additive moment rate, not a spatial boundary condition.
-
-Standalone contexts do not receive reconstruction metadata for untracked moments.
-QMOM's instantaneous source wrapper checks nonempty state, finite time, and callback
-presence but does not itself reject every nonfinite input moment; the CQMOM route
-checks finite values. A callback that ignores a bad QMOM input can therefore return
-a finite rate. Integration has stronger initial-state validation. This is an API
-boundary distinction, not a claim that source evaluation repairs invalid moments.
-
-Evidence: [source-rate tests](../../../tests/unit/moment_source_rates.cpp) exercise
-shape, callback, boundary-addition, and error propagation; no targeted ignored-NaN
-QMOM input assertion was identified.
-
-## Local validators and adapters — Level C
-
-| Family | Purpose / semantics | Evidence |
-|---|---|---|
-| `validate_reconstructed_value`, `validate_advection_moment_rate_value`, `validate_generalized_value`, `validate_generalized_exponent` | Distinguish malformed exponent input from nonfinite arithmetic, using operation-specific exception text. | Domain/overflow unit cases |
-| Quadrature validation message builders | Supply context-specific error wording to shared structural checks; do not change the checks. | Invalid-input tests indirectly |
-| Rate invalid/failure result factories and `validate_*` helpers | Preserve requested output shape/status and validate context/rate structure before success. | Rate API failure tests |
-| Dense/lean and scalar/multidimensional forwarding overloads | Adapt the caller representation to the same mathematical sum/context operation. | Dense/lean parity and public-header coverage |
-
-Exact overload names and definitions are listed in the [inventory](coverage_inventory.md).

@@ -49,25 +49,25 @@ public:
     ~MomentWriter() = default;
 
     /** Write all one-dimensional moments M[0], M[1], ... M[moment_count - 1]. */
-    [[nodiscard]] static MomentWriter for_qmom(const std::filesystem::path& path, std::size_t moment_count, const std::size_t precision = 10);
+    [[nodiscard]] static MomentWriter for_qmom(const std::filesystem::path& path, std::size_t moment_count, const std::size_t precision = 17);
 
     /** Write selected one-dimensional moments in the supplied order. */
     [[nodiscard]] static MomentWriter for_qmom(const std::filesystem::path& path, std::vector<std::size_t> selected_orders,
-                                               const std::size_t precision = 10);
+                                               const std::size_t precision = 17);
 
     /** Write all tensor moments in row-major multi-index order. */
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, std::vector<std::size_t> extents,
-                                                const std::size_t precision = 10);
+                                                const std::size_t precision = 17);
 
     /** Write selected tensor moments in the supplied order. */
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, std::vector<std::size_t> extents,
-                                                std::vector<MultiIndex> selected_moments, const std::size_t precision = 10);
+                                                std::vector<MultiIndex> selected_moments, const std::size_t precision = 17);
 
     /** Write current CQMOM moment data in the layout's required-index order. */
-    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomMomentLayout& layout, const std::size_t precision = 10);
+    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomMomentLayout& layout, const std::size_t precision = 17);
 
     /** Write requested CQMOM moments reconstructed from quadrature in request order. */
-    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const RawMomentRequest& request, const std::size_t precision = 10);
+    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const RawMomentRequest& request, const std::size_t precision = 17);
 
     /** Append one row for a one-dimensional raw moment sequence. */
     void write(double time, const MomentSet& moments);
@@ -130,10 +130,10 @@ public:
 
     /** Write one-dimensional nodes with at most `maximum_node_count` active nodes. */
     [[nodiscard]] static QuadratureWriter for_qmom(const std::filesystem::path& path, std::size_t maximum_node_count,
-                                                   const std::size_t precision = 10);
+                                                   const std::size_t precision = 17);
 
     /** Write terminal multidimensional nodes as one row per active terminal node. */
-    [[nodiscard]] static QuadratureWriter for_cqmom(const std::filesystem::path& path, std::size_t dimension_count, const std::size_t precision = 10);
+    [[nodiscard]] static QuadratureWriter for_cqmom(const std::filesystem::path& path, std::size_t dimension_count, const std::size_t precision = 17);
 
     /** Append one row for a one-dimensional quadrature rule. */
     void write(double time, const Quadrature1D& quadrature);

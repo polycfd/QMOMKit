@@ -238,7 +238,7 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
 void MomentWriter::write_header()
 {
     column_width = std::max(precision + 8, std::size_t(6));
-    output_ << centered_column_label("time", column_width);
+    output_ << centered_column_label("# time", column_width);
     for (const std::string& label : labels_)
     {
         output_ << ' ' << centered_column_label(label, column_width);
@@ -390,7 +390,7 @@ QuadratureWriter::QuadratureWriter(const std::filesystem::path& path, const Quad
 void QuadratureWriter::write_header()
 {
     column_width = std::max(precision + 8, std::size_t(6));
-    output_ << centered_column_label("time", column_width);
+    output_ << centered_column_label("# time", column_width);
     for (const std::string& label : labels_)
     {
         output_ << ' ' << centered_column_label(label, column_width);

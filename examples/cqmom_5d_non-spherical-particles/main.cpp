@@ -100,7 +100,6 @@ int main(int argc, char* argv[])
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
         const qmomkit::CqmomPhaseSpaceEvolutionOptions evolution_options = std::move(evolution_configured).value();
         const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
-        const qmomkit::RawMomentRequest file_moment_request{moment_layout.required_indices};
         const qmomkit::RawMomentRequest terminal_moment_request{select_terminal_moment_indices(moment_layout.required_indices)};
 
         std::cout << qmomkit::format_cqmom_settings(cqmom_case.moment_storage(), cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(),
@@ -122,6 +121,17 @@ int main(int argc, char* argv[])
 
         qmomkit::CqmomState state = cqmom_case.initial_state();
         qmomkit::CqmomQuadrature quadrature = initial_cqmom.quadrature;
+        if (output_options.write_quadrature || output_options.write_moments)
+        {
+            ensure_output_directory(output_options.directory);
+        }
+        std::optional<qmomkit::MomentWriter> moment_history_writer;
+        if (output_options.write_moments)
+        {
+            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", state).write(initial_time, state);
+            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", state));
+            moment_history_writer->write(initial_time, state);
+        }
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
         const double output_interval = output_options.interval.value_or(final_time - initial_time);
         double next_output_time = initial_time + output_interval;
@@ -149,6 +159,10 @@ int main(int argc, char* argv[])
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
                 quadrature_history.emplace_back(time, quadrature);
+                if (moment_history_writer.has_value())
+                {
+                    moment_history_writer->write(time, state);
+                }
                 while (next_output_time <= time + 1.0e-12)
                 {
                     next_output_time += output_interval;
@@ -156,20 +170,6 @@ int main(int argc, char* argv[])
             }
         }
 
-        if (output_options.write_quadrature || output_options.write_moments)
-        {
-            ensure_output_directory(output_options.directory);
-        }
-        if (output_options.write_moments)
-        {
-            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", file_moment_request)
-                .write(initial_time, initial_cqmom.quadrature);
-            qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", file_moment_request);
-            for (const auto& [history_time, history_quadrature] : quadrature_history)
-            {
-                writer.write(history_time, history_quadrature);
-            }
-        }
         if (output_options.write_quadrature)
         {
             qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "initial_quadrature.txt", initial_cqmom.quadrature.number_of_dimensions())

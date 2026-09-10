@@ -7,6 +7,7 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -68,6 +69,16 @@ int main()
         const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(quadrature, request);
 
         const qmomkit::CqmomMomentSource source = breakup_source();
+        if (output.value().write_moments || output.value().write_quadrature)
+        {
+            ensure_output_directory(output.value().directory);
+        }
+        std::optional<qmomkit::MomentWriter> moment_history_writer;
+        if (output.value().write_moments)
+        {
+            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output.value().directory / "moment_history.txt", state));
+            moment_history_writer->write(initial_time, state);
+        }
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> history{{initial_time, quadrature}};
         const double output_interval = output.value().interval.value_or(final_time - initial_time);
         double time = initial_time;
@@ -87,6 +98,10 @@ int main()
             if (time + 1.0e-14 >= next_output || time >= final_time - 1.0e-14)
             {
                 history.emplace_back(time, quadrature);
+                if (moment_history_writer.has_value())
+                {
+                    moment_history_writer->write(time, state);
+                }
                 while (next_output <= time + 1.0e-14)
                 {
                     next_output += output_interval;
@@ -95,18 +110,6 @@ int main()
         }
         const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(quadrature, request);
 
-        if (output.value().write_moments || output.value().write_quadrature)
-        {
-            ensure_output_directory(output.value().directory);
-        }
-        if (output.value().write_moments)
-        {
-            qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(output.value().directory / "moment_history.txt", request);
-            for (const auto& [sample_time, sample_quadrature] : history)
-            {
-                writer.write(sample_time, sample_quadrature);
-            }
-        }
         if (output.value().write_quadrature)
         {
             qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(output.value().directory / "quadrature_history.txt", 5);

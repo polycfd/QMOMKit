@@ -107,6 +107,17 @@ int main()
         const auto nucleation_boundary = cqmom_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(nucleation_model);
         cqmom_3d_droplets_condensation_nucleation::print_cqmom_run_configuration(cqmom_case, phase_space_evolution_options);
 
+        if (output_options.write_moments || output_options.write_quadrature)
+        {
+            cqmom_3d_droplets_condensation_nucleation::ensure_output_directory(output_options.directory);
+        }
+        std::optional<qmomkit::MomentWriter> moment_history_writer;
+        if (output_options.write_moments)
+        {
+            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", state).write(initial_time, state);
+            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", state));
+            moment_history_writer->write(initial_time, state);
+        }
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
 
         const double output_interval = output_options.interval.value_or(final_time - initial_time);
@@ -139,6 +150,10 @@ int main()
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
                 quadrature_history.emplace_back(time, quadrature);
+                if (moment_history_writer.has_value())
+                {
+                    moment_history_writer->write(time, state);
+                }
                 while (next_output_time <= time + 1.0e-12)
                 {
                     next_output_time += output_interval;
@@ -146,23 +161,6 @@ int main()
             }
         }
 
-        if (output_options.write_quadrature)
-        {
-            cqmom_3d_droplets_condensation_nucleation::ensure_output_directory(output_options.directory);
-        }
-        if (output_options.write_moments)
-        {
-            cqmom_3d_droplets_condensation_nucleation::ensure_output_directory(output_options.directory);
-            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", moment_output_request)
-                .write(initial_time, cqmom.quadrature);
-
-            qmomkit::MomentWriter moment_history_writer =
-                qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", moment_output_request);
-            for (const auto& [history_time, history_quadrature] : quadrature_history)
-            {
-                moment_history_writer.write(history_time, history_quadrature);
-            }
-        }
         if (output_options.write_quadrature)
         {
             qmomkit::QuadratureWriter quadrature_history_writer = qmomkit::QuadratureWriter::for_cqmom(

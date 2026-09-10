@@ -181,9 +181,10 @@ Once you have a quadrature representation, a larger workflow can:
 - run optional realizability checks;
 - compare moment histories against Monte Carlo companion outputs.
 
-`MomentWriter` writes native integer-order raw moments. `QuadratureWriter`
-writes reconstructed nodes and weights. Generalized moments are derived
-quantities evaluated separately from a valid quadrature result.
+`MomentWriter` writes native integer-order raw moments. A state-aware writer
+configured with `OutputOptions` can append generalized quadrature-derived
+columns. `QuadratureWriter` writes reconstructed nodes and weights. Generalized
+moments remain derived quantities evaluated from a valid quadrature result.
 
 See [configuration.md](./configuration.md) for configuration-file examples, 
 [phase_space_evolution.md](./phase_space_evolution.md) for time evolution, 

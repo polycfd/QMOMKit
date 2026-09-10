@@ -379,7 +379,7 @@ const double derived =
 ```
 
 Generalized moment evaluation applies the terminal quadrature formula directly.
-These values are not CQMOM reconstruction inputs, phase_space_evolved state, or native
+These values are not CQMOM reconstruction inputs, phase-space-evolved state, or native
 `CqmomMomentData`/`RawMomentTensor` entries. Non-integer exponents require
 non-negative abscissas in the corresponding dimensions.
 

@@ -182,7 +182,7 @@ required to differ at the coarse timestep.
 The fixed final time is `T = 1.2` with macro steps
 `0.3, 0.15, 0.075, 0.0375, 0.01875`. The reference is constructed directly
 from the listed four terminal nodes after applying the exact trajectories; it
-does not use a phase_space_evolved result. The error is the scaled infinity norm over
+does not use a phase-space-evolved result. The error is the scaled infinity norm over
 all configured raw moments, `max |computed - exact| / max(1, |exact|)`, and the
 phase-space evolution moment-layout moments are checked separately. Phase-space advection RK23 tolerances
 are `1e-12` relative and `1e-14` absolute with maximum step `0.01`, keeping
@@ -280,11 +280,11 @@ The configuration is a fixed 2D independent-product quadrature with
 `conditioning_order = {0,1}`. The callback uses only the public
 `CqmomSourceContext` API. On the first invocation it checks:
 
-- `context.size()` is the expected number of phase_space_evolved CQMOM moments;
+- `context.size()` is the expected number of phase-space-evolved CQMOM moments;
 - `context.index(i)` follows the explicit phase-space multi-index order
   `{0,0}`, `{1,0}`, `{2,0}`, `{3,0}`, `{0,1}`, `{0,2}`, `{0,3}`, `{1,1}`,
   `{1,2}`, `{1,3}`;
-- `context.value(i)` matches the corresponding initial phase_space_evolved moment;
+- `context.value(i)` matches the corresponding initial phase-space-evolved moment;
 - `context.hierarchy()` reports the configured hierarchy.
 
 The returned rate is ordered exactly like the context:
@@ -346,7 +346,7 @@ by the phase-space evolution framework. The source callback checks that its firs
 contains the moments after the initial advection half-step, with the same
 explicit multi-index ordering documented in the source-only case. A failure
 there indicates that the public callback received stale values, reordered
-indices, or rates that would be mapped back to the wrong phase_space_evolved moments.
+indices, or rates that would be mapped back to the wrong phase-space-evolved moments.
 
 ## CQMOM-Native Source Callback Failures
 

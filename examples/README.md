@@ -109,7 +109,7 @@ cd build
 ./example_executable
 ```
 
-Examples using the Monte Carlo companion ti produce reference results
+Examples using the Monte Carlo companion to produce reference results
 need `QMOMKitMonteCarlo` installed to the same prefix;
 see its [README](../tools/monte_carlo/README.md).
 

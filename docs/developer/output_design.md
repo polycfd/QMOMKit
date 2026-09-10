@@ -42,7 +42,8 @@ QuadratureWriter
 - output directory;
 - whether moment history output is requested;
 - whether quadrature history output is requested;
-- an optional output interval.
+- an optional output interval;
+- optional generalized moment exponent vectors for state-based moment output.
 
 The numerical algorithms do not consume `OutputOptions` directly. A driver may
 parse it from configuration, create directories, construct writers, and schedule

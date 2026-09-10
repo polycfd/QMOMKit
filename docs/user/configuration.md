@@ -952,7 +952,8 @@ writer; inactive adaptive nodes are not padded or written as zero-weight nodes.
 
 Moment output records native integer-order raw moments. The same
 `output.generalized_moments` option can append quadrature-derived generalized
-moments for QMOM or CQMOM without changing the driver source. It is an ordered
+moments for QMOM or CQMOM when a driver passes the parsed `OutputOptions` to a
+state-based writer. It is an ordered
 pipe-separated list of comma-separated exponent vectors: QMOM uses rank-one
 requests such as `0.5 | 1.5 | 2.5`; a two-dimensional CQMOM case can use
 `0.5, 0 | 1, 1.5`. Exponents must be finite and non-negative, and vectors must

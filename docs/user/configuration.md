@@ -954,6 +954,13 @@ Moment output records native integer-order raw moments. Generalized moments
 with real exponents are evaluated by caller code from a valid quadrature result
 and are not part of the standard writer output.
 
+`output.generalized_moments` may be parsed into `OutputOptions` as an ordered
+pipe-separated list of comma-separated exponent vectors, for example
+`0.5, 0 | 1, 1.5`. The current application-controlled output API requires a
+caller to pass those requests and the current CQMOM quadrature explicitly to a
+generalized `MomentWriter`; configuration loading alone does not wire them into
+an arbitrary driver.
+
 ## [Runtime Realizability](./realizability.md) Settings
 
 For QMOM, the realizability settings in

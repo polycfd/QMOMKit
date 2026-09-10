@@ -30,6 +30,7 @@ struct OutputOptions
     bool write_moments = false;
     bool write_quadrature = false;
     std::optional<double> interval;
+    std::vector<std::vector<double>> generalized_moment_orders;
 };
 
 /**
@@ -63,11 +64,24 @@ public:
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, std::vector<std::size_t> extents,
                                                 std::vector<MultiIndex> selected_moments, const std::size_t precision = 17);
 
+    /** Write selected tensor moments followed by supplied generalized-moment columns. */
+    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, std::vector<std::size_t> extents,
+                                                std::vector<MultiIndex> selected_moments, std::vector<std::vector<double>> generalized_moment_orders,
+                                                const std::size_t precision = 17);
+
     /** Write current CQMOM moment data in the layout's required-index order. */
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomMomentLayout& layout, const std::size_t precision = 17);
 
+    /** Write layout-ordered CQMOM moment data followed by supplied generalized-moment columns. */
+    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomMomentLayout& layout,
+                                                std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision = 17);
+
     /** Write the moments represented by a CQMOM state. */
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomState& state, const std::size_t precision = 17);
+
+    /** Write state moments followed by requested quadrature-derived generalized moments. */
+    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomState& state,
+                                                std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision = 17);
 
     /** Write requested CQMOM moments reconstructed from quadrature in request order. */
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const RawMomentRequest& request, const std::size_t precision = 17);
@@ -78,11 +92,20 @@ public:
     /** Append one row for a multidimensional raw moment tensor. */
     void write(double time, const RawMomentTensor& moments);
 
+    /** Append tensor moments followed by generalized-moment values in configured request order. */
+    void write(double time, const RawMomentTensor& moments, const std::vector<double>& generalized_values);
+
     /** Append one row for CQMOM required moment data. */
     void write(double time, const CqmomMomentData& moments);
 
+    /** Append layout-ordered moments followed by generalized-moment values in configured request order. */
+    void write(double time, const CqmomMomentData& moments, const std::vector<double>& generalized_values);
+
     /** Append one row for the moments represented by a CQMOM state. */
     void write(double time, const CqmomState& state);
+
+    /** Append state moments followed by requested generalized moments from the current quadrature. */
+    void write(double time, const CqmomState& state, const CqmomQuadrature& quadrature);
 
     /** Append one row for requested moments reconstructed from CQMOM quadrature. */
     void write(double time, const CqmomQuadrature& quadrature);
@@ -98,17 +121,17 @@ private:
     };
 
     MomentWriter(const std::filesystem::path& path, MomentLayout layout, std::vector<std::size_t> extents, std::vector<std::size_t> flat_indices,
-                 std::vector<std::string> labels, const std::size_t precision);
+                 std::vector<std::string> labels, std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision);
     MomentWriter(const std::filesystem::path& path, MomentLayout layout, CqmomMomentLayout cqmom_layout, std::vector<std::string> labels,
-                 const std::size_t precision);
+                 std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision);
     MomentWriter(const std::filesystem::path& path, MomentLayout layout, std::vector<MultiIndex> state_indices, std::vector<std::string> labels,
-                 const std::size_t precision);
+                 std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision);
     MomentWriter(const std::filesystem::path& path, MomentLayout layout, RawMomentRequest request, std::vector<std::string> labels,
                  const std::size_t precision);
 
     void write_header();
     void write_row(double time, const std::vector<double>& values);
-    void write_aligned_row(double time, const std::vector<double>& values);
+    void write_aligned_row(double time, const std::vector<double>& values, const std::vector<double>& generalized_values = {});
 
     std::ofstream output_;
     MomentLayout layout_ = MomentLayout::qmom;
@@ -116,6 +139,7 @@ private:
     std::vector<std::size_t> flat_indices_;
     std::optional<CqmomMomentLayout> cqmom_layout_;
     std::vector<MultiIndex> state_indices_;
+    std::vector<std::vector<double>> generalized_moment_orders_;
     RawMomentRequest raw_moment_request_;
     std::vector<std::string> labels_;
     std::size_t precision;

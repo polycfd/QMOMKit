@@ -779,6 +779,7 @@ void append_output_allowed_keys(std::vector<std::string>& allowed)
     allowed.push_back("output.write_moments");
     allowed.push_back("output.write_quadrature");
     allowed.push_back("output.interval");
+    allowed.push_back("output.generalized_moments");
 }
 
 std::vector<std::string> with_runtime_allowed_keys(std::vector<std::string> allowed)
@@ -2803,7 +2804,8 @@ ConfigurationResult<OutputOptions> parse_output_options(const std::string_view t
         return ConfigurationResult<OutputOptions>{OutputOptions{}};
     }
 
-    static const std::vector<std::string> allowed = {"output.directory", "output.write_moments", "output.write_quadrature", "output.interval"};
+    static const std::vector<std::string> allowed = {"output.directory", "output.write_moments", "output.write_quadrature", "output.interval",
+                                                     "output.generalized_moments"};
     for (const auto& item : parsed.scalars)
     {
         if (!is_output_key(item.first))
@@ -2857,6 +2859,31 @@ ConfigurationResult<OutputOptions> parse_output_options(const std::string_view t
         else
         {
             options.interval = value;
+        }
+    }
+
+    const Entry* generalized_moments = find_entry(parsed, "output.generalized_moments");
+    if (generalized_moments != nullptr)
+    {
+        std::istringstream requests(generalized_moments->value);
+        std::string request;
+        while (std::getline(requests, request, '|'))
+        {
+            Entry request_entry{trim(request), generalized_moments->line};
+            std::vector<double> orders;
+            if (!parse_double_list(request_entry, orders) ||
+                std::any_of(orders.begin(), orders.end(), [](const double order) { return order < 0.0; }))
+            {
+                add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, generalized_moments->line,
+                          "output.generalized_moments must contain non-negative finite comma-separated exponent vectors separated by '|'.");
+                break;
+            }
+            options.generalized_moment_orders.push_back(std::move(orders));
+        }
+        if (options.generalized_moment_orders.empty())
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, generalized_moments->line,
+                      "output.generalized_moments must contain at least one exponent vector.");
         }
     }
 

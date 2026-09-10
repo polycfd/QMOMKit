@@ -292,7 +292,7 @@ void MomentWriter::write_aligned_row(const double time, const std::vector<double
         throw std::invalid_argument("Moment output row does not match the writer column count.");
     }
 
-    output_ << std::setprecision(precision) << std::setw(column_width) << time;
+    output_ << std::scientific << std::setprecision(precision) << std::setw(column_width) << time;
     for (const double value : values)
     {
         output_ << ' ' << std::setprecision(precision) << std::setw(column_width) << value;

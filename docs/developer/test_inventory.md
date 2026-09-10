@@ -6,12 +6,12 @@ This reference inventory corresponds to the current root CTest registrations. Ea
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 649 |
+| Unit logical tests | 626 |
 | Component/regression logical tests | 31 |
-| Verification logical tests | 163 |
-| **Runtime logical tests** | **843** |
+| Verification logical tests | 167 |
+| **Runtime logical tests** | **824** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **844** |
+| **Total CTest registrations** | **825** |
 
 Multiple parameter values or configurations used to establish one claim remain internal to that logical test and therefore do not increase the CTest count. The source, selector, and any configured internal case below identify how each registration is invoked.
 
@@ -329,6 +329,7 @@ Any addition, removal, split, or merge of a logical runtime CTest registration m
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
+| `verification_qmom_phase_space_source_evolution_matches_manufactured_solution` | `tests/verification/phase_space_evolution/qmom_linear_advection_manufactured.cpp` | `phase_space_source` / `verify_phase_space_source_evolution` | Verifies native QMOM phase-space evolution against an independent noncommuting manufactured source/advection solution, including second-order Strang and first-order Lie convergence. | Fixed three-node QMOM; orders 0 through 5; T=0.1; dt={0.02, 0.01, 0.005, 0.0025}; linear velocity and constant positive source. |
 | `verification_qmom_advection_matches_exponential_phase_evolution` | `tests/verification/phase_space_evolution/qmom_linear_advection_manufactured.cpp` | `direct_advection` / `verify_direct_phase_space_advection` | Verifies public direct QMOM phase-space advection against `chi_alpha(t)=chi_alpha(0) exp(t)` and `M_k(t)=M_k(0) exp(k t)`, independently checking nodes, invariant weights, and reconstructed raw moments. | Fixed three-node quadrature; orders 0 through 10; T=0.1; fixed-step SSP-RK3 with dt=2.5e-4; fixed QMOM without automatic scaling or bounds. |
 | `verification_phase_space_evolution_commuting_qmom` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | `commuting_qmom` (configuration: `commuting_qmom.qmom`) | Verifies the documented phase-space evolution result for the commuting QMOM case against its analytical or manufactured reference. | Configuration case `commuting_qmom.qmom` |
 | `verification_phase_space_evolution_qmom_boundary_contribution` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | `qmom_boundary_contribution` (configuration: `commuting_qmom.qmom`) | Verifies the documented phase-space evolution result for the QMOM boundary contribution case against its analytical or manufactured reference. | Configuration case `commuting_qmom.qmom` |
@@ -373,7 +374,7 @@ Any addition, removal, split, or merge of a logical runtime CTest registration m
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 843 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
+The `public_headers` registration is not part of the 824 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -916,7 +917,6 @@ The `public_headers` registration is not part of the 843 runtime logical-test co
 | `unit_moment_source_cqmom_coordinate_policy_rejects_out_of_range_coordinate` | `tests/unit/moment_source.cpp` | `cqmom_coordinate_policy_rejects_out_of_range_coordinate` | Checks that coordinate policy rejects out of range coordinate in moment-source integration. | — |
 | `unit_moment_source_cqmom_coordinate_policy_retry_completes_source_interval` | `tests/unit/moment_source.cpp` | `cqmom_coordinate_policy_retry_completes_source_interval` | Verifies CQMOM coordinate policy retry completes source interval. | — |
 | `unit_moment_source_boundary_contribution_adds_to_moment_source` | `tests/unit/moment_source.cpp` | `boundary_contribution_adds_to_moment_source` | Verifies boundary contribution adds to moment source. | — |
-| `unit_moment_source_qmom_boundary_rate_evaluator_matches_source_update` | `tests/unit/moment_source.cpp` | `qmom_boundary_rate_evaluator_matches_source_update` | Checks that boundary rate evaluator matches source update in moment-source integration. | — |
 | `unit_moment_source_boundary_contribution_wrong_size_fails_with_boundary_message` | `tests/unit/moment_source.cpp` | `boundary_contribution_wrong_size_fails_with_boundary_message` | Verifies boundary contribution wrong size fails with boundary message. | — |
 | `unit_moment_source_boundary_contribution_non_finite_fails_with_boundary_message` | `tests/unit/moment_source.cpp` | `boundary_contribution_non_finite_fails_with_boundary_message` | Checks that moment-source integration detects the tested non-finite value and returns the documented failure. | — |
 | `unit_moment_source_boundary_contribution_callback_exception_fails_with_boundary_message` | `tests/unit/moment_source.cpp` | `boundary_contribution_callback_exception_fails_with_boundary_message` | Verifies boundary contribution callback exception fails with boundary message. | — |

@@ -43,7 +43,7 @@ QMOMKit/
 ├── docs/
 │   ├── developer/                    # Developer-oriented documentation
 |   ├── doxygen/                      # Doxygen documentation
-    └── user/                         # User-oriented documentation
+|   └── user/                         # User-oriented documentation
 ├── examples/                         # Standalone installed-package examples
 ├── paper/                            # QMOMKit paper, its examples and verification
 ├── tests/                            # Unit, regression, and verification tests

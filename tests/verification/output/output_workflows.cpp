@@ -117,7 +117,7 @@ void remove_known_outputs(const std::filesystem::path& directory)
     }
 }
 
-void write_qmom_outputs(const qmomkit::OutputOptions& options, const std::string& stem, const qmomkit::QmomCase& qmom_case,
+void write_qmom_outputs(const qmomkit::OutputOptions& options, const std::string& stem, const qmomkit::QmomState& state,
                         const qmomkit::QmomResult& result)
 {
     // `OutputOptions` is a driver policy object. This representative workflow
@@ -125,12 +125,12 @@ void write_qmom_outputs(const qmomkit::OutputOptions& options, const std::string
     // the public writers.
     if (options.write_moments)
     {
-        auto writer = qmomkit::MomentWriter::for_qmom(output_path(options, stem, "moments"), qmom_case.moments.size());
-        writer.write(output_time, qmom_case.moments);
+        auto writer = qmomkit::MomentWriter::for_qmom(output_path(options, stem, "moments"), state, options);
+        writer.write(output_time, state, result);
     }
     if (options.write_quadrature)
     {
-        auto writer = qmomkit::QuadratureWriter::for_qmom(output_path(options, stem, "quadrature"), qmom_case.node_count);
+        auto writer = qmomkit::QuadratureWriter::for_qmom(output_path(options, stem, "quadrature"), result.weights.size());
         writer.write(output_time, result);
     }
 }
@@ -153,10 +153,11 @@ void write_cqmom_outputs(const qmomkit::OutputOptions& options, const std::strin
     }
 }
 
-void write_cqmom_state_output(const std::filesystem::path& path, const qmomkit::CqmomState& state)
+void write_cqmom_state_output(const std::filesystem::path& path, const qmomkit::CqmomState& state, const qmomkit::CqmomQuadrature& quadrature)
 {
-    qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, state);
-    writer.write(output_time, state);
+    qmomkit::OutputOptions output_options;
+    qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(path, state, output_options);
+    writer.write(output_time, state, quadrature);
 }
 
 double analytical_product_moment(const qmomkit::MultiIndex& index)
@@ -340,11 +341,12 @@ int main(const int argc, char** argv)
     if (selected_case == "qmom")
     {
         const qmomkit::OutputOptions disabled_options{output_directory, false, false, std::nullopt};
-        write_qmom_outputs(disabled_options, "disabled", configured_qmom.value(), qmom_result);
+        const qmomkit::QmomState qmom_state = configured_qmom.value().initial_state();
+        write_qmom_outputs(disabled_options, "disabled", qmom_state, qmom_result);
         QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_moments.txt"));
         QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_quadrature.txt"));
-        write_qmom_outputs(enabled_options, "qmom", configured_qmom.value(), qmom_result);
-        verify_qmom_moment_output(output_directory / "qmom_moments.txt", configured_qmom.value().moments);
+        write_qmom_outputs(enabled_options, "qmom", qmom_state, qmom_result);
+        verify_qmom_moment_output(output_directory / "qmom_moments.txt", qmomkit::MomentSet(qmom_state.moments()));
         verify_qmom_quadrature_output(output_directory / "qmom_quadrature.txt", qmom_result);
     }
     else
@@ -354,7 +356,7 @@ int main(const int argc, char** argv)
         verify_cqmom_quadrature_output(output_directory / "cqmom_quadrature.txt", cqmom_result.quadrature);
 
         const qmomkit::CqmomState lean_state = configured_cqmom.value().initial_state();
-        write_cqmom_state_output(output_directory / "cqmom_lean_state.txt", lean_state);
+        write_cqmom_state_output(output_directory / "cqmom_lean_state.txt", lean_state, cqmom_result.quadrature);
         verify_cqmom_state_output(output_directory / "cqmom_lean_state.txt", lean_state);
 
         const auto configured_dense_cqmom = qmomkit::config::load_cqmom(dense_cqmom_configuration);
@@ -364,7 +366,9 @@ int main(const int argc, char** argv)
             return 1;
         }
         const qmomkit::CqmomState dense_state = configured_dense_cqmom.value().initial_state();
-        write_cqmom_state_output(output_directory / "cqmom_dense_state.txt", dense_state);
+        const qmomkit::CqmomResult dense_result = qmomkit::compute_cqmom(configured_dense_cqmom.value());
+        QMOMKIT_VERIFY_CHECK(dense_result.ok());
+        write_cqmom_state_output(output_directory / "cqmom_dense_state.txt", dense_state, dense_result.quadrature);
         verify_cqmom_state_output(output_directory / "cqmom_dense_state.txt", dense_state);
 
         const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense_state.hierarchy());

@@ -184,8 +184,9 @@ writer. Lean states write their hierarchy moments, while dense states write the
 complete configured tensor:
 
 ```cpp
-qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom("moments.txt", state);
-writer.write(time, state);
+qmomkit::OutputOptions output_options;
+qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom("moments.txt", state, output_options);
+writer.write(time, state, quadrature);
 ```
 
 For a simple independent-product setup, the configuration file can look like

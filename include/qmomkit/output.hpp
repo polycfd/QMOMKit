@@ -56,6 +56,14 @@ public:
     [[nodiscard]] static MomentWriter for_qmom(const std::filesystem::path& path, std::vector<std::size_t> selected_orders,
                                                const std::size_t precision = 17);
 
+    /** Advanced raw-moment output with configured generalized columns. */
+    [[nodiscard]] static MomentWriter for_qmom(const std::filesystem::path& path, std::size_t moment_count, const OutputOptions& output_options,
+                                               const std::size_t precision = 17);
+
+    /** Write the moments represented by a QMOM state and configured generalized columns. */
+    [[nodiscard]] static MomentWriter for_qmom(const std::filesystem::path& path, const QmomState& state, const OutputOptions& output_options,
+                                               const std::size_t precision = 17);
+
     /** Write all tensor moments in row-major multi-index order. */
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, std::vector<std::size_t> extents,
                                                 const std::size_t precision = 17);
@@ -76,18 +84,24 @@ public:
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomMomentLayout& layout,
                                                 std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision = 17);
 
-    /** Write the moments represented by a CQMOM state. */
-    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomState& state, const std::size_t precision = 17);
-
-    /** Write state moments followed by requested quadrature-derived generalized moments. */
-    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomState& state,
-                                                std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision = 17);
+    /** Write the moments represented by a CQMOM state and configured generalized columns. */
+    [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const CqmomState& state, const OutputOptions& output_options,
+                                                const std::size_t precision = 17);
 
     /** Write requested CQMOM moments reconstructed from quadrature in request order. */
     [[nodiscard]] static MomentWriter for_cqmom(const std::filesystem::path& path, const RawMomentRequest& request, const std::size_t precision = 17);
 
     /** Append one row for a one-dimensional raw moment sequence. */
     void write(double time, const MomentSet& moments);
+
+    /** Append selected one-dimensional moments followed by supplied generalized-moment values. */
+    void write(double time, const MomentSet& moments, const std::vector<double>& generalized_values);
+
+    /** Append raw moments followed by configured generalized moments from a quadrature rule. */
+    void write(double time, const MomentSet& moments, const Quadrature1D& quadrature);
+
+    /** Append state moments followed by configured generalized moments from the current quadrature. */
+    void write(double time, const QmomState& state, const QmomResult& quadrature);
 
     /** Append one row for a multidimensional raw moment tensor. */
     void write(double time, const RawMomentTensor& moments);
@@ -101,9 +115,6 @@ public:
     /** Append layout-ordered moments followed by generalized-moment values in configured request order. */
     void write(double time, const CqmomMomentData& moments, const std::vector<double>& generalized_values);
 
-    /** Append one row for the moments represented by a CQMOM state. */
-    void write(double time, const CqmomState& state);
-
     /** Append state moments followed by requested generalized moments from the current quadrature. */
     void write(double time, const CqmomState& state, const CqmomQuadrature& quadrature);
 
@@ -114,6 +125,7 @@ private:
     enum class MomentLayout
     {
         qmom,
+        qmom_state,
         cqmom_dense,
         cqmom_moment_data,
         cqmom_state,

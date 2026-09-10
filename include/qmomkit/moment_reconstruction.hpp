@@ -2,6 +2,7 @@
 
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/distributions.hpp"
+#include "qmomkit/qmom.hpp"
 #include "qmomkit/quadrature.hpp"
 
 #include <cstddef>
@@ -55,6 +56,9 @@ namespace qmomkit
  * returned value is not a QMOM reconstruction or phase-space evolution input.
  */
 [[nodiscard]] double evaluate_generalized_moment(const Quadrature1D& quadrature, double exponent);
+
+/** Evaluate a one-dimensional generalized moment from a public QMOM result. */
+[[nodiscard]] double evaluate_generalized_moment(const QmomResult& quadrature, double exponent);
 
 /**
  * Evaluate a multidimensional generalized moment from terminal CQMOM

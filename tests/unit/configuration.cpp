@@ -3059,6 +3059,13 @@ generalized_moments = 0.5, 0 | 1, 1.5 | 2, 0
     assert(all_fields.value().interval.has_value());
     assert_near(*all_fields.value().interval, 0.1);
     assert((all_fields.value().generalized_moment_orders == std::vector<std::vector<double>>{{0.5, 0.0}, {1.0, 1.5}, {2.0, 0.0}}));
+
+    const auto one_dimensional = qmomkit::config::parse_output_options(R"(
+[output]
+generalized_moments = 0.5 | 2 | 1.5
+)");
+    assert(one_dimensional.ok());
+    assert((one_dimensional.value().generalized_moment_orders == std::vector<std::vector<double>>{{0.5}, {2.0}, {1.5}}));
 }
 
 void test_output_options_reject_invalid_values()

@@ -79,9 +79,10 @@ int main()
         std::optional<qmomkit::MomentWriter> moment_history_writer;
         if (output_options.write_moments)
         {
-            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", state).write(initial_time, state);
-            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", state));
-            moment_history_writer->write(initial_time, state);
+            qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", state, output_options)
+                .write(initial_time, state, quadrature);
+            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", state, output_options));
+            moment_history_writer->write(initial_time, state, quadrature);
         }
         std::vector<cqmom_2d_adaptive_node_counts::HistorySample> step_history{cqmom_2d_adaptive_node_counts::make_history_sample(
             initial_time, cqmom_2d_adaptive_node_counts::source_pulse_active(initial_time, source_parameters), quadrature,
@@ -124,7 +125,7 @@ int main()
                 output_history.push_back(step_history.back());
                 if (moment_history_writer.has_value())
                 {
-                    moment_history_writer->write(time, state);
+                    moment_history_writer->write(time, state, quadrature);
                 }
                 while (next_output_time <= time + 1.0e-12)
                 {

@@ -74,8 +74,8 @@ int main()
         std::optional<qmomkit::MomentWriter> moment_history_writer;
         if (output.value().write_moments)
         {
-            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output.value().directory / "moment_history.txt", state));
-            moment_history_writer->write(initial_time, state);
+            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output.value().directory / "moment_history.txt", state, output.value()));
+            moment_history_writer->write(initial_time, state, quadrature);
         }
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> history{{initial_time, quadrature}};
         const double output_interval = output.value().interval.value_or(final_time - initial_time);
@@ -98,7 +98,7 @@ int main()
                 history.emplace_back(time, quadrature);
                 if (moment_history_writer.has_value())
                 {
-                    moment_history_writer->write(time, state);
+                    moment_history_writer->write(time, state, quadrature);
                 }
                 while (next_output <= time + 1.0e-14)
                 {

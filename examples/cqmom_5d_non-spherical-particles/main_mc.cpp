@@ -1,5 +1,6 @@
 #include "breakage_model.hpp"
 #include "monte_carlo/evolution.hpp"
+#include "monte_carlo/output.hpp"
 #include "particle_model.hpp"
 #include "particles_mc.hpp"
 #include "qmomkit/configuration.hpp"
@@ -105,8 +106,10 @@ int main(int argc, char* argv[])
         if (output_options.write_moments)
         {
             ensure_output_directory(output_options.directory);
-            moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history_mc.txt", moment_extents));
-            moment_history_writer->write(initial_time, final_moments);
+            moment_history_writer.emplace(
+                qmomkit::monte_carlo::make_moment_history_writer(output_options.directory / "moment_history_mc.txt", moment_extents, output_options));
+            qmomkit::monte_carlo::write_moment_history_row(*moment_history_writer, initial_time, final_moments, ensemble,
+                                                           particle_weight * static_cast<double>(ensemble.size()), output_options);
         }
 
         const double output_interval = output_options.interval.value_or(final_time - initial_time);
@@ -143,7 +146,8 @@ int main(int argc, char* argv[])
                 final_moments = compute_ensemble_moments(ensemble, particle_weight, moment_extents);
                 if (moment_history_writer.has_value())
                 {
-                    moment_history_writer->write(time, final_moments);
+                    qmomkit::monte_carlo::write_moment_history_row(*moment_history_writer, time, final_moments, ensemble,
+                                                                   particle_weight * static_cast<double>(ensemble.size()), output_options);
                 }
                 while (next_output_time <= time + 1.0e-12)
                 {

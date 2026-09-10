@@ -78,8 +78,8 @@ int main()
         }
         if (output_options.write_moments)
         {
-            moment_writer.emplace(qmomkit::MomentWriter::for_qmom(output_options.directory / "moments.txt", moments.size()));
-            moment_writer->write(initial_time, qmomkit::MomentSet(moments));
+            moment_writer.emplace(qmomkit::MomentWriter::for_qmom(output_options.directory / "moments.txt", moments.size(), output_options));
+            moment_writer->write(initial_time, qmomkit::MomentSet(moments), quadrature);
         }
         if (output_options.write_quadrature)
         {
@@ -132,7 +132,7 @@ int main()
             {
                 if (moment_writer.has_value())
                 {
-                    moment_writer->write(time, qmomkit::MomentSet(moments));
+                    moment_writer->write(time, qmomkit::MomentSet(moments), quadrature);
                 }
                 if (quadrature_writer.has_value())
                 {

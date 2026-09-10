@@ -226,12 +226,13 @@ void test_generalized_moment_output()
     const qmomkit::monte_carlo::TensorMomentEstimate standard =
         qmomkit::monte_carlo::compute_ensemble_moments(ensemble, number_density, std::vector<std::size_t>{1, 1});
     CHECK(standard.ok());
+    qmomkit::OutputOptions output_options;
+    output_options.generalized_moment_orders = orders;
     const std::filesystem::path path = std::filesystem::temp_directory_path() / "qmomkit_mc_generalized_moments.txt";
     std::filesystem::remove(path);
     {
-        qmomkit::MomentWriter writer =
-            qmomkit::MomentWriter::for_cqmom(path, standard.moments.extents, qmomkit::enumerate_multi_indices(standard.moments.extents), orders);
-        qmomkit::monte_carlo::write_moment_history_row(writer, 0.0, standard.moments, ensemble, number_density, orders);
+        qmomkit::MomentWriter writer = qmomkit::monte_carlo::make_moment_history_writer(path, standard.moments.extents, output_options);
+        qmomkit::monte_carlo::write_moment_history_row(writer, 0.0, standard.moments, ensemble, number_density, output_options);
     }
     std::ifstream input(path);
     std::string header;

@@ -254,20 +254,8 @@ qmomkit::MomentBoundaryContribution boundary =
     };
 ```
 
-For an application-owned spatial operator or time integrator, the
-four-argument QMOM evaluator combines both callbacks at one stage:
-
-```cpp
-const qmomkit::QmomMomentSourceRateResult rates =
-    qmomkit::evaluate_qmom_moment_source_rates(time, moments, source, boundary);
-```
-
-It evaluates `source(time, context) + boundary(time, context.values())`
-without advancing time or reconstructing a quadrature; the source callback runs
-before the boundary callback. Instantaneous-rate APIs do not carry
-reconstruction metadata, so they reject untracked `context.moment(...)`
-requests. Use `advance_moments_with_source(...)` when QMOMKit should perform
-SSP-RK3 moment-source integration, or the phase-space evolution helpers when it
+Use `advance_moments_with_source(...)` when QMOMKit should perform SSP-RK3
+moment-source integration, or use the phase-space evolution helpers when it
 should also own the configured operator-splitting sequence.
 
 For CQMOM, use `CqmomMomentBoundaryContribution`. It receives the same
@@ -405,8 +393,8 @@ Use `context.moment(...)` for moment-based source closures and
 `context.for_each_terminal_node(...)` for quadrature-level source closures.
 Source callbacks do not reconstruct CQMOM quadrature manually during
 phase-space source evolution; both operations use the same context-local
-stage reconstruction when needed. Generic source-only and instantaneous-rate
-APIs do not carry reconstruction metadata and reject untracked
+stage reconstruction when needed. Generic source-only APIs do not carry
+reconstruction metadata and reject untracked
 `context.moment(...)` and terminal-node visitor requests.
 
 The returned source values correspond to the context ordering. For entry `i`,

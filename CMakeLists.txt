@@ -22,8 +22,6 @@ add_library(
     src/conditional_moments.cpp
     src/conditioning_path.cpp
     src/configuration.cpp
-    src/advection_moment_rates.cpp
-    src/moment_source_rates.cpp
     src/distributions.cpp
     src/internal/bjorck_pereyra.cpp
     src/internal/embedded_runge_kutta.cpp
@@ -80,7 +78,6 @@ install(
         include/qmomkit/configuration.hpp
         include/qmomkit/cqmom.hpp
         include/qmomkit/distributions.hpp
-        include/qmomkit/moment_rates.hpp
         include/qmomkit/moment_set.hpp
         include/qmomkit/moment_source.hpp
         include/qmomkit/multi_index.hpp

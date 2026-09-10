@@ -42,14 +42,6 @@ optional branches, and prerequisites in more detail.
 - `qmom_1d_explicit_strang_splitting/`: advanced application-owned Strang
   staging through the public advection and moment-source stage APIs; use after
   the library-managed workflow.
-- `qmom_1d_breakage_advection_local-rates_with-mc/`: advanced host-solver
-  pattern in which the application integrates moments with QMOMKit local rates.
-
-The callback requirements are documented in the
-[phase-space evolution guide](../docs/user/phase_space_evolution.md). Each
-example chooses the callbacks needed by its model; those combinations are
-illustrative, not mandatory for every workflow.
-
 ## CQMOM Numerical Controls
 
 - `cqmom_2d_adaptive_node_counts/`: adaptive conditional branch reduction,
@@ -67,8 +59,6 @@ tests or exact solutions.
 
 - `qmom_1d_breakage_advection_with-mc/`: sampled 1D initialization with normal
   QMOM evolution and a direct particle companion.
-- `qmom_1d_breakage_advection_local-rates_with-mc/`: sampled 1D local-rate
-  host-solver workflow and its particle companion.
 - `cqmom_2d_breakage_advection_with-mc/`: sampled 2D CQMOM initialization,
   evolution, and direct particle companion.
 - `cqmom_2d_bubbles_cavitation/`: nonlinear 2D bubble-cavitation node advection

@@ -3,9 +3,6 @@ set(unit_test_sources
     runge_kutta.cpp
     recursive_quadrature.cpp
     conditional_moments.cpp
-    moment_rates.cpp
-    advection_moment_rates.cpp
-    moment_source_rates.cpp
     bjorck_pereyra.cpp
     householder_qr.cpp
     jacobi_svd.cpp

@@ -68,20 +68,6 @@ failures. [Evolution tests](../../../tests/unit/phase_space_evolution.cpp) cover
 post-source inversion failures separately. Coordinate-wise acceptance does not
 establish mixed-moment CQMOM realizability.
 
-## Standalone QMOM source-rate evaluation — Level A
-
-`evaluate_qmom_moment_source_rates` validates that the supplied raw-moment vector
-is nonempty and finite before constructing a context or invoking either callback.
-Success therefore establishes finite input moments as well as correctly sized,
-finite returned rates. The source-plus-boundary overload shares that source
-validation before it invokes the boundary callback; it preserves input order and
-does not reconstruct or advance time. This is a local-rate API, distinct from
-SSP-RK3 source integration.
-
-Evidence: [source-rate tests](../../../tests/unit/moment_source_rates.cpp) reject
-NaN and both infinities without callback invocation; [moment-rate tests](../../../tests/unit/moment_rates.cpp)
-retain finite-input and returned-rate validation controls.
-
 ## Stage-local moment closure — Level A
 
 `QmomSourceContext::moment` first returns a tracked raw moment directly. For an

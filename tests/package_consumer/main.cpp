@@ -37,28 +37,7 @@ int main()
 
     const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinate)
     { return std::vector<double>{0.0 * coordinate.front()}; };
-    const qmomkit::QmomAdvectionMomentRateResult advection_rates = qmomkit::evaluate_qmom_advection_moment_rates(moments.values(), 2, 0.0, velocity);
-    if (!advection_rates.ok() || advection_rates.rates.size() != moments.values().size())
-    {
-        return 1;
-    }
-
     const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); };
-    const qmomkit::QmomMomentSourceRateResult moment_source_rates = qmomkit::evaluate_qmom_moment_source_rates(0.0, moments.values(), source);
-    if (!moment_source_rates.ok() || moment_source_rates.rates.size() != moments.values().size())
-    {
-        return 1;
-    }
-
-    const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>& state)
-    { return qmomkit::MomentBoundaryRate{std::vector<double>(state.size(), 0.0)}; };
-    const qmomkit::QmomMomentSourceRateResult moment_source_rates_with_boundary =
-        qmomkit::evaluate_qmom_moment_source_rates(0.0, moments.values(), source, boundary);
-    if (!moment_source_rates_with_boundary.ok() || moment_source_rates_with_boundary.rates.size() != moments.values().size())
-    {
-        return 1;
-    }
-
     const qmomkit::QmomState qmom_state = qmomkit::QmomCase{moments, 2, {}}.initial_state();
     const std::vector<qmomkit::QmomState> qmom_states{qmom_state};
     qmomkit::QmomPhaseSpaceEvolutionOptions qmom_options;

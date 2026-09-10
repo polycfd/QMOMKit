@@ -8,7 +8,6 @@ add_executable(
     include_cqmom.cpp
     include_distributions.cpp
     include_moment_set.cpp
-    include_moment_rates.cpp
     include_moment_source.cpp
     include_qmomkit.cpp
     include_multi_index.cpp

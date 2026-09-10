@@ -87,17 +87,6 @@ the executable-body count.
 | `SelectedRawMomentResult::ok` | [154](../../../include/qmomkit/distributions.hpp#L154) |
 | `TensorMomentResult::ok` | [168](../../../include/qmomkit/distributions.hpp#L168) |
 
-### `include/qmomkit/moment_rates.hpp`
-
-[Source](../../../include/qmomkit/moment_rates.hpp) · [Responsibilities, contracts, and evidence](moment_evaluation.md)
-
-| Function or overload family | Definition lines |
-|---|---|
-| `QmomAdvectionMomentRateResult::ok` | [42](../../../include/qmomkit/moment_rates.hpp#L42) |
-| `CqmomAdvectionMomentRateResult::ok` | [59](../../../include/qmomkit/moment_rates.hpp#L59) |
-| `QmomMomentSourceRateResult::ok` | [74](../../../include/qmomkit/moment_rates.hpp#L74) |
-| `CqmomMomentSourceRateResult::ok` | [89](../../../include/qmomkit/moment_rates.hpp#L89) |
-
 ### `include/qmomkit/moment_source.hpp`
 
 [Source](../../../include/qmomkit/moment_source.hpp) · [Responsibilities, contracts, and evidence](moment_sources.md)
@@ -162,26 +151,6 @@ the executable-body count.
 | Function or overload family | Definition lines |
 |---|---|
 | `SspRk3Result::ok` | [64](../../../include/qmomkit/runge_kutta.hpp#L64) |
-
-### `src/advection_moment_rates.cpp`
-
-[Source](../../../src/advection_moment_rates.cpp) · [Responsibilities, contracts, and evidence](moment_evaluation.md)
-
-| Function or overload family | Definition lines |
-|---|---|
-| `qmom_moment_indices` | [22](../../../src/advection_moment_rates.cpp#L22) |
-| `qmom_invalid_input` | [33](../../../src/advection_moment_rates.cpp#L33) |
-| `qmom_velocity_failed` | [38](../../../src/advection_moment_rates.cpp#L38) |
-| `rate_status_from_qmom_status` | [43](../../../src/advection_moment_rates.cpp#L43) |
-| `cqmom_invalid_input` | [48](../../../src/advection_moment_rates.cpp#L48) |
-| `cqmom_velocity_failed` | [53](../../../src/advection_moment_rates.cpp#L53) |
-| `rate_status_from_cqmom_status` | [58](../../../src/advection_moment_rates.cpp#L58) |
-| `validate_terminal_abscissas_for_velocity` | [63](../../../src/advection_moment_rates.cpp#L63) |
-| `validate_qmom_rate_request` | [88](../../../src/advection_moment_rates.cpp#L88) |
-| `validate_cqmom_rate_request` | [104](../../../src/advection_moment_rates.cpp#L104) |
-| `evaluate_terminal_velocities` | [122](../../../src/advection_moment_rates.cpp#L122) |
-| `evaluate_qmom_advection_moment_rates` | [164](../../../src/advection_moment_rates.cpp#L164), [237](../../../src/advection_moment_rates.cpp#L237) |
-| `evaluate_cqmom_advection_moment_rates` | [198](../../../src/advection_moment_rates.cpp#L198), [243](../../../src/advection_moment_rates.cpp#L243) |
 
 ### `src/conditional_moments.cpp`
 
@@ -645,21 +614,17 @@ the executable-body count.
 |---|---|
 | `integer_power` | [20](../../../src/moment_reconstruction.cpp#L20) |
 | `validate_reconstructed_value` | [40](../../../src/moment_reconstruction.cpp#L40) |
-| `validate_advection_moment_rate_value` | [48](../../../src/moment_reconstruction.cpp#L48) |
 | `is_integer_exponent` | [56](../../../src/moment_reconstruction.cpp#L56) |
 | `validate_generalized_value` | [61](../../../src/moment_reconstruction.cpp#L61) |
 | `validate_generalized_exponent` | [69](../../../src/moment_reconstruction.cpp#L69) |
 | `generalized_power` | [77](../../../src/moment_reconstruction.cpp#L77) |
 | `cqmom_reconstruction_quadrature_messages` | [89](../../../src/moment_reconstruction.cpp#L89) |
-| `validate_advection_moment_rate_storage` | [96](../../../src/moment_reconstruction.cpp#L96) |
 | `reconstruct_cqmom_moment_value` | [149](../../../src/moment_reconstruction.cpp#L149) |
-| `reconstruct_advection_moment_rate_value` | [168](../../../src/moment_reconstruction.cpp#L168) |
 | `reconstruct_cqmom_moments_impl` | [197](../../../src/moment_reconstruction.cpp#L197) |
 | `reconstruct_raw_moments` | [236](../../../src/moment_reconstruction.cpp#L236), [296](../../../src/moment_reconstruction.cpp#L296), [313](../../../src/moment_reconstruction.cpp#L313) |
 | `evaluate_generalized_moment` | [269](../../../src/moment_reconstruction.cpp#L269), [332](../../../src/moment_reconstruction.cpp#L332) |
 | `reconstruct_cqmom_moments` | [359](../../../src/moment_reconstruction.cpp#L359) |
 | `reconstruct_trusted_cqmom_moments` | [367](../../../src/moment_reconstruction.cpp#L367) |
-| `reconstruct_advection_moment_rates` | [372](../../../src/moment_reconstruction.cpp#L372) |
 
 ### `src/moment_source.cpp`
 
@@ -721,24 +686,6 @@ the executable-body count.
 | `advance_cqmom_moments_with_source` | [795](../../../src/moment_source.cpp#L795), [810](../../../src/moment_source.cpp#L810) |
 | `advance_trusted_qmom_moments_with_source` | [829](../../../src/moment_source.cpp#L829), [854](../../../src/moment_source.cpp#L854) |
 | `advance_trusted_cqmom_moments_with_source` | [881](../../../src/moment_source.cpp#L881), [896](../../../src/moment_source.cpp#L896), [915](../../../src/moment_source.cpp#L915), [933](../../../src/moment_source.cpp#L933) |
-
-### `src/moment_source_rates.cpp`
-
-[Source](../../../src/moment_source_rates.cpp) · [Responsibilities, contracts, and evidence](moment_evaluation.md)
-
-| Function or overload family | Definition lines |
-|---|---|
-| `qmom_invalid_input` | [19](../../../src/moment_source_rates.cpp#L19) |
-| `qmom_source_failed` | [24](../../../src/moment_source_rates.cpp#L24) |
-| `qmom_invalid_rate` | [29](../../../src/moment_source_rates.cpp#L29) |
-| `cqmom_invalid_input` | [34](../../../src/moment_source_rates.cpp#L34) |
-| `cqmom_source_failed` | [39](../../../src/moment_source_rates.cpp#L39) |
-| `cqmom_invalid_rate` | [44](../../../src/moment_source_rates.cpp#L44) |
-| `qmom_invalid_rate_message` | [49](../../../src/moment_source_rates.cpp#L49) |
-| `qmom_boundary_invalid_rate_message` | [62](../../../src/moment_source_rates.cpp#L62) |
-| `validate_cqmom_stage_state` | [75](../../../src/moment_source_rates.cpp#L75) |
-| `evaluate_qmom_moment_source_rates` | [83](../../../src/moment_source_rates.cpp#L83), [117](../../../src/moment_source_rates.cpp#L117), [208](../../../src/moment_source_rates.cpp#L208), [213](../../../src/moment_source_rates.cpp#L213) |
-| `evaluate_cqmom_moment_source_rates` | [160](../../../src/moment_source_rates.cpp#L160), [219](../../../src/moment_source_rates.cpp#L219) |
 
 ### `src/node_advection.cpp`
 
@@ -1171,7 +1118,6 @@ with the owning representation or options contract.
 | [include/qmomkit/realizability.hpp](../../../include/qmomkit/realizability.hpp) | [realizability](realizability.md) |
 | [include/qmomkit/vandermonde_solver.hpp](../../../include/qmomkit/vandermonde_solver.hpp) | [conditional systems](conditional_systems.md) |
 | [include/qmomkit/wheeler.hpp](../../../include/qmomkit/wheeler.hpp) | [qmom reconstruction](qmom_reconstruction.md) |
-| [src/internal/advection_moment_rates.hpp](../../../src/internal/advection_moment_rates.hpp) | [moment evaluation](moment_evaluation.md) |
 | [src/internal/bjorck_pereyra.hpp](../../../src/internal/bjorck_pereyra.hpp) | [conditional systems](conditional_systems.md) |
 | [src/internal/bounded_quadrature.hpp](../../../src/internal/bounded_quadrature.hpp) | [qmom reconstruction](qmom_reconstruction.md) |
 | [src/internal/cqmom_case.hpp](../../../src/internal/cqmom_case.hpp) | [state and representations](state_and_representations.md) |
@@ -1180,6 +1126,5 @@ with the owning representation or options contract.
 | [src/internal/jacobi_svd.hpp](../../../src/internal/jacobi_svd.hpp) | [conditional systems](conditional_systems.md) |
 | [src/internal/moment_reconstruction.hpp](../../../src/internal/moment_reconstruction.hpp) | [moment evaluation](moment_evaluation.md) |
 | [src/internal/moment_source.hpp](../../../src/internal/moment_source.hpp) | [moment sources](moment_sources.md) |
-| [src/internal/moment_source_rates.hpp](../../../src/internal/moment_source_rates.hpp) | [moment evaluation](moment_evaluation.md) |
 | [src/internal/reconstruction_scaling.hpp](../../../src/internal/reconstruction_scaling.hpp) | [qmom reconstruction](qmom_reconstruction.md) |
 | [src/internal/vandermonde.hpp](../../../src/internal/vandermonde.hpp) | [conditional systems](conditional_systems.md) |

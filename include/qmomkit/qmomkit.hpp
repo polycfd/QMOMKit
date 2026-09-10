@@ -6,7 +6,6 @@
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/distributions.hpp"
-#include "qmomkit/moment_rates.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/moment_set.hpp"
 #include "qmomkit/moment_source.hpp"

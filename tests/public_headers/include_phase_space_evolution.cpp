@@ -9,10 +9,9 @@ namespace
 
 using QmomAdvectionStage = qmomkit::QmomPhaseSpaceEvolutionResult (*)(const qmomkit::QmomState&, double, double, const qmomkit::PhaseSpaceVelocity&,
                                                                       const qmomkit::QmomPhaseSpaceEvolutionOptions&);
-using QmomMomentSourceStage = qmomkit::QmomPhaseSpaceEvolutionResult (*)(const qmomkit::QmomState&, std::size_t, double, double,
-                                                                         const qmomkit::MomentSource&,
+using QmomMomentSourceStage = qmomkit::QmomPhaseSpaceEvolutionResult (*)(const qmomkit::QmomState&, double, double, const qmomkit::MomentSource&,
                                                                          const qmomkit::QmomPhaseSpaceEvolutionOptions&);
-using QmomBoundaryMomentSourceStage = qmomkit::QmomPhaseSpaceEvolutionResult (*)(const qmomkit::QmomState&, std::size_t, double, double,
+using QmomBoundaryMomentSourceStage = qmomkit::QmomPhaseSpaceEvolutionResult (*)(const qmomkit::QmomState&, double, double,
                                                                                  const qmomkit::MomentSource&,
                                                                                  const qmomkit::MomentBoundaryContribution&,
                                                                                  const qmomkit::QmomPhaseSpaceEvolutionOptions&);
@@ -33,31 +32,33 @@ using QmomAdvectionBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (
 using CqmomAdvectionBatch = std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::CqmomState>&, double, double,
                                                                                      const qmomkit::PhaseSpaceVelocity&,
                                                                                      const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
-using QmomMomentSourceBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, std::size_t, double,
-                                                                                      double, const qmomkit::MomentSource&,
+using QmomMomentSourceBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, double, double,
+                                                                                      const qmomkit::MomentSource&,
                                                                                       const qmomkit::QmomPhaseSpaceEvolutionOptions&);
 using CqmomMomentSourceBatch = std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::CqmomState>&, double, double,
                                                                                         const qmomkit::CqmomMomentSource&,
                                                                                         const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
-using QmomBoundaryMomentSourceBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, std::size_t,
-                                                                                              double, double, const qmomkit::MomentSource&,
+using QmomBoundaryMomentSourceBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, double, double,
+                                                                                              const qmomkit::MomentSource&,
                                                                                               const qmomkit::MomentBoundaryContribution&,
                                                                                               const qmomkit::QmomPhaseSpaceEvolutionOptions&);
 using CqmomBoundaryMomentSourceBatch = std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::CqmomState>&, double,
                                                                                                 double, const qmomkit::CqmomMomentSource&,
                                                                                                 const qmomkit::CqmomMomentBoundaryContribution&,
                                                                                                 const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
-using QmomPhaseSpaceEvolutionBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, std::size_t,
-                                                                                             double, double, const qmomkit::PhaseSpaceVelocity&,
+using QmomPhaseSpaceEvolutionBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, double, double,
+                                                                                             const qmomkit::PhaseSpaceVelocity&,
                                                                                              const qmomkit::MomentSource&,
                                                                                              const qmomkit::QmomPhaseSpaceEvolutionOptions&);
 using CqmomPhaseSpaceEvolutionBatch = std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::CqmomState>&, double,
                                                                                                double, const qmomkit::PhaseSpaceVelocity&,
                                                                                                const qmomkit::CqmomMomentSource&,
                                                                                                const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
-using QmomBoundaryPhaseSpaceEvolutionBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(
-    const std::vector<qmomkit::QmomState>&, std::size_t, double, double, const qmomkit::PhaseSpaceVelocity&, const qmomkit::MomentSource&,
-    const qmomkit::MomentBoundaryContribution&, const qmomkit::QmomPhaseSpaceEvolutionOptions&);
+using QmomBoundaryPhaseSpaceEvolutionBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, double,
+                                                                                                     double, const qmomkit::PhaseSpaceVelocity&,
+                                                                                                     const qmomkit::MomentSource&,
+                                                                                                     const qmomkit::MomentBoundaryContribution&,
+                                                                                                     const qmomkit::QmomPhaseSpaceEvolutionOptions&);
 using CqmomBoundaryPhaseSpaceEvolutionBatch = std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> (*)(
     const std::vector<qmomkit::CqmomState>&, double, double, const qmomkit::PhaseSpaceVelocity&, const qmomkit::CqmomMomentSource&,
     const qmomkit::CqmomMomentBoundaryContribution&, const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
@@ -68,23 +69,21 @@ using QmomBatchAdvectionBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResu
 using CqmomBatchAdvectionBatch = std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::CqmomState>&, double, double,
                                                                                           const qmomkit::BatchPhaseSpaceVelocity&,
                                                                                           const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
-using QmomBatchMomentSourceBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, std::size_t,
-                                                                                           double, double, const qmomkit::BatchMomentSource&,
+using QmomBatchMomentSourceBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, double, double,
+                                                                                           const qmomkit::BatchMomentSource&,
                                                                                            const qmomkit::QmomPhaseSpaceEvolutionOptions&);
 using CqmomBatchMomentSourceBatch = std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::CqmomState>&, double, double,
                                                                                              const qmomkit::BatchCqmomMomentSource&,
                                                                                              const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
-using QmomBatchBoundaryMomentSourceBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&,
-                                                                                                   std::size_t, double, double,
-                                                                                                   const qmomkit::BatchMomentSource&,
+using QmomBatchBoundaryMomentSourceBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, double,
+                                                                                                   double, const qmomkit::BatchMomentSource&,
                                                                                                    const qmomkit::BatchMomentBoundaryContribution&,
                                                                                                    const qmomkit::QmomPhaseSpaceEvolutionOptions&);
 using CqmomBatchBoundaryMomentSourceBatch = std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> (*)(
     const std::vector<qmomkit::CqmomState>&, double, double, const qmomkit::BatchCqmomMomentSource&,
     const qmomkit::BatchCqmomMomentBoundaryContribution&, const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
-using QmomBatchPhaseSpaceEvolutionBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, std::size_t,
-                                                                                                  double, double,
-                                                                                                  const qmomkit::BatchPhaseSpaceVelocity&,
+using QmomBatchPhaseSpaceEvolutionBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::QmomState>&, double,
+                                                                                                  double, const qmomkit::BatchPhaseSpaceVelocity&,
                                                                                                   const qmomkit::BatchMomentSource&,
                                                                                                   const qmomkit::QmomPhaseSpaceEvolutionOptions&);
 using CqmomBatchPhaseSpaceEvolutionBatch = std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> (*)(const std::vector<qmomkit::CqmomState>&, double,
@@ -92,7 +91,7 @@ using CqmomBatchPhaseSpaceEvolutionBatch = std::vector<qmomkit::CqmomPhaseSpaceE
                                                                                                     const qmomkit::BatchCqmomMomentSource&,
                                                                                                     const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
 using QmomBatchBoundaryPhaseSpaceEvolutionBatch = std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> (*)(
-    const std::vector<qmomkit::QmomState>&, std::size_t, double, double, const qmomkit::BatchPhaseSpaceVelocity&, const qmomkit::BatchMomentSource&,
+    const std::vector<qmomkit::QmomState>&, double, double, const qmomkit::BatchPhaseSpaceVelocity&, const qmomkit::BatchMomentSource&,
     const qmomkit::BatchMomentBoundaryContribution&, const qmomkit::QmomPhaseSpaceEvolutionOptions&);
 using CqmomBatchBoundaryPhaseSpaceEvolutionBatch = std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> (*)(
     const std::vector<qmomkit::CqmomState>&, double, double, const qmomkit::BatchPhaseSpaceVelocity&, const qmomkit::BatchCqmomMomentSource&,
@@ -150,14 +149,14 @@ struct DualCqmomMomentSource
 
     const auto generic_qmom_source = [](auto&&...) { return std::vector<double>{}; };
     const auto generic_qmom_boundary = [](auto&&...) { return qmomkit::MomentBoundaryRate{std::vector<double>{}}; };
-    (void)qmomkit::advance_qmom_moment_source_batch(qmom_states, 1, 0.0, 0.1, generic_qmom_source);
-    (void)qmomkit::advance_qmom_moment_source_batch_with_index(qmom_states, 1, 0.0, 0.1, generic_qmom_source);
-    (void)qmomkit::advance_qmom_moment_source_batch(qmom_states, 1, 0.0, 0.1, generic_qmom_source, generic_qmom_boundary, qmom_options);
-    (void)qmomkit::advance_qmom_moment_source_batch_with_index(qmom_states, 1, 0.0, 0.1, generic_qmom_source, generic_qmom_boundary, qmom_options);
-    (void)qmomkit::advance_qmom_moment_source_batch(qmom_states, 1, 0.0, 0.1, nullptr);
-    (void)qmomkit::advance_qmom_moment_source_batch_with_index(qmom_states, 1, 0.0, 0.1, nullptr);
-    (void)qmomkit::advance_qmom_moment_source_batch(qmom_states, 1, 0.0, 0.1, generic_qmom_source, nullptr, qmom_options);
-    (void)qmomkit::advance_qmom_moment_source_batch_with_index(qmom_states, 1, 0.0, 0.1, generic_qmom_source, nullptr, qmom_options);
+    (void)qmomkit::advance_qmom_moment_source_batch(qmom_states, 0.0, 0.1, generic_qmom_source);
+    (void)qmomkit::advance_qmom_moment_source_batch_with_index(qmom_states, 0.0, 0.1, generic_qmom_source);
+    (void)qmomkit::advance_qmom_moment_source_batch(qmom_states, 0.0, 0.1, generic_qmom_source, generic_qmom_boundary, qmom_options);
+    (void)qmomkit::advance_qmom_moment_source_batch_with_index(qmom_states, 0.0, 0.1, generic_qmom_source, generic_qmom_boundary, qmom_options);
+    (void)qmomkit::advance_qmom_moment_source_batch(qmom_states, 0.0, 0.1, nullptr);
+    (void)qmomkit::advance_qmom_moment_source_batch_with_index(qmom_states, 0.0, 0.1, nullptr);
+    (void)qmomkit::advance_qmom_moment_source_batch(qmom_states, 0.0, 0.1, generic_qmom_source, nullptr, qmom_options);
+    (void)qmomkit::advance_qmom_moment_source_batch_with_index(qmom_states, 0.0, 0.1, generic_qmom_source, nullptr, qmom_options);
 
     const auto generic_cqmom_source = [](auto&&...) { return qmomkit::CqmomMomentRate{std::vector<double>{}}; };
     const auto generic_cqmom_boundary = [](auto&&...) { return qmomkit::CqmomMomentRate{std::vector<double>{}}; };

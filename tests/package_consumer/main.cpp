@@ -40,11 +40,20 @@ int main()
     { return std::vector<double>{0.0 * coordinate.front()}; };
     const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); };
     const qmomkit::QmomState qmom_state = qmomkit::QmomCase{moments, 2, {}}.initial_state();
+    if (qmom_state.maximum_node_count() != 2 || qmom_state.active_node_count() != 2 || qmom_state.qmom_options().adaptive)
+    {
+        return 1;
+    }
+    const qmomkit::QmomPhaseSpaceEvolutionResult qmom_source = qmomkit::advance_qmom_moment_source(qmom_state, 0.0, 0.1, source);
+    if (!qmom_source.ok() || qmom_source.state.maximum_node_count() != qmom_state.maximum_node_count())
+    {
+        return 1;
+    }
     const std::vector<qmomkit::QmomState> qmom_states{qmom_state};
     qmomkit::QmomPhaseSpaceEvolutionOptions qmom_options;
     qmom_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> qmom_batch =
-        qmomkit::advance_qmom_phase_space_batch(qmom_states, 2, 0.0, 0.1, velocity, source, qmom_options);
+        qmomkit::advance_qmom_phase_space_batch(qmom_states, 0.0, 0.1, velocity, source, qmom_options);
     if (qmom_batch.size() != 1 || !qmom_batch.front().ok())
     {
         return 1;
@@ -55,7 +64,7 @@ int main()
     const qmomkit::BatchMomentSource batch_source = [](std::size_t, double, const qmomkit::QmomSourceContext& state)
     { return std::vector<double>(state.size(), 0.0); };
     const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> qmom_batch_aware =
-        qmomkit::advance_qmom_phase_space_batch_with_index(qmom_states, 2, 0.0, 0.1, batch_velocity, batch_source, qmom_options);
+        qmomkit::advance_qmom_phase_space_batch_with_index(qmom_states, 0.0, 0.1, batch_velocity, batch_source, qmom_options);
     if (qmom_batch_aware.size() != 1 || !qmom_batch_aware.front().ok())
     {
         return 1;

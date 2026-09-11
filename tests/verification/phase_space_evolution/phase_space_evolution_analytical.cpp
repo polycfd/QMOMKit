@@ -350,12 +350,10 @@ void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomk
     std::cerr << configured.error() << '\n';
 }
 
-qmomkit::QmomPhaseSpaceEvolutionOptions qmom_options(const qmomkit::QmomOptions& qmom_options, const double rk_relative_tolerance,
-                                                     const double rk_absolute_tolerance, const double max_step,
+qmomkit::QmomPhaseSpaceEvolutionOptions qmom_options(const double rk_relative_tolerance, const double rk_absolute_tolerance, const double max_step,
                                                      const qmomkit::PhaseSpaceEvolutionScheme scheme = qmomkit::PhaseSpaceEvolutionScheme::strang)
 {
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
-    options.qmom_options = qmom_options;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
     options.node_options.adaptive_options.relative_tolerance = rk_relative_tolerance;
     options.node_options.adaptive_options.absolute_tolerance = rk_absolute_tolerance;
@@ -687,9 +685,9 @@ std::vector<double> noncommuting_source(double, const qmomkit::QmomSourceContext
 
 QmomStepRun run_qmom_steps(const std::vector<double>& initial, const std::size_t node_count, const double t0, const double dt,
                            const std::size_t steps, const qmomkit::PhaseSpaceVelocity& velocity, const qmomkit::MomentSource& source,
-                           const qmomkit::QmomPhaseSpaceEvolutionOptions& options)
+                           const qmomkit::QmomOptions& reconstruction_options, const qmomkit::QmomPhaseSpaceEvolutionOptions& options)
 {
-    qmomkit::QmomState state = qmom_state_from_moments(initial, node_count, options.qmom_options);
+    qmomkit::QmomState state = qmom_state_from_moments(initial, node_count, reconstruction_options);
     double time = t0;
     std::optional<qmomkit::QmomPhaseSpaceEvolutionResult> result;
     bool diagnostics_successful = true;
@@ -700,7 +698,7 @@ QmomStepRun run_qmom_steps(const std::vector<double>& initial, const std::size_t
     }
     for (std::size_t step = 0; step < steps; ++step)
     {
-        result = qmomkit::advance_qmom_phase_space(state, node_count, time, dt, velocity, source, options);
+        result = qmomkit::advance_qmom_phase_space(state, time, dt, velocity, source, options);
         if (!result->ok())
         {
             retry_count += result->diagnostics.moment_source_retries;
@@ -717,9 +715,10 @@ QmomStepRun run_qmom_steps(const std::vector<double>& initial, const std::size_t
 RunSummary validate_qmom_run(VerificationResult& verification, const std::vector<double>& initial, const std::size_t node_count, const double t0,
                              const double dt, const std::size_t steps, const qmomkit::PhaseSpaceVelocity& velocity,
                              const qmomkit::MomentSource& source, const qmomkit::QmomPhaseSpaceEvolutionOptions& options,
-                             const std::vector<double>& exact, const double moment_tolerance, const double reconstruction_tolerance)
+                             const qmomkit::QmomOptions& reconstruction_options, const std::vector<double>& exact, const double moment_tolerance,
+                             const double reconstruction_tolerance)
 {
-    const QmomStepRun step_run = run_qmom_steps(initial, node_count, t0, dt, steps, velocity, source, options);
+    const QmomStepRun step_run = run_qmom_steps(initial, node_count, t0, dt, steps, velocity, source, reconstruction_options, options);
     const qmomkit::QmomPhaseSpaceEvolutionResult& result = step_run.result;
     RunSummary summary;
     summary.scheme = options.scheme;
@@ -832,12 +831,12 @@ VerificationResult run_commuting_qmom(const std::filesystem::path& configuration
     validate_commuting_component_checks(verification, qmom_case);
     const std::vector<double> initial = qmom_case.moments.values();
     const double t0 = 0.0;
-    const auto options = qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01);
+    const auto options = qmom_options(1.0e-12, 1.0e-14, 0.01);
 
     verification.runs.push_back(validate_qmom_run(verification, initial, qmom_case.node_count, t0, 0.08, 1, commuting_velocity, commuting_source,
-                                                  options, commuting_exact(initial, 0.08), 2.0e-6, 2.0e-6));
+                                                  options, qmom_case.options, commuting_exact(initial, 0.08), 2.0e-6, 2.0e-6));
     verification.runs.push_back(validate_qmom_run(verification, initial, qmom_case.node_count, t0, 0.04, 6, commuting_velocity, commuting_source,
-                                                  options, commuting_exact(initial, 0.24), 2.0e-6, 2.0e-6));
+                                                  options, qmom_case.options, commuting_exact(initial, 0.24), 2.0e-6, 2.0e-6));
 
     const std::vector<double> refinement_steps{0.12, 0.06, 0.03};
     double previous_error = 0.0;
@@ -845,7 +844,7 @@ VerificationResult run_commuting_qmom(const std::filesystem::path& configuration
     {
         const std::size_t steps = static_cast<std::size_t>(std::lround(0.24 / dt));
         RunSummary summary = validate_qmom_run(verification, initial, qmom_case.node_count, t0, dt, steps, commuting_velocity, commuting_source,
-                                               options, commuting_exact(initial, 0.24), 8.0e-6, 8.0e-6);
+                                               options, qmom_case.options, commuting_exact(initial, 0.24), 8.0e-6, 8.0e-6);
         summary.output_row = true;
         if (previous_error > 0.0 && summary.error_norm > 0.0)
         {
@@ -876,12 +875,11 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
     const std::vector<double> initial = qmom_case.moments.values();
     const qmomkit::QmomState initial_state = qmom_state_from_moments(initial, qmom_case.node_count, qmom_case.options);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
-    qmomkit::QmomPhaseSpaceEvolutionOptions options =
-        qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01, qmomkit::PhaseSpaceEvolutionScheme::srcadv);
+    qmomkit::QmomPhaseSpaceEvolutionOptions options = qmom_options(1.0e-12, 1.0e-14, 0.01, qmomkit::PhaseSpaceEvolutionScheme::srcadv);
 
     constexpr double boundary_dt = 0.04;
-    const qmomkit::QmomPhaseSpaceEvolutionResult boundary_result = qmomkit::advance_qmom_phase_space(
-        initial_state, qmom_case.node_count, 0.0, boundary_dt, zero_velocity, zero_qmom_source, qmom_boundary_injection_removal, options);
+    const qmomkit::QmomPhaseSpaceEvolutionResult boundary_result =
+        qmomkit::advance_qmom_phase_space(initial_state, 0.0, boundary_dt, zero_velocity, zero_qmom_source, qmom_boundary_injection_removal, options);
     RunSummary boundary_summary;
     boundary_summary.scheme = options.scheme;
     boundary_summary.dt = boundary_dt;
@@ -918,7 +916,7 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
 
     constexpr double combined_dt = 0.03;
     const qmomkit::QmomPhaseSpaceEvolutionResult combined_result = qmomkit::advance_qmom_phase_space(
-        initial_state, qmom_case.node_count, 0.0, combined_dt, zero_velocity, qmom_constant_source, qmom_boundary_injection_removal, options);
+        initial_state, 0.0, combined_dt, zero_velocity, qmom_constant_source, qmom_boundary_injection_removal, options);
     RunSummary combined_summary;
     combined_summary.scheme = options.scheme;
     combined_summary.dt = combined_dt;
@@ -981,8 +979,8 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
 
     for (const BoundaryFailureCase& failure_case : failure_cases)
     {
-        const qmomkit::QmomPhaseSpaceEvolutionResult failure_result = qmomkit::advance_qmom_phase_space(
-            initial_state, qmom_case.node_count, 0.0, 0.01, zero_velocity, zero_qmom_source, failure_case.boundary, options);
+        const qmomkit::QmomPhaseSpaceEvolutionResult failure_result =
+            qmomkit::advance_qmom_phase_space(initial_state, 0.0, 0.01, zero_velocity, zero_qmom_source, failure_case.boundary, options);
         RunSummary failure_summary;
         failure_summary.scheme = options.scheme;
         failure_summary.dt = 0.01;
@@ -1007,8 +1005,8 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
         rate.front() = -100.0;
         return qmomkit::MomentBoundaryRate{rate};
     };
-    const qmomkit::QmomPhaseSpaceEvolutionResult nonrealizable_result = qmomkit::advance_qmom_phase_space(
-        initial_state, qmom_case.node_count, 0.0, 0.02, zero_velocity, zero_qmom_source, nonrealizable_boundary, options);
+    const qmomkit::QmomPhaseSpaceEvolutionResult nonrealizable_result =
+        qmomkit::advance_qmom_phase_space(initial_state, 0.0, 0.02, zero_velocity, zero_qmom_source, nonrealizable_boundary, options);
     RunSummary nonrealizable_summary;
     nonrealizable_summary.scheme = options.scheme;
     nonrealizable_summary.dt = 0.02;
@@ -1054,7 +1052,7 @@ VerificationResult run_noncommuting_qmom(const std::filesystem::path& configurat
         qmomkit::PhaseSpaceEvolutionScheme::strang, qmomkit::PhaseSpaceEvolutionScheme::advsrc, qmomkit::PhaseSpaceEvolutionScheme::srcadv};
     for (const qmomkit::PhaseSpaceEvolutionScheme scheme : schemes)
     {
-        const auto options = qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01, scheme);
+        const auto options = qmom_options(1.0e-12, 1.0e-14, 0.01, scheme);
         const std::size_t first_run_index = verification.runs.size();
         double previous_error = 0.0;
         for (const double dt : refinement_steps)
@@ -1062,7 +1060,7 @@ VerificationResult run_noncommuting_qmom(const std::filesystem::path& configurat
             const std::size_t steps = static_cast<std::size_t>(std::lround(final_time / dt));
             const double tolerance = (scheme == qmomkit::PhaseSpaceEvolutionScheme::strang) ? 8.0e-4 : 3.0e-2;
             RunSummary summary = validate_qmom_run(verification, initial, qmom_case.node_count, t0, dt, steps, noncommuting_velocity,
-                                                   noncommuting_source, options, exact, tolerance, tolerance);
+                                                   noncommuting_source, options, qmom_case.options, exact, tolerance, tolerance);
             summary.output_row = true;
             if (previous_error > 0.0 && summary.error_norm > 0.0)
             {
@@ -1094,14 +1092,14 @@ VerificationResult run_noncommuting_qmom(const std::filesystem::path& configurat
         }
     }
 
-    const auto advsrc_options = qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01, qmomkit::PhaseSpaceEvolutionScheme::advsrc);
-    const auto srcadv_options = qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01, qmomkit::PhaseSpaceEvolutionScheme::srcadv);
+    const auto advsrc_options = qmom_options(1.0e-12, 1.0e-14, 0.01, qmomkit::PhaseSpaceEvolutionScheme::advsrc);
+    const auto srcadv_options = qmom_options(1.0e-12, 1.0e-14, 0.01, qmomkit::PhaseSpaceEvolutionScheme::srcadv);
     const QmomStepRun cd_coarse = run_qmom_steps(initial, qmom_case.node_count, t0, refinement_steps.front(),
                                                  static_cast<std::size_t>(std::lround(final_time / refinement_steps.front())), noncommuting_velocity,
-                                                 noncommuting_source, advsrc_options);
+                                                 noncommuting_source, qmom_case.options, advsrc_options);
     const QmomStepRun dc_coarse = run_qmom_steps(initial, qmom_case.node_count, t0, refinement_steps.front(),
                                                  static_cast<std::size_t>(std::lround(final_time / refinement_steps.front())), noncommuting_velocity,
-                                                 noncommuting_source, srcadv_options);
+                                                 noncommuting_source, qmom_case.options, srcadv_options);
     if (cd_coarse.result.ok() && dc_coarse.result.ok() &&
         scaled_infinity_error(cd_coarse.result.state.moments(), dc_coarse.result.state.moments()) < 1.0e-4)
     {
@@ -1259,47 +1257,6 @@ void verify_qmom_post_source_inversion_failure_result(const qmomkit::QmomPhaseSp
     }
 }
 
-void verify_qmom_context_invalid_state_failure_result(const qmomkit::QmomPhaseSpaceEvolutionResult& result, const qmomkit::QmomState& input_state,
-                                                      const bool source_called, VerificationResult& verification)
-{
-    // QmomState construction owns representation consistency. Phase-space evolution still
-    // rejects a canonical state that is incompatible with the supplied
-    // fixed-count context before any velocity or source callback is used.
-    if (result.ok())
-    {
-        append_failure(verification, "QMOM context-invalid state unexpectedly reported phase-space evolution success.");
-    }
-    if (result.status != qmomkit::PhaseSpaceEvolutionStatus::invalid_input)
-    {
-        append_failure(verification, "QMOM context-invalid state did not report PhaseSpaceEvolutionStatus::invalid_input.");
-    }
-    if (result.diagnostics.failed_stage != qmomkit::PhaseSpaceEvolutionStage::none)
-    {
-        append_failure(verification, "QMOM context-invalid state did not stop before a phase-space evolution stage.");
-    }
-    if (result.message.empty() || result.diagnostics.message.empty() || !contains_text(result.message, "configured node count"))
-    {
-        append_failure(verification, "QMOM context-invalid state did not provide a meaningful validation message.");
-    }
-    if (std::abs(result.final_time) > 1.0e-14)
-    {
-        append_failure(verification, "QMOM context-invalid state advanced final_time.");
-    }
-    if (!vectors_equal(result.state.moments(), input_state.moments(), 0.0))
-    {
-        append_failure(verification, "QMOM context-invalid state failure changed the input moments.");
-    }
-    if (source_called)
-    {
-        append_failure(verification, "QMOM context-invalid state reached the source callback.");
-    }
-    if (result.diagnostics.moment_source_diagnostics.accepted || result.diagnostics.first_reconstruction_diagnostics.success ||
-        result.diagnostics.final_reconstruction_diagnostics.success)
-    {
-        append_failure(verification, "QMOM context-invalid state failure reported later-stage diagnostics.");
-    }
-}
-
 VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem::path& configuration_path)
 {
     // Exercise QMOM phase-space evolution failure propagation after a valid initial
@@ -1317,7 +1274,7 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
     const qmomkit::QmomCase& qmom_case = configured.value();
     const std::vector<double> initial = qmom_case.moments.values();
     const qmomkit::QmomState initial_state = qmom_state_from_moments(initial, qmom_case.node_count, qmom_case.options);
-    const auto options = qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01);
+    const auto options = qmom_options(1.0e-12, 1.0e-14, 0.01);
     constexpr double dt = 0.08;
 
     struct FailureCase
@@ -1346,7 +1303,7 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
     for (const FailureCase& failure_case : failure_cases)
     {
         const qmomkit::QmomPhaseSpaceEvolutionResult result =
-            qmomkit::advance_qmom_phase_space(initial_state, qmom_case.node_count, 0.0, dt, failure_case.velocity, zero_qmom_source, options);
+            qmomkit::advance_qmom_phase_space(initial_state, 0.0, dt, failure_case.velocity, zero_qmom_source, options);
         verify_qmom_advection_failure_result(failure_case.name, result, initial_state.moments(), failure_case.expected_message_fragment,
                                              verification);
 
@@ -1377,7 +1334,7 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
         return std::vector<double>{xi[0]};
     };
     const qmomkit::QmomPhaseSpaceEvolutionResult rk_minimum =
-        qmomkit::advance_qmom_phase_space(initial_state, qmom_case.node_count, 0.0, dt, stiff_velocity, zero_qmom_source, rk_minimum_options);
+        qmomkit::advance_qmom_phase_space(initial_state, 0.0, dt, stiff_velocity, zero_qmom_source, rk_minimum_options);
     std::vector<double> rk_minimum_exact(initial_state.moments().size(), 0.0);
     for (std::size_t order = 0; order < rk_minimum_exact.size(); ++order)
     {
@@ -1409,7 +1366,7 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
     };
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const qmomkit::QmomPhaseSpaceEvolutionResult post_source_inversion =
-        qmomkit::advance_qmom_phase_space(initial_state, qmom_case.node_count, 0.0, dt, zero_velocity, nonrealizable_source, options);
+        qmomkit::advance_qmom_phase_space(initial_state, 0.0, dt, zero_velocity, nonrealizable_source, options);
     verify_qmom_post_source_inversion_failure_result(post_source_inversion, 0.0, verification);
 
     RunSummary reconstruction_summary;
@@ -1428,8 +1385,8 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
 
 VerificationResult run_qmom_phase_space_evolution_inversion_failures(const std::filesystem::path& configuration_path)
 {
-    // Construction of an accepted state owns initial inversion. Phase-space evolution still
-    // validates caller-created states before any callback can run.
+    // Construction of an accepted state owns initial inversion, so an invalid
+    // configured moment sequence fails before a state can enter evolution.
     VerificationResult verification;
     const auto configured = qmomkit::config::load_qmom(configuration_path);
     if (!configured.ok())
@@ -1440,7 +1397,6 @@ VerificationResult run_qmom_phase_space_evolution_inversion_failures(const std::
     }
 
     const qmomkit::QmomCase& qmom_case = configured.value();
-    const std::vector<double> input = qmom_case.moments.values();
     bool initial_state_failed = false;
     try
     {
@@ -1455,28 +1411,13 @@ VerificationResult run_qmom_phase_space_evolution_inversion_failures(const std::
         append_failure(verification, "QMOM invalid initial moments unexpectedly produced an accepted state.");
     }
 
-    bool source_called = false;
-    const qmomkit::MomentSource recording_source = [&source_called](double, const qmomkit::QmomSourceContext& context)
-    {
-        source_called = true;
-        return std::vector<double>(context.size(), 0.0);
-    };
-    std::vector<double> one_node_moments(input.size(), 0.0);
-    one_node_moments.front() = 1.0;
-    const qmomkit::QmomState invalid_state = qmomkit::QmomCase{qmomkit::MomentSet(one_node_moments), 1}.initial_state();
-    const qmomkit::QmomPhaseSpaceEvolutionResult result =
-        qmomkit::advance_qmom_phase_space(invalid_state, qmom_case.node_count, 0.0, 0.08, commuting_velocity, recording_source,
-                                          qmom_options(qmom_case.options, 1.0e-12, 1.0e-14, 0.01));
-    verify_qmom_context_invalid_state_failure_result(result, invalid_state, source_called, verification);
-
     RunSummary summary;
     summary.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
     summary.dt = 0.08;
     summary.steps = 1;
-    summary.final_time = result.final_time;
-    summary.retry_count = result.diagnostics.moment_source_retries;
-    summary.success = initial_state_failed && !result.ok() && result.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input &&
-                      result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::none && !source_called;
+    summary.final_time = 0.0;
+    summary.retry_count = 0;
+    summary.success = initial_state_failed;
     verification.runs.push_back(summary);
     return verification;
 }

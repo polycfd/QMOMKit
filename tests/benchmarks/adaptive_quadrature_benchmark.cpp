@@ -316,10 +316,9 @@ void validate_qmom_step_fixture(const QmomEventFixture& fixture)
     validate_qmom_fixture(fixture);
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
-    options.qmom_options = fixture.qmom_options;
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
-    const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(
-        fixture.initial_state, fixture.maximum_node_count, 0.0, 1.0, zero_velocity, qmom_source_to_target(fixture), options);
+    const qmomkit::QmomPhaseSpaceEvolutionResult result =
+        qmomkit::advance_qmom_phase_space(fixture.initial_state, 0.0, 1.0, zero_velocity, qmom_source_to_target(fixture), options);
     if (!result.ok() || result.state.active_node_count() != fixture.active_node_count_after)
     {
         throw std::runtime_error("QMOM full-step fixture did not produce the expected accepted event.");
@@ -442,7 +441,6 @@ void run_qmom_full_step(benchmark::State& state, const QmomEventFixture& fixture
     const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
     const qmomkit::MomentSource source = qmom_source_to_target(fixture);
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
-    options.qmom_options = fixture.qmom_options;
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
 
     for (auto _ : state)
@@ -451,7 +449,7 @@ void run_qmom_full_step(benchmark::State& state, const QmomEventFixture& fixture
         const qmomkit::QmomState iteration_state = fixture.initial_state;
         state.ResumeTiming();
         const qmomkit::QmomPhaseSpaceEvolutionResult result =
-            qmomkit::advance_qmom_phase_space(iteration_state, fixture.maximum_node_count, 0.0, 1.0, zero_velocity, source, options);
+            qmomkit::advance_qmom_phase_space(iteration_state, 0.0, 1.0, zero_velocity, source, options);
         benchmark::DoNotOptimize(result.state.moments().data());
         benchmark::DoNotOptimize(result.state.quadrature().weights.data());
     }

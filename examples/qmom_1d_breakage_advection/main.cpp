@@ -41,7 +41,6 @@ int main()
     const qmomkit::QmomCase qmom_case = std::move(configured).value();
     const qmomkit::OutputOptions output_options = std::move(output_configured).value();
     const std::vector<double> initial_moments = qmom_case.moments.values();
-    std::vector<double> moments = initial_moments;
     std::optional<qmomkit::QmomState> initial_state_storage;
     try
     {
@@ -53,10 +52,8 @@ int main()
         return 1;
     }
     qmomkit::QmomState state = *initial_state_storage;
-    moments = state.moments();
     const qmomkit::QmomResult initial_quadrature = state.quadrature();
 
-    qmomkit::QmomResult quadrature = initial_quadrature;
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_breakage_advection::advection_velocity();
     const qmomkit::MomentSource source = qmom_1d_breakage_advection::binary_fragmentation_source();
     qmomkit::QmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
@@ -72,12 +69,13 @@ int main()
         if (output_options.write_moments)
         {
             moment_writer.emplace(qmomkit::MomentWriter::for_qmom(output_options.directory / "moments.txt", state, output_options));
-            moment_writer->write(initial_time, state, quadrature);
+            moment_writer->write(initial_time, state, state.quadrature());
         }
         if (output_options.write_quadrature)
         {
-            quadrature_writer.emplace(qmomkit::QuadratureWriter::for_qmom(output_options.directory / "quadrature.txt", quadrature.weights.size()));
-            quadrature_writer->write(initial_time, quadrature);
+            quadrature_writer.emplace(
+                qmomkit::QuadratureWriter::for_qmom(output_options.directory / "quadrature.txt", state.quadrature().weights.size()));
+            quadrature_writer->write(initial_time, state.quadrature());
         }
     }
     catch (const std::exception& error)
@@ -101,8 +99,6 @@ int main()
         }
 
         state = phase_space_evolved.state;
-        moments = state.moments();
-        quadrature = state.quadrature();
         time = phase_space_evolved.final_time;
 
         if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
@@ -111,11 +107,11 @@ int main()
             {
                 if (moment_writer.has_value())
                 {
-                    moment_writer->write(time, state, quadrature);
+                    moment_writer->write(time, state, state.quadrature());
                 }
                 if (quadrature_writer.has_value())
                 {
-                    quadrature_writer->write(time, quadrature);
+                    quadrature_writer->write(time, state.quadrature());
                 }
             }
             catch (const std::exception& error)
@@ -142,9 +138,9 @@ int main()
 
     std::cout << '\n';
     std::cout << "Final moments:\n";
-    for (std::size_t order = 0; order < moments.size(); ++order)
+    for (std::size_t order = 0; order < state.moments().size(); ++order)
     {
-        std::cout << "M" << order << " = " << moments[order] << '\n';
+        std::cout << "M" << order << " = " << state.moments()[order] << '\n';
     }
 
     std::cout << '\n';
@@ -158,9 +154,9 @@ int main()
     std::cout << '\n';
     std::cout << "Final quadrature:\n";
     std::cout << "node  weight        abscissa\n";
-    for (std::size_t node = 0; node < quadrature.weights.size(); ++node)
+    for (std::size_t node = 0; node < state.quadrature().weights.size(); ++node)
     {
-        std::cout << node << "     " << quadrature.weights[node] << "   " << quadrature.abscissas[node] << '\n';
+        std::cout << node << "     " << state.quadrature().weights[node] << "   " << state.quadrature().abscissas[node] << '\n';
     }
     std::cout << "final_time = " << time << '\n';
 

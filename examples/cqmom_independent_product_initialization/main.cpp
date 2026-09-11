@@ -19,32 +19,22 @@ int main()
     // CqmomCase is the immutable configuration/problem definition.
     const qmomkit::CqmomCase cqmom_case = std::move(configured).value();
 
-    // compute_cqmom(...) computes the initial quadrature for that case.
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
-    if (!cqmom.ok())
-    {
-        std::cerr << "CQMOM failed: " << cqmom.message << '\n';
-        return 1;
-    }
-
     // CqmomState is the runtime state passed to phase-space evolution workflows.
     const qmomkit::CqmomState state = cqmom_case.initial_state();
 
-    const qmomkit::CqmomQuadrature& quadrature = cqmom.quadrature;
     const qmomkit::PhaseSpaceHierarchy& hierarchy = cqmom_case.hierarchy();
-    std::cout << "configuration -> CqmomCase -> compute_cqmom -> initial_state -> CqmomState\n";
+    std::cout << "configuration -> CqmomCase -> initial_state -> CqmomState\n";
     std::cout << "CqmomCase: immutable configuration/problem definition\n";
     std::cout << "CqmomState: evolving phase-space evolution state created from the case\n";
     std::cout << "node_counts = {" << hierarchy.node_counts()[0] << ", " << hierarchy.node_counts()[1] << "}\n";
     std::cout << "conditioning_order = {" << hierarchy.conditioning_order()[0] << ", " << hierarchy.conditioning_order()[1] << "}\n";
-    (void)state;
 
-    for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
+    for (std::size_t node = 0; node < state.quadrature().weights().size(); ++node)
     {
-        std::cout << "node " << node << ": weight=" << quadrature.weights()[node];
-        for (std::size_t dimension = 0; dimension < quadrature.number_of_dimensions(); ++dimension)
+        std::cout << "node " << node << ": weight=" << state.quadrature().weights()[node];
+        for (std::size_t dimension = 0; dimension < state.quadrature().number_of_dimensions(); ++dimension)
         {
-            std::cout << " x" << dimension << '=' << quadrature.abscissas()[dimension][node];
+            std::cout << " x" << dimension << '=' << state.quadrature().abscissas()[dimension][node];
         }
         std::cout << '\n';
     }

@@ -58,8 +58,8 @@ M_k = \frac{n_0}{N}\sum_{p=1}^{N} d_p^k,
 $$
 
 where $n_0$ is the configured total number density and $N$ is the sample count.
-It uses those moments in `qmomkit::compute_qmom(...)`. The Monte Carlo
-workflow evolves the sampled ensemble directly with the same advection and
+It uses those moments to construct a `qmomkit::QmomCase` and initial
+`qmomkit::QmomState`. The Monte Carlo workflow evolves the sampled ensemble directly with the same advection and
 binary-fragmentation models.
 
 The sample is finite, so its raw moments include ordinary Monte Carlo sampling

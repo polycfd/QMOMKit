@@ -253,6 +253,10 @@ std::string format_cqmom_settings(const CqmomMomentStorage storage, const bool a
 
 CqmomCase::CqmomCase(std::unique_ptr<Data> data) : data_(std::move(data)) {}
 
+CqmomCase::CqmomCase(CqmomDenseCase dense_case) : CqmomCase(internal::CqmomConstructionAccess::create_case(std::move(dense_case))) {}
+
+CqmomCase::CqmomCase(CqmomLeanCase lean_case) : CqmomCase(internal::CqmomConstructionAccess::create_case(std::move(lean_case))) {}
+
 CqmomCase::CqmomCase(const CqmomCase& other) : data_(other.data_ == nullptr ? nullptr : std::make_unique<Data>(*other.data_)) {}
 
 CqmomCase& CqmomCase::operator=(const CqmomCase& other)
@@ -377,6 +381,15 @@ CqmomState::~CqmomState() = default;
 const PhaseSpaceHierarchy& CqmomState::hierarchy() const noexcept
 {
     return qmomkit::hierarchy(data_->case_);
+}
+
+const CqmomQuadrature& CqmomState::quadrature() const
+{
+    if (!data_->accepted_quadrature.has_value())
+    {
+        throw std::logic_error("CQMOM state has no accepted quadrature.");
+    }
+    return *data_->accepted_quadrature;
 }
 
 const QmomOptions& CqmomState::qmom_options() const noexcept

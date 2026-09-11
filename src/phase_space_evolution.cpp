@@ -120,17 +120,16 @@ template <typename ApplyAdvection, typename ApplySource>
     throw std::invalid_argument("Unsupported phase-space evolution scheme.");
 }
 
-void validate_qmom_input(const QmomState& state, const std::size_t maximum_node_count, const QmomOptions& qmom_options, const double t,
-                         const double time_step, const PhaseSpaceVelocity& velocity, const MomentSource& source,
-                         const PhaseSpaceEvolutionScheme scheme)
+void validate_qmom_input(const QmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
+                         const MomentSource& source, const PhaseSpaceEvolutionScheme scheme)
 {
     validate_time_input(t, time_step);
     validate_phase_space_evolution_scheme(scheme);
-    if (maximum_node_count == 0)
+    if (state.maximum_node_count() == 0)
     {
         throw std::invalid_argument("QMOM phase-space evolution requires at least one configured node.");
     }
-    const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, maximum_node_count);
+    const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, state.maximum_node_count());
     if (!required_moment_count.has_value())
     {
         throw std::invalid_argument("QMOM phase-space evolution maximum node count is too large to derive the required moment count.");
@@ -143,11 +142,11 @@ void validate_qmom_input(const QmomState& state, const std::size_t maximum_node_
     {
         throw std::invalid_argument("QMOM phase-space evolution state moments must be finite.");
     }
-    if (state.active_node_count() > maximum_node_count)
+    if (state.active_node_count() > state.maximum_node_count())
     {
         throw std::invalid_argument("QMOM phase-space evolution state active node count exceeds the configured maximum.");
     }
-    if (!qmom_options.adaptive && state.active_node_count() != maximum_node_count)
+    if (!state.qmom_options().adaptive && state.active_node_count() != state.maximum_node_count())
     {
         throw std::invalid_argument("Fixed-count QMOM phase-space evolution state must contain the configured node count.");
     }
@@ -330,15 +329,15 @@ void validate_qmom_advection_input(const QmomState& state, const double t, const
     }
 }
 
-void validate_qmom_moment_source_input(const QmomState& state, const std::size_t maximum_node_count, const QmomOptions& qmom_options, const double t,
-                                       const double time_step, const MomentSource& source, const MomentBoundaryContribution* const boundary)
+void validate_qmom_moment_source_input(const QmomState& state, const double t, const double time_step, const MomentSource& source,
+                                       const MomentBoundaryContribution* const boundary)
 {
     validate_time_input(t, time_step);
-    if (maximum_node_count == 0)
+    if (state.maximum_node_count() == 0)
     {
         throw std::invalid_argument("QMOM phase-space evolution requires at least one configured node.");
     }
-    const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, maximum_node_count);
+    const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, state.maximum_node_count());
     if (!required_moment_count.has_value())
     {
         throw std::invalid_argument("QMOM phase-space evolution maximum node count is too large to derive the required moment count.");
@@ -351,11 +350,11 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
     {
         throw std::invalid_argument("QMOM phase-space evolution state moments must be finite.");
     }
-    if (state.active_node_count() > maximum_node_count)
+    if (state.active_node_count() > state.maximum_node_count())
     {
         throw std::invalid_argument("QMOM phase-space evolution state active node count exceeds the configured maximum.");
     }
-    if (!qmom_options.adaptive && state.active_node_count() != maximum_node_count)
+    if (!state.qmom_options().adaptive && state.active_node_count() != state.maximum_node_count())
     {
         throw std::invalid_argument("Fixed-count QMOM phase-space evolution state must contain the configured node count.");
     }
@@ -386,8 +385,8 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
     try
     {
         internal::performance::record_moment_reconstruction_call();
-        accepted_state =
-            internal::QmomStateAccess::from_quadrature(qmom_from_quadrature(advection.quadrature), state.moments().size(), state.abscissa_bounds());
+        accepted_state = internal::QmomStateAccess::from_quadrature(qmom_from_quadrature(advection.quadrature), state.moments().size(),
+                                                                    state.maximum_node_count(), state.qmom_options(), state.abscissa_bounds());
         if (final_advection)
         {
             diagnostics.final_reconstruction_diagnostics = successful_reconstruction(accepted_state.moments().size());
@@ -416,11 +415,10 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
     return true;
 }
 
-[[nodiscard]] bool advance_qmom_moment_source_stage(const QmomState& state, const QmomState& rollback_state, const std::size_t maximum_node_count,
-                                                    const double t, const double time_step, const MomentSource& source,
-                                                    const MomentBoundaryContribution* const boundary, const QmomPhaseSpaceEvolutionOptions& options,
-                                                    PhaseSpaceEvolutionDiagnostics& diagnostics, QmomState& accepted_state,
-                                                    std::optional<QmomPhaseSpaceEvolutionResult>& failure)
+[[nodiscard]] bool advance_qmom_moment_source_stage(const QmomState& state, const QmomState& rollback_state, const double t, const double time_step,
+                                                    const MomentSource& source, const MomentBoundaryContribution* const boundary,
+                                                    const QmomPhaseSpaceEvolutionOptions& options, PhaseSpaceEvolutionDiagnostics& diagnostics,
+                                                    QmomState& accepted_state, std::optional<QmomPhaseSpaceEvolutionResult>& failure)
 {
     internal::performance::record_moment_source_operator_call();
     MomentSourceUpdateOptions source_options = options.source_options;
@@ -442,9 +440,9 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
     const MomentSourceUpdateResult source_update =
         boundary == nullptr
             ? internal::advance_trusted_qmom_moments_with_source(state.moments(), t, time_step, source, source_options, state.active_node_count(),
-                                                                 options.qmom_options, state.abscissa_bounds())
+                                                                 state.qmom_options(), state.abscissa_bounds())
             : internal::advance_trusted_qmom_moments_with_source(state.moments(), t, time_step, source, *boundary, source_options,
-                                                                 state.active_node_count(), options.qmom_options, state.abscissa_bounds());
+                                                                 state.active_node_count(), state.qmom_options(), state.abscissa_bounds());
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
     {
@@ -454,8 +452,8 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
     }
 
     internal::performance::record_post_source_inversion();
-    QmomResult selected_quadrature =
-        select_post_source_qmom(source_update.moments, state.active_node_count(), maximum_node_count, options.qmom_options, state.abscissa_bounds());
+    QmomResult selected_quadrature = select_post_source_qmom(source_update.moments, state.active_node_count(), state.maximum_node_count(),
+                                                             state.qmom_options(), state.abscissa_bounds());
     diagnostics.post_source_qmom_status = selected_quadrature.status;
     if (!selected_quadrature.ok())
     {
@@ -466,7 +464,8 @@ void validate_qmom_moment_source_input(const QmomState& state, const std::size_t
     try
     {
         internal::performance::record_moment_reconstruction_call();
-        accepted_state = internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moments().size(), state.abscissa_bounds());
+        accepted_state = internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moments().size(),
+                                                                    state.maximum_node_count(), state.qmom_options(), state.abscissa_bounds());
     }
     catch (const std::exception& error)
     {
@@ -657,9 +656,9 @@ void record_cqmom_node_count_transitions(PhaseSpaceEvolutionDiagnostics& diagnos
 
 // Public QMOM overloads dispatch here; this helper applies the selected
 // operator-split phase-space evolution sequence to an accepted one-dimensional state.
-static QmomPhaseSpaceEvolutionResult advance_qmom_phase_space_impl(const QmomState& state, const std::size_t maximum_node_count, const double t,
-                                                                   const double time_step, const PhaseSpaceVelocity& velocity,
-                                                                   const MomentSource& source, const MomentBoundaryContribution* const boundary,
+static QmomPhaseSpaceEvolutionResult advance_qmom_phase_space_impl(const QmomState& state, const double t, const double time_step,
+                                                                   const PhaseSpaceVelocity& velocity, const MomentSource& source,
+                                                                   const MomentBoundaryContribution* const boundary,
                                                                    const QmomPhaseSpaceEvolutionOptions& options)
 {
     internal::performance::record_phase_space_evolution_macro_step();
@@ -667,7 +666,7 @@ static QmomPhaseSpaceEvolutionResult advance_qmom_phase_space_impl(const QmomSta
     diagnostics.scheme = options.scheme;
     try
     {
-        validate_qmom_input(state, maximum_node_count, options.qmom_options, t, time_step, velocity, source, options.scheme);
+        validate_qmom_input(state, t, time_step, velocity, source, options.scheme);
         validate_boundary(boundary);
     }
     catch (const std::exception& error)
@@ -686,8 +685,8 @@ static QmomPhaseSpaceEvolutionResult advance_qmom_phase_space_impl(const QmomSta
 
     const auto apply_source = [&](const double start_time)
     {
-        return advance_qmom_moment_source_stage(current_state, state, maximum_node_count, start_time, time_step, source, boundary, options,
-                                                diagnostics, current_state, failure);
+        return advance_qmom_moment_source_stage(current_state, state, start_time, time_step, source, boundary, options, diagnostics, current_state,
+                                                failure);
     };
 
     if (!execute_phase_space_evolution_sequence(options.scheme, t, time_step, apply_advection, apply_source))
@@ -724,16 +723,15 @@ QmomPhaseSpaceEvolutionResult advance_qmom_advection(const QmomState& state, con
     return QmomPhaseSpaceEvolutionResult{std::move(accepted_state), PhaseSpaceEvolutionStatus::success, std::move(diagnostics), t + time_step, ""};
 }
 
-static QmomPhaseSpaceEvolutionResult advance_qmom_moment_source_impl(const QmomState& state, const std::size_t maximum_node_count, const double t,
-                                                                     const double time_step, const MomentSource& source,
-                                                                     const MomentBoundaryContribution* const boundary,
+static QmomPhaseSpaceEvolutionResult advance_qmom_moment_source_impl(const QmomState& state, const double t, const double time_step,
+                                                                     const MomentSource& source, const MomentBoundaryContribution* const boundary,
                                                                      const QmomPhaseSpaceEvolutionOptions& options)
 {
     PhaseSpaceEvolutionDiagnostics diagnostics;
     diagnostics.scheme = options.scheme;
     try
     {
-        validate_qmom_moment_source_input(state, maximum_node_count, options.qmom_options, t, time_step, source, boundary);
+        validate_qmom_moment_source_input(state, t, time_step, source, boundary);
     }
     catch (const std::exception& error)
     {
@@ -742,8 +740,7 @@ static QmomPhaseSpaceEvolutionResult advance_qmom_moment_source_impl(const QmomS
 
     QmomState accepted_state = state;
     std::optional<QmomPhaseSpaceEvolutionResult> failure;
-    if (!advance_qmom_moment_source_stage(state, state, maximum_node_count, t, time_step, source, boundary, options, diagnostics, accepted_state,
-                                          failure))
+    if (!advance_qmom_moment_source_stage(state, state, t, time_step, source, boundary, options, diagnostics, accepted_state, failure))
     {
         return std::move(*failure);
     }
@@ -752,32 +749,30 @@ static QmomPhaseSpaceEvolutionResult advance_qmom_moment_source_impl(const QmomS
     return QmomPhaseSpaceEvolutionResult{std::move(accepted_state), PhaseSpaceEvolutionStatus::success, std::move(diagnostics), t + time_step, ""};
 }
 
-QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, const std::size_t maximum_node_count, const double t,
-                                                         const double time_step, const MomentSource& source,
+QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, const double t, const double time_step, const MomentSource& source,
                                                          const QmomPhaseSpaceEvolutionOptions& options)
 {
-    return advance_qmom_moment_source_impl(state, maximum_node_count, t, time_step, source, nullptr, options);
+    return advance_qmom_moment_source_impl(state, t, time_step, source, nullptr, options);
 }
 
-QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, const std::size_t maximum_node_count, const double t,
-                                                         const double time_step, const MomentSource& source,
+QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, const double t, const double time_step, const MomentSource& source,
                                                          const MomentBoundaryContribution& boundary, const QmomPhaseSpaceEvolutionOptions& options)
 {
-    return advance_qmom_moment_source_impl(state, maximum_node_count, t, time_step, source, &boundary, options);
+    return advance_qmom_moment_source_impl(state, t, time_step, source, &boundary, options);
 }
 
-QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, const std::size_t maximum_node_count, const double t,
-                                                       const double time_step, const PhaseSpaceVelocity& velocity, const MomentSource& source,
+QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, const double t, const double time_step,
+                                                       const PhaseSpaceVelocity& velocity, const MomentSource& source,
                                                        const QmomPhaseSpaceEvolutionOptions& options)
 {
-    return advance_qmom_phase_space_impl(state, maximum_node_count, t, time_step, velocity, source, nullptr, options);
+    return advance_qmom_phase_space_impl(state, t, time_step, velocity, source, nullptr, options);
 }
 
-QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, const std::size_t maximum_node_count, const double t,
-                                                       const double time_step, const PhaseSpaceVelocity& velocity, const MomentSource& source,
+QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, const double t, const double time_step,
+                                                       const PhaseSpaceVelocity& velocity, const MomentSource& source,
                                                        const MomentBoundaryContribution& boundary, const QmomPhaseSpaceEvolutionOptions& options)
 {
-    return advance_qmom_phase_space_impl(state, maximum_node_count, t, time_step, velocity, source, &boundary, options);
+    return advance_qmom_phase_space_impl(state, t, time_step, velocity, source, &boundary, options);
 }
 
 namespace
@@ -1415,13 +1410,12 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_advection_batch(const 
                        { return advance_cqmom_advection(state, time, time_step, velocity, options); });
 }
 
-std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch(const std::vector<QmomState>& states,
-                                                                            const std::size_t maximum_node_count, const double time,
+std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch(const std::vector<QmomState>& states, const double time,
                                                                             const double time_step, const MomentSource& source,
                                                                             const QmomPhaseSpaceEvolutionOptions& options)
 {
     return apply_batch(states, [&](const std::size_t, const QmomState& state)
-                       { return advance_qmom_moment_source(state, maximum_node_count, time, time_step, source, options); });
+                       { return advance_qmom_moment_source(state, time, time_step, source, options); });
 }
 
 std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_moment_source_batch(const std::vector<CqmomState>& states, const double time,
@@ -1432,14 +1426,13 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_moment_source_batch(co
                        { return advance_cqmom_moment_source(state, time, time_step, source, options); });
 }
 
-std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch(const std::vector<QmomState>& states,
-                                                                            const std::size_t maximum_node_count, const double time,
+std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch(const std::vector<QmomState>& states, const double time,
                                                                             const double time_step, const MomentSource& source,
                                                                             const MomentBoundaryContribution& boundary,
                                                                             const QmomPhaseSpaceEvolutionOptions& options)
 {
     return apply_batch(states, [&](const std::size_t, const QmomState& state)
-                       { return advance_qmom_moment_source(state, maximum_node_count, time, time_step, source, boundary, options); });
+                       { return advance_qmom_moment_source(state, time, time_step, source, boundary, options); });
 }
 
 std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_moment_source_batch(const std::vector<CqmomState>& states, const double time,
@@ -1451,13 +1444,12 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_moment_source_batch(co
                        { return advance_cqmom_moment_source(state, time, time_step, source, boundary, options); });
 }
 
-std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch(const std::vector<QmomState>& states, const std::size_t maximum_node_count,
-                                                                          const double time, const double time_step,
-                                                                          const PhaseSpaceVelocity& velocity, const MomentSource& source,
-                                                                          const QmomPhaseSpaceEvolutionOptions& options)
+std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch(const std::vector<QmomState>& states, const double time,
+                                                                          const double time_step, const PhaseSpaceVelocity& velocity,
+                                                                          const MomentSource& source, const QmomPhaseSpaceEvolutionOptions& options)
 {
     return apply_batch(states, [&](const std::size_t, const QmomState& state)
-                       { return advance_qmom_phase_space(state, maximum_node_count, time, time_step, velocity, source, options); });
+                       { return advance_qmom_phase_space(state, time, time_step, velocity, source, options); });
 }
 
 std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch(const std::vector<CqmomState>& states, const double time,
@@ -1469,14 +1461,13 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch(cons
                        { return advance_cqmom_phase_space(state, time, time_step, velocity, source, options); });
 }
 
-std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch(const std::vector<QmomState>& states, const std::size_t maximum_node_count,
-                                                                          const double time, const double time_step,
-                                                                          const PhaseSpaceVelocity& velocity, const MomentSource& source,
-                                                                          const MomentBoundaryContribution& boundary,
+std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch(const std::vector<QmomState>& states, const double time,
+                                                                          const double time_step, const PhaseSpaceVelocity& velocity,
+                                                                          const MomentSource& source, const MomentBoundaryContribution& boundary,
                                                                           const QmomPhaseSpaceEvolutionOptions& options)
 {
     return apply_batch(states, [&](const std::size_t, const QmomState& state)
-                       { return advance_qmom_phase_space(state, maximum_node_count, time, time_step, velocity, source, boundary, options); });
+                       { return advance_qmom_phase_space(state, time, time_step, velocity, source, boundary, options); });
 }
 
 std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch(const std::vector<CqmomState>& states, const double time,
@@ -1521,8 +1512,7 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_advection_batch_with_i
         });
 }
 
-std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch_with_index(const std::vector<QmomState>& states,
-                                                                                       const std::size_t maximum_node_count, const double time,
+std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch_with_index(const std::vector<QmomState>& states, const double time,
                                                                                        const double time_step, const BatchMomentSource& source,
                                                                                        const QmomPhaseSpaceEvolutionOptions& options)
 {
@@ -1533,7 +1523,7 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch_with
                                source ? MomentSource{[&source, batch_index](const double callback_time, const QmomSourceContext& context)
                                                      { return source(batch_index, callback_time, context); }}
                                       : MomentSource{};
-                           return advance_qmom_moment_source(state, maximum_node_count, time, time_step, local_source, options);
+                           return advance_qmom_moment_source(state, time, time_step, local_source, options);
                        });
 }
 
@@ -1552,8 +1542,7 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_moment_source_batch_wi
                        });
 }
 
-std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch_with_index(const std::vector<QmomState>& states,
-                                                                                       const std::size_t maximum_node_count, const double time,
+std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch_with_index(const std::vector<QmomState>& states, const double time,
                                                                                        const double time_step, const BatchMomentSource& source,
                                                                                        const BatchMomentBoundaryContribution& boundary,
                                                                                        const QmomPhaseSpaceEvolutionOptions& options)
@@ -1570,7 +1559,7 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch_with
                 boundary ? MomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const std::vector<double>& moments)
                                                       { return boundary(batch_index, callback_time, moments); }}
                          : MomentBoundaryContribution{};
-            return advance_qmom_moment_source(state, maximum_node_count, time, time_step, local_source, local_boundary, options);
+            return advance_qmom_moment_source(state, time, time_step, local_source, local_boundary, options);
         });
 }
 
@@ -1595,8 +1584,7 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_moment_source_batch_wi
         });
 }
 
-std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states,
-                                                                                     const std::size_t maximum_node_count, const double time,
+std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states, const double time,
                                                                                      const double time_step, const BatchPhaseSpaceVelocity& velocity,
                                                                                      const BatchMomentSource& source,
                                                                                      const QmomPhaseSpaceEvolutionOptions& options)
@@ -1613,7 +1601,7 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch_with_i
                                                   ? MomentSource{[&source, batch_index](const double callback_time, const QmomSourceContext& context)
                                                                  { return source(batch_index, callback_time, context); }}
                                                   : MomentSource{};
-            return advance_qmom_phase_space(state, maximum_node_count, time, time_step, local_velocity, local_source, options);
+            return advance_qmom_phase_space(state, time, time_step, local_velocity, local_source, options);
         });
 }
 
@@ -1639,10 +1627,11 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch_with
         });
 }
 
-std::vector<QmomPhaseSpaceEvolutionResult>
-advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states, const std::size_t maximum_node_count, const double time,
-                                          const double time_step, const BatchPhaseSpaceVelocity& velocity, const BatchMomentSource& source,
-                                          const BatchMomentBoundaryContribution& boundary, const QmomPhaseSpaceEvolutionOptions& options)
+std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states, const double time,
+                                                                                     const double time_step, const BatchPhaseSpaceVelocity& velocity,
+                                                                                     const BatchMomentSource& source,
+                                                                                     const BatchMomentBoundaryContribution& boundary,
+                                                                                     const QmomPhaseSpaceEvolutionOptions& options)
 {
     return apply_batch(
         states,
@@ -1660,7 +1649,7 @@ advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states, 
                 boundary ? MomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const std::vector<double>& moments)
                                                       { return boundary(batch_index, callback_time, moments); }}
                          : MomentBoundaryContribution{};
-            return advance_qmom_phase_space(state, maximum_node_count, time, time_step, local_velocity, local_source, local_boundary, options);
+            return advance_qmom_phase_space(state, time, time_step, local_velocity, local_source, local_boundary, options);
         });
 }
 

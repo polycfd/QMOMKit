@@ -54,7 +54,8 @@ class QmomStateAccess;
  * Accepted one-dimensional QMOM phase-space evolution state.
  *
  * The stored moments are reconstructed from the accepted quadrature at
- * construction. Users can inspect the state but cannot mutate moments and
+ * construction. The state retains the reconstruction policy inherited from
+ * its case. Users can inspect the state but cannot mutate moments and
  * quadrature independently.
  */
 class QmomState
@@ -81,17 +82,30 @@ public:
         return quadrature_.weights.size();
     }
 
+    [[nodiscard]] std::size_t maximum_node_count() const noexcept
+    {
+        return maximum_node_count_;
+    }
+
+    [[nodiscard]] const QmomOptions& qmom_options() const noexcept
+    {
+        return qmom_options_;
+    }
+
     [[nodiscard]] const std::optional<AbscissaBounds>& abscissa_bounds() const noexcept
     {
         return abscissa_bounds_;
     }
 
 private:
-    QmomState(std::vector<double> moments, QmomResult quadrature, std::optional<AbscissaBounds> abscissa_bounds);
+    QmomState(std::vector<double> moments, QmomResult quadrature, std::size_t maximum_node_count, QmomOptions qmom_options,
+              std::optional<AbscissaBounds> abscissa_bounds);
     friend class internal::QmomStateAccess;
 
     std::vector<double> moments_;
     QmomResult quadrature_;
+    std::size_t maximum_node_count_ = 0;
+    QmomOptions qmom_options_;
     std::optional<AbscissaBounds> abscissa_bounds_;
 };
 

@@ -122,8 +122,11 @@ QMOM phase-space source evolution, an untracked order is evaluated from a
 quadrature reconstructed lazily from that same stage. The context-local cache
 is never populated from an accepted quadrature from another stage. Generic
 source-only operations without QMOM reconstruction metadata reject untracked
-requests. QMOMKit validates the source result through the generic ODE solver
-path, but it does not know what individual moment components mean.
+requests. `context.generalized_moment(order)` evaluates a finite,
+non-negative scalar order from that same context-local stage quadrature through
+the shared generalized-moment evaluator. QMOMKit validates the source result
+through the generic ODE solver path, but it does not know what individual moment
+components mean.
 
 Phase-space boundary exchange uses a separate public concept:
 
@@ -169,6 +172,9 @@ phase-space-order coordinates of each terminal node from that same cached
 quadrature. The coordinate reference is read-only and valid only during the
 visitor callback. Source callbacks do not reconstruct CQMOM quadrature
 manually for either access pattern.
+`CqmomSourceContext::generalized_moment(orders)` provides the corresponding
+vector-order access, evaluating a finite, non-negative order vector from that
+same current SSP-RK stage reconstruction.
 
 Generic source-only CQMOM contexts have no source-stage reconstruction
 metadata. They reject untracked `context.moment(alpha)` and terminal-node

@@ -641,53 +641,55 @@ the executable-body count.
 | `invalid_moment_data_result` | [73](../../../src/moment_source.cpp#L73) |
 | `failed_moment_data_result` | [80](../../../src/moment_source.cpp#L80) |
 | `validate_source_context` | [87](../../../src/moment_source.cpp#L87) |
-| `validate_fixed_cqmom_moment_data` | [102](../../../src/moment_source.cpp#L102) |
-| `validate_rate` | [109](../../../src/moment_source.cpp#L109) |
-| `validate_source_rate` | [116](../../../src/moment_source.cpp#L116) |
-| `validate_boundary_rate` | [128](../../../src/moment_source.cpp#L128) |
-| `validate_cqmom_boundary_rate` | [140](../../../src/moment_source.cpp#L140) |
-| `validate_cqmom_stage_state` | [147](../../../src/moment_source.cpp#L147) |
-| `validate_coordinate_realizability_policies` | [159](../../../src/moment_source.cpp#L159) |
-| `has_coordinate_realizability_policy` | [171](../../../src/moment_source.cpp#L171) |
-| `extract_coordinate_marginal` | [178](../../../src/moment_source.cpp#L178) |
-| `accepts_coordinate_realizability_policies` | [210](../../../src/moment_source.cpp#L210) |
-| `boundary_callback_error` | [231](../../../src/moment_source.cpp#L231) |
-| `cqmom_boundary_callback_error` | [236](../../../src/moment_source.cpp#L236) |
-| `validate_request` | [241](../../../src/moment_source.cpp#L241), [267](../../../src/moment_source.cpp#L267) |
-| `validate_cqmom_source_update_controls` | [277](../../../src/moment_source.cpp#L277) |
-| `validate_moment_data_request` | [299](../../../src/moment_source.cpp#L299), [316](../../../src/moment_source.cpp#L316) |
-| `validate_trusted_moment_data_request` | [307](../../../src/moment_source.cpp#L307), [326](../../../src/moment_source.cpp#L326) |
-| `compose_source_and_boundary` | [336](../../../src/moment_source.cpp#L336) |
-| `advance_moments_with_source` | [362](../../../src/moment_source.cpp#L362), [759](../../../src/moment_source.cpp#L759), [779](../../../src/moment_source.cpp#L779) |
-| `compose_cqmom_source_and_boundary` | [406](../../../src/moment_source.cpp#L406) |
-| `advance_validated_cqmom_moments_with_source` | [433](../../../src/moment_source.cpp#L433) |
-| `QmomSourceContextAccess::create` | [497](../../../src/moment_source.cpp#L497) |
-| `CqmomSourceContextAccess::create` | [503](../../../src/moment_source.cpp#L503) |
-| `QmomSourceContext::QmomSourceContext` | [513](../../../src/moment_source.cpp#L513), [521](../../../src/moment_source.cpp#L521) |
-| `QmomSourceContext::time` | [534](../../../src/moment_source.cpp#L534) |
-| `QmomSourceContext::moment_count` | [539](../../../src/moment_source.cpp#L539) |
-| `QmomSourceContext::size` | [544](../../../src/moment_source.cpp#L544) |
-| `QmomSourceContext::values` | [549](../../../src/moment_source.cpp#L549) |
-| `QmomSourceContext::value` | [554](../../../src/moment_source.cpp#L554) |
-| `QmomSourceContext::moment` | [559](../../../src/moment_source.cpp#L559) |
-| `CqmomSourceContext::CqmomSourceContext` | [586](../../../src/moment_source.cpp#L586), [597](../../../src/moment_source.cpp#L597) |
-| `CqmomSourceContext::time` | [611](../../../src/moment_source.cpp#L611) |
-| `CqmomSourceContext::moment_count` | [616](../../../src/moment_source.cpp#L616) |
-| `CqmomSourceContext::dimension_count` | [621](../../../src/moment_source.cpp#L621) |
-| `CqmomSourceContext::size` | [626](../../../src/moment_source.cpp#L626) |
-| `CqmomSourceContext::indices` | [631](../../../src/moment_source.cpp#L631) |
-| `CqmomSourceContext::values` | [636](../../../src/moment_source.cpp#L636) |
-| `CqmomSourceContext::index` | [641](../../../src/moment_source.cpp#L641) |
-| `CqmomSourceContext::value` | [646](../../../src/moment_source.cpp#L646), [661](../../../src/moment_source.cpp#L661) |
-| `CqmomSourceContext::position` | [651](../../../src/moment_source.cpp#L651) |
-| `CqmomSourceContext::moment` | [671](../../../src/moment_source.cpp#L671) |
-| `CqmomSourceContext::generalized_moment` | [686](../../../src/moment_source.cpp#L686) |
-| `CqmomSourceContext::for_each_terminal_node` | [706](../../../src/moment_source.cpp#L706) |
-| `CqmomSourceContext::reconstructed_stage_quadrature` | [727](../../../src/moment_source.cpp#L727) |
-| `CqmomSourceContext::hierarchy` | [754](../../../src/moment_source.cpp#L754) |
-| `advance_cqmom_moments_with_source` | [795](../../../src/moment_source.cpp#L795), [810](../../../src/moment_source.cpp#L810) |
-| `advance_trusted_qmom_moments_with_source` | [829](../../../src/moment_source.cpp#L829), [854](../../../src/moment_source.cpp#L854) |
-| `advance_trusted_cqmom_moments_with_source` | [881](../../../src/moment_source.cpp#L881), [896](../../../src/moment_source.cpp#L896), [915](../../../src/moment_source.cpp#L915), [933](../../../src/moment_source.cpp#L933) |
+| `validate_source_generalized_order` | [102](../../../src/moment_source.cpp#L102) |
+| `validate_fixed_cqmom_moment_data` | [114](../../../src/moment_source.cpp#L114) |
+| `validate_rate` | [121](../../../src/moment_source.cpp#L121) |
+| `validate_source_rate` | [128](../../../src/moment_source.cpp#L128) |
+| `validate_boundary_rate` | [140](../../../src/moment_source.cpp#L140) |
+| `validate_cqmom_boundary_rate` | [152](../../../src/moment_source.cpp#L152) |
+| `validate_cqmom_stage_state` | [159](../../../src/moment_source.cpp#L159) |
+| `validate_coordinate_realizability_policies` | [171](../../../src/moment_source.cpp#L171) |
+| `has_coordinate_realizability_policy` | [183](../../../src/moment_source.cpp#L183) |
+| `extract_coordinate_marginal` | [190](../../../src/moment_source.cpp#L190) |
+| `accepts_coordinate_realizability_policies` | [222](../../../src/moment_source.cpp#L222) |
+| `boundary_callback_error` | [243](../../../src/moment_source.cpp#L243) |
+| `cqmom_boundary_callback_error` | [248](../../../src/moment_source.cpp#L248) |
+| `validate_request` | [253](../../../src/moment_source.cpp#L253), [279](../../../src/moment_source.cpp#L279) |
+| `validate_cqmom_source_update_controls` | [289](../../../src/moment_source.cpp#L289) |
+| `validate_moment_data_request` | [311](../../../src/moment_source.cpp#L311), [328](../../../src/moment_source.cpp#L328) |
+| `validate_trusted_moment_data_request` | [319](../../../src/moment_source.cpp#L319), [338](../../../src/moment_source.cpp#L338) |
+| `compose_source_and_boundary` | [348](../../../src/moment_source.cpp#L348) |
+| `advance_moments_with_source` | [374](../../../src/moment_source.cpp#L374), [786](../../../src/moment_source.cpp#L786), [806](../../../src/moment_source.cpp#L806) |
+| `compose_cqmom_source_and_boundary` | [426](../../../src/moment_source.cpp#L426) |
+| `advance_validated_cqmom_moments_with_source` | [453](../../../src/moment_source.cpp#L453) |
+| `QmomSourceContextAccess::create` | [517](../../../src/moment_source.cpp#L517) |
+| `CqmomSourceContextAccess::create` | [523](../../../src/moment_source.cpp#L523) |
+| `QmomSourceContext::QmomSourceContext` | [533](../../../src/moment_source.cpp#L533), [541](../../../src/moment_source.cpp#L541) |
+| `QmomSourceContext::time` | [554](../../../src/moment_source.cpp#L554) |
+| `QmomSourceContext::moment_count` | [559](../../../src/moment_source.cpp#L559) |
+| `QmomSourceContext::size` | [564](../../../src/moment_source.cpp#L564) |
+| `QmomSourceContext::values` | [569](../../../src/moment_source.cpp#L569) |
+| `QmomSourceContext::value` | [574](../../../src/moment_source.cpp#L574) |
+| `QmomSourceContext::moment` | [579](../../../src/moment_source.cpp#L579) |
+| `QmomSourceContext::generalized_moment` | [596](../../../src/moment_source.cpp#L596) |
+| `CqmomSourceContext::CqmomSourceContext` | [620](../../../src/moment_source.cpp#L620), [631](../../../src/moment_source.cpp#L631) |
+| `CqmomSourceContext::time` | [645](../../../src/moment_source.cpp#L645) |
+| `CqmomSourceContext::moment_count` | [650](../../../src/moment_source.cpp#L650) |
+| `CqmomSourceContext::dimension_count` | [655](../../../src/moment_source.cpp#L655) |
+| `CqmomSourceContext::size` | [660](../../../src/moment_source.cpp#L660) |
+| `CqmomSourceContext::indices` | [665](../../../src/moment_source.cpp#L665) |
+| `CqmomSourceContext::values` | [670](../../../src/moment_source.cpp#L670) |
+| `CqmomSourceContext::index` | [675](../../../src/moment_source.cpp#L675) |
+| `CqmomSourceContext::value` | [680](../../../src/moment_source.cpp#L680), [695](../../../src/moment_source.cpp#L695) |
+| `CqmomSourceContext::position` | [685](../../../src/moment_source.cpp#L685) |
+| `CqmomSourceContext::moment` | [705](../../../src/moment_source.cpp#L705) |
+| `CqmomSourceContext::generalized_moment` | [720](../../../src/moment_source.cpp#L720) |
+| `CqmomSourceContext::for_each_terminal_node` | [733](../../../src/moment_source.cpp#L733) |
+| `CqmomSourceContext::reconstructed_stage_quadrature` | [754](../../../src/moment_source.cpp#L754) |
+| `CqmomSourceContext::hierarchy` | [781](../../../src/moment_source.cpp#L781) |
+| `advance_cqmom_moments_with_source` | [822](../../../src/moment_source.cpp#L822), [837](../../../src/moment_source.cpp#L837) |
+| `advance_trusted_qmom_moments_with_source` | [856](../../../src/moment_source.cpp#L856), [881](../../../src/moment_source.cpp#L881) |
+| `advance_trusted_cqmom_moments_with_source` | [908](../../../src/moment_source.cpp#L908), [923](../../../src/moment_source.cpp#L923), [942](../../../src/moment_source.cpp#L942), [960](../../../src/moment_source.cpp#L960) |
 
 ### `src/node_advection.cpp`
 

@@ -188,14 +188,27 @@ qmomkit::MomentSource source =
 ```
 
 The returned vector must have the same size as the current stage vector.
-`context.value(order)` accesses a tracked stage value directly. During QMOM
-phase-space source evolution, `context.moment(order)` can evaluate an
-untracked order from a quadrature reconstructed from the same SSP-RK stage.
-That is available only where QMOM reconstruction metadata is present. QMOMKit
-does not know what each component means; the ordering must match the moment
-ordering used by your QMOM setup. CQMOM phase-space evolution uses the
+QMOMKit does not know what each component means; the ordering must match the
+moment ordering used by your QMOM setup. CQMOM phase-space evolution uses the
 context-specific callback below so multidimensional source terms can follow the
 configured CQMOM moment layout.
+
+### QmomSourceContext
+
+`QmomSourceContext` is a non-owning, stage-local view of the one-dimensional
+QMOM moment state. Use:
+
+- `context.value(order)` for a tracked current-stage value;
+- `QmomSourceContext::moment(order)` for ordinary integer-order access. Tracked
+  orders return their stage value directly, while untracked orders are evaluated from
+  a quadrature reconstructed from that same SSP-RK stage when QMOM
+  reconstruction metadata is present. Generic source-only updates reject
+  untracked requests;
+- `context.generalized_moment(order)` for a finite, non-negative scalar order
+  from that same stage-local quadrature. Integer and fractional orders use the
+  same validation and negative-abscissa domain rules as
+  `evaluate_generalized_moment(...)`; this derived query is not added to the
+  transported state.
 
 Use the advanced `advance_moments_with_source(...)` operation when you want to
 advance only the moment-source part of a workflow:

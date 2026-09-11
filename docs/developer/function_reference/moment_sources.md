@@ -78,6 +78,13 @@ requested value. Without reconstruction metadata, untracked access throws. A
 failed inversion throws; source wrappers translate the callback failure rather
 than accepting a diagnostic quadrature.
 
+`QmomSourceContext::generalized_moment` evaluates a finite non-negative scalar
+order from that same cached current-stage quadrature through the shared
+`evaluate_generalized_moment` implementation. It therefore preserves the
+integer, zero-order, fractional-power, negative-abscissa domain, and overflow
+semantics of the public quadrature evaluator. Generic source-only contexts
+without reconstruction metadata reject the request.
+
 `CqmomSourceContext::moment` similarly uses exact required-index lookup first.
 `reconstructed_stage_quadrature` constructs a lean stage case, reuses appropriate
 fixed metadata/active counts, and allows the internal adaptive reconstruction
@@ -100,6 +107,8 @@ restriction explained in [moment evaluation](moment_evaluation.md).
 
 Evidence: [phase-space unit tests](../../../tests/unit/phase_space_evolution.cpp)
 include `test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature`,
+`test_qmom_source_context_generalized_moment_semantics`,
+`test_qmom_source_context_generalized_moment_uses_current_rk_stage`,
 `test_cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage`, and
 `test_cqmom_source_context_generalized_moments_use_stage_quadrature`.
 [Source unit tests](../../../tests/unit/moment_source.cpp) exercise standalone

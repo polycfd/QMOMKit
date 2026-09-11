@@ -6,12 +6,12 @@ This reference inventory corresponds to the current root CTest registrations. Ea
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 628 |
+| Unit logical tests | 630 |
 | Component/regression logical tests | 31 |
 | Verification logical tests | 167 |
-| **Runtime logical tests** | **826** |
+| **Runtime logical tests** | **828** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **827** |
+| **Total CTest registrations** | **829** |
 
 Multiple parameter values or configurations used to establish one claim remain internal to that logical test and therefore do not increase the CTest count. The source, selector, and any configured internal case below identify how each registration is invoked.
 
@@ -374,7 +374,7 @@ Any addition, removal, split, or merge of a logical runtime CTest registration m
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 826 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
+The `public_headers` registration is not part of the 828 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -1036,6 +1036,8 @@ The `public_headers` registration is not part of the 826 runtime logical-test co
 | `unit_phase_space_evolution_dense_and_lean_state_source_contexts_are_identical` | `tests/unit/phase_space_evolution.cpp` | `dense_and_lean_state_source_contexts_are_identical` | Verifies dense and lean state source contexts are identical. | — |
 | `unit_phase_space_evolution_cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage` | Checks that source context reconstructs untracked moments from each rk stage in phase-space evolution. | — |
 | `unit_phase_space_evolution_cqmom_source_context_visits_terminal_nodes_from_each_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_visits_terminal_nodes_from_each_rk_stage` | Checks CQMOM source contexts visit every terminal node at each RK stage. | — |
+| `unit_phase_space_evolution_qmom_source_context_generalized_moment_semantics` | `tests/unit/phase_space_evolution.cpp` | `qmom_source_context_generalized_moment_semantics` | Verifies QMOM source-context generalized-moment semantics and validation. | — |
+| `unit_phase_space_evolution_qmom_source_context_generalized_moment_uses_current_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `qmom_source_context_generalized_moment_uses_current_rk_stage` | Verifies QMOM source-context generalized moments use the current RK stage quadrature. | — |
 | `unit_phase_space_evolution_cqmom_source_context_generalized_moments_use_stage_quadrature` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_generalized_moments_use_stage_quadrature` | Verifies CQMOM source context generalized moments use stage quadrature. | — |
 | `unit_phase_space_evolution_cqmom_source_context_generalized_moment_validation` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_generalized_moment_validation` | Verifies CQMOM source context generalized moment validation. | — |
 | `unit_phase_space_evolution_dense_state_reconstructs_dense_only_moments_after_moment_source_source` | `tests/unit/phase_space_evolution.cpp` | `dense_state_reconstructs_dense_only_moments_after_moment_source_source` | Checks that dense state reconstructs dense only moments after moment source source in phase-space evolution. | — |

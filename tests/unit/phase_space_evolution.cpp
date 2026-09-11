@@ -1624,6 +1624,101 @@ void test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature()
 #endif
 }
 
+void test_qmom_source_context_generalized_moment_semantics()
+{
+    const std::vector<double> positive_abscissas{1.0, 4.0};
+    const std::vector<double> positive_weights{0.25, 0.75};
+    const qmomkit::QmomState positive_state = qmom_state_from_moments(raw_moments_1d(positive_abscissas, positive_weights, 6), 2);
+    bool positive_checked = false;
+    const qmomkit::MomentSource positive_source = [&positive_checked](double, const qmomkit::QmomSourceContext& context)
+    {
+        assert_near(context.generalized_moment(0.0), 1.0, 2.0e-12);
+        assert_near(context.generalized_moment(2.0), context.value(2), 2.0e-10);
+        assert_near(context.generalized_moment(0.5), 0.25 * std::sqrt(1.0) + 0.75 * std::sqrt(4.0), 2.0e-12);
+        assert_near(context.generalized_moment(1.5), 0.25 * std::pow(1.0, 1.5) + 0.75 * std::pow(4.0, 1.5), 2.0e-12);
+
+        const auto expect_invalid_order = [&context](const double order)
+        {
+            bool rejected = false;
+            try
+            {
+                static_cast<void>(context.generalized_moment(order));
+            }
+            catch (const std::invalid_argument&)
+            {
+                rejected = true;
+            }
+            assert(rejected);
+        };
+        expect_invalid_order(-0.5);
+        expect_invalid_order(std::numeric_limits<double>::quiet_NaN());
+        expect_invalid_order(std::numeric_limits<double>::infinity());
+        expect_invalid_order(-std::numeric_limits<double>::infinity());
+        positive_checked = true;
+        return std::vector<double>(context.size(), 0.0);
+    };
+    const qmomkit::QmomPhaseSpaceEvolutionResult positive_result = qmomkit::advance_qmom_moment_source(positive_state, 0.0, 0.1, positive_source);
+    assert(positive_result.ok());
+    assert(positive_checked);
+
+    const qmomkit::QmomState negative_state = qmom_state_from_moments(raw_moments_1d({-1.0, 2.0}, {0.4, 0.6}, 6), 2);
+    bool negative_checked = false;
+    const qmomkit::MomentSource negative_source = [&negative_checked](double, const qmomkit::QmomSourceContext& context)
+    {
+        bool rejected_fractional_power = false;
+        try
+        {
+            static_cast<void>(context.generalized_moment(0.5));
+        }
+        catch (const std::domain_error&)
+        {
+            rejected_fractional_power = true;
+        }
+        assert(rejected_fractional_power);
+        assert_near(context.generalized_moment(3.0), context.value(3), 2.0e-10);
+        negative_checked = true;
+        return std::vector<double>(context.size(), 0.0);
+    };
+    const qmomkit::QmomPhaseSpaceEvolutionResult negative_result = qmomkit::advance_qmom_moment_source(negative_state, 0.0, 0.1, negative_source);
+    assert(negative_result.ok());
+    assert(negative_checked);
+}
+
+void test_qmom_source_context_generalized_moment_uses_current_rk_stage()
+{
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({1.0, 4.0}, {0.25, 0.75}, 6), 2);
+    constexpr double coefficient = 0.5;
+    constexpr double time_step = 0.2;
+    constexpr double initial_generalized_moment = 1.75;
+    std::vector<double> observed_generalized_moments;
+    std::vector<double> observed_densities;
+    const qmomkit::MomentSource source = [&](double, const qmomkit::QmomSourceContext& context)
+    {
+        const double generalized_moment = context.generalized_moment(0.5);
+        observed_generalized_moments.push_back(generalized_moment);
+        observed_densities.push_back(context.value(0));
+        // The source scales every raw moment equally, so the stage quadrature
+        // keeps its abscissas and scales its weights by the stage density.
+        assert_near(generalized_moment, initial_generalized_moment * context.value(0), 2.0e-10);
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t order = 0; order < rate.size(); ++order)
+        {
+            rate[order] = coefficient * context.value(order);
+        }
+        return rate;
+    };
+
+    const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_moment_source(state, 0.0, time_step, source);
+    assert(result.ok());
+    assert(observed_generalized_moments.size() == 3);
+    assert(observed_densities.size() == 3);
+    assert_near(observed_generalized_moments[0], initial_generalized_moment, 2.0e-10);
+    assert_near(observed_generalized_moments[1], initial_generalized_moment * 1.1, 2.0e-10);
+    assert_near(observed_generalized_moments[2], initial_generalized_moment * 1.0525, 2.0e-10);
+    assert(observed_generalized_moments[1] != observed_generalized_moments[0]);
+    assert(observed_generalized_moments[2] != observed_generalized_moments[0]);
+}
+
 void test_configured_qmom_source_realizability_policy_matches_programmatic_adapter()
 {
     const qmomkit::QmomState state = qmom_state_from_moments({1.0, 0.0, 1.0, 0.0}, 2);
@@ -4626,6 +4721,8 @@ void run_all_phase_space_evolution_tests()
     test_public_qmom_moment_source_stage_adaptive_policy();
     test_public_qmom_moment_source_stage_failures_roll_back();
     test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature();
+    test_qmom_source_context_generalized_moment_semantics();
+    test_qmom_source_context_generalized_moment_uses_current_rk_stage();
     test_configured_qmom_source_realizability_policy_matches_programmatic_adapter();
     test_public_qmom_moment_source_stage_boundary_matches_source_update();
     test_public_qmom_stage_composition_matches_strang_phase_space_evolution();
@@ -4737,6 +4834,8 @@ void run_qmom_phase_space_evolution_tests()
     test_public_qmom_moment_source_stage_fixed_mode_is_strict();
     test_public_qmom_moment_source_stage_adaptive_policy();
     test_public_qmom_moment_source_stage_failures_roll_back();
+    test_qmom_source_context_generalized_moment_semantics();
+    test_qmom_source_context_generalized_moment_uses_current_rk_stage();
     test_configured_qmom_source_realizability_policy_matches_programmatic_adapter();
     test_public_qmom_moment_source_stage_boundary_matches_source_update();
     test_public_qmom_stage_composition_matches_strang_phase_space_evolution();
@@ -4871,6 +4970,8 @@ int main(const int argc, char** argv)
             {"public_qmom_moment_source_stage_adaptive_policy", test_public_qmom_moment_source_stage_adaptive_policy},
             {"public_qmom_moment_source_stage_failures_roll_back", test_public_qmom_moment_source_stage_failures_roll_back},
             {"qmom_source_context_uses_current_rk_stage_and_caches_quadrature", test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature},
+            {"qmom_source_context_generalized_moment_semantics", test_qmom_source_context_generalized_moment_semantics},
+            {"qmom_source_context_generalized_moment_uses_current_rk_stage", test_qmom_source_context_generalized_moment_uses_current_rk_stage},
             {"configured_qmom_source_realizability_policy_matches_programmatic_adapter",
              test_configured_qmom_source_realizability_policy_matches_programmatic_adapter},
             {"public_qmom_moment_source_stage_boundary_matches_source_update", test_public_qmom_moment_source_stage_boundary_matches_source_update},

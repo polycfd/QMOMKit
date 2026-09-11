@@ -1,4 +1,5 @@
 #include <qmomkit/qmomkit.hpp>
+#include <utility>
 #include <vector>
 
 namespace
@@ -56,6 +57,33 @@ int main()
     const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> qmom_batch_aware =
         qmomkit::advance_qmom_phase_space_batch_with_index(qmom_states, 2, 0.0, 0.1, batch_velocity, batch_source, qmom_options);
     if (qmom_batch_aware.size() != 1 || !qmom_batch_aware.front().ok())
+    {
+        return 1;
+    }
+
+    const qmomkit::PhaseSpaceHierarchy cqmom_hierarchy({1, 1});
+    const qmomkit::RawMomentTensor cqmom_dense_moments{{2, 2}, {1.0, 0.0, 0.0, 0.0}};
+
+    qmomkit::CqmomDenseCase dense_case{cqmom_hierarchy, cqmom_dense_moments};
+    const qmomkit::CqmomResult dense_static = qmomkit::compute_cqmom(dense_case);
+    if (!dense_static.ok())
+    {
+        return 1;
+    }
+    const qmomkit::CqmomState dense_state = qmomkit::CqmomCase{std::move(dense_case)}.initial_state();
+    if (dense_state.quadrature().total_nodes() != 1 || dense_state.quadrature().weights().size() != 1)
+    {
+        return 1;
+    }
+
+    qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments(cqmom_dense_moments, qmomkit::create_cqmom_moment_layout(cqmom_hierarchy))};
+    const qmomkit::CqmomResult lean_static = qmomkit::compute_cqmom(lean_case);
+    if (!lean_static.ok())
+    {
+        return 1;
+    }
+    const qmomkit::CqmomState lean_state = qmomkit::CqmomCase{std::move(lean_case)}.initial_state();
+    if (lean_state.quadrature().total_nodes() != 1 || lean_state.quadrature().weights().size() != 1)
     {
         return 1;
     }

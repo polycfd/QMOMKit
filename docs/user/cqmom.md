@@ -35,9 +35,9 @@ internal storage choices. That description can come from a `.qmom` configuration
 file or from direct C++ setup. In either case, users name or order the
 coordinates, set the requested node counts, choose the conditioning order, and
 describe the initial moments. File-based setup builds a `CqmomCase`; direct C++
-setup can provide advanced explicit-representation case types such as
-`CqmomDenseCase` or `CqmomLeanCase` when the application intentionally manages
-dense or lean moment storage.
+setup can provide `CqmomDenseCase` or `CqmomLeanCase` when the application
+intentionally manages dense or lean moment storage, then promote either typed
+representation to the normal `CqmomCase` workflow.
 
 ```text
 configuration file:
@@ -48,6 +48,7 @@ configuration file:
 direct API:
     C++ setup
     -> CqmomDenseCase or CqmomLeanCase
+    -> CqmomCase
 
 reconstruction:
     CqmomCase, CqmomDenseCase, or CqmomLeanCase
@@ -64,8 +65,8 @@ normal optional phase-space evolution:
 At the user level, this means:
 
 1. Define the CQMOM setup in a `.qmom` file or directly in C++.
-2. Load it with `load_cqmom(...)` or construct an explicit public CQMOM case in
-   C++.
+2. Load it with `load_cqmom(...)`, or construct a `CqmomDenseCase` or
+   `CqmomLeanCase` and pass it to `CqmomCase` in C++.
 3. Keep the case object as the configured problem definition.
 4. Call `compute_cqmom(...)` to compute the initial quadrature.
 5. Inspect the quadrature, evaluate derived quantities, or write output.
@@ -87,12 +88,13 @@ physical coordinates. Raw moments, weights, callbacks, states, and configured
 coordinate supports keep their physical meaning.
 
 `CqmomCase` is the representation-neutral immutable setup produced by the normal
-configuration loader. Normal CQMOM phase-space evolution creates `CqmomState` from
+configuration loader or by promoting a typed `CqmomDenseCase` or
+`CqmomLeanCase`. Normal CQMOM phase-space evolution creates `CqmomState` from
 `CqmomCase` and advances it with `advance_cqmom_phase_space(...)`, independent of
-whether the case stores moments densely or leanly. Advanced direct C++ workflows
-can instead pass `CqmomDenseCase` or `CqmomLeanCase` to `compute_cqmom(...)` for
-explicit static inversion. In all cases, `compute_cqmom(...)` returns
-quadrature; it does not return a phase-space evolution state.
+whether the case stores moments densely or leanly. The explicit dense and lean
+types also remain available for static inversion with `compute_cqmom(...)`.
+In all cases, `compute_cqmom(...)` returns quadrature; it does not return a
+phase-space evolution state.
 
 For the usual CQMOM path, users specify the phase space, initial condition, and
 reconstruction settings. QMOMKit determines which moments are needed for the
@@ -177,6 +179,7 @@ from the same case and pass it to `advance_cqmom_phase_space(...)`:
 
 ```cpp
 qmomkit::CqmomState state = cqmom_case.initial_state();
+const qmomkit::CqmomQuadrature& quadrature = state.quadrature();
 ```
 
 Write the moments represented by the current state with a state-aware moment
@@ -417,7 +420,9 @@ const qmomkit::CqmomResult result = qmomkit::compute_cqmom(dense_case);
 This path is not the recommended beginner workflow. It is the explicit dense
 representation workflow for callers that deliberately need full rectangular
 tensor input. Dense remains a first-class supported expert workflow when the
-application intentionally manages dense moment storage.
+application intentionally manages dense moment storage. To use the same normal
+state/evolution workflow as configuration-driven CQMOM, construct
+`CqmomCase{dense_case}` and call `initial_state()`.
 
 ### Explicit Lean Representation Workflow
 
@@ -440,5 +445,7 @@ pass the same `CqmomState` through `advance_cqmom_advection(...)` and
 `advance_cqmom_moment_source(...)`. `CqmomState` preserves the configured
 reconstruction policy, selected moment storage, and adaptive branch-count
 topology between successful phase-space evolution calls. Dense and lean case types remain
-available for callers that intentionally manage static inversion inputs, but
-public CQMOM phase-space evolution is storage-independent.
+available for callers that intentionally manage static inversion inputs and can
+be promoted to the same storage-independent public CQMOM phase-space evolution
+workflow. `CqmomState::quadrature()` exposes the current accepted terminal
+quadrature.

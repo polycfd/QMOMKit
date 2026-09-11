@@ -13,7 +13,7 @@ lambdas are documented with their owning function. Instrumentation definitions
 are included for its enabled preprocessor branch. Line links are navigation aids,
 not permanent API identifiers.
 
-The inventory includes **916 definition locations**, grouped by named function
+The inventory includes **919 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -840,64 +840,65 @@ the executable-body count.
 | `QmomCase::initial_state` | [203](../../../src/public_api.cpp#L203) |
 | `to_string` | [227](../../../src/public_api.cpp#L227) |
 | `format_cqmom_settings` | [239](../../../src/public_api.cpp#L239) |
-| `CqmomCase::CqmomCase` | [251](../../../src/public_api.cpp#L251), [253](../../../src/public_api.cpp#L253), [264](../../../src/public_api.cpp#L264) |
-| `CqmomCase::operator=` | [255](../../../src/public_api.cpp#L255), [266](../../../src/public_api.cpp#L266) |
-| `CqmomCase::hierarchy` | [270](../../../src/public_api.cpp#L270) |
-| `CqmomCase::qmom_options` | [275](../../../src/public_api.cpp#L275) |
-| `CqmomCase::conditional_options` | [280](../../../src/public_api.cpp#L280) |
-| `CqmomCase::adaptive_branch_counts` | [285](../../../src/public_api.cpp#L285) |
-| `CqmomCase::diagnostic_level` | [290](../../../src/public_api.cpp#L290) |
-| `CqmomCase::vandermonde_solver` | [295](../../../src/public_api.cpp#L295) |
-| `CqmomCase::coordinate_support` | [300](../../../src/public_api.cpp#L300) |
-| `CqmomCase::moment_storage` | [305](../../../src/public_api.cpp#L305) |
-| `CqmomCase::initial_state` | [310](../../../src/public_api.cpp#L310) |
-| `CqmomState::CqmomState` | [339](../../../src/public_api.cpp#L339), [341](../../../src/public_api.cpp#L341), [352](../../../src/public_api.cpp#L352) |
-| `CqmomState::operator=` | [343](../../../src/public_api.cpp#L343), [354](../../../src/public_api.cpp#L354) |
-| `CqmomState::hierarchy` | [358](../../../src/public_api.cpp#L358) |
-| `CqmomState::qmom_options` | [363](../../../src/public_api.cpp#L363) |
-| `CqmomState::conditional_options` | [368](../../../src/public_api.cpp#L368) |
-| `CqmomState::adaptive_branch_counts` | [373](../../../src/public_api.cpp#L373) |
-| `CqmomState::diagnostic_level` | [378](../../../src/public_api.cpp#L378) |
-| `CqmomState::vandermonde_solver` | [383](../../../src/public_api.cpp#L383) |
-| `CqmomState::coordinate_support` | [388](../../../src/public_api.cpp#L388) |
-| `CqmomState::moment_storage` | [393](../../../src/public_api.cpp#L393) |
-| `CqmomState::active_branch_counts` | [398](../../../src/public_api.cpp#L398) |
-| `CqmomState::moment_indices` | [403](../../../src/public_api.cpp#L403) |
-| `CqmomState::moment_values` | [410](../../../src/public_api.cpp#L410) |
-| `CqmomState::moment` | [417](../../../src/public_api.cpp#L417) |
-| `validate_prepared_fixed_metadata` | [449](../../../src/public_api.cpp#L449), [461](../../../src/public_api.cpp#L461) |
-| `make_prepared_fixed_metadata` | [469](../../../src/public_api.cpp#L469), [488](../../../src/public_api.cpp#L488) |
-| `CqmomConstructionAccess::create_case` | [508](../../../src/public_api.cpp#L508), [514](../../../src/public_api.cpp#L514) |
-| `CqmomConstructionAccess::create_state` | [520](../../../src/public_api.cpp#L520), [525](../../../src/public_api.cpp#L525), [531](../../../src/public_api.cpp#L531), [540](../../../src/public_api.cpp#L540), [547](../../../src/public_api.cpp#L547), [552](../../../src/public_api.cpp#L552), [558](../../../src/public_api.cpp#L558), [567](../../../src/public_api.cpp#L567) |
-| `CqmomConstructionAccess::case_dense_case` | [574](../../../src/public_api.cpp#L574) |
-| `CqmomConstructionAccess::case_lean_case` | [579](../../../src/public_api.cpp#L579) |
-| `CqmomConstructionAccess::state_dense_case` | [584](../../../src/public_api.cpp#L584) |
-| `CqmomConstructionAccess::state_lean_case` | [589](../../../src/public_api.cpp#L589) |
-| `CqmomConstructionAccess::state_active_branch_counts` | [594](../../../src/public_api.cpp#L594) |
-| `CqmomConstructionAccess::state_accepted_quadrature` | [599](../../../src/public_api.cpp#L599) |
-| `CqmomConstructionAccess::case_prepared_fixed_metadata` | [604](../../../src/public_api.cpp#L604) |
-| `CqmomConstructionAccess::state_prepared_fixed_metadata` | [609](../../../src/public_api.cpp#L609) |
-| `CqmomConstructionAccess::create_quadrature` | [614](../../../src/public_api.cpp#L614) |
-| `CqmomQuadrature::CqmomQuadrature` | [624](../../../src/public_api.cpp#L624) |
-| `CqmomQuadrature::hierarchy` | [632](../../../src/public_api.cpp#L632) |
-| `CqmomQuadrature::number_of_dimensions` | [637](../../../src/public_api.cpp#L637) |
-| `CqmomQuadrature::total_nodes` | [642](../../../src/public_api.cpp#L642) |
-| `CqmomQuadrature::weights` | [647](../../../src/public_api.cpp#L647) |
-| `CqmomQuadrature::abscissas` | [652](../../../src/public_api.cpp#L652) |
-| `CqmomQuadrature::adaptive_branch_counts_enabled` | [657](../../../src/public_api.cpp#L657) |
-| `CqmomQuadrature::has_rectangular_storage` | [662](../../../src/public_api.cpp#L662) |
-| `CqmomQuadrature::terminal_paths` | [667](../../../src/public_api.cpp#L667) |
-| `CqmomQuadrature::weight` | [672](../../../src/public_api.cpp#L672) |
-| `CqmomQuadrature::abscissa` | [681](../../../src/public_api.cpp#L681) |
-| `CqmomQuadrature::node` | [694](../../../src/public_api.cpp#L694) |
-| `to_cqmom_status` | [707](../../../src/public_api.cpp#L707) |
-| `to_cqmom_diagnostics` | [723](../../../src/public_api.cpp#L723), [765](../../../src/public_api.cpp#L765) |
-| `phase_space_index_to_conditioning_path` | [777](../../../src/public_api.cpp#L777) |
-| `terminal_paths_for_public_quadrature` | [787](../../../src/public_api.cpp#L787) |
-| `failed_phase_space_dimension` | [803](../../../src/public_api.cpp#L803) |
-| `to_cqmom_result` | [813](../../../src/public_api.cpp#L813) |
-| `compute_cqmom` | [830](../../../src/public_api.cpp#L830), [835](../../../src/public_api.cpp#L835), [970](../../../src/public_api.cpp#L970) |
-| `compute_cqmom_internal` | [879](../../../src/public_api.cpp#L879), [936](../../../src/public_api.cpp#L936) |
+| `CqmomCase::CqmomCase` | [254](../../../src/public_api.cpp#L254), [256](../../../src/public_api.cpp#L256), [258](../../../src/public_api.cpp#L258), [260](../../../src/public_api.cpp#L260), [271](../../../src/public_api.cpp#L271) |
+| `CqmomCase::operator=` | [262](../../../src/public_api.cpp#L262), [273](../../../src/public_api.cpp#L273) |
+| `CqmomCase::hierarchy` | [277](../../../src/public_api.cpp#L277) |
+| `CqmomCase::qmom_options` | [282](../../../src/public_api.cpp#L282) |
+| `CqmomCase::conditional_options` | [287](../../../src/public_api.cpp#L287) |
+| `CqmomCase::adaptive_branch_counts` | [292](../../../src/public_api.cpp#L292) |
+| `CqmomCase::diagnostic_level` | [297](../../../src/public_api.cpp#L297) |
+| `CqmomCase::vandermonde_solver` | [302](../../../src/public_api.cpp#L302) |
+| `CqmomCase::coordinate_support` | [307](../../../src/public_api.cpp#L307) |
+| `CqmomCase::moment_storage` | [312](../../../src/public_api.cpp#L312) |
+| `CqmomCase::initial_state` | [317](../../../src/public_api.cpp#L317) |
+| `CqmomState::CqmomState` | [362](../../../src/public_api.cpp#L362), [364](../../../src/public_api.cpp#L364), [375](../../../src/public_api.cpp#L375) |
+| `CqmomState::operator=` | [366](../../../src/public_api.cpp#L366), [377](../../../src/public_api.cpp#L377) |
+| `CqmomState::hierarchy` | [381](../../../src/public_api.cpp#L381) |
+| `CqmomState::quadrature` | [386](../../../src/public_api.cpp#L386) |
+| `CqmomState::qmom_options` | [395](../../../src/public_api.cpp#L395) |
+| `CqmomState::conditional_options` | [400](../../../src/public_api.cpp#L400) |
+| `CqmomState::adaptive_branch_counts` | [405](../../../src/public_api.cpp#L405) |
+| `CqmomState::diagnostic_level` | [410](../../../src/public_api.cpp#L410) |
+| `CqmomState::vandermonde_solver` | [415](../../../src/public_api.cpp#L415) |
+| `CqmomState::coordinate_support` | [420](../../../src/public_api.cpp#L420) |
+| `CqmomState::moment_storage` | [425](../../../src/public_api.cpp#L425) |
+| `CqmomState::active_branch_counts` | [430](../../../src/public_api.cpp#L430) |
+| `CqmomState::moment_indices` | [435](../../../src/public_api.cpp#L435) |
+| `CqmomState::moment_values` | [442](../../../src/public_api.cpp#L442) |
+| `CqmomState::moment` | [449](../../../src/public_api.cpp#L449) |
+| `validate_prepared_fixed_metadata` | [481](../../../src/public_api.cpp#L481), [493](../../../src/public_api.cpp#L493) |
+| `make_prepared_fixed_metadata` | [501](../../../src/public_api.cpp#L501), [520](../../../src/public_api.cpp#L520) |
+| `CqmomConstructionAccess::create_case` | [540](../../../src/public_api.cpp#L540), [546](../../../src/public_api.cpp#L546) |
+| `CqmomConstructionAccess::create_state` | [552](../../../src/public_api.cpp#L552), [557](../../../src/public_api.cpp#L557), [563](../../../src/public_api.cpp#L563), [572](../../../src/public_api.cpp#L572), [579](../../../src/public_api.cpp#L579), [584](../../../src/public_api.cpp#L584), [590](../../../src/public_api.cpp#L590), [599](../../../src/public_api.cpp#L599) |
+| `CqmomConstructionAccess::case_dense_case` | [606](../../../src/public_api.cpp#L606) |
+| `CqmomConstructionAccess::case_lean_case` | [611](../../../src/public_api.cpp#L611) |
+| `CqmomConstructionAccess::state_dense_case` | [616](../../../src/public_api.cpp#L616) |
+| `CqmomConstructionAccess::state_lean_case` | [621](../../../src/public_api.cpp#L621) |
+| `CqmomConstructionAccess::state_active_branch_counts` | [626](../../../src/public_api.cpp#L626) |
+| `CqmomConstructionAccess::state_accepted_quadrature` | [631](../../../src/public_api.cpp#L631) |
+| `CqmomConstructionAccess::case_prepared_fixed_metadata` | [636](../../../src/public_api.cpp#L636) |
+| `CqmomConstructionAccess::state_prepared_fixed_metadata` | [641](../../../src/public_api.cpp#L641) |
+| `CqmomConstructionAccess::create_quadrature` | [646](../../../src/public_api.cpp#L646) |
+| `CqmomQuadrature::CqmomQuadrature` | [656](../../../src/public_api.cpp#L656) |
+| `CqmomQuadrature::hierarchy` | [664](../../../src/public_api.cpp#L664) |
+| `CqmomQuadrature::number_of_dimensions` | [669](../../../src/public_api.cpp#L669) |
+| `CqmomQuadrature::total_nodes` | [674](../../../src/public_api.cpp#L674) |
+| `CqmomQuadrature::weights` | [679](../../../src/public_api.cpp#L679) |
+| `CqmomQuadrature::abscissas` | [684](../../../src/public_api.cpp#L684) |
+| `CqmomQuadrature::adaptive_branch_counts_enabled` | [689](../../../src/public_api.cpp#L689) |
+| `CqmomQuadrature::has_rectangular_storage` | [694](../../../src/public_api.cpp#L694) |
+| `CqmomQuadrature::terminal_paths` | [699](../../../src/public_api.cpp#L699) |
+| `CqmomQuadrature::weight` | [704](../../../src/public_api.cpp#L704) |
+| `CqmomQuadrature::abscissa` | [713](../../../src/public_api.cpp#L713) |
+| `CqmomQuadrature::node` | [726](../../../src/public_api.cpp#L726) |
+| `to_cqmom_status` | [739](../../../src/public_api.cpp#L739) |
+| `to_cqmom_diagnostics` | [755](../../../src/public_api.cpp#L755), [796](../../../src/public_api.cpp#L796) |
+| `phase_space_index_to_conditioning_path` | [809](../../../src/public_api.cpp#L809) |
+| `terminal_paths_for_public_quadrature` | [819](../../../src/public_api.cpp#L819) |
+| `failed_phase_space_dimension` | [835](../../../src/public_api.cpp#L835) |
+| `to_cqmom_result` | [845](../../../src/public_api.cpp#L845) |
+| `compute_cqmom` | [871](../../../src/public_api.cpp#L871), [876](../../../src/public_api.cpp#L876), [1023](../../../src/public_api.cpp#L1023) |
+| `compute_cqmom_internal` | [924](../../../src/public_api.cpp#L924), [985](../../../src/public_api.cpp#L985) |
 
 ### `src/realizability.cpp`
 

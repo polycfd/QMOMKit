@@ -257,6 +257,65 @@ void assert_public_lean_cqmom_matches_dense(const qmomkit::PhaseSpaceHierarchy& 
     assert_same_cqmom_result(lean, dense, 1.0e-10);
 }
 
+qmomkit::RawMomentTensor public_cqmom_promotion_moments()
+{
+    return {{4, 4},
+            {
+                1.0,
+                0.44,
+                0.424,
+                0.5552,
+                0.55,
+                0.242,
+                0.2332,
+                0.30536,
+                1.2125,
+                0.5335,
+                0.5141,
+                0.67318,
+                1.121875,
+                0.493625,
+                0.475675,
+                0.622865,
+            }};
+}
+
+void test_cqmom_dense_case_promotes_to_state_and_exposes_quadrature()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    qmomkit::CqmomDenseCase dense_case{hierarchy, public_cqmom_promotion_moments()};
+    const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(dense_case);
+    assert(expected.ok());
+
+    const qmomkit::CqmomCase case_{std::move(dense_case)};
+    const qmomkit::CqmomState state = case_.initial_state();
+
+    assert(case_.moment_storage() == qmomkit::CqmomMomentStorage::dense);
+    assert(state.moment_storage() == qmomkit::CqmomMomentStorage::dense);
+    assert(state.hierarchy().node_counts() == hierarchy.node_counts());
+    assert(state.moment_values().size() == 16);
+    assert_same_quadrature(state.quadrature(), expected.quadrature, 1.0e-10);
+}
+
+void test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::RawMomentTensor dense_moments = public_cqmom_promotion_moments();
+    qmomkit::CqmomLeanCase lean_case{lean_moments_from_dense(hierarchy, dense_moments)};
+    const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(lean_case);
+    assert(expected.ok());
+
+    const qmomkit::CqmomCase case_{std::move(lean_case)};
+    const qmomkit::CqmomState state = case_.initial_state();
+
+    assert(case_.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    assert(state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    assert(state.hierarchy().node_counts() == hierarchy.node_counts());
+    assert(state.moment_indices() == qmomkit::create_cqmom_moment_layout(hierarchy).required_indices);
+    assert(state.moment_values().size() == state.moment_indices().size());
+    assert_same_quadrature(state.quadrature(), expected.quadrature, 1.0e-10);
+}
+
 void test_cqmom_moment_layout_two_dimensional_reduced_set()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -1282,6 +1341,8 @@ int main(const int argc, char** argv)
             {"create_cqmom_moment_data_rejects_non_finite_values", test_create_cqmom_moment_data_rejects_non_finite_values},
             {"create_cqmom_moment_data_from_independent_product_selected_moments",
              test_create_cqmom_moment_data_from_independent_product_selected_moments},
+            {"cqmom_dense_case_promotes_to_state_and_exposes_quadrature", test_cqmom_dense_case_promotes_to_state_and_exposes_quadrature},
+            {"cqmom_lean_case_promotes_to_state_and_exposes_quadrature", test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature},
             {"lean_cqmom_public_api_matches_dense_two_dimensional", test_lean_cqmom_public_api_matches_dense_two_dimensional},
             {"lean_cqmom_public_api_matches_dense_three_dimensional", test_lean_cqmom_public_api_matches_dense_three_dimensional},
             {"lean_cqmom_public_api_matches_dense_non_identity", test_lean_cqmom_public_api_matches_dense_non_identity},

@@ -159,12 +159,16 @@ int main()
         {},
         qmom_options};
 
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
+    const qmomkit::CqmomCase normal_case{cqmom_case};
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(normal_case);
     if (!cqmom.ok())
     {
         std::cerr << "CQMOM failed: " << cqmom.message << '\n';
         return 1;
     }
+
+    const qmomkit::CqmomState state = normal_case.initial_state();
+    const qmomkit::CqmomQuadrature& quadrature = state.quadrature();
 
     return 0;
 }
@@ -172,9 +176,11 @@ int main()
 
 Use `CqmomDenseCase` when the application has full rectangular tensor moments.
 Use `CqmomLeanCase` when the application intentionally provides only the
-required CQMOM moments. If you want QMOMKit to derive required CQMOM moments
-from a configured independent-product initialization, `load_cqmom(...)` remains
-the most concise route to the representation-neutral `CqmomCase`.
+required CQMOM moments. Both can be promoted to `CqmomCase` for
+`initial_state()` and phase-space evolution. If you want QMOMKit to derive
+required CQMOM moments from a configured independent-product initialization,
+`load_cqmom(...)` remains the most concise route to the representation-neutral
+`CqmomCase`.
 
 Phase-space evolution is still optional. QMOM phase-space evolution advances a `QmomState` created from
 `QmomCase`. CQMOM phase-space evolution advances a `CqmomState` created from `CqmomCase`:

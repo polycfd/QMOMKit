@@ -19,26 +19,16 @@ advance_qmom_phase_space(...)
 QmomState
 ```
 
-The driver keeps top-level orchestration in [main.cpp](./main.cpp), while the example-local
-physics callbacks live in [physics.cpp](./physics.cpp). The user provides:
-
-- initial raw moments;
-- a QMOM node count;
-- time controls;
-- phase-space advection physics through `qmomkit::PhaseSpaceVelocity`;
-- moment-source physics through `qmomkit::MomentSource`.
-
-Those callbacks are required by this example because its model includes both
-advection motion and fragmentation. Other QMOMKit phase-space evolution workflows can use
-only the callbacks needed by their physics; see [phase_space_evolution.md](../../docs/user/phase_space_evolution.md) for
-the lower-level node-advection and moment-source routines.
+The example includes:
+- phase-space advection through `qmomkit::PhaseSpaceVelocity`;
+- a moment source through `qmomkit::MomentSource`.
 
 QMOMKit handles the quadrature representation, moment reconstruction, time
 integration, and phase-space evolution splitting inside `advance_qmom_phase_space(...)`.
 The accepted `QmomState` carries the canonical moments and quadrature from one
 step to the next. 
 
-The phase-space evolution is
+The phase-space advection is defined as
 
 $$
 \frac{\mathrm{d}d}{\mathrm{d}t} = 1-d.
@@ -47,11 +37,8 @@ $$
 The moment-source is binary fragmentation,
 
 $$
-d \to \frac{d}{2},
+d \to \frac{d}{2}.
 $$
-
-with the same raw-moment source formulation used by the full 1D advection
-breakage example.
 
 Build and run from this example directory:
 
@@ -62,18 +49,16 @@ cd build
 ./qmom_1d_minimal_example
 ```
 
-The executable prints a concise console summary with the initial raw moments,
-final raw moments, and final quadrature nodes and weights. It also writes two
+The executable prints a concise console summary with the 
+final moments and the final quadrature. It also writes two
 QMOMKit-native output files:
 
 - `output/moment_history.txt`
 - `output/quadrature_history.txt`
 
-`moment_history.txt` records the raw-moment evolution, which is the primary
-distribution history for many moment-method workflows. `quadrature_history.txt`
-records the reconstructed node weights and abscissas, which are useful for
-inspecting the numerical representation. Both files are whitespace-delimited
-text tables written through QMOMKit-native writers.
+`moment_history.txt` records the raw-moment evolution and `quadrature_history.txt`
+records the reconstructed node weights and abscissas. 
+Both files are whitespace-delimited text tables written through QMOMKit-native writers.
 
 ## What to expect
 

@@ -55,18 +55,11 @@ int main()
             std::cerr << sampled_case.error() << '\n';
             return 1;
         }
-        const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(sampled_case.value());
-        if (!initial.ok())
-        {
-            std::cerr << "Initial CQMOM inversion failed: " << initial.message << '\n';
-            return 1;
-        }
-
         qmomkit::CqmomState state = sampled_case.value().initial_state();
-        qmomkit::CqmomQuadrature quadrature = initial.quadrature;
+        const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
         const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(sampled_case.value().hierarchy());
         const qmomkit::RawMomentRequest request{layout.required_indices};
-        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(quadrature, request);
+        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(initial_quadrature, request);
 
         const qmomkit::CqmomMomentSource source = breakup_source();
         if (output.value().write_moments || output.value().write_quadrature)
@@ -77,9 +70,15 @@ int main()
         if (output.value().write_moments)
         {
             moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output.value().directory / "moment_history.txt", state, output.value()));
-            moment_history_writer->write(initial_time, state, quadrature);
+            moment_history_writer->write(initial_time, state, state.quadrature());
         }
-        std::vector<std::pair<double, qmomkit::CqmomQuadrature>> history{{initial_time, quadrature}};
+        std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;
+        if (output.value().write_quadrature)
+        {
+            quadrature_history_writer.emplace(
+                qmomkit::QuadratureWriter::for_cqmom(output.value().directory / "quadrature_history.txt", initial_quadrature.number_of_dimensions()));
+            quadrature_history_writer->write(initial_time, initial_quadrature);
+        }
         const double output_interval = output.value().interval.value_or(final_time - initial_time);
         double time = initial_time;
         double next_output = initial_time + output_interval;
@@ -87,20 +86,22 @@ int main()
         {
             const qmomkit::CqmomPhaseSpaceEvolutionResult step = qmomkit::advance_cqmom_phase_space(
                 state, time, std::min(time_step, final_time - time), particle_velocity(), source, evolution.value());
-            if (!step.ok() || !step.quadrature.has_value())
+            if (!step.ok())
             {
                 std::cerr << "CQMOM phase-space evolution failed: " << step.message << '\n';
                 return 1;
             }
             state = step.state;
-            quadrature = *step.quadrature;
             time = step.final_time;
             if (time + 1.0e-14 >= next_output || time >= final_time - 1.0e-14)
             {
-                history.emplace_back(time, quadrature);
+                if (quadrature_history_writer.has_value())
+                {
+                    quadrature_history_writer->write(time, state.quadrature());
+                }
                 if (moment_history_writer.has_value())
                 {
-                    moment_history_writer->write(time, state, quadrature);
+                    moment_history_writer->write(time, state, state.quadrature());
                 }
                 while (next_output <= time + 1.0e-14)
                 {
@@ -108,16 +109,7 @@ int main()
                 }
             }
         }
-        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(quadrature, request);
-
-        if (output.value().write_quadrature)
-        {
-            qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(output.value().directory / "quadrature_history.txt", 5);
-            for (const auto& [sample_time, sample_quadrature] : history)
-            {
-                writer.write(sample_time, sample_quadrature);
-            }
-        }
+        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(state.quadrature(), request);
 
         std::cout << "5D CQMOM particle breakage and heat-transfer example\n";
         std::cout << "phase-space ordering: (V,T,u,v,w)\n";

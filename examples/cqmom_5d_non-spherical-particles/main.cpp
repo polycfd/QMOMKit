@@ -83,13 +83,6 @@ int main(int argc, char* argv[])
             return 1;
         }
         qmomkit::CqmomCase cqmom_case = std::move(sampled_case).value();
-        const qmomkit::CqmomResult initial_cqmom = qmomkit::compute_cqmom(cqmom_case);
-        if (!initial_cqmom.ok())
-        {
-            std::cerr << "CQMOM inversion failed: " << initial_cqmom.message << '\n';
-            return 1;
-        }
-
         const ParticleModelParameters particle_parameters = particle_model_parameters();
         validate_particle_model_parameters(particle_parameters);
         const BinaryFragmentationParameters breakage_parameters = binary_fragmentation_parameters();
@@ -120,7 +113,7 @@ int main(int argc, char* argv[])
         std::cout << '\n' << qmomkit::format_node_advection_options(evolution_options.node_options);
 
         qmomkit::CqmomState state = cqmom_case.initial_state();
-        qmomkit::CqmomQuadrature quadrature = initial_cqmom.quadrature;
+        const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
         if (output_options.write_quadrature || output_options.write_moments)
         {
             ensure_output_directory(output_options.directory);
@@ -129,11 +122,19 @@ int main(int argc, char* argv[])
         if (output_options.write_moments)
         {
             qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", state, output_options)
-                .write(initial_time, state, quadrature);
+                .write(initial_time, state, state.quadrature());
             moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", state, output_options));
-            moment_history_writer->write(initial_time, state, quadrature);
+            moment_history_writer->write(initial_time, state, state.quadrature());
         }
-        std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
+        std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;
+        if (output_options.write_quadrature)
+        {
+            qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "initial_quadrature.txt", initial_quadrature.number_of_dimensions())
+                .write(initial_time, initial_quadrature);
+            quadrature_history_writer.emplace(
+                qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "quadrature_history.txt", initial_quadrature.number_of_dimensions()));
+            quadrature_history_writer->write(initial_time, initial_quadrature);
+        }
         const double output_interval = output_options.interval.value_or(final_time - initial_time);
         double next_output_time = initial_time + output_interval;
         double time = initial_time;
@@ -148,21 +149,17 @@ int main(int argc, char* argv[])
                 std::cerr << "CQMOM phase-space evolution failed: " << evolved.message << '\n';
                 return 1;
             }
-            if (!evolved.quadrature.has_value())
-            {
-                std::cerr << "CQMOM phase-space evolution did not return a quadrature.\n";
-                return 1;
-            }
-
             state = evolved.state;
-            quadrature = *evolved.quadrature;
             time = evolved.final_time;
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
-                quadrature_history.emplace_back(time, quadrature);
+                if (quadrature_history_writer.has_value())
+                {
+                    quadrature_history_writer->write(time, state.quadrature());
+                }
                 if (moment_history_writer.has_value())
                 {
-                    moment_history_writer->write(time, state, quadrature);
+                    moment_history_writer->write(time, state, state.quadrature());
                 }
                 while (next_output_time <= time + 1.0e-12)
                 {
@@ -171,30 +168,18 @@ int main(int argc, char* argv[])
             }
         }
 
-        if (output_options.write_quadrature)
-        {
-            qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "initial_quadrature.txt", initial_cqmom.quadrature.number_of_dimensions())
-                .write(initial_time, initial_cqmom.quadrature);
-            qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "quadrature_history.txt",
-                                                                                    quadrature_history.front().second.number_of_dimensions());
-            for (const auto& [history_time, history_quadrature] : quadrature_history)
-            {
-                writer.write(history_time, history_quadrature);
-            }
-        }
-
-        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(initial_cqmom.quadrature, terminal_moment_request);
+        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(initial_quadrature, terminal_moment_request);
         if (!initial_moments.ok())
         {
             throw std::runtime_error("Initial CQMOM moment reconstruction failed: " + initial_moments.message);
         }
-        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(quadrature, terminal_moment_request);
+        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(state.quadrature(), terminal_moment_request);
         if (!final_moments.ok())
         {
             throw std::runtime_error("Final CQMOM moment reconstruction failed: " + final_moments.message);
         }
-        print_result_summary(initial_moments, final_moments, quadrature, output_options.directory, initialization_sample_count, initialization_seed,
-                             time_step, final_time, output_options.write_moments, output_options.write_quadrature);
+        print_result_summary(initial_moments, final_moments, state.quadrature(), output_options.directory, initialization_sample_count,
+                             initialization_seed, time_step, final_time, output_options.write_moments, output_options.write_quadrature);
     }
     catch (const std::exception& error)
     {

@@ -141,10 +141,11 @@ metadata and do not establish units or support.
 `parse_qmom_options_from_parsed` maps `qmom.adaptive`; other Wheeler thresholds are
 API options, not arbitrary accepted `.qmom` keys. `parse_automatic_scaling_from_parsed`
 separately maps `phase_space.automatic_scaling`. Case parsers and
-`parse_qmom_phase_space_evolution_options` both copy it into their QMOM options.
-A state does not own QMOM reconstruction options, so this preserves the same
-policy across the supported two-loader workflow.
-CQMOM evolving state retains its case reconstruction options.
+`parse_qmom_phase_space_evolution_options` validates the shared configuration,
+but only the case parser places reconstruction policy into the `QmomCase`.
+`QmomCase::initial_state()` transfers that policy and the configured maximum to
+the evolving `QmomState`; phase-space evolution options contain only per-call
+controls. CQMOM evolving state likewise retains its case reconstruction options.
 
 `parse_coordinate_support` pairs lower/upper lists in phase-space order: each
 coordinate has both finite bounds with lower below upper, or neither. Bounds are

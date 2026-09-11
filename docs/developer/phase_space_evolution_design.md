@@ -521,8 +521,9 @@ advance_cqmom_phase_space(...)
 Each QMOM macro step starts from an accepted `QmomState`; the state's accepted
 quadrature is used directly for phase-space advection, and its canonical raw
 moments are used for moment-source evolution. `QmomState` exposes
-read-only accessors so callers cannot mutate moments and quadrature
-independently. It remains copyable and movable for application time loops, but
+read-only accessors for its configured maximum node count and reconstruction
+options, so callers cannot mutate moments and quadrature independently or
+provide a second reconstruction policy. It remains copyable and movable for application time loops, but
 direct construction from independent moments and quadrature is intentionally
 unavailable. Post-source QMOM reconstruction selects the next accepted
 quadrature before moments are canonicalized from that quadrature. CQMOM macro
@@ -723,7 +724,6 @@ QmomPhaseSpaceEvolutionResult advance_qmom_advection(
 
 QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(
     const QmomState& state,
-    std::size_t maximum_node_count,
     double t,
     double time_step,
     const MomentSource& source,
@@ -731,7 +731,6 @@ QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(
 
 QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(
     const QmomState& state,
-    std::size_t maximum_node_count,
     double t,
     double time_step,
     const MomentSource& source,
@@ -740,7 +739,6 @@ QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(
 
 QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(
     const QmomState& state,
-    std::size_t maximum_node_count,
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,
@@ -749,7 +747,6 @@ QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(
 
 QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(
     const QmomState& state,
-    std::size_t maximum_node_count,
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,

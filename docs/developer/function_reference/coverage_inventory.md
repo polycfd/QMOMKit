@@ -124,7 +124,9 @@ the executable-body count.
 | `QmomState::moments` | [69](../../../include/qmomkit/qmom.hpp#L69) |
 | `QmomState::quadrature` | [74](../../../include/qmomkit/qmom.hpp#L74) |
 | `QmomState::active_node_count` | [79](../../../include/qmomkit/qmom.hpp#L79) |
-| `QmomState::abscissa_bounds` | [84](../../../include/qmomkit/qmom.hpp#L84) |
+| `QmomState::maximum_node_count` | [84](../../../include/qmomkit/qmom.hpp#L84) |
+| `QmomState::qmom_options` | [89](../../../include/qmomkit/qmom.hpp#L89) |
+| `QmomState::abscissa_bounds` | [94](../../../include/qmomkit/qmom.hpp#L94) |
 
 ### `include/qmomkit/quadrature.hpp`
 

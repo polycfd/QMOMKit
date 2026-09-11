@@ -91,8 +91,10 @@ measurement was performed.
 `QmomStateAccess::from_quadrature` rebuilds the stored raw sequence, at its original
 length, from the accepted quadrature. Consequently adaptive acceptance may replace
 higher input moments with the reduced quadrature's closure. `QmomState` exposes
-moments, quadrature, bounds, and active count; the maximum and reconstruction
-options still belong to the caller/case, not the state.
+moments, quadrature, bounds, active count, configured maximum node count, and
+read-only reconstruction options. The maximum and reconstruction options are
+copied from `QmomCase` and remain authoritative for every subsequent evolution
+transition.
 
 `CqmomCase` and `CqmomState` hide a dense-or-lean variant. Public accessors expose
 representation-neutral hierarchy and policies; numerical algorithms dispatch

@@ -188,7 +188,7 @@ Phase-space evolution is still optional. QMOM phase-space evolution advances a `
 ```cpp
 qmomkit::QmomState qmom_state = qmom_case.initial_state();
 const qmomkit::QmomPhaseSpaceEvolutionResult qmom_next =
-    qmomkit::advance_qmom_phase_space(qmom_state, qmom_case.node_count, time, time_step, velocity, source, options);
+    qmomkit::advance_qmom_phase_space(qmom_state, time, time_step, velocity, source, options);
 
 qmomkit::CqmomState state = cqmom_case.initial_state();
 const qmomkit::CqmomPhaseSpaceEvolutionResult next =

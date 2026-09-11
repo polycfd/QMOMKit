@@ -95,7 +95,6 @@ int main()
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_breakage_advection_with_mc::advection_velocity();
     const qmomkit::MomentSource source = qmom_1d_breakage_advection_with_mc::binary_fragmentation_source();
     qmomkit::QmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
-    phase_space_evolution_options.qmom_options = sampled_case.options;
     std::optional<qmomkit::MomentWriter> moment_history_writer;
     std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;
     try
@@ -137,7 +136,7 @@ int main()
     {
         const double current_step = std::min(time_step, final_time - time);
         const qmomkit::QmomPhaseSpaceEvolutionResult phase_space_evolved =
-            qmomkit::advance_qmom_phase_space(state, sampled_case.node_count, time, current_step, velocity, source, phase_space_evolution_options);
+            qmomkit::advance_qmom_phase_space(state, time, current_step, velocity, source, phase_space_evolution_options);
         if (!phase_space_evolved.ok())
         {
             std::cerr << "QMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';

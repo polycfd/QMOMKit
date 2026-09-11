@@ -72,8 +72,8 @@ const qmomkit::QmomPhaseSpaceEvolutionResult first_advection =
 
 const qmomkit::QmomPhaseSpaceEvolutionResult moment_source =
     qmomkit::advance_qmom_moment_source(
-        first_advection.state, maximum_node_count,
-        time + 0.5 * time_step, time_step, source, phase_space_evolution_options);
+        first_advection.state, time + 0.5 * time_step, time_step, source,
+        phase_space_evolution_options);
 
 const qmomkit::QmomPhaseSpaceEvolutionResult second_advection =
     qmomkit::advance_qmom_advection(

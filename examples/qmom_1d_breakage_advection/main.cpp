@@ -93,7 +93,7 @@ int main()
     {
         const double current_step = std::min(time_step, final_time - time);
         const qmomkit::QmomPhaseSpaceEvolutionResult phase_space_evolved =
-            qmomkit::advance_qmom_phase_space(state, qmom_case.node_count, time, current_step, velocity, source, phase_space_evolution_options);
+            qmomkit::advance_qmom_phase_space(state, time, current_step, velocity, source, phase_space_evolution_options);
         if (!phase_space_evolved.ok())
         {
             std::cerr << "QMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';

@@ -29,6 +29,7 @@ add_library(
     src/internal/jacobi_svd.cpp
     src/internal/linear_algebra.cpp
     src/internal/vandermonde.cpp
+    src/moment_set.cpp
     src/moment_source.cpp
     src/node_advection.cpp
     src/output.cpp
@@ -88,6 +89,7 @@ install(
         include/qmomkit/qmomkit.hpp
         include/qmomkit/quadrature.hpp
         include/qmomkit/moment_reconstruction.hpp
+        include/qmomkit/raw_moment_tensor.hpp
         include/qmomkit/realizability.hpp
         include/qmomkit/realizability_policy.hpp
         include/qmomkit/runge_kutta.hpp

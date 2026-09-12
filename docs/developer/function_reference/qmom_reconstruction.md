@@ -207,5 +207,6 @@ for arbitrary marginal scales or long-double implementations.
 | `recurrence_is_finite`, `has_negative_recurrence_b`, `required_moments_are_finite` | Numerical guards; the latter checks a prefix, not every stored moment | Same Wheeler tests |
 | `finite_positive`, `convert_to_double` | Transform selection and representability guards, including nonzero underflow | Scaling tests in `tests/unit/public_api.cpp` |
 
-The elementary `MomentSet` methods implemented alongside Wheeler are covered in
+The elementary `MomentSet` methods, defined in their own `src/moment_set.cpp`
+translation unit, are covered in
 [state and representations](state_and_representations.md).

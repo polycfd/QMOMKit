@@ -3,6 +3,7 @@
 #include "internal/cqmom_case.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
+#include "internal/phase_space_velocity_validation.hpp"
 
 #include <algorithm>
 #include <cmath>

@@ -53,7 +53,7 @@ the executable-body count.
 
 | Function or overload family | Definition lines |
 |---|---|
-| `ConditionalMomentResult::ok` | [80](../../../include/qmomkit/conditional_moments.hpp#L80) |
+| `ConditionalMomentResult::ok` | [70](../../../include/qmomkit/conditional_moments.hpp#L70) |
 
 ### `include/qmomkit/configuration.hpp`
 
@@ -532,11 +532,7 @@ the executable-body count.
 
 | Function or overload family | Definition lines |
 |---|---|
-| `all_finite` | [16](../../../src/internal/numeric_utils.hpp#L16) |
-| `format_diagnostic_vector` | [21](../../../src/internal/numeric_utils.hpp#L21) |
-| `phase_space_velocity_wrong_dimension_message` | [37](../../../src/internal/numeric_utils.hpp#L37) |
-| `phase_space_velocity_non_finite_message` | [46](../../../src/internal/numeric_utils.hpp#L46) |
-| `validate_phase_space_velocity_result` | [59](../../../src/internal/numeric_utils.hpp#L59) |
+| `all_finite` | [10](../../../src/internal/numeric_utils.hpp#L10) |
 
 ### `src/internal/performance.hpp`
 
@@ -577,6 +573,17 @@ the executable-body count.
 | `record_source_retry` | [334](../../../src/internal/performance.hpp#L334), [413](../../../src/internal/performance.hpp#L413) |
 | `record_node_rhs_evaluation` | [342](../../../src/internal/performance.hpp#L342), [414](../../../src/internal/performance.hpp#L414) |
 | `record_embedded_rk_step` | [350](../../../src/internal/performance.hpp#L350), [415](../../../src/internal/performance.hpp#L415) |
+
+### `src/internal/phase_space_velocity_validation.hpp`
+
+[Source](../../../src/internal/phase_space_velocity_validation.hpp) · [Responsibilities, contracts, and evidence](utilities.md)
+
+| Function or overload family | Definition lines |
+|---|---|
+| `format_diagnostic_vector` | [15](../../../src/internal/phase_space_velocity_validation.hpp#L15) |
+| `phase_space_velocity_wrong_dimension_message` | [31](../../../src/internal/phase_space_velocity_validation.hpp#L31) |
+| `phase_space_velocity_non_finite_message` | [40](../../../src/internal/phase_space_velocity_validation.hpp#L40) |
+| `validate_phase_space_velocity_result` | [53](../../../src/internal/phase_space_velocity_validation.hpp#L53) |
 
 ### `src/internal/qmom_state_access.hpp`
 
@@ -630,6 +637,18 @@ the executable-body count.
 | `evaluate_generalized_moment` | [179](../../../src/moment_reconstruction.cpp#L179), [206](../../../src/moment_reconstruction.cpp#L206), [248](../../../src/moment_reconstruction.cpp#L248) |
 | `reconstruct_cqmom_moments` | [275](../../../src/moment_reconstruction.cpp#L275) |
 | `reconstruct_trusted_cqmom_moments` | [283](../../../src/moment_reconstruction.cpp#L283) |
+
+### `src/moment_set.cpp`
+
+[Source](../../../src/moment_set.cpp) · [Responsibilities, contracts, and evidence](qmom_reconstruction.md)
+
+| Function or overload family | Definition lines |
+|---|---|
+| `MomentSet::MomentSet` | [9](../../../src/moment_set.cpp#L9), [11](../../../src/moment_set.cpp#L11) |
+| `MomentSet::size` | [13](../../../src/moment_set.cpp#L13) |
+| `MomentSet::empty` | [18](../../../src/moment_set.cpp#L18) |
+| `MomentSet::values` | [23](../../../src/moment_set.cpp#L23) |
+| `MomentSet::operator[]` | [28](../../../src/moment_set.cpp#L28) |
 
 ### `src/moment_source.cpp`
 
@@ -1087,12 +1106,7 @@ the executable-body count.
 
 | Function or overload family | Definition lines |
 |---|---|
-| `MomentSet::MomentSet` | [23](../../../src/wheeler.cpp#L23), [25](../../../src/wheeler.cpp#L25) |
-| `MomentSet::size` | [27](../../../src/wheeler.cpp#L27) |
-| `MomentSet::empty` | [32](../../../src/wheeler.cpp#L32) |
-| `MomentSet::values` | [37](../../../src/wheeler.cpp#L37) |
-| `MomentSet::operator[]` | [42](../../../src/wheeler.cpp#L42) |
-| `one_node_result` | [70](../../../src/wheeler.cpp#L70) |
+| `one_node_result` | [42](../../../src/wheeler.cpp#L42) |
 | `negative_mass_result` | [83](../../../src/wheeler.cpp#L83) |
 | `compute_recurrence` | [91](../../../src/wheeler.cpp#L91) |
 | `make_jacobi_matrix` | [121](../../../src/wheeler.cpp#L121) |

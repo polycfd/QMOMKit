@@ -219,7 +219,8 @@ struct CqmomLeanCase
  *
  * A state owns the current CQMOM moments and reconstruction policies while
  * hiding the storage representation used internally. Normal CQMOM phase-space evolution
- * creates this state from `CqmomCase` and passes it to
+ * creates this state from `CqmomCase`; its accepted terminal quadrature is
+ * available through `quadrature()`. The state can be passed to
  * `advance_cqmom_phase_space(...)`.
  */
 class CqmomState
@@ -232,6 +233,7 @@ public:
     ~CqmomState();
 
     [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
+    [[nodiscard]] const CqmomQuadrature& quadrature() const;
     [[nodiscard]] const QmomOptions& qmom_options() const noexcept;
     [[nodiscard]] const ConditionalMomentOptions& conditional_options() const noexcept;
     [[nodiscard]] bool adaptive_branch_counts() const noexcept;
@@ -259,12 +261,16 @@ private:
  *
  * A case owns the initialized CQMOM state and reconstruction options while
  * hiding the storage representation used internally. Users can inspect the
- * phase-space hierarchy and numerical policies, then pass the case directly to
- * `compute_cqmom(...)`.
+ * phase-space hierarchy and numerical policies, construct it from a typed
+ * `CqmomDenseCase` or `CqmomLeanCase`, then pass the case directly to
+ * `compute_cqmom(...)` or create an evolution state with `initial_state()`.
  */
 class CqmomCase
 {
 public:
+    explicit CqmomCase(CqmomDenseCase dense_case);
+    explicit CqmomCase(CqmomLeanCase lean_case);
+
     CqmomCase(const CqmomCase& other);
     CqmomCase& operator=(const CqmomCase& other);
     CqmomCase(CqmomCase&&) noexcept;

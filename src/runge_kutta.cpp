@@ -261,6 +261,13 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     {
         return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta maximum step.");
     }
+    // An explicit min_step (options.min_step <= 0.0 instead requests an automatically
+    // derived, always-tiny minimum) must not exceed the effective maximum step, or the
+    // per-step clamp below could push the step size above max_step.
+    if (options.min_step > 0.0 && options.min_step > max_step)
+    {
+        return invalid_embedded_rk_result(initial_state, t0, "Embedded Runge-Kutta min_step must not exceed max_step.");
+    }
 
     std::vector<double> y = initial_state;
     double t = t0;

@@ -112,9 +112,13 @@ struct PhaseSpaceEvolutionDiagnostics
     std::string message;
 };
 
+/** Per-call controls for one-dimensional QMOM phase-space evolution.
+ *
+ * Reconstruction options and the configured maximum node count are carried by
+ * QmomState.
+ */
 struct QmomPhaseSpaceEvolutionOptions
 {
-    QmomOptions qmom_options;
     NodeAdvectionOptions node_options;
     MomentSourceUpdateOptions source_options;
     PhaseSpaceEvolutionScheme scheme = PhaseSpaceEvolutionScheme::strang;
@@ -219,11 +223,10 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  *
  * The stage advances the full stored moment vector, applies fixed or adaptive
  * post-source QMOM reconstruction, may reduce the active node count, and may
- * grow it by at most one node toward `maximum_node_count`. On success it returns
+ * grow it by at most one node toward the state's configured maximum. On success it returns
  * a canonical accepted state; on failure, it returns the unchanged input state.
  */
-[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, std::size_t maximum_node_count, double t,
-                                                                       double time_step, const MomentSource& source,
+[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, double t, double time_step, const MomentSource& source,
                                                                        const QmomPhaseSpaceEvolutionOptions& options = {});
 
 /**
@@ -231,8 +234,7 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  * evolution stage using a generic moment source plus an additive phase-space
  * boundary exchange contribution.
  */
-[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, std::size_t maximum_node_count, double t,
-                                                                       double time_step, const MomentSource& source,
+[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, double t, double time_step, const MomentSource& source,
                                                                        const MomentBoundaryContribution& boundary,
                                                                        const QmomPhaseSpaceEvolutionOptions& options);
 
@@ -250,15 +252,16 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  * `PhaseSpaceEvolutionScheme::advsrc` applies first-order advection-then-moment-source Lie
  * splitting: advection(dt) -> moment-source(dt). `PhaseSpaceEvolutionScheme::srcadv` applies
  * first-order moment-source-then-advection Lie splitting:
- * moment-source(dt) -> advection(dt). In first-order schemes, diagnostic
- * "half-step" stage names refer to the
- * first/only advection substep.
+ * moment-source(dt) -> advection(dt). In first-order schemes, the single
+ * advection substep's diagnostics land in the `first_*` fields for `advsrc`
+ * and in the `second_*`/`final_*` fields for `srcadv`.
  *
- * `maximum_node_count` is the configured fixed-count size or adaptive ceiling.
- * In adaptive mode the accepted state's quadrature size is the active count.
+ * The state's configured maximum node count and reconstruction options govern
+ * reconstruction. In adaptive mode the accepted state's quadrature size is the
+ * active count.
  */
-[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, std::size_t maximum_node_count, double t,
-                                                                     double time_step, const PhaseSpaceVelocity& velocity, const MomentSource& source,
+[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, double t, double time_step,
+                                                                     const PhaseSpaceVelocity& velocity, const MomentSource& source,
                                                                      const QmomPhaseSpaceEvolutionOptions& options = {});
 
 /**
@@ -268,8 +271,8 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  * moment-source update; boundary exchange does not add a separate
  * phase-space evolution stage or alter the selected operator-splitting scheme.
  */
-[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, std::size_t maximum_node_count, double t,
-                                                                     double time_step, const PhaseSpaceVelocity& velocity, const MomentSource& source,
+[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, double t, double time_step,
+                                                                     const PhaseSpaceVelocity& velocity, const MomentSource& source,
                                                                      const MomentBoundaryContribution& boundary,
                                                                      const QmomPhaseSpaceEvolutionOptions& options);
 
@@ -354,8 +357,8 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  * increasing input order to the corresponding scalar public operation. Input
  * states are not modified, adaptive behavior remains independent per entry,
  * and an empty input returns an empty result collection without validation or
- * callback invocation. Time, timestep, options, and the QMOM maximum node
- * count are shared by the batch.
+ * callback invocation. Time, timestep, and evolution options are shared by the
+ * batch; each QMOM state supplies its own reconstruction metadata.
  *
  * Ordinary batch functions reuse one scalar callback for every entry.
  * Batch-index-aware functions have a `_batch_with_index` suffix and bind the
@@ -380,8 +383,7 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
                                                                                         const CqmomPhaseSpaceEvolutionOptions& options = {});
 
 // Ordinary-callback moment-source-evolution batch wrappers.
-[[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch(const std::vector<QmomState>& states,
-                                                                                          std::size_t maximum_node_count, double time,
+[[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch(const std::vector<QmomState>& states, double time,
                                                                                           double time_step, const MomentSource& source,
                                                                                           const QmomPhaseSpaceEvolutionOptions& options = {});
 
@@ -389,8 +391,7 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
                                                                                             double time_step, const CqmomMomentSource& source,
                                                                                             const CqmomPhaseSpaceEvolutionOptions& options = {});
 
-[[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch(const std::vector<QmomState>& states,
-                                                                                          std::size_t maximum_node_count, double time,
+[[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch(const std::vector<QmomState>& states, double time,
                                                                                           double time_step, const MomentSource& source,
                                                                                           const MomentBoundaryContribution& boundary,
                                                                                           const QmomPhaseSpaceEvolutionOptions& options);
@@ -401,9 +402,10 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
                                                                                             const CqmomPhaseSpaceEvolutionOptions& options);
 
 // Ordinary-callback complete phase-space evolution batch wrappers.
-[[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult>
-advance_qmom_phase_space_batch(const std::vector<QmomState>& states, std::size_t maximum_node_count, double time, double time_step,
-                               const PhaseSpaceVelocity& velocity, const MomentSource& source, const QmomPhaseSpaceEvolutionOptions& options = {});
+[[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch(const std::vector<QmomState>& states, double time,
+                                                                                        double time_step, const PhaseSpaceVelocity& velocity,
+                                                                                        const MomentSource& source,
+                                                                                        const QmomPhaseSpaceEvolutionOptions& options = {});
 
 [[nodiscard]] std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch(const std::vector<CqmomState>& states, double time,
                                                                                           double time_step, const PhaseSpaceVelocity& velocity,
@@ -411,9 +413,8 @@ advance_qmom_phase_space_batch(const std::vector<QmomState>& states, std::size_t
                                                                                           const CqmomPhaseSpaceEvolutionOptions& options = {});
 
 [[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult>
-advance_qmom_phase_space_batch(const std::vector<QmomState>& states, std::size_t maximum_node_count, double time, double time_step,
-                               const PhaseSpaceVelocity& velocity, const MomentSource& source, const MomentBoundaryContribution& boundary,
-                               const QmomPhaseSpaceEvolutionOptions& options);
+advance_qmom_phase_space_batch(const std::vector<QmomState>& states, double time, double time_step, const PhaseSpaceVelocity& velocity,
+                               const MomentSource& source, const MomentBoundaryContribution& boundary, const QmomPhaseSpaceEvolutionOptions& options);
 
 [[nodiscard]] std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch(const std::vector<CqmomState>& states, double time,
                                                                                           double time_step, const PhaseSpaceVelocity& velocity,
@@ -433,17 +434,16 @@ advance_cqmom_advection_batch_with_index(const std::vector<CqmomState>& states, 
 
 // Batch-index-aware moment-source-evolution batch wrappers.
 [[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult>
-advance_qmom_moment_source_batch_with_index(const std::vector<QmomState>& states, std::size_t maximum_node_count, double time, double time_step,
-                                            const BatchMomentSource& source, const QmomPhaseSpaceEvolutionOptions& options = {});
+advance_qmom_moment_source_batch_with_index(const std::vector<QmomState>& states, double time, double time_step, const BatchMomentSource& source,
+                                            const QmomPhaseSpaceEvolutionOptions& options = {});
 
 [[nodiscard]] std::vector<CqmomPhaseSpaceEvolutionResult>
 advance_cqmom_moment_source_batch_with_index(const std::vector<CqmomState>& states, double time, double time_step,
                                              const BatchCqmomMomentSource& source, const CqmomPhaseSpaceEvolutionOptions& options = {});
 
 [[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult>
-advance_qmom_moment_source_batch_with_index(const std::vector<QmomState>& states, std::size_t maximum_node_count, double time, double time_step,
-                                            const BatchMomentSource& source, const BatchMomentBoundaryContribution& boundary,
-                                            const QmomPhaseSpaceEvolutionOptions& options);
+advance_qmom_moment_source_batch_with_index(const std::vector<QmomState>& states, double time, double time_step, const BatchMomentSource& source,
+                                            const BatchMomentBoundaryContribution& boundary, const QmomPhaseSpaceEvolutionOptions& options);
 
 [[nodiscard]] std::vector<CqmomPhaseSpaceEvolutionResult>
 advance_cqmom_moment_source_batch_with_index(const std::vector<CqmomState>& states, double time, double time_step,
@@ -452,7 +452,7 @@ advance_cqmom_moment_source_batch_with_index(const std::vector<CqmomState>& stat
 
 // Batch-index-aware complete phase-space evolution batch wrappers.
 [[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult>
-advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states, std::size_t maximum_node_count, double time, double time_step,
+advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states, double time, double time_step,
                                           const BatchPhaseSpaceVelocity& velocity, const BatchMomentSource& source,
                                           const QmomPhaseSpaceEvolutionOptions& options = {});
 
@@ -462,7 +462,7 @@ advance_cqmom_phase_space_batch_with_index(const std::vector<CqmomState>& states
                                            const CqmomPhaseSpaceEvolutionOptions& options = {});
 
 [[nodiscard]] std::vector<QmomPhaseSpaceEvolutionResult>
-advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states, std::size_t maximum_node_count, double time, double time_step,
+advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states, double time, double time_step,
                                           const BatchPhaseSpaceVelocity& velocity, const BatchMomentSource& source,
                                           const BatchMomentBoundaryContribution& boundary, const QmomPhaseSpaceEvolutionOptions& options);
 

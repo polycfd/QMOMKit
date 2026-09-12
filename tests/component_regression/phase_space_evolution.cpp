@@ -94,7 +94,7 @@ void test_zero_advection_and_zero_source_preserve_qmom()
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(
-        state, 2, 0.0, 0.4, [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); },
+        state, 0.0, 0.4, [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); },
         [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>(context.size(), 0.0); }, options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
@@ -128,7 +128,7 @@ void test_combined_advection_and_source_qmom_analytical()
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
-    const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(state, 1, 0.0, dt, velocity, source, options);
+    const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(state, 0.0, dt, velocity, source, options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     const double initial_weight = moments[0];

@@ -6,12 +6,12 @@ This reference inventory corresponds to the current root CTest registrations. Ea
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 628 |
+| Unit logical tests | 630 |
 | Component/regression logical tests | 31 |
 | Verification logical tests | 167 |
-| **Runtime logical tests** | **826** |
+| **Runtime logical tests** | **828** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **827** |
+| **Total CTest registrations** | **829** |
 
 Multiple parameter values or configurations used to establish one claim remain internal to that logical test and therefore do not increase the CTest count. The source, selector, and any configured internal case below identify how each registration is invoked.
 
@@ -374,7 +374,7 @@ Any addition, removal, split, or merge of a logical runtime CTest registration m
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 826 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
+The `public_headers` registration is not part of the 828 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -681,7 +681,7 @@ The `public_headers` registration is not part of the 826 runtime logical-test co
 | `unit_configuration_mixture_zero_density_component_is_skipped` | `tests/unit/configuration.cpp` | `mixture_zero_density_component_is_skipped` | Checks that mixture zero density component is skipped in configuration loading. | — |
 | `unit_configuration_valid_cqmom_matches_programmatic_case` | `tests/unit/configuration.cpp` | `valid_cqmom_matches_programmatic_case` | Checks that valid CQMOM matches programmatic case in configuration loading. | — |
 | `unit_configuration_phase_space_automatic_scaling_parses_for_qmom_and_cqmom` | `tests/unit/configuration.cpp` | `phase_space_automatic_scaling_parses_for_qmom_and_cqmom` | Checks that phase-space automatic scaling parses for QMOM and CQMOM in configuration loading. | — |
-| `unit_configuration_qmom_automatic_scaling_handoff_to_evolution_options` | `tests/unit/configuration.cpp` | `qmom_automatic_scaling_handoff_to_evolution_options` | Verifies QMOM automatic scaling handoff to evolution options. | — |
+| `unit_configuration_qmom_automatic_scaling_is_owned_by_case_and_state` | `tests/unit/configuration.cpp` | `qmom_automatic_scaling_is_owned_by_case_and_state` | Verifies QMOM automatic scaling is transferred from configuration through the case into the evolving state. | — |
 | `unit_configuration_cqmom_independent_product_initialization_matches_direct_api` | `tests/unit/configuration.cpp` | `cqmom_independent_product_initialization_matches_direct_api` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
 | `unit_configuration_cqmom_independent_product_mixture_marginal_initialization` | `tests/unit/configuration.cpp` | `cqmom_independent_product_mixture_marginal_initialization` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
 | `unit_configuration_lean_cqmom_initialization_matches_dense_subselection` | `tests/unit/configuration.cpp` | `lean_cqmom_initialization_matches_dense_subselection` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
@@ -1036,6 +1036,8 @@ The `public_headers` registration is not part of the 826 runtime logical-test co
 | `unit_phase_space_evolution_dense_and_lean_state_source_contexts_are_identical` | `tests/unit/phase_space_evolution.cpp` | `dense_and_lean_state_source_contexts_are_identical` | Verifies dense and lean state source contexts are identical. | — |
 | `unit_phase_space_evolution_cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage` | Checks that source context reconstructs untracked moments from each rk stage in phase-space evolution. | — |
 | `unit_phase_space_evolution_cqmom_source_context_visits_terminal_nodes_from_each_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_visits_terminal_nodes_from_each_rk_stage` | Checks CQMOM source contexts visit every terminal node at each RK stage. | — |
+| `unit_phase_space_evolution_qmom_source_context_generalized_moment_semantics` | `tests/unit/phase_space_evolution.cpp` | `qmom_source_context_generalized_moment_semantics` | Verifies QMOM source-context generalized-moment semantics and validation. | — |
+| `unit_phase_space_evolution_qmom_source_context_generalized_moment_uses_current_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `qmom_source_context_generalized_moment_uses_current_rk_stage` | Verifies QMOM source-context generalized moments use the current RK stage quadrature. | — |
 | `unit_phase_space_evolution_cqmom_source_context_generalized_moments_use_stage_quadrature` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_generalized_moments_use_stage_quadrature` | Verifies CQMOM source context generalized moments use stage quadrature. | — |
 | `unit_phase_space_evolution_cqmom_source_context_generalized_moment_validation` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_generalized_moment_validation` | Verifies CQMOM source context generalized moment validation. | — |
 | `unit_phase_space_evolution_dense_state_reconstructs_dense_only_moments_after_moment_source_source` | `tests/unit/phase_space_evolution.cpp` | `dense_state_reconstructs_dense_only_moments_after_moment_source_source` | Checks that dense state reconstructs dense only moments after moment source source in phase-space evolution. | — |
@@ -1050,8 +1052,8 @@ The `public_headers` registration is not part of the 826 runtime logical-test co
 | `unit_phase_space_evolution_state_cqmom_phase_space_evolution_api_does_not_expose_moments` | `tests/unit/phase_space_evolution.cpp` | `state_cqmom_phase_space_evolution_api_does_not_expose_moments` | Verifies state CQMOM phase space evolution API does not expose moments. | — |
 | `unit_phase_space_evolution_state_qmom_phase_space_evolution_api_does_not_expose_moments` | `tests/unit/phase_space_evolution.cpp` | `state_qmom_phase_space_evolution_api_does_not_expose_moments` | Verifies state QMOM phase space evolution API does not expose moments. | — |
 | `unit_phase_space_evolution_qmom_state_copy_move_workflow` | `tests/unit/phase_space_evolution.cpp` | `qmom_state_copy_move_workflow` | Verifies QMOM state copy move workflow. | — |
-| `unit_phase_space_evolution_qmom_initial_state_canonicalizes_adaptive_moments` | `tests/unit/phase_space_evolution.cpp` | `qmom_initial_state_canonicalizes_adaptive_moments` | Verifies QMOM initial state canonicalizes adaptive moments. | — |
-| `unit_phase_space_evolution_qmom_adaptive_phase_space_evolution_preserves_active_count_with_zero_source` | `tests/unit/phase_space_evolution.cpp` | `qmom_adaptive_phase_space_evolution_preserves_active_count_with_zero_source` | Checks that adaptive phase-space evolution preserves active count with zero source in phase-space evolution. | — |
+| `unit_phase_space_evolution_qmom_initial_state_canonicalizes_adaptive_moments` | `tests/unit/phase_space_evolution.cpp` | `qmom_initial_state_canonicalizes_adaptive_moments` | Verifies QMOM initial state canonicalizes adaptive moments and transfers configured reconstruction metadata. | — |
+| `unit_phase_space_evolution_qmom_adaptive_phase_space_evolution_preserves_active_count_with_zero_source` | `tests/unit/phase_space_evolution.cpp` | `qmom_adaptive_phase_space_evolution_preserves_active_count_with_zero_source` | Checks that adaptive evolution keeps the configured maximum distinct from the active count and preserves state reconstruction metadata. | — |
 | `unit_phase_space_evolution_qmom_adaptive_post_source_reduction_and_growth_policy` | `tests/unit/phase_space_evolution.cpp` | `qmom_adaptive_post_source_reduction_and_growth_policy` | Verifies QMOM adaptive post source reduction and growth policy. | — |
 | `unit_phase_space_evolution_qmom_fixed_post_source_requires_configured_count` | `tests/unit/phase_space_evolution.cpp` | `qmom_fixed_post_source_requires_configured_count` | Verifies QMOM fixed post source requires configured count. | — |
 | `unit_phase_space_evolution_first_order_schemes_differ_for_noncommuting_qmom` | `tests/unit/phase_space_evolution.cpp` | `first_order_schemes_differ_for_noncommuting_qmom` | Verifies first order schemes differ for noncommuting QMOM. | — |
@@ -1063,8 +1065,6 @@ The `public_headers` registration is not part of the 826 runtime logical-test co
 | `unit_phase_space_evolution_failure_propagation_from_source_operator` | `tests/unit/phase_space_evolution.cpp` | `failure_propagation_from_source_operator` | Verifies failure propagation from source operator. | — |
 | `unit_phase_space_evolution_failure_propagation_from_boundary_contribution` | `tests/unit/phase_space_evolution.cpp` | `failure_propagation_from_boundary_contribution` | Verifies failure propagation from boundary contribution. | — |
 | `unit_phase_space_evolution_boundary_contribution_post_source_inversion_failure` | `tests/unit/phase_space_evolution.cpp` | `boundary_contribution_post_source_inversion_failure` | Verifies boundary contribution post source inversion failure. | — |
-| `unit_phase_space_evolution_context_invalid_qmom_state_is_rejected_before_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | `context_invalid_qmom_state_is_rejected_before_phase_space_evolution` | Checks that context invalid QMOM state is rejected before phase-space evolution in phase-space evolution. | — |
-| `unit_phase_space_evolution_qmom_phase_space_evolution_rejects_unrepresentable_maximum_node_count` | `tests/unit/phase_space_evolution.cpp` | `qmom_phase_space_evolution_rejects_unrepresentable_maximum_node_count` | Checks that phase-space evolution rejects unrepresentable maximum node count in phase-space evolution. | — |
 | `unit_phase_space_evolution_lean_cqmom_failure_propagation_from_inversion` | `tests/unit/phase_space_evolution.cpp` | `lean_cqmom_failure_propagation_from_inversion` | Verifies lean CQMOM failure propagation from inversion. | — |
 | `unit_phase_space_evolution_lean_cqmom_phase_space_evolution_preserves_invalid_state_messages` | `tests/unit/phase_space_evolution.cpp` | `lean_cqmom_phase_space_evolution_preserves_invalid_state_messages` | Checks that lean CQMOM phase-space evolution preserves invalid state messages in phase-space evolution. | — |
 | `unit_phase_space_evolution_lean_cqmom_failure_propagation_from_reconstruction` | `tests/unit/phase_space_evolution.cpp` | `lean_cqmom_failure_propagation_from_reconstruction` | Verifies lean CQMOM failure propagation from reconstruction. | — |

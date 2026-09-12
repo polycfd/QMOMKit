@@ -24,7 +24,7 @@ The executable uses a small bimodal distribution,
 $0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)$, and reconstructs a three-node QMOM
 quadrature from moments $M_0$ through $M_5$. QMOMKit reads the mixture
 configuration, generates the analytical raw moments, and then the example calls
-`qmomkit::compute_qmom(...)`.
+`qmomkit::QmomCase::initial_state()` to construct the initial `QmomState`.
 
 Users can modify the number of QMOM nodes and the mode densities, locations,
 and standard deviations directly in [configuration.qmom](./configuration.qmom). For $n$ QMOM nodes,

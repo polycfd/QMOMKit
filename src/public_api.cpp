@@ -198,8 +198,10 @@ QmomResult compute_qmom(const QmomCase& case_)
     return compute_qmom(case_.moments, case_.node_count, case_.options, case_.abscissa_bounds);
 }
 
-QmomState::QmomState(std::vector<double> moments, QmomResult quadrature, std::optional<AbscissaBounds> abscissa_bounds)
-    : moments_(std::move(moments)), quadrature_(std::move(quadrature)), abscissa_bounds_(std::move(abscissa_bounds))
+QmomState::QmomState(std::vector<double> moments, QmomResult quadrature, const std::size_t maximum_node_count, QmomOptions qmom_options,
+                     std::optional<AbscissaBounds> abscissa_bounds)
+    : moments_(std::move(moments)), quadrature_(std::move(quadrature)), maximum_node_count_(maximum_node_count),
+      qmom_options_(std::move(qmom_options)), abscissa_bounds_(std::move(abscissa_bounds))
 {
 }
 
@@ -210,7 +212,7 @@ QmomState QmomCase::initial_state() const
     {
         throw std::runtime_error("QMOM initial state reconstruction failed: " + quadrature.message);
     }
-    return internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size(), abscissa_bounds);
+    return internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size(), node_count, options, abscissa_bounds);
 }
 
 struct CqmomCase::Data
@@ -252,6 +254,10 @@ std::string format_cqmom_settings(const CqmomMomentStorage storage, const bool a
 }
 
 CqmomCase::CqmomCase(std::unique_ptr<Data> data) : data_(std::move(data)) {}
+
+CqmomCase::CqmomCase(CqmomDenseCase dense_case) : CqmomCase(internal::CqmomConstructionAccess::create_case(std::move(dense_case))) {}
+
+CqmomCase::CqmomCase(CqmomLeanCase lean_case) : CqmomCase(internal::CqmomConstructionAccess::create_case(std::move(lean_case))) {}
 
 CqmomCase::CqmomCase(const CqmomCase& other) : data_(other.data_ == nullptr ? nullptr : std::make_unique<Data>(*other.data_)) {}
 
@@ -377,6 +383,15 @@ CqmomState::~CqmomState() = default;
 const PhaseSpaceHierarchy& CqmomState::hierarchy() const noexcept
 {
     return qmomkit::hierarchy(data_->case_);
+}
+
+const CqmomQuadrature& CqmomState::quadrature() const
+{
+    if (!data_->accepted_quadrature.has_value())
+    {
+        throw std::logic_error("CQMOM state has no accepted quadrature.");
+    }
+    return *data_->accepted_quadrature;
 }
 
 const QmomOptions& CqmomState::qmom_options() const noexcept

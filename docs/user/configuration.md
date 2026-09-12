@@ -159,12 +159,16 @@ int main()
         {},
         qmom_options};
 
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
+    const qmomkit::CqmomCase normal_case{cqmom_case};
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(normal_case);
     if (!cqmom.ok())
     {
         std::cerr << "CQMOM failed: " << cqmom.message << '\n';
         return 1;
     }
+
+    const qmomkit::CqmomState state = normal_case.initial_state();
+    const qmomkit::CqmomQuadrature& quadrature = state.quadrature();
 
     return 0;
 }
@@ -172,9 +176,11 @@ int main()
 
 Use `CqmomDenseCase` when the application has full rectangular tensor moments.
 Use `CqmomLeanCase` when the application intentionally provides only the
-required CQMOM moments. If you want QMOMKit to derive required CQMOM moments
-from a configured independent-product initialization, `load_cqmom(...)` remains
-the most concise route to the representation-neutral `CqmomCase`.
+required CQMOM moments. Both can be promoted to `CqmomCase` for
+`initial_state()` and phase-space evolution. If you want QMOMKit to derive
+required CQMOM moments from a configured independent-product initialization,
+`load_cqmom(...)` remains the most concise route to the representation-neutral
+`CqmomCase`.
 
 Phase-space evolution is still optional. QMOM phase-space evolution advances a `QmomState` created from
 `QmomCase`. CQMOM phase-space evolution advances a `CqmomState` created from `CqmomCase`:
@@ -182,7 +188,7 @@ Phase-space evolution is still optional. QMOM phase-space evolution advances a `
 ```cpp
 qmomkit::QmomState qmom_state = qmom_case.initial_state();
 const qmomkit::QmomPhaseSpaceEvolutionResult qmom_next =
-    qmomkit::advance_qmom_phase_space(qmom_state, qmom_case.node_count, time, time_step, velocity, source, options);
+    qmomkit::advance_qmom_phase_space(qmom_state, time, time_step, velocity, source, options);
 
 qmomkit::CqmomState state = cqmom_case.initial_state();
 const qmomkit::CqmomPhaseSpaceEvolutionResult next =
@@ -877,8 +883,9 @@ If omitted, the tolerances retain the C++ `AdaptiveRkOptions` defaults:
 `max_steps = 1000000000`, and `initial_step = 1.0e-6 s`. There is no automatic
 initial-step estimator: QMOMKit does not derive `initial_step` from the state,
 derivatives, or tolerances. Explicit tolerances and step sizes must be positive finite
-numbers, and `min_step` must not exceed `max_step` when both are provided.
-`max_steps` must be a positive integer. The higher-order member advances an
+numbers, and an explicit `min_step` must not exceed the effective `max_step` —
+whether `max_step` is explicitly configured or automatically derived from the
+integration interval. `max_steps` must be a positive integer. The higher-order member advances an
 accepted state, and both embedded methods use FSAL derivative reuse internally.
 
 Drivers can print `format_node_advection_options(...)` at startup to report

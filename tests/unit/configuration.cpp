@@ -539,7 +539,7 @@ M[1,1] = 0.0
     assert(has_message_fragment(invalid, "automatic_scaling must be true or false"));
 }
 
-void test_qmom_automatic_scaling_handoff_to_evolution_options()
+void test_qmom_automatic_scaling_is_owned_by_case_and_state()
 {
     // One .qmom file defines the reconstruction policy for both initial
     // inversion and subsequent QMOM post-source reconstructions.
@@ -556,6 +556,7 @@ values = 1.0, 0.0
     assert(qmom_case.ok());
     assert(evolution.ok());
     assert(qmom_case.value().options.automatic_scaling);
+    assert(qmom_case.value().initial_state().qmom_options().automatic_scaling);
 
     // Explicit false and an omitted key retain the documented default.
     const auto explicitly_unscaled =
@@ -563,9 +564,9 @@ values = 1.0, 0.0
     const auto omitted = qmomkit::config::parse_qmom_phase_space_evolution_options("[phase_space]\nnode_counts = 1\n");
     assert(explicitly_unscaled.ok());
     assert(omitted.ok());
-    assert(!explicitly_unscaled.value().qmom_options.automatic_scaling);
-    assert(!omitted.value().qmom_options.automatic_scaling);
-    assert(evolution.value().qmom_options.automatic_scaling);
+    assert(!explicitly_unscaled.value().realizability_policy.interval.has_value());
+    assert(!omitted.value().realizability_policy.interval.has_value());
+    assert(evolution.value().scheme == qmomkit::PhaseSpaceEvolutionScheme::strang);
 }
 
 void test_cqmom_independent_product_initialization_matches_direct_api()
@@ -2841,7 +2842,6 @@ void test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_a
     assert(qmom_defaults.ok());
     assert(qmom_defaults.value().scheme == qmomkit::PhaseSpaceEvolutionScheme::strang);
     assert(qmom_defaults.value().node_options.scheme == qmomkit::NodeAdvectionScheme::rk23);
-    assert(!qmom_defaults.value().qmom_options.adaptive);
     assert(qmom_defaults.value().realizability_policy.check_mode == qmomkit::RealizabilityCheckMode::None);
     assert(!qmom_defaults.value().source_options.ssp_rk3_options.accept);
     assert(!qmom_defaults.value().source_options.ssp_rk3_options.stage_accept);
@@ -2870,7 +2870,6 @@ support = nonnegative
     assert(qmom_options.value().node_options.scheme == qmomkit::NodeAdvectionScheme::rk23);
     assert_near(qmom_options.value().node_options.adaptive_options.relative_tolerance, 1.0e-7);
     assert_near(qmom_options.value().node_options.adaptive_options.max_step, 0.05);
-    assert(qmom_options.value().qmom_options.adaptive);
     assert(qmom_options.value().realizability_policy.check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
     assert(qmom_options.value().realizability_policy.support == qmomkit::MomentSupport::nonnegative);
     assert(!qmom_options.value().source_options.ssp_rk3_options.accept);
@@ -2931,7 +2930,6 @@ support = nonnegative
     assert(loaded_qmom.ok());
     assert(loaded_qmom.value().scheme == qmom_options.value().scheme);
     assert(loaded_qmom.value().node_options.scheme == qmom_options.value().node_options.scheme);
-    assert(loaded_qmom.value().qmom_options.adaptive == qmom_options.value().qmom_options.adaptive);
     std::filesystem::remove(filename);
 }
 
@@ -3978,7 +3976,7 @@ void run_all_configuration_tests()
     test_node_advection_options_reject_invalid_rk23_controls();
     test_removed_cqmom_source_policy_section_is_unknown();
     test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
-    test_qmom_automatic_scaling_handoff_to_evolution_options();
+    test_qmom_automatic_scaling_is_owned_by_case_and_state();
     test_phase_space_evolution_options_loaders_reject_invalid_values();
     test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();
     test_output_options_default_to_disabled();
@@ -4065,7 +4063,7 @@ void run_runtime_option_tests()
     test_node_advection_options_reject_invalid_rk23_controls();
     test_removed_cqmom_source_policy_section_is_unknown();
     test_phase_space_evolution_options_loaders_parse_defaults_explicit_values_and_callbacks();
-    test_qmom_automatic_scaling_handoff_to_evolution_options();
+    test_qmom_automatic_scaling_is_owned_by_case_and_state();
     test_phase_space_evolution_options_loaders_reject_invalid_values();
     test_cqmom_phase_space_evolution_options_loader_result_drives_phase_space_evolution_path();
     test_output_options_default_to_disabled();
@@ -4100,7 +4098,7 @@ int main(const int argc, char** argv)
             {"mixture_zero_density_component_is_skipped", test_mixture_zero_density_component_is_skipped},
             {"valid_cqmom_matches_programmatic_case", test_valid_cqmom_matches_programmatic_case},
             {"phase_space_automatic_scaling_parses_for_qmom_and_cqmom", test_phase_space_automatic_scaling_parses_for_qmom_and_cqmom},
-            {"qmom_automatic_scaling_handoff_to_evolution_options", test_qmom_automatic_scaling_handoff_to_evolution_options},
+            {"qmom_automatic_scaling_is_owned_by_case_and_state", test_qmom_automatic_scaling_is_owned_by_case_and_state},
             {"cqmom_independent_product_initialization_matches_direct_api", test_cqmom_independent_product_initialization_matches_direct_api},
             {"cqmom_independent_product_mixture_marginal_initialization", test_cqmom_independent_product_mixture_marginal_initialization},
             {"lean_cqmom_initialization_matches_dense_subselection", test_lean_cqmom_initialization_matches_dense_subselection},

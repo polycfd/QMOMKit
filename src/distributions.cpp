@@ -330,7 +330,13 @@ struct NormalExpectationsResult
 
     for (std::size_t order = 2; order <= maximum_order; ++order)
     {
-        expectations[order] = distribution.mean * expectations[order - 1] + static_cast<double>(order - 1) * variance * expectations[order - 2];
+        // Multiply the (possibly exactly zero, for odd orders when mean == 0) prior
+        // expectation by the small integer coefficient first, before multiplying by
+        // variance. Reversing this order (variance first) can overflow the
+        // intermediate product for a large but finite variance even though the
+        // multiplication by an exact zero would otherwise make the true term zero,
+        // spuriously turning `0 * inf` into NaN instead of the correct 0.0.
+        expectations[order] = distribution.mean * expectations[order - 1] + variance * (expectations[order - 2] * static_cast<double>(order - 1));
         if (!std::isfinite(expectations[order]))
         {
             return NormalExpectationsResult{{}, finite_failure_status(expectations[order]), "Normal raw moment is not finite.", order};

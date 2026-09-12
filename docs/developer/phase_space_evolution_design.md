@@ -122,8 +122,11 @@ QMOM phase-space source evolution, an untracked order is evaluated from a
 quadrature reconstructed lazily from that same stage. The context-local cache
 is never populated from an accepted quadrature from another stage. Generic
 source-only operations without QMOM reconstruction metadata reject untracked
-requests. QMOMKit validates the source result through the generic ODE solver
-path, but it does not know what individual moment components mean.
+requests. `context.generalized_moment(order)` evaluates a finite,
+non-negative scalar order from that same context-local stage quadrature through
+the shared generalized-moment evaluator. QMOMKit validates the source result
+through the generic ODE solver path, but it does not know what individual moment
+components mean.
 
 Phase-space boundary exchange uses a separate public concept:
 
@@ -169,6 +172,9 @@ phase-space-order coordinates of each terminal node from that same cached
 quadrature. The coordinate reference is read-only and valid only during the
 visitor callback. Source callbacks do not reconstruct CQMOM quadrature
 manually for either access pattern.
+`CqmomSourceContext::generalized_moment(orders)` provides the corresponding
+vector-order access, evaluating a finite, non-negative order vector from that
+same current SSP-RK stage reconstruction.
 
 Generic source-only CQMOM contexts have no source-stage reconstruction
 metadata. They reject untracked `context.moment(alpha)` and terminal-node
@@ -471,7 +477,11 @@ absolute_tolerance = 1.0e-9
 and strictly positive. QMOMKit does not estimate it from the state,
 derivatives, or tolerances. `max_step == 0` means the full integration interval is
 the maximum step size. `min_step == 0` means the solver uses a floating-point
-spacing based floor near the current time. `max_steps` limits accepted steps,
+spacing based floor near the current time. An explicit `min_step` must not
+exceed the effective `max_step` (whether explicitly configured or
+auto-derived from the integration interval); otherwise the request is
+rejected as `AdaptiveRkStatus::invalid_input` before integration begins.
+`max_steps` limits accepted steps,
 not rejected trial steps, and remains an optional configuration override with
 an internal default. The actual embedded-RK step is bounded by `min_step` and `max_step`, then clipped so
 integration lands exactly on `t_bound`; the final remainder may therefore be
@@ -521,8 +531,9 @@ advance_cqmom_phase_space(...)
 Each QMOM macro step starts from an accepted `QmomState`; the state's accepted
 quadrature is used directly for phase-space advection, and its canonical raw
 moments are used for moment-source evolution. `QmomState` exposes
-read-only accessors so callers cannot mutate moments and quadrature
-independently. It remains copyable and movable for application time loops, but
+read-only accessors for its configured maximum node count and reconstruction
+options, so callers cannot mutate moments and quadrature independently or
+provide a second reconstruction policy. It remains copyable and movable for application time loops, but
 direct construction from independent moments and quadrature is intentionally
 unavailable. Post-source QMOM reconstruction selects the next accepted
 quadrature before moments are canonicalized from that quadrature. CQMOM macro
@@ -723,7 +734,6 @@ QmomPhaseSpaceEvolutionResult advance_qmom_advection(
 
 QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(
     const QmomState& state,
-    std::size_t maximum_node_count,
     double t,
     double time_step,
     const MomentSource& source,
@@ -731,7 +741,6 @@ QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(
 
 QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(
     const QmomState& state,
-    std::size_t maximum_node_count,
     double t,
     double time_step,
     const MomentSource& source,
@@ -740,7 +749,6 @@ QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(
 
 QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(
     const QmomState& state,
-    std::size_t maximum_node_count,
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,
@@ -749,7 +757,6 @@ QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(
 
 QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(
     const QmomState& state,
-    std::size_t maximum_node_count,
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,

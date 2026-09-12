@@ -188,14 +188,27 @@ qmomkit::MomentSource source =
 ```
 
 The returned vector must have the same size as the current stage vector.
-`context.value(order)` accesses a tracked stage value directly. During QMOM
-phase-space source evolution, `context.moment(order)` can evaluate an
-untracked order from a quadrature reconstructed from the same SSP-RK stage.
-That is available only where QMOM reconstruction metadata is present. QMOMKit
-does not know what each component means; the ordering must match the moment
-ordering used by your QMOM setup. CQMOM phase-space evolution uses the
+QMOMKit does not know what each component means; the ordering must match the
+moment ordering used by your QMOM setup. CQMOM phase-space evolution uses the
 context-specific callback below so multidimensional source terms can follow the
 configured CQMOM moment layout.
+
+### QmomSourceContext
+
+`QmomSourceContext` is a non-owning, stage-local view of the one-dimensional
+QMOM moment state. Use:
+
+- `context.value(order)` for a tracked current-stage value;
+- `QmomSourceContext::moment(order)` for ordinary integer-order access. Tracked
+  orders return their stage value directly, while untracked orders are evaluated from
+  a quadrature reconstructed from that same SSP-RK stage when QMOM
+  reconstruction metadata is present. Generic source-only updates reject
+  untracked requests;
+- `context.generalized_moment(order)` for a finite, non-negative scalar order
+  from that same stage-local quadrature. Integer and fractional orders use the
+  same validation and negative-abscissa domain rules as
+  `evaluate_generalized_moment(...)`; this derived query is not added to the
+  transported state.
 
 Use the advanced `advance_moments_with_source(...)` operation when you want to
 advance only the moment-source part of a workflow:
@@ -553,7 +566,7 @@ int main()
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
 
     qmomkit::QmomState state =
-        qmomkit::QmomCase{qmomkit::MomentSet(moments), node_count, options.qmom_options}
+        qmomkit::QmomCase{qmomkit::MomentSet(moments), node_count, {}}
             .initial_state();
 
     double time = 0.0;
@@ -565,7 +578,7 @@ int main()
         const double step = std::min(time_step, final_time - time);
         const qmomkit::QmomPhaseSpaceEvolutionResult result =
             qmomkit::advance_qmom_phase_space(
-                state, node_count, time, step, velocity, source, options);
+                state, time, step, velocity, source, options);
 
         if (!result.ok())
         {
@@ -597,7 +610,7 @@ if (!first.ok())
 
 const qmomkit::QmomPhaseSpaceEvolutionResult source_stage =
     qmomkit::advance_qmom_moment_source(
-        first.state, node_count, time + 0.5 * time_step, time_step, source, options);
+        first.state, time + 0.5 * time_step, time_step, source, options);
 
 if (!source_stage.ok())
 {
@@ -639,16 +652,17 @@ const qmomkit::MomentBoundaryContribution boundary =
 
 const qmomkit::QmomPhaseSpaceEvolutionResult result =
     qmomkit::advance_qmom_phase_space(
-        state, node_count, time, step, velocity, source, boundary, options);
+        state, time, step, velocity, source, boundary, options);
 ```
 
-`QmomState` exposes read-only `moments()` and `quadrature()` accessors. Its
+`QmomState` exposes read-only `moments()`, `quadrature()`,
+`maximum_node_count()`, and `qmom_options()` accessors. Its
 stored moments are reconstructed from its accepted quadrature, and
 `QmomState::active_node_count()` is derived from the accepted quadrature size.
 Users may copy and move accepted states for retry or in-process checkpointing,
 but direct construction from independent moments and quadrature is intentionally
 unavailable; no public restart/import factory is currently provided.
-In adaptive QMOM, `node_count` remains the configured maximum. Node advection
+In adaptive QMOM, `QmomState::maximum_node_count()` remains the configured maximum. Node advection
 preserves the active count and reconstructs the stored moment vector
 from the advected quadrature without another Wheeler inversion. After an
 accepted moment-source update, phase-space evolution first reconstructs at the current active count
@@ -934,7 +948,7 @@ so generic and dual-signature callables remain unambiguous.
 ```cpp
 const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> results =
     qmomkit::advance_qmom_phase_space_batch(
-        states, maximum_node_count, time, time_step, velocity, source, options);
+        states, time, time_step, velocity, source, options);
 
 const qmomkit::BatchPhaseSpaceVelocity indexed_velocity =
     [](std::size_t, double, const std::vector<double>& coordinates)
@@ -955,12 +969,12 @@ const qmomkit::BatchMomentSource indexed_source =
 
 const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> indexed_results =
     qmomkit::advance_qmom_phase_space_batch_with_index(
-        states, maximum_node_count, time, time_step, indexed_velocity,
+        states, time, time_step, indexed_velocity,
         indexed_source, options);
 ```
 
-Time, time step, phase-space evolution options, and the QMOM maximum node count are shared
-by a batch. Applications needing heterogeneous controls should make explicit
+Time, time step, and phase-space evolution options are shared by a batch; each
+`QmomState` supplies its own reconstruction metadata. Applications needing heterogeneous controls should make explicit
 scalar calls. An unsuccessful scalar result is retained at its input position
 and does not stop later entries. An exception that escapes a scalar call also
 escapes the batch call unchanged and stops processing.

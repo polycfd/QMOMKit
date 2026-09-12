@@ -709,6 +709,38 @@ void test_rk23_invalid_options_fail_before_loop()
     }
 }
 
+void test_rk23_rejects_min_step_exceeding_max_step()
+{
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        qmomkit::AdaptiveRkOptions invalid_options;
+        invalid_options.min_step = 5.0;
+        invalid_options.max_step = 2.0;
+        const qmomkit::AdaptiveRkResult invalid_result =
+            qmomkit::integrate_embedded_rk({1.0}, 0.0, 100.0, exponential_decay_rhs(), method, invalid_options);
+        assert(invalid_result.status == qmomkit::AdaptiveRkStatus::invalid_input);
+        assert(!invalid_result.message.empty());
+
+        // min_step == max_step (a fixed effective step) remains valid.
+        qmomkit::AdaptiveRkOptions boundary_options;
+        boundary_options.min_step = 2.0;
+        boundary_options.max_step = 2.0;
+        boundary_options.initial_step = 2.0;
+        const qmomkit::AdaptiveRkResult boundary_result =
+            qmomkit::integrate_embedded_rk({1.0}, 0.0, 4.0, exponential_decay_rhs(), method, boundary_options);
+        assert(boundary_result.status == qmomkit::AdaptiveRkStatus::success);
+
+        // An auto-derived max_step (options.max_step == 0.0, defaulting to the
+        // integration interval length) must also be checked against an explicit
+        // min_step, not just an explicitly configured max_step.
+        qmomkit::AdaptiveRkOptions auto_max_step_options;
+        auto_max_step_options.min_step = 5.0;
+        const qmomkit::AdaptiveRkResult auto_max_step_result =
+            qmomkit::integrate_embedded_rk({1.0}, 0.0, 2.0, exponential_decay_rhs(), method, auto_max_step_options);
+        assert(auto_max_step_result.status == qmomkit::AdaptiveRkStatus::invalid_input);
+    }
+}
+
 void test_rk23_rejects_nonfinite_trial_state()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{std::numeric_limits<double>::max()}; };
@@ -901,6 +933,7 @@ int main(const int argc, char** argv)
             {"rk23_rejects_overly_large_initial_step", test_rk23_rejects_overly_large_initial_step},
             {"rk23_zero_rhs_has_no_timestep_pathology", test_rk23_zero_rhs_has_no_timestep_pathology},
             {"rk23_invalid_options_fail_before_loop", test_rk23_invalid_options_fail_before_loop},
+            {"rk23_rejects_min_step_exceeding_max_step", test_rk23_rejects_min_step_exceeding_max_step},
             {"rk23_rejects_nonfinite_trial_state", test_rk23_rejects_nonfinite_trial_state},
             {"rk23_initial_request_below_minimum_uses_minimum_step", test_rk23_initial_request_below_minimum_uses_minimum_step},
             {"rk23_accepts_finite_update_at_minimum_step", test_rk23_accepts_finite_update_at_minimum_step},

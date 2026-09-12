@@ -372,10 +372,10 @@ void test_qmom_ordinary_scalar_equivalence()
     const qmomkit::MomentBoundaryContribution boundary = ordinary_qmom_boundary();
 
     const auto advection = qmomkit::advance_qmom_advection_batch(states, 0.0, 0.2, velocity, options);
-    const auto moment_source = qmomkit::advance_qmom_moment_source_batch(states, 1, 0.0, 0.2, source, options);
-    const auto moment_source_boundary = qmomkit::advance_qmom_moment_source_batch(states, 1, 0.0, 0.2, source, boundary, options);
-    const auto phase_space_evolution = qmomkit::advance_qmom_phase_space_batch(states, 1, 0.0, 0.2, velocity, source, options);
-    const auto phase_space_evolution_boundary = qmomkit::advance_qmom_phase_space_batch(states, 1, 0.0, 0.2, velocity, source, boundary, options);
+    const auto moment_source = qmomkit::advance_qmom_moment_source_batch(states, 0.0, 0.2, source, options);
+    const auto moment_source_boundary = qmomkit::advance_qmom_moment_source_batch(states, 0.0, 0.2, source, boundary, options);
+    const auto phase_space_evolution = qmomkit::advance_qmom_phase_space_batch(states, 0.0, 0.2, velocity, source, options);
+    const auto phase_space_evolution_boundary = qmomkit::advance_qmom_phase_space_batch(states, 0.0, 0.2, velocity, source, boundary, options);
 
     assert(advection.size() == states.size());
     assert(moment_source.size() == states.size());
@@ -385,11 +385,11 @@ void test_qmom_ordinary_scalar_equivalence()
     for (std::size_t i = 0; i < states.size(); ++i)
     {
         assert_qmom_result_equal(advection[i], qmomkit::advance_qmom_advection(states[i], 0.0, 0.2, velocity, options));
-        assert_qmom_result_equal(moment_source[i], qmomkit::advance_qmom_moment_source(states[i], 1, 0.0, 0.2, source, options));
-        assert_qmom_result_equal(moment_source_boundary[i], qmomkit::advance_qmom_moment_source(states[i], 1, 0.0, 0.2, source, boundary, options));
-        assert_qmom_result_equal(phase_space_evolution[i], qmomkit::advance_qmom_phase_space(states[i], 1, 0.0, 0.2, velocity, source, options));
+        assert_qmom_result_equal(moment_source[i], qmomkit::advance_qmom_moment_source(states[i], 0.0, 0.2, source, options));
+        assert_qmom_result_equal(moment_source_boundary[i], qmomkit::advance_qmom_moment_source(states[i], 0.0, 0.2, source, boundary, options));
+        assert_qmom_result_equal(phase_space_evolution[i], qmomkit::advance_qmom_phase_space(states[i], 0.0, 0.2, velocity, source, options));
         assert_qmom_result_equal(phase_space_evolution_boundary[i],
-                                 qmomkit::advance_qmom_phase_space(states[i], 1, 0.0, 0.2, velocity, source, boundary, options));
+                                 qmomkit::advance_qmom_phase_space(states[i], 0.0, 0.2, velocity, source, boundary, options));
         assert_qmom_state_equal(states[i], qmom_states()[i]);
     }
 }
@@ -452,11 +452,11 @@ void test_qmom_batch_aware_scalar_equivalence()
     };
 
     const auto advection = qmomkit::advance_qmom_advection_batch_with_index(states, 0.0, 0.2, velocity, options);
-    const auto moment_source = qmomkit::advance_qmom_moment_source_batch_with_index(states, 1, 0.0, 0.2, source, options);
-    const auto moment_source_boundary = qmomkit::advance_qmom_moment_source_batch_with_index(states, 1, 0.0, 0.2, source, boundary, options);
-    const auto phase_space_evolution = qmomkit::advance_qmom_phase_space_batch_with_index(states, 1, 0.0, 0.2, velocity, source, options);
+    const auto moment_source = qmomkit::advance_qmom_moment_source_batch_with_index(states, 0.0, 0.2, source, options);
+    const auto moment_source_boundary = qmomkit::advance_qmom_moment_source_batch_with_index(states, 0.0, 0.2, source, boundary, options);
+    const auto phase_space_evolution = qmomkit::advance_qmom_phase_space_batch_with_index(states, 0.0, 0.2, velocity, source, options);
     const auto phase_space_evolution_boundary =
-        qmomkit::advance_qmom_phase_space_batch_with_index(states, 1, 0.0, 0.2, velocity, source, boundary, options);
+        qmomkit::advance_qmom_phase_space_batch_with_index(states, 0.0, 0.2, velocity, source, boundary, options);
 
     assert(advection.size() == states.size());
     assert(moment_source.size() == states.size());
@@ -472,13 +472,13 @@ void test_qmom_batch_aware_scalar_equivalence()
         const qmomkit::MomentBoundaryContribution scalar_boundary = [&boundary, i](double time, const std::vector<double>& moments)
         { return boundary(i, time, moments); };
         assert_qmom_result_equal(advection[i], qmomkit::advance_qmom_advection(states[i], 0.0, 0.2, scalar_velocity, options));
-        assert_qmom_result_equal(moment_source[i], qmomkit::advance_qmom_moment_source(states[i], 1, 0.0, 0.2, scalar_source, options));
+        assert_qmom_result_equal(moment_source[i], qmomkit::advance_qmom_moment_source(states[i], 0.0, 0.2, scalar_source, options));
         assert_qmom_result_equal(moment_source_boundary[i],
-                                 qmomkit::advance_qmom_moment_source(states[i], 1, 0.0, 0.2, scalar_source, scalar_boundary, options));
+                                 qmomkit::advance_qmom_moment_source(states[i], 0.0, 0.2, scalar_source, scalar_boundary, options));
         assert_qmom_result_equal(phase_space_evolution[i],
-                                 qmomkit::advance_qmom_phase_space(states[i], 1, 0.0, 0.2, scalar_velocity, scalar_source, options));
+                                 qmomkit::advance_qmom_phase_space(states[i], 0.0, 0.2, scalar_velocity, scalar_source, options));
         assert_qmom_result_equal(phase_space_evolution_boundary[i],
-                                 qmomkit::advance_qmom_phase_space(states[i], 1, 0.0, 0.2, scalar_velocity, scalar_source, scalar_boundary, options));
+                                 qmomkit::advance_qmom_phase_space(states[i], 0.0, 0.2, scalar_velocity, scalar_source, scalar_boundary, options));
     }
 }
 
@@ -671,6 +671,45 @@ void test_batch_index_remains_stable_for_repeated_callbacks()
     }
 }
 
+void test_moment_source_and_phase_space_batch_failures_are_independent_and_ordered()
+{
+    const std::vector<qmomkit::QmomState> states = qmom_states();
+    const std::vector<qmomkit::QmomState> initial_states = states;
+    const qmomkit::QmomPhaseSpaceEvolutionOptions options = qmom_options();
+    const qmomkit::BatchPhaseSpaceVelocity velocity = [](std::size_t, double, const std::vector<double>& location)
+    { return std::vector<double>(location.size(), 0.0); };
+    const qmomkit::BatchMomentSource source = [](const std::size_t batch_index, double, const qmomkit::QmomSourceContext& moments)
+    {
+        if (batch_index == 1)
+        {
+            return std::vector<double>(moments.size() + 1, 0.0);
+        }
+        return std::vector<double>(moments.size(), 0.0);
+    };
+
+    const auto moment_source_batch = qmomkit::advance_qmom_moment_source_batch_with_index(states, 0.0, 0.2, source, options);
+    assert(moment_source_batch.size() == states.size());
+    assert(moment_source_batch[0].ok());
+    assert(!moment_source_batch[1].ok());
+    assert(moment_source_batch[1].status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
+    assert(moment_source_batch[2].ok());
+    for (std::size_t i = 0; i < states.size(); ++i)
+    {
+        assert_qmom_state_equal(states[i], initial_states[i]);
+    }
+
+    const auto phase_space_batch = qmomkit::advance_qmom_phase_space_batch_with_index(states, 0.0, 0.2, velocity, source, options);
+    assert(phase_space_batch.size() == states.size());
+    assert(phase_space_batch[0].ok());
+    assert(!phase_space_batch[1].ok());
+    assert(phase_space_batch[1].status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
+    assert(phase_space_batch[2].ok());
+    for (std::size_t i = 0; i < states.size(); ++i)
+    {
+        assert_qmom_state_equal(states[i], initial_states[i]);
+    }
+}
+
 void test_cqmom_normal_failures_are_independent_and_ordered()
 {
     const std::vector<qmomkit::CqmomState> states = cqmom_states();
@@ -763,6 +802,80 @@ void test_cqmom_batch_index_remains_stable_for_repeated_callbacks()
     }
 }
 
+void test_cqmom_moment_source_and_phase_space_batch_failures_are_independent_and_ordered()
+{
+    const std::vector<qmomkit::CqmomState> states = cqmom_states();
+    const std::vector<qmomkit::CqmomState> initial_states = states;
+    const qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_options();
+    const qmomkit::BatchPhaseSpaceVelocity velocity = [](std::size_t, double, const std::vector<double>& location)
+    { return std::vector<double>(location.size(), 0.0); };
+    const qmomkit::BatchCqmomMomentSource source = [](const std::size_t batch_index, double, const qmomkit::CqmomSourceContext& context)
+    {
+        if (batch_index == 1)
+        {
+            return qmomkit::CqmomMomentRate{std::vector<double>(context.size() + 1, 0.0)};
+        }
+        return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)};
+    };
+
+    const auto moment_source_batch = qmomkit::advance_cqmom_moment_source_batch_with_index(states, 0.0, 0.2, source, options);
+    assert(moment_source_batch.size() == states.size());
+    assert(moment_source_batch[0].ok());
+    assert(!moment_source_batch[1].ok());
+    assert(moment_source_batch[1].status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
+    assert(moment_source_batch[2].ok());
+    for (std::size_t i = 0; i < states.size(); ++i)
+    {
+        assert_cqmom_state_equal(states[i], initial_states[i]);
+    }
+
+    const auto phase_space_batch = qmomkit::advance_cqmom_phase_space_batch_with_index(states, 0.0, 0.2, velocity, source, options);
+    assert(phase_space_batch.size() == states.size());
+    assert(phase_space_batch[0].ok());
+    assert(!phase_space_batch[1].ok());
+    assert(phase_space_batch[1].status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
+    assert(phase_space_batch[2].ok());
+    for (std::size_t i = 0; i < states.size(); ++i)
+    {
+        assert_cqmom_state_equal(states[i], initial_states[i]);
+    }
+}
+
+void test_cqmom_empty_batch_skips_scalar_validation_and_callbacks()
+{
+    const std::vector<qmomkit::CqmomState> empty_states;
+    const qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_options();
+    const double invalid_time = std::numeric_limits<double>::quiet_NaN();
+    std::size_t ordinary_calls = 0;
+    std::size_t indexed_calls = 0;
+    const qmomkit::PhaseSpaceVelocity ordinary_velocity = [&ordinary_calls](double, const std::vector<double>& location)
+    {
+        ++ordinary_calls;
+        return std::vector<double>(location.size(), 0.0);
+    };
+    const qmomkit::BatchPhaseSpaceVelocity indexed_velocity = [&indexed_calls](std::size_t, double, const std::vector<double>& location)
+    {
+        ++indexed_calls;
+        return std::vector<double>(location.size(), 0.0);
+    };
+
+    // A non-finite time is rejected before velocity evaluation by scalar phase-space advection; empty batches must skip that scalar
+    // validation.
+    const std::vector<qmomkit::CqmomState> states = cqmom_states();
+    const qmomkit::CqmomPhaseSpaceEvolutionResult scalar =
+        qmomkit::advance_cqmom_advection(states.front(), invalid_time, 0.2, ordinary_velocity, options);
+    assert(!scalar.ok());
+    assert(scalar.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
+    assert(ordinary_calls == 0);
+
+    const auto ordinary = qmomkit::advance_cqmom_advection_batch(empty_states, invalid_time, 0.2, ordinary_velocity, options);
+    const auto indexed = qmomkit::advance_cqmom_advection_batch_with_index(empty_states, invalid_time, 0.2, indexed_velocity, options);
+    assert(ordinary.empty());
+    assert(indexed.empty());
+    assert(ordinary_calls == 0);
+    assert(indexed_calls == 0);
+}
+
 void test_null_callbacks_preserve_scalar_behavior()
 {
     const std::vector<qmomkit::QmomState> states = qmom_states();
@@ -779,21 +892,21 @@ void test_null_callbacks_preserve_scalar_behavior()
 
     const auto ordinary_advection = qmomkit::advance_qmom_advection_batch(states, 0.0, 0.2, nullptr, options);
     const auto indexed_advection = qmomkit::advance_qmom_advection_batch_with_index(states, 0.0, 0.2, nullptr, options);
-    const auto ordinary_moment_source = qmomkit::advance_qmom_moment_source_batch(states, 1, 0.0, 0.2, nullptr, options);
-    const auto indexed_moment_source = qmomkit::advance_qmom_moment_source_batch_with_index(states, 1, 0.0, 0.2, nullptr, options);
-    const auto ordinary_moment_source_boundary = qmomkit::advance_qmom_moment_source_batch(states, 1, 0.0, 0.2, source, nullptr, options);
+    const auto ordinary_moment_source = qmomkit::advance_qmom_moment_source_batch(states, 0.0, 0.2, nullptr, options);
+    const auto indexed_moment_source = qmomkit::advance_qmom_moment_source_batch_with_index(states, 0.0, 0.2, nullptr, options);
+    const auto ordinary_moment_source_boundary = qmomkit::advance_qmom_moment_source_batch(states, 0.0, 0.2, source, nullptr, options);
     const auto indexed_moment_source_boundary =
-        qmomkit::advance_qmom_moment_source_batch_with_index(states, 1, 0.0, 0.2, indexed_source, nullptr, options);
-    const auto ordinary_phase_space_evolution_velocity = qmomkit::advance_qmom_phase_space_batch(states, 1, 0.0, 0.2, nullptr, source, options);
+        qmomkit::advance_qmom_moment_source_batch_with_index(states, 0.0, 0.2, indexed_source, nullptr, options);
+    const auto ordinary_phase_space_evolution_velocity = qmomkit::advance_qmom_phase_space_batch(states, 0.0, 0.2, nullptr, source, options);
     const auto indexed_phase_space_evolution_velocity =
-        qmomkit::advance_qmom_phase_space_batch_with_index(states, 1, 0.0, 0.2, nullptr, indexed_source, options);
-    const auto ordinary_phase_space_evolution_source = qmomkit::advance_qmom_phase_space_batch(states, 1, 0.0, 0.2, velocity, nullptr, options);
+        qmomkit::advance_qmom_phase_space_batch_with_index(states, 0.0, 0.2, nullptr, indexed_source, options);
+    const auto ordinary_phase_space_evolution_source = qmomkit::advance_qmom_phase_space_batch(states, 0.0, 0.2, velocity, nullptr, options);
     const auto indexed_phase_space_evolution_source =
-        qmomkit::advance_qmom_phase_space_batch_with_index(states, 1, 0.0, 0.2, indexed_velocity, nullptr, options);
+        qmomkit::advance_qmom_phase_space_batch_with_index(states, 0.0, 0.2, indexed_velocity, nullptr, options);
     const auto ordinary_phase_space_evolution_boundary =
-        qmomkit::advance_qmom_phase_space_batch(states, 1, 0.0, 0.2, velocity, source, nullptr, options);
+        qmomkit::advance_qmom_phase_space_batch(states, 0.0, 0.2, velocity, source, nullptr, options);
     const auto indexed_phase_space_evolution_boundary =
-        qmomkit::advance_qmom_phase_space_batch_with_index(states, 1, 0.0, 0.2, indexed_velocity, indexed_source, nullptr, options);
+        qmomkit::advance_qmom_phase_space_batch_with_index(states, 0.0, 0.2, indexed_velocity, indexed_source, nullptr, options);
 
     assert(ordinary_advection.size() == states.size());
     assert(indexed_advection.size() == states.size());
@@ -812,15 +925,15 @@ void test_null_callbacks_preserve_scalar_behavior()
         const qmomkit::QmomPhaseSpaceEvolutionResult scalar_advection =
             qmomkit::advance_qmom_advection(states[i], 0.0, 0.2, empty_scalar_velocity, options);
         const qmomkit::QmomPhaseSpaceEvolutionResult scalar_moment_source =
-            qmomkit::advance_qmom_moment_source(states[i], 1, 0.0, 0.2, empty_scalar_source, options);
+            qmomkit::advance_qmom_moment_source(states[i], 0.0, 0.2, empty_scalar_source, options);
         const qmomkit::QmomPhaseSpaceEvolutionResult scalar_moment_source_boundary =
-            qmomkit::advance_qmom_moment_source(states[i], 1, 0.0, 0.2, source, empty_scalar_boundary, options);
+            qmomkit::advance_qmom_moment_source(states[i], 0.0, 0.2, source, empty_scalar_boundary, options);
         const qmomkit::QmomPhaseSpaceEvolutionResult scalar_phase_space_evolution_velocity =
-            qmomkit::advance_qmom_phase_space(states[i], 1, 0.0, 0.2, empty_scalar_velocity, source, options);
+            qmomkit::advance_qmom_phase_space(states[i], 0.0, 0.2, empty_scalar_velocity, source, options);
         const qmomkit::QmomPhaseSpaceEvolutionResult scalar_phase_space_evolution_source =
-            qmomkit::advance_qmom_phase_space(states[i], 1, 0.0, 0.2, velocity, empty_scalar_source, options);
+            qmomkit::advance_qmom_phase_space(states[i], 0.0, 0.2, velocity, empty_scalar_source, options);
         const qmomkit::QmomPhaseSpaceEvolutionResult scalar_phase_space_evolution_boundary =
-            qmomkit::advance_qmom_phase_space(states[i], 1, 0.0, 0.2, velocity, source, empty_scalar_boundary, options);
+            qmomkit::advance_qmom_phase_space(states[i], 0.0, 0.2, velocity, source, empty_scalar_boundary, options);
 
         assert_qmom_result_equal(ordinary_advection[i], scalar_advection);
         assert_qmom_result_equal(indexed_advection[i], scalar_advection);
@@ -849,10 +962,15 @@ int main(const int argc, char** argv)
             {"qmom_batch_aware_scalar_equivalence", test_qmom_batch_aware_scalar_equivalence},
             {"cqmom_batch_aware_scalar_equivalence", test_cqmom_batch_aware_scalar_equivalence},
             {"empty_batch_skips_scalar_validation_and_callbacks", test_empty_batch_skips_scalar_validation_and_callbacks},
+            {"cqmom_empty_batch_skips_scalar_validation_and_callbacks", test_cqmom_empty_batch_skips_scalar_validation_and_callbacks},
             {"normal_failures_are_independent_and_ordered", test_normal_failures_are_independent_and_ordered},
+            {"moment_source_and_phase_space_batch_failures_are_independent_and_ordered",
+             test_moment_source_and_phase_space_batch_failures_are_independent_and_ordered},
             {"escaping_exception_stops_at_the_throwing_entry", test_escaping_exception_stops_at_the_throwing_entry},
             {"batch_index_remains_stable_for_repeated_callbacks", test_batch_index_remains_stable_for_repeated_callbacks},
             {"cqmom_normal_failures_are_independent_and_ordered", test_cqmom_normal_failures_are_independent_and_ordered},
+            {"cqmom_moment_source_and_phase_space_batch_failures_are_independent_and_ordered",
+             test_cqmom_moment_source_and_phase_space_batch_failures_are_independent_and_ordered},
             {"cqmom_escaping_exception_stops_at_the_throwing_entry", test_cqmom_escaping_exception_stops_at_the_throwing_entry},
             {"cqmom_batch_index_remains_stable_for_repeated_callbacks", test_cqmom_batch_index_remains_stable_for_repeated_callbacks},
             {"null_callbacks_preserve_scalar_behavior", test_null_callbacks_preserve_scalar_behavior},

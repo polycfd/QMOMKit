@@ -375,14 +375,13 @@ void reject_unknown_sections(ParsedFile& parsed, const std::vector<std::string>&
     }
 }
 
-bool validate_format_version(ParsedFile& parsed, const std::string& source_name)
+void validate_format_version(ParsedFile& parsed, const std::string& source_name)
 {
     const Entry* version = find_entry(parsed, "format_version");
     if (version != nullptr && version->value != "1")
     {
         add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, version->line, "format_version must be 1.");
     }
-    return parsed.errors.empty();
 }
 
 std::optional<std::vector<std::size_t>> parse_phase_space_node_counts(ParsedFile& parsed, const Entry& entry, const std::string& source_name,
@@ -2744,16 +2743,12 @@ ConfigurationResult<QmomPhaseSpaceEvolutionOptions> parse_qmom_phase_space_evolu
     reject_unknown_qmom_option_keys(parsed, source_name);
     const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
-    std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
-    const std::optional<bool> automatic_scaling = parse_automatic_scaling_from_parsed(parsed, source_name);
-    if (qmom_options.has_value() && automatic_scaling.has_value())
-    {
-        qmom_options->automatic_scaling = *automatic_scaling;
-    }
+    (void)parse_qmom_options_from_parsed(parsed, source_name);
+    (void)parse_automatic_scaling_from_parsed(parsed, source_name);
     const std::optional<RealizabilityPolicy> realizability_policy =
         parse_realizability_policy_from_parsed(parsed, std::string(realizability_section), source_name);
 
-    if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value() || !qmom_options.has_value() || !realizability_policy.has_value())
+    if (!parsed.errors.empty() || !scheme.has_value() || !node_options.has_value() || !realizability_policy.has_value())
     {
         return failure_result<QmomPhaseSpaceEvolutionOptions>(std::move(parsed));
     }
@@ -2761,7 +2756,6 @@ ConfigurationResult<QmomPhaseSpaceEvolutionOptions> parse_qmom_phase_space_evolu
     QmomPhaseSpaceEvolutionOptions options;
     options.scheme = *scheme;
     options.node_options = *node_options;
-    options.qmom_options = *qmom_options;
     options.realizability_policy = *realizability_policy;
     return ConfigurationResult<QmomPhaseSpaceEvolutionOptions>{std::move(options)};
 }

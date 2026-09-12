@@ -107,6 +107,25 @@ void test_unused_phase_space_axes_are_read_at_zero_order()
     assert_conditional_moments(result, expected, 1.0e-12);
 }
 
+void assert_result_is_diagnostic_only(const qmomkit::ConditionalMomentResult& result)
+{
+    // A failed result must not expose a usable payload: the conditional-moment
+    // buffer stays empty, and every index is rejected rather than silently
+    // returning stale/default data.
+    assert(!result.ok());
+    assert(result.conditional_moments.empty());
+    bool threw = false;
+    try
+    {
+        (void)result.moment(0, 0);
+    }
+    catch (const std::out_of_range&)
+    {
+        threw = true;
+    }
+    assert(threw);
+}
+
 void test_singular_parent_abscissas_fail()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -120,8 +139,8 @@ void test_singular_parent_abscissas_fail()
 
     const qmomkit::ConditionalMomentResult result = qmomkit::reconstruct_conditional_moments(request);
 
-    assert(!result.ok());
     assert(result.status == qmomkit::ConditionalMomentStatus::singular_system);
+    assert_result_is_diagnostic_only(result);
 }
 
 void test_nearly_singular_parent_abscissas_warn()
@@ -151,29 +170,29 @@ void test_invalid_inputs_report_failure()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     qmomkit::ConditionalMomentRequest request{hierarchy, 1, {0.0, 1.0}, {0.5, 0.5}, {{2, 4}, std::vector<double>(8, 0.0)}, {}};
     qmomkit::ConditionalMomentResult result = qmomkit::reconstruct_conditional_moments(request);
-    assert(!result.ok());
     assert(result.status == qmomkit::ConditionalMomentStatus::invalid_input);
+    assert_result_is_diagnostic_only(result);
 
     request.conditioning_level = 0;
     request.parent_weights = {0.5};
     result = qmomkit::reconstruct_conditional_moments(request);
-    assert(!result.ok());
     assert(result.status == qmomkit::ConditionalMomentStatus::invalid_input);
+    assert_result_is_diagnostic_only(result);
 
     request.parent_weights = {0.5, 0.5};
     request.raw_moments.extents = {1, 4};
     request.raw_moments.values.assign(4, 0.0);
     result = qmomkit::reconstruct_conditional_moments(request);
-    assert(!result.ok());
     assert(result.status == qmomkit::ConditionalMomentStatus::invalid_input);
+    assert_result_is_diagnostic_only(result);
 
     request.conditioning_level = std::numeric_limits<std::size_t>::max();
     request.parent_weights = {0.5, 0.5};
     request.raw_moments.extents = {2, 4};
     request.raw_moments.values.assign(8, 0.0);
     result = qmomkit::reconstruct_conditional_moments(request);
-    assert(!result.ok());
     assert(result.status == qmomkit::ConditionalMomentStatus::invalid_input);
+    assert_result_is_diagnostic_only(result);
 }
 
 } // namespace

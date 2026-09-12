@@ -91,14 +91,19 @@ measurement was performed.
 `QmomStateAccess::from_quadrature` rebuilds the stored raw sequence, at its original
 length, from the accepted quadrature. Consequently adaptive acceptance may replace
 higher input moments with the reduced quadrature's closure. `QmomState` exposes
-moments, quadrature, bounds, and active count; the maximum and reconstruction
-options still belong to the caller/case, not the state.
+moments, quadrature, bounds, active count, configured maximum node count, and
+read-only reconstruction options. The maximum and reconstruction options are
+copied from `QmomCase` and remain authoritative for every subsequent evolution
+transition.
 
 `CqmomCase` and `CqmomState` hide a dense-or-lean variant. Public accessors expose
 representation-neutral hierarchy and policies; numerical algorithms dispatch
-internally to the held case. `CqmomCase::initial_state` computes a successful
-quadrature, derives active branch counts, reconstructs the stored representation
-from that accepted quadrature, and stores the same quadrature in the state. Dense
+internally to the held case. Typed dense and lean cases can be promoted through
+the public `CqmomCase` constructors. `CqmomCase::initial_state` computes a
+successful quadrature, derives active branch counts, reconstructs the stored
+representation from that accepted quadrature, and stores the same quadrature in
+the state. `CqmomState::quadrature()` exposes that stored accepted quadrature by
+const reference. Dense
 states reconstruct their complete tensor at the original extents; lean states
 reconstruct exactly their required layout in its existing order. Thus every
 successfully constructed initial state has stored moments and cached accepted

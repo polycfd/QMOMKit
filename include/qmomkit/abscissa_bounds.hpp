@@ -10,8 +10,8 @@ namespace qmomkit
  */
 struct AbscissaBounds
 {
-    double lower;
-    double upper;
+    double lower = 0.0;
+    double upper = 0.0;
 };
 
 } // namespace qmomkit

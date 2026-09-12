@@ -99,6 +99,18 @@ void validate_source_context(const PhaseSpaceHierarchy& hierarchy, const std::ve
     }
 }
 
+void validate_source_generalized_order(const double order, const char* const context)
+{
+    if (!std::isfinite(order))
+    {
+        throw std::invalid_argument(std::string(context) + " must be finite.");
+    }
+    if (order < 0.0)
+    {
+        throw std::invalid_argument(std::string(context) + " must be non-negative.");
+    }
+}
+
 void validate_fixed_cqmom_moment_data(const CqmomMomentData& moments, const char* context)
 {
     internal::validate_fixed_cqmom_moment_data(moments, {std::string(context) + " requires the fixed CQMOM moment layout.",
@@ -575,6 +587,24 @@ double QmomSourceContext::moment(const std::size_t order) const
         throw std::out_of_range("Requested QMOM source moment is not tracked by this context.");
     }
 
+    const QmomResult& quadrature = reconstructed_stage_quadrature();
+    const std::vector<double> moments =
+        reconstruct_raw_moments(Quadrature1D{quadrature.abscissas, quadrature.weights, QuadratureStatus::success, ""}, order + 1);
+    return moments.at(order);
+}
+
+double QmomSourceContext::generalized_moment(const double order) const
+{
+    validate_source_generalized_order(order, "Generalized QMOM source moment order");
+    return evaluate_generalized_moment(reconstructed_stage_quadrature(), order);
+}
+
+const QmomResult& QmomSourceContext::reconstructed_stage_quadrature() const
+{
+    if (reconstruction_options_ == nullptr)
+    {
+        throw std::out_of_range("Requested QMOM source generalized moment is not available without reconstruction metadata.");
+    }
     if (!reconstructed_stage_quadrature_.has_value())
     {
         QmomResult quadrature = compute_qmom(MomentSet(*values_), reconstruction_node_count_, *reconstruction_options_, reconstruction_bounds_);
@@ -584,11 +614,7 @@ double QmomSourceContext::moment(const std::size_t order) const
         }
         reconstructed_stage_quadrature_ = std::move(quadrature);
     }
-
-    const QmomResult& quadrature = *reconstructed_stage_quadrature_;
-    const std::vector<double> moments =
-        reconstruct_raw_moments(Quadrature1D{quadrature.abscissas, quadrature.weights, QuadratureStatus::success, ""}, order + 1);
-    return moments.at(order);
+    return *reconstructed_stage_quadrature_;
 }
 
 CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierarchy& source_hierarchy, const std::vector<MultiIndex>& indices,
@@ -699,14 +725,7 @@ double CqmomSourceContext::generalized_moment(const std::vector<double>& orders)
     }
     for (const double order : orders)
     {
-        if (!std::isfinite(order))
-        {
-            throw std::invalid_argument("Generalized CQMOM source moment orders must be finite.");
-        }
-        if (order < 0.0)
-        {
-            throw std::invalid_argument("Generalized CQMOM source moment orders must be non-negative.");
-        }
+        validate_source_generalized_order(order, "Generalized CQMOM source moment orders");
     }
     return evaluate_generalized_moment(reconstructed_stage_quadrature(), orders);
 }

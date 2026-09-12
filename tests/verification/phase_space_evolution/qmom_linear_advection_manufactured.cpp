@@ -72,7 +72,6 @@ double error(const std::vector<double>& actual, const std::vector<double>& expec
 qmomkit::QmomPhaseSpaceEvolutionOptions options(const qmomkit::PhaseSpaceEvolutionScheme scheme)
 {
     qmomkit::QmomPhaseSpaceEvolutionOptions result;
-    result.qmom_options = qmom_options();
     result.node_options.scheme = qmomkit::NodeAdvectionScheme::rk45;
     result.node_options.adaptive_options.relative_tolerance = 1.0e-12;
     result.node_options.adaptive_options.absolute_tolerance = 1.0e-14;
@@ -134,7 +133,7 @@ std::vector<double> advance(const double time_step, const qmomkit::PhaseSpaceEvo
     for (std::size_t step = 0; step < steps; ++step)
     {
         const qmomkit::QmomPhaseSpaceEvolutionResult result =
-            qmomkit::advance_qmom_phase_space(state, node_count, step * time_step, time_step, velocity(), injection_source(), options(scheme));
+            qmomkit::advance_qmom_phase_space(state, step * time_step, time_step, velocity(), injection_source(), options(scheme));
         QMOMKIT_VERIFY_CHECK(result.ok());
         QMOMKIT_VERIFY_CHECK(result.diagnostics.moment_source_diagnostics.accepted);
         state = result.state;

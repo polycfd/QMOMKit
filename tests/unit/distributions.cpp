@@ -270,6 +270,11 @@ void test_invalid_total_weight()
         qmomkit::compute_raw_moments(qmomkit::BetaDistribution{1.0, 1.0}, 2, std::numeric_limits<double>::infinity());
     assert(!nonfinite.ok());
     assert(nonfinite.status == qmomkit::RawMomentStatus::invalid_input);
+
+    const qmomkit::RawMomentResult not_a_number =
+        qmomkit::compute_raw_moments(qmomkit::BetaDistribution{1.0, 1.0}, 2, std::numeric_limits<double>::quiet_NaN());
+    assert(!not_a_number.ok());
+    assert(not_a_number.status == qmomkit::RawMomentStatus::invalid_input);
 }
 
 void test_invalid_distribution_parameters()
@@ -326,6 +331,37 @@ void test_underflow_status()
     const double tiny_scale = std::numeric_limits<double>::denorm_min();
     assert(qmomkit::compute_raw_moments(qmomkit::GammaDistribution{1.0, tiny_scale}, 2).status == qmomkit::RawMomentStatus::underflow);
     assert(qmomkit::compute_raw_moments(qmomkit::WeibullDistribution{1.0, tiny_scale}, 2).status == qmomkit::RawMomentStatus::underflow);
+}
+
+void test_normal_zero_mean_large_variance_does_not_spuriously_report_non_finite()
+{
+    // A zero-mean normal distribution has exactly zero odd raw moments. With a large
+    // enough (but still finite) standard deviation, evaluating the recurrence in the
+    // wrong multiplication order previously produced `0 * inf = NaN` at order 3 instead
+    // of the true value 0.0 (see normal_expectations in src/distributions.cpp).
+    const double large_standard_deviation = 1.2065474487291362e154;
+    const double variance = large_standard_deviation * large_standard_deviation;
+    assert(std::isfinite(variance));
+    assert(!std::isfinite(2.0 * variance)); // confirms this case exercises the previously-spurious overflow.
+
+    const qmomkit::NormalDistribution distribution{0.0, large_standard_deviation};
+
+    const qmomkit::RawMomentResult dense = qmomkit::compute_raw_moments(distribution, 3);
+    assert(dense.ok());
+    assert_near(dense.moments[0], 1.0, 0.0);
+    assert_near(dense.moments[1], 0.0, 0.0);
+    assert_near(dense.moments[2], variance, 0.0);
+    assert_near(dense.moments[3], 0.0, 0.0);
+
+    const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(distribution, qmomkit::RawMomentRequest{{{3}}});
+    assert(selected.ok());
+    assert_near(selected.values[0], 0.0, 0.0);
+
+    // A genuine overflow (the true value truly exceeds double precision) at a higher
+    // order must still be reported as such, not masked by the fix above.
+    const qmomkit::RawMomentResult genuine_overflow = qmomkit::compute_raw_moments(distribution, 4);
+    assert(!genuine_overflow.ok());
+    assert(genuine_overflow.status == qmomkit::RawMomentStatus::overflow);
 }
 
 void test_empty_mixture_is_invalid()
@@ -1060,6 +1096,8 @@ int main(const int argc, char** argv)
             {"invalid_distribution_parameters", test_invalid_distribution_parameters},
             {"overflow_status", test_overflow_status},
             {"underflow_status", test_underflow_status},
+            {"normal_zero_mean_large_variance_does_not_spuriously_report_non_finite",
+             test_normal_zero_mean_large_variance_does_not_spuriously_report_non_finite},
             {"empty_mixture_is_invalid", test_empty_mixture_is_invalid},
             {"mixture_maximum_order_zero", test_mixture_maximum_order_zero},
             {"one_component_mixture_matches_distribution_result", test_one_component_mixture_matches_distribution_result},

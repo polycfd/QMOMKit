@@ -38,6 +38,14 @@ public:
     [[nodiscard]] const std::vector<double>& values() const noexcept;
     [[nodiscard]] double value(std::size_t order) const;
     [[nodiscard]] double moment(std::size_t order) const;
+    /**
+     * Return a derived generalized moment from the current source-stage
+     * quadrature. The order must be finite and non-negative. As with an
+     * untracked integer `moment(...)` request, this operation is available
+     * during QMOM phase-space source evolution when reconstruction metadata is
+     * present; generic source-only contexts reject the request.
+     */
+    [[nodiscard]] double generalized_moment(double order) const;
 
 private:
     friend class internal::QmomSourceContextAccess;
@@ -51,6 +59,8 @@ private:
     const QmomOptions* reconstruction_options_ = nullptr;
     std::optional<AbscissaBounds> reconstruction_bounds_;
     mutable std::optional<QmomResult> reconstructed_stage_quadrature_;
+
+    [[nodiscard]] const QmomResult& reconstructed_stage_quadrature() const;
 };
 
 /**
@@ -211,6 +221,11 @@ enum class MomentSourceUpdateStatus
 struct MomentSourceUpdateOptions
 {
     SspRk3Options ssp_rk3_options;
+    // Per-coordinate policies for CQMOM moment-data updates, indexed by phase-space
+    // dimension. Only the CQMOM (`CqmomMomentData`) overloads of
+    // `advance_cqmom_moments_with_source` read and enforce this field; the QMOM
+    // (`std::vector<double>`) overloads of `advance_moments_with_source` do not
+    // consult it.
     std::vector<std::optional<RealizabilityPolicy>> coordinate_realizability_policies;
 };
 

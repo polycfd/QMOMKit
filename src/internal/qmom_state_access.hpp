@@ -17,8 +17,8 @@ namespace qmomkit::internal
 class QmomStateAccess
 {
 public:
-    [[nodiscard]] static QmomState from_quadrature(QmomResult quadrature, const std::size_t moment_count,
-                                                   std::optional<AbscissaBounds> abscissa_bounds = {})
+    [[nodiscard]] static QmomState from_quadrature(QmomResult quadrature, const std::size_t moment_count, const std::size_t maximum_node_count,
+                                                   QmomOptions qmom_options, std::optional<AbscissaBounds> abscissa_bounds = {})
     {
         if (moment_count == 0)
         {
@@ -43,7 +43,7 @@ public:
 
         const std::vector<double> moments =
             reconstruct_raw_moments(Quadrature1D{quadrature.abscissas, quadrature.weights, QuadratureStatus::success, ""}, moment_count);
-        return QmomState{std::move(moments), std::move(quadrature), std::move(abscissa_bounds)};
+        return QmomState{std::move(moments), std::move(quadrature), maximum_node_count, std::move(qmom_options), std::move(abscissa_bounds)};
     }
 };
 

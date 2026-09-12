@@ -51,7 +51,9 @@ struct SspRk3Options
  * Result of one explicit SSP-RK3 step.
  *
  * The optional error estimate is ||y_new - y_test|| / ||y_new||, where y_test
- * is the embedded second-order state used only for timestep estimation.
+ * is the embedded second-order state used only for timestep estimation. When
+ * ||y_new|| is zero, the estimate falls back to the unscaled absolute
+ * difference norm ||y_new - y_test||.
  */
 struct SspRk3Result
 {
@@ -104,6 +106,11 @@ inline constexpr double default_adaptive_initial_step = 1.0e-6;
  * scale_i = atol + max(|y_i|, |y_high_i|) * rtol. `initial_step` defaults to
  * 1.0e-6 s for phase-space advection and may be overridden. QMOMKit does
  * not estimate it from derivatives or tolerances.
+ *
+ * `max_step <= 0.0` requests an automatically derived maximum step (the
+ * integration interval length). `min_step <= 0.0` requests an automatically
+ * derived, always-tiny minimum step. An explicit `min_step` must not exceed
+ * the effective maximum step, or the request is rejected as invalid input.
  */
 struct AdaptiveRkOptions
 {

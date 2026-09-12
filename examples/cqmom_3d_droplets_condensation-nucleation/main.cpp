@@ -72,15 +72,10 @@ int main()
         }
         const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
 
-        const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
-        if (!cqmom.ok())
-        {
-            std::cerr << "CQMOM inversion failed: " << cqmom.message << '\n';
-            return 1;
-        }
-
+        qmomkit::CqmomState state = cqmom_case.initial_state();
+        const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
         const qmomkit::RawMomentRequest initial_number_request{std::vector<qmomkit::MultiIndex>{{0, 0, 0}}};
-        const qmomkit::SelectedRawMomentResult initial_number_moment = qmomkit::reconstruct_raw_moments(cqmom.quadrature, initial_number_request);
+        const qmomkit::SelectedRawMomentResult initial_number_moment = qmomkit::reconstruct_raw_moments(initial_quadrature, initial_number_request);
         if (!initial_number_moment.ok() || initial_number_moment.values.size() != 1)
         {
             std::cerr << "Could not obtain initial M[0,0,0] for the nucleation model.\n";
@@ -89,8 +84,6 @@ int main()
         const cqmom_3d_droplets_condensation_nucleation::NucleationModel nucleation_model =
             cqmom_3d_droplets_condensation_nucleation::make_nucleation_model(initial_number_moment.values.front());
 
-        qmomkit::CqmomState state = cqmom_case.initial_state();
-        qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices};
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_3d_droplets_condensation_nucleation::droplet_phase_space_velocity();
@@ -115,11 +108,17 @@ int main()
         if (output_options.write_moments)
         {
             qmomkit::MomentWriter::for_cqmom(output_options.directory / "initial_moments.txt", state, output_options)
-                .write(initial_time, state, quadrature);
+                .write(initial_time, state, state.quadrature());
             moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history.txt", state, output_options));
-            moment_history_writer->write(initial_time, state, quadrature);
+            moment_history_writer->write(initial_time, state, state.quadrature());
         }
-        std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
+        std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;
+        if (output_options.write_quadrature)
+        {
+            quadrature_history_writer.emplace(
+                qmomkit::QuadratureWriter::for_cqmom(output_options.directory / "quadrature_history.txt", initial_quadrature.number_of_dimensions()));
+            quadrature_history_writer->write(initial_time, initial_quadrature);
+        }
 
         const double output_interval = output_options.interval.value_or(final_time - initial_time);
         double time = initial_time;
@@ -138,22 +137,18 @@ int main()
                 std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
                 return 1;
             }
-            if (!phase_space_evolved.quadrature.has_value())
-            {
-                std::cerr << "CQMOM phase-space evolution did not return a quadrature.\n";
-                return 1;
-            }
-
             state = phase_space_evolved.state;
-            quadrature = *phase_space_evolved.quadrature;
             time = phase_space_evolved.final_time;
 
             if (time + 1.0e-12 >= next_output_time || time >= final_time - 1.0e-12)
             {
-                quadrature_history.emplace_back(time, quadrature);
+                if (quadrature_history_writer.has_value())
+                {
+                    quadrature_history_writer->write(time, state.quadrature());
+                }
                 if (moment_history_writer.has_value())
                 {
-                    moment_history_writer->write(time, state, quadrature);
+                    moment_history_writer->write(time, state, state.quadrature());
                 }
                 while (next_output_time <= time + 1.0e-12)
                 {
@@ -162,28 +157,19 @@ int main()
             }
         }
 
-        if (output_options.write_quadrature)
-        {
-            qmomkit::QuadratureWriter quadrature_history_writer = qmomkit::QuadratureWriter::for_cqmom(
-                output_options.directory / "quadrature_history.txt", quadrature_history.front().second.number_of_dimensions());
-            for (const auto& [history_time, history_quadrature] : quadrature_history)
-            {
-                quadrature_history_writer.write(history_time, history_quadrature);
-            }
-        }
-        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(cqmom.quadrature, moment_output_request);
+        const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(initial_quadrature, moment_output_request);
         if (!initial_moments.ok())
         {
             std::cerr << "Initial CQMOM moment reconstruction failed: " << initial_moments.message << '\n';
             return 1;
         }
-        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(quadrature, moment_output_request);
+        const qmomkit::SelectedRawMomentResult final_moments = qmomkit::reconstruct_raw_moments(state.quadrature(), moment_output_request);
         if (!final_moments.ok())
         {
             std::cerr << "Final CQMOM moment reconstruction failed: " << final_moments.message << '\n';
             return 1;
         }
-        cqmom_3d_droplets_condensation_nucleation::print_result_summary(initial_moments, final_moments, quadrature, output_options.directory,
+        cqmom_3d_droplets_condensation_nucleation::print_result_summary(initial_moments, final_moments, state.quadrature(), output_options.directory,
                                                                         cqmom_3d_droplets_condensation_nucleation::initialization_sample_count,
                                                                         cqmom_3d_droplets_condensation_nucleation::initialization_seed, time_step,
                                                                         final_time, output_options.write_moments, output_options.write_quadrature);

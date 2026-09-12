@@ -14,12 +14,21 @@ namespace qmomkit
 /**
  * Advanced composable operation: reconstruct one-dimensional raw moments from
  * a successful QMOM quadrature rule using m_k = sum_i w_i x_i^k.
+ *
+ * An unsuccessful quadrature, a zero `moment_count`, or inconsistent/non-finite
+ * quadrature storage is rejected with `std::invalid_argument`. A non-finite
+ * reconstructed value raises `std::overflow_error`.
  */
 [[nodiscard]] std::vector<double> reconstruct_raw_moments(const Quadrature1D& quadrature, std::size_t moment_count);
 
 /**
  * Advanced composable operation: reconstruct multidimensional raw moments
  * from terminal CQMOM quadrature nodes using phase-space-dimension ordering.
+ *
+ * A rank mismatch between `extents` and the quadrature's phase-space dimension
+ * count, or inconsistent/non-finite quadrature storage, is rejected with
+ * `std::invalid_argument`. A non-finite reconstructed value raises
+ * `std::overflow_error`.
  */
 [[nodiscard]] RawMomentTensor reconstruct_raw_moments(const CqmomQuadrature& quadrature, const std::vector<std::size_t>& extents);
 
@@ -27,6 +36,11 @@ namespace qmomkit
  * Advanced composable operation: reconstruct selected multidimensional raw
  * moments from terminal CQMOM quadrature nodes using the exact request order
  * and phase-space indices.
+ *
+ * Inconsistent/non-finite quadrature storage, or a requested index whose rank
+ * does not match the quadrature's phase-space dimension count, is rejected
+ * with `std::invalid_argument`. A non-finite reconstructed value raises
+ * `std::overflow_error`.
  */
 [[nodiscard]] SelectedRawMomentResult reconstruct_raw_moments(const CqmomQuadrature& quadrature, const RawMomentRequest& request);
 
@@ -38,6 +52,13 @@ namespace qmomkit
  * multi-indices are ordered by phase-space dimension. Fixed rectangular and
  * adaptive ragged quadrature layouts are both reconstructed from terminal
  * nodes into the fixed required moment layout.
+ *
+ * A layout hierarchy that does not match the quadrature hierarchy, an
+ * inconsistent/non-finite quadrature, or a layout that is not the fixed
+ * required layout for its hierarchy is rejected with `std::invalid_argument`.
+ * A required index outside the hierarchy's moment extents raises
+ * `std::out_of_range`. A non-finite reconstructed value raises
+ * `std::overflow_error`.
  */
 [[nodiscard]] CqmomMomentData reconstruct_cqmom_moments(const CqmomQuadrature& quadrature, const CqmomMomentLayout& layout);
 

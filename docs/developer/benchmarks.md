@@ -1,774 +1,124 @@
 # Benchmarks
 
-This page documents the QMOMKit benchmarking philosophy and benchmark project
-architecture.
+Benchmarks measure computational performance. They do not establish
+correctness (see [testing.md](testing.md)) or numerical credibility (see
+[validation.md](validation.md)), and benchmark timings are never correctness
+evidence.
 
-For correctness testing, see [testing.md](testing.md). For numerical credibility and
-reference comparisons, see [validation.md](validation.md).
+QMOMKit is embedded in larger simulation codes where phase-space evolution runs
+many times per timestep, so reconstruction, traversal, allocation, and
+diagnostic costs are tracked deliberately.
 
-## Role Of Benchmarks
+## Executables
 
-QMOMKit separates correctness, credibility, and performance:
+`tests/benchmarks/` is a standalone CMake project. Each source file builds one
+executable:
 
-```text
-testing:
-    correctness
+| Executable | Measures |
+|---|---|
+| `wheeler_benchmark` | Fixed and adaptive one-dimensional Wheeler inversion. |
+| `vandermonde_benchmark` | Vandermonde solver kernels: size and right-hand-side scaling, clustered/mixed-sign/tiny-weight robustness, solver selection, and the public one-level conditional reconstruction. |
+| `cqmom_benchmark` | Representative full CQMOM workloads: conditioning-order traversal, adaptive ragged output, high-dimensional recursion, diagnostic overhead, and dense-versus-lean representation scaling. |
+| `adaptive_quadrature_benchmark` | Adaptive QMOM/CQMOM lifecycle: paired `Reconstruction` and `FullStep` timings for retained counts, rejected growth, reductions, and `Direct`/`Fallback` reconstruction-ceiling pairs. |
+| `performance_instrumentation_benchmark` | Representative workloads reported with internal workload counters (see below). |
+| `allocation_benchmark` | Heap allocations and bytes per phase-space step and per reconstruction, via a counting `operator new`. |
 
-validation:
-    numerical credibility
+## Build and run
 
-benchmarks:
-    computational performance
-```
-
-Benchmarks measure the cost of representative numerical operations. They do not
-establish mathematical correctness, validate physical behavior, define numerical
-tolerances, or replace unit and verification coverage.
-
-Performance tracking matters because QMOMKit provides numerical algorithms
-intended to be embedded in larger simulation, analysis, and validation
-workflows. Changes to
-inversion, conditional reconstruction, CQMOM traversal, memory layout, or
-diagnostic paths can affect downstream cost even when numerical results remain
-unchanged. Benchmarks provide controlled workloads for comparing performance
-across implementations, compilers, build settings, and hardware.
-
-Benchmarks also guide Vandermonde solver decisions. Solver benchmarks measure
-isolated numerical operations such as dense and Björck-Pereyra Vandermonde
-solves. Application benchmarks measure representative CQMOM
-workloads where recursive traversal, conditional reconstruction, adaptive
-branching, storage, and diagnostics interact. Solver-selection policies should
-be informed by both views: solver scaling shows where an algorithm can be
-advantageous, and application benchmarks show whether that advantage matters in
-realistic traversal patterns.
-
-## Benchmark Architecture
-
-Benchmarks live in:
-
-```text
-tests/benchmarks/
-```
-
-This directory is a standalone CMake project. It consumes an installed QMOMKit
-package with:
-
-```cmake
-find_package(QMOMKit CONFIG REQUIRED)
-target_link_libraries(... PRIVATE qmomkit::qmomkit)
-```
-
-The benchmark project is separate from:
-
-- the repository root core-library build;
-- the normal `tests/` CTest correctness project;
-- package-consumer smoke tests;
-- examples and Monte Carlo validation tools.
-
-Benchmark executables are not registered as CTest correctness tests. They are
-run directly as performance measurement programs.
-
-### Benchmark Build Configuration
-
-Benchmark results require an optimized QMOMKit library and an optimized
-benchmark executable. Build and install QMOMKit with `Release` for timing
-comparisons:
+Benchmarks consume an **installed** QMOMKit package, so build and install the
+library first, with matching configuration. Use `Release` for timing and
+`RelWithDebInfo` when profiling; never `Debug` or an empty `CMAKE_BUILD_TYPE`.
 
 ```sh
-cmake -B build-release -DCMAKE_BUILD_TYPE=Release
-cmake --build build-release
-cmake --install build-release
-```
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX="${PWD}/install"
+cmake --build build-release --target install
 
-Then configure the standalone benchmark project with the same configuration:
-
-```sh
-cmake -S tests/benchmarks -B build-benchmarks \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_PREFIX_PATH=<install>
-cmake --build build-benchmarks
-```
-
-For the default repository install prefix, use an absolute path. A bare
-relative value such as `-DCMAKE_PREFIX_PATH=install` is resolved by CMake from
-the benchmark build context and can fail to find the package configuration.
-From the repository root, prefer:
-
-```sh
-cmake -S tests/benchmarks -B build-benchmarks \
-  -DCMAKE_BUILD_TYPE=Release \
+cmake -S tests/benchmarks -B build-benchmarks -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="${PWD}/install"
 cmake --build build-benchmarks
-```
 
-Run benchmark executables directly:
-
-```sh
-./build-benchmarks/wheeler_benchmark
-./build-benchmarks/vandermonde_benchmark
 ./build-benchmarks/cqmom_benchmark
-./build-benchmarks/adaptive_quadrature_benchmark
-./build-benchmarks/performance_instrumentation_benchmark
-```
-
-Use Google Benchmark options to select a subset of registered benchmarks when a
-focused comparison is more useful than running the full executable:
-
-```sh
-./build-benchmarks/vandermonde_benchmark --benchmark_filter=solver_selection
 ./build-benchmarks/cqmom_benchmark --benchmark_filter=diagnostic_overhead
-./build-benchmarks/adaptive_quadrature_benchmark --benchmark_filter='Qmom/(Reconstruction|FullStep)'
-./build-benchmarks/adaptive_quadrature_benchmark --benchmark_filter='Cqmom(2D|3D)/(Reconstruction|FullStep)'
-./build-benchmarks/adaptive_quadrature_benchmark --benchmark_filter='Direct|Fallback'
-./build-benchmarks/adaptive_quadrature_benchmark \
-    --benchmark_filter='Retain/N2_Max2|RejectedGrowth/N2_Max3|ConditionalRetainN2_Max2|ConditionalRejectedGrowth'
-./build-benchmarks/performance_instrumentation_benchmark --benchmark_filter=performance_cqmom_phase_space_evolution
-./build-benchmarks/performance_instrumentation_benchmark --benchmark_filter=performance_node_advection_scheme
 ```
 
-Counter-collecting performance-instrumentation benchmarks require QMOMKit to
-be built and installed with
-`QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION=ON`. The no-session overhead
-variants can also be built against an instrumentation-disabled package for
-timing comparison. Other benchmark executables do not require that option.
-
-### Performance Instrumentation Benchmark Build
-
-`performance_instrumentation_benchmark` uses QMOMKit's optional internal
-performance instrumentation layer. Build and install the core library with
-instrumentation enabled before configuring the standalone benchmark project:
-
-```bash
-INSTALL_PREFIX="${PWD}/install-performance"
-
-cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DQMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION=ON
-
-cmake --build build
-cmake --install build
-```
-
-Then configure and build the benchmark project against that installed package:
-
-```bash
-cmake -S tests/benchmarks -B build-benchmarks \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_PREFIX_PATH="${INSTALL_PREFIX}"
-
-cmake --build build-benchmarks --target performance_instrumentation_benchmark
-```
-
-The benchmark project uses `find_package(QMOMKit CONFIG REQUIRED)`, so
-`CMAKE_PREFIX_PATH` must name the installation prefix that contains
-`lib/cmake/QMOMKit/QMOMKitConfig.cmake`. If a local shell variable is
-inconvenient, pass the absolute path directly:
-
-```bash
-cmake -S tests/benchmarks -B build-benchmarks \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_PREFIX_PATH=/path/to/install-performance
-```
-
-Equivalently, point CMake at the package configuration directory:
-
-```bash
-cmake -S tests/benchmarks -B build-benchmarks \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DQMOMKit_DIR=/path/to/install-performance/lib/cmake/QMOMKit
-```
-
-Run the full instrumentation benchmark executable directly:
-
-```bash
-./build-benchmarks/performance_instrumentation_benchmark
-```
-
-The default command prints the normal Google Benchmark timing table followed
-by a human-readable QMOMKit performance instrumentation report. The report is
-the preferred starting point for understanding why a representative workload is
-expensive.
-
-Use Google Benchmark filters for focused runs:
-
-```bash
-./build-benchmarks/performance_instrumentation_benchmark \
-    --benchmark_filter=performance_cqmom_phase_space_evolution
-
-./build-benchmarks/performance_instrumentation_benchmark \
-    --benchmark_filter=performance_vandermonde
-
-./build-benchmarks/performance_instrumentation_benchmark \
-    --benchmark_filter=performance_source
-```
-
-If QMOMKit is built without
-`QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION=ON`, the executable builds. The
-enabled-session counter benchmarks skip with a message explaining the missing
-configuration, while timing-only and no-session overhead variants still run.
-This keeps the benchmark target discoverable while preserving the default
-zero-overhead core-library build.
-
-No additional benchmark-side instrumentation flag is required. The installed
-`qmomkit::qmomkit` target propagates the
-`QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION` compile definition when the core
-library was built with that option enabled.
-
-Use `RelWithDebInfo` instead when profiling benchmark workloads so optimization
-remains enabled while debug symbols are retained:
-
-```sh
-cmake -B build-profile -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build build-profile
-cmake --install build-profile
-
-cmake -S tests/benchmarks -B tests/benchmarks/build-profile \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DCMAKE_PREFIX_PATH="${PWD}/install"
-cmake --build tests/benchmarks/build-profile
-```
-
-Do not use Debug or an empty `CMAKE_BUILD_TYPE` for benchmark timing results.
-Debug builds keep assertions enabled and avoid aggressive optimization. Empty
-single-configuration builds are generator-default builds and are not a stable
-performance baseline. The installed QMOMKit package and benchmark executable
-should be built with the same intended configuration before comparing results.
-
-### Google Benchmark
-
-The benchmark project uses Google Benchmark as an external dependency. This
-dependency is local to `tests/benchmarks/`; it is not a QMOMKit runtime
-dependency and is not required to configure, build, install, test, or consume
-the core QMOMKit package.
-
-The benchmark CMake project first looks for an installed Google Benchmark
-package that exports `benchmark::benchmark_main`. If that target is not
-available, the standalone benchmark project may fetch the pinned Google
-Benchmark dependency for local benchmark builds. That fallback is scoped to the
-benchmark project and should not leak into normal QMOMKit builds.
-
-## Benchmark Organization
-
-Current benchmark coverage is split by the performance question being asked.
-
-### Application Benchmarks
-
-Application-level CQMOM benchmarks live in:
-
-```text
-tests/benchmarks/cqmom_benchmark.cpp
-```
-
-These benchmarks measure representative QMOMKit CQMOM workloads. They are
-intended to characterize full recursive reconstruction behavior, including
-conditioning-order traversal, branch-local conditional reconstruction, adaptive
-branch counts, terminal quadrature storage, diagnostics, and associated memory
-movement.
-
-Application benchmarks should represent meaningful workflows rather than solver
-microbenchmarks. They normally use the automatic internal Vandermonde solver
-selection path, because that is the application-facing behavior maintainers
-need to track. Dense/Björck-Pereyra Vandermonde solver comparisons
-belong in dedicated solver benchmarks unless a CQMOM benchmark is explicitly
-studying an application-level solver-policy effect.
-
-The current CQMOM application benchmark categories are:
-
-- 2D conditioning-order baseline: a small fixed reconstruction with a
-  non-default conditioning order, used to track public CQMOM overhead and
-  dimension-order handling.
-- Adaptive ragged 3D baseline: a branch-specific adaptive reconstruction that
-  produces ragged terminal output, used to track adaptive traversal and
-  terminal-path bookkeeping.
-- Moderate fixed-dimensional reconstruction: a deterministic fixed CQMOM
-  workload with moderate phase-space dimension and branch-local reconstruction
-  work.
-- High-dimensional low-node-count recursion: a deep tree with small node
-  counts in each dimension, used to isolate recursive traversal and branch
-  proliferation rather than large Vandermonde solves.
-- Wide conditional reconstruction: a high-dimensional workload with a wider
-  root conditional reconstruction, used to track the cost of broad
-  branch-local right-hand sides inside full CQMOM traversal.
-- Diagnostic overhead: one representative fixed workload run at each CQMOM
-  diagnostic level, used to measure the incremental cost of diagnostic
-  collection without multiplying every application case.
-- Dense-vs-lean representation scaling: explicit dense `RawMomentTensor` and
-  lean `CqmomMomentData` CQMOM workflows over selected dimensions and node
-  counts. These benchmarks report runtime plus dense and lean moment counts so
-  maintainers can quantify the memory/runtime tradeoff without introducing
-  automatic representation selection.
-
-Adaptive quadrature lifecycle benchmarks live in:
-
-```text
-tests/benchmarks/adaptive_quadrature_benchmark.cpp
-```
-
-These benchmarks measure the current adaptive QMOM and recursive CQMOM
-reconstruction policy without adding production diagnostics or changing node
-selection. They provide paired reconstruction-only and complete accepted
-phase-space evolution-step timings for retained counts, rejected growth trials, reductions,
-and accepted one-node growth. Benchmark counters identify stable fixture
-metadata such as active node counts, configured terminal capacity, accepted
-terminal nodes, storage representation, and moment count. Use the paired
-`Reconstruction` and `FullStep` benchmark names to compute the reconstruction
-fraction of a complete accepted step, and compare adaptive event `FullStep`
-timings against the matching retained `FullStep` baseline to estimate
-incremental event cost.
-
-The `Direct` and `Fallback` reconstruction pairs use the same deterministic
-moment sequence and the same final accepted quadrature or CQMOM hierarchy. They
-differ only in the branch-local reconstruction ceiling supplied to the current
-validated adaptive policy. These paired cases estimate the maximum avoidable
-fallback cost that a future low-order information check could save, without
-implementing that check or changing production behavior. Use filters such as:
-
-```bash
-./build-benchmarks/adaptive_quadrature_benchmark \
-    --benchmark_filter='Qmom/Reconstruction/(Direct|Fallback)'
-
-./build-benchmarks/adaptive_quadrature_benchmark \
-    --benchmark_filter='Cqmom2D/Reconstruction/(Lean|Dense)/(Direct|Fallback)'
-```
-
-For a statistically useful local timing campaign, run repeated aggregate
-measurements and write JSON outside the repository:
-
-```bash
-./build-benchmarks/adaptive_quadrature_benchmark \
-    --benchmark_filter='Direct|Fallback|Retain/N2_Max2|RejectedGrowth/N2_Max3|ConditionalRetainN2_Max2|ConditionalRejectedGrowth' \
-    --benchmark_min_time=0.5s \
-    --benchmark_repetitions=10 \
-    --benchmark_report_aggregates_only=true \
-    --benchmark_out=/private/tmp/adaptive_quadrature_benchmark.json \
-    --benchmark_out_format=json
-```
-
-Absolute timings and derived overhead percentages are machine-specific. Treat
-them as local evidence for optimization decisions, not as portable performance
-guarantees.
-
-### Performance Instrumentation Benchmarks
-
-Instrumentation-based workload benchmarks live in:
-
-```text
-tests/benchmarks/performance_instrumentation_benchmark.cpp
-```
-
-The `performance_instrumentation_benchmark` executable provides representative
-QMOMKit workload measurements using the optional performance instrumentation
-layer. It reports Google Benchmark wall-clock/CPU timing together with
-internal workload counters, such as reconstruction calls, branch solves,
-Wheeler calls, Vandermonde solves, terminal node assembly,
-fixed prepared-metadata builds and uses, dynamic-metadata builds,
-adaptive active-count derivations, validations, and transition builds,
-phase-space evolution operator calls, moment-source SSP-RK stages, and node RHS evaluations.
-
-This benchmark is intended for:
-
-- performance analysis;
-- workload characterization;
-- optimization studies.
-
-It is not:
-
-- a correctness test;
-- a verification case;
-- a replacement for external profiling tools.
-
-Use this benchmark to understand how much computational work a representative
-workflow performs. Use profiling tools when the benchmark and counters suggest
-that elapsed time, allocation behavior, cache effects, or callback cost need
-closer inspection. Do not treat a counter value by itself as an optimization
-result.
-
-The current instrumentation benchmark categories are:
-
-- CQMOM phase-space evolution workload: constructs one `CqmomCase`, creates many
-  independent `CqmomState` objects, and repeatedly advances them through
-  `advance_cqmom_phase_space(...)` with deterministic velocity, source, and
-  boundary callbacks. Strang, advection-moment-source, and
-  moment-source-advection splitting variants make the expected operator
-  sequence visible in normalized counters.
-- CQMOM reconstruction and Vandermonde policy comparisons: explicit dynamic
-  lean rows retain the `performance_vandermonde_*` names. Separate
-  `performance_cqmom_normal_prepared_*` rows measure warm
-  `compute_cqmom(CqmomCase)` for fixed 2D 2 x 2, 2D 3 x 3, 3D 2 x 2 x 2,
-  4D 2^4, and 5D 2^5 cases. The two names denote different operations and are
-  not before/after substitutes. `performance_cqmom_programmatic_case_construction_*`
-  rows include only programmatic normal-case construction from precomputed
-  hierarchy, layout, and moment data; they do not include configuration parsing.
-  A prepared `initial_state()` row isolates state construction after that
-  one-time work. Standalone explicit lean/dense and adaptive normal controls
-  remain on the dynamic path. Together, the rows distinguish one-time case
-  cost from repeated normal-case reconstruction and make prepared-versus-dynamic
-  counter use visible.
-- CQMOM moment-source integration and layout comparisons: repeatedly call
-  `advance_cqmom_moments_with_source(...)` with a deterministic source model
-  to expose moment-source SSP-RK stage counts, retry behavior, and layout construction.
-  Companion variants measure source callback evaluation alone,
-  `CqmomMomentData` copying, and SSP-RK3 moment-source integration around an already
-  available layout.
-- CQMOM phase-space evolution component comparisons: isolate phase-space advection,
-  moment-source update, raw-moment reconstruction from an existing
-  quadrature, and CQMOM inversion for a common 2D 2 x 2 workload. Use these
-  with the complete phase-space evolution variants to check whether integrated phase-space evolution
-  cost is consistent with the isolated kernels.
-- Node-advection scheme comparisons: call `advance_nodes(...)` directly for
-  small 1D QMOM and 2D 2 x 2 CQMOM quadratures. Constant-velocity cases show
-  the fixed-stage work of SSP-RK3 and the adaptive bookkeeping of RK23 on a
-  simple trajectory. Affine-velocity cases add an analytical non-trivial
-  trajectory so the benchmark can report both workload counters and maximum
-  trajectory error. These variants compare `NodeAdvectionScheme::ssp_rk3` with
-  `NodeAdvectionScheme::rk23` without changing phase-space evolution splitting,
-  moment-source integration, or node-advection methods.
-- Instrumentation overhead comparisons: run equivalent no-session workloads
-  against instrumentation-enabled and instrumentation-disabled QMOMKit builds.
-  Enabled-session variants then show the additional cost of active counter
-  accumulation for the same workload family.
-
-Useful focused filters are:
-
-```bash
-./build-benchmarks/performance_instrumentation_benchmark \
-    --benchmark_filter='performance_source|performance_ssp_source|performance_cqmom_moment_data'
-
-./build-benchmarks/performance_instrumentation_benchmark \
-    --benchmark_filter='performance_vandermonde_(auto_basic|bp_basic|dense_basic|auto_detailed)'
-
-./build-benchmarks/performance_instrumentation_benchmark \
-    --benchmark_filter='performance_phase_space_evolution_component|performance_cqmom_phase_space_evolution_(strang|advsrc|srcadv)'
-
-./build-benchmarks/performance_instrumentation_benchmark \
-    --benchmark_filter=performance_node_advection_scheme
-
-./build-benchmarks/performance_instrumentation_benchmark \
-    --benchmark_filter=performance_instrumentation_overhead
-```
-
-### Instrumentation Overhead Workflow
-
-Do not link instrumented and non-instrumented QMOMKit libraries into one
-benchmark executable. Build two installed packages with identical compiler
-settings and different install prefixes:
-
-```bash
-cmake -S . -B build-release-no-instrumentation \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${PWD}/install-release-no-instrumentation" \
-    -DQMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION=OFF
-
-cmake --build build-release-no-instrumentation
-cmake --install build-release-no-instrumentation
-
-cmake -S . -B build-release-instrumented \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${PWD}/install-release-instrumented" \
-    -DQMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION=ON
-
-cmake --build build-release-instrumented
-cmake --install build-release-instrumented
-```
-
-Then configure two benchmark executables against those installations:
-
-```bash
-cmake -S tests/benchmarks -B build-benchmarks-no-instrumentation \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_PREFIX_PATH="${PWD}/install-release-no-instrumentation"
-
-cmake --build build-benchmarks-no-instrumentation --target performance_instrumentation_benchmark
-
-cmake -S tests/benchmarks -B build-benchmarks-instrumented \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_PREFIX_PATH="${PWD}/install-release-instrumented"
-
-cmake --build build-benchmarks-instrumented --target performance_instrumentation_benchmark
-```
-
-Run the same no-session filter against both executables:
-
-```bash
-./build-benchmarks-no-instrumentation/performance_instrumentation_benchmark \
-    --benchmark_filter=performance_instrumentation_overhead
-
-./build-benchmarks-instrumented/performance_instrumentation_benchmark \
-    --benchmark_filter=performance_instrumentation_overhead
-```
-
-The non-instrumented executable measures the compile-time-disabled path. The
-instrumented no-session executable measures the enabled-build path without an
-active counter session. To measure active counter accumulation, compare with
-the corresponding enabled-session families, such as:
-
-```bash
-./build-benchmarks-instrumented/performance_instrumentation_benchmark \
-    --benchmark_filter='performance_cqmom_phase_space_evolution_strang|performance_vandermonde_auto_basic_2d_2x2|performance_source_normal'
-```
-
-Compare runtime per reconstruction, runtime per moment-source update, and runtime per
-phase-space evolution state-step. These comparisons quantify instrumentation cost for the
-selected workload only; they do not prove anything about unrelated application
-workloads.
-
-### Reading The Instrumentation Report
-
-`performance_instrumentation_benchmark` emits two complementary views:
-
-- the Google Benchmark table reports elapsed time, CPU time, iteration count,
-  throughput, and raw counter columns;
-- the QMOMKit performance instrumentation report groups the same workload
-  counters by numerical subsystem and adds derived metrics.
-
-The report sections are:
-
-- Workload: benchmark name, workload type, phase-space dimensions, node counts,
-  requested terminal nodes, moment counts, phase-space evolution scheme, node-advection
-  scheme, state count, and step count when applicable.
-- Timing: total measured benchmark-body runtime and average runtime per
-  reconstruction, moment-source update, node update, or state-step. This answers how
-  expensive the measured workload was.
-- Reconstruction counters: CQMOM/QMOM reconstruction counts, Wheeler calls,
-  branch solves, terminal node assembly, moment-layout construction, and fixed
-  prepared-versus-dynamic metadata events.
-- Linear algebra counters: Vandermonde solves, solver-path counts, residual
-  checks, and condition estimates.
-- Phase-space evolution/time-integration counters: advection/moment-source operator
-  applications, moment reconstruction calls, post-source inversions, moment-source
-  SSP-RK stages and retries, node RHS evaluations, and adaptive embedded-RK step
-  counts when RK23 or RK45 node advection is selected.
-- Node-advection diagnostics: scheme-neutral node-advection steps, rejected
-  steps, RHS evaluations, and maximum trajectory error for benchmark cases with
-  an analytical trajectory.
-- Trajectory error metric: the reported maximum trajectory error is an
-  absolute error. For each benchmark update, the benchmark compares every
-  advanced quadrature coordinate with the analytical trajectory value for that
-  node and phase-space dimension, takes the largest absolute component
-  difference over all nodes and dimensions, and reports the maximum seen across
-  benchmark iterations. Values such as `1e-5` or `1e-9` therefore have the same
-  units as the phase-space coordinate being advanced; they are not relative
-  errors.
-- Derived metrics: normalized ratios such as Wheeler calls per reconstruction,
-  Vandermonde solves per reconstruction, and
-  phase-space evolution operations per state update.
-
-Interpret timing and counters together. Timing tells how expensive a workload
-was; counters help explain why.
-
-Example interpretations:
-
-- High Wheeler calls per reconstruction usually indicate many recursive CQMOM
-  branch solves. Compare this with dimensions, node counts, and terminal node
-  assembly before optimizing Wheeler itself.
-- High Vandermonde solves per reconstruction indicate conditional
-  reconstruction is prominent in the workload.
-- High node RHS evaluations per state update indicate advection node
-  advection work. Profile the velocity callback and node-advection scheme
-  settings before changing reconstruction code.
-- Node-advection scheme-comparison benchmarks should be interpreted as a
-  cost/accuracy tradeoff study, not a ranking. SSP-RK3 has predictable cost
-  because it evaluates a fixed three-stage trajectory step over the supplied
-  timestep. Adaptive RK23 may perform substantially more RHS evaluations
-  because it estimates error and adjusts internal substeps. The resulting
-  trajectory error depends on the velocity field, tolerance settings, and
-  supplied phase-space evolution timestep, so the useful scheme choice is application
-  dependent.
-- High moment-source SSP-RK stages with low reconstruction and Vandermonde counts
-  indicate source-update cost, callback cost, or CQMOM moment-context
-  construction may dominate that benchmark.
-
-Counters identify hypotheses. Use external profiling tools to confirm where
-wall-clock time is spent before making optimization changes.
-
-### Solver Benchmarks
-
-Solver-level benchmarks live in:
-
-```text
-tests/benchmarks/vandermonde_benchmark.cpp
-```
-
-These benchmarks compare numerical algorithms, measure scaling behavior, and
-evaluate dense and Björck-Pereyra Vandermonde solvers. They cover
-matrix size scaling, right-hand-side width scaling, representative numerical
-robustness cases, wrapper behavior, automatic selection, and public
-conditional-reconstruction kernel cost.
-
-Solver benchmarks are the right place for dense/Björck-Pereyra comparisons,
-Vandermonde-specific solver stress cases, and numerical conditioning studies.
-
-Other benchmark categories remain focused on their own numerical operations:
-
-- Wheeler inversion: fixed one-dimensional inversion and adaptive Wheeler
-  reduction behavior.
-- Vandermonde and reconstruction operations: conditional moment reconstruction
-  through the weighted Vandermonde solve.
-
-These categories are intended to measure representative operations, not to
-publish universal timing claims. Individual benchmark results depend on the
-workload, compiler, build type, machine, dependency source, and runtime
-environment.
-
-## Vandermonde Solver Benchmarks
-
-The Vandermonde benchmark suite evaluates Vandermonde solver choices
-independently from CQMOM application workloads. These benchmarks
-measure solver kernels and the public one-level reconstruction kernel without
-the recursive CQMOM tree traversal, adaptive terminal storage, or CQMOM
-diagnostic machinery measured by `cqmom_benchmark.cpp`.
-
-### Solver Scaling
-
-Solver-scaling benchmarks compare dense and Björck-Pereyra behavior as the
-Vandermonde matrix size changes. They also compare behavior as the
-number of right-hand sides changes for a fixed matrix size. These cases use a
-small representative set of sizes and report counters such as `N`, `RHS`,
-`N3`, and `N2_RHS` so results can be interpreted against the expected scaling
-terms.
-
-### Numerical Robustness
-
-Numerical-robustness benchmarks characterize solver behavior for difficult but
-meaningful systems. The permanent suite keeps representative cases for:
-
-- clustered nodes;
-- mixed-sign nodes;
-- tiny weights.
-
-These cases are not exhaustive numerical verification. Correctness,
-near-singular rejection, and edge-case status behavior belong in unit or
-verification tests. The benchmark role is to track the performance cost of
-stable representative difficult systems.
-
-### Solver Selection
-
-Solver-selection benchmarks exercise the Vandermonde solver wrapper with
-`dense`, `bjorck_pereyra`, and `automatic` modes. They report counters for the
-selected solver and algorithm actually used. These counters make policy
-behavior visible in benchmark output and help verify the public CQMOM
-configuration setting.
-
-### Public Reconstruction Kernel
-
-The public reconstruction-kernel benchmark measures the end-to-end cost of
-`reconstruct_conditional_moments(...)` for a deterministic weighted
-Vandermonde-backed conditional reconstruction. This is still a solver-level
-benchmark: it includes public request/result overhead for one conditional
-reconstruction level, but not full recursive CQMOM traversal.
-
-## Benchmark Design Principles
-
-### Reproducibility
-
-Benchmarks should use deterministic fixtures. Inputs should be constructed
-before the measured loop whenever the goal is to time a computational kernel rather
-than fixture generation.
-
-A benchmark fixture should define:
-
-- the operation being measured;
-- the moment sequence, tensor, hierarchy, or request;
-- the node counts and adaptive settings;
-- the problem size and dimensionality;
-- whether setup and validation checks are outside the measured loop;
-- the public or internal boundary intentionally exercised.
-
-Each benchmark should answer a clear performance question. Representative
-workloads are more useful than overly tiny smoke paths or artificially large
-cases with unclear interpretation. When adding a larger case, record why the
+`CMAKE_PREFIX_PATH` must be an absolute path to the prefix containing
+`lib/cmake/QMOMKit/QMOMKitConfig.cmake`.
+
+Google Benchmark is a dependency of this project only. It is found via
+`find_package`, or fetched at a pinned version if absent. It is never a core
+library, test, example, or Monte Carlo dependency.
+
+### Performance instrumentation benchmarks
+
+`performance_instrumentation_benchmark` reports internal counters only when the
+installed library was built with
+`-DQMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION=ON`; the compile definition
+propagates from the installed target, so no benchmark-side flag is needed.
+Without it the executable still builds and runs, and counter benchmarks skip
+with an explanatory message.
+
+To measure instrumentation overhead, install two packages with identical
+compiler settings and different prefixes (`...=ON` and `...=OFF`), configure one
+benchmark build against each, and run the same
+`--benchmark_filter=performance_instrumentation_overhead` on both. Do not link
+instrumented and non-instrumented libraries into one executable.
+
+## Reading the output
+
+All executables print the Google Benchmark timing table. Two add counters:
+
+`allocation_benchmark` reports `allocations_per_op` and `bytes_per_op`.
+Counting is enabled only around the measured call, so harness allocations are
+excluded.
+
+`performance_instrumentation_benchmark` additionally prints a grouped report:
+workload shape (dimensions, node counts, moment counts, schemes); timing per
+reconstruction, source update, node update, or state-step; reconstruction
+counters (Wheeler calls, branch solves, terminal nodes, layout builds,
+prepared-versus-dynamic metadata); linear-algebra counters (Vandermonde solves
+by backend, residual checks, condition estimates); phase-space
+evolution counters (operator applications, post-source inversions, SSP-RK
+stages, node RHS evaluations, embedded-RK steps); and derived ratios such as
+Wheeler calls per reconstruction.
+
+Where a benchmark has an analytical trajectory, it also reports maximum
+trajectory error as an **absolute** error in the units of the phase-space
+coordinate, taken as the largest component difference over all nodes,
+dimensions, and iterations.
+
+Interpret timing and counters together: timing says how expensive a workload
+was, counters say why. High Wheeler calls per reconstruction point at recursive
+branch solves; high node RHS evaluations per update point at the velocity
+callback and node-advection scheme. Counters produce hypotheses; confirm with a
+profiler before optimizing. Scheme comparisons (SSP-RK3 versus adaptive RK23)
+are cost/accuracy tradeoff studies, not rankings.
+
+Absolute timings and derived percentages are machine-specific local evidence,
+not portable guarantees.
+
+## Design principles
+
+Fixtures must be deterministic, and inputs constructed outside the measured
+loop when the goal is to time a kernel rather than fixture generation. Each
+registered case should answer a distinct performance question; record why a
 problem size is meaningful.
 
-Avoid Cartesian multiplication of solver modes, diagnostic modes, dimensions,
-and node counts in application benchmark files. Add a matrix only when every
-combination answers a distinct question. Prefer a single diagnostic-overhead
-benchmark over running every CQMOM workload at every diagnostic level. Prefer
-dedicated solver benchmarks for algorithm comparisons and solver stress cases.
+Avoid Cartesian products of solver modes, diagnostic levels, dimensions, and
+node counts. Prefer one diagnostic-overhead case over every workload at every
+level, and keep solver comparisons in `vandermonde_benchmark` rather than
+application files. Exhaustive parameter grids are fine for a temporary local
+investigation but should not become permanent registered cases.
 
-CQMOM application benchmarks should stay interpretable: choose phase-space
-dimension, node counts, adaptive settings, and moment construction so the
-resulting workload maps to recursive traversal, conditional reconstruction,
-ragged output, diagnostic overhead, or another recognizable CQMOM workflow.
+Correctness assertions belong in unit and verification tests. A benchmark may
+perform a setup sanity check and skip itself if the fixture is invalid.
 
-Solver benchmark names should describe the question being asked, not only the
-parameter values being swept. Prefer names such as matrix-size scaling,
-right-hand-side scaling, clustered-node robustness, solver selection, or public
-conditional reconstruction. Exhaustive parameter grids are appropriate for
-temporary local investigations, but they should not become the permanent
-benchmark suite unless each registered case has a distinct long-term
-interpretation.
+Do not add broad benchmark result tables to developer documentation; keep
+detailed results in benchmark tooling or external analysis.
 
-### Interpretation
+## Public API boundary
 
-Benchmark results are timing measurements for a specific workload. They are not
-portable performance guarantees.
-
-Interpret results in the context of:
-
-- algorithm choice;
-- phase-space dimension and moment count;
-- node-count hierarchy and adaptive behavior;
-- memory allocation and data movement;
-- compiler, build type, and optimization flags;
-- hardware, CPU scheduling, and thermal state;
-- Google Benchmark dependency source and version.
-
-Use benchmarks to compare controlled alternatives or track performance trends.
-Do not treat one benchmark number as a universal metric for QMOMKit performance.
-
-## Adding Benchmarks
-
-When adding a benchmark, identify the numerical operation being measured before
-choosing a fixture. The benchmark should make the cost boundary obvious: for
-example, Wheeler inversion, conditional moment reconstruction, full recursive
-CQMOM, phase-space evolution composition, or output formatting.
-
-Prefer measuring the kernel of interest. If setup is not part of the intended
-measurement, construct inputs outside the measured loop and verify that the
-fixture is numerically valid before timing begins.
-
-Use representative deterministic inputs:
-
-- raw moments from a known quadrature or analytical construction;
-- phase-space hierarchies with meaningful node counts;
-- adaptive settings that exercise the intended branch behavior;
-- tensor extents that match the operation being measured.
-
-Benchmark code should remain independent from correctness tests. It may reuse
-stable public APIs and simple fixture construction patterns, but correctness
-assertions belong in unit or verification tests. A benchmark may perform a setup
-sanity check and skip itself if the fixture is invalid; that is not a substitute
-for correctness coverage.
-
-Do not add broad benchmark result tables to developer documentation. Store and
-compare detailed results through the benchmark tooling or external analysis
-appropriate to the performance investigation. Compact regression baselines for
-the performance instrumentation suite may live in
-[`performance_instrumentation.md`](performance_instrumentation.md#performance-baselines)
-when they document representative workload counters and clearly identify the
-environment behind any timing numbers.
-
-## Relationship With Profiling
-
-Benchmarks and profiling answer different questions:
-
-- Benchmarks provide controlled performance comparisons for selected workloads.
-- Profiling identifies where time is spent in a running program or workload.
-
-Profiling can explain a benchmark result or guide optimization work, but
-profiling output is not itself a stable developer-documentation artifact. Use
-profiling after a benchmark identifies a workload worth investigating.
-
-## Public/API Boundary
-
-Benchmark sources are repository development artifacts. They are not installed,
-exported, or part of the QMOMKit public package.
-
-Benchmarks may use public QMOMKit APIs to represent downstream-visible costs.
-They may also use repository-local fixture helpers or internal access if a
-specific internal kernel must be measured, but doing so does not make those
-helpers or internal headers public API.
-
-Downstream users should consume the installed QMOMKit package and public headers.
-Benchmark code should not be treated as a supported user-facing interface.
+Benchmark sources are development artifacts. They are not installed, exported,
+or part of the public package. They may use internal headers where a specific
+internal kernel must be measured; doing so does not make those headers public
+API.

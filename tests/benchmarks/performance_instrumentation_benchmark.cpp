@@ -1898,9 +1898,12 @@ const bool ownership_phase_space_evolution_benchmarks_registered = []
                                         {"lean_adaptive_ragged_2d_cache_miss", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true, true},
                                         {"dense_adaptive_ragged_2d_cache_miss", nodes_2x2(), qmomkit::CqmomMomentStorage::dense, true, true},
                                         {"lean_adaptive_ragged_3d_cache_miss", nodes_2x2x2(), qmomkit::CqmomMomentStorage::lean, true, true}};
+    // Isolated operators plus one composite. The first-order splitting orders
+    // (advsrc/srcadv) are covered by the dedicated
+    // performance_cqmom_phase_space_evolution_{advsrc,srcadv} benchmarks; repeating
+    // both orders across every ownership fixture would re-ask an answered question.
     const std::vector<CqmomPhaseSpaceEvolutionWorkflow> workflows{
-        CqmomPhaseSpaceEvolutionWorkflow::advection, CqmomPhaseSpaceEvolutionWorkflow::moment_source, CqmomPhaseSpaceEvolutionWorkflow::advsrc,
-        CqmomPhaseSpaceEvolutionWorkflow::srcadv, CqmomPhaseSpaceEvolutionWorkflow::strang};
+        CqmomPhaseSpaceEvolutionWorkflow::advection, CqmomPhaseSpaceEvolutionWorkflow::moment_source, CqmomPhaseSpaceEvolutionWorkflow::strang};
     for (const Fixture& fixture : fixtures)
     {
         for (const CqmomPhaseSpaceEvolutionWorkflow workflow : workflows)

@@ -17,6 +17,7 @@ add_executable(
     include_qmom.cpp
     include_quadrature.cpp
     include_moment_reconstruction.cpp
+    include_raw_moment_tensor.cpp
     include_realizability.cpp
     include_realizability_policy.cpp
     include_runge_kutta.cpp

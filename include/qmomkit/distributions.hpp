@@ -1,8 +1,8 @@
 #pragma once
 
-#include "qmomkit/conditional_moments.hpp"
 #include "qmomkit/moment_set.hpp"
 #include "qmomkit/multi_index.hpp"
+#include "qmomkit/raw_moment_tensor.hpp"
 
 #include <cstddef>
 #include <string>

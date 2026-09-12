@@ -1,6 +1,7 @@
 #pragma once
 
 #include "qmomkit/phase_space_hierarchy.hpp"
+#include "qmomkit/raw_moment_tensor.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -22,18 +23,6 @@ struct ConditionalMomentOptions
     double singular_tolerance = 1.0e-14;
     double conditioning_warning_threshold = 1.0e12;
     double moore_penrose_rcond = 1.0e-14;
-};
-
-/**
- * Global raw moment tensor flattened in phase-space dimension order.
- *
- * `values[flatten_multi_index(alpha, extents)]` stores the raw mixed moment
- * with phase-space-order multi-index `alpha`.
- */
-struct RawMomentTensor
-{
-    std::vector<std::size_t> extents;
-    std::vector<double> values;
 };
 
 /**

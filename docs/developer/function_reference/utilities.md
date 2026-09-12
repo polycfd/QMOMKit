@@ -91,7 +91,8 @@ Evidence: malformed layout, tensor, quadrature, and rate assertions in
 boundaries; they do not mean every trusted internal call revalidates everything.
 
 [numeric_utils.hpp](../../../src/internal/numeric_utils.hpp) supplies `all_finite`
-(linear scan), `format_diagnostic_vector` (stable readable vector text), and
+(linear scan). [phase_space_velocity_validation.hpp](../../../src/internal/phase_space_velocity_validation.hpp)
+supplies `format_diagnostic_vector` (stable readable vector text) and
 `validate_phase_space_velocity_result` plus message helpers (exact dimension and
 finite velocity). They throw/contextualize invalid callback output; they neither
 clip velocity nor infer coordinate semantics.

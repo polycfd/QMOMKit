@@ -1,12 +1,12 @@
 #pragma once
 
-#include "qmomkit/conditional_moments.hpp"
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/moment_set.hpp"
 #include "qmomkit/multi_index.hpp"
 #include "qmomkit/qmom.hpp"
 #include "qmomkit/quadrature.hpp"
+#include "qmomkit/raw_moment_tensor.hpp"
 
 #include <cstddef>
 #include <filesystem>

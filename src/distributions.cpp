@@ -746,27 +746,18 @@ struct SelectedRawMomentVisitor
     }
 };
 
-[[nodiscard]] RawMomentStatus finite_failure_status_from_value(const double value)
-{
-    if (std::isinf(value))
-    {
-        return RawMomentStatus::overflow;
-    }
-    return RawMomentStatus::non_finite;
-}
-
 [[nodiscard]] RawMomentResult add_compensated(double& sum, double& correction, const double value, const std::size_t order,
                                               const std::size_t component_index)
 {
     if (!std::isfinite(value))
     {
-        return make_failure(finite_failure_status_from_value(value), "Mixture component raw moment is not finite.", order, component_index);
+        return make_failure(finite_failure_status(value), "Mixture component raw moment is not finite.", order, component_index);
     }
 
     const double updated_sum = sum + value;
     if (!std::isfinite(updated_sum))
     {
-        return make_failure(finite_failure_status_from_value(updated_sum), "Mixture raw moment accumulation is not finite.", order, component_index);
+        return make_failure(finite_failure_status(updated_sum), "Mixture raw moment accumulation is not finite.", order, component_index);
     }
 
     if (std::abs(sum) >= std::abs(value))
@@ -779,7 +770,7 @@ struct SelectedRawMomentVisitor
     }
     if (!std::isfinite(correction))
     {
-        return make_failure(finite_failure_status_from_value(correction), "Mixture compensation accumulation is not finite.", order, component_index);
+        return make_failure(finite_failure_status(correction), "Mixture compensation accumulation is not finite.", order, component_index);
     }
 
     sum = updated_sum;
@@ -791,15 +782,15 @@ struct SelectedRawMomentVisitor
 {
     if (!std::isfinite(value))
     {
-        return make_selected_component_failure(finite_failure_status_from_value(value), "Mixture component raw moment is not finite.",
-                                               component_index, 0, {order});
+        return make_selected_component_failure(finite_failure_status(value), "Mixture component raw moment is not finite.", component_index, 0,
+                                               {order});
     }
 
     const double updated_sum = sum + value;
     if (!std::isfinite(updated_sum))
     {
-        return make_selected_component_failure(finite_failure_status_from_value(updated_sum), "Mixture raw moment accumulation is not finite.",
-                                               component_index, 0, {order});
+        return make_selected_component_failure(finite_failure_status(updated_sum), "Mixture raw moment accumulation is not finite.", component_index,
+                                               0, {order});
     }
 
     if (std::abs(sum) >= std::abs(value))
@@ -812,8 +803,8 @@ struct SelectedRawMomentVisitor
     }
     if (!std::isfinite(correction))
     {
-        return make_selected_component_failure(finite_failure_status_from_value(correction), "Mixture compensation accumulation is not finite.",
-                                               component_index, 0, {order});
+        return make_selected_component_failure(finite_failure_status(correction), "Mixture compensation accumulation is not finite.", component_index,
+                                               0, {order});
     }
 
     sum = updated_sum;
@@ -913,7 +904,7 @@ SelectedRawMomentResult make_selected_raw_moment_result(const RawMomentRequest& 
         }
         if (!std::isfinite(values[request_index]))
         {
-            return make_selected_failure(finite_failure_status_from_value(values[request_index]), "Selected raw moment value is not finite.",
+            return make_selected_failure(finite_failure_status(values[request_index]), "Selected raw moment value is not finite.",
                                          invalid_dimension_index, moment_order);
         }
     }
@@ -1012,7 +1003,7 @@ RawMomentResult compute_raw_moments(const DistributionMixture& mixture, const st
         moments[order] = sums[order] + corrections[order];
         if (!std::isfinite(moments[order]))
         {
-            return make_failure(finite_failure_status_from_value(moments[order]), "Mixture corrected raw moment is not finite.", order);
+            return make_failure(finite_failure_status(moments[order]), "Mixture corrected raw moment is not finite.", order);
         }
     }
     return finish_moments(std::move(moments));
@@ -1092,7 +1083,7 @@ SelectedRawMomentResult compute_raw_moments(const DistributionMixture& mixture, 
         values[request_index] = sums[request_index] + corrections[request_index];
         if (!std::isfinite(values[request_index]))
         {
-            return make_selected_failure(finite_failure_status_from_value(values[request_index]), "Mixture corrected raw moment is not finite.", 0,
+            return make_selected_failure(finite_failure_status(values[request_index]), "Mixture corrected raw moment is not finite.", 0,
                                          request.indices[request_index]);
         }
     }
@@ -1186,8 +1177,8 @@ TensorMomentResult compute_raw_moments(const IndependentProductDistribution& dis
             const double product = value * factor;
             if (!std::isfinite(product))
             {
-                return make_tensor_failure(finite_failure_status_from_value(product), "Independent product raw moment is not finite.",
-                                           invalid_dimension_index, moment_order);
+                return make_tensor_failure(finite_failure_status(product), "Independent product raw moment is not finite.", invalid_dimension_index,
+                                           moment_order);
             }
             if (value != 0.0 && factor != 0.0 && product == 0.0)
             {
@@ -1308,8 +1299,8 @@ SelectedRawMomentResult compute_raw_moments(const IndependentProductDistribution
             const double product = value * factor;
             if (!std::isfinite(product))
             {
-                return make_selected_failure(finite_failure_status_from_value(product), "Independent product raw moment is not finite.",
-                                             invalid_dimension_index, moment_order);
+                return make_selected_failure(finite_failure_status(product), "Independent product raw moment is not finite.", invalid_dimension_index,
+                                             moment_order);
             }
             if (value != 0.0 && factor != 0.0 && product == 0.0)
             {

@@ -16,6 +16,7 @@
 #include "qmomkit/phase_space_hierarchy.hpp"
 #include "qmomkit/qmom.hpp"
 #include "qmomkit/quadrature.hpp"
+#include "qmomkit/raw_moment_tensor.hpp"
 #include "qmomkit/realizability.hpp"
 #include "qmomkit/realizability_policy.hpp"
 #include "qmomkit/runge_kutta.hpp"

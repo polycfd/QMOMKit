@@ -109,6 +109,19 @@ validators require it. `parse_size` uses unsigned conversion with a negative-sig
 check; `parse_double` requires full finite conversion. List parsers reject empty
 entries/trailing commas; optional-bound lists additionally recognize `none`.
 
+`parse_qmom`, `parse_cqmom_dense`, `parse_cqmom_lean`, and `parse_cqmom` each call
+`parse_file` exactly once and share the resulting `ParsedFile` with the
+initial-condition step, instead of re-parsing the same text a second time.
+`parse_qmom_initial_condition_from_parsed` and `parse_cqmom_initial_condition_from_parsed`
+are internal-linkage siblings of the public `parse_qmom_initial_condition` and
+`parse_cqmom_initial_condition` that take an already-parsed `ParsedFile` instead
+of raw text; the public functions remain independently callable and still parse
+exactly once each. The CQMOM case parsers pass a copy into
+`parse_cqmom_case_settings` so its validation cannot affect the `ParsedFile`
+handed to the initial-condition step afterward; `parse_qmom` instead moves its
+own already-validated, still error-free `ParsedFile` directly, which is
+equivalent to a fresh parse at that point.
+
 `parse_qmom_initial_condition` and `parse_cqmom_initial_condition` choose explicit
 moments when present. That branch intentionally takes precedence over analytical
 initialization sections; selected otherwise-unused initialization keys are allowed
@@ -207,7 +220,7 @@ shows the distinction between specified raw moments and reconstructed nodes.
 | Family | Purpose and important semantics | Evidence |
 |---|---|---|
 | Distribution `check_*`, `is_positive_finite`, `finish_*`, `zero_selected_moments`, result `ok` | Validate family/request domain and package completed raw values; zero shortcuts differ by layer as described above. | Distribution invalid/zero tests |
-| Distribution `make_*failure`, `invalid_*`, `failure_at_order`, `finite_failure_status*`, `selected_failure_from_moment` | Preserve order/component/dimension attribution; distinguish underflow, overflow, invalid input, and nonfinite arithmetic. | Failure-attribution tests |
+| Distribution `make_*failure`, `invalid_*`, `failure_at_order`, `finite_failure_status`, `selected_failure_from_moment` | Preserve order/component/dimension attribution; distinguish underflow, overflow, invalid input, and nonfinite arithmetic. | Failure-attribution tests |
 | Distribution visitors and `compute_independent_product_marginal_moments` | Dispatch typed single/mixture inputs to the same checked evaluators. | Family/product parity tests |
 | Parser `require_entry`, `find_entry`, `parse_required_*`, `parse_optional_*` | Required-key diagnostics and default-preserving optional conversion; no physical defaults inferred. | Missing/default/invalid configuration tests |
 | Parser key/section recognizers, allowed-key builders, `reject_unknown_*`, `validate_optional_*`, enum parsers | Define accepted configuration surface and prevent unrelated keys changing runtime state. | Unknown-key and enum tests |

@@ -1475,6 +1475,7 @@ void test_invalid_index_inputs()
     assert_throws_out_of_range([] { (void)qmomkit::unflatten_multi_index(6, {2, 3}); });
     assert_throws_invalid_argument([] { (void)qmomkit::product_extents({std::numeric_limits<std::size_t>::max(), std::size_t{2}}); });
     assert_throws_invalid_argument([] { (void)qmomkit::flatten_multi_index({0, 0}, {std::numeric_limits<std::size_t>::max(), std::size_t{2}}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::PhaseSpaceHierarchy({std::numeric_limits<std::size_t>::max()}).moment_extents(); });
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3});
     assert_throws_invalid_argument([&hierarchy] { (void)hierarchy.flatten_node_index({0}); });

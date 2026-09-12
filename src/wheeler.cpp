@@ -192,6 +192,22 @@ struct WheelerAttemptResult
         return false;
     }
 
+    if (abscissas.size() == 2)
+    {
+        // A two-node candidate has only one pairwise distance, so normalizing it
+        // by the maximum pairwise distance (as done below for three or more
+        // nodes) is always exactly 1.0 and cannot discriminate separation.
+        // Normalize by the larger abscissa magnitude instead, per the documented
+        // two-node contract.
+        const double distance = std::abs(abscissas[0] - abscissas[1]);
+        const double magnitude = std::max(std::abs(abscissas[0]), std::abs(abscissas[1]));
+        if (!std::isfinite(distance) || !std::isfinite(magnitude) || magnitude <= 0.0)
+        {
+            return false;
+        }
+        return distance / magnitude > options.eabs;
+    }
+
     std::vector<double> nearest_distances(abscissas.size(), 0.0);
     std::vector<double> farthest_distances(abscissas.size(), 0.0);
 

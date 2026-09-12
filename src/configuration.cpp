@@ -275,12 +275,17 @@ ParsedFile parse_file(const std::string_view text, const std::string& source_nam
         {
             if (line_text.back() != ']')
             {
+                // A rejected header does not open a section: keys on subsequent
+                // lines must not be silently attributed to whatever section was
+                // open before this malformed line.
+                section.clear();
                 add_error(parsed, ConfigurationErrorCode::syntax_error, source_name, line_number, "Malformed section header.");
                 continue;
             }
             const std::string candidate_section = trim(line_text.substr(1, line_text.size() - 2));
             if (candidate_section.empty())
             {
+                section.clear();
                 add_error(parsed, ConfigurationErrorCode::syntax_error, source_name, line_number, "Malformed section header.");
                 continue;
             }

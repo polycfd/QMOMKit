@@ -78,7 +78,6 @@ struct JacobiOptions
 {
     double tolerance = 1.0e-14;
     std::size_t max_sweeps = 0;
-    std::size_t initial_q = 0;
 };
 
 [[nodiscard]] double matrix_infinity_norm(const DenseMatrix& matrix);

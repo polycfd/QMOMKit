@@ -41,13 +41,11 @@ namespace
     return VandermondeSolver::bjorck_pereyra;
 }
 
-[[nodiscard]] VandermondeSolver resolve_solver(const VandermondeSolver requested_solver, const std::size_t n, const std::size_t rhs_cols)
+[[nodiscard]] VandermondeSolver resolve_solver(const VandermondeSolver requested_solver)
 {
     switch (requested_solver)
     {
     case VandermondeSolver::automatic:
-        (void)n;
-        (void)rhs_cols;
         return select_automatic_solver();
     case VandermondeSolver::dense:
     case VandermondeSolver::pivoted_qr:
@@ -133,7 +131,7 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
     const std::size_t n = nodes.size();
     const std::size_t rhs_cols = rhs.cols();
     const VandermondeSolver requested_solver = options.solver;
-    const VandermondeSolver selected_solver = resolve_solver(requested_solver, nodes.size(), rhs.cols());
+    const VandermondeSolver selected_solver = resolve_solver(requested_solver);
 
     if (selected_solver == VandermondeSolver::dense)
     {

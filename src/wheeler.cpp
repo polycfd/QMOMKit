@@ -146,7 +146,7 @@ struct WheelerAttemptResult
     constexpr std::size_t max_sweeps_per_node = 50;
     constexpr double tolerance = 1.0e-14;
     const std::size_t max_sweeps = max_sweeps_per_node * std::max<std::size_t>(n, 1);
-    return internal::symmetric_jacobi_eigen(matrix, {tolerance, max_sweeps, 1});
+    return internal::symmetric_jacobi_eigen(matrix, {tolerance, max_sweeps});
 }
 
 [[nodiscard]] bool recurrence_is_finite(const RecurrenceCoefficients& coefficients)

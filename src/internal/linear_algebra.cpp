@@ -243,7 +243,7 @@ EigenDecomposition symmetric_jacobi_eigen(DenseMatrix matrix, const JacobiOption
         }
 
         std::size_t p = 0;
-        std::size_t q = options.initial_q;
+        std::size_t q = 0;
         double max_value = 0.0;
         for (std::size_t row = 0; row < n; ++row)
         {

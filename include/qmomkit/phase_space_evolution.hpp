@@ -252,9 +252,9 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  * `PhaseSpaceEvolutionScheme::advsrc` applies first-order advection-then-moment-source Lie
  * splitting: advection(dt) -> moment-source(dt). `PhaseSpaceEvolutionScheme::srcadv` applies
  * first-order moment-source-then-advection Lie splitting:
- * moment-source(dt) -> advection(dt). In first-order schemes, diagnostic
- * "half-step" stage names refer to the
- * first/only advection substep.
+ * moment-source(dt) -> advection(dt). In first-order schemes, the single
+ * advection substep's diagnostics land in the `first_*` fields for `advsrc`
+ * and in the `second_*`/`final_*` fields for `srcadv`.
  *
  * The state's configured maximum node count and reconstruction options govern
  * reconstruction. In adaptive mode the accepted state's quadrature size is the

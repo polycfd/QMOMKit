@@ -760,6 +760,8 @@ void QuadratureWriter::write(const double time, const CqmomQuadrature& quadratur
         {
             throw std::invalid_argument("CQMOM quadrature output terminal path depth does not match the writer dimension count.");
         }
+        // Discards the computed index; called only for its out_of_range check that every
+        // conditioning-path node index is within the hierarchy's bounds at each level.
         (void)recursive_path_to_node_index(quadrature.hierarchy(), path);
 
         std::vector<double> values;

@@ -375,14 +375,13 @@ void reject_unknown_sections(ParsedFile& parsed, const std::vector<std::string>&
     }
 }
 
-bool validate_format_version(ParsedFile& parsed, const std::string& source_name)
+void validate_format_version(ParsedFile& parsed, const std::string& source_name)
 {
     const Entry* version = find_entry(parsed, "format_version");
     if (version != nullptr && version->value != "1")
     {
         add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, version->line, "format_version must be 1.");
     }
-    return parsed.errors.empty();
 }
 
 std::optional<std::vector<std::size_t>> parse_phase_space_node_counts(ParsedFile& parsed, const Entry& entry, const std::string& source_name,

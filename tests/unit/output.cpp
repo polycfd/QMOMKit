@@ -4,6 +4,7 @@
 #include "qmomkit/moment_reconstruction.hpp"
 #include "test_case_dispatch.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -671,6 +672,151 @@ void test_quadrature_writer_rejects_mismatched_inputs()
     std::filesystem::remove(cqmom_path);
 }
 
+void test_factories_reject_empty_selections()
+{
+    assert_throws_invalid_argument_message(
+        []
+        { const qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(temporary_output_path("qmomkit_qmom_zero_moments"), std::size_t(0)); },
+        "Moment output requires at least one moment.");
+    assert_throws_invalid_argument_message(
+        []
+        {
+            const qmomkit::MomentWriter writer =
+                qmomkit::MomentWriter::for_qmom(temporary_output_path("qmomkit_qmom_empty_selection"), std::vector<std::size_t>{});
+        },
+        "Selected QMOM moment output requires at least one moment order.");
+    assert_throws_invalid_argument_message(
+        []
+        {
+            const qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(temporary_output_path("qmomkit_cqmom_empty_selection"),
+                                                                                  std::vector<std::size_t>{2}, std::vector<qmomkit::MultiIndex>{});
+        },
+        "Selected CQMOM moment output requires at least one moment index.");
+    assert_throws_invalid_argument_message(
+        []
+        {
+            const qmomkit::QuadratureWriter writer =
+                qmomkit::QuadratureWriter::for_qmom(temporary_output_path("qmomkit_qmom_zero_nodes"), std::size_t(0));
+        },
+        "QMOM quadrature output requires at least one node.");
+    assert_throws_invalid_argument_message(
+        []
+        {
+            const qmomkit::QuadratureWriter writer =
+                qmomkit::QuadratureWriter::for_cqmom(temporary_output_path("qmomkit_cqmom_zero_dimensions"), std::size_t(0));
+        },
+        "CQMOM quadrature output requires at least one phase-space dimension.");
+}
+
+void test_writer_rejects_generalized_moments_without_values()
+{
+    const std::filesystem::path qmom_path = temporary_output_path("qmomkit_qmom_generalized_required");
+    {
+        qmomkit::OutputOptions options;
+        options.generalized_moment_orders = {{2.0}};
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(qmom_path, 1, options);
+        assert_throws_invalid_argument_message([&writer] { writer.write(0.0, qmomkit::MomentSet({1.0})); },
+                                               "Generalized QMOM moment output values are required.");
+    }
+    std::filesystem::remove(qmom_path);
+
+    const std::filesystem::path cqmom_dense_path = temporary_output_path("qmomkit_cqmom_dense_generalized_required");
+    {
+        qmomkit::MomentWriter writer =
+            qmomkit::MomentWriter::for_cqmom(cqmom_dense_path, std::vector<std::size_t>{2}, std::vector<qmomkit::MultiIndex>{{0}}, {{1.0}});
+        assert_throws_invalid_argument_message([&writer] { writer.write(0.0, qmomkit::RawMomentTensor{{2}, {1.0, 2.0}}); },
+                                               "Generalized CQMOM moment output values are required.");
+    }
+    std::filesystem::remove(cqmom_dense_path);
+
+    const std::filesystem::path cqmom_moment_data_path = temporary_output_path("qmomkit_cqmom_moment_data_generalized_required");
+    {
+        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2}));
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(cqmom_moment_data_path, layout, {{1.0}});
+        assert_throws_invalid_argument_message(
+            [&writer, &layout] { writer.write(0.0, qmomkit::CqmomMomentData{layout, std::vector<double>(layout.required_indices.size(), 1.0)}); },
+            "Generalized CQMOM moment output values are required.");
+    }
+    std::filesystem::remove(cqmom_moment_data_path);
+}
+
+void test_moment_writer_rejects_nonfinite_values()
+{
+    const std::filesystem::path row_path = temporary_output_path("qmomkit_moment_writer_nonfinite_row");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(row_path, 1);
+        assert_throws_invalid_argument_message([&writer] { writer.write(std::numeric_limits<double>::quiet_NaN(), qmomkit::MomentSet({1.0})); },
+                                               "Moment output time must be finite.");
+        assert_throws_invalid_argument_message([&writer] { writer.write(0.0, qmomkit::MomentSet({std::numeric_limits<double>::infinity()})); },
+                                               "Moment output values must be finite.");
+    }
+    std::filesystem::remove(row_path);
+
+    const std::filesystem::path aligned_row_path = temporary_output_path("qmomkit_moment_writer_nonfinite_aligned_row");
+    {
+        // One selected moment column plus one generalized-moment column, so a supplied
+        // generalized value of matching count never trips the (unrelated) column-count check.
+        qmomkit::OutputOptions options;
+        options.generalized_moment_orders = {{2.0}};
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(aligned_row_path, 1, options);
+        assert_throws_invalid_argument_message([&writer]
+                                               { writer.write(std::numeric_limits<double>::quiet_NaN(), qmomkit::MomentSet({1.0}), {0.0}); },
+                                               "Moment output time must be finite.");
+        assert_throws_invalid_argument_message([&writer]
+                                               { writer.write(0.0, qmomkit::MomentSet({std::numeric_limits<double>::quiet_NaN()}), {0.0}); },
+                                               "Moment output values must be finite.");
+        assert_throws_invalid_argument_message([&writer] { writer.write(0.0, qmomkit::MomentSet({1.0}), {std::numeric_limits<double>::infinity()}); },
+                                               "Moment output values must be finite.");
+    }
+    std::filesystem::remove(aligned_row_path);
+}
+
+[[nodiscard]] std::string format_scientific_with_precision(const double value, const std::size_t precision)
+{
+    std::ostringstream output;
+    output << std::scientific << std::setprecision(precision) << value;
+    return output.str();
+}
+
+void test_column_padding_uses_centered_labels_and_widths()
+{
+    // column_width = std::max(precision + 8, 6); centered_column_label splits any odd
+    // padding remainder onto the right side. Verified byte-for-byte (not whitespace-
+    // normalized) so a regression in either formula would be caught.
+    constexpr std::size_t precision = 5;
+    constexpr std::size_t column_width = 13;
+    static_assert(column_width == std::max(precision + 8, std::size_t(6)));
+
+    const auto centered = [](const std::string& label)
+    {
+        assert(label.size() < column_width);
+        const std::size_t padding = column_width - label.size();
+        const std::size_t left_padding = padding / 2;
+        return std::string(left_padding, ' ') + label + std::string(padding - left_padding, ' ');
+    };
+    const auto right_justified = [](const std::string& value)
+    {
+        assert(value.size() <= column_width);
+        return std::string(column_width - value.size(), ' ') + value;
+    };
+
+    const std::filesystem::path path = temporary_output_path("qmomkit_column_padding");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(path, 1, precision);
+        writer.write(0.0, qmomkit::MomentSet({1.0}));
+        // A large-magnitude value exercises a 3-digit exponent, confirming the fixed
+        // column width formula still has enough headroom to avoid misaligned columns.
+        writer.write(1.0, qmomkit::MomentSet({1.0e300}));
+    }
+
+    const std::string expected =
+        centered("# time") + " " + centered("M[0]") + "\n" + right_justified(format_scientific_with_precision(0.0, precision)) + " " +
+        right_justified(format_scientific_with_precision(1.0, precision)) + "\n" + right_justified(format_scientific_with_precision(1.0, precision)) +
+        " " + right_justified(format_scientific_with_precision(1.0e300, precision)) + "\n";
+    assert(read_text_file(path) == expected);
+    std::filesystem::remove(path);
+}
+
 void test_cqmom_quadrature_writer_rejects_malformed_terminal_storage()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1});
@@ -737,5 +883,9 @@ int main(const int argc, char** argv)
             {"cqmom_adaptive_quadrature_output_accepts_changing_node_counts", test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts},
             {"quadrature_writer_rejects_mismatched_inputs", test_quadrature_writer_rejects_mismatched_inputs},
             {"cqmom_quadrature_writer_rejects_malformed_terminal_storage", test_cqmom_quadrature_writer_rejects_malformed_terminal_storage},
+            {"factories_reject_empty_selections", test_factories_reject_empty_selections},
+            {"writer_rejects_generalized_moments_without_values", test_writer_rejects_generalized_moments_without_values},
+            {"moment_writer_rejects_nonfinite_values", test_moment_writer_rejects_nonfinite_values},
+            {"column_padding_uses_centered_labels_and_widths", test_column_padding_uses_centered_labels_and_widths},
         });
 }

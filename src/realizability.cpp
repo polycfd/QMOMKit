@@ -95,7 +95,7 @@ struct ClassificationState
 
     if (matrix_scale == 0.0 || !std::isfinite(matrix_scale))
     {
-        return internal::symmetric_jacobi_eigen(matrix, {diagonalization_tolerance, max_sweeps, 0});
+        return internal::symmetric_jacobi_eigen(matrix, {diagonalization_tolerance, max_sweeps});
     }
 
     // The Jacobi convergence tolerance is absolute. Scale this temporary
@@ -111,7 +111,7 @@ struct ClassificationState
         }
     }
 
-    EigenDecomposition eigensystem = internal::symmetric_jacobi_eigen(matrix, {diagonalization_tolerance, max_sweeps, 0});
+    EigenDecomposition eigensystem = internal::symmetric_jacobi_eigen(matrix, {diagonalization_tolerance, max_sweeps});
     for (double& eigenvalue : eigensystem.eigenvalues)
     {
         eigenvalue *= matrix_scale;
@@ -577,7 +577,7 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
 RealizabilityResult check_realizability(const MomentSet& moments, const MomentSupport support, const RealizabilityOptions& options)
 {
     RealizabilityResult validation = validate_common_inputs(moments, options);
-    if (validation.status != RealizabilityStatus::strictly_realizable || moments[0] == 0.0)
+    if (validation.status != RealizabilityStatus::strictly_realizable)
     {
         return validation;
     }
@@ -605,7 +605,7 @@ RealizabilityResult check_realizability(const MomentSet& moments, const BoundedI
         return make_result(RealizabilityStatus::invalid_input, moments.empty() ? 0 : moments.size() - 1, "bounded_interval", 0, 0.0,
                            options.tolerance, "Bounded interval must have finite bounds with lower < upper.");
     }
-    if (validation.status != RealizabilityStatus::strictly_realizable || moments.empty() || moments[0] == 0.0)
+    if (validation.status != RealizabilityStatus::strictly_realizable)
     {
         return with_support_context(std::move(validation), MomentSupport::bounded_interval);
     }

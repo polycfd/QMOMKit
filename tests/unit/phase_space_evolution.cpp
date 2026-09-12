@@ -1918,6 +1918,64 @@ void test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_mac
     assert_qmom_quadrature_near(result.state.quadrature(), state.quadrature(), 0.0);
 }
 
+void test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes()
+{
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.25}, {0.4, 0.6}, 4), 2);
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
+
+    qmomkit::QmomPhaseSpaceEvolutionOptions srcadv_options;
+    srcadv_options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
+    srcadv_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+    const auto failing_velocity = [](double, const std::vector<double>&) -> std::vector<double>
+    { throw std::runtime_error("advection failure after moment-source success"); };
+    const qmomkit::QmomPhaseSpaceEvolutionResult srcadv =
+        qmomkit::advance_qmom_phase_space(state, 0.0, 0.2, failing_velocity, zero_source, srcadv_options);
+
+    assert(!srcadv.ok());
+    assert(srcadv.status == qmomkit::PhaseSpaceEvolutionStatus::advection_failed);
+    assert(srcadv.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::success);
+    assert(srcadv.diagnostics.second_advection_status == qmomkit::NodeAdvectionStatus::velocity_failed);
+    // The srcadv scheme's single advection substep is the "second" stage, not the "first".
+    assert(srcadv.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::second_advection_half_step);
+    assert_vector_near(srcadv.state.moments(), state.moments(), 0.0);
+    assert_qmom_quadrature_near(srcadv.state.quadrature(), state.quadrature(), 0.0);
+
+    qmomkit::QmomPhaseSpaceEvolutionOptions strang_options;
+    strang_options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
+    strang_options.node_options = tight_node_options();
+    std::size_t first_stage_velocity_calls = 0;
+    const auto counting_velocity = [&first_stage_velocity_calls](double, const std::vector<double>& xi)
+    {
+        ++first_stage_velocity_calls;
+        return std::vector<double>(xi.size(), 0.2);
+    };
+    const qmomkit::QmomPhaseSpaceEvolutionResult first = qmomkit::advance_qmom_advection(state, 0.0, 0.1, counting_velocity, strang_options);
+    assert(first.ok());
+    assert(first_stage_velocity_calls > 0);
+
+    std::size_t macro_velocity_calls = 0;
+    const auto fail_final_advection = [&macro_velocity_calls, first_stage_velocity_calls](double, const std::vector<double>& xi)
+    {
+        ++macro_velocity_calls;
+        if (macro_velocity_calls > first_stage_velocity_calls)
+        {
+            throw std::runtime_error("final advection failure");
+        }
+        return std::vector<double>(xi.size(), 0.2);
+    };
+    const qmomkit::QmomPhaseSpaceEvolutionResult strang =
+        qmomkit::advance_qmom_phase_space(state, 0.0, 0.2, fail_final_advection, zero_source, strang_options);
+
+    assert(!strang.ok());
+    assert(strang.status == qmomkit::PhaseSpaceEvolutionStatus::advection_failed);
+    assert(strang.diagnostics.first_advection_status == qmomkit::NodeAdvectionStatus::success);
+    assert(strang.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::success);
+    assert(strang.diagnostics.second_advection_status == qmomkit::NodeAdvectionStatus::velocity_failed);
+    assert(strang.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::second_advection_half_step);
+    assert_vector_near(strang.state.moments(), state.moments(), 0.0);
+    assert_qmom_quadrature_near(strang.state.quadrature(), state.quadrature(), 0.0);
+}
+
 void test_cqmom_initial_state_stores_accepted_quadrature_fixed_dense_and_lean()
 {
     assert_cqmom_initial_state_stores_accepted_quadrature(fixed_cqmom_case_with_storage("dense"), 5.0e-10);
@@ -2435,6 +2493,8 @@ void test_cqmom_macro_rollbacks_preserve_the_original_state_after_later_successe
         assert(srcadv.status == qmomkit::PhaseSpaceEvolutionStatus::advection_failed);
         assert(srcadv.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::success);
         assert(srcadv.diagnostics.second_advection_status == qmomkit::NodeAdvectionStatus::velocity_failed);
+        // The srcadv scheme's single advection substep is the "second" stage, not the "first".
+        assert(srcadv.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::second_advection_half_step);
         assert_cqmom_states_equal(srcadv.state, state);
 
         qmomkit::CqmomPhaseSpaceEvolutionOptions strang_options;
@@ -2468,6 +2528,7 @@ void test_cqmom_macro_rollbacks_preserve_the_original_state_after_later_successe
         assert(strang.diagnostics.first_advection_status == qmomkit::NodeAdvectionStatus::success);
         assert(strang.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::success);
         assert(strang.diagnostics.second_advection_status == qmomkit::NodeAdvectionStatus::velocity_failed);
+        assert(strang.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::second_advection_half_step);
         assert_cqmom_states_equal(strang.state, state);
     }
 }
@@ -4980,6 +5041,8 @@ int main(const int argc, char** argv)
             {"public_qmom_stage_composition_matches_lie_phase_space_evolution", test_public_qmom_stage_composition_matches_lie_phase_space_evolution},
             {"qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input",
              test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input},
+            {"qmom_macro_rollbacks_preserve_the_original_state_after_later_successes",
+             test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes},
             {"cqmom_initial_state_stores_accepted_quadrature_fixed_dense_and_lean",
              test_cqmom_initial_state_stores_accepted_quadrature_fixed_dense_and_lean},
             {"cqmom_initial_state_stores_accepted_quadrature_adaptive_dense_and_lean",

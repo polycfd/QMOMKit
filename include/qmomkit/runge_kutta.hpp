@@ -51,7 +51,9 @@ struct SspRk3Options
  * Result of one explicit SSP-RK3 step.
  *
  * The optional error estimate is ||y_new - y_test|| / ||y_new||, where y_test
- * is the embedded second-order state used only for timestep estimation.
+ * is the embedded second-order state used only for timestep estimation. When
+ * ||y_new|| is zero, the estimate falls back to the unscaled absolute
+ * difference norm ||y_new - y_test||.
  */
 struct SspRk3Result
 {

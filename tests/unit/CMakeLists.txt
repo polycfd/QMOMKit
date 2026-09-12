@@ -1,4 +1,5 @@
 set(unit_test_sources
+    abscissa_bounds.cpp
     wheeler.cpp
     runge_kutta.cpp
     recursive_quadrature.cpp

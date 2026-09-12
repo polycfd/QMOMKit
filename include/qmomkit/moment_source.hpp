@@ -223,9 +223,9 @@ struct MomentSourceUpdateOptions
     SspRk3Options ssp_rk3_options;
     // Per-coordinate policies for CQMOM moment-data updates, indexed by phase-space
     // dimension. Only the CQMOM (`CqmomMomentData`) overloads of
-    // `advance_cqmom_moments_with_source` read and enforce this field; the QMOM
-    // (`std::vector<double>`) overloads of `advance_moments_with_source` do not
-    // consult it.
+    // `advance_cqmom_moments_with_source` read and enforce this field. The QMOM
+    // (`std::vector<double>`) overloads of `advance_moments_with_source` reject a
+    // non-empty value here with `MomentSourceUpdateStatus::invalid_input`.
     std::vector<std::optional<RealizabilityPolicy>> coordinate_realizability_policies;
 };
 

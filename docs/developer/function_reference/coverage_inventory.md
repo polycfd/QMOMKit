@@ -13,7 +13,7 @@ lambdas are documented with their owning function. Instrumentation definitions
 are included for its enabled preprocessor branch. Line links are navigation aids,
 not permanent API identifiers.
 
-The inventory includes **925 definition locations**, grouped by named function
+The inventory includes **927 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -292,12 +292,14 @@ the executable-body count.
 | `validate_optional_cqmom_moment_storage` | [1781](../../../src/configuration.cpp#L1781) |
 | `validate_optional_vandermonde_solver` | [1786](../../../src/configuration.cpp#L1786) |
 | `parse_coordinate_support` | [1791](../../../src/configuration.cpp#L1791) |
-| `parse_cqmom_case_settings` | [1853](../../../src/configuration.cpp#L1853) |
-| `initialize_moments` | [1974](../../../src/configuration.cpp#L1974) |
-| `initialize_cqmom_dense_moments` | [2009](../../../src/configuration.cpp#L2009) |
-| `initialize_cqmom_moment_data` | [2039](../../../src/configuration.cpp#L2039) |
-| `parse_qmom_initial_condition` | [2086](../../../src/configuration.cpp#L2086) |
-| `parse_cqmom_initial_condition` | [2182](../../../src/configuration.cpp#L2182) |
+| `parse_cqmom_case_settings` | [1907](../../../src/configuration.cpp#L1907) |
+| `parse_qmom_initial_condition_from_parsed` | [2027](../../../src/configuration.cpp#L2027) |
+| `parse_cqmom_initial_condition_from_parsed` | [2122](../../../src/configuration.cpp#L2122) |
+| `initialize_moments` | [2236](../../../src/configuration.cpp#L2236) |
+| `initialize_cqmom_dense_moments` | [2271](../../../src/configuration.cpp#L2271) |
+| `initialize_cqmom_moment_data` | [2301](../../../src/configuration.cpp#L2301) |
+| `parse_qmom_initial_condition` | [2348](../../../src/configuration.cpp#L2348) |
+| `parse_cqmom_initial_condition` | [2354](../../../src/configuration.cpp#L2354) |
 | `create_qmom_case` | [2295](../../../src/configuration.cpp#L2295) |
 | `create_cqmom_dense_case` | [2316](../../../src/configuration.cpp#L2316) |
 | `create_cqmom_lean_case` | [2373](../../../src/configuration.cpp#L2373) |

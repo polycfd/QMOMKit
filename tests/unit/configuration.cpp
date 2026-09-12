@@ -3353,6 +3353,16 @@ void test_duplicate_and_missing_entries()
     assert(!missing_initial_type.ok());
     assert(has_failure(missing_initial_type));
 
+    // The node_counts entry (settings-phase validation) is well-formed here, so
+    // only the initial-condition phase detects this error. Pinning the exact
+    // source line guards against a future change accidentally handing that
+    // phase a stale or unrelated ParsedFile instead of the one derived from
+    // this text: a wrong-object substitution could keep the message text but
+    // would very likely corrupt or zero out the reported line number.
+    const auto invalid_initial_type = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=bogus\n");
+    assert(!invalid_initial_type.ok());
+    assert(has_message_fragment(invalid_initial_type, "<string>:4: Only '[initial] type = distribution' and '[initial] type = mixture'"));
+
     const auto missing_family = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=distribution\nmaximum_order=1\n");
     assert(!missing_family.ok());
     assert(has_failure(missing_family));
@@ -3384,6 +3394,12 @@ void test_duplicate_and_missing_entries()
     const auto missing_cqmom_initial_type = qmomkit::config::parse_cqmom_dense("[phase_space]\nnode_counts=1,1\n[initial]\nnumber_density=1\n");
     assert(!missing_cqmom_initial_type.ok());
     assert(has_failure(missing_cqmom_initial_type));
+
+    // Same rationale as invalid_initial_type above, exercised through the
+    // shared ParsedFile path used by parse_cqmom_dense/parse_cqmom_lean/parse_cqmom.
+    const auto invalid_cqmom_initial_type = qmomkit::config::parse_cqmom_dense("[phase_space]\nnode_counts=1,1\n[initial]\ntype=bogus\n");
+    assert(!invalid_cqmom_initial_type.ok());
+    assert(has_message_fragment(invalid_cqmom_initial_type, "<string>:4: Only '[initial] type = independent_product' is supported"));
 
     const auto missing_product_dimensions = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n");

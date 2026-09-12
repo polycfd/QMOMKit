@@ -109,6 +109,19 @@ validators require it. `parse_size` uses unsigned conversion with a negative-sig
 check; `parse_double` requires full finite conversion. List parsers reject empty
 entries/trailing commas; optional-bound lists additionally recognize `none`.
 
+`parse_qmom`, `parse_cqmom_dense`, `parse_cqmom_lean`, and `parse_cqmom` each call
+`parse_file` exactly once and share the resulting `ParsedFile` with the
+initial-condition step, instead of re-parsing the same text a second time.
+`parse_qmom_initial_condition_from_parsed` and `parse_cqmom_initial_condition_from_parsed`
+are internal-linkage siblings of the public `parse_qmom_initial_condition` and
+`parse_cqmom_initial_condition` that take an already-parsed `ParsedFile` instead
+of raw text; the public functions remain independently callable and still parse
+exactly once each. The CQMOM case parsers pass a copy into
+`parse_cqmom_case_settings` so its validation cannot affect the `ParsedFile`
+handed to the initial-condition step afterward; `parse_qmom` instead moves its
+own already-validated, still error-free `ParsedFile` directly, which is
+equivalent to a fresh parse at that point.
+
 `parse_qmom_initial_condition` and `parse_cqmom_initial_condition` choose explicit
 moments when present. That branch intentionally takes precedence over analytical
 initialization sections; selected otherwise-unused initialization keys are allowed

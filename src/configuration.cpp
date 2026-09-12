@@ -1904,9 +1904,8 @@ std::optional<CqmomCoordinateSupport> parse_coordinate_support(ParsedFile& parse
     return support;
 }
 
-ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std::string_view text, std::string source_name)
+ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFile parsed, std::string source_name)
 {
-    ParsedFile parsed = parse_file(text, source_name);
     const bool explicit_moments = has_explicit_cqmom_moments(parsed);
     reject_unknown_cqmom_sections(parsed, explicit_moments, source_name);
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
@@ -2023,6 +2022,213 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(const std
     {
         return failure_result<ParsedCqmomCaseSettings>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0, error.what()});
     }
+}
+
+ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition_from_parsed(ParsedFile parsed, std::string source_name)
+{
+    const bool explicit_moments = has_explicit_qmom_moments(parsed);
+    reject_unknown_qmom_sections(parsed, explicit_moments, source_name);
+    reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
+    validate_optional_phase_space_evolution_scheme(parsed, source_name);
+    validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_realizability_policy(parsed, source_name);
+    validate_format_version(parsed, source_name);
+    validate_optional_qmom_phase_space(parsed, source_name);
+    if (!parsed.moments.empty())
+    {
+        add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, parsed.moments.begin()->second.line,
+                  "Indexed moments are not supported for QMOM configurations.");
+    }
+
+    const Entry* moments_entry = find_entry(parsed, "moments.values");
+    if (moments_entry != nullptr)
+    {
+        std::vector<double> moments;
+        if (!parse_double_list(*moments_entry, moments))
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, moments_entry->line,
+                      "QMOM moments must be a comma-separated list of finite numbers.");
+        }
+        if (!parsed.errors.empty())
+        {
+            return failure_result<InitialConditionSpecification>(std::move(parsed));
+        }
+        return ConfigurationResult<InitialConditionSpecification>{
+            InitialConditionSpecification{ExplicitMomentInitialization{MomentSet(std::move(moments))}}};
+    }
+
+    const Entry* type_entry = require_entry(parsed, "initial.type", source_name);
+    if (type_entry == nullptr)
+    {
+        add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, 0,
+                  "QMOM configuration requires either '[moments] values', '[initial] type = distribution', or '[initial] type = mixture'.");
+        return failure_result<InitialConditionSpecification>(std::move(parsed));
+    }
+    if (type_entry->value != "distribution" && type_entry->value != "mixture")
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, type_entry->line,
+                  "Only '[initial] type = distribution' and '[initial] type = mixture' are supported for QMOM initialization.");
+        return failure_result<InitialConditionSpecification>(std::move(parsed));
+    }
+
+    std::size_t maximum_order = 0;
+    if (find_entry(parsed, "initial.maximum_order") != nullptr)
+    {
+        parse_optional_size(parsed, "initial.maximum_order", source_name, maximum_order);
+    }
+    else if (parsed.errors.empty())
+    {
+        const std::optional<std::size_t> inferred_maximum_order = infer_qmom_initial_maximum_order(parsed, source_name);
+        if (inferred_maximum_order.has_value())
+        {
+            maximum_order = *inferred_maximum_order;
+        }
+    }
+
+    if (type_entry->value == "distribution")
+    {
+        if (has_mixture_component_sections(parsed))
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, type_entry->line,
+                      "Mixture component sections are only valid when '[initial] type = mixture'.");
+        }
+        std::optional<DistributionSpecification> distribution = parse_distribution(parsed, source_name);
+        double number_density = 1.0;
+        parse_optional_double(parsed, "initial.number_density", source_name, number_density);
+        if (!std::isfinite(number_density) || number_density < 0.0)
+        {
+            const Entry* entry = find_entry(parsed, "initial.number_density");
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
+                      "initial.number_density must be finite and non-negative.");
+        }
+
+        if (!parsed.errors.empty() || !distribution.has_value())
+        {
+            return failure_result<InitialConditionSpecification>(std::move(parsed));
+        }
+
+        return ConfigurationResult<InitialConditionSpecification>{
+            InitialConditionSpecification{DistributionInitialization{*distribution, maximum_order, number_density}}};
+    }
+
+    std::optional<DistributionMixture> mixture = parse_mixture(parsed, source_name);
+    if (!parsed.errors.empty() || !mixture.has_value())
+    {
+        return failure_result<InitialConditionSpecification>(std::move(parsed));
+    }
+    return ConfigurationResult<InitialConditionSpecification>{InitialConditionSpecification{MixtureInitialization{*mixture, maximum_order}}};
+}
+
+ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition_from_parsed(ParsedFile parsed, std::string source_name)
+{
+    const bool explicit_moments = has_explicit_cqmom_moments(parsed);
+    reject_unknown_cqmom_sections(parsed, explicit_moments, source_name);
+    reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
+    validate_optional_phase_space_evolution_scheme(parsed, source_name);
+    validate_optional_node_advection_options(parsed, source_name);
+    validate_optional_realizability_policy(parsed, source_name);
+    validate_optional_cqmom_diagnostic_level(parsed, source_name);
+    validate_optional_cqmom_moment_storage(parsed, source_name);
+    validate_optional_vandermonde_solver(parsed, source_name);
+    validate_format_version(parsed, source_name);
+    validate_optional_cqmom_phase_space(parsed, source_name);
+
+    if (explicit_moments)
+    {
+        std::optional<RawMomentTensor> tensor = parse_explicit_tensor(parsed, source_name);
+        if (!parsed.errors.empty() || !tensor.has_value())
+        {
+            return failure_result<InitialConditionSpecification>(std::move(parsed));
+        }
+        return ConfigurationResult<InitialConditionSpecification>{InitialConditionSpecification{ExplicitTensorInitialization{*tensor}}};
+    }
+
+    const Entry* type_entry = require_entry(parsed, "initial.type", source_name);
+    if (type_entry == nullptr)
+    {
+        add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, 0,
+                  "CQMOM configuration requires either explicit '[moments]' tensor entries or '[initial] type = independent_product'.");
+        return failure_result<InitialConditionSpecification>(std::move(parsed));
+    }
+    if (type_entry->value != "independent_product")
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, type_entry->line,
+                  "Only '[initial] type = independent_product' is supported for CQMOM analytical initialization.");
+        return failure_result<InitialConditionSpecification>(std::move(parsed));
+    }
+
+    std::optional<std::vector<std::size_t>> maximum_orders;
+    const Entry* maximum_orders_entry = find_entry(parsed, "initial.maximum_orders");
+    if (maximum_orders_entry != nullptr)
+    {
+        std::vector<std::size_t> parsed_maximum_orders;
+        if (!parse_size_list(*maximum_orders_entry, parsed_maximum_orders))
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, maximum_orders_entry->line,
+                      "initial.maximum_orders must contain non-negative integers.");
+        }
+        else
+        {
+            maximum_orders = std::move(parsed_maximum_orders);
+        }
+    }
+    if (maximum_orders.has_value())
+    {
+        for (const std::size_t maximum_order : *maximum_orders)
+        {
+            if (maximum_order == std::numeric_limits<std::size_t>::max())
+            {
+                add_error(parsed, ConfigurationErrorCode::invalid_value, source_name,
+                          maximum_orders_entry == nullptr ? 0 : maximum_orders_entry->line,
+                          "initial.maximum_orders contains an order that is too large.");
+                break;
+            }
+        }
+    }
+    if (maximum_orders.has_value())
+    {
+        const Entry* node_counts_entry = find_entry(parsed, "phase_space.node_counts");
+        std::vector<std::size_t> node_counts;
+        if (node_counts_entry != nullptr && parse_size_list(*node_counts_entry, node_counts) && maximum_orders->size() != node_counts.size())
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name,
+                      maximum_orders_entry == nullptr ? 0 : maximum_orders_entry->line,
+                      "initial.maximum_orders must contain one entry per phase-space dimension.");
+        }
+
+        std::vector<std::size_t> extents;
+        extents.reserve(maximum_orders->size());
+        for (const std::size_t maximum_order : *maximum_orders)
+        {
+            if (maximum_order != std::numeric_limits<std::size_t>::max())
+            {
+                extents.push_back(maximum_order + 1);
+            }
+        }
+        std::size_t tensor_size = 0;
+        if (extents.size() == maximum_orders->size() && !checked_product(extents, tensor_size))
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name,
+                      maximum_orders_entry == nullptr ? 0 : maximum_orders_entry->line,
+                      "initial.maximum_orders produce tensor extents whose product overflows.");
+        }
+    }
+
+    std::optional<IndependentProductDistribution> distribution = parse_independent_product(parsed, source_name);
+    if (distribution.has_value() && maximum_orders.has_value() && distribution->marginals.size() != maximum_orders->size())
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name,
+                  maximum_orders_entry == nullptr ? 0 : maximum_orders_entry->line,
+                  "initial.maximum_orders must contain one entry per independent-product dimension.");
+    }
+
+    if (!parsed.errors.empty() || !distribution.has_value())
+    {
+        return failure_result<InitialConditionSpecification>(std::move(parsed));
+    }
+
+    return ConfigurationResult<InitialConditionSpecification>{
+        InitialConditionSpecification{IndependentProductInitialization{*distribution, std::move(maximum_orders)}}};
 }
 
 } // namespace
@@ -2142,210 +2348,13 @@ ConfigurationResult<CqmomMomentData> initialize_cqmom_moment_data(const InitialC
 ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
-    const bool explicit_moments = has_explicit_qmom_moments(parsed);
-    reject_unknown_qmom_sections(parsed, explicit_moments, source_name);
-    reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
-    validate_optional_phase_space_evolution_scheme(parsed, source_name);
-    validate_optional_node_advection_options(parsed, source_name);
-    validate_optional_realizability_policy(parsed, source_name);
-    validate_format_version(parsed, source_name);
-    validate_optional_qmom_phase_space(parsed, source_name);
-    if (!parsed.moments.empty())
-    {
-        add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, parsed.moments.begin()->second.line,
-                  "Indexed moments are not supported for QMOM configurations.");
-    }
-
-    const Entry* moments_entry = find_entry(parsed, "moments.values");
-    if (moments_entry != nullptr)
-    {
-        std::vector<double> moments;
-        if (!parse_double_list(*moments_entry, moments))
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, moments_entry->line,
-                      "QMOM moments must be a comma-separated list of finite numbers.");
-        }
-        if (!parsed.errors.empty())
-        {
-            return failure_result<InitialConditionSpecification>(std::move(parsed));
-        }
-        return ConfigurationResult<InitialConditionSpecification>{
-            InitialConditionSpecification{ExplicitMomentInitialization{MomentSet(std::move(moments))}}};
-    }
-
-    const Entry* type_entry = require_entry(parsed, "initial.type", source_name);
-    if (type_entry == nullptr)
-    {
-        add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, 0,
-                  "QMOM configuration requires either '[moments] values', '[initial] type = distribution', or '[initial] type = mixture'.");
-        return failure_result<InitialConditionSpecification>(std::move(parsed));
-    }
-    if (type_entry->value != "distribution" && type_entry->value != "mixture")
-    {
-        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, type_entry->line,
-                  "Only '[initial] type = distribution' and '[initial] type = mixture' are supported for QMOM initialization.");
-        return failure_result<InitialConditionSpecification>(std::move(parsed));
-    }
-
-    std::size_t maximum_order = 0;
-    if (find_entry(parsed, "initial.maximum_order") != nullptr)
-    {
-        parse_optional_size(parsed, "initial.maximum_order", source_name, maximum_order);
-    }
-    else if (parsed.errors.empty())
-    {
-        const std::optional<std::size_t> inferred_maximum_order = infer_qmom_initial_maximum_order(parsed, source_name);
-        if (inferred_maximum_order.has_value())
-        {
-            maximum_order = *inferred_maximum_order;
-        }
-    }
-
-    if (type_entry->value == "distribution")
-    {
-        if (has_mixture_component_sections(parsed))
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, type_entry->line,
-                      "Mixture component sections are only valid when '[initial] type = mixture'.");
-        }
-        std::optional<DistributionSpecification> distribution = parse_distribution(parsed, source_name);
-        double number_density = 1.0;
-        parse_optional_double(parsed, "initial.number_density", source_name, number_density);
-        if (!std::isfinite(number_density) || number_density < 0.0)
-        {
-            const Entry* entry = find_entry(parsed, "initial.number_density");
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry == nullptr ? 0 : entry->line,
-                      "initial.number_density must be finite and non-negative.");
-        }
-
-        if (!parsed.errors.empty() || !distribution.has_value())
-        {
-            return failure_result<InitialConditionSpecification>(std::move(parsed));
-        }
-
-        return ConfigurationResult<InitialConditionSpecification>{
-            InitialConditionSpecification{DistributionInitialization{*distribution, maximum_order, number_density}}};
-    }
-
-    std::optional<DistributionMixture> mixture = parse_mixture(parsed, source_name);
-    if (!parsed.errors.empty() || !mixture.has_value())
-    {
-        return failure_result<InitialConditionSpecification>(std::move(parsed));
-    }
-    return ConfigurationResult<InitialConditionSpecification>{InitialConditionSpecification{MixtureInitialization{*mixture, maximum_order}}};
+    return parse_qmom_initial_condition_from_parsed(std::move(parsed), std::move(source_name));
 }
 
 ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
-    const bool explicit_moments = has_explicit_cqmom_moments(parsed);
-    reject_unknown_cqmom_sections(parsed, explicit_moments, source_name);
-    reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
-    validate_optional_phase_space_evolution_scheme(parsed, source_name);
-    validate_optional_node_advection_options(parsed, source_name);
-    validate_optional_realizability_policy(parsed, source_name);
-    validate_optional_cqmom_diagnostic_level(parsed, source_name);
-    validate_optional_cqmom_moment_storage(parsed, source_name);
-    validate_optional_vandermonde_solver(parsed, source_name);
-    validate_format_version(parsed, source_name);
-    validate_optional_cqmom_phase_space(parsed, source_name);
-
-    if (explicit_moments)
-    {
-        std::optional<RawMomentTensor> tensor = parse_explicit_tensor(parsed, source_name);
-        if (!parsed.errors.empty() || !tensor.has_value())
-        {
-            return failure_result<InitialConditionSpecification>(std::move(parsed));
-        }
-        return ConfigurationResult<InitialConditionSpecification>{InitialConditionSpecification{ExplicitTensorInitialization{*tensor}}};
-    }
-
-    const Entry* type_entry = require_entry(parsed, "initial.type", source_name);
-    if (type_entry == nullptr)
-    {
-        add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, 0,
-                  "CQMOM configuration requires either explicit '[moments]' tensor entries or '[initial] type = independent_product'.");
-        return failure_result<InitialConditionSpecification>(std::move(parsed));
-    }
-    if (type_entry->value != "independent_product")
-    {
-        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, type_entry->line,
-                  "Only '[initial] type = independent_product' is supported for CQMOM analytical initialization.");
-        return failure_result<InitialConditionSpecification>(std::move(parsed));
-    }
-
-    std::optional<std::vector<std::size_t>> maximum_orders;
-    const Entry* maximum_orders_entry = find_entry(parsed, "initial.maximum_orders");
-    if (maximum_orders_entry != nullptr)
-    {
-        std::vector<std::size_t> parsed_maximum_orders;
-        if (!parse_size_list(*maximum_orders_entry, parsed_maximum_orders))
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, maximum_orders_entry->line,
-                      "initial.maximum_orders must contain non-negative integers.");
-        }
-        else
-        {
-            maximum_orders = std::move(parsed_maximum_orders);
-        }
-    }
-    if (maximum_orders.has_value())
-    {
-        for (const std::size_t maximum_order : *maximum_orders)
-        {
-            if (maximum_order == std::numeric_limits<std::size_t>::max())
-            {
-                add_error(parsed, ConfigurationErrorCode::invalid_value, source_name,
-                          maximum_orders_entry == nullptr ? 0 : maximum_orders_entry->line,
-                          "initial.maximum_orders contains an order that is too large.");
-                break;
-            }
-        }
-    }
-    if (maximum_orders.has_value())
-    {
-        const Entry* node_counts_entry = find_entry(parsed, "phase_space.node_counts");
-        std::vector<std::size_t> node_counts;
-        if (node_counts_entry != nullptr && parse_size_list(*node_counts_entry, node_counts) && maximum_orders->size() != node_counts.size())
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name,
-                      maximum_orders_entry == nullptr ? 0 : maximum_orders_entry->line,
-                      "initial.maximum_orders must contain one entry per phase-space dimension.");
-        }
-
-        std::vector<std::size_t> extents;
-        extents.reserve(maximum_orders->size());
-        for (const std::size_t maximum_order : *maximum_orders)
-        {
-            if (maximum_order != std::numeric_limits<std::size_t>::max())
-            {
-                extents.push_back(maximum_order + 1);
-            }
-        }
-        std::size_t tensor_size = 0;
-        if (extents.size() == maximum_orders->size() && !checked_product(extents, tensor_size))
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name,
-                      maximum_orders_entry == nullptr ? 0 : maximum_orders_entry->line,
-                      "initial.maximum_orders produce tensor extents whose product overflows.");
-        }
-    }
-
-    std::optional<IndependentProductDistribution> distribution = parse_independent_product(parsed, source_name);
-    if (distribution.has_value() && maximum_orders.has_value() && distribution->marginals.size() != maximum_orders->size())
-    {
-        add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name,
-                  maximum_orders_entry == nullptr ? 0 : maximum_orders_entry->line,
-                  "initial.maximum_orders must contain one entry per independent-product dimension.");
-    }
-
-    if (!parsed.errors.empty() || !distribution.has_value())
-    {
-        return failure_result<InitialConditionSpecification>(std::move(parsed));
-    }
-
-    return ConfigurationResult<InitialConditionSpecification>{
-        InitialConditionSpecification{IndependentProductInitialization{*distribution, std::move(maximum_orders)}}};
+    return parse_cqmom_initial_condition_from_parsed(std::move(parsed), std::move(source_name));
 }
 
 ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecification& initial_condition, const std::size_t node_count,
@@ -2552,7 +2561,7 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
         return failure_result<QmomCase>(std::move(parsed));
     }
 
-    ConfigurationResult<InitialConditionSpecification> initial_condition = parse_qmom_initial_condition(text, source_name);
+    ConfigurationResult<InitialConditionSpecification> initial_condition = parse_qmom_initial_condition_from_parsed(std::move(parsed), source_name);
     if (!initial_condition)
     {
         return ConfigurationResult<QmomCase>::failure(initial_condition.error());
@@ -2564,7 +2573,8 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
 
 ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(const std::string_view text, std::string source_name)
 {
-    ConfigurationResult<ParsedCqmomCaseSettings> settings = parse_cqmom_case_settings(text, source_name);
+    ParsedFile parsed = parse_file(text, source_name);
+    ConfigurationResult<ParsedCqmomCaseSettings> settings = parse_cqmom_case_settings(parsed, source_name);
     if (!settings)
     {
         return ConfigurationResult<CqmomDenseCase>::failure(settings.error());
@@ -2575,7 +2585,7 @@ ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(const std::string_view tex
                                                "parse_cqmom_dense requires cqmom.moment_storage = dense when moment_storage is configured."});
     }
 
-    ConfigurationResult<InitialConditionSpecification> initial_condition = parse_cqmom_initial_condition(text, source_name);
+    ConfigurationResult<InitialConditionSpecification> initial_condition = parse_cqmom_initial_condition_from_parsed(std::move(parsed), source_name);
     if (!initial_condition)
     {
         return ConfigurationResult<CqmomDenseCase>::failure(initial_condition.error());
@@ -2594,7 +2604,8 @@ ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(const std::string_view tex
 
 ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(const std::string_view text, std::string source_name)
 {
-    ConfigurationResult<ParsedCqmomCaseSettings> settings = parse_cqmom_case_settings(text, source_name);
+    ParsedFile parsed = parse_file(text, source_name);
+    ConfigurationResult<ParsedCqmomCaseSettings> settings = parse_cqmom_case_settings(parsed, source_name);
     if (!settings)
     {
         return ConfigurationResult<CqmomLeanCase>::failure(settings.error());
@@ -2605,7 +2616,7 @@ ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(const std::string_view text,
                                               "parse_cqmom_lean requires cqmom.moment_storage = lean when moment_storage is configured."});
     }
 
-    ConfigurationResult<InitialConditionSpecification> initial_condition = parse_cqmom_initial_condition(text, source_name);
+    ConfigurationResult<InitialConditionSpecification> initial_condition = parse_cqmom_initial_condition_from_parsed(std::move(parsed), source_name);
     if (!initial_condition)
     {
         return ConfigurationResult<CqmomLeanCase>::failure(initial_condition.error());
@@ -2624,13 +2635,14 @@ ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(const std::string_view text,
 
 ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::string source_name)
 {
-    ConfigurationResult<ParsedCqmomCaseSettings> settings = parse_cqmom_case_settings(text, source_name);
+    ParsedFile parsed = parse_file(text, source_name);
+    ConfigurationResult<ParsedCqmomCaseSettings> settings = parse_cqmom_case_settings(parsed, source_name);
     if (!settings)
     {
         return ConfigurationResult<CqmomCase>::failure(settings.error());
     }
 
-    ConfigurationResult<InitialConditionSpecification> initial_condition = parse_cqmom_initial_condition(text, source_name);
+    ConfigurationResult<InitialConditionSpecification> initial_condition = parse_cqmom_initial_condition_from_parsed(std::move(parsed), source_name);
     if (!initial_condition)
     {
         return ConfigurationResult<CqmomCase>::failure(initial_condition.error());

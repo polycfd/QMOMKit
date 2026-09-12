@@ -2909,94 +2909,65 @@ ConfigurationResult<OutputOptions> parse_output_options(const std::string_view t
     return ConfigurationResult<OutputOptions>{options};
 }
 
-ConfigurationResult<QmomCase> load_qmom(const std::filesystem::path& filename)
+namespace
+{
+
+template <typename T, typename ParseFunction>
+[[nodiscard]] ConfigurationResult<T> load_configuration(const std::filesystem::path& filename, ParseFunction parse)
 {
     std::optional<std::string> contents = read_configuration_file(filename);
     if (!contents.has_value())
     {
-        return file_failure<QmomCase>(filename);
+        return file_failure<T>(filename);
     }
-    return parse_qmom(*contents, filename.string());
+    return parse(*contents, filename.string());
+}
+
+} // namespace
+
+ConfigurationResult<QmomCase> load_qmom(const std::filesystem::path& filename)
+{
+    return load_configuration<QmomCase>(filename, parse_qmom);
 }
 
 ConfigurationResult<CqmomDenseCase> load_cqmom_dense(const std::filesystem::path& filename)
 {
-    std::optional<std::string> contents = read_configuration_file(filename);
-    if (!contents.has_value())
-    {
-        return file_failure<CqmomDenseCase>(filename);
-    }
-    return parse_cqmom_dense(*contents, filename.string());
+    return load_configuration<CqmomDenseCase>(filename, parse_cqmom_dense);
 }
 
 ConfigurationResult<CqmomLeanCase> load_cqmom_lean(const std::filesystem::path& filename)
 {
-    std::optional<std::string> contents = read_configuration_file(filename);
-    if (!contents.has_value())
-    {
-        return file_failure<CqmomLeanCase>(filename);
-    }
-    return parse_cqmom_lean(*contents, filename.string());
+    return load_configuration<CqmomLeanCase>(filename, parse_cqmom_lean);
 }
 
 ConfigurationResult<CqmomCase> load_cqmom(const std::filesystem::path& filename)
 {
-    std::optional<std::string> contents = read_configuration_file(filename);
-    if (!contents.has_value())
-    {
-        return file_failure<CqmomCase>(filename);
-    }
-    return parse_cqmom(*contents, filename.string());
+    return load_configuration<CqmomCase>(filename, parse_cqmom);
 }
 
 ConfigurationResult<OutputOptions> load_output_options(const std::filesystem::path& filename)
 {
-    std::optional<std::string> contents = read_configuration_file(filename);
-    if (!contents.has_value())
-    {
-        return file_failure<OutputOptions>(filename);
-    }
-    return parse_output_options(*contents, filename.string());
+    return load_configuration<OutputOptions>(filename, parse_output_options);
 }
 
 ConfigurationResult<NodeAdvectionOptions> load_node_advection_options(const std::filesystem::path& filename)
 {
-    std::optional<std::string> contents = read_configuration_file(filename);
-    if (!contents.has_value())
-    {
-        return file_failure<NodeAdvectionOptions>(filename);
-    }
-    return parse_node_advection_options(*contents, filename.string());
+    return load_configuration<NodeAdvectionOptions>(filename, parse_node_advection_options);
 }
 
 ConfigurationResult<RealizabilityPolicy> load_realizability_policy(const std::filesystem::path& filename)
 {
-    std::optional<std::string> contents = read_configuration_file(filename);
-    if (!contents.has_value())
-    {
-        return file_failure<RealizabilityPolicy>(filename);
-    }
-    return parse_realizability_policy(*contents, filename.string());
+    return load_configuration<RealizabilityPolicy>(filename, parse_realizability_policy);
 }
 
 ConfigurationResult<QmomPhaseSpaceEvolutionOptions> load_qmom_phase_space_evolution_options(const std::filesystem::path& filename)
 {
-    std::optional<std::string> contents = read_configuration_file(filename);
-    if (!contents.has_value())
-    {
-        return file_failure<QmomPhaseSpaceEvolutionOptions>(filename);
-    }
-    return parse_qmom_phase_space_evolution_options(*contents, filename.string());
+    return load_configuration<QmomPhaseSpaceEvolutionOptions>(filename, parse_qmom_phase_space_evolution_options);
 }
 
 ConfigurationResult<CqmomPhaseSpaceEvolutionOptions> load_cqmom_phase_space_evolution_options(const std::filesystem::path& filename)
 {
-    std::optional<std::string> contents = read_configuration_file(filename);
-    if (!contents.has_value())
-    {
-        return file_failure<CqmomPhaseSpaceEvolutionOptions>(filename);
-    }
-    return parse_cqmom_phase_space_evolution_options(*contents, filename.string());
+    return load_configuration<CqmomPhaseSpaceEvolutionOptions>(filename, parse_cqmom_phase_space_evolution_options);
 }
 
 } // namespace qmomkit::config

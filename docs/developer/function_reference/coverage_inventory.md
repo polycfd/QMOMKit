@@ -13,7 +13,7 @@ lambdas are documented with their owning function. Instrumentation definitions
 are included for its enabled preprocessor branch. Line links are navigation aids,
 not permanent API identifiers.
 
-The inventory includes **919 definition locations**, grouped by named function
+The inventory includes **925 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -244,6 +244,7 @@ the executable-body count.
 | `cqmom_initial_allowed_keys` | [910](../../../src/configuration.cpp#L910) |
 | `reject_unknown_cqmom_sections` | [919](../../../src/configuration.cpp#L919) |
 | `reject_unknown_cqmom_keys` | [932](../../../src/configuration.cpp#L932) |
+| `reject_duplicate_indexed_section` | [838](../../../src/configuration.cpp#L838) |
 | `parse_independent_product` | [942](../../../src/configuration.cpp#L942) |
 | `checked_product` | [1039](../../../src/configuration.cpp#L1039) |
 | `parse_explicit_tensor` | [1050](../../../src/configuration.cpp#L1050) |
@@ -312,15 +313,16 @@ the executable-body count.
 | `parse_qmom_phase_space_evolution_options` | [2688](../../../src/configuration.cpp#L2688) |
 | `parse_cqmom_phase_space_evolution_options` | [2718](../../../src/configuration.cpp#L2718) |
 | `parse_output_options` | [2744](../../../src/configuration.cpp#L2744) |
-| `load_qmom` | [2820](../../../src/configuration.cpp#L2820) |
-| `load_cqmom_dense` | [2830](../../../src/configuration.cpp#L2830) |
-| `load_cqmom_lean` | [2840](../../../src/configuration.cpp#L2840) |
-| `load_cqmom` | [2850](../../../src/configuration.cpp#L2850) |
-| `load_output_options` | [2860](../../../src/configuration.cpp#L2860) |
-| `load_node_advection_options` | [2870](../../../src/configuration.cpp#L2870) |
-| `load_realizability_policy` | [2880](../../../src/configuration.cpp#L2880) |
-| `load_qmom_phase_space_evolution_options` | [2890](../../../src/configuration.cpp#L2890) |
-| `load_cqmom_phase_space_evolution_options` | [2900](../../../src/configuration.cpp#L2900) |
+| `load_configuration` | [2916](../../../src/configuration.cpp#L2916) |
+| `load_qmom` | [2928](../../../src/configuration.cpp#L2928) |
+| `load_cqmom_dense` | [2933](../../../src/configuration.cpp#L2933) |
+| `load_cqmom_lean` | [2938](../../../src/configuration.cpp#L2938) |
+| `load_cqmom` | [2943](../../../src/configuration.cpp#L2943) |
+| `load_output_options` | [2948](../../../src/configuration.cpp#L2948) |
+| `load_node_advection_options` | [2953](../../../src/configuration.cpp#L2953) |
+| `load_realizability_policy` | [2958](../../../src/configuration.cpp#L2958) |
+| `load_qmom_phase_space_evolution_options` | [2963](../../../src/configuration.cpp#L2963) |
+| `load_cqmom_phase_space_evolution_options` | [2968](../../../src/configuration.cpp#L2968) |
 
 ### `src/distributions.cpp`
 
@@ -374,8 +376,7 @@ the executable-body count.
 | `compute_weibull` | [647](../../../src/distributions.cpp#L647) |
 | `RawMomentVisitor::operator()` | [664](../../../src/distributions.cpp#L664), [669](../../../src/distributions.cpp#L669), [674](../../../src/distributions.cpp#L674), [679](../../../src/distributions.cpp#L679), [684](../../../src/distributions.cpp#L684), [689](../../../src/distributions.cpp#L689), [694](../../../src/distributions.cpp#L694) |
 | `SelectedRawMomentVisitor::operator()` | [707](../../../src/distributions.cpp#L707), [712](../../../src/distributions.cpp#L712), [717](../../../src/distributions.cpp#L717), [722](../../../src/distributions.cpp#L722), [727](../../../src/distributions.cpp#L727), [732](../../../src/distributions.cpp#L732), [737](../../../src/distributions.cpp#L737) |
-| `finite_failure_status_from_value` | [743](../../../src/distributions.cpp#L743) |
-| `add_compensated` | [752](../../../src/distributions.cpp#L752) |
+| `add_compensated` | [749](../../../src/distributions.cpp#L749) |
 | `add_selected_compensated` | [783](../../../src/distributions.cpp#L783) |
 | `contains_order` | [817](../../../src/distributions.cpp#L817) |
 | `order_position` | [829](../../../src/distributions.cpp#L829) |
@@ -719,7 +720,8 @@ the executable-body count.
 | Function or overload family | Definition lines |
 |---|---|
 | `qmom_label` | [19](../../../src/output.cpp#L19) |
-| `cqmom_label` | [36](../../../src/output.cpp#L36) |
+| `write_column_header` | [36](../../../src/output.cpp#L36) |
+| `cqmom_label` | [52](../../../src/output.cpp#L52) |
 | `sequential_indices` | [89](../../../src/output.cpp#L89) |
 | `qmom_labels` | [105](../../../src/output.cpp#L105) |
 | `cqmom_labels` | [121](../../../src/output.cpp#L121) |
@@ -731,14 +733,14 @@ the executable-body count.
 | `MomentWriter::for_qmom` | [192](../../../src/output.cpp#L192), [198](../../../src/output.cpp#L198), [204](../../../src/output.cpp#L204), [214](../../../src/output.cpp#L214) |
 | `MomentWriter::for_cqmom` | [225](../../../src/output.cpp#L225), [232](../../../src/output.cpp#L232), [238](../../../src/output.cpp#L238), [249](../../../src/output.cpp#L249), [254](../../../src/output.cpp#L254), [263](../../../src/output.cpp#L263), [273](../../../src/output.cpp#L273) |
 | `MomentWriter::MomentWriter` | [278](../../../src/output.cpp#L278), [295](../../../src/output.cpp#L295), [312](../../../src/output.cpp#L312), [328](../../../src/output.cpp#L328) |
-| `MomentWriter::write_header` | [343](../../../src/output.cpp#L343) |
+| `MomentWriter::write_header` | [359](../../../src/output.cpp#L359) |
 | `MomentWriter::write_row` | [358](../../../src/output.cpp#L358) |
 | `MomentWriter::write_aligned_row` | [385](../../../src/output.cpp#L385) |
 | `MomentWriter::write` | [416](../../../src/output.cpp#L416), [433](../../../src/output.cpp#L433), [456](../../../src/output.cpp#L456), [475](../../../src/output.cpp#L475), [494](../../../src/output.cpp#L494), [515](../../../src/output.cpp#L515), [542](../../../src/output.cpp#L542), [559](../../../src/output.cpp#L559), [572](../../../src/output.cpp#L572), [591](../../../src/output.cpp#L591) |
 | `QuadratureWriter::for_qmom` | [605](../../../src/output.cpp#L605) |
 | `QuadratureWriter::for_cqmom` | [610](../../../src/output.cpp#L610) |
 | `QuadratureWriter::QuadratureWriter` | [615](../../../src/output.cpp#L615) |
-| `QuadratureWriter::write_header` | [631](../../../src/output.cpp#L631) |
+| `QuadratureWriter::write_header` | [637](../../../src/output.cpp#L637) |
 | `QuadratureWriter::write_row` | [646](../../../src/output.cpp#L646) |
 | `QuadratureWriter::write_qmom_row` | [673](../../../src/output.cpp#L673) |
 | `QuadratureWriter::write` | [703](../../../src/output.cpp#L703), [708](../../../src/output.cpp#L708), [713](../../../src/output.cpp#L713) |

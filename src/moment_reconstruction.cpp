@@ -126,7 +126,11 @@ void validate_generalized_exponent(const double exponent)
         internal::validate_fixed_cqmom_moment_layout(layout, "CQMOM moment layout must be the fixed required layout for its hierarchy.");
     }
 
-    const std::vector<std::size_t> moment_extents = layout.hierarchy.moment_extents();
+    std::vector<std::size_t> moment_extents;
+    if (!trusted_metadata)
+    {
+        moment_extents = layout.hierarchy.moment_extents();
+    }
     std::vector<double> values;
     values.reserve(layout.required_indices.size());
     for (const MultiIndex& index : layout.required_indices)

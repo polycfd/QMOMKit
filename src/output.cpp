@@ -33,6 +33,22 @@ namespace
     return std::string(left_padding, ' ') + label + std::string(padding - left_padding, ' ');
 }
 
+void write_column_header(std::ofstream& output, std::size_t& column_width, const std::size_t precision, const std::vector<std::string>& labels,
+                         const char* context)
+{
+    column_width = std::max(precision + 8, std::size_t(6));
+    output << centered_column_label("# time", column_width);
+    for (const std::string& label : labels)
+    {
+        output << ' ' << centered_column_label(label, column_width);
+    }
+    output << '\n';
+    if (!output)
+    {
+        throw std::runtime_error(std::string("Failed while writing ") + context + " header.");
+    }
+}
+
 [[nodiscard]] std::string cqmom_label(const MultiIndex& index)
 {
     std::ostringstream label;
@@ -342,17 +358,7 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
 
 void MomentWriter::write_header()
 {
-    column_width = std::max(precision + 8, std::size_t(6));
-    output_ << centered_column_label("# time", column_width);
-    for (const std::string& label : labels_)
-    {
-        output_ << ' ' << centered_column_label(label, column_width);
-    }
-    output_ << '\n';
-    if (!output_)
-    {
-        throw std::runtime_error("Failed while writing moment output header.");
-    }
+    write_column_header(output_, column_width, precision, labels_, "moment output");
 }
 
 void MomentWriter::write_row(const double time, const std::vector<double>& values)
@@ -630,17 +636,7 @@ QuadratureWriter::QuadratureWriter(const std::filesystem::path& path, const Quad
 
 void QuadratureWriter::write_header()
 {
-    column_width = std::max(precision + 8, std::size_t(6));
-    output_ << centered_column_label("# time", column_width);
-    for (const std::string& label : labels_)
-    {
-        output_ << ' ' << centered_column_label(label, column_width);
-    }
-    output_ << '\n';
-    if (!output_)
-    {
-        throw std::runtime_error("Failed while writing quadrature output header.");
-    }
+    write_column_header(output_, column_width, precision, labels_, "quadrature output");
 }
 
 void QuadratureWriter::write_row(const double time, const std::vector<double>& values)

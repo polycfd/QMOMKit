@@ -184,6 +184,56 @@ callback path.
 
 Use counters to form hypotheses. Use benchmarks and profiling to test them.
 
+## Performance baselines
+
+Counter values are deterministic integers and reproduce exactly across runs, so
+they are the regression gate for optimization work. Wall-clock timings vary by
+machine, build, and load; treat them as corroboration only and do not record
+them here.
+
+Baseline recorded at commit `7276a58`, Release build with
+`QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION=ON`.
+
+Heap allocations per operation, from `allocation_benchmark`:
+
+| Operation | allocations | bytes |
+| --- | --- | --- |
+| CQMOM 2D 2x2 Strang phase-space step | 564 | 23,528 |
+| CQMOM 3D 2x2x2 Strang phase-space step | 927 | 56,928 |
+| QMOM n=3 Strang phase-space step | 267 | 5,792 |
+| CQMOM 2D 2x2 reconstruction | 203 | 8,392 |
+| QMOM n=3 inversion | 13 | 920 |
+
+Workload counters per state-step, CQMOM 2D 2x2 Strang
+(`performance_cqmom_phase_space_evolution_strang_2d_2x2`):
+
+| Counter | Per step |
+| --- | --- |
+| CQMOM reconstructions | 1 |
+| Wheeler calls | 3 |
+| CQMOM branch solves | 3 |
+| Vandermonde solves | 1 |
+| moment layout builds | 0 |
+| prepared metadata uses | 1 |
+| advection operators | 2 |
+| moment-source operators | 1 |
+| moment reconstructions | 3 |
+| moment-source SSP-RK stages | 3 |
+| node RHS evaluations | 32 |
+
+Per-operation counters for fixed reconstruction, showing that the prepared and
+dynamic metadata paths perform identical numerical work
+(`wheeler_per_op` and `vandermonde_per_op` agree for each case) while differing
+in layout construction:
+
+| Case | Wheeler | Vandermonde | layout builds (dynamic) | layout builds (prepared) |
+| --- | --- | --- | --- | --- |
+| 2D 2x2 | 3 | 1 | 3 | 0 |
+| 2D 3x3 | 4 | 1 | 3 | 0 |
+| 3D 2x2x2 | 7 | 3 | 4 | 0 |
+| 4D 2^4 | 15 | 7 | 5 | 0 |
+| 5D 2^5 | 31 | 15 | 6 | 0 |
+
 ## Future extensions
 
 Future instrumentation may add optional timing, allocation analysis,

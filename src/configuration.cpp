@@ -278,7 +278,13 @@ ParsedFile parse_file(const std::string_view text, const std::string& source_nam
                 add_error(parsed, ConfigurationErrorCode::syntax_error, source_name, line_number, "Malformed section header.");
                 continue;
             }
-            section = trim(line_text.substr(1, line_text.size() - 2));
+            const std::string candidate_section = trim(line_text.substr(1, line_text.size() - 2));
+            if (candidate_section.empty())
+            {
+                add_error(parsed, ConfigurationErrorCode::syntax_error, source_name, line_number, "Malformed section header.");
+                continue;
+            }
+            section = candidate_section;
             parsed.sections.emplace(section, Entry{"", line_number});
             parsed.section_lines[section].push_back(line_number);
             continue;
@@ -820,6 +826,15 @@ void reject_unknown_qmom_keys(ParsedFile& parsed, const bool explicit_moments, c
     reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_allowed_keys()), {std::string(mixture_component_section_prefix)}, source_name);
 }
 
+void reject_duplicate_indexed_section(ParsedFile& parsed, const std::string& section, const std::string& source_name)
+{
+    const auto lines = parsed.section_lines.find(section);
+    if (lines != parsed.section_lines.end() && lines->second.size() > 1)
+    {
+        add_error(parsed, ConfigurationErrorCode::duplicate_entry, source_name, lines->second[1], "Duplicate section '" + section + "'.");
+    }
+}
+
 std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::string& source_name,
                                                  const std::string& initialization_prefix = "initial")
 {
@@ -831,6 +846,7 @@ std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::
         {
             continue;
         }
+        reject_duplicate_indexed_section(parsed, item.first, source_name);
         std::size_t component = 0;
         parse_size(item.first.substr(component_section_prefix.size()), component);
         component_sections.emplace(component, item.second);

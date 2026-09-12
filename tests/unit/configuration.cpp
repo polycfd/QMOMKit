@@ -3405,6 +3405,12 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
     assert(has_failure(malformed));
     assert(has_message_fragment(malformed, "malformed:2"));
 
+    const auto empty_section_name = qmomkit::config::parse_qmom("[]\nnode_counts=1\n[moments]\nvalues=1,0\n", "empty-section-name");
+    assert(!empty_section_name.ok());
+    assert(has_failure(empty_section_name));
+    assert(has_message_fragment(empty_section_name, "Malformed section header."));
+    assert(has_message_fragment(empty_section_name, "empty-section-name:1"));
+
     const auto nonfinite = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[moments]\nvalues=1,nan\n");
     assert(!nonfinite.ok());
     assert(has_failure(nonfinite));
@@ -3559,6 +3565,16 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
         "[initial.dimension.0]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!duplicate_product_dimension.ok());
     assert(has_failure(duplicate_product_dimension));
+
+    // Non-overlapping keys across the two blocks isolate the duplicate-section check
+    // itself; identical keys would instead (also correctly) fail via the separate
+    // duplicate-key check, without exercising the section-level detection.
+    const auto duplicate_mixture_component = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[initial]\ntype=mixture\nmaximum_order=1\n"
+                                                                         "[initial.mixture.component.0]\nfamily=gamma\n"
+                                                                         "[initial.mixture.component.0]\nnumber_density=1\nshape=1\nscale=2\n");
+    assert(!duplicate_mixture_component.ok());
+    assert(has_failure(duplicate_mixture_component));
+    assert(has_message_fragment(duplicate_mixture_component, "Duplicate section 'initial.mixture.component.0'."));
 
     const auto invalid_marginal_parameter = qmomkit::config::parse_cqmom_dense(
         "[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=1\nmaximum_orders=1,1\n"

@@ -99,14 +99,22 @@ The one-node fallthrough does not increment the adaptive-reduction counter on
 all paths; counters measure the implemented recording sites, not a guaranteed
 one-event-per-count-change invariant.
 
-Third, `adaptive_accepts` checks `min(w)/max(w) > rmin`, then scans each unordered
-node pair once to recover minimum pair distance and maximum pair distance. Every
-candidate count of at least two requires minimum distance/span `> eabs`; a
-non-finite or non-positive span rejects. This is translation and positive-scale
-invariant. For two distinct nodes the ratio is one, so `eabs` is non-limiting at
-the default threshold; sigma/recurrence screening is the practical coalescence
-limit. The caller supplies at least two entries; empty/singleton vectors are not
-valid inputs to this local helper.
+Third, `adaptive_accepts` checks `min(w)/max(w) > rmin`. For candidate counts of
+three or more it scans each unordered node pair once to recover minimum pair
+distance and maximum pair distance and requires minimum distance/span `> eabs`;
+a non-finite or non-positive span rejects. This is translation and
+positive-scale invariant.
+
+A two-node candidate has only one pairwise distance, so normalizing it by the
+maximum pairwise distance (as above) is always exactly one and cannot
+discriminate separation. Instead the two-node case normalizes the pairwise
+distance by the larger abscissa magnitude and requires
+`|a0 - a1| / max(|a0|, |a1|) > eabs`; a non-finite distance/magnitude or a
+non-positive magnitude rejects. This form is positive-scale invariant but not
+translation invariant: a pair with a fixed absolute separation is more likely
+to be rejected (collapsed to one node) the larger its abscissas' magnitude, since
+the same absolute gap becomes relatively smaller. The caller supplies at least
+two entries; empty/singleton vectors are not valid inputs to this local helper.
 
 Targeted tests in `tests/unit/wheeler.cpp` exercise offset versus symmetric
 pairs, three-node span, small weight, duplicates, sigma retry, and threshold

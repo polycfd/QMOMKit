@@ -296,6 +296,42 @@ void test_nan_minimum_timestep_is_invalid()
     assert(source_calls == 0);
 }
 
+void test_qmom_rejects_coordinate_realizability_policies()
+{
+    // coordinate_realizability_policies is a CQMOM-only option (see
+    // MomentSourceUpdateOptions); the QMOM plain-vector path must reject it
+    // rather than silently ignore it.
+    qmomkit::RealizabilityPolicy policy;
+    policy.check_mode = qmomkit::RealizabilityCheckMode::FinalOnly;
+    qmomkit::MomentSourceUpdateOptions options;
+    options.coordinate_realizability_policies = {policy};
+    std::size_t source_calls = 0;
+
+    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+        {1.0}, 0.0, 0.1,
+        [&source_calls](double, const qmomkit::QmomSourceContext& context)
+        {
+            ++source_calls;
+            return std::vector<double>(context.size(), 0.0);
+        },
+        options);
+
+    assert(!result.ok());
+    assert(result.status == qmomkit::MomentSourceUpdateStatus::invalid_input);
+    assert(result.message.find("coordinate_realizability_policies") != std::string::npos);
+    assert(result.moments == std::vector<double>{1.0});
+    assert(source_calls == 0);
+
+    // A vector that is merely sized but holds no configured policy (every entry
+    // std::nullopt) is inert, matching the CQMOM path's own treatment of
+    // unconfigured entries, and must not be rejected.
+    qmomkit::MomentSourceUpdateOptions inert_options;
+    inert_options.coordinate_realizability_policies.resize(3);
+    const qmomkit::MomentSourceUpdateResult inert_result = qmomkit::advance_moments_with_source(
+        {1.0}, 0.0, 0.1, [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>(context.size(), 0.0); }, inert_options);
+    assert(inert_result.ok());
+}
+
 void test_cqmom_moment_data_zero_source_preserves_state()
 {
     const qmomkit::CqmomMomentData initial = create_moment_data();
@@ -829,6 +865,7 @@ int main(const int argc, char** argv)
             {"failure_behavior_minimum_timestep_preserves_original_state", test_failure_behavior_minimum_timestep_preserves_original_state},
             {"reduced_accepted_step_must_reduce_remaining_interval", test_reduced_accepted_step_must_reduce_remaining_interval},
             {"nan_minimum_timestep_is_invalid", test_nan_minimum_timestep_is_invalid},
+            {"qmom_rejects_coordinate_realizability_policies", test_qmom_rejects_coordinate_realizability_policies},
             {"cqmom_moment_data_zero_source_preserves_state", test_cqmom_moment_data_zero_source_preserves_state},
             {"cqmom_source_context_exposes_moment_metadata", test_cqmom_source_context_exposes_moment_metadata},
             {"cqmom_source_context_validates_indices_and_values", test_cqmom_source_context_validates_indices_and_values},

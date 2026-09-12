@@ -275,10 +275,21 @@ ParsedFile parse_file(const std::string_view text, const std::string& source_nam
         {
             if (line_text.back() != ']')
             {
+                // A rejected header does not open a section: keys on subsequent
+                // lines must not be silently attributed to whatever section was
+                // open before this malformed line.
+                section.clear();
                 add_error(parsed, ConfigurationErrorCode::syntax_error, source_name, line_number, "Malformed section header.");
                 continue;
             }
-            section = trim(line_text.substr(1, line_text.size() - 2));
+            const std::string candidate_section = trim(line_text.substr(1, line_text.size() - 2));
+            if (candidate_section.empty())
+            {
+                section.clear();
+                add_error(parsed, ConfigurationErrorCode::syntax_error, source_name, line_number, "Malformed section header.");
+                continue;
+            }
+            section = candidate_section;
             parsed.sections.emplace(section, Entry{"", line_number});
             parsed.section_lines[section].push_back(line_number);
             continue;
@@ -820,6 +831,19 @@ void reject_unknown_qmom_keys(ParsedFile& parsed, const bool explicit_moments, c
     reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_allowed_keys()), {std::string(mixture_component_section_prefix)}, source_name);
 }
 
+// Rejects a re-declared indexed section (e.g. "initial.dimension.N" or
+// "initial.mixture.component.N"). Deliberately scoped to indexed sections only:
+// ordinary sections (e.g. "[phase_space]") may legitimately be reopened to add
+// keys incrementally, so re-declaring one of those is not itself an error.
+void reject_duplicate_indexed_section(ParsedFile& parsed, const std::string& section, const std::string& source_name)
+{
+    const auto lines = parsed.section_lines.find(section);
+    if (lines != parsed.section_lines.end() && lines->second.size() > 1)
+    {
+        add_error(parsed, ConfigurationErrorCode::duplicate_entry, source_name, lines->second[1], "Duplicate section '" + section + "'.");
+    }
+}
+
 std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::string& source_name,
                                                  const std::string& initialization_prefix = "initial")
 {
@@ -831,6 +855,7 @@ std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::
         {
             continue;
         }
+        reject_duplicate_indexed_section(parsed, item.first, source_name);
         std::size_t component = 0;
         parse_size(item.first.substr(component_section_prefix.size()), component);
         component_sections.emplace(component, item.second);
@@ -949,11 +974,7 @@ std::optional<IndependentProductDistribution> parse_independent_product(ParsedFi
         {
             continue;
         }
-        const auto lines = parsed.section_lines.find(item.first);
-        if (lines != parsed.section_lines.end() && lines->second.size() > 1)
-        {
-            add_error(parsed, ConfigurationErrorCode::duplicate_entry, source_name, lines->second[1], "Duplicate section '" + item.first + "'.");
-        }
+        reject_duplicate_indexed_section(parsed, item.first, source_name);
         std::size_t dimension = 0;
         parse_size(item.first.substr(independent_product_dimension_section_prefix.size()), dimension);
         dimension_sections.emplace(dimension, item.second);

@@ -65,19 +65,29 @@ qmomkit::MomentSet moments_from_nodes(const std::vector<double>& abscissas, cons
     return qmomkit::MomentSet(reconstruct_moments(qmomkit::Quadrature1D{abscissas, weights}, 2 * weights.size()));
 }
 
-void test_adaptive_two_node_span_separation_is_translation_invariant()
+void test_adaptive_two_node_span_separation_uses_larger_abscissa_magnitude()
 {
+    // Per docs/developer/qmom_wheeler.md, the two-node separation ratio is the
+    // node distance divided by the larger abscissa magnitude: unlike the n>2
+    // pairwise min/max-distance ratio, this is not translation invariant. The
+    // same absolute distance (0.01) is accepted near the origin, where it is
+    // large relative to the abscissa magnitudes, but rejected once both
+    // abscissas are shifted far from zero, where it becomes comparatively tiny.
     qmomkit::WheelerOptions options;
     options.adaptive = true;
     options.eabs = 0.005;
 
-    const qmomkit::Quadrature1D reference = qmomkit::compute_quadrature(moments_from_nodes({0.0, 0.01}, {0.5, 0.5}), 2, options);
+    const qmomkit::Quadrature1D near_origin = qmomkit::compute_quadrature(moments_from_nodes({0.0, 0.01}, {0.5, 0.5}), 2, options);
     const qmomkit::Quadrature1D translated = qmomkit::compute_quadrature(moments_from_nodes({10.0, 10.01}, {0.5, 0.5}), 2, options);
 
-    assert(reference.ok());
+    assert(near_origin.ok());
     assert(translated.ok());
-    assert(reference.weights.size() == 2);
-    assert(translated.weights.size() == 2);
+    assert(near_origin.weights.size() == 2);
+    assert(translated.weights.size() == 1);
+    assert(std::isfinite(translated.abscissas.front()));
+    assert(std::isfinite(translated.weights.front()));
+    assert_near(translated.abscissas.front(), 10.005, 1.0e-10);
+    assert_near(translated.weights.front(), 1.0, 1.0e-10);
 }
 
 void test_adaptive_two_node_span_separation_is_scale_invariant()
@@ -443,7 +453,8 @@ int main(const int argc, char** argv)
     return qmomkit::test::dispatch_test_case(
         argc, argv,
         {
-            {"adaptive_two_node_span_separation_is_translation_invariant", test_adaptive_two_node_span_separation_is_translation_invariant},
+            {"adaptive_two_node_span_separation_uses_larger_abscissa_magnitude",
+             test_adaptive_two_node_span_separation_uses_larger_abscissa_magnitude},
             {"adaptive_two_node_span_separation_is_scale_invariant", test_adaptive_two_node_span_separation_is_scale_invariant},
             {"adaptive_two_node_relative_separation_accepts_small_symmetric_pair",
              test_adaptive_two_node_relative_separation_accepts_small_symmetric_pair},

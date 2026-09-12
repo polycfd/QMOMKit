@@ -183,13 +183,13 @@ than agreement with a previous solver, but do not constitute an envelope.
 
 ## Shared symmetric eigenkernel
 
-**A:** `symmetric_jacobi_eigen`, local `rotate`, and `off_diagonal_norm` in
+**A:** `symmetric_jacobi_eigen` and local `rotate` in
 `src/internal/linear_algebra.cpp` serve Wheeler and realizability. Start with
 identity eigenvectors; each iteration scans the upper triangle for the largest
 off-diagonal entry and rotates that pair, updating symmetric matrix entries and
-eigenvector columns. Stop when the off-diagonal Frobenius norm is below tolerance,
-the largest entry is below tolerance, or `max_sweeps` iterations are exhausted.
-Each “sweep” performs one pair rotation, not a cyclic sweep of all pairs.
+eigenvector columns. Stop when the largest entry is below tolerance or
+`max_sweeps` iterations are exhausted. Each “sweep” performs one pair rotation,
+not a cyclic sweep of all pairs.
 
 Finally sort diagonal values ascending and permute eigenvector columns with
 them. Square, symmetric, finite matrices and sensible options are upstream

@@ -13,7 +13,7 @@ lambdas are documented with their owning function. Instrumentation definitions
 are included for its enabled preprocessor branch. Line links are navigation aids,
 not permanent API identifiers.
 
-The inventory includes **927 definition locations**, grouped by named function
+The inventory includes **926 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -506,9 +506,8 @@ the executable-body count.
 
 | Function or overload family | Definition lines |
 |---|---|
-| `matrix_infinity_norm` | [14](../../../src/internal/linear_algebra.cpp#L14) |
-| `off_diagonal_norm` | [29](../../../src/internal/linear_algebra.cpp#L29) |
-| `solve_dense` | [45](../../../src/internal/linear_algebra.cpp#L45) |
+| `matrix_infinity_norm` | [33](../../../src/internal/linear_algebra.cpp#L33) |
+| `solve_dense` | [48](../../../src/internal/linear_algebra.cpp#L48) |
 | `make_identity` | [116](../../../src/internal/linear_algebra.cpp#L116) |
 | `residual_norm` | [126](../../../src/internal/linear_algebra.cpp#L126) |
 | `condition_estimate` | [146](../../../src/internal/linear_algebra.cpp#L146) |

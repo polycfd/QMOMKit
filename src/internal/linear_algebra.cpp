@@ -45,22 +45,6 @@ double matrix_infinity_norm(const DenseMatrix& matrix)
     return norm;
 }
 
-double off_diagonal_norm(const DenseMatrix& matrix)
-{
-    double sum = 0.0;
-    for (std::size_t row = 0; row < matrix.rows(); ++row)
-    {
-        for (std::size_t col = 0; col < matrix.cols(); ++col)
-        {
-            if (row != col)
-            {
-                sum += matrix(row, col) * matrix(row, col);
-            }
-        }
-    }
-    return std::sqrt(sum);
-}
-
 LinearSolveResult solve_dense(DenseMatrix matrix, DenseMatrix rhs, const double singular_tolerance, const std::string& singular_message)
 {
     performance::record_dense_linear_solve();
@@ -237,11 +221,10 @@ EigenDecomposition symmetric_jacobi_eigen(DenseMatrix matrix, const JacobiOption
 
     for (std::size_t sweep = 0; sweep < options.max_sweeps; ++sweep)
     {
-        if (off_diagonal_norm(matrix) <= options.tolerance)
-        {
-            break;
-        }
-
+        // Convergence is tested by the largest off-diagonal magnitude found
+        // below. A separate off-diagonal norm check would be redundant: the
+        // norm bounds that maximum from above, so it can only stop the sweep
+        // where the maximum already does.
         std::size_t p = 0;
         std::size_t q = 0;
         double max_value = 0.0;

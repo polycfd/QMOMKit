@@ -247,7 +247,13 @@ struct WheelerAttemptResult
             }
         }
 
-        coefficients = compute_recurrence(moments, n);
+        // The sigma recursion reads only the moments, so the coefficients for a
+        // reduced count are an exact prefix of the ones already computed at
+        // max_nodes. Recompute only when the scan above actually reduced n.
+        if (n != max_nodes)
+        {
+            coefficients = compute_recurrence(moments, n);
+        }
         if (!recurrence_is_finite(coefficients))
         {
             return {one_node_result(moments, QuadratureStatus::not_realizable, "Reduced Wheeler recurrence produced non-finite values."), false};

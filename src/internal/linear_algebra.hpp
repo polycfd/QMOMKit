@@ -82,8 +82,6 @@ struct JacobiOptions
 
 [[nodiscard]] double matrix_infinity_norm(const DenseMatrix& matrix);
 
-[[nodiscard]] double off_diagonal_norm(const DenseMatrix& matrix);
-
 [[nodiscard]] LinearSolveResult solve_dense(DenseMatrix matrix, DenseMatrix rhs, double singular_tolerance, const std::string& singular_message);
 
 [[nodiscard]] DenseMatrix make_identity(std::size_t n);

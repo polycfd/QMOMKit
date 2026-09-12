@@ -224,8 +224,11 @@ struct MomentSourceUpdateOptions
     // Per-coordinate policies for CQMOM moment-data updates, indexed by phase-space
     // dimension. Only the CQMOM (`CqmomMomentData`) overloads of
     // `advance_cqmom_moments_with_source` read and enforce this field. The QMOM
-    // (`std::vector<double>`) overloads of `advance_moments_with_source` reject a
-    // non-empty value here with `MomentSourceUpdateStatus::invalid_input`.
+    // (`std::vector<double>`) overloads of `advance_moments_with_source` reject any
+    // configured entry here (any element holding a value) with
+    // `MomentSourceUpdateStatus::invalid_input`; a vector that is merely sized but
+    // holds no policy is inert and accepted, matching the CQMOM path's own
+    // treatment of unconfigured entries.
     std::vector<std::optional<RealizabilityPolicy>> coordinate_realizability_policies;
 };
 

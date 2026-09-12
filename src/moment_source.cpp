@@ -274,7 +274,8 @@ void validate_request(const std::vector<double>& moments, const double t, const 
     {
         throw std::invalid_argument("Moment-source update timestep controls are invalid.");
     }
-    if (!options.coordinate_realizability_policies.empty())
+    if (std::any_of(options.coordinate_realizability_policies.begin(), options.coordinate_realizability_policies.end(),
+                    [](const std::optional<RealizabilityPolicy>& policy) { return policy.has_value(); }))
     {
         throw std::invalid_argument("QMOM moment-source update does not support coordinate_realizability_policies; this option is CQMOM-only.");
     }

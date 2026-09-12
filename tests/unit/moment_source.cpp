@@ -321,6 +321,15 @@ void test_qmom_rejects_coordinate_realizability_policies()
     assert(result.message.find("coordinate_realizability_policies") != std::string::npos);
     assert(result.moments == std::vector<double>{1.0});
     assert(source_calls == 0);
+
+    // A vector that is merely sized but holds no configured policy (every entry
+    // std::nullopt) is inert, matching the CQMOM path's own treatment of
+    // unconfigured entries, and must not be rejected.
+    qmomkit::MomentSourceUpdateOptions inert_options;
+    inert_options.coordinate_realizability_policies.resize(3);
+    const qmomkit::MomentSourceUpdateResult inert_result = qmomkit::advance_moments_with_source(
+        {1.0}, 0.0, 0.1, [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>(context.size(), 0.0); }, inert_options);
+    assert(inert_result.ok());
 }
 
 void test_cqmom_moment_data_zero_source_preserves_state()

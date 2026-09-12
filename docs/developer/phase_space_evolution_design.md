@@ -477,7 +477,11 @@ absolute_tolerance = 1.0e-9
 and strictly positive. QMOMKit does not estimate it from the state,
 derivatives, or tolerances. `max_step == 0` means the full integration interval is
 the maximum step size. `min_step == 0` means the solver uses a floating-point
-spacing based floor near the current time. `max_steps` limits accepted steps,
+spacing based floor near the current time. An explicit `min_step` must not
+exceed the effective `max_step` (whether explicitly configured or
+auto-derived from the integration interval); otherwise the request is
+rejected as `AdaptiveRkStatus::invalid_input` before integration begins.
+`max_steps` limits accepted steps,
 not rejected trial steps, and remains an optional configuration override with
 an internal default. The actual embedded-RK step is bounded by `min_step` and `max_step`, then clipped so
 integration lands exactly on `t_bound`; the final remainder may therefore be

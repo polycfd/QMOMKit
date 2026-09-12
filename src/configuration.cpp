@@ -826,6 +826,10 @@ void reject_unknown_qmom_keys(ParsedFile& parsed, const bool explicit_moments, c
     reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_allowed_keys()), {std::string(mixture_component_section_prefix)}, source_name);
 }
 
+// Rejects a re-declared indexed section (e.g. "initial.dimension.N" or
+// "initial.mixture.component.N"). Deliberately scoped to indexed sections only:
+// ordinary sections (e.g. "[phase_space]") may legitimately be reopened to add
+// keys incrementally, so re-declaring one of those is not itself an error.
 void reject_duplicate_indexed_section(ParsedFile& parsed, const std::string& section, const std::string& source_name)
 {
     const auto lines = parsed.section_lines.find(section);
@@ -965,11 +969,7 @@ std::optional<IndependentProductDistribution> parse_independent_product(ParsedFi
         {
             continue;
         }
-        const auto lines = parsed.section_lines.find(item.first);
-        if (lines != parsed.section_lines.end() && lines->second.size() > 1)
-        {
-            add_error(parsed, ConfigurationErrorCode::duplicate_entry, source_name, lines->second[1], "Duplicate section '" + item.first + "'.");
-        }
+        reject_duplicate_indexed_section(parsed, item.first, source_name);
         std::size_t dimension = 0;
         parse_size(item.first.substr(independent_product_dimension_section_prefix.size()), dimension);
         dimension_sections.emplace(dimension, item.second);

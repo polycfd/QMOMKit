@@ -121,6 +121,7 @@ void validate_abscissas(const std::vector<std::vector<double>>& abscissas, const
     const std::size_t nodes = state.size() / dimensions;
     std::vector<double> derivative(state.size(), 0.0);
 
+    internal::poison_phase_space_velocity_buffer(derivative);
     velocity(t, state, derivative, dimensions);
 
     // One recorded evaluation per node, matching the per-node callback

@@ -22,8 +22,10 @@ namespace qmomkit
  * the same size and must be filled with dxi/dt in the same layout.
  *
  * The callback must not resize `velocities`; the library sizes it and reports
- * a size mismatch as a velocity failure. No physical meaning is assigned to
- * any coordinate by the library.
+ * a size mismatch as a velocity failure. Every entry must be written: a
+ * partially filled buffer is a contract violation that debug builds report as
+ * a velocity failure, and that release builds cannot detect. No physical
+ * meaning is assigned to any coordinate by the library.
  *
  * Evaluating all nodes together keeps the cost of one right-hand-side
  * evaluation independent of the terminal node count, which is the product of

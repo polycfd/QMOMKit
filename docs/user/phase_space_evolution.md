@@ -81,14 +81,34 @@ motion is part of the model. The callback is evaluated once per right-hand-side
 evaluation for all quadrature nodes together:
 
 ```cpp
+// One-dimensional phase space, so `dimensions` is 1 and each node owns
+// exactly one entry.
+qmomkit::PhaseSpaceVelocity velocity =
+    [](double time, const std::vector<double>& coordinates,
+       std::vector<double>& velocities, std::size_t)
+    {
+        for (std::size_t node = 0; node < coordinates.size(); ++node)
+        {
+            const double x = coordinates[node];
+            velocities[node] = 1.0 - x;
+        }
+    };
+```
+
+In more than one dimension every phase-space dimension of every node must be
+written, for example:
+
+```cpp
 qmomkit::PhaseSpaceVelocity velocity =
     [](double time, const std::vector<double>& coordinates,
        std::vector<double>& velocities, std::size_t dimensions)
     {
         for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
         {
-            const double x = coordinates[node * dimensions];
-            velocities[node * dimensions] = 1.0 - x;
+            for (std::size_t d = 0; d < dimensions; ++d)
+            {
+                velocities[node * dimensions + d] = -coordinates[node * dimensions + d];
+            }
         }
     };
 ```
@@ -98,6 +118,11 @@ qmomkit::PhaseSpaceVelocity velocity =
 ordered by phase-space dimension. `velocities` arrives with the same size and
 must be filled with $\mathrm{d}\xi/\mathrm{d}t$ in the same layout. Do not
 resize it; a size mismatch is reported as a velocity failure.
+
+Fill every entry. Leaving one unwritten is a contract violation, not a request
+for zero velocity: the affected node would simply not move. Debug builds detect
+it and report a velocity failure naming the node and phase-space dimension;
+release builds cannot, so treat a partial fill as a bug in your callback.
 
 QMOMKit does not assign a physical meaning to those coordinates; `x`,
 `diameter`, `velocity`, or any other interpretation comes from your application

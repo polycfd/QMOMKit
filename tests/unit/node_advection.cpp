@@ -528,6 +528,56 @@ void test_velocity_diagnostics_report_node_and_dimension_context()
     assert(resized.quadrature.abscissas() == cqmom_result.quadrature.abscissas());
 }
 
+// The packed callback fills a library-supplied buffer, so a callback that
+// writes only part of it cannot be caught by size or finiteness alone. Debug
+// builds poison the buffer to detect it; in release builds the check is
+// compiled out and, like every assert-based test here, this one is inert.
+void test_partially_filled_velocity_is_reported_in_debug_builds()
+{
+    const qmomkit::CqmomResult cqmom_result = make_fixed_two_dimensional_cqmom();
+    assert(cqmom_result.ok());
+
+    qmomkit::NodeAdvectionOptions options;
+    options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+
+    // Writes the first phase-space dimension of every node and forgets the second.
+    const qmomkit::CqmomNodeAdvectionResult partial = qmomkit::advance_nodes(
+        cqmom_result.quadrature, 0.125, 0.25,
+        [](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+        {
+            for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
+            {
+                velocities[node * dimensions] = coordinates[node * dimensions] + time;
+            }
+        },
+        options);
+
+    assert(!partial.ok());
+    assert(partial.status == qmomkit::NodeAdvectionStatus::velocity_failed);
+    assert(partial.diagnostics.message == partial.message);
+    assert_contains(partial.message, "Phase-space velocity callback did not fill every velocity entry:");
+    assert_contains(partial.message, "time: 0.125");
+    assert_contains(partial.message, "node: 0");
+    assert_contains(partial.message, "dimension: 1");
+    assert_diagnostic_vector_near(partial.message, "coordinate:", {-1.0, -0.5}, 1.0e-12);
+    assert(partial.quadrature.abscissas() == cqmom_result.quadrature.abscissas());
+    assert(partial.quadrature.weights() == cqmom_result.quadrature.weights());
+
+    // A callback that fills every entry must remain unaffected by the poison.
+    const qmomkit::CqmomNodeAdvectionResult complete = qmomkit::advance_nodes(
+        cqmom_result.quadrature, 0.125, 0.25,
+        [](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+        {
+            for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
+            {
+                velocities[node * dimensions] = coordinates[node * dimensions] + time;
+                velocities[node * dimensions + 1] = 0.0;
+            }
+        },
+        options);
+    assert(complete.ok());
+}
+
 void test_rk23_failure_diagnostics_are_reported()
 {
     qmomkit::Quadrature1D quadrature;
@@ -641,6 +691,7 @@ int main(const int argc, char** argv)
             {"adapted_velocity_matches_directly_written_velocity_exactly", test_adapted_velocity_matches_directly_written_velocity_exactly},
             {"velocity_adapter_preserves_results_and_emptiness", test_velocity_adapter_preserves_results_and_emptiness},
             {"velocity_diagnostics_report_node_and_dimension_context", test_velocity_diagnostics_report_node_and_dimension_context},
+            {"partially_filled_velocity_is_reported_in_debug_builds", test_partially_filled_velocity_is_reported_in_debug_builds},
             {"rk23_failure_diagnostics_are_reported", test_rk23_failure_diagnostics_are_reported},
             {"configured_adaptive_options_reach_node_advection", test_configured_adaptive_options_reach_node_advection},
             {"node_advection_options_formatting_reports_semantic_settings", test_node_advection_options_formatting_reports_semantic_settings},

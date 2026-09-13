@@ -30,7 +30,7 @@ namespace qmomkit
 namespace internal
 {
 
-IndexedMomentSet::IndexedMomentSet(std::vector<std::size_t> key_extents, std::vector<MultiIndex> indices, std::vector<double> values)
+IndexedMomentSet::IndexedMomentSet(std::vector<std::size_t> key_extents, MultiIndexTable indices, std::vector<double> values)
     : key_extents_(std::move(key_extents)), indices_(std::move(indices)), values_(std::move(values))
 {
     if (indices_.size() != values_.size())
@@ -59,7 +59,7 @@ const std::vector<std::size_t>& IndexedMomentSet::key_extents() const noexcept
     return key_extents_;
 }
 
-const std::vector<MultiIndex>& IndexedMomentSet::indices() const noexcept
+const MultiIndexTable& IndexedMomentSet::indices() const noexcept
 {
     return indices_;
 }
@@ -96,7 +96,7 @@ bool IndexedMomentSet::contains(const MultiIndex& index) const
     return true;
 }
 
-std::size_t IndexedMomentSet::offset(const MultiIndex& index) const
+std::size_t IndexedMomentSet::offset(const MultiIndexView index) const
 {
     const std::size_t key = flatten_multi_index(index, key_extents_);
     const auto found =
@@ -109,7 +109,7 @@ std::size_t IndexedMomentSet::offset(const MultiIndex& index) const
     return *found;
 }
 
-double IndexedMomentSet::moment(const MultiIndex& index) const
+double IndexedMomentSet::moment(const MultiIndexView index) const
 {
     return values_.at(offset(index));
 }
@@ -118,7 +118,7 @@ CqmomMomentView::CqmomMomentView(const RawMomentTensor& moments) : dense_moments
 
 CqmomMomentView::CqmomMomentView(const IndexedMomentSet& moments) : moment_data_(&moments), source_kind_(SourceKind::moment_data) {}
 
-double CqmomMomentView::moment(const MultiIndex& index) const
+double CqmomMomentView::moment(const MultiIndexView index) const
 {
     if (source_kind_ == SourceKind::moment_data)
     {
@@ -150,7 +150,7 @@ namespace
 
     // Branch-local layouts are ordered by conditioning level. Raw/global
     // moment storage remains in phase-space dimension order.
-    for (const MultiIndex& phase_space_index : layout.required_indices)
+    for (const MultiIndexView phase_space_index : layout.required_indices)
     {
         MultiIndex ordered_index(hierarchy.number_of_dimensions(), 0);
         for (std::size_t axis = 0; axis < hierarchy.number_of_dimensions(); ++axis)
@@ -513,7 +513,7 @@ struct ConditionalSliceResult
     BranchMomentSlice slice;
     std::vector<double> values;
     values.reserve(layout.required_indices.size());
-    for (const MultiIndex& phase_space_index : layout.required_indices)
+    for (const MultiIndexView phase_space_index : layout.required_indices)
     {
         values.push_back(moments.moment(phase_space_index));
     }
@@ -902,7 +902,7 @@ std::size_t product_extents(const std::vector<std::size_t>& extents)
     return product;
 }
 
-std::size_t flatten_multi_index(const MultiIndex& multi_index, const std::vector<std::size_t>& extents)
+std::size_t flatten_multi_index(const MultiIndexView multi_index, const std::vector<std::size_t>& extents)
 {
     (void)product_extents(extents);
     if (multi_index.size() != extents.size())
@@ -1030,6 +1030,15 @@ void MultiIndexTable::push_back(const MultiIndexView index)
         throw std::invalid_argument("Multi-index table entries must all have the same rank.");
     }
     values_.insert(values_.end(), index.begin(), index.end());
+}
+
+void MultiIndexTable::pop_back()
+{
+    if (values_.empty())
+    {
+        throw std::out_of_range("Cannot remove an index from an empty multi-index table.");
+    }
+    values_.resize(values_.size() - rank_);
 }
 
 void MultiIndexTable::reserve(const std::size_t rows)
@@ -1183,7 +1192,7 @@ CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarch
         }
     }
 
-    return CqmomMomentLayout{hierarchy, std::move(indices)};
+    return CqmomMomentLayout{hierarchy, MultiIndexTable(std::move(indices))};
 }
 
 CqmomMomentData::CqmomMomentData(CqmomMomentLayout moment_layout, std::vector<double> moment_values)
@@ -1191,12 +1200,12 @@ CqmomMomentData::CqmomMomentData(CqmomMomentLayout moment_layout, std::vector<do
 {
 }
 
-bool CqmomMomentData::contains_required_index(const MultiIndex& index) const
+bool CqmomMomentData::contains_required_index(const MultiIndexView index) const
 {
     return std::find(layout.required_indices.begin(), layout.required_indices.end(), index) != layout.required_indices.end();
 }
 
-double CqmomMomentData::moment(const MultiIndex& index) const
+double CqmomMomentData::moment(const MultiIndexView index) const
 {
     if (values.size() != layout.required_indices.size())
     {
@@ -1227,7 +1236,7 @@ CqmomMomentData extract_cqmom_moments(const RawMomentTensor& moments, const Cqmo
 
     std::vector<double> values;
     values.reserve(layout.required_indices.size());
-    for (const MultiIndex& index : layout.required_indices)
+    for (const MultiIndexView index : layout.required_indices)
     {
         if (!internal::multi_index_within_extents(index, moments.extents))
         {
@@ -1245,7 +1254,7 @@ CqmomMomentData create_cqmom_moment_data(const CqmomMomentLayout& layout, const 
     {
         throw std::invalid_argument("Selected raw moment result must be successful before conversion to CQMOM moment data.");
     }
-    if (result.indices != layout.required_indices)
+    if (MultiIndexTable(result.indices) != layout.required_indices)
     {
         throw std::invalid_argument("Selected raw moment indices must exactly match the CQMOM moment layout.");
     }

@@ -150,7 +150,7 @@ struct CqmomActiveBranchCount
 struct CqmomMomentLayout
 {
     PhaseSpaceHierarchy hierarchy;
-    std::vector<MultiIndex> required_indices;
+    MultiIndexTable required_indices;
 };
 
 /**
@@ -168,8 +168,8 @@ struct CqmomMomentData
     CqmomMomentLayout layout;
     std::vector<double> values;
 
-    [[nodiscard]] bool contains_required_index(const MultiIndex& index) const;
-    [[nodiscard]] double moment(const MultiIndex& index) const;
+    [[nodiscard]] bool contains_required_index(MultiIndexView index) const;
+    [[nodiscard]] double moment(MultiIndexView index) const;
 };
 
 /**

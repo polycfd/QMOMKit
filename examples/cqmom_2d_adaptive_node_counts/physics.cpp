@@ -111,7 +111,7 @@ qmomkit::CqmomMomentSource variance_injection_source(const VarianceInjectionPara
 
         for (std::size_t entry = 0; entry < moments.size(); ++entry)
         {
-            const qmomkit::MultiIndex& order = moments.index(entry);
+            const qmomkit::MultiIndexView order = moments.index(entry);
             if (order.size() != 2)
             {
                 throw std::invalid_argument("The variance-injection source expects 2D raw moments ordered as (d,u).");
@@ -121,7 +121,7 @@ qmomkit::CqmomMomentSource variance_injection_source(const VarianceInjectionPara
             double redistribution_change = 0.0;
             for (std::size_t displacement_order = 2; displacement_order <= velocity_order; displacement_order += 2)
             {
-                qmomkit::MultiIndex lower_order = order;
+                qmomkit::MultiIndex lower_order = order.to_multi_index();
                 lower_order[1] = velocity_order - displacement_order;
                 const std::optional<double> lower_moment = moments.value(lower_order);
                 if (!lower_moment.has_value())
@@ -163,7 +163,8 @@ bool validate_variance_injection_source_rates(const VarianceInjectionParameters&
     }
 
     const qmomkit::PhaseSpaceHierarchy hierarchy{{2, 3}};
-    const qmomkit::CqmomSourceContext active_context{parameters.pulse_start, hierarchy, indices, values};
+    const qmomkit::MultiIndexTable index_table(indices);
+    const qmomkit::CqmomSourceContext active_context{parameters.pulse_start, hierarchy, index_table, values};
     const qmomkit::CqmomMomentRate active_rate = variance_injection_source(parameters)(parameters.pulse_start, active_context);
     if (active_rate.values.size() != indices.size())
     {
@@ -183,7 +184,7 @@ bool validate_variance_injection_source_rates(const VarianceInjectionParameters&
         return false;
     }
 
-    const qmomkit::CqmomSourceContext inactive_context{parameters.pulse_start - 1.0, hierarchy, indices, values};
+    const qmomkit::CqmomSourceContext inactive_context{parameters.pulse_start - 1.0, hierarchy, index_table, values};
     const qmomkit::CqmomMomentRate inactive_rate = variance_injection_source(parameters)(parameters.pulse_start - 1.0, inactive_context);
     for (const double value : inactive_rate.values)
     {

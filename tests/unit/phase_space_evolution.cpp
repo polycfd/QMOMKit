@@ -922,10 +922,10 @@ void capture_source_context_once(SourceContextSnapshot& snapshot, const qmomkit:
     snapshot.dimension_count = context.dimension_count();
     snapshot.node_counts = context.hierarchy().node_counts();
     snapshot.conditioning_order = context.hierarchy().conditioning_order();
-    snapshot.indices = context.indices();
+    snapshot.indices = context.indices().to_multi_indices();
     snapshot.values = context.values();
     snapshot.lookup_values.reserve(context.size());
-    for (const qmomkit::MultiIndex& index : context.indices())
+    for (const qmomkit::MultiIndexView index : context.indices())
     {
         const std::optional<double> value = context.value(index);
         assert(value.has_value());
@@ -1191,7 +1191,7 @@ void test_explicit_dense_and_lean_accept_same_cqmom_native_source()
             assert(context.indices().size() == context.values().size());
             for (std::size_t entry = 0; entry < context.size(); ++entry)
             {
-                const qmomkit::MultiIndex& index = context.index(entry);
+                const qmomkit::MultiIndexView index = context.index(entry);
                 assert(index.size() == moments.extents.size());
                 for (std::size_t dimension = 0; dimension < moments.extents.size(); ++dimension)
                 {
@@ -3751,7 +3751,7 @@ void test_dense_and_lean_state_source_contexts_are_identical()
             std::vector<double> rate(context.size(), 0.0);
             for (std::size_t entry = 0; entry < context.size(); ++entry)
             {
-                const qmomkit::MultiIndex& alpha = context.index(entry);
+                const qmomkit::MultiIndexView alpha = context.index(entry);
                 double order_sum = 0.0;
                 for (const std::size_t order : alpha)
                 {

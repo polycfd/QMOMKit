@@ -134,7 +134,7 @@ void require_sample(const qmomkit::monte_carlo::Sample& sample)
     return rate;
 }
 
-[[nodiscard]] double parent_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndex& order)
+[[nodiscard]] double parent_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndexView order)
 {
     double value = 1.0;
     for (std::size_t dimension = 0; dimension < dimension_count; ++dimension)
@@ -144,7 +144,7 @@ void require_sample(const qmomkit::monte_carlo::Sample& sample)
     return value;
 }
 
-[[nodiscard]] double expected_daughter_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndex& order,
+[[nodiscard]] double expected_daughter_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndexView order,
                                                 const BinaryFragmentationParameters& parameters)
 {
     const double d = coordinates[0];
@@ -196,7 +196,7 @@ qmomkit::CqmomMomentSource binary_breakage_source(const BinaryFragmentationParam
 
         for (std::size_t moment_index = 0; moment_index < moments.size(); ++moment_index)
         {
-            const qmomkit::MultiIndex& order = moments.index(moment_index);
+            const qmomkit::MultiIndexView order = moments.index(moment_index);
             moments.for_each_terminal_node(
                 [&source, &order, moment_index, &parameters](const double weight, const std::vector<double>& coordinates)
                 {

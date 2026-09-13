@@ -112,7 +112,7 @@ BranchMomentSliceFixture make_branch_slice_from_dense(const qmomkit::PhaseSpaceH
     std::vector<double> values;
     ordered_indices.reserve(layout.required_indices.size());
     values.reserve(layout.required_indices.size());
-    for (const qmomkit::MultiIndex& phase_space_index : layout.required_indices)
+    for (const qmomkit::MultiIndexView phase_space_index : layout.required_indices)
     {
         qmomkit::MultiIndex ordered_index(hierarchy.number_of_dimensions(), 0);
         for (std::size_t axis = 0; axis < hierarchy.number_of_dimensions(); ++axis)
@@ -418,7 +418,7 @@ void test_cqmom_moment_view_dense_matches_tensor_access()
     const qmomkit::RawMomentTensor dense{{4, 6}, indexed_values({4, 6})};
     const qmomkit::internal::CqmomMomentView view(dense);
 
-    for (const qmomkit::MultiIndex& index : layout.required_indices)
+    for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
         assert(view.moment(index) == dense.values[qmomkit::flatten_multi_index(index, dense.extents)]);
     }
@@ -436,7 +436,7 @@ void test_cqmom_moment_view_moment_data_matches_dense_view()
     const qmomkit::internal::CqmomMomentView moment_data_view(indexed_moment_data);
     const qmomkit::internal::CqmomMomentView copied_moment_data_view = moment_data_view;
 
-    for (const qmomkit::MultiIndex& index : layout.required_indices)
+    for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
         assert(moment_data_view.moment(index) == dense_view.moment(index));
         assert(copied_moment_data_view.moment(index) == dense_view.moment(index));
@@ -448,9 +448,9 @@ void test_indexed_moment_set_preserves_order_and_uses_key_lookup()
     const std::vector<std::size_t> extents{4, 4};
     const std::vector<qmomkit::MultiIndex> indices{{1, 0}, {0, 3}, {0, 0}};
     const std::vector<double> values{10.0, 20.0, 30.0};
-    const qmomkit::internal::IndexedMomentSet moments(extents, indices, values);
+    const qmomkit::internal::IndexedMomentSet moments(extents, qmomkit::MultiIndexTable(indices), values);
 
-    assert(moments.indices() == indices);
+    assert(moments.indices().to_multi_indices() == indices);
     assert(moments.values() == values);
     assert(moments.size() == values.size());
     assert(moments.contains({1, 0}));
@@ -462,7 +462,7 @@ void test_indexed_moment_set_preserves_order_and_uses_key_lookup()
     assert(moments.moment({0, 3}) == 20.0);
     assert(moments.moment({0, 0}) == 30.0);
     assert_throws_out_of_range([&moments]() { (void)moments.moment({2, 2}); });
-    assert_throws_invalid_argument([] { (void)qmomkit::internal::IndexedMomentSet({4, 4}, {{1, 0}, {1, 0}}, {1.0, 2.0}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::internal::IndexedMomentSet({4, 4}, qmomkit::MultiIndexTable({{1, 0}, {1, 0}}), {1.0, 2.0}); });
 }
 
 void test_cqmom_moment_view_moment_data_references_indexed_storage()
@@ -2002,6 +2002,30 @@ void test_multi_index_table_grows_and_compares()
     assert(table.empty());
 }
 
+// Range-based for and std::find are how moment layouts are traversed, so the
+// row iterator must support both.
+void test_multi_index_table_iterates_and_finds_rows()
+{
+    const std::vector<qmomkit::MultiIndex> rows{{1, 2}, {3, 4}, {5, 6}};
+    const qmomkit::MultiIndexTable table(rows);
+
+    std::size_t visited = 0;
+    for (const qmomkit::MultiIndexView row : table)
+    {
+        assert(row == rows[visited]);
+        ++visited;
+    }
+    assert(visited == rows.size());
+
+    const auto found = std::find(table.begin(), table.end(), qmomkit::MultiIndex{3, 4});
+    assert(found != table.end());
+    assert(static_cast<std::size_t>(std::distance(table.begin(), found)) == 1);
+    assert(std::find(table.begin(), table.end(), qmomkit::MultiIndex{9, 9}) == table.end());
+
+    const qmomkit::MultiIndexTable empty_table;
+    assert(empty_table.begin() == empty_table.end());
+}
+
 void test_multi_index_table_matches_enumerate_multi_indices()
 {
     const std::vector<std::size_t> extents{2, 3};
@@ -2105,6 +2129,7 @@ void run_indexing_layout_tests()
     test_multi_index_table_storage_is_contiguous_and_row_major();
     test_multi_index_table_accepts_flat_storage_and_rejects_ragged_input();
     test_multi_index_table_grows_and_compares();
+    test_multi_index_table_iterates_and_finds_rows();
     test_multi_index_table_matches_enumerate_multi_indices();
 }
 
@@ -2241,6 +2266,7 @@ int main(const int argc, char** argv)
             {"multi_index_table_storage_is_contiguous_and_row_major", test_multi_index_table_storage_is_contiguous_and_row_major},
             {"multi_index_table_accepts_flat_storage_and_rejects_ragged_input", test_multi_index_table_accepts_flat_storage_and_rejects_ragged_input},
             {"multi_index_table_grows_and_compares", test_multi_index_table_grows_and_compares},
+            {"multi_index_table_iterates_and_finds_rows", test_multi_index_table_iterates_and_finds_rows},
             {"multi_index_table_matches_enumerate_multi_indices", test_multi_index_table_matches_enumerate_multi_indices},
         });
 }

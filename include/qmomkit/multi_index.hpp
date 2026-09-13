@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <initializer_list>
+#include <iterator>
 #include <vector>
 
 namespace qmomkit
@@ -21,6 +23,24 @@ class MultiIndexView
 public:
     MultiIndexView() = default;
     MultiIndexView(const std::size_t* entries, std::size_t rank) noexcept : entries_(entries), rank_(rank) {}
+
+    /**
+     * View an owning multi-index.
+     *
+     * Implicit so that a function taking a `MultiIndexView` accepts both a
+     * stored index and a table row. As with any view, the referenced index must
+     * outlive the view; binding one to a temporary dangles.
+     */
+    MultiIndexView(const MultiIndex& index) noexcept : entries_(index.data()), rank_(index.size()) {}
+
+    /**
+     * View a braced list of components, as in `moment({1, 0, 2})`.
+     *
+     * Intended for the argument position, where the list outlives the call. A
+     * view stored from a braced list dangles immediately, exactly as one stored
+     * from a temporary index does.
+     */
+    MultiIndexView(std::initializer_list<std::size_t> entries) noexcept : entries_(entries.begin()), rank_(entries.size()) {}
 
     [[nodiscard]] std::size_t size() const noexcept
     {
@@ -75,12 +95,68 @@ private:
  * `std::vector<MultiIndex>` allocates once per row.
  *
  * All rows have the same rank, which is the phase-space dimension count for
- * moment layouts and the conditioning-level count for terminal paths. An empty
- * table has rank zero.
+ * moment layouts and the conditioning-level count for terminal paths. A
+ * default-constructed table has rank zero and adopts the rank of the first
+ * index appended to it. `clear()` removes the rows but keeps the rank, so a
+ * cleared table can be refilled with indices of the same shape; two empty
+ * tables of different rank are therefore not equal.
  */
 class MultiIndexTable
 {
 public:
+    /**
+     * Row iterator yielding `MultiIndexView` by value.
+     *
+     * Because it hands back a view rather than a reference into a container of
+     * indices, it satisfies the input-iterator requirements rather than the
+     * forward-iterator ones. That is enough for range-based `for` and for
+     * `std::find`, which is how the moment layouts are traversed.
+     */
+    class const_iterator
+    {
+    public:
+        using iterator_category = std::input_iterator_tag;
+        using value_type = MultiIndexView;
+        using difference_type = std::ptrdiff_t;
+        using pointer = void;
+        using reference = MultiIndexView;
+
+        const_iterator() = default;
+        const_iterator(const std::size_t* entries, std::size_t rank) noexcept : entries_(entries), rank_(rank) {}
+
+        [[nodiscard]] reference operator*() const noexcept
+        {
+            return MultiIndexView(entries_, rank_);
+        }
+        const_iterator& operator++() noexcept
+        {
+            entries_ += rank_;
+            return *this;
+        }
+        const_iterator operator++(int) noexcept
+        {
+            const_iterator previous = *this;
+            ++(*this);
+            return previous;
+        }
+        [[nodiscard]] bool operator==(const const_iterator& other) const noexcept
+        {
+            return entries_ == other.entries_;
+        }
+        [[nodiscard]] bool operator!=(const const_iterator& other) const noexcept
+        {
+            return entries_ != other.entries_;
+        }
+        [[nodiscard]] difference_type operator-(const const_iterator& other) const noexcept
+        {
+            return rank_ == 0 ? 0 : (entries_ - other.entries_) / static_cast<difference_type>(rank_);
+        }
+
+    private:
+        const std::size_t* entries_ = nullptr;
+        std::size_t rank_ = 0;
+    };
+
     MultiIndexTable() = default;
 
     /** Build from flat row-major storage; `values.size()` must be a multiple of `rank`. */
@@ -107,6 +183,15 @@ public:
     }
     [[nodiscard]] MultiIndexView at(std::size_t row) const;
 
+    [[nodiscard]] const_iterator begin() const noexcept
+    {
+        return const_iterator(values_.data(), rank_);
+    }
+    [[nodiscard]] const_iterator end() const noexcept
+    {
+        return const_iterator(values_.data() + values_.size(), rank_);
+    }
+
     /** Flat row-major storage, `size() * rank()` values. */
     [[nodiscard]] const std::vector<std::size_t>& values() const noexcept
     {
@@ -116,6 +201,9 @@ public:
     /** Append one index, which must match the table rank unless the table is empty. */
     void push_back(const MultiIndex& index);
     void push_back(MultiIndexView index);
+
+    /** Remove the last index; the table must not be empty. */
+    void pop_back();
 
     void reserve(std::size_t rows);
     void clear() noexcept;
@@ -144,7 +232,7 @@ private:
  * The supplied multi-index and extents use the same axis ordering. The last
  * axis is fastest varying, matching C/C++ row-major storage.
  */
-[[nodiscard]] std::size_t flatten_multi_index(const MultiIndex& multi_index, const std::vector<std::size_t>& extents);
+[[nodiscard]] std::size_t flatten_multi_index(MultiIndexView multi_index, const std::vector<std::size_t>& extents);
 
 /**
  * Convert a row-major flat index to a multi-index.

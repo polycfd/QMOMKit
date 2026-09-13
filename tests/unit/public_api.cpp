@@ -26,25 +26,25 @@ void assert_relative_near(const double actual, const double expected, const doub
     assert(std::abs(actual - expected) <= tolerance * std::max(1.0, std::abs(expected)));
 }
 
-bool contains_index(const std::vector<qmomkit::MultiIndex>& indices, const qmomkit::MultiIndex& index)
+bool contains_index(const qmomkit::MultiIndexTable& indices, const qmomkit::MultiIndexView index)
 {
     return std::find(indices.begin(), indices.end(), index) != indices.end();
 }
 
 void append_unique(std::vector<qmomkit::MultiIndex>& indices, qmomkit::MultiIndex index)
 {
-    if (!contains_index(indices, index))
+    if (std::find(indices.begin(), indices.end(), index) == indices.end())
     {
         indices.push_back(std::move(index));
     }
 }
 
-void assert_indices_equal(const std::vector<qmomkit::MultiIndex>& actual, const std::vector<qmomkit::MultiIndex>& expected)
+void assert_indices_equal(const qmomkit::MultiIndexTable& actual, const std::vector<qmomkit::MultiIndex>& expected)
 {
-    assert(actual == expected);
+    assert(actual.to_multi_indices() == expected);
 }
 
-void assert_unique_indices(const std::vector<qmomkit::MultiIndex>& indices)
+void assert_unique_indices(const qmomkit::MultiIndexTable& indices)
 {
     for (std::size_t i = 0; i < indices.size(); ++i)
     {
@@ -311,7 +311,7 @@ void test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature()
     assert(case_.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(state.hierarchy().node_counts() == hierarchy.node_counts());
-    assert(state.moment_indices() == qmomkit::create_cqmom_moment_layout(hierarchy).required_indices);
+    assert(state.moment_indices() == qmomkit::create_cqmom_moment_layout(hierarchy).required_indices.to_multi_indices());
     assert(state.moment_values().size() == state.moment_indices().size());
     assert_same_quadrature(state.quadrature(), expected.quadrature, 1.0e-10);
 }
@@ -425,7 +425,7 @@ void test_select_cqmom_moments_extracts_required_dense_values()
     assert(selected.values.size() == layout.required_indices.size());
     for (std::size_t offset = 0; offset < layout.required_indices.size(); ++offset)
     {
-        const qmomkit::MultiIndex& index = layout.required_indices[offset];
+        const qmomkit::MultiIndexView index = layout.required_indices[offset];
         const double expected = dense.values[qmomkit::flatten_multi_index(index, dense.extents)];
         assert(selected.values[offset] == expected);
         assert(selected.contains_required_index(index));
@@ -460,7 +460,7 @@ void test_select_cqmom_moments_respects_non_identity_conditioning_order()
     assert(selected.values.size() == 22);
     for (std::size_t offset = 0; offset < layout.required_indices.size(); ++offset)
     {
-        const qmomkit::MultiIndex& index = layout.required_indices[offset];
+        const qmomkit::MultiIndexView index = layout.required_indices[offset];
         assert(selected.values[offset] == dense.values[qmomkit::flatten_multi_index(index, dense.extents)]);
     }
     assert(selected.moment({0, 0, 3}) == dense.values[qmomkit::flatten_multi_index({0, 0, 3}, dense.extents)]);
@@ -497,7 +497,7 @@ void test_create_cqmom_moment_data_converts_valid_selected_result()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::RawMomentRequest request{layout.required_indices};
+    const qmomkit::RawMomentRequest request{layout.required_indices.to_multi_indices()};
     const qmomkit::SelectedRawMomentResult selected =
         qmomkit::make_selected_raw_moment_result(request, indexed_count_values(layout.required_indices.size()));
 
@@ -505,7 +505,7 @@ void test_create_cqmom_moment_data_converts_valid_selected_result()
 
     assert(data.layout.required_indices == layout.required_indices);
     assert(data.values == selected.values);
-    assert(data.moment(layout.required_indices.front()) == selected.values.front());
+    assert(data.moment(layout.required_indices[0]) == selected.values.front());
 }
 
 void test_create_cqmom_moment_data_rejects_failed_selected_result()
@@ -513,7 +513,7 @@ void test_create_cqmom_moment_data_rejects_failed_selected_result()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     qmomkit::SelectedRawMomentResult selected =
-        qmomkit::make_selected_raw_moment_result({layout.required_indices}, indexed_count_values(layout.required_indices.size()));
+        qmomkit::make_selected_raw_moment_result({layout.required_indices.to_multi_indices()}, indexed_count_values(layout.required_indices.size()));
     selected.status = qmomkit::RawMomentStatus::invalid_input;
     selected.message = "failed upstream";
 
@@ -524,7 +524,7 @@ void test_create_cqmom_moment_data_rejects_index_order_mismatch()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    qmomkit::RawMomentRequest request{layout.required_indices};
+    qmomkit::RawMomentRequest request{layout.required_indices.to_multi_indices()};
     std::swap(request.indices.front(), request.indices.back());
     const qmomkit::SelectedRawMomentResult selected =
         qmomkit::make_selected_raw_moment_result(request, indexed_count_values(layout.required_indices.size()));
@@ -537,7 +537,7 @@ void test_create_cqmom_moment_data_rejects_missing_values()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     qmomkit::SelectedRawMomentResult selected =
-        qmomkit::make_selected_raw_moment_result({layout.required_indices}, indexed_count_values(layout.required_indices.size()));
+        qmomkit::make_selected_raw_moment_result({layout.required_indices.to_multi_indices()}, indexed_count_values(layout.required_indices.size()));
     selected.values.pop_back();
 
     assert_throws_invalid_argument([&layout, &selected]() { (void)qmomkit::create_cqmom_moment_data(layout, selected); });
@@ -548,7 +548,7 @@ void test_create_cqmom_moment_data_rejects_extra_values()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     qmomkit::SelectedRawMomentResult selected =
-        qmomkit::make_selected_raw_moment_result({layout.required_indices}, indexed_count_values(layout.required_indices.size()));
+        qmomkit::make_selected_raw_moment_result({layout.required_indices.to_multi_indices()}, indexed_count_values(layout.required_indices.size()));
     selected.values.push_back(123.0);
 
     assert_throws_invalid_argument([&layout, &selected]() { (void)qmomkit::create_cqmom_moment_data(layout, selected); });
@@ -559,7 +559,7 @@ void test_create_cqmom_moment_data_rejects_non_finite_values()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     qmomkit::SelectedRawMomentResult selected =
-        qmomkit::make_selected_raw_moment_result({layout.required_indices}, indexed_count_values(layout.required_indices.size()));
+        qmomkit::make_selected_raw_moment_result({layout.required_indices.to_multi_indices()}, indexed_count_values(layout.required_indices.size()));
     selected.values.front() = std::numeric_limits<double>::infinity();
 
     assert_throws_invalid_argument([&layout, &selected]() { (void)qmomkit::create_cqmom_moment_data(layout, selected); });
@@ -571,7 +571,8 @@ void test_create_cqmom_moment_data_from_independent_product_selected_moments()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::IndependentProductDistribution product{{qmomkit::GammaDistribution{1.5, 0.5}, qmomkit::BetaDistribution{2.0, 3.0}}, 2.0};
 
-    const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(product, qmomkit::RawMomentRequest{layout.required_indices});
+    const qmomkit::SelectedRawMomentResult selected =
+        qmomkit::compute_raw_moments(product, qmomkit::RawMomentRequest{layout.required_indices.to_multi_indices()});
     const qmomkit::CqmomMomentData data = qmomkit::create_cqmom_moment_data(layout, selected);
     const qmomkit::TensorMomentResult dense = qmomkit::compute_raw_moments(product, {3, 3});
     const qmomkit::CqmomMomentData required_moment_data = qmomkit::extract_cqmom_moments(dense.moments, layout);

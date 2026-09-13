@@ -27,20 +27,20 @@ class IndexedMomentSet
 {
 public:
     IndexedMomentSet() = default;
-    IndexedMomentSet(std::vector<std::size_t> key_extents, std::vector<MultiIndex> indices, std::vector<double> values);
+    IndexedMomentSet(std::vector<std::size_t> key_extents, MultiIndexTable indices, std::vector<double> values);
 
     [[nodiscard]] const std::vector<std::size_t>& key_extents() const noexcept;
-    [[nodiscard]] const std::vector<MultiIndex>& indices() const noexcept;
+    [[nodiscard]] const MultiIndexTable& indices() const noexcept;
     [[nodiscard]] const std::vector<double>& values() const noexcept;
     [[nodiscard]] std::vector<double>& mutable_values() noexcept;
     [[nodiscard]] std::size_t size() const noexcept;
     [[nodiscard]] bool contains(const MultiIndex& index) const;
-    [[nodiscard]] std::size_t offset(const MultiIndex& index) const;
-    [[nodiscard]] double moment(const MultiIndex& index) const;
+    [[nodiscard]] std::size_t offset(MultiIndexView index) const;
+    [[nodiscard]] double moment(MultiIndexView index) const;
 
 private:
     std::vector<std::size_t> key_extents_;
-    std::vector<MultiIndex> indices_;
+    MultiIndexTable indices_;
     std::vector<double> values_;
     std::vector<std::size_t> lookup_offsets_;
 };
@@ -59,7 +59,7 @@ public:
     explicit CqmomMomentView(const RawMomentTensor& moments);
     explicit CqmomMomentView(const IndexedMomentSet& moments);
 
-    [[nodiscard]] double moment(const MultiIndex& index) const;
+    [[nodiscard]] double moment(MultiIndexView index) const;
 
 private:
     enum class SourceKind

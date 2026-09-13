@@ -16,7 +16,7 @@ void print_configuration_errors(const std::string& error);
 
 void ensure_output_directory(const std::filesystem::path& path);
 
-[[nodiscard]] std::vector<qmomkit::MultiIndex> select_terminal_moment_indices(const std::vector<qmomkit::MultiIndex>& required_indices);
+[[nodiscard]] std::vector<qmomkit::MultiIndex> select_terminal_moment_indices(const qmomkit::MultiIndexTable& required_indices);
 
 void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,
                           const qmomkit::CqmomQuadrature& final_quadrature, const std::filesystem::path& output_directory, std::size_t sample_count,

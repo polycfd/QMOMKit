@@ -353,7 +353,7 @@ qmomkit::CqmomMomentBoundaryContribution boundary =
 
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
-            const qmomkit::MultiIndex& order = context.index(entry);
+            const qmomkit::MultiIndexView order = context.index(entry);
             values[entry] = /* boundary exchange rate for M_order */;
         }
 
@@ -451,7 +451,8 @@ Use:
 - `context.dimension_count()` for the hierarchy dimension count;
 - `context.indices()` and `context.values()` for the context-ordered
   multi-index and value arrays;
-- `context.index(i)` for the `MultiIndex` of entry `i`;
+- `context.index(i)` for a `MultiIndexView` of entry `i`, which indexes and
+  iterates like a `MultiIndex` without copying it;
 - `context.value(i)` for the current raw moment value of entry `i`;
 - `context.position(alpha)` or `context.value(alpha)` when a source term needs
   a particular retained moment by multi-index;
@@ -515,7 +516,7 @@ qmomkit::CqmomMomentSource source =
 
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
-            const qmomkit::MultiIndex& order = context.index(entry);
+            const qmomkit::MultiIndexView order = context.index(entry);
             const double moment = context.value(entry);
 
             double total_order = 0.0;
@@ -805,7 +806,7 @@ const qmomkit::CqmomMomentBoundaryContribution cqmom_boundary =
         std::vector<double> rate(context.size(), 0.0);
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
-            const qmomkit::MultiIndex& order = context.index(entry);
+            const qmomkit::MultiIndexView order = context.index(entry);
             rate[entry] = /* phase-space boundary exchange rate for M_order */;
         }
         return qmomkit::CqmomMomentRate{rate};

@@ -437,7 +437,7 @@ const std::vector<CqmomActiveBranchCount>& CqmomState::active_branch_counts() co
 std::vector<MultiIndex> CqmomState::moment_indices() const
 {
     return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return enumerate_multi_indices(dense_case.moments.extents); },
-                                 [](const CqmomLeanCase& lean_case) { return lean_case.moments.layout.required_indices; }},
+                                 [](const CqmomLeanCase& lean_case) { return lean_case.moments.layout.required_indices.to_multi_indices(); }},
                       data_->case_);
 }
 

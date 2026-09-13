@@ -76,7 +76,7 @@ int main()
         qmomkit::CqmomState state = sampled_case.value().initial_state();
         qmomkit::CqmomQuadrature quadrature = initial.quadrature;
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(sampled_case.value().hierarchy());
-        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices};
+        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const qmomkit::CqmomPhaseSpaceEvolutionOptions evolution_options = evolution_configured.value();
         if (evolution_options.node_options.scheme != qmomkit::NodeAdvectionScheme::rk23)
         {

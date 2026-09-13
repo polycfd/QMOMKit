@@ -69,7 +69,7 @@ struct CqmomMomentRateValidationMessages
            lhs.required_indices == rhs.required_indices;
 }
 
-[[nodiscard]] inline bool multi_index_within_extents(const MultiIndex& index, const std::vector<std::size_t>& extents)
+[[nodiscard]] inline bool multi_index_within_extents(const MultiIndexView index, const std::vector<std::size_t>& extents)
 {
     if (index.size() != extents.size())
     {

@@ -177,7 +177,7 @@ void verify_lean_required_representation(const qmomkit::CqmomLeanCase& lean_case
     // values are sufficient to recover the same analytical product quadrature.
     const std::vector<qmomkit::MultiIndex> expected_indices = expected_required_indices();
     const qmomkit::CqmomMomentData& moments = lean_case.moments;
-    if (moments.layout.required_indices != expected_indices)
+    if (moments.layout.required_indices.to_multi_indices() != expected_indices)
     {
         append_failure(verification, "explicit lean workflow required-index order did not match the documented fixed 2x2 CQMOM layout.");
     }

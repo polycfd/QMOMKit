@@ -16,7 +16,7 @@ public:
 class CqmomSourceContextAccess
 {
 public:
-    [[nodiscard]] static CqmomSourceContext create(double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices,
+    [[nodiscard]] static CqmomSourceContext create(double time, const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices,
                                                    const std::vector<double>& values, const CqmomLeanCase& reconstruction_case,
                                                    const std::vector<CqmomActiveBranchCount>& active_branch_counts,
                                                    const PreparedFixedCqmomMetadata* prepared_fixed_metadata);

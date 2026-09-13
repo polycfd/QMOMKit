@@ -98,7 +98,7 @@ int main()
         qmomkit::CqmomState state = cqmom_case.initial_state();
         qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
-        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices};
+        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const qmomkit::PhaseSpaceVelocity velocity = paper_2d_bubbles_cavitation::advection_velocity();
         qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
         if (phase_space_evolution_options.node_options.scheme != qmomkit::NodeAdvectionScheme::rk23)
@@ -261,7 +261,7 @@ int main()
             initial_moments, final_moments, quadrature, output_options.directory, paper_2d_bubbles_cavitation::initialization_sample_count,
             paper_2d_bubbles_cavitation::initialization_seed, time_step, final_time, output_options.write_moments, output_options.write_quadrature);
         paper_2d_bubbles_cavitation::print_monte_carlo_result_summary(
-            mc_initial_moments, mc_final_moments, moment_output_layout.required_indices, output_options.directory, ensemble.size(),
+            mc_initial_moments, mc_final_moments, moment_output_layout.required_indices.to_multi_indices(), output_options.directory, ensemble.size(),
             paper_2d_bubbles_cavitation::initialization_sample_count, paper_2d_bubbles_cavitation::initialization_seed, time_step, final_time,
             output_options.write_moments);
     }

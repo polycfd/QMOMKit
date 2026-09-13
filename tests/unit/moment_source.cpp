@@ -14,8 +14,8 @@
 namespace
 {
 
-static_assert(std::is_constructible_v<qmomkit::CqmomSourceContext, double, const qmomkit::PhaseSpaceHierarchy&,
-                                      const std::vector<qmomkit::MultiIndex>&, const std::vector<double>&>);
+static_assert(std::is_constructible_v<qmomkit::CqmomSourceContext, double, const qmomkit::PhaseSpaceHierarchy&, const qmomkit::MultiIndexTable&,
+                                      const std::vector<double>&>);
 static_assert(!std::is_constructible_v<qmomkit::CqmomSourceContext, const qmomkit::PhaseSpaceHierarchy&, const std::vector<qmomkit::MultiIndex>&,
                                        const std::vector<double>&>);
 
@@ -60,7 +60,7 @@ void set_coordinate_marginal(qmomkit::CqmomMomentData& moments, const std::size_
 {
     for (std::size_t position = 0; position < moments.layout.required_indices.size(); ++position)
     {
-        const qmomkit::MultiIndex& index = moments.layout.required_indices[position];
+        const qmomkit::MultiIndexView index = moments.layout.required_indices[position];
         bool pure_coordinate = true;
         for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
         {
@@ -405,12 +405,34 @@ void test_cqmom_source_context_validates_indices_and_values()
     }
     assert(rejected_mismatched_values);
 
-    std::vector<qmomkit::MultiIndex> bad_indices = initial.layout.required_indices;
-    bad_indices.front().push_back(0);
+    // A ragged index set can no longer be built at all: the flat table enforces
+    // one rank for every row, so the mismatch is caught before any context sees it.
+    std::vector<qmomkit::MultiIndex> ragged_indices = initial.layout.required_indices.to_multi_indices();
+    ragged_indices.front().push_back(0);
+    bool rejected_ragged = false;
+    try
+    {
+        static_cast<void>(qmomkit::MultiIndexTable(ragged_indices));
+    }
+    catch (const std::invalid_argument& error)
+    {
+        rejected_ragged = true;
+        assert(std::string(error.what()).find("same rank") != std::string::npos);
+    }
+    assert(rejected_ragged);
+
+    // A uniformly wrong rank is well-formed as a table and must be rejected by
+    // the context against the hierarchy dimension count.
+    std::vector<qmomkit::MultiIndex> bad_rank_indices = initial.layout.required_indices.to_multi_indices();
+    for (qmomkit::MultiIndex& index : bad_rank_indices)
+    {
+        index.push_back(0);
+    }
+    const qmomkit::MultiIndexTable bad_rank_table(bad_rank_indices);
     bool rejected_bad_rank = false;
     try
     {
-        static_cast<void>(qmomkit::CqmomSourceContext{0.0, initial.layout.hierarchy, bad_indices, initial.values});
+        static_cast<void>(qmomkit::CqmomSourceContext{0.0, initial.layout.hierarchy, bad_rank_table, initial.values});
     }
     catch (const std::invalid_argument& error)
     {

@@ -491,9 +491,14 @@ void run_static_parity_case(const std::string& name, const qmomkit::PhaseSpaceHi
     compare_results(name, dense, lean, hierarchy);
 }
 
-std::set<qmomkit::MultiIndex> index_set(const std::vector<qmomkit::MultiIndex>& indices)
+std::set<qmomkit::MultiIndex> index_set(const qmomkit::MultiIndexTable& indices)
 {
-    return std::set<qmomkit::MultiIndex>(indices.begin(), indices.end());
+    std::set<qmomkit::MultiIndex> unique;
+    for (const qmomkit::MultiIndexView index : indices)
+    {
+        unique.insert(index.to_multi_index());
+    }
+    return unique;
 }
 
 std::vector<qmomkit::MultiIndex> omitted_dense_indices(const qmomkit::CqmomMomentLayout& layout)
@@ -721,7 +726,7 @@ std::array<double, 2> solve_conditional_vandermonde_system_2(const std::array<do
     return {(rhs[0] * nodes[1] - rhs[1]) / (weights[0] * separation), (rhs[1] - rhs[0] * nodes[0]) / (weights[1] * separation)};
 }
 
-double dense_moment(const qmomkit::RawMomentTensor& moments, const qmomkit::MultiIndex& index)
+double dense_moment(const qmomkit::RawMomentTensor& moments, const qmomkit::MultiIndexView index)
 {
     return moments.values[qmomkit::flatten_multi_index(index, moments.extents)];
 }
@@ -837,11 +842,11 @@ RecursiveBranchTrace recursive_trace_for_identity_branch(const qmomkit::RawMomen
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {0, 1, 2});
     const qmomkit::CqmomMomentLayout canonical = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::shared_ptr<const qmomkit::internal::BranchMomentLayout> root_layout =
-        qmomkit::internal::create_branch_moment_layout(hierarchy.moment_extents(), canonical.required_indices, false);
+        qmomkit::internal::create_branch_moment_layout(hierarchy.moment_extents(), canonical.required_indices.to_multi_indices(), false);
     qmomkit::internal::BranchMomentSlice root_slice;
     root_slice.layout = root_layout.get();
     root_slice.values.reserve(canonical.required_indices.size());
-    for (const qmomkit::MultiIndex& index : canonical.required_indices)
+    for (const qmomkit::MultiIndexView index : canonical.required_indices)
     {
         root_slice.values.push_back(dense_moment(moments, index));
     }
@@ -1164,7 +1169,7 @@ void audit_failing_branch_01(const FailureProbe& probe, const qmomkit::CqmomDiag
 
 std::vector<qmomkit::MultiIndex> expanded_indices(const qmomkit::CqmomMomentLayout& canonical, const std::vector<qmomkit::MultiIndex>& additions)
 {
-    std::vector<qmomkit::MultiIndex> indices = canonical.required_indices;
+    std::vector<qmomkit::MultiIndex> indices = canonical.required_indices.to_multi_indices();
     for (const qmomkit::MultiIndex& index : additions)
     {
         if (std::find(indices.begin(), indices.end(), index) == indices.end())
@@ -1181,7 +1186,7 @@ qmomkit::internal::RecursiveQuadratureResult compute_with_expanded_layout(const 
 {
     std::vector<double> values;
     values.reserve(layout.required_indices.size());
-    for (const qmomkit::MultiIndex& index : layout.required_indices)
+    for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
         values.push_back(dense_moment(moments, index));
     }
@@ -1238,7 +1243,7 @@ void run_expanded_layout_experiments(const qmomkit::RawMomentTensor& moments, co
     bool found_successful_expansion = false;
     for (const auto& experiment : experiments)
     {
-        qmomkit::CqmomMomentLayout expanded{canonical.hierarchy, expanded_indices(canonical, experiment.second)};
+        qmomkit::CqmomMomentLayout expanded{canonical.hierarchy, qmomkit::MultiIndexTable(expanded_indices(canonical, experiment.second))};
         try
         {
             const qmomkit::internal::RecursiveQuadratureResult result = compute_with_expanded_layout(moments, expanded, qmom_options);

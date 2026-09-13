@@ -60,7 +60,7 @@ double shifted_gaussian_moment(const double mean, const double standard_deviatio
     return value;
 }
 
-double parent_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndex& order)
+double parent_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndexView order)
 {
     double value = 1.0;
     for (std::size_t dimension = 0; dimension < order.size(); ++dimension)
@@ -70,7 +70,7 @@ double parent_monomial(const std::vector<double>& coordinates, const qmomkit::Mu
     return value;
 }
 
-double expected_daughter_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndex& order)
+double expected_daughter_monomial(const std::vector<double>& coordinates, const qmomkit::MultiIndexView order)
 {
     // Diameter-scaled recoil couples the daughter velocity factors to parent
     // diameter and therefore generates mixed diameter-velocity moments.
@@ -122,7 +122,7 @@ qmomkit::CqmomMomentSource breakup_source()
         // nodes because its mixed moments are outside the finite transport set.
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
-            const qmomkit::MultiIndex& order = context.index(entry);
+            const qmomkit::MultiIndexView order = context.index(entry);
             context.for_each_terminal_node(
                 [&](const double weight, const std::vector<double>& coordinates)
                 {

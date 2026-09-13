@@ -63,7 +63,7 @@ int main()
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
         const qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
         const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
-        const qmomkit::RawMomentRequest moment_request{moment_layout.required_indices};
+        const qmomkit::RawMomentRequest moment_request{moment_layout.required_indices.to_multi_indices()};
 
         const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
             cqmom_3d_droplets_condensation_nucleation::sample_initial_distribution(std::move(initial_condition).value(), cqmom_case.hierarchy());

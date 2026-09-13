@@ -66,7 +66,7 @@ std::vector<TerminalNode> independent_product_reference()
     return {{1.0, -1.0, 0.4 * 0.25}, {1.0, 2.0, 0.4 * 0.75}, {3.0, -1.0, 0.6 * 0.25}, {3.0, 2.0, 0.6 * 0.75}};
 }
 
-double analytical_cqmom_moment(const qmomkit::MultiIndex& index)
+double analytical_cqmom_moment(const qmomkit::MultiIndexView index)
 {
     double moment = 0.0;
     for (const TerminalNode& node : independent_product_reference())
@@ -190,7 +190,7 @@ void verify_cqmom_required_layout_reconstruction(const qmomkit::CqmomQuadrature&
     const qmomkit::RawMomentTensor dense = qmomkit::reconstruct_raw_moments(quadrature, layout.hierarchy.moment_extents());
     for (std::size_t entry = 0; entry < layout.required_indices.size(); ++entry)
     {
-        const qmomkit::MultiIndex& index = layout.required_indices[entry];
+        const qmomkit::MultiIndexView index = layout.required_indices[entry];
         const double analytical = analytical_cqmom_moment(index);
         const double from_dense = dense.values[qmomkit::flatten_multi_index(index, dense.extents)];
         update_error(verification, reconstructed.values[entry], analytical);

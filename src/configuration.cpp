@@ -1194,7 +1194,7 @@ template <class T> ConfigurationResult<T> file_failure(const std::filesystem::pa
     return std::nullopt;
 }
 
-[[nodiscard]] std::string format_moment_index(const MultiIndex& index)
+[[nodiscard]] std::string format_moment_index(const MultiIndexView index)
 {
     std::ostringstream message;
     message << '[';
@@ -2312,7 +2312,7 @@ ConfigurationResult<CqmomMomentData> initialize_cqmom_moment_data(const InitialC
         {
             // Lean initialization requests only the recursive CQMOM moments
             // required by the layout, avoiding unnecessary dense tensor values.
-            const RawMomentRequest request{layout.required_indices};
+            const RawMomentRequest request{layout.required_indices.to_multi_indices()};
             const SelectedRawMomentResult selected_moments = compute_raw_moments(independent_product->distribution, request);
             if (!selected_moments.ok())
             {
@@ -2496,7 +2496,7 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, 
         }
 
         const CqmomMomentLayout layout = create_cqmom_moment_layout(hierarchy);
-        for (const MultiIndex& index : layout.required_indices)
+        for (const MultiIndexView index : layout.required_indices)
         {
             if (!internal::multi_index_within_extents(index, explicit_moments.extents))
             {

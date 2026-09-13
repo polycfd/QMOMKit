@@ -57,7 +57,7 @@ int main()
         qmomkit::CqmomState state = sampled_case.value().initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
         const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(sampled_case.value().hierarchy());
-        const qmomkit::RawMomentRequest request{layout.required_indices};
+        const qmomkit::RawMomentRequest request{layout.required_indices.to_multi_indices()};
         const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(initial_quadrature, request);
 
         if (output.value().write_moments || output.value().write_quadrature)

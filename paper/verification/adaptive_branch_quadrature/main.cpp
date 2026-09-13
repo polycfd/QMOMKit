@@ -92,7 +92,7 @@ qmomkit::CqmomMomentSource variance_injection_source()
 
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
-            const qmomkit::MultiIndex& index = context.index(entry);
+            const qmomkit::MultiIndexView index = context.index(entry);
             if (index.size() != 2)
             {
                 throw std::invalid_argument("The adaptive paper source requires 2D raw moments ordered as (d,u).");
@@ -101,7 +101,7 @@ qmomkit::CqmomMomentSource variance_injection_source()
             double redistribution_change = 0.0;
             for (std::size_t displacement_order = 2; displacement_order <= index[velocity_dimension]; displacement_order += 2)
             {
-                qmomkit::MultiIndex lower = index;
+                qmomkit::MultiIndex lower = index.to_multi_index();
                 lower[velocity_dimension] -= displacement_order;
                 const std::optional<double> lower_moment = context.value(lower);
                 if (!lower_moment.has_value())

@@ -49,7 +49,7 @@ void write_column_header(std::ofstream& output, std::size_t& column_width, const
     }
 }
 
-[[nodiscard]] std::string cqmom_label(const MultiIndex& index)
+[[nodiscard]] std::string cqmom_label(const MultiIndexView index)
 {
     std::ostringstream label;
     label << "M[";
@@ -134,7 +134,7 @@ void validate_generalized_moment_orders(const std::vector<std::vector<double>>& 
     return labels;
 }
 
-[[nodiscard]] std::vector<std::string> cqmom_labels(const std::vector<MultiIndex>& indices)
+[[nodiscard]] std::vector<std::string> cqmom_labels(const MultiIndexTable& indices)
 {
     if (indices.empty())
     {
@@ -143,7 +143,7 @@ void validate_generalized_moment_orders(const std::vector<std::vector<double>>& 
 
     std::vector<std::string> labels;
     labels.reserve(indices.size());
-    for (const MultiIndex& index : indices)
+    for (const MultiIndexView index : indices)
     {
         labels.push_back(cqmom_label(index));
     }
@@ -163,7 +163,7 @@ void validate_generalized_moment_orders(const std::vector<std::vector<double>>& 
 
 [[nodiscard]] std::vector<std::string> all_cqmom_labels(const std::vector<std::size_t>& extents)
 {
-    return cqmom_labels(enumerate_multi_indices(extents));
+    return cqmom_labels(MultiIndexTable(enumerate_multi_indices(extents)));
 }
 
 [[nodiscard]] std::string cqmom_abscissa_label(const std::size_t dimension)
@@ -256,7 +256,7 @@ MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, std::vec
 {
     validate_generalized_moment_orders(generalized_moment_orders, extents.size());
     const std::vector<std::size_t> flat_indices = flatten_selected_indices(extents, selected_moments);
-    std::vector<std::string> labels = cqmom_labels(selected_moments);
+    std::vector<std::string> labels = cqmom_labels(MultiIndexTable(selected_moments));
     append_generalized_labels(labels, generalized_moment_orders);
     return MomentWriter(path, MomentLayout::cqmom_dense, std::move(extents), flat_indices, std::move(labels), std::move(generalized_moment_orders),
                         precision);
@@ -280,7 +280,7 @@ MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const Cq
                                      const std::size_t precision)
 {
     std::vector<MultiIndex> indices = state.moment_indices();
-    std::vector<std::string> labels = cqmom_labels(indices);
+    std::vector<std::string> labels = cqmom_labels(MultiIndexTable(indices));
     validate_generalized_moment_orders(output_options.generalized_moment_orders, state.hierarchy().number_of_dimensions());
     append_generalized_labels(labels, output_options.generalized_moment_orders);
     return MomentWriter(path, MomentLayout::cqmom_state, std::move(indices), std::move(labels), output_options.generalized_moment_orders, precision);
@@ -288,7 +288,7 @@ MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const Cq
 
 MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const RawMomentRequest& request, const std::size_t precision)
 {
-    return MomentWriter(path, MomentLayout::cqmom_requested, request, cqmom_labels(request.indices), precision);
+    return MomentWriter(path, MomentLayout::cqmom_requested, request, cqmom_labels(MultiIndexTable(request.indices)), precision);
 }
 
 MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, std::vector<std::size_t> extents,

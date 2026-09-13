@@ -26,3 +26,12 @@ static_assert(std::is_same_v<decltype(&qmomkit::MultiIndexTable::values), TableV
     std::is_constructible_v<qmomkit::MultiIndexTable, std::size_t, std::vector<std::size_t>>;
 static_assert(table_is_constructible_from_flat_storage);
 static_assert(std::is_constructible_v<qmomkit::MultiIndexTable, const std::vector<qmomkit::MultiIndex>&>);
+
+// Index-reading free functions accept both an owning index and a table row.
+using FlattenIndex = std::size_t (*)(qmomkit::MultiIndexView, const std::vector<std::size_t>&);
+static_assert(std::is_same_v<decltype(&qmomkit::flatten_multi_index), FlattenIndex>);
+
+// A view is constructible from an owning index and from a braced list, which is
+// what keeps read-only call sites unchanged.
+static_assert(std::is_convertible_v<const qmomkit::MultiIndex&, qmomkit::MultiIndexView>);
+static_assert(std::is_constructible_v<qmomkit::MultiIndexView, std::initializer_list<std::size_t>>);

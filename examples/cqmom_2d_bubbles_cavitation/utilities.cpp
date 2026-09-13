@@ -31,7 +31,7 @@ void print_multi_index(const qmomkit::MultiIndex& order)
     std::cout << ']';
 }
 
-void print_path(const qmomkit::ConditioningPath& path)
+void print_path(const qmomkit::ConditioningPathView path)
 {
     std::cout << '[';
     for (std::size_t level = 0; level < path.size(); ++level)

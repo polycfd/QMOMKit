@@ -86,8 +86,8 @@ std::vector<TerminalNode> terminal_nodes(const qmomkit::CqmomQuadrature& quadrat
     {
         for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
         {
-            nodes.push_back(
-                {quadrature.terminal_paths()[node], quadrature.abscissas()[0][node], quadrature.abscissas()[1][node], quadrature.weights()[node]});
+            nodes.push_back({quadrature.terminal_paths()[node].to_conditioning_path(), quadrature.abscissas()[0][node],
+                             quadrature.abscissas()[1][node], quadrature.weights()[node]});
         }
     }
     std::sort(nodes.begin(), nodes.end(), [](const TerminalNode& lhs, const TerminalNode& rhs) { return lhs.path < rhs.path; });
@@ -177,7 +177,7 @@ void verify_lean_required_representation(const qmomkit::CqmomLeanCase& lean_case
     // values are sufficient to recover the same analytical product quadrature.
     const std::vector<qmomkit::MultiIndex> expected_indices = expected_required_indices();
     const qmomkit::CqmomMomentData& moments = lean_case.moments;
-    if (moments.layout.required_indices != expected_indices)
+    if (moments.layout.required_indices.to_multi_indices() != expected_indices)
     {
         append_failure(verification, "explicit lean workflow required-index order did not match the documented fixed 2x2 CQMOM layout.");
     }

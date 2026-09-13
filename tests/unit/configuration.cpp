@@ -765,7 +765,7 @@ standard_deviation = 1.25
 
     const qmomkit::IndependentProductDistribution distribution{{qmomkit::GammaDistribution{3.0, 0.2}, qmomkit::NormalDistribution{-0.5, 1.25}}, 2.5};
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::RawMomentRequest moment_request{layout.required_indices};
+    const qmomkit::RawMomentRequest moment_request{layout.required_indices.to_multi_indices()};
     const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(distribution, moment_request);
     assert(selected.ok());
     const qmomkit::CqmomMomentData expected = qmomkit::create_cqmom_moment_data(layout, selected);
@@ -1413,8 +1413,8 @@ void test_cqmom_case_replaces_lean_initial_moments_immutably()
     const qmomkit::CqmomState replaced_state = replaced_case.initial_state();
     assert(base_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(replaced_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
-    assert(base_state.moment_indices() == layout.required_indices);
-    assert(replaced_state.moment_indices() == expected_moments.layout.required_indices);
+    assert(base_state.moment_indices() == layout.required_indices.to_multi_indices());
+    assert(replaced_state.moment_indices() == expected_moments.layout.required_indices.to_multi_indices());
 
     const qmomkit::CqmomResult base_result = qmomkit::compute_cqmom(base_case);
     const qmomkit::CqmomResult replaced_result = qmomkit::compute_cqmom(replaced_case);
@@ -1566,8 +1566,9 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     assert_rejected(different_dimension);
 
     const qmomkit::CqmomMomentLayout fixed_layout = qmomkit::create_cqmom_moment_layout(dense_case.hierarchy);
-    qmomkit::CqmomMomentLayout reordered_layout = fixed_layout;
-    std::reverse(reordered_layout.required_indices.begin(), reordered_layout.required_indices.end());
+    std::vector<qmomkit::MultiIndex> reordered_indices = fixed_layout.required_indices.to_multi_indices();
+    std::reverse(reordered_indices.begin(), reordered_indices.end());
+    qmomkit::CqmomMomentLayout reordered_layout{fixed_layout.hierarchy, qmomkit::MultiIndexTable(reordered_indices)};
     const qmomkit::CqmomLeanCase reordered_lean_case{
         qmomkit::CqmomMomentData{std::move(reordered_layout), std::vector<double>(fixed_layout.required_indices.size(), 1.0)}};
     bool lean_rejected = false;

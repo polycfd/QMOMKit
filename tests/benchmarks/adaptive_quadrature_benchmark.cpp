@@ -1022,7 +1022,7 @@ void validate_cqmom_state_canonical(const qmomkit::CqmomState& state, const qmom
 {
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(state.hierarchy());
     const qmomkit::CqmomMomentData canonical = qmomkit::reconstruct_cqmom_moments(quadrature, layout);
-    for (const qmomkit::MultiIndex& index : layout.required_indices)
+    for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
         const std::optional<double> state_value = state.moment(index);
         if (!state_value.has_value())

@@ -1513,7 +1513,7 @@ qmomkit::CqmomMomentRate cqmom_source_for_context(double, const qmomkit::CqmomSo
     std::vector<double> rhs(moments.size(), 0.0);
     for (std::size_t entry = 0; entry < moments.size(); ++entry)
     {
-        const qmomkit::MultiIndex index = moments.index(entry);
+        const qmomkit::MultiIndexView index = moments.index(entry);
         const double lambda = cqmom_lambda_scale * static_cast<double>(index[0] + index[1]);
         rhs[entry] = -lambda * moments.value(entry);
     }
@@ -1633,7 +1633,7 @@ std::vector<double> cqmom_native_source_weight_rates()
     return {0.02, -0.01, 0.03, -0.015};
 }
 
-double cqmom_native_source_weight_rate_moment(const qmomkit::MultiIndex& index)
+double cqmom_native_source_weight_rate_moment(const qmomkit::MultiIndexView index)
 {
     double moment = 0.0;
     const std::vector<double> x = cqmom_native_source_terminal_x();
@@ -1741,7 +1741,7 @@ qmomkit::CqmomMomentRate cqmom_native_source_callback(const std::vector<double>&
     std::vector<double> rates(context.size(), 0.0);
     for (std::size_t entry = 0; entry < entries; ++entry)
     {
-        const qmomkit::MultiIndex& index = context.index(entry);
+        const qmomkit::MultiIndexView index = context.index(entry);
         if (index != expected_indices[entry])
         {
             record_audit_failure(audit, "CQMOM source context index order did not match the expected public moment order.");
@@ -1787,7 +1787,7 @@ qmomkit::CqmomMomentRate cqmom_combined_native_source_callback(const std::vector
     std::vector<double> rates(context.size(), 0.0);
     for (std::size_t entry = 0; entry < entries; ++entry)
     {
-        const qmomkit::MultiIndex& index = context.index(entry);
+        const qmomkit::MultiIndexView index = context.index(entry);
         if (index != expected_indices[entry])
         {
             record_audit_failure(audit, "combined CQMOM source context index order did not match the expected public moment order.");
@@ -1824,7 +1824,7 @@ std::vector<double> cqmom_boundary_weight_rates(const qmomkit::CqmomQuadrature& 
 }
 
 double cqmom_boundary_weight_rate_moment(const qmomkit::CqmomQuadrature& quadrature, const std::vector<double>& rates,
-                                         const qmomkit::MultiIndex& index)
+                                         const qmomkit::MultiIndexView index)
 {
     double moment_rate = 0.0;
     for (std::size_t node = 0; node < rates.size(); ++node)
@@ -1861,7 +1861,7 @@ qmomkit::CqmomMomentRate cqmom_boundary_contribution_callback(const qmomkit::Cqm
     std::vector<double> boundary_rates(context.size(), 0.0);
     for (std::size_t entry = 0; entry < entries; ++entry)
     {
-        const qmomkit::MultiIndex& index = context.index(entry);
+        const qmomkit::MultiIndexView index = context.index(entry);
         if (index != expected_indices[entry])
         {
             record_audit_failure(audit, "CQMOM boundary context index order did not match the expected public moment order.");
@@ -3865,7 +3865,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
         summary.success = false;
     }
     std::vector<std::size_t> actual_paths;
-    for (const qmomkit::ConditioningPath& path : quadrature.terminal_paths())
+    for (const qmomkit::ConditioningPathView path : quadrature.terminal_paths())
     {
         actual_paths.push_back(path.node_index_at_level(0) * 2 + path.node_index_at_level(1));
     }
@@ -3886,7 +3886,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     }
     for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
     {
-        const qmomkit::ConditioningPath& path = quadrature.terminal_paths()[node];
+        const qmomkit::ConditioningPathView path = quadrature.terminal_paths()[node];
         const std::size_t expected_node = path.node_index_at_level(0) == 0 ? path.node_index_at_level(1) : 2;
         update_errors(summary.errors, {quadrature.weights()[node]}, {expected_weights[expected_node]});
         for (std::size_t dimension = 0; dimension < units.size(); ++dimension)

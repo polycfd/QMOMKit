@@ -120,7 +120,7 @@ int main()
             final_moments = cqmom_2d_bubbles_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents);
         }
         cqmom_2d_bubbles_cavitation::print_monte_carlo_result_summary(
-            initial_moments, final_moments, moment_output_layout.required_indices, output_options.directory, ensemble.size(),
+            initial_moments, final_moments, moment_output_layout.required_indices.to_multi_indices(), output_options.directory, ensemble.size(),
             cqmom_2d_bubbles_cavitation::initialization_sample_count, cqmom_2d_bubbles_cavitation::initialization_seed, time_step, final_time,
             output_options.write_moments);
     }

@@ -85,7 +85,7 @@ void validate_generalized_exponent(const double exponent)
             "CQMOM quadrature abscissas must be finite."};
 }
 
-[[nodiscard]] double reconstruct_cqmom_moment_value(const CqmomQuadrature& quadrature, const MultiIndex& moment_index)
+[[nodiscard]] double reconstruct_cqmom_moment_value(const CqmomQuadrature& quadrature, const MultiIndexView moment_index)
 {
     // CQMOM raw moment reconstruction uses terminal nodes:
     // M_alpha = sum_j W_j * product_d x_{d,j}^{alpha_d}.
@@ -133,7 +133,7 @@ void validate_generalized_exponent(const double exponent)
     }
     std::vector<double> values;
     values.reserve(layout.required_indices.size());
-    for (const MultiIndex& index : layout.required_indices)
+    for (const MultiIndexView index : layout.required_indices)
     {
         if (!trusted_metadata && !internal::multi_index_within_extents(index, moment_extents))
         {

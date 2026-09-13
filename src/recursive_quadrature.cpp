@@ -30,7 +30,7 @@ namespace qmomkit
 namespace internal
 {
 
-IndexedMomentSet::IndexedMomentSet(std::vector<std::size_t> key_extents, std::vector<MultiIndex> indices, std::vector<double> values)
+IndexedMomentSet::IndexedMomentSet(std::vector<std::size_t> key_extents, MultiIndexTable indices, std::vector<double> values)
     : key_extents_(std::move(key_extents)), indices_(std::move(indices)), values_(std::move(values))
 {
     if (indices_.size() != values_.size())
@@ -38,16 +38,29 @@ IndexedMomentSet::IndexedMomentSet(std::vector<std::size_t> key_extents, std::ve
         throw std::invalid_argument("Indexed CQMOM moment indices and values must have the same size.");
     }
 
+    // Each index is flattened once here. Deriving the key inside the sort and
+    // lookup comparators instead made every comparison revalidate the extents
+    // and recompute their product.
+    std::vector<std::size_t> keys(indices_.size(), 0);
+    for (std::size_t entry = 0; entry < indices_.size(); ++entry)
+    {
+        keys[entry] = flatten_multi_index(indices_[entry], key_extents_);
+    }
+
     lookup_offsets_.resize(indices_.size());
     std::iota(lookup_offsets_.begin(), lookup_offsets_.end(), 0);
-    std::sort(lookup_offsets_.begin(), lookup_offsets_.end(), [this](const std::size_t lhs, const std::size_t rhs)
-              { return flatten_multi_index(indices_[lhs], key_extents_) < flatten_multi_index(indices_[rhs], key_extents_); });
+    std::sort(lookup_offsets_.begin(), lookup_offsets_.end(),
+              [&keys](const std::size_t lhs, const std::size_t rhs) { return keys[lhs] < keys[rhs]; });
 
-    for (std::size_t offset = 1; offset < lookup_offsets_.size(); ++offset)
+    lookup_keys_.reserve(lookup_offsets_.size());
+    for (const std::size_t offset : lookup_offsets_)
     {
-        const std::size_t previous_key = flatten_multi_index(indices_[lookup_offsets_[offset - 1]], key_extents_);
-        const std::size_t current_key = flatten_multi_index(indices_[lookup_offsets_[offset]], key_extents_);
-        if (previous_key == current_key)
+        lookup_keys_.push_back(keys[offset]);
+    }
+
+    for (std::size_t offset = 1; offset < lookup_keys_.size(); ++offset)
+    {
+        if (lookup_keys_[offset - 1] == lookup_keys_[offset])
         {
             throw std::invalid_argument("Indexed CQMOM moment storage must not contain duplicate indices.");
         }
@@ -59,7 +72,7 @@ const std::vector<std::size_t>& IndexedMomentSet::key_extents() const noexcept
     return key_extents_;
 }
 
-const std::vector<MultiIndex>& IndexedMomentSet::indices() const noexcept
+const MultiIndexTable& IndexedMomentSet::indices() const noexcept
 {
     return indices_;
 }
@@ -96,20 +109,18 @@ bool IndexedMomentSet::contains(const MultiIndex& index) const
     return true;
 }
 
-std::size_t IndexedMomentSet::offset(const MultiIndex& index) const
+std::size_t IndexedMomentSet::offset(const MultiIndexView index) const
 {
     const std::size_t key = flatten_multi_index(index, key_extents_);
-    const auto found =
-        std::lower_bound(lookup_offsets_.begin(), lookup_offsets_.end(), key, [this](const std::size_t candidate, const std::size_t value)
-                         { return flatten_multi_index(indices_[candidate], key_extents_) < value; });
-    if (found == lookup_offsets_.end() || flatten_multi_index(indices_[*found], key_extents_) != key)
+    const auto found = std::lower_bound(lookup_keys_.begin(), lookup_keys_.end(), key);
+    if (found == lookup_keys_.end() || *found != key)
     {
         throw std::out_of_range("Indexed CQMOM moment storage does not contain the requested moment.");
     }
-    return *found;
+    return lookup_offsets_[static_cast<std::size_t>(found - lookup_keys_.begin())];
 }
 
-double IndexedMomentSet::moment(const MultiIndex& index) const
+double IndexedMomentSet::moment(const MultiIndexView index) const
 {
     return values_.at(offset(index));
 }
@@ -118,7 +129,7 @@ CqmomMomentView::CqmomMomentView(const RawMomentTensor& moments) : dense_moments
 
 CqmomMomentView::CqmomMomentView(const IndexedMomentSet& moments) : moment_data_(&moments), source_kind_(SourceKind::moment_data) {}
 
-double CqmomMomentView::moment(const MultiIndex& index) const
+double CqmomMomentView::moment(const MultiIndexView index) const
 {
     if (source_kind_ == SourceKind::moment_data)
     {
@@ -150,7 +161,7 @@ namespace
 
     // Branch-local layouts are ordered by conditioning level. Raw/global
     // moment storage remains in phase-space dimension order.
-    for (const MultiIndex& phase_space_index : layout.required_indices)
+    for (const MultiIndexView phase_space_index : layout.required_indices)
     {
         MultiIndex ordered_index(hierarchy.number_of_dimensions(), 0);
         for (std::size_t axis = 0; axis < hierarchy.number_of_dimensions(); ++axis)
@@ -513,7 +524,7 @@ struct ConditionalSliceResult
     BranchMomentSlice slice;
     std::vector<double> values;
     values.reserve(layout.required_indices.size());
-    for (const MultiIndex& phase_space_index : layout.required_indices)
+    for (const MultiIndexView phase_space_index : layout.required_indices)
     {
         values.push_back(moments.moment(phase_space_index));
     }
@@ -902,7 +913,7 @@ std::size_t product_extents(const std::vector<std::size_t>& extents)
     return product;
 }
 
-std::size_t flatten_multi_index(const MultiIndex& multi_index, const std::vector<std::size_t>& extents)
+std::size_t flatten_multi_index(const MultiIndexView multi_index, const std::vector<std::size_t>& extents)
 {
     (void)product_extents(extents);
     if (multi_index.size() != extents.size())
@@ -941,6 +952,137 @@ MultiIndex unflatten_multi_index(const std::size_t flat_index, const std::vector
     return multi_index;
 }
 
+bool operator==(const MultiIndexView& lhs, const MultiIndexView& rhs) noexcept
+{
+    return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
+bool operator!=(const MultiIndexView& lhs, const MultiIndexView& rhs) noexcept
+{
+    return !(lhs == rhs);
+}
+
+bool operator==(const MultiIndexView& lhs, const MultiIndex& rhs) noexcept
+{
+    return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
+bool operator==(const MultiIndex& lhs, const MultiIndexView& rhs) noexcept
+{
+    return rhs == lhs;
+}
+
+bool operator!=(const MultiIndexView& lhs, const MultiIndex& rhs) noexcept
+{
+    return !(lhs == rhs);
+}
+
+bool operator!=(const MultiIndex& lhs, const MultiIndexView& rhs) noexcept
+{
+    return !(rhs == lhs);
+}
+
+MultiIndexTable::MultiIndexTable(const std::size_t rank, std::vector<std::size_t> values) : values_(std::move(values)), rank_(rank)
+{
+    if (rank_ == 0)
+    {
+        if (!values_.empty())
+        {
+            throw std::invalid_argument("A rank-zero multi-index table must be empty.");
+        }
+        return;
+    }
+    if (values_.size() % rank_ != 0)
+    {
+        throw std::invalid_argument("Multi-index table storage must contain a whole number of equal-rank indices.");
+    }
+}
+
+MultiIndexTable::MultiIndexTable(const std::vector<MultiIndex>& indices)
+{
+    if (indices.empty())
+    {
+        return;
+    }
+    rank_ = indices.front().size();
+    values_.reserve(indices.size() * rank_);
+    for (const MultiIndex& index : indices)
+    {
+        if (index.size() != rank_)
+        {
+            throw std::invalid_argument("Multi-index table entries must all have the same rank.");
+        }
+        values_.insert(values_.end(), index.begin(), index.end());
+    }
+}
+
+MultiIndexView MultiIndexTable::at(const std::size_t row) const
+{
+    if (row >= size())
+    {
+        throw std::out_of_range("Multi-index table row is outside the table.");
+    }
+    return (*this)[row];
+}
+
+void MultiIndexTable::push_back(const MultiIndex& index)
+{
+    push_back(MultiIndexView(index.data(), index.size()));
+}
+
+void MultiIndexTable::push_back(const MultiIndexView index)
+{
+    if (values_.empty() && rank_ == 0)
+    {
+        rank_ = index.size();
+    }
+    if (index.size() != rank_)
+    {
+        throw std::invalid_argument("Multi-index table entries must all have the same rank.");
+    }
+    values_.insert(values_.end(), index.begin(), index.end());
+}
+
+void MultiIndexTable::pop_back()
+{
+    if (values_.empty())
+    {
+        throw std::out_of_range("Cannot remove an index from an empty multi-index table.");
+    }
+    values_.resize(values_.size() - rank_);
+}
+
+void MultiIndexTable::reserve(const std::size_t rows)
+{
+    values_.reserve(rows * rank_);
+}
+
+void MultiIndexTable::clear() noexcept
+{
+    values_.clear();
+}
+
+std::vector<MultiIndex> MultiIndexTable::to_multi_indices() const
+{
+    std::vector<MultiIndex> indices;
+    indices.reserve(size());
+    for (std::size_t row = 0; row < size(); ++row)
+    {
+        indices.push_back((*this)[row].to_multi_index());
+    }
+    return indices;
+}
+
+bool operator==(const MultiIndexTable& lhs, const MultiIndexTable& rhs) noexcept
+{
+    return lhs.rank() == rhs.rank() && lhs.values() == rhs.values();
+}
+
+bool operator!=(const MultiIndexTable& lhs, const MultiIndexTable& rhs) noexcept
+{
+    return !(lhs == rhs);
+}
+
 std::vector<MultiIndex> enumerate_multi_indices(const std::vector<std::size_t>& extents)
 {
     const std::size_t total = product_extents(extents);
@@ -966,21 +1108,6 @@ PhaseSpaceHierarchy::PhaseSpaceHierarchy(std::vector<std::size_t> node_counts, s
     validate_conditioning_order(conditioning_order_, node_counts_.size());
 }
 
-std::size_t PhaseSpaceHierarchy::number_of_dimensions() const noexcept
-{
-    return node_counts_.size();
-}
-
-const std::vector<std::size_t>& PhaseSpaceHierarchy::node_counts() const noexcept
-{
-    return node_counts_;
-}
-
-const std::vector<std::size_t>& PhaseSpaceHierarchy::conditioning_order() const noexcept
-{
-    return conditioning_order_;
-}
-
 std::size_t PhaseSpaceHierarchy::node_count(const std::size_t dimension) const
 {
     if (dimension >= node_counts_.size())
@@ -988,11 +1115,6 @@ std::size_t PhaseSpaceHierarchy::node_count(const std::size_t dimension) const
         throw std::out_of_range("Phase-space dimension is out of range.");
     }
     return node_counts_[dimension];
-}
-
-std::size_t PhaseSpaceHierarchy::total_nodes() const noexcept
-{
-    return total_nodes_;
 }
 
 std::vector<std::size_t> PhaseSpaceHierarchy::moment_extents() const
@@ -1006,7 +1128,7 @@ std::vector<std::size_t> PhaseSpaceHierarchy::moment_extents() const
     return extents;
 }
 
-std::size_t PhaseSpaceHierarchy::flatten_node_index(const MultiIndex& node_index) const
+std::size_t PhaseSpaceHierarchy::flatten_node_index(const MultiIndexView node_index) const
 {
     if (node_index.size() != number_of_dimensions())
     {
@@ -1061,7 +1183,7 @@ CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarch
         }
     }
 
-    return CqmomMomentLayout{hierarchy, std::move(indices)};
+    return CqmomMomentLayout{hierarchy, MultiIndexTable(std::move(indices))};
 }
 
 CqmomMomentData::CqmomMomentData(CqmomMomentLayout moment_layout, std::vector<double> moment_values)
@@ -1069,12 +1191,12 @@ CqmomMomentData::CqmomMomentData(CqmomMomentLayout moment_layout, std::vector<do
 {
 }
 
-bool CqmomMomentData::contains_required_index(const MultiIndex& index) const
+bool CqmomMomentData::contains_required_index(const MultiIndexView index) const
 {
     return std::find(layout.required_indices.begin(), layout.required_indices.end(), index) != layout.required_indices.end();
 }
 
-double CqmomMomentData::moment(const MultiIndex& index) const
+double CqmomMomentData::moment(const MultiIndexView index) const
 {
     if (values.size() != layout.required_indices.size())
     {
@@ -1105,7 +1227,7 @@ CqmomMomentData extract_cqmom_moments(const RawMomentTensor& moments, const Cqmo
 
     std::vector<double> values;
     values.reserve(layout.required_indices.size());
-    for (const MultiIndex& index : layout.required_indices)
+    for (const MultiIndexView index : layout.required_indices)
     {
         if (!internal::multi_index_within_extents(index, moments.extents))
         {
@@ -1123,7 +1245,7 @@ CqmomMomentData create_cqmom_moment_data(const CqmomMomentLayout& layout, const 
     {
         throw std::invalid_argument("Selected raw moment result must be successful before conversion to CQMOM moment data.");
     }
-    if (result.indices != layout.required_indices)
+    if (MultiIndexTable(result.indices) != layout.required_indices)
     {
         throw std::invalid_argument("Selected raw moment indices must exactly match the CQMOM moment layout.");
     }
@@ -1154,30 +1276,24 @@ std::vector<MultiIndex> enumerate_quadrature_node_multi_indices(const PhaseSpace
 namespace
 {
 
-[[nodiscard]] ConditioningPath phase_space_node_index_to_path(const PhaseSpaceHierarchy& hierarchy, const MultiIndex& node_index)
+[[nodiscard]] ConditioningPathTable rectangular_terminal_paths(const PhaseSpaceHierarchy& hierarchy)
 {
-    std::vector<std::size_t> path(hierarchy.number_of_dimensions(), 0);
-    const std::vector<std::size_t>& conditioning_order = hierarchy.conditioning_order();
-    for (std::size_t level = 0; level < conditioning_order.size(); ++level)
-    {
-        path[level] = node_index.at(conditioning_order[level]);
-    }
-    return ConditioningPath(std::move(path));
-}
-
-[[nodiscard]] std::vector<ConditioningPath> rectangular_terminal_paths(const PhaseSpaceHierarchy& hierarchy)
-{
-    std::vector<ConditioningPath> paths;
-    paths.reserve(hierarchy.total_nodes());
+    const std::size_t levels = hierarchy.number_of_dimensions();
+    std::vector<std::size_t> node_indices;
+    node_indices.reserve(hierarchy.total_nodes() * levels);
 
     // Row-major walk over node indices using one reusable buffer.
     // enumerate_multi_indices would heap-allocate one MultiIndex per terminal
     // node purely to iterate over them.
     const std::vector<std::size_t>& extents = hierarchy.node_counts();
+    const std::vector<std::size_t>& conditioning_order = hierarchy.conditioning_order();
     MultiIndex node_index(extents.size(), 0);
     for (std::size_t flat_index = 0; flat_index < hierarchy.total_nodes(); ++flat_index)
     {
-        paths.push_back(phase_space_node_index_to_path(hierarchy, node_index));
+        for (std::size_t level = 0; level < levels; ++level)
+        {
+            node_indices.push_back(node_index[conditioning_order[level]]);
+        }
         for (std::size_t reverse_axis = extents.size(); reverse_axis > 0; --reverse_axis)
         {
             if (++node_index[reverse_axis - 1] < extents[reverse_axis - 1])
@@ -1187,7 +1303,7 @@ namespace
             node_index[reverse_axis - 1] = 0;
         }
     }
-    return paths;
+    return ConditioningPathTable(levels, std::move(node_indices));
 }
 
 } // namespace
@@ -1258,7 +1374,7 @@ const std::vector<std::size_t>& RecursiveQuadrature::terminal_node_ids() const n
     return terminal_node_ids_;
 }
 
-const std::vector<ConditioningPath>& RecursiveQuadrature::terminal_paths() const noexcept
+const ConditioningPathTable& RecursiveQuadrature::terminal_paths() const noexcept
 {
     return terminal_paths_;
 }
@@ -1343,7 +1459,7 @@ std::size_t RecursiveQuadrature::add_tree_node(TreeNode node)
 }
 
 void RecursiveQuadrature::set_terminal_quadrature(std::vector<double> weights, std::vector<std::vector<double>> abscissas,
-                                                  std::vector<ConditioningPath> paths, std::vector<std::size_t> terminal_node_ids)
+                                                  ConditioningPathTable paths, std::vector<std::size_t> terminal_node_ids)
 {
     if (abscissas.size() != number_of_dimensions())
     {
@@ -1449,7 +1565,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
 
     std::vector<double> terminal_weights;
     std::vector<std::vector<double>> terminal_abscissas(dimensions);
-    std::vector<ConditioningPath> terminal_paths;
+    ConditioningPathTable terminal_paths;
     std::vector<std::size_t> terminal_node_ids;
     std::vector<ConditioningPath> invalidated_active_count_prefixes;
 

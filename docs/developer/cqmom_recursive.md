@@ -382,6 +382,12 @@ multi-index access is not valid for ragged adaptive output.
 path[level] corresponds to conditioning_order[level]
 ```
 
+`terminal_paths()` returns a `ConditioningPathTable`. Every terminal path
+reaches the deepest conditioning level, so the table stores all paths in one
+contiguous array and hands out each row as a `ConditioningPathView`. The view
+indexes by conditioning level exactly as `ConditioningPath` does; use
+`to_conditioning_path()` where an owning path is required.
+
 For fixed rectangular storage, complete paths can be mapped to phase-space
 node multi-indices. For adaptive ragged output, paths are exposed so callers
 and diagnostics can identify the conditioning branch that produced each

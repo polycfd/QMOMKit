@@ -68,7 +68,7 @@ std::string format_path(const qmomkit::ConditioningPath& path)
     return stream.str();
 }
 
-std::string format_terminal_path(const qmomkit::ConditioningPath& path)
+std::string format_terminal_path(const qmomkit::ConditioningPathView path)
 {
     std::ostringstream stream;
     stream << '[';
@@ -84,7 +84,7 @@ std::string format_terminal_path(const qmomkit::ConditioningPath& path)
     return stream.str();
 }
 
-std::string format_terminal_paths(const std::vector<qmomkit::ConditioningPath>& paths)
+std::string format_terminal_paths(const qmomkit::ConditioningPathTable& paths)
 {
     std::ostringstream stream;
     for (std::size_t path = 0; path < paths.size(); ++path)
@@ -220,7 +220,7 @@ std::vector<double> branch_velocity_moments(const qmomkit::CqmomQuadrature& quad
     std::vector<double> moments(maximum_order + 1, 0.0);
     for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
     {
-        const qmomkit::ConditioningPath& path = quadrature.terminal_paths()[node];
+        const qmomkit::ConditioningPathView path = quadrature.terminal_paths()[node];
         if (path.size() <= branch.conditioning_level)
         {
             continue;

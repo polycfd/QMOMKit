@@ -30,7 +30,7 @@ qmomkit::CqmomMomentSource binary_fragmentation_source()
         std::vector<double> source(moments.size(), 0.0);
         for (std::size_t index = 0; index < moments.size(); ++index)
         {
-            const qmomkit::MultiIndex& order = moments.index(index);
+            const qmomkit::MultiIndexView order = moments.index(index);
             if (order.size() != 2)
             {
                 throw std::invalid_argument("The 2D CQMOM fragmentation source received a moment index with the wrong rank.");

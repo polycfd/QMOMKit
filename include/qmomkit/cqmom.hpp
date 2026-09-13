@@ -38,19 +38,45 @@ class CqmomConstructionAccess;
 class CqmomQuadrature
 {
 public:
-    [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
-    [[nodiscard]] std::size_t number_of_dimensions() const noexcept;
-    [[nodiscard]] std::size_t total_nodes() const noexcept;
+    // Defined here rather than in the library so that callers can inline them.
+    // Reconstruction reads these once per node per moment, where an out-of-line
+    // call for a stored value is a measurable share of the work.
+    [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept
+    {
+        return hierarchy_;
+    }
+    [[nodiscard]] std::size_t number_of_dimensions() const noexcept
+    {
+        return hierarchy_.number_of_dimensions();
+    }
+    [[nodiscard]] std::size_t total_nodes() const noexcept
+    {
+        return weights_.size();
+    }
+    [[nodiscard]] const std::vector<double>& weights() const noexcept
+    {
+        return weights_;
+    }
+    [[nodiscard]] const std::vector<std::vector<double>>& abscissas() const noexcept
+    {
+        return abscissas_;
+    }
+    [[nodiscard]] bool adaptive_branch_counts_enabled() const noexcept
+    {
+        return adaptive_branch_counts_enabled_;
+    }
+    [[nodiscard]] bool has_rectangular_storage() const noexcept
+    {
+        return rectangular_storage_;
+    }
+    [[nodiscard]] const ConditioningPathTable& terminal_paths() const noexcept
+    {
+        return terminal_paths_;
+    }
 
-    [[nodiscard]] const std::vector<double>& weights() const noexcept;
-    [[nodiscard]] const std::vector<std::vector<double>>& abscissas() const noexcept;
-    [[nodiscard]] bool adaptive_branch_counts_enabled() const noexcept;
-    [[nodiscard]] bool has_rectangular_storage() const noexcept;
-    [[nodiscard]] const std::vector<ConditioningPath>& terminal_paths() const noexcept;
-
-    [[nodiscard]] double weight(const MultiIndex& node_index) const;
-    [[nodiscard]] double abscissa(std::size_t dimension, const MultiIndex& node_index) const;
-    [[nodiscard]] std::vector<double> node(const MultiIndex& node_index) const;
+    [[nodiscard]] double weight(MultiIndexView node_index) const;
+    [[nodiscard]] double abscissa(std::size_t dimension, MultiIndexView node_index) const;
+    [[nodiscard]] std::vector<double> node(MultiIndexView node_index) const;
 
 private:
     friend CqmomResult compute_cqmom(const CqmomDenseCase& dense_case);
@@ -58,12 +84,12 @@ private:
     friend class internal::CqmomConstructionAccess;
 
     CqmomQuadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights, std::vector<std::vector<double>> abscissas,
-                    bool adaptive_branch_counts_enabled, bool rectangular_storage, std::vector<ConditioningPath> terminal_paths);
+                    bool adaptive_branch_counts_enabled, bool rectangular_storage, ConditioningPathTable terminal_paths);
 
     PhaseSpaceHierarchy hierarchy_;
     std::vector<double> weights_;
     std::vector<std::vector<double>> abscissas_;
-    std::vector<ConditioningPath> terminal_paths_;
+    ConditioningPathTable terminal_paths_;
     bool adaptive_branch_counts_enabled_ = false;
     bool rectangular_storage_ = true;
 };
@@ -150,7 +176,7 @@ struct CqmomActiveBranchCount
 struct CqmomMomentLayout
 {
     PhaseSpaceHierarchy hierarchy;
-    std::vector<MultiIndex> required_indices;
+    MultiIndexTable required_indices;
 };
 
 /**
@@ -168,8 +194,8 @@ struct CqmomMomentData
     CqmomMomentLayout layout;
     std::vector<double> values;
 
-    [[nodiscard]] bool contains_required_index(const MultiIndex& index) const;
-    [[nodiscard]] double moment(const MultiIndex& index) const;
+    [[nodiscard]] bool contains_required_index(MultiIndexView index) const;
+    [[nodiscard]] double moment(MultiIndexView index) const;
 };
 
 /**
@@ -244,7 +270,7 @@ public:
     [[nodiscard]] const std::vector<CqmomActiveBranchCount>& active_branch_counts() const noexcept;
     [[nodiscard]] std::vector<MultiIndex> moment_indices() const;
     [[nodiscard]] const std::vector<double>& moment_values() const noexcept;
-    [[nodiscard]] std::optional<double> moment(const MultiIndex& index) const;
+    [[nodiscard]] std::optional<double> moment(MultiIndexView index) const;
 
 private:
     struct Data;

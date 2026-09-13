@@ -85,7 +85,7 @@ int main()
             cqmom_3d_droplets_condensation_nucleation::make_nucleation_model(initial_number_moment.values.front());
 
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
-        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices};
+        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_3d_droplets_condensation_nucleation::droplet_phase_space_velocity();
 
         qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();

@@ -179,9 +179,9 @@ std::vector<double> exact_required_moments(const qmomkit::CqmomMomentLayout& lay
     AffineMomentEvaluator evaluator(layout.hierarchy.number_of_dimensions());
     std::vector<double> values;
     values.reserve(layout.required_indices.size());
-    for (const qmomkit::MultiIndex& index : layout.required_indices)
+    for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
-        const double value = static_cast<double>(evaluator.moment(index));
+        const double value = static_cast<double>(evaluator.moment(index.to_multi_index()));
         if (!std::isfinite(value))
         {
             throw std::runtime_error("The affine-chain exact moment is not finite.");

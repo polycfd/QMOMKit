@@ -103,7 +103,7 @@ qmomkit::CqmomMomentSource breakup_source()
         const double daughter_temperature_factor = breakup_temperature_relaxation * std::cbrt(0.5 / reference_volume);
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
-            const qmomkit::MultiIndex& order = context.index(entry);
+            const qmomkit::MultiIndexView order = context.index(entry);
             const std::size_t p = order[0];
             const std::size_t q = order[1];
             double daughter_temperature_moment = 0.0;

@@ -11,7 +11,7 @@
 namespace qmomkit::internal
 {
 
-[[nodiscard]] inline ConditioningPath parent_path_at_level(const ConditioningPath& terminal_path, const std::size_t conditioning_level)
+[[nodiscard]] inline ConditioningPath parent_path_at_level(const ConditioningPathView terminal_path, const std::size_t conditioning_level)
 {
     ConditioningPath parent;
     for (std::size_t level = 0; level < conditioning_level; ++level)
@@ -82,7 +82,7 @@ inline void validate_contiguous_child_indices(const ActiveBranchAccumulator& acc
     }
 
     std::vector<ActiveBranchAccumulator> accumulators;
-    for (const ConditioningPath& terminal_path : quadrature.terminal_paths())
+    for (const ConditioningPathView terminal_path : quadrature.terminal_paths())
     {
         if (terminal_path.size() != dimensions)
         {

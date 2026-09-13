@@ -49,7 +49,7 @@ int main()
             throw std::runtime_error("The sampled CQMOM and Monte Carlo initial moments differ.");
         }
         const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(configured.value().hierarchy());
-        const qmomkit::RawMomentRequest request{layout.required_indices};
+        const qmomkit::RawMomentRequest request{layout.required_indices.to_multi_indices()};
         const qmomkit::SelectedRawMomentResult initial_moments = select_moments(moments, request);
 
         std::optional<qmomkit::MomentWriter> moment_history_writer;

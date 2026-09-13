@@ -36,7 +36,7 @@ qmomkit::CqmomMomentData independent_product_moments(const qmomkit::CqmomMomentL
 
     std::vector<double> values;
     values.reserve(layout.required_indices.size());
-    for (const qmomkit::MultiIndex& index : layout.required_indices)
+    for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
         double value = 1.0;
         for (std::size_t dimension = 0; dimension < layout.hierarchy.number_of_dimensions(); ++dimension)

@@ -50,7 +50,7 @@ public:
     [[nodiscard]] static const PreparedFixedCqmomMetadataPtr& state_prepared_fixed_metadata(const CqmomState& state);
     [[nodiscard]] static CqmomQuadrature create_quadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights,
                                                            std::vector<std::vector<double>> abscissas, bool adaptive_branch_counts_enabled,
-                                                           bool rectangular_storage, std::vector<ConditioningPath> terminal_paths);
+                                                           bool rectangular_storage, ConditioningPathTable terminal_paths);
 };
 
 // Internal construction access for QMOMKit-owned CQMOM objects. Fixed normal

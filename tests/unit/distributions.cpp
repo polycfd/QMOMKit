@@ -910,11 +910,12 @@ void test_selected_independent_product_matches_cqmom_layout_subselection()
 
     const qmomkit::TensorMomentResult dense = qmomkit::compute_raw_moments(product, {3, 3});
     const qmomkit::CqmomMomentData required_moment_data = qmomkit::extract_cqmom_moments(dense.moments, layout);
-    const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(product, qmomkit::RawMomentRequest{layout.required_indices});
+    const qmomkit::SelectedRawMomentResult selected =
+        qmomkit::compute_raw_moments(product, qmomkit::RawMomentRequest{layout.required_indices.to_multi_indices()});
 
     assert(dense.ok());
     assert(selected.ok());
-    assert(selected.indices == layout.required_indices);
+    assert(selected.indices == layout.required_indices.to_multi_indices());
     assert(selected.values.size() == required_moment_data.values.size());
     for (std::size_t index = 0; index < selected.values.size(); ++index)
     {

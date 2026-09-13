@@ -112,7 +112,7 @@ BranchMomentSliceFixture make_branch_slice_from_dense(const qmomkit::PhaseSpaceH
     std::vector<double> values;
     ordered_indices.reserve(layout.required_indices.size());
     values.reserve(layout.required_indices.size());
-    for (const qmomkit::MultiIndex& phase_space_index : layout.required_indices)
+    for (const qmomkit::MultiIndexView phase_space_index : layout.required_indices)
     {
         qmomkit::MultiIndex ordered_index(hierarchy.number_of_dimensions(), 0);
         for (std::size_t axis = 0; axis < hierarchy.number_of_dimensions(); ++axis)
@@ -418,7 +418,7 @@ void test_cqmom_moment_view_dense_matches_tensor_access()
     const qmomkit::RawMomentTensor dense{{4, 6}, indexed_values({4, 6})};
     const qmomkit::internal::CqmomMomentView view(dense);
 
-    for (const qmomkit::MultiIndex& index : layout.required_indices)
+    for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
         assert(view.moment(index) == dense.values[qmomkit::flatten_multi_index(index, dense.extents)]);
     }
@@ -436,7 +436,7 @@ void test_cqmom_moment_view_moment_data_matches_dense_view()
     const qmomkit::internal::CqmomMomentView moment_data_view(indexed_moment_data);
     const qmomkit::internal::CqmomMomentView copied_moment_data_view = moment_data_view;
 
-    for (const qmomkit::MultiIndex& index : layout.required_indices)
+    for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
         assert(moment_data_view.moment(index) == dense_view.moment(index));
         assert(copied_moment_data_view.moment(index) == dense_view.moment(index));
@@ -448,9 +448,9 @@ void test_indexed_moment_set_preserves_order_and_uses_key_lookup()
     const std::vector<std::size_t> extents{4, 4};
     const std::vector<qmomkit::MultiIndex> indices{{1, 0}, {0, 3}, {0, 0}};
     const std::vector<double> values{10.0, 20.0, 30.0};
-    const qmomkit::internal::IndexedMomentSet moments(extents, indices, values);
+    const qmomkit::internal::IndexedMomentSet moments(extents, qmomkit::MultiIndexTable(indices), values);
 
-    assert(moments.indices() == indices);
+    assert(moments.indices().to_multi_indices() == indices);
     assert(moments.values() == values);
     assert(moments.size() == values.size());
     assert(moments.contains({1, 0}));
@@ -462,7 +462,7 @@ void test_indexed_moment_set_preserves_order_and_uses_key_lookup()
     assert(moments.moment({0, 3}) == 20.0);
     assert(moments.moment({0, 0}) == 30.0);
     assert_throws_out_of_range([&moments]() { (void)moments.moment({2, 2}); });
-    assert_throws_invalid_argument([] { (void)qmomkit::internal::IndexedMomentSet({4, 4}, {{1, 0}, {1, 0}}, {1.0, 2.0}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::internal::IndexedMomentSet({4, 4}, qmomkit::MultiIndexTable({{1, 0}, {1, 0}}), {1.0, 2.0}); });
 }
 
 void test_cqmom_moment_view_moment_data_references_indexed_storage()
@@ -1078,7 +1078,7 @@ void test_fixed_public_terminal_paths_align_with_physical_storage()
                                                                 qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})};
     const qmomkit::CqmomResult identity = qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{qmomkit::PhaseSpaceHierarchy({2, 2}), {extents, moments}});
     assert(identity.ok());
-    assert(identity.quadrature.terminal_paths() == identity_paths);
+    assert(identity.quadrature.terminal_paths().to_conditioning_paths() == identity_paths);
 
     const qmomkit::CqmomDenseCase cqmom_case{hierarchy, {extents, moments}};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
@@ -1104,7 +1104,7 @@ void test_fixed_public_terminal_paths_align_with_physical_storage()
         assert_near(reconstructed.values[moment], moments[moment], 1.0e-12);
     }
 
-    assert(result.quadrature.terminal_paths() == expected_paths);
+    assert(result.quadrature.terminal_paths().to_conditioning_paths() == expected_paths);
 }
 
 void test_recursive_bounded_support_applies_to_conditional_phase_space_dimension()
@@ -1437,6 +1437,95 @@ void test_reversed_conditioning_order_controls_recursive_traversal()
     assert_vector_equal(node_indices[2], {0, 1, 0});
     assert_vector_equal(node_indices[6], {0, 0, 1});
     assert_vector_equal(node_indices[11], {1, 2, 1});
+}
+
+// Terminal paths all reach the deepest conditioning level, so they are stored
+// contiguously: one allocation per table instead of one per path, and one
+// allocation when a quadrature carries them through node advection.
+void test_conditioning_path_table_round_trips_and_views_rows()
+{
+    const std::vector<qmomkit::ConditioningPath> paths{qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({1, 0}),
+                                                       qmomkit::ConditioningPath({1, 1})};
+    const qmomkit::ConditioningPathTable table(paths);
+
+    assert(table.size() == 3);
+    assert(table.levels() == 2);
+    assert(!table.empty());
+    assert(table.node_indices() == std::vector<std::size_t>({0, 1, 1, 0, 1, 1}));
+
+    for (std::size_t path = 0; path < paths.size(); ++path)
+    {
+        const qmomkit::ConditioningPathView view = table[path];
+        assert(view.size() == 2);
+        assert(view == qmomkit::ConditioningPathView(paths[path]));
+        assert(view.to_conditioning_path() == paths[path]);
+        for (std::size_t level = 0; level < view.size(); ++level)
+        {
+            assert(view.node_index_at_level(level) == paths[path].node_index_at_level(level));
+        }
+    }
+    assert(table.to_conditioning_paths() == paths);
+
+    // Rows are adjacent in memory: this is what removes the per-path allocation.
+    assert(table[1].data() == table[0].data() + table.levels());
+}
+
+void test_conditioning_path_table_rejects_uneven_depth_and_checks_bounds()
+{
+    const qmomkit::ConditioningPathTable flat(2, std::vector<std::size_t>{1, 2, 3, 4});
+    assert(flat.size() == 2);
+    assert(flat[1] == qmomkit::ConditioningPathView(qmomkit::ConditioningPath({3, 4})));
+
+    assert_throws_invalid_argument([] { (void)qmomkit::ConditioningPathTable(2, std::vector<std::size_t>{1, 2, 3}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::ConditioningPathTable(0, std::vector<std::size_t>{1}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::ConditioningPathTable({qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({0})}); });
+
+    assert_throws_out_of_range([&flat] { (void)flat.at(2); });
+    assert_throws_out_of_range([&flat] { (void)flat[0].node_index_at_level(2); });
+}
+
+void test_conditioning_path_table_grows_iterates_and_compares()
+{
+    qmomkit::ConditioningPathTable table;
+    assert(table.empty());
+    assert(table.levels() == 0);
+    assert(table.begin() == table.end());
+
+    table.reserve(2);
+    table.push_back(qmomkit::ConditioningPath({2, 3}));
+    assert(table.levels() == 2);
+    const qmomkit::ConditioningPathTable source({qmomkit::ConditioningPath({4, 5})});
+    table.push_back(source[0]);
+    assert(table.size() == 2);
+    assert_throws_invalid_argument([&table] { table.push_back(qmomkit::ConditioningPath({1, 2, 3})); });
+
+    std::size_t visited = 0;
+    for (const qmomkit::ConditioningPathView row : table)
+    {
+        assert(row.size() == 2);
+        ++visited;
+    }
+    assert(visited == 2);
+
+    assert(table == qmomkit::ConditioningPathTable({qmomkit::ConditioningPath({2, 3}), qmomkit::ConditioningPath({4, 5})}));
+    assert(table != qmomkit::ConditioningPathTable({qmomkit::ConditioningPath({2, 3})}));
+
+    // clear() keeps the depth so the table can be refilled with the same shape.
+    table.clear();
+    assert(table.empty());
+    assert(table.levels() == 2);
+}
+
+// A view maps to phase-space order exactly as the owning path does; the owning
+// path delegates to it so the mapping exists once.
+void test_conditioning_path_view_maps_to_phase_space_node_index()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3, 4}, {2, 0, 1});
+    const qmomkit::ConditioningPath path({3, 1, 2});
+    const qmomkit::ConditioningPathTable table({path});
+
+    assert(table[0].phase_space_node_index(hierarchy) == path.phase_space_node_index(hierarchy));
+    assert(qmomkit::recursive_path_to_node_index(hierarchy, table[0]) == qmomkit::recursive_path_to_node_index(hierarchy, path));
 }
 
 void test_conditioning_path_maps_to_phase_space_node_index()
@@ -1917,6 +2006,128 @@ void test_recursive_bp_failure_independent_of_diagnostic_level()
     }
 }
 
+// A flat multi-index table stores equal-rank indices contiguously, so copying
+// one costs a single allocation instead of one per row. These tests pin the
+// contract that moment layouts and terminal-path tables will rely on.
+void test_multi_index_table_round_trips_and_views_rows()
+{
+    const std::vector<qmomkit::MultiIndex> rows{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}};
+    const qmomkit::MultiIndexTable table(rows);
+
+    assert(table.size() == 3);
+    assert(table.rank() == 3);
+    assert(!table.empty());
+    assert(table.values() == std::vector<std::size_t>({0, 1, 2, 3, 4, 5, 6, 7, 8}));
+
+    for (std::size_t row = 0; row < rows.size(); ++row)
+    {
+        const qmomkit::MultiIndexView view = table[row];
+        assert(view.size() == 3);
+        assert(view == rows[row]);
+        assert(rows[row] == view);
+        assert(view.to_multi_index() == rows[row]);
+        for (std::size_t axis = 0; axis < view.size(); ++axis)
+        {
+            assert(view[axis] == rows[row][axis]);
+        }
+    }
+    assert(table.to_multi_indices() == rows);
+}
+
+// Contiguity is the point of the type: rows are adjacent in memory, which is
+// what removes the per-row allocation and keeps traversal sequential.
+void test_multi_index_table_storage_is_contiguous_and_row_major()
+{
+    const qmomkit::MultiIndexTable table(std::vector<qmomkit::MultiIndex>{{1, 2}, {3, 4}});
+    assert(table[1].data() == table[0].data() + table.rank());
+    assert(table.values().data() == table[0].data());
+}
+
+void test_multi_index_table_accepts_flat_storage_and_rejects_ragged_input()
+{
+    const qmomkit::MultiIndexTable flat(2, std::vector<std::size_t>{1, 2, 3, 4});
+    assert(flat.size() == 2);
+    assert(flat[1] == qmomkit::MultiIndex({3, 4}));
+
+    assert_throws_invalid_argument([] { (void)qmomkit::MultiIndexTable(2, std::vector<std::size_t>{1, 2, 3}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::MultiIndexTable(0, std::vector<std::size_t>{1}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::MultiIndexTable(std::vector<qmomkit::MultiIndex>{{1, 2}, {3}}); });
+
+    const qmomkit::MultiIndexTable table(std::vector<qmomkit::MultiIndex>{{1, 2}});
+    bool threw = false;
+    try
+    {
+        (void)table.at(1);
+    }
+    catch (const std::out_of_range&)
+    {
+        threw = true;
+    }
+    assert(threw);
+}
+
+void test_multi_index_table_grows_and_compares()
+{
+    qmomkit::MultiIndexTable table;
+    assert(table.empty());
+    assert(table.size() == 0);
+    assert(table.rank() == 0);
+
+    table.reserve(2);
+    table.push_back(qmomkit::MultiIndex{5, 6});
+    assert(table.rank() == 2);
+    const qmomkit::MultiIndexTable source(std::vector<qmomkit::MultiIndex>{{7, 8}});
+    table.push_back(source[0]);
+    assert(table.size() == 2);
+    assert(table[1] == qmomkit::MultiIndex({7, 8}));
+    assert_throws_invalid_argument([&table] { table.push_back(qmomkit::MultiIndex{1, 2, 3}); });
+
+    assert(table == qmomkit::MultiIndexTable(std::vector<qmomkit::MultiIndex>{{5, 6}, {7, 8}}));
+    assert(table != qmomkit::MultiIndexTable(std::vector<qmomkit::MultiIndex>{{5, 6}}));
+    // Equal flat storage with a different rank is a different table.
+    assert(qmomkit::MultiIndexTable(1, std::vector<std::size_t>{1, 2}) != qmomkit::MultiIndexTable(2, std::vector<std::size_t>{1, 2}));
+
+    table.clear();
+    assert(table.empty());
+}
+
+// Range-based for and std::find are how moment layouts are traversed, so the
+// row iterator must support both.
+void test_multi_index_table_iterates_and_finds_rows()
+{
+    const std::vector<qmomkit::MultiIndex> rows{{1, 2}, {3, 4}, {5, 6}};
+    const qmomkit::MultiIndexTable table(rows);
+
+    std::size_t visited = 0;
+    for (const qmomkit::MultiIndexView row : table)
+    {
+        assert(row == rows[visited]);
+        ++visited;
+    }
+    assert(visited == rows.size());
+
+    const auto found = std::find(table.begin(), table.end(), qmomkit::MultiIndex{3, 4});
+    assert(found != table.end());
+    assert(static_cast<std::size_t>(std::distance(table.begin(), found)) == 1);
+    assert(std::find(table.begin(), table.end(), qmomkit::MultiIndex{9, 9}) == table.end());
+
+    const qmomkit::MultiIndexTable empty_table;
+    assert(empty_table.begin() == empty_table.end());
+}
+
+void test_multi_index_table_matches_enumerate_multi_indices()
+{
+    const std::vector<std::size_t> extents{2, 3};
+    const std::vector<qmomkit::MultiIndex> enumerated = qmomkit::enumerate_multi_indices(extents);
+    const qmomkit::MultiIndexTable table(enumerated);
+    assert(table.size() == qmomkit::product_extents(extents));
+    for (std::size_t row = 0; row < table.size(); ++row)
+    {
+        assert(table[row] == enumerated[row]);
+        assert(qmomkit::flatten_multi_index(table[row].to_multi_index(), extents) == row);
+    }
+}
+
 } // namespace
 
 void run_all_recursive_quadrature_tests()
@@ -1963,6 +2174,10 @@ void run_all_recursive_quadrature_tests()
     test_identity_conditioning_order_matches_phase_space_order();
     test_non_identity_conditioning_order_controls_recursive_traversal();
     test_reversed_conditioning_order_controls_recursive_traversal();
+    test_conditioning_path_table_round_trips_and_views_rows();
+    test_conditioning_path_table_rejects_uneven_depth_and_checks_bounds();
+    test_conditioning_path_table_grows_iterates_and_compares();
+    test_conditioning_path_view_maps_to_phase_space_node_index();
     test_conditioning_path_maps_to_phase_space_node_index();
     test_invalid_hierarchy_inputs();
     test_invalid_index_inputs();
@@ -2003,6 +2218,12 @@ void run_indexing_layout_tests()
     test_invalid_hierarchy_inputs();
     test_invalid_index_inputs();
     test_recursive_failure_diagnostics_identify_failing_branch();
+    test_multi_index_table_round_trips_and_views_rows();
+    test_multi_index_table_storage_is_contiguous_and_row_major();
+    test_multi_index_table_accepts_flat_storage_and_rejects_ragged_input();
+    test_multi_index_table_grows_and_compares();
+    test_multi_index_table_iterates_and_finds_rows();
+    test_multi_index_table_matches_enumerate_multi_indices();
 }
 
 void run_lean_reconstruction_tests()
@@ -2115,6 +2336,10 @@ int main(const int argc, char** argv)
             {"identity_conditioning_order_matches_phase_space_order", test_identity_conditioning_order_matches_phase_space_order},
             {"non_identity_conditioning_order_controls_recursive_traversal", test_non_identity_conditioning_order_controls_recursive_traversal},
             {"reversed_conditioning_order_controls_recursive_traversal", test_reversed_conditioning_order_controls_recursive_traversal},
+            {"conditioning_path_table_round_trips_and_views_rows", test_conditioning_path_table_round_trips_and_views_rows},
+            {"conditioning_path_table_rejects_uneven_depth_and_checks_bounds", test_conditioning_path_table_rejects_uneven_depth_and_checks_bounds},
+            {"conditioning_path_table_grows_iterates_and_compares", test_conditioning_path_table_grows_iterates_and_compares},
+            {"conditioning_path_view_maps_to_phase_space_node_index", test_conditioning_path_view_maps_to_phase_space_node_index},
             {"conditioning_path_maps_to_phase_space_node_index", test_conditioning_path_maps_to_phase_space_node_index},
             {"invalid_hierarchy_inputs", test_invalid_hierarchy_inputs},
             {"invalid_index_inputs", test_invalid_index_inputs},
@@ -2134,5 +2359,11 @@ int main(const int argc, char** argv)
             {"public_dense_and_lean_bp_success_independent_of_diagnostic_level",
              test_public_dense_and_lean_bp_success_independent_of_diagnostic_level},
             {"recursive_bp_failure_independent_of_diagnostic_level", test_recursive_bp_failure_independent_of_diagnostic_level},
+            {"multi_index_table_round_trips_and_views_rows", test_multi_index_table_round_trips_and_views_rows},
+            {"multi_index_table_storage_is_contiguous_and_row_major", test_multi_index_table_storage_is_contiguous_and_row_major},
+            {"multi_index_table_accepts_flat_storage_and_rejects_ragged_input", test_multi_index_table_accepts_flat_storage_and_rejects_ragged_input},
+            {"multi_index_table_grows_and_compares", test_multi_index_table_grows_and_compares},
+            {"multi_index_table_iterates_and_finds_rows", test_multi_index_table_iterates_and_finds_rows},
+            {"multi_index_table_matches_enumerate_multi_indices", test_multi_index_table_matches_enumerate_multi_indices},
         });
 }

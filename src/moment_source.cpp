@@ -84,13 +84,13 @@ namespace
     return CqmomMomentSourceUpdateResult{std::move(moments), MomentSourceUpdateStatus::source_failed, diagnostics, std::move(message)};
 }
 
-void validate_source_context(const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values)
+void validate_source_context(const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices, const std::vector<double>& values)
 {
     if (indices.size() != values.size())
     {
         throw std::invalid_argument("CQMOM source context indices and values must have the same size.");
     }
-    for (const MultiIndex& index : indices)
+    for (const MultiIndexView index : indices)
     {
         if (index.size() != hierarchy.number_of_dimensions())
         {
@@ -193,7 +193,7 @@ void validate_coordinate_realizability_policies(const CqmomMomentLayout& layout,
     std::vector<std::pair<std::size_t, std::size_t>> orders_and_positions;
     for (std::size_t position = 0; position < layout.required_indices.size(); ++position)
     {
-        const MultiIndex& index = layout.required_indices[position];
+        const MultiIndexView index = layout.required_indices[position];
         bool pure_coordinate = true;
         for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
         {
@@ -525,7 +525,7 @@ QmomSourceContext QmomSourceContextAccess::create(const double time, const std::
     return QmomSourceContext{time, values, reconstruction_node_count, reconstruction_options, std::move(reconstruction_bounds)};
 }
 
-CqmomSourceContext CqmomSourceContextAccess::create(const double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices,
+CqmomSourceContext CqmomSourceContextAccess::create(const double time, const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices,
                                                     const std::vector<double>& values, const CqmomLeanCase& reconstruction_case,
                                                     const std::vector<CqmomActiveBranchCount>& active_branch_counts,
                                                     const PreparedFixedCqmomMetadata* const prepared_fixed_metadata)
@@ -622,7 +622,7 @@ const QmomResult& QmomSourceContext::reconstructed_stage_quadrature() const
     return *reconstructed_stage_quadrature_;
 }
 
-CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierarchy& source_hierarchy, const std::vector<MultiIndex>& indices,
+CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierarchy& source_hierarchy, const MultiIndexTable& indices,
                                        const std::vector<double>& values)
     : time_(time), hierarchy_(&source_hierarchy), indices_(&indices), values_(&values)
 {
@@ -633,7 +633,7 @@ CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierar
     validate_source_context(source_hierarchy, indices, values);
 }
 
-CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierarchy& source_hierarchy, const std::vector<MultiIndex>& indices,
+CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierarchy& source_hierarchy, const MultiIndexTable& indices,
                                        const std::vector<double>& values, const CqmomLeanCase& reconstruction_case,
                                        const std::vector<CqmomActiveBranchCount>& active_branch_counts,
                                        const internal::PreparedFixedCqmomMetadata* const prepared_fixed_metadata)
@@ -667,7 +667,7 @@ std::size_t CqmomSourceContext::size() const noexcept
     return moment_count();
 }
 
-const std::vector<MultiIndex>& CqmomSourceContext::indices() const noexcept
+const MultiIndexTable& CqmomSourceContext::indices() const noexcept
 {
     return *indices_;
 }
@@ -677,7 +677,7 @@ const std::vector<double>& CqmomSourceContext::values() const noexcept
     return *values_;
 }
 
-const MultiIndex& CqmomSourceContext::index(const std::size_t i) const
+MultiIndexView CqmomSourceContext::index(const std::size_t i) const
 {
     return indices_->at(i);
 }
@@ -687,7 +687,7 @@ double CqmomSourceContext::value(const std::size_t i) const
     return values_->at(i);
 }
 
-std::optional<std::size_t> CqmomSourceContext::position(const MultiIndex& moment_index) const
+std::optional<std::size_t> CqmomSourceContext::position(const MultiIndexView moment_index) const
 {
     const auto found = std::find(indices_->begin(), indices_->end(), moment_index);
     if (found == indices_->end())
@@ -697,7 +697,7 @@ std::optional<std::size_t> CqmomSourceContext::position(const MultiIndex& moment
     return static_cast<std::size_t>(std::distance(indices_->begin(), found));
 }
 
-std::optional<double> CqmomSourceContext::value(const MultiIndex& moment_index) const
+std::optional<double> CqmomSourceContext::value(const MultiIndexView moment_index) const
 {
     const std::optional<std::size_t> entry = position(moment_index);
     if (!entry.has_value())
@@ -707,7 +707,7 @@ std::optional<double> CqmomSourceContext::value(const MultiIndex& moment_index) 
     return value(*entry);
 }
 
-double CqmomSourceContext::moment(const MultiIndex& moment_index) const
+double CqmomSourceContext::moment(const MultiIndexView moment_index) const
 {
     if (const std::optional<double> stored_value = value(moment_index); stored_value.has_value())
     {
@@ -718,7 +718,8 @@ double CqmomSourceContext::moment(const MultiIndex& moment_index) const
         throw std::out_of_range("Requested CQMOM source moment is not tracked by this context.");
     }
 
-    const SelectedRawMomentResult result = reconstruct_raw_moments(reconstructed_stage_quadrature(), RawMomentRequest{{moment_index}});
+    const SelectedRawMomentResult result =
+        reconstruct_raw_moments(reconstructed_stage_quadrature(), RawMomentRequest{{moment_index.to_multi_index()}});
     return result.values.front();
 }
 

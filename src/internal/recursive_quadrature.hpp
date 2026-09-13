@@ -27,22 +27,25 @@ class IndexedMomentSet
 {
 public:
     IndexedMomentSet() = default;
-    IndexedMomentSet(std::vector<std::size_t> key_extents, std::vector<MultiIndex> indices, std::vector<double> values);
+    IndexedMomentSet(std::vector<std::size_t> key_extents, MultiIndexTable indices, std::vector<double> values);
 
     [[nodiscard]] const std::vector<std::size_t>& key_extents() const noexcept;
-    [[nodiscard]] const std::vector<MultiIndex>& indices() const noexcept;
+    [[nodiscard]] const MultiIndexTable& indices() const noexcept;
     [[nodiscard]] const std::vector<double>& values() const noexcept;
     [[nodiscard]] std::vector<double>& mutable_values() noexcept;
     [[nodiscard]] std::size_t size() const noexcept;
     [[nodiscard]] bool contains(const MultiIndex& index) const;
-    [[nodiscard]] std::size_t offset(const MultiIndex& index) const;
-    [[nodiscard]] double moment(const MultiIndex& index) const;
+    [[nodiscard]] std::size_t offset(MultiIndexView index) const;
+    [[nodiscard]] double moment(MultiIndexView index) const;
 
 private:
     std::vector<std::size_t> key_extents_;
-    std::vector<MultiIndex> indices_;
+    MultiIndexTable indices_;
     std::vector<double> values_;
+    // Flat keys for `lookup_offsets_`, in the same order, so neither the sort
+    // comparator nor a lookup has to re-derive a key from its multi-index.
     std::vector<std::size_t> lookup_offsets_;
+    std::vector<std::size_t> lookup_keys_;
 };
 
 /**
@@ -59,7 +62,7 @@ public:
     explicit CqmomMomentView(const RawMomentTensor& moments);
     explicit CqmomMomentView(const IndexedMomentSet& moments);
 
-    [[nodiscard]] double moment(const MultiIndex& index) const;
+    [[nodiscard]] double moment(MultiIndexView index) const;
 
 private:
     enum class SourceKind
@@ -181,7 +184,7 @@ public:
 
     [[nodiscard]] const std::vector<TreeNode>& tree_nodes() const noexcept;
     [[nodiscard]] const std::vector<std::size_t>& terminal_node_ids() const noexcept;
-    [[nodiscard]] const std::vector<ConditioningPath>& terminal_paths() const noexcept;
+    [[nodiscard]] const ConditioningPathTable& terminal_paths() const noexcept;
 
     [[nodiscard]] double weight(const MultiIndex& node_index) const;
     [[nodiscard]] double abscissa(std::size_t dimension, const MultiIndex& node_index) const;
@@ -191,7 +194,7 @@ public:
     void set_abscissa(std::size_t dimension, const MultiIndex& node_index, double value);
     void set_adaptive_branch_counts_enabled(bool enabled);
     std::size_t add_tree_node(TreeNode node);
-    void set_terminal_quadrature(std::vector<double> weights, std::vector<std::vector<double>> abscissas, std::vector<ConditioningPath> paths,
+    void set_terminal_quadrature(std::vector<double> weights, std::vector<std::vector<double>> abscissas, ConditioningPathTable paths,
                                  std::vector<std::size_t> terminal_node_ids);
 
 private:
@@ -200,7 +203,7 @@ private:
     std::vector<std::vector<double>> abscissas_;
     std::vector<TreeNode> tree_nodes_;
     std::vector<std::size_t> terminal_node_ids_;
-    std::vector<ConditioningPath> terminal_paths_;
+    ConditioningPathTable terminal_paths_;
     bool adaptive_branch_counts_enabled_ = false;
     bool rectangular_storage_ = true;
 };

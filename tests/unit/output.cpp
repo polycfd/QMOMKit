@@ -271,9 +271,9 @@ void test_cqmom_moment_data_default_moments()
     }
 
     std::string expected = "# time";
-    for (const qmomkit::MultiIndex& moment_index : layout.required_indices)
+    for (const qmomkit::MultiIndexView moment_index : layout.required_indices)
     {
-        expected += " " + cqmom_label(moment_index);
+        expected += " " + cqmom_label(moment_index.to_multi_index());
     }
     expected += "\n" + format_scientific(0.75);
     for (const double value : values)
@@ -408,7 +408,7 @@ void test_cqmom_state_generalized_moment_output()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     std::vector<double> lean_values;
     lean_values.reserve(layout.required_indices.size());
-    for (const qmomkit::MultiIndex& index : layout.required_indices)
+    for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
         lean_values.push_back(dense_values[qmomkit::flatten_multi_index(index, extents)]);
     }

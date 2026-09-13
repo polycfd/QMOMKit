@@ -369,7 +369,7 @@ qmomkit::CqmomMomentBoundaryContribution nucleation_boundary_contribution(const 
         std::vector<double> rates(context.size(), 0.0);
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
-            const qmomkit::MultiIndex& order = context.index(entry);
+            const qmomkit::MultiIndexView order = context.index(entry);
             if (order.size() != 3)
             {
                 throw std::runtime_error("The nucleation contribution requires phase-space order (r,w,T).");

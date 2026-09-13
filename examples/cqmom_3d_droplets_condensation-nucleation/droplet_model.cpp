@@ -373,7 +373,7 @@ qmomkit::CqmomMomentBoundaryContribution nucleation_boundary_contribution(const 
         // dM[a,b,c]/dt. This is a phase-space boundary birth rather than node motion.
         for (std::size_t entry = 0; entry < context.size(); ++entry)
         {
-            const qmomkit::MultiIndex& order = context.index(entry);
+            const qmomkit::MultiIndexView order = context.index(entry);
             if (order.size() != 3)
             {
                 throw std::runtime_error("The nucleation contribution requires phase-space order (r,w,T).");

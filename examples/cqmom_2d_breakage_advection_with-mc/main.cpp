@@ -74,7 +74,7 @@ int main()
         qmomkit::CqmomState state = cqmom_case.initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
-        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices};
+        const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_2d_advection_breakage::advection_velocity();
         const qmomkit::CqmomMomentSource source = cqmom_2d_advection_breakage::binary_fragmentation_source();
 

@@ -111,18 +111,24 @@ using MomentBoundaryContribution = std::function<MomentBoundaryRate(double, cons
 class CqmomSourceContext
 {
 public:
-    CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values);
+    CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices, const std::vector<double>& values);
+
+    /**
+     * The context refers to the caller's index table rather than copying it, so
+     * a temporary would dangle. Binding one is rejected at compile time.
+     */
+    CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, MultiIndexTable&& indices, const std::vector<double>& values) = delete;
 
     [[nodiscard]] double time() const noexcept;
     [[nodiscard]] std::size_t moment_count() const noexcept;
     [[nodiscard]] std::size_t dimension_count() const noexcept;
     [[nodiscard]] std::size_t size() const noexcept;
-    [[nodiscard]] const std::vector<MultiIndex>& indices() const noexcept;
+    [[nodiscard]] const MultiIndexTable& indices() const noexcept;
     [[nodiscard]] const std::vector<double>& values() const noexcept;
-    [[nodiscard]] const MultiIndex& index(std::size_t i) const;
+    [[nodiscard]] MultiIndexView index(std::size_t i) const;
     [[nodiscard]] double value(std::size_t i) const;
-    [[nodiscard]] std::optional<std::size_t> position(const MultiIndex& moment_index) const;
-    [[nodiscard]] std::optional<double> value(const MultiIndex& moment_index) const;
+    [[nodiscard]] std::optional<std::size_t> position(MultiIndexView moment_index) const;
+    [[nodiscard]] std::optional<double> value(MultiIndexView moment_index) const;
     /**
      * Return the current raw moment for `moment_index`.
      *
@@ -131,7 +137,7 @@ public:
      * a quadrature reconstructed from the current SSP-RK stage. Other context
      * uses reject untracked requests.
      */
-    [[nodiscard]] double moment(const MultiIndex& moment_index) const;
+    [[nodiscard]] double moment(MultiIndexView moment_index) const;
     /**
      * Return a derived raw moment with one non-negative real-valued order per
      * phase-space dimension.
@@ -165,7 +171,7 @@ public:
 private:
     friend class internal::CqmomSourceContextAccess;
 
-    CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const std::vector<MultiIndex>& indices, const std::vector<double>& values,
+    CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices, const std::vector<double>& values,
                        const CqmomLeanCase& reconstruction_case, const std::vector<CqmomActiveBranchCount>& active_branch_counts,
                        const internal::PreparedFixedCqmomMetadata* prepared_fixed_metadata);
 
@@ -173,7 +179,7 @@ private:
 
     double time_ = 0.0;
     const PhaseSpaceHierarchy* hierarchy_;
-    const std::vector<MultiIndex>* indices_;
+    const MultiIndexTable* indices_;
     const std::vector<double>* values_;
     const CqmomLeanCase* reconstruction_case_ = nullptr;
     const std::vector<CqmomActiveBranchCount>* active_branch_counts_ = nullptr;

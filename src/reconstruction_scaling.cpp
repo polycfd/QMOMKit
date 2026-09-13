@@ -65,7 +65,7 @@ namespace
     return convert_to_double(transformed, scaled);
 }
 
-[[nodiscard]] bool scale_mixed_value(const double value, const MultiIndex& index, const std::vector<double>& scales, double& scaled)
+[[nodiscard]] bool scale_mixed_value(const double value, const MultiIndexView index, const std::vector<double>& scales, double& scaled)
 {
     if (index.size() != scales.size())
     {
@@ -143,7 +143,7 @@ std::optional<CqmomScalingContext> make_cqmom_scaling_context(const CqmomMomentD
     for (std::size_t entry = 0; entry < context.moments.values.size(); ++entry)
     {
         double scaled = 0.0;
-        const MultiIndex& index = context.moments.layout.required_indices[entry];
+        const MultiIndexView index = context.moments.layout.required_indices[entry];
         if (!scale_mixed_value(context.moments.values[entry], index, context.scales, scaled))
         {
             return std::nullopt;

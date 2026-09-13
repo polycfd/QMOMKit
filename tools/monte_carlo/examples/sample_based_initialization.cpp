@@ -225,15 +225,16 @@ void print_configuration_errors(const std::string& errors)
 
 [[nodiscard]] qmomkit::PhaseSpaceVelocity validation_velocity()
 {
-    return [](const double, const std::vector<double>& coordinates)
-    {
-        std::vector<double> velocity(coordinates.size(), 0.0);
-        for (std::size_t dimension = 0; dimension < coordinates.size(); ++dimension)
+    return qmomkit::make_phase_space_velocity(
+        [](const double, const std::vector<double>& coordinates)
         {
-            velocity[dimension] = 0.04 * static_cast<double>(dimension + 1) + 0.02 * coordinates[dimension];
-        }
-        return velocity;
-    };
+            std::vector<double> velocity(coordinates.size(), 0.0);
+            for (std::size_t dimension = 0; dimension < coordinates.size(); ++dimension)
+            {
+                velocity[dimension] = 0.04 * static_cast<double>(dimension + 1) + 0.02 * coordinates[dimension];
+            }
+            return velocity;
+        });
 }
 
 [[nodiscard]] std::vector<std::string> one_dimensional_labels(const std::size_t moment_count)

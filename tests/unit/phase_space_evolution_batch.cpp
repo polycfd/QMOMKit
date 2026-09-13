@@ -299,15 +299,17 @@ std::vector<qmomkit::CqmomState> cqmom_states()
 
 qmomkit::PhaseSpaceVelocity ordinary_velocity()
 {
-    return [](double, const std::vector<double>& location)
+    return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
     {
-        std::vector<double> velocity(location.size(), 0.0);
-        velocity[0] = 0.15;
-        if (velocity.size() > 1)
+        velocities.assign(coordinates.size(), 0.0);
+        for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
         {
-            velocity[1] = -0.1;
+            velocities[node * dimensions] = 0.15;
+            if (dimensions > 1)
+            {
+                velocities[node * dimensions + 1] = -0.1;
+            }
         }
-        return velocity;
     };
 }
 
@@ -430,8 +432,9 @@ void test_qmom_batch_aware_scalar_equivalence()
     const std::vector<qmomkit::QmomState> states = qmom_states();
     const qmomkit::QmomPhaseSpaceEvolutionOptions options = qmom_options();
     const std::vector<double> external{0.02, 0.05, 0.09};
-    const qmomkit::BatchPhaseSpaceVelocity velocity = [&external](const std::size_t batch_index, double, const std::vector<double>& location)
-    { return std::vector<double>(location.size(), external[batch_index]); };
+    const qmomkit::BatchPhaseSpaceVelocity velocity =
+        [&external](const std::size_t batch_index, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
+    { velocities.assign(coordinates.size(), external[batch_index]); };
     const qmomkit::BatchMomentSource source = [&external](const std::size_t batch_index, double, const qmomkit::QmomSourceContext& moments)
     {
         std::vector<double> rate(moments.size(), 0.0);
@@ -465,8 +468,9 @@ void test_qmom_batch_aware_scalar_equivalence()
     assert(phase_space_evolution_boundary.size() == states.size());
     for (std::size_t i = 0; i < states.size(); ++i)
     {
-        const qmomkit::PhaseSpaceVelocity scalar_velocity = [&velocity, i](double time, const std::vector<double>& location)
-        { return velocity(i, time, location); };
+        const qmomkit::PhaseSpaceVelocity scalar_velocity =
+            [&velocity, i](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+        { velocity(i, time, coordinates, velocities, dimensions); };
         const qmomkit::MomentSource scalar_source = [&source, i](double time, const qmomkit::QmomSourceContext& moments)
         { return source(i, time, moments); };
         const qmomkit::MomentBoundaryContribution scalar_boundary = [&boundary, i](double time, const std::vector<double>& moments)
@@ -487,15 +491,18 @@ void test_cqmom_batch_aware_scalar_equivalence()
     const std::vector<qmomkit::CqmomState> states = cqmom_states();
     const qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_options();
     const std::vector<double> external{0.02, 0.05, 0.09};
-    const qmomkit::BatchPhaseSpaceVelocity velocity = [&external](const std::size_t batch_index, double, const std::vector<double>& location)
+    const qmomkit::BatchPhaseSpaceVelocity velocity = [&external](const std::size_t batch_index, double, const std::vector<double>& coordinates,
+                                                                  std::vector<double>& velocities, const std::size_t dimensions)
     {
-        std::vector<double> rate(location.size(), 0.0);
-        rate[0] = external[batch_index];
-        if (rate.size() > 1)
+        velocities.assign(coordinates.size(), 0.0);
+        for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
         {
-            rate[1] = -0.5 * external[batch_index];
+            velocities[node * dimensions] = external[batch_index];
+            if (dimensions > 1)
+            {
+                velocities[node * dimensions + 1] = -0.5 * external[batch_index];
+            }
         }
-        return rate;
     };
     const qmomkit::BatchCqmomMomentSource source = [&external](const std::size_t batch_index, double, const qmomkit::CqmomSourceContext& context)
     {
@@ -531,8 +538,9 @@ void test_cqmom_batch_aware_scalar_equivalence()
     assert(phase_space_evolution_boundary.size() == states.size());
     for (std::size_t i = 0; i < states.size(); ++i)
     {
-        const qmomkit::PhaseSpaceVelocity scalar_velocity = [&velocity, i](double time, const std::vector<double>& location)
-        { return velocity(i, time, location); };
+        const qmomkit::PhaseSpaceVelocity scalar_velocity =
+            [&velocity, i](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+        { velocity(i, time, coordinates, velocities, dimensions); };
         const qmomkit::CqmomMomentSource scalar_source = [&source, i](double time, const qmomkit::CqmomSourceContext& context)
         { return source(i, time, context); };
         const qmomkit::CqmomMomentBoundaryContribution scalar_boundary = [&boundary, i](double time, const qmomkit::CqmomSourceContext& context)
@@ -556,15 +564,17 @@ void test_empty_batch_skips_scalar_validation_and_callbacks()
     const double invalid_time = std::numeric_limits<double>::quiet_NaN();
     std::size_t ordinary_calls = 0;
     std::size_t indexed_calls = 0;
-    const qmomkit::PhaseSpaceVelocity ordinary_velocity = [&ordinary_calls](double, const std::vector<double>& location)
-    {
-        ++ordinary_calls;
-        return std::vector<double>(location.size(), 0.0);
-    };
-    const qmomkit::BatchPhaseSpaceVelocity indexed_velocity = [&indexed_calls](std::size_t, double, const std::vector<double>& location)
+    const qmomkit::PhaseSpaceVelocity ordinary_velocity = qmomkit::make_phase_space_velocity(
+        [&ordinary_calls](double, const std::vector<double>& location)
+        {
+            ++ordinary_calls;
+            return std::vector<double>(location.size(), 0.0);
+        });
+    const qmomkit::BatchPhaseSpaceVelocity indexed_velocity =
+        [&indexed_calls](std::size_t, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
     {
         ++indexed_calls;
-        return std::vector<double>(location.size(), 0.0);
+        velocities.assign(coordinates.size(), 0.0);
     };
 
     // A non-finite time is rejected before velocity evaluation by scalar phase-space advection; empty batches must skip that scalar
@@ -588,20 +598,16 @@ void test_normal_failures_are_independent_and_ordered()
     const std::vector<qmomkit::QmomState> states = qmom_states();
     const std::vector<qmomkit::QmomState> initial_states = states;
     const qmomkit::QmomPhaseSpaceEvolutionOptions options = qmom_options();
-    const qmomkit::BatchPhaseSpaceVelocity velocity = [](const std::size_t batch_index, double, const std::vector<double>& location)
-    {
-        if (batch_index == 1)
-        {
-            return std::vector<double>(location.size() + 1, 0.0);
-        }
-        return std::vector<double>(location.size(), 0.0);
-    };
+    const qmomkit::BatchPhaseSpaceVelocity velocity =
+        [](const std::size_t batch_index, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
+    { velocities.assign(batch_index == 1 ? coordinates.size() + 1 : coordinates.size(), 0.0); };
     const auto batch = qmomkit::advance_qmom_advection_batch_with_index(states, 0.0, 0.2, velocity, options);
     assert(batch.size() == states.size());
     for (std::size_t i = 0; i < states.size(); ++i)
     {
-        const qmomkit::PhaseSpaceVelocity scalar_velocity = [&velocity, i](double time, const std::vector<double>& location)
-        { return velocity(i, time, location); };
+        const qmomkit::PhaseSpaceVelocity scalar_velocity =
+            [&velocity, i](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+        { velocity(i, time, coordinates, velocities, dimensions); };
         assert_qmom_result_equal(batch[i], qmomkit::advance_qmom_advection(states[i], 0.0, 0.2, scalar_velocity, options));
     }
     assert(batch[0].ok());
@@ -619,14 +625,15 @@ void test_escaping_exception_stops_at_the_throwing_entry()
     const std::vector<qmomkit::QmomState> states = qmom_states();
     const qmomkit::QmomPhaseSpaceEvolutionOptions options = qmom_options();
     std::vector<std::size_t> invoked;
-    const qmomkit::BatchPhaseSpaceVelocity velocity = [&invoked](const std::size_t batch_index, double, const std::vector<double>& location)
+    const qmomkit::BatchPhaseSpaceVelocity velocity =
+        [&invoked](const std::size_t batch_index, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
     {
         invoked.push_back(batch_index);
         if (batch_index == 1)
         {
             throw 37;
         }
-        return std::vector<double>(location.size(), 0.0);
+        velocities.assign(coordinates.size(), 0.0);
     };
 
     bool caught = false;
@@ -654,10 +661,11 @@ void test_batch_index_remains_stable_for_repeated_callbacks()
     const std::vector<qmomkit::QmomState> states = qmom_states();
     const qmomkit::QmomPhaseSpaceEvolutionOptions options = qmom_options();
     std::vector<std::vector<std::size_t>> observed(states.size());
-    const qmomkit::BatchPhaseSpaceVelocity velocity = [&observed](const std::size_t batch_index, double, const std::vector<double>& location)
+    const qmomkit::BatchPhaseSpaceVelocity velocity =
+        [&observed](const std::size_t batch_index, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
     {
         observed[batch_index].push_back(batch_index);
-        return std::vector<double>(location.size(), 0.0);
+        velocities.assign(coordinates.size(), 0.0);
     };
     const auto results = qmomkit::advance_qmom_advection_batch_with_index(states, 0.0, 0.2, velocity, options);
     assert(results.size() == states.size());
@@ -676,8 +684,8 @@ void test_moment_source_and_phase_space_batch_failures_are_independent_and_order
     const std::vector<qmomkit::QmomState> states = qmom_states();
     const std::vector<qmomkit::QmomState> initial_states = states;
     const qmomkit::QmomPhaseSpaceEvolutionOptions options = qmom_options();
-    const qmomkit::BatchPhaseSpaceVelocity velocity = [](std::size_t, double, const std::vector<double>& location)
-    { return std::vector<double>(location.size(), 0.0); };
+    const qmomkit::BatchPhaseSpaceVelocity velocity = [](std::size_t, double, const std::vector<double>& coordinates, std::vector<double>& velocities,
+                                                         std::size_t) { velocities.assign(coordinates.size(), 0.0); };
     const qmomkit::BatchMomentSource source = [](const std::size_t batch_index, double, const qmomkit::QmomSourceContext& moments)
     {
         if (batch_index == 1)
@@ -715,21 +723,17 @@ void test_cqmom_normal_failures_are_independent_and_ordered()
     const std::vector<qmomkit::CqmomState> states = cqmom_states();
     const std::vector<qmomkit::CqmomState> initial_states = states;
     const qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_options();
-    const qmomkit::BatchPhaseSpaceVelocity velocity = [](const std::size_t batch_index, double, const std::vector<double>& location)
-    {
-        if (batch_index == 1)
-        {
-            return std::vector<double>(location.size() + 1, 0.0);
-        }
-        return std::vector<double>(location.size(), 0.0);
-    };
+    const qmomkit::BatchPhaseSpaceVelocity velocity =
+        [](const std::size_t batch_index, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
+    { velocities.assign(batch_index == 1 ? coordinates.size() + 1 : coordinates.size(), 0.0); };
 
     const auto batch = qmomkit::advance_cqmom_advection_batch_with_index(states, 0.0, 0.2, velocity, options);
     assert(batch.size() == states.size());
     for (std::size_t i = 0; i < states.size(); ++i)
     {
-        const qmomkit::PhaseSpaceVelocity scalar_velocity = [&velocity, i](double time, const std::vector<double>& location)
-        { return velocity(i, time, location); };
+        const qmomkit::PhaseSpaceVelocity scalar_velocity =
+            [&velocity, i](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+        { velocity(i, time, coordinates, velocities, dimensions); };
         assert_cqmom_result_equal(batch[i], qmomkit::advance_cqmom_advection(states[i], 0.0, 0.2, scalar_velocity, options));
         assert_cqmom_state_equal(states[i], initial_states[i]);
     }
@@ -749,14 +753,15 @@ void test_cqmom_escaping_exception_stops_at_the_throwing_entry()
     const std::vector<qmomkit::CqmomState> states = cqmom_states();
     const qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_options();
     std::vector<std::size_t> invoked;
-    const qmomkit::BatchPhaseSpaceVelocity velocity = [&invoked](const std::size_t batch_index, double, const std::vector<double>& location)
+    const qmomkit::BatchPhaseSpaceVelocity velocity =
+        [&invoked](const std::size_t batch_index, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
     {
         invoked.push_back(batch_index);
         if (batch_index == 1)
         {
             throw CqmomCallbackException{91};
         }
-        return std::vector<double>(location.size(), 0.0);
+        velocities.assign(coordinates.size(), 0.0);
     };
 
     bool caught = false;
@@ -784,10 +789,11 @@ void test_cqmom_batch_index_remains_stable_for_repeated_callbacks()
     const std::vector<qmomkit::CqmomState> states = cqmom_states();
     const qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_options();
     std::vector<std::vector<std::size_t>> observed(states.size());
-    const qmomkit::BatchPhaseSpaceVelocity velocity = [&observed](const std::size_t batch_index, double, const std::vector<double>& location)
+    const qmomkit::BatchPhaseSpaceVelocity velocity =
+        [&observed](const std::size_t batch_index, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
     {
         observed[batch_index].push_back(batch_index);
-        return std::vector<double>(location.size(), 0.0);
+        velocities.assign(coordinates.size(), 0.0);
     };
 
     const auto results = qmomkit::advance_cqmom_advection_batch_with_index(states, 0.0, 0.2, velocity, options);
@@ -807,8 +813,8 @@ void test_cqmom_moment_source_and_phase_space_batch_failures_are_independent_and
     const std::vector<qmomkit::CqmomState> states = cqmom_states();
     const std::vector<qmomkit::CqmomState> initial_states = states;
     const qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_options();
-    const qmomkit::BatchPhaseSpaceVelocity velocity = [](std::size_t, double, const std::vector<double>& location)
-    { return std::vector<double>(location.size(), 0.0); };
+    const qmomkit::BatchPhaseSpaceVelocity velocity = [](std::size_t, double, const std::vector<double>& coordinates, std::vector<double>& velocities,
+                                                         std::size_t) { velocities.assign(coordinates.size(), 0.0); };
     const qmomkit::BatchCqmomMomentSource source = [](const std::size_t batch_index, double, const qmomkit::CqmomSourceContext& context)
     {
         if (batch_index == 1)
@@ -848,15 +854,17 @@ void test_cqmom_empty_batch_skips_scalar_validation_and_callbacks()
     const double invalid_time = std::numeric_limits<double>::quiet_NaN();
     std::size_t ordinary_calls = 0;
     std::size_t indexed_calls = 0;
-    const qmomkit::PhaseSpaceVelocity ordinary_velocity = [&ordinary_calls](double, const std::vector<double>& location)
-    {
-        ++ordinary_calls;
-        return std::vector<double>(location.size(), 0.0);
-    };
-    const qmomkit::BatchPhaseSpaceVelocity indexed_velocity = [&indexed_calls](std::size_t, double, const std::vector<double>& location)
+    const qmomkit::PhaseSpaceVelocity ordinary_velocity = qmomkit::make_phase_space_velocity(
+        [&ordinary_calls](double, const std::vector<double>& location)
+        {
+            ++ordinary_calls;
+            return std::vector<double>(location.size(), 0.0);
+        });
+    const qmomkit::BatchPhaseSpaceVelocity indexed_velocity =
+        [&indexed_calls](std::size_t, double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
     {
         ++indexed_calls;
-        return std::vector<double>(location.size(), 0.0);
+        velocities.assign(coordinates.size(), 0.0);
     };
 
     // A non-finite time is rejected before velocity evaluation by scalar phase-space advection; empty batches must skip that scalar
@@ -885,8 +893,9 @@ void test_null_callbacks_preserve_scalar_behavior()
     const qmomkit::PhaseSpaceVelocity empty_scalar_velocity;
     const qmomkit::MomentSource empty_scalar_source;
     const qmomkit::MomentBoundaryContribution empty_scalar_boundary;
-    const qmomkit::BatchPhaseSpaceVelocity indexed_velocity = [&velocity](std::size_t, const double time, const std::vector<double>& location)
-    { return velocity(time, location); };
+    const qmomkit::BatchPhaseSpaceVelocity indexed_velocity = [&velocity](std::size_t, const double time, const std::vector<double>& coordinates,
+                                                                          std::vector<double>& velocities, const std::size_t dimensions)
+    { velocity(time, coordinates, velocities, dimensions); };
     const qmomkit::BatchMomentSource indexed_source = [&source](std::size_t, const double time, const qmomkit::QmomSourceContext& moments)
     { return source(time, moments); };
 

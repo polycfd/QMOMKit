@@ -79,8 +79,8 @@ qmomkit::RawMomentTensor quadrature_moment_tensor(const qmomkit::monte_carlo::Ex
 int main()
 {
     const qmomkit::monte_carlo::ExplicitDiscreteDistribution initial_distribution{{{-0.25, 0.1}, {0.15, -0.2}, {0.35, 0.25}}, {0.9, 0.8, 1.0}, {}};
-    const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinates)
-    { return std::vector<double>{0.05 + 0.1 * coordinates[0], -0.03 * coordinates[1]}; };
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinates) { return std::vector<double>{0.05 + 0.1 * coordinates[0], -0.03 * coordinates[1]}; });
     qmomkit::AdaptiveRkOptions adaptive_options;
     adaptive_options.relative_tolerance = 1.0e-9;
     adaptive_options.absolute_tolerance = 1.0e-12;

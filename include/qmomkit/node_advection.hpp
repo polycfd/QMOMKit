@@ -14,22 +14,7 @@ namespace qmomkit
 {
 
 /**
- * Phase-space velocity callback for one quadrature node.
- *
- * The coordinate vector is ordered by phase-space dimension. The returned
- * vector must have the same size and represents dxi/dt at the supplied time.
- * No physical meaning is assigned to any coordinate by the library.
- *
- * This is the convenience form. Node advection evaluates it once per
- * quadrature node per right-hand-side evaluation, and each call returns a new
- * vector, so its cost grows with the terminal node count. Callers advancing
- * many nodes should prefer `PackedPhaseSpaceVelocity`.
- */
-using PhaseSpaceVelocity = std::function<std::vector<double>(double, const std::vector<double>&)>;
-
-/**
- * Advanced phase-space velocity callback evaluated for all quadrature nodes at
- * once.
+ * Phase-space velocity callback, evaluated once for all quadrature nodes.
  *
  * `coordinates` holds `nodes * dimensions` values packed node-major, so node
  * `i` occupies `[i * dimensions, (i + 1) * dimensions)` and within a node the
@@ -40,21 +25,35 @@ using PhaseSpaceVelocity = std::function<std::vector<double>(double, const std::
  * a size mismatch as a velocity failure. No physical meaning is assigned to
  * any coordinate by the library.
  *
- * This form is evaluated once per right-hand-side evaluation rather than once
- * per node, so it removes the per-node call and return allocation. Use
- * `make_packed_velocity` to adapt an existing `PhaseSpaceVelocity`.
+ * Evaluating all nodes together keeps the cost of one right-hand-side
+ * evaluation independent of the terminal node count, which is the product of
+ * the per-dimension node counts.
  */
-using PackedPhaseSpaceVelocity = std::function<void(double, const std::vector<double>&, std::vector<double>&, std::size_t)>;
+using PhaseSpaceVelocity = std::function<void(double, const std::vector<double>&, std::vector<double>&, std::size_t)>;
 
 /**
- * Adapt a per-node velocity callback to the packed form.
+ * Convenience callback shape evaluating one quadrature node at a time.
  *
- * The adapted callback evaluates `velocity` once per node in ascending node
- * order. It preserves the per-node contract exactly and therefore also its
- * per-node allocation cost; it exists so that existing callbacks remain usable
- * wherever a `PackedPhaseSpaceVelocity` is required.
+ * The coordinate vector is ordered by phase-space dimension. The returned
+ * vector must have the same size and represents dxi/dt at the supplied time.
+ *
+ * Convert with `make_phase_space_velocity` where a `PhaseSpaceVelocity` is
+ * required. The conversion calls this callback once per node and therefore
+ * costs one call and one returned vector per node per right-hand-side
+ * evaluation; prefer writing a `PhaseSpaceVelocity` directly when advancing
+ * many nodes.
  */
-[[nodiscard]] PackedPhaseSpaceVelocity make_packed_velocity(PhaseSpaceVelocity velocity);
+using PerNodePhaseSpaceVelocity = std::function<std::vector<double>(double, const std::vector<double>&)>;
+
+/**
+ * Build a `PhaseSpaceVelocity` from a per-node callback.
+ *
+ * The result evaluates `velocity` once per node in ascending node order and
+ * preserves its per-node validation, so a wrong-sized or non-finite per-node
+ * return is reported exactly as the per-node contract describes. An empty
+ * callback converts to an empty callback.
+ */
+[[nodiscard]] PhaseSpaceVelocity make_phase_space_velocity(PerNodePhaseSpaceVelocity velocity);
 
 enum class NodeAdvectionStatus
 {
@@ -138,19 +137,6 @@ struct CqmomNodeAdvectionResult
  */
 [[nodiscard]] CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, double t, double time_step,
                                                      const PhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options = {});
-
-/**
- * Advanced composable operations taking a packed velocity callback. Behaviour
- * matches the per-node overloads above; only the callback form differs.
- */
-[[nodiscard]] QmomNodeAdvectionResult advance_nodes(const Quadrature1D& quadrature, double t, double time_step,
-                                                    const PackedPhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options = {});
-
-[[nodiscard]] QmomNodeAdvectionResult advance_nodes(const QmomResult& quadrature, double t, double time_step,
-                                                    const PackedPhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options = {});
-
-[[nodiscard]] CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, double t, double time_step,
-                                                     const PackedPhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options = {});
 
 /**
  * Format effective node-advection settings for startup logs or diagnostics.

@@ -49,42 +49,48 @@ The public velocity callback is:
 
 ```cpp
 using PhaseSpaceVelocity =
-    std::function<std::vector<double>(double, const std::vector<double>&)>;
+    std::function<void(double, const std::vector<double>&, std::vector<double>&, std::size_t)>;
 ```
 
 The callback receives:
 
 - current time;
-- one node coordinate vector ordered by phase-space dimension.
+- all node coordinates, packed node-major;
+- the output velocity vector, sized to match and in the same layout;
+- the phase-space dimension count.
 
-It returns $\mathrm{d}\xi/\mathrm{d}t$ with the same number of components. QMOMKit validates the
-returned size and finiteness, but it does not assign physical meaning to any
-coordinate. A non-finite returned component is reported with the evaluation
-time, zero-based phase-space dimension, offending value, input coordinate
-vector, and complete returned velocity vector.
+It fills $\mathrm{d}\xi/\mathrm{d}t$ for every node. QMOMKit validates the
+filled size and finiteness, but it does not assign physical meaning to any
+coordinate. A non-finite entry is reported with the evaluation time, zero-based
+phase-space dimension, offending value, the coordinate vector of the offending
+node, and that node's complete velocity vector, so diagnostics stay per node
+even though evaluation is packed.
 
-Node advection also accepts an advanced packed callback evaluated once per
-right-hand-side evaluation for all nodes together:
+Node-major packing is the same layout the Runge-Kutta integrator already uses
+for its state vector. The callback therefore needs no per-node gather or
+scatter and writes derivatives straight into the right-hand-side vector.
+
+For callers whose physics is naturally per node, the convenience shape is:
 
 ```cpp
-using PackedPhaseSpaceVelocity =
-    std::function<void(double, const std::vector<double>&, std::vector<double>&, std::size_t)>;
+using PerNodePhaseSpaceVelocity =
+    std::function<std::vector<double>(double, const std::vector<double>&)>;
 ```
 
-Coordinates and velocities are packed node-major, which is the same layout the
-Runge-Kutta integrator already uses for its state vector. The packed form
-therefore needs no per-node gather or scatter and writes derivatives straight
-into the right-hand-side vector. `make_packed_velocity` adapts a per-node
-callback, and the per-node `advance_nodes` overloads are implemented through it
-so that both forms share one integration path.
+`make_phase_space_velocity` adapts one into a `PhaseSpaceVelocity`, evaluating
+it once per node in ascending node order and preserving its per-node
+validation. This is the only per-node path; the library itself carries the
+packed form everywhere, so there is exactly one integration path and no
+per-node overload set to keep in sync.
 
-The per-node form costs one call and one returned vector per node per
+The adapted form costs one call and one returned vector per node per
 right-hand-side evaluation, and the terminal node count is the product of the
 per-dimension node counts. Measured over `advance_nodes` with two nodes per
 dimension, allocations per call scale as roughly 14 per terminal node for the
-per-node form and roughly 1 per terminal node for the packed form:
+adapted form and roughly 1 per terminal node for a directly written packed
+callback:
 
-| Case | Terminal nodes | Per-node | Packed |
+| Case | Terminal nodes | Adapted per-node | Packed |
 | --- | --- | --- | --- |
 | 2D 2^2 | 4 | 113 | 47 |
 | 3D 2^3 | 8 | 170 | 52 |
@@ -94,13 +100,13 @@ per-node form and roughly 1 per terminal node for the packed form:
 The residual packed growth is the terminal conditioning-path table copied into
 the returned quadrature, not the velocity callback.
 
-The phase-space evolution entry points carry the packed callback internally and
-adapt per-node callbacks once at the public boundary, so both forms share one
-advection path. Batch wrappers adapt once for the whole batch rather than once
-per state. Measured over a full Strang phase-space step with a zero moment
-source:
+The phase-space evolution entry points carry the packed callback all the way
+through, so an adapter, when one is used at all, is created once by the caller
+rather than per stage or per state. Batch-index-aware wrappers bind the batch
+index once per state around the same packed signature. Measured over a full
+Strang phase-space step with a zero moment source:
 
-| Case | Terminal nodes | Per-node | Packed | Saved |
+| Case | Terminal nodes | Adapted per-node | Packed | Saved |
 | --- | --- | --- | --- | --- |
 | 2D 2^2 | 4 | 519 | 388 | 25.2% |
 | 3D 2^3 | 8 | 864 | 629 | 27.2% |

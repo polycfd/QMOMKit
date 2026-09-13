@@ -301,7 +301,8 @@ documented, and covered by tests:
 - tensor flat storage is row-major with the last phase-space dimension fastest;
 - phase-space dimension order is independent of conditioning order;
 - node counts are attached to phase-space dimensions;
-- coordinate vectors and velocity callbacks use phase-space dimension order;
+- coordinate vectors use phase-space dimension order, and velocity callbacks
+  receive all nodes packed node-major with that order within each node;
 - one-dimensional quadrature abscissas are sorted ascending with corresponding
   weights permuted consistently;
 - final multidimensional quadrature weights are global terminal weights;

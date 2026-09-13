@@ -129,7 +129,8 @@ struct StateEvolutionResult
 [[nodiscard]] std::vector<double> checked_velocity(const qmomkit::PhaseSpaceVelocity& velocity, const std::size_t dimensions, const double t,
                                                    const std::vector<double>& coordinates)
 {
-    const std::vector<double> derivative = velocity(t, coordinates);
+    std::vector<double> derivative(coordinates.size(), 0.0);
+    velocity(t, coordinates, derivative, dimensions);
     if (derivative.size() != dimensions)
     {
         throw std::invalid_argument(phase_space_velocity_wrong_dimension_message(dimensions, derivative.size()));

@@ -13,7 +13,7 @@ lambdas are documented with their owning function. Instrumentation definitions
 are included for its enabled preprocessor branch. Line links are navigation aids,
 not permanent API identifiers.
 
-The inventory includes **936 definition locations**, grouped by named function
+The inventory includes **927 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -730,9 +730,9 @@ the executable-body count.
 | `integrate_nodes_ssp_rk3` | [198](../../../src/node_advection.cpp#L198) |
 | `integrate_nodes` | [259](../../../src/node_advection.cpp#L259) |
 | `scheme_name` | [290](../../../src/node_advection.cpp#L290) |
-| `make_packed_velocity` | [386](../../../src/node_advection.cpp#L386) |
-| `advance_nodes` | [303](../../../src/node_advection.cpp#L303), [331](../../../src/node_advection.cpp#L331), [346](../../../src/node_advection.cpp#L346), [420](../../../src/node_advection.cpp#L420), [426](../../../src/node_advection.cpp#L426), [432](../../../src/node_advection.cpp#L432) |
-| `format_node_advection_options` | [389](../../../src/node_advection.cpp#L389) |
+| `make_phase_space_velocity` | [386](../../../src/node_advection.cpp#L386) |
+| `advance_nodes` | [303](../../../src/node_advection.cpp#L303), [331](../../../src/node_advection.cpp#L331), [346](../../../src/node_advection.cpp#L346) |
+| `format_node_advection_options` | [420](../../../src/node_advection.cpp#L420) |
 
 ### `src/output.cpp`
 
@@ -801,10 +801,10 @@ the executable-body count.
 | `has_changed_strict_ancestor` | [541](../../../src/phase_space_evolution.cpp#L541) |
 | `record_cqmom_node_count_transitions` | [559](../../../src/phase_space_evolution.cpp#L559) |
 | `advance_qmom_phase_space_impl` | [649](../../../src/phase_space_evolution.cpp#L649) |
-| `advance_qmom_advection` | [701](../../../src/phase_space_evolution.cpp#L701), [752](../../../src/phase_space_evolution.cpp#L752) |
+| `advance_qmom_advection` | [701](../../../src/phase_space_evolution.cpp#L701) |
 | `advance_qmom_moment_source_impl` | [716](../../../src/phase_space_evolution.cpp#L716) |
 | `advance_qmom_moment_source` | [744](../../../src/phase_space_evolution.cpp#L744), [751](../../../src/phase_space_evolution.cpp#L751) |
-| `advance_qmom_phase_space` | [770](../../../src/phase_space_evolution.cpp#L770), [777](../../../src/phase_space_evolution.cpp#L777), [784](../../../src/phase_space_evolution.cpp#L784), [791](../../../src/phase_space_evolution.cpp#L791) |
+| `advance_qmom_phase_space` | [764](../../../src/phase_space_evolution.cpp#L764), [771](../../../src/phase_space_evolution.cpp#L771) |
 | `initialize_cqmom_diagnostics` | [775](../../../src/phase_space_evolution.cpp#L775), [782](../../../src/phase_space_evolution.cpp#L782), [789](../../../src/phase_space_evolution.cpp#L789) |
 | `validate_dense_cqmom_moments_for_phase_space_evolution` | [802](../../../src/phase_space_evolution.cpp#L802) |
 | `validate_lean_cqmom_moments_for_phase_space_evolution` | [809](../../../src/phase_space_evolution.cpp#L809) |
@@ -825,10 +825,10 @@ the executable-body count.
 | `advance_cqmom_advection_impl` | [1244](../../../src/phase_space_evolution.cpp#L1244) |
 | `advance_cqmom_moment_source_impl` | [1251](../../../src/phase_space_evolution.cpp#L1251) |
 | `advance_cqmom_phase_space_state_impl` | [1258](../../../src/phase_space_evolution.cpp#L1258) |
-| `advance_cqmom_advection` | [1344](../../../src/phase_space_evolution.cpp#L1344), [1389](../../../src/phase_space_evolution.cpp#L1389) |
+| `advance_cqmom_advection` | [1324](../../../src/phase_space_evolution.cpp#L1324) |
 | `advance_cqmom_moment_source_public_impl` | [1340](../../../src/phase_space_evolution.cpp#L1340) |
 | `advance_cqmom_moment_source` | [1363](../../../src/phase_space_evolution.cpp#L1363), [1369](../../../src/phase_space_evolution.cpp#L1369) |
-| `advance_cqmom_phase_space` | [1408](../../../src/phase_space_evolution.cpp#L1408), [1415](../../../src/phase_space_evolution.cpp#L1415), [1422](../../../src/phase_space_evolution.cpp#L1422), [1430](../../../src/phase_space_evolution.cpp#L1430) |
+| `advance_cqmom_phase_space` | [1382](../../../src/phase_space_evolution.cpp#L1382), [1389](../../../src/phase_space_evolution.cpp#L1389) |
 | `advance_qmom_advection_batch` | [1391](../../../src/phase_space_evolution.cpp#L1391) |
 | `advance_cqmom_advection_batch` | [1399](../../../src/phase_space_evolution.cpp#L1399) |
 | `advance_qmom_moment_source_batch` | [1407](../../../src/phase_space_evolution.cpp#L1407), [1424](../../../src/phase_space_evolution.cpp#L1424) |

@@ -16,16 +16,17 @@ constexpr double fragmentation_rate = 0.5;
 
 qmomkit::PhaseSpaceVelocity advection_velocity()
 {
-    return [](double, const std::vector<double>& coordinates)
-    {
-        if (coordinates.size() != 1)
+    return qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinates)
         {
-            throw std::invalid_argument("The 1D QMOM example expects one phase-space coordinate.");
-        }
+            if (coordinates.size() != 1)
+            {
+                throw std::invalid_argument("The 1D QMOM example expects one phase-space coordinate.");
+            }
 
-        const double diameter = coordinates[0];
-        return std::vector<double>{1.0 - diameter};
-    };
+            const double diameter = coordinates[0];
+            return std::vector<double>{1.0 - diameter};
+        });
 }
 
 qmomkit::MomentSource binary_fragmentation_source()

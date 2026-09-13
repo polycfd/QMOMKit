@@ -65,28 +65,29 @@ double oblate_spheroid_shape_factor(const double aspect_ratio, const double reyn
 
 qmomkit::PhaseSpaceVelocity physical_velocity()
 {
-    return [](const double time, const std::vector<double>& state)
-    {
-        if (state.size() != 3)
+    return qmomkit::make_phase_space_velocity(
+        [](const double time, const std::vector<double>& state)
         {
-            throw std::invalid_argument("The reduced non-spherical particle probe expects coordinates ordered as (d, chi, u).");
-        }
-        const double d = state[0];
-        const double chi = state[1];
-        const double u = state[2];
-        const double fluid_velocity_x = 2.0 * std::cos(time);
-        const double relative_velocity_x = fluid_velocity_x - u;
-        const double relative_velocity_magnitude = std::abs(relative_velocity_x);
-        const double reynolds_number = 1.2 * relative_velocity_magnitude * d / 1.8e-5;
-        const double shape_factor = oblate_spheroid_shape_factor(chi, reynolds_number);
-        const double drag_rate = 18.0 * 1.8e-5 * shape_factor / (2000.0 * d * d);
+            if (state.size() != 3)
+            {
+                throw std::invalid_argument("The reduced non-spherical particle probe expects coordinates ordered as (d, chi, u).");
+            }
+            const double d = state[0];
+            const double chi = state[1];
+            const double u = state[2];
+            const double fluid_velocity_x = 2.0 * std::cos(time);
+            const double relative_velocity_x = fluid_velocity_x - u;
+            const double relative_velocity_magnitude = std::abs(relative_velocity_x);
+            const double reynolds_number = 1.2 * relative_velocity_magnitude * d / 1.8e-5;
+            const double shape_factor = oblate_spheroid_shape_factor(chi, reynolds_number);
+            const double drag_rate = 18.0 * 1.8e-5 * shape_factor / (2000.0 * d * d);
 
-        std::vector<double> rate = state;
-        rate[0] = 0.0;
-        rate[1] = 0.0;
-        rate[2] = drag_rate * relative_velocity_x;
-        return rate;
-    };
+            std::vector<double> rate = state;
+            rate[0] = 0.0;
+            rate[1] = 0.0;
+            rate[2] = drag_rate * relative_velocity_x;
+            return rate;
+        });
 }
 
 qmomkit::CqmomCase exact_case()
@@ -358,7 +359,8 @@ void run_captured_physical_regression()
     report_tree_spread("[physical preceding tree]", captured_preceding_success_quadrature());
 
     qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(lean_case, captured_active_branch_counts());
-    const auto zero_velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); };
+    const qmomkit::PhaseSpaceVelocity zero_velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
     qmomkit::CqmomPhaseSpaceEvolutionOptions options;

@@ -94,7 +94,8 @@ void test_zero_advection_and_zero_source_preserve_qmom()
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(
-        state, 0.0, 0.4, [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); },
+        state, 0.0, 0.4,
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); }),
         [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>(context.size(), 0.0); }, options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
@@ -110,11 +111,12 @@ void test_combined_advection_and_source_qmom_analytical()
     constexpr double shift_rate = 1.25;
     constexpr double source_rate = 0.4;
     constexpr double dt = 0.2;
-    const auto velocity = [](double, const std::vector<double>& xi)
-    {
-        QMOMKIT_VERIFY_CHECK(xi.size() == 1);
-        return std::vector<double>{shift_rate};
-    };
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& xi)
+        {
+            QMOMKIT_VERIFY_CHECK(xi.size() == 1);
+            return std::vector<double>{shift_rate};
+        });
     const auto source = [](double, const qmomkit::QmomSourceContext& context)
     {
         std::vector<double> rhs(context.size(), 0.0);
@@ -147,11 +149,12 @@ void test_cqmom_case_preserves_phase_space_ordering()
     const qmomkit::RawMomentTensor moments = fixed_cqmom_moments();
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& state)
     { return qmomkit::CqmomMomentRate{std::vector<double>(state.size(), 0.0)}; };
-    const auto velocity = [](double, const std::vector<double>& xi)
-    {
-        QMOMKIT_VERIFY_CHECK(xi.size() == 2);
-        return std::vector<double>{0.25, -0.5};
-    };
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& xi)
+        {
+            QMOMKIT_VERIFY_CHECK(xi.size() == 2);
+            return std::vector<double>{0.25, -0.5};
+        });
 
     qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.node_options = tight_node_options();

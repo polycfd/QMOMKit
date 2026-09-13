@@ -10,12 +10,13 @@ namespace cqmom_2d_advection_breakage
 {
 qmomkit::PhaseSpaceVelocity advection_velocity()
 {
-    return [](double, const std::vector<double>& coordinates)
-    {
-        const double d = coordinates[0];
-        const double u = coordinates[1];
-        return std::vector<double>{1.0 - d, -u};
-    };
+    return qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinates)
+        {
+            const double d = coordinates[0];
+            const double u = coordinates[1];
+            return std::vector<double>{1.0 - d, -u};
+        });
 }
 
 qmomkit::CqmomMomentSource binary_fragmentation_source()

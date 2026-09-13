@@ -82,16 +82,17 @@ bool source_pulse_active(const double time, const VarianceInjectionParameters& p
 
 qmomkit::PhaseSpaceVelocity advection_velocity(const VarianceInjectionParameters& parameters)
 {
-    return [parameters](double, const std::vector<double>& coordinates)
-    {
-        if (coordinates.size() < 2)
+    return qmomkit::make_phase_space_velocity(
+        [parameters](double, const std::vector<double>& coordinates)
         {
-            throw std::invalid_argument("The adaptive-node-count example expects phase-space coordinates ordered as (d,u).");
-        }
+            if (coordinates.size() < 2)
+            {
+                throw std::invalid_argument("The adaptive-node-count example expects phase-space coordinates ordered as (d,u).");
+            }
 
-        const double u = coordinates[velocity_dimension];
-        return std::vector<double>{0.0, -parameters.relaxation_rate * (u - parameters.equilibrium_velocity)};
-    };
+            const double u = coordinates[velocity_dimension];
+            return std::vector<double>{0.0, -parameters.relaxation_rate * (u - parameters.equilibrium_velocity)};
+        });
 }
 
 qmomkit::CqmomMomentSource variance_injection_source(const VarianceInjectionParameters& parameters)

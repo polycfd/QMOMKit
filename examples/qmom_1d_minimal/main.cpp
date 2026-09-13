@@ -23,8 +23,17 @@ int main()
     const qmomkit::QmomCase qmom_case{qmomkit::MomentSet(initial_moments), node_count};
     qmomkit::QmomState state = qmom_case.initial_state();
 
-    // Define the callback for the phase-space advection velocity
-    const auto velocity = [](double, const std::vector<double>& coordinates) { return std::vector<double>{1.0 - coordinates[0]}; };
+    // Define the callback for the phase-space advection velocity. The callback
+    // receives every quadrature node at once: `coordinates` holds
+    // `nodes * dimensions` values packed node-major, and `velocities` must be
+    // filled with dxi/dt in the same layout.
+    const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
+    {
+        for (std::size_t node = 0; node < coordinates.size(); ++node)
+        {
+            velocities[node] = 1.0 - coordinates[node];
+        }
+    };
 
     // Define the callback for the moment source
     const auto source = [](double, const qmomkit::QmomSourceContext& context)

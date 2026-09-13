@@ -120,7 +120,7 @@ template <typename ApplyAdvection, typename ApplySource>
     throw std::invalid_argument("Unsupported phase-space evolution scheme.");
 }
 
-void validate_qmom_input(const QmomState& state, const double t, const double time_step, const PackedPhaseSpaceVelocity& velocity,
+void validate_qmom_input(const QmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
                          const MomentSource& source, const PhaseSpaceEvolutionScheme scheme)
 {
     validate_time_input(t, time_step);
@@ -316,7 +316,7 @@ void record_failure_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, con
     return current;
 }
 
-void validate_qmom_advection_input(const QmomState& state, const double t, const double time_step, const PackedPhaseSpaceVelocity& velocity)
+void validate_qmom_advection_input(const QmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity)
 {
     validate_time_input(t, time_step);
     if (!internal::all_finite(state.moments()))
@@ -366,7 +366,7 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
 }
 
 [[nodiscard]] bool advance_qmom_advection_stage(const QmomState& state, const QmomState& rollback_state, const double t, const double time_step,
-                                                const PackedPhaseSpaceVelocity& velocity, const QmomPhaseSpaceEvolutionOptions& options,
+                                                const PhaseSpaceVelocity& velocity, const QmomPhaseSpaceEvolutionOptions& options,
                                                 const bool final_advection, PhaseSpaceEvolutionDiagnostics& diagnostics, QmomState& accepted_state,
                                                 std::optional<QmomPhaseSpaceEvolutionResult>& failure)
 {
@@ -657,7 +657,7 @@ void record_cqmom_node_count_transitions(PhaseSpaceEvolutionDiagnostics& diagnos
 // Public QMOM overloads dispatch here; this helper applies the selected
 // operator-split phase-space evolution sequence to an accepted one-dimensional state.
 static QmomPhaseSpaceEvolutionResult advance_qmom_phase_space_impl(const QmomState& state, const double t, const double time_step,
-                                                                   const PackedPhaseSpaceVelocity& velocity, const MomentSource& source,
+                                                                   const PhaseSpaceVelocity& velocity, const MomentSource& source,
                                                                    const MomentBoundaryContribution* const boundary,
                                                                    const QmomPhaseSpaceEvolutionOptions& options)
 {
@@ -699,7 +699,7 @@ static QmomPhaseSpaceEvolutionResult advance_qmom_phase_space_impl(const QmomSta
 }
 
 QmomPhaseSpaceEvolutionResult advance_qmom_advection(const QmomState& state, const double t, const double time_step,
-                                                     const PackedPhaseSpaceVelocity& velocity, const QmomPhaseSpaceEvolutionOptions& options)
+                                                     const PhaseSpaceVelocity& velocity, const QmomPhaseSpaceEvolutionOptions& options)
 {
     PhaseSpaceEvolutionDiagnostics diagnostics;
     diagnostics.scheme = options.scheme;
@@ -749,12 +749,6 @@ static QmomPhaseSpaceEvolutionResult advance_qmom_moment_source_impl(const QmomS
     return QmomPhaseSpaceEvolutionResult{std::move(accepted_state), PhaseSpaceEvolutionStatus::success, std::move(diagnostics), t + time_step, ""};
 }
 
-QmomPhaseSpaceEvolutionResult advance_qmom_advection(const QmomState& state, const double t, const double time_step,
-                                                     const PhaseSpaceVelocity& velocity, const QmomPhaseSpaceEvolutionOptions& options)
-{
-    return advance_qmom_advection(state, t, time_step, make_packed_velocity(velocity), options);
-}
-
 QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state, const double t, const double time_step, const MomentSource& source,
                                                          const QmomPhaseSpaceEvolutionOptions& options)
 {
@@ -768,7 +762,7 @@ QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(const QmomState& state,
 }
 
 QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, const double t, const double time_step,
-                                                       const PackedPhaseSpaceVelocity& velocity, const MomentSource& source,
+                                                       const PhaseSpaceVelocity& velocity, const MomentSource& source,
                                                        const QmomPhaseSpaceEvolutionOptions& options)
 {
     return advance_qmom_phase_space_impl(state, t, time_step, velocity, source, nullptr, options);
@@ -776,23 +770,9 @@ QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, c
 
 QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, const double t, const double time_step,
                                                        const PhaseSpaceVelocity& velocity, const MomentSource& source,
-                                                       const QmomPhaseSpaceEvolutionOptions& options)
-{
-    return advance_qmom_phase_space_impl(state, t, time_step, make_packed_velocity(velocity), source, nullptr, options);
-}
-
-QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, const double t, const double time_step,
-                                                       const PackedPhaseSpaceVelocity& velocity, const MomentSource& source,
                                                        const MomentBoundaryContribution& boundary, const QmomPhaseSpaceEvolutionOptions& options)
 {
     return advance_qmom_phase_space_impl(state, t, time_step, velocity, source, &boundary, options);
-}
-
-QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, const double t, const double time_step,
-                                                       const PhaseSpaceVelocity& velocity, const MomentSource& source,
-                                                       const MomentBoundaryContribution& boundary, const QmomPhaseSpaceEvolutionOptions& options)
-{
-    return advance_qmom_phase_space_impl(state, t, time_step, make_packed_velocity(velocity), source, &boundary, options);
 }
 
 namespace
@@ -854,7 +834,7 @@ void validate_cqmom_state_for_phase_space_evolution(const CqmomState& state)
     throw std::invalid_argument("Unknown CQMOM state storage.");
 }
 
-void validate_cqmom_advection_input(const CqmomState& state, const double t, const double time_step, const PackedPhaseSpaceVelocity& velocity)
+void validate_cqmom_advection_input(const CqmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity)
 {
     validate_time_input(t, time_step);
     validate_cqmom_state_for_phase_space_evolution(state);
@@ -876,9 +856,9 @@ void validate_cqmom_moment_source_input(const CqmomState& state, const double t,
     validate_cqmom_boundary(boundary);
 }
 
-void validate_cqmom_phase_space_evolution_input(const CqmomState& state, const double t, const double time_step,
-                                                const PackedPhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                const CqmomMomentBoundaryContribution* const boundary, const PhaseSpaceEvolutionScheme scheme)
+void validate_cqmom_phase_space_evolution_input(const CqmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
+                                                const CqmomMomentSource& source, const CqmomMomentBoundaryContribution* const boundary,
+                                                const PhaseSpaceEvolutionScheme scheme)
 {
     validate_time_input(t, time_step);
     validate_phase_space_evolution_scheme(scheme);
@@ -1032,7 +1012,7 @@ struct CqmomPhaseSpaceEvolutionWorkingState
 }
 
 [[nodiscard]] CqmomStageOutcome advance_cqmom_advection_stage(const CqmomState& state, const CqmomState& rollback_state, const double t,
-                                                              const double time_step, const PackedPhaseSpaceVelocity& velocity,
+                                                              const double time_step, const PhaseSpaceVelocity& velocity,
                                                               const CqmomPhaseSpaceEvolutionOptions& options, const bool final_advection,
                                                               PhaseSpaceEvolutionDiagnostics& diagnostics)
 {
@@ -1268,7 +1248,7 @@ struct CqmomPhaseSpaceEvolutionWorkingState
 }
 
 CqmomStageOutcome advance_cqmom_advection_impl(const CqmomState& state, const CqmomState& rollback_state, const double t, const double time_step,
-                                               const PackedPhaseSpaceVelocity& velocity, const CqmomPhaseSpaceEvolutionOptions& options,
+                                               const PhaseSpaceVelocity& velocity, const CqmomPhaseSpaceEvolutionOptions& options,
                                                const bool final_advection, PhaseSpaceEvolutionDiagnostics& diagnostics)
 {
     return advance_cqmom_advection_stage(state, rollback_state, t, time_step, velocity, options, final_advection, diagnostics);
@@ -1282,7 +1262,7 @@ CqmomStageOutcome advance_cqmom_moment_source_impl(const CqmomState& state, cons
 }
 
 CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space_state_impl(const CqmomState& state, const double t, const double time_step,
-                                                                    const PackedPhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                                    const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
                                                                     const CqmomMomentBoundaryContribution* const boundary,
                                                                     const CqmomPhaseSpaceEvolutionOptions& options)
 {
@@ -1342,7 +1322,7 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space_state_impl(const CqmomS
 } // namespace
 
 CqmomPhaseSpaceEvolutionResult advance_cqmom_advection(const CqmomState& state, const double t, const double time_step,
-                                                       const PackedPhaseSpaceVelocity& velocity, const CqmomPhaseSpaceEvolutionOptions& options)
+                                                       const PhaseSpaceVelocity& velocity, const CqmomPhaseSpaceEvolutionOptions& options)
 {
     PhaseSpaceEvolutionDiagnostics diagnostics;
     diagnostics.scheme = options.scheme;
@@ -1386,12 +1366,6 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_moment_source_public_impl(const Cqm
 
 } // namespace
 
-CqmomPhaseSpaceEvolutionResult advance_cqmom_advection(const CqmomState& state, const double t, const double time_step,
-                                                       const PhaseSpaceVelocity& velocity, const CqmomPhaseSpaceEvolutionOptions& options)
-{
-    return advance_cqmom_advection(state, t, time_step, make_packed_velocity(velocity), options);
-}
-
 CqmomPhaseSpaceEvolutionResult advance_cqmom_moment_source(const CqmomState& state, const double t, const double time_step,
                                                            const CqmomMomentSource& source, const CqmomPhaseSpaceEvolutionOptions& options)
 {
@@ -1406,7 +1380,7 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_moment_source(const CqmomState& sta
 }
 
 CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state, const double t, const double time_step,
-                                                         const PackedPhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                         const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
                                                          const CqmomPhaseSpaceEvolutionOptions& options)
 {
     return advance_cqmom_phase_space_state_impl(state, t, time_step, velocity, source, nullptr, options);
@@ -1414,43 +1388,26 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state
 
 CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state, const double t, const double time_step,
                                                          const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                         const CqmomPhaseSpaceEvolutionOptions& options)
-{
-    return advance_cqmom_phase_space_state_impl(state, t, time_step, make_packed_velocity(velocity), source, nullptr, options);
-}
-
-CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state, const double t, const double time_step,
-                                                         const PackedPhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
                                                          const CqmomMomentBoundaryContribution& boundary,
                                                          const CqmomPhaseSpaceEvolutionOptions& options)
 {
     return advance_cqmom_phase_space_state_impl(state, t, time_step, velocity, source, &boundary, options);
 }
 
-CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state, const double t, const double time_step,
-                                                         const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                         const CqmomMomentBoundaryContribution& boundary,
-                                                         const CqmomPhaseSpaceEvolutionOptions& options)
-{
-    return advance_cqmom_phase_space_state_impl(state, t, time_step, make_packed_velocity(velocity), source, &boundary, options);
-}
-
 std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_advection_batch(const std::vector<QmomState>& states, const double time,
                                                                         const double time_step, const PhaseSpaceVelocity& velocity,
                                                                         const QmomPhaseSpaceEvolutionOptions& options)
 {
-    const PackedPhaseSpaceVelocity packed_velocity = make_packed_velocity(velocity);
-    return apply_batch(states, [&](const std::size_t, const QmomState& state)
-                       { return advance_qmom_advection(state, time, time_step, packed_velocity, options); });
+    return apply_batch(states,
+                       [&](const std::size_t, const QmomState& state) { return advance_qmom_advection(state, time, time_step, velocity, options); });
 }
 
 std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_advection_batch(const std::vector<CqmomState>& states, const double time,
                                                                           const double time_step, const PhaseSpaceVelocity& velocity,
                                                                           const CqmomPhaseSpaceEvolutionOptions& options)
 {
-    const PackedPhaseSpaceVelocity packed_velocity = make_packed_velocity(velocity);
     return apply_batch(states, [&](const std::size_t, const CqmomState& state)
-                       { return advance_cqmom_advection(state, time, time_step, packed_velocity, options); });
+                       { return advance_cqmom_advection(state, time, time_step, velocity, options); });
 }
 
 std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch(const std::vector<QmomState>& states, const double time,
@@ -1491,9 +1448,8 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch(const 
                                                                           const double time_step, const PhaseSpaceVelocity& velocity,
                                                                           const MomentSource& source, const QmomPhaseSpaceEvolutionOptions& options)
 {
-    const PackedPhaseSpaceVelocity packed_velocity = make_packed_velocity(velocity);
     return apply_batch(states, [&](const std::size_t, const QmomState& state)
-                       { return advance_qmom_phase_space(state, time, time_step, packed_velocity, source, options); });
+                       { return advance_qmom_phase_space(state, time, time_step, velocity, source, options); });
 }
 
 std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch(const std::vector<CqmomState>& states, const double time,
@@ -1501,9 +1457,8 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch(cons
                                                                             const CqmomMomentSource& source,
                                                                             const CqmomPhaseSpaceEvolutionOptions& options)
 {
-    const PackedPhaseSpaceVelocity packed_velocity = make_packed_velocity(velocity);
     return apply_batch(states, [&](const std::size_t, const CqmomState& state)
-                       { return advance_cqmom_phase_space(state, time, time_step, packed_velocity, source, options); });
+                       { return advance_cqmom_phase_space(state, time, time_step, velocity, source, options); });
 }
 
 std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch(const std::vector<QmomState>& states, const double time,
@@ -1511,9 +1466,8 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch(const 
                                                                           const MomentSource& source, const MomentBoundaryContribution& boundary,
                                                                           const QmomPhaseSpaceEvolutionOptions& options)
 {
-    const PackedPhaseSpaceVelocity packed_velocity = make_packed_velocity(velocity);
     return apply_batch(states, [&](const std::size_t, const QmomState& state)
-                       { return advance_qmom_phase_space(state, time, time_step, packed_velocity, source, boundary, options); });
+                       { return advance_qmom_phase_space(state, time, time_step, velocity, source, boundary, options); });
 }
 
 std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch(const std::vector<CqmomState>& states, const double time,
@@ -1522,41 +1476,42 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch(cons
                                                                             const CqmomMomentBoundaryContribution& boundary,
                                                                             const CqmomPhaseSpaceEvolutionOptions& options)
 {
-    const PackedPhaseSpaceVelocity packed_velocity = make_packed_velocity(velocity);
     return apply_batch(states, [&](const std::size_t, const CqmomState& state)
-                       { return advance_cqmom_phase_space(state, time, time_step, packed_velocity, source, boundary, options); });
+                       { return advance_cqmom_phase_space(state, time, time_step, velocity, source, boundary, options); });
 }
 
 std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_advection_batch_with_index(const std::vector<QmomState>& states, const double time,
                                                                                    const double time_step, const BatchPhaseSpaceVelocity& velocity,
                                                                                    const QmomPhaseSpaceEvolutionOptions& options)
 {
-    return apply_batch(
-        states,
-        [&](const std::size_t batch_index, const QmomState& state)
-        {
-            const PhaseSpaceVelocity local_velocity =
-                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
-                                              { return velocity(batch_index, callback_time, phase_space_location); }}
-                         : PhaseSpaceVelocity{};
-            return advance_qmom_advection(state, time, time_step, local_velocity, options);
-        });
+    return apply_batch(states,
+                       [&](const std::size_t batch_index, const QmomState& state)
+                       {
+                           const PhaseSpaceVelocity local_velocity =
+                               velocity
+                                   ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& coordinates,
+                                                                                 std::vector<double>& velocities, const std::size_t dimensions)
+                                                        { velocity(batch_index, callback_time, coordinates, velocities, dimensions); }}
+                                   : PhaseSpaceVelocity{};
+                           return advance_qmom_advection(state, time, time_step, local_velocity, options);
+                       });
 }
 
 std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_advection_batch_with_index(const std::vector<CqmomState>& states, const double time,
                                                                                      const double time_step, const BatchPhaseSpaceVelocity& velocity,
                                                                                      const CqmomPhaseSpaceEvolutionOptions& options)
 {
-    return apply_batch(
-        states,
-        [&](const std::size_t batch_index, const CqmomState& state)
-        {
-            const PhaseSpaceVelocity local_velocity =
-                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
-                                              { return velocity(batch_index, callback_time, phase_space_location); }}
-                         : PhaseSpaceVelocity{};
-            return advance_cqmom_advection(state, time, time_step, local_velocity, options);
-        });
+    return apply_batch(states,
+                       [&](const std::size_t batch_index, const CqmomState& state)
+                       {
+                           const PhaseSpaceVelocity local_velocity =
+                               velocity
+                                   ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& coordinates,
+                                                                                 std::vector<double>& velocities, const std::size_t dimensions)
+                                                        { velocity(batch_index, callback_time, coordinates, velocities, dimensions); }}
+                                   : PhaseSpaceVelocity{};
+                           return advance_cqmom_advection(state, time, time_step, local_velocity, options);
+                       });
 }
 
 std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch_with_index(const std::vector<QmomState>& states, const double time,
@@ -1636,20 +1591,21 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch_with_i
                                                                                      const BatchMomentSource& source,
                                                                                      const QmomPhaseSpaceEvolutionOptions& options)
 {
-    return apply_batch(
-        states,
-        [&](const std::size_t batch_index, const QmomState& state)
-        {
-            const PhaseSpaceVelocity local_velocity =
-                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
-                                              { return velocity(batch_index, callback_time, phase_space_location); }}
-                         : PhaseSpaceVelocity{};
-            const MomentSource local_source = source
-                                                  ? MomentSource{[&source, batch_index](const double callback_time, const QmomSourceContext& context)
-                                                                 { return source(batch_index, callback_time, context); }}
-                                                  : MomentSource{};
-            return advance_qmom_phase_space(state, time, time_step, local_velocity, local_source, options);
-        });
+    return apply_batch(states,
+                       [&](const std::size_t batch_index, const QmomState& state)
+                       {
+                           const PhaseSpaceVelocity local_velocity =
+                               velocity
+                                   ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& coordinates,
+                                                                                 std::vector<double>& velocities, const std::size_t dimensions)
+                                                        { velocity(batch_index, callback_time, coordinates, velocities, dimensions); }}
+                                   : PhaseSpaceVelocity{};
+                           const MomentSource local_source =
+                               source ? MomentSource{[&source, batch_index](const double callback_time, const QmomSourceContext& context)
+                                                     { return source(batch_index, callback_time, context); }}
+                                      : MomentSource{};
+                           return advance_qmom_phase_space(state, time, time_step, local_velocity, local_source, options);
+                       });
 }
 
 std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch_with_index(const std::vector<CqmomState>& states, const double time,
@@ -1658,20 +1614,21 @@ std::vector<CqmomPhaseSpaceEvolutionResult> advance_cqmom_phase_space_batch_with
                                                                                        const BatchCqmomMomentSource& source,
                                                                                        const CqmomPhaseSpaceEvolutionOptions& options)
 {
-    return apply_batch(
-        states,
-        [&](const std::size_t batch_index, const CqmomState& state)
-        {
-            const PhaseSpaceVelocity local_velocity =
-                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
-                                              { return velocity(batch_index, callback_time, phase_space_location); }}
-                         : PhaseSpaceVelocity{};
-            const CqmomMomentSource local_source =
-                source ? CqmomMomentSource{[&source, batch_index](const double callback_time, const CqmomSourceContext& context)
-                                           { return source(batch_index, callback_time, context); }}
-                       : CqmomMomentSource{};
-            return advance_cqmom_phase_space(state, time, time_step, local_velocity, local_source, options);
-        });
+    return apply_batch(states,
+                       [&](const std::size_t batch_index, const CqmomState& state)
+                       {
+                           const PhaseSpaceVelocity local_velocity =
+                               velocity
+                                   ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& coordinates,
+                                                                                 std::vector<double>& velocities, const std::size_t dimensions)
+                                                        { velocity(batch_index, callback_time, coordinates, velocities, dimensions); }}
+                                   : PhaseSpaceVelocity{};
+                           const CqmomMomentSource local_source =
+                               source ? CqmomMomentSource{[&source, batch_index](const double callback_time, const CqmomSourceContext& context)
+                                                          { return source(batch_index, callback_time, context); }}
+                                      : CqmomMomentSource{};
+                           return advance_cqmom_phase_space(state, time, time_step, local_velocity, local_source, options);
+                       });
 }
 
 std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch_with_index(const std::vector<QmomState>& states, const double time,
@@ -1685,8 +1642,9 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch_with_i
         [&](const std::size_t batch_index, const QmomState& state)
         {
             const PhaseSpaceVelocity local_velocity =
-                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
-                                              { return velocity(batch_index, callback_time, phase_space_location); }}
+                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& coordinates,
+                                                                       std::vector<double>& velocities, const std::size_t dimensions)
+                                              { velocity(batch_index, callback_time, coordinates, velocities, dimensions); }}
                          : PhaseSpaceVelocity{};
             const MomentSource local_source = source
                                                   ? MomentSource{[&source, batch_index](const double callback_time, const QmomSourceContext& context)
@@ -1710,8 +1668,9 @@ advance_cqmom_phase_space_batch_with_index(const std::vector<CqmomState>& states
         [&](const std::size_t batch_index, const CqmomState& state)
         {
             const PhaseSpaceVelocity local_velocity =
-                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& phase_space_location)
-                                              { return velocity(batch_index, callback_time, phase_space_location); }}
+                velocity ? PhaseSpaceVelocity{[&velocity, batch_index](const double callback_time, const std::vector<double>& coordinates,
+                                                                       std::vector<double>& velocities, const std::size_t dimensions)
+                                              { velocity(batch_index, callback_time, coordinates, velocities, dimensions); }}
                          : PhaseSpaceVelocity{};
             const CqmomMomentSource local_source =
                 source ? CqmomMomentSource{[&source, batch_index](const double callback_time, const CqmomSourceContext& context)

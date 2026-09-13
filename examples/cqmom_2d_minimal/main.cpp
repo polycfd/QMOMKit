@@ -21,9 +21,20 @@ int main()
     const qmomkit::CqmomCase cqmom_case{std::move(dense_case)};
     qmomkit::CqmomState state = cqmom_case.initial_state();
 
-    // Define the callback for the phase-space advection velocity
-    const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinates)
-    { return std::vector<double>{1.0 - coordinates[0], -coordinates[1]}; };
+    // Define the callback for the phase-space advection velocity. The callback
+    // receives every terminal node at once: `coordinates` holds
+    // `nodes * dimensions` values packed node-major, so node `i` occupies
+    // `[i * dimensions, (i + 1) * dimensions)`. Fill `velocities` with dxi/dt
+    // in the same layout.
+    const qmomkit::PhaseSpaceVelocity velocity =
+        [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    {
+        for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
+        {
+            velocities[node * dimensions] = 1.0 - coordinates[node * dimensions];
+            velocities[node * dimensions + 1] = -coordinates[node * dimensions + 1];
+        }
+    };
 
     // Define the callback for the moment source
     const qmomkit::CqmomMomentSource source = [](double, const qmomkit::CqmomSourceContext& context)

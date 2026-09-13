@@ -92,66 +92,67 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
 {
     validate_particle_model_parameters(parameters);
 
-    return [parameters](double time, const std::vector<double>& state)
-    {
-        if (state.size() != 5)
+    return qmomkit::make_phase_space_velocity(
+        [parameters](double time, const std::vector<double>& state)
         {
-            throw std::invalid_argument("The non-spherical particle model expects coordinates ordered "
-                                        "as (d, chi, u, v, w).");
-        }
+            if (state.size() != 5)
+            {
+                throw std::invalid_argument("The non-spherical particle model expects coordinates ordered "
+                                            "as (d, chi, u, v, w).");
+            }
 
-        // Ordering defined in configuration.qmom: (d, chi, u, v, w).
-        const double d = state[0];
-        const double chi = state[1];
-        const double u = state[2];
-        const double v = state[3];
-        const double w = state[4];
+            // Ordering defined in configuration.qmom: (d, chi, u, v, w).
+            const double d = state[0];
+            const double chi = state[1];
+            const double u = state[2];
+            const double v = state[3];
+            const double w = state[4];
 
-        const double fluid_velocity_x = parameters.fluid_velocity_amplitude_x * std::cos(parameters.oscillation_angular_frequency * time);
+            const double fluid_velocity_x = parameters.fluid_velocity_amplitude_x * std::cos(parameters.oscillation_angular_frequency * time);
 
-        const double fluid_velocity_y = parameters.fluid_velocity_amplitude_y * std::sin(parameters.oscillation_angular_frequency * time);
+            const double fluid_velocity_y = parameters.fluid_velocity_amplitude_y * std::sin(parameters.oscillation_angular_frequency * time);
 
-        const double fluid_velocity_z = parameters.fluid_velocity_amplitude_z * std::cos(parameters.oscillation_angular_frequency * time);
+            const double fluid_velocity_z = parameters.fluid_velocity_amplitude_z * std::cos(parameters.oscillation_angular_frequency * time);
 
-        const double relative_velocity_x = fluid_velocity_x - u;
-        const double relative_velocity_y = fluid_velocity_y - v;
-        const double relative_velocity_z = fluid_velocity_z - w;
+            const double relative_velocity_x = fluid_velocity_x - u;
+            const double relative_velocity_y = fluid_velocity_y - v;
+            const double relative_velocity_z = fluid_velocity_z - w;
 
-        const double relative_velocity_magnitude = std::sqrt(relative_velocity_x * relative_velocity_x + relative_velocity_y * relative_velocity_y +
-                                                             relative_velocity_z * relative_velocity_z);
+            const double relative_velocity_magnitude = std::sqrt(
+                relative_velocity_x * relative_velocity_x + relative_velocity_y * relative_velocity_y + relative_velocity_z * relative_velocity_z);
 
-        const double reynolds_number = parameters.fluid_density * relative_velocity_magnitude * d / parameters.fluid_dynamic_viscosity;
+            const double reynolds_number = parameters.fluid_density * relative_velocity_magnitude * d / parameters.fluid_dynamic_viscosity;
 
-        const double shape_factor = oblate_spheroid_shape_factor(chi, reynolds_number);
+            const double shape_factor = oblate_spheroid_shape_factor(chi, reynolds_number);
 
-        /*
-         * This is algebraically equivalent to evaluating the drag force
-         *
-         *   F_d = 1/2 rho_f A (24/Re) K Re |U_rel| U_rel
-         *
-         * and dividing by the spherical particle mass. The resulting
-         * acceleration coefficient is 18 mu_f K / (rho_p d^2).
-         */
-        const double drag_rate = 18.0 * parameters.fluid_dynamic_viscosity * shape_factor / (parameters.particle_density * d * d);
+            /*
+             * This is algebraically equivalent to evaluating the drag force
+             *
+             *   F_d = 1/2 rho_f A (24/Re) K Re |U_rel| U_rel
+             *
+             * and dividing by the spherical particle mass. The resulting
+             * acceleration coefficient is 18 mu_f K / (rho_p d^2).
+             */
+            const double drag_rate = 18.0 * parameters.fluid_dynamic_viscosity * shape_factor / (parameters.particle_density * d * d);
 
-        std::vector<double> rate(5);
+            std::vector<double> rate(5);
 
-        // Diameter attrition uses a saturated velocity response and a tanh taper
-        // near the configured minimum diameter; no callback clipping is applied.
-        const double relative_speed_squared = relative_velocity_magnitude * relative_velocity_magnitude;
-        const double attrition_speed_squared =
-            relative_speed_squared / (1.0 + relative_speed_squared / (parameters.attrition_velocity_scale * parameters.attrition_velocity_scale));
-        const double attrition_taper = std::tanh((d - parameters.minimum_attrition_diameter) / parameters.attrition_transition_diameter);
-        rate[0] = -parameters.attrition_rate * attrition_speed_squared * attrition_taper;
+            // Diameter attrition uses a saturated velocity response and a tanh taper
+            // near the configured minimum diameter; no callback clipping is applied.
+            const double relative_speed_squared = relative_velocity_magnitude * relative_velocity_magnitude;
+            const double attrition_speed_squared =
+                relative_speed_squared / (1.0 + relative_speed_squared / (parameters.attrition_velocity_scale * parameters.attrition_velocity_scale));
+            const double attrition_taper = std::tanh((d - parameters.minimum_attrition_diameter) / parameters.attrition_transition_diameter);
+            rate[0] = -parameters.attrition_rate * attrition_speed_squared * attrition_taper;
 
-        rate[1] = (1.0 - chi) / parameters.aspect_ratio_relaxation_time;
+            rate[1] = (1.0 - chi) / parameters.aspect_ratio_relaxation_time;
 
-        rate[2] = drag_rate * relative_velocity_x;
-        rate[3] = drag_rate * relative_velocity_y;
-        rate[4] = drag_rate * relative_velocity_z - parameters.gravity;
+            rate[2] = drag_rate * relative_velocity_x;
+            rate[3] = drag_rate * relative_velocity_y;
+            rate[4] = drag_rate * relative_velocity_z - parameters.gravity;
 
-        return rate;
-    };
+            return rate;
+        });
 }
 
 } // namespace cqmom_5d_non_spherical_particles

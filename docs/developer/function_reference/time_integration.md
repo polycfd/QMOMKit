@@ -112,8 +112,10 @@ characterize floor-dominated integration or all time/scale combinations.
 ## Node trajectory adaptation — Level A
 
 Local `pack_nodes` stores coordinates node-major in one ODE vector; weights are
-excluded. `node_rhs_from_velocity` reverses that view at every stage, invokes the
-velocity callback once per terminal node, and validates returned rank/finiteness.
+excluded. `node_rhs_from_velocity` hands that vector to the velocity callback
+unchanged at every stage — the packed callback layout is the ODE state layout,
+so no gather or scatter is needed — and validates the filled rank/finiteness,
+attributing any failure back to its node and phase-space dimension.
 `unpack_nodes` restores per-coordinate arrays. This preserves terminal list order
 and does not reconstruct a new CQMOM tree.
 

@@ -165,10 +165,11 @@ struct CqmomPhaseSpaceEvolutionResult
  * Batch-index-aware phase-space velocity callback.
  *
  * `batch_index` is the zero-based position of the state in the collection
- * supplied to a batch phase-space evolution operation.
+ * supplied to a batch phase-space evolution operation. Coordinates and
+ * velocities follow the packed `PhaseSpaceVelocity` layout.
  */
-using BatchPhaseSpaceVelocity =
-    std::function<std::vector<double>(std::size_t batch_index, double time, const std::vector<double>& phase_space_location)>;
+using BatchPhaseSpaceVelocity = std::function<void(std::size_t batch_index, double time, const std::vector<double>& coordinates,
+                                                   std::vector<double>& velocities, std::size_t dimensions)>;
 
 /**
  * Batch-index-aware one-dimensional moment-source callback.
@@ -345,38 +346,6 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  */
 [[nodiscard]] CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state, double t, double time_step,
                                                                        const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                                       const CqmomMomentBoundaryContribution& boundary,
-                                                                       const CqmomPhaseSpaceEvolutionOptions& options);
-
-/**
- * Advanced overloads taking a packed phase-space velocity callback, evaluated
- * once per right-hand-side evaluation for all quadrature nodes together.
- * Behaviour matches the per-node overloads above; only the callback form
- * differs. See `PackedPhaseSpaceVelocity` and `make_packed_velocity`.
- */
-[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_advection(const QmomState& state, double t, double time_step,
-                                                                   const PackedPhaseSpaceVelocity& velocity,
-                                                                   const QmomPhaseSpaceEvolutionOptions& options = {});
-
-[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, double t, double time_step,
-                                                                     const PackedPhaseSpaceVelocity& velocity, const MomentSource& source,
-                                                                     const QmomPhaseSpaceEvolutionOptions& options = {});
-
-[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, double t, double time_step,
-                                                                     const PackedPhaseSpaceVelocity& velocity, const MomentSource& source,
-                                                                     const MomentBoundaryContribution& boundary,
-                                                                     const QmomPhaseSpaceEvolutionOptions& options);
-
-[[nodiscard]] CqmomPhaseSpaceEvolutionResult advance_cqmom_advection(const CqmomState& state, double t, double time_step,
-                                                                     const PackedPhaseSpaceVelocity& velocity,
-                                                                     const CqmomPhaseSpaceEvolutionOptions& options = {});
-
-[[nodiscard]] CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state, double t, double time_step,
-                                                                       const PackedPhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
-                                                                       const CqmomPhaseSpaceEvolutionOptions& options = {});
-
-[[nodiscard]] CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state, double t, double time_step,
-                                                                       const PackedPhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
                                                                        const CqmomMomentBoundaryContribution& boundary,
                                                                        const CqmomPhaseSpaceEvolutionOptions& options);
 

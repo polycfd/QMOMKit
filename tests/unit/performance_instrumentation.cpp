@@ -233,8 +233,8 @@ void test_counter_scope_records_direct_events_when_enabled()
 
 void test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_enabled()
 {
-    const auto velocity = [](double, const std::vector<double>& coordinate)
-    { return std::vector<double>{0.05 + 0.01 * coordinate[0], -0.02 + 0.03 * coordinate[1]}; };
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinate) { return std::vector<double>{0.05 + 0.01 * coordinate[0], -0.02 + 0.03 * coordinate[1]}; });
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
@@ -730,7 +730,8 @@ void test_ssp_node_advection_does_not_record_source_rk_stages_when_enabled()
     {
         qmomkit::internal::performance::CounterScope scope(session);
         result.emplace(qmomkit::advance_nodes(
-            quadrature, 0.0, 0.1, [](double, const std::vector<double>& xi) { return std::vector<double>{0.25 * xi[0]}; }, options));
+            quadrature, 0.0, 0.1,
+            qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>{0.25 * xi[0]}; }), options));
     }
 
     assert(result.has_value());

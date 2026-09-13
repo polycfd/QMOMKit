@@ -55,7 +55,8 @@ qmomkit::QmomState initial_state(const std::size_t count)
 
 qmomkit::PhaseSpaceVelocity velocity()
 {
-    return [](double, const std::vector<double>& coordinate) { return std::vector<double>{coordinate[0]}; };
+    return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
+    { std::copy(coordinates.begin(), coordinates.end(), velocities.begin()); };
 }
 
 double error(const std::vector<double>& actual, const std::vector<double>& expected)

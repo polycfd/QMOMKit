@@ -2991,7 +2991,8 @@ max_step = 0.02
 )");
     assert(configured_options.ok());
 
-    const auto velocity = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.25); };
+    const qmomkit::PhaseSpaceVelocity velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.25); });
     const auto source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 

@@ -272,7 +272,11 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     double t = t0;
     std::size_t function_evaluations = 0;
     double h_abs = std::min(std::abs(options.initial_step), max_step);
-    std::optional<std::vector<double>> first_derivative;
+    // One workspace serves every attempt of this integration, so the stage
+    // vectors are allocated on the first attempt rather than on each one. It is
+    // a local and not shared state, so two threads integrating at the same time
+    // never meet in it.
+    internal::EmbeddedRkWorkspace workspace;
 
     AdaptiveRkResult result;
     result.state = y;
@@ -321,10 +325,11 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
             h = t_new - t;
             h_abs = std::abs(h);
 
-            internal::EmbeddedRkStep step = internal::take_embedded_rk_step(*tableau, rhs, t, y, h, first_derivative, function_evaluations);
-            const bool step_is_finite =
-                internal::all_finite(step.higher_state) && internal::all_finite(step.embedded_state) && internal::all_finite(step.error);
-            const double norm = step_is_finite ? error_norm(step.error, y, step.higher_state, options) : std::numeric_limits<double>::infinity();
+            internal::take_embedded_rk_step(*tableau, rhs, t, y, h, function_evaluations, workspace);
+            const bool step_is_finite = internal::all_finite(workspace.higher_state) && internal::all_finite(workspace.embedded_state) &&
+                                        internal::all_finite(workspace.error);
+            const double norm =
+                step_is_finite ? error_norm(workspace.error, y, workspace.higher_state, options) : std::numeric_limits<double>::infinity();
             const bool error_is_acceptable = std::isfinite(norm) && norm < 1.0;
             const bool step_is_at_effective_lower_bound = requested_h_abs <= effective_lower_bound || h_abs <= effective_lower_bound;
             const bool lower_bound_acceptance = step_is_finite && std::isfinite(norm) && step_is_at_effective_lower_bound;
@@ -345,8 +350,21 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
                 ++result.accepted_steps;
                 internal::performance::record_embedded_rk_step(true);
                 t = t_new;
-                y = std::move(step.higher_state);
-                first_derivative = tableau->fsal ? std::optional<std::vector<double>>{std::move(step.final_derivative)} : std::nullopt;
+                // Swapping rather than assigning hands the retired state vector
+                // back to the workspace, which overwrites it on the next attempt.
+                y.swap(workspace.higher_state);
+                // The cached slope belongs to the state the step started from, so
+                // accepting invalidates it. A first-same-as-last tableau evaluates
+                // its last stage at the accepted state, which is the slope the next
+                // step starts from, so that stage becomes the new cache.
+                if (tableau->fsal)
+                {
+                    workspace.derivatives[0].swap(workspace.derivatives[tableau->stage_count - 1]);
+                }
+                else
+                {
+                    workspace.has_first_derivative = false;
+                }
                 h_abs *= factor;
                 step_accepted = true;
             }
@@ -359,7 +377,9 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
                 }
                 h_abs *= factor;
                 step_rejected = true;
-                first_derivative = std::move(step.first_derivative);
+                // A rejected attempt leaves t and y where they were, so the slope
+                // the attempt evaluated there is still the one the retry needs and
+                // the workspace keeps it.
                 ++result.rejected_steps;
                 internal::performance::record_embedded_rk_step(false);
                 if (step_is_at_effective_lower_bound)

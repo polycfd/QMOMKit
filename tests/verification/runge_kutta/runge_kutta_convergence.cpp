@@ -214,8 +214,8 @@ std::vector<EmbeddedFixedRun> verify_embedded_fixed_step_convergence(const qmomk
         QMOMKIT_VERIFY_CHECK(result.accepted_steps == steps);
 
         std::size_t function_evaluations = 0;
-        const qmomkit::internal::EmbeddedRkStep one_step =
-            qmomkit::internal::take_embedded_rk_step(tableau, exponential_decay_rhs(), 0.0, {1.0}, dt, std::nullopt, function_evaluations);
+        qmomkit::internal::EmbeddedRkWorkspace one_step;
+        qmomkit::internal::take_embedded_rk_step(tableau, exponential_decay_rhs(), 0.0, {1.0}, dt, function_evaluations, one_step);
         QMOMKIT_VERIFY_CHECK(function_evaluations == tableau.stage_count);
         runs.push_back(EmbeddedFixedRun{steps, dt, std::abs(result.state[0] - exact), std::abs(one_step.error[0])});
     }

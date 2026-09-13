@@ -163,9 +163,9 @@ vector per node per right-hand-side evaluation; prefer writing a
 `advance_nodes(...)`, by the advection-only stages, and by the full
 `advance_qmom_phase_space(...)` and `advance_cqmom_phase_space(...)`
 operations. Measured over a full Strang step with two nodes per dimension,
-writing it directly rather than adapting a per-node callback removes about a
-quarter of the step's heap allocations in two dimensions, rising to about
-thirty percent in five.
+writing it directly rather than adapting a per-node callback removes close to
+thirty percent of the step's heap allocations in two dimensions, rising to about
+forty percent in five.
 
 Use the advanced `advance_nodes(...)` operation when you already have a
 quadrature and want to evolve only the node positions:

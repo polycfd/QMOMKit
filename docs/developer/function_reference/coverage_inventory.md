@@ -448,7 +448,7 @@ the executable-body count.
 | `rhs_checked` | [54](../../../src/internal/embedded_runge_kutta.cpp#L54) |
 | `embedded_rk_tableau` | [67](../../../src/internal/embedded_runge_kutta.cpp#L67) |
 | `take_embedded_rk_step` | [79](../../../src/internal/embedded_runge_kutta.cpp#L79) |
-| `embedded_rk_controller_exponent` | [130](../../../src/internal/embedded_runge_kutta.cpp#L130) |
+| `embedded_rk_controller_exponent` | [129](../../../src/internal/embedded_runge_kutta.cpp#L129) |
 
 ### `src/internal/householder_qr.cpp`
 

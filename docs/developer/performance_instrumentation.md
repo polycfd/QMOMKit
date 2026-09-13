@@ -211,22 +211,32 @@ current values here after work that changes them, so the two can be compared
 directly. Values are the same whether performance instrumentation is compiled
 in or out.
 
-Recorded at commit `c7576c1`, Release build, from `allocation_benchmark`. The
-phase-space steps are listed for both velocity callback forms: a
+Recorded on the embedded-RK stage-buffer reuse change, Release build, from
+`allocation_benchmark`. Cite a commit here only once it is on `main`: a hash
+taken from a branch stops resolving when that branch is squash-merged.
+
+The phase-space steps are listed for both velocity callback forms: a
 `PhaseSpaceVelocity` written directly, and a `PerNodePhaseSpaceVelocity`
 adapted through `make_phase_space_velocity`, which costs one call and one
 returned vector per node per right-hand-side evaluation.
 
 | Operation | allocations, adapted | allocations, packed | bytes, adapted | bytes, packed |
 | --- | --- | --- | --- | --- |
-| CQMOM 2D 2x2 Strang phase-space step | 492 | 388 | 20,840 | 19,176 |
-| CQMOM 3D 2x2x2 Strang phase-space step | 837 | 629 | 49,952 | 44,960 |
-| QMOM n=3 Strang phase-space step | 215 | 137 | 4,864 | 4,240 |
+| CQMOM 2D 2x2 Strang phase-space step | 376 | 272 | 16,992 | 15,328 |
+| CQMOM 3D 2x2x2 Strang phase-space step | 621 | 413 | 40,080 | 35,088 |
+| QMOM n=3 Strang phase-space step | 185 | 107 | 4,144 | 3,520 |
 
 | Operation | allocations | bytes |
 | --- | --- | --- |
-| CQMOM 2D 2x2 reconstruction | 187 | 7,880 |
+| CQMOM 2D 2x2 reconstruction | 153 | 7,152 |
 | QMOM n=3 inversion | 11 | 776 |
+
+Every phase-space step above costs exactly 30 allocations fewer than it did
+before the embedded-RK controller reused its stage buffers across the attempts
+of an integration, independent of dimension and of callback form. The saving is
+the same everywhere because the number of attempts per step follows the step
+size and the tolerances, not the size of the node state. Reconstruction and
+inversion are unchanged, as they run no time integration.
 
 Workload counters per state-step are unchanged from the baseline, so the
 reduction comes from removing redundant allocation rather than from doing less

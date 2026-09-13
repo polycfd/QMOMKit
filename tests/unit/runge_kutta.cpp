@@ -128,9 +128,10 @@ void test_embedded_rk_one_steps_match_independent_scalar_formulae()
     {
         const qmomkit::internal::EmbeddedRkTableau& tableau = qmomkit::internal::embedded_rk_tableau(method);
         std::size_t evaluations = 0;
-        const qmomkit::internal::EmbeddedRkStep forward = qmomkit::internal::take_embedded_rk_step(
+        qmomkit::internal::EmbeddedRkWorkspace forward;
+        qmomkit::internal::take_embedded_rk_step(
             tableau, [](double, const std::vector<double>& state) { return std::vector<double>{state[0], -2.0 * state[1]}; }, 0.25, {1.5, -0.5}, 0.2,
-            std::nullopt, evaluations);
+            evaluations, forward);
         const std::vector<double> expected_high{reference_scalar_embedded_step(method, 1.5, 1.0, 0.2, true),
                                                 reference_scalar_embedded_step(method, -0.5, -2.0, 0.2, true)};
         const std::vector<double> expected_low{reference_scalar_embedded_step(method, 1.5, 1.0, 0.2, false),
@@ -141,9 +142,10 @@ void test_embedded_rk_one_steps_match_independent_scalar_formulae()
         assert(evaluations == tableau.stage_count);
 
         evaluations = 0;
-        const qmomkit::internal::EmbeddedRkStep backward = qmomkit::internal::take_embedded_rk_step(
-            tableau, [](double, const std::vector<double>& state) { return std::vector<double>{state[0]}; }, 0.25, {1.5}, -0.2, std::nullopt,
-            evaluations);
+        qmomkit::internal::EmbeddedRkWorkspace backward;
+        qmomkit::internal::take_embedded_rk_step(
+            tableau, [](double, const std::vector<double>& state) { return std::vector<double>{state[0]}; }, 0.25, {1.5}, -0.2, evaluations,
+            backward);
         assert_near(backward.higher_state[0], reference_scalar_embedded_step(method, 1.5, 1.0, -0.2, true), 2.0e-15);
     }
 }
@@ -159,9 +161,10 @@ void test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs()
     {
         const qmomkit::internal::EmbeddedRkTableau& tableau = qmomkit::internal::embedded_rk_tableau(method);
         std::size_t evaluations = 0;
-        const qmomkit::internal::EmbeddedRkStep result = qmomkit::internal::take_embedded_rk_step(
+        qmomkit::internal::EmbeddedRkWorkspace result;
+        qmomkit::internal::take_embedded_rk_step(
             tableau, [](const double time, const std::vector<double>&) { return std::vector<double>{time}; }, initial_time, {initial_value}, step,
-            std::nullopt, evaluations);
+            evaluations, result);
 
         // y' = t has y(t + h) = y(t) + t h + h^2 / 2.  Both members of
         // these pairs must use their declared stage abscissae to recover it.
@@ -169,6 +172,47 @@ void test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs()
         assert_near(result.embedded_state[0], expected, 2.0e-15);
         assert_near(result.error[0], 0.0, 2.0e-15);
         assert(evaluations == tableau.stage_count);
+    }
+}
+
+void test_embedded_rk_workspace_reuse_is_transparent()
+{
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        const qmomkit::internal::EmbeddedRkTableau& tableau = qmomkit::internal::embedded_rk_tableau(method);
+        const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& state) { return std::vector<double>{state[0], -2.0 * state[1]}; };
+        const std::vector<double> start{1.5, -0.5};
+
+        std::size_t fresh_evaluations = 0;
+        qmomkit::internal::EmbeddedRkWorkspace fresh;
+        qmomkit::internal::take_embedded_rk_step(tableau, rhs, 0.25, start, 0.2, fresh_evaluations, fresh);
+        assert(fresh_evaluations == tableau.stage_count);
+        assert(fresh.has_first_derivative);
+
+        // A workspace that already served an unrelated step, and whose cache the
+        // caller therefore invalidated, must take the step exactly as a fresh one
+        // does: reused storage may not carry values between attempts.
+        std::size_t reused_evaluations = 0;
+        qmomkit::internal::EmbeddedRkWorkspace reused;
+        qmomkit::internal::take_embedded_rk_step(tableau, rhs, 0.1, {2.0, 1.0}, 0.3, reused_evaluations, reused);
+        reused.has_first_derivative = false;
+        reused_evaluations = 0;
+        qmomkit::internal::take_embedded_rk_step(tableau, rhs, 0.25, start, 0.2, reused_evaluations, reused);
+        assert(reused_evaluations == tableau.stage_count);
+        assert_vector_near(reused.higher_state, fresh.higher_state, 0.0);
+        assert_vector_near(reused.embedded_state, fresh.embedded_state, 0.0);
+        assert_vector_near(reused.error, fresh.error, 0.0);
+
+        // Retaking the step the workspace just took is the rejected-attempt retry:
+        // the cached slope at the unchanged starting state replaces exactly one
+        // evaluation and reproduces the same step bit for bit.
+        std::size_t retry_evaluations = 0;
+        qmomkit::internal::take_embedded_rk_step(tableau, rhs, 0.25, start, 0.2, retry_evaluations, reused);
+        assert(retry_evaluations == tableau.stage_count - 1);
+        assert(reused.has_first_derivative);
+        assert_vector_near(reused.higher_state, fresh.higher_state, 0.0);
+        assert_vector_near(reused.embedded_state, fresh.embedded_state, 0.0);
+        assert_vector_near(reused.error, fresh.error, 0.0);
     }
 }
 
@@ -907,6 +951,7 @@ int main(const int argc, char** argv)
             {"embedded_rk_one_steps_match_independent_scalar_formulae", test_embedded_rk_one_steps_match_independent_scalar_formulae},
             {"embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs",
              test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs},
+            {"embedded_rk_workspace_reuse_is_transparent", test_embedded_rk_workspace_reuse_is_transparent},
             {"adaptive_initial_step_default_and_override", test_adaptive_initial_step_default_and_override},
             {"embedded_rk_default_initial_step_is_used_for_both_methods", test_embedded_rk_default_initial_step_is_used_for_both_methods},
             {"embedded_rk_fsal_reuses_accepted_endpoint_derivative", test_embedded_rk_fsal_reuses_accepted_endpoint_derivative},

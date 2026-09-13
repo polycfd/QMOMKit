@@ -76,58 +76,54 @@ const EmbeddedRkTableau& embedded_rk_tableau(const EmbeddedRkMethod method)
     throw std::invalid_argument("Unsupported embedded Runge-Kutta method.");
 }
 
-EmbeddedRkStep take_embedded_rk_step(const EmbeddedRkTableau& tableau, const OdeRhs& rhs, const double t, const std::vector<double>& state,
-                                     const double step, const std::optional<std::vector<double>>& first_derivative, std::size_t& function_evaluations)
+void take_embedded_rk_step(const EmbeddedRkTableau& tableau, const OdeRhs& rhs, const double t, const std::vector<double>& state, const double step,
+                           std::size_t& function_evaluations, EmbeddedRkWorkspace& workspace)
 {
-    std::array<std::vector<double>, maximum_embedded_rk_stages> derivatives;
-    if (first_derivative.has_value())
+    if (workspace.has_first_derivative)
     {
-        require_same_size(*first_derivative, state, "Cached RHS vector has the wrong size.");
-        derivatives[0] = *first_derivative;
+        require_same_size(workspace.derivatives[0], state, "Cached RHS vector has the wrong size.");
     }
     else
     {
-        derivatives[0] = rhs_checked(rhs, t, state);
+        workspace.derivatives[0] = rhs_checked(rhs, t, state);
         ++function_evaluations;
+        workspace.has_first_derivative = true;
     }
 
-    // Reused across stages: every stage resets it to the incoming state before
-    // accumulating, so only the first iteration needs to allocate.
-    std::vector<double> stage_state;
+    // Every buffer below is assigned its full length before it is read, so a
+    // workspace that has already served an attempt reuses the storage from that
+    // attempt and only the first attempt of an integration allocates.
     for (std::size_t stage = 1; stage < tableau.stage_count; ++stage)
     {
-        stage_state.assign(state.begin(), state.end());
+        workspace.stage_state.assign(state.begin(), state.end());
         for (std::size_t previous = 0; previous < stage; ++previous)
         {
             const double coefficient = step * tableau.a[stage][previous];
-            for (std::size_t component = 0; component < stage_state.size(); ++component)
+            for (std::size_t component = 0; component < workspace.stage_state.size(); ++component)
             {
-                stage_state[component] += coefficient * derivatives[previous][component];
+                workspace.stage_state[component] += coefficient * workspace.derivatives[previous][component];
             }
         }
-        derivatives[stage] = rhs_checked(rhs, t + tableau.c[stage] * step, stage_state);
+        workspace.derivatives[stage] = rhs_checked(rhs, t + tableau.c[stage] * step, workspace.stage_state);
         ++function_evaluations;
     }
 
-    std::vector<double> higher_state = state;
-    std::vector<double> embedded_state = state;
+    workspace.higher_state.assign(state.begin(), state.end());
+    workspace.embedded_state.assign(state.begin(), state.end());
     for (std::size_t stage = 0; stage < tableau.stage_count; ++stage)
     {
         for (std::size_t component = 0; component < state.size(); ++component)
         {
-            higher_state[component] += step * tableau.b[stage] * derivatives[stage][component];
-            embedded_state[component] += step * tableau.b_embedded[stage] * derivatives[stage][component];
+            workspace.higher_state[component] += step * tableau.b[stage] * workspace.derivatives[stage][component];
+            workspace.embedded_state[component] += step * tableau.b_embedded[stage] * workspace.derivatives[stage][component];
         }
     }
 
-    std::vector<double> error(state.size(), 0.0);
+    workspace.error.resize(state.size());
     for (std::size_t component = 0; component < state.size(); ++component)
     {
-        error[component] = higher_state[component] - embedded_state[component];
+        workspace.error[component] = workspace.higher_state[component] - workspace.embedded_state[component];
     }
-
-    return EmbeddedRkStep{std::move(higher_state), std::move(embedded_state), std::move(error), std::move(derivatives[0]),
-                          std::move(derivatives[tableau.stage_count - 1])};
 }
 
 double embedded_rk_controller_exponent(const EmbeddedRkTableau& tableau)

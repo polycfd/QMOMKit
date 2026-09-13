@@ -85,21 +85,22 @@ double expected_daughter_monomial(const std::vector<double>& coordinates, const 
 
 qmomkit::PhaseSpaceVelocity particle_velocity()
 {
-    return [](double, const std::vector<double>& coordinates)
-    {
-        if (coordinates.size() != 4)
+    return qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinates)
         {
-            throw std::invalid_argument("Particle coordinates must be ordered as positive (d,u,v,w).");
-        }
-        const double du = gas_u - coordinates[1];
-        const double dv = gas_v - coordinates[2];
-        const double dw = gas_w - coordinates[3];
-        const double slip = std::sqrt(du * du + dv * dv + dw * dw);
-        const double reynolds = gas_density * coordinates[0] * slip / gas_viscosity;
-        const double drag =
-            3.0 * gas_density / (4.0 * particle_density * coordinates[0]) * (24.0 / reynolds * (1.0 + 0.15 * std::pow(reynolds, 0.687))) * slip;
-        return std::vector<double>{0.0, drag * du, drag * dv, drag * dw};
-    };
+            if (coordinates.size() != 4)
+            {
+                throw std::invalid_argument("Particle coordinates must be ordered as positive (d,u,v,w).");
+            }
+            const double du = gas_u - coordinates[1];
+            const double dv = gas_v - coordinates[2];
+            const double dw = gas_w - coordinates[3];
+            const double slip = std::sqrt(du * du + dv * dv + dw * dw);
+            const double reynolds = gas_density * coordinates[0] * slip / gas_viscosity;
+            const double drag =
+                3.0 * gas_density / (4.0 * particle_density * coordinates[0]) * (24.0 / reynolds * (1.0 + 0.15 * std::pow(reynolds, 0.687))) * slip;
+            return std::vector<double>{0.0, drag * du, drag * dv, drag * dw};
+        });
 }
 
 qmomkit::CqmomMomentSource breakup_source()

@@ -18,21 +18,22 @@ constexpr double evaporation_coefficient = 500.0;
 
 qmomkit::PhaseSpaceVelocity evaporation_velocity()
 {
-    return [](double, const std::vector<double>& coordinates)
-    {
-        if (coordinates.size() != 1)
+    return qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinates)
         {
-            throw std::invalid_argument("Aerosol evaporation requires one diameter coordinate.");
-        }
+            if (coordinates.size() != 1)
+            {
+                throw std::invalid_argument("Aerosol evaporation requires one diameter coordinate.");
+            }
 
-        const double diameter = coordinates[0];
-        if (diameter <= residual_diameter)
-        {
-            return std::vector<double>{0.0};
-        }
+            const double diameter = coordinates[0];
+            if (diameter <= residual_diameter)
+            {
+                return std::vector<double>{0.0};
+            }
 
-        return std::vector<double>{-evaporation_coefficient / (2.0 * diameter)};
-    };
+            return std::vector<double>{-evaporation_coefficient / (2.0 * diameter)};
+        });
 }
 
 bool is_within_modeled_support(const double diameter)

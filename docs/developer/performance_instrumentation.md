@@ -204,6 +204,34 @@ Heap allocations per operation, from `allocation_benchmark`:
 | CQMOM 2D 2x2 reconstruction | 203 | 8,392 |
 | QMOM n=3 inversion | 13 | 920 |
 
+### Current record
+
+The baseline above is a fixed historical marker and is not updated. Record
+current values here after work that changes them, so the two can be compared
+directly. Values are the same whether performance instrumentation is compiled
+in or out.
+
+Recorded at commit `c7576c1`, Release build, from `allocation_benchmark`. The
+phase-space steps are listed for both velocity callback forms: a
+`PhaseSpaceVelocity` written directly, and a `PerNodePhaseSpaceVelocity`
+adapted through `make_phase_space_velocity`, which costs one call and one
+returned vector per node per right-hand-side evaluation.
+
+| Operation | allocations, adapted | allocations, packed | bytes, adapted | bytes, packed |
+| --- | --- | --- | --- | --- |
+| CQMOM 2D 2x2 Strang phase-space step | 492 | 388 | 20,840 | 19,176 |
+| CQMOM 3D 2x2x2 Strang phase-space step | 837 | 629 | 49,952 | 44,960 |
+| QMOM n=3 Strang phase-space step | 215 | 137 | 4,864 | 4,240 |
+
+| Operation | allocations | bytes |
+| --- | --- | --- |
+| CQMOM 2D 2x2 reconstruction | 187 | 7,880 |
+| QMOM n=3 inversion | 11 | 776 |
+
+Workload counters per state-step are unchanged from the baseline, so the
+reduction comes from removing redundant allocation rather than from doing less
+numerical work.
+
 Workload counters per state-step, CQMOM 2D 2x2 Strang
 (`performance_cqmom_phase_space_evolution_strang_2d_2x2`):
 

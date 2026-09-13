@@ -10,10 +10,10 @@ The inventory covers the 23 core `.cpp` files and installed/private headers.
 It lists explicit functions, methods, constructors, and operators by defining
 source range. Defaulted or implicit special members are omitted; consequential
 lambdas are documented with their owning function. Instrumentation definitions
-are included for its enabled preprocessor branch. Line links are navigation aids,
-not permanent API identifiers.
+are included for its enabled preprocessor branch, and debug-only contract checks
+for theirs. Line links are navigation aids, not permanent API identifiers.
 
-The inventory includes **927 definition locations**, grouped by named function
+The inventory includes **933 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -579,10 +579,16 @@ the executable-body count.
 
 | Function or overload family | Definition lines |
 |---|---|
-| `format_diagnostic_vector` | [15](../../../src/internal/phase_space_velocity_validation.hpp#L15) |
-| `phase_space_velocity_wrong_dimension_message` | [31](../../../src/internal/phase_space_velocity_validation.hpp#L31) |
-| `phase_space_velocity_non_finite_message` | [40](../../../src/internal/phase_space_velocity_validation.hpp#L40) |
-| `validate_phase_space_velocity_result` | [53](../../../src/internal/phase_space_velocity_validation.hpp#L53) |
+| `format_diagnostic_vector` | [18](../../../src/internal/phase_space_velocity_validation.hpp#L18) |
+| `phase_space_velocity_wrong_dimension_message` | [34](../../../src/internal/phase_space_velocity_validation.hpp#L34) |
+| `phase_space_node_slice` | [43](../../../src/internal/phase_space_velocity_validation.hpp#L43) |
+| `phase_space_velocity_non_finite_message` | [50](../../../src/internal/phase_space_velocity_validation.hpp#L50) |
+| `validate_phase_space_velocity_result` | [63](../../../src/internal/phase_space_velocity_validation.hpp#L63) |
+| `phase_space_velocity_poison` | [93](../../../src/internal/phase_space_velocity_validation.hpp#L93) |
+| `is_phase_space_velocity_poison` | [100](../../../src/internal/phase_space_velocity_validation.hpp#L100) |
+| `phase_space_velocity_unfilled_message` | [107](../../../src/internal/phase_space_velocity_validation.hpp#L107) |
+| `poison_phase_space_velocity_buffer` | [122](../../../src/internal/phase_space_velocity_validation.hpp#L122) |
+| `validate_packed_phase_space_velocity_result` | [133](../../../src/internal/phase_space_velocity_validation.hpp#L133) |
 
 ### `src/internal/qmom_state_access.hpp`
 

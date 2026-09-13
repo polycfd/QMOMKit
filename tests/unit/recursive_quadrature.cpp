@@ -1917,6 +1917,104 @@ void test_recursive_bp_failure_independent_of_diagnostic_level()
     }
 }
 
+// A flat multi-index table stores equal-rank indices contiguously, so copying
+// one costs a single allocation instead of one per row. These tests pin the
+// contract that moment layouts and terminal-path tables will rely on.
+void test_multi_index_table_round_trips_and_views_rows()
+{
+    const std::vector<qmomkit::MultiIndex> rows{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}};
+    const qmomkit::MultiIndexTable table(rows);
+
+    assert(table.size() == 3);
+    assert(table.rank() == 3);
+    assert(!table.empty());
+    assert(table.values() == std::vector<std::size_t>({0, 1, 2, 3, 4, 5, 6, 7, 8}));
+
+    for (std::size_t row = 0; row < rows.size(); ++row)
+    {
+        const qmomkit::MultiIndexView view = table[row];
+        assert(view.size() == 3);
+        assert(view == rows[row]);
+        assert(rows[row] == view);
+        assert(view.to_multi_index() == rows[row]);
+        for (std::size_t axis = 0; axis < view.size(); ++axis)
+        {
+            assert(view[axis] == rows[row][axis]);
+        }
+    }
+    assert(table.to_multi_indices() == rows);
+}
+
+// Contiguity is the point of the type: rows are adjacent in memory, which is
+// what removes the per-row allocation and keeps traversal sequential.
+void test_multi_index_table_storage_is_contiguous_and_row_major()
+{
+    const qmomkit::MultiIndexTable table(std::vector<qmomkit::MultiIndex>{{1, 2}, {3, 4}});
+    assert(table[1].data() == table[0].data() + table.rank());
+    assert(table.values().data() == table[0].data());
+}
+
+void test_multi_index_table_accepts_flat_storage_and_rejects_ragged_input()
+{
+    const qmomkit::MultiIndexTable flat(2, std::vector<std::size_t>{1, 2, 3, 4});
+    assert(flat.size() == 2);
+    assert(flat[1] == qmomkit::MultiIndex({3, 4}));
+
+    assert_throws_invalid_argument([] { (void)qmomkit::MultiIndexTable(2, std::vector<std::size_t>{1, 2, 3}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::MultiIndexTable(0, std::vector<std::size_t>{1}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::MultiIndexTable(std::vector<qmomkit::MultiIndex>{{1, 2}, {3}}); });
+
+    const qmomkit::MultiIndexTable table(std::vector<qmomkit::MultiIndex>{{1, 2}});
+    bool threw = false;
+    try
+    {
+        (void)table.at(1);
+    }
+    catch (const std::out_of_range&)
+    {
+        threw = true;
+    }
+    assert(threw);
+}
+
+void test_multi_index_table_grows_and_compares()
+{
+    qmomkit::MultiIndexTable table;
+    assert(table.empty());
+    assert(table.size() == 0);
+    assert(table.rank() == 0);
+
+    table.reserve(2);
+    table.push_back(qmomkit::MultiIndex{5, 6});
+    assert(table.rank() == 2);
+    const qmomkit::MultiIndexTable source(std::vector<qmomkit::MultiIndex>{{7, 8}});
+    table.push_back(source[0]);
+    assert(table.size() == 2);
+    assert(table[1] == qmomkit::MultiIndex({7, 8}));
+    assert_throws_invalid_argument([&table] { table.push_back(qmomkit::MultiIndex{1, 2, 3}); });
+
+    assert(table == qmomkit::MultiIndexTable(std::vector<qmomkit::MultiIndex>{{5, 6}, {7, 8}}));
+    assert(table != qmomkit::MultiIndexTable(std::vector<qmomkit::MultiIndex>{{5, 6}}));
+    // Equal flat storage with a different rank is a different table.
+    assert(qmomkit::MultiIndexTable(1, std::vector<std::size_t>{1, 2}) != qmomkit::MultiIndexTable(2, std::vector<std::size_t>{1, 2}));
+
+    table.clear();
+    assert(table.empty());
+}
+
+void test_multi_index_table_matches_enumerate_multi_indices()
+{
+    const std::vector<std::size_t> extents{2, 3};
+    const std::vector<qmomkit::MultiIndex> enumerated = qmomkit::enumerate_multi_indices(extents);
+    const qmomkit::MultiIndexTable table(enumerated);
+    assert(table.size() == qmomkit::product_extents(extents));
+    for (std::size_t row = 0; row < table.size(); ++row)
+    {
+        assert(table[row] == enumerated[row]);
+        assert(qmomkit::flatten_multi_index(table[row].to_multi_index(), extents) == row);
+    }
+}
+
 } // namespace
 
 void run_all_recursive_quadrature_tests()
@@ -2003,6 +2101,11 @@ void run_indexing_layout_tests()
     test_invalid_hierarchy_inputs();
     test_invalid_index_inputs();
     test_recursive_failure_diagnostics_identify_failing_branch();
+    test_multi_index_table_round_trips_and_views_rows();
+    test_multi_index_table_storage_is_contiguous_and_row_major();
+    test_multi_index_table_accepts_flat_storage_and_rejects_ragged_input();
+    test_multi_index_table_grows_and_compares();
+    test_multi_index_table_matches_enumerate_multi_indices();
 }
 
 void run_lean_reconstruction_tests()
@@ -2134,5 +2237,10 @@ int main(const int argc, char** argv)
             {"public_dense_and_lean_bp_success_independent_of_diagnostic_level",
              test_public_dense_and_lean_bp_success_independent_of_diagnostic_level},
             {"recursive_bp_failure_independent_of_diagnostic_level", test_recursive_bp_failure_independent_of_diagnostic_level},
+            {"multi_index_table_round_trips_and_views_rows", test_multi_index_table_round_trips_and_views_rows},
+            {"multi_index_table_storage_is_contiguous_and_row_major", test_multi_index_table_storage_is_contiguous_and_row_major},
+            {"multi_index_table_accepts_flat_storage_and_rejects_ragged_input", test_multi_index_table_accepts_flat_storage_and_rejects_ragged_input},
+            {"multi_index_table_grows_and_compares", test_multi_index_table_grows_and_compares},
+            {"multi_index_table_matches_enumerate_multi_indices", test_multi_index_table_matches_enumerate_multi_indices},
         });
 }

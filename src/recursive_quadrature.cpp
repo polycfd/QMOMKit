@@ -941,6 +941,128 @@ MultiIndex unflatten_multi_index(const std::size_t flat_index, const std::vector
     return multi_index;
 }
 
+bool operator==(const MultiIndexView& lhs, const MultiIndexView& rhs) noexcept
+{
+    return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
+bool operator!=(const MultiIndexView& lhs, const MultiIndexView& rhs) noexcept
+{
+    return !(lhs == rhs);
+}
+
+bool operator==(const MultiIndexView& lhs, const MultiIndex& rhs) noexcept
+{
+    return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
+bool operator==(const MultiIndex& lhs, const MultiIndexView& rhs) noexcept
+{
+    return rhs == lhs;
+}
+
+bool operator!=(const MultiIndexView& lhs, const MultiIndex& rhs) noexcept
+{
+    return !(lhs == rhs);
+}
+
+bool operator!=(const MultiIndex& lhs, const MultiIndexView& rhs) noexcept
+{
+    return !(rhs == lhs);
+}
+
+MultiIndexTable::MultiIndexTable(const std::size_t rank, std::vector<std::size_t> values) : values_(std::move(values)), rank_(rank)
+{
+    if (rank_ == 0)
+    {
+        if (!values_.empty())
+        {
+            throw std::invalid_argument("A rank-zero multi-index table must be empty.");
+        }
+        return;
+    }
+    if (values_.size() % rank_ != 0)
+    {
+        throw std::invalid_argument("Multi-index table storage must contain a whole number of equal-rank indices.");
+    }
+}
+
+MultiIndexTable::MultiIndexTable(const std::vector<MultiIndex>& indices)
+{
+    if (indices.empty())
+    {
+        return;
+    }
+    rank_ = indices.front().size();
+    values_.reserve(indices.size() * rank_);
+    for (const MultiIndex& index : indices)
+    {
+        if (index.size() != rank_)
+        {
+            throw std::invalid_argument("Multi-index table entries must all have the same rank.");
+        }
+        values_.insert(values_.end(), index.begin(), index.end());
+    }
+}
+
+MultiIndexView MultiIndexTable::at(const std::size_t row) const
+{
+    if (row >= size())
+    {
+        throw std::out_of_range("Multi-index table row is outside the table.");
+    }
+    return (*this)[row];
+}
+
+void MultiIndexTable::push_back(const MultiIndex& index)
+{
+    push_back(MultiIndexView(index.data(), index.size()));
+}
+
+void MultiIndexTable::push_back(const MultiIndexView index)
+{
+    if (values_.empty() && rank_ == 0)
+    {
+        rank_ = index.size();
+    }
+    if (index.size() != rank_)
+    {
+        throw std::invalid_argument("Multi-index table entries must all have the same rank.");
+    }
+    values_.insert(values_.end(), index.begin(), index.end());
+}
+
+void MultiIndexTable::reserve(const std::size_t rows)
+{
+    values_.reserve(rows * rank_);
+}
+
+void MultiIndexTable::clear() noexcept
+{
+    values_.clear();
+}
+
+std::vector<MultiIndex> MultiIndexTable::to_multi_indices() const
+{
+    std::vector<MultiIndex> indices;
+    indices.reserve(size());
+    for (std::size_t row = 0; row < size(); ++row)
+    {
+        indices.push_back((*this)[row].to_multi_index());
+    }
+    return indices;
+}
+
+bool operator==(const MultiIndexTable& lhs, const MultiIndexTable& rhs) noexcept
+{
+    return lhs.rank() == rhs.rank() && lhs.values() == rhs.values();
+}
+
+bool operator!=(const MultiIndexTable& lhs, const MultiIndexTable& rhs) noexcept
+{
+    return !(lhs == rhs);
+}
+
 std::vector<MultiIndex> enumerate_multi_indices(const std::vector<std::size_t>& extents)
 {
     const std::size_t total = product_extents(extents);

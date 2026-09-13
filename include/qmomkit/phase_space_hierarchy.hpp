@@ -57,7 +57,7 @@ public:
      * Convert between flat and multi-index node notation in phase-space dimension
      * order, independent of the conditioning order.
      */
-    [[nodiscard]] std::size_t flatten_node_index(const MultiIndex& node_index) const;
+    [[nodiscard]] std::size_t flatten_node_index(MultiIndexView node_index) const;
     [[nodiscard]] MultiIndex unflatten_node_index(std::size_t flat_index) const;
 
 private:

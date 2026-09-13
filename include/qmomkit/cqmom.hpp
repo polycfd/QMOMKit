@@ -74,9 +74,9 @@ public:
         return terminal_paths_;
     }
 
-    [[nodiscard]] double weight(const MultiIndex& node_index) const;
-    [[nodiscard]] double abscissa(std::size_t dimension, const MultiIndex& node_index) const;
-    [[nodiscard]] std::vector<double> node(const MultiIndex& node_index) const;
+    [[nodiscard]] double weight(MultiIndexView node_index) const;
+    [[nodiscard]] double abscissa(std::size_t dimension, MultiIndexView node_index) const;
+    [[nodiscard]] std::vector<double> node(MultiIndexView node_index) const;
 
 private:
     friend CqmomResult compute_cqmom(const CqmomDenseCase& dense_case);
@@ -270,7 +270,7 @@ public:
     [[nodiscard]] const std::vector<CqmomActiveBranchCount>& active_branch_counts() const noexcept;
     [[nodiscard]] std::vector<MultiIndex> moment_indices() const;
     [[nodiscard]] const std::vector<double>& moment_values() const noexcept;
-    [[nodiscard]] std::optional<double> moment(const MultiIndex& index) const;
+    [[nodiscard]] std::optional<double> moment(MultiIndexView index) const;
 
 private:
     struct Data;

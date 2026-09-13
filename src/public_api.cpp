@@ -448,7 +448,7 @@ const std::vector<double>& CqmomState::moment_values() const noexcept
                       data_->case_);
 }
 
-std::optional<double> CqmomState::moment(const MultiIndex& index) const
+std::optional<double> CqmomState::moment(const MultiIndexView index) const
 {
     return std::visit(Overloaded{[&index](const CqmomDenseCase& dense_case) -> std::optional<double>
                                  {
@@ -662,7 +662,7 @@ CqmomQuadrature::CqmomQuadrature(PhaseSpaceHierarchy hierarchy, std::vector<doub
 {
 }
 
-double CqmomQuadrature::weight(const MultiIndex& node_index) const
+double CqmomQuadrature::weight(const MultiIndexView node_index) const
 {
     if (!rectangular_storage_)
     {
@@ -671,7 +671,7 @@ double CqmomQuadrature::weight(const MultiIndex& node_index) const
     return weights_.at(hierarchy_.flatten_node_index(node_index));
 }
 
-double CqmomQuadrature::abscissa(const std::size_t dimension, const MultiIndex& node_index) const
+double CqmomQuadrature::abscissa(const std::size_t dimension, const MultiIndexView node_index) const
 {
     if (!rectangular_storage_)
     {
@@ -684,7 +684,7 @@ double CqmomQuadrature::abscissa(const std::size_t dimension, const MultiIndex& 
     return abscissas_.at(dimension).at(hierarchy_.flatten_node_index(node_index));
 }
 
-std::vector<double> CqmomQuadrature::node(const MultiIndex& node_index) const
+std::vector<double> CqmomQuadrature::node(const MultiIndexView node_index) const
 {
     std::vector<double> values;
     values.reserve(hierarchy_.number_of_dimensions());

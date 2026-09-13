@@ -1128,7 +1128,7 @@ std::vector<std::size_t> PhaseSpaceHierarchy::moment_extents() const
     return extents;
 }
 
-std::size_t PhaseSpaceHierarchy::flatten_node_index(const MultiIndex& node_index) const
+std::size_t PhaseSpaceHierarchy::flatten_node_index(const MultiIndexView node_index) const
 {
     if (node_index.size() != number_of_dimensions())
     {

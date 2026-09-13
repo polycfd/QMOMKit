@@ -75,14 +75,14 @@ void test_constant_phase_space_velocity_for_qmom()
 
     qmomkit::NodeAdvectionOptions options;
     options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
-    const qmomkit::QmomNodeAdvectionResult result = qmomkit::advance_nodes(
-        quadrature, 0.0, 0.25,
-        [](double, const std::vector<double>& xi)
-        {
-            QMOMKIT_VERIFY_CHECK(xi.size() == 1);
-            return std::vector<double>{2.0};
-        },
-        options);
+    const qmomkit::QmomNodeAdvectionResult result = qmomkit::advance_nodes(quadrature, 0.0, 0.25,
+                                                                           qmomkit::make_phase_space_velocity(
+                                                                               [](double, const std::vector<double>& xi)
+                                                                               {
+                                                                                   QMOMKIT_VERIFY_CHECK(xi.size() == 1);
+                                                                                   return std::vector<double>{2.0};
+                                                                               }),
+                                                                           options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
@@ -111,8 +111,9 @@ void test_linear_phase_space_velocity_for_qmom()
 
     constexpr double rate = -0.75;
     constexpr double dt = 0.6;
-    const qmomkit::QmomNodeAdvectionResult result =
-        qmomkit::advance_nodes(quadrature, 0.0, dt, [](double, const std::vector<double>& xi) { return std::vector<double>{rate * xi[0]}; }, options);
+    const qmomkit::QmomNodeAdvectionResult result = qmomkit::advance_nodes(
+        quadrature, 0.0, dt,
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>{rate * xi[0]}; }), options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     assert_near(result.quadrature.abscissas[0], quadrature.abscissas[0] * std::exp(rate * dt), 2.0e-8);
@@ -134,14 +135,14 @@ void test_multi_dimensional_phase_space_evolution()
     constexpr double rate_x = 0.3;
     constexpr double rate_y = -0.4;
     constexpr double dt = 0.5;
-    const qmomkit::CqmomNodeAdvectionResult result = qmomkit::advance_nodes(
-        cqmom_result.quadrature, 1.0, dt,
-        [](double, const std::vector<double>& xi)
-        {
-            QMOMKIT_VERIFY_CHECK(xi.size() == 2);
-            return std::vector<double>{rate_x * xi[0], rate_y * xi[1]};
-        },
-        options);
+    const qmomkit::CqmomNodeAdvectionResult result = qmomkit::advance_nodes(cqmom_result.quadrature, 1.0, dt,
+                                                                            qmomkit::make_phase_space_velocity(
+                                                                                [](double, const std::vector<double>& xi)
+                                                                                {
+                                                                                    QMOMKIT_VERIFY_CHECK(xi.size() == 2);
+                                                                                    return std::vector<double>{rate_x * xi[0], rate_y * xi[1]};
+                                                                                }),
+                                                                            options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.has_rectangular_storage());
@@ -164,14 +165,14 @@ void test_ssp_rk3_multi_dimensional_phase_space_evolution()
     constexpr double rate_x = 0.3;
     constexpr double rate_y = -0.4;
     constexpr double dt = 0.03;
-    const qmomkit::CqmomNodeAdvectionResult result = qmomkit::advance_nodes(
-        cqmom_result.quadrature, 1.0, dt,
-        [](double, const std::vector<double>& xi)
-        {
-            QMOMKIT_VERIFY_CHECK(xi.size() == 2);
-            return std::vector<double>{rate_x * xi[0], rate_y * xi[1]};
-        },
-        options);
+    const qmomkit::CqmomNodeAdvectionResult result = qmomkit::advance_nodes(cqmom_result.quadrature, 1.0, dt,
+                                                                            qmomkit::make_phase_space_velocity(
+                                                                                [](double, const std::vector<double>& xi)
+                                                                                {
+                                                                                    QMOMKIT_VERIFY_CHECK(xi.size() == 2);
+                                                                                    return std::vector<double>{rate_x * xi[0], rate_y * xi[1]};
+                                                                                }),
+                                                                            options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);
@@ -203,7 +204,8 @@ void test_rk23_convergence_sanity_check()
     tight_options.adaptive_options.absolute_tolerance = 1.0e-11;
     tight_options.adaptive_options.initial_step = 0.1;
 
-    const auto velocity = [](double, const std::vector<double>& xi) { return std::vector<double>{xi[0]}; };
+    const qmomkit::PhaseSpaceVelocity velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>{xi[0]}; });
     const qmomkit::QmomNodeAdvectionResult loose = qmomkit::advance_nodes(quadrature, 0.0, 1.0, velocity, loose_options);
     const qmomkit::QmomNodeAdvectionResult tight = qmomkit::advance_nodes(quadrature, 0.0, 1.0, velocity, tight_options);
 
@@ -229,8 +231,9 @@ void test_ssp_rk3_linear_phase_space_velocity_for_qmom()
 
     constexpr double rate = -0.75;
     constexpr double dt = 0.05;
-    const qmomkit::QmomNodeAdvectionResult result =
-        qmomkit::advance_nodes(quadrature, 0.0, dt, [](double, const std::vector<double>& xi) { return std::vector<double>{rate * xi[0]}; }, options);
+    const qmomkit::QmomNodeAdvectionResult result = qmomkit::advance_nodes(
+        quadrature, 0.0, dt,
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>{rate * xi[0]}; }), options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.diagnostics.scheme == qmomkit::NodeAdvectionScheme::ssp_rk3);

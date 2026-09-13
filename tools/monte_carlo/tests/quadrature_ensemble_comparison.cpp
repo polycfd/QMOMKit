@@ -812,11 +812,12 @@ void test_two_dimensional_constant_velocity_comparison()
     const double t1 = 0.25;
     const double cx = 0.12;
     const double cy = -0.08;
-    const qmomkit::PhaseSpaceVelocity callback = [cx, cy](double, const std::vector<double>& coordinates)
-    {
-        CHECK(coordinates.size() == 2);
-        return std::vector<double>{cx, cy};
-    };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity(
+        [cx, cy](double, const std::vector<double>& coordinates)
+        {
+            CHECK(coordinates.size() == 2);
+            return std::vector<double>{cx, cy};
+        });
 
     MultiDimensionalEvolutionComparisonRequest request;
     request.initial_distribution = distribution;
@@ -854,11 +855,12 @@ void test_two_dimensional_affine_comparison()
     const double bx = 0.35;
     const double ay = 0.15;
     const double by = -0.2;
-    const qmomkit::PhaseSpaceVelocity callback = [ax, bx, ay, by](double, const std::vector<double>& coordinates)
-    {
-        CHECK(coordinates.size() == 2);
-        return std::vector<double>{ax * coordinates[0] + bx, ay * coordinates[1] + by};
-    };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity(
+        [ax, bx, ay, by](double, const std::vector<double>& coordinates)
+        {
+            CHECK(coordinates.size() == 2);
+            return std::vector<double>{ax * coordinates[0] + bx, ay * coordinates[1] + by};
+        });
 
     MultiDimensionalEvolutionComparisonRequest request;
     request.initial_distribution = distribution;
@@ -892,11 +894,12 @@ void test_two_dimensional_coupled_linear_comparison()
     const double a = -0.3;
     const double b = 0.4;
     const double c = -0.1;
-    const qmomkit::PhaseSpaceVelocity callback = [a, b, c](double, const std::vector<double>& coordinates)
-    {
-        CHECK(coordinates.size() == 2);
-        return std::vector<double>{a * coordinates[0], b * coordinates[0] + c * coordinates[1]};
-    };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity(
+        [a, b, c](double, const std::vector<double>& coordinates)
+        {
+            CHECK(coordinates.size() == 2);
+            return std::vector<double>{a * coordinates[0], b * coordinates[0] + c * coordinates[1]};
+        });
 
     MultiDimensionalEvolutionComparisonRequest request;
     request.initial_distribution = distribution;
@@ -949,11 +952,12 @@ void test_constant_velocity_comparison()
     const double t0 = 0.1;
     const double t1 = 0.6;
     const double velocity = -0.35;
-    const qmomkit::PhaseSpaceVelocity callback = [velocity](double, const std::vector<double>& coordinates)
-    {
-        CHECK(coordinates.size() == 1);
-        return std::vector<double>{velocity};
-    };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity(
+        [velocity](double, const std::vector<double>& coordinates)
+        {
+            CHECK(coordinates.size() == 1);
+            return std::vector<double>{velocity};
+        });
 
     EvolutionComparisonRequest request;
     request.initial_distribution = distribution;
@@ -991,11 +995,12 @@ void test_affine_evolution_comparison()
     const double t1 = 0.4;
     const double rate = -0.25;
     const double shift = 0.8;
-    const qmomkit::PhaseSpaceVelocity callback = [rate, shift](double, const std::vector<double>& coordinates)
-    {
-        CHECK(coordinates.size() == 1);
-        return std::vector<double>{rate * coordinates[0] + shift};
-    };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity(
+        [rate, shift](double, const std::vector<double>& coordinates)
+        {
+            CHECK(coordinates.size() == 1);
+            return std::vector<double>{rate * coordinates[0] + shift};
+        });
 
     EvolutionComparisonRequest request;
     request.initial_distribution = distribution;
@@ -1027,7 +1032,7 @@ void test_text_output()
     const ExplicitDiscreteDistribution distribution{{{-1.0}, {2.0}}, {0.75, 1.25}, {}};
     EvolutionComparisonRequest request;
     request.initial_distribution = distribution;
-    request.velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.1}; };
+    request.velocity = qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{0.1}; });
     request.t0 = 0.0;
     request.t1 = 0.2;
     request.adaptive_options = accurate_options();
@@ -1051,7 +1056,8 @@ void test_text_output()
 
     MultiDimensionalEvolutionComparisonRequest multi_request;
     multi_request.initial_distribution = ExplicitDiscreteDistribution{{{0.0, 0.1}, {0.2, -0.1}}, {1.0, 1.0}, {}};
-    multi_request.velocity = [](double, const std::vector<double>& coordinates) { return std::vector<double>{0.05, -0.02 * coordinates[1]}; };
+    multi_request.velocity = qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinates)
+                                                                { return std::vector<double>{0.05, -0.02 * coordinates[1]}; });
     multi_request.t0 = 0.0;
     multi_request.t1 = 0.1;
     multi_request.adaptive_options = accurate_options();
@@ -1072,7 +1078,7 @@ void test_sample_count_convergence()
 {
     SampleCountConvergenceRequest request;
     request.initial_distribution = ExplicitDiscreteDistribution{{{-1.0}, {0.0}, {1.0}}, {1.0, 1.0, 1.0}, {}};
-    request.velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.0}; };
+    request.velocity = qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{0.0}; });
     request.t0 = 0.0;
     request.t1 = 0.2;
     request.adaptive_options = accurate_options();
@@ -1130,7 +1136,7 @@ void test_failure_propagation()
     CHECK(!missing_callback.ok());
     CHECK(missing_callback.status == ComparisonStatus::invalid_input);
 
-    request.velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.0}; };
+    request.velocity = qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{0.0}; });
     request.initial_distribution = ExplicitDiscreteDistribution{{{0.0}}, {1.0}, 2.0};
     const EvolutionComparisonResult bad_density = compare_evolved_quadrature_to_ensemble(request);
     CHECK(!bad_density.ok());
@@ -1146,14 +1152,16 @@ void test_failure_propagation()
     request.adaptive_options = accurate_options();
     request.adaptive_options.max_steps = 1;
     request.adaptive_options.max_step = 0.01;
-    request.velocity = [](double, const std::vector<double>& coordinates) { return std::vector<double>{coordinates[0] + 1.0}; };
+    request.velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinates) { return std::vector<double>{coordinates[0] + 1.0}; });
     const EvolutionComparisonResult rk_failure = compare_evolved_quadrature_to_ensemble(request);
     CHECK(!rk_failure.ok());
     CHECK(rk_failure.status == ComparisonStatus::qmomkit_failed || rk_failure.status == ComparisonStatus::monte_carlo_failed);
 
     MultiDimensionalEvolutionComparisonRequest multidimensional;
     multidimensional.initial_distribution = ExplicitDiscreteDistribution{{{0.0, 1.0}, {2.0}}, {1.0, 1.0}, {}};
-    multidimensional.velocity = [](double, const std::vector<double>& coordinates) { return std::vector<double>(coordinates.size(), 0.0); };
+    multidimensional.velocity = qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinates)
+                                                                   { return std::vector<double>(coordinates.size(), 0.0); });
     multidimensional.t0 = 0.0;
     multidimensional.t1 = 1.0;
     multidimensional.sampling_options = SamplingOptions{10, 1};
@@ -1162,7 +1170,7 @@ void test_failure_propagation()
     CHECK(!bad_dimension.ok());
 
     multidimensional.initial_distribution = ExplicitDiscreteDistribution{{{0.0, 1.0}}, {1.0}, {}};
-    multidimensional.velocity = [](double, const std::vector<double>&) { return std::vector<double>{0.0}; };
+    multidimensional.velocity = qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{0.0}; });
     const MultiDimensionalEvolutionComparisonResult bad_callback = compare_evolved_quadrature_to_ensemble(multidimensional);
     CHECK(!bad_callback.ok());
 }

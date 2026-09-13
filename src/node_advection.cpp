@@ -111,35 +111,26 @@ void validate_abscissas(const std::vector<std::vector<double>>& abscissas, const
     }
 }
 
-// `node_coordinate` is caller-owned scratch reused across every right-hand-side
-// evaluation of one integration; its contents are fully overwritten per node
-// before use. The returned derivative cannot be reused the same way because it
+// The packed velocity writes dxi/dt directly into the right-hand-side vector:
+// the packed velocity layout and the integrator state layout are the same, so
+// no per-node gather or scatter is required. The returned derivative still
 // crosses the public `OdeRhs` boundary, which returns by value.
 [[nodiscard]] std::vector<double> node_rhs_from_velocity(const PhaseSpaceVelocity& velocity, const std::size_t dimensions, const double t,
-                                                         const std::vector<double>& state, std::vector<double>& node_coordinate)
+                                                         const std::vector<double>& state)
 {
     const std::size_t nodes = state.size() / dimensions;
     std::vector<double> derivative(state.size(), 0.0);
-    node_coordinate.resize(dimensions);
 
-    // The velocity callback is evaluated independently at each quadrature node
-    // and returns derivatives in phase-space dimension order.
+    internal::poison_phase_space_velocity_buffer(derivative);
+    velocity(t, state, derivative, dimensions);
+
+    // One recorded evaluation per node, matching the per-node callback
+    // contract, so instrumentation counters stay comparable across both forms.
     for (std::size_t node = 0; node < nodes; ++node)
     {
-        for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
-        {
-            node_coordinate[dimension] = state[node * dimensions + dimension];
-        }
-
-        const std::vector<double> node_velocity = velocity(t, node_coordinate);
         internal::performance::record_node_rhs_evaluation();
-        internal::validate_phase_space_velocity_result(node_velocity, dimensions, t, node_coordinate);
-
-        for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
-        {
-            derivative[node * dimensions + dimension] = node_velocity[dimension];
-        }
     }
+    internal::validate_packed_phase_space_velocity_result(derivative, state.size(), t, state, dimensions);
 
     return derivative;
 }
@@ -172,12 +163,11 @@ struct IntegratedNodes
                                                           const std::size_t dimensions, const std::vector<double>& initial_state)
 {
     AdaptiveRkResult rk_result;
-    std::vector<double> node_coordinate(dimensions, 0.0);
     try
     {
         rk_result = integrate_embedded_rk(
-            initial_state, t, t + time_step, [&velocity, dimensions, &node_coordinate](const double rhs_time, const std::vector<double>& state)
-            { return node_rhs_from_velocity(velocity, dimensions, rhs_time, state, node_coordinate); }, method, options.adaptive_options);
+            initial_state, t, t + time_step, [&velocity, dimensions](const double rhs_time, const std::vector<double>& state)
+            { return node_rhs_from_velocity(velocity, dimensions, rhs_time, state); }, method, options.adaptive_options);
     }
     catch (const std::exception& error)
     {
@@ -222,11 +212,10 @@ struct IntegratedNodes
         // the source-update wrapper, including source predicates, retries, and
         // source-specific performance counters.
         std::size_t rhs_evaluations = 0;
-        std::vector<double> node_coordinate(dimensions, 0.0);
-        const auto rhs = [&velocity, dimensions, &rhs_evaluations, &node_coordinate](const double rhs_time, const std::vector<double>& state)
+        const auto rhs = [&velocity, dimensions, &rhs_evaluations](const double rhs_time, const std::vector<double>& state)
         {
             ++rhs_evaluations;
-            return node_rhs_from_velocity(velocity, dimensions, rhs_time, state, node_coordinate);
+            return node_rhs_from_velocity(velocity, dimensions, rhs_time, state);
         };
 
         const std::vector<double> k1 = rhs(t, initial_state);
@@ -393,6 +382,50 @@ CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, const 
                                                              quadrature.adaptive_branch_counts_enabled(), quadrature.has_rectangular_storage(),
                                                              quadrature.terminal_paths()),
         NodeAdvectionStatus::success, integrated.diagnostics, ""};
+}
+
+PhaseSpaceVelocity make_phase_space_velocity(PerNodePhaseSpaceVelocity velocity)
+{
+    // An empty callback stays empty so that node advection still reports a
+    // missing velocity rather than calling through a null adapter.
+    if (!velocity)
+    {
+        return {};
+    }
+
+    return [velocity = std::move(velocity)](const double t, const std::vector<double>& coordinates, std::vector<double>& velocities,
+                                            const std::size_t dimensions)
+    {
+        const std::size_t nodes = coordinates.size() / dimensions;
+
+        // One coordinate buffer is reused across nodes and across
+        // right-hand-side evaluations, which is what the per-node path did
+        // before the callback shapes were merged. It is thread-local rather
+        // than captured because one velocity object may be shared by an
+        // application-managed parallel loop, and it is resized inside the node
+        // loop so that a callback re-entering node advection on this thread
+        // cannot leave it too short. Resizing to the size it already has is
+        // free once the capacity is grown.
+        static thread_local std::vector<double> node_coordinate;
+        for (std::size_t node = 0; node < nodes; ++node)
+        {
+            node_coordinate.resize(dimensions);
+            for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
+            {
+                node_coordinate[dimension] = coordinates[node * dimensions + dimension];
+            }
+
+            const std::vector<double> node_velocity = velocity(t, node_coordinate);
+            // Validated per node so that a wrong-sized or non-finite per-node
+            // return is reported exactly as it was before adaptation.
+            internal::validate_phase_space_velocity_result(node_velocity, dimensions, t, node_coordinate);
+
+            for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
+            {
+                velocities[node * dimensions + dimension] = node_velocity[dimension];
+            }
+        }
+    };
 }
 
 std::string format_node_advection_options(const NodeAdvectionOptions& options)

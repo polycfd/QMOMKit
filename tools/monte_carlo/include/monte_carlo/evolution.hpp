@@ -86,9 +86,13 @@ struct ExplicitQuadratureEvolutionResult
 /**
  * Evolve each sample independently through the supplied phase-space velocity.
  *
- * The callback must return one derivative per phase-space coordinate. Samples
- * are treated as generic coordinate realizations; no moment source, boundary
- * contribution, or operator-split phase-space evolution is applied.
+ * Each sample is presented to the callback as a single packed node, so
+ * `coordinates` holds that sample's phase-space coordinates and `velocities`
+ * must be filled with one derivative per coordinate. Leaving an entry unwritten
+ * is a contract violation that debug builds report as a velocity failure, and
+ * that release builds cannot detect. Samples are treated as generic coordinate
+ * realizations; no moment source, boundary contribution, or operator-split
+ * phase-space evolution is applied.
  */
 [[nodiscard]] EnsembleEvolutionResult evolve_ensemble(const Ensemble& ensemble, const qmomkit::PhaseSpaceVelocity& velocity, double t0, double t1,
                                                       const qmomkit::AdaptiveRkOptions& options = {});

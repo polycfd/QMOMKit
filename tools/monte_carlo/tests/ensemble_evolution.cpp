@@ -55,11 +55,12 @@ void test_single_sample_constant_velocity()
     const double t0 = 0.0;
     const double t1 = 0.75;
     const double velocity = -0.4;
-    const qmomkit::PhaseSpaceVelocity callback = [velocity](double, const std::vector<double>& coordinate)
-    {
-        CHECK(coordinate.size() == 1);
-        return std::vector<double>{velocity};
-    };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity(
+        [velocity](double, const std::vector<double>& coordinate)
+        {
+            CHECK(coordinate.size() == 1);
+            return std::vector<double>{velocity};
+        });
 
     const qmomkit::monte_carlo::EnsembleEvolutionResult result =
         qmomkit::monte_carlo::evolve_ensemble(ensemble, callback, t0, t1, accurate_options());
@@ -74,7 +75,8 @@ void test_single_sample_constant_velocity()
 void test_convenience_evolution_uses_default_adaptive_initial_step()
 {
     const double time_step = 2.0 * qmomkit::default_adaptive_initial_step;
-    const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>&) { return std::vector<double>{-0.4}; };
+    const qmomkit::PhaseSpaceVelocity velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{-0.4}; });
 
     const qmomkit::monte_carlo::EnsembleEvolutionResult ensemble = qmomkit::monte_carlo::evolve_ensemble(Ensemble{{1.25}}, velocity, 0.0, time_step);
     CHECK(ensemble.ok());
@@ -96,8 +98,8 @@ void test_single_sample_linear_growth()
     const double t0 = 0.0;
     const double t1 = 0.6;
     const double rate = 0.7;
-    const qmomkit::PhaseSpaceVelocity callback = [rate](double, const std::vector<double>& coordinate)
-    { return std::vector<double>{rate * coordinate[0]}; };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity([rate](double, const std::vector<double>& coordinate)
+                                                                                    { return std::vector<double>{rate * coordinate[0]}; });
 
     const qmomkit::monte_carlo::EnsembleEvolutionResult result =
         qmomkit::monte_carlo::evolve_ensemble(ensemble, callback, t0, t1, accurate_options());
@@ -110,11 +112,12 @@ void test_deterministic_ensemble_rk23_max_step_convergence()
 {
     const Ensemble initial{{0.5}, {1.0}, {2.0}};
     const std::vector<double> step_sizes{0.25, 0.125, 0.0625, 0.03125};
-    const qmomkit::PhaseSpaceVelocity callback = [](double, const std::vector<double>& coordinate)
-    {
-        CHECK(coordinate.size() == 1);
-        return std::vector<double>{coordinate[0]};
-    };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinate)
+        {
+            CHECK(coordinate.size() == 1);
+            return std::vector<double>{coordinate[0]};
+        });
 
     std::vector<double> errors;
     errors.reserve(step_sizes.size());
@@ -164,8 +167,8 @@ void test_single_sample_affine_evolution()
     const double t1 = 0.5;
     const double rate = -0.35;
     const double shift = 0.9;
-    const qmomkit::PhaseSpaceVelocity callback = [rate, shift](double, const std::vector<double>& coordinate)
-    { return std::vector<double>{rate * coordinate[0] + shift}; };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity([rate, shift](double, const std::vector<double>& coordinate)
+                                                                                    { return std::vector<double>{rate * coordinate[0] + shift}; });
 
     const qmomkit::monte_carlo::EnsembleEvolutionResult result =
         qmomkit::monte_carlo::evolve_ensemble(ensemble, callback, t0, t1, accurate_options());
@@ -185,11 +188,12 @@ void test_ensemble_evolution_and_moments()
 
     const double t0 = 0.1;
     const double t1 = 0.4;
-    const qmomkit::PhaseSpaceVelocity callback = [](double, const std::vector<double>& coordinate)
-    {
-        CHECK(coordinate.size() == 2);
-        return std::vector<double>{0.2 + 0.1 * coordinate[0], -0.15 * coordinate[1]};
-    };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinate)
+        {
+            CHECK(coordinate.size() == 2);
+            return std::vector<double>{0.2 + 0.1 * coordinate[0], -0.15 * coordinate[1]};
+        });
 
     const qmomkit::monte_carlo::EnsembleEvolutionResult result =
         qmomkit::monte_carlo::evolve_ensemble(sampling.ensemble, callback, t0, t1, accurate_options());
@@ -224,7 +228,8 @@ void test_ensemble_evolution_and_moments()
 void test_failure_inputs_preserve_original()
 {
     const Ensemble original{{1.0}, {2.0}};
-    const qmomkit::PhaseSpaceVelocity identity = [](double, const std::vector<double>& coordinate) { return coordinate; };
+    const qmomkit::PhaseSpaceVelocity identity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinate) { return coordinate; });
     const qmomkit::AdaptiveRkOptions options = accurate_options();
 
     const qmomkit::monte_carlo::EnsembleEvolutionResult empty = qmomkit::monte_carlo::evolve_ensemble(Ensemble{}, identity, 0.0, 1.0, options);
@@ -262,8 +267,8 @@ void test_failure_during_integration()
     const Ensemble original{{1.0}, {2.0}};
     const qmomkit::AdaptiveRkOptions options = accurate_options();
 
-    const qmomkit::PhaseSpaceVelocity nonfinite_callback = [](double, const std::vector<double>&)
-    { return std::vector<double>{std::numeric_limits<double>::infinity()}; };
+    const qmomkit::PhaseSpaceVelocity nonfinite_callback = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>&) { return std::vector<double>{std::numeric_limits<double>::infinity()}; });
     const qmomkit::monte_carlo::EnsembleEvolutionResult nonfinite =
         qmomkit::monte_carlo::evolve_ensemble(original, nonfinite_callback, 0.0, 1.0, options);
     CHECK(!nonfinite.ok());
@@ -277,7 +282,8 @@ void test_failure_during_integration()
     check_contains(nonfinite.message, "state: [1]");
     check_contains(nonfinite.message, "velocity: [inf]");
 
-    const qmomkit::PhaseSpaceVelocity wrong_dimension = [](double, const std::vector<double>&) { return std::vector<double>{1.0, 2.0}; };
+    const qmomkit::PhaseSpaceVelocity wrong_dimension =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{1.0, 2.0}; });
     const qmomkit::monte_carlo::EnsembleEvolutionResult dimension =
         qmomkit::monte_carlo::evolve_ensemble(original, wrong_dimension, 0.0, 1.0, options);
     CHECK(!dimension.ok());
@@ -287,8 +293,43 @@ void test_failure_during_integration()
     check_contains(dimension.message, "expected size: 1");
     check_contains(dimension.message, "returned size: 2");
 
-    const qmomkit::PhaseSpaceVelocity throwing_callback = [](double, const std::vector<double>&) -> std::vector<double>
-    { throw std::runtime_error("manufactured callback failure"); };
+    // The adapter above reports the wrong size before the ensemble driver sees
+    // it. A packed callback that resizes the supplied buffer reaches the
+    // driver's own dimension guard instead, which is the only way that guard
+    // can now fire.
+    const qmomkit::PhaseSpaceVelocity resizing_callback = [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
+    { velocities.assign(3, 0.0); };
+    const qmomkit::monte_carlo::EnsembleEvolutionResult resized =
+        qmomkit::monte_carlo::evolve_ensemble(original, resizing_callback, 0.0, 1.0, options);
+    CHECK(!resized.ok());
+    CHECK(resized.status == EnsembleEvolutionStatus::velocity_failed);
+    CHECK(resized.failed_sample_index == 0);
+    CHECK(resized.ensemble.empty());
+    check_contains(resized.message, "Phase-space velocity callback returned the wrong dimension:");
+    check_contains(resized.message, "expected size: 1");
+    check_contains(resized.message, "returned size: 3");
+
+#ifndef NDEBUG
+    // A callback that leaves an entry unwritten is only detectable in debug
+    // builds, where the supplied buffer is poisoned before the call. In release
+    // builds the entry reads as a finite zero and the sample simply does not
+    // move, so this case is checked only where the guard exists.
+    const Ensemble two_dimensional{{1.0, 2.0}};
+    const qmomkit::PhaseSpaceVelocity partial_callback = [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
+    { velocities[0] = 0.5; };
+    const qmomkit::monte_carlo::EnsembleEvolutionResult partial =
+        qmomkit::monte_carlo::evolve_ensemble(two_dimensional, partial_callback, 0.0, 1.0, options);
+    CHECK(!partial.ok());
+    CHECK(partial.status == EnsembleEvolutionStatus::velocity_failed);
+    CHECK(partial.failed_sample_index == 0);
+    CHECK(partial.ensemble.empty());
+    check_contains(partial.message, "Phase-space velocity callback did not fill every velocity entry:");
+    check_contains(partial.message, "dimension: 1");
+    check_contains(partial.message, "coordinate: [1, 2]");
+#endif
+
+    const qmomkit::PhaseSpaceVelocity throwing_callback = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("manufactured callback failure"); });
     const qmomkit::monte_carlo::EnsembleEvolutionResult thrown =
         qmomkit::monte_carlo::evolve_ensemble(original, throwing_callback, 0.0, 1.0, options);
     CHECK(!thrown.ok());
@@ -298,7 +339,8 @@ void test_failure_during_integration()
     qmomkit::AdaptiveRkOptions failing_options = accurate_options();
     failing_options.max_steps = 1;
     failing_options.max_step = 0.01;
-    const qmomkit::PhaseSpaceVelocity linear = [](double, const std::vector<double>& coordinate) { return std::vector<double>{coordinate[0]}; };
+    const qmomkit::PhaseSpaceVelocity linear =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinate) { return std::vector<double>{coordinate[0]}; });
     const qmomkit::monte_carlo::EnsembleEvolutionResult rk_failure =
         qmomkit::monte_carlo::evolve_ensemble(original, linear, 0.0, 1.0, failing_options);
     CHECK(!rk_failure.ok());
@@ -307,14 +349,15 @@ void test_failure_during_integration()
     CHECK(rk_failure.failed_sample_index == 0);
     CHECK(rk_failure.ensemble.empty());
 
-    const qmomkit::PhaseSpaceVelocity second_sample_failure = [](double, const std::vector<double>& coordinate)
-    {
-        if (coordinate[0] > 1.5)
+    const qmomkit::PhaseSpaceVelocity second_sample_failure = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinate)
         {
-            throw std::runtime_error("manufactured second-sample failure");
-        }
-        return std::vector<double>{0.1};
-    };
+            if (coordinate[0] > 1.5)
+            {
+                throw std::runtime_error("manufactured second-sample failure");
+            }
+            return std::vector<double>{0.1};
+        });
     const qmomkit::monte_carlo::EnsembleEvolutionResult later_failure =
         qmomkit::monte_carlo::evolve_ensemble(original, second_sample_failure, 0.0, 1.0, options);
     CHECK(!later_failure.ok());
@@ -339,8 +382,8 @@ void test_reproducibility()
 
     qmomkit::AdaptiveRkOptions options = accurate_options();
     options.max_step = 0.02;
-    const qmomkit::PhaseSpaceVelocity callback = [](double time, const std::vector<double>& coordinate)
-    { return std::vector<double>{0.1 + 0.2 * coordinate[0] + 0.03 * time}; };
+    const qmomkit::PhaseSpaceVelocity callback = qmomkit::make_phase_space_velocity(
+        [](double time, const std::vector<double>& coordinate) { return std::vector<double>{0.1 + 0.2 * coordinate[0] + 0.03 * time}; });
 
     const qmomkit::monte_carlo::EnsembleEvolutionResult first =
         qmomkit::monte_carlo::evolve_ensemble(first_sampling.ensemble, callback, -0.2, 0.3, options);

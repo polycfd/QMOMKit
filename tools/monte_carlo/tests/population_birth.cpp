@@ -172,7 +172,8 @@ void test_injected_samples_are_evolved()
     CHECK(birth.ok());
     CHECK(birth.ensemble.size() > ensemble.size());
 
-    const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>&) { return std::vector<double>{1.0}; };
+    const qmomkit::PhaseSpaceVelocity velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{1.0}; });
     const qmomkit::monte_carlo::EnsembleEvolutionResult evolved = qmomkit::monte_carlo::evolve_ensemble(birth.ensemble, velocity, 0.0, 0.5);
     CHECK(evolved.ok());
     CHECK(evolved.ensemble.size() == birth.ensemble.size());

@@ -97,7 +97,8 @@ using CqmomBatchBoundaryPhaseSpaceEvolutionBatch = std::vector<qmomkit::CqmomPha
     const std::vector<qmomkit::CqmomState>&, double, double, const qmomkit::BatchPhaseSpaceVelocity&, const qmomkit::BatchCqmomMomentSource&,
     const qmomkit::BatchCqmomMomentBoundaryContribution&, const qmomkit::CqmomPhaseSpaceEvolutionOptions&);
 
-static_assert(std::is_same_v<qmomkit::BatchPhaseSpaceVelocity, std::function<std::vector<double>(std::size_t, double, const std::vector<double>&)>>);
+static_assert(std::is_same_v<qmomkit::BatchPhaseSpaceVelocity,
+                             std::function<void(std::size_t, double, const std::vector<double>&, std::vector<double>&, std::size_t)>>);
 static_assert(std::is_same_v<qmomkit::BatchMomentSource, std::function<std::vector<double>(std::size_t, double, const qmomkit::QmomSourceContext&)>>);
 static_assert(std::is_same_v<qmomkit::BatchMomentBoundaryContribution,
                              std::function<qmomkit::MomentBoundaryRate(std::size_t, double, const std::vector<double>&)>>);
@@ -108,15 +109,9 @@ static_assert(std::is_same_v<qmomkit::BatchCqmomMomentBoundaryContribution,
 
 struct DualPhaseSpaceVelocity
 {
-    [[nodiscard]] std::vector<double> operator()(double, const std::vector<double>&) const
-    {
-        return {};
-    }
+    void operator()(double, const std::vector<double>&, std::vector<double>&, std::size_t) const {}
 
-    [[nodiscard]] std::vector<double> operator()(std::size_t, double, const std::vector<double>&) const
-    {
-        return {};
-    }
+    void operator()(std::size_t, double, const std::vector<double>&, std::vector<double>&, std::size_t) const {}
 };
 
 struct DualCqmomMomentSource
@@ -139,7 +134,7 @@ struct DualCqmomMomentSource
     const qmomkit::QmomPhaseSpaceEvolutionOptions qmom_options;
     const qmomkit::CqmomPhaseSpaceEvolutionOptions cqmom_options;
 
-    const auto generic_velocity = [](auto&&...) { return std::vector<double>{}; };
+    const auto generic_velocity = [](auto&&...) {};
     (void)qmomkit::advance_qmom_advection_batch(qmom_states, 0.0, 0.1, generic_velocity);
     (void)qmomkit::advance_qmom_advection_batch_with_index(qmom_states, 0.0, 0.1, generic_velocity);
     (void)qmomkit::advance_qmom_advection_batch(qmom_states, 0.0, 0.1, DualPhaseSpaceVelocity{});

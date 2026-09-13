@@ -600,15 +600,16 @@ enum class NodeTrajectory
 
 qmomkit::PhaseSpaceVelocity velocity_model()
 {
-    return [](const double, const std::vector<double>& coordinate)
-    {
-        std::vector<double> velocity(coordinate.size(), 0.0);
-        for (std::size_t dimension = 0; dimension < coordinate.size(); ++dimension)
+    return qmomkit::make_phase_space_velocity(
+        [](const double, const std::vector<double>& coordinate)
         {
-            velocity[dimension] = 0.015 * static_cast<double>(dimension + 1) + 0.01 * coordinate[dimension];
-        }
-        return velocity;
-    };
+            std::vector<double> velocity(coordinate.size(), 0.0);
+            for (std::size_t dimension = 0; dimension < coordinate.size(); ++dimension)
+            {
+                velocity[dimension] = 0.015 * static_cast<double>(dimension + 1) + 0.01 * coordinate[dimension];
+            }
+            return velocity;
+        });
 }
 
 qmomkit::Quadrature1D make_qmom_node_advection_fixture(const std::size_t node_count)
@@ -633,22 +634,23 @@ qmomkit::Quadrature1D make_qmom_node_advection_fixture(const std::size_t node_co
 
 qmomkit::PhaseSpaceVelocity node_advection_velocity_model(const NodeTrajectory trajectory)
 {
-    return [trajectory](const double, const std::vector<double>& coordinate)
-    {
-        std::vector<double> velocity(coordinate.size(), 0.0);
-        for (std::size_t dimension = 0; dimension < coordinate.size(); ++dimension)
+    return qmomkit::make_phase_space_velocity(
+        [trajectory](const double, const std::vector<double>& coordinate)
         {
-            if (trajectory == NodeTrajectory::constant)
+            std::vector<double> velocity(coordinate.size(), 0.0);
+            for (std::size_t dimension = 0; dimension < coordinate.size(); ++dimension)
             {
-                velocity[dimension] = constant_velocity_component(dimension);
+                if (trajectory == NodeTrajectory::constant)
+                {
+                    velocity[dimension] = constant_velocity_component(dimension);
+                }
+                else
+                {
+                    velocity[dimension] = affine_offset_component(dimension) + affine_rate_component(dimension) * coordinate[dimension];
+                }
             }
-            else
-            {
-                velocity[dimension] = affine_offset_component(dimension) + affine_rate_component(dimension) * coordinate[dimension];
-            }
-        }
-        return velocity;
-    };
+            return velocity;
+        });
 }
 
 [[nodiscard]] double exact_node_coordinate(const NodeTrajectory trajectory, const std::size_t dimension, const double initial_coordinate,

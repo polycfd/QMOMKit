@@ -165,10 +165,11 @@ struct CqmomPhaseSpaceEvolutionResult
  * Batch-index-aware phase-space velocity callback.
  *
  * `batch_index` is the zero-based position of the state in the collection
- * supplied to a batch phase-space evolution operation.
+ * supplied to a batch phase-space evolution operation. Coordinates and
+ * velocities follow the packed `PhaseSpaceVelocity` layout.
  */
-using BatchPhaseSpaceVelocity =
-    std::function<std::vector<double>(std::size_t batch_index, double time, const std::vector<double>& phase_space_location)>;
+using BatchPhaseSpaceVelocity = std::function<void(std::size_t batch_index, double time, const std::vector<double>& coordinates,
+                                                   std::vector<double>& velocities, std::size_t dimensions)>;
 
 /**
  * Batch-index-aware one-dimensional moment-source callback.

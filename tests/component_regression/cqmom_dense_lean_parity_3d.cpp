@@ -1321,7 +1321,8 @@ void run_explicit_phase_space_evolution_parity()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData lean_moments = qmomkit::extract_cqmom_moments(moments, layout);
 
-    const auto velocity = [](double, const std::vector<double>& coordinate) { return std::vector<double>{0.03, -0.02, 0.04 + 0.01 * coordinate[0]}; };
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinate) { return std::vector<double>{0.03, -0.02, 0.04 + 0.01 * coordinate[0]}; });
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 

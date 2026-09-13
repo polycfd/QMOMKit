@@ -281,9 +281,11 @@ void verify_qmom_plan(const CaseDefinition& definition, const qmomkit::Quadratur
     double time = plan.t0;
     for (std::size_t step = 0; step < plan.steps; ++step)
     {
-        const qmomkit::QmomNodeAdvectionResult advanced = qmomkit::advance_nodes(
-            current, time, plan.dt, [&definition](const double t, const std::vector<double>& xi) { return qmom_velocity(definition.name, t, xi); },
-            options);
+        const qmomkit::QmomNodeAdvectionResult advanced =
+            qmomkit::advance_nodes(current, time, plan.dt,
+                                   qmomkit::make_phase_space_velocity([&definition](const double t, const std::vector<double>& xi)
+                                                                      { return qmom_velocity(definition.name, t, xi); }),
+                                   options);
         if (!advanced.ok())
         {
             append_failure(result, "QMOM node advection failed: " + advanced.message);
@@ -319,7 +321,8 @@ void verify_linear_growth_convergence(const qmomkit::Quadrature1D& initial, Veri
     auto run = [&](const qmomkit::NodeAdvectionOptions& options)
     {
         return qmomkit::advance_nodes(
-            initial, plan.t0, plan.dt, [](double, const std::vector<double>& xi) { return std::vector<double>{0.55 * xi[0]}; }, options);
+            initial, plan.t0, plan.dt,
+            qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>{0.55 * xi[0]}; }), options);
     };
     const auto loose_result = run(loose);
     const auto tight_result = run(tight);
@@ -518,9 +521,11 @@ void verify_cqmom_plan(const qmomkit::CqmomQuadrature& initial, const TimePlan& 
     double time = plan.t0;
     for (std::size_t step = 0; step < plan.steps; ++step)
     {
-        const qmomkit::CqmomNodeAdvectionResult advanced = qmomkit::advance_nodes(
-            current, time, plan.dt,
-            [](double, const std::vector<double>& xi) { return std::vector<double>{-0.3 * xi[0], 0.8 * xi[0] + 0.2 * xi[1]}; }, accurate_options());
+        const qmomkit::CqmomNodeAdvectionResult advanced =
+            qmomkit::advance_nodes(current, time, plan.dt,
+                                   qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi)
+                                                                      { return std::vector<double>{-0.3 * xi[0], 0.8 * xi[0] + 0.2 * xi[1]}; }),
+                                   accurate_options());
         if (!advanced.ok())
         {
             append_failure(result, "CQMOM node advection failed: " + advanced.message);

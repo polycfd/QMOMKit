@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <exception>
 #include <iomanip>
 #include <limits>
@@ -60,6 +62,53 @@ namespace
            << "  state: " << format_diagnostic_vector(state) << '\n'
            << "  velocity: " << format_diagnostic_vector(velocity);
     return output.str();
+}
+
+// Mirrors the library's debug-only under-fill check. Samples are advanced
+// through the same packed callback, which fills a buffer supplied here rather
+// than returning one, so a callback that writes only part of it would leave the
+// remaining coordinates advancing on whatever was already in the buffer.
+// Neither the dimension check nor the finiteness check below can see that: the
+// buffer is the right size and zero is a finite velocity.
+//
+// Debug builds fill it with a recognisable quiet-NaN payload first and report
+// any entry that still holds it. Release builds compile this away and keep the
+// plain zero initialisation. Comparison is by bit pattern because NaN never
+// compares equal to itself. Diagnostics stay per sample, matching the
+// surrounding messages; `evolve_ensemble` reports which sample failed.
+#ifndef NDEBUG
+inline constexpr std::uint64_t phase_space_velocity_poison_bits = 0x7ff8000051434b50ULL;
+
+[[nodiscard]] double phase_space_velocity_poison() noexcept
+{
+    double value = 0.0;
+    std::memcpy(&value, &phase_space_velocity_poison_bits, sizeof(value));
+    return value;
+}
+
+[[nodiscard]] bool is_phase_space_velocity_poison(const double value) noexcept
+{
+    std::uint64_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits == phase_space_velocity_poison_bits;
+}
+
+[[nodiscard]] std::string phase_space_velocity_unfilled_message(const double time, const std::size_t dimension, const std::vector<double>& coordinate)
+{
+    std::ostringstream output;
+    output << std::setprecision(std::numeric_limits<double>::max_digits10) << "Phase-space velocity callback did not fill every velocity entry:\n"
+           << "  time: " << time << '\n'
+           << "  dimension: " << dimension << '\n'
+           << "  coordinate: " << format_diagnostic_vector(coordinate);
+    return output.str();
+}
+#endif
+
+void poison_velocity_buffer([[maybe_unused]] std::vector<double>& velocities) noexcept
+{
+#ifndef NDEBUG
+    std::fill(velocities.begin(), velocities.end(), phase_space_velocity_poison());
+#endif
 }
 
 [[nodiscard]] EnsembleEvolutionResult invalid_result(std::string message, const std::size_t failed_sample_index = invalid_sample_index)
@@ -129,11 +178,25 @@ struct StateEvolutionResult
 [[nodiscard]] std::vector<double> checked_velocity(const qmomkit::PhaseSpaceVelocity& velocity, const std::size_t dimensions, const double t,
                                                    const std::vector<double>& coordinates)
 {
-    const std::vector<double> derivative = velocity(t, coordinates);
+    std::vector<double> derivative(coordinates.size(), 0.0);
+    poison_velocity_buffer(derivative);
+    velocity(t, coordinates, derivative, dimensions);
     if (derivative.size() != dimensions)
     {
         throw std::invalid_argument(phase_space_velocity_wrong_dimension_message(dimensions, derivative.size()));
     }
+#ifndef NDEBUG
+    // Ahead of the finiteness scan so that an unwritten entry is reported as
+    // the missing write it is, rather than as a non-finite value the callback
+    // never produced.
+    for (std::size_t dimension = 0; dimension < derivative.size(); ++dimension)
+    {
+        if (is_phase_space_velocity_poison(derivative[dimension]))
+        {
+            throw std::invalid_argument(phase_space_velocity_unfilled_message(t, dimension, coordinates));
+        }
+    }
+#endif
     for (std::size_t dimension = 0; dimension < derivative.size(); ++dimension)
     {
         if (!std::isfinite(derivative[dimension]))

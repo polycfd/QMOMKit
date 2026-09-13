@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <qmomkit/qmomkit.hpp>
 #include <utility>
 #include <vector>
@@ -36,8 +37,8 @@ int main()
         return 1;
     }
 
-    const qmomkit::PhaseSpaceVelocity velocity = [](double, const std::vector<double>& coordinate)
-    { return std::vector<double>{0.0 * coordinate.front()}; };
+    const qmomkit::PhaseSpaceVelocity velocity = qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinate)
+                                                                                    { return std::vector<double>{0.0 * coordinate.front()}; });
     const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); };
     const qmomkit::QmomState qmom_state = qmomkit::QmomCase{moments, 2, {}}.initial_state();
     if (qmom_state.maximum_node_count() != 2 || qmom_state.active_node_count() != 2 || qmom_state.qmom_options().adaptive)
@@ -59,8 +60,8 @@ int main()
         return 1;
     }
 
-    const qmomkit::BatchPhaseSpaceVelocity batch_velocity = [](std::size_t, double, const std::vector<double>& coordinate)
-    { return std::vector<double>(coordinate.size(), 0.0); };
+    const qmomkit::BatchPhaseSpaceVelocity batch_velocity = [](std::size_t, double, const std::vector<double>&, std::vector<double>& velocities,
+                                                               std::size_t) { std::fill(velocities.begin(), velocities.end(), 0.0); };
     const qmomkit::BatchMomentSource batch_source = [](std::size_t, double, const qmomkit::QmomSourceContext& state)
     { return std::vector<double>(state.size(), 0.0); };
     const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> qmom_batch_aware =
@@ -127,8 +128,8 @@ M[1,1] = 0.0
     const std::vector<qmomkit::CqmomState> cqmom_states{replaced_state};
     qmomkit::CqmomPhaseSpaceEvolutionOptions cqmom_options;
     cqmom_options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
-    const qmomkit::PhaseSpaceVelocity cqmom_velocity = [](double, const std::vector<double>& coordinate)
-    { return std::vector<double>(coordinate.size(), 0.0); };
+    const qmomkit::PhaseSpaceVelocity cqmom_velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinate) { return std::vector<double>(coordinate.size(), 0.0); });
     const std::vector<qmomkit::CqmomPhaseSpaceEvolutionResult> cqmom_batch =
         qmomkit::advance_cqmom_advection_batch(cqmom_states, 0.0, 0.1, cqmom_velocity, cqmom_options);
     if (cqmom_batch.size() != 1 || !cqmom_batch.front().ok())

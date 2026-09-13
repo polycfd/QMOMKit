@@ -176,8 +176,8 @@ void test_parsed_and_programmatic_replacement_match()
     const qmomkit::CqmomState parsed_state = parsed.value().initial_state();
     assert_states_match(replaced_state, parsed_state);
 
-    const qmomkit::PhaseSpaceVelocity zero_velocity = [](double, const std::vector<double>& coordinates)
-    { return std::vector<double>(coordinates.size(), 0.0); };
+    const qmomkit::PhaseSpaceVelocity zero_velocity = qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinates)
+                                                                                         { return std::vector<double>(coordinates.size(), 0.0); });
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
     qmomkit::CqmomPhaseSpaceEvolutionOptions options;

@@ -14,13 +14,48 @@ namespace qmomkit
 {
 
 /**
- * Phase-space velocity callback for one quadrature node.
+ * Phase-space velocity callback, evaluated once for all quadrature nodes.
+ *
+ * `coordinates` holds `nodes * dimensions` values packed node-major, so node
+ * `i` occupies `[i * dimensions, (i + 1) * dimensions)` and within a node the
+ * values are ordered by phase-space dimension. `velocities` is supplied with
+ * the same size and must be filled with dxi/dt in the same layout.
+ *
+ * The callback must not resize `velocities`; the library sizes it and reports
+ * a size mismatch as a velocity failure. Every entry must be written: a
+ * partially filled buffer is a contract violation that debug builds report as
+ * a velocity failure, and that release builds cannot detect. No physical
+ * meaning is assigned to any coordinate by the library.
+ *
+ * Evaluating all nodes together keeps the cost of one right-hand-side
+ * evaluation independent of the terminal node count, which is the product of
+ * the per-dimension node counts.
+ */
+using PhaseSpaceVelocity = std::function<void(double, const std::vector<double>&, std::vector<double>&, std::size_t)>;
+
+/**
+ * Convenience callback shape evaluating one quadrature node at a time.
  *
  * The coordinate vector is ordered by phase-space dimension. The returned
  * vector must have the same size and represents dxi/dt at the supplied time.
- * No physical meaning is assigned to any coordinate by the library.
+ *
+ * Convert with `make_phase_space_velocity` where a `PhaseSpaceVelocity` is
+ * required. The conversion calls this callback once per node and therefore
+ * costs one call and one returned vector per node per right-hand-side
+ * evaluation; prefer writing a `PhaseSpaceVelocity` directly when advancing
+ * many nodes.
  */
-using PhaseSpaceVelocity = std::function<std::vector<double>(double, const std::vector<double>&)>;
+using PerNodePhaseSpaceVelocity = std::function<std::vector<double>(double, const std::vector<double>&)>;
+
+/**
+ * Build a `PhaseSpaceVelocity` from a per-node callback.
+ *
+ * The result evaluates `velocity` once per node in ascending node order and
+ * preserves its per-node validation, so a wrong-sized or non-finite per-node
+ * return is reported exactly as the per-node contract describes. An empty
+ * callback converts to an empty callback.
+ */
+[[nodiscard]] PhaseSpaceVelocity make_phase_space_velocity(PerNodePhaseSpaceVelocity velocity);
 
 enum class NodeAdvectionStatus
 {

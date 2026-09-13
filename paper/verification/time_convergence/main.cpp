@@ -178,7 +178,7 @@ std::vector<double> noncommuting_exact(const std::vector<double>& initial, const
 
 qmomkit::PhaseSpaceVelocity noncommuting_velocity()
 {
-    return [](double, const std::vector<double>&) { return std::vector<double>{noncommuting_b}; };
+    return qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{noncommuting_b}; });
 }
 
 qmomkit::MomentSource noncommuting_source()

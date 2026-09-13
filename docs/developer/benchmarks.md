@@ -21,7 +21,7 @@ executable:
 | `cqmom_benchmark` | Representative full CQMOM workloads: conditioning-order traversal, adaptive ragged output, high-dimensional recursion, diagnostic overhead, and dense-versus-lean representation scaling. |
 | `adaptive_quadrature_benchmark` | Adaptive QMOM/CQMOM lifecycle: paired `Reconstruction` and `FullStep` timings for retained counts, rejected growth, reductions, and `Direct`/`Fallback` reconstruction-ceiling pairs. |
 | `performance_instrumentation_benchmark` | Representative workloads reported with internal workload counters (see below). |
-| `allocation_benchmark` | Heap allocations and bytes per phase-space step and per reconstruction, via a counting `operator new`. |
+| `allocation_benchmark` | Heap allocations and bytes per phase-space step and per reconstruction, via a counting `operator new`. Phase-space steps are measured for both velocity callback forms, directly written and adapted per node. |
 
 ## Build and run
 
@@ -70,7 +70,10 @@ All executables print the Google Benchmark timing table. Two add counters:
 
 `allocation_benchmark` reports `allocations_per_op` and `bytes_per_op`.
 Counting is enabled only around the measured call, so harness allocations are
-excluded.
+excluded. Cases named `..._packed_velocity` pass a `PhaseSpaceVelocity` written
+directly; the corresponding case without that suffix passes a
+`PerNodePhaseSpaceVelocity` adapted through `make_phase_space_velocity`, so the
+pair shows what the adapter costs.
 
 `performance_instrumentation_benchmark` additionally prints a grouped report:
 workload shape (dimensions, node counts, moment counts, schemes); timing per

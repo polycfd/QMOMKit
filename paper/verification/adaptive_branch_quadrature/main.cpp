@@ -67,14 +67,15 @@ double binomial_coefficient(const std::size_t n, const std::size_t k)
 
 qmomkit::PhaseSpaceVelocity velocity()
 {
-    return [](double, const std::vector<double>& coordinates)
-    {
-        if (coordinates.size() != 2)
+    return qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinates)
         {
-            throw std::invalid_argument("The adaptive paper study requires phase-space coordinates ordered as (d,u).");
-        }
-        return std::vector<double>{0.0, -relaxation_rate * (coordinates[velocity_dimension] - equilibrium_velocity)};
-    };
+            if (coordinates.size() != 2)
+            {
+                throw std::invalid_argument("The adaptive paper study requires phase-space coordinates ordered as (d,u).");
+            }
+            return std::vector<double>{0.0, -relaxation_rate * (coordinates[velocity_dimension] - equilibrium_velocity)};
+        });
 }
 
 // During the pulse, each velocity distribution is symmetrically displaced by

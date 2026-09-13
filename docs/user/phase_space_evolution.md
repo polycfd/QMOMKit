@@ -77,25 +77,95 @@ advances the abscissas of the QMOM nodes. In multidimensional CQMOM, this
 advances the terminal node coordinates in phase-space dimension order.
 
 Users provide a `PhaseSpaceVelocity` callback when phase-space advection
-motion is part of the model:
+motion is part of the model. The callback is evaluated once per right-hand-side
+evaluation for all quadrature nodes together:
 
 ```cpp
+// One-dimensional phase space, so `dimensions` is 1 and each node owns
+// exactly one entry.
 qmomkit::PhaseSpaceVelocity velocity =
-    [](double time, const std::vector<double>& coordinates)
+    [](double time, const std::vector<double>& coordinates,
+       std::vector<double>& velocities, std::size_t)
     {
-        const double x = coordinates[0];
-        return std::vector<double>{1.0 - x};
+        for (std::size_t node = 0; node < coordinates.size(); ++node)
+        {
+            const double x = coordinates[node];
+            velocities[node] = 1.0 - x;
+        }
     };
 ```
 
-The callback receives the current time and one node coordinate vector. It must
-return $\mathrm{d}\xi/\mathrm{d}t$ with the same number of components. QMOMKit does not assign a
-physical meaning to those coordinates; `x`, `diameter`, `velocity`, or any
-other interpretation comes from your application and must match the
-phase-space order used elsewhere. If a returned component is non-finite, the
-diagnostic includes the evaluation time, zero-based phase-space dimension,
-offending value, input coordinate vector, and complete returned velocity
-vector.
+In more than one dimension every phase-space dimension of every node must be
+written, for example:
+
+```cpp
+qmomkit::PhaseSpaceVelocity velocity =
+    [](double time, const std::vector<double>& coordinates,
+       std::vector<double>& velocities, std::size_t dimensions)
+    {
+        for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
+        {
+            for (std::size_t d = 0; d < dimensions; ++d)
+            {
+                velocities[node * dimensions + d] = -coordinates[node * dimensions + d];
+            }
+        }
+    };
+```
+
+`coordinates` is packed node-major: node `i` occupies
+`[i * dimensions, (i + 1) * dimensions)`, and within a node the values are
+ordered by phase-space dimension. `velocities` arrives with the same size and
+must be filled with $\mathrm{d}\xi/\mathrm{d}t$ in the same layout. Do not
+resize it; a size mismatch is reported as a velocity failure.
+
+Fill every entry. Leaving one unwritten is a contract violation, not a request
+for zero velocity: the affected node would simply not move. Debug builds detect
+it and report a velocity failure naming the node and phase-space dimension;
+release builds cannot, so treat a partial fill as a bug in your callback.
+
+QMOMKit does not assign a physical meaning to those coordinates; `x`,
+`diameter`, `velocity`, or any other interpretation comes from your application
+and must match the phase-space order used elsewhere. If a component is
+non-finite, the diagnostic includes the evaluation time, zero-based phase-space
+dimension, offending value, the coordinate vector of the offending node, and
+that node's complete velocity vector.
+
+Evaluating all nodes together keeps the cost of one right-hand-side evaluation
+independent of the terminal node count, which is the product of the
+per-dimension node counts and therefore grows quickly with phase-space
+dimension.
+
+### Adapting a per-node callback
+
+When the physical model is naturally written one node at a time, write a
+`PerNodePhaseSpaceVelocity` and adapt it with `make_phase_space_velocity(...)`:
+
+```cpp
+qmomkit::PhaseSpaceVelocity velocity =
+    qmomkit::make_phase_space_velocity(
+        [](double time, const std::vector<double>& coordinate)
+        {
+            const double x = coordinate[0];
+            return std::vector<double>{1.0 - x};
+        });
+```
+
+The per-node callback receives one node coordinate vector, ordered by
+phase-space dimension, and must return $\mathrm{d}\xi/\mathrm{d}t$ with the
+same number of components. The adapted callback evaluates it once per node in
+ascending node order and preserves its per-node validation, so both forms
+produce identical results. It therefore also costs one call and one returned
+vector per node per right-hand-side evaluation; prefer writing a
+`PhaseSpaceVelocity` directly when advancing many nodes.
+
+`PhaseSpaceVelocity` is the single velocity form accepted by
+`advance_nodes(...)`, by the advection-only stages, and by the full
+`advance_qmom_phase_space(...)` and `advance_cqmom_phase_space(...)`
+operations. Measured over a full Strang step with two nodes per dimension,
+writing it directly rather than adapting a per-node callback removes about a
+quarter of the step's heap allocations in two dimensions, rising to about
+thirty percent in five.
 
 Use the advanced `advance_nodes(...)` operation when you already have a
 quadrature and want to evolve only the node positions:
@@ -342,10 +412,11 @@ coordinate velocity:
 $$\frac{\mathrm{d}x}{\mathrm{d}t} = \dot{\xi}(t, x)$$
 
 
-The callback receives the current time and one terminal node coordinate vector
-in phase-space dimension order. It returns one velocity component per
-coordinate. This is the right place for drift, growth, relaxation, acceleration,
-or any effect that is naturally represented by moving nodes.
+The callback receives the current time and every terminal node coordinate at
+once, packed node-major with phase-space dimension order within each node. It
+fills one velocity component per coordinate. This is the right place for drift,
+growth, relaxation, acceleration, or any effect that is naturally represented by
+moving nodes.
 
 ### Moment Sources
 
@@ -551,9 +622,13 @@ int main()
     std::vector<double> moments{1.0, 0.8, 2.8, 4.4};
 
     const qmomkit::PhaseSpaceVelocity velocity =
-        [](double, const std::vector<double>& coordinates)
+        [](double, const std::vector<double>& coordinates,
+           std::vector<double>& velocities, std::size_t)
         {
-            return std::vector<double>{1.0 - coordinates[0]};
+            for (std::size_t node = 0; node < coordinates.size(); ++node)
+            {
+                velocities[node] = 1.0 - coordinates[node];
+            }
         };
 
     const qmomkit::MomentSource source =
@@ -951,9 +1026,10 @@ const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> results =
         states, time, time_step, velocity, source, options);
 
 const qmomkit::BatchPhaseSpaceVelocity indexed_velocity =
-    [](std::size_t, double, const std::vector<double>& coordinates)
+    [](std::size_t, double, const std::vector<double>&,
+       std::vector<double>& velocities, std::size_t)
     {
-        return std::vector<double>(coordinates.size(), 0.0);
+        std::fill(velocities.begin(), velocities.end(), 0.0);
     };
 
 const qmomkit::BatchMomentSource indexed_source =
@@ -987,7 +1063,8 @@ remains fully supported.
 
 Coordinate order links the phase-space evolution callback to the configured model. A
 `PhaseSpaceVelocity` callback receives coordinates in phase-space dimension
-order, the same order used by CQMOM moments, node counts, and output.
+order within each node, the same order used by CQMOM moments, node counts, and
+output.
 
 Each moment callback must return the same number of rates as the moments it
 receives. A `MomentSource` callback returns the same number of moment

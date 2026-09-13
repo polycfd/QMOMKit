@@ -144,21 +144,45 @@ qmomkit::CqmomCase make_lean_case(const std::vector<std::size_t>& node_counts)
 
 qmomkit::PhaseSpaceVelocity make_velocity()
 {
-    return [](double, const std::vector<double>& coordinate)
-    {
-        std::vector<double> velocity(coordinate.size(), 0.0);
-        for (std::size_t dimension = 0; dimension < coordinate.size(); ++dimension)
+    return qmomkit::make_phase_space_velocity(
+        [](double, const std::vector<double>& coordinate)
         {
-            velocity[dimension] = 0.1 * coordinate[dimension];
+            std::vector<double> velocity(coordinate.size(), 0.0);
+            for (std::size_t dimension = 0; dimension < coordinate.size(); ++dimension)
+            {
+                velocity[dimension] = 0.1 * coordinate[dimension];
+            }
+            return velocity;
+        });
+}
+
+qmomkit::PhaseSpaceVelocity make_directly_written_velocity()
+{
+    return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
+    {
+        for (std::size_t entry = 0; entry < coordinates.size(); ++entry)
+        {
+            velocities[entry] = 0.1 * coordinates[entry];
         }
-        return velocity;
     };
 }
 
-void bm_allocations_cqmom_phase_space_step(benchmark::State& state, const std::vector<std::size_t>& node_counts)
+enum class VelocityForm
+{
+    adapted_per_node,
+    packed
+};
+
+[[nodiscard]] qmomkit::PhaseSpaceVelocity velocity_for(const VelocityForm form)
+{
+    return form == VelocityForm::packed ? make_directly_written_velocity() : make_velocity();
+}
+
+void bm_allocations_cqmom_phase_space_step(benchmark::State& state, const std::vector<std::size_t>& node_counts,
+                                           const VelocityForm form = VelocityForm::adapted_per_node)
 {
     const qmomkit::CqmomCase cqmom_case = make_lean_case(node_counts);
-    const qmomkit::PhaseSpaceVelocity velocity = make_velocity();
+    const qmomkit::PhaseSpaceVelocity velocity = velocity_for(form);
     const qmomkit::CqmomMomentSource source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
@@ -194,11 +218,11 @@ void bm_allocations_cqmom_phase_space_step(benchmark::State& state, const std::v
     report_allocation_counters(state);
 }
 
-void bm_allocations_qmom_phase_space_step(benchmark::State& state)
+void bm_allocations_qmom_phase_space_step(benchmark::State& state, const VelocityForm form = VelocityForm::adapted_per_node)
 {
     const qmomkit::MomentSet moments({1.0, 2.0, 14.0 / 3.0, 12.0, 98.0 / 3.0, 92.0});
     const qmomkit::QmomCase qmom_case{moments, 3, {}};
-    const qmomkit::PhaseSpaceVelocity velocity = make_velocity();
+    const qmomkit::PhaseSpaceVelocity velocity = velocity_for(form);
     const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>(context.size(), 0.0); };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
@@ -277,7 +301,13 @@ BENCHMARK_CAPTURE(bm_allocations_cqmom_phase_space_step, cqmom_2d_2x2, std::vect
     ->Name("allocations_cqmom_phase_space_step_2d_2x2");
 BENCHMARK_CAPTURE(bm_allocations_cqmom_phase_space_step, cqmom_3d_2x2x2, std::vector<std::size_t>{2, 2, 2})
     ->Name("allocations_cqmom_phase_space_step_3d_2x2x2");
-BENCHMARK(bm_allocations_qmom_phase_space_step)->Name("allocations_qmom_phase_space_step_n3");
+BENCHMARK_CAPTURE(bm_allocations_cqmom_phase_space_step, cqmom_2d_2x2_packed, std::vector<std::size_t>{2, 2}, VelocityForm::packed)
+    ->Name("allocations_cqmom_phase_space_step_2d_2x2_packed_velocity");
+BENCHMARK_CAPTURE(bm_allocations_cqmom_phase_space_step, cqmom_3d_2x2x2_packed, std::vector<std::size_t>{2, 2, 2}, VelocityForm::packed)
+    ->Name("allocations_cqmom_phase_space_step_3d_2x2x2_packed_velocity");
+BENCHMARK_CAPTURE(bm_allocations_qmom_phase_space_step, qmom_n3, VelocityForm::adapted_per_node)->Name("allocations_qmom_phase_space_step_n3");
+BENCHMARK_CAPTURE(bm_allocations_qmom_phase_space_step, qmom_n3_packed, VelocityForm::packed)
+    ->Name("allocations_qmom_phase_space_step_n3_packed_velocity");
 BENCHMARK_CAPTURE(bm_allocations_cqmom_reconstruction, cqmom_2d_2x2, std::vector<std::size_t>{2, 2})->Name("allocations_cqmom_reconstruction_2d_2x2");
 BENCHMARK(bm_allocations_qmom_reconstruction)->Name("allocations_qmom_reconstruction_n3");
 

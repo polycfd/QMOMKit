@@ -1169,9 +1169,23 @@ namespace
 {
     std::vector<ConditioningPath> paths;
     paths.reserve(hierarchy.total_nodes());
-    for (const MultiIndex& node_index : enumerate_multi_indices(hierarchy.node_counts()))
+
+    // Row-major walk over node indices using one reusable buffer.
+    // enumerate_multi_indices would heap-allocate one MultiIndex per terminal
+    // node purely to iterate over them.
+    const std::vector<std::size_t>& extents = hierarchy.node_counts();
+    MultiIndex node_index(extents.size(), 0);
+    for (std::size_t flat_index = 0; flat_index < hierarchy.total_nodes(); ++flat_index)
     {
         paths.push_back(phase_space_node_index_to_path(hierarchy, node_index));
+        for (std::size_t reverse_axis = extents.size(); reverse_axis > 0; --reverse_axis)
+        {
+            if (++node_index[reverse_axis - 1] < extents[reverse_axis - 1])
+            {
+                break;
+            }
+            node_index[reverse_axis - 1] = 0;
+        }
     }
     return paths;
 }
@@ -1677,12 +1691,13 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
 namespace
 {
 
-RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_view(const RecursiveQuadratureMomentViewRequest& request,
+// Taken by value: both callers pass a temporary, so the request is constructed
+// directly into this parameter and only its layout pointer is filled in.
+RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_view(RecursiveQuadratureMomentViewRequest request,
                                                                                   const CqmomMomentLayout& validated_layout)
 {
-    RecursiveQuadratureMomentViewRequest validated_request = request;
-    validated_request.validated_layout = &validated_layout;
-    return compute_recursive_quadrature_from_moment_view(validated_request);
+    request.validated_layout = &validated_layout;
+    return compute_recursive_quadrature_from_moment_view(request);
 }
 
 } // namespace

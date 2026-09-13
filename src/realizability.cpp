@@ -95,7 +95,7 @@ struct ClassificationState
 
     if (matrix_scale == 0.0 || !std::isfinite(matrix_scale))
     {
-        return internal::symmetric_jacobi_eigen(matrix, {diagonalization_tolerance, max_sweeps});
+        return internal::symmetric_jacobi_eigen(std::move(matrix), {diagonalization_tolerance, max_sweeps});
     }
 
     // The Jacobi convergence tolerance is absolute. Scale this temporary
@@ -111,7 +111,7 @@ struct ClassificationState
         }
     }
 
-    EigenDecomposition eigensystem = internal::symmetric_jacobi_eigen(matrix, {diagonalization_tolerance, max_sweeps});
+    EigenDecomposition eigensystem = internal::symmetric_jacobi_eigen(std::move(matrix), {diagonalization_tolerance, max_sweeps});
     for (double& eigenvalue : eigensystem.eigenvalues)
     {
         eigenvalue *= matrix_scale;

@@ -111,12 +111,16 @@ void validate_abscissas(const std::vector<std::vector<double>>& abscissas, const
     }
 }
 
+// `node_coordinate` is caller-owned scratch reused across every right-hand-side
+// evaluation of one integration; its contents are fully overwritten per node
+// before use. The returned derivative cannot be reused the same way because it
+// crosses the public `OdeRhs` boundary, which returns by value.
 [[nodiscard]] std::vector<double> node_rhs_from_velocity(const PhaseSpaceVelocity& velocity, const std::size_t dimensions, const double t,
-                                                         const std::vector<double>& state)
+                                                         const std::vector<double>& state, std::vector<double>& node_coordinate)
 {
     const std::size_t nodes = state.size() / dimensions;
     std::vector<double> derivative(state.size(), 0.0);
-    std::vector<double> node_coordinate(dimensions, 0.0);
+    node_coordinate.resize(dimensions);
 
     // The velocity callback is evaluated independently at each quadrature node
     // and returns derivatives in phase-space dimension order.
@@ -168,11 +172,12 @@ struct IntegratedNodes
                                                           const std::size_t dimensions, const std::vector<double>& initial_state)
 {
     AdaptiveRkResult rk_result;
+    std::vector<double> node_coordinate(dimensions, 0.0);
     try
     {
         rk_result = integrate_embedded_rk(
-            initial_state, t, t + time_step, [&velocity, dimensions](const double rhs_time, const std::vector<double>& state)
-            { return node_rhs_from_velocity(velocity, dimensions, rhs_time, state); }, method, options.adaptive_options);
+            initial_state, t, t + time_step, [&velocity, dimensions, &node_coordinate](const double rhs_time, const std::vector<double>& state)
+            { return node_rhs_from_velocity(velocity, dimensions, rhs_time, state, node_coordinate); }, method, options.adaptive_options);
     }
     catch (const std::exception& error)
     {
@@ -217,10 +222,11 @@ struct IntegratedNodes
         // the source-update wrapper, including source predicates, retries, and
         // source-specific performance counters.
         std::size_t rhs_evaluations = 0;
-        const auto rhs = [&velocity, dimensions, &rhs_evaluations](const double rhs_time, const std::vector<double>& state)
+        std::vector<double> node_coordinate(dimensions, 0.0);
+        const auto rhs = [&velocity, dimensions, &rhs_evaluations, &node_coordinate](const double rhs_time, const std::vector<double>& state)
         {
             ++rhs_evaluations;
-            return node_rhs_from_velocity(velocity, dimensions, rhs_time, state);
+            return node_rhs_from_velocity(velocity, dimensions, rhs_time, state, node_coordinate);
         };
 
         const std::vector<double> k1 = rhs(t, initial_state);
@@ -323,14 +329,14 @@ QmomNodeAdvectionResult advance_nodes(const Quadrature1D& quadrature, const doub
         return QmomNodeAdvectionResult{quadrature, NodeAdvectionStatus::invalid_input, {}, error.what()};
     }
 
-    const IntegratedNodes integrated = integrate_nodes({quadrature.abscissas}, t, time_step, velocity, options);
+    IntegratedNodes integrated = integrate_nodes({quadrature.abscissas}, t, time_step, velocity, options);
     if (integrated.status != NodeAdvectionStatus::success)
     {
         return QmomNodeAdvectionResult{quadrature, integrated.status, integrated.diagnostics, integrated.message};
     }
 
     Quadrature1D updated = quadrature;
-    updated.abscissas = integrated.abscissas.front();
+    updated.abscissas = std::move(integrated.abscissas.front());
     return QmomNodeAdvectionResult{std::move(updated), NodeAdvectionStatus::success, integrated.diagnostics, ""};
 }
 
@@ -372,7 +378,7 @@ CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, const 
             error.what()};
     }
 
-    const IntegratedNodes integrated = integrate_nodes(quadrature.abscissas(), t, time_step, velocity, options);
+    IntegratedNodes integrated = integrate_nodes(quadrature.abscissas(), t, time_step, velocity, options);
     if (integrated.status != NodeAdvectionStatus::success)
     {
         return CqmomNodeAdvectionResult{
@@ -383,7 +389,7 @@ CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, const 
     }
 
     return CqmomNodeAdvectionResult{
-        internal::CqmomConstructionAccess::create_quadrature(quadrature.hierarchy(), quadrature.weights(), integrated.abscissas,
+        internal::CqmomConstructionAccess::create_quadrature(quadrature.hierarchy(), quadrature.weights(), std::move(integrated.abscissas),
                                                              quadrature.adaptive_branch_counts_enabled(), quadrature.has_rectangular_storage(),
                                                              quadrature.terminal_paths()),
         NodeAdvectionStatus::success, integrated.diagnostics, ""};

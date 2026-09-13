@@ -32,6 +32,7 @@ function(qmomkit_add_benchmark target_name source_file)
     set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endfunction()
 
+qmomkit_add_benchmark(allocation_benchmark allocation_benchmark.cpp)
 qmomkit_add_benchmark(wheeler_benchmark wheeler_benchmark.cpp)
 qmomkit_add_benchmark(vandermonde_benchmark vandermonde_benchmark.cpp)
 qmomkit_add_benchmark(cqmom_benchmark cqmom_benchmark.cpp)

@@ -36,15 +36,6 @@ void require_same_size(const std::vector<double>& lhs, const std::vector<double>
     return std::sqrt(sum);
 }
 
-[[nodiscard]] double rms_norm(const std::vector<double>& values)
-{
-    if (values.empty())
-    {
-        return 0.0;
-    }
-    return euclidean_norm(values) / std::sqrt(static_cast<double>(values.size()));
-}
-
 [[nodiscard]] std::vector<double> rhs_checked(const OdeRhs& rhs, const double t, const std::vector<double>& state)
 {
     std::vector<double> derivative = rhs(t, state);
@@ -100,13 +91,21 @@ struct SspRk3Attempt
 [[nodiscard]] double error_norm(const std::vector<double>& error, const std::vector<double>& y, const std::vector<double>& y_new,
                                 const AdaptiveRkOptions& options)
 {
-    std::vector<double> scaled(error.size(), 0.0);
+    if (error.empty())
+    {
+        return 0.0;
+    }
+
+    // Root-mean-square of the tolerance-scaled error, accumulated in index
+    // order so the summation matches a scaled buffer reduced term by term.
+    double sum_of_squares = 0.0;
     for (std::size_t i = 0; i < error.size(); ++i)
     {
         const double scale = options.absolute_tolerance + std::max(std::abs(y[i]), std::abs(y_new[i])) * options.relative_tolerance;
-        scaled[i] = error[i] / scale;
+        const double scaled = error[i] / scale;
+        sum_of_squares += scaled * scaled;
     }
-    return rms_norm(scaled);
+    return std::sqrt(sum_of_squares) / std::sqrt(static_cast<double>(error.size()));
 }
 
 [[nodiscard]] AdaptiveRkResult invalid_embedded_rk_result(std::vector<double> state, const double t, std::string message)

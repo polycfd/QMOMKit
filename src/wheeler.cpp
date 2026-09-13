@@ -117,7 +117,7 @@ struct WheelerAttemptResult
     constexpr std::size_t max_sweeps_per_node = 50;
     constexpr double tolerance = 1.0e-14;
     const std::size_t max_sweeps = max_sweeps_per_node * std::max<std::size_t>(n, 1);
-    return internal::symmetric_jacobi_eigen(matrix, {tolerance, max_sweeps});
+    return internal::symmetric_jacobi_eigen(std::move(matrix), {tolerance, max_sweeps});
 }
 
 [[nodiscard]] bool recurrence_is_finite(const RecurrenceCoefficients& coefficients)
@@ -247,7 +247,13 @@ struct WheelerAttemptResult
             }
         }
 
-        coefficients = compute_recurrence(moments, n);
+        // The sigma recursion reads only the moments, so the coefficients for a
+        // reduced count are an exact prefix of the ones already computed at
+        // max_nodes. Recompute only when the scan above actually reduced n.
+        if (n != max_nodes)
+        {
+            coefficients = compute_recurrence(moments, n);
+        }
         if (!recurrence_is_finite(coefficients))
         {
             return {one_node_result(moments, QuadratureStatus::not_realizable, "Reduced Wheeler recurrence produced non-finite values."), false};
@@ -270,8 +276,7 @@ struct WheelerAttemptResult
 
     for (std::size_t n1 = n; n1 > 1; --n1)
     {
-        const DenseMatrix jacobi = make_jacobi_matrix(coefficients.a, coefficients.b, n1);
-        EigenDecomposition eigen = symmetric_jacobi_eigen(jacobi);
+        EigenDecomposition eigen = symmetric_jacobi_eigen(make_jacobi_matrix(coefficients.a, coefficients.b, n1));
         std::vector<double> weights = compute_weights(moments[0], eigen.eigenvectors);
 
         if (!internal::all_finite(eigen.eigenvalues) || !internal::all_finite(weights))

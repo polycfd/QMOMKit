@@ -59,26 +59,33 @@ double daughter_temperature(const double daughter_volume, const double parent_te
 
 qmomkit::PhaseSpaceVelocity particle_velocity()
 {
-    return qmomkit::make_phase_space_velocity(
-        [](double, const std::vector<double>& coordinates)
+    return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    {
+        if (dimensions != 5)
         {
-            if (coordinates.size() != 5)
-            {
-                throw std::invalid_argument("Thermal particle coordinates must be ordered as (V,T,u,v,w).");
-            }
-            const double d = diameter_from_volume(coordinates[0]);
-            const double du = gas_u - coordinates[2];
-            const double dv = gas_v - coordinates[3];
-            const double dw = gas_w - coordinates[4];
+            throw std::invalid_argument("Thermal particle coordinates must be ordered as (V,T,u,v,w).");
+        }
+        for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
+        {
+            const std::size_t first = node * dimensions;
+            const double d = diameter_from_volume(coordinates[first]);
+            const double du = gas_u - coordinates[first + 2];
+            const double dv = gas_v - coordinates[first + 3];
+            const double dw = gas_w - coordinates[first + 4];
             const double slip = std::sqrt(du * du + dv * dv + dw * dw);
             const double reynolds = gas_density * d * slip / gas_viscosity;
             const double drag =
                 3.0 * gas_density / (4.0 * particle_density * d) * (24.0 / reynolds * (1.0 + 0.15 * std::pow(reynolds, 0.687))) * slip;
             const double nusselt = 2.0 + 0.6 * std::sqrt(reynolds) * std::cbrt(gas_prandtl_number);
-            const double temperature_rate =
-                6.0 * gas_thermal_conductivity * nusselt / (particle_density * particle_heat_capacity * d * d) * (gas_temperature - coordinates[1]);
-            return std::vector<double>{0.0, temperature_rate, drag * du, drag * dv, drag * dw};
-        });
+            const double temperature_rate = 6.0 * gas_thermal_conductivity * nusselt / (particle_density * particle_heat_capacity * d * d) *
+                                            (gas_temperature - coordinates[first + 1]);
+            velocities[first] = 0.0;
+            velocities[first + 1] = temperature_rate;
+            velocities[first + 2] = drag * du;
+            velocities[first + 3] = drag * dv;
+            velocities[first + 4] = drag * dw;
+        }
+    };
 }
 
 qmomkit::CqmomMomentSource breakup_source()

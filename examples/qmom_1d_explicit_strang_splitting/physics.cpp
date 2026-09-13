@@ -9,16 +9,18 @@ namespace qmom_1d_explicit_strang_splitting
 
 qmomkit::PhaseSpaceVelocity advection_velocity()
 {
-    return qmomkit::make_phase_space_velocity(
-        [](double, const std::vector<double>& coordinates)
+    return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    {
+        constexpr double relaxation_rate = 500.0;
+        if (dimensions != 1)
         {
-            constexpr double relaxation_rate = 500.0;
-            if (coordinates.size() != 1)
-            {
-                throw std::invalid_argument("The explicit Strang example expects one phase-space coordinate.");
-            }
-            return std::vector<double>{-relaxation_rate * coordinates[0]};
-        });
+            throw std::invalid_argument("The explicit Strang example expects one phase-space coordinate.");
+        }
+        for (std::size_t node = 0; node < coordinates.size(); ++node)
+        {
+            velocities[node] = -relaxation_rate * coordinates[node];
+        }
+    };
 }
 
 qmomkit::MomentSource variance_injection_source()

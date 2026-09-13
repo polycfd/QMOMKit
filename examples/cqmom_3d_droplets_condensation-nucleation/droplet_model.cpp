@@ -300,17 +300,23 @@ qmomkit::PhaseSpaceVelocity droplet_phase_space_velocity()
     validate_ambient_conditions(ambient);
     validate_droplet_model_parameters(parameters);
 
-    return qmomkit::make_phase_space_velocity(
-        [ambient, parameters](double, const std::vector<double>& coordinates)
+    return [ambient, parameters](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    {
+        if (dimensions != 3)
         {
-            if (coordinates.size() != 3)
-            {
-                throw std::invalid_argument("The condensing-droplet example expects phase-space coordinates ordered as (r,w,T).");
-            }
+            throw std::invalid_argument("The condensing-droplet example expects phase-space coordinates ordered as (r,w,T).");
+        }
 
-            const DropletRates rates = evaluate_droplet_rates({coordinates[0], coordinates[1], coordinates[2]}, ambient, parameters);
-            return std::vector<double>{rates.radius_rate, rates.vertical_velocity_rate, rates.temperature_rate};
-        });
+        for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
+        {
+            const std::size_t first = node * dimensions;
+            const DropletRates rates =
+                evaluate_droplet_rates({coordinates[first], coordinates[first + 1], coordinates[first + 2]}, ambient, parameters);
+            velocities[first] = rates.radius_rate;
+            velocities[first + 1] = rates.vertical_velocity_rate;
+            velocities[first + 2] = rates.temperature_rate;
+        }
+    };
 }
 
 NucleationModel make_nucleation_model(const double initial_number_density)

@@ -9,17 +9,19 @@ namespace qmom_1d_breakage_advection_with_mc
 {
 qmomkit::PhaseSpaceVelocity advection_velocity()
 {
-    return qmomkit::make_phase_space_velocity(
-        [](double, const std::vector<double>& coordinates)
+    return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    {
+        if (dimensions != 1)
         {
-            if (coordinates.size() != 1)
-            {
-                throw std::invalid_argument("The 1D QMOM example expects one phase-space coordinate.");
-            }
+            throw std::invalid_argument("The 1D QMOM example expects one phase-space coordinate.");
+        }
 
-            const double diameter = coordinates[0];
-            return std::vector<double>{1.0 - diameter};
-        });
+        for (std::size_t node = 0; node < coordinates.size(); ++node)
+        {
+            const double diameter = coordinates[node];
+            velocities[node] = 1.0 - diameter;
+        }
+    };
 }
 
 qmomkit::MomentSource binary_fragmentation_source()

@@ -433,6 +433,13 @@ by phase-space advection moving existing nodes. The phase-space evolution helper
 and moment-source parts with the selected scheme. Boundary contributions enter
 the existing moment-source update; they do not add a separate phase-space evolution operator.
 
+A moment source returns its derivative vector, whereas a `PhaseSpaceVelocity`
+fills a buffer the library supplies. The difference is deliberate: a moment
+source is evaluated once per SSP-RK stage, a handful of times per step, while
+the velocity is evaluated for every quadrature node and so is called far more
+often as the phase space grows. Write moment sources in the natural way and
+return the vector; there is nothing to gain from avoiding it.
+
 ### CqmomSourceContext
 
 `CqmomSourceContext` describes the CQMOM moments that need moment-source or boundary

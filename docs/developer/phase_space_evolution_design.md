@@ -170,7 +170,21 @@ using MomentSource =
 
 The callback receives the current time and a non-owning view of the current
 raw-moment SSP-RK stage. It must return a derivative vector with the same
-size. `context.moment(order)` returns a tracked stage value directly; during
+size.
+
+Returning the derivative rather than filling a supplied buffer is a deliberate
+asymmetry with `PhaseSpaceVelocity`, which fills one. The two callbacks are
+invoked at different rates. A moment source runs once per SSP-RK stage, three
+times per phase-space step, independent of node count and phase-space
+dimension. The velocity callback is evaluated for every quadrature node, and
+the terminal node count is the product of the per-dimension node counts, so a
+per-call allocation there grew with dimension and dominated the step. Measured
+on a QMOM step with three nodes, the returned source vectors account for about
+two percent of the step's allocations. The packed form is therefore worth its
+extra awkwardness for the velocity and is not worth it here, where returning a
+vector keeps the most common callback the simplest to write.
+
+`context.moment(order)` returns a tracked stage value directly; during
 QMOM phase-space source evolution, an untracked order is evaluated from a
 quadrature reconstructed lazily from that same stage. The context-local cache
 is never populated from an accepted quadrature from another stage. Generic

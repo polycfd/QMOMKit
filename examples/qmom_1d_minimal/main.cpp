@@ -36,7 +36,7 @@ int main()
     };
 
     // Define the callback for the moment source
-    const auto source = [](double, const qmomkit::QmomSourceContext& context)
+    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& context)
     {
         std::vector<double> derivative(context.size(), 0.0);
         for (std::size_t order = 0; order < context.size(); ++order)

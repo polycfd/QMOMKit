@@ -132,6 +132,12 @@ Both forms produce identical results. Use `make_packed_velocity(...)` to adapt
 an existing per-node callback where a packed one is required; the adapted
 callback keeps the per-node contract and therefore also its per-node cost.
 
+The packed form is accepted by `advance_nodes(...)`, by the advection-only
+stages, and by the full `advance_qmom_phase_space(...)` and
+`advance_cqmom_phase_space(...)` operations. Measured over a full Strang step
+with two nodes per dimension, it removes about a quarter of the step's heap
+allocations in two dimensions, rising to about thirty percent in five.
+
 Use the advanced `advance_nodes(...)` operation when you already have a
 quadrature and want to evolve only the node positions:
 

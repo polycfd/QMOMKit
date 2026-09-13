@@ -349,6 +349,38 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
                                                                        const CqmomPhaseSpaceEvolutionOptions& options);
 
 /**
+ * Advanced overloads taking a packed phase-space velocity callback, evaluated
+ * once per right-hand-side evaluation for all quadrature nodes together.
+ * Behaviour matches the per-node overloads above; only the callback form
+ * differs. See `PackedPhaseSpaceVelocity` and `make_packed_velocity`.
+ */
+[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_advection(const QmomState& state, double t, double time_step,
+                                                                   const PackedPhaseSpaceVelocity& velocity,
+                                                                   const QmomPhaseSpaceEvolutionOptions& options = {});
+
+[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, double t, double time_step,
+                                                                     const PackedPhaseSpaceVelocity& velocity, const MomentSource& source,
+                                                                     const QmomPhaseSpaceEvolutionOptions& options = {});
+
+[[nodiscard]] QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, double t, double time_step,
+                                                                     const PackedPhaseSpaceVelocity& velocity, const MomentSource& source,
+                                                                     const MomentBoundaryContribution& boundary,
+                                                                     const QmomPhaseSpaceEvolutionOptions& options);
+
+[[nodiscard]] CqmomPhaseSpaceEvolutionResult advance_cqmom_advection(const CqmomState& state, double t, double time_step,
+                                                                     const PackedPhaseSpaceVelocity& velocity,
+                                                                     const CqmomPhaseSpaceEvolutionOptions& options = {});
+
+[[nodiscard]] CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state, double t, double time_step,
+                                                                       const PackedPhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                                       const CqmomPhaseSpaceEvolutionOptions& options = {});
+
+[[nodiscard]] CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomState& state, double t, double time_step,
+                                                                       const PackedPhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                                       const CqmomMomentBoundaryContribution& boundary,
+                                                                       const CqmomPhaseSpaceEvolutionOptions& options);
+
+/**
  * Serial batch convenience wrappers for accepted QMOM and CQMOM phase-space
  * evolution
  * states.

@@ -4665,6 +4665,93 @@ void test_boundary_contribution_post_source_inversion_failure()
     assert_vector_near(result.state.moments(), state.moments(), 0.0);
 }
 
+// The packed velocity form is an alternative spelling of the same contract, so
+// a full phase-space step must agree with the per-node form exactly, including
+// diagnostics, for every splitting scheme.
+void test_packed_velocity_phase_space_step_matches_per_node_form()
+{
+    const qmomkit::PhaseSpaceVelocity per_node = [](const double time, const std::vector<double>& xi)
+    {
+        std::vector<double> velocity(xi.size(), 0.0);
+        for (std::size_t dimension = 0; dimension < xi.size(); ++dimension)
+        {
+            velocity[dimension] = 0.2 * xi[dimension] - 0.05 * time;
+        }
+        return velocity;
+    };
+    const qmomkit::PackedPhaseSpaceVelocity packed =
+        [](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    {
+        for (std::size_t entry = 0; entry < coordinates.size(); ++entry)
+        {
+            velocities[entry] = 0.2 * coordinates[entry] - 0.05 * time;
+        }
+        (void)dimensions;
+    };
+
+    for (const qmomkit::PhaseSpaceEvolutionScheme scheme :
+         {qmomkit::PhaseSpaceEvolutionScheme::strang, qmomkit::PhaseSpaceEvolutionScheme::advsrc, qmomkit::PhaseSpaceEvolutionScheme::srcadv})
+    {
+        const qmomkit::CqmomState cqmom_state = fixed_cqmom_case_with_storage("lean").initial_state();
+        const qmomkit::CqmomMomentSource cqmom_source = [](double, const qmomkit::CqmomSourceContext& context)
+        { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+        qmomkit::CqmomPhaseSpaceEvolutionOptions cqmom_options;
+        cqmom_options.scheme = scheme;
+
+        const qmomkit::CqmomPhaseSpaceEvolutionResult cqmom_per_node =
+            qmomkit::advance_cqmom_phase_space(cqmom_state, 0.25, 0.05, per_node, cqmom_source, cqmom_options);
+        const qmomkit::CqmomPhaseSpaceEvolutionResult cqmom_packed =
+            qmomkit::advance_cqmom_phase_space(cqmom_state, 0.25, 0.05, packed, cqmom_source, cqmom_options);
+
+        assert(cqmom_per_node.ok());
+        assert(cqmom_packed.ok());
+        assert(cqmom_packed.state.moment_values() == cqmom_per_node.state.moment_values());
+        assert(cqmom_packed.final_time == cqmom_per_node.final_time);
+        assert(cqmom_packed.diagnostics.total_node_advection_rhs_evaluations == cqmom_per_node.diagnostics.total_node_advection_rhs_evaluations);
+        assert(cqmom_packed.diagnostics.total_node_advection_steps == cqmom_per_node.diagnostics.total_node_advection_steps);
+
+        const qmomkit::QmomState qmom_state = qmom_state_from_moments({1.0, 0.5, 0.75, 0.875, 1.5, 3.0}, 3);
+        const qmomkit::MomentSource qmom_source = [](double, const qmomkit::QmomSourceContext& context)
+        { return std::vector<double>(context.size(), 0.0); };
+
+        qmomkit::QmomPhaseSpaceEvolutionOptions qmom_options;
+        qmom_options.scheme = scheme;
+
+        const qmomkit::QmomPhaseSpaceEvolutionResult qmom_per_node =
+            qmomkit::advance_qmom_phase_space(qmom_state, 0.25, 0.05, per_node, qmom_source, qmom_options);
+        const qmomkit::QmomPhaseSpaceEvolutionResult qmom_packed =
+            qmomkit::advance_qmom_phase_space(qmom_state, 0.25, 0.05, packed, qmom_source, qmom_options);
+
+        assert(qmom_per_node.ok());
+        assert(qmom_packed.ok());
+        assert(qmom_packed.state.moments() == qmom_per_node.state.moments());
+        assert(qmom_packed.state.quadrature().abscissas == qmom_per_node.state.quadrature().abscissas);
+        assert(qmom_packed.diagnostics.total_node_advection_rhs_evaluations == qmom_per_node.diagnostics.total_node_advection_rhs_evaluations);
+    }
+}
+
+// Advection-only entry points share the same adaptation, including the
+// missing-callback contract.
+void test_packed_velocity_advection_entry_points_match_and_reject_empty_callback()
+{
+    const qmomkit::CqmomState cqmom_state = fixed_cqmom_case_with_storage("lean").initial_state();
+    const qmomkit::PhaseSpaceVelocity per_node = [](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.1); };
+    const qmomkit::PackedPhaseSpaceVelocity packed = [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
+    { velocities.assign(coordinates.size(), 0.1); };
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult from_per_node = qmomkit::advance_cqmom_advection(cqmom_state, 0.0, 0.1, per_node);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult from_packed = qmomkit::advance_cqmom_advection(cqmom_state, 0.0, 0.1, packed);
+    assert(from_per_node.ok());
+    assert(from_packed.ok());
+    assert(from_packed.state.moment_values() == from_per_node.state.moment_values());
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult missing =
+        qmomkit::advance_cqmom_advection(cqmom_state, 0.0, 0.1, qmomkit::PackedPhaseSpaceVelocity{});
+    assert(!missing.ok());
+    assert(missing.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
+}
+
 void test_lean_cqmom_failure_propagation_from_inversion()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -5152,6 +5239,9 @@ int main(const int argc, char** argv)
             {"failure_propagation_from_source_operator", test_failure_propagation_from_source_operator},
             {"failure_propagation_from_boundary_contribution", test_failure_propagation_from_boundary_contribution},
             {"boundary_contribution_post_source_inversion_failure", test_boundary_contribution_post_source_inversion_failure},
+            {"packed_velocity_phase_space_step_matches_per_node_form", test_packed_velocity_phase_space_step_matches_per_node_form},
+            {"packed_velocity_advection_entry_points_match_and_reject_empty_callback",
+             test_packed_velocity_advection_entry_points_match_and_reject_empty_callback},
             {"lean_cqmom_failure_propagation_from_inversion", test_lean_cqmom_failure_propagation_from_inversion},
             {"lean_cqmom_phase_space_evolution_preserves_invalid_state_messages",
              test_lean_cqmom_phase_space_evolution_preserves_invalid_state_messages},

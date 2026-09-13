@@ -94,6 +94,22 @@ per-node form and roughly 1 per terminal node for the packed form:
 The residual packed growth is the terminal conditioning-path table copied into
 the returned quadrature, not the velocity callback.
 
+The phase-space evolution entry points carry the packed callback internally and
+adapt per-node callbacks once at the public boundary, so both forms share one
+advection path. Batch wrappers adapt once for the whole batch rather than once
+per state. Measured over a full Strang phase-space step with a zero moment
+source:
+
+| Case | Terminal nodes | Per-node | Packed | Saved |
+| --- | --- | --- | --- | --- |
+| 2D 2^2 | 4 | 519 | 388 | 25.2% |
+| 3D 2^3 | 8 | 864 | 629 | 27.2% |
+| 4D 2^4 | 16 | 1539 | 1096 | 28.8% |
+| 5D 2^5 | 32 | 2872 | 2013 | 29.9% |
+
+The saved fraction grows with phase-space dimension because the eliminated term
+scales with the terminal node count while the rest of the step does not.
+
 For one-dimensional QMOM, node advection advances the one-dimensional
 abscissa array. For multidimensional CQMOM, node advection advances terminal
 node coordinates stored by phase-space dimension:

@@ -397,9 +397,19 @@ PhaseSpaceVelocity make_phase_space_velocity(PerNodePhaseSpaceVelocity velocity)
                                             const std::size_t dimensions)
     {
         const std::size_t nodes = coordinates.size() / dimensions;
-        std::vector<double> node_coordinate(dimensions, 0.0);
+
+        // One coordinate buffer is reused across nodes and across
+        // right-hand-side evaluations, which is what the per-node path did
+        // before the callback shapes were merged. It is thread-local rather
+        // than captured because one velocity object may be shared by an
+        // application-managed parallel loop, and it is resized inside the node
+        // loop so that a callback re-entering node advection on this thread
+        // cannot leave it too short. Resizing to the size it already has is
+        // free once the capacity is grown.
+        static thread_local std::vector<double> node_coordinate;
         for (std::size_t node = 0; node < nodes; ++node)
         {
+            node_coordinate.resize(dimensions);
             for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
             {
                 node_coordinate[dimension] = coordinates[node * dimensions + dimension];

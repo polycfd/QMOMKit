@@ -1,6 +1,7 @@
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -8,6 +9,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace
@@ -578,6 +580,58 @@ void test_partially_filled_velocity_is_reported_in_debug_builds()
     assert(complete.ok());
 }
 
+// One adapted velocity object may be shared by an application-managed parallel
+// loop. The adapter reuses a coordinate buffer across nodes and right-hand-side
+// evaluations, so that buffer must not be shared between threads.
+void test_adapted_velocity_is_safe_to_share_between_threads()
+{
+    const qmomkit::CqmomResult cqmom_result = make_fixed_two_dimensional_cqmom();
+    assert(cqmom_result.ok());
+
+    qmomkit::NodeAdvectionOptions options;
+    options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+
+    // Dimension-dependent rates, so a buffer shared between threads would mix
+    // coordinates between nodes and change the advected result.
+    const qmomkit::PhaseSpaceVelocity shared = qmomkit::make_phase_space_velocity(
+        [](const double time, const std::vector<double>& coordinate)
+        {
+            std::vector<double> rate(coordinate.size(), 0.0);
+            for (std::size_t dimension = 0; dimension < coordinate.size(); ++dimension)
+            {
+                rate[dimension] = 0.25 * coordinate[dimension] + 0.1 * static_cast<double>(dimension + 1) - 0.05 * time;
+            }
+            return rate;
+        });
+
+    const qmomkit::CqmomNodeAdvectionResult reference = qmomkit::advance_nodes(cqmom_result.quadrature, 0.125, 0.25, shared, options);
+    assert(reference.ok());
+
+    std::vector<int> succeeded(4, 0);
+    std::vector<std::thread> workers;
+    workers.reserve(succeeded.size());
+    for (std::size_t worker = 0; worker < succeeded.size(); ++worker)
+    {
+        workers.emplace_back(
+            [&cqmom_result, &shared, &options, &reference, &succeeded, worker]()
+            {
+                for (std::size_t iteration = 0; iteration < 32; ++iteration)
+                {
+                    const qmomkit::CqmomNodeAdvectionResult result = qmomkit::advance_nodes(cqmom_result.quadrature, 0.125, 0.25, shared, options);
+                    assert(result.ok());
+                    assert(result.quadrature.abscissas() == reference.quadrature.abscissas());
+                    assert(result.quadrature.weights() == reference.quadrature.weights());
+                }
+                succeeded[worker] = 1;
+            });
+    }
+    for (std::thread& worker : workers)
+    {
+        worker.join();
+    }
+    assert(std::all_of(succeeded.begin(), succeeded.end(), [](const int value) { return value == 1; }));
+}
+
 void test_rk23_failure_diagnostics_are_reported()
 {
     qmomkit::Quadrature1D quadrature;
@@ -691,6 +745,7 @@ int main(const int argc, char** argv)
             {"adapted_velocity_matches_directly_written_velocity_exactly", test_adapted_velocity_matches_directly_written_velocity_exactly},
             {"velocity_adapter_preserves_results_and_emptiness", test_velocity_adapter_preserves_results_and_emptiness},
             {"velocity_diagnostics_report_node_and_dimension_context", test_velocity_diagnostics_report_node_and_dimension_context},
+            {"adapted_velocity_is_safe_to_share_between_threads", test_adapted_velocity_is_safe_to_share_between_threads},
             {"partially_filled_velocity_is_reported_in_debug_builds", test_partially_filled_velocity_is_reported_in_debug_builds},
             {"rk23_failure_diagnostics_are_reported", test_rk23_failure_diagnostics_are_reported},
             {"configured_adaptive_options_reach_node_advection", test_configured_adaptive_options_reach_node_advection},

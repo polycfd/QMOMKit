@@ -576,8 +576,12 @@ std::vector<double> commuting_source_exact(const std::vector<double>& initial, c
     return exact;
 }
 
-void commuting_velocity(double, const std::vector<double>& coordinates, std::vector<double>& velocities, std::size_t)
+void commuting_velocity(double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
 {
+    if (dimensions != 1)
+    {
+        throw std::invalid_argument("This verification velocity model is one-dimensional.");
+    }
     for (std::size_t entry = 0; entry < coordinates.size(); ++entry)
     {
         velocities[entry] = commuting_a * coordinates[entry];
@@ -671,8 +675,12 @@ std::vector<double> noncommuting_exact(const std::vector<double>& initial, const
     return exact;
 }
 
-void noncommuting_velocity(double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
+void noncommuting_velocity(double, const std::vector<double>&, std::vector<double>& velocities, const std::size_t dimensions)
 {
+    if (dimensions != 1)
+    {
+        throw std::invalid_argument("This verification velocity model is one-dimensional.");
+    }
     std::fill(velocities.begin(), velocities.end(), noncommuting_b);
 }
 
@@ -1476,6 +1484,10 @@ std::vector<double> cqmom_noncommuting_exact_values(const qmomkit::CqmomQuadratu
 
 void cqmom_velocity(double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
 {
+    if (dimensions != 2)
+    {
+        throw std::invalid_argument("This verification velocity model is two-dimensional.");
+    }
     for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
     {
         velocities[node * dimensions] = cqmom_a * coordinates[node * dimensions];
@@ -1485,6 +1497,10 @@ void cqmom_velocity(double, const std::vector<double>& coordinates, std::vector<
 
 void cqmom_noncommuting_velocity(double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
 {
+    if (dimensions != 2)
+    {
+        throw std::invalid_argument("This verification velocity model is two-dimensional.");
+    }
     for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
     {
         velocities[node * dimensions] = coordinates[node * dimensions];
@@ -3042,11 +3058,11 @@ VerificationResult run_cqmom_phase_space_evolution_failures(const std::filesyste
 
     const std::vector<AdvectionFailureCase> advection_failure_cases{
         {"CQMOM wrong velocity dimension",
-         [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
+         [](double, const std::vector<double>&, std::vector<double>& velocities, const std::size_t dimensions)
          {
-             // Simulates a CQMOM user callback writing one velocity component
-             // too few for a two-dimensional phase space.
-             velocities.assign(velocities.size() - 1, 0.0);
+             // Simulates a CQMOM user callback that fills one node's worth of
+             // components instead of one per node.
+             velocities.assign(dimensions, 0.0);
          },
          "Phase-space velocity callback returned the wrong dimension:"},
         {"CQMOM non-finite velocity",
@@ -3227,8 +3243,8 @@ VerificationResult run_cqmom_dense_phase_space_evolution_failures(const std::fil
         std::string expected_message_fragment;
     };
     const std::vector<AdvectionFailureCase> advection_failure_cases{
-        {"dense CQMOM wrong velocity dimension", [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
-         { velocities.assign(velocities.size() - 1, 0.0); }, "Phase-space velocity callback returned the wrong dimension:"},
+        {"dense CQMOM wrong velocity dimension", [](double, const std::vector<double>&, std::vector<double>& velocities, const std::size_t dimensions)
+         { velocities.assign(dimensions, 0.0); }, "Phase-space velocity callback returned the wrong dimension:"},
         {"dense CQMOM non-finite velocity",
          [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
          {
@@ -3341,8 +3357,8 @@ VerificationResult run_cqmom_lean_phase_space_evolution_failures(const std::file
         std::string expected_message_fragment;
     };
     const std::vector<AdvectionFailureCase> advection_failure_cases{
-        {"lean CQMOM wrong velocity dimension", [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
-         { velocities.assign(velocities.size() - 1, 0.0); }, "Phase-space velocity callback returned the wrong dimension:"},
+        {"lean CQMOM wrong velocity dimension", [](double, const std::vector<double>&, std::vector<double>& velocities, const std::size_t dimensions)
+         { velocities.assign(dimensions, 0.0); }, "Phase-space velocity callback returned the wrong dimension:"},
         {"lean CQMOM non-finite velocity",
          [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
          {

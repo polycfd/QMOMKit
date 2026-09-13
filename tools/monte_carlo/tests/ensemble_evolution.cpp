@@ -293,6 +293,22 @@ void test_failure_during_integration()
     check_contains(dimension.message, "expected size: 1");
     check_contains(dimension.message, "returned size: 2");
 
+    // The adapter above reports the wrong size before the ensemble driver sees
+    // it. A packed callback that resizes the supplied buffer reaches the
+    // driver's own dimension guard instead, which is the only way that guard
+    // can now fire.
+    const qmomkit::PhaseSpaceVelocity resizing_callback = [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
+    { velocities.assign(3, 0.0); };
+    const qmomkit::monte_carlo::EnsembleEvolutionResult resized =
+        qmomkit::monte_carlo::evolve_ensemble(original, resizing_callback, 0.0, 1.0, options);
+    CHECK(!resized.ok());
+    CHECK(resized.status == EnsembleEvolutionStatus::velocity_failed);
+    CHECK(resized.failed_sample_index == 0);
+    CHECK(resized.ensemble.empty());
+    check_contains(resized.message, "Phase-space velocity callback returned the wrong dimension:");
+    check_contains(resized.message, "expected size: 1");
+    check_contains(resized.message, "returned size: 3");
+
     const qmomkit::PhaseSpaceVelocity throwing_callback = qmomkit::make_phase_space_velocity(
         [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("manufactured callback failure"); });
     const qmomkit::monte_carlo::EnsembleEvolutionResult thrown =

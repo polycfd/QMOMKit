@@ -25,14 +25,19 @@ int main()
     // receives every terminal node at once: `coordinates` holds
     // `nodes * dimensions` values packed node-major, so node `i` occupies
     // `[i * dimensions, (i + 1) * dimensions)`. Fill `velocities` with dxi/dt
-    // in the same layout.
+    // in the same layout, leaving no entry unwritten.
+    //
+    // This model is two-dimensional, so each node owns exactly two components
+    // and both are written explicitly. A model of another dimensionality would
+    // loop over its own components instead.
     const qmomkit::PhaseSpaceVelocity velocity =
         [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
     {
         for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
         {
-            velocities[node * dimensions] = 1.0 - coordinates[node * dimensions];
-            velocities[node * dimensions + 1] = -coordinates[node * dimensions + 1];
+            const std::size_t first = node * dimensions;
+            velocities[first] = 1.0 - coordinates[first];
+            velocities[first + 1] = -coordinates[first + 1];
         }
     };
 

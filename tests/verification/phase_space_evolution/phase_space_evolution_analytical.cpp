@@ -3865,7 +3865,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
         summary.success = false;
     }
     std::vector<std::size_t> actual_paths;
-    for (const qmomkit::ConditioningPath& path : quadrature.terminal_paths())
+    for (const qmomkit::ConditioningPathView path : quadrature.terminal_paths())
     {
         actual_paths.push_back(path.node_index_at_level(0) * 2 + path.node_index_at_level(1));
     }
@@ -3886,7 +3886,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     }
     for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
     {
-        const qmomkit::ConditioningPath& path = quadrature.terminal_paths()[node];
+        const qmomkit::ConditioningPathView path = quadrature.terminal_paths()[node];
         const std::size_t expected_node = path.node_index_at_level(0) == 0 ? path.node_index_at_level(1) : 2;
         update_errors(summary.errors, {quadrature.weights()[node]}, {expected_weights[expected_node]});
         for (std::size_t dimension = 0; dimension < units.size(); ++dimension)

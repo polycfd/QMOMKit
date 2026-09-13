@@ -113,7 +113,7 @@ void verify_adaptive_branch_reinjection()
     QMOMKIT_VERIFY_CHECK(result.quadrature->total_nodes() == 3);
     const std::vector<qmomkit::ConditioningPath> expected_paths{qmomkit::ConditioningPath{{0, 0}}, qmomkit::ConditioningPath{{1, 0}},
                                                                 qmomkit::ConditioningPath{{1, 1}}};
-    QMOMKIT_VERIFY_CHECK(result.quadrature->terminal_paths() == expected_paths);
+    QMOMKIT_VERIFY_CHECK(result.quadrature->terminal_paths().to_conditioning_paths() == expected_paths);
     QMOMKIT_VERIFY_CHECK(has_active_count(result.state.active_branch_counts(), 0, {}, 2));
     QMOMKIT_VERIFY_CHECK(has_active_count(result.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 1));
     QMOMKIT_VERIFY_CHECK(has_active_count(result.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 2));

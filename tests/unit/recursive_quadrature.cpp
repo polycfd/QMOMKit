@@ -1078,7 +1078,7 @@ void test_fixed_public_terminal_paths_align_with_physical_storage()
                                                                 qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})};
     const qmomkit::CqmomResult identity = qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{qmomkit::PhaseSpaceHierarchy({2, 2}), {extents, moments}});
     assert(identity.ok());
-    assert(identity.quadrature.terminal_paths() == identity_paths);
+    assert(identity.quadrature.terminal_paths().to_conditioning_paths() == identity_paths);
 
     const qmomkit::CqmomDenseCase cqmom_case{hierarchy, {extents, moments}};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
@@ -1104,7 +1104,7 @@ void test_fixed_public_terminal_paths_align_with_physical_storage()
         assert_near(reconstructed.values[moment], moments[moment], 1.0e-12);
     }
 
-    assert(result.quadrature.terminal_paths() == expected_paths);
+    assert(result.quadrature.terminal_paths().to_conditioning_paths() == expected_paths);
 }
 
 void test_recursive_bounded_support_applies_to_conditional_phase_space_dimension()
@@ -1437,6 +1437,95 @@ void test_reversed_conditioning_order_controls_recursive_traversal()
     assert_vector_equal(node_indices[2], {0, 1, 0});
     assert_vector_equal(node_indices[6], {0, 0, 1});
     assert_vector_equal(node_indices[11], {1, 2, 1});
+}
+
+// Terminal paths all reach the deepest conditioning level, so they are stored
+// contiguously: one allocation per table instead of one per path, and one
+// allocation when a quadrature carries them through node advection.
+void test_conditioning_path_table_round_trips_and_views_rows()
+{
+    const std::vector<qmomkit::ConditioningPath> paths{qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({1, 0}),
+                                                       qmomkit::ConditioningPath({1, 1})};
+    const qmomkit::ConditioningPathTable table(paths);
+
+    assert(table.size() == 3);
+    assert(table.levels() == 2);
+    assert(!table.empty());
+    assert(table.node_indices() == std::vector<std::size_t>({0, 1, 1, 0, 1, 1}));
+
+    for (std::size_t path = 0; path < paths.size(); ++path)
+    {
+        const qmomkit::ConditioningPathView view = table[path];
+        assert(view.size() == 2);
+        assert(view == qmomkit::ConditioningPathView(paths[path]));
+        assert(view.to_conditioning_path() == paths[path]);
+        for (std::size_t level = 0; level < view.size(); ++level)
+        {
+            assert(view.node_index_at_level(level) == paths[path].node_index_at_level(level));
+        }
+    }
+    assert(table.to_conditioning_paths() == paths);
+
+    // Rows are adjacent in memory: this is what removes the per-path allocation.
+    assert(table[1].data() == table[0].data() + table.levels());
+}
+
+void test_conditioning_path_table_rejects_uneven_depth_and_checks_bounds()
+{
+    const qmomkit::ConditioningPathTable flat(2, std::vector<std::size_t>{1, 2, 3, 4});
+    assert(flat.size() == 2);
+    assert(flat[1] == qmomkit::ConditioningPathView(qmomkit::ConditioningPath({3, 4})));
+
+    assert_throws_invalid_argument([] { (void)qmomkit::ConditioningPathTable(2, std::vector<std::size_t>{1, 2, 3}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::ConditioningPathTable(0, std::vector<std::size_t>{1}); });
+    assert_throws_invalid_argument([] { (void)qmomkit::ConditioningPathTable({qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({0})}); });
+
+    assert_throws_out_of_range([&flat] { (void)flat.at(2); });
+    assert_throws_out_of_range([&flat] { (void)flat[0].node_index_at_level(2); });
+}
+
+void test_conditioning_path_table_grows_iterates_and_compares()
+{
+    qmomkit::ConditioningPathTable table;
+    assert(table.empty());
+    assert(table.levels() == 0);
+    assert(table.begin() == table.end());
+
+    table.reserve(2);
+    table.push_back(qmomkit::ConditioningPath({2, 3}));
+    assert(table.levels() == 2);
+    const qmomkit::ConditioningPathTable source({qmomkit::ConditioningPath({4, 5})});
+    table.push_back(source[0]);
+    assert(table.size() == 2);
+    assert_throws_invalid_argument([&table] { table.push_back(qmomkit::ConditioningPath({1, 2, 3})); });
+
+    std::size_t visited = 0;
+    for (const qmomkit::ConditioningPathView row : table)
+    {
+        assert(row.size() == 2);
+        ++visited;
+    }
+    assert(visited == 2);
+
+    assert(table == qmomkit::ConditioningPathTable({qmomkit::ConditioningPath({2, 3}), qmomkit::ConditioningPath({4, 5})}));
+    assert(table != qmomkit::ConditioningPathTable({qmomkit::ConditioningPath({2, 3})}));
+
+    // clear() keeps the depth so the table can be refilled with the same shape.
+    table.clear();
+    assert(table.empty());
+    assert(table.levels() == 2);
+}
+
+// A view maps to phase-space order exactly as the owning path does; the owning
+// path delegates to it so the mapping exists once.
+void test_conditioning_path_view_maps_to_phase_space_node_index()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3, 4}, {2, 0, 1});
+    const qmomkit::ConditioningPath path({3, 1, 2});
+    const qmomkit::ConditioningPathTable table({path});
+
+    assert(table[0].phase_space_node_index(hierarchy) == path.phase_space_node_index(hierarchy));
+    assert(qmomkit::recursive_path_to_node_index(hierarchy, table[0]) == qmomkit::recursive_path_to_node_index(hierarchy, path));
 }
 
 void test_conditioning_path_maps_to_phase_space_node_index()
@@ -2085,6 +2174,10 @@ void run_all_recursive_quadrature_tests()
     test_identity_conditioning_order_matches_phase_space_order();
     test_non_identity_conditioning_order_controls_recursive_traversal();
     test_reversed_conditioning_order_controls_recursive_traversal();
+    test_conditioning_path_table_round_trips_and_views_rows();
+    test_conditioning_path_table_rejects_uneven_depth_and_checks_bounds();
+    test_conditioning_path_table_grows_iterates_and_compares();
+    test_conditioning_path_view_maps_to_phase_space_node_index();
     test_conditioning_path_maps_to_phase_space_node_index();
     test_invalid_hierarchy_inputs();
     test_invalid_index_inputs();
@@ -2243,6 +2336,10 @@ int main(const int argc, char** argv)
             {"identity_conditioning_order_matches_phase_space_order", test_identity_conditioning_order_matches_phase_space_order},
             {"non_identity_conditioning_order_controls_recursive_traversal", test_non_identity_conditioning_order_controls_recursive_traversal},
             {"reversed_conditioning_order_controls_recursive_traversal", test_reversed_conditioning_order_controls_recursive_traversal},
+            {"conditioning_path_table_round_trips_and_views_rows", test_conditioning_path_table_round_trips_and_views_rows},
+            {"conditioning_path_table_rejects_uneven_depth_and_checks_bounds", test_conditioning_path_table_rejects_uneven_depth_and_checks_bounds},
+            {"conditioning_path_table_grows_iterates_and_compares", test_conditioning_path_table_grows_iterates_and_compares},
+            {"conditioning_path_view_maps_to_phase_space_node_index", test_conditioning_path_view_maps_to_phase_space_node_index},
             {"conditioning_path_maps_to_phase_space_node_index", test_conditioning_path_maps_to_phase_space_node_index},
             {"invalid_hierarchy_inputs", test_invalid_hierarchy_inputs},
             {"invalid_index_inputs", test_invalid_index_inputs},

@@ -165,7 +165,7 @@ std::vector<RecoveredTerminal> recovered_terminals(const qmomkit::CqmomQuadratur
         {
             coordinates[dimension] = quadrature.abscissas()[dimension][node];
         }
-        terminals.push_back({std::move(coordinates), quadrature.weights()[node], quadrature.terminal_paths()[node]});
+        terminals.push_back({std::move(coordinates), quadrature.weights()[node], quadrature.terminal_paths()[node].to_conditioning_path()});
     }
     return terminals;
 }

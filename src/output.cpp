@@ -751,7 +751,7 @@ void QuadratureWriter::write(const double time, const CqmomQuadrature& quadratur
 
     for (std::size_t node = 0; node < node_count; ++node)
     {
-        const ConditioningPath& path = quadrature.terminal_paths()[node];
+        const ConditioningPathView path = quadrature.terminal_paths()[node];
         if (path.size() != dimension_count_)
         {
             throw std::invalid_argument("CQMOM quadrature output terminal path depth does not match the writer dimension count.");

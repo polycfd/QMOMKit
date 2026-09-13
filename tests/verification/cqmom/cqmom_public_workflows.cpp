@@ -86,8 +86,8 @@ std::vector<TerminalNode> terminal_nodes(const qmomkit::CqmomQuadrature& quadrat
     {
         for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
         {
-            nodes.push_back(
-                {quadrature.terminal_paths()[node], quadrature.abscissas()[0][node], quadrature.abscissas()[1][node], quadrature.weights()[node]});
+            nodes.push_back({quadrature.terminal_paths()[node].to_conditioning_path(), quadrature.abscissas()[0][node],
+                             quadrature.abscissas()[1][node], quadrature.weights()[node]});
         }
     }
     std::sort(nodes.begin(), nodes.end(), [](const TerminalNode& lhs, const TerminalNode& rhs) { return lhs.path < rhs.path; });

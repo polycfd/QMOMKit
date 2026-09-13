@@ -87,7 +87,7 @@ std::vector<Terminal> recovered_terminals(const qmomkit::CqmomQuadrature& quadra
         {
             coordinates[dimension] = quadrature.abscissas()[dimension][node];
         }
-        terminals.push_back({std::move(coordinates), quadrature.weights()[node], quadrature.terminal_paths()[node]});
+        terminals.push_back({std::move(coordinates), quadrature.weights()[node], quadrature.terminal_paths()[node].to_conditioning_path()});
     }
     std::sort(terminals.begin(), terminals.end(), [](const Terminal& lhs, const Terminal& rhs) { return lhs.path < rhs.path; });
     return terminals;

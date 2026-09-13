@@ -245,7 +245,7 @@ std::vector<TerminalNode> terminal_nodes_from_quadrature(const qmomkit::CqmomQua
         {
             terminal.coordinate[dimension] = quadrature.abscissas()[dimension][node];
         }
-        terminal.path = quadrature.terminal_paths()[node];
+        terminal.path = quadrature.terminal_paths()[node].to_conditioning_path();
         nodes.push_back(terminal);
     }
     std::sort(nodes.begin(), nodes.end(), path_less);

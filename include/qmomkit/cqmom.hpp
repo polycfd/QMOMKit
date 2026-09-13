@@ -69,7 +69,7 @@ public:
     {
         return rectangular_storage_;
     }
-    [[nodiscard]] const std::vector<ConditioningPath>& terminal_paths() const noexcept
+    [[nodiscard]] const ConditioningPathTable& terminal_paths() const noexcept
     {
         return terminal_paths_;
     }
@@ -84,12 +84,12 @@ private:
     friend class internal::CqmomConstructionAccess;
 
     CqmomQuadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights, std::vector<std::vector<double>> abscissas,
-                    bool adaptive_branch_counts_enabled, bool rectangular_storage, std::vector<ConditioningPath> terminal_paths);
+                    bool adaptive_branch_counts_enabled, bool rectangular_storage, ConditioningPathTable terminal_paths);
 
     PhaseSpaceHierarchy hierarchy_;
     std::vector<double> weights_;
     std::vector<std::vector<double>> abscissas_;
-    std::vector<ConditioningPath> terminal_paths_;
+    ConditioningPathTable terminal_paths_;
     bool adaptive_branch_counts_enabled_ = false;
     bool rectangular_storage_ = true;
 };

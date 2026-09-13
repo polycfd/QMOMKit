@@ -47,7 +47,7 @@ void print_moment_entry(const qmomkit::MultiIndex& order, const double value)
     std::cout << " = " << value << '\n';
 }
 
-void print_path(const qmomkit::ConditioningPath& path)
+void print_path(const qmomkit::ConditioningPathView path)
 {
     std::cout << '[';
     for (std::size_t level = 0; level < path.size(); ++level)

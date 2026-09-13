@@ -153,7 +153,7 @@ qmomkit::CqmomQuadrature captured_failing_terminal_quadrature()
         {{0.00010988241902807785, 0.00010988241902807785, 0.00014945058007081771, 0.00014945058007081771},
          {0.21441293841351547, 0.41880958133916973, 0.21711664207959502, 0.4193843251358394},
          {-1.1044079065934338, -1.1181660600053236, -1.1559642207840419, -1.1762606826705884}},
-        true, false, captured_terminal_paths());
+        true, false, qmomkit::ConditioningPathTable(captured_terminal_paths()));
 }
 
 qmomkit::CqmomQuadrature captured_preceding_success_quadrature()
@@ -165,8 +165,9 @@ qmomkit::CqmomQuadrature captured_preceding_success_quadrature()
          {0.21441293841351544, 0.41880958133916973, 0.21711664207959502, 0.41938432513583945},
          {-1.1085764283676269, -1.1223128304573988, -1.1600506567321607, -1.1803132705368153}},
         true, false,
-        {qmomkit::ConditioningPath{{0, 0, 0}}, qmomkit::ConditioningPath{{0, 1, 0}}, qmomkit::ConditioningPath{{1, 0, 0}},
-         qmomkit::ConditioningPath{{1, 1, 0}}});
+        qmomkit::ConditioningPathTable(
+            std::vector<qmomkit::ConditioningPath>{qmomkit::ConditioningPath{{0, 0, 0}}, qmomkit::ConditioningPath{{0, 1, 0}},
+                                                   qmomkit::ConditioningPath{{1, 0, 0}}, qmomkit::ConditioningPath{{1, 1, 0}}}));
 }
 
 std::vector<qmomkit::CqmomActiveBranchCount> captured_active_branch_counts()
@@ -179,7 +180,7 @@ std::vector<qmomkit::CqmomActiveBranchCount> captured_active_branch_counts()
     };
 }
 
-bool path_has_prefix(const qmomkit::ConditioningPath& path, const qmomkit::ConditioningPath& prefix)
+bool path_has_prefix(const qmomkit::ConditioningPathView path, const qmomkit::ConditioningPath& prefix)
 {
     if (prefix.size() > path.size())
     {
@@ -313,7 +314,7 @@ void run_captured_physical_regression()
     std::cout << "[physical captured fixture] status=" << static_cast<int>(result.status) << " message=\"" << result.message << "\"\n";
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.total_nodes() == 4);
-    QMOMKIT_VERIFY_CHECK(result.quadrature.terminal_paths() == captured_terminal_paths());
+    QMOMKIT_VERIFY_CHECK(result.quadrature.terminal_paths().to_conditioning_paths() == captured_terminal_paths());
 
     for (const qmomkit::ConditioningPath& path : captured_terminal_parent_paths())
     {

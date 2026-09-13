@@ -184,7 +184,7 @@ public:
 
     [[nodiscard]] const std::vector<TreeNode>& tree_nodes() const noexcept;
     [[nodiscard]] const std::vector<std::size_t>& terminal_node_ids() const noexcept;
-    [[nodiscard]] const std::vector<ConditioningPath>& terminal_paths() const noexcept;
+    [[nodiscard]] const ConditioningPathTable& terminal_paths() const noexcept;
 
     [[nodiscard]] double weight(const MultiIndex& node_index) const;
     [[nodiscard]] double abscissa(std::size_t dimension, const MultiIndex& node_index) const;
@@ -194,7 +194,7 @@ public:
     void set_abscissa(std::size_t dimension, const MultiIndex& node_index, double value);
     void set_adaptive_branch_counts_enabled(bool enabled);
     std::size_t add_tree_node(TreeNode node);
-    void set_terminal_quadrature(std::vector<double> weights, std::vector<std::vector<double>> abscissas, std::vector<ConditioningPath> paths,
+    void set_terminal_quadrature(std::vector<double> weights, std::vector<std::vector<double>> abscissas, ConditioningPathTable paths,
                                  std::vector<std::size_t> terminal_node_ids);
 
 private:
@@ -203,7 +203,7 @@ private:
     std::vector<std::vector<double>> abscissas_;
     std::vector<TreeNode> tree_nodes_;
     std::vector<std::size_t> terminal_node_ids_;
-    std::vector<ConditioningPath> terminal_paths_;
+    ConditioningPathTable terminal_paths_;
     bool adaptive_branch_counts_enabled_ = false;
     bool rectangular_storage_ = true;
 };

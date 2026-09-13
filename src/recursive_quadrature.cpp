@@ -1276,30 +1276,24 @@ std::vector<MultiIndex> enumerate_quadrature_node_multi_indices(const PhaseSpace
 namespace
 {
 
-[[nodiscard]] ConditioningPath phase_space_node_index_to_path(const PhaseSpaceHierarchy& hierarchy, const MultiIndex& node_index)
+[[nodiscard]] ConditioningPathTable rectangular_terminal_paths(const PhaseSpaceHierarchy& hierarchy)
 {
-    std::vector<std::size_t> path(hierarchy.number_of_dimensions(), 0);
-    const std::vector<std::size_t>& conditioning_order = hierarchy.conditioning_order();
-    for (std::size_t level = 0; level < conditioning_order.size(); ++level)
-    {
-        path[level] = node_index.at(conditioning_order[level]);
-    }
-    return ConditioningPath(std::move(path));
-}
-
-[[nodiscard]] std::vector<ConditioningPath> rectangular_terminal_paths(const PhaseSpaceHierarchy& hierarchy)
-{
-    std::vector<ConditioningPath> paths;
-    paths.reserve(hierarchy.total_nodes());
+    const std::size_t levels = hierarchy.number_of_dimensions();
+    std::vector<std::size_t> node_indices;
+    node_indices.reserve(hierarchy.total_nodes() * levels);
 
     // Row-major walk over node indices using one reusable buffer.
     // enumerate_multi_indices would heap-allocate one MultiIndex per terminal
     // node purely to iterate over them.
     const std::vector<std::size_t>& extents = hierarchy.node_counts();
+    const std::vector<std::size_t>& conditioning_order = hierarchy.conditioning_order();
     MultiIndex node_index(extents.size(), 0);
     for (std::size_t flat_index = 0; flat_index < hierarchy.total_nodes(); ++flat_index)
     {
-        paths.push_back(phase_space_node_index_to_path(hierarchy, node_index));
+        for (std::size_t level = 0; level < levels; ++level)
+        {
+            node_indices.push_back(node_index[conditioning_order[level]]);
+        }
         for (std::size_t reverse_axis = extents.size(); reverse_axis > 0; --reverse_axis)
         {
             if (++node_index[reverse_axis - 1] < extents[reverse_axis - 1])
@@ -1309,7 +1303,7 @@ namespace
             node_index[reverse_axis - 1] = 0;
         }
     }
-    return paths;
+    return ConditioningPathTable(levels, std::move(node_indices));
 }
 
 } // namespace
@@ -1380,7 +1374,7 @@ const std::vector<std::size_t>& RecursiveQuadrature::terminal_node_ids() const n
     return terminal_node_ids_;
 }
 
-const std::vector<ConditioningPath>& RecursiveQuadrature::terminal_paths() const noexcept
+const ConditioningPathTable& RecursiveQuadrature::terminal_paths() const noexcept
 {
     return terminal_paths_;
 }
@@ -1465,7 +1459,7 @@ std::size_t RecursiveQuadrature::add_tree_node(TreeNode node)
 }
 
 void RecursiveQuadrature::set_terminal_quadrature(std::vector<double> weights, std::vector<std::vector<double>> abscissas,
-                                                  std::vector<ConditioningPath> paths, std::vector<std::size_t> terminal_node_ids)
+                                                  ConditioningPathTable paths, std::vector<std::size_t> terminal_node_ids)
 {
     if (abscissas.size() != number_of_dimensions())
     {
@@ -1571,7 +1565,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
 
     std::vector<double> terminal_weights;
     std::vector<std::vector<double>> terminal_abscissas(dimensions);
-    std::vector<ConditioningPath> terminal_paths;
+    ConditioningPathTable terminal_paths;
     std::vector<std::size_t> terminal_node_ids;
     std::vector<ConditioningPath> invalidated_active_count_prefixes;
 

@@ -647,7 +647,7 @@ const PreparedFixedCqmomMetadataPtr& CqmomConstructionAccess::state_prepared_fix
 
 CqmomQuadrature CqmomConstructionAccess::create_quadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights,
                                                            std::vector<std::vector<double>> abscissas, const bool adaptive_branch_counts_enabled,
-                                                           const bool rectangular_storage, std::vector<ConditioningPath> terminal_paths)
+                                                           const bool rectangular_storage, ConditioningPathTable terminal_paths)
 {
     return CqmomQuadrature(std::move(hierarchy), std::move(weights), std::move(abscissas), adaptive_branch_counts_enabled, rectangular_storage,
                            std::move(terminal_paths));
@@ -656,8 +656,7 @@ CqmomQuadrature CqmomConstructionAccess::create_quadrature(PhaseSpaceHierarchy h
 } // namespace internal
 
 CqmomQuadrature::CqmomQuadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights, std::vector<std::vector<double>> abscissas,
-                                 const bool adaptive_branch_counts_enabled, const bool rectangular_storage,
-                                 std::vector<ConditioningPath> terminal_paths)
+                                 const bool adaptive_branch_counts_enabled, const bool rectangular_storage, ConditioningPathTable terminal_paths)
     : hierarchy_(std::move(hierarchy)), weights_(std::move(weights)), abscissas_(std::move(abscissas)), terminal_paths_(std::move(terminal_paths)),
       adaptive_branch_counts_enabled_(adaptive_branch_counts_enabled), rectangular_storage_(rectangular_storage)
 {
@@ -768,30 +767,26 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
     return diagnostics;
 }
 
-[[nodiscard]] ConditioningPath phase_space_index_to_conditioning_path(const PhaseSpaceHierarchy& hierarchy, const MultiIndex& node_index)
-{
-    std::vector<std::size_t> path(hierarchy.number_of_dimensions(), 0);
-    for (std::size_t level = 0; level < hierarchy.number_of_dimensions(); ++level)
-    {
-        path[level] = node_index[hierarchy.conditioning_order()[level]];
-    }
-    return ConditioningPath(std::move(path));
-}
-
-[[nodiscard]] std::vector<ConditioningPath> terminal_paths_for_public_quadrature(const internal::RecursiveQuadrature& quadrature)
+[[nodiscard]] ConditioningPathTable terminal_paths_for_public_quadrature(const internal::RecursiveQuadrature& quadrature)
 {
     if (!quadrature.terminal_paths().empty() || !quadrature.has_rectangular_storage())
     {
         return quadrature.terminal_paths();
     }
 
-    std::vector<ConditioningPath> paths;
-    paths.reserve(quadrature.weights().size());
-    for (const MultiIndex& node_index : enumerate_multi_indices(quadrature.hierarchy().node_counts()))
+    // Built flat: one table allocation rather than one vector per path.
+    const PhaseSpaceHierarchy& hierarchy = quadrature.hierarchy();
+    const std::size_t levels = hierarchy.number_of_dimensions();
+    std::vector<std::size_t> node_indices;
+    node_indices.reserve(quadrature.weights().size() * levels);
+    for (const MultiIndex& node_index : enumerate_multi_indices(hierarchy.node_counts()))
     {
-        paths.push_back(phase_space_index_to_conditioning_path(quadrature.hierarchy(), node_index));
+        for (std::size_t level = 0; level < levels; ++level)
+        {
+            node_indices.push_back(node_index[hierarchy.conditioning_order()[level]]);
+        }
     }
-    return paths;
+    return ConditioningPathTable(levels, std::move(node_indices));
 }
 
 [[nodiscard]] std::size_t failed_phase_space_dimension(const internal::RecursiveQuadratureResult& result, const PhaseSpaceHierarchy& hierarchy)

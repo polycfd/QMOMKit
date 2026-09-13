@@ -133,7 +133,7 @@ ValidationMetrics validate_adaptive_case(const std::string& name, const RaggedAd
     QMOMKIT_VERIFY_CHECK(result.quadrature.adaptive_branch_counts_enabled());
     QMOMKIT_VERIFY_CHECK(!result.quadrature.has_rectangular_storage());
     QMOMKIT_VERIFY_CHECK(result.quadrature.total_nodes() == expected.weights.size());
-    QMOMKIT_VERIFY_CHECK(result.quadrature.terminal_paths() == expected.paths);
+    QMOMKIT_VERIFY_CHECK(result.quadrature.terminal_paths().to_conditioning_paths() == expected.paths);
 
     double accumulated_weight_sum = 0.0;
     for (std::size_t terminal = 0; terminal < result.quadrature.total_nodes(); ++terminal)

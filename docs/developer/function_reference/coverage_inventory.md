@@ -13,7 +13,7 @@ lambdas are documented with their owning function. Instrumentation definitions
 are included for its enabled preprocessor branch, and debug-only contract checks
 for theirs. Line links are navigation aids, not permanent API identifiers.
 
-The inventory includes **933 definition locations**, grouped by named function
+The inventory includes **947 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -178,13 +178,21 @@ the executable-body count.
 | `ConditioningPath::node_indices_by_level` | [26](../../../src/conditioning_path.cpp#L26) |
 | `ConditioningPath::node_index_at_level` | [31](../../../src/conditioning_path.cpp#L31) |
 | `ConditioningPath::with_child` | [40](../../../src/conditioning_path.cpp#L40) |
-| `ConditioningPath::phase_space_node_index` | [47](../../../src/conditioning_path.cpp#L47) |
-| `ConditioningPath::to_string` | [68](../../../src/conditioning_path.cpp#L68) |
-| `ConditioningPath::describe` | [84](../../../src/conditioning_path.cpp#L84) |
-| `operator==` | [102](../../../src/conditioning_path.cpp#L102) |
-| `operator!=` | [107](../../../src/conditioning_path.cpp#L107) |
-| `operator<` | [112](../../../src/conditioning_path.cpp#L112) |
-| `recursive_path_to_node_index` | [118](../../../src/conditioning_path.cpp#L118) |
+| `ConditioningPath::phase_space_node_index` | [68](../../../src/conditioning_path.cpp#L68) |
+| `ConditioningPath::to_string` | [73](../../../src/conditioning_path.cpp#L73) |
+| `ConditioningPath::describe` | [89](../../../src/conditioning_path.cpp#L89) |
+| `ConditioningPathView::phase_space_node_index` | [47](../../../src/conditioning_path.cpp#L47) |
+| `ConditioningPathView::node_index_at_level` | [109](../../../src/conditioning_path.cpp#L109) |
+| `ConditioningPathTable::ConditioningPathTable` | [128](../../../src/conditioning_path.cpp#L128), [145](../../../src/conditioning_path.cpp#L145) |
+| `ConditioningPathTable::at` | [164](../../../src/conditioning_path.cpp#L164) |
+| `ConditioningPathTable::push_back` | [173](../../../src/conditioning_path.cpp#L173), [178](../../../src/conditioning_path.cpp#L178) |
+| `ConditioningPathTable::clear` | [191](../../../src/conditioning_path.cpp#L191) |
+| `ConditioningPathTable::reserve` | [196](../../../src/conditioning_path.cpp#L196) |
+| `ConditioningPathTable::to_conditioning_paths` | [201](../../../src/conditioning_path.cpp#L201) |
+| `operator==` | [118](../../../src/conditioning_path.cpp#L118), [212](../../../src/conditioning_path.cpp#L212), [222](../../../src/conditioning_path.cpp#L222) |
+| `operator!=` | [123](../../../src/conditioning_path.cpp#L123), [217](../../../src/conditioning_path.cpp#L217), [227](../../../src/conditioning_path.cpp#L227) |
+| `operator<` | [232](../../../src/conditioning_path.cpp#L232) |
+| `recursive_path_to_node_index` | [238](../../../src/conditioning_path.cpp#L238) |
 
 ### `src/configuration.cpp`
 

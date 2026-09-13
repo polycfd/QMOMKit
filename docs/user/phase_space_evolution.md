@@ -97,6 +97,41 @@ diagnostic includes the evaluation time, zero-based phase-space dimension,
 offending value, input coordinate vector, and complete returned velocity
 vector.
 
+### Evaluating all nodes at once
+
+`PhaseSpaceVelocity` is evaluated once per quadrature node per right-hand-side
+evaluation, and each call returns a new vector. The terminal node count is the
+product of the per-dimension node counts, so that cost grows quickly with
+phase-space dimension.
+
+For advection-heavy workloads, `advance_nodes(...)` also accepts the advanced
+`PackedPhaseSpaceVelocity` form, which is evaluated once per right-hand-side
+evaluation for all nodes together:
+
+```cpp
+qmomkit::PackedPhaseSpaceVelocity velocity =
+    [](double time, const std::vector<double>& coordinates,
+       std::vector<double>& velocities, std::size_t dimensions)
+    {
+        for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
+        {
+            const double x = coordinates[node * dimensions];
+            velocities[node * dimensions] = 1.0 - x;
+        }
+    };
+```
+
+`coordinates` is packed node-major: node `i` occupies
+`[i * dimensions, (i + 1) * dimensions)`, and within a node the values are
+ordered by phase-space dimension. `velocities` arrives with the same size and
+must be filled in the same layout. Do not resize it; a size mismatch is
+reported as a velocity failure. Non-finite entries produce the same diagnostic
+as the per-node form, attributed to the offending node and dimension.
+
+Both forms produce identical results. Use `make_packed_velocity(...)` to adapt
+an existing per-node callback where a packed one is required; the adapted
+callback keeps the per-node contract and therefore also its per-node cost.
+
 Use the advanced `advance_nodes(...)` operation when you already have a
 quadrature and want to evolve only the node positions:
 

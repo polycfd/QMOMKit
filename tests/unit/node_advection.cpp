@@ -405,6 +405,113 @@ void test_non_finite_velocity_diagnostic_reports_callback_context()
     assert_diagnostic_vector_near(result.message, "velocity:", {-0.875, -std::numeric_limits<double>::infinity()}, 1.0e-12);
 }
 
+// The packed callback is the advanced form of the same contract, so it must
+// produce results identical to the per-node form for every scheme, not merely
+// close ones.
+void test_packed_velocity_matches_per_node_velocity_exactly()
+{
+    const qmomkit::CqmomResult cqmom_result = make_fixed_two_dimensional_cqmom();
+    assert(cqmom_result.ok());
+
+    const qmomkit::PhaseSpaceVelocity per_node = [](const double time, const std::vector<double>& xi)
+    { return std::vector<double>{0.3 * xi[0] - 0.1 * time * xi[1], 0.2 * xi[1] + 0.05 * xi[0]}; };
+    const qmomkit::PackedPhaseSpaceVelocity packed =
+        [](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    {
+        for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
+        {
+            const double x = coordinates[node * dimensions];
+            const double y = coordinates[node * dimensions + 1];
+            velocities[node * dimensions] = 0.3 * x - 0.1 * time * y;
+            velocities[node * dimensions + 1] = 0.2 * y + 0.05 * x;
+        }
+    };
+
+    for (const qmomkit::NodeAdvectionScheme scheme :
+         {qmomkit::NodeAdvectionScheme::rk23, qmomkit::NodeAdvectionScheme::rk45, qmomkit::NodeAdvectionScheme::ssp_rk3})
+    {
+        qmomkit::NodeAdvectionOptions options;
+        options.scheme = scheme;
+
+        const qmomkit::CqmomNodeAdvectionResult from_per_node = qmomkit::advance_nodes(cqmom_result.quadrature, 0.125, 0.25, per_node, options);
+        const qmomkit::CqmomNodeAdvectionResult from_packed = qmomkit::advance_nodes(cqmom_result.quadrature, 0.125, 0.25, packed, options);
+
+        assert(from_per_node.ok());
+        assert(from_packed.ok());
+        assert(from_packed.quadrature.weights() == from_per_node.quadrature.weights());
+        assert(from_packed.quadrature.abscissas() == from_per_node.quadrature.abscissas());
+        assert(from_packed.quadrature.terminal_paths() == from_per_node.quadrature.terminal_paths());
+        assert(from_packed.diagnostics.rhs_evaluations == from_per_node.diagnostics.rhs_evaluations);
+        assert(from_packed.diagnostics.step_count == from_per_node.diagnostics.step_count);
+    }
+}
+
+void test_packed_velocity_adapter_preserves_per_node_results_and_emptiness()
+{
+    qmomkit::Quadrature1D quadrature;
+    quadrature.abscissas = {0.5, 1.5};
+    quadrature.weights = {0.25, 0.75};
+
+    const qmomkit::PhaseSpaceVelocity per_node = [](double, const std::vector<double>& xi) { return std::vector<double>{-0.4 * xi[0]}; };
+
+    const qmomkit::QmomNodeAdvectionResult direct = qmomkit::advance_nodes(quadrature, 0.0, 0.1, per_node);
+    const qmomkit::QmomNodeAdvectionResult adapted = qmomkit::advance_nodes(quadrature, 0.0, 0.1, qmomkit::make_packed_velocity(per_node));
+    assert(direct.ok());
+    assert(adapted.ok());
+    assert(adapted.quadrature.abscissas == direct.quadrature.abscissas);
+    assert(adapted.quadrature.weights == direct.quadrature.weights);
+
+    // An empty per-node callback must adapt to an empty packed callback so the
+    // missing-velocity contract still reports invalid input.
+    const qmomkit::PackedPhaseSpaceVelocity adapted_empty = qmomkit::make_packed_velocity(qmomkit::PhaseSpaceVelocity{});
+    assert(!adapted_empty);
+    const qmomkit::QmomNodeAdvectionResult missing = qmomkit::advance_nodes(quadrature, 0.0, 0.1, adapted_empty);
+    assert(!missing.ok());
+    assert(missing.status == qmomkit::NodeAdvectionStatus::invalid_input);
+    assert_contains(missing.message, "velocity callback must be provided");
+}
+
+void test_packed_velocity_diagnostics_report_node_and_dimension_context()
+{
+    const qmomkit::CqmomResult cqmom_result = make_fixed_two_dimensional_cqmom();
+    assert(cqmom_result.ok());
+
+    qmomkit::NodeAdvectionOptions options;
+    options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+
+    // A non-finite entry must still be attributed to its phase-space dimension
+    // with the offending node's coordinate and velocity slices.
+    const qmomkit::CqmomNodeAdvectionResult non_finite = qmomkit::advance_nodes(
+        cqmom_result.quadrature, 0.125, 0.25,
+        [](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+        {
+            for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
+            {
+                velocities[node * dimensions] = coordinates[node * dimensions] + time;
+                velocities[node * dimensions + 1] = -std::numeric_limits<double>::infinity();
+            }
+        },
+        options);
+    assert(!non_finite.ok());
+    assert(non_finite.status == qmomkit::NodeAdvectionStatus::velocity_failed);
+    assert_contains(non_finite.message, "Phase-space velocity callback returned a non-finite value:");
+    assert_contains(non_finite.message, "time: 0.125");
+    assert_contains(non_finite.message, "dimension: 1");
+    assert_contains(non_finite.message, "value: -inf");
+    assert_diagnostic_vector_near(non_finite.message, "state:", {-1.0, -0.5}, 1.0e-12);
+    assert_diagnostic_vector_near(non_finite.message, "velocity:", {-0.875, -std::numeric_limits<double>::infinity()}, 1.0e-12);
+
+    // Resizing the supplied buffer breaks the packed contract and is reported
+    // as a dimension mismatch rather than corrupting the integrator state.
+    const qmomkit::CqmomNodeAdvectionResult resized = qmomkit::advance_nodes(
+        cqmom_result.quadrature, 0.0, 0.25,
+        [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t) { velocities.assign(3, 0.0); }, options);
+    assert(!resized.ok());
+    assert(resized.status == qmomkit::NodeAdvectionStatus::velocity_failed);
+    assert_contains(resized.message, "Phase-space velocity callback returned the wrong dimension:");
+    assert(resized.quadrature.abscissas() == cqmom_result.quadrature.abscissas());
+}
+
 void test_rk23_failure_diagnostics_are_reported()
 {
     qmomkit::Quadrature1D quadrature;
@@ -513,6 +620,10 @@ int main(const int argc, char** argv)
             {"wrong_size_velocity_diagnostic_reports_expected_and_returned_size",
              test_wrong_size_velocity_diagnostic_reports_expected_and_returned_size},
             {"non_finite_velocity_diagnostic_reports_callback_context", test_non_finite_velocity_diagnostic_reports_callback_context},
+            {"packed_velocity_matches_per_node_velocity_exactly", test_packed_velocity_matches_per_node_velocity_exactly},
+            {"packed_velocity_adapter_preserves_per_node_results_and_emptiness",
+             test_packed_velocity_adapter_preserves_per_node_results_and_emptiness},
+            {"packed_velocity_diagnostics_report_node_and_dimension_context", test_packed_velocity_diagnostics_report_node_and_dimension_context},
             {"rk23_failure_diagnostics_are_reported", test_rk23_failure_diagnostics_are_reported},
             {"configured_adaptive_options_reach_node_advection", test_configured_adaptive_options_reach_node_advection},
             {"node_advection_options_formatting_reports_semantic_settings", test_node_advection_options_formatting_reports_semantic_settings},

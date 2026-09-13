@@ -13,7 +13,7 @@ lambdas are documented with their owning function. Instrumentation definitions
 are included for its enabled preprocessor branch. Line links are navigation aids,
 not permanent API identifiers.
 
-The inventory includes **926 definition locations**, grouped by named function
+The inventory includes **930 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -724,13 +724,14 @@ the executable-body count.
 | `unpack_nodes` | [62](../../../src/node_advection.cpp#L62) |
 | `validate_weights` | [76](../../../src/node_advection.cpp#L76) |
 | `validate_abscissas` | [88](../../../src/node_advection.cpp#L88) |
-| `node_rhs_from_velocity` | [111](../../../src/node_advection.cpp#L111) |
+| `node_rhs_from_velocity` | [118](../../../src/node_advection.cpp#L118) |
 | `add_scaled` | [148](../../../src/node_advection.cpp#L148) |
 | `integrate_nodes_embedded_rk` | [162](../../../src/node_advection.cpp#L162) |
 | `integrate_nodes_ssp_rk3` | [198](../../../src/node_advection.cpp#L198) |
 | `integrate_nodes` | [259](../../../src/node_advection.cpp#L259) |
 | `scheme_name` | [290](../../../src/node_advection.cpp#L290) |
-| `advance_nodes` | [306](../../../src/node_advection.cpp#L306), [334](../../../src/node_advection.cpp#L334), [349](../../../src/node_advection.cpp#L349) |
+| `make_packed_velocity` | [386](../../../src/node_advection.cpp#L386) |
+| `advance_nodes` | [303](../../../src/node_advection.cpp#L303), [331](../../../src/node_advection.cpp#L331), [346](../../../src/node_advection.cpp#L346), [420](../../../src/node_advection.cpp#L420), [426](../../../src/node_advection.cpp#L426), [432](../../../src/node_advection.cpp#L432) |
 | `format_node_advection_options` | [389](../../../src/node_advection.cpp#L389) |
 
 ### `src/output.cpp`

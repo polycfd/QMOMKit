@@ -63,6 +63,37 @@ coordinate. A non-finite returned component is reported with the evaluation
 time, zero-based phase-space dimension, offending value, input coordinate
 vector, and complete returned velocity vector.
 
+Node advection also accepts an advanced packed callback evaluated once per
+right-hand-side evaluation for all nodes together:
+
+```cpp
+using PackedPhaseSpaceVelocity =
+    std::function<void(double, const std::vector<double>&, std::vector<double>&, std::size_t)>;
+```
+
+Coordinates and velocities are packed node-major, which is the same layout the
+Runge-Kutta integrator already uses for its state vector. The packed form
+therefore needs no per-node gather or scatter and writes derivatives straight
+into the right-hand-side vector. `make_packed_velocity` adapts a per-node
+callback, and the per-node `advance_nodes` overloads are implemented through it
+so that both forms share one integration path.
+
+The per-node form costs one call and one returned vector per node per
+right-hand-side evaluation, and the terminal node count is the product of the
+per-dimension node counts. Measured over `advance_nodes` with two nodes per
+dimension, allocations per call scale as roughly 14 per terminal node for the
+per-node form and roughly 1 per terminal node for the packed form:
+
+| Case | Terminal nodes | Per-node | Packed |
+| --- | --- | --- | --- |
+| 2D 2^2 | 4 | 113 | 47 |
+| 3D 2^3 | 8 | 170 | 52 |
+| 4D 2^4 | 16 | 283 | 61 |
+| 5D 2^5 | 32 | 508 | 78 |
+
+The residual packed growth is the terminal conditioning-path table copied into
+the returned quadrature, not the velocity callback.
+
 For one-dimensional QMOM, node advection advances the one-dimensional
 abscissa array. For multidimensional CQMOM, node advection advances terminal
 node coordinates stored by phase-space dimension:

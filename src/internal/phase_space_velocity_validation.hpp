@@ -66,4 +66,30 @@ inline void validate_phase_space_velocity_result(const std::vector<double>& velo
     }
 }
 
+// Packed-callback counterpart. Diagnostics stay per node: the offending entry
+// is decomposed back into its node and phase-space dimension so the reported
+// coordinate and velocity slices match the per-node message exactly. The
+// slices are built only on the failure path.
+inline void validate_packed_phase_space_velocity_result(const std::vector<double>& velocities, const std::size_t expected_size, const double time,
+                                                        const std::vector<double>& coordinates, const std::size_t dimensions)
+{
+    if (velocities.size() != expected_size)
+    {
+        throw std::invalid_argument(phase_space_velocity_wrong_dimension_message(expected_size, velocities.size()));
+    }
+    for (std::size_t entry = 0; entry < velocities.size(); ++entry)
+    {
+        if (!std::isfinite(velocities[entry]))
+        {
+            const std::size_t node = entry / dimensions;
+            const std::size_t dimension = entry % dimensions;
+            const auto node_begin = static_cast<std::ptrdiff_t>(node * dimensions);
+            const auto node_end = static_cast<std::ptrdiff_t>((node + 1) * dimensions);
+            const std::vector<double> node_coordinate(coordinates.begin() + node_begin, coordinates.begin() + node_end);
+            const std::vector<double> node_velocity(velocities.begin() + node_begin, velocities.begin() + node_end);
+            throw std::invalid_argument(phase_space_velocity_non_finite_message(time, dimension, velocities[entry], node_coordinate, node_velocity));
+        }
+    }
+}
+
 } // namespace qmomkit::internal

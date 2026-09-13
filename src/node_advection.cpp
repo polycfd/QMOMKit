@@ -111,35 +111,25 @@ void validate_abscissas(const std::vector<std::vector<double>>& abscissas, const
     }
 }
 
-// `node_coordinate` is caller-owned scratch reused across every right-hand-side
-// evaluation of one integration; its contents are fully overwritten per node
-// before use. The returned derivative cannot be reused the same way because it
+// The packed velocity writes dxi/dt directly into the right-hand-side vector:
+// the packed velocity layout and the integrator state layout are the same, so
+// no per-node gather or scatter is required. The returned derivative still
 // crosses the public `OdeRhs` boundary, which returns by value.
-[[nodiscard]] std::vector<double> node_rhs_from_velocity(const PhaseSpaceVelocity& velocity, const std::size_t dimensions, const double t,
-                                                         const std::vector<double>& state, std::vector<double>& node_coordinate)
+[[nodiscard]] std::vector<double> node_rhs_from_velocity(const PackedPhaseSpaceVelocity& velocity, const std::size_t dimensions, const double t,
+                                                         const std::vector<double>& state)
 {
     const std::size_t nodes = state.size() / dimensions;
     std::vector<double> derivative(state.size(), 0.0);
-    node_coordinate.resize(dimensions);
 
-    // The velocity callback is evaluated independently at each quadrature node
-    // and returns derivatives in phase-space dimension order.
+    velocity(t, state, derivative, dimensions);
+
+    // One recorded evaluation per node, matching the per-node callback
+    // contract, so instrumentation counters stay comparable across both forms.
     for (std::size_t node = 0; node < nodes; ++node)
     {
-        for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
-        {
-            node_coordinate[dimension] = state[node * dimensions + dimension];
-        }
-
-        const std::vector<double> node_velocity = velocity(t, node_coordinate);
         internal::performance::record_node_rhs_evaluation();
-        internal::validate_phase_space_velocity_result(node_velocity, dimensions, t, node_coordinate);
-
-        for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
-        {
-            derivative[node * dimensions + dimension] = node_velocity[dimension];
-        }
     }
+    internal::validate_packed_phase_space_velocity_result(derivative, state.size(), t, state, dimensions);
 
     return derivative;
 }
@@ -167,17 +157,16 @@ struct IntegratedNodes
 }
 
 [[nodiscard]] IntegratedNodes integrate_nodes_embedded_rk(const std::vector<std::vector<double>>& abscissas, const double t, const double time_step,
-                                                          const PhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options,
+                                                          const PackedPhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options,
                                                           const NodeAdvectionScheme scheme, const EmbeddedRkMethod method,
                                                           const std::size_t dimensions, const std::vector<double>& initial_state)
 {
     AdaptiveRkResult rk_result;
-    std::vector<double> node_coordinate(dimensions, 0.0);
     try
     {
         rk_result = integrate_embedded_rk(
-            initial_state, t, t + time_step, [&velocity, dimensions, &node_coordinate](const double rhs_time, const std::vector<double>& state)
-            { return node_rhs_from_velocity(velocity, dimensions, rhs_time, state, node_coordinate); }, method, options.adaptive_options);
+            initial_state, t, t + time_step, [&velocity, dimensions](const double rhs_time, const std::vector<double>& state)
+            { return node_rhs_from_velocity(velocity, dimensions, rhs_time, state); }, method, options.adaptive_options);
     }
     catch (const std::exception& error)
     {
@@ -204,7 +193,7 @@ struct IntegratedNodes
 }
 
 [[nodiscard]] IntegratedNodes integrate_nodes_ssp_rk3(const std::vector<std::vector<double>>& abscissas, const double t, const double time_step,
-                                                      const PhaseSpaceVelocity& velocity, const std::size_t dimensions,
+                                                      const PackedPhaseSpaceVelocity& velocity, const std::size_t dimensions,
                                                       const std::vector<double>& initial_state)
 {
     NodeAdvectionDiagnostics diagnostics;
@@ -222,11 +211,10 @@ struct IntegratedNodes
         // the source-update wrapper, including source predicates, retries, and
         // source-specific performance counters.
         std::size_t rhs_evaluations = 0;
-        std::vector<double> node_coordinate(dimensions, 0.0);
-        const auto rhs = [&velocity, dimensions, &rhs_evaluations, &node_coordinate](const double rhs_time, const std::vector<double>& state)
+        const auto rhs = [&velocity, dimensions, &rhs_evaluations](const double rhs_time, const std::vector<double>& state)
         {
             ++rhs_evaluations;
-            return node_rhs_from_velocity(velocity, dimensions, rhs_time, state, node_coordinate);
+            return node_rhs_from_velocity(velocity, dimensions, rhs_time, state);
         };
 
         const std::vector<double> k1 = rhs(t, initial_state);
@@ -266,7 +254,7 @@ struct IntegratedNodes
 }
 
 [[nodiscard]] IntegratedNodes integrate_nodes(const std::vector<std::vector<double>>& abscissas, const double t, const double time_step,
-                                              const PhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options)
+                                              const PackedPhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options)
 {
     if (!velocity)
     {
@@ -312,8 +300,8 @@ struct IntegratedNodes
 
 } // namespace
 
-QmomNodeAdvectionResult advance_nodes(const Quadrature1D& quadrature, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
-                                      const NodeAdvectionOptions& options)
+QmomNodeAdvectionResult advance_nodes(const Quadrature1D& quadrature, const double t, const double time_step,
+                                      const PackedPhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options)
 {
     try
     {
@@ -340,7 +328,7 @@ QmomNodeAdvectionResult advance_nodes(const Quadrature1D& quadrature, const doub
     return QmomNodeAdvectionResult{std::move(updated), NodeAdvectionStatus::success, integrated.diagnostics, ""};
 }
 
-QmomNodeAdvectionResult advance_nodes(const QmomResult& quadrature, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
+QmomNodeAdvectionResult advance_nodes(const QmomResult& quadrature, const double t, const double time_step, const PackedPhaseSpaceVelocity& velocity,
                                       const NodeAdvectionOptions& options)
 {
     if (!quadrature.ok())
@@ -355,8 +343,8 @@ QmomNodeAdvectionResult advance_nodes(const QmomResult& quadrature, const double
                          velocity, options);
 }
 
-CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
-                                       const NodeAdvectionOptions& options)
+CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, const double t, const double time_step,
+                                       const PackedPhaseSpaceVelocity& velocity, const NodeAdvectionOptions& options)
 {
     try
     {
@@ -393,6 +381,58 @@ CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, const 
                                                              quadrature.adaptive_branch_counts_enabled(), quadrature.has_rectangular_storage(),
                                                              quadrature.terminal_paths()),
         NodeAdvectionStatus::success, integrated.diagnostics, ""};
+}
+
+PackedPhaseSpaceVelocity make_packed_velocity(PhaseSpaceVelocity velocity)
+{
+    // An empty callback stays empty so that node advection still reports a
+    // missing velocity rather than calling through a null adapter.
+    if (!velocity)
+    {
+        return {};
+    }
+
+    return [velocity = std::move(velocity)](const double t, const std::vector<double>& coordinates, std::vector<double>& velocities,
+                                            const std::size_t dimensions)
+    {
+        const std::size_t nodes = coordinates.size() / dimensions;
+        std::vector<double> node_coordinate(dimensions, 0.0);
+        for (std::size_t node = 0; node < nodes; ++node)
+        {
+            for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
+            {
+                node_coordinate[dimension] = coordinates[node * dimensions + dimension];
+            }
+
+            const std::vector<double> node_velocity = velocity(t, node_coordinate);
+            // Validated per node so that a wrong-sized or non-finite per-node
+            // return is reported exactly as it was before adaptation.
+            internal::validate_phase_space_velocity_result(node_velocity, dimensions, t, node_coordinate);
+
+            for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
+            {
+                velocities[node * dimensions + dimension] = node_velocity[dimension];
+            }
+        }
+    };
+}
+
+QmomNodeAdvectionResult advance_nodes(const Quadrature1D& quadrature, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
+                                      const NodeAdvectionOptions& options)
+{
+    return advance_nodes(quadrature, t, time_step, make_packed_velocity(velocity), options);
+}
+
+QmomNodeAdvectionResult advance_nodes(const QmomResult& quadrature, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
+                                      const NodeAdvectionOptions& options)
+{
+    return advance_nodes(quadrature, t, time_step, make_packed_velocity(velocity), options);
+}
+
+CqmomNodeAdvectionResult advance_nodes(const CqmomQuadrature& quadrature, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
+                                       const NodeAdvectionOptions& options)
+{
+    return advance_nodes(quadrature, t, time_step, make_packed_velocity(velocity), options);
 }
 
 std::string format_node_advection_options(const NodeAdvectionOptions& options)

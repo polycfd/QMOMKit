@@ -116,7 +116,7 @@ in the preceding section and in [installation.md](installation.md).
 | Sample analytical or discrete data | `sampling.hpp`, `explicit_distribution.hpp` | Sample supported distributions, mixtures, independent products, or an explicit weighted discrete distribution. |
 | Initialize from one finite realization | `sampled_initialization.hpp`: `sample_initialization(...)` | Pair an ensemble with the raw moments estimated from that same sample. |
 | Estimate raw moments | `moments.hpp`: `compute_ensemble_moments(...)`, `compute_requested_ensemble_moments(...)` | Estimate complete one-dimensional/tensor moments or only requested multi-indices, with standard errors. |
-| Advect samples or explicit quadrature nodes | `evolution.hpp`: `evolve_ensemble(...)`, `evolve_quadrature_nodes(...)`, `evolve_explicit_quadrature(...)` | Advance coordinates through a caller-supplied `PhaseSpaceVelocity`. Each sample is evaluated as a single packed node. |
+| Advect samples or explicit quadrature nodes | `evolution.hpp`: `evolve_ensemble(...)`, `evolve_quadrature_nodes(...)`, `evolve_explicit_quadrature(...)` | Advance coordinates through a caller-supplied `PhaseSpaceVelocity`. Each sample is evaluated as a single packed node, and every velocity entry must be written. |
 | Add a stochastic birth | `birth.hpp`: `inject_population(...)` | Add samples for a caller-supplied integrated birth amount and normalized birth sampler. |
 | Write or compare estimates | `output.hpp`, `comparison.hpp` | Write moment estimates and compare QMOM/CQMOM raw moments with Monte Carlo estimates. |
 

@@ -309,6 +309,25 @@ void test_failure_during_integration()
     check_contains(resized.message, "expected size: 1");
     check_contains(resized.message, "returned size: 3");
 
+#ifndef NDEBUG
+    // A callback that leaves an entry unwritten is only detectable in debug
+    // builds, where the supplied buffer is poisoned before the call. In release
+    // builds the entry reads as a finite zero and the sample simply does not
+    // move, so this case is checked only where the guard exists.
+    const Ensemble two_dimensional{{1.0, 2.0}};
+    const qmomkit::PhaseSpaceVelocity partial_callback = [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
+    { velocities[0] = 0.5; };
+    const qmomkit::monte_carlo::EnsembleEvolutionResult partial =
+        qmomkit::monte_carlo::evolve_ensemble(two_dimensional, partial_callback, 0.0, 1.0, options);
+    CHECK(!partial.ok());
+    CHECK(partial.status == EnsembleEvolutionStatus::velocity_failed);
+    CHECK(partial.failed_sample_index == 0);
+    CHECK(partial.ensemble.empty());
+    check_contains(partial.message, "Phase-space velocity callback did not fill every velocity entry:");
+    check_contains(partial.message, "dimension: 1");
+    check_contains(partial.message, "coordinate: [1, 2]");
+#endif
+
     const qmomkit::PhaseSpaceVelocity throwing_callback = qmomkit::make_phase_space_velocity(
         [](double, const std::vector<double>&) -> std::vector<double> { throw std::runtime_error("manufactured callback failure"); });
     const qmomkit::monte_carlo::EnsembleEvolutionResult thrown =

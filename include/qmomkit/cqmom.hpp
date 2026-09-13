@@ -38,15 +38,41 @@ class CqmomConstructionAccess;
 class CqmomQuadrature
 {
 public:
-    [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
-    [[nodiscard]] std::size_t number_of_dimensions() const noexcept;
-    [[nodiscard]] std::size_t total_nodes() const noexcept;
-
-    [[nodiscard]] const std::vector<double>& weights() const noexcept;
-    [[nodiscard]] const std::vector<std::vector<double>>& abscissas() const noexcept;
-    [[nodiscard]] bool adaptive_branch_counts_enabled() const noexcept;
-    [[nodiscard]] bool has_rectangular_storage() const noexcept;
-    [[nodiscard]] const std::vector<ConditioningPath>& terminal_paths() const noexcept;
+    // Defined here rather than in the library so that callers can inline them.
+    // Reconstruction reads these once per node per moment, where an out-of-line
+    // call for a stored value is a measurable share of the work.
+    [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept
+    {
+        return hierarchy_;
+    }
+    [[nodiscard]] std::size_t number_of_dimensions() const noexcept
+    {
+        return hierarchy_.number_of_dimensions();
+    }
+    [[nodiscard]] std::size_t total_nodes() const noexcept
+    {
+        return weights_.size();
+    }
+    [[nodiscard]] const std::vector<double>& weights() const noexcept
+    {
+        return weights_;
+    }
+    [[nodiscard]] const std::vector<std::vector<double>>& abscissas() const noexcept
+    {
+        return abscissas_;
+    }
+    [[nodiscard]] bool adaptive_branch_counts_enabled() const noexcept
+    {
+        return adaptive_branch_counts_enabled_;
+    }
+    [[nodiscard]] bool has_rectangular_storage() const noexcept
+    {
+        return rectangular_storage_;
+    }
+    [[nodiscard]] const std::vector<ConditioningPath>& terminal_paths() const noexcept
+    {
+        return terminal_paths_;
+    }
 
     [[nodiscard]] double weight(const MultiIndex& node_index) const;
     [[nodiscard]] double abscissa(std::size_t dimension, const MultiIndex& node_index) const;

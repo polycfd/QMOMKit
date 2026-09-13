@@ -663,46 +663,6 @@ CqmomQuadrature::CqmomQuadrature(PhaseSpaceHierarchy hierarchy, std::vector<doub
 {
 }
 
-const PhaseSpaceHierarchy& CqmomQuadrature::hierarchy() const noexcept
-{
-    return hierarchy_;
-}
-
-std::size_t CqmomQuadrature::number_of_dimensions() const noexcept
-{
-    return hierarchy_.number_of_dimensions();
-}
-
-std::size_t CqmomQuadrature::total_nodes() const noexcept
-{
-    return weights_.size();
-}
-
-const std::vector<double>& CqmomQuadrature::weights() const noexcept
-{
-    return weights_;
-}
-
-const std::vector<std::vector<double>>& CqmomQuadrature::abscissas() const noexcept
-{
-    return abscissas_;
-}
-
-bool CqmomQuadrature::adaptive_branch_counts_enabled() const noexcept
-{
-    return adaptive_branch_counts_enabled_;
-}
-
-bool CqmomQuadrature::has_rectangular_storage() const noexcept
-{
-    return rectangular_storage_;
-}
-
-const std::vector<ConditioningPath>& CqmomQuadrature::terminal_paths() const noexcept
-{
-    return terminal_paths_;
-}
-
 double CqmomQuadrature::weight(const MultiIndex& node_index) const
 {
     if (!rectangular_storage_)

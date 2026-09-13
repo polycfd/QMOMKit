@@ -38,16 +38,29 @@ IndexedMomentSet::IndexedMomentSet(std::vector<std::size_t> key_extents, MultiIn
         throw std::invalid_argument("Indexed CQMOM moment indices and values must have the same size.");
     }
 
+    // Each index is flattened once here. Deriving the key inside the sort and
+    // lookup comparators instead made every comparison revalidate the extents
+    // and recompute their product.
+    std::vector<std::size_t> keys(indices_.size(), 0);
+    for (std::size_t entry = 0; entry < indices_.size(); ++entry)
+    {
+        keys[entry] = flatten_multi_index(indices_[entry], key_extents_);
+    }
+
     lookup_offsets_.resize(indices_.size());
     std::iota(lookup_offsets_.begin(), lookup_offsets_.end(), 0);
-    std::sort(lookup_offsets_.begin(), lookup_offsets_.end(), [this](const std::size_t lhs, const std::size_t rhs)
-              { return flatten_multi_index(indices_[lhs], key_extents_) < flatten_multi_index(indices_[rhs], key_extents_); });
+    std::sort(lookup_offsets_.begin(), lookup_offsets_.end(),
+              [&keys](const std::size_t lhs, const std::size_t rhs) { return keys[lhs] < keys[rhs]; });
 
-    for (std::size_t offset = 1; offset < lookup_offsets_.size(); ++offset)
+    lookup_keys_.reserve(lookup_offsets_.size());
+    for (const std::size_t offset : lookup_offsets_)
     {
-        const std::size_t previous_key = flatten_multi_index(indices_[lookup_offsets_[offset - 1]], key_extents_);
-        const std::size_t current_key = flatten_multi_index(indices_[lookup_offsets_[offset]], key_extents_);
-        if (previous_key == current_key)
+        lookup_keys_.push_back(keys[offset]);
+    }
+
+    for (std::size_t offset = 1; offset < lookup_keys_.size(); ++offset)
+    {
+        if (lookup_keys_[offset - 1] == lookup_keys_[offset])
         {
             throw std::invalid_argument("Indexed CQMOM moment storage must not contain duplicate indices.");
         }
@@ -99,14 +112,12 @@ bool IndexedMomentSet::contains(const MultiIndex& index) const
 std::size_t IndexedMomentSet::offset(const MultiIndexView index) const
 {
     const std::size_t key = flatten_multi_index(index, key_extents_);
-    const auto found =
-        std::lower_bound(lookup_offsets_.begin(), lookup_offsets_.end(), key, [this](const std::size_t candidate, const std::size_t value)
-                         { return flatten_multi_index(indices_[candidate], key_extents_) < value; });
-    if (found == lookup_offsets_.end() || flatten_multi_index(indices_[*found], key_extents_) != key)
+    const auto found = std::lower_bound(lookup_keys_.begin(), lookup_keys_.end(), key);
+    if (found == lookup_keys_.end() || *found != key)
     {
         throw std::out_of_range("Indexed CQMOM moment storage does not contain the requested moment.");
     }
-    return *found;
+    return lookup_offsets_[static_cast<std::size_t>(found - lookup_keys_.begin())];
 }
 
 double IndexedMomentSet::moment(const MultiIndexView index) const
@@ -1097,21 +1108,6 @@ PhaseSpaceHierarchy::PhaseSpaceHierarchy(std::vector<std::size_t> node_counts, s
     validate_conditioning_order(conditioning_order_, node_counts_.size());
 }
 
-std::size_t PhaseSpaceHierarchy::number_of_dimensions() const noexcept
-{
-    return node_counts_.size();
-}
-
-const std::vector<std::size_t>& PhaseSpaceHierarchy::node_counts() const noexcept
-{
-    return node_counts_;
-}
-
-const std::vector<std::size_t>& PhaseSpaceHierarchy::conditioning_order() const noexcept
-{
-    return conditioning_order_;
-}
-
 std::size_t PhaseSpaceHierarchy::node_count(const std::size_t dimension) const
 {
     if (dimension >= node_counts_.size())
@@ -1119,11 +1115,6 @@ std::size_t PhaseSpaceHierarchy::node_count(const std::size_t dimension) const
         throw std::out_of_range("Phase-space dimension is out of range.");
     }
     return node_counts_[dimension];
-}
-
-std::size_t PhaseSpaceHierarchy::total_nodes() const noexcept
-{
-    return total_nodes_;
 }
 
 std::vector<std::size_t> PhaseSpaceHierarchy::moment_extents() const

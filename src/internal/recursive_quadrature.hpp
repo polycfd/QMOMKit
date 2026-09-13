@@ -42,7 +42,10 @@ private:
     std::vector<std::size_t> key_extents_;
     MultiIndexTable indices_;
     std::vector<double> values_;
+    // Flat keys for `lookup_offsets_`, in the same order, so neither the sort
+    // comparator nor a lookup has to re-derive a key from its multi-index.
     std::vector<std::size_t> lookup_offsets_;
+    std::vector<std::size_t> lookup_keys_;
 };
 
 /**

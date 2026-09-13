@@ -22,11 +22,27 @@ public:
     explicit PhaseSpaceHierarchy(std::vector<std::size_t> node_counts);
     PhaseSpaceHierarchy(std::vector<std::size_t> node_counts, std::vector<std::size_t> conditioning_order);
 
-    [[nodiscard]] std::size_t number_of_dimensions() const noexcept;
-    [[nodiscard]] const std::vector<std::size_t>& node_counts() const noexcept;
-    [[nodiscard]] const std::vector<std::size_t>& conditioning_order() const noexcept;
+    // Defined here rather than in the library so that callers can inline them.
+    // These are read in the innermost reconstruction loops, where an
+    // out-of-line call for a stored value is a measurable share of the work.
+    [[nodiscard]] std::size_t number_of_dimensions() const noexcept
+    {
+        return node_counts_.size();
+    }
+    [[nodiscard]] const std::vector<std::size_t>& node_counts() const noexcept
+    {
+        return node_counts_;
+    }
+    [[nodiscard]] const std::vector<std::size_t>& conditioning_order() const noexcept
+    {
+        return conditioning_order_;
+    }
+    [[nodiscard]] std::size_t total_nodes() const noexcept
+    {
+        return total_nodes_;
+    }
+
     [[nodiscard]] std::size_t node_count(std::size_t dimension) const;
-    [[nodiscard]] std::size_t total_nodes() const noexcept;
 
     /**
      * Extents for the raw moment tensor needed by recursive CQMOM.

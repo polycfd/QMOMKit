@@ -91,9 +91,12 @@ EmbeddedRkStep take_embedded_rk_step(const EmbeddedRkTableau& tableau, const Ode
         ++function_evaluations;
     }
 
+    // Reused across stages: every stage resets it to the incoming state before
+    // accumulating, so only the first iteration needs to allocate.
+    std::vector<double> stage_state;
     for (std::size_t stage = 1; stage < tableau.stage_count; ++stage)
     {
-        std::vector<double> stage_state = state;
+        stage_state.assign(state.begin(), state.end());
         for (std::size_t previous = 0; previous < stage; ++previous)
         {
             const double coefficient = step * tableau.a[stage][previous];

@@ -6,6 +6,19 @@ For raw-moment, tensor, phase-space, node, abscissa, and weight conventions,
 see [numerical_conventions.md](numerical_conventions.md). For QMOM and CQMOM reconstruction behavior,
 see [qmom_wheeler.md](qmom_wheeler.md) and [cqmom_recursive.md](cqmom_recursive.md).
 
+## Contents
+
+- [Phase-Space Evolution Architecture Overview](#phase-space-evolution-architecture-overview)
+- [Node Advection](#node-advection)
+- [Moment Sources and Boundary Contributions](#moment-sources-and-boundary-contributions)
+- [Time Integration](#time-integration)
+- [Time Integration Details](#time-integration-details)
+- [Phase-Space Evolution Composition](#phase-space-evolution-composition)
+- [Failure And Status Handling](#failure-and-status-handling)
+- [Public API Boundary](#public-api-boundary)
+- [Batch Convenience Wrappers](#batch-convenience-wrappers)
+- [Validation Expectations](#validation-expectations)
+
 ## Phase-Space Evolution Architecture Overview
 
 QMOMKit phase-space evolution is built from three numerical operations:

@@ -1,5 +1,16 @@
 # Performance Instrumentation
 
+## Contents
+
+- [Purpose and philosophy](#purpose-and-philosophy)
+- [Relationship with diagnostics and profiling](#relationship-with-diagnostics-and-profiling)
+- [Performance analysis workflow](#performance-analysis-workflow)
+- [Instrumentation design](#instrumentation-design)
+- [Available counter categories](#available-counter-categories)
+- [Interpreting counters](#interpreting-counters)
+- [Performance baselines](#performance-baselines)
+- [Future extensions](#future-extensions)
+
 ## Purpose and philosophy
 
 QMOMKit is designed to be embedded in larger simulation, validation, and

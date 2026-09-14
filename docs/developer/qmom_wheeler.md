@@ -7,6 +7,17 @@ For raw-moment, node, abscissa, weight, and ordering conventions, see
 [numerical_conventions.md](numerical_conventions.md). This page describes how those conventions are used
 by the Wheeler inversion implementation.
 
+## Contents
+
+- [Role of Wheeler Inversion](#role-of-wheeler-inversion)
+- [QMOM Representation](#qmom-representation)
+- [Algorithm Overview](#algorithm-overview)
+- [Adaptive Wheeler](#adaptive-wheeler)
+- [Optional Abscissa-Bound Acceptance](#optional-abscissa-bound-acceptance)
+- [Numerical Assumptions And Failure Handling](#numerical-assumptions-and-failure-handling)
+- [API Relationship](#api-relationship)
+- [Validation Expectations](#validation-expectations)
+
 ## Role of Wheeler Inversion
 
 QMOM represents a one-dimensional number density function through a finite set

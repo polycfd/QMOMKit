@@ -2,6 +2,16 @@
 
 This page describes the current QMOMKit software architecture.
 
+## Contents
+
+- [Project Overview](#project-overview)
+- [Package Architecture](#package-architecture)
+- [Repository Structure](#repository-structure)
+- [Public And Internal Boundaries](#public-and-internal-boundaries)
+- [Consumer Model](#consumer-model)
+- [Build Philosophy](#build-philosophy)
+- [Design Principles](#design-principles)
+
 ## Project Overview
 
 QMOMKit is a C++ library for quadrature-based moment methods.

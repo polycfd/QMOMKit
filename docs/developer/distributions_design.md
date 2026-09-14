@@ -9,6 +9,18 @@ For configuration-file mapping, see
 [configuration_design.md](configuration_design.md). User-facing examples and
 workflow guidance live in [docs/user/distributions.md](../user/distributions.md).
 
+## Contents
+
+- [Role Of Distributions](#role-of-distributions)
+- [Distribution Abstraction](#distribution-abstraction)
+- [Analytical Distribution Families](#analytical-distribution-families)
+- [Mixture Distributions](#mixture-distributions)
+- [Independent Product Distributions](#independent-product-distributions)
+- [Numerical Behavior](#numerical-behavior)
+- [Initialization Interaction](#initialization-interaction)
+- [API Boundary](#api-boundary)
+- [Extension Principles](#extension-principles)
+
 ## Role Of Distributions
 
 Distribution support is an initialization layer. A distribution describes a

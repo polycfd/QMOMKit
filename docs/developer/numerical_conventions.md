@@ -17,6 +17,16 @@ Algorithm-specific details belong in:
 - [configuration_design.md](configuration_design.md) for parser behavior and configuration-to-request
   mapping.
 
+## Contents
+
+- [Moment Conventions](#moment-conventions)
+- [Tensor Moment Conventions](#tensor-moment-conventions)
+- [Phase-Space Conventions](#phase-space-conventions)
+- [Conditioning Order Conventions](#conditioning-order-conventions)
+- [Quadrature Conventions](#quadrature-conventions)
+- [Distribution And Initialization Conventions](#distribution-and-initialization-conventions)
+- [Rules For Maintainers](#rules-for-maintainers)
+
 ## Moment Conventions
 
 QMOMKit uses raw moments of the number density function (NDF). A

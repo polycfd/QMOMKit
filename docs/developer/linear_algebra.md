@@ -10,6 +10,21 @@ maintain the numerical kernels or their CQMOM integration. User-facing
 configuration syntax belongs in [configuration.md](../user/configuration.md); CQMOM workflow and branch traversal details belong in
 [cqmom_recursive.md](cqmom_recursive.md).
 
+## Contents
+
+- [Scope And Design Principles](#scope-and-design-principles)
+- [Internal Component Map](#internal-component-map)
+- [Common Matrix And Solve Conventions](#common-matrix-and-solve-conventions)
+- [Solver Comparison](#solver-comparison)
+- [Björck-Pereyra Solver](#björck-pereyra-solver)
+- [Dense Gaussian-Elimination Solver](#dense-gaussian-elimination-solver)
+- [Pivoted Householder QR Solver](#pivoted-householder-qr-solver)
+- [One-Sided Jacobi SVD Solver](#one-sided-jacobi-svd-solver)
+- [Vandermonde Adapter](#vandermonde-adapter)
+- [Solver-Selection Policy](#solver-selection-policy)
+- [Failure, Rank, Residual, And Tolerance Semantics](#failure-rank-residual-and-tolerance-semantics)
+- [Verification And Testing](#verification-and-testing)
+
 ## Scope And Design Principles
 
 The internal linear-algebra layer provides dependency-minimal dense numerical

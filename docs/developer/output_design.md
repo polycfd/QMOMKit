@@ -2,6 +2,15 @@
 
 This page documents the current QMOMKit design for output handling. 
 
+## Contents
+
+- [Role Of Output](#role-of-output)
+- [Output Architecture](#output-architecture)
+- [Moment History Output](#moment-history-output)
+- [Quadrature History Output](#quadrature-history-output)
+- [Configuration Interaction](#configuration-interaction)
+- [Extension Principles](#extension-principles)
+
 ## Role Of Output
 
 QMOMKit output converts numerical state into reproducible external

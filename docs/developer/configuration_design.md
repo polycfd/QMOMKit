@@ -12,6 +12,17 @@ For raw-moment, tensor, phase-space, conditioning-order, distribution, node, and
 weight conventions, see [numerical_conventions.md](numerical_conventions.md). For phase-space evolution behavior, see
 [phase_space_evolution_design.md](phase_space_evolution_design.md).
 
+## Contents
+
+- [Configuration Philosophy](#configuration-philosophy)
+- [Configuration Architecture](#configuration-architecture)
+- [QMOM And CQMOM Mapping](#qmom-and-cqmom-mapping)
+- [Distribution Initialization Design](#distribution-initialization-design)
+- [Phase-Space Evolution and Policy Configuration](#phase-space-evolution-and-policy-configuration)
+- [Validation And Error Handling](#validation-and-error-handling)
+- [Public API Boundary](#public-api-boundary)
+- [Extension Principles](#extension-principles)
+
 ## Configuration Philosophy
 
 QMOMKit configuration is a text form of the same numerical setup that users can

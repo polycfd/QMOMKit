@@ -5,6 +5,17 @@ architecture.
 It describes stable correctness expectations and the current root
 CTest inventory, not temporary CI setup.
 
+## Contents
+
+- [Debug Build Requirement](#debug-build-requirement)
+- [Test-suite Organization](#test-suite-organization)
+- [Test Categories](#test-categories)
+- [Numerical Validation Principles](#numerical-validation-principles)
+- [Adding New Tests](#adding-new-tests)
+- [Relationship With Benchmarks](#relationship-with-benchmarks)
+- [Registered Root CTest Inventory](#registered-root-ctest-inventory)
+- [Test-suite Maintenance](#test-suite-maintenance)
+
 ## Debug Build Requirement
 
 The unit tests use C/C++ `assert()`. `assert()` is disabled when `NDEBUG` is
@@ -328,8 +339,8 @@ Benchmark structure and interpretation belong in [benchmarks.md](benchmarks.md).
 
 ## Registered Root CTest Inventory
 
-The root inventory contains 827 CTest registrations: 826 logical runtime tests
-across the three runtime tiers (628 unit, 31 component-regression, and 167
+The root inventory contains 862 CTest registrations: 861 logical runtime tests
+across the three runtime tiers (663 unit, 31 component-regression, and 167
 verification), plus the `public_headers` supporting compile/link check. CTest
 names use the tier prefix followed by a subsystem and a descriptive case name.
 

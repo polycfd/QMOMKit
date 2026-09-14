@@ -5,6 +5,18 @@ This page documents the current QMOMKit design for realizability handling.
 For raw-moment, number-density, and storage conventions, see
 [numerical_conventions.md](numerical_conventions.md). For source updates and phase-space evolution composition, see [phase_space_evolution_design.md](phase_space_evolution_design.md). For configuration mapping of runtime policies, see [configuration_design.md](configuration_design.md).
 
+## Contents
+
+- [Role Of Realizability](#role-of-realizability)
+- [Supported Moment Domains](#supported-moment-domains)
+- [Mathematical Criteria](#mathematical-criteria)
+- [Realizability Checks](#realizability-checks)
+- [Runtime Checks In Phase-Space Evolution](#runtime-checks-in-phase-space-evolution)
+- [Interaction With QMOM And CQMOM](#interaction-with-qmom-and-cqmom)
+- [Failure Handling](#failure-handling)
+- [Public API Boundary](#public-api-boundary)
+- [Extension Principles](#extension-principles)
+
 ## Role Of Realizability
 
 Realizability is the question of whether a truncated raw moment sequence can

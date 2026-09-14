@@ -8,6 +8,20 @@ conditioning order, and node/weight terminology, see
 [numerical_conventions.md](numerical_conventions.md). For the one-dimensional Wheeler inversion used at
 each recursive branch, see [qmom_wheeler.md](qmom_wheeler.md).
 
+## Contents
+
+- [Role Of Recursive CQMOM](#role-of-recursive-cqmom)
+- [Conditional Moment Representation](#conditional-moment-representation)
+- [Root Moment Storage](#root-moment-storage)
+- [Validated And Reused Setup Paths](#validated-and-reused-setup-paths)
+- [Recursive Construction](#recursive-construction)
+- [Vandermonde Solver](#vandermonde-solver)
+- [Terminal Quadrature Representation](#terminal-quadrature-representation)
+- [Adaptive Recursive CQMOM](#adaptive-recursive-cqmom)
+- [Numerical Assumptions And Failure Handling](#numerical-assumptions-and-failure-handling)
+- [API Boundary](#api-boundary)
+- [Validation Expectations](#validation-expectations)
+
 ## Role Of Recursive CQMOM
 
 QMOM [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] reconstructs a one-dimensional quadrature rule from a one-dimensional raw

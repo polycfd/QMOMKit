@@ -47,6 +47,7 @@ installation
   -> distributions / configuration
   -> phase-space evolution / callbacks / realizability
   -> examples / monte_carlo
+  -> troubleshooting, when something does not work
 ```
 
 Start with the installation guide and quick start if you are using QMOMKit
@@ -76,7 +77,8 @@ the most direct:
 - time evolution through velocity and source models:
   [Phase-space evolution](phase_space_evolution.md);
 - writing the physics callbacks themselves: [Callbacks](callbacks.md);
-- checking support consistency: [Realizability](realizability.md).
+- checking support consistency: [Realizability](realizability.md);
+- a reconstruction or step that failed: [Troubleshooting](troubleshooting.md).
 
 ## Output At A Glance
 
@@ -121,6 +123,8 @@ Most user extensions happen outside the core numerical algorithms:
   callback an application supplies.
 - [Realizability](realizability.md): optional one-dimensional realizability
   checks and runtime policies.
+- [Troubleshooting](troubleshooting.md): what the failure statuses mean and what
+  to do about the common ones.
 - [Examples](examples.md): recommended path through example applications.
 - [Monte Carlo Companion Package](monte_carlo.md): sample realizations and
   stochastic validation-reference workflows.

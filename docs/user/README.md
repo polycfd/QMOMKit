@@ -113,7 +113,8 @@ Most user extensions happen outside the core numerical algorithms:
   conditioning order, and quadrature output.
 - [Distributions](distributions.md): analytical raw moments, mixtures, and
   independent products.
-- [Configuration](configuration.md): configuration-file format and examples.
+- [Configuration](configuration.md): writing `.qmom` files, from a first
+  working case to the settings that control reconstruction, evolution, and output.
 - [Phase-space evolution](phase_space_evolution.md): node advection, moment-source updates, and
   supported phase-space evolution schemes, including physics callback requirements.
 - [Callbacks](callbacks.md): signatures, examples, and rules for every public

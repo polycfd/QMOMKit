@@ -6,10 +6,15 @@
 
 int main()
 {
+    // An n-node QMOM inversion needs the moments m0 .. m(2n-1), so the highest
+    // order to generate follows from the node count.
     const std::size_t node_count = 2;
     const std::size_t maximum_order = 2 * node_count - 1;
     const double number_density = 2.5;
 
+    // Step 1: turn an analytical distribution into raw moments. QMOMKit scales
+    // them by the number density rather than normalising it away, so m0 comes
+    // back as the total number density itself.
     const qmomkit::DistributionSpecification distribution = qmomkit::LogNormalDistribution{-0.2, 0.4};
     const qmomkit::RawMomentResult moments = qmomkit::compute_raw_moments(distribution, maximum_order, number_density);
     if (!moments.ok())
@@ -26,6 +31,9 @@ int main()
         std::cout << "m" << order << " = " << moments.moments[order] << '\n';
     }
 
+    // Step 2: invert those moments into a quadrature. Both steps report success
+    // through ok(); a valid distribution can still produce moments that the
+    // requested node count cannot represent, so check each one.
     const qmomkit::QmomResult qmom = qmomkit::compute_qmom(moments.moments, node_count);
     if (!qmom.ok())
     {

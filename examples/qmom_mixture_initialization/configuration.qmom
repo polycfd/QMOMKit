@@ -1,9 +1,19 @@
+# One-dimensional QMOM case initialised from a two-component mixture.
+# Every key below is documented in docs/user/configuration.md.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
 names = xi
+# Quadrature nodes per coordinate. An n-node rule needs the moments m0..m(2n-1),
+# so raising this asks for more information from the initial condition.
 node_counts = 3
 
 [initial]
+# Component densities are absolute, not fractions: m0 is their sum.
 type = mixture
+# Highest raw-moment order to generate. Omit it and QMOMKit derives the
+# minimum the node count requires.
 maximum_order = 5
 
 [initial.mixture.component.0]

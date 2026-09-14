@@ -21,6 +21,9 @@ int main()
 
     try
     {
+        // Three separate loads from one file: the case, the output settings, and
+        // the evolution controls. The case loader validates every recognised key
+        // but returns only the case, so the other two must be asked for.
         auto configured = qmomkit::config::load_cqmom(configuration_file);
         if (!configured)
         {
@@ -40,6 +43,10 @@ int main()
             return 1;
         }
 
+        // This example is about adaptive branch counts, which the configuration
+        // enables. Each CQMOM branch then uses as many nodes as its local moments
+        // support, and the state tracks how many that currently is, so
+        // state.active_branch_counts() changes as the run proceeds.
         const qmomkit::CqmomCase cqmom_case = std::move(configured).value();
         qmomkit::CqmomState state = cqmom_case.initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
@@ -60,6 +67,9 @@ int main()
             std::cerr << "Adaptive node-count moment-layout validation failed: " << moment_layout_message << '\n';
             return 1;
         }
+        // The physics lives in physics.cpp: an advection velocity that moves the
+        // nodes, and a moment source that injects velocity variance in a pulse.
+        // The pulse is what drives branches to gain and lose nodes.
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_2d_adaptive_node_counts::advection_velocity(source_parameters);
         const qmomkit::CqmomMomentSource source = cqmom_2d_adaptive_node_counts::variance_injection_source(source_parameters);
         qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
@@ -89,6 +99,8 @@ int main()
         while (time < final_time - 1.0e-12)
         {
             const double current_step = std::min(time_step, final_time - time);
+            // One complete step: advection and moment source composed by the
+            // configured splitting scheme.
             const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
                 qmomkit::advance_cqmom_phase_space(state, time, current_step, velocity, source, phase_space_evolution_options);
             if (!phase_space_evolved.ok())
@@ -103,6 +115,9 @@ int main()
             step_history.push_back(
                 cqmom_2d_adaptive_node_counts::make_history_sample(time, cqmom_2d_adaptive_node_counts::source_pulse_active(time, source_parameters),
                                                                    state.quadrature(), state.active_branch_counts(), velocity_dimension));
+            // The result's diagnostics report where a branch changed its node
+            // count during this step, which is the observable this example exists
+            // to show.
             cqmom_2d_adaptive_node_counts::append_active_count_transitions(
                 time, step_history[step_history.size() - 2].quadrature, step_history.back().quadrature,
                 phase_space_evolved.diagnostics.cqmom_node_count_transitions, active_count_transitions, velocity_dimension);

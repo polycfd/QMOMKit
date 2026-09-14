@@ -20,7 +20,8 @@ nodes. The initial number density is `2.5`, with a gamma distribution in
 `size` (shape `3.0`, scale `0.2`) and a normal distribution in `velocity`
 (mean `-0.5`, standard deviation `1.25`).
 
-For the number density $n(\mathrm{size},\mathrm{velocity})$, the raw multivariate moments are
+For the number density $n(\mathrm{size},\mathrm{velocity})$, the raw
+multivariate moments are
 
 $$
 M_{i,j} = \int\!\int \mathrm{size}^i\mathrm{velocity}^j\,
@@ -36,9 +37,9 @@ remains available for standalone reconstruction, but is not used by this
 example. The example does not add phase-space advection, a moment source, or a
 boundary contribution.
 
-`CqmomCase` is the immutable configuration and problem definition.
-`CqmomState` is the runtime state that a phase-space evolution workflow evolves later.
-This example creates the state but does not add phase-space evolution physics.
+`CqmomCase` is the immutable configuration and problem definition. `CqmomState`
+is the runtime state that a phase-space evolution workflow evolves later. This
+example creates the state but does not add phase-space evolution physics.
 
 
 Build and run from this example directory:

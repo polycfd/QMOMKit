@@ -53,6 +53,9 @@ int main()
             return 1;
         }
 
+        // Sample the configured distribution once and derive the initial moment
+        // tensor from that ensemble, so the CQMOM run and the Monte Carlo
+        // reference start from the same finite population.
         const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
             cqmom_2d_advection_breakage::sample_initial_distribution(std::move(initial_condition).value(), configured_cqmom.value().hierarchy());
         if (!sampled.has_value())
@@ -124,6 +127,9 @@ int main()
         {
             const double current_step = std::min(time_step, final_time - time);
             const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
+                // The deterministic half of the comparison: advection and breakage
+                // composed by the configured scheme. The companion executable runs
+                // the same physics on the sampled particles directly.
                 qmomkit::advance_cqmom_phase_space(state, time, current_step, velocity, source, phase_space_evolution_options);
             if (!phase_space_evolved.ok())
             {

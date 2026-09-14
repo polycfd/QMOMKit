@@ -27,21 +27,22 @@ configuration, generates the analytical raw moments, and then the example calls
 `qmomkit::QmomCase::initial_state()` to construct the initial `QmomState`.
 
 Users can modify the number of QMOM nodes and the mode densities, locations,
-and standard deviations directly in [configuration.qmom](./configuration.qmom). For $n$ QMOM nodes,
-the configuration must request moments through order $2N - 1$.
+and standard deviations directly in [configuration.qmom](./configuration.qmom).
+For $n$ QMOM nodes, the configuration must request moments through order $2N -
+1$.
 
 The phase-space evolution defined in [physics.cpp](./physics.cpp) is:
 
 $$\frac{\mathrm{d}d}{\mathrm{d}t} = 1-d. $$
 
-Particles smaller than $d=1$ grow, and particles larger than $d=1$ shrink.
-The example passes this callback to `qmomkit::advance_qmom_phase_space(...)`,
-which manages the phase-space evolution as part of the configured
-phase-space evolution step. The underlying advection stage advances quadrature nodes, and
+Particles smaller than $d=1$ grow, and particles larger than $d=1$ shrink. The
+example passes this callback to `qmomkit::advance_qmom_phase_space(...)`, which
+manages the phase-space evolution as part of the configured phase-space
+evolution step. The underlying advection stage advances quadrature nodes, and
 weights are unchanged during that stage.
 
-The moment-source is also defined in [physics.cpp](./physics.cpp). It is a simple
-binary fragmentation model,
+The moment-source is also defined in [physics.cpp](./physics.cpp). It is a
+simple binary fragmentation model,
 
 $$d \to \frac{d}{2},$$
 
@@ -54,9 +55,10 @@ The example passes this callback to `qmomkit::advance_qmom_phase_space(...)`,
 which manages the moment-source update as part of the configured
 phase-space evolution step.
 
-The time loop in [main.cpp](./main.cpp) calls `qmomkit::advance_qmom_phase_space(...)` for
-each configured phase-space evolution step. With the shipped `strang` setting, the native
-phase-space evolution operation uses:
+The time loop in [main.cpp](./main.cpp) calls
+`qmomkit::advance_qmom_phase_space(...)` for each configured phase-space
+evolution step. With the shipped `strang` setting, the native phase-space
+evolution operation uses:
 
 ```text
 Advection half-step
@@ -83,13 +85,14 @@ The time controls are local constants in [main.cpp](./main.cpp):
 - `time_step`
 
 These define the physical simulation duration and timestep size. The output
-cadence is read from `[output].interval` in [configuration.qmom](./configuration.qmom).
+cadence is read from `[output].interval` in
+[configuration.qmom](./configuration.qmom).
 
 The quadrature weights represent the amount of distribution mass carried by
 each node. The abscissas are the particle diameters at which that mass is
 concentrated in the QMOM approximation.
 
-## Run the example
+## Build and run
 
 Build from this example directory:
 
@@ -98,8 +101,8 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH="../../install"
 cmake --build build
 ```
 
-The build copies [configuration.qmom](./configuration.qmom) into `build/`. Run from the build
-directory so generated output stays there:
+The build copies [configuration.qmom](./configuration.qmom) into `build/`. Run
+from the build directory so generated output stays there:
 
 ```bash
 cd build
@@ -115,7 +118,8 @@ It also prints a concise console summary with the initial and final raw
 moments, plus initial and final quadrature nodes and weights.
 
 The output directory, enabled files, and write cadence are configured through
-the standard QMOMKit output section in [configuration.qmom](./configuration.qmom):
+the standard QMOMKit output section in
+[configuration.qmom](./configuration.qmom):
 
 ```ini
 [output]

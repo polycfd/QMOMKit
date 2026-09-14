@@ -36,6 +36,9 @@ int main()
             std::cerr << initial_condition.error() << '\n';
             return 1;
         }
+        // Both the deterministic run and its Monte Carlo reference start from one
+        // sampled ensemble, so any later difference between them comes from the
+        // evolution rather than from a different starting population.
         const auto sampled = sample_initial_population(initial_condition.value(), configured.value().hierarchy());
         if (!sampled || !sampled->ok())
         {
@@ -44,11 +47,15 @@ int main()
         }
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(sampled->sampling.ensemble.size());
         const qmomkit::RawMomentTensor mc_initial = ensemble_moments(sampled->sampling.ensemble, particle_weight, sampled->moments.moments.extents);
+        // Guard the premise above: the two paths must agree exactly at t = 0, so
+        // this compares them bit for bit rather than within a tolerance.
         if (maximum_tensor_difference(sampled->moments.moments, mc_initial) != 0.0)
         {
             throw std::runtime_error("The sampled CQMOM and Monte Carlo initial moments differ.");
         }
 
+        // Replace only the initial moments; the configured hierarchy, supports and
+        // reconstruction settings are kept.
         const auto sampled_case = qmomkit::config::with_initial_moments(configured.value(), sampled->moments.moments);
         if (!sampled_case)
         {
@@ -57,6 +64,9 @@ int main()
         }
         qmomkit::CqmomState state = sampled_case.value().initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
+        // The layout lists exactly the multi-indices this hierarchy needs. Reusing
+        // it as a moment request means the before/after summaries report the same
+        // moment set, which is what makes them comparable.
         const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(sampled_case.value().hierarchy());
         const qmomkit::RawMomentRequest request{layout.required_indices.to_multi_indices()};
         const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(initial_quadrature, request);
@@ -84,6 +94,9 @@ int main()
         double next_output = initial_time + output_interval;
         while (time < final_time - 1.0e-14)
         {
+            // One complete step in a five-dimensional phase space (V, T, u, v, w).
+            // Note that the same call serves any dimension count: the hierarchy in
+            // the state decides how many coordinates the callbacks receive.
             const qmomkit::CqmomPhaseSpaceEvolutionResult step = qmomkit::advance_cqmom_phase_space(
                 state, time, std::min(time_step, final_time - time), particle_velocity(), source, evolution.value());
             if (!step.ok())

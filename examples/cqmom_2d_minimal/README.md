@@ -71,9 +71,10 @@ cd build
 ./cqmom_2d_minimal_example
 ```
 
-## Output
+## Output files
 
-The executable writes:
+On success the executable prints one line confirming where the results went, and
+writes:
 
 - `output/moment_history.txt` — raw-moment history;
 - `output/quadrature_history.txt` — current terminal CQMOM weights and coordinates.

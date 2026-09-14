@@ -1,13 +1,27 @@
+# Four-dimensional CQMOM case in (d, u, v, w): particle diameter and the
+# three velocity components. Two nodes per dimension give 2^4 = 16 terminal
+# nodes.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
 names = d, u, v, w
+# Quadrature nodes per coordinate. The terminal node count is their product, so
+# this is the setting that drives the cost of a step.
 node_counts = 2, 2, 2, 2
+# Identity order here: the dimensions are conditioned as listed. Changing it
+# changes only the order of the conditional inversions.
 conditioning_order = 0, 1, 2, 3
+# Fixed branch counts: every branch keeps two nodes, and a branch whose
+# moments cannot support that is a failure rather than a reduction.
 adaptive_branch_counts = false
 
 [time_integration]
+# Second-order splitting: half advection, full source, half advection.
 scheme = strang
 
 [time_integration.node_advection]
+# Node-trajectory integrator; the adaptive controls below apply to it.
 scheme = rk23
 
 [time_integration.node_advection.adaptive]
@@ -18,11 +32,14 @@ max_step = 1.0e-2
 min_step = 1.0e-6
 
 [initial]
+# Marginals are normalised individually, then combined and scaled once by the
+# number_density below.
 type = independent_product
 number_density = 1.0
 
 [initial.dimension.0]
 family = lognormal
+# exp(-9.2103...) = 1e-4, so the diameter median is 100 um.
 mu_log = -9.210340371976184
 sigma_log = 0.12
 
@@ -41,8 +58,11 @@ family = normal
 mean = 0.0
 standard_deviation = 0.5
 
+# Output is driver-controlled: QMOMKit writes nothing unless the example wires
+# these settings into its writers.
 [output]
 directory = output
 write_moments = true
 write_quadrature = true
+# Simulated-time interval between writes, not a step count.
 interval = 0.01

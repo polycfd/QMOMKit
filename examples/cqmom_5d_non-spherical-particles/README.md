@@ -1,10 +1,10 @@
 # 5D CQMOM non-spherical-particle evolution
 
 This standalone example evolves a spatially uniform population of
-non-spherical particles in a five-dimensional phase space with 
+non-spherical particles in a five-dimensional phase space with
 CQMOM and an independent stochastic particle-based Monte Carlo (MC)
-companion/reference, following the work of 
-[Bouguezzoul (2026)](https://publications.polymtl.ca/76505/). 
+companion/reference, following the work of
+[Bouguezzoul (2026)](https://publications.polymtl.ca/76505/).
 It combines configuration-controlled bounded support,
 adaptive CQMOM branch counts, Strang-split phase-space evolution, and a
 moment-source representation of binary breakup. The MC executable uses the
@@ -35,9 +35,9 @@ output files.
 | $v$ | Particle velocity in the second Cartesian direction | m/s |
 | $w$ | Particle velocity in the third Cartesian direction | m/s |
 
-The particles are assumed to be oblate spheroids.
-Diameter and translational velocity alone do not describe the drag response of
-this non-spherical model: the drag correction also depends on the aspect ratio $\chi$. 
+The particles are assumed to be oblate spheroids. Diameter and translational
+velocity alone do not describe the drag response of this non-spherical model:
+the drag correction also depends on the aspect ratio $\chi$.
 
 For a number-density distribution $n(d, \chi, u, v, w)$, the raw moments are
 $$M_{a,b,c,e,g} = \int d^a\chi^b u^c v^e w^g n(d,\chi,u,v,w) \,\mathrm{d}d\,\mathrm{d}\chi\,\mathrm{d}u\,\mathrm{d}v\,\mathrm{d}w. $$
@@ -50,7 +50,7 @@ $$\boldsymbol{U}_f(t) = (2\cos t,\;2\sin t,\;0)\ \mathrm{m/s}.$$
 With particle velocity $\boldsymbol{U}_p = (u,v,w)$, relative velocity
 $\boldsymbol{U}_{rel} = \boldsymbol{U}_f-\boldsymbol{U}_p$, and
 $$\mathrm{Re} = \frac{\rho_f |\boldsymbol{U}_{rel}|d}{\mu_f},$$
-the shape-dependent drag factor is evaluated as 
+the shape-dependent drag factor is evaluated as
 
 $$K(\chi,\mathrm{Re}) = K_0(\chi) + 0.15\,\chi^{95.91}\mathrm{Re}^{0.687} + 0.2927\,(1-\chi)^{0.4374}\mathrm{Re}^{0.7512},$$
 where $K_0$ is the implemented oblate-spheroid contribution. The velocity rates use
@@ -69,7 +69,8 @@ $$\frac{\mathrm{d}d}{\mathrm{d}t} = -10^{-6}\, \frac{|U_{rel}|^2}{1+|U_{rel}|^2/
 The shape parameter relaxes toward the spherical limit on a two-second time scale:
 $$\frac{\mathrm{d}\chi}{\mathrm{d}t} = \frac{1-\chi}{2\ |U_{rel}|}.$$
 
-The shape correlation uses $0 < \chi \leq 1$; the configuration supplies this interval as CQMOM support.
+The shape correlation uses $0 < \chi \leq 1$; the configuration supplies this
+interval as CQMOM support.
 
 ## Binary breakup
 
@@ -81,7 +82,7 @@ $$d_d = 2^{-1/3}d_p, \qquad \chi_d = 0.5\chi_p.$$
 
 The diameter transformation preserves the parent volume because
 $2 d_d^3 = d_p^3$. Each daughter receives a centered Gaussian velocity recoil
-with standard deviation 0.5 m/s in every velocity coordinate. 
+with standard deviation 0.5 m/s in every velocity coordinate.
 
 In the MC simulation, one sampled recoil vector is added to one daughter and subtracted from
 the other, so the pair has equal and opposite recoil.
@@ -90,7 +91,7 @@ source-stage terminal quadrature node it adds the breakage contribution
 $$\beta(d)\,[2\,\mathbb{E}(D^{a,b,c,e,g}) - P^{a,b,c,e,g}],$$
 where $P$ is the parent monomial and the daughter expectation uses the
 equal-volume diameter, halved shape parameter, and centered Gaussian recoil
-moments. 
+moments.
 
 Thus CQMOM uses a deterministic moment-source representation,
 whereas the MC companion samples exponentially distributed event times and
@@ -161,8 +162,9 @@ callback does not impose a separate $\chi$ guard. The MC particles are also not
 clipped merely because the CQMOM configuration contains support bounds.
 
 This distinction is important when deliberately removing the support. Make a
-temporary copy of [configuration.qmom](configuration.qmom), remove or comment its two $\chi$
-support entries, and pass that copy explicitly to the CQMOM executable. 
+temporary copy of [configuration.qmom](configuration.qmom), remove or comment
+its two $\chi$ support entries, and pass that copy explicitly to the CQMOM
+executable.
 
 In the currently verified support-free case, an unconstrained reconstruction
 produces a node with $\chi = 1.092$ at $t = 0.1175$ s. The root
@@ -238,7 +240,7 @@ output/moment_history_mc.txt
 Breakup increases number density by replacing parents with daughter pairs,
 while equal-volume diameter scaling preserves volume at each breakup event.
 Attrition, shape relaxation, drag, gravity, and recoil then change the size,
-shape, and velocity distributions. 
+shape, and velocity distributions.
 
 ## File guide
 

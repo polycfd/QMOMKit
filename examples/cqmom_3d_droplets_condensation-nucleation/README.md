@@ -3,14 +3,15 @@
 ## Purpose and workflows
 
 This standalone example evolves a spatially uniform polydisperse population of
-isolated water droplets in the three-dimensional phase space $\boldsymbol{\xi}=(r,w,T)$, where $r$ is droplet radius in metres, $w$ is vertical droplet
-velocity in m/s, and $T$ is droplet temperature in K. Positive $w$ is upward,
-so falling droplets have negative vertical velocity.
+isolated water droplets in the three-dimensional phase space
+$\boldsymbol{\xi}=(r,w,T)$, where $r$ is droplet radius in metres, $w$ is
+vertical droplet velocity in m/s, and $T$ is droplet temperature in K. Positive
+$w$ is upward, so falling droplets have negative vertical velocity.
 
-The model contains phase-space evolution only. Existing droplets move through $(r,w,T)$ 
-by condensation, drag, and heat transfer. 
-During a finite interval, nucleation adds droplets at one
-specified birth state through a phase-space boundary contribution.
+The model contains phase-space evolution only. Existing droplets move through
+$(r,w,T)$ by condensation, drag, and heat transfer. During a finite interval,
+nucleation adds droplets at one specified birth state through a phase-space
+boundary contribution.
 
 The example contains two executables:
 
@@ -22,24 +23,25 @@ The example contains two executables:
   sampled population directly, using midpoint population injection for the
   same nucleation model.
 
-Both workflows use the same [configuration.qmom](configuration.qmom), distribution parameters,
-sample count, initialization seed, coordinate order, and droplet model
-callback. The coordinate names and distributions are example choices; the
-configuration and sampled-initialization machinery are generic QMOMKit
-mechanisms.
+Both workflows use the same [configuration.qmom](configuration.qmom),
+distribution parameters, sample count, initialization seed, coordinate order,
+and droplet model callback. The coordinate names and distributions are example
+choices; the configuration and sampled-initialization machinery are generic
+QMOMKit mechanisms.
 
 The CQMOM driver loads the normal case first, then replaces only its initial
-raw moments with the complete sampled tensor through `with_initial_moments(...)`.
-The loaded hierarchy, support, storage selection, and reconstruction policies
-are retained; a sampler is only one possible source of the replacement tensor.
+raw moments with the complete sampled tensor through
+`with_initial_moments(...)`. The loaded hierarchy, support, storage selection,
+and reconstruction policies are retained; a sampler is only one possible source
+of the replacement tensor.
 
 ## QMOMKit focus
 
 Read this as a three-dimensional CQMOM phase-space evolution example before
-focusing on the droplet correlations: it combines adaptive CQMOM reconstruction,
-condensation-driven node advection, and a finite-time CQMOM boundary birth
-contribution for nucleation. The direct Monte Carlo companion evolves the same
-sampled initialization, providing a stochastic particle-based
+focusing on the droplet correlations: it combines adaptive CQMOM
+reconstruction, condensation-driven node advection, and a finite-time CQMOM
+boundary birth contribution for nucleation. The direct Monte Carlo companion
+evolves the same sampled initialization, providing a stochastic particle-based
 companion/reference realization for comparing the two representations.
 
 ## Phase-space definition and raw moments
@@ -47,9 +49,9 @@ companion/reference realization for comparing the two representations.
 The configured phase-space order is:
 $$(r\ [\mathrm{m}], w\ [\mathrm{m/s}], T\ [\mathrm{K}])$$
 
-The same positional order is used by [configuration.qmom](configuration.qmom), samples, the
-phase-space velocity callback, CQMOM moment exponents, quadrature abscissas,
-and output files.
+The same positional order is used by [configuration.qmom](configuration.qmom),
+samples, the phase-space velocity callback, CQMOM moment exponents, quadrature
+abscissas, and output files.
 
 The radius coordinate and its moments use SI metres. The configuration enables
 QMOMKit's native automatic reconstruction scaling, so reconstruction remains
@@ -105,7 +107,7 @@ required.
 The advection callback receives coordinates ordered as $(r,w,T)$ and
 returns
 $$\left(\frac{\mathrm{d}r}{\mathrm{d}t}, \frac{\mathrm{d}w}{\mathrm{d}t}, \frac{\mathrm{d}T}{\mathrm{d}t} \right).$$
-The droplet model is a simplified version of the model used by [Denner (2026)](https://www.doi.org/10.1016/j.ijmultiphaseflow.2026.105696) for water droplets in air. 
+The droplet model is a simplified version of the model used by [Denner (2026)](https://www.doi.org/10.1016/j.ijmultiphaseflow.2026.105696) for water droplets in air.
 The condensation-model constants are compiled into [droplet_model.cpp](./droplet_model.cpp); the
 nucleation birth parameters are declared in [droplet_model.hpp](./droplet_model.hpp).
 
@@ -239,7 +241,8 @@ $$
 \end{aligned}
 $$
 
-The transfer-number helper is [[Beard & Pruppacher, 1971](https://www.doi.org/10.1175/1520-0469(1971)028<1455:AWTIOT>2.0.CO;2)]
+The transfer-number helper is [[Beard & Pruppacher,
+1971](https://www.doi.org/10.1175/1520-0469(1971)028<1455:AWTIOT>2.0.CO;2)]
 
 $$
 \begin{aligned}
@@ -288,12 +291,12 @@ The implemented radius rate is
 $$
 \begin{aligned}
 \frac{\mathrm{d}r}{\mathrm{d}t}
-&= 
+&=
 \frac{\mathrm{Sh}\,D_v\,M_w}{2r\rho_l R_g} \ \left(\phi\frac{p_{\mathrm{sat}}(T_\infty)}{T_\infty} - \frac{p_{\mathrm{sat}}(T)}{T}\right).
 \end{aligned}
 $$
 
-The default ambient relative humidity and temperatures produce 
+The default ambient relative humidity and temperatures produce
 condensation for the supplied initial population.
 
 ### Nucleation boundary contribution
@@ -340,7 +343,7 @@ If $w_{\mathrm{rel}}=0$, the drag acceleration is zero. Otherwise, for
 $\mathrm{Re}<\mathrm{Re}_{\min}$, the low-Reynolds-number branch uses
 $$a_{\mathrm{drag}} = \frac{4.5\,\mu_a\,w_{\mathrm{rel}}}{\rho_l r^2}.$$
 For $\mathrm{Re}\ge \mathrm{Re}_{\min}$, the deformation factor is
-[[Lie et al., 1993](https://saemobilus.sae.org/papers/modeling-effects-drop-drag-breakup-fuel-sprays-930072); 
+[[Lie et al., 1993](https://saemobilus.sae.org/papers/modeling-effects-drop-drag-breakup-fuel-sprays-930072);
 [Hsiang & Faeth, 1992](https://doi.org/10.1016/0301-9322(92)90036-G)]
 $$F_{\mathrm{def}} = 1 + 2.632 \left[ 1 - \frac{1}{\left(1+0.19\sqrt{\mathrm{We}}\right)^2} \right],$$
 the spherical drag coefficient correlation is
@@ -569,11 +572,11 @@ cd build
 ```
 
 The CQMOM executable prints phase-space and conditioning information,
-configured node counts, phase-space evolution and RK23 settings, sample count and seed,
-selected initial and final moments, final quadrature, and output paths. The
-Monte Carlo executable prints phase-space and RK23 information, sample count
-and seed, selected initial and final moments, final ensemble size, and its
-output path.
+configured node counts, phase-space evolution and RK23 settings, sample count
+and seed, selected initial and final moments, final quadrature, and output
+paths. The Monte Carlo executable prints phase-space and RK23 information,
+sample count and seed, selected initial and final moments, final ensemble size,
+and its output path.
 
 ## Output files
 

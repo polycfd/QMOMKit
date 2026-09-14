@@ -67,6 +67,9 @@ int main()
         return 1;
     }
 
+    // Moments computed from the sampled ensemble. Starting the QMOM run from
+    // these rather than from the configured analytical moments is what makes the
+    // two histories comparable: both begin from the same finite population.
     const qmomkit::monte_carlo::OneDimensionalMomentEstimate& sampled_moments = sampled->moments;
     if (!sampled_moments.ok())
     {
@@ -75,6 +78,8 @@ int main()
     }
 
     const std::vector<double> initial_moments = sampled_moments.moments.values();
+    // Rebuild the case around the sampled moments, keeping the configured node
+    // count and inversion options.
     const qmomkit::QmomCase sampled_case{sampled_moments.moments, qmom_case.node_count, qmom_case.options};
     std::optional<qmomkit::QmomState> initial_state_storage;
     try
@@ -133,6 +138,9 @@ int main()
     {
         const double current_step = std::min(time_step, final_time - time);
         const qmomkit::QmomPhaseSpaceEvolutionResult phase_space_evolved =
+            // The deterministic half of the comparison. The Monte Carlo companion
+            // advances the same physics over the same interval, and the summary at
+            // the end reports how far the two have drifted apart.
             qmomkit::advance_qmom_phase_space(state, time, current_step, velocity, source, phase_space_evolution_options);
         if (!phase_space_evolved.ok())
         {

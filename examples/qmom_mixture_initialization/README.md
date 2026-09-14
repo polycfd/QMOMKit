@@ -1,8 +1,8 @@
 # QMOM Mixture Initialization Example
 
 This example loads an absolute-density distribution mixture from
-[configuration.qmom](./configuration.qmom), lets QMOMKit generate its raw moments, and reconstructs a
-one-dimensional QMOM quadrature.
+[configuration.qmom](./configuration.qmom), lets QMOMKit generate its raw
+moments, and reconstructs a one-dimensional QMOM quadrature.
 
 The phase-space coordinate is the scalar distribution variable $\xi$. The
 mixture contains:
@@ -20,8 +20,8 @@ requested three-node quadrature.
 
 The native configuration syntax is `type = mixture` with contiguous
 `[initial.mixture.component.K]` sections. Each component supplies its
-`number_density` in [configuration.qmom](./configuration.qmom); QMOMKit performs the mixture moment
-generation during `load_qmom(...)`.
+`number_density` in [configuration.qmom](./configuration.qmom); QMOMKit
+performs the mixture moment generation during `load_qmom(...)`.
 
 Build and run from this example directory:
 

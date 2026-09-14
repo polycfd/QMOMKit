@@ -89,6 +89,11 @@ int main()
     {
         const double step = std::min(time_step, final_time - time);
         const double half_step = 0.5 * step;
+        // advance_qmom_phase_space(...) would compose these three stages for you.
+        // Driving them by hand is worth it only when the application needs to do
+        // its own work between them - inspect an intermediate state, couple to
+        // another solver, or apply a different acceptance rule. The composition
+        // below is exactly what the `strang` scheme does internally.
         qmomkit::QmomState trial_state = state;
 
         // First advection half-step.

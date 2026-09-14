@@ -21,6 +21,10 @@ int main()
 
     try
     {
+        // A .qmom file can hold the case, the evolution controls and the output
+        // settings together, but they are loaded separately: the case loaders
+        // validate every recognised key yet return only the case, so anything
+        // the driver needs must be asked for explicitly.
         auto output_configured = qmomkit::config::load_output_options(configuration_file);
         if (!output_configured)
         {
@@ -35,6 +39,8 @@ int main()
         }
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
+        // The initial condition is parsed separately from the case because this
+        // example does not use it directly: it samples from it instead, below.
         const std::optional<std::string> configuration_text = cqmom_2d_bubbles_cavitation::read_configuration_text(configuration_file);
         if (!configuration_text.has_value())
             return 1;
@@ -53,6 +59,9 @@ int main()
             return 1;
         }
 
+        // Draw a sample ensemble from the configured distribution and compute its
+        // raw moments. Starting the deterministic run from sampled moments is what
+        // makes it directly comparable with the Monte Carlo companion.
         const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
             cqmom_2d_bubbles_cavitation::sample_initial_distribution(std::move(initial_condition).value(), configured_cqmom.value().hierarchy());
         if (!sampled.has_value())
@@ -63,6 +72,9 @@ int main()
             return 1;
         }
 
+        // Swap the sampled moments into the loaded case. This keeps the configured
+        // hierarchy, supports and reconstruction settings and replaces only the
+        // initial values, which avoids rewriting the configuration file.
         auto sampled_case_result = qmomkit::config::with_initial_moments(configured_cqmom.value(), std::move(sampled->moments.moments));
         if (!sampled_case_result)
         {
@@ -71,6 +83,7 @@ int main()
         }
         const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
 
+        // The case is the fixed setup; the state is what advances in time.
         qmomkit::CqmomState state = cqmom_case.initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
@@ -102,6 +115,10 @@ int main()
             quadrature_history_writer->write(initial_time, initial_quadrature);
         }
 
+        // This example models advection only, so the time loop calls
+        // advance_cqmom_advection(...) rather than the full
+        // advance_cqmom_phase_space(...) step. There is no moment source to
+        // compose with, so there is nothing for a splitting scheme to do.
         const double output_interval = output_options.interval.value_or(final_time - initial_time);
         double time = initial_time;
         double next_output_time = initial_time + output_interval;
@@ -135,6 +152,8 @@ int main()
             }
         }
 
+        // Reconstruct the same moment set from the initial and final quadratures
+        // so the summary compares like with like.
         const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(initial_quadrature, moment_output_request);
         if (!initial_moments.ok())
         {

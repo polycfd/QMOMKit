@@ -94,5 +94,10 @@ int main()
         }
     }
 
+    // Confirm on the console that the run finished and say where the results are.
+    std::cout << "Run complete. Results written to " << output_options.directory.string() << "/:\n"
+              << "  moment_history.txt\n"
+              << "  quadrature_history.txt\n";
+
     return 0;
 }

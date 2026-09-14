@@ -24,9 +24,9 @@ The example includes:
 - a moment source through `qmomkit::MomentSource`.
 
 QMOMKit handles the quadrature representation, moment reconstruction, time
-integration, and phase-space evolution splitting inside `advance_qmom_phase_space(...)`.
-The accepted `QmomState` carries the canonical moments and quadrature from one
-step to the next. 
+integration, and phase-space evolution splitting inside
+`advance_qmom_phase_space(...)`. The accepted `QmomState` carries the canonical
+moments and quadrature from one step to the next.
 
 The phase-space advection is defined as
 
@@ -49,16 +49,16 @@ cd build
 ./qmom_1d_minimal_example
 ```
 
-The executable prints a concise console summary with the 
-final moments and the final quadrature. It also writes two
-QMOMKit-native output files:
+The example writes its results to files rather than to the console. On success it
+prints one line confirming where they went, and produces two QMOMKit-native
+output files:
 
 - `output/moment_history.txt`
 - `output/quadrature_history.txt`
 
-`moment_history.txt` records the raw-moment evolution and `quadrature_history.txt`
-records the reconstructed node weights and abscissas. 
-Both files are whitespace-delimited text tables written through QMOMKit-native writers.
+`moment_history.txt` records the raw-moment evolution and
+`quadrature_history.txt` records the reconstructed node weights and abscissas.
+Both are whitespace-delimited text tables written through QMOMKit's writers.
 
 ## What to expect
 

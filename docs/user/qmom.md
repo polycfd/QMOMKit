@@ -1,16 +1,17 @@
 # QMOM
 
-QMOM, the Quadrature Method of Moments [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)], represents a one-dimensional
-distribution by a small set of weighted quadrature nodes. Instead of carrying a
-full distribution function, a caller provides raw moments such as $m_0$, $m_1$,
-and $m_2$. QMOMKit reconstructs weights and abscissas whose raw moments match
-the supplied sequence using the Wheeler algorithm 
+QMOM, the Quadrature Method of Moments [[McGraw,
+1997](https://www.doi.org/10.1080/02786829708965471)], represents a
+one-dimensional distribution by a small set of weighted quadrature nodes.
+Instead of carrying a full distribution function, a caller provides raw moments
+such as $m_0$, $m_1$, and $m_2$. QMOMKit reconstructs weights and abscissas
+whose raw moments match the supplied sequence using the Wheeler algorithm
 [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)].
 
 QMOMKit uses raw, unnormalized moments:
 $$m_k = \sum_i w_i x_i^k$$
 
-$m_0$ is the total quadrature weight or number density. 
+$m_0$ is the total quadrature weight or number density.
 
 ## QMOM Workflow
 
@@ -40,11 +41,11 @@ After reconstruction, a QMOM workflow may inspect the quadrature, evaluate
 derived quantities, write output, or optionally evolve the distribution. QMOM
 phase-space evolution advances an accepted `QmomState` from `QmomCase::initial_state()`
 with `advance_qmom_phase_space(...)`. `QmomState` exposes read-only `moments()`,
-`quadrature()`, `maximum_node_count()`, and `qmom_options()` accessors; its
-stored moments are canonicalized from its accepted quadrature and its
-reconstruction metadata is inherited from the case. Users may copy and move accepted states, but direct
-construction from independent moments and quadrature is intentionally
-unavailable.
+`quadrature()`, `maximum_node_count()`, and `qmom_options()` accessors. Its
+moments and quadrature always agree with each other, and it keeps the
+reconstruction settings of the case it came from. You can copy and move an
+accepted state, but you cannot build one from a moment vector and a quadrature
+of your own choosing: that would allow the two to disagree.
 
 For $N$ nodes, provide at least $2N$ moments: $m_0, m_1, ..., m_{2N-1}$
 
@@ -117,9 +118,9 @@ distribution guide.
 
 Native QMOM and CQMOM moments remain integer-order polynomial moments. QMOMKit
 reconstructs integer-order moments from quadrature when it needs raw moments
-for reconstruction handoff, phase-space evolution, output, or validation workflows. These
-moments use orders such as $m_0$, $m_1$, and $m_2$, or integer-valued
-multidimensional raw-moment indices.
+for reconstruction handoff, phase-space evolution, output, or validation
+workflows. These moments use orders such as $m_0$, $m_1$, and $m_2$, or
+integer-valued multidimensional raw-moment indices.
 
 After checking that a quadrature result is valid, callers may also evaluate
 generalized moments with arbitrary finite real exponents as derived
@@ -142,9 +143,9 @@ const double m_one_third =
 ```
 
 Generalized moment evaluation applies the quadrature formula directly. The same
-idea is available for CQMOM quadrature with a phase-space-order exponent vector.
-These values are derived post-processing quantities. Non-integer exponents
-require non-negative abscissas.
+idea is available for CQMOM quadrature with a phase-space-order exponent
+vector. These values are derived post-processing quantities. Non-integer
+exponents require non-negative abscissas.
 
 ## Options And Diagnostics
 

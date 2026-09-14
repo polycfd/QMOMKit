@@ -233,7 +233,8 @@ than treating it as an exact validation oracle.
 
 Use this when a daughter-state transformation needs information not directly
 available in the tracked moment set. The source traverses source-stage terminal
-quadrature nodes to evaluate a nonlinear four-dimensional recoil transformation.
+quadrature nodes to evaluate a nonlinear four-dimensional recoil
+transformation.
 
 Example README:
 [`examples/cqmom_4d_particles_breakage_recoil/README.md`](../../examples/cqmom_4d_particles_breakage_recoil/README.md)

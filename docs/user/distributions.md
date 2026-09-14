@@ -287,8 +287,8 @@ mean = 0.0
 standard_deviation = 1.0
 ```
 
-See [configuration.md](./configuration.md) for complete configuration-file examples and field
-semantics.
+See [Configuration](configuration.md) for complete configuration-file
+examples and field semantics.
 
 ## Practical Considerations
 

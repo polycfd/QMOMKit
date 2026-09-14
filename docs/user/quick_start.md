@@ -34,10 +34,11 @@ In practice, a first QMOMKit integration usually asks four questions:
 
 ## QMOM
 
-Use QMOM [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] when the represented population has one phase-space coordinate and
-your model provides a raw moment sequence for that coordinate. QMOMKit
-reconstructs a one-dimensional quadrature rule: weights whose sum is $m_0$, and
-abscissas ordered along the coordinate.
+Use QMOM [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] when
+the represented population has one phase-space coordinate and your model
+provides a raw moment sequence for that coordinate. QMOMKit reconstructs a
+one-dimensional quadrature rule: weights whose sum is $m_0$, and abscissas
+ordered along the coordinate.
 
 ```cpp
 #include <qmomkit/qmom.hpp>
@@ -72,14 +73,14 @@ the corresponding weights using the same order.
 
 ## CQMOM
 
-Use CQMOM [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)] 
-when the represented population depends on several phase-space
-coordinates, such as a size coordinate and a velocity coordinate. QMOMKit
-keeps the phase-space order, CQMOM conditioning order, required moments, and
-quadrature layout consistent. This quick start uses a configuration file because
-it is concise and reproducible, then loads a CQMOM case and computes its
-quadrature. The same setup can also be created directly through the C++ API when
-an application already manages setup data in code.
+Use CQMOM [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)]
+when the represented population depends on several phase-space coordinates,
+such as a size coordinate and a velocity coordinate. QMOMKit keeps the
+phase-space order, CQMOM conditioning order, required moments, and quadrature
+layout consistent. This quick start uses a configuration file because it is
+concise and reproducible, then loads a CQMOM case and computes its quadrature.
+The same setup can also be created directly through the C++ API when an
+application already manages setup data in code.
 
 Save this minimal configuration as `configuration.qmom` next to the program
 below:
@@ -150,15 +151,15 @@ separately:
 qmomkit::CqmomState state = cqmom_case.initial_state();
 ```
 
-That state is passed to `advance_cqmom_phase_space(...)` in a phase-space evolution loop.
+That state is passed to `advance_cqmom_phase_space(...)` in a phase-space
+evolution loop.
 
 The configuration file defines the parts of the numerical setup that should be
 repeatable: phase-space names, node counts, conditioning order, and either an
 initial distribution or explicit moments. It does not define the physics
-callbacks used later for phase-space evolution. See [configuration.md](./configuration.md)
- for complete
-configuration syntax and the relationship between `.qmom` files and direct C++
-setup.
+callbacks used later for phase-space evolution. See
+[Configuration](configuration.md) for the complete syntax and how `.qmom` files
+relate to direct C++ setup.
 
 The quadrature result exposes weights and abscissas by terminal node. For fixed
 rectangular quadratures, you can also access a node by its phase-space-order
@@ -186,7 +187,8 @@ configured with `OutputOptions` can append generalized quadrature-derived
 columns. `QuadratureWriter` writes reconstructed nodes and weights. Generalized
 moments remain derived quantities evaluated from a valid quadrature result.
 
-See [configuration.md](./configuration.md) for configuration-file examples, 
-[phase_space_evolution.md](./phase_space_evolution.md) for time evolution, 
-[realizability.md](./realizability.md) for support-aware checks, and
-[monte_carlo.md](./monte_carlo.md) for Monte Carlo companion workflows.
+See [Configuration](configuration.md) for configuration-file examples,
+[Phase-space evolution](phase_space_evolution.md) for time evolution,
+[Callbacks](callbacks.md) for the physics callbacks it needs,
+[Realizability](realizability.md) for support-aware checks, and
+[Monte Carlo Companion Package](monte_carlo.md) for reference workflows.

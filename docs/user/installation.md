@@ -1,7 +1,7 @@
 # Installing QMOMKit
 
 This page describes the repository-local installation workflow for QMOMKit.
-The root project builds and installs the QMOMKit CMake package. 
+The root project builds and installs the QMOMKit CMake package.
 
 Normal tests
 can be enabled in the root build so they validate the current source tree.
@@ -12,7 +12,7 @@ companion package are standalone projects that use an installed package.
 
 QMOMKit has **no** mandatory third-party numerical dependency.
 QMOMKit only requires a C++17 compiler and CMake 3.16 or newer. CTest is needed
-to build and run the test suite. 
+to build and run the test suite.
 
 ## Build And Install QMOMKit
 
@@ -33,9 +33,9 @@ install/
 └── lib/cmake/QMOMKit/
 ```
 
-The installed CMake package exports the `qmomkit::qmomkit` target. Application codes
-using QMOMKit should point `CMAKE_PREFIX_PATH` at this `install/` directory and 
-would typically use the installed package through CMake:
+The installed CMake package exports the `qmomkit::qmomkit` target. Application
+codes using QMOMKit should point `CMAKE_PREFIX_PATH` at this `install/`
+directory and would typically use the installed package through CMake:
 
 ```cmake
 find_package(QMOMKit CONFIG REQUIRED)
@@ -48,6 +48,22 @@ For example, from a separate CMake application:
 cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/QMOMKit/install
 cmake --build build
 ```
+
+## Build Options
+
+QMOMKit defines two CMake options, both `OFF` by default:
+
+| Option | Effect |
+| --- | --- |
+| `QMOMKIT_BUILD_TESTS` | Build the unit, regression, verification, and public-header tests. |
+| `QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION` | Compile in counters that record how much numerical work a workload performs. |
+
+Performance instrumentation is a development aid rather than a runtime feature:
+with it off, the counter calls compile to no-ops and no counter storage is
+allocated, so ordinary builds carry no cost. Numerical results are identical
+either way. See
+[performance instrumentation](../developer/performance_instrumentation.md) for
+what the counters record and how to read them.
 
 ## Build Tests
 

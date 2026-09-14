@@ -6,7 +6,8 @@ moments, advection sample evolution, and moment-history comparison utilities.
 It is useful when you want a sampled reference beside a QMOM or CQMOM
 calculation.
 
-The companion package is **not** needed for ordinary QMOM or CQMOM reconstruction.
+The companion package is **not** needed for ordinary QMOM or CQMOM
+reconstruction.
 
 ## When To Use It
 
@@ -163,9 +164,10 @@ int main()
 For an existing ensemble, `compute_ensemble_moments(...)` estimates a complete
 one-dimensional `MomentSet` or multidimensional `RawMomentTensor` and their
 standard errors. `compute_requested_ensemble_moments(...)` evaluates only the
-multi-indices in a `qmomkit::RawMomentRequest`; it preserves request order and
-does not allocate an omitted dense tensor. These raw moments provide the common
-quantities for comparison with QMOM or CQMOM results.
+multi-indices listed in a `qmomkit::RawMomentRequest`, in the order requested,
+which is the cheaper choice when you need a handful of moments from a large
+phase space. Either way, these raw moments are what you compare against QMOM or
+CQMOM results.
 
 ### Evolve An Ensemble
 
@@ -207,8 +209,8 @@ The companion examples show how reusable sampling, moment estimation, and
 advection utilities can be combined with application-specific particle models.
 They are stochastic particle-based companion/reference realizations, not exact
 truth solvers, so their later moments need not match deterministic QMOM/CQMOM
-results exactly. See the Monte Carlo entries in the [examples guide](examples.md)
-for the current 1D and multidimensional workflows.
+results exactly. See the Monte Carlo entries in the [examples
+guide](examples.md) for the current 1D and multidimensional workflows.
 
 ## Run The Example Driver
 
@@ -301,10 +303,9 @@ const qmomkit::monte_carlo::SelectedEnsembleMomentEstimate estimate =
 
 On success, `estimate.indices`, `estimate.values`, and
 `estimate.standard_errors` are aligned in the original request order, including
-duplicate indices. The estimator applies the same total-number-density
-normalization as the dense API, computes each requested monomial directly, and
-does not allocate a dense tensor for omitted moments. Check `estimate.ok()` and
-use `estimate.message` for a failed validation or numerical evaluation.
+duplicate indices. The estimator normalizes by total number density exactly as the dense form
+does, so the two agree on any moment both compute. Check `estimate.ok()` and
+read `estimate.message` when it fails.
 
 ## Output Format
 

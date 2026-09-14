@@ -26,16 +26,16 @@ direct API:
         -> QmomCase, CqmomDenseCase, or CqmomLeanCase
 ```
 
-Neither approach is preferred universally. Use the one that fits the surrounding
-application.
+Neither approach is preferred universally. Use the one that fits the
+surrounding application.
 
 For CQMOM, `load_cqmom(...)` returns a `CqmomCase`: the configured problem
 definition used to compute quadrature and, when needed, create an initial
-phase-space evolution state. Direct C++ setup that bypasses configuration text uses the
-public explicit CQMOM case types, such as `CqmomDenseCase` for full tensor
-moments or `CqmomLeanCase` for required moment data. These explicit cases are
-ordinary public workflows for applications that intentionally manage moment
-storage themselves.
+phase-space evolution state. Direct C++ setup that bypasses configuration text
+uses the public explicit CQMOM case types, such as `CqmomDenseCase` for full
+tensor moments or `CqmomLeanCase` for required moment data. These explicit
+cases are ordinary public workflows for applications that intentionally manage
+moment storage themselves.
 
 Think of a configuration file as the part of a case a researcher would want to
 record, rerun, and compare. It captures the moment-method setup. The
@@ -58,11 +58,11 @@ Use direct C++ construction when:
 
 Configuration files and direct C++ setup have the same boundary: they describe
 the QMOMKit case setup. Physics callbacks, model coefficients, mesh data,
-boundary conditions, units, timestep loops, and detailed phase-space evolution control remain
-application code. Not every public C++ option has a `.qmom` key: `.qmom`
-exposes the supported case and runtime configuration surface, while advanced
-low-level controls, such as reconstruction thresholds and source-integration
-acceptance callbacks, remain API-only.
+boundary conditions, units, timestep loops, and detailed phase-space evolution
+control remain application code. Not every public C++ option has a `.qmom` key:
+`.qmom` exposes the supported case and runtime configuration surface, while
+advanced low-level controls, such as reconstruction thresholds and
+source-integration acceptance callbacks, remain API-only.
 
 ## Direct C++ Setup At A User Level
 
@@ -195,10 +195,11 @@ const qmomkit::CqmomPhaseSpaceEvolutionResult next =
     qmomkit::advance_cqmom_phase_space(state, time, time_step, velocity, source, options);
 ```
 
-The `velocity`, `source`, and phase-space evolution options are application code. The
-[Phase-space evolution](phase_space_evolution.md) guide explains those callbacks and options in detail.
+The `velocity`, `source`, and phase-space evolution options are application
+code. The [Phase-space evolution](phase_space_evolution.md) guide explains
+those callbacks and options in detail.
 
-## `.qmom` File Structure 
+## `.qmom` File Structure
 
 QMOMKit case configuration files use the `.qmom` extension.
 
@@ -240,7 +241,8 @@ conditions, or solver loops. Those remain application code.
 
 ## Loading A Configuration From File
 
-Applications can load a configuration from a `.qmom` file through the public configuration API:
+Applications can load a configuration from a `.qmom` file through the public
+configuration API:
 
 ```cpp
 #include <qmomkit/qmomkit.hpp>
@@ -440,9 +442,9 @@ For ordinary fixed-node QMOM, omit the section or set `adaptive = false`.
 
 ### Optional Quadrature Abscissa Bounds
 
-A QMOM coordinate is unconstrained by default, which means abscissas are placed on
-the real-line. When the phase-space coordinate has a
-known closed bounded support, declare it with `support_lower` and `support_upper` definitions:
+A QMOM coordinate is unconstrained by default, which means abscissas are placed
+on the real-line. When the phase-space coordinate has a known closed bounded
+support, declare it with `support_lower` and `support_upper` definitions:
 
 ```ini
 [phase_space]
@@ -471,8 +473,8 @@ configuration
 
 After reconstruction, users may inspect the quadrature, evaluate derived
 quantities, write output, or optionally evolve the distribution. Optional CQMOM
-phase-space evolution creates a `CqmomState` with `CqmomCase::initial_state()` and advances
-that state with `advance_cqmom_phase_space(...)`.
+phase-space evolution creates a `CqmomState` with `CqmomCase::initial_state()`
+and advances that state with `advance_cqmom_phase_space(...)`.
 
 An application that loads a normal `CqmomCase` and later supplies complete raw
 tensor moments may create a replacement case with
@@ -564,8 +566,8 @@ part of this model.
 
 This configuration represents independent products of marginals, including
 marginal mixtures. It does not represent correlated joint distributions,
-copulas, multidimensional mixture components, or mixtures of independent-product
-populations.
+copulas, multidimensional mixture components, or mixtures of
+independent-product populations.
 
 For the normal `load_cqmom(...)` path, `node_counts` and
 `conditioning_order` determine which raw moments are required. Analytical
@@ -738,9 +740,9 @@ Supported values are:
 | `moore_penrose` | Uses a truncated SVD Moore-Penrose pseudoinverse. |
 | `bjorck_pereyra` | Uses Björck-Pereyra. |
 
-If omitted, `automatic` is used. The `pivoted_qr`, `svd`, and `moore_penrose` policies solve the
-weighted conditional Vandermonde system directly and are selected only when
-requested explicitly:
+If omitted, `automatic` is used. The `pivoted_qr`, `svd`, and `moore_penrose`
+policies solve the weighted conditional Vandermonde system directly and are
+selected only when requested explicitly:
 
 ```ini
 [vandermonde]
@@ -809,7 +811,8 @@ still be loaded into phase-space evolution options explicitly.
 | `time_integration.node_advection.*` | yes | no | yes |
 | `time_integration.realizability.*` | yes | no | yes |
 
-A configuration file may select the phase-space evolution operator-ordering scheme:
+A configuration file may select the phase-space evolution operator-ordering
+scheme:
 
 ```ini
 [time_integration]
@@ -844,8 +847,8 @@ rk45
 ssp_rk3
 ```
 
-`rk23` is embedded third-order RK scheme of [Bogacki & Shampine (1989)](https://www.doi.org/10.1016/0893-9659(89)90079-7) and chosen by default. 
-The embedded fifth-order RK scheme of [Dormand & Prince (1980)](https://www.doi.org/10.1016/0771-050X(80)90013-3), `rk45`, and the third-order SPP-RK 3 scheme of [Shu & Osher (1988)](https://www.doi.org/10.1016/0021-9991(88)90177-5), `ssp_rk3`, are available as alternatives. 
+`rk23` is embedded third-order RK scheme of [Bogacki & Shampine (1989)](https://www.doi.org/10.1016/0893-9659(89)90079-7) and chosen by default.
+The embedded fifth-order RK scheme of [Dormand & Prince (1980)](https://www.doi.org/10.1016/0771-050X(80)90013-3), `rk45`, and the third-order SPP-RK 3 scheme of [Shu & Osher (1988)](https://www.doi.org/10.1016/0021-9991(88)90177-5), `ssp_rk3`, are available as alternatives.
 The choice affects only advection quadrature-node trajectories; it does not change moment-source integration,
 realizability policy, or phase-space evolution splitting.
 
@@ -910,10 +913,11 @@ Wheeler tolerances; moment-source node-count evolution is automatic.
 
 The configuration file stores runtime numerical choices and the initial
 numerical setup. Your application still provides the advection velocity and
-source callbacks, model coefficients, and timestep plan. Load QMOM phase-space evolution
-controls with `load_qmom_phase_space_evolution_options(...)` and CQMOM phase-space evolution controls
-with `load_cqmom_phase_space_evolution_options(...)`; these return complete phase-space evolution
-option objects with default empty runtime callbacks.
+source callbacks, model coefficients, and timestep plan. Load QMOM phase-space
+evolution controls with `load_qmom_phase_space_evolution_options(...)` and
+CQMOM phase-space evolution controls with
+`load_cqmom_phase_space_evolution_options(...)`; these return complete
+phase-space evolution option objects with default empty runtime callbacks.
 
 ## Output Options
 
@@ -943,9 +947,9 @@ CQMOM quadrature output uses one row per active terminal node:
 time node_index path_0 ... weight x0 ...
 ```
 
-Multiple rows may share one time value, and adaptive CQMOM may write a different
-number of rows at different output times. Group rows by `time` to recover each
-saved terminal quadrature.
+Multiple rows may share one time value, and adaptive CQMOM may write a
+different number of rows at different output times. Group rows by `time` to
+recover each saved terminal quadrature.
 
 QMOM quadrature output also uses one row per active node:
 
@@ -1049,8 +1053,8 @@ intentionally separate from the coordinate-marginal realizability checks.
 Keep units consistent. Distribution parameters, moment values, and phase-space
 coordinate names should refer to the same coordinate convention.
 
-Keep moment normalization explicit. QMOMKit uses unnormalized raw moments of the
-number density function. `m0` is the total number density. Dividing by `m0`
+Keep moment normalization explicit. QMOMKit uses unnormalized raw moments of
+the number density function. `m0` is the total number density. Dividing by `m0`
 changes the setup to a unit-number-density problem.
 
 Generate enough moments. For `N` QMOM nodes, an analytical initialization needs
@@ -1074,8 +1078,8 @@ a failed QMOM or CQMOM reconstruction if the requested quadrature is not
 accepted.
 
 Remember precedence rules. Explicit `[moments]` values are the source of truth
-when present. If explicit moments and `[initial]` are both present, the explicit
-moments are used.
+when present. If explicit moments and `[initial]` are both present, the
+explicit moments are used.
 
 ## Example Files
 
@@ -1087,13 +1091,15 @@ Phase-space evolution examples with local configuration files include:
 
 - [examples/qmom_mixture_initialization/configuration.qmom](../../examples/qmom_mixture_initialization/configuration.qmom)
 - [examples/qmom_1d_breakage_advection/configuration.qmom](../../examples/qmom_1d_breakage_advection/configuration.qmom)
-- [examples/cqmom_2d_minimal/configuration.qmom](../../examples/cqmom_2d_minimal/configuration.qmom)
+- [examples/cqmom_2d_bubbles_cavitation/configuration.qmom](../../examples/cqmom_2d_bubbles_cavitation/configuration.qmom)
 
-Monte Carlo companion examples live under [tools/monte_carlo/configuration/](../../tools/monte_carlo/configuration/):
+Monte Carlo companion examples live under
+[tools/monte_carlo/configuration/](../../tools/monte_carlo/configuration/):
 
 - [qmom_distribution_lognormal.qmom](../../tools/monte_carlo/configuration/qmom_distribution_lognormal.qmom)
 - [cqmom_independent_product_2d.qmom](../../tools/monte_carlo/configuration/cqmom_independent_product_2d.qmom)
 
-Build and run examples as described in the [QMOMKIt Installation Guide](./installation.md), then edit the
+Build and run examples as described in the [Installation](installation.md)
+guide, then edit the
 configuration files to explore different initial moments, node counts, and
 output settings.

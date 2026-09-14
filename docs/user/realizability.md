@@ -44,8 +44,9 @@ checked when the workflow can approach the boundary of moment space.
 
 ## Explicit Checks
 
-When a one-dimensional coordinate has a known support, `check_realizability(...)`
-checks whether a raw moment sequence is consistent with that support:
+When a one-dimensional coordinate has a known support,
+`check_realizability(...)` checks whether a raw moment sequence is consistent
+with that support:
 
 ```cpp
 #include <qmomkit/realizability.hpp>

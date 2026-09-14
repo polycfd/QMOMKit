@@ -86,19 +86,20 @@ per-node overload set to keep in sync.
 The adapted form costs one call and one returned vector per node per
 right-hand-side evaluation, and the terminal node count is the product of the
 per-dimension node counts. Measured over `advance_nodes` with two nodes per
-dimension, allocations per call scale as roughly 14 per terminal node for the
-adapted form and roughly 1 per terminal node for a directly written packed
-callback:
+dimension, allocations per call scale as roughly 13 per terminal node for the
+adapted form, while a directly written packed callback does not scale with the
+node count at all:
 
 | Case | Terminal nodes | Adapted per-node | Packed |
 | --- | --- | --- | --- |
-| 2D 2^2 | 4 | 113 | 47 |
-| 3D 2^3 | 8 | 170 | 52 |
-| 4D 2^4 | 16 | 283 | 61 |
-| 5D 2^5 | 32 | 508 | 78 |
+| 2D 2^2 | 4 | 80 | 28 |
+| 3D 2^3 | 8 | 133 | 29 |
+| 4D 2^4 | 16 | 238 | 30 |
+| 5D 2^5 | 32 | 447 | 31 |
 
-The residual packed growth is the terminal conditioning-path table copied into
-the returned quadrature, not the velocity callback.
+The residual packed growth is one allocation per phase-space dimension, from the
+terminal conditioning-path table copied into the returned quadrature, not from
+the velocity callback.
 
 The phase-space evolution entry points carry the packed callback all the way
 through, so an adapter, when one is used at all, is created once by the caller
@@ -108,10 +109,10 @@ Strang phase-space step with a zero moment source:
 
 | Case | Terminal nodes | Adapted per-node | Packed | Saved |
 | --- | --- | --- | --- | --- |
-| 2D 2^2 | 4 | 519 | 388 | 25.2% |
-| 3D 2^3 | 8 | 864 | 629 | 27.2% |
-| 4D 2^4 | 16 | 1539 | 1096 | 28.8% |
-| 5D 2^5 | 32 | 2872 | 2013 | 29.9% |
+| 2D 2^2 | 4 | 376 | 272 | 27.7% |
+| 3D 2^3 | 8 | 621 | 413 | 33.5% |
+| 4D 2^4 | 16 | 1096 | 680 | 38.0% |
+| 5D 2^5 | 32 | 2029 | 1197 | 41.0% |
 
 The saved fraction grows with phase-space dimension because the eliminated term
 scales with the terminal node count while the rest of the step does not.
@@ -173,16 +174,22 @@ raw-moment SSP-RK stage. It must return a derivative vector with the same
 size.
 
 Returning the derivative rather than filling a supplied buffer is a deliberate
-asymmetry with `PhaseSpaceVelocity`, which fills one. The two callbacks are
-invoked at different rates. A moment source runs once per SSP-RK stage, three
-times per phase-space step, independent of node count and phase-space
-dimension. The velocity callback is evaluated for every quadrature node, and
-the terminal node count is the product of the per-dimension node counts, so a
-per-call allocation there grew with dimension and dominated the step. Measured
-on a QMOM step with three nodes, the returned source vectors account for about
-two percent of the step's allocations. The packed form is therefore worth its
-extra awkwardness for the velocity and is not worth it here, where returning a
-vector keeps the most common callback the simplest to write.
+asymmetry: `MomentSource` is the one public callback that still returns, while
+`PhaseSpaceVelocity` and `OdeRhs` both fill. The callbacks are invoked at
+different rates. A moment source runs once per SSP-RK stage, three times per
+phase-space step, independent of node count and phase-space dimension. The
+velocity callback is evaluated for every quadrature node, and the terminal node
+count is the product of the per-dimension node counts, so a per-call allocation
+there grew with dimension and dominated the step; `OdeRhs` is the boundary the
+velocity is carried across, and is evaluated at the same rate. Measured on a
+QMOM step with three nodes, the three returned source vectors account for about
+three percent of the step's allocations. The fill form is therefore worth its
+extra awkwardness on the per-node path and is not worth it here, where returning
+a vector keeps the most common callback the simplest to write.
+
+The library absorbs that asymmetry in one place, where a `MomentSource` is
+wrapped as an `OdeRhs`: the returned rates are copied into the supplied buffer
+rather than moved, so the integrator keeps the buffer it reuses.
 
 `context.moment(order)` returns a tracked stage value directly; during
 QMOM phase-space source evolution, an untracked order is evaluated from a
@@ -400,14 +407,19 @@ Both solvers use the callback convention:
 
 ```cpp
 using OdeRhs =
-    std::function<std::vector<double>(double, const std::vector<double>&)>;
+    std::function<void(double, const std::vector<double>&, std::vector<double>&)>;
 ```
 
-The callback receives `(t, state)` and must return a derivative vector with the
-same size as `state`. A wrong-sized derivative or non-finite derivative is an
-error. Callback exceptions are not converted into solver-specific status values;
-they follow the low-level solver behavior and propagate out of the generic RK
-utility.
+The callback receives `(t, state)` and fills a derivative buffer the solver
+supplies with the same size as `state`. Resizing that buffer, leaving an entry
+unwritten, or writing a non-finite value is an error; the unwritten-entry check
+is a debug-build check, as it is for the velocity callback. Callback exceptions
+are not converted into solver-specific status values; they follow the low-level
+solver behavior and propagate out of the generic RK utility.
+
+Filling a supplied buffer rather than returning one makes the allocation cost of
+an integration independent of the number of steps it takes: the stage vectors
+are allocated once for the whole integration and every stage writes through them.
 
 Phase-space evolution-facing wrappers add domain-specific failure handling. Node advection
 catches phase-space velocity failures and reports

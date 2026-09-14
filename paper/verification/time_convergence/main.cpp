@@ -39,7 +39,7 @@ struct SplitRun
 
 qmomkit::OdeRhs exponential_decay_rhs()
 {
-    return [](double, const std::vector<double>& state) { return std::vector<double>{-state[0]}; };
+    return [](double, const std::vector<double>& state, std::vector<double>& derivative) { derivative[0] = -state[0]; };
 }
 
 double observed_order(const double coarse_error, const double fine_error, const double coarse_step, const double fine_step)

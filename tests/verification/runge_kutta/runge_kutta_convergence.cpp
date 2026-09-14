@@ -46,7 +46,7 @@ struct EmbeddedFixedRun
 
 qmomkit::OdeRhs exponential_decay_rhs()
 {
-    return [](double, const std::vector<double>& state) { return std::vector<double>{-state[0]}; };
+    return [](double, const std::vector<double>& state, std::vector<double>& derivative) { derivative[0] = -state[0]; };
 }
 
 double observed_order(const double coarse_error, const double fine_error, const double coarse_step, const double fine_step)
@@ -214,8 +214,8 @@ std::vector<EmbeddedFixedRun> verify_embedded_fixed_step_convergence(const qmomk
         QMOMKIT_VERIFY_CHECK(result.accepted_steps == steps);
 
         std::size_t function_evaluations = 0;
-        const qmomkit::internal::EmbeddedRkStep one_step =
-            qmomkit::internal::take_embedded_rk_step(tableau, exponential_decay_rhs(), 0.0, {1.0}, dt, std::nullopt, function_evaluations);
+        qmomkit::internal::EmbeddedRkWorkspace one_step;
+        qmomkit::internal::take_embedded_rk_step(tableau, exponential_decay_rhs(), 0.0, {1.0}, dt, function_evaluations, one_step);
         QMOMKIT_VERIFY_CHECK(function_evaluations == tableau.stage_count);
         runs.push_back(EmbeddedFixedRun{steps, dt, std::abs(result.state[0] - exact), std::abs(one_step.error[0])});
     }

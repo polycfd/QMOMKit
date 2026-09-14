@@ -1660,11 +1660,12 @@ void bm_cqmom_ssp_source_existing_layout(benchmark::State& state)
             {
                 qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step(
                     value_state, time, 0.001,
-                    [&](const double rhs_time, const std::vector<double>& state_values)
+                    [&](const double rhs_time, const std::vector<double>& state_values, std::vector<double>& derivative)
                     {
                         const qmomkit::CqmomSourceContext context(rhs_time, workload.hierarchy, workload.lean_moments.layout.required_indices,
                                                                   state_values);
-                        return source(rhs_time, context).values;
+                        const qmomkit::CqmomMomentRate rate = source(rhs_time, context);
+                        derivative.assign(rate.values.begin(), rate.values.end());
                     },
                     options);
                 if (!result.ok())

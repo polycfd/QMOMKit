@@ -21,8 +21,11 @@ state `y` and positive step `h`:
    then apply the Final stage predicate and final acceptance predicate.
 
 Each vector loop combines the same component across stages. An early rejected
-stage prevents later RHS calls. `rhs_checked` enforces vector size and derivative
-finiteness. Intermediate state acceptance depends on predicates and subsequent
+stage prevents later RHS calls. One derivative buffer serves all three stages,
+since each stage's derivative is consumed into the next stage state before the
+following stage overwrites it. `rhs_checked` sizes that buffer, hands it to the
+callback, and enforces that the callback neither resized it nor left an entry
+unwritten, and that every derivative is finite. Intermediate state acceptance depends on predicates and subsequent
 RHS checks; there is an explicit finite check on the final candidate.
 
 The second stage also constructs the second-order test state
@@ -53,20 +56,35 @@ Internal `embedded_rk_tableau` selects the implemented Bogacki–Shampine RK23
 (4 stages) or Dormand–Prince RK45 (7 stages); unknown methods throw.
 `take_embedded_rk_step` loops over tableau stages, prior-stage derivatives, and
 vector components to construct each stage state. It then combines the same
-derivatives with higher-order and embedded weights, returning both candidate
-states and their componentwise difference. The tableaux are the source of the
-coefficients; no alternate backend is selected.
+derivatives with higher-order and embedded weights, leaving both candidate
+states and their componentwise difference in the caller's
+`EmbeddedRkWorkspace`. The tableaux are the source of the coefficients; no
+alternate backend is selected.
 
-The first derivative can be supplied by the controller. Otherwise it is evaluated
-at the starting state. The result carries both first and final derivatives for
-retry reuse and the first-same-as-last (FSAL) accepted-step cache. RHS shape and
-finite derivative checks remain in this layer. Cache validity is an internal
-caller invariant: the cached derivative must belong to the current starting
-state/time. `embedded_rk_controller_exponent` returns
-`-1/(embedded_order+1)` for the error controller.
+The workspace is where the stage vectors, the two candidate states, the error
+vector, and the cached first derivative live. The controller owns one for the
+whole integration and passes it to every attempt, so these buffers are
+allocated on the first attempt instead of on each one; it is a controller
+local, not shared state, so concurrent integrations do not interfere. Every
+buffer is assigned its full length before it is read, which is what makes
+reuse arithmetic-neutral.
+
+A workspace whose `has_first_derivative` is set supplies the first derivative;
+otherwise it is evaluated at the starting state. On return the flag is set,
+because slot zero of the stage derivatives is then the slope at the starting
+state whichever way it was obtained, so a rejected attempt's retry reuses it
+without the controller moving it anywhere. An accepting controller must instead
+install the outgoing slope of a first-same-as-last (FSAL) tableau — its last
+stage, swapped into slot zero — or clear the flag. RHS shape and finite
+derivative checks remain in this layer. Cache validity is an internal caller
+invariant: the cached derivative must belong to the current starting state/time.
+`embedded_rk_controller_exponent` returns `-1/(embedded_order+1)` for the error
+controller.
 
 Evidence: [RK tests](../../../tests/unit/runge_kutta.cpp) check method-specific
-stage arithmetic and function-evaluation accounting, including FSAL reuse.
+stage arithmetic and function-evaluation accounting, including FSAL reuse, and
+that a reused workspace takes the same step as a fresh one while its cache
+replaces exactly one evaluation.
 No independent arbitrary-tableau facility or interpolation/dense-output contract
 is implemented by these helpers.
 
@@ -146,7 +164,7 @@ trajectory remain a separate question from bounded inversion acceptance.
 | Family | Responsibility / important semantics | Evidence |
 |---|---|---|
 | `require_same_size`, `rhs_checked`, `add_scaled` | Componentwise shape-checked arithmetic and derivative checks; callback exceptions propagate to the owning wrapper. | RHS error tests |
-| `euclidean_norm`, `rms_norm`, `error_norm` | Ordinary double norm reductions; different SSP diagnostic and embedded acceptance meanings. | RK formula/controller tests |
+| `euclidean_norm`, `error_norm` | Ordinary double norm reductions; different SSP diagnostic and embedded acceptance meanings. | RK formula/controller tests |
 | `sign`, `validate_or_default_max_step`, `minimum_step` | Direction, zero-as-default maximum, representable-time lower bound. | Backward/step-boundary tests |
 | `stage_accepted`, `invalid_embedded_rk_result` | Missing predicate means acceptance; invalid controller input preserves initial state/time. | Invalid/predicate tests |
 | Node `all_finite`, `validate_weights`, `validate_abscissas` | Shape and finite input checks, independent of physical coordinate meaning. | Node invalid-input tests |

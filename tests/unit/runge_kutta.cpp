@@ -3,6 +3,7 @@
 #include "internal/embedded_runge_kutta.hpp"
 #include "test_case_dispatch.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
@@ -128,9 +129,15 @@ void test_embedded_rk_one_steps_match_independent_scalar_formulae()
     {
         const qmomkit::internal::EmbeddedRkTableau& tableau = qmomkit::internal::embedded_rk_tableau(method);
         std::size_t evaluations = 0;
-        const qmomkit::internal::EmbeddedRkStep forward = qmomkit::internal::take_embedded_rk_step(
-            tableau, [](double, const std::vector<double>& state) { return std::vector<double>{state[0], -2.0 * state[1]}; }, 0.25, {1.5, -0.5}, 0.2,
-            std::nullopt, evaluations);
+        qmomkit::internal::EmbeddedRkWorkspace forward;
+        qmomkit::internal::take_embedded_rk_step(
+            tableau,
+            [](double, const std::vector<double>& state, std::vector<double>& derivative)
+            {
+                derivative[0] = state[0];
+                derivative[1] = -2.0 * state[1];
+            },
+            0.25, {1.5, -0.5}, 0.2, evaluations, forward);
         const std::vector<double> expected_high{reference_scalar_embedded_step(method, 1.5, 1.0, 0.2, true),
                                                 reference_scalar_embedded_step(method, -0.5, -2.0, 0.2, true)};
         const std::vector<double> expected_low{reference_scalar_embedded_step(method, 1.5, 1.0, 0.2, false),
@@ -141,9 +148,10 @@ void test_embedded_rk_one_steps_match_independent_scalar_formulae()
         assert(evaluations == tableau.stage_count);
 
         evaluations = 0;
-        const qmomkit::internal::EmbeddedRkStep backward = qmomkit::internal::take_embedded_rk_step(
-            tableau, [](double, const std::vector<double>& state) { return std::vector<double>{state[0]}; }, 0.25, {1.5}, -0.2, std::nullopt,
-            evaluations);
+        qmomkit::internal::EmbeddedRkWorkspace backward;
+        qmomkit::internal::take_embedded_rk_step(
+            tableau, [](double, const std::vector<double>& state, std::vector<double>& derivative) { derivative[0] = state[0]; }, 0.25, {1.5}, -0.2,
+            evaluations, backward);
         assert_near(backward.higher_state[0], reference_scalar_embedded_step(method, 1.5, 1.0, -0.2, true), 2.0e-15);
     }
 }
@@ -159,9 +167,10 @@ void test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs()
     {
         const qmomkit::internal::EmbeddedRkTableau& tableau = qmomkit::internal::embedded_rk_tableau(method);
         std::size_t evaluations = 0;
-        const qmomkit::internal::EmbeddedRkStep result = qmomkit::internal::take_embedded_rk_step(
-            tableau, [](const double time, const std::vector<double>&) { return std::vector<double>{time}; }, initial_time, {initial_value}, step,
-            std::nullopt, evaluations);
+        qmomkit::internal::EmbeddedRkWorkspace result;
+        qmomkit::internal::take_embedded_rk_step(
+            tableau, [](const double time, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = time; }, initial_time,
+            {initial_value}, step, evaluations, result);
 
         // y' = t has y(t + h) = y(t) + t h + h^2 / 2.  Both members of
         // these pairs must use their declared stage abscissae to recover it.
@@ -169,6 +178,51 @@ void test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs()
         assert_near(result.embedded_state[0], expected, 2.0e-15);
         assert_near(result.error[0], 0.0, 2.0e-15);
         assert(evaluations == tableau.stage_count);
+    }
+}
+
+void test_embedded_rk_workspace_reuse_is_transparent()
+{
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        const qmomkit::internal::EmbeddedRkTableau& tableau = qmomkit::internal::embedded_rk_tableau(method);
+        const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& state, std::vector<double>& derivative)
+        {
+            derivative[0] = state[0];
+            derivative[1] = -2.0 * state[1];
+        };
+        const std::vector<double> start{1.5, -0.5};
+
+        std::size_t fresh_evaluations = 0;
+        qmomkit::internal::EmbeddedRkWorkspace fresh;
+        qmomkit::internal::take_embedded_rk_step(tableau, rhs, 0.25, start, 0.2, fresh_evaluations, fresh);
+        assert(fresh_evaluations == tableau.stage_count);
+        assert(fresh.has_first_derivative);
+
+        // A workspace that already served an unrelated step, and whose cache the
+        // caller therefore invalidated, must take the step exactly as a fresh one
+        // does: reused storage may not carry values between attempts.
+        std::size_t reused_evaluations = 0;
+        qmomkit::internal::EmbeddedRkWorkspace reused;
+        qmomkit::internal::take_embedded_rk_step(tableau, rhs, 0.1, {2.0, 1.0}, 0.3, reused_evaluations, reused);
+        reused.has_first_derivative = false;
+        reused_evaluations = 0;
+        qmomkit::internal::take_embedded_rk_step(tableau, rhs, 0.25, start, 0.2, reused_evaluations, reused);
+        assert(reused_evaluations == tableau.stage_count);
+        assert_vector_near(reused.higher_state, fresh.higher_state, 0.0);
+        assert_vector_near(reused.embedded_state, fresh.embedded_state, 0.0);
+        assert_vector_near(reused.error, fresh.error, 0.0);
+
+        // Retaking the step the workspace just took is the rejected-attempt retry:
+        // the cached slope at the unchanged starting state replaces exactly one
+        // evaluation and reproduces the same step bit for bit.
+        std::size_t retry_evaluations = 0;
+        qmomkit::internal::take_embedded_rk_step(tableau, rhs, 0.25, start, 0.2, retry_evaluations, reused);
+        assert(retry_evaluations == tableau.stage_count - 1);
+        assert(reused.has_first_derivative);
+        assert_vector_near(reused.higher_state, fresh.higher_state, 0.0);
+        assert_vector_near(reused.embedded_state, fresh.embedded_state, 0.0);
+        assert_vector_near(reused.error, fresh.error, 0.0);
     }
 }
 
@@ -190,10 +244,10 @@ void test_embedded_rk_default_initial_step_is_used_for_both_methods()
         const double initial_time = 2.0;
         const qmomkit::AdaptiveRkResult result =
             qmomkit::integrate_embedded_rk({0.0}, initial_time, initial_time + 2.0 * qmomkit::default_adaptive_initial_step,
-                                           [&rhs_times](const double time, const std::vector<double>&)
+                                           [&rhs_times](const double time, const std::vector<double>&, std::vector<double>& derivative)
                                            {
                                                rhs_times.push_back(time);
-                                               return std::vector<double>{1.0};
+                                               derivative[0] = 1.0;
                                            },
                                            method, {});
 
@@ -215,7 +269,8 @@ void test_embedded_rk_fsal_reuses_accepted_endpoint_derivative()
         options.initial_step = 0.5;
         options.max_step = 0.5;
         const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk(
-            {1.0}, 0.0, 1.0, [](double, const std::vector<double>& state) { return std::vector<double>{0.0 * state[0]}; }, method, options);
+            {1.0}, 0.0, 1.0, [](double, const std::vector<double>& state, std::vector<double>& derivative) { derivative[0] = 0.0 * state[0]; },
+            method, options);
         assert(result.status == qmomkit::AdaptiveRkStatus::success);
         assert(result.accepted_steps == 2);
         assert(result.function_evaluations == 2 * qmomkit::internal::embedded_rk_tableau(method).stage_count - 1);
@@ -234,7 +289,7 @@ void test_embedded_rk_adaptive_controls_for_both_methods()
         accepted.initial_step = 0.2;
         accepted.max_step = 0.2;
         const qmomkit::AdaptiveRkResult first_trial = qmomkit::integrate_embedded_rk(
-            {2.0}, 0.0, 0.2, [](double, const std::vector<double>&) { return std::vector<double>{3.0}; }, method, accepted);
+            {2.0}, 0.0, 0.2, [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = 3.0; }, method, accepted);
         assert(first_trial.status == qmomkit::AdaptiveRkStatus::success);
         assert(first_trial.accepted_steps == 1);
         assert(first_trial.rejected_steps == 0);
@@ -247,7 +302,8 @@ void test_embedded_rk_adaptive_controls_for_both_methods()
         rejected.relative_tolerance = 1.0e-9;
         rejected.absolute_tolerance = 1.0e-12;
         const qmomkit::AdaptiveRkResult recovered = qmomkit::integrate_embedded_rk(
-            {1.0}, 0.0, 1.0, [](double, const std::vector<double>& state) { return std::vector<double>{-10.0 * state[0]}; }, method, rejected);
+            {1.0}, 0.0, 1.0, [](double, const std::vector<double>& state, std::vector<double>& derivative) { derivative[0] = -10.0 * state[0]; },
+            method, rejected);
         assert(recovered.status == qmomkit::AdaptiveRkStatus::success);
         assert(recovered.rejected_steps > 1);
         const std::size_t stage_count = qmomkit::internal::embedded_rk_tableau(method).stage_count;
@@ -258,7 +314,8 @@ void test_embedded_rk_adaptive_controls_for_both_methods()
         clamped.initial_step = 1.0;
         clamped.max_step = 0.25;
         const qmomkit::AdaptiveRkResult maximum_step = qmomkit::integrate_embedded_rk(
-            {1.0}, 0.0, 1.0, [](double, const std::vector<double>& state) { return std::vector<double>{0.0 * state[0]}; }, method, clamped);
+            {1.0}, 0.0, 1.0, [](double, const std::vector<double>& state, std::vector<double>& derivative) { derivative[0] = 0.0 * state[0]; },
+            method, clamped);
         assert(maximum_step.status == qmomkit::AdaptiveRkStatus::success);
         assert(maximum_step.accepted_steps == 4);
         assert_near(maximum_step.t, 1.0, 1.0e-15);
@@ -268,8 +325,8 @@ void test_embedded_rk_adaptive_controls_for_both_methods()
         nonfinite_error.max_step = 2.0;
         nonfinite_error.min_step = 0.5;
         const qmomkit::AdaptiveRkResult underflow = qmomkit::integrate_embedded_rk(
-            {0.0}, 0.0, 2.0, [](double, const std::vector<double>&) { return std::vector<double>{std::numeric_limits<double>::max()}; }, method,
-            nonfinite_error);
+            {0.0}, 0.0, 2.0, [](double, const std::vector<double>&, std::vector<double>& derivative)
+            { derivative[0] = std::numeric_limits<double>::max(); }, method, nonfinite_error);
         assert(underflow.status == qmomkit::AdaptiveRkStatus::step_size_underflow);
         assert(underflow.rejected_steps > 0);
 
@@ -277,8 +334,8 @@ void test_embedded_rk_adaptive_controls_for_both_methods()
         try
         {
             (void)qmomkit::integrate_embedded_rk(
-                {1.0}, 0.0, 1.0, [](double, const std::vector<double>&) { return std::vector<double>{std::numeric_limits<double>::infinity()}; },
-                method, accepted);
+                {1.0}, 0.0, 1.0, [](double, const std::vector<double>&, std::vector<double>& derivative)
+                { derivative[0] = std::numeric_limits<double>::infinity(); }, method, accepted);
         }
         catch (const std::invalid_argument&)
         {
@@ -298,10 +355,10 @@ void test_embedded_rk_public_backward_integration()
         std::vector<double> rhs_times;
         const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk(
             {2.0}, 2.0, 1.0,
-            [&rhs_times](const double time, const std::vector<double>&)
+            [&rhs_times](const double time, const std::vector<double>&, std::vector<double>& derivative)
             {
                 rhs_times.push_back(time);
-                return std::vector<double>{1.0};
+                derivative[0] = 1.0;
             },
             method, options);
 
@@ -315,7 +372,7 @@ void test_embedded_rk_public_backward_integration()
 
 qmomkit::OdeRhs exponential_decay_rhs()
 {
-    return [](double, const std::vector<double>& y) { return std::vector<double>{-y[0]}; };
+    return [](double, const std::vector<double>& y, std::vector<double>& derivative) { derivative[0] = -y[0]; };
 }
 
 void test_ssp_rk3_accept_all_predicate()
@@ -335,7 +392,7 @@ void test_ssp_rk3_accept_all_predicate()
 
 void test_ssp_rk3_reject_negative_values_then_success()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{-2.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = -2.0; };
     qmomkit::SspRk3Options options;
     options.accept = [](const std::vector<double>& state) { return state[0] >= 0.0; };
     options.max_retries = 2;
@@ -350,7 +407,7 @@ void test_ssp_rk3_reject_negative_values_then_success()
 
 void test_ssp_rk3_multiple_retries()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{-8.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = -8.0; };
     qmomkit::SspRk3Options options;
     options.accept = [](const std::vector<double>& state) { return state[0] >= 0.0; };
     options.max_retries = 4;
@@ -365,7 +422,7 @@ void test_ssp_rk3_multiple_retries()
 
 void test_ssp_rk3_failure_after_max_retries()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{-8.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = -8.0; };
     qmomkit::SspRk3Options options;
     options.accept = [](const std::vector<double>& state) { return state[0] >= 0.0; };
     options.max_retries = 2;
@@ -381,7 +438,7 @@ void test_ssp_rk3_failure_after_max_retries()
 
 void test_ssp_rk3_failure_after_reaching_minimum_timestep()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{-8.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = -8.0; };
     qmomkit::SspRk3Options options;
     options.accept = [](const std::vector<double>& state) { return state[0] >= 0.0; };
     options.max_retries = 10;
@@ -423,10 +480,10 @@ void test_ssp_rk3_rejects_retry_that_underflows_to_zero()
 
     const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step(
         {0.0}, 0.0, std::numeric_limits<double>::denorm_min(),
-        [&rhs_calls](double, const std::vector<double>&)
+        [&rhs_calls](double, const std::vector<double>&, std::vector<double>& derivative)
         {
             ++rhs_calls;
-            return std::vector<double>{0.0};
+            derivative[0] = 0.0;
         },
         options);
 
@@ -439,7 +496,12 @@ void test_ssp_rk3_rejects_retry_that_underflows_to_zero()
 
 void test_ssp_rk3_without_stage_callback_accepts_unchecked_candidate()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, -2.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    {
+        derivative[0] = 0.0;
+        derivative[1] = 0.0;
+        derivative[2] = -2.0;
+    };
 
     const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({1.0, 0.0, 1.0}, 0.0, 1.0, rhs, qmomkit::SspRk3Options{});
 
@@ -450,7 +512,12 @@ void test_ssp_rk3_without_stage_callback_accepts_unchecked_candidate()
 
 void test_ssp_rk3_final_only_callback_invoked_once()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, -2.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    {
+        derivative[0] = 0.0;
+        derivative[1] = 0.0;
+        derivative[2] = -2.0;
+    };
     int calls = 0;
     qmomkit::SspRk3Options options;
     options.accept = [&](const std::vector<double>& state)
@@ -469,7 +536,7 @@ void test_ssp_rk3_final_only_callback_invoked_once()
 
 void test_ssp_rk3_stage_callback_invoked_for_each_stage()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{1.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = 1.0; };
     std::vector<qmomkit::SspRk3Stage> stages;
     std::vector<double> states;
     qmomkit::SspRk3Options options;
@@ -493,7 +560,7 @@ void test_ssp_rk3_stage_callback_invoked_for_each_stage()
 
 void test_ssp_rk3_failed_stage_check_retries_with_smaller_timestep()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{-2.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = -2.0; };
     int stage_1_calls = 0;
     qmomkit::SspRk3Options options;
     options.stage_accept = [&](const qmomkit::SspRk3Stage stage, const std::vector<double>& state)
@@ -519,11 +586,11 @@ void test_ssp_rk3_stage2_rejection_skips_k3_and_retries_from_original_state()
 {
     std::vector<double> rhs_times;
     std::vector<double> rhs_states;
-    const qmomkit::OdeRhs rhs = [&](const double time, const std::vector<double>& state)
+    const qmomkit::OdeRhs rhs = [&](const double time, const std::vector<double>& state, std::vector<double>& derivative)
     {
         rhs_times.push_back(time);
         rhs_states.push_back(state[0]);
-        return std::vector<double>{-0.8};
+        derivative[0] = -0.8;
     };
 
     std::vector<qmomkit::SspRk3Stage> checked_stages;
@@ -563,7 +630,7 @@ void test_ssp_rk3_stage2_rejection_skips_k3_and_retries_from_original_state()
 
 void test_ssp_rk3_final_stage_rejection_short_circuits_final_accept()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{1.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = 1.0; };
     int final_accept_calls = 0;
     qmomkit::SspRk3Options options;
     options.stage_accept = [](const qmomkit::SspRk3Stage stage, const std::vector<double>&) { return stage != qmomkit::SspRk3Stage::Final; };
@@ -590,8 +657,8 @@ void test_ssp_rk3_stage_rejection_exhaustion_preserves_original_state()
     options.stage_accept = [](qmomkit::SspRk3Stage, const std::vector<double>&) { return false; };
     options.max_retries = 1;
 
-    const qmomkit::SspRk3Result result =
-        qmomkit::ssp_rk3_step(initial, 0.0, 0.8, [](double, const std::vector<double>&) { return std::vector<double>{3.0}; }, options);
+    const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step(
+        initial, 0.0, 0.8, [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = 3.0; }, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::SspRk3Status::rejected_by_predicate);
@@ -608,8 +675,8 @@ void test_ssp_rk3_stage_rejection_minimum_timestep_preserves_original_state()
     options.max_retries = 4;
     options.min_time_step = 0.5;
 
-    const qmomkit::SspRk3Result result =
-        qmomkit::ssp_rk3_step(initial, 0.0, 0.8, [](double, const std::vector<double>&) { return std::vector<double>{3.0}; }, options);
+    const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step(
+        initial, 0.0, 0.8, [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = 3.0; }, options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::SspRk3Status::minimum_timestep_reached);
@@ -622,11 +689,11 @@ void test_ssp_rk3_rhs_stage_audit_preserves_times_and_retry_states()
 {
     std::vector<double> rhs_times;
     std::vector<double> rhs_states;
-    const qmomkit::OdeRhs rhs = [&](const double time, const std::vector<double>& state)
+    const qmomkit::OdeRhs rhs = [&](const double time, const std::vector<double>& state, std::vector<double>& derivative)
     {
         rhs_times.push_back(time);
         rhs_states.push_back(state[0]);
-        return std::vector<double>{2.0};
+        derivative[0] = 2.0;
     };
 
     int final_stage_calls = 0;
@@ -656,7 +723,7 @@ void test_ssp_rk3_rhs_stage_audit_preserves_times_and_retry_states()
 
 void test_rk23_rejects_overly_large_initial_step()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{-10.0 * y[0]}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y, std::vector<double>& derivative) { derivative[0] = -10.0 * y[0]; };
     qmomkit::AdaptiveRkOptions options;
     options.initial_step = 1.0;
     options.max_step = 1.0;
@@ -672,7 +739,8 @@ void test_rk23_rejects_overly_large_initial_step()
 
 void test_rk23_zero_rhs_has_no_timestep_pathology()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>(y.size(), 0.0); };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    { std::fill(derivative.begin(), derivative.end(), 0.0); };
     qmomkit::AdaptiveRkOptions options;
     options.initial_step = 0.1;
     options.relative_tolerance = 1.0e-8;
@@ -743,7 +811,8 @@ void test_rk23_rejects_min_step_exceeding_max_step()
 
 void test_rk23_rejects_nonfinite_trial_state()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{std::numeric_limits<double>::max()}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    { derivative[0] = std::numeric_limits<double>::max(); };
     qmomkit::AdaptiveRkOptions options;
     options.initial_step = 2.0;
     options.max_step = 2.0;
@@ -756,9 +825,76 @@ void test_rk23_rejects_nonfinite_trial_state()
     assert(std::isfinite(result.state[0]));
 }
 
+void test_rhs_that_resizes_the_derivative_buffer_is_rejected()
+{
+    // The integrator sizes the buffer and the callback fills it. A callback that
+    // assigns a differently sized vector instead is the fill-style spelling of
+    // the old "returned the wrong size", and must fail the same way.
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative.assign(3, 1.0); };
+
+    // The message matters as much as the throw. Downstream code would also fail
+    // on the mis-sized vector, but it would blame a vector-size mismatch or the
+    // integrator's own cached derivative rather than the callback that resized
+    // the buffer, so both drivers are pinned to the accurate message here.
+    const std::string expected = "RHS returned a vector with the wrong size.";
+
+    std::string ssp_message;
+    try
+    {
+        (void)qmomkit::ssp_rk3_step({1.0}, 0.0, 0.1, rhs, {});
+    }
+    catch (const std::invalid_argument& error)
+    {
+        ssp_message = error.what();
+    }
+    assert(ssp_message == expected);
+
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        std::string embedded_message;
+        try
+        {
+            (void)qmomkit::integrate_embedded_rk({1.0}, 0.0, 0.1, rhs, method, {});
+        }
+        catch (const std::invalid_argument& error)
+        {
+            embedded_message = error.what();
+        }
+        assert(embedded_message == expected);
+    }
+}
+
+void test_rhs_that_leaves_a_component_unwritten_is_rejected_in_debug_builds()
+{
+    // A callback that writes only part of the buffer would otherwise integrate
+    // whatever the previous stage left there, and neither the size nor the
+    // finiteness of the buffer can reveal it. Debug builds mark the buffer so
+    // that an unwritten entry is reported as the missing write it is; release
+    // builds cannot detect it and are not asked to.
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = 1.0; };
+
+    bool threw = false;
+    try
+    {
+        (void)qmomkit::integrate_embedded_rk({1.0, 2.0}, 0.0, 0.1, rhs, qmomkit::EmbeddedRkMethod::rk23, {});
+    }
+    catch (const std::invalid_argument&)
+    {
+        threw = true;
+    }
+#ifndef NDEBUG
+    assert(threw);
+#else
+    // A release build cannot detect the missing write and is not asked to. What
+    // it does with the unwritten component is deliberately not pinned here: that
+    // is the consequence of a contract violation, not a promised behaviour.
+    assert(!threw);
+#endif
+}
+
 void test_rk23_initial_request_below_minimum_uses_minimum_step()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{1.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative) { derivative[0] = 1.0; };
     qmomkit::AdaptiveRkOptions options;
     options.initial_step = 1.0e-3;
     options.max_step = 0.05;
@@ -776,7 +912,7 @@ void test_rk23_initial_request_below_minimum_uses_minimum_step()
 
 void test_rk23_accepts_finite_update_at_minimum_step()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{1000.0 * y[0]}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y, std::vector<double>& derivative) { derivative[0] = 1000.0 * y[0]; };
     qmomkit::AdaptiveRkOptions options;
     options.initial_step = 1.0e-3;
     options.max_step = 1.0e-3;
@@ -796,7 +932,12 @@ void test_rk23_accepts_finite_update_at_minimum_step()
 
 void test_rk23_rejected_request_clamps_to_minimum_step()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{y[0], y[1], y[2]}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y, std::vector<double>& derivative)
+    {
+        derivative[0] = y[0];
+        derivative[1] = y[1];
+        derivative[2] = y[2];
+    };
     qmomkit::AdaptiveRkOptions options;
     options.initial_step = 0.04;
     options.max_step = 0.04;
@@ -816,7 +957,7 @@ void test_rk23_rejected_request_clamps_to_minimum_step()
 
 void test_rk23_accepts_final_remainder_below_minimum_step()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{1000.0 * y[0]}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y, std::vector<double>& derivative) { derivative[0] = 1000.0 * y[0]; };
     qmomkit::AdaptiveRkOptions options;
     options.initial_step = 1.0e-3;
     options.max_step = 1.0e-3;
@@ -836,7 +977,7 @@ void test_rk23_accepts_final_remainder_below_minimum_step()
 
 void test_rk23_accepts_complete_interval_below_minimum_step()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>{1000.0 * y[0]}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y, std::vector<double>& derivative) { derivative[0] = 1000.0 * y[0]; };
     qmomkit::AdaptiveRkOptions options;
     options.initial_step = 1.0e-3;
     options.max_step = 1.0e-3;
@@ -874,7 +1015,8 @@ void test_rk23_reports_maximum_step_count_failure()
 
 void test_rk23_max_step_changes_observable_diagnostics()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y) { return std::vector<double>(y.size(), 0.0); };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    { std::fill(derivative.begin(), derivative.end(), 0.0); };
 
     qmomkit::AdaptiveRkOptions large_step;
     large_step.initial_step = 0.5;
@@ -907,6 +1049,7 @@ int main(const int argc, char** argv)
             {"embedded_rk_one_steps_match_independent_scalar_formulae", test_embedded_rk_one_steps_match_independent_scalar_formulae},
             {"embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs",
              test_embedded_rk_one_steps_use_stage_abscissae_for_time_dependent_rhs},
+            {"embedded_rk_workspace_reuse_is_transparent", test_embedded_rk_workspace_reuse_is_transparent},
             {"adaptive_initial_step_default_and_override", test_adaptive_initial_step_default_and_override},
             {"embedded_rk_default_initial_step_is_used_for_both_methods", test_embedded_rk_default_initial_step_is_used_for_both_methods},
             {"embedded_rk_fsal_reuses_accepted_endpoint_derivative", test_embedded_rk_fsal_reuses_accepted_endpoint_derivative},
@@ -935,6 +1078,9 @@ int main(const int argc, char** argv)
             {"rk23_invalid_options_fail_before_loop", test_rk23_invalid_options_fail_before_loop},
             {"rk23_rejects_min_step_exceeding_max_step", test_rk23_rejects_min_step_exceeding_max_step},
             {"rk23_rejects_nonfinite_trial_state", test_rk23_rejects_nonfinite_trial_state},
+            {"rhs_that_resizes_the_derivative_buffer_is_rejected", test_rhs_that_resizes_the_derivative_buffer_is_rejected},
+            {"rhs_that_leaves_a_component_unwritten_is_rejected_in_debug_builds",
+             test_rhs_that_leaves_a_component_unwritten_is_rejected_in_debug_builds},
             {"rk23_initial_request_below_minimum_uses_minimum_step", test_rk23_initial_request_below_minimum_uses_minimum_step},
             {"rk23_accepts_finite_update_at_minimum_step", test_rk23_accepts_finite_update_at_minimum_step},
             {"rk23_rejected_request_clamps_to_minimum_step", test_rk23_rejected_request_clamps_to_minimum_step},

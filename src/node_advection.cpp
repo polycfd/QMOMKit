@@ -111,17 +111,22 @@ void validate_abscissas(const std::vector<std::vector<double>>& abscissas, const
     }
 }
 
-// The packed velocity writes dxi/dt directly into the right-hand-side vector:
-// the packed velocity layout and the integrator state layout are the same, so
-// no per-node gather or scatter is required. The returned derivative still
-// crosses the public `OdeRhs` boundary, which returns by value.
-[[nodiscard]] std::vector<double> node_rhs_from_velocity(const PhaseSpaceVelocity& velocity, const std::size_t dimensions, const double t,
-                                                         const std::vector<double>& state)
+// The packed velocity writes dxi/dt straight into the integrator's derivative
+// buffer: the packed velocity layout and the integrator state layout are the
+// same, so no per-node gather or scatter is required, and since `OdeRhs` fills a
+// buffer too, nothing is allocated between the two.
+void node_rhs_from_velocity(const PhaseSpaceVelocity& velocity, const std::size_t dimensions, const double t, const std::vector<double>& state,
+                            std::vector<double>& derivative)
 {
     const std::size_t nodes = state.size() / dimensions;
-    std::vector<double> derivative(state.size(), 0.0);
 
-    internal::poison_phase_space_velocity_buffer(derivative);
+    // Marked here rather than relying on the caller: the SSP-RK3 node path below
+    // calls this directly, without going through `rhs_checked`, so this is that
+    // path's only unwritten-entry marking. On the embedded path `rhs_checked`
+    // has already marked the buffer and re-marking is a no-op, which also keeps
+    // the per-node diagnostic below, rather than its component-level one, the
+    // first to fire.
+    internal::poison_output_buffer(derivative);
     velocity(t, state, derivative, dimensions);
 
     // One recorded evaluation per node, matching the per-node callback
@@ -131,8 +136,6 @@ void validate_abscissas(const std::vector<std::vector<double>>& abscissas, const
         internal::performance::record_node_rhs_evaluation();
     }
     internal::validate_packed_phase_space_velocity_result(derivative, state.size(), t, state, dimensions);
-
-    return derivative;
 }
 
 struct IntegratedNodes
@@ -166,8 +169,9 @@ struct IntegratedNodes
     try
     {
         rk_result = integrate_embedded_rk(
-            initial_state, t, t + time_step, [&velocity, dimensions](const double rhs_time, const std::vector<double>& state)
-            { return node_rhs_from_velocity(velocity, dimensions, rhs_time, state); }, method, options.adaptive_options);
+            initial_state, t, t + time_step,
+            [&velocity, dimensions](const double rhs_time, const std::vector<double>& state, std::vector<double>& derivative)
+            { node_rhs_from_velocity(velocity, dimensions, rhs_time, state, derivative); }, method, options.adaptive_options);
     }
     catch (const std::exception& error)
     {
@@ -212,27 +216,31 @@ struct IntegratedNodes
         // the source-update wrapper, including source predicates, retries, and
         // source-specific performance counters.
         std::size_t rhs_evaluations = 0;
-        const auto rhs = [&velocity, dimensions, &rhs_evaluations](const double rhs_time, const std::vector<double>& state)
+        // One derivative buffer serves all three stages, as in the source-side
+        // SSP-RK3: each stage's derivative is consumed into the next stage state
+        // before the following stage overwrites it.
+        std::vector<double> derivative(initial_state.size(), 0.0);
+        const auto rhs = [&velocity, dimensions, &rhs_evaluations, &derivative](const double rhs_time, const std::vector<double>& state)
         {
             ++rhs_evaluations;
-            return node_rhs_from_velocity(velocity, dimensions, rhs_time, state);
+            node_rhs_from_velocity(velocity, dimensions, rhs_time, state, derivative);
         };
 
-        const std::vector<double> k1 = rhs(t, initial_state);
-        const std::vector<double> stage_1 = add_scaled(initial_state, time_step, k1);
+        rhs(t, initial_state);
+        const std::vector<double> stage_1 = add_scaled(initial_state, time_step, derivative);
 
-        const std::vector<double> k2 = rhs(t + time_step, stage_1);
+        rhs(t + time_step, stage_1);
         std::vector<double> stage_2(initial_state.size(), 0.0);
         for (std::size_t i = 0; i < initial_state.size(); ++i)
         {
-            stage_2[i] = 0.75 * initial_state[i] + 0.25 * (stage_1[i] + time_step * k2[i]);
+            stage_2[i] = 0.75 * initial_state[i] + 0.25 * (stage_1[i] + time_step * derivative[i]);
         }
 
-        const std::vector<double> k3 = rhs(t + 0.5 * time_step, stage_2);
+        rhs(t + 0.5 * time_step, stage_2);
         std::vector<double> updated_state(initial_state.size(), 0.0);
         for (std::size_t i = 0; i < initial_state.size(); ++i)
         {
-            updated_state[i] = (initial_state[i] + 2.0 * (stage_2[i] + time_step * k3[i])) / 3.0;
+            updated_state[i] = (initial_state[i] + 2.0 * (stage_2[i] + time_step * derivative[i])) / 3.0;
         }
 
         diagnostics.step_count = 1;

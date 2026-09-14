@@ -278,3 +278,11 @@ before accepting the state.
 Expect boundary states in some physical workflows. A boundary state can be
 valid, but it may indicate that the represented distribution has collapsed to
 fewer effective points or is close to a constrained support boundary.
+
+## When A Check Fails
+
+A failed realizability check usually means the moments themselves are wrong
+rather than that the check is too strict. [Troubleshooting](troubleshooting.md)
+covers how to find the offending moment order, what commonly produces
+unrealizable moments, and what to do when a case becomes unrealizable part-way
+through a run.

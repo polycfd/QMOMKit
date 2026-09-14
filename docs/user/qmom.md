@@ -207,3 +207,11 @@ QMOMKit does not silently change moments to make them realizable. If your
 workflow can approach the boundary of moment space, use explicit status
 handling and consider the optional realizability checks described in the
 realizability user guide.
+
+## Next Steps
+
+For a population described by more than one coordinate, CQMOM extends this
+reconstruction to multiple dimensions by conditioning them in turn — see
+[Multidimensional CQMOM](cqmom.md). To evolve a one-dimensional population in
+time, see [Phase-space evolution](phase_space_evolution.md), and when a
+reconstruction is rejected, [Troubleshooting](troubleshooting.md).

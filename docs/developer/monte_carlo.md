@@ -3,14 +3,16 @@
 This page documents the development and validation conventions for the optional
 QMOMKitMonteCarlo companion package under `tools/monte_carlo/`.
 
-For user-facing build and run instructions, see [docs/user/monte_carlo.md](../user/monte_carlo.md). For
-general numerical validation policy, see [validation.md](validation.md). For test category guidance, see [testing.md](testing.md).
+For user-facing build and run instructions, see
+[docs/user/monte_carlo.md](../user/monte_carlo.md). For general numerical
+validation policy, see [validation.md](validation.md). For test category
+guidance, see [testing.md](testing.md).
 
 ## Package Role
 
-QMOMKitMonteCarlo provides finite ensemble sampling, ensemble moment estimation,
-advection sample evolution, text output, and comparison utilities. It is a
-companion package for sample-based analysis and stochastic validation
+QMOMKitMonteCarlo provides finite ensemble sampling, ensemble moment
+estimation, advection sample evolution, text output, and comparison utilities.
+It is a companion package for sample-based analysis and stochastic validation
 references.
 
 It is not part of the core `qmomkit::qmomkit` library. It must continue to use
@@ -91,8 +93,8 @@ operator splitting.
 For a valid existing ensemble with $N$ samples and positive number density
 $n_0$, its representative weight is $w = n_0 / N$. The operation uses one local
 `std::mt19937_64` seeded by the public seed argument to draw
-$K \sim \mathrm{Poisson}(\Delta n / w)$ and then to sample all $K$ birth coordinates. 
-It returns $n_{0,\mathrm{new}} = w (N + K)$. Consequently the realized post-birth 
+$K \sim \mathrm{Poisson}(\Delta n / w)$ and then to sample all $K$ birth coordinates.
+It returns $n_{0,\mathrm{new}} = w (N + K)$. Consequently the realized post-birth
 estimator is:
 $$M_{\alpha,\mathrm{new}} = w \left[\sum_p \xi_{p}^{\alpha} + \sum_r Y_{r}^{\alpha}\right]$$
 
@@ -113,9 +115,9 @@ after the ensemble and number-density inputs pass validation.
 
 The implementation evaluates each requested monomial directly with work
 proportional to the number of requested indices, samples, and phase-space
-dimensions. It must not construct maximum orders, dense extents, a dense tensor,
-or a shared power table. Its normalization and standard-error convention are
-identical to the dense ensemble moment estimator.
+dimensions. It must not construct maximum orders, dense extents, a dense
+tensor, or a shared power table. Its normalization and standard-error
+convention are identical to the dense ensemble moment estimator.
 
 Validation is ordered so ensemble structure and sample finiteness are checked
 first, followed by requested-index rank, number density, and exponent overflow.
@@ -140,10 +142,10 @@ interpret the comparison:
 - tolerance or uncertainty rule used by the validation check.
 
 Sampling currently uses an explicit seed and sample count. Fixed seeds make
-repository tests repeatable on a given implementation, but standard distribution
-adapters are not guaranteed to produce bit-for-bit identical samples on every
-platform. Tests should use mathematical tolerances or uncertainty checks rather
-than exact sampled values.
+repository tests repeatable on a given implementation, but standard
+distribution adapters are not guaranteed to produce bit-for-bit identical
+samples on every platform. Tests should use mathematical tolerances or
+uncertainty checks rather than exact sampled values.
 
 ## Comparison Quantities
 
@@ -167,8 +169,8 @@ be used as part of the scale so nearly zero references with visible sampling
 uncertainty remain interpretable.
 
 If the standard error is zero, the z-score is zero for exact agreement and
-signed infinity for nonzero signed error. Large z-scores are diagnostic signals;
-they are not automatic proof that either calculation is wrong.
+signed infinity for nonzero signed error. Large z-scores are diagnostic
+signals; they are not automatic proof that either calculation is wrong.
 
 ## Output Format
 

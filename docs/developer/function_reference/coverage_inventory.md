@@ -1,19 +1,19 @@
 # Definition coverage and navigation inventory
 
-This inventory routes core implementation definitions to functional explanations.
-It complements the algorithm sections and responsibility tables; a symbol listing
-does not by itself establish intent or test coverage.
+This inventory routes core implementation definitions to functional
+explanations. It complements the algorithm sections and responsibility tables;
+a symbol listing does not by itself establish intent or test coverage.
 
 ## Scope and method
 
-The inventory covers the 23 core `.cpp` files and installed/private headers.
-It lists explicit functions, methods, constructors, and operators by defining
+The inventory covers the 23 core `.cpp` files and installed/private headers. It
+lists explicit functions, methods, constructors, and operators by defining
 source range. Defaulted or implicit special members are omitted; consequential
 lambdas are documented with their owning function. Instrumentation definitions
-are included for its enabled preprocessor branch, and debug-only contract checks
-for theirs. Line links are navigation aids, not permanent API identifiers: they
-drift whenever a file is edited above a listed definition, so treat the file and
-the name as authoritative and the line as a hint.
+are included for its enabled preprocessor branch, and debug-only contract
+checks for theirs. Line links are navigation aids, not permanent API
+identifiers: they drift whenever a file is edited above a listed definition, so
+treat the file and the name as authoritative and the line as a hint.
 
 ### Checking and refreshing the line numbers
 
@@ -33,13 +33,13 @@ for m in re.finditer(r'\| `([^`]+)` \| ((?:\[\d+\]\([^)]+\),?\s*)+)\|', inv):
 EOF
 ```
 
-A clean run prints nothing. When it reports drift, the nearest definition of the
-same name in the same file is almost always the new location; when it reports a
-name the file no longer contains at all, the definition moved or was removed and
-the row needs a decision rather than a new number.
+A clean run prints nothing. When it reports drift, the nearest definition of
+the same name in the same file is almost always the new location; when it
+reports a name the file no longer contains at all, the definition moved or was
+removed and the row needs a decision rather than a new number.
 
-That check only confirms that existing rows point somewhere valid. It cannot see
-a definition that has no row at all, which is how a whole type can be added
+That check only confirms that existing rows point somewhere valid. It cannot
+see a definition that has no row at all, which is how a whole type can be added
 without the ledger noticing — the two flat index-table headers were missed
 exactly that way and had no section until they were audited.
 
@@ -50,41 +50,42 @@ lists a file is a claim that it lists all of that file's definitions.
 
 The inventory includes **1015 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
-branches share a row with distinct line links. The count includes trivial helpers
-and is not a count of numerical algorithms. Detailed pages cover the important
-algorithm families; entry, accessor, diagnostic, parsing, formatting, and
-forwarding functions are grouped by responsibility. No coverage percentage or
-exhaustive branch-coverage claim is made.
+branches share a row with distinct line links. The count includes trivial
+helpers and is not a count of numerical algorithms. Detailed pages cover the
+important algorithm families; entry, accessor, diagnostic, parsing, formatting,
+and forwarding functions are grouped by responsibility. No coverage percentage
+or exhaustive branch-coverage claim is made.
 
 The core numerical backbone receives Level A treatment: Wheeler and scaling;
 support-specific realizability; weighted conditional systems and numerical
-kernels; required/conditional layouts and recursive branch policy; index/topology
-transformations; raw/generalized moments and rates; analytical initialization;
-stage-local source closure; SSP/embedded RK; and accepted evolution transitions.
-Configuration policy resolution and public workflows combine Levels A/B; ordinary
-parsing, ownership, getters, output, and counters receive lighter B/C coverage.
-Specific tests and remaining gaps are attached to the functional explanations,
-not inferred from proximity of filenames.
+kernels; required/conditional layouts and recursive branch policy;
+index/topology transformations; raw/generalized moments and rates; analytical
+initialization; stage-local source closure; SSP/embedded RK; and accepted
+evolution transitions. Configuration policy resolution and public workflows
+combine Levels A/B; ordinary parsing, ownership, getters, output, and counters
+receive lighter B/C coverage. Specific tests and remaining gaps are attached to
+the functional explanations, not inferred from proximity of filenames.
 
 Tests, examples, configuration fixtures, package metadata, and build files are
 linked where they clarify a contract, but this inventory is limited to the core
-library. The optional `tools/monte_carlo/` companion, plotting scripts, benchmark
-harnesses, and application physics in examples remain separate consumer/package
-responsibilities. The inventory does not claim to document every function in
-those consumers.
+library. The optional `tools/monte_carlo/` companion, plotting scripts,
+benchmark harnesses, and application physics in examples remain separate
+consumer/package responsibilities. The inventory does not claim to document
+every function in those consumers.
 
 ## Definition ledger
 
-Each file heading links to its definitions and owning functional reference. Local
-scope means an anonymous namespace; public/internal ownership and class contracts
-are explained on the destination page. For out-of-class methods, the owner is
-retained when present in the definition signature. Trivial defaulted ownership
-operations are covered by the state/result helper tables, even when excluded from
-the executable-body count.
+Each file heading links to its definitions and owning functional reference.
+Local scope means an anonymous namespace; public/internal ownership and class
+contracts are explained on the destination page. For out-of-class methods, the
+owner is retained when present in the definition signature. Trivial defaulted
+ownership operations are covered by the state/result helper tables, even when
+excluded from the executable-body count.
 
 ### `include/qmomkit/conditional_moments.hpp`
 
-[Source](../../../include/qmomkit/conditional_moments.hpp) · [Responsibilities, contracts, and evidence](conditional_systems.md)
+[Source](../../../include/qmomkit/conditional_moments.hpp) · [Responsibilities,
+contracts, and evidence](conditional_systems.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -92,7 +93,8 @@ the executable-body count.
 
 ### `include/qmomkit/conditioning_path.hpp`
 
-[Source](../../../include/qmomkit/conditioning_path.hpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+[Source](../../../include/qmomkit/conditioning_path.hpp) · [Responsibilities,
+contracts, and evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -117,7 +119,8 @@ the executable-body count.
 
 ### `include/qmomkit/configuration.hpp`
 
-[Source](../../../include/qmomkit/configuration.hpp) · [Responsibilities, contracts, and evidence](initialization_and_configuration.md)
+[Source](../../../include/qmomkit/configuration.hpp) · [Responsibilities,
+contracts, and evidence](initialization_and_configuration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -131,7 +134,8 @@ the executable-body count.
 
 ### `include/qmomkit/cqmom.hpp`
 
-[Source](../../../include/qmomkit/cqmom.hpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+[Source](../../../include/qmomkit/cqmom.hpp) · [Responsibilities, contracts,
+and evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -147,7 +151,8 @@ the executable-body count.
 
 ### `include/qmomkit/distributions.hpp`
 
-[Source](../../../include/qmomkit/distributions.hpp) · [Responsibilities, contracts, and evidence](initialization_and_configuration.md)
+[Source](../../../include/qmomkit/distributions.hpp) · [Responsibilities,
+contracts, and evidence](initialization_and_configuration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -157,7 +162,8 @@ the executable-body count.
 
 ### `include/qmomkit/moment_source.hpp`
 
-[Source](../../../include/qmomkit/moment_source.hpp) · [Responsibilities, contracts, and evidence](moment_sources.md)
+[Source](../../../include/qmomkit/moment_source.hpp) · [Responsibilities,
+contracts, and evidence](moment_sources.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -166,7 +172,8 @@ the executable-body count.
 
 ### `include/qmomkit/multi_index.hpp`
 
-[Source](../../../include/qmomkit/multi_index.hpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+[Source](../../../include/qmomkit/multi_index.hpp) · [Responsibilities,
+contracts, and evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -192,7 +199,8 @@ the executable-body count.
 
 ### `include/qmomkit/node_advection.hpp`
 
-[Source](../../../include/qmomkit/node_advection.hpp) · [Responsibilities, contracts, and evidence](time_integration.md)
+[Source](../../../include/qmomkit/node_advection.hpp) · [Responsibilities,
+contracts, and evidence](time_integration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -201,7 +209,8 @@ the executable-body count.
 
 ### `include/qmomkit/phase_space_evolution.hpp`
 
-[Source](../../../include/qmomkit/phase_space_evolution.hpp) · [Responsibilities, contracts, and evidence](phase_space_evolution.md)
+[Source](../../../include/qmomkit/phase_space_evolution.hpp) ·
+[Responsibilities, contracts, and evidence](phase_space_evolution.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -210,7 +219,8 @@ the executable-body count.
 
 ### `include/qmomkit/phase_space_hierarchy.hpp`
 
-[Source](../../../include/qmomkit/phase_space_hierarchy.hpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+[Source](../../../include/qmomkit/phase_space_hierarchy.hpp) ·
+[Responsibilities, contracts, and evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -221,7 +231,8 @@ the executable-body count.
 
 ### `include/qmomkit/qmom.hpp`
 
-[Source](../../../include/qmomkit/qmom.hpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+[Source](../../../include/qmomkit/qmom.hpp) · [Responsibilities, contracts, and
+evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -235,7 +246,8 @@ the executable-body count.
 
 ### `include/qmomkit/quadrature.hpp`
 
-[Source](../../../include/qmomkit/quadrature.hpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+[Source](../../../include/qmomkit/quadrature.hpp) · [Responsibilities,
+contracts, and evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -243,7 +255,8 @@ the executable-body count.
 
 ### `include/qmomkit/realizability_policy.hpp`
 
-[Source](../../../include/qmomkit/realizability_policy.hpp) · [Responsibilities, contracts, and evidence](realizability.md)
+[Source](../../../include/qmomkit/realizability_policy.hpp) ·
+[Responsibilities, contracts, and evidence](realizability.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -253,7 +266,8 @@ the executable-body count.
 
 ### `include/qmomkit/runge_kutta.hpp`
 
-[Source](../../../include/qmomkit/runge_kutta.hpp) · [Responsibilities, contracts, and evidence](time_integration.md)
+[Source](../../../include/qmomkit/runge_kutta.hpp) · [Responsibilities,
+contracts, and evidence](time_integration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -261,7 +275,8 @@ the executable-body count.
 
 ### `src/conditional_moments.cpp`
 
-[Source](../../../src/conditional_moments.cpp) · [Responsibilities, contracts, and evidence](conditional_systems.md)
+[Source](../../../src/conditional_moments.cpp) · [Responsibilities, contracts,
+and evidence](conditional_systems.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -273,7 +288,8 @@ the executable-body count.
 
 ### `src/conditioning_path.cpp`
 
-[Source](../../../src/conditioning_path.cpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+[Source](../../../src/conditioning_path.cpp) · [Responsibilities, contracts,
+and evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -301,7 +317,8 @@ the executable-body count.
 
 ### `src/configuration.cpp`
 
-[Source](../../../src/configuration.cpp) · [Responsibilities, contracts, and evidence](initialization_and_configuration.md)
+[Source](../../../src/configuration.cpp) · [Responsibilities, contracts, and
+evidence](initialization_and_configuration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -442,7 +459,8 @@ the executable-body count.
 
 ### `src/distributions.cpp`
 
-[Source](../../../src/distributions.cpp) · [Responsibilities, contracts, and evidence](initialization_and_configuration.md)
+[Source](../../../src/distributions.cpp) · [Responsibilities, contracts, and
+evidence](initialization_and_configuration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -503,7 +521,8 @@ the executable-body count.
 
 ### `src/internal/bjorck_pereyra.cpp`
 
-[Source](../../../src/internal/bjorck_pereyra.cpp) · [Responsibilities, contracts, and evidence](conditional_systems.md)
+[Source](../../../src/internal/bjorck_pereyra.cpp) · [Responsibilities,
+contracts, and evidence](conditional_systems.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -515,7 +534,8 @@ the executable-body count.
 
 ### `src/internal/cqmom_active_counts.hpp`
 
-[Source](../../../src/internal/cqmom_active_counts.hpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+[Source](../../../src/internal/cqmom_active_counts.hpp) · [Responsibilities,
+contracts, and evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -527,7 +547,8 @@ the executable-body count.
 
 ### `src/internal/cqmom_validation.hpp`
 
-[Source](../../../src/internal/cqmom_validation.hpp) · [Responsibilities, contracts, and evidence](utilities.md)
+[Source](../../../src/internal/cqmom_validation.hpp) · [Responsibilities,
+contracts, and evidence](utilities.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -547,7 +568,8 @@ the executable-body count.
 
 ### `src/internal/embedded_runge_kutta.cpp`
 
-[Source](../../../src/internal/embedded_runge_kutta.cpp) · [Responsibilities, contracts, and evidence](time_integration.md)
+[Source](../../../src/internal/embedded_runge_kutta.cpp) · [Responsibilities,
+contracts, and evidence](time_integration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -557,7 +579,8 @@ the executable-body count.
 
 ### `src/internal/householder_qr.cpp`
 
-[Source](../../../src/internal/householder_qr.cpp) · [Responsibilities, contracts, and evidence](conditional_systems.md)
+[Source](../../../src/internal/householder_qr.cpp) · [Responsibilities,
+contracts, and evidence](conditional_systems.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -579,7 +602,8 @@ the executable-body count.
 
 ### `src/internal/jacobi_svd.cpp`
 
-[Source](../../../src/internal/jacobi_svd.cpp) · [Responsibilities, contracts, and evidence](conditional_systems.md)
+[Source](../../../src/internal/jacobi_svd.cpp) · [Responsibilities, contracts,
+and evidence](conditional_systems.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -615,7 +639,8 @@ the executable-body count.
 
 ### `src/internal/linear_algebra.cpp`
 
-[Source](../../../src/internal/linear_algebra.cpp) · [Responsibilities, contracts, and evidence](conditional_systems.md)
+[Source](../../../src/internal/linear_algebra.cpp) · [Responsibilities,
+contracts, and evidence](conditional_systems.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -630,7 +655,8 @@ the executable-body count.
 
 ### `src/internal/linear_algebra.hpp`
 
-[Source](../../../src/internal/linear_algebra.hpp) · [Responsibilities, contracts, and evidence](conditional_systems.md)
+[Source](../../../src/internal/linear_algebra.hpp) · [Responsibilities,
+contracts, and evidence](conditional_systems.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -642,7 +668,8 @@ the executable-body count.
 
 ### `src/internal/numeric_utils.hpp`
 
-[Source](../../../src/internal/numeric_utils.hpp) · [Responsibilities, contracts, and evidence](utilities.md)
+[Source](../../../src/internal/numeric_utils.hpp) · [Responsibilities,
+contracts, and evidence](utilities.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -653,7 +680,8 @@ the executable-body count.
 
 ### `src/internal/ode_rhs_validation.hpp`
 
-[Source](../../../src/internal/ode_rhs_validation.hpp) · [Responsibilities, contracts, and evidence](time_integration.md)
+[Source](../../../src/internal/ode_rhs_validation.hpp) · [Responsibilities,
+contracts, and evidence](time_integration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -662,7 +690,8 @@ the executable-body count.
 
 ### `src/internal/performance.hpp`
 
-[Source](../../../src/internal/performance.hpp) · [Responsibilities, contracts, and evidence](utilities.md)
+[Source](../../../src/internal/performance.hpp) · [Responsibilities, contracts,
+and evidence](utilities.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -702,7 +731,8 @@ the executable-body count.
 
 ### `src/internal/phase_space_velocity_validation.hpp`
 
-[Source](../../../src/internal/phase_space_velocity_validation.hpp) · [Responsibilities, contracts, and evidence](utilities.md)
+[Source](../../../src/internal/phase_space_velocity_validation.hpp) ·
+[Responsibilities, contracts, and evidence](utilities.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -716,7 +746,8 @@ the executable-body count.
 
 ### `src/internal/qmom_state_access.hpp`
 
-[Source](../../../src/internal/qmom_state_access.hpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+[Source](../../../src/internal/qmom_state_access.hpp) · [Responsibilities,
+contracts, and evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -724,7 +755,8 @@ the executable-body count.
 
 ### `src/internal/recursive_quadrature.hpp`
 
-[Source](../../../src/internal/recursive_quadrature.hpp) · [Responsibilities, contracts, and evidence](cqmom_reconstruction.md)
+[Source](../../../src/internal/recursive_quadrature.hpp) · [Responsibilities,
+contracts, and evidence](cqmom_reconstruction.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -732,7 +764,8 @@ the executable-body count.
 
 ### `src/internal/vandermonde.cpp`
 
-[Source](../../../src/internal/vandermonde.cpp) · [Responsibilities, contracts, and evidence](conditional_systems.md)
+[Source](../../../src/internal/vandermonde.cpp) · [Responsibilities, contracts,
+and evidence](conditional_systems.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -749,7 +782,8 @@ the executable-body count.
 
 ### `src/moment_reconstruction.cpp`
 
-[Source](../../../src/moment_reconstruction.cpp) · [Responsibilities, contracts, and evidence](moment_evaluation.md)
+[Source](../../../src/moment_reconstruction.cpp) · [Responsibilities,
+contracts, and evidence](moment_evaluation.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -769,7 +803,8 @@ the executable-body count.
 
 ### `src/moment_set.cpp`
 
-[Source](../../../src/moment_set.cpp) · [Responsibilities, contracts, and evidence](qmom_reconstruction.md)
+[Source](../../../src/moment_set.cpp) · [Responsibilities, contracts, and
+evidence](qmom_reconstruction.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -781,7 +816,8 @@ the executable-body count.
 
 ### `src/moment_source.cpp`
 
-[Source](../../../src/moment_source.cpp) · [Responsibilities, contracts, and evidence](moment_sources.md)
+[Source](../../../src/moment_source.cpp) · [Responsibilities, contracts, and
+evidence](moment_sources.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -845,7 +881,8 @@ the executable-body count.
 
 ### `src/node_advection.cpp`
 
-[Source](../../../src/node_advection.cpp) · [Responsibilities, contracts, and evidence](time_integration.md)
+[Source](../../../src/node_advection.cpp) · [Responsibilities, contracts, and
+evidence](time_integration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -867,7 +904,8 @@ the executable-body count.
 
 ### `src/output.cpp`
 
-[Source](../../../src/output.cpp) · [Responsibilities, contracts, and evidence](utilities.md)
+[Source](../../../src/output.cpp) · [Responsibilities, contracts, and
+evidence](utilities.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -903,7 +941,8 @@ the executable-body count.
 
 ### `src/phase_space_evolution.cpp`
 
-[Source](../../../src/phase_space_evolution.cpp) · [Responsibilities, contracts, and evidence](phase_space_evolution.md)
+[Source](../../../src/phase_space_evolution.cpp) · [Responsibilities,
+contracts, and evidence](phase_space_evolution.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -980,7 +1019,8 @@ the executable-body count.
 
 ### `src/public_api.cpp`
 
-[Source](../../../src/public_api.cpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+[Source](../../../src/public_api.cpp) · [Responsibilities, contracts, and
+evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -1058,7 +1098,8 @@ the executable-body count.
 
 ### `src/realizability.cpp`
 
-[Source](../../../src/realizability.cpp) · [Responsibilities, contracts, and evidence](realizability.md)
+[Source](../../../src/realizability.cpp) · [Responsibilities, contracts, and
+evidence](realizability.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -1089,7 +1130,8 @@ the executable-body count.
 
 ### `src/reconstruction_scaling.cpp`
 
-[Source](../../../src/reconstruction_scaling.cpp) · [Responsibilities, contracts, and evidence](qmom_reconstruction.md)
+[Source](../../../src/reconstruction_scaling.cpp) · [Responsibilities,
+contracts, and evidence](qmom_reconstruction.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -1108,7 +1150,8 @@ the executable-body count.
 
 ### `src/recursive_quadrature.cpp`
 
-[Source](../../../src/recursive_quadrature.cpp) · [Responsibilities, contracts, and evidence](cqmom_reconstruction.md)
+[Source](../../../src/recursive_quadrature.cpp) · [Responsibilities, contracts,
+and evidence](cqmom_reconstruction.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -1218,7 +1261,8 @@ the executable-body count.
 
 ### `src/runge_kutta.cpp`
 
-[Source](../../../src/runge_kutta.cpp) · [Responsibilities, contracts, and evidence](time_integration.md)
+[Source](../../../src/runge_kutta.cpp) · [Responsibilities, contracts, and
+evidence](time_integration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -1237,7 +1281,8 @@ the executable-body count.
 
 ### `src/wheeler.cpp`
 
-[Source](../../../src/wheeler.cpp) · [Responsibilities, contracts, and evidence](qmom_reconstruction.md)
+[Source](../../../src/wheeler.cpp) · [Responsibilities, contracts, and
+evidence](qmom_reconstruction.md)
 
 | Function or overload family | Definition lines |
 |---|---|
@@ -1258,10 +1303,10 @@ the executable-body count.
 
 ## Declaration-only headers and aliases
 
-These headers introduce declarations, aliases, option/result structures, or umbrella
-includes rather than additional explicit executable bodies in the inspected build.
-Their callable definitions are listed above. Aggregate initialization is covered
-with the owning representation or options contract.
+These headers introduce declarations, aliases, option/result structures, or
+umbrella includes rather than additional explicit executable bodies in the
+inspected build. Their callable definitions are listed above. Aggregate
+initialization is covered with the owning representation or options contract.
 
 | Header | Functional owner |
 |---|---|

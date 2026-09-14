@@ -6,25 +6,27 @@ Public `qmomkit::compute_qmom` is declared in
 [`qmom.hpp`](../../../include/qmomkit/qmom.hpp) and defined in
 [`public_api.cpp`](../../../src/public_api.cpp). It dispatches to local
 `compute_qmom_with_automatic_scaling` → `compute_qmom_unscaled` → public
-`compute_quadrature`, or the shared bounded-candidate selector. `compute_quadrature`
-is declared in [`wheeler.hpp`](../../../include/qmomkit/wheeler.hpp); its numerical
-helpers are local to [`wheeler.cpp`](../../../src/wheeler.cpp).
-CQMOM calls this same inversion for each branch. Source evolution uses a separate
-[current-count/growth selection](phase_space_evolution.md), not a new Wheeler method.
-See [Wheeler design](../qmom_wheeler.md) for recurrence/eigenpair correspondence.
+`compute_quadrature`, or the shared bounded-candidate selector.
+`compute_quadrature` is declared in
+[`wheeler.hpp`](../../../include/qmomkit/wheeler.hpp); its numerical helpers
+are local to [`wheeler.cpp`](../../../src/wheeler.cpp). CQMOM calls this same
+inversion for each branch. Source evolution uses a separate
+[current-count/growth selection](phase_space_evolution.md), not a new Wheeler
+method. See [Wheeler design](../qmom_wheeler.md) for recurrence/eigenpair
+correspondence.
 
 ## A — `compute_quadrature`
 
 This function turns the first `2*max_nodes` raw moments into an accepted rule,
 possibly with fewer nodes. `max_nodes` is a request ceiling, not a computed
-numerical rank. The returned count is `weights.size()`; the low-level API has no
-separate supported-count field.
+numerical rank. The returned count is `weights.size()`; the low-level API has
+no separate supported-count field.
 
-It checks finite nonnegative `rmin` and `eabs`, finite positive `cutoff`, positive
-node count, sufficient moments, and finiteness of the **required prefix**. Extra
-moments are not checked here. Checked size arithmetic rejects a `max_nodes` value
-for which `2*max_nodes` is unrepresentable before dependent storage is constructed.
-The implementation then distinguishes:
+It checks finite nonnegative `rmin` and `eabs`, finite positive `cutoff`,
+positive node count, sufficient moments, and finiteness of the **required
+prefix**. Extra moments are not checked here. Checked size arithmetic rejects a
+`max_nodes` value for which `2*max_nodes` is unrepresentable before dependent
+storage is constructed. The implementation then distinguishes:
 
 1. Negative mass: `negative_mass_result` returns `not_realizable`, a diagnostic
    weight `abs(m0)`, and `m1/m0`. This helper does not check that ratio for overflow.
@@ -43,30 +45,33 @@ negative-variance requested two-node sequence. It is not a full-sequence
 realizability certificate. This behavior is intentional in the current tests,
 not a newly inferred repair rule.
 
-Evidence: [`tests/unit/wheeler.cpp`](../../../tests/unit/wheeler.cpp), especially
+Evidence: [`tests/unit/wheeler.cpp`](../../../tests/unit/wheeler.cpp),
+especially
 `test_adaptive_requested_two_node_negative_variance_recovers_one_node`,
 `test_adaptive_requested_three_node_high_rank_sigma_recovers_two_nodes`,
 `test_fixed_count_negative_variance_remains_strict_failure`, and invalid-input
-cases. [`wheeler_analytical.cpp`](../../../tests/verification/qmom/wheeler_analytical.cpp)
+cases.
+[`wheeler_analytical.cpp`](../../../tests/verification/qmom/wheeler_analytical.cpp)
 and [`adaptive_qmom.cpp`](../../../tests/verification/qmom/adaptive_qmom.cpp)
-compare analytical/discrete moments and recovered rules. These are finite cases,
-not a characterization of all reduction boundaries.
+compare analytical/discrete moments and recovered rules. These are finite
+cases, not a characterization of all reduction boundaries.
 
 ## A — `compute_recurrence`, `make_jacobi_matrix`, `compute_weights`
 
-`compute_recurrence` constructs Wheeler's sigma table from raw moments. The first
-loop writes `sigma(1,i)=m[i-1]`; the outer `k` loop advances polynomial degree, and
-the inner `l` loop computes the still-needed triangular strip from the previous
-two rows. Each new `a` is a difference of sigma ratios; `b` is a diagonal ratio.
-These divisions occur before the caller's finiteness/degeneracy checks. A zero
-sigma denominator can therefore produce non-finite intermediate coefficients.
-Adaptive handling deliberately examines sigma first and then recomputes the
-reduced recurrence; fixed handling rejects non-finite recurrence coefficients.
+`compute_recurrence` constructs Wheeler's sigma table from raw moments. The
+first loop writes `sigma(1,i)=m[i-1]`; the outer `k` loop advances polynomial
+degree, and the inner `l` loop computes the still-needed triangular strip from
+the previous two rows. Each new `a` is a difference of sigma ratios; `b` is a
+diagonal ratio. These divisions occur before the caller's finiteness/degeneracy
+checks. A zero sigma denominator can therefore produce non-finite intermediate
+coefficients. Adaptive handling deliberately examines sigma first and then
+recomputes the reduced recurrence; fixed handling rejects non-finite recurrence
+coefficients.
 
-`make_jacobi_matrix` places `a` on the diagonal and `sqrt(b[i])` on both adjacent
-diagonals, for the current candidate prefix. Its caller checks negative `b`
-before entry. Local `symmetric_jacobi_eigen` requests the
-[shared eigenkernel](conditional_systems.md#shared-symmetric-eigenkernel) with absolute
+`make_jacobi_matrix` places `a` on the diagonal and `sqrt(b[i])` on both
+adjacent diagonals, for the current candidate prefix. Its caller checks
+negative `b` before entry. Local `symmetric_jacobi_eigen` requests the [shared
+eigenkernel](conditional_systems.md#shared-symmetric-eigenkernel) with absolute
 `tolerance=1e-14` and at most `50*max(n,1)` rotations (the kernel calls these
 iterations sweeps). `compute_weights` loops over eigenvector columns and forms
 `m0*v(0,i)^2`. Node sorting and corresponding eigenvector permutation belong to
@@ -83,24 +88,24 @@ every requested order.
 
 ## A — `attempt_quadrature_count`, `adaptive_sigma_tolerance`, `adaptive_accepts`
 
-The attempt owns three distinct loops. First, adaptive sigma inspection descends
-from the candidate ceiling to degree two. The threshold is
-`max(cutoff,100*epsilon*max(1,abs(required moments)))`. A sigma below the negative
-threshold marks an attempt for outer retry. An absolute sigma within threshold
-sets a lower count, with an immediate successful one-node return at count one.
-The recurrence is recomputed at the surviving count and must be finite with
-nonnegative `b`.
+The attempt owns three distinct loops. First, adaptive sigma inspection
+descends from the candidate ceiling to degree two. The threshold is
+`max(cutoff,100*epsilon*max(1,abs(required moments)))`. A sigma below the
+negative threshold marks an attempt for outer retry. An absolute sigma within
+threshold sets a lower count, with an immediate successful one-node return at
+count one. The recurrence is recomputed at the surviving count and must be
+finite with nonnegative `b`.
 
 Second, candidate Jacobi matrices descend from that surviving count to two,
 using prefixes of the already computed recurrence. Non-finite eigenvalues or
 weights fail immediately. Fixed mode accepts the first finite result. Adaptive
-mode calls `adaptive_accepts`; exhaustion returns a successful one-node payload.
-The one-node fallthrough does not increment the adaptive-reduction counter on
-all paths; counters measure the implemented recording sites, not a guaranteed
-one-event-per-count-change invariant.
+mode calls `adaptive_accepts`; exhaustion returns a successful one-node
+payload. The one-node fallthrough does not increment the adaptive-reduction
+counter on all paths; counters measure the implemented recording sites, not a
+guaranteed one-event-per-count-change invariant.
 
-Third, `adaptive_accepts` checks `min(w)/max(w) > rmin`. For candidate counts of
-three or more it scans each unordered node pair once to recover minimum pair
+Third, `adaptive_accepts` checks `min(w)/max(w) > rmin`. For candidate counts
+of three or more it scans each unordered node pair once to recover minimum pair
 distance and maximum pair distance and requires minimum distance/span `> eabs`;
 a non-finite or non-positive span rejects. This is translation and
 positive-scale invariant.
@@ -108,13 +113,13 @@ positive-scale invariant.
 A two-node candidate has only one pairwise distance, so normalizing it by the
 maximum pairwise distance (as above) is always exactly one and cannot
 discriminate separation. Instead the two-node case normalizes the pairwise
-distance by the larger abscissa magnitude and requires
-`|a0 - a1| / max(|a0|, |a1|) > eabs`; a non-finite distance/magnitude or a
-non-positive magnitude rejects. This form is positive-scale invariant but not
-translation invariant: a pair with a fixed absolute separation is more likely
-to be rejected (collapsed to one node) the larger its abscissas' magnitude, since
-the same absolute gap becomes relatively smaller. The caller supplies at least
-two entries; empty/singleton vectors are not valid inputs to this local helper.
+distance by the larger abscissa magnitude and requires `|a0 - a1| / max(|a0|,
+|a1|) > eabs`; a non-finite distance/magnitude or a non-positive magnitude
+rejects. This form is positive-scale invariant but not translation invariant: a
+pair with a fixed absolute separation is more likely to be rejected (collapsed
+to one node) the larger its abscissas' magnitude, since the same absolute gap
+becomes relatively smaller. The caller supplies at least two entries;
+empty/singleton vectors are not valid inputs to this local helper.
 
 Targeted tests in `tests/unit/wheeler.cpp` exercise offset versus symmetric
 pairs, three-node span, small weight, duplicates, sigma retry, and threshold
@@ -135,38 +140,41 @@ different purposes and neither is a general realizability certificate.
 
 Defined in `src/wheeler.cpp`, declared in
 [`bounded_quadrature.hpp`](../../../src/internal/bounded_quadrature.hpp), this
-shared selector accepts nodes against `AbscissaBounds`. It is called by ordinary
-QMOM, recursive CQMOM, and QMOM post-source selection.
+shared selector accepts nodes against `AbscissaBounds`. It is called by
+ordinary QMOM, recursive CQMOM, and QMOM post-source selection.
 
 The local `evaluate` lambda checks candidate count, available prefix, finite
 ordered bounds, then inverts exactly that prefix. Success requires an exact
-returned count and all nodes in `[lower-1e-12,upper+1e-12]`. It does not clip nodes
-or invoke `check_realizability`. Adaptive Wheeler weight/separation checks still
-apply because the supplied Wheeler options retain adaptivity.
+returned count and all nodes in `[lower-1e-12,upper+1e-12]`. It does not clip
+nodes or invoke `check_realizability`. Adaptive Wheeler weight/separation
+checks still apply because the supplied Wheeler options retain adaptivity.
 
-Fixed selection evaluates the configured count once. Adaptive selection descends
-from the initial active/configured ceiling to one, keeping the first rejected
-candidate for reduction diagnostics. The first exact-count admissible rule wins.
-A permitted growth trial requires previous active metadata, adaptive policies,
-no current count loss, and spare configured capacity; it evaluates active+1 once.
-Rejected growth preserves the accepted current rule. Diagnostics may describe a
-rejected candidate while returned quadrature describes the accepted fallback;
-these must not be conflated. The private request assumes a positive initial
-count supplied upstream.
+Fixed selection evaluates the configured count once. Adaptive selection
+descends from the initial active/configured ceiling to one, keeping the first
+rejected candidate for reduction diagnostics. The first exact-count admissible
+rule wins. A permitted growth trial requires previous active metadata, adaptive
+policies, no current count loss, and spare configured capacity; it evaluates
+active+1 once. Rejected growth preserves the accepted current rule. Diagnostics
+may describe a rejected candidate while returned quadrature describes the
+accepted fallback; these must not be conflated. The private request assumes a
+positive initial count supplied upstream.
 
 Evidence: bounded tests in
 [`tests/unit/recursive_quadrature.cpp`](../../../tests/unit/recursive_quadrature.cpp),
-including `test_recursive_bounded_support_returned_node_tolerance_and_no_clipping`,
+including
+`test_recursive_bounded_support_returned_node_tolerance_and_no_clipping`,
 weight/separation rejection, and rejected growth; public verification under
 [`qmom/quadrature_bounds.cpp`](../../../tests/verification/qmom/quadrature_bounds.cpp)
-and [`cqmom/quadrature_bounds.cpp`](../../../tests/verification/cqmom/quadrature_bounds.cpp).
+and
+[`cqmom/quadrature_bounds.cpp`](../../../tests/verification/cqmom/quadrature_bounds.cpp).
 Bounds are acceptance conditions in the coordinates actually inverted, so
-scaling changes the physical width corresponding to the absolute `1e-12` margin.
+scaling changes the physical width corresponding to the absolute `1e-12`
+margin.
 
 ## A — scaling preparation and restoration
 
-[`reconstruction_scaling.cpp`](../../../src/reconstruction_scaling.cpp) implements
-private declarations in
+[`reconstruction_scaling.cpp`](../../../src/reconstruction_scaling.cpp)
+implements private declarations in
 [`reconstruction_scaling.hpp`](../../../src/internal/reconstruction_scaling.hpp).
 `make_qmom_scaling_context` and `make_cqmom_scaling_context` prepare temporary
 coordinate changes; they do not divide all moments by mass.
@@ -181,21 +189,23 @@ loops to divide by the product of coordinate scales. Order zero is unchanged.
 rejects non-finite/out-of-double-range values and nonzero values becoming zero.
 Failure produces `nullopt` for the complete preparation.
 
-`restore_abscissas`, `restore_cqmom_abscissas`, and `restore_bounds` multiply in
-extended precision and use the same representability checks. Restoration may
+`restore_abscissas`, `restore_cqmom_abscissas`, and `restore_bounds` multiply
+in extended precision and use the same representability checks. Restoration may
 partially change its temporary argument before returning false. Public wrappers
 then discard that temporary result and repeat unscaled reconstruction.
-`can_restore_cqmom_result` checks copies of all terminal coordinates and retained
-bounded diagnostics before public conversion. The fallback is for unsafe
-transformation/restoration; a safely restored **failed numerical inversion** is
-returned as failure, not retried unscaled merely to obtain success.
+`can_restore_cqmom_result` checks copies of all terminal coordinates and
+retained bounded diagnostics before public conversion. The fallback is for
+unsafe transformation/restoration; a safely restored **failed numerical
+inversion** is returned as failure, not retried unscaled merely to obtain
+success.
 
-Tests in [`tests/unit/public_api.cpp`](../../../tests/unit/public_api.cpp) check
-physical restoration, available scale moments, covariance, and unsafe-preparation
-fallback. [`cqmom/automatic_scaling.cpp`](../../../tests/verification/cqmom/automatic_scaling.cpp)
-uses prescribed ragged rules and rescaled tensors, including a case where enabling
-scaling changes recovery. This does not establish shift invariance or robustness
-for arbitrary marginal scales or long-double implementations.
+Tests in [`tests/unit/public_api.cpp`](../../../tests/unit/public_api.cpp)
+check physical restoration, available scale moments, covariance, and
+unsafe-preparation fallback.
+[`cqmom/automatic_scaling.cpp`](../../../tests/verification/cqmom/automatic_scaling.cpp)
+uses prescribed ragged rules and rescaled tensors, including a case where
+enabling scaling changes recovery. This does not establish shift invariance or
+robustness for arbitrary marginal scales or long-double implementations.
 
 ## B/C — entry and payload helpers
 

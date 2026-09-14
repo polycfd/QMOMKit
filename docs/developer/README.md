@@ -4,8 +4,9 @@ The developer guide is for QMOMKit maintainers, contributors, advanced
 developers, and AI-assisted development workflows. It documents stable
 engineering knowledge needed to maintain and extend the core numerical library.
 
-The CTest suite contains 861 individually registered logical runtime tests; see [Testing](testing.md) for guidance and selection commands, and the
-[Test inventory](test_inventory.md) for the complete logical-test reference.
+The CTest suite contains 861 individually registered logical runtime tests; see
+[Testing](testing.md) for guidance and selection commands, and the [Test
+inventory](test_inventory.md) for the complete logical-test reference.
 
 This guide describes the current design of QMOMKit:
 
@@ -17,10 +18,10 @@ This guide describes the current design of QMOMKit:
 - benchmarks;
 - coding practices.
 
-It is distinct from the [user docs](../user/README.md), which explains how to use QMOMKit from a
-downstream application, example, or validation workflow. It is also distinct
-from source comments, which explain local implementation details close to the
-code they clarify.
+It is distinct from the [user docs](../user/README.md), which explains how to
+use QMOMKit from a downstream application, example, or validation workflow. It
+is also distinct from source comments, which explain local implementation
+details close to the code they clarify.
 
 Developer documentation preserves stable conventions and design intent. It does
 not preserve development stages, task history, roadmaps, or agent-specific

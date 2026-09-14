@@ -7,7 +7,8 @@ For raw moments, number density function (NDF) conventions, tensor storage, and
 phase-space ordering, see [numerical_conventions.md](numerical_conventions.md).
 For configuration-file mapping, see
 [configuration_design.md](configuration_design.md). User-facing examples and
-workflow guidance live in [docs/user/distributions.md](../user/distributions.md).
+workflow guidance live in
+[docs/user/distributions.md](../user/distributions.md).
 
 ## Contents
 
@@ -42,11 +43,11 @@ MomentSet, CqmomMomentData, or RawMomentTensor
 compute_qmom(...) or compute_cqmom(...)
 ```
 
-After moment generation, the reconstruction algorithms have no memory of whether
-the input moments came from an analytical distribution, an explicit moment list,
-a sample-derived ensemble, or another upstream calculation. This keeps
-distribution handling separate from quadrature reconstruction, phase-space evolution,
-realizability checks, and application physics.
+After moment generation, the reconstruction algorithms have no memory of
+whether the input moments came from an analytical distribution, an explicit
+moment list, a sample-derived ensemble, or another upstream calculation. This
+keeps distribution handling separate from quadrature reconstruction,
+phase-space evolution, realizability checks, and application physics.
 
 ## Distribution Abstraction
 
@@ -277,8 +278,8 @@ Stable numerical rules include:
 
 Distribution generation validates parameters and numerical representability. It
 does not perform support-aware realizability analysis, run QMOM or CQMOM
-inversion, or repair generated moments. Downstream algorithms still report their
-own statuses.
+inversion, or repair generated moments. Downstream algorithms still report
+their own statuses.
 
 ## Initialization Interaction
 
@@ -318,7 +319,8 @@ IndependentProductDistribution
       -> CqmomDenseCase
 ```
 
-For CQMOM workflows that can benefit from selective generation, the data flow is:
+For CQMOM workflows that can benefit from selective generation, the data flow
+is:
 
 ```text
 CQMOM hierarchy
@@ -352,10 +354,10 @@ moment initialization has precedence in configuration: explicit moments are
 treated as the source of truth, and distribution fields that would otherwise
 generate moments are not active in that path.
 
-Generated moments must still be sufficient for the requested reconstruction. For
-one-dimensional QMOM, an `N`-node inversion needs at least `2 * N` moments. For
-dense CQMOM compatibility, the generated tensor extents must be large enough for
-the configured phase-space hierarchy and node counts. For lean CQMOM
+Generated moments must still be sufficient for the requested reconstruction.
+For one-dimensional QMOM, an `N`-node inversion needs at least `2 * N` moments.
+For dense CQMOM compatibility, the generated tensor extents must be large
+enough for the configured phase-space hierarchy and node counts. For lean CQMOM
 initialization, sufficiency is encoded by `CqmomMomentLayout`. Those
 reconstruction requirements belong to QMOM case and CQMOM case validation and
 algorithm status handling, not to the distribution object itself.
@@ -408,5 +410,6 @@ initialization and reconstruction:
   distribution names.
 
 Distribution support should remain a deterministic moment-generation layer. It
-should not become an application-level solver, a sampling library, a PDF/CDF evaluation
-package, or a hidden control path for QMOM/CQMOM reconstruction behavior.
+should not become an application-level solver, a sampling library, a PDF/CDF
+evaluation package, or a hidden control path for QMOM/CQMOM reconstruction
+behavior.

@@ -5,8 +5,9 @@ construction.
 
 For raw-moment definitions, tensor storage, phase-space dimension order,
 conditioning order, and node/weight terminology, see
-[numerical_conventions.md](numerical_conventions.md). For the one-dimensional Wheeler inversion used at
-each recursive branch, see [qmom_wheeler.md](qmom_wheeler.md).
+[numerical_conventions.md](numerical_conventions.md). For the one-dimensional
+Wheeler inversion used at each recursive branch, see
+[qmom_wheeler.md](qmom_wheeler.md).
 
 ## Contents
 
@@ -31,13 +32,14 @@ has the form:
 $$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
 where $\alpha$ is ordered by phase-space dimension. CQMOM processes
 one phase-space dimension at a time. The first processed dimension is inverted
-using the Wheeler alogrithm [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)]. 
+using the Wheeler alogrithm [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)].
 Later dimensions are reconstructed as conditional quadrature
 rules under the already selected parent nodes.
 
-QMOMKit applies a recursive CQMOM, an implementation strategy that applies this conditional
-construction recursively through all dimensions in the configured conditioning order 
-[[Bouguezzoul, 2026](https://publications.polymtl.ca/76505/)]. 
+QMOMKit applies a recursive CQMOM, an implementation strategy that applies this
+conditional construction recursively through all dimensions in the configured
+conditioning order [[Bouguezzoul,
+2026](https://publications.polymtl.ca/76505/)].
 
 The public API for CQMOM is:
 
@@ -97,11 +99,11 @@ QMOMKit's scalable CQMOM representation is the required moment set: the minimal
 set of raw moments required by the configured hierarchy and conditioning order.
 The normal user workflow loads a `CqmomCase` and computes its quadrature with
 `compute_cqmom(CqmomCase)`. If the distribution evolves in time, the same case
-can create a `CqmomState` for phase-space evolution. Users on this path do not manage
-internal branch-local storage, dense tensor extents, or required moment indices.
-Representation choices are hidden by default. Callers that need direct control
-can opt into an explicit dense representation workflow or an explicit lean
-representation workflow.
+can create a `CqmomState` for phase-space evolution. Users on this path do not
+manage internal branch-local storage, dense tensor extents, or required moment
+indices. Representation choices are hidden by default. Callers that need direct
+control can opt into an explicit dense representation workflow or an explicit
+lean representation workflow.
 
 ### Explicit Dense Representation Workflow
 
@@ -149,8 +151,8 @@ values[i] == m_(layout.required_indices[i])
 ```
 
 The values are aligned with the layout order. Public helper functions construct
-this data either by extracting from a dense `RawMomentTensor` or by validating a
-selected raw-moment result produced elsewhere. The public case type named:
+this data either by extracting from a dense `RawMomentTensor` or by validating
+a selected raw-moment result produced elsewhere. The public case type named:
 
 ```text
 CqmomLeanCase
@@ -173,10 +175,11 @@ sorted flat-key offset table for moment lookup. It is intentionally scoped to
 CQMOM-required moment storage, not arbitrary sparse tensor manipulation.
 
 `CqmomMomentView` is an internal non-owning adapter over either a dense
-`RawMomentTensor` or an `IndexedMomentSet`. Recursive code reads moments through
-the view so the traversal is independent of the owning root representation.
-The lean public path stores indexed moments for the duration of reconstruction,
-then delegates through this same view-based recursive algorithm.
+`RawMomentTensor` or an `IndexedMomentSet`. Recursive code reads moments
+through the view so the traversal is independent of the owning root
+representation. The lean public path stores indexed moments for the duration of
+reconstruction, then delegates through this same view-based recursive
+algorithm.
 
 ## Validated And Reused Setup Paths
 
@@ -190,9 +193,9 @@ before reconstruction:
 - explicit `CqmomDenseCase`.
 
 These paths validate hierarchy consistency, conditioning order, the required
-fixed CQMOM moment layout, value count, and finite moment values. The dense path
-also validates rectangular tensor extents before extracting the required lean
-moment set.
+fixed CQMOM moment layout, value count, and finite moment values. The dense
+path also validates rectangular tensor extents before extracting the required
+lean moment set.
 
 `CqmomCase` and `CqmomState` are normal public workflows. For these objects,
 QMOMKit can reuse setup information that was already checked when the case or
@@ -209,10 +212,10 @@ diagnostics, active counts, or terminal paths. Every fixed normal case and
 state owns compatible metadata. A direct internal fixed-state factory either
 starts a new prepared lineage eagerly or receives the owner from a structurally
 unchanged parent. Initial-state construction, value replacement, copies, and
-phase-space evolution successors propagate that owner without copying the graph. Missing or
-incompatible metadata is an internal contract violation, not a dynamic fallback.
-Case and state copies share the immutable owner; a state can therefore outlive
-its case without retaining mutable aliases.
+phase-space evolution successors propagate that owner without copying the
+graph. Missing or incompatible metadata is an internal contract violation, not
+a dynamic fallback. Case and state copies share the immutable owner; a state
+can therefore outlive its case without retaining mutable aliases.
 
 Adaptive normal cases retain the dynamic branch-layout path because their
 active topology is runtime data. Explicit `CqmomDenseCase` and
@@ -317,11 +320,11 @@ dividing each solution row by the corresponding parent weight:
 $$C[i, q] = Y[i, q] / w_i$$
 
 The adapter owns the conditional-system validation, weight transformation,
-solver selection, QR/SVD/Moore-Penrose residual acceptance, and diagnostics. The
-Björck-Pereyra kernel owns only the internal unweighted transposed Vandermonde
-solve and its node-separation checks. Numerical kernel details, tolerance
-definitions, and the complete solver-selection table are documented in
-[linear_algebra.md](linear_algebra.md).
+solver selection, QR/SVD/Moore-Penrose residual acceptance, and diagnostics.
+The Björck-Pereyra kernel owns only the internal unweighted transposed
+Vandermonde solve and its node-separation checks. Numerical kernel details,
+tolerance definitions, and the complete solver-selection table are documented
+in [linear_algebra.md](linear_algebra.md).
 
 QMOMKit calls the numerical policy that solves this conditional system the
 Vandermonde solver. The user-facing solver choices are:
@@ -342,13 +345,13 @@ automatic resolution, the algorithm actually used (`dense`, `pivoted_qr`,
 default request is `automatic`; CQMOM resolves that to
 `bjorck_pereyra` and reports the Björck-Pereyra algorithm.
 
-Explicit pivoted QR, SVD, and Moore-Penrose
-honor the adapter residual-validation option when requested. Residual rejection
-is a failed conditional Vandermonde solve. Recursive
-diagnostic level controls diagnostic retention and expensive diagnostic
-computations; it does not itself request residual rejection. Solver thresholds
-and performance measurements belong in [linear_algebra.md](linear_algebra.md), source comments,
-and benchmark documentation according to their level of detail.
+Explicit pivoted QR, SVD, and Moore-Penrose honor the adapter
+residual-validation option when requested. Residual rejection is a failed
+conditional Vandermonde solve. Recursive diagnostic level controls diagnostic
+retention and expensive diagnostic computations; it does not itself request
+residual rejection. Solver thresholds and performance measurements belong in
+[linear_algebra.md](linear_algebra.md), source comments, and benchmark
+documentation according to their level of detail.
 
 ## Terminal Quadrature Representation
 
@@ -450,12 +453,12 @@ hierarchy.
 
 The
 [`cqmom_2d_borderline_conditioning`](../../examples/cqmom_2d_borderline_conditioning/README.md)
-example demonstrates that changing conditioning order can relocate rather
-than remove a weak inversion. Its fixed-count rows expose whether the weak
-branch appears as a conditional-moment failure or later as a Wheeler/QMOM
-failure. Its adaptive reference rows demonstrate that adaptive Wheeler
-reduction occurs before the conditional Vandermonde solve and is separate from
-QR or SVD solver selection.
+example demonstrates that changing conditioning order can relocate rather than
+remove a weak inversion. Its fixed-count rows expose whether the weak branch
+appears as a conditional-moment failure or later as a Wheeler/QMOM failure. Its
+adaptive reference rows demonstrate that adaptive Wheeler reduction occurs
+before the conditional Vandermonde solve and is separate from QR or SVD solver
+selection.
 
 The compact `output/report.md` makes the outcomes easy to compare:
 weak parent conditional systems, later Wheeler failures, and successful
@@ -474,10 +477,10 @@ The report distinguishes the relative singular value (independence), the
 and residual (linear-system consistency). These metrics should not be
 interpreted as interchangeable.
 
-When interpreting the example, read the reported failure location together
-with requested and active node counts, solver details, residuals, and condition
-estimates. For the related linear-algebra workflow and limitations,
-see related [internal linear algebra](linear_algebra.md#borderline-conditioning-example).
+When interpreting the example, read the reported failure location together with
+requested and active node counts, solver details, residuals, and condition
+estimates. For the related linear-algebra workflow and limitations, see related
+[internal linear algebra](linear_algebra.md#borderline-conditioning-example).
 
 ## Numerical Assumptions And Failure Handling
 
@@ -578,10 +581,10 @@ condition estimates, are useful for analysis and debugging but are not required
 to construct the quadrature. The CQMOM diagnostic setting on the loaded case or
 explicit representation case selects how much diagnostic work is performed:
 
-`CqmomDiagnosticLevel` controls diagnostic retention and reporting only. It does
-not alter Vandermonde solver selection, residual acceptance, inversion results,
-active node counts, quadrature values, phase-space evolution
-results, or success/failure status.
+`CqmomDiagnosticLevel` controls diagnostic retention and reporting only. It
+does not alter Vandermonde solver selection, residual acceptance, inversion
+results, active node counts, quadrature values, phase-space evolution results,
+or success/failure status.
 
 - `CqmomDiagnosticLevel::detailed` preserves full diagnostic reporting. It
   provides residual norms, condition estimates, and conditioning warnings for
@@ -597,8 +600,8 @@ results, or success/failure status.
   reconstruction are still preserved so callers can distinguish successful
   output from failed reconstruction.
 
-Expensive diagnostic fields use optional values. Callers should treat absence as
-"not computed" rather than as a numerical value. The public API defaults to
+Expensive diagnostic fields use optional values. Callers should treat absence
+as "not computed" rather than as a numerical value. The public API defaults to
 `none`; callers opt into `basic` structural records or `detailed` residual and
 condition diagnostics when they need them.
 
@@ -638,8 +641,8 @@ Public CQMOM concepts include:
 
 `CqmomCase` and `CqmomState` are the neutral public objects for the normal
 CQMOM workflow. The case stores initialized moment data and reconstruction
-policies; a state is created from the case when users choose CQMOM phase-space evolution.
-This workflow avoids exposing dense or lean moment storage to users.
+policies; a state is created from the case when users choose CQMOM phase-space
+evolution. This workflow avoids exposing dense or lean moment storage to users.
 
 `CqmomDenseCase` bundles the phase-space hierarchy, raw moment tensor,
 conditional-moment numerical options, QMOM/Wheeler options, and the adaptive

@@ -1,8 +1,8 @@
 # Implementation and function reference
 
-This reference connects mathematical operations to their implementation, control
-flow, and numerical contracts. It explains the current source rather than
-repeating API signatures. User documentation explains supported workflows;
+This reference connects mathematical operations to their implementation,
+control flow, and numerical contracts. It explains the current source rather
+than repeating API signatures. User documentation explains supported workflows;
 public headers define interfaces; the developer algorithm pages explain the
 mathematical design. These pages connect those layers to the functions and
 callers that implement them.
@@ -31,16 +31,18 @@ universal numerical guarantees from bounded test cases.
 ## How to use this reference
 
 **Level A** sections explain numerical transformations, important loops, branch
-conditions, failures, and sensitivities. Related small functions sometimes share
-one section when they implement a single mathematical step. **Level B** entries
-cover orchestration and policy handoffs. **Level C** tables group elementary
-access, formatting, validation, and forwarding functions by actual responsibility.
-The inventory is navigation and coverage bookkeeping, not a substitute for these
-explanations. Anonymous namespaces are identified as local scope; unqualified
-public symbols are in `qmomkit`, and shared private symbols in `qmomkit::internal`.
+conditions, failures, and sensitivities. Related small functions sometimes
+share one section when they implement a single mathematical step. **Level B**
+entries cover orchestration and policy handoffs. **Level C** tables group
+elementary access, formatting, validation, and forwarding functions by actual
+responsibility. The inventory is navigation and coverage bookkeeping, not a
+substitute for these explanations. Anonymous namespaces are identified as local
+scope; unqualified public symbols are in `qmomkit`, and shared private symbols
+in `qmomkit::internal`.
 
-Source and test links provide traceability for the stated contracts. A named test
-shows the behavior exercised by that test; it is not a numerical certification.
+Source and test links provide traceability for the stated contracts. A named
+test shows the behavior exercised by that test; it is not a numerical
+certification.
 
 “The implementation establishes” denotes observable control flow or arithmetic.
 An inferred purpose is explicitly marked. “No direct test identified” means the

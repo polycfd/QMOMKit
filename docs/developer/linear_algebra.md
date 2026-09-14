@@ -1,14 +1,15 @@
 # Internal Linear Algebra
 
 This document defines the architecture, mathematical conventions, numerical
-behavior, and current QMOMKit roles of the internal dense linear-algebra kernels
-and the conditional Vandermonde adapter.
+behavior, and current QMOMKit roles of the internal dense linear-algebra
+kernels and the conditional Vandermonde adapter.
 
-The functionalities described here live under `src/internal/` and are implementation
-details, not public APIs. This page is for QMOMKit developers who need to
-maintain the numerical kernels or their CQMOM integration. User-facing
-configuration syntax belongs in [configuration.md](../user/configuration.md); CQMOM workflow and branch traversal details belong in
-[cqmom_recursive.md](cqmom_recursive.md).
+The functionalities described here live under `src/internal/` and are
+implementation details, not public APIs. This page is for QMOMKit developers
+who need to maintain the numerical kernels or their CQMOM integration.
+User-facing configuration syntax belongs in
+[configuration.md](../user/configuration.md); CQMOM workflow and branch
+traversal details belong in [cqmom_recursive.md](cqmom_recursive.md).
 
 ## Contents
 
@@ -75,17 +76,18 @@ solve_conditional_vandermonde_system(...)
 
 The adapter constructs the weighted matrix, resolves the selected
 `VandermondeSolver` policy, dispatches to the numerical kernels, performs
-Björck-Pereyra (BP) weight recovery, validates QR, SVD, and Moore-Penrose residuals when
-requested, records performance counters, and returns solver diagnostics.
+Björck-Pereyra (BP) weight recovery, validates QR, SVD, and Moore-Penrose
+residuals when requested, records performance counters, and returns solver
+diagnostics.
 
 ### CQMOM Integration
 
-CQMOM constructs branch-local conditional systems, propagates the
-configured `VandermondeSolver` policy to the adapter, maps failed adapter solves
-to CQMOM status values, and records branch diagnostics. It does not implement
-the dense, BP, QR, or SVD algorithms; explicitly requested Moore-Penrose
-recovery remains adapter-owned. See [cqmom_recursive.md](cqmom_recursive.md)
-for the CQMOM algorithm.
+CQMOM constructs branch-local conditional systems, propagates the configured
+`VandermondeSolver` policy to the adapter, maps failed adapter solves to CQMOM
+status values, and records branch diagnostics. It does not implement the dense,
+BP, QR, or SVD algorithms; explicitly requested Moore-Penrose recovery remains
+adapter-owned. See [cqmom_recursive.md](cqmom_recursive.md) for the CQMOM
+algorithm.
 
 ## Common Matrix And Solve Conventions
 
@@ -105,7 +107,13 @@ Vandermonde systems used in production CQMOM reconstruction are square.
 
 ## Solver Comparison
 
-Five solver policies are available: a specialized Björck-Pereyra solver [[Björck & Pereyra, 1970](https://doi.org/10.2307/2004623)], a Moore-Penrose solver that relies on a pseudoinverse [[Marco & Martinez, 2019](https://www.doi.org/10.1016/j.cam.2018.10.009)], as well as generic solvers based on Gauss eliminiation, QR-factorization, and singular-value decomposition [[Press, 1992](https://books.google.ca/books/about/Numerical_Recipes_in_FORTRAN_77_Volume_1.html?id=gn_4mpdN9WkC&redir_esc=y)].
+Five solver policies are available: a specialized Björck-Pereyra solver
+[[Björck & Pereyra, 1970](https://doi.org/10.2307/2004623)], a Moore-Penrose
+solver that relies on a pseudoinverse [[Marco & Martinez,
+2019](https://www.doi.org/10.1016/j.cam.2018.10.009)], as well as generic
+solvers based on Gauss eliminiation, QR-factorization, and singular-value
+decomposition [[Press,
+1992](https://books.google.ca/books/about/Numerical_Recipes_in_FORTRAN_77_Volume_1.html?id=gn_4mpdN9WkC&redir_esc=y)].
 
 | Solver | Mathematical system | Type | Supported shapes | Multiple RHS | Rank diagnostics | Current Vandermonde policy |
 |---|---|---|---|---|---|---|
@@ -155,8 +163,8 @@ check, not a wall-clock performance guarantee.
 ### Supported Shapes And Right-Hand Sides
 
 The BP kernel supports square Vandermonde systems with one node per unknown and
-one RHS row per power. It supports multiple right-hand-side columns. It is not a
-generic rectangular solver.
+one RHS row per power. It supports multiple right-hand-side columns. It is not
+a generic rectangular solver.
 
 ### Numerical Characteristics
 
@@ -182,7 +190,8 @@ not perform weighted residual validation.
 
 ### Current QMOMKit Role
 
-BP is the **default** solver, used by the explicit `bjorck_pereyra` policy and by `automatic`.
+BP is the **default** solver, used by the explicit `bjorck_pereyra` policy and
+by `automatic`.
 
 ### Limitations And Non-Goals
 
@@ -219,7 +228,8 @@ the same elimination, so multiple RHS columns are solved simultaneously.
 ### Supported Shapes And Right-Hand Sides
 
 The dense solver supports square matrices only. It accepts multiple
-right-hand-side columns. It does not support rectangular least-squares problems.
+right-hand-side columns. It does not support rectangular least-squares
+problems.
 
 ### Numerical Characteristics
 
@@ -312,13 +322,14 @@ configurable through `.qmom` files.
 
 ### Current QMOMKit Role
 
-QR is available to CQMOM through the explicit `pivoted_qr` policy. It solves the complete weighted conditional matrix
-directly.
+QR is available to CQMOM through the explicit `pivoted_qr` policy. It solves
+the complete weighted conditional matrix directly.
 
 ### Limitations And Non-Goals
 
-QR requires `m >= n`. Rank-deficient solves are refused. The implementation does
-not produce truncated, pseudoinverse, regularized, or minimum-norm solutions.
+QR requires `m >= n`. Rank-deficient solves are refused. The implementation
+does not produce truncated, pseudoinverse, regularized, or minimum-norm
+solutions.
 
 ## One-Sided Jacobi SVD Solver
 
@@ -326,8 +337,8 @@ not produce truncated, pseudoinverse, regularized, or minimum-norm solutions.
 
 `factorize_svd(...)` and `solve_svd(...)` provide a generic square/tall dense
 solver with singular-value and numerical-rank diagnostics. In the conditional
-Vandermonde adapter, SVD is an explicit direct backend for the complete weighted
-system.
+Vandermonde adapter, SVD is an explicit direct backend for the complete
+weighted system.
 
 ### Mathematical Problem
 
@@ -372,8 +383,8 @@ $$
 $$
 
 The current relative rank tolerance is the internal default
-`relative_rank_tolerance = 1.0e-14`. The default Jacobi convergence tolerance is
-resolved as
+`relative_rank_tolerance = 1.0e-14`. The default Jacobi convergence tolerance
+is resolved as
 
 $$
 \tau_{\mathrm{Jacobi}}
@@ -435,9 +446,10 @@ orders or flattened branch-local moment indices.
 
 ### Backend Responsibilities
 
-The dense, QR, SVD, and Moore-Penrose backends build the complete weighted matrix `A` and solve
-`A C = M` directly. The BP backend uses the unweighted BP kernel and then lets
-the adapter recover conditional moments by dividing by weights.
+The dense, QR, SVD, and Moore-Penrose backends build the complete weighted
+matrix `A` and solve `A C = M` directly. The BP backend uses the unweighted BP
+kernel and then lets the adapter recover conditional moments by dividing by
+weights.
 
 The adapter owns dimension and finite-input validation, policy resolution,
 weighted matrix construction, weight-singularity protection for BP, residual
@@ -488,7 +500,7 @@ Vandermonde solves. User-facing syntax and examples belong in
 | `bjorck_pereyra` | Björck-Pereyra solve |
 | `automatic` | Björck-Pereyra solve |
 
-`automatic` resolves to `bjorck_pereyra`. 
+`automatic` resolves to `bjorck_pereyra`.
 
 ## Failure, Rank, Residual, And Tolerance Semantics
 
@@ -508,12 +520,11 @@ requested.
 
 ### Residual Validation
 
-Explicit QR, SVD, and Moore-Penrose policies use residual validation when requested by
-`VandermondeSolveOptions::validate_residual`. Residual rejection returns
-failure.
-Recursive diagnostics do not themselves request residual validation; they
-compute diagnostic residuals after successful branch-local solves when detailed
-diagnostics are enabled.
+Explicit QR, SVD, and Moore-Penrose policies use residual validation when
+requested by `VandermondeSolveOptions::validate_residual`. Residual rejection
+returns failure. Recursive diagnostics do not themselves request residual
+validation; they compute diagnostic residuals after successful branch-local
+solves when detailed diagnostics are enabled.
 
 The adapter computes the residual magnitude with `residual_norm(...)`, which is
 a square-root sum of squared residual entries, and scales it with infinity
@@ -566,11 +577,11 @@ Linear-algebra coverage should remain layered with the implementation:
 ### Borderline-Conditioning Example
 
 [`examples/cqmom_2d_borderline_conditioning/`](../../examples/cqmom_2d_borderline_conditioning/)
-is a worked example for studying conditional Vandermonde
-conditioning, explicit solver policies, residuals, and fixed-count failure
-alongside lower-node Wheeler reconstructions. It uses a deterministic four-atom
-population and diagnostics reported by CQMOM; its local 2x2 matrix analysis is
-example-side diagnostic data, not production QR or SVD metadata.
+is a worked example for studying conditional Vandermonde conditioning, explicit
+solver policies, residuals, and fixed-count failure alongside lower-node
+Wheeler reconstructions. It uses a deterministic four-atom population and
+diagnostics reported by CQMOM; its local 2x2 matrix analysis is example-side
+diagnostic data, not production QR or SVD metadata.
 
 The example produces two complementary outputs. `output/report.md` is the
 human-readable comparison of solver outcomes, failed stages, and lower-node

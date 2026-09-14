@@ -155,15 +155,16 @@ ordinary phase-space dimensions. A workflow that uses both velocity and
 internal coordinates must define one explicit phase-space order and use it
 consistently in moments, quadrature, callbacks, output, and validation.
 
-For phase-space evolution callbacks, a node coordinate vector is ordered by phase-space
-dimension:
+For phase-space evolution callbacks, a node coordinate vector is ordered by
+phase-space dimension:
 
 ```text
 coordinates[r] corresponds to phase-space dimension r
 ```
 
 The returned phase-space velocity vector uses the same order and size. See
-`phase_space_evolution_design.md` for phase-space evolution-specific callback behavior.
+`phase_space_evolution_design.md` for phase-space evolution-specific callback
+behavior.
 
 ## Conditioning Order Conventions
 
@@ -250,8 +251,9 @@ interpreted by iterating over exposed terminal nodes, weights, abscissas, and
 paths rather than assuming rectangular storage.
 
 Local conditional weights that arise inside CQMOM reconstruction are not the
-same as final global weights. The distinction between local conditional
-weights and accumulated terminal weights belongs in [cqmom_recursive.md](cqmom_recursive.md).
+same as final global weights. The distinction between local conditional weights
+and accumulated terminal weights belongs in
+[cqmom_recursive.md](cqmom_recursive.md).
 
 ## Distribution And Initialization Conventions
 
@@ -293,11 +295,11 @@ Requested maximum orders are inclusive. In one dimension, `maximum_order = 3`
 generates `m_0` through `m_3`. For product tensors,
 `maximum_orders[r] = 3` gives `extents[r] = 4`.
 
-Configuration files preserve the same conventions. Explicit moments are
-already raw moments. Distribution-based initialization is converted to raw
-moments before QMOM case objects or CQMOM case objects are constructed.
-Parser-specific
-precedence and field mapping belong in [configuration_design.md](configuration_design.md).
+Configuration files preserve the same conventions. Explicit moments are already
+raw moments. Distribution-based initialization is converted to raw moments
+before QMOM case objects or CQMOM case objects are constructed. Parser-specific
+precedence and field mapping belong in
+[configuration_design.md](configuration_design.md).
 
 ## Rules For Maintainers
 

@@ -1,7 +1,7 @@
 # Validation
 
-This page documents the QMOMKit numerical validation strategy. It answers how QMOMKit
-establishes that its numerical methods are correct and trustworthy.
+This page documents the QMOMKit numerical validation strategy. It answers how
+QMOMKit establishes that its numerical methods are correct and trustworthy.
 
 ## Validation Philosophy
 
@@ -53,8 +53,8 @@ Examples include:
 
 Algorithm verification should isolate the algorithm as much as practical. If a
 case verifies Wheeler inversion, the expected nodes, weights, and reconstructed
-moments should be defined independently of the Wheeler implementation. If a case
-verifies recursive CQMOM, it should make terminal weights, phase-space
+moments should be defined independently of the Wheeler implementation. If a
+case verifies recursive CQMOM, it should make terminal weights, phase-space
 coordinates, conditioning paths, and raw tensor reconstruction visible.
 
 ### Numerical Method Verification
@@ -72,10 +72,10 @@ Examples include:
 - convergence studies that verify expected error reduction.
 
 These cases should define the exact or manufactured reference independently of
-the production integration path. They should report the error metric, tolerance,
-and expected qualitative behavior, such as conservation of `m_0`, unchanged node
-weights during node advection, or second-order behavior for Strang splitting in
-a noncommuting case.
+the production integration path. They should report the error metric,
+tolerance, and expected qualitative behavior, such as conservation of `m_0`,
+unchanged node weights during node advection, or second-order behavior for
+Strang splitting in a noncommuting case.
 
 ### Application-Level Validation
 
@@ -94,9 +94,9 @@ Examples include:
 - high-dimensional CQMOM workflows that exercise conditioning order,
   branch-dependent quadrature, and raw tensor reconstruction.
 
-Application-level validation may combine multiple features, but each case should
-state what capability is being validated and which observed quantities are
-primary evidence rather than diagnostics.
+Application-level validation may combine multiple features, but each case
+should state what capability is being validated and which observed quantities
+are primary evidence rather than diagnostics.
 
 ## Analytical And Manufactured Solutions
 
@@ -104,22 +104,23 @@ Analytical references are preferred when an exact solution is available. They
 are useful because the expected behavior can be derived without calling the
 production algorithm under test.
 
-For QMOM, analytical references include exact discrete quadratures and classical
-one-dimensional quadrature rules for known moment families. Useful checks
-include node and weight values, positivity, total mass preservation, and
+For QMOM, analytical references include exact discrete quadratures and
+classical one-dimensional quadrature rules for known moment families. Useful
+checks include node and weight values, positivity, total mass preservation, and
 reconstruction of all configured raw moments.
 
 For CQMOM, analytical and manufactured references should make the conditional
 structure explicit. Independent-product cases verify marginal and terminal
-weight products. Deterministic affine cases verify adaptive branch reduction and
-conditioning-path behavior. Higher-dimensional cases verify phase-space order,
-conditioning order, terminal coordinates, global weights, and full raw tensor
-reconstruction.
+weight products. Deterministic affine cases verify adaptive branch reduction
+and conditioning-path behavior. Higher-dimensional cases verify phase-space
+order, conditioning order, terminal coordinates, global weights, and full raw
+tensor reconstruction.
 
-For phase-space evolution, analytical references should isolate the numerical behavior being
-validated. Constant or affine node advection tests exact phase-space evolution.
-Closed-form source equations test moment-source integration. Commuting and
-noncommuting operator cases test phase-space evolution composition and convergence behavior.
+For phase-space evolution, analytical references should isolate the numerical
+behavior being validated. Constant or affine node advection tests exact
+phase-space evolution. Closed-form source equations test moment-source
+integration. Commuting and noncommuting operator cases test phase-space
+evolution composition and convergence behavior.
 
 Manufactured solutions are appropriate when the exact physical model is less
 important than a controlled mathematical reference. A manufactured case may
@@ -141,16 +142,16 @@ QMOMKit deterministic moments
 Monte Carlo estimated moments
 ```
 
-It does not validate by comparing quadrature nodes, CQMOM conditioning paths, or
-internal branch structures. Those quantities are diagnostics. The primary
+It does not validate by comparing quadrature nodes, CQMOM conditioning paths,
+or internal branch structures. Those quantities are diagnostics. The primary
 comparison is the moment representation.
 
 Monte Carlo references are stochastic sample-based references that validate
 moment representations and their evolution. They are not production physical
 models, analytical solutions, source-term models, or replacements for
-QMOM/CQMOM phase-space evolution. A Monte Carlo case supplies a sampled ensemble reference
-whose uncertainty depends on sample count, seed, moment order, distribution
-tails, and the selected dynamics.
+QMOM/CQMOM phase-space evolution. A Monte Carlo case supplies a sampled
+ensemble reference whose uncertainty depends on sample count, seed, moment
+order, distribution tails, and the selected dynamics.
 
 For direct QMOMKit-versus-Monte-Carlo comparisons, initialize both paths from
 the same finite realization when practical:

@@ -15,9 +15,9 @@
 
 QMOMKit is designed to be embedded in larger simulation, validation, and
 analysis codes. In large CFD-style applications, QMOM and CQMOM reconstruction,
-phase-space evolution, moment-source integration, and linear solves may be called many
-millions or billions of times. A small per-call cost can therefore become a
-significant application-level cost.
+phase-space evolution, moment-source integration, and linear solves may be
+called many millions or billions of times. A small per-call cost can therefore
+become a significant application-level cost.
 
 Performance work in QMOMKit should follow a simple rule:
 
@@ -49,11 +49,12 @@ condition estimates, and related information needed to interpret the validity
 and numerical path of a result.
 
 Performance instrumentation counts computational work. It records events such
-as reconstruction calls, Wheeler calls, Vandermonde solver usage,
-phase-space evolution operator applications, adaptive CQMOM active-count derivation,
-validation, and transition construction, moment-source SSP-RK stages, moment-source retries,
-node RHS evaluations, and adaptive embedded-RK node-advection steps. These
-counters describe workload composition, not correctness.
+as reconstruction calls, Wheeler calls, Vandermonde solver usage, phase-space
+evolution operator applications, adaptive CQMOM active-count derivation,
+validation, and transition construction, moment-source SSP-RK stages,
+moment-source retries, node RHS evaluations, and adaptive embedded-RK
+node-advection steps. These counters describe workload composition, not
+correctness.
 
 Profiling tools measure elapsed time and hardware-level behavior. Use external
 profilers to identify where time is spent, whether memory allocation or cache
@@ -77,22 +78,22 @@ Use performance instrumentation as part of a measurement-driven workflow:
 6. Re-run the benchmark or workload to confirm the improvement.
 
 Avoid speculative optimization. A frequently mentioned operation is not
-necessarily a bottleneck, and a locally expensive operation may not matter if it
-is rarely called. Counters help identify plausible dominant operations; they do
-not replace benchmark timing or profiling evidence.
+necessarily a bottleneck, and a locally expensive operation may not matter if
+it is rarely called. Counters help identify plausible dominant operations; they
+do not replace benchmark timing or profiling evidence.
 
 The standalone
 [`performance_instrumentation_benchmark`](benchmarks.md#performance-instrumentation-benchmarks)
 provides initial representative QMOMKit workloads that combine Google Benchmark
 timing with the internal counter layer. Build it against an installed QMOMKit
 package configured with `QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION=ON`; the
-benchmark project discovers that package through `find_package(QMOMKit)`.
-Its default output includes a grouped human-readable report so maintainers can
+benchmark project discovers that package through `find_package(QMOMKit)`. Its
+default output includes a grouped human-readable report so maintainers can
 connect timings to reconstruction, linear algebra, phase-space evolution, and
 time-integration workload counters. The benchmark also includes comparison
-variants for source-layout work, Vandermonde solver policy, phase-space evolution
-components, and instrumentation overhead; those comparisons are designed to
-test performance hypotheses before any optimization work begins.
+variants for source-layout work, Vandermonde solver policy, phase-space
+evolution components, and instrumentation overhead; those comparisons are
+designed to test performance hypotheses before any optimization work begins.
 
 ## Instrumentation design
 
@@ -135,7 +136,7 @@ residual checks, and condition estimates. BP transform updates count the
 innermost-loop RHS updates in the two BP transforms; they are deterministic
 kernel-work counts, not timings.
 
-Phase-space evolution counters summarize operator-split phase-space evolution work, including macro
+Phase-space evolution counters summarize operator-split work, including macro
 steps, advection and moment-source operator applications, moment
 reconstruction calls, and post-source inversions.
 
@@ -146,9 +147,10 @@ validation is recorded when recursive reconstruction validates a non-empty
 active-count constraint collection. A transition build is recorded when
 non-empty before/after active counts are processed for transition diagnostics.
 
-Time-integration counters summarize RK-related work, including moment-source SSP-RK
-stages, moment-source retries, node RHS evaluations, and adaptive embedded-RK accepted
-or rejected steps when RK23 or RK45 node advection is selected.
+Time-integration counters summarize RK-related work, including moment-source
+SSP-RK stages, moment-source retries, node RHS evaluations, and adaptive
+embedded-RK accepted or rejected steps when RK23 or RK45 node advection is
+selected.
 
 These groups intentionally avoid per-branch timing, per-dimension breakdowns,
 allocation tracking, callback timing, and other finer-grained details until
@@ -161,9 +163,9 @@ together with benchmark timings, profiler output, and the numerical problem
 being solved.
 
 A high Wheeler-call count may indicate frequent reconstruction, many CQMOM
-branches, many phase-space evolution macro steps, or a modeling choice that requires
-repeated inversion. It does not by itself prove that Wheeler inversion is the
-runtime bottleneck.
+branches, many phase-space evolution macro steps, or a modeling choice that
+requires repeated inversion. It does not by itself prove that Wheeler inversion
+is the runtime bottleneck.
 
 A high moment-layout-build count indicates metadata preparation work: required
 CQMOM moment-layout generation, branch-local layout construction, or validation
@@ -175,8 +177,8 @@ builds are usually more interesting than branch-local layouts.
 `cqmom_prepared_metadata_builds` increments once when a fixed normal case or a
 direct fixed normal state starts a new lineage and eagerly constructs its
 immutable required-layout and branch-layout graph. It does not increment for
-copies, transformations that preserve structure, or phase-space evolution successors.
-`cqmom_prepared_metadata_uses` increments once when a fixed trusted
+copies, transformations that preserve structure, or phase-space evolution
+successors. `cqmom_prepared_metadata_uses` increments once when a fixed trusted
 reconstruction consumes compatible metadata. `cqmom_dynamic_metadata_builds`
 increments once per reconstruction that creates root/branch metadata
 dynamically, such as an adaptive normal case or an explicit dense/lean case. A
@@ -187,9 +189,9 @@ required-layout and branch-layout objects, including the objects created during
 one eager prepared build.
 
 A high node-RHS-evaluation count may reflect many terminal nodes, long
-phase-space evolution intervals, difficult velocity dynamics, or tight embedded-RK
-tolerances when RK23 or RK45 is selected. The next step is to compare counters with
-node-advection timings, including the
+phase-space evolution intervals, difficult velocity dynamics, or tight
+embedded-RK tolerances when RK23 or RK45 is selected. The next step is to
+compare counters with node-advection timings, including the
 `performance_node_advection_scheme` benchmark cases, and profile the velocity
 callback path.
 
@@ -252,10 +254,10 @@ vector: a CQMOM step sheds a further 20 allocations and a QMOM step a further
 17. Reconstruction and inversion are unchanged, as they run no time integration.
 
 The second change also made the cost structure qualitatively different. An
-embedded-RK integration now allocates a fixed number of vectors — the state, the
-result, four working buffers, and one per tableau stage — no matter how many
-steps it takes. Integrating twenty RK23 steps of a 24-component state costs 10
-allocations where it once cost 162.
+embedded-RK integration now allocates a fixed number of vectors — the state,
+the result, four working buffers, and one per tableau stage — no matter how
+many steps it takes. Integrating twenty RK23 steps of a 24-component state
+costs 10 allocations where it once cost 162.
 
 Workload counters per state-step are unchanged from the baseline, so the
 reduction comes from removing redundant allocation rather than from doing less

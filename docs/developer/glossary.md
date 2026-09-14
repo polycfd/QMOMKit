@@ -1,7 +1,8 @@
 # Developer Glossary
 
 This glossary is a navigation aid for common QMOMKit developer symbols and
-concepts. Please follow the linked design page for more detailed explanations, conventions, and extension rules.
+concepts. Please follow the linked design page for more detailed explanations,
+conventions, and extension rules.
 
 ## Frequently Encountered Symbols
 
@@ -17,7 +18,7 @@ concepts. Please follow the linked design page for more detailed explanations, c
 | Type | `MomentSource` | Raw-moment rate callback, evaluated once per SSP-RK stage. It returns its rates rather than filling a buffer; that asymmetry with the velocity is deliberate and is explained on the design page. | [phase_space_evolution_design.md](phase_space_evolution_design.md) |
 | Type | `OdeRhs` | Generic ODE right-hand side used by both Runge-Kutta drivers. It fills a supplied derivative buffer, which is what keeps the stage evaluations of an integration free of heap allocation. | [phase_space_evolution_design.md](phase_space_evolution_design.md) |
 | Concept | QMOM | One-dimensional quadrature reconstruction from a raw moment sequence. It is the base workflow for ordinary QMOM and for branch-local inversions inside CQMOM. | [qmom_wheeler.md](qmom_wheeler.md) |
-| Concept | quadrature | Discrete weighted-node representation of raw moments. It is the object developers inspect, phase-space evolution, output, or use to reconstruct moments after a successful inversion. | [numerical_conventions.md](numerical_conventions.md) |
+| Concept | quadrature | Discrete weighted-node representation of raw moments. It is the object developers inspect, evolve, write out, or use to reconstruct moments after a successful inversion. | [numerical_conventions.md](numerical_conventions.md) |
 | Concept | raw moments | Unnormalized moments of the number density function, with $m_0$ carrying total number density. This convention drives initialization, reconstruction, phase-space evolution, output, and validation. | [numerical_conventions.md](numerical_conventions.md) |
 | Concept | realizability | Support-aware validity of a truncated moment sequence. Developers encounter it when deciding whether moments can be accepted before reconstruction or during source evolution. | [realizability.md](realizability.md) |
 | Type | `ConditioningPath` | Records node indices by CQMOM conditioning level. Developers see it in adaptive diagnostics and ragged terminal quadrature paths. | [cqmom_recursive.md](cqmom_recursive.md) |

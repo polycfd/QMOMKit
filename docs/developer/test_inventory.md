@@ -10,7 +10,8 @@
 
 ## Overview
 
-This reference inventory corresponds to the current root CTest registrations. Each runtime logical test is registered exactly once with CTest.
+This reference inventory corresponds to the current root CTest registrations.
+Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
@@ -21,13 +22,19 @@ This reference inventory corresponds to the current root CTest registrations. Ea
 | Public-header CTest check | 1 |
 | **Total CTest registrations** | **862** |
 
-Multiple parameter values or configurations used to establish one claim remain internal to that logical test and therefore do not increase the CTest count. The source, selector, and any configured internal case below identify how each registration is invoked.
+Multiple parameter values or configurations used to establish one claim remain
+internal to that logical test and therefore do not increase the CTest count.
+The source, selector, and any configured internal case below identify how each
+registration is invoked.
 
 ### Maintenance
 
-Any addition, removal, split, or merge of a logical runtime CTest registration must update this inventory in the same change. Parameter additions within an existing logical claim generally do not add another inventory row.
+Any addition, removal, split, or merge of a logical runtime CTest registration
+must update this inventory in the same change. Parameter additions within an
+existing logical claim generally do not add another inventory row.
 
-Verify rather than trust: the inventory and the suite must name exactly the same tests.
+Verify rather than trust: the inventory and the suite must name exactly the
+same tests.
 
 ```bash
 ctest --test-dir <build> -N | sed -nE 's/^ *Test +#[0-9]+: (.*)$/\1/p' | sort -u > /tmp/registered
@@ -413,7 +420,9 @@ renamed test rather than a deleted one.
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 861 runtime logical-test count. It compiles and links 23 public-header translation units as one separate CTest check; it is not 23 runtime tests.
+The `public_headers` registration is not part of the 861 runtime logical-test
+count. It compiles and links 23 public-header translation units as one separate
+CTest check; it is not 23 runtime tests.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |

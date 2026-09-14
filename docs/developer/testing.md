@@ -1,7 +1,7 @@
 # Testing
 
 This page documents the current QMOMKit testing philosophy and test
-architecture. 
+architecture.
 It describes stable correctness expectations and the current root
 CTest inventory, not temporary CI setup.
 
@@ -44,16 +44,16 @@ result as evidence that the functional unit suite passed.
 
 ## Test-suite Organization
 
-QMOMKit is a numerical C++ library, so correctness requires more than exercising
-code paths. A passing test should usually demonstrate a mathematical invariant,
-a known analytical result, a manufactured solution, or a documented failure
-contract.
+QMOMKit is a numerical C++ library, so correctness requires more than
+exercising code paths. A passing test should usually demonstrate a mathematical
+invariant, a known analytical result, a manufactured solution, or a documented
+failure contract.
 
 Unit tests alone are insufficient for moment-method software. They are good at
 protecting local behavior, option validation, indexing helpers, and failure
 paths, but they do not by themselves establish that an inversion, conditional
-reconstruction, phase-space evolution update, or realizability check matches the intended
-mathematics.
+reconstruction, phase-space evolution update, or realizability check matches
+the intended mathematics.
 
 The core testing principle is:
 
@@ -70,8 +70,8 @@ QMOMKit testing
  local APIs                stability        workflow correctness
 ```
 
-Analytical and manufactured solutions are especially important because they make
-the expected answer independent of the implementation under test. When a
+Analytical and manufactured solutions are especially important because they
+make the expected answer independent of the implementation under test. When a
 verification compares recovered quadrature, evolved moments, or reconstructed
 raw moments, the reference values should come from the mathematical case being
 tested, not from another call into the same production algorithm.
@@ -135,8 +135,8 @@ tests/
 
 Some repository tests include `src/` as a private include path for focused
 internal validation. That is permitted inside the repository test project, but
-it does not change the public API boundary. Downstream users should consume only
-installed headers and exported package targets.
+it does not change the public API boundary. Downstream users should consume
+only installed headers and exported package targets.
 
 Package consumption is also tested explicitly by:
 
@@ -242,8 +242,9 @@ visible.
 
 ### Package Consumer Tests
 
-Package consumer tests validate the installed-package experience rather than the
-in-tree build. The consumer project should behave like an external application:
+Package consumer tests validate the installed-package experience rather than
+the in-tree build. The consumer project should behave like an external
+application:
 
 - discover QMOMKit with `find_package(QMOMKit CONFIG REQUIRED)`;
 - link only `qmomkit::qmomkit`;
@@ -264,18 +265,18 @@ public headers, or CMake package metadata change.
 
 Analytical solutions are preferred when the exact answer is known in closed
 form. They are useful for Wheeler inversion, low-dimensional CQMOM cases,
-distribution moment generation, simple ODE integration, moment-source evolution, and
-phase-space evolution cases with closed-form operator behavior.
+distribution moment generation, simple ODE integration, moment-source
+evolution, and phase-space evolution cases with closed-form operator behavior.
 
 Manufactured solutions are useful when the algorithm is more complex than the
 available closed-form examples. They should define moments, nodes, weights,
-conditioning paths, source terms, or phase-space evolution behavior from an independent
-construction and then verify that QMOMKit recovers the expected mathematical
-object.
+conditioning paths, source terms, or phase-space evolution behavior from an
+independent construction and then verify that QMOMKit recovers the expected
+mathematical object.
 
-Convergence studies are useful for time integration and phase-space evolution. They should
-test numerical order or monotonic error reduction using deterministic cases
-whose exact or high-confidence reference behavior is known.
+Convergence studies are useful for time integration and phase-space evolution.
+They should test numerical order or monotonic error reduction using
+deterministic cases whose exact or high-confidence reference behavior is known.
 
 A convergence registration must identify its independent reference, refinement
 variable and sequence, error quantity, expected order or trend, and pass
@@ -283,9 +284,9 @@ threshold. Tolerance refinement for adaptive methods is accuracy evidence; it
 is not a formal fixed-step order proof.
 
 Deterministic regression cases are useful for boundary behavior, diagnostics,
-and previously fragile numerical situations. They should preserve the meaningful
-status, tolerance, ordering, or reconstruction property rather than simply
-locking in implementation-shaped output.
+and previously fragile numerical situations. They should preserve the
+meaningful status, tolerance, ordering, or reconstruction property rather than
+simply locking in implementation-shaped output.
 
 High-dimensional CQMOM needs special care. Tests should separate phase-space
 dimension order from conditioning order, verify terminal quadrature weights and
@@ -293,8 +294,8 @@ coordinates, and reconstruct raw tensor moments from the final quadrature when
 that is the mathematical guarantee being tested.
 
 Realizability tests should cover accepted, boundary, rejected, invalid-input,
-and numerically indeterminate cases. They should also verify that policies reject
-candidate moment states without implying automatic correction.
+and numerically indeterminate cases. They should also verify that policies
+reject candidate moment states without implying automatic correction.
 
 ## Adding New Tests
 
@@ -309,8 +310,8 @@ closed-form evolution, manufactured quadrature recovery, support-aware
 realizability, convergence, or invariant preservation.
 
 Add public-header coverage when public APIs change. Installed headers should
-compile when included directly and should not rely on a caller including another
-header first.
+compile when included directly and should not rely on a caller including
+another header first.
 
 Add or update package-consumer coverage when installation, export, package
 configuration, or public target behavior changes.
@@ -322,9 +323,9 @@ running its tests, then run them explicitly with CTest.
 Update examples only when the user-facing workflow changes. Examples are not a
 substitute for automated correctness tests.
 
-Prefer deterministic tests. Stochastic or Monte Carlo workflows are valuable for
-independent validation, but normal correctness tests should not depend on random
-sampling noise unless the uncertainty model is explicit and controlled.
+Prefer deterministic tests. Stochastic or Monte Carlo workflows are valuable
+for independent validation, but normal correctness tests should not depend on
+random sampling noise unless the uncertainty model is explicit and controlled.
 
 ## Relationship With Benchmarks
 
@@ -335,7 +336,8 @@ correctness test should not depend on timing-sensitive behavior. Performance
 work should preserve the same mathematical contracts checked by unit and
 verification tests.
 
-Benchmark structure and interpretation belong in [benchmarks.md](benchmarks.md).
+Benchmark structure and interpretation belong in
+[benchmarks.md](benchmarks.md).
 
 ## Registered Root CTest Inventory
 

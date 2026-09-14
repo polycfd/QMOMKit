@@ -1,9 +1,13 @@
 # Realizability
 
-This page documents the current QMOMKit design for realizability handling. 
+This page documents the current QMOMKit design for realizability handling.
 
 For raw-moment, number-density, and storage conventions, see
-[numerical_conventions.md](numerical_conventions.md). For source updates and phase-space evolution composition, see [phase_space_evolution_design.md](phase_space_evolution_design.md). For configuration mapping of runtime policies, see [configuration_design.md](configuration_design.md).
+[numerical_conventions.md](numerical_conventions.md). For source updates and
+phase-space evolution composition, see
+[phase_space_evolution_design.md](phase_space_evolution_design.md). For
+configuration mapping of runtime policies, see
+[configuration_design.md](configuration_design.md).
 
 ## Contents
 
@@ -62,10 +66,10 @@ positive. Typical examples are particle size, mass, count-like quantities, or
 other variables whose support is `[0, infinity)`.
 
 `MomentSupport::bounded_interval` applies when the coordinate must lie within a
-closed interval. The public check uses an explicit `BoundedInterval` with finite
-bounds and requires `lower < upper`. This support is appropriate for
-interval-constrained quantities such as bounded normalized coordinates or volume
-fractions.
+closed interval. The public check uses an explicit `BoundedInterval` with
+finite bounds and requires `lower < upper`. This support is appropriate for
+interval-constrained quantities such as bounded normalized coordinates or
+volume fractions.
 
 Support is semantic input from the caller. It is not inferred from distribution
 family, phase-space dimension name, output label, or units.
@@ -80,9 +84,9 @@ criteria to decide whether a finite sequence
 m_0, m_1, ..., m_N
 ```
 
-can represent a nonnegative measure on the caller-selected support. The criteria
-are support-aware: the same numeric sequence may be admissible on one support
-and inadmissible on another.
+can represent a nonnegative measure on the caller-selected support. The
+criteria are support-aware: the same numeric sequence may be admissible on one
+support and inadmissible on another.
 
 For `MomentSupport::real_line`, the relevant model is the Hamburger moment
 problem. The coordinate may take any real value, so the primary requirement is
@@ -94,8 +98,8 @@ on the boundary of moment space.
 For `MomentSupport::nonnegative`, the relevant model is the Stieltjes moment
 problem. The moment sequence must satisfy the real-line positivity requirements
 and the additional constraints implied by support on `[0, infinity)`. These
-additional conditions reject moment sequences that may be realizable on the full
-real line but require mass outside the nonnegative support.
+additional conditions reject moment sequences that may be realizable on the
+full real line but require mass outside the nonnegative support.
 
 For `MomentSupport::bounded_interval`, the relevant model is the Hausdorff
 moment problem on an explicit interval `[lower, upper]`. The sequence must be
@@ -160,8 +164,8 @@ bounded-interval limits.
 `not_realizable` means the supplied numbers form a well-defined request but
 cannot represent a valid nonnegative measure on the selected support. Examples
 include negative `m_0`, zero total number density with nonzero higher moments,
-or moment sequences that fail the support-specific realizability conditions. The
-all-zero sequence is treated as a boundary-realizable zero measure.
+or moment sequences that fail the support-specific realizability conditions.
+The all-zero sequence is treated as a boundary-realizable zero measure.
 
 `RealizabilityOptions` controls numerical tolerance. With relative tolerance
 enabled, the effective threshold, roundoff allowance, and numerical matrix
@@ -205,8 +209,8 @@ normal status and diagnostics.
 
 ## Interaction With QMOM And CQMOM
 
-Realizability is a constraint on moment representations. It is not a replacement
-for QMOM or CQMOM reconstruction status.
+Realizability is a constraint on moment representations. It is not a
+replacement for QMOM or CQMOM reconstruction status.
 
 For one-dimensional QMOM, explicit checks can be used before calling
 `compute_qmom(...)` when the workflow needs support-aware validation. Wheeler
@@ -228,15 +232,15 @@ moment realizability, and reconstruction success:
 - QMOM and CQMOM reconstruction report whether the requested quadrature was
   accepted.
 
-Each layer reports its own status. A successful earlier layer does not guarantee
-success in a later one.
+Each layer reports its own status. A successful earlier layer does not
+guarantee success in a later one.
 
 ## Failure Handling
 
-Realizability APIs use explicit result objects rather than exceptions for normal
-classification failure. Callers should check `RealizabilityResult::status` or
-`realizable()` before using a moment sequence as accepted input under the
-selected support settings.
+Realizability APIs use explicit result objects rather than exceptions for
+normal classification failure. Callers should check
+`RealizabilityResult::status` or `realizable()` before using a moment sequence
+as accepted input under the selected support settings.
 
 Failure handling rules are:
 
@@ -305,6 +309,6 @@ Realizability changes should preserve these rules:
 - document any new support domain, status, or runtime-check behavior before
   exposing it through public configuration.
 
-The goal is conservative numerical validation: realizability support should help
-developers and drivers detect invalid moment states early without hiding the
-source of the failure.
+The goal is conservative numerical validation: realizability support should
+help developers and drivers detect invalid moment states early without hiding
+the source of the failure.

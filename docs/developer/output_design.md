@@ -1,6 +1,6 @@
 # Output Design
 
-This page documents the current QMOMKit design for output handling. 
+This page documents the current QMOMKit design for output handling.
 
 ## Contents
 
@@ -55,8 +55,8 @@ QuadratureWriter
 - optional generalized moment exponent vectors for state-based moment output.
 
 The numerical algorithms do not consume `OutputOptions` directly. A driver may
-parse it from configuration, create directories, construct writers, and schedule
-calls according to its own simulation loop.
+parse it from configuration, create directories, construct writers, and
+schedule calls according to its own simulation loop.
 
 `MomentWriter` writes raw moment histories. Construction opens exactly one text
 file, writes one header row, and each `write(...)` call appends one time row.
@@ -103,8 +103,8 @@ fixed writer behavior, not a user-configurable option. It preserves
 high-precision floating-point text representation for reproducible output in
 ordinary validation workflows.
 
-For one-dimensional QMOM moment output, the all-moment writer uses ascending raw
-moment order:
+For one-dimensional QMOM moment output, the all-moment writer uses ascending
+raw moment order:
 
 ```text
 M[0], M[1], M[2], ...
@@ -179,10 +179,10 @@ The writer accepts `Quadrature1D` and `QmomResult`. Callers are responsible for
 checking numerical status before writing a result object. Output helpers do not
 reinterpret a failed reconstruction as valid numerical data.
 
-For CQMOM quadrature, each row represents one active terminal node at one output
-time. The row contains the output time, the terminal node's local index within
-that quadrature, the recursive conditioning path, the accumulated terminal
-weight, and abscissas in phase-space dimension order:
+For CQMOM quadrature, each row represents one active terminal node at one
+output time. The row contains the output time, the terminal node's local index
+within that quadrature, the recursive conditioning path, the accumulated
+terminal weight, and abscissas in phase-space dimension order:
 
 ```text
 # time node_index path_0 path_1 weight x0 x1
@@ -220,8 +220,8 @@ interval = 0.1
 ```
 
 Parsing this section creates an `OutputOptions` object. It does not modify
-`QmomCase`, `CqmomDenseCase`, phase-space evolution options, time integrators, moment
-sources, or velocity callbacks.
+`QmomCase`, `CqmomDenseCase`, phase-space evolution options, time integrators,
+moment sources, or velocity callbacks.
 
 If no output section is present, parsed output options use the default
 application-controlled behavior:
@@ -234,8 +234,9 @@ interval = unset
 ```
 
 The optional interval is cadence metadata for the driver. QMOMKit does not own
-an output scheduler. A driver that uses the interval must decide how to align it
-with its timestep sequence, final time, retry behavior, and validation output.
+an output scheduler. A driver that uses the interval must decide how to align
+it with its timestep sequence, final time, retry behavior, and validation
+output.
 
 Configuration controls whether a driver may choose to create writers. It does
 not define output data semantics. Moment and quadrature column ordering remain

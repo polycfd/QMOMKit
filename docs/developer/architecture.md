@@ -39,9 +39,9 @@ reconstruction inputs or phase-space-evolved states.
 
 Moment generation, CQMOM reconstruction, and reconstruction-time storage are
 separate responsibilities. Analytical distributions can produce `MomentSet`
-data for QMOM, selected required CQMOM moments, or dense full moment tensors for
-explicit dense workflows. CQMOM records the hierarchy, conditioning order, and
-required-moment layout. Internal recursive storage adapts those moments for
+data for QMOM, selected required CQMOM moments, or dense full moment tensors
+for explicit dense workflows. CQMOM records the hierarchy, conditioning order,
+and required-moment layout. Internal recursive storage adapts those moments for
 efficient traversal without making distribution objects aware of CQMOM.
 
 QMOMKit is not a CFD solver. It does not own meshes, cells, finite-volume or
@@ -78,24 +78,27 @@ configuration
 ```
 
 After reconstruction, both QMOM and CQMOM workflows may inspect quadrature,
-evaluate derived quantities, write output, or enter optional phase-space evolution. QMOM
-phase-space evolution creates a `QmomState` with `QmomCase::initial_state()` and advances it
-with `advance_qmom_phase_space(QmomState, ...)`; normal CQMOM phase-space evolution creates a
-`CqmomState` with `CqmomCase::initial_state()` and advances it with
+evaluate derived quantities, write output, or enter optional phase-space
+evolution. QMOM phase-space evolution creates a `QmomState` with
+`QmomCase::initial_state()` and advances it with
+`advance_qmom_phase_space(QmomState, ...)`; normal CQMOM phase-space evolution
+creates a `CqmomState` with `CqmomCase::initial_state()` and advances it with
 `advance_cqmom_phase_space(CqmomState, ...)`.
 
-Accepted-state batch phase-space evolution is a serial collection of these same local
-operations. It does not give QMOMKit ownership of cells, meshes, partitions, or
-parallel execution; applications retain spatial organization and scheduling.
+Accepted-state batch phase-space evolution is a serial collection of these same
+local operations. It does not give QMOMKit ownership of cells, meshes,
+partitions, or parallel execution; applications retain spatial organization and
+scheduling.
 
 `CqmomCase` and `CqmomState` are the neutral public objects for normal CQMOM
-workflows. Normal CQMOM phase-space evolution creates a `CqmomState` from `CqmomCase` and
-advances it with `advance_cqmom_phase_space(...)`, independent of dense or lean
-storage. Normal configured workflows default to lean moment storage and may
-select dense storage explicitly with `cqmom.moment_storage`. `CqmomDenseCase`
-with `RawMomentTensor` and `CqmomLeanCase` with `CqmomMomentLayout` and
-`CqmomMomentData` remain supported advanced explicit representations for static
-inversion, specialized initialization, validation, and expert workflows.
+workflows. Normal CQMOM phase-space evolution creates a `CqmomState` from
+`CqmomCase` and advances it with `advance_cqmom_phase_space(...)`, independent
+of dense or lean storage. Normal configured workflows default to lean moment
+storage and may select dense storage explicitly with `cqmom.moment_storage`.
+`CqmomDenseCase` with `RawMomentTensor` and `CqmomLeanCase` with
+`CqmomMomentLayout` and `CqmomMomentData` remain supported advanced explicit
+representations for static inversion, specialized initialization, validation,
+and expert workflows.
 
 ### QMOM and CQMOM Terminology
 
@@ -167,8 +170,8 @@ projects.
 ### QMOMKitMonteCarlo Companion Package
 
 `tools/monte_carlo/` contains the optional QMOMKitMonteCarlo companion package.
-It provides Monte Carlo sampling, ensemble moment extraction, evolution, output,
-and comparison utilities for validation workflows.
+It provides Monte Carlo sampling, ensemble moment extraction, evolution,
+output, and comparison utilities for validation workflows.
 
 The companion package exports:
 
@@ -363,8 +366,8 @@ cmake --build build-release
 ```
 
 RelWithDebInfo builds are for profiling and performance analysis. They should
-keep optimization enabled, retain debug symbols, define `NDEBUG`, and preserve a
-profile-friendly symbolized binary:
+keep optimization enabled, retain debug symbols, define `NDEBUG`, and preserve
+a profile-friendly symbolized binary:
 
 ```sh
 cmake -B build-profile -DCMAKE_BUILD_TYPE=RelWithDebInfo

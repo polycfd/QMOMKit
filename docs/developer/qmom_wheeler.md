@@ -1,11 +1,12 @@
 # QMOM Wheeler Inversion
 
 This page documents the current QMOMKit design for one-dimensional QMOM
-inversion with the Wheeler algorithm [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)].
+inversion with the Wheeler algorithm [[Wheeler,
+1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)].
 
 For raw-moment, node, abscissa, weight, and ordering conventions, see
-[numerical_conventions.md](numerical_conventions.md). This page describes how those conventions are used
-by the Wheeler inversion implementation.
+[numerical_conventions.md](numerical_conventions.md). This page describes how
+those conventions are used by the Wheeler inversion implementation.
 
 ## Contents
 
@@ -110,11 +111,12 @@ in implementation files and are not exposed as public API objects.
 
 ## Adaptive Wheeler
 
-The adaptive Wheeler alogrithm [[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)] allows a case for up to $N$ nodes to return a smaller
-accepted quadrature rule when the supplied moments are effectively supported
-by fewer distinct nodes. This is important near the boundary of realizable
-moment space, where a fixed-node inversion can encounter nearly duplicate
-nodes, tiny weights, or degenerate recurrence data.
+The adaptive Wheeler alogrithm [[Marchisio & Fox,
+2013](https://www.doi.org/10.1017/CBO9781139016599)] allows a case for up to
+$N$ nodes to return a smaller accepted quadrature rule when the supplied
+moments are effectively supported by fewer distinct nodes. This is important
+near the boundary of realizable moment space, where a fixed-node inversion can
+encounter nearly duplicate nodes, tiny weights, or degenerate recurrence data.
 
 Adaptive behavior is controlled by `QmomOptions` or `WheelerOptions`:
 
@@ -199,11 +201,11 @@ Current status values are:
 - `not_realizable`: the supplied moments fail a realizability or recurrence
   check.
 
-Non-success statuses may still carry diagnostic fallback data. This behavior
-is intentional and supports downstream diagnostics or controlled failure
-handling. Fallback values may not preserve the original moment sequence and
-must not be treated as a successful quadrature rule. Callers should check the
-status before using abscissas or weights in reconstruction, phase-space evolution,
+Non-success statuses may still carry diagnostic fallback data. This behavior is
+intentional and supports downstream diagnostics or controlled failure handling.
+Fallback values may not preserve the original moment sequence and must not be
+treated as a successful quadrature rule. Callers should check the status before
+using abscissas or weights in reconstruction, phase-space evolution,
 validation, or output.
 
 Numerical conditioning is most sensitive when moments are high order, nodes
@@ -297,5 +299,5 @@ Existing coverage includes:
 - deterministic verification against known quadrature rules.
 
 Any Wheeler behavior change must update the relevant unit and verification
-tests before QMOM, CQMOM, phase-space evolution, configuration parsing, or validation
-workflows rely on it.
+tests before QMOM, CQMOM, phase-space evolution, configuration parsing, or
+validation workflows rely on it.

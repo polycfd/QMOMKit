@@ -38,7 +38,17 @@ same name in the same file is almost always the new location; when it reports a
 name the file no longer contains at all, the definition moved or was removed and
 the row needs a decision rather than a new number.
 
-The inventory includes **943 definition locations**, grouped by named function
+That check only confirms that existing rows point somewhere valid. It cannot see
+a definition that has no row at all, which is how a whole type can be added
+without the ledger noticing — the two flat index-table headers were missed
+exactly that way and had no section until they were audited.
+
+The rule that closes it: **when a change adds a file under `src/` or
+`include/qmomkit/`, add its section here in the same change**, and when it adds
+a definition to a file that already has a section, add its row. A section that
+lists a file is a claim that it lists all of that file's definitions.
+
+The inventory includes **1015 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -80,6 +90,31 @@ the executable-body count.
 |---|---|
 | `ConditionalMomentResult::ok` | [70](../../../include/qmomkit/conditional_moments.hpp#L70) |
 
+### `include/qmomkit/conditioning_path.hpp`
+
+[Source](../../../include/qmomkit/conditioning_path.hpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+
+| Function or overload family | Definition lines |
+|---|---|
+| `ConditioningPathView::ConditioningPathView` | [60](../../../include/qmomkit/conditioning_path.hpp#L60) |
+| `ConditioningPathView::empty` | [65](../../../include/qmomkit/conditioning_path.hpp#L65) |
+| `ConditioningPathView::size` | [69](../../../include/qmomkit/conditioning_path.hpp#L69) |
+| `ConditioningPathView::begin` | [75](../../../include/qmomkit/conditioning_path.hpp#L75) |
+| `ConditioningPathView::end` | [79](../../../include/qmomkit/conditioning_path.hpp#L79) |
+| `ConditioningPathView::data` | [83](../../../include/qmomkit/conditioning_path.hpp#L83) |
+| `ConditioningPathView::to_conditioning_path` | [89](../../../include/qmomkit/conditioning_path.hpp#L89) |
+| `ConditioningPathTable::const_iterator::operator*` | [132](../../../include/qmomkit/conditioning_path.hpp#L132) |
+| `ConditioningPathTable::const_iterator::operator++` | [136](../../../include/qmomkit/conditioning_path.hpp#L136), [141](../../../include/qmomkit/conditioning_path.hpp#L141) |
+| `ConditioningPathTable::const_iterator::operator==` | [147](../../../include/qmomkit/conditioning_path.hpp#L147) |
+| `ConditioningPathTable::const_iterator::operator!=` | [151](../../../include/qmomkit/conditioning_path.hpp#L151) |
+| `ConditioningPathTable::size` | [172](../../../include/qmomkit/conditioning_path.hpp#L172) |
+| `ConditioningPathTable::levels` | [177](../../../include/qmomkit/conditioning_path.hpp#L177) |
+| `ConditioningPathTable::empty` | [181](../../../include/qmomkit/conditioning_path.hpp#L181) |
+| `ConditioningPathTable::operator[]` | [185](../../../include/qmomkit/conditioning_path.hpp#L185) |
+| `ConditioningPathTable::begin` | [191](../../../include/qmomkit/conditioning_path.hpp#L191) |
+| `ConditioningPathTable::end` | [195](../../../include/qmomkit/conditioning_path.hpp#L195) |
+| `ConditioningPathTable::node_indices` | [201](../../../include/qmomkit/conditioning_path.hpp#L201) |
+
 ### `include/qmomkit/configuration.hpp`
 
 [Source](../../../include/qmomkit/configuration.hpp) · [Responsibilities, contracts, and evidence](initialization_and_configuration.md)
@@ -108,6 +143,7 @@ the executable-body count.
 | `CqmomQuadrature::has_rectangular_storage` | [68](../../../include/qmomkit/cqmom.hpp#L68) |
 | `CqmomQuadrature::terminal_paths` | [72](../../../include/qmomkit/cqmom.hpp#L72) |
 | `CqmomResult::ok` | [335](../../../include/qmomkit/cqmom.hpp#L335) |
+| `CqmomQuadrature::hierarchy` | [44](../../../include/qmomkit/cqmom.hpp#L44) |
 
 ### `include/qmomkit/distributions.hpp`
 
@@ -127,6 +163,32 @@ the executable-body count.
 |---|---|
 | `MomentSourceUpdateResult::ok` | [259](../../../include/qmomkit/moment_source.hpp#L259) |
 | `CqmomMomentSourceUpdateResult::ok` | [259](../../../include/qmomkit/moment_source.hpp#L259) |
+
+### `include/qmomkit/multi_index.hpp`
+
+[Source](../../../include/qmomkit/multi_index.hpp) · [Responsibilities, contracts, and evidence](state_and_representations.md)
+
+| Function or overload family | Definition lines |
+|---|---|
+| `MultiIndexView::size` | [45](../../../include/qmomkit/multi_index.hpp#L45) |
+| `MultiIndexView::empty` | [49](../../../include/qmomkit/multi_index.hpp#L49) |
+| `MultiIndexView::operator[]` | [53](../../../include/qmomkit/multi_index.hpp#L53) |
+| `MultiIndexView::begin` | [57](../../../include/qmomkit/multi_index.hpp#L57) |
+| `MultiIndexView::end` | [61](../../../include/qmomkit/multi_index.hpp#L61) |
+| `MultiIndexView::data` | [65](../../../include/qmomkit/multi_index.hpp#L65) |
+| `MultiIndexView::to_multi_index` | [71](../../../include/qmomkit/multi_index.hpp#L71) |
+| `MultiIndexTable::const_iterator::operator*` | [127](../../../include/qmomkit/multi_index.hpp#L127) |
+| `MultiIndexTable::const_iterator::operator++` | [131](../../../include/qmomkit/multi_index.hpp#L131), [136](../../../include/qmomkit/multi_index.hpp#L136) |
+| `MultiIndexTable::const_iterator::operator==` | [142](../../../include/qmomkit/multi_index.hpp#L142) |
+| `MultiIndexTable::const_iterator::operator!=` | [146](../../../include/qmomkit/multi_index.hpp#L146) |
+| `MultiIndexTable::const_iterator::operator-` | [150](../../../include/qmomkit/multi_index.hpp#L150) |
+| `MultiIndexTable::size` | [168](../../../include/qmomkit/multi_index.hpp#L168) |
+| `MultiIndexTable::rank` | [172](../../../include/qmomkit/multi_index.hpp#L172) |
+| `MultiIndexTable::empty` | [176](../../../include/qmomkit/multi_index.hpp#L176) |
+| `MultiIndexTable::operator[]` | [180](../../../include/qmomkit/multi_index.hpp#L180) |
+| `MultiIndexTable::begin` | [186](../../../include/qmomkit/multi_index.hpp#L186) |
+| `MultiIndexTable::end` | [190](../../../include/qmomkit/multi_index.hpp#L190) |
+| `MultiIndexTable::values` | [196](../../../include/qmomkit/multi_index.hpp#L196) |
 
 ### `include/qmomkit/node_advection.hpp`
 
@@ -154,6 +216,8 @@ the executable-body count.
 |---|---|
 | `PhaseSpaceHierarchy::node_counts` | [32](../../../include/qmomkit/phase_space_hierarchy.hpp#L32) |
 | `PhaseSpaceHierarchy::conditioning_order` | [36](../../../include/qmomkit/phase_space_hierarchy.hpp#L36) |
+| `PhaseSpaceHierarchy::number_of_dimensions` | [28](../../../include/qmomkit/phase_space_hierarchy.hpp#L28) |
+| `PhaseSpaceHierarchy::total_nodes` | [40](../../../include/qmomkit/phase_space_hierarchy.hpp#L40) |
 
 ### `include/qmomkit/qmom.hpp`
 
@@ -374,6 +438,7 @@ the executable-body count.
 | `load_realizability_policy` | [2970](../../../src/configuration.cpp#L2970) |
 | `load_qmom_phase_space_evolution_options` | [2975](../../../src/configuration.cpp#L2975) |
 | `load_cqmom_phase_space_evolution_options` | [2980](../../../src/configuration.cpp#L2980) |
+| `parse_vandermonde_rcond` | [1694](../../../src/configuration.cpp#L1694) |
 
 ### `src/distributions.cpp`
 
@@ -478,6 +543,7 @@ the executable-body count.
 | `validate_dense_cqmom_reconstruction_tensor` | [148](../../../src/internal/cqmom_validation.hpp#L148) |
 | `validate_cqmom_quadrature_storage` | [163](../../../src/internal/cqmom_validation.hpp#L163) |
 | `validate_cqmom_moment_rate` | [193](../../../src/internal/cqmom_validation.hpp#L193) |
+| `cqmom_required_moment_extents_representable` | [18](../../../src/internal/cqmom_validation.hpp#L18) |
 
 ### `src/internal/embedded_runge_kutta.cpp`
 
@@ -560,6 +626,7 @@ the executable-body count.
 | `condition_estimate` | [154](../../../src/internal/linear_algebra.cpp#L154) |
 | `rotate` | [168](../../../src/internal/linear_algebra.cpp#L168) |
 | `symmetric_jacobi_eigen` | [213](../../../src/internal/linear_algebra.cpp#L213) |
+| `matrix_all_finite` | [16](../../../src/internal/linear_algebra.cpp#L16) |
 
 ### `src/internal/linear_algebra.hpp`
 
@@ -571,6 +638,7 @@ the executable-body count.
 | `DenseMatrix::rows` | [20](../../../src/internal/linear_algebra.hpp#L20) |
 | `DenseMatrix::cols` | [25](../../../src/internal/linear_algebra.hpp#L25) |
 | `DenseMatrix::operator()` | [30](../../../src/internal/linear_algebra.hpp#L30), [39](../../../src/internal/linear_algebra.hpp#L39) |
+| `DenseMatrix::storage_size` | [49](../../../src/internal/linear_algebra.hpp#L49) |
 
 ### `src/internal/numeric_utils.hpp`
 
@@ -773,6 +841,7 @@ the executable-body count.
 | `advance_cqmom_moments_with_source` | [847](../../../src/moment_source.cpp#L847), [862](../../../src/moment_source.cpp#L862) |
 | `advance_trusted_qmom_moments_with_source` | [881](../../../src/moment_source.cpp#L881), [906](../../../src/moment_source.cpp#L906) |
 | `advance_trusted_cqmom_moments_with_source` | [933](../../../src/moment_source.cpp#L933), [948](../../../src/moment_source.cpp#L948), [967](../../../src/moment_source.cpp#L967), [985](../../../src/moment_source.cpp#L985) |
+| `assign_source_rates` | [393](../../../src/moment_source.cpp#L393) |
 
 ### `src/node_advection.cpp`
 
@@ -827,6 +896,10 @@ the executable-body count.
 | `QuadratureWriter::write_row` | [642](../../../src/output.cpp#L642) |
 | `QuadratureWriter::write_qmom_row` | [669](../../../src/output.cpp#L669) |
 | `QuadratureWriter::write` | [699](../../../src/output.cpp#L699), [704](../../../src/output.cpp#L704), [709](../../../src/output.cpp#L709) |
+| `centered_column_label` | [24](../../../src/output.cpp#L24) |
+| `generalized_moment_label` | [68](../../../src/output.cpp#L68) |
+| `append_generalized_labels` | [84](../../../src/output.cpp#L84) |
+| `validate_generalized_moment_orders` | [93](../../../src/output.cpp#L93) |
 
 ### `src/phase_space_evolution.cpp`
 
@@ -903,6 +976,7 @@ the executable-body count.
 | `advance_cqmom_moment_source_batch_with_index` | [1532](../../../src/phase_space_evolution.cpp#L1532), [1568](../../../src/phase_space_evolution.cpp#L1568) |
 | `advance_qmom_phase_space_batch_with_index` | [1589](../../../src/phase_space_evolution.cpp#L1589), [1634](../../../src/phase_space_evolution.cpp#L1634) |
 | `advance_cqmom_phase_space_batch_with_index` | [1611](../../../src/phase_space_evolution.cpp#L1611), [1662](../../../src/phase_space_evolution.cpp#L1662) |
+| `validate_cqmom_moment_values_match_layout` | [817](../../../src/phase_space_evolution.cpp#L817) |
 
 ### `src/public_api.cpp`
 
@@ -980,6 +1054,7 @@ the executable-body count.
 | `to_cqmom_result` | [859](../../../src/public_api.cpp#L859) |
 | `compute_cqmom` | [828](../../../src/public_api.cpp#L828), [833](../../../src/public_api.cpp#L833), [980](../../../src/public_api.cpp#L980) |
 | `compute_cqmom_internal` | [942](../../../src/public_api.cpp#L942), [985](../../../src/public_api.cpp#L985) |
+| `invalid_cqmom_hierarchy_result` | [818](../../../src/public_api.cpp#L818) |
 
 ### `src/realizability.cpp`
 
@@ -1010,6 +1085,7 @@ the executable-body count.
 | `check_hausdorff` | [511](../../../src/realizability.cpp#L511) |
 | `with_support_context` | [566](../../../src/realizability.cpp#L566) |
 | `check_realizability` | [577](../../../src/realizability.cpp#L577), [600](../../../src/realizability.cpp#L600) |
+| `numerical_rank` | [352](../../../src/realizability.cpp#L352) |
 
 ### `src/reconstruction_scaling.cpp`
 
@@ -1129,6 +1205,16 @@ the executable-body count.
 | `compute_recursive_quadrature_from_moment_data` | [1821](../../../src/recursive_quadrature.cpp#L1821) |
 | `compute_recursive_quadrature_from_trusted_moment_data` | [1856](../../../src/recursive_quadrature.cpp#L1856) |
 | `compute_recursive_quadrature` | [1889](../../../src/recursive_quadrature.cpp#L1889) |
+| `operator==` | [955](../../../src/recursive_quadrature.cpp#L955), [965](../../../src/recursive_quadrature.cpp#L965), [970](../../../src/recursive_quadrature.cpp#L970), [1076](../../../src/recursive_quadrature.cpp#L1076) |
+| `operator!=` | [960](../../../src/recursive_quadrature.cpp#L960), [975](../../../src/recursive_quadrature.cpp#L975), [980](../../../src/recursive_quadrature.cpp#L980), [1081](../../../src/recursive_quadrature.cpp#L1081) |
+| `MultiIndexTable::MultiIndexTable` | [985](../../../src/recursive_quadrature.cpp#L985), [1001](../../../src/recursive_quadrature.cpp#L1001) |
+| `MultiIndexTable::at` | [1019](../../../src/recursive_quadrature.cpp#L1019) |
+| `MultiIndexTable::push_back` | [1028](../../../src/recursive_quadrature.cpp#L1028), [1033](../../../src/recursive_quadrature.cpp#L1033) |
+| `MultiIndexTable::pop_back` | [1046](../../../src/recursive_quadrature.cpp#L1046) |
+| `MultiIndexTable::reserve` | [1055](../../../src/recursive_quadrature.cpp#L1055) |
+| `MultiIndexTable::clear` | [1060](../../../src/recursive_quadrature.cpp#L1060) |
+| `MultiIndexTable::to_multi_indices` | [1065](../../../src/recursive_quadrature.cpp#L1065) |
+| `validate_cqmom_moment_data_matches_hierarchy` | [1836](../../../src/recursive_quadrature.cpp#L1836) |
 
 ### `src/runge_kutta.cpp`
 

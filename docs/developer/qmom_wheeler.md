@@ -127,10 +127,10 @@ Adaptive behavior is controlled by `QmomOptions` or `WheelerOptions`:
 The adaptive algorithm starts from the requested maximum node count. It checks
 the Wheeler recurrence data for degeneracy, may reduce the active node count,
 then attempts candidate quadratures from the active count down to one node.
-A multi-node adaptive rule is accepted only when the configured weight-ratio
-and node-separation criteria pass. If no multi-node candidate passes those
-adaptive criteria, the current implementation can still return a successful
-reduced one-node quadrature when that one-node rule is mathematically defined.
+A multi-node adaptive rule is accepted only when both the `rmin` weight-ratio
+and the `eabs` node-separation criteria above pass. If no multi-node candidate
+passes them, the current implementation can still return a successful reduced
+one-node quadrature when that one-node rule is mathematically defined.
 Therefore, `success` means the returned rule was accepted; it does not
 guarantee that the originally requested node count was retained.
 

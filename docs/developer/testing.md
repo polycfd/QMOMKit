@@ -5,6 +5,12 @@ architecture.
 It describes stable correctness expectations and the current root
 CTest inventory, not temporary CI setup.
 
+The bar set here is deliberately high. Today, code can be produced faster than
+evidence that it is correct, so QMOMKit treats the test suite, not the
+implementation, as what establishes that its numerical methods behave as
+intended. The reasoning behind that position is recorded in
+[DEVELOPMENT_PHILOSOPHY.md](../../DEVELOPMENT_PHILOSOPHY.md).
+
 ## Contents
 
 - [Debug Build Requirement](#debug-build-requirement)

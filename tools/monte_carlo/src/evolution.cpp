@@ -175,10 +175,9 @@ struct StateEvolutionResult
     double final_time = 0.0;
 };
 
-[[nodiscard]] std::vector<double> checked_velocity(const qmomkit::PhaseSpaceVelocity& velocity, const std::size_t dimensions, const double t,
-                                                   const std::vector<double>& coordinates)
+void checked_velocity(const qmomkit::PhaseSpaceVelocity& velocity, const std::size_t dimensions, const double t,
+                      const std::vector<double>& coordinates, std::vector<double>& derivative)
 {
-    std::vector<double> derivative(coordinates.size(), 0.0);
     poison_velocity_buffer(derivative);
     velocity(t, coordinates, derivative, dimensions);
     if (derivative.size() != dimensions)
@@ -204,7 +203,6 @@ struct StateEvolutionResult
             throw std::invalid_argument(phase_space_velocity_non_finite_message(t, dimension, derivative[dimension], coordinates, derivative));
         }
     }
-    return derivative;
 }
 
 [[nodiscard]] StateEvolutionResult evolve_states(const Ensemble& states, const std::size_t dimensions, const qmomkit::PhaseSpaceVelocity& velocity,
@@ -223,8 +221,9 @@ struct StateEvolutionResult
         try
         {
             rk_result = qmomkit::integrate_embedded_rk(
-                states[state_index], t0, t1, [&velocity, dimensions](const double rhs_time, const std::vector<double>& coordinates)
-                { return checked_velocity(velocity, dimensions, rhs_time, coordinates); }, qmomkit::EmbeddedRkMethod::rk23, options);
+                states[state_index], t0, t1,
+                [&velocity, dimensions](const double rhs_time, const std::vector<double>& coordinates, std::vector<double>& derivative)
+                { checked_velocity(velocity, dimensions, rhs_time, coordinates, derivative); }, qmomkit::EmbeddedRkMethod::rk23, options);
         }
         catch (const std::exception& error)
         {

@@ -24,12 +24,17 @@ void assert_vector_near(const std::vector<double>& actual, const std::vector<dou
 
 qmomkit::OdeRhs exponential_decay_rhs()
 {
-    return [](double, const std::vector<double>& state) { return std::vector<double>{-state[0]}; };
+    return [](double, const std::vector<double>& state, std::vector<double>& derivative) { derivative[0] = -state[0]; };
 }
 
 void test_ssp_rk3_constant_rhs()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{1.0, -2.0, 0.5}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    {
+        derivative[0] = 1.0;
+        derivative[1] = -2.0;
+        derivative[2] = 0.5;
+    };
     qmomkit::SspRk3Options options;
     options.estimate_error = true;
     const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({0.0, 3.0, -1.0}, 1.5, 0.25, rhs, options);
@@ -58,7 +63,11 @@ void test_rk23_exponential_decay()
 
 void test_rk23_constant_rhs()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&) { return std::vector<double>{2.0, -3.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    {
+        derivative[0] = 2.0;
+        derivative[1] = -3.0;
+    };
     qmomkit::AdaptiveRkOptions options;
     options.initial_step = 0.75;
     options.max_step = 0.75;
@@ -71,7 +80,11 @@ void test_rk23_constant_rhs()
 
 void test_rk23_vector_coupled_linear_system()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& state) { return std::vector<double>{state[1], -state[0]}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& state, std::vector<double>& derivative)
+    {
+        derivative[0] = state[1];
+        derivative[1] = -state[0];
+    };
     qmomkit::AdaptiveRkOptions options;
     options.relative_tolerance = 1.0e-8;
     options.absolute_tolerance = 1.0e-10;
@@ -88,7 +101,11 @@ void test_rk23_vector_coupled_linear_system()
 
 void test_rk45_vector_coupled_linear_system()
 {
-    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& state) { return std::vector<double>{state[1], -state[0]}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& state, std::vector<double>& derivative)
+    {
+        derivative[0] = state[1];
+        derivative[1] = -state[0];
+    };
     qmomkit::AdaptiveRkOptions options;
     options.relative_tolerance = 1.0e-10;
     options.absolute_tolerance = 1.0e-12;

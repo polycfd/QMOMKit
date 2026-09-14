@@ -1,5 +1,6 @@
 #include "test_case_dispatch.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <qmomkit/realizability_policy.hpp>
 #include <stdexcept>
@@ -155,7 +156,8 @@ void test_ssp_rk3_accepts_realizable_candidate()
     qmomkit::SspRk3Options options;
     options.accept = qmomkit::make_realizability_acceptance_predicate(policy, identity_moments);
 
-    const auto rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, 0.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    { std::fill(derivative.begin(), derivative.end(), 0.0); };
     const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({1.0, 1.0, 2.0}, 0.0, 0.1, rhs, options);
 
     assert(result.ok());
@@ -178,7 +180,12 @@ void test_ssp_rk3_rejects_and_retries_with_realizability_predicate()
                                                                       });
     options.max_retries = 2;
 
-    const auto rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, -2.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    {
+        derivative[0] = 0.0;
+        derivative[1] = 0.0;
+        derivative[2] = -2.0;
+    };
     const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({1.0, 0.0, 1.0}, 0.0, 1.0, rhs, options);
 
     assert(result.ok());
@@ -200,7 +207,12 @@ void test_ssp_rk3_disabled_policy_installs_no_predicate()
                                                                           return qmomkit::MomentSet(state);
                                                                       });
 
-    const auto rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, -2.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    {
+        derivative[0] = 0.0;
+        derivative[1] = 0.0;
+        derivative[2] = -2.0;
+    };
     const qmomkit::SspRk3Result result = qmomkit::ssp_rk3_step({1.0, 0.0, 1.0}, 0.0, 1.0, rhs, options);
 
     assert(result.ok());

@@ -2,6 +2,7 @@
 
 #include "internal/embedded_runge_kutta.hpp"
 #include "internal/numeric_utils.hpp"
+#include "internal/ode_rhs_validation.hpp"
 #include "internal/performance.hpp"
 
 #include <algorithm>
@@ -34,17 +35,6 @@ void require_same_size(const std::vector<double>& lhs, const std::vector<double>
         sum += value * value;
     }
     return std::sqrt(sum);
-}
-
-[[nodiscard]] std::vector<double> rhs_checked(const OdeRhs& rhs, const double t, const std::vector<double>& state)
-{
-    std::vector<double> derivative = rhs(t, state);
-    require_same_size(derivative, state, "RHS returned a vector with the wrong size.");
-    if (!internal::all_finite(derivative))
-    {
-        throw std::invalid_argument("RHS returned a non-finite value.");
-    }
-    return derivative;
 }
 
 [[nodiscard]] std::vector<double> add_scaled(const std::vector<double>& state, const double scale, const std::vector<double>& derivative)
@@ -123,22 +113,27 @@ struct SspRk3Attempt
 {
     // Perform exactly one fixed-timestep SSP-RK3 attempt. The caller owns any
     // retry policy and discards rejected attempts by restarting from state.
+    // One derivative buffer serves all three stages: each stage's derivative is
+    // consumed into the next stage state before the following stage overwrites
+    // it, so the attempt evaluates three stages against one allocation.
+    std::vector<double> derivative;
+
     internal::performance::record_source_rk_stage();
-    const std::vector<double> k1 = rhs_checked(rhs, t, state);
-    const std::vector<double> stage_1 = add_scaled(state, time_step, k1);
+    internal::rhs_checked(rhs, t, state, derivative);
+    const std::vector<double> stage_1 = add_scaled(state, time_step, derivative);
     if (!stage_accepted(options.stage_accept, SspRk3Stage::Stage1, stage_1))
     {
         return SspRk3Attempt{SspRk3Result{state, std::nullopt, SspRk3Status::success, 0, time_step}, false};
     }
 
     internal::performance::record_source_rk_stage();
-    const std::vector<double> k2 = rhs_checked(rhs, t + time_step, stage_1);
+    internal::rhs_checked(rhs, t + time_step, stage_1, derivative);
     std::vector<double> test_state(state.size(), 0.0);
     std::vector<double> stage_2(state.size(), 0.0);
     for (std::size_t i = 0; i < state.size(); ++i)
     {
-        test_state[i] = 0.5 * (state[i] + (stage_1[i] + time_step * k2[i]));
-        stage_2[i] = 0.75 * state[i] + 0.25 * (stage_1[i] + time_step * k2[i]);
+        test_state[i] = 0.5 * (state[i] + (stage_1[i] + time_step * derivative[i]));
+        stage_2[i] = 0.75 * state[i] + 0.25 * (stage_1[i] + time_step * derivative[i]);
     }
     if (!stage_accepted(options.stage_accept, SspRk3Stage::Stage2, stage_2))
     {
@@ -146,11 +141,11 @@ struct SspRk3Attempt
     }
 
     internal::performance::record_source_rk_stage();
-    const std::vector<double> k3 = rhs_checked(rhs, t + 0.5 * time_step, stage_2);
+    internal::rhs_checked(rhs, t + 0.5 * time_step, stage_2, derivative);
     std::vector<double> new_state(state.size(), 0.0);
     for (std::size_t i = 0; i < state.size(); ++i)
     {
-        new_state[i] = (state[i] + 2.0 * (stage_2[i] + time_step * k3[i])) / 3.0;
+        new_state[i] = (state[i] + 2.0 * (stage_2[i] + time_step * derivative[i])) / 3.0;
     }
     if (!internal::all_finite(new_state))
     {

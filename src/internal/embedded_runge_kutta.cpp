@@ -1,8 +1,7 @@
 #include "embedded_runge_kutta.hpp"
 
-#include "numeric_utils.hpp"
+#include "ode_rhs_validation.hpp"
 
-#include <cmath>
 #include <stdexcept>
 
 namespace qmomkit::internal
@@ -43,25 +42,6 @@ constexpr EmbeddedRkTableau dormand_prince_rk45{
     {5179.0 / 57600.0, 0.0, 7571.0 / 16695.0, 393.0 / 640.0, -92097.0 / 339200.0, 187.0 / 2100.0, 1.0 / 40.0},
     true};
 
-void require_same_size(const std::vector<double>& lhs, const std::vector<double>& rhs, const char* message)
-{
-    if (lhs.size() != rhs.size())
-    {
-        throw std::invalid_argument(message);
-    }
-}
-
-[[nodiscard]] std::vector<double> rhs_checked(const OdeRhs& rhs, const double time, const std::vector<double>& state)
-{
-    std::vector<double> derivative = rhs(time, state);
-    require_same_size(derivative, state, "RHS returned a vector with the wrong size.");
-    if (!all_finite(derivative))
-    {
-        throw std::invalid_argument("RHS returned a non-finite value.");
-    }
-    return derivative;
-}
-
 } // namespace
 
 const EmbeddedRkTableau& embedded_rk_tableau(const EmbeddedRkMethod method)
@@ -81,11 +61,14 @@ void take_embedded_rk_step(const EmbeddedRkTableau& tableau, const OdeRhs& rhs, 
 {
     if (workspace.has_first_derivative)
     {
-        require_same_size(workspace.derivatives[0], state, "Cached RHS vector has the wrong size.");
+        if (workspace.derivatives[0].size() != state.size())
+        {
+            throw std::invalid_argument("Cached RHS vector has the wrong size.");
+        }
     }
     else
     {
-        workspace.derivatives[0] = rhs_checked(rhs, t, state);
+        rhs_checked(rhs, t, state, workspace.derivatives[0]);
         ++function_evaluations;
         workspace.has_first_derivative = true;
     }
@@ -104,7 +87,7 @@ void take_embedded_rk_step(const EmbeddedRkTableau& tableau, const OdeRhs& rhs, 
                 workspace.stage_state[component] += coefficient * workspace.derivatives[previous][component];
             }
         }
-        workspace.derivatives[stage] = rhs_checked(rhs, t + tableau.c[stage] * step, workspace.stage_state);
+        rhs_checked(rhs, t + tableau.c[stage] * step, workspace.stage_state, workspace.derivatives[stage]);
         ++function_evaluations;
     }
 

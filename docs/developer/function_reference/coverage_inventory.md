@@ -13,7 +13,7 @@ lambdas are documented with their owning function. Instrumentation definitions
 are included for its enabled preprocessor branch, and debug-only contract checks
 for theirs. Line links are navigation aids, not permanent API identifiers.
 
-The inventory includes **947 definition locations**, grouped by named function
+The inventory includes **945 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial helpers
 and is not a count of numerical algorithms. Detailed pages cover the important
@@ -444,11 +444,9 @@ the executable-body count.
 
 | Function or overload family | Definition lines |
 |---|---|
-| `require_same_size` | [46](../../../src/internal/embedded_runge_kutta.cpp#L46) |
-| `rhs_checked` | [54](../../../src/internal/embedded_runge_kutta.cpp#L54) |
-| `embedded_rk_tableau` | [67](../../../src/internal/embedded_runge_kutta.cpp#L67) |
-| `take_embedded_rk_step` | [79](../../../src/internal/embedded_runge_kutta.cpp#L79) |
-| `embedded_rk_controller_exponent` | [129](../../../src/internal/embedded_runge_kutta.cpp#L129) |
+| `embedded_rk_tableau` | [47](../../../src/internal/embedded_runge_kutta.cpp#L47) |
+| `take_embedded_rk_step` | [59](../../../src/internal/embedded_runge_kutta.cpp#L59) |
+| `embedded_rk_controller_exponent` | [112](../../../src/internal/embedded_runge_kutta.cpp#L112) |
 
 ### `src/internal/householder_qr.cpp`
 
@@ -539,7 +537,19 @@ the executable-body count.
 
 | Function or overload family | Definition lines |
 |---|---|
-| `all_finite` | [10](../../../src/internal/numeric_utils.hpp#L10) |
+| `all_finite` | [12](../../../src/internal/numeric_utils.hpp#L12) |
+| `output_buffer_poison` | [30](../../../src/internal/numeric_utils.hpp#L30) |
+| `is_output_buffer_poison` | [37](../../../src/internal/numeric_utils.hpp#L37) |
+| `poison_output_buffer` | [47](../../../src/internal/numeric_utils.hpp#L47) |
+
+### `src/internal/ode_rhs_validation.hpp`
+
+[Source](../../../src/internal/ode_rhs_validation.hpp) · [Responsibilities, contracts, and evidence](time_integration.md)
+
+| Function or overload family | Definition lines |
+|---|---|
+| `ode_rhs_unfilled_message` | [16](../../../src/internal/ode_rhs_validation.hpp#L16) |
+| `rhs_checked` | [35](../../../src/internal/ode_rhs_validation.hpp#L35) |
 
 ### `src/internal/performance.hpp`
 
@@ -587,16 +597,13 @@ the executable-body count.
 
 | Function or overload family | Definition lines |
 |---|---|
-| `format_diagnostic_vector` | [18](../../../src/internal/phase_space_velocity_validation.hpp#L18) |
-| `phase_space_velocity_wrong_dimension_message` | [34](../../../src/internal/phase_space_velocity_validation.hpp#L34) |
-| `phase_space_node_slice` | [43](../../../src/internal/phase_space_velocity_validation.hpp#L43) |
-| `phase_space_velocity_non_finite_message` | [50](../../../src/internal/phase_space_velocity_validation.hpp#L50) |
-| `validate_phase_space_velocity_result` | [63](../../../src/internal/phase_space_velocity_validation.hpp#L63) |
-| `phase_space_velocity_poison` | [93](../../../src/internal/phase_space_velocity_validation.hpp#L93) |
-| `is_phase_space_velocity_poison` | [100](../../../src/internal/phase_space_velocity_validation.hpp#L100) |
-| `phase_space_velocity_unfilled_message` | [107](../../../src/internal/phase_space_velocity_validation.hpp#L107) |
-| `poison_phase_space_velocity_buffer` | [122](../../../src/internal/phase_space_velocity_validation.hpp#L122) |
-| `validate_packed_phase_space_velocity_result` | [133](../../../src/internal/phase_space_velocity_validation.hpp#L133) |
+| `format_diagnostic_vector` | [17](../../../src/internal/phase_space_velocity_validation.hpp#L17) |
+| `phase_space_velocity_wrong_dimension_message` | [33](../../../src/internal/phase_space_velocity_validation.hpp#L33) |
+| `phase_space_node_slice` | [42](../../../src/internal/phase_space_velocity_validation.hpp#L42) |
+| `phase_space_velocity_non_finite_message` | [49](../../../src/internal/phase_space_velocity_validation.hpp#L49) |
+| `validate_phase_space_velocity_result` | [62](../../../src/internal/phase_space_velocity_validation.hpp#L62) |
+| `phase_space_velocity_unfilled_message` | [85](../../../src/internal/phase_space_velocity_validation.hpp#L85) |
+| `validate_packed_phase_space_velocity_result` | [102](../../../src/internal/phase_space_velocity_validation.hpp#L102) |
 
 ### `src/internal/qmom_state_access.hpp`
 
@@ -1099,20 +1106,18 @@ the executable-body count.
 
 | Function or overload family | Definition lines |
 |---|---|
-| `require_same_size` | [21](../../../src/runge_kutta.cpp#L21) |
-| `euclidean_norm` | [29](../../../src/runge_kutta.cpp#L29) |
-| `rms_norm` | [39](../../../src/runge_kutta.cpp#L39) |
-| `rhs_checked` | [48](../../../src/runge_kutta.cpp#L48) |
-| `add_scaled` | [59](../../../src/runge_kutta.cpp#L59) |
-| `sign` | [70](../../../src/runge_kutta.cpp#L70) |
-| `validate_or_default_max_step` | [75](../../../src/runge_kutta.cpp#L75) |
-| `minimum_step` | [84](../../../src/runge_kutta.cpp#L84) |
-| `error_norm` | [100](../../../src/runge_kutta.cpp#L100) |
-| `invalid_embedded_rk_result` | [112](../../../src/runge_kutta.cpp#L112) |
-| `stage_accepted` | [117](../../../src/runge_kutta.cpp#L117) |
-| `try_ssp_rk3_step` | [122](../../../src/runge_kutta.cpp#L122) |
-| `ssp_rk3_step` | [179](../../../src/runge_kutta.cpp#L179) |
-| `integrate_embedded_rk` | [224](../../../src/runge_kutta.cpp#L224) |
+| `require_same_size` | [22](../../../src/runge_kutta.cpp#L22) |
+| `euclidean_norm` | [30](../../../src/runge_kutta.cpp#L30) |
+| `add_scaled` | [40](../../../src/runge_kutta.cpp#L40) |
+| `sign` | [51](../../../src/runge_kutta.cpp#L51) |
+| `validate_or_default_max_step` | [56](../../../src/runge_kutta.cpp#L56) |
+| `minimum_step` | [65](../../../src/runge_kutta.cpp#L65) |
+| `error_norm` | [81](../../../src/runge_kutta.cpp#L81) |
+| `invalid_embedded_rk_result` | [101](../../../src/runge_kutta.cpp#L101) |
+| `stage_accepted` | [106](../../../src/runge_kutta.cpp#L106) |
+| `try_ssp_rk3_step` | [111](../../../src/runge_kutta.cpp#L111) |
+| `ssp_rk3_step` | [173](../../../src/runge_kutta.cpp#L173) |
+| `integrate_embedded_rk` | [219](../../../src/runge_kutta.cpp#L219) |
 
 ### `src/wheeler.cpp`
 

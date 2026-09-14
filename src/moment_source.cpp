@@ -376,6 +376,25 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
     };
 }
 
+// `MomentSource` deliberately returns its rates rather than filling a buffer: it
+// runs once per SSP-RK stage, three times per phase-space step, independent of
+// node count and phase-space dimension, so a per-call allocation there stays a
+// small constant share of the step. This is the one place where that returned
+// vector meets the fill-style `OdeRhs`.
+//
+// Taking the rates by reference is what keeps this free. Three of the four call
+// sites hand over the source's returned value directly, but the CQMOM one must
+// name it first in order to validate it, and a by-value parameter would copy
+// that named vector once per SSP-RK stage: three extra allocations per 3-D
+// phase-space step, measured. Whether the body then copies or moves is a wash.
+//
+// A source that returned the wrong number of rates resizes the buffer here, so
+// `rhs_checked` reports it exactly as it did before.
+void assign_source_rates(const std::vector<double>& rates, std::vector<double>& derivative)
+{
+    derivative.assign(rates.begin(), rates.end());
+}
+
 [[nodiscard]] MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, const double t, const double time_step,
                                                                    const OdeRhs& source, const MomentSourceUpdateOptions& options)
 {
@@ -466,8 +485,8 @@ advance_validated_cqmom_moments_with_source(const CqmomMomentData& moments, cons
         // The public wrapper validated the fixed layout before this helper.
         // SSP-RK3 stages mutate only values, so stages reuse the layout and check
         // vector size/finite values instead of rebuilding CQMOM metadata.
-        const auto rhs = [&layout, &source, reconstruction_case, active_branch_counts, prepared_fixed_metadata](const double stage_time,
-                                                                                                                const std::vector<double>& state)
+        const OdeRhs rhs = [&layout, &source, reconstruction_case, active_branch_counts,
+                            prepared_fixed_metadata](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
         {
             validate_cqmom_stage_state(state, layout);
             const CqmomSourceContext context =
@@ -475,9 +494,9 @@ advance_validated_cqmom_moments_with_source(const CqmomMomentData& moments, cons
                     ? CqmomSourceContext{stage_time, layout.hierarchy, layout.required_indices, state}
                     : internal::CqmomSourceContextAccess::create(stage_time, layout.hierarchy, layout.required_indices, state, *reconstruction_case,
                                                                  *active_branch_counts, prepared_fixed_metadata);
-            CqmomMomentRate rate = source(stage_time, context);
+            const CqmomMomentRate rate = source(stage_time, context);
             validate_rate(rate, context.size());
-            return rate.values;
+            assign_source_rates(rate.values, derivative);
         };
 
         SspRk3Options ssp_rk3_options = options.ssp_rk3_options;
@@ -801,10 +820,10 @@ MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& 
         return invalid_result(moments, error.what());
     }
 
-    const OdeRhs rhs = [&source](const double stage_time, const std::vector<double>& state)
+    const OdeRhs rhs = [&source](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
     {
         const QmomSourceContext context{stage_time, state};
-        return source(stage_time, context);
+        assign_source_rates(source(stage_time, context), derivative);
     };
     return advance_moments_with_source(moments, t, time_step, rhs, options);
 }
@@ -874,12 +893,12 @@ MomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vec
         return invalid_result(moments, error.what());
     }
 
-    const OdeRhs rhs = [&source, reconstruction_node_count, &reconstruction_options, reconstruction_bounds](const double stage_time,
-                                                                                                            const std::vector<double>& state)
+    const OdeRhs rhs = [&source, reconstruction_node_count, &reconstruction_options,
+                        reconstruction_bounds](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
     {
         const QmomSourceContext context =
             QmomSourceContextAccess::create(stage_time, state, reconstruction_node_count, reconstruction_options, reconstruction_bounds);
-        return source(stage_time, context);
+        assign_source_rates(source(stage_time, context), derivative);
     };
     return advance_moments_with_source(moments, t, time_step, rhs, options);
 }
@@ -901,12 +920,12 @@ MomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vec
     }
 
     const MomentSource composed_source = compose_source_and_boundary(source, boundary);
-    const OdeRhs rhs = [&composed_source, reconstruction_node_count, &reconstruction_options, reconstruction_bounds](const double stage_time,
-                                                                                                                     const std::vector<double>& state)
+    const OdeRhs rhs = [&composed_source, reconstruction_node_count, &reconstruction_options,
+                        reconstruction_bounds](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
     {
         const QmomSourceContext context =
             QmomSourceContextAccess::create(stage_time, state, reconstruction_node_count, reconstruction_options, reconstruction_bounds);
-        return composed_source(stage_time, context);
+        assign_source_rates(composed_source(stage_time, context), derivative);
     };
     return advance_moments_with_source(moments, t, time_step, rhs, options);
 }

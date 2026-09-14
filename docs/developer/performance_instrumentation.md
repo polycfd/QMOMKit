@@ -211,7 +211,7 @@ current values here after work that changes them, so the two can be compared
 directly. Values are the same whether performance instrumentation is compiled
 in or out.
 
-Recorded on the embedded-RK stage-buffer reuse change, Release build, from
+Recorded on the fill-style `OdeRhs` change, Release build, from
 `allocation_benchmark`. Cite a commit here only once it is on `main`: a hash
 taken from a branch stops resolving when that branch is squash-merged.
 
@@ -222,21 +222,29 @@ returned vector per node per right-hand-side evaluation.
 
 | Operation | allocations, adapted | allocations, packed | bytes, adapted | bytes, packed |
 | --- | --- | --- | --- | --- |
-| CQMOM 2D 2x2 Strang phase-space step | 376 | 272 | 16,992 | 15,328 |
-| CQMOM 3D 2x2x2 Strang phase-space step | 621 | 413 | 40,080 | 35,088 |
-| QMOM n=3 Strang phase-space step | 185 | 107 | 4,144 | 3,520 |
+| CQMOM 2D 2x2 Strang phase-space step | 356 | 252 | 15,680 | 14,016 |
+| CQMOM 3D 2x2x2 Strang phase-space step | 601 | 393 | 36,272 | 31,280 |
+| QMOM n=3 Strang phase-space step | 168 | 90 | 3,760 | 3,136 |
 
 | Operation | allocations | bytes |
 | --- | --- | --- |
 | CQMOM 2D 2x2 reconstruction | 153 | 7,152 |
 | QMOM n=3 inversion | 11 | 776 |
 
-Every phase-space step above costs exactly 30 allocations fewer than it did
-before the embedded-RK controller reused its stage buffers across the attempts
-of an integration, independent of dimension and of callback form. The saving is
-the same everywhere because the number of attempts per step follows the step
-size and the tolerances, not the size of the node state. Reconstruction and
-inversion are unchanged, as they run no time integration.
+Two changes to the Runge-Kutta layer produced these numbers. The controller
+first began reusing its stage buffers across the attempts of an integration,
+which took exactly 30 allocations off every phase-space step regardless of
+dimension or callback form, because the number of attempts per step follows the
+step size and the tolerances rather than the size of the node state. `OdeRhs`
+then became a fill-style callback, which removed the per-stage derivative
+vector: a CQMOM step sheds a further 20 allocations and a QMOM step a further
+17. Reconstruction and inversion are unchanged, as they run no time integration.
+
+The second change also made the cost structure qualitatively different. An
+embedded-RK integration now allocates a fixed number of vectors — the state, the
+result, four working buffers, and one per tableau stage — no matter how many
+steps it takes. Integrating twenty RK23 steps of a 24-component state costs 10
+allocations where it once cost 162.
 
 Workload counters per state-step are unchanged from the baseline, so the
 reduction comes from removing redundant allocation rather than from doing less

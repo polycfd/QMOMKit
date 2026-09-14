@@ -1,5 +1,6 @@
 #include "test_case_dispatch.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <limits>
@@ -113,7 +114,8 @@ void test_even_order_hamburger_singular_kernel_consistency()
 
 void test_ssp_rk3_predicate_can_be_explicitly_wrapped()
 {
-    const auto rhs = [](double, const std::vector<double>&) { return std::vector<double>{0.0, 0.0, 0.0}; };
+    const qmomkit::OdeRhs rhs = [](double, const std::vector<double>&, std::vector<double>& derivative)
+    { std::fill(derivative.begin(), derivative.end(), 0.0); };
     qmomkit::SspRk3Options options;
     options.accept = [](const std::vector<double>& state)
     {

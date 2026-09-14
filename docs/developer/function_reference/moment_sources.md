@@ -11,7 +11,11 @@ and [SSP-RK3](time_integration.md).
 
 The public `advance_moments_with_source` overloads validate initial moments, time,
 positive requested step, callbacks, and source controls, then adapt the source to
-an `OdeRhs`. The local overload with that same name drives SSP-RK3. Its state is
+an `OdeRhs`. `MomentSource` returns its rates and `OdeRhs` fills a buffer, so the
+adapter copies the returned rates into the buffer the integrator supplies; a
+source that returned the wrong number of rates resizes it there and is reported
+as a wrong-sized right-hand side. The local overload with that same name drives
+SSP-RK3. Its state is
 `state`, `current_time`, and `remaining_time`.
 
 On each iteration it asks `ssp_rk3_step` to advance the **whole remaining interval**.

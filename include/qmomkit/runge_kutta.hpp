@@ -9,7 +9,25 @@
 namespace qmomkit
 {
 
-using OdeRhs = std::function<std::vector<double>(double, const std::vector<double>&)>;
+/**
+ * Right-hand side of an ODE system, evaluated once per Runge-Kutta stage.
+ *
+ * The callback receives the stage time and state, and fills the third argument
+ * with dy/dt. That buffer is supplied with the same size as the state and every
+ * entry must be written.
+ *
+ * The callback must not resize the buffer; the integrator sizes it and reports
+ * a size mismatch as an integration failure. A partially filled buffer is a
+ * contract violation that debug builds report as such, and that release builds
+ * cannot detect. No physical meaning is assigned to any component by the
+ * library.
+ *
+ * Filling a supplied buffer rather than returning one keeps the stage
+ * evaluations of an integration free of heap allocation, which matters because
+ * node advection evaluates this for every quadrature node on every stage of
+ * every step attempt.
+ */
+using OdeRhs = std::function<void(double, const std::vector<double>&, std::vector<double>&)>;
 using StateAcceptancePredicate = std::function<bool(const std::vector<double>&)>;
 
 enum class SspRk3Stage

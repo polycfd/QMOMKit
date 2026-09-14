@@ -21,8 +21,11 @@ state `y` and positive step `h`:
    then apply the Final stage predicate and final acceptance predicate.
 
 Each vector loop combines the same component across stages. An early rejected
-stage prevents later RHS calls. `rhs_checked` enforces vector size and derivative
-finiteness. Intermediate state acceptance depends on predicates and subsequent
+stage prevents later RHS calls. One derivative buffer serves all three stages,
+since each stage's derivative is consumed into the next stage state before the
+following stage overwrites it. `rhs_checked` sizes that buffer, hands it to the
+callback, and enforces that the callback neither resized it nor left an entry
+unwritten, and that every derivative is finite. Intermediate state acceptance depends on predicates and subsequent
 RHS checks; there is an explicit finite check on the final candidate.
 
 The second stage also constructs the second-order test state
@@ -161,7 +164,7 @@ trajectory remain a separate question from bounded inversion acceptance.
 | Family | Responsibility / important semantics | Evidence |
 |---|---|---|
 | `require_same_size`, `rhs_checked`, `add_scaled` | Componentwise shape-checked arithmetic and derivative checks; callback exceptions propagate to the owning wrapper. | RHS error tests |
-| `euclidean_norm`, `rms_norm`, `error_norm` | Ordinary double norm reductions; different SSP diagnostic and embedded acceptance meanings. | RK formula/controller tests |
+| `euclidean_norm`, `error_norm` | Ordinary double norm reductions; different SSP diagnostic and embedded acceptance meanings. | RK formula/controller tests |
 | `sign`, `validate_or_default_max_step`, `minimum_step` | Direction, zero-as-default maximum, representable-time lower bound. | Backward/step-boundary tests |
 | `stage_accepted`, `invalid_embedded_rk_result` | Missing predicate means acceptance; invalid controller input preserves initial state/time. | Invalid/predicate tests |
 | Node `all_finite`, `validate_weights`, `validate_abscissas` | Shape and finite input checks, independent of physical coordinate meaning. | Node invalid-input tests |

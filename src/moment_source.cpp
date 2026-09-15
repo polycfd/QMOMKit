@@ -479,7 +479,7 @@ void assign_source_rates(const std::vector<double>& rates, std::vector<double>& 
 advance_validated_cqmom_moments_with_source(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
                                             const MomentSourceUpdateOptions& options, const CqmomLeanCase* const reconstruction_case = nullptr,
                                             const std::vector<CqmomActiveBranchCount>* const active_branch_counts = nullptr,
-                                            const internal::PreparedFixedCqmomMetadata* const prepared_fixed_metadata = nullptr)
+                                            const internal::PreparedCqmomMetadata* const prepared_metadata = nullptr)
 {
     try
     {
@@ -488,14 +488,14 @@ advance_validated_cqmom_moments_with_source(const CqmomMomentData& moments, cons
         // SSP-RK3 stages mutate only values, so stages reuse the layout and check
         // vector size/finite values instead of rebuilding CQMOM metadata.
         const OdeRhs rhs = [&layout, &source, reconstruction_case, active_branch_counts,
-                            prepared_fixed_metadata](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
+                            prepared_metadata](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
         {
             validate_cqmom_stage_state(state, layout);
             const CqmomSourceContext context =
                 reconstruction_case == nullptr
                     ? CqmomSourceContext{stage_time, layout.hierarchy, layout.required_indices, state}
                     : internal::CqmomSourceContextAccess::create(stage_time, layout.hierarchy, layout.required_indices, state, *reconstruction_case,
-                                                                 *active_branch_counts, prepared_fixed_metadata);
+                                                                 *active_branch_counts, prepared_metadata);
             const CqmomMomentRate rate = source(stage_time, context);
             validate_rate(rate, context.size());
             assign_source_rates(rate.values, derivative);
@@ -549,9 +549,9 @@ QmomSourceContext QmomSourceContextAccess::create(const double time, const std::
 CqmomSourceContext CqmomSourceContextAccess::create(const double time, const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices,
                                                     const std::vector<double>& values, const CqmomLeanCase& reconstruction_case,
                                                     const std::vector<CqmomActiveBranchCount>& active_branch_counts,
-                                                    const PreparedFixedCqmomMetadata* const prepared_fixed_metadata)
+                                                    const PreparedCqmomMetadata* const prepared_metadata)
 {
-    return CqmomSourceContext{time, hierarchy, indices, values, reconstruction_case, active_branch_counts, prepared_fixed_metadata};
+    return CqmomSourceContext{time, hierarchy, indices, values, reconstruction_case, active_branch_counts, prepared_metadata};
 }
 
 } // namespace internal
@@ -657,9 +657,9 @@ CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierar
 CqmomSourceContext::CqmomSourceContext(const double time, const PhaseSpaceHierarchy& source_hierarchy, const MultiIndexTable& indices,
                                        const std::vector<double>& values, const CqmomLeanCase& reconstruction_case,
                                        const std::vector<CqmomActiveBranchCount>& active_branch_counts,
-                                       const internal::PreparedFixedCqmomMetadata* const prepared_fixed_metadata)
+                                       const internal::PreparedCqmomMetadata* const prepared_metadata)
     : time_(time), hierarchy_(&source_hierarchy), indices_(&indices), values_(&values), reconstruction_case_(&reconstruction_case),
-      active_branch_counts_(&active_branch_counts), prepared_fixed_metadata_(prepared_fixed_metadata)
+      active_branch_counts_(&active_branch_counts), prepared_metadata_(prepared_metadata)
 {
     if (!std::isfinite(time_))
     {
@@ -795,7 +795,7 @@ const CqmomQuadrature& CqmomSourceContext::reconstructed_stage_quadrature() cons
                                        reconstruction_case_->vandermonde_solver,
                                        reconstruction_case_->coordinate_support};
         CqmomResult quadrature = internal::compute_cqmom_internal(stage_case, *active_branch_counts_, stage_case.adaptive_branch_counts,
-                                                                  prepared_fixed_metadata_, !stage_case.adaptive_branch_counts);
+                                                                  prepared_metadata_, !stage_case.adaptive_branch_counts);
         if (!quadrature.ok())
         {
             throw std::runtime_error("CQMOM source-stage quadrature reconstruction failed: " + quadrature.message);
@@ -951,7 +951,7 @@ CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const Cq
                                                                         const CqmomMomentSource& source, const MomentSourceUpdateOptions& options,
                                                                         const CqmomLeanCase& reconstruction_case,
                                                                         const std::vector<CqmomActiveBranchCount>& active_branch_counts,
-                                                                        const PreparedFixedCqmomMetadata* const prepared_fixed_metadata)
+                                                                        const PreparedCqmomMetadata* const prepared_metadata)
 {
     try
     {
@@ -963,7 +963,7 @@ CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const Cq
     }
 
     return advance_validated_cqmom_moments_with_source(moments, t, time_step, source, options, &reconstruction_case, &active_branch_counts,
-                                                       prepared_fixed_metadata);
+                                                       prepared_metadata);
 }
 
 CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, const double t, const double time_step,
@@ -987,7 +987,7 @@ CqmomMomentSourceUpdateResult
 advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, const double t, const double time_step, const CqmomMomentSource& source,
                                           const CqmomMomentBoundaryContribution& boundary, const MomentSourceUpdateOptions& options,
                                           const CqmomLeanCase& reconstruction_case, const std::vector<CqmomActiveBranchCount>& active_branch_counts,
-                                          const PreparedFixedCqmomMetadata* const prepared_fixed_metadata)
+                                          const PreparedCqmomMetadata* const prepared_metadata)
 {
     try
     {
@@ -999,7 +999,7 @@ advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, const 
     }
 
     return advance_validated_cqmom_moments_with_source(moments, t, time_step, compose_cqmom_source_and_boundary(source, boundary), options,
-                                                       &reconstruction_case, &active_branch_counts, prepared_fixed_metadata);
+                                                       &reconstruction_case, &active_branch_counts, prepared_metadata);
 }
 
 } // namespace internal

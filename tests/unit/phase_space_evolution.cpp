@@ -1,6 +1,7 @@
 #include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/performance.hpp"
+#include "internal/recursive_quadrature.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
@@ -496,10 +497,10 @@ void test_internal_cqmom_state_backend_accessors_are_explicit_and_guarded()
 void test_fixed_cqmom_phase_space_evolution_successors_share_prepared_metadata()
 {
     const qmomkit::CqmomCase case_ = fixed_cqmom_case();
-    const auto& prepared_fixed_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(case_);
-    assert(prepared_fixed_metadata != nullptr);
+    const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(case_);
+    assert(prepared_metadata != nullptr);
     const qmomkit::CqmomState initial_state = case_.initial_state();
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(initial_state).get() == prepared_fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(initial_state).get() == prepared_metadata.get());
 
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinate) { return std::vector<double>(coordinate.size(), 0.0); });
@@ -508,11 +509,11 @@ void test_fixed_cqmom_phase_space_evolution_successors_share_prepared_metadata()
 
     const qmomkit::CqmomPhaseSpaceEvolutionResult advection = qmomkit::advance_cqmom_advection(initial_state, 0.0, 0.1, zero_velocity);
     assert(advection.ok());
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(advection.state).get() == prepared_fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(advection.state).get() == prepared_metadata.get());
 
     const qmomkit::CqmomPhaseSpaceEvolutionResult moment_source = qmomkit::advance_cqmom_moment_source(initial_state, 0.0, 0.1, zero_source);
     assert(moment_source.ok());
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(moment_source.state).get() == prepared_fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(moment_source.state).get() == prepared_metadata.get());
 
     for (const qmomkit::PhaseSpaceEvolutionScheme scheme :
          {qmomkit::PhaseSpaceEvolutionScheme::advsrc, qmomkit::PhaseSpaceEvolutionScheme::srcadv, qmomkit::PhaseSpaceEvolutionScheme::strang})
@@ -522,14 +523,14 @@ void test_fixed_cqmom_phase_space_evolution_successors_share_prepared_metadata()
         const qmomkit::CqmomPhaseSpaceEvolutionResult result =
             qmomkit::advance_cqmom_phase_space(initial_state, 0.0, 0.1, zero_velocity, zero_source, options);
         assert(result.ok());
-        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(result.state).get() == prepared_fixed_metadata.get());
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(result.state).get() == prepared_metadata.get());
     }
 
     const qmomkit::CqmomMomentSource failing_source = [](double, const qmomkit::CqmomSourceContext&) -> qmomkit::CqmomMomentRate
     { throw std::runtime_error("prepared metadata rollback failure"); };
     const qmomkit::CqmomPhaseSpaceEvolutionResult failed = qmomkit::advance_cqmom_moment_source(initial_state, 0.0, 0.1, failing_source);
     assert(!failed.ok());
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(failed.state).get() == prepared_fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(failed.state).get() == prepared_metadata.get());
 }
 
 std::string cqmom_case_text_from_moments_with_hierarchy(const qmomkit::RawMomentTensor& moments, const std::vector<std::size_t>& node_counts,
@@ -1010,6 +1011,44 @@ void compare_lean_phase_space_evolution_to_dense_layout_closed_source(const qmom
 
     const qmomkit::CqmomMomentData expected = qmomkit::extract_cqmom_moments(dense.moments, state.moments.layout);
     assert_vector_near(lean.state.moments.values, expected.values, 5.0e-9);
+}
+
+// An adaptive case prepares metadata as a fixed one does, so its successors
+// must share the same immutable tree rather than rebuild one per step. Without
+// this, an adaptive lineage could silently fall back to rebuilding and only a
+// benchmark would notice.
+void test_adaptive_cqmom_phase_space_evolution_successors_share_prepared_metadata()
+{
+    const qmomkit::CqmomCase case_ = adaptive_cqmom_case();
+    const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(case_);
+    assert(prepared_metadata != nullptr);
+    assert(prepared_metadata->adaptive_branch_counts);
+    const qmomkit::CqmomState initial_state = case_.initial_state();
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(initial_state).get() == prepared_metadata.get());
+
+    const qmomkit::PhaseSpaceVelocity zero_velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinate) { return std::vector<double>(coordinate.size(), 0.0); });
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult advection = qmomkit::advance_cqmom_advection(initial_state, 0.0, 0.1, zero_velocity);
+    assert(advection.ok());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(advection.state).get() == prepared_metadata.get());
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult moment_source = qmomkit::advance_cqmom_moment_source(initial_state, 0.0, 0.1, zero_source);
+    assert(moment_source.ok());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(moment_source.state).get() == prepared_metadata.get());
+
+    for (const qmomkit::PhaseSpaceEvolutionScheme scheme :
+         {qmomkit::PhaseSpaceEvolutionScheme::advsrc, qmomkit::PhaseSpaceEvolutionScheme::srcadv, qmomkit::PhaseSpaceEvolutionScheme::strang})
+    {
+        qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+        options.scheme = scheme;
+        const qmomkit::CqmomPhaseSpaceEvolutionResult result =
+            qmomkit::advance_cqmom_phase_space(initial_state, 0.0, 0.1, zero_velocity, zero_source, options);
+        assert(result.ok());
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(result.state).get() == prepared_metadata.get());
+    }
 }
 
 void test_explicit_dense_and_lean_adaptive_branch_options_are_equivalent()
@@ -2425,10 +2464,10 @@ void test_cqmom_phase_space_evolution_success_materializes_an_independent_final_
     const qmomkit::CqmomDenseCase* dense_backend = qmomkit::internal::CqmomConstructionAccess::case_dense_case(dense_case);
     assert(dense_backend != nullptr);
     const qmomkit::CqmomState cache_miss_state = qmomkit::internal::CqmomConstructionAccess::create_state(
-        *dense_backend, qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(dense_case));
+        *dense_backend, qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(dense_case));
     assert(!qmomkit::internal::CqmomConstructionAccess::state_accepted_quadrature(cache_miss_state).has_value());
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(cache_miss_state).get() ==
-           qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(dense_case).get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(cache_miss_state).get() ==
+           qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(dense_case).get());
     assert_cqmom_result_owns_independent_accepted_quadrature(qmomkit::advance_cqmom_moment_source(cache_miss_state, 0.0, 0.1, zero_source), 5.0e-10);
 }
 
@@ -5062,6 +5101,7 @@ void run_all_phase_space_evolution_tests()
     test_fixed_state_phase_space_evolution_does_not_store_adaptive_branch_counts();
     test_internal_cqmom_state_backend_accessors_are_explicit_and_guarded();
     test_fixed_cqmom_phase_space_evolution_successors_share_prepared_metadata();
+    test_adaptive_cqmom_phase_space_evolution_successors_share_prepared_metadata();
     test_adaptive_state_rejects_duplicate_active_count_metadata();
     test_adaptive_state_rejects_missing_active_count_metadata();
     test_adaptive_state_failure_preserves_active_counts_for_retry();
@@ -5195,6 +5235,7 @@ void run_cqmom_phase_space_evolution_tests()
     test_fixed_state_phase_space_evolution_does_not_store_adaptive_branch_counts();
     test_internal_cqmom_state_backend_accessors_are_explicit_and_guarded();
     test_fixed_cqmom_phase_space_evolution_successors_share_prepared_metadata();
+    test_adaptive_cqmom_phase_space_evolution_successors_share_prepared_metadata();
     test_adaptive_state_rejects_duplicate_active_count_metadata();
     test_adaptive_state_rejects_missing_active_count_metadata();
     test_adaptive_state_failure_preserves_active_counts_for_retry();
@@ -5245,6 +5286,8 @@ int main(const int argc, char** argv)
             {"internal_cqmom_state_backend_accessors_are_explicit_and_guarded", test_internal_cqmom_state_backend_accessors_are_explicit_and_guarded},
             {"fixed_cqmom_phase_space_evolution_successors_share_prepared_metadata",
              test_fixed_cqmom_phase_space_evolution_successors_share_prepared_metadata},
+            {"adaptive_cqmom_phase_space_evolution_successors_share_prepared_metadata",
+             test_adaptive_cqmom_phase_space_evolution_successors_share_prepared_metadata},
             {"explicit_dense_and_lean_adaptive_branch_options_are_equivalent", test_explicit_dense_and_lean_adaptive_branch_options_are_equivalent},
             {"explicit_dense_and_lean_diagnostic_level_none_is_propagated", test_explicit_dense_and_lean_diagnostic_level_none_is_propagated},
             {"explicit_dense_and_lean_adaptive_options_are_equivalent", test_explicit_dense_and_lean_adaptive_options_are_equivalent},

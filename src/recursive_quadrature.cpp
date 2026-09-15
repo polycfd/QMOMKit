@@ -173,22 +173,100 @@ namespace
     return create_branch_moment_layout(std::move(ordered_extents), std::move(ordered_indices), adaptive_branch_counts);
 }
 
-void append_unique_index(std::vector<MultiIndex>& indices, MultiIndex index)
+// Mixed-radix code of a multi-index over `bounds`, or nullopt when the index
+// does not fit. Deliberately does not reuse `flatten_multi_index`, which throws
+// its own out_of_range for an out-of-range component; callers here need to tell
+// "absent" apart from "malformed" and to keep their own error text.
+[[nodiscard]] std::optional<std::size_t> multi_index_code(const MultiIndex& index, const std::vector<std::size_t>& bounds)
 {
-    if (std::find(indices.begin(), indices.end(), index) == indices.end())
+    if (index.size() != bounds.size())
+    {
+        return std::nullopt;
+    }
+    std::size_t code = 0;
+    for (std::size_t axis = 0; axis < bounds.size(); ++axis)
+    {
+        if (index[axis] >= bounds[axis])
+        {
+            return std::nullopt;
+        }
+        // An index space too large to code is reported as uncodable rather than
+        // wrapped: a wrapped code would collide silently and two distinct
+        // indices would be treated as one.
+        if (bounds[axis] != 0 && code > (std::numeric_limits<std::size_t>::max() - index[axis]) / bounds[axis])
+        {
+            return std::nullopt;
+        }
+        code = code * bounds[axis] + index[axis];
+    }
+    return code;
+}
+
+// Insert `code` into a sorted code set, reporting whether it was new. A
+// std::unordered_set would allocate a node per element, which measured as a net
+// loss here: the sets are small and short-lived and this code is allocation
+// bound, so one growing vector beats per-element nodes.
+[[nodiscard]] bool insert_unique_code(std::vector<std::size_t>& sorted_codes, const std::size_t code)
+{
+    const auto position = std::lower_bound(sorted_codes.begin(), sorted_codes.end(), code);
+    if (position != sorted_codes.end() && *position == code)
+    {
+        return false;
+    }
+    sorted_codes.insert(position, code);
+    return true;
+}
+
+// Append `index` unless an equal index is already present. `seen_codes` carries
+// the codes appended so far, so the duplicate test is an integer lookup rather
+// than a scan comparing whole vectors. First-occurrence order is preserved.
+void append_unique_index(std::vector<MultiIndex>& indices, std::vector<std::size_t>& seen_codes, const std::vector<std::size_t>& bounds,
+                         MultiIndex index)
+{
+    const std::optional<std::size_t> code = multi_index_code(index, bounds);
+    if (!code.has_value())
+    {
+        // Outside the layout's own extents: fall back to the exhaustive test
+        // rather than risk two distinct indices sharing a code.
+        if (std::find(indices.begin(), indices.end(), index) == indices.end())
+        {
+            indices.push_back(std::move(index));
+        }
+        return;
+    }
+    if (insert_unique_code(seen_codes, *code))
     {
         indices.push_back(std::move(index));
     }
 }
 
-[[nodiscard]] std::size_t local_branch_offset(const std::vector<MultiIndex>& indices, const MultiIndex& index)
+[[nodiscard]] std::size_t local_branch_offset(const BranchMomentLayout& layout, const MultiIndex& index)
 {
-    const auto found = std::find(indices.begin(), indices.end(), index);
-    if (found == indices.end())
+    // The table is absent only when some index of this layout could not be
+    // coded, in which case coding the query would be wasted work and its result
+    // unusable. Testing for it first keeps that case on the scan it needs.
+    if (!layout.offsets_by_code.empty())
+    {
+        const std::optional<std::size_t> code = multi_index_code(index, layout.extents);
+        if (code.has_value())
+        {
+            const auto found =
+                std::lower_bound(layout.offsets_by_code.begin(), layout.offsets_by_code.end(), *code,
+                                 [](const std::pair<std::size_t, std::size_t>& entry, const std::size_t value) { return entry.first < value; });
+            if (found != layout.offsets_by_code.end() && found->first == *code)
+            {
+                return found->second;
+            }
+            throw std::out_of_range("Branch-local moment layout does not contain the requested moment.");
+        }
+    }
+
+    const auto found = std::find(layout.indices.begin(), layout.indices.end(), index);
+    if (found == layout.indices.end())
     {
         throw std::out_of_range("Branch-local moment layout does not contain the requested moment.");
     }
-    return static_cast<std::size_t>(std::distance(indices.begin(), found));
+    return static_cast<std::size_t>(std::distance(layout.indices.begin(), found));
 }
 
 [[nodiscard]] BranchMomentChildLayout create_child_layout_case(const BranchMomentLayout& layout, const std::size_t parent_node_count,
@@ -201,11 +279,13 @@ void append_unique_index(std::vector<MultiIndex>& indices, MultiIndex index)
     // represented by the current parent nodes; the remaining indices become
     // the child branch coordinates.
     std::vector<MultiIndex> child_indices;
+    const std::vector<std::size_t> child_bounds(layout.extents.begin() + 1, layout.extents.end());
+    std::vector<std::size_t> child_codes;
     for (const MultiIndex& parent_index : layout.indices)
     {
         if (!parent_index.empty() && parent_index.front() < parent_node_count)
         {
-            append_unique_index(child_indices, MultiIndex(parent_index.begin() + 1, parent_index.end()));
+            append_unique_index(child_indices, child_codes, child_bounds, MultiIndex(parent_index.begin() + 1, parent_index.end()));
         }
     }
 
@@ -225,7 +305,7 @@ void append_unique_index(std::vector<MultiIndex>& indices, MultiIndex index)
         for (std::size_t parent_order = 0; parent_order < parent_node_count; ++parent_order)
         {
             parent_index[0] = parent_order;
-            column.parent_offsets_by_order.push_back(local_branch_offset(layout.indices, parent_index));
+            column.parent_offsets_by_order.push_back(local_branch_offset(layout, parent_index));
         }
         child_case.rhs_columns.push_back(std::move(column));
     }
@@ -250,6 +330,22 @@ std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vecto
     layout->extents = std::move(extents);
     layout->indices = std::move(indices);
 
+    // Built before the first lookup below, and reused by every later one.
+    layout->offsets_by_code.reserve(layout->indices.size());
+    for (std::size_t position = 0; position < layout->indices.size(); ++position)
+    {
+        const std::optional<std::size_t> code = multi_index_code(layout->indices[position], layout->extents);
+        if (!code.has_value())
+        {
+            // An index outside the declared extents cannot be coded uniquely, so
+            // abandon the table and let lookups fall back to scanning.
+            layout->offsets_by_code.clear();
+            break;
+        }
+        layout->offsets_by_code.emplace_back(*code, position);
+    }
+    std::sort(layout->offsets_by_code.begin(), layout->offsets_by_code.end());
+
     // A branch-local layout is ordered by conditioning level. Its leading axis
     // supplies the one-dimensional moment sequence for the next Wheeler solve.
     layout->wheeler_offsets.reserve(layout->extents.front());
@@ -257,7 +353,7 @@ std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vecto
     for (std::size_t order = 0; order < layout->extents.front(); ++order)
     {
         wheeler_index.front() = order;
-        layout->wheeler_offsets.push_back(local_branch_offset(layout->indices, wheeler_index));
+        layout->wheeler_offsets.push_back(local_branch_offset(*layout, wheeler_index));
     }
 
     if (layout->extents.size() == 1)
@@ -284,30 +380,37 @@ std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vecto
     return layout;
 }
 
-PreparedFixedCqmomMetadata::PreparedFixedCqmomMetadata(CqmomMomentLayout prepared_moment_layout,
-                                                       std::shared_ptr<const BranchMomentLayout> prepared_root_branch_layout)
-    : moment_layout(std::move(prepared_moment_layout)), root_branch_layout(std::move(prepared_root_branch_layout))
+PreparedCqmomMetadata::PreparedCqmomMetadata(CqmomMomentLayout prepared_moment_layout,
+                                             std::shared_ptr<const BranchMomentLayout> prepared_root_branch_layout,
+                                             const bool prepared_adaptive_branch_counts)
+    : moment_layout(std::move(prepared_moment_layout)), root_branch_layout(std::move(prepared_root_branch_layout)),
+      adaptive_branch_counts(prepared_adaptive_branch_counts)
 {
     if (root_branch_layout == nullptr)
     {
-        throw std::invalid_argument("Prepared fixed CQMOM metadata requires a root branch layout.");
+        throw std::invalid_argument("Prepared CQMOM metadata requires a root branch layout.");
     }
 }
 
-std::shared_ptr<const PreparedFixedCqmomMetadata> create_prepared_fixed_cqmom_metadata(CqmomMomentLayout moment_layout)
+std::shared_ptr<const PreparedCqmomMetadata> create_prepared_cqmom_metadata(CqmomMomentLayout moment_layout, const bool adaptive_branch_counts)
 {
-    validate_fixed_cqmom_moment_layout(moment_layout, "Prepared fixed CQMOM metadata requires the canonical CQMOM moment layout.");
-    std::shared_ptr<const BranchMomentLayout> root_branch_layout = create_ordered_root_layout(moment_layout, false);
-    std::shared_ptr<const PreparedFixedCqmomMetadata> metadata(
-        new PreparedFixedCqmomMetadata(std::move(moment_layout), std::move(root_branch_layout)));
+    validate_fixed_cqmom_moment_layout(moment_layout, "Prepared CQMOM metadata requires the canonical CQMOM moment layout.");
+    // An adaptive tree is built the same way, only wider: create_branch_moment_layout
+    // materializes a child case for every parent node count Wheeler could
+    // realize, so the result covers every runtime outcome and depends on nothing
+    // but the hierarchy. That is what makes it cacheable rather than rebuilt per
+    // reconstruction.
+    std::shared_ptr<const BranchMomentLayout> root_branch_layout = create_ordered_root_layout(moment_layout, adaptive_branch_counts);
+    std::shared_ptr<const PreparedCqmomMetadata> metadata(
+        new PreparedCqmomMetadata(std::move(moment_layout), std::move(root_branch_layout), adaptive_branch_counts));
     internal::performance::record_cqmom_prepared_metadata_build();
     return metadata;
 }
 
-bool prepared_fixed_cqmom_metadata_is_compatible(const PreparedFixedCqmomMetadata& metadata, const PhaseSpaceHierarchy& hierarchy,
-                                                 const CqmomMomentLayout* const expected_layout)
+bool prepared_cqmom_metadata_is_compatible(const PreparedCqmomMetadata& metadata, const PhaseSpaceHierarchy& hierarchy,
+                                           const bool adaptive_branch_counts, const CqmomMomentLayout* const expected_layout)
 {
-    if (metadata.root_branch_layout == nullptr)
+    if (metadata.root_branch_layout == nullptr || metadata.adaptive_branch_counts != adaptive_branch_counts)
     {
         return false;
     }
@@ -1149,6 +1252,16 @@ CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarch
     const std::vector<std::size_t>& order = hierarchy.conditioning_order();
 
     std::vector<MultiIndex> indices;
+    // Every level enumerates a sub-box of the same index space, so the levels
+    // overlap and the union has to be deduplicated. The widest any phase-space
+    // axis gets is the 2*N Wheeler span it spans while it is the active axis,
+    // which bounds the code used to test for duplicates.
+    std::vector<std::size_t> index_bounds(dimensions, 0);
+    for (std::size_t phase_space_dimension = 0; phase_space_dimension < dimensions; ++phase_space_dimension)
+    {
+        index_bounds[phase_space_dimension] = checked_multiply(2, hierarchy.node_count(phase_space_dimension));
+    }
+    std::vector<std::size_t> seen_codes;
     for (std::size_t level = 0; level < dimensions; ++level)
     {
         // Required moments are enumerated in conditioning order for one
@@ -1176,7 +1289,15 @@ CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarch
             // Public layouts store phase-space-order indices even though the
             // recursive enumeration is performed in conditioning order.
             const MultiIndex phase_space_index = from_ordered_index(ordered_index, order);
-            if (std::find(indices.begin(), indices.end(), phase_space_index) == indices.end())
+            const std::optional<std::size_t> code = internal::multi_index_code(phase_space_index, index_bounds);
+            if (code.has_value())
+            {
+                if (internal::insert_unique_code(seen_codes, *code))
+                {
+                    indices.push_back(phase_space_index);
+                }
+            }
+            else if (std::find(indices.begin(), indices.end(), phase_space_index) == indices.end())
             {
                 indices.push_back(phase_space_index);
             }
@@ -1522,18 +1643,23 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
     std::shared_ptr<const BranchMomentLayout> dynamic_root_branch_layout;
     try
     {
-        const bool use_prepared_fixed_metadata = request.prepared_fixed_metadata != nullptr && !request.adaptive_branch_counts;
-        if (use_prepared_fixed_metadata)
+        // Adaptive requests use prepared metadata too: the tree it holds already
+        // covers every parent node count, so nothing about it depends on what
+        // Wheeler realizes at run time. Compatibility requires the flags to
+        // match, so an adaptive request never picks up a fixed tree.
+        const bool use_prepared_metadata =
+            request.prepared_metadata != nullptr && request.prepared_metadata->adaptive_branch_counts == request.adaptive_branch_counts;
+        if (use_prepared_metadata)
         {
-            const PreparedFixedCqmomMetadata& metadata = *request.prepared_fixed_metadata;
+            const PreparedCqmomMetadata& metadata = *request.prepared_metadata;
             internal::performance::record_cqmom_prepared_metadata_use();
             root_slice = create_ordered_root_slice(metadata.moment_layout, request.moments, *metadata.root_branch_layout);
         }
         else
         {
-            if (request.require_prepared_fixed_metadata && !request.adaptive_branch_counts)
+            if (request.require_prepared_metadata)
             {
-                throw std::logic_error("Fixed normal CQMOM reconstruction requires prepared metadata.");
+                throw std::logic_error("Normal CQMOM reconstruction requires prepared metadata.");
             }
             std::optional<CqmomMomentLayout> generated_root_layout;
             const CqmomMomentLayout* root_layout = request.validated_layout;
@@ -1595,10 +1721,20 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             }
             RecursiveQuadratureBranchDiagnostics branch_diagnostics{};
             branch_diagnostics.conditioning_level = level;
-            branch_diagnostics.path = branch.path;
             branch_diagnostics.phase_space_dimension = phase_space_dimension;
             branch_diagnostics.requested_node_count = node_count_limit.ceiling;
             branch_diagnostics.adaptive_branch_counts_enabled = request.adaptive_branch_counts;
+            // Copying the branch path allocates, and at diagnostic level `none`
+            // a successful branch publishes no record at all, so the copy would
+            // be built and discarded once per branch per reconstruction. The
+            // path is instead materialized here, at the single point every
+            // record passes through on its way into `result.diagnostics`, which
+            // keeps published records identical at every level.
+            const auto publish_branch_diagnostics = [&result, &branch](RecursiveQuadratureBranchDiagnostics& record)
+            {
+                record.path = branch.path;
+                result.diagnostics.push_back(record);
+            };
 
             std::vector<double> moment_sequence;
             try
@@ -1609,7 +1745,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             {
                 branch_diagnostics.message = ex.what();
                 branch_diagnostics.conditional_moment_status = ConditionalMomentStatus::invalid_input;
-                result.diagnostics.push_back(branch_diagnostics);
+                publish_branch_diagnostics(branch_diagnostics);
                 record_failure(result, RecursiveQuadratureStatus::invalid_input, branch.path, level, ex.what());
                 return result;
             }
@@ -1659,7 +1795,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             if (!quadrature.ok())
             {
                 branch_diagnostics.message = quadrature.message;
-                result.diagnostics.push_back(branch_diagnostics);
+                publish_branch_diagnostics(branch_diagnostics);
                 record_failure(result, RecursiveQuadratureStatus::wheeler_failed, branch.path, level, quadrature.message);
                 return result;
             }
@@ -1677,7 +1813,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             {
                 branch_diagnostics.wheeler_status = quadrature.status;
                 branch_diagnostics.message = "Wheeler inversion returned an unexpected node count.";
-                result.diagnostics.push_back(branch_diagnostics);
+                publish_branch_diagnostics(branch_diagnostics);
                 record_failure(result, RecursiveQuadratureStatus::wheeler_failed, branch.path, level, branch_diagnostics.message);
                 return result;
             }
@@ -1696,16 +1832,16 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
                 if (conditional_slices.status != ConditionalMomentStatus::success)
                 {
                     branch_diagnostics.message = conditional_slices.message;
-                    result.diagnostics.push_back(branch_diagnostics);
+                    publish_branch_diagnostics(branch_diagnostics);
                     record_failure(result, RecursiveQuadratureStatus::conditional_moment_failed, branch.path, level, conditional_slices.message);
                     return result;
                 }
             }
 
-            branch_diagnostics.message = "Recursive branch level constructed.";
             if (records_success_branch_diagnostics(request.diagnostic_level))
             {
-                result.diagnostics.push_back(branch_diagnostics);
+                branch_diagnostics.message = "Recursive branch level constructed.";
+                publish_branch_diagnostics(branch_diagnostics);
             }
 
             for (std::size_t node = 0; node < quadrature.weights.size(); ++node)
@@ -1756,13 +1892,13 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
                             branch_diagnostics.message = ex.what();
                             if (records_success_branch_diagnostics(request.diagnostic_level) && !result.diagnostics.empty() &&
                                 result.diagnostics.back().conditioning_level == branch_diagnostics.conditioning_level &&
-                                result.diagnostics.back().path == branch_diagnostics.path)
+                                result.diagnostics.back().path == branch.path)
                             {
                                 result.diagnostics.back().message = branch_diagnostics.message;
                             }
                             else
                             {
-                                result.diagnostics.push_back(branch_diagnostics);
+                                publish_branch_diagnostics(branch_diagnostics);
                             }
                             record_failure(result, RecursiveQuadratureStatus::invalid_input, child.path, level, ex.what());
                             return result;
@@ -1845,12 +1981,11 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
         return result;
     }
 
-    return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
-                                                                    wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
-                                                                    request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
-                                                                    request.allow_active_branch_count_growth, request.coordinate_support,
-                                                                    request.prepared_fixed_metadata, request.require_prepared_fixed_metadata},
-                                                                   request.moments.layout);
+    return compute_recursive_quadrature_from_validated_moment_view(
+        {request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options, wheeler_options, request.adaptive_branch_counts,
+         request.diagnostic_level, request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
+         request.allow_active_branch_count_growth, request.coordinate_support, request.prepared_metadata, request.require_prepared_metadata},
+        request.moments.layout);
 }
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(const RecursiveQuadratureMomentDataRequest& request)
@@ -1878,12 +2013,11 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
         return result;
     }
 
-    return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
-                                                                    wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
-                                                                    request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
-                                                                    request.allow_active_branch_count_growth, request.coordinate_support,
-                                                                    request.prepared_fixed_metadata, request.require_prepared_fixed_metadata},
-                                                                   request.moments.layout);
+    return compute_recursive_quadrature_from_validated_moment_view(
+        {request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options, wheeler_options, request.adaptive_branch_counts,
+         request.diagnostic_level, request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
+         request.allow_active_branch_count_growth, request.coordinate_support, request.prepared_metadata, request.require_prepared_metadata},
+        request.moments.layout);
 }
 
 RecursiveQuadratureResult compute_recursive_quadrature(const RecursiveQuadratureRequest& request)

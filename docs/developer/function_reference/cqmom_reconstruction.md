@@ -47,21 +47,33 @@ offsets; `make_branch_rhs_matrix` gathers the matrix with parent order as row
 and trailing multi-index as column. Size disagreement or an unavailable child
 layout throws rather than fabricating a conditional moment.
 
-`PreparedFixedCqmomMetadata` and `create_prepared_fixed_cqmom_metadata` pair
-the canonical layout with its fixed branch layout. Compatibility checks compare
-hierarchy counts, conditioning order, and required index order. Normal fixed
-case construction prepares this once and shares immutable metadata along state
-lineage. Adaptive cases need count-dependent layouts and do not carry fixed
-metadata. The trusted numerical path assumes this ownership boundary has
-already established compatibility; it is not a public bypass for arbitrary
-layouts.
+`PreparedCqmomMetadata` and `create_prepared_cqmom_metadata` pair
+the canonical layout with its branch layout. Compatibility checks compare
+hierarchy counts, conditioning order, required index order, and the adaptive
+branch-count flag. Normal case construction prepares this once and shares
+immutable metadata along state lineage.
+
+Adaptive cases are prepared too. `create_branch_moment_layout` already
+materializes a child case for every parent node count Wheeler could realize, so
+an adaptive tree covers every runtime outcome and is a pure function of the
+hierarchy, exactly as a fixed one is. It is wider, not count-dependent. The
+flag is part of the compatibility check because the two trees differ: a fixed
+tree carries only the configured count, so reusing one for an adaptive request
+would leave the realized count without a child case. A case-derived
+reconstruction that fails to find compatible metadata throws rather than
+rebuilding, so a cache miss is loud. The trusted numerical path assumes this
+ownership boundary has already established compatibility; it is not a public
+bypass for arbitrary layouts.
 
 Evidence: [recursive unit tests](../../../tests/unit/recursive_quadrature.cpp)
 exercise required offsets, non-identity order, unequal node counts, and reduced
 child layouts; [configuration tests](../../../tests/unit/configuration.cpp) and
-[public API tests](../../../tests/unit/public_api.cpp) inspect fixed metadata
-ownership/reuse and dense-to-required extraction. These do not characterize the
-memory growth of preparing all adaptive child layouts at large rank/counts.
+[public API tests](../../../tests/unit/public_api.cpp) inspect metadata
+ownership/reuse and dense-to-required extraction. Preparing all adaptive child
+layouts costs 2^d - 1 layouts at two nodes per axis, 63 at six dimensions, and
+121 for five dimensions at three nodes; peak resident size of the five-
+dimensional adaptive example moves from 7.0 MB to 7.2 MB. Growth beyond those
+ranks and counts is not characterized.
 
 ## Conditional slices — Level A
 

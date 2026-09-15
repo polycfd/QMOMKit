@@ -2486,7 +2486,7 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, 
             CqmomDenseCase replaced_case = *dense_case;
             replaced_case.moments = std::move(explicit_moments);
             return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(
-                std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(base_case))};
+                std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case))};
         }
 
         const CqmomLeanCase* const lean_case = qmomkit::internal::CqmomConstructionAccess::case_lean_case(base_case);
@@ -2508,7 +2508,7 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, 
         CqmomLeanCase replaced_case = *lean_case;
         replaced_case.moments = extract_cqmom_moments(explicit_moments, layout);
         return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(
-            std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(base_case))};
+            std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case))};
     }
     catch (const std::exception& error)
     {

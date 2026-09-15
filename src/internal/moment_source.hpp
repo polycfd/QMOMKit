@@ -19,7 +19,7 @@ public:
     [[nodiscard]] static CqmomSourceContext create(double time, const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices,
                                                    const std::vector<double>& values, const CqmomLeanCase& reconstruction_case,
                                                    const std::vector<CqmomActiveBranchCount>& active_branch_counts,
-                                                   const PreparedFixedCqmomMetadata* prepared_fixed_metadata);
+                                                   const PreparedCqmomMetadata* prepared_metadata);
 };
 
 // This entry point is for validated QMOM phase-space evolution only. The
@@ -48,7 +48,7 @@ advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, dou
                                                                                       const MomentSourceUpdateOptions& options,
                                                                                       const CqmomLeanCase& reconstruction_case,
                                                                                       const std::vector<CqmomActiveBranchCount>& active_branch_counts,
-                                                                                      const PreparedFixedCqmomMetadata* prepared_fixed_metadata);
+                                                                                      const PreparedCqmomMetadata* prepared_metadata);
 
 [[nodiscard]] CqmomMomentSourceUpdateResult advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step,
                                                                                       const CqmomMomentSource& source,
@@ -59,6 +59,6 @@ advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, dou
 advance_trusted_cqmom_moments_with_source(const CqmomMomentData& moments, double t, double time_step, const CqmomMomentSource& source,
                                           const CqmomMomentBoundaryContribution& boundary, const MomentSourceUpdateOptions& options,
                                           const CqmomLeanCase& reconstruction_case, const std::vector<CqmomActiveBranchCount>& active_branch_counts,
-                                          const PreparedFixedCqmomMetadata* prepared_fixed_metadata);
+                                          const PreparedCqmomMetadata* prepared_metadata);
 
 } // namespace qmomkit::internal

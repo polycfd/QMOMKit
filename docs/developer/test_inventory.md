@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 663 |
+| Unit logical tests | 665 |
 | Component/regression logical tests | 31 |
 | Verification logical tests | 167 |
-| **Runtime logical tests** | **862** |
+| **Runtime logical tests** | **863** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **863** |
+| **Total CTest registrations** | **864** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -420,7 +420,7 @@ renamed test rather than a deleted one.
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 862 runtime logical-test
+The `public_headers` registration is not part of the 863 runtime logical-test
 count. It compiles and links 23 public-header translation units as one separate
 CTest check; it is not 23 runtime tests.
 
@@ -1022,6 +1022,7 @@ CTest check; it is not 23 runtime tests.
 | --- | --- | --- | --- | --- |
 | `unit_phase_space_evolution_internal_cqmom_state_backend_accessors_are_explicit_and_guarded` | `tests/unit/phase_space_evolution.cpp` | `internal_cqmom_state_backend_accessors_are_explicit_and_guarded` | Verifies internal CQMOM state backend accessors are explicit and guarded. | — |
 | `unit_phase_space_evolution_fixed_cqmom_phase_space_evolution_successors_share_prepared_metadata` | `tests/unit/phase_space_evolution.cpp` | `fixed_cqmom_phase_space_evolution_successors_share_prepared_metadata` | Verifies fixed CQMOM phase space evolution successors share prepared metadata. | — |
+| `unit_phase_space_evolution_adaptive_cqmom_phase_space_evolution_successors_share_prepared_metadata` | `tests/unit/phase_space_evolution.cpp` | `adaptive_cqmom_phase_space_evolution_successors_share_prepared_metadata` | Verifies adaptive CQMOM phase space evolution successors share prepared metadata. | — |
 | `unit_phase_space_evolution_explicit_dense_and_lean_adaptive_branch_options_are_equivalent` | `tests/unit/phase_space_evolution.cpp` | `explicit_dense_and_lean_adaptive_branch_options_are_equivalent` | Verifies explicit dense and lean adaptive branch options are equivalent. | — |
 | `unit_phase_space_evolution_explicit_dense_and_lean_diagnostic_level_none_is_propagated` | `tests/unit/phase_space_evolution.cpp` | `explicit_dense_and_lean_diagnostic_level_none_is_propagated` | Checks that explicit dense and lean diagnostic level none is propagated in phase-space evolution. | — |
 | `unit_phase_space_evolution_explicit_dense_and_lean_adaptive_options_are_equivalent` | `tests/unit/phase_space_evolution.cpp` | `explicit_dense_and_lean_adaptive_options_are_equivalent` | Verifies explicit dense and lean adaptive options are equivalent. | — |

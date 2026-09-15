@@ -16,7 +16,7 @@ namespace internal
 {
 class CqmomSourceContextAccess;
 class QmomSourceContextAccess;
-struct PreparedFixedCqmomMetadata;
+struct PreparedCqmomMetadata;
 } // namespace internal
 
 /**
@@ -175,7 +175,7 @@ private:
 
     CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices, const std::vector<double>& values,
                        const CqmomLeanCase& reconstruction_case, const std::vector<CqmomActiveBranchCount>& active_branch_counts,
-                       const internal::PreparedFixedCqmomMetadata* prepared_fixed_metadata);
+                       const internal::PreparedCqmomMetadata* prepared_metadata);
 
     [[nodiscard]] const CqmomQuadrature& reconstructed_stage_quadrature() const;
 
@@ -185,7 +185,7 @@ private:
     const std::vector<double>* values_;
     const CqmomLeanCase* reconstruction_case_ = nullptr;
     const std::vector<CqmomActiveBranchCount>* active_branch_counts_ = nullptr;
-    const internal::PreparedFixedCqmomMetadata* prepared_fixed_metadata_ = nullptr;
+    const internal::PreparedCqmomMetadata* prepared_metadata_ = nullptr;
     mutable std::optional<CqmomQuadrature> reconstructed_stage_quadrature_;
 };
 

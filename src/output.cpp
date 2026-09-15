@@ -356,6 +356,32 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
     write_header();
 }
 
+std::string MomentWriter::layout_mismatch_message(const char* const overload, const MomentLayout required, const MomentLayout actual)
+{
+    const auto factory = [](const MomentLayout layout) -> std::string
+    {
+        switch (layout)
+        {
+        case MomentLayout::qmom:
+            return "MomentWriter::for_qmom(path, moment_count[, output_options]) or MomentWriter::for_qmom(path, selected_orders)";
+        case MomentLayout::qmom_state:
+            return "MomentWriter::for_qmom(path, qmom_state, output_options)";
+        case MomentLayout::cqmom_dense:
+            return "MomentWriter::for_cqmom(path, extents, ...)";
+        case MomentLayout::cqmom_moment_data:
+            return "MomentWriter::for_cqmom(path, cqmom_moment_layout, ...)";
+        case MomentLayout::cqmom_state:
+            return "MomentWriter::for_cqmom(path, cqmom_state, output_options)";
+        case MomentLayout::cqmom_requested:
+            return "MomentWriter::for_cqmom(path, raw_moment_request)";
+        }
+        return "an unknown factory";
+    };
+
+    return "MomentWriter::" + std::string(overload) + " requires a writer created by " + factory(required) + ", but this writer was created by " +
+           factory(actual) + ".";
+}
+
 void MomentWriter::write_header()
 {
     write_column_header(output_, column_width, precision, labels_, "moment output");
@@ -423,7 +449,7 @@ void MomentWriter::write(const double time, const MomentSet& moments)
 {
     if (layout_ != MomentLayout::qmom)
     {
-        throw std::invalid_argument("QMOM moment output cannot be written with a CQMOM moment writer.");
+        throw std::invalid_argument(layout_mismatch_message("write(time, MomentSet)", MomentLayout::qmom, layout_));
     }
     if (!extents_.empty() && moments.size() != extents_.front())
     {
@@ -431,7 +457,9 @@ void MomentWriter::write(const double time, const MomentSet& moments)
     }
     if (!generalized_moment_orders_.empty())
     {
-        throw std::invalid_argument("Generalized QMOM moment output values are required.");
+        throw std::invalid_argument(
+            "MomentWriter::write(time, MomentSet) cannot supply the writer's generalized-moment columns; use write(time, MomentSet, "
+            "generalized_values) or write(time, MomentSet, Quadrature1D).");
     }
     write_row(time, moments.values());
 }
@@ -440,7 +468,7 @@ void MomentWriter::write(const double time, const MomentSet& moments, const std:
 {
     if (layout_ != MomentLayout::qmom)
     {
-        throw std::invalid_argument("QMOM moment output cannot be written with a state or CQMOM moment writer.");
+        throw std::invalid_argument(layout_mismatch_message("write(time, MomentSet, generalized_values)", MomentLayout::qmom, layout_));
     }
     if (!extents_.empty() && moments.size() != extents_.front())
     {
@@ -463,7 +491,7 @@ void MomentWriter::write(const double time, const MomentSet& moments, const Quad
 {
     if (layout_ != MomentLayout::qmom)
     {
-        throw std::invalid_argument("QMOM moment output cannot be written with a state or CQMOM moment writer.");
+        throw std::invalid_argument(layout_mismatch_message("write(time, MomentSet, Quadrature1D)", MomentLayout::qmom, layout_));
     }
     if (!extents_.empty() && moments.size() != extents_.front())
     {
@@ -482,7 +510,7 @@ void MomentWriter::write(const double time, const QmomState& state, const QmomRe
 {
     if (layout_ != MomentLayout::qmom_state)
     {
-        throw std::invalid_argument("QMOM state output cannot be written with a raw-moment or CQMOM writer.");
+        throw std::invalid_argument(layout_mismatch_message("write(time, QmomState, QmomResult)", MomentLayout::qmom_state, layout_));
     }
     if (extents_.size() != 1 || state.moments().size() != extents_.front())
     {
@@ -501,7 +529,7 @@ void MomentWriter::write(const double time, const RawMomentTensor& moments)
 {
     if (layout_ != MomentLayout::cqmom_dense)
     {
-        throw std::invalid_argument("Dense CQMOM moment output cannot be written with this moment writer.");
+        throw std::invalid_argument(layout_mismatch_message("write(time, RawMomentTensor)", MomentLayout::cqmom_dense, layout_));
     }
     if (moments.extents != extents_)
     {
@@ -513,7 +541,9 @@ void MomentWriter::write(const double time, const RawMomentTensor& moments)
     }
     if (!generalized_moment_orders_.empty())
     {
-        throw std::invalid_argument("Generalized CQMOM moment output values are required.");
+        throw std::invalid_argument(
+            "MomentWriter::write(time, RawMomentTensor) cannot supply the writer's generalized-moment columns; use write(time, "
+            "RawMomentTensor, generalized_values).");
     }
     write_row(time, moments.values);
 }
@@ -522,7 +552,7 @@ void MomentWriter::write(const double time, const RawMomentTensor& moments, cons
 {
     if (layout_ != MomentLayout::cqmom_dense)
     {
-        throw std::invalid_argument("Dense CQMOM moment output cannot be written with this moment writer.");
+        throw std::invalid_argument(layout_mismatch_message("write(time, RawMomentTensor, generalized_values)", MomentLayout::cqmom_dense, layout_));
     }
     if (moments.extents != extents_)
     {
@@ -549,7 +579,7 @@ void MomentWriter::write(const double time, const CqmomMomentData& moments)
 {
     if (layout_ != MomentLayout::cqmom_moment_data)
     {
-        throw std::invalid_argument("CQMOM moment data output cannot be written with this moment writer.");
+        throw std::invalid_argument(layout_mismatch_message("write(time, CqmomMomentData)", MomentLayout::cqmom_moment_data, layout_));
     }
     if (!cqmom_layout_.has_value() || !internal::same_cqmom_layout(moments.layout, *cqmom_layout_))
     {
@@ -557,7 +587,9 @@ void MomentWriter::write(const double time, const CqmomMomentData& moments)
     }
     if (!generalized_moment_orders_.empty())
     {
-        throw std::invalid_argument("Generalized CQMOM moment output values are required.");
+        throw std::invalid_argument(
+            "MomentWriter::write(time, CqmomMomentData) cannot supply the writer's generalized-moment columns; use write(time, "
+            "CqmomMomentData, generalized_values).");
     }
     write_aligned_row(time, moments.values);
 }
@@ -566,7 +598,8 @@ void MomentWriter::write(const double time, const CqmomMomentData& moments, cons
 {
     if (layout_ != MomentLayout::cqmom_moment_data)
     {
-        throw std::invalid_argument("CQMOM moment data output cannot be written with this moment writer.");
+        throw std::invalid_argument(
+            layout_mismatch_message("write(time, CqmomMomentData, generalized_values)", MomentLayout::cqmom_moment_data, layout_));
     }
     if (!cqmom_layout_.has_value() || !internal::same_cqmom_layout(moments.layout, *cqmom_layout_))
     {
@@ -579,7 +612,7 @@ void MomentWriter::write(const double time, const CqmomState& state, const Cqmom
 {
     if (layout_ != MomentLayout::cqmom_state)
     {
-        throw std::invalid_argument("CQMOM state output cannot be written with this moment writer.");
+        throw std::invalid_argument(layout_mismatch_message("write(time, CqmomState, CqmomQuadrature)", MomentLayout::cqmom_state, layout_));
     }
     if (state.moment_indices() != state_indices_)
     {
@@ -598,7 +631,7 @@ void MomentWriter::write(const double time, const CqmomQuadrature& quadrature)
 {
     if (layout_ != MomentLayout::cqmom_requested)
     {
-        throw std::invalid_argument("Requested CQMOM moment output cannot be written with this moment writer.");
+        throw std::invalid_argument(layout_mismatch_message("write(time, CqmomQuadrature)", MomentLayout::cqmom_requested, layout_));
     }
     const SelectedRawMomentResult reconstructed = reconstruct_raw_moments(quadrature, raw_moment_request_);
     if (!reconstructed.ok())

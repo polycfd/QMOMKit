@@ -25,8 +25,13 @@ whitespace-separated fields with precision 17. `write_aligned_row` expects
 values already aligned with the writer's selected required/requested layout.
 Public `write` overloads either select stored state or moment entries, evaluate
 configured generalized values from a supplied quadrature, or reconstruct a
-requested CQMOM moment from quadrature before writing. Runtime selection can
-fail after earlier fields were streamed; output is not transactional. Callers
+requested CQMOM moment from quadrature before writing. Each overload first
+checks that the writer's layout matches its data argument; the map from
+overload to accepting factory is one-to-one, and `layout_mismatch_message`
+reports a mismatch by naming both the required and the actual factory. See the
+[factory pairing table](../output_design.md#moment-writer-factory-pairing).
+Runtime selection can fail after earlier fields were streamed; output is not
+transactional. Callers
 should not assume a failed write leaves the file unchanged or contains a
 complete final row.
 
@@ -55,7 +60,7 @@ transaction guarantee is inferred from successful file comparisons.
 | `qmom_label`, `cqmom_label`, `cqmom_abscissa_label` | Format order/coordinate metadata; labels do not impose physical units. | Output header tests |
 | `sequential_indices`, `flatten_selected_indices` | Build all-order selection or map checked multi-indices to dense offsets in request order. | Selected-output tests |
 | `qmom_labels`, `cqmom_labels`, `all_cqmom_labels`, `qmom_quadrature_labels`, `cqmom_quadrature_labels` | Construct header fields matching the selected writer layout. | Output header/row tests |
-| Writer constructors, `write_header`, forwarding `write` overloads | Own stream/layout and adapt supported input representations. Opening and row emission may have effects before a later exception. | Output failure tests, boundary caveat above |
+| Writer constructors, `write_header`, `layout_mismatch_message`, forwarding `write` overloads | Own stream/layout and adapt supported input representations. Opening and row emission may have effects before a later exception. | Output failure tests, boundary caveat above |
 
 ## Shared finite and shape validation — Levels A/C
 

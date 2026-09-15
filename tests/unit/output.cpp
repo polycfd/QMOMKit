@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <limits>
 #include <sstream>
@@ -503,6 +504,100 @@ void test_writer_rejects_mismatched_inputs()
     std::filesystem::remove(cqmom_path);
 }
 
+// The factory fixes a writer's column schema, so it also fixes which write(...)
+// overloads the writer accepts. The pairing is one-to-one in the data argument:
+// six factory families, ten write overloads, and no overload served by two
+// families. This pins every off-diagonal entry of that matrix, including the
+// message text that tells a caller which factory it needed.
+void test_writer_rejects_rows_from_other_factories()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
+    const std::vector<double> dense_moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {extents, dense_moments}, {}, {}});
+    assert(result.ok());
+
+    const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const std::vector<double> layout_values(moment_layout.required_indices.size(), 1.0);
+    const qmomkit::CqmomState cqmom_state =
+        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomDenseCase{hierarchy, {extents, dense_moments}, {}, {}});
+    const qmomkit::QmomState qmom_state = qmomkit::QmomCase{qmomkit::MomentSet{1.0, 4.0}, 1}.initial_state();
+
+    const std::string qmom_factory = "MomentWriter::for_qmom(path, moment_count[, output_options]) or MomentWriter::for_qmom(path, selected_orders)";
+    const std::string qmom_state_factory = "MomentWriter::for_qmom(path, qmom_state, output_options)";
+    const std::string dense_factory = "MomentWriter::for_cqmom(path, extents, ...)";
+    const std::string moment_data_factory = "MomentWriter::for_cqmom(path, cqmom_moment_layout, ...)";
+    const std::string cqmom_state_factory = "MomentWriter::for_cqmom(path, cqmom_state, output_options)";
+    const std::string requested_factory = "MomentWriter::for_cqmom(path, raw_moment_request)";
+
+    struct WriteOverload
+    {
+        std::string signature;
+        std::string accepting_factory;
+        std::function<void(qmomkit::MomentWriter&)> call;
+    };
+
+    const std::vector<WriteOverload> overloads{
+        {"write(time, MomentSet)", qmom_factory, [](qmomkit::MomentWriter& writer) { writer.write(0.0, qmomkit::MomentSet({1.0})); }},
+        {"write(time, MomentSet, generalized_values)", qmom_factory,
+         [](qmomkit::MomentWriter& writer) { writer.write(0.0, qmomkit::MomentSet({1.0}), std::vector<double>{}); }},
+        {"write(time, MomentSet, Quadrature1D)", qmom_factory,
+         [](qmomkit::MomentWriter& writer) { writer.write(0.0, qmomkit::MomentSet({1.0}), qmomkit::Quadrature1D{{1.0}, {1.0}}); }},
+        {"write(time, QmomState, QmomResult)", qmom_state_factory,
+         [&qmom_state](qmomkit::MomentWriter& writer) { writer.write(0.0, qmom_state, qmomkit::QmomResult{{1.0}, {1.0}}); }},
+        {"write(time, RawMomentTensor)", dense_factory,
+         [](qmomkit::MomentWriter& writer) { writer.write(0.0, qmomkit::RawMomentTensor{{2}, {1.0, 2.0}}); }},
+        {"write(time, RawMomentTensor, generalized_values)", dense_factory,
+         [](qmomkit::MomentWriter& writer) { writer.write(0.0, qmomkit::RawMomentTensor{{2}, {1.0, 2.0}}, std::vector<double>{}); }},
+        {"write(time, CqmomMomentData)", moment_data_factory, [&moment_layout, &layout_values](qmomkit::MomentWriter& writer)
+         { writer.write(0.0, qmomkit::CqmomMomentData{moment_layout, layout_values}); }},
+        {"write(time, CqmomMomentData, generalized_values)", moment_data_factory, [&moment_layout, &layout_values](qmomkit::MomentWriter& writer)
+         { writer.write(0.0, qmomkit::CqmomMomentData{moment_layout, layout_values}, std::vector<double>{}); }},
+        {"write(time, CqmomState, CqmomQuadrature)", cqmom_state_factory,
+         [&cqmom_state, &result](qmomkit::MomentWriter& writer) { writer.write(0.0, cqmom_state, result.quadrature); }},
+        {"write(time, CqmomQuadrature)", requested_factory, [&result](qmomkit::MomentWriter& writer) { writer.write(0.0, result.quadrature); }}};
+
+    std::size_t rejected_pairings = 0;
+    const auto assert_rejects_foreign_rows =
+        [&overloads, &rejected_pairings](const std::string& stem, const std::string& writer_factory, auto&& create_writer)
+    {
+        const std::filesystem::path path = temporary_output_path(stem);
+        {
+            qmomkit::MomentWriter writer = create_writer(path);
+            for (const WriteOverload& overload : overloads)
+            {
+                if (overload.accepting_factory == writer_factory)
+                {
+                    continue;
+                }
+                assert_throws_invalid_argument_message([&overload, &writer] { overload.call(writer); },
+                                                       "MomentWriter::" + overload.signature + " requires a writer created by " +
+                                                           overload.accepting_factory + ", but this writer was created by " + writer_factory + ".");
+                ++rejected_pairings;
+            }
+        }
+        std::filesystem::remove(path);
+    };
+
+    assert_rejects_foreign_rows("qmomkit_pairing_qmom", qmom_factory,
+                                [](const std::filesystem::path& path) { return qmomkit::MomentWriter::for_qmom(path, 1); });
+    assert_rejects_foreign_rows("qmomkit_pairing_qmom_state", qmom_state_factory, [&qmom_state](const std::filesystem::path& path)
+                                { return qmomkit::MomentWriter::for_qmom(path, qmom_state, qmomkit::OutputOptions{}); });
+    assert_rejects_foreign_rows("qmomkit_pairing_cqmom_dense", dense_factory, [](const std::filesystem::path& path)
+                                { return qmomkit::MomentWriter::for_cqmom(path, std::vector<std::size_t>{2}); });
+    assert_rejects_foreign_rows("qmomkit_pairing_cqmom_moment_data", moment_data_factory, [&moment_layout](const std::filesystem::path& path)
+                                { return qmomkit::MomentWriter::for_cqmom(path, moment_layout); });
+    assert_rejects_foreign_rows("qmomkit_pairing_cqmom_state", cqmom_state_factory, [&cqmom_state](const std::filesystem::path& path)
+                                { return qmomkit::MomentWriter::for_cqmom(path, cqmom_state, qmomkit::OutputOptions{}); });
+    assert_rejects_foreign_rows("qmomkit_pairing_cqmom_requested", requested_factory, [](const std::filesystem::path& path)
+                                { return qmomkit::MomentWriter::for_cqmom(path, qmomkit::RawMomentRequest{{{1, 0}}}); });
+
+    // Ten overloads across six writers, less the ten accepted (diagonal) pairings.
+    assert(rejected_pairings == 6 * overloads.size() - overloads.size());
+}
+
 void test_qmom_quadrature_output()
 {
     const std::filesystem::path path = temporary_output_path("qmomkit_qmom_quadrature");
@@ -716,7 +811,8 @@ void test_writer_rejects_generalized_moments_without_values()
         options.generalized_moment_orders = {{2.0}};
         qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(qmom_path, 1, options);
         assert_throws_invalid_argument_message([&writer] { writer.write(0.0, qmomkit::MomentSet({1.0})); },
-                                               "Generalized QMOM moment output values are required.");
+                                               "MomentWriter::write(time, MomentSet) cannot supply the writer's generalized-moment columns; "
+                                               "use write(time, MomentSet, generalized_values) or write(time, MomentSet, Quadrature1D).");
     }
     std::filesystem::remove(qmom_path);
 
@@ -725,7 +821,8 @@ void test_writer_rejects_generalized_moments_without_values()
         qmomkit::MomentWriter writer =
             qmomkit::MomentWriter::for_cqmom(cqmom_dense_path, std::vector<std::size_t>{2}, std::vector<qmomkit::MultiIndex>{{0}}, {{1.0}});
         assert_throws_invalid_argument_message([&writer] { writer.write(0.0, qmomkit::RawMomentTensor{{2}, {1.0, 2.0}}); },
-                                               "Generalized CQMOM moment output values are required.");
+                                               "MomentWriter::write(time, RawMomentTensor) cannot supply the writer's generalized-moment columns; "
+                                               "use write(time, RawMomentTensor, generalized_values).");
     }
     std::filesystem::remove(cqmom_dense_path);
 
@@ -735,7 +832,8 @@ void test_writer_rejects_generalized_moments_without_values()
         qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(cqmom_moment_data_path, layout, {{1.0}});
         assert_throws_invalid_argument_message(
             [&writer, &layout] { writer.write(0.0, qmomkit::CqmomMomentData{layout, std::vector<double>(layout.required_indices.size(), 1.0)}); },
-            "Generalized CQMOM moment output values are required.");
+            "MomentWriter::write(time, CqmomMomentData) cannot supply the writer's generalized-moment columns; "
+            "use write(time, CqmomMomentData, generalized_values).");
     }
     std::filesystem::remove(cqmom_moment_data_path);
 }
@@ -876,6 +974,7 @@ int main(const int argc, char** argv)
             {"cqmom_state_generalized_moment_output", test_cqmom_state_generalized_moment_output},
             {"qmom_state_generalized_moment_output", test_qmom_state_generalized_moment_output},
             {"writer_rejects_mismatched_inputs", test_writer_rejects_mismatched_inputs},
+            {"writer_rejects_rows_from_other_factories", test_writer_rejects_rows_from_other_factories},
             {"qmom_quadrature_output", test_qmom_quadrature_output},
             {"quadrature_1d_output", test_quadrature_1d_output},
             {"qmom_adaptive_quadrature_output_accepts_changing_node_counts", test_qmom_adaptive_quadrature_output_accepts_changing_node_counts},

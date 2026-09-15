@@ -39,6 +39,18 @@ struct OutputOptions
  * The writer is application-controlled: construction opens exactly one file,
  * writes a header, and each `write(...)` call appends one time row. The writer
  * does not schedule output and is not used by numerical algorithms.
+ *
+ * The factory fixes the column schema, so it also fixes which `write(...)`
+ * overloads the writer accepts. The pairing is one-to-one in the data argument:
+ * `MomentSet` rows belong to the `for_qmom(path, moment_count)` and
+ * `for_qmom(path, selected_orders)` writers, `QmomState` rows to
+ * `for_qmom(path, state, output_options)`, `RawMomentTensor` rows to the
+ * `for_cqmom(path, extents, ...)` writers, `CqmomMomentData` rows to the
+ * `for_cqmom(path, layout, ...)` writers, `CqmomState` rows to
+ * `for_cqmom(path, state, output_options)`, and a bare `CqmomQuadrature` row to
+ * `for_cqmom(path, request)`. Passing a row to a writer built by a different
+ * factory throws `std::invalid_argument` naming the factory the caller needs.
+ * `docs/developer/output_design.md` tabulates the same pairing.
  */
 class MomentWriter
 {
@@ -140,6 +152,9 @@ private:
                  std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision);
     MomentWriter(const std::filesystem::path& path, MomentLayout layout, RawMomentRequest request, std::vector<std::string> labels,
                  const std::size_t precision);
+
+    /** Report that `overload` needs a `required` writer but was called on an `actual` one, naming both factories. */
+    [[nodiscard]] static std::string layout_mismatch_message(const char* overload, MomentLayout required, MomentLayout actual);
 
     void write_header();
     void write_row(double time, const std::vector<double>& values);

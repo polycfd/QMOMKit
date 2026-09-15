@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 663 |
+| Unit logical tests | 664 |
 | Component/regression logical tests | 31 |
 | Verification logical tests | 165 |
-| **Runtime logical tests** | **859** |
+| **Runtime logical tests** | **860** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **860** |
+| **Total CTest registrations** | **861** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -400,6 +400,7 @@ renamed test rather than a deleted one.
 | `unit_output_factories_reject_empty_selections` | `tests/unit/output.cpp` | `factories_reject_empty_selections` | Checks that writer factories reject an empty column or moment selection instead of producing an empty table. | — |
 | `unit_output_moment_writer_rejects_nonfinite_values` | `tests/unit/output.cpp` | `moment_writer_rejects_nonfinite_values` | Checks that `MomentWriter` rejects non-finite values rather than writing them to a history file. | — |
 | `unit_output_writer_rejects_generalized_moments_without_values` | `tests/unit/output.cpp` | `writer_rejects_generalized_moments_without_values` | Checks that a writer configured for generalized moment columns rejects a call that supplies no generalized values. | — |
+| `unit_output_writer_rejects_rows_from_other_factories` | `tests/unit/output.cpp` | `writer_rejects_rows_from_other_factories` | Checks that each `MomentWriter` factory accepts only its own `write(...)` overloads and names the required factory in the rejection message. | — |
 
 ### Configuration
 

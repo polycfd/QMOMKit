@@ -7,6 +7,7 @@ This page documents the current QMOMKit design for output handling.
 - [Role Of Output](#role-of-output)
 - [Output Architecture](#output-architecture)
 - [Moment History Output](#moment-history-output)
+- [Moment Writer Factory Pairing](#moment-writer-factory-pairing)
 - [Quadrature History Output](#quadrature-history-output)
 - [Configuration Interaction](#configuration-interaction)
 - [Extension Principles](#extension-principles)
@@ -157,6 +158,38 @@ $$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
 
 Requested output preserves request order and duplicate requested indices. It
 does not create a dense `RawMomentTensor`.
+
+## Moment writer factory pairing
+
+A `MomentWriter` factory fixes the column schema, so it also fixes which
+`write(...)` overloads the writer accepts. The pairing is one-to-one in the data
+argument: each factory family below serves its own overloads, and no overload is
+served by two families. Passing a row to a writer built by a different family
+throws `std::invalid_argument` naming the factory the caller needs.
+
+| Factory family | Accepted `write(...)` rows |
+|---|---|
+| `for_qmom(path, moment_count)`, `for_qmom(path, moment_count, output_options)`, `for_qmom(path, selected_orders)` | `(time, MomentSet)`, `(time, MomentSet, generalized_values)`, `(time, MomentSet, Quadrature1D)` |
+| `for_qmom(path, qmom_state, output_options)` | `(time, QmomState, QmomResult)` |
+| `for_cqmom(path, extents, ...)` | `(time, RawMomentTensor)`, `(time, RawMomentTensor, generalized_values)` |
+| `for_cqmom(path, cqmom_moment_layout, ...)` | `(time, CqmomMomentData)`, `(time, CqmomMomentData, generalized_values)` |
+| `for_cqmom(path, cqmom_state, output_options)` | `(time, CqmomState, CqmomQuadrature)` |
+| `for_cqmom(path, raw_moment_request)` | `(time, CqmomQuadrature)` |
+
+The `for_qmom(path, moment_count)`, `for_cqmom(path, extents, ...)` and
+`for_cqmom(path, cqmom_moment_layout, ...)` families each also have a row
+overload that carries no generalized values; it may be used only when the writer
+has no generalized-moment columns. A writer configured with
+`generalized_moment_orders` needs the overload that supplies them: explicit
+values for the dense and lean CQMOM families, and for QMOM either explicit values
+or a `Quadrature1D` that the writer evaluates. The two state-based families
+always evaluate their configured generalized columns from the quadrature passed
+with the row, and `for_cqmom(path, raw_moment_request)` has no generalized-column
+form at all.
+
+Every off-diagonal entry of this table is pinned by
+`unit_output_writer_rejects_rows_from_other_factories`, including the message
+text, so the table and the runtime behavior cannot drift apart.
 
 ## Quadrature history output
 

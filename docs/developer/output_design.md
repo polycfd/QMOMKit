@@ -98,10 +98,12 @@ columns are moment values:
 # time M[0] M[1] M[2] ...
 ```
 
-Numeric values are currently written with `std::setprecision(17)`. This is a
-fixed writer behavior, not a user-configurable option. It preserves
-high-precision floating-point text representation for reproducible output in
-ordinary validation workflows.
+Numeric values are written with `std::setprecision(precision)`. Every writer
+factory takes that precision as a trailing parameter defaulting to `17`, which
+round-trips a `double` exactly and so preserves reproducible output for ordinary
+validation workflows. A driver that values readability over exact round-tripping
+may pass a smaller value; the column width follows the precision, so the table
+stays aligned either way.
 
 For one-dimensional QMOM moment output, the all-moment writer uses ascending
 raw moment order:

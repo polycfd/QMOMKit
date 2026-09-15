@@ -379,10 +379,16 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
                 internal::performance::record_embedded_rk_step(false);
                 if (step_is_at_effective_lower_bound)
                 {
+                    // Reaching this branch at the lower bound means the attempt
+                    // was not merely inaccurate: a finite candidate with a finite
+                    // norm is accepted there regardless of the error. What is
+                    // left is a non-finite state or error estimate, so the
+                    // message says that rather than blaming the step size the
+                    // status name refers to.
                     result.state = y;
                     result.t = t;
                     result.status = AdaptiveRkStatus::step_size_underflow;
-                    result.message = std::string(tableau->name) + " required a step smaller than min_step.";
+                    result.message = std::string(tableau->name) + " produced a non-finite state or error estimate at the minimum step.";
                     result.function_evaluations = function_evaluations;
                     return result;
                 }

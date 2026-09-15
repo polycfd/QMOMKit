@@ -50,7 +50,7 @@ down where to look:
 | `source_failed` | The source callback itself | As above, for rates |
 | `rejected_by_predicate` | Source integration | A realizability or acceptance check rejected every retry |
 | `minimum_timestep_reached` | Source integration | Retries shrank the step below its floor |
-| `step_size_underflow` | Adaptive node integration | The requested tolerance needs a step below `min_step` |
+| `step_size_underflow` | Adaptive node integration | The step at the floor produced a non-finite state or error estimate |
 | `max_steps_exceeded` | Adaptive node integration | The interval needs more steps than `max_steps` allows |
 
 ## Reconstruction problems
@@ -160,11 +160,20 @@ Before raising it, check whether the velocity is far larger than intended —
 exhausting a large step budget over a short interval usually means the model,
 not the budget.
 
-### `... required a step smaller than min_step.`
+### `... produced a non-finite state or error estimate at the minimum step.`
 
-The requested tolerance cannot be met above the step floor. Relax
-`relative_tolerance` and `absolute_tolerance`, or lower `min_step`. As above,
-consider first whether the velocity field is behaving as intended.
+The node integrator reached its smallest permitted step and the step taken there
+produced a non-finite state or error estimate. This is divergence rather than a
+tolerance problem, so relaxing `relative_tolerance` and `absolute_tolerance`
+will not help; check the velocity field first, then whether the quadrature
+feeding it still holds sensible coordinates.
+
+Note that the *accuracy* case does not fail here. When the error controller
+would ask for a step below the floor but the step at the floor is finite, the
+integrator accepts it and continues, so a successful integration does not by
+itself certify that the requested local-error tolerance was met. Lower `min_step`
+if you need the controller to keep refining, and compare against a tighter run
+to confirm the result is converged.
 
 ### Evolution succeeds for a while, then fails with `inversion_failed`
 

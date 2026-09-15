@@ -545,7 +545,10 @@ initial-step estimator: QMOMKit does not derive `initial_step` from the state,
 derivatives, or tolerances. Explicit tolerances and step sizes must be positive finite
 numbers, and an explicit `min_step` must not exceed the effective `max_step` —
 whether `max_step` is explicitly configured or automatically derived from the
-integration interval. `max_steps` must be a positive integer. The higher-order member advances an
+integration interval. `min_step` takes precedence over the tolerances: when the
+error controller would ask for a smaller step, a finite step at the floor is
+accepted instead, so a successful run does not by itself certify that every step
+met the requested tolerance. `max_steps` must be a positive integer. The higher-order member advances an
 accepted state, and both embedded methods use FSAL derivative reuse internally.
 
 Drivers can print `format_node_advection_options(...)` at startup to report

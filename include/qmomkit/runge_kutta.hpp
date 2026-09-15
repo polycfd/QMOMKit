@@ -94,6 +94,13 @@ struct SspRk3Result
 [[nodiscard]] SspRk3Result ssp_rk3_step(const std::vector<double>& state, double t, double time_step, const OdeRhs& rhs,
                                         const SspRk3Options& options);
 
+/**
+ * Outcome of an adaptive embedded Runge-Kutta integration.
+ *
+ * `step_size_underflow` reports a step at the effective minimum whose candidate
+ * state or error estimate was not finite. A finite step at that minimum is
+ * accepted instead; see `AdaptiveRkOptions`.
+ */
 enum class AdaptiveRkStatus
 {
     success,
@@ -129,6 +136,13 @@ inline constexpr double default_adaptive_initial_step = 1.0e-6;
  * integration interval length). `min_step <= 0.0` requests an automatically
  * derived, always-tiny minimum step. An explicit `min_step` must not exceed
  * the effective maximum step, or the request is rejected as invalid input.
+ *
+ * When the error controller would require a step below the effective minimum,
+ * a finite step at that minimum is accepted rather than failing. The step floor
+ * therefore takes precedence over the tolerances: `AdaptiveRkStatus::success`
+ * means the integration reached `t_bound`, not that every step met the
+ * requested local-error norm. Lower `min_step` to keep the controller
+ * refining.
  */
 struct AdaptiveRkOptions
 {

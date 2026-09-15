@@ -2,6 +2,7 @@
 
 #include "monte_carlo/moments.hpp"
 #include "qmomkit/output.hpp"
+#include "qmomkit/raw_moment_tensor.hpp"
 
 #include <filesystem>
 #include <iosfwd>

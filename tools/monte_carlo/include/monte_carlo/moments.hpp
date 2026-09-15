@@ -1,9 +1,9 @@
 #pragma once
 
 #include "monte_carlo/ensemble.hpp"
-#include "qmomkit/conditional_moments.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/moment_set.hpp"
+#include "qmomkit/raw_moment_tensor.hpp"
 
 #include <cstddef>
 #include <string>

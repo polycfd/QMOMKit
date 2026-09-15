@@ -5,6 +5,7 @@
 #include "qmomkit/conditioning_path.hpp"
 #include "qmomkit/phase_space_hierarchy.hpp"
 #include "qmomkit/qmom.hpp"
+#include "qmomkit/raw_moment_tensor.hpp"
 #include "qmomkit/vandermonde_solver.hpp"
 
 #include <cstddef>

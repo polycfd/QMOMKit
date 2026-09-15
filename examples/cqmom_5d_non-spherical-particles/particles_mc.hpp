@@ -1,7 +1,7 @@
 #pragma once
 
 #include "monte_carlo/ensemble.hpp"
-#include "qmomkit/conditional_moments.hpp"
+#include "qmomkit/raw_moment_tensor.hpp"
 
 #include <vector>
 

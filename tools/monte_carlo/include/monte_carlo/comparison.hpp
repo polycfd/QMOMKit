@@ -1,9 +1,9 @@
 #pragma once
 
 #include "monte_carlo/status.hpp"
-#include "qmomkit/conditional_moments.hpp"
 #include "qmomkit/moment_set.hpp"
 #include "qmomkit/multi_index.hpp"
+#include "qmomkit/raw_moment_tensor.hpp"
 #include "qmomkit/runge_kutta.hpp"
 
 #include <cstddef>

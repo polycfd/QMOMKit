@@ -4,11 +4,10 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import math
 import os
 import tempfile
-from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
 
 os.environ.setdefault(
@@ -36,23 +35,80 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_DIRECTORY = Path(__file__).resolve().parent
 
 
-def read_comparison(
+def read_moment_rows(
     path: Path,
-) -> dict[str, list[dict[str, float]]]:
-    grouped: dict[str, list[dict[str, float]]] = defaultdict(list)
+    labels: list[str],
+) -> list[dict[str, float]]:
+    """Read selected raw moments from a native history, one row per output time."""
 
-    with path.open(newline="", encoding="utf-8") as handle:
-        for row in csv.DictReader(handle):
-            grouped[row["quantity"]].append(
-                {
-                    "time": float(row["time"]),
-                    "qmomkit": float(row["qmomkit"]),
-                    "monte_carlo": float(row["monte_carlo"]),
-                }
+    history = read_selected_moment_history(
+        path,
+        {label: label for label in labels},
+    )
+    columns = [history[label] for label in labels]
+
+    return [
+        {
+            "time": entries[0]["time"],
+            **{
+                label: entry["value"]
+                for label, entry in zip(labels, entries)
+            },
+        }
+        for entries in zip(*columns)
+    ]
+
+
+def compare_native_histories(
+    results_dir: Path,
+    labels: list[str],
+    quantities: dict[str, Callable[[dict[str, float]], float]],
+) -> dict[str, list[dict[str, float]]]:
+    """Derive comparison quantities from the QMOMKit and Monte Carlo histories.
+
+    Both runs write QMOMKit-native moment histories at the same output times, so
+    the compared quantities are derived here rather than written to a separate
+    comparison file by the example itself.
+    """
+
+    qmomkit_rows = read_moment_rows(
+        results_dir / "moment_history.txt",
+        labels,
+    )
+    monte_carlo_rows = read_moment_rows(
+        results_dir / "moment_history_mc.txt",
+        labels,
+    )
+
+    if len(qmomkit_rows) != len(monte_carlo_rows):
+        raise ValueError(
+            f"{results_dir} QMOMKit and Monte Carlo histories have different output-time counts."
+        )
+
+    grouped: dict[str, list[dict[str, float]]] = {
+        name: []
+        for name in quantities
+    }
+
+    for qmomkit_row, monte_carlo_row in zip(qmomkit_rows, monte_carlo_rows):
+        if not math.isclose(
+            qmomkit_row["time"],
+            monte_carlo_row["time"],
+            rel_tol=0.0,
+            abs_tol=1.0e-14,
+        ):
+            raise ValueError(
+                f"{results_dir} QMOMKit and Monte Carlo histories have different output times."
             )
 
-    for rows in grouped.values():
-        rows.sort(key=lambda row: row["time"])
+        for name, evaluate in quantities.items():
+            grouped[name].append(
+                {
+                    "time": qmomkit_row["time"],
+                    "qmomkit": evaluate(qmomkit_row),
+                    "monte_carlo": evaluate(monte_carlo_row),
+                }
+            )
 
     return grouped
 
@@ -62,7 +118,9 @@ def read_selected_moment_history(
     quantities: dict[str, str],
 ) -> dict[str, list[dict[str, float]]]:
     with path.open(encoding="utf-8") as handle:
-        header = handle.readline().lstrip("#").split()
+        # QMOMKit centres the "# time" label inside a padded column, so the
+        # comment marker is not at the start of the line.
+        header = handle.readline().strip().lstrip("#").split()
 
         if not header or header[0] != "time":
             raise ValueError(
@@ -104,7 +162,9 @@ def read_terminal_quadrature_moments(
     """Evaluate selected moments from a terminal-quadrature history."""
 
     with path.open(encoding="utf-8") as handle:
-        header = handle.readline().lstrip("#").split()
+        # QMOMKit centres the "# time" label inside a padded column, so the
+        # comment marker is not at the start of the line.
+        header = handle.readline().strip().lstrip("#").split()
 
         if not header or header[0] != "time":
             raise ValueError(
@@ -604,61 +664,74 @@ def plot_condensing_droplets(
     )
 
 
+# Phase-space order is (r, w, T); these are the raw moments the compared
+# droplet quantities are built from.
+DROPLET_MOMENTS = [
+    "M[0,0,0]",
+    "M[3,0,0]",
+    "M[2,0,0]",
+    "M[0,1,0]",
+    "M[0,0,1]",
+    "M[1,0,0]",
+    "M[1,0,1]",
+]
+
+
 def condensing_droplet_data(
     results_dir: Path,
 ) -> dict[str, list[dict[str, float]]]:
     """Present SI-radius droplet data in micrometres for readability."""
 
-    comparison = read_comparison(
-        results_dir / "moment_comparison.csv",
-    )
+    def mean_radius(row: dict[str, float]) -> float:
+        return row["M[1,0,0]"] / row["M[0,0,0]"]
 
-    for quantity, factor in {
-        "M_300/M_200": 1.0e6,
-        "sigma_r^2": 1.0e12,
-    }.items():
-        for row in comparison[quantity]:
-            row["qmomkit"] *= factor
-            row["monte_carlo"] *= factor
-    qmomkit_moments = read_selected_moment_history(
-        results_dir / "moment_history.txt",
+    def mean_temperature(row: dict[str, float]) -> float:
+        return row["M[0,0,1]"] / row["M[0,0,0]"]
+
+    # Radii are stored in metres; the micrometre factors are presentation only.
+    return compare_native_histories(
+        results_dir,
+        DROPLET_MOMENTS,
         {
-            "M_000": "M[0,0,0]",
-            "M_101": "M[1,0,1]",
-        },
-    )
-    monte_carlo_moments = read_selected_moment_history(
-        results_dir / "moment_history_mc.txt",
-        {
-            "M_000": "M[0,0,0]",
-            "M_101": "M[1,0,1]",
+            "M_000": lambda row: row["M[0,0,0]"],
+            "M_300/M_200": lambda row: 1.0e6 * row["M[3,0,0]"] / row["M[2,0,0]"],
+            "M_010/M_000": lambda row: row["M[0,1,0]"] / row["M[0,0,0]"],
+            "M_001/M_000": mean_temperature,
+            "sigma_r^2": lambda row: 1.0e12 * (row["M[2,0,0]"] / row["M[0,0,0]"] - mean_radius(row) ** 2),
+            "M_101/M_000": lambda row: 1.0e6 * row["M[1,0,1]"] / row["M[0,0,0]"],
         },
     )
 
-    mixed_rows: list[dict[str, float]] = []
-    for qmomkit_m000, qmomkit_m101, monte_carlo_m000, monte_carlo_m101 in zip(
-        qmomkit_moments["M_000"],
-        qmomkit_moments["M_101"],
-        monte_carlo_moments["M_000"],
-        monte_carlo_moments["M_101"],
-    ):
-        if not math.isclose(
-            qmomkit_m000["time"],
-            monte_carlo_m000["time"],
-            rel_tol=0.0,
-            abs_tol=1.0e-14,
-        ):
-            raise ValueError("Droplet CQMOM and Monte Carlo histories have different output times.")
-        mixed_rows.append(
-            {
-                "time": qmomkit_m000["time"],
-                "qmomkit": 1.0e6 * qmomkit_m101["value"] / qmomkit_m000["value"],
-                "monte_carlo": 1.0e6 * monte_carlo_m101["value"] / monte_carlo_m000["value"],
-            }
-        )
 
-    comparison["M_101/M_000"] = mixed_rows
-    return comparison
+# Phase-space order is (R, U); the cavitation figure compares the zeroth raw
+# moment and the population-normalised first, mixed, and second moments.
+CAVITATION_MOMENTS = [
+    "M[0,0]",
+    "M[1,0]",
+    "M[0,1]",
+    "M[1,1]",
+    "M[2,0]",
+    "M[0,2]",
+]
+
+
+def cavitation_data(
+    results_dir: Path,
+) -> dict[str, list[dict[str, float]]]:
+    """Population-normalised cavitation moments compared against Monte Carlo."""
+
+    return compare_native_histories(
+        results_dir,
+        CAVITATION_MOMENTS,
+        {
+            "M_00": lambda row: row["M[0,0]"],
+            "M_10/M_00": lambda row: row["M[1,0]"] / row["M[0,0]"],
+            "M_01/M_00": lambda row: row["M[0,1]"] / row["M[0,0]"],
+            "M_11/M_00": lambda row: row["M[1,1]"] / row["M[0,0]"],
+            "M_20/M_00": lambda row: row["M[2,0]"] / row["M[0,0]"],
+            "M_02/M_00": lambda row: row["M[0,2]"] / row["M[0,0]"],
+        },
+    )
 
 
 def plot_non_spherical_particles(
@@ -1357,11 +1430,8 @@ def main() -> None:
     )
 
     plot_cavitation(
-        read_comparison(
-            examples_build_directory
-            / "2d_bubbles_cavitation"
-            / "output"
-            / "moment_comparison.csv"
+        cavitation_data(
+            examples_build_directory / "2d_bubbles_cavitation" / "output",
         ),
         figure_directory / "cavitation_moments.pdf",
     )

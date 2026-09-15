@@ -13,5 +13,5 @@ foreach(case_name IN ITEMS constant_velocity linear_growth affine_evolution line
             ${CMAKE_CURRENT_LIST_DIR}/${case_name}.qmom
             ${case_name}
     )
-    set_tests_properties(${test_name} PROPERTIES LABELS verification)
+    set_tests_properties(${test_name} PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endforeach()

@@ -34,16 +34,16 @@ struct BoundedQuadratureSelectionRequest
 /**
  * Outcome of a bounded-support quadrature selection.
  *
- * `success` and `quadrature.status` always agree: an unsuccessful selection
- * carries a non-success quadrature status and a message describing why. Callers
- * that only forward the quadrature therefore still report the failure.
+ * `quadrature.status` is the single record of whether a rule was selected: an
+ * unsuccessful selection carries a non-success status and a message describing
+ * why. The remaining fields are diagnostic and describe how the selection was
+ * reached; they do not restate the outcome.
  */
 struct BoundedQuadratureSelection
 {
     Quadrature1D quadrature;
     std::size_t selected_node_count_ceiling = 0;
     bool reduced = false;
-    bool success = false;
     BoundedQuadratureCandidate diagnostic_candidate;
     std::size_t accepted_fallback_node_count = 0;
 };

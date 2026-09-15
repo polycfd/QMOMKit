@@ -6,6 +6,12 @@ endif()
 
 set(QMOMKIT_REPOSITORY_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
 
+# Registered tests are fast; the slowest takes a few seconds in a Debug build.
+# This bound is generous against that and exists so that a test whose failure
+# mode is non-termination reports a failure instead of stalling for CTest's much
+# larger default timeout.
+set(QMOMKIT_TEST_TIMEOUT_SECONDS 300)
+
 function(qmomkit_add_test_executable target_name)
     add_executable(${target_name} ${ARGN})
     target_include_directories(${target_name} PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src" "${QMOMKIT_REPOSITORY_ROOT}/tests")
@@ -14,7 +20,7 @@ endfunction()
 
 function(qmomkit_register_test_case target_name test_name label selector)
     add_test(NAME ${test_name} COMMAND ${target_name} ${selector})
-    set_tests_properties(${test_name} PROPERTIES LABELS ${label})
+    set_tests_properties(${test_name} PROPERTIES LABELS ${label} TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endfunction()
 
 function(qmomkit_register_source_test_cases target_name label source_file)

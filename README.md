@@ -7,7 +7,7 @@
 
 **QMOMKit is a C++ library implementing the quadrature method of moments to represent and evolve number-density functions in arbitrary-dimensional phase spaces.**
 
-QMOMKit reconstructs quadrature nodes and weights from raw moments and provides utilities for the evolution of moments and the corresponding quadratures in phase space. It is independent of any physical application or host code coupling and, hence, leaves transport of moments in the physical space, the representation and discretization of the physical space and overall simulation workflow to the host application. The QMOMKit library has **no third-party dependencies**.
+QMOMKit reconstructs quadrature nodes and weights from raw moments and provides utilities for the evolution of moments and the corresponding quadratures in phase space. It is independent of any physical application or host code coupling and, hence, leaves transport of moments in the physical space, the representation and discretization of the physical space and overall simulation workflow to the host application. Examples of how to couple QMOMKit to host application codes are maintained separately in [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings). The QMOMKit library has **no third-party dependencies**.
 
 ## Capabilities
 
@@ -115,6 +115,7 @@ and [benchmarks guide](docs/developer/benchmarks.md) for details.
 - **Examples:** [repository example index](examples/README.md) and [user example guide](docs/user/examples.md).
 - **Optional Monte Carlo tooling:** [Monte Carlo companion guide](docs/user/monte_carlo.md).
 - **Development:** [developer guide](docs/developer/README.md), [architecture](docs/developer/architecture.md), [testing](docs/developer/testing.md), and [benchmarks](docs/developer/benchmarks.md).
+- **Coupling to host codes:** [QMOMKit-Couplings](https://github.com/polycfd/QMOMKit-Couplings)
 
 ## Repository structure
 

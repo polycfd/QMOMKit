@@ -29,7 +29,7 @@ add_test(
         cqmom_public_workflows_verification
         ${CMAKE_CURRENT_LIST_DIR}/independent_product.qmom
 )
-set_tests_properties(verification_cqmom_public_workflows PROPERTIES LABELS verification)
+set_tests_properties(verification_cqmom_public_workflows PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 
 add_executable(cqmom_2d_analytical_verification cqmom_2d_analytical.cpp)
 target_link_libraries(cqmom_2d_analytical_verification PRIVATE qmomkit)
@@ -41,7 +41,7 @@ foreach(case_name IN ITEMS independent_product deterministic_affine branch_depen
             ${CMAKE_CURRENT_LIST_DIR}/${case_name}.qmom
             ${case_name}
     )
-    set_tests_properties(verification_cqmom_${case_name} PROPERTIES LABELS verification)
+    set_tests_properties(verification_cqmom_${case_name} PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endforeach()
 
 add_executable(cqmom_high_dimensional_analytical cqmom_high_dimensional_analytical.cpp)
@@ -55,5 +55,5 @@ foreach(case_name IN ITEMS affine_chain_5d independent_product_3d independent_pr
             ${CMAKE_CURRENT_LIST_DIR}/${case_name}.qmom
             ${case_name}
     )
-    set_tests_properties(verification_cqmom_${case_name} PROPERTIES LABELS verification)
+    set_tests_properties(verification_cqmom_${case_name} PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endforeach()

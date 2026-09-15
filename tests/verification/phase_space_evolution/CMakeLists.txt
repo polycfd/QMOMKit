@@ -12,7 +12,7 @@ foreach(case_name IN ITEMS direct_advection phase_space_source)
         NAME ${test_name}
         COMMAND qmom_linear_advection_manufactured_verification ${case_name}
     )
-    set_tests_properties(${test_name} PROPERTIES LABELS verification)
+    set_tests_properties(${test_name} PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endforeach()
 foreach(case_name IN ITEMS commuting_qmom qmom_boundary_contribution qmom_phase_space_evolution_failures qmom_phase_space_evolution_inversion_failures noncommuting_qmom
                            noncommuting_cqmom commuting_cqmom_2d cqmom_boundary_contribution commuting_cqmom_state_adaptive_2d cqmom_native_source
@@ -45,14 +45,14 @@ foreach(case_name IN ITEMS commuting_qmom qmom_boundary_contribution qmom_phase_
             ${CMAKE_CURRENT_LIST_DIR}/${configuration_case_name}.qmom
             ${case_name}
     )
-    set_tests_properties(${test_name} PROPERTIES LABELS verification)
+    set_tests_properties(${test_name} PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endforeach()
 
 add_test(
     NAME verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant
     COMMAND phase_space_evolution_analytical_verification cqmom_automatic_scaling_is_unit_invariant
 )
-set_tests_properties(verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant PROPERTIES LABELS verification)
+set_tests_properties(verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 
 add_custom_target(
     generate_phase_space_evolution_verification_outputs

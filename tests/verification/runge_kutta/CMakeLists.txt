@@ -5,5 +5,5 @@ target_include_directories(test_runge_kutta_convergence PRIVATE "${QMOMKIT_REPOS
 target_link_libraries(test_runge_kutta_convergence PRIVATE qmomkit)
 foreach(case_name IN ITEMS ssp_rk3 rk23_adaptive rk23_fixed_step rk45_adaptive rk45_fixed_step)
     add_test(NAME verification_${case_name}_convergence COMMAND test_runge_kutta_convergence ${case_name})
-    set_tests_properties(verification_${case_name}_convergence PROPERTIES LABELS verification)
+    set_tests_properties(verification_${case_name}_convergence PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endforeach()

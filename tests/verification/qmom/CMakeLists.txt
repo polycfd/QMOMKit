@@ -21,5 +21,5 @@ foreach(case_name IN ITEMS single_dirac two_node_discrete three_node_discrete un
             ${CMAKE_CURRENT_LIST_DIR}/${case_name}.qmom
             ${case_name}
     )
-    set_tests_properties(verification_qmom_analytical_${case_name} PROPERTIES LABELS verification)
+    set_tests_properties(verification_qmom_analytical_${case_name} PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endforeach()

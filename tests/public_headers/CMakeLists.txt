@@ -27,4 +27,4 @@ add_executable(
 )
 target_link_libraries(test_public_headers PRIVATE qmomkit)
 add_test(NAME public_headers COMMAND test_public_headers)
-set_tests_properties(public_headers PROPERTIES LABELS public_headers)
+set_tests_properties(public_headers PROPERTIES LABELS public_headers TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})

@@ -18,5 +18,5 @@ foreach(index RANGE 0 ${moment_source_last_index} 2)
             ${CMAKE_CURRENT_LIST_DIR}/${config_stem}.qmom
             ${case_name}
     )
-    set_tests_properties(verification_moment_source_${case_name} PROPERTIES LABELS verification)
+    set_tests_properties(verification_moment_source_${case_name} PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
 endforeach()

@@ -10,8 +10,6 @@
 #include <cmath>
 #include <exception>
 #include <filesystem>
-#include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -133,20 +131,7 @@ int main()
 
         paper_3d_droplets_condensation_nucleation::print_cqmom_run_configuration(cqmom_case, phase_space_evolution_options);
 
-        // The configured phase-space order is (r, w, T). The requested
-        // Sauter-mean quantity is M_300/M_200 without a factor of two.
-        const std::array<qmomkit::MultiIndex, 7> comparison_indices{{{0, 0, 0}, {3, 0, 0}, {2, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 0}, {1, 0, 1}}};
-        const std::array<const char*, 6> comparison_labels{{"M_000", "M_300/M_200", "M_010/M_000", "M_001/M_000", "sigma_r^2", "cov_r_T"}};
-        const qmomkit::RawMomentRequest comparison_request{std::vector<qmomkit::MultiIndex>(comparison_indices.begin(), comparison_indices.end())};
-
         paper_3d_droplets_condensation_nucleation::ensure_output_directory(output_options.directory);
-        std::ofstream comparison_file(output_options.directory / "moment_comparison.csv");
-        if (!comparison_file)
-        {
-            throw std::runtime_error("Could not open paper moment-comparison output.");
-        }
-        comparison_file << "time,quantity,qmomkit,monte_carlo\n";
-        comparison_file << std::setprecision(17);
 
         const auto estimate_mc_moments = [&](const qmomkit::RawMomentRequest& request)
         {
@@ -164,52 +149,7 @@ int main()
                                                     qmomkit::invalid_dimension_index,
                                                     {}};
         };
-        const auto checked_ratio = [](const double numerator, const double denominator, const char* quantity, const double time)
-        {
-            if (!std::isfinite(denominator) || std::abs(denominator) <= std::numeric_limits<double>::min())
-            {
-                throw std::runtime_error("Invalid denominator for " + std::string(quantity) + " at time " + std::to_string(time) + ": " +
-                                         std::to_string(denominator));
-            }
-            const double value = numerator / denominator;
-            if (!std::isfinite(value))
-            {
-                throw std::runtime_error("Non-finite value for " + std::string(quantity) + " at time " + std::to_string(time));
-            }
-            return value;
-        };
-        const auto calculate_comparison_values = [&](const std::vector<double>& moments, const double time)
-        {
-            const double mean_radius = checked_ratio(moments[5], moments[0], "M_100/M_000", time);
-            const double mean_temperature = checked_ratio(moments[4], moments[0], "M_001/M_000", time);
-            const double radius_variance = checked_ratio(moments[2], moments[0], "M_200/M_000", time) - mean_radius * mean_radius;
-            const double radius_temperature_covariance = checked_ratio(moments[6], moments[0], "M_101/M_000", time) - mean_radius * mean_temperature;
-            if (!std::isfinite(radius_variance) || !std::isfinite(radius_temperature_covariance))
-            {
-                throw std::runtime_error("Non-finite derived comparison quantity at time " + std::to_string(time));
-            }
-            return std::array<double, 6>{moments[0],
-                                         checked_ratio(moments[1], moments[2], "M_300/M_200", time),
-                                         checked_ratio(moments[3], moments[0], "M_010/M_000", time),
-                                         mean_temperature,
-                                         radius_variance,
-                                         radius_temperature_covariance};
-        };
-        const auto write_comparison = [&](const double time, const qmomkit::CqmomQuadrature& current_quadrature)
-        {
-            const qmomkit::SelectedRawMomentResult qmomkit_moments = qmomkit::reconstruct_raw_moments(current_quadrature, comparison_request);
-            if (!qmomkit_moments.ok())
-            {
-                throw std::runtime_error("CQMOM paper moment reconstruction failed: " + qmomkit_moments.message);
-            }
-            const qmomkit::SelectedRawMomentResult mc_moments = estimate_mc_moments(comparison_request);
-            const std::array<double, 6> qmomkit_values = calculate_comparison_values(qmomkit_moments.values, time);
-            const std::array<double, 6> mc_values = calculate_comparison_values(mc_moments.values, time);
-            for (std::size_t index = 0; index < comparison_labels.size(); ++index)
-            {
-                comparison_file << time << ',' << comparison_labels[index] << ',' << qmomkit_values[index] << ',' << mc_values[index] << '\n';
-            }
-        };
+
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
         std::optional<qmomkit::MomentWriter> mc_moment_history_writer;
@@ -221,7 +161,6 @@ int main()
                 qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history_mc.txt", moment_output_layout));
             mc_moment_history_writer->write(initial_time, qmomkit::create_cqmom_moment_data(moment_output_layout, mc_final_moments));
         }
-        write_comparison(initial_time, quadrature);
 
         // Each physical birth event needs a distinct deterministic sample.
         std::size_t birth_event_index = 0;
@@ -303,7 +242,6 @@ int main()
             {
                 mc_moment_history_writer->write(time, qmomkit::create_cqmom_moment_data(moment_output_layout, mc_final_moments));
             }
-            write_comparison(time, quadrature);
         }
 
         if (output_options.write_moments)

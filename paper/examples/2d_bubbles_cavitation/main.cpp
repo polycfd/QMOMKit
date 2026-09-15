@@ -11,8 +11,6 @@
 #include <cmath>
 #include <exception>
 #include <filesystem>
-#include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -109,69 +107,7 @@ int main()
         const qmomkit::AdaptiveRkOptions mc_advection_options = phase_space_evolution_options.node_options.adaptive_options;
         std::cout << qmomkit::format_node_advection_options(phase_space_evolution_options.node_options);
 
-        // The configured phase-space order is (R, U): population-normalized
-        // first, mixed, and second raw moments are compared directly.
-        const std::array<qmomkit::MultiIndex, 6> comparison_indices{{{0, 0}, {1, 0}, {0, 1}, {1, 1}, {2, 0}, {0, 2}}};
-        const std::array<const char*, 6> comparison_labels{{"M_00", "M_10/M_00", "M_01/M_00", "M_11/M_00", "M_20/M_00", "M_02/M_00"}};
-        const qmomkit::RawMomentRequest comparison_request{std::vector<qmomkit::MultiIndex>(comparison_indices.begin(), comparison_indices.end())};
-
         paper_2d_bubbles_cavitation::ensure_output_directory(output_options.directory);
-        std::ofstream comparison_file(output_options.directory / "moment_comparison.csv");
-        if (!comparison_file)
-        {
-            throw std::runtime_error("Could not open paper moment-comparison output.");
-        }
-        comparison_file << "time,quantity,qmomkit,monte_carlo\n";
-        comparison_file << std::setprecision(17);
-
-        const auto checked_ratio = [](const double numerator, const double denominator, const char* quantity, const double time)
-        {
-            if (!std::isfinite(denominator) || std::abs(denominator) <= std::numeric_limits<double>::min())
-            {
-                throw std::runtime_error("Invalid denominator for " + std::string(quantity) + " at time " + std::to_string(time) + ": " +
-                                         std::to_string(denominator));
-            }
-            const double value = numerator / denominator;
-            if (!std::isfinite(value))
-            {
-                throw std::runtime_error("Non-finite value for " + std::string(quantity) + " at time " + std::to_string(time));
-            }
-            return value;
-        };
-        const auto calculate_comparison_values = [&](const std::vector<double>& moments, const double time)
-        {
-            return std::array<double, 6>{moments[0],
-                                         checked_ratio(moments[1], moments[0], "M_10/M_00", time),
-                                         checked_ratio(moments[2], moments[0], "M_01/M_00", time),
-                                         checked_ratio(moments[3], moments[0], "M_11/M_00", time),
-                                         checked_ratio(moments[4], moments[0], "M_20/M_00", time),
-                                         checked_ratio(moments[5], moments[0], "M_02/M_00", time)};
-        };
-        const auto estimate_mc_moments = [&]()
-        {
-            const double number_density = particle_weight * static_cast<double>(ensemble.size());
-            const qmomkit::monte_carlo::SelectedEnsembleMomentEstimate estimate =
-                qmomkit::monte_carlo::compute_requested_ensemble_moments(ensemble, number_density, comparison_request);
-            if (!estimate.ok())
-            {
-                throw std::runtime_error("Monte Carlo paper moment extraction failed: " + estimate.message);
-            }
-            return estimate.values;
-        };
-        const auto write_comparison = [&](const double time, const qmomkit::CqmomQuadrature& current_quadrature)
-        {
-            const qmomkit::SelectedRawMomentResult qmomkit_moments = qmomkit::reconstruct_raw_moments(current_quadrature, comparison_request);
-            if (!qmomkit_moments.ok())
-            {
-                throw std::runtime_error("CQMOM paper moment reconstruction failed: " + qmomkit_moments.message);
-            }
-            const std::array<double, 6> qmomkit_values = calculate_comparison_values(qmomkit_moments.values, time);
-            const std::array<double, 6> mc_values = calculate_comparison_values(estimate_mc_moments(), time);
-            for (std::size_t index = 0; index < comparison_labels.size(); ++index)
-            {
-                comparison_file << time << ',' << comparison_labels[index] << ',' << qmomkit_values[index] << ',' << mc_values[index] << '\n';
-            }
-        };
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
         qmomkit::RawMomentTensor mc_final_moments = paper_2d_bubbles_cavitation::compute_particle_moments(ensemble, particle_weight, moment_extents);
@@ -182,7 +118,6 @@ int main()
             mc_moment_history_writer.emplace(qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history_mc.txt", moment_extents));
             mc_moment_history_writer->write(initial_time, mc_final_moments);
         }
-        write_comparison(initial_time, quadrature);
 
         double time = initial_time;
         while (time < final_time)
@@ -224,7 +159,6 @@ int main()
             {
                 mc_moment_history_writer->write(time, mc_final_moments);
             }
-            write_comparison(time, quadrature);
         }
 
         if (output_options.write_moments)

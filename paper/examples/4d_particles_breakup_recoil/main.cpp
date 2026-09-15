@@ -8,8 +8,6 @@
 #include <cmath>
 #include <exception>
 #include <filesystem>
-#include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <random>
@@ -87,30 +85,6 @@ int main()
         const qmomkit::OutputOptions output_options = output_configured.value();
 
         ensure_output_directory(output_options.directory);
-        std::ofstream comparison_file(output_options.directory / "moment_comparison.csv");
-        if (!comparison_file)
-        {
-            throw std::runtime_error("Could not open paper moment-comparison output.");
-        }
-        comparison_file << "time,quantity,qmomkit,monte_carlo\n";
-        comparison_file << std::setprecision(17);
-        const auto write_comparison = [&](const double time, const qmomkit::CqmomQuadrature& current_quadrature)
-        {
-            const std::vector<double> qmomkit_values = paper_moments(current_quadrature);
-            const std::vector<double> mc_values = paper_moments(ensemble, particle_weight);
-            if (qmomkit_values.size() != paper_moment_labels().size() || mc_values.size() != paper_moment_labels().size())
-            {
-                throw std::runtime_error("Paper moment output columns are inconsistent.");
-            }
-            for (std::size_t index = 0; index < paper_moment_labels().size(); ++index)
-            {
-                comparison_file << time << ',' << paper_moment_labels()[index] << ',' << qmomkit_values[index] << ',' << mc_values[index] << '\n';
-            }
-            if (!comparison_file)
-            {
-                throw std::runtime_error("Failed while writing paper moment-comparison output.");
-            }
-        };
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
         std::optional<qmomkit::MomentWriter> mc_moment_history_writer;
@@ -120,7 +94,6 @@ int main()
                 qmomkit::MomentWriter::for_cqmom(output_options.directory / "moment_history_mc.txt", mc_final_moments.extents));
             mc_moment_history_writer->write(initial_time, mc_final_moments);
         }
-        write_comparison(initial_time, quadrature);
 
         std::mt19937_64 generator(breakup_seed);
         const double output_interval = output_options.interval.value_or(final_time - initial_time);
@@ -171,7 +144,6 @@ int main()
                 {
                     mc_moment_history_writer->write(time, mc_final_moments);
                 }
-                write_comparison(time, quadrature);
                 while (next_output <= time + 1.0e-14)
                 {
                     next_output += output_interval;

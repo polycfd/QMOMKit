@@ -258,7 +258,12 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
     }
     if (bjorck_pereyra.success)
     {
-        LinearSolveResult kernel_result = solve_bjorck_pereyra(nodes, rhs, options.singular_tolerance);
+        // `rhs` is dead after this call: the remaining work reads only the
+        // returned solution, and a Bjorck-Pereyra failure becomes a failure
+        // result rather than a retry with the original right-hand side. Moving
+        // hands the kernel the caller's matrix instead of copying it, which is
+        // one n-by-rhs_cols allocation and copy per conditional solve.
+        LinearSolveResult kernel_result = solve_bjorck_pereyra(nodes, std::move(rhs), options.singular_tolerance);
         bjorck_pereyra = kernel_result.success ? std::move(kernel_result) : failure_result(n, rhs_cols, singular_message);
     }
 

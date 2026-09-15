@@ -58,6 +58,15 @@ mixed-norm acceptance measure, not a forward-error bound. The BP path does not
 apply this optional flag. Detailed recursive diagnostics separately compute
 residual and condition information without turning warnings into rejection.
 
+The recursive caller supplies these controls as `ConditionalMomentOptions` and
+reports the outcome as `ConditionalMomentStatus` with
+`ConditionalMomentDiagnostics`, surfaced per branch on `CqmomDiagnostics` and
+declared in
+[`conditional_moments.hpp`](../../../include/qmomkit/conditional_moments.hpp).
+There is no public one-level conditional-moment entry point, so the solver
+policy, tolerances and diagnostics described here are the ones that apply to
+every conditional solve QMOMKit performs.
+
 Evidence: [`tests/unit/vandermonde.cpp`](../../../tests/unit/vandermonde.cpp)
 explicitly checks automatic BP at small/wide and larger sizes, forced modes,
 small/zero weights, rank deficiency, zero RHS columns, Moore-Penrose
@@ -203,22 +212,6 @@ assumptions; no residual or convergence flag is returned. The two callers use
 different temporary scaling and iteration budgets. Wheeler and realizability
 tests exercise eigenpairs for selected inputs; the kernel does not expose an
 independent convergence result.
-
-## A/B — conditional-moment option and diagnostic types
-
-[`conditional_moments.hpp`](../../../include/qmomkit/conditional_moments.hpp)
-declares the types the CQMOM workflows share: `ConditionalMomentOptions`
-carries the singular tolerance, conditioning-warning threshold and
-Moore-Penrose cutoff; `ConditionalMomentStatus` and
-`ConditionalMomentDiagnostics` report per-branch outcomes through
-`CqmomDiagnostics`. The residual norm and condition estimate in the
-diagnostics are optional and are populated only at
-`CqmomDiagnosticLevel::detailed`.
-
-The conditional solve itself is not a standalone public entry point. It is
-performed by `solve_conditional_vandermonde_system` on branch-local slices
-during recursive assembly, so the solver policy, tolerances and diagnostics
-that apply to it are the ones documented for CQMOM reconstruction.
 
 ## B/C — supporting helpers
 

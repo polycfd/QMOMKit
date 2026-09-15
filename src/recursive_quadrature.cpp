@@ -1721,10 +1721,20 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             }
             RecursiveQuadratureBranchDiagnostics branch_diagnostics{};
             branch_diagnostics.conditioning_level = level;
-            branch_diagnostics.path = branch.path;
             branch_diagnostics.phase_space_dimension = phase_space_dimension;
             branch_diagnostics.requested_node_count = node_count_limit.ceiling;
             branch_diagnostics.adaptive_branch_counts_enabled = request.adaptive_branch_counts;
+            // Copying the branch path allocates, and at diagnostic level `none`
+            // a successful branch publishes no record at all, so the copy would
+            // be built and discarded once per branch per reconstruction. The
+            // path is instead materialized here, at the single point every
+            // record passes through on its way into `result.diagnostics`, which
+            // keeps published records identical at every level.
+            const auto publish_branch_diagnostics = [&result, &branch](RecursiveQuadratureBranchDiagnostics& record)
+            {
+                record.path = branch.path;
+                result.diagnostics.push_back(record);
+            };
 
             std::vector<double> moment_sequence;
             try
@@ -1735,7 +1745,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             {
                 branch_diagnostics.message = ex.what();
                 branch_diagnostics.conditional_moment_status = ConditionalMomentStatus::invalid_input;
-                result.diagnostics.push_back(branch_diagnostics);
+                publish_branch_diagnostics(branch_diagnostics);
                 record_failure(result, RecursiveQuadratureStatus::invalid_input, branch.path, level, ex.what());
                 return result;
             }
@@ -1785,7 +1795,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             if (!quadrature.ok())
             {
                 branch_diagnostics.message = quadrature.message;
-                result.diagnostics.push_back(branch_diagnostics);
+                publish_branch_diagnostics(branch_diagnostics);
                 record_failure(result, RecursiveQuadratureStatus::wheeler_failed, branch.path, level, quadrature.message);
                 return result;
             }
@@ -1803,7 +1813,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             {
                 branch_diagnostics.wheeler_status = quadrature.status;
                 branch_diagnostics.message = "Wheeler inversion returned an unexpected node count.";
-                result.diagnostics.push_back(branch_diagnostics);
+                publish_branch_diagnostics(branch_diagnostics);
                 record_failure(result, RecursiveQuadratureStatus::wheeler_failed, branch.path, level, branch_diagnostics.message);
                 return result;
             }
@@ -1822,16 +1832,16 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
                 if (conditional_slices.status != ConditionalMomentStatus::success)
                 {
                     branch_diagnostics.message = conditional_slices.message;
-                    result.diagnostics.push_back(branch_diagnostics);
+                    publish_branch_diagnostics(branch_diagnostics);
                     record_failure(result, RecursiveQuadratureStatus::conditional_moment_failed, branch.path, level, conditional_slices.message);
                     return result;
                 }
             }
 
-            branch_diagnostics.message = "Recursive branch level constructed.";
             if (records_success_branch_diagnostics(request.diagnostic_level))
             {
-                result.diagnostics.push_back(branch_diagnostics);
+                branch_diagnostics.message = "Recursive branch level constructed.";
+                publish_branch_diagnostics(branch_diagnostics);
             }
 
             for (std::size_t node = 0; node < quadrature.weights.size(); ++node)
@@ -1882,13 +1892,13 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
                             branch_diagnostics.message = ex.what();
                             if (records_success_branch_diagnostics(request.diagnostic_level) && !result.diagnostics.empty() &&
                                 result.diagnostics.back().conditioning_level == branch_diagnostics.conditioning_level &&
-                                result.diagnostics.back().path == branch_diagnostics.path)
+                                result.diagnostics.back().path == branch.path)
                             {
                                 result.diagnostics.back().message = branch_diagnostics.message;
                             }
                             else
                             {
-                                result.diagnostics.push_back(branch_diagnostics);
+                                publish_branch_diagnostics(branch_diagnostics);
                             }
                             record_failure(result, RecursiveQuadratureStatus::invalid_input, child.path, level, ex.what());
                             return result;

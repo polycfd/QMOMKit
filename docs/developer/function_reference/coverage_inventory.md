@@ -1244,10 +1244,10 @@ and evidence](cqmom_reconstruction.md)
 | `RecursiveQuadrature::add_tree_node` | [1570](../../../src/recursive_quadrature.cpp#L1570) |
 | `RecursiveQuadrature::set_terminal_quadrature` | [1582](../../../src/recursive_quadrature.cpp#L1582) |
 | `compute_recursive_quadrature_from_moment_view` | [1608](../../../src/recursive_quadrature.cpp#L1608) |
-| `compute_recursive_quadrature_from_validated_moment_view` | [1938](../../../src/recursive_quadrature.cpp#L1938) |
-| `compute_recursive_quadrature_from_moment_data` | [1947](../../../src/recursive_quadrature.cpp#L1947) |
-| `compute_recursive_quadrature_from_trusted_moment_data` | [1981](../../../src/recursive_quadrature.cpp#L1981) |
-| `compute_recursive_quadrature` | [1938](../../../src/recursive_quadrature.cpp#L1938) |
+| `compute_recursive_quadrature_from_validated_moment_view` | [1948](../../../src/recursive_quadrature.cpp#L1948) |
+| `compute_recursive_quadrature_from_moment_data` | [1957](../../../src/recursive_quadrature.cpp#L1957) |
+| `compute_recursive_quadrature_from_trusted_moment_data` | [1991](../../../src/recursive_quadrature.cpp#L1991) |
+| `compute_recursive_quadrature` | [1948](../../../src/recursive_quadrature.cpp#L1948) |
 | `operator==` | [1058](../../../src/recursive_quadrature.cpp#L1058), [1068](../../../src/recursive_quadrature.cpp#L1068), [1073](../../../src/recursive_quadrature.cpp#L1073), [1179](../../../src/recursive_quadrature.cpp#L1179) |
 | `operator!=` | [1063](../../../src/recursive_quadrature.cpp#L1063), [1078](../../../src/recursive_quadrature.cpp#L1078), [1083](../../../src/recursive_quadrature.cpp#L1083), [1184](../../../src/recursive_quadrature.cpp#L1184) |
 | `MultiIndexTable::MultiIndexTable` | [1088](../../../src/recursive_quadrature.cpp#L1088), [1104](../../../src/recursive_quadrature.cpp#L1104) |
@@ -1257,7 +1257,7 @@ and evidence](cqmom_reconstruction.md)
 | `MultiIndexTable::reserve` | [1158](../../../src/recursive_quadrature.cpp#L1158) |
 | `MultiIndexTable::clear` | [1163](../../../src/recursive_quadrature.cpp#L1163) |
 | `MultiIndexTable::to_multi_indices` | [1168](../../../src/recursive_quadrature.cpp#L1168) |
-| `validate_cqmom_moment_data_matches_hierarchy` | [1962](../../../src/recursive_quadrature.cpp#L1962) |
+| `validate_cqmom_moment_data_matches_hierarchy` | [1972](../../../src/recursive_quadrature.cpp#L1972) |
 
 ### `src/runge_kutta.cpp`
 

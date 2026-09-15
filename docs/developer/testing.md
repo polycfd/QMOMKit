@@ -1,11 +1,28 @@
 # Testing
 
 This page documents the current QMOMKit testing philosophy and test
-architecture. 
+architecture.
 It describes stable correctness expectations and the current root
 CTest inventory, not temporary CI setup.
 
-## Debug Build Requirement
+The bar set here is deliberately high. Today, code can be produced faster than
+evidence that it is correct, so QMOMKit treats the test suite, not the
+implementation, as what establishes that its numerical methods behave as
+intended. The reasoning behind that position is recorded in
+[DEVELOPMENT_PHILOSOPHY.md](../../DEVELOPMENT_PHILOSOPHY.md).
+
+## Contents
+
+- [Debug Build Requirement](#debug-build-requirement)
+- [Test-suite Organization](#test-suite-organization)
+- [Test Categories](#test-categories)
+- [Numerical Validation Principles](#numerical-validation-principles)
+- [Adding New Tests](#adding-new-tests)
+- [Relationship With Benchmarks](#relationship-with-benchmarks)
+- [Registered Root CTest Inventory](#registered-root-ctest-inventory)
+- [Test-suite Maintenance](#test-suite-maintenance)
+
+## Debug build requirement
 
 The unit tests use C/C++ `assert()`. `assert()` is disabled when `NDEBUG` is
 defined, and normal Release builds define `NDEBUG`; therefore a Release CTest
@@ -31,18 +48,18 @@ ctest --test-dir build -R '^unit_wheeler_nonfinite_moment_reports_invalid_input$
 Keep the existing assertion-based unit tests intact. Do not use a Release CTest
 result as evidence that the functional unit suite passed.
 
-## Test-suite Organization
+## Test-suite organization
 
-QMOMKit is a numerical C++ library, so correctness requires more than exercising
-code paths. A passing test should usually demonstrate a mathematical invariant,
-a known analytical result, a manufactured solution, or a documented failure
-contract.
+QMOMKit is a numerical C++ library, so correctness requires more than
+exercising code paths. A passing test should usually demonstrate a mathematical
+invariant, a known analytical result, a manufactured solution, or a documented
+failure contract.
 
 Unit tests alone are insufficient for moment-method software. They are good at
 protecting local behavior, option validation, indexing helpers, and failure
 paths, but they do not by themselves establish that an inversion, conditional
-reconstruction, phase-space evolution update, or realizability check matches the intended
-mathematics.
+reconstruction, phase-space evolution update, or realizability check matches
+the intended mathematics.
 
 The core testing principle is:
 
@@ -59,8 +76,8 @@ QMOMKit testing
  local APIs                stability        workflow correctness
 ```
 
-Analytical and manufactured solutions are especially important because they make
-the expected answer independent of the implementation under test. When a
+Analytical and manufactured solutions are especially important because they
+make the expected answer independent of the implementation under test. When a
 verification compares recovered quadrature, evolved moments, or reconstructed
 raw moments, the reference values should come from the mathematical case being
 tested, not from another call into the same production algorithm.
@@ -75,7 +92,7 @@ When adding a new test, choose the directory by purpose:
    analytical, manufactured, convergence, or otherwise independent reference,
    use `tests/verification/`.
 
-### Test Project Structure
+### Test project structure
 
 The primary test project lives under:
 
@@ -88,7 +105,7 @@ unit, component regression, verification, and public-header tests link the
 current build-tree `qmomkit` target and compile against the current source-tree
 public headers. Installation is not required for the normal correctness suite.
 
-### Running Tests
+### Running tests
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
@@ -96,7 +113,7 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-### CTest Naming and Current Count
+### CTest naming and current count
 
 CTest names identify the tested contract. Several executables accept a local
 selector so independently meaningful groups can be registered separately. The
@@ -124,8 +141,8 @@ tests/
 
 Some repository tests include `src/` as a private include path for focused
 internal validation. That is permitted inside the repository test project, but
-it does not change the public API boundary. Downstream users should consume only
-installed headers and exported package targets.
+it does not change the public API boundary. Downstream users should consume
+only installed headers and exported package targets.
 
 Package consumption is also tested explicitly by:
 
@@ -137,9 +154,9 @@ That directory is a minimal external CMake project. It validates installed
 package discovery, exported target linkage, and installed public-header usage
 without repository source include paths or `add_subdirectory`.
 
-## Test Categories
+## Test categories
 
-### Unit Tests
+### Unit tests
 
 Unit tests verify isolated functions, classes, data structures, options, and
 local API contracts. They should be focused, fast, deterministic, and specific
@@ -161,7 +178,7 @@ structures, realizability checks and policies, configuration mapping,
 distribution helpers, output helpers, node advection, moment-source evolution,
 raw-moment reconstruction, and phase-space evolution components.
 
-### Component Regression Tests
+### Component regression tests
 
 Component regression tests protect important implementation behavior that is
 larger than an isolated unit contract but narrower than mathematical
@@ -187,7 +204,7 @@ batch/scalar parity, round trips, captured fixtures, and comparisons between
 related production paths remain valuable consistency/regression evidence, but
 must not be presented as independent algorithm verification.
 
-### Verification Tests
+### Verification tests
 
 Verification tests provide mathematical evidence that the numerical algorithms
 behave as intended. They compare against analytical solutions, manufactured
@@ -214,7 +231,7 @@ order, conditioning order does not redefine phase-space order, and quadrature
 weights are not normalized unless the case explicitly defines unit total number
 density.
 
-### Public-Header Tests
+### Public-header tests
 
 Public-header tests are compile-time interface checks. Each translation unit in
 `tests/public_headers/` includes one current public header from
@@ -229,10 +246,11 @@ When a public header is added, renamed, or given new direct dependencies, the
 public-header coverage should be updated so downstream include behavior remains
 visible.
 
-### Package Consumer Tests
+### Package consumer tests
 
-Package consumer tests validate the installed-package experience rather than the
-in-tree build. The consumer project should behave like an external application:
+Package consumer tests validate the installed-package experience rather than
+the in-tree build. The consumer project should behave like an external
+application:
 
 - discover QMOMKit with `find_package(QMOMKit CONFIG REQUIRED)`;
 - link only `qmomkit::qmomkit`;
@@ -249,22 +267,22 @@ CMake target behavior, not correctness or regression behavior inside the normal
 This category is most important when package exports, installation rules,
 public headers, or CMake package metadata change.
 
-## Numerical Validation Principles
+## Numerical validation principles
 
 Analytical solutions are preferred when the exact answer is known in closed
 form. They are useful for Wheeler inversion, low-dimensional CQMOM cases,
-distribution moment generation, simple ODE integration, moment-source evolution, and
-phase-space evolution cases with closed-form operator behavior.
+distribution moment generation, simple ODE integration, moment-source
+evolution, and phase-space evolution cases with closed-form operator behavior.
 
 Manufactured solutions are useful when the algorithm is more complex than the
 available closed-form examples. They should define moments, nodes, weights,
-conditioning paths, source terms, or phase-space evolution behavior from an independent
-construction and then verify that QMOMKit recovers the expected mathematical
-object.
+conditioning paths, source terms, or phase-space evolution behavior from an
+independent construction and then verify that QMOMKit recovers the expected
+mathematical object.
 
-Convergence studies are useful for time integration and phase-space evolution. They should
-test numerical order or monotonic error reduction using deterministic cases
-whose exact or high-confidence reference behavior is known.
+Convergence studies are useful for time integration and phase-space evolution.
+They should test numerical order or monotonic error reduction using
+deterministic cases whose exact or high-confidence reference behavior is known.
 
 A convergence registration must identify its independent reference, refinement
 variable and sequence, error quantity, expected order or trend, and pass
@@ -272,9 +290,9 @@ threshold. Tolerance refinement for adaptive methods is accuracy evidence; it
 is not a formal fixed-step order proof.
 
 Deterministic regression cases are useful for boundary behavior, diagnostics,
-and previously fragile numerical situations. They should preserve the meaningful
-status, tolerance, ordering, or reconstruction property rather than simply
-locking in implementation-shaped output.
+and previously fragile numerical situations. They should preserve the
+meaningful status, tolerance, ordering, or reconstruction property rather than
+simply locking in implementation-shaped output.
 
 High-dimensional CQMOM needs special care. Tests should separate phase-space
 dimension order from conditioning order, verify terminal quadrature weights and
@@ -282,10 +300,10 @@ coordinates, and reconstruct raw tensor moments from the final quadrature when
 that is the mathematical guarantee being tested.
 
 Realizability tests should cover accepted, boundary, rejected, invalid-input,
-and numerically indeterminate cases. They should also verify that policies reject
-candidate moment states without implying automatic correction.
+and numerically indeterminate cases. They should also verify that policies
+reject candidate moment states without implying automatic correction.
 
-## Adding New Tests
+## Adding new tests
 
 When adding functionality, add tests at the level where the new behavior is
 owned.
@@ -298,8 +316,8 @@ closed-form evolution, manufactured quadrature recovery, support-aware
 realizability, convergence, or invariant preservation.
 
 Add public-header coverage when public APIs change. Installed headers should
-compile when included directly and should not rely on a caller including another
-header first.
+compile when included directly and should not rely on a caller including
+another header first.
 
 Add or update package-consumer coverage when installation, export, package
 configuration, or public target behavior changes.
@@ -311,11 +329,11 @@ running its tests, then run them explicitly with CTest.
 Update examples only when the user-facing workflow changes. Examples are not a
 substitute for automated correctness tests.
 
-Prefer deterministic tests. Stochastic or Monte Carlo workflows are valuable for
-independent validation, but normal correctness tests should not depend on random
-sampling noise unless the uncertainty model is explicit and controlled.
+Prefer deterministic tests. Stochastic or Monte Carlo workflows are valuable
+for independent validation, but normal correctness tests should not depend on
+random sampling noise unless the uncertainty model is explicit and controlled.
 
-## Relationship With Benchmarks
+## Relationship with benchmarks
 
 Tests establish correctness. Benchmarks measure performance.
 
@@ -324,12 +342,13 @@ correctness test should not depend on timing-sensitive behavior. Performance
 work should preserve the same mathematical contracts checked by unit and
 verification tests.
 
-Benchmark structure and interpretation belong in [benchmarks.md](benchmarks.md).
+Benchmark structure and interpretation belong in
+[benchmarks.md](benchmarks.md).
 
-## Registered Root CTest Inventory
+## Registered root CTest inventory
 
-The root inventory contains 827 CTest registrations: 826 logical runtime tests
-across the three runtime tiers (628 unit, 31 component-regression, and 167
+The root inventory contains 862 CTest registrations: 861 logical runtime tests
+across the three runtime tiers (663 unit, 31 component-regression, and 167
 verification), plus the `public_headers` supporting compile/link check. CTest
 names use the tier prefix followed by a subsystem and a descriptive case name.
 
@@ -350,14 +369,14 @@ ctest --test-dir build -N -L public_headers
 ctest --test-dir build --show-only=json-v1
 ```
 
-### External Installed-Package Consumer Check
+### External installed-package consumer check
 
 `tests/package_consumer/` is outside the root CTest count. After installing
 QMOMKit, configure and build it as an external project to verify
 `find_package(QMOMKit CONFIG REQUIRED)`, `qmomkit::qmomkit`, and installed
 headers without repository include paths.
 
-## Test-suite Maintenance
+## Test-suite maintenance
 
 When adding, removing, renaming, or splitting a root CTest registration, update
 this inventory in the same change and give every entry a distinct contract and

@@ -74,6 +74,9 @@ int main()
 
         qmomkit::CqmomState state = cqmom_case.initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
+        // M[0,0,0] is the total number density. The nucleation model is scaled by
+        // the initial value, so it is read back from the reconstructed quadrature
+        // rather than assumed from the configuration.
         const qmomkit::RawMomentRequest initial_number_request{std::vector<qmomkit::MultiIndex>{{0, 0, 0}}};
         const qmomkit::SelectedRawMomentResult initial_number_moment = qmomkit::reconstruct_raw_moments(initial_quadrature, initial_number_request);
         if (!initial_number_moment.ok() || initial_number_moment.values.size() != 1)
@@ -88,6 +91,9 @@ int main()
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_3d_droplets_condensation_nucleation::droplet_phase_space_velocity();
 
+        // The nucleation burst is short compared with the step, so this example
+        // insists on Strang splitting rather than accepting whatever the file
+        // configured: a first-order composition would misplace the burst in time.
         qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
         if (phase_space_evolution_options.scheme != qmomkit::PhaseSpaceEvolutionScheme::strang)
         {
@@ -95,6 +101,9 @@ int main()
             return 1;
         }
         cqmom_3d_droplets_condensation_nucleation::validate_nucleation_interval(initial_time, final_time);
+        // Nucleation creates droplets at the edge of phase space, so it is a
+        // boundary contribution rather than a volumetric source. The composed step
+        // still requires a source callback, hence this zero-rate placeholder.
         const qmomkit::CqmomMomentSource zero_moment_source = [](double, const qmomkit::CqmomSourceContext& context)
         { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
         const auto nucleation_boundary = cqmom_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(nucleation_model);
@@ -129,6 +138,9 @@ int main()
                 cqmom_3d_droplets_condensation_nucleation::limit_step_to_nucleation_interval(time, std::min(time_step, final_time - time));
             const bool nucleation_active = cqmom_3d_droplets_condensation_nucleation::nucleation_is_active(time);
             const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
+                // While nucleation is active the step must compose advection with
+                // the boundary contribution; once it stops there is nothing to
+                // compose, so the cheaper advection-only call is used instead.
                 nucleation_active ? qmomkit::advance_cqmom_phase_space(state, time, current_step, velocity, zero_moment_source, nucleation_boundary,
                                                                        phase_space_evolution_options)
                                   : qmomkit::advance_cqmom_advection(state, time, current_step, velocity, phase_space_evolution_options);

@@ -2,7 +2,17 @@
 
 This page describes the current QMOMKit software architecture.
 
-## Project Overview
+## Contents
+
+- [Project Overview](#project-overview)
+- [Package Architecture](#package-architecture)
+- [Repository Structure](#repository-structure)
+- [Public And Internal Boundaries](#public-and-internal-boundaries)
+- [Consumer Model](#consumer-model)
+- [Build Philosophy](#build-philosophy)
+- [Design Principles](#design-principles)
+
+## Project overview
 
 QMOMKit is a C++ library for quadrature-based moment methods.
 It turns raw moments of a number density function into quadrature
@@ -29,9 +39,9 @@ reconstruction inputs or phase-space-evolved states.
 
 Moment generation, CQMOM reconstruction, and reconstruction-time storage are
 separate responsibilities. Analytical distributions can produce `MomentSet`
-data for QMOM, selected required CQMOM moments, or dense full moment tensors for
-explicit dense workflows. CQMOM records the hierarchy, conditioning order, and
-required-moment layout. Internal recursive storage adapts those moments for
+data for QMOM, selected required CQMOM moments, or dense full moment tensors
+for explicit dense workflows. CQMOM records the hierarchy, conditioning order,
+and required-moment layout. Internal recursive storage adapts those moments for
 efficient traversal without making distribution objects aware of CQMOM.
 
 QMOMKit is not a CFD solver. It does not own meshes, cells, finite-volume or
@@ -68,26 +78,29 @@ configuration
 ```
 
 After reconstruction, both QMOM and CQMOM workflows may inspect quadrature,
-evaluate derived quantities, write output, or enter optional phase-space evolution. QMOM
-phase-space evolution creates a `QmomState` with `QmomCase::initial_state()` and advances it
-with `advance_qmom_phase_space(QmomState, ...)`; normal CQMOM phase-space evolution creates a
-`CqmomState` with `CqmomCase::initial_state()` and advances it with
+evaluate derived quantities, write output, or enter optional phase-space
+evolution. QMOM phase-space evolution creates a `QmomState` with
+`QmomCase::initial_state()` and advances it with
+`advance_qmom_phase_space(QmomState, ...)`; normal CQMOM phase-space evolution
+creates a `CqmomState` with `CqmomCase::initial_state()` and advances it with
 `advance_cqmom_phase_space(CqmomState, ...)`.
 
-Accepted-state batch phase-space evolution is a serial collection of these same local
-operations. It does not give QMOMKit ownership of cells, meshes, partitions, or
-parallel execution; applications retain spatial organization and scheduling.
+Accepted-state batch phase-space evolution is a serial collection of these same
+local operations. It does not give QMOMKit ownership of cells, meshes,
+partitions, or parallel execution; applications retain spatial organization and
+scheduling.
 
 `CqmomCase` and `CqmomState` are the neutral public objects for normal CQMOM
-workflows. Normal CQMOM phase-space evolution creates a `CqmomState` from `CqmomCase` and
-advances it with `advance_cqmom_phase_space(...)`, independent of dense or lean
-storage. Normal configured workflows default to lean moment storage and may
-select dense storage explicitly with `cqmom.moment_storage`. `CqmomDenseCase`
-with `RawMomentTensor` and `CqmomLeanCase` with `CqmomMomentLayout` and
-`CqmomMomentData` remain supported advanced explicit representations for static
-inversion, specialized initialization, validation, and expert workflows.
+workflows. Normal CQMOM phase-space evolution creates a `CqmomState` from
+`CqmomCase` and advances it with `advance_cqmom_phase_space(...)`, independent
+of dense or lean storage. Normal configured workflows default to lean moment
+storage and may select dense storage explicitly with `cqmom.moment_storage`.
+`CqmomDenseCase` with `RawMomentTensor` and `CqmomLeanCase` with
+`CqmomMomentLayout` and `CqmomMomentData` remain supported advanced explicit
+representations for static inversion, specialized initialization, validation,
+and expert workflows.
 
-### QMOM and CQMOM Terminology
+### QMOM and CQMOM terminology
 
 Use these QMOM and CQMOM terms consistently in developer documentation and
 implementation comments:
@@ -118,9 +131,9 @@ and `QmomOptions` inside `QmomCase`.
 For mathematical storage and ordering rules, see
 `numerical_conventions.md`.
 
-## Package Architecture
+## Package architecture
 
-### QMOMKit Core Package
+### QMOMKit core package
 
 The repository root CMake project builds the core library target:
 
@@ -154,11 +167,11 @@ source-tree tests are added only when `QMOMKIT_BUILD_TESTS=ON`. Benchmarks,
 examples, installed-package consumers, and Monte Carlo tooling remain separate
 projects.
 
-### QMOMKitMonteCarlo Companion Package
+### QMOMKitMonteCarlo companion package
 
 `tools/monte_carlo/` contains the optional QMOMKitMonteCarlo companion package.
-It provides Monte Carlo sampling, ensemble moment extraction, evolution, output,
-and comparison utilities for validation workflows.
+It provides Monte Carlo sampling, ensemble moment extraction, evolution,
+output, and comparison utilities for validation workflows.
 
 The companion package exports:
 
@@ -186,7 +199,7 @@ QMOMKitMonteCarlo is not part of the core library. Its headers live
 under `tools/monte_carlo/include/monte_carlo/`, not under
 `include/qmomkit/`.
 
-## Repository Structure
+## Repository structure
 
 The repository is organized around a small core package and standalone
 consumers:
@@ -217,7 +230,7 @@ docs/
 Generated build and install directories may exist inside these trees during
 local development. They are not architectural components.
 
-## Public And Internal Boundaries
+## Public and internal boundaries
 
 ### Public API
 
@@ -248,7 +261,7 @@ Public headers should expose stable types, requests, results, options, and
 functions. They should not expose implementation-only utilities or private
 algorithm plumbing.
 
-### Internal Implementation
+### Internal implementation
 
 Core implementation files live in:
 
@@ -273,7 +286,7 @@ algorithm code.
 Some repository tests include internal headers to validate lower-level
 behavior. That does not make those headers public API.
 
-## Consumer Model
+## Consumer model
 
 The root package is consumed through its installed CMake package:
 
@@ -308,7 +321,7 @@ correctness tests exercise the current source-tree implementation. Repository
 tests may add `src/` to their include path for focused internal validation, but
 downstream consumers should rely on installed headers and exported targets.
 
-## Build Philosophy
+## Build philosophy
 
 The root CMake project is the core-library/package build. It compiles the
 QMOMKit library and installs the exported CMake package.
@@ -325,7 +338,7 @@ Tests, benchmarks, tools, and examples are built according to their purpose:
 The core build has no mandatory third-party numerical dependency. Benchmark
 support may use Google Benchmark in the standalone benchmark project only.
 
-### Canonical Build Modes
+### Canonical build modes
 
 Use an explicit build type for reproducible development with
 single-configuration generators such as Unix Makefiles or Ninja. When the root
@@ -353,8 +366,8 @@ cmake --build build-release
 ```
 
 RelWithDebInfo builds are for profiling and performance analysis. They should
-keep optimization enabled, retain debug symbols, define `NDEBUG`, and preserve a
-profile-friendly symbolized binary:
+keep optimization enabled, retain debug symbols, define `NDEBUG`, and preserve
+a profile-friendly symbolized binary:
 
 ```sh
 cmake -B build-profile -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -366,7 +379,7 @@ package. Configure those standalone consumer builds with an explicit build type
 too, and use an installed QMOMKit library built with the configuration intended
 for the task.
 
-## Design Principles
+## Design principles
 
 QMOMKit architecture follows these stable principles:
 

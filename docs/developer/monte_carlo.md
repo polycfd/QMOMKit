@@ -1,16 +1,18 @@
-# Monte Carlo Companion Package
+# Monte Carlo companion package
 
 This page documents the development and validation conventions for the optional
 QMOMKitMonteCarlo companion package under `tools/monte_carlo/`.
 
-For user-facing build and run instructions, see [docs/user/monte_carlo.md](../user/monte_carlo.md). For
-general numerical validation policy, see [validation.md](validation.md). For test category guidance, see [testing.md](testing.md).
+For user-facing build and run instructions, see
+[docs/user/monte_carlo.md](../user/monte_carlo.md). For general numerical
+validation policy, see [validation.md](validation.md). For test category
+guidance, see [testing.md](testing.md).
 
-## Package Role
+## Package role
 
-QMOMKitMonteCarlo provides finite ensemble sampling, ensemble moment estimation,
-advection sample evolution, text output, and comparison utilities. It is a
-companion package for sample-based analysis and stochastic validation
+QMOMKitMonteCarlo provides finite ensemble sampling, ensemble moment
+estimation, advection sample evolution, text output, and comparison utilities.
+It is a companion package for sample-based analysis and stochastic validation
 references.
 
 It is not part of the core `qmomkit::qmomkit` library. It must continue to use
@@ -26,7 +28,7 @@ absolute raw moments of the number density function, phase-space dimension
 order for sample coordinates and tensor indices, explicit status values, and
 deterministic output ordering.
 
-## Reference Construction
+## Reference construction
 
 Monte Carlo validation compares raw moment histories:
 
@@ -59,7 +61,7 @@ finite-sample discrepancy. If the deterministic path starts from analytical
 moments while the Monte Carlo path starts from a finite sample, the comparison
 also includes sampling error at the initial time.
 
-## Moment Conventions
+## Moment conventions
 
 For a multidimensional multi-index $\alpha$:
 $$M_{\alpha} = \int \prod_{d} \xi_{d}^{\alpha_{d}} n(\xi) \ \mathrm{d} \xi$$
@@ -91,8 +93,8 @@ operator splitting.
 For a valid existing ensemble with $N$ samples and positive number density
 $n_0$, its representative weight is $w = n_0 / N$. The operation uses one local
 `std::mt19937_64` seeded by the public seed argument to draw
-$K \sim \mathrm{Poisson}(\Delta n / w)$ and then to sample all $K$ birth coordinates. 
-It returns $n_{0,\mathrm{new}} = w (N + K)$. Consequently the realized post-birth 
+$K \sim \mathrm{Poisson}(\Delta n / w)$ and then to sample all $K$ birth coordinates.
+It returns $n_{0,\mathrm{new}} = w (N + K)$. Consequently the realized post-birth
 estimator is:
 $$M_{\alpha,\mathrm{new}} = w \left[\sum_p \xi_{p}^{\alpha} + \sum_r Y_{r}^{\alpha}\right]$$
 
@@ -113,9 +115,9 @@ after the ensemble and number-density inputs pass validation.
 
 The implementation evaluates each requested monomial directly with work
 proportional to the number of requested indices, samples, and phase-space
-dimensions. It must not construct maximum orders, dense extents, a dense tensor,
-or a shared power table. Its normalization and standard-error convention are
-identical to the dense ensemble moment estimator.
+dimensions. It must not construct maximum orders, dense extents, a dense
+tensor, or a shared power table. Its normalization and standard-error
+convention are identical to the dense ensemble moment estimator.
 
 Validation is ordered so ensemble structure and sample finiteness are checked
 first, followed by requested-index rank, number density, and exponent overflow.
@@ -140,12 +142,12 @@ interpret the comparison:
 - tolerance or uncertainty rule used by the validation check.
 
 Sampling currently uses an explicit seed and sample count. Fixed seeds make
-repository tests repeatable on a given implementation, but standard distribution
-adapters are not guaranteed to produce bit-for-bit identical samples on every
-platform. Tests should use mathematical tolerances or uncertainty checks rather
-than exact sampled values.
+repository tests repeatable on a given implementation, but standard
+distribution adapters are not guaranteed to produce bit-for-bit identical
+samples on every platform. Tests should use mathematical tolerances or
+uncertainty checks rather than exact sampled values.
 
-## Comparison Quantities
+## Comparison quantities
 
 Use explicit reference and computed histories. For each compared moment:
 
@@ -167,10 +169,10 @@ be used as part of the scale so nearly zero references with visible sampling
 uncertainty remain interpretable.
 
 If the standard error is zero, the z-score is zero for exact agreement and
-signed infinity for nonzero signed error. Large z-scores are diagnostic signals;
-they are not automatic proof that either calculation is wrong.
+signed infinity for nonzero signed error. Large z-scores are diagnostic
+signals; they are not automatic proof that either calculation is wrong.
 
-## Output Format
+## Output format
 
 Normal Monte Carlo output follows the QMOMKit text-table convention:
 
@@ -192,7 +194,7 @@ use compact multi-index labels such as `M00`, `M01`, and `M10` in QMOMKit
 phase-space order. Comparison tables should include both `signed_error` and
 `absolute_error`; a signed quantity must not be named `absolute_error`.
 
-## Tolerances And Uncertainty
+## Tolerances and uncertainty
 
 Deterministic validation cases should use exact or manufactured expected values
 and fixed tolerances. Monte Carlo validation should account for sampling
@@ -211,7 +213,7 @@ Tolerance choice should consider:
 Do not relax tolerances simply to match a previous output file. If a tolerance
 changes, document the reason in the relevant test or validation description.
 
-## Adding A Monte Carlo Validation Case
+## Adding a Monte Carlo validation case
 
 Add a Monte Carlo validation case when a stochastic ensemble reference gives
 useful evidence that deterministic QMOM or CQMOM moment evolution behaves as

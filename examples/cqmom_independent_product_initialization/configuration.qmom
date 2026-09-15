@@ -1,9 +1,20 @@
+# Two-dimensional CQMOM case whose initial condition is an independent
+# product of one-dimensional marginals. See docs/user/configuration.md.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
 names = size, velocity
+# Quadrature nodes per coordinate. An n-node rule needs the moments m0..m(2n-1),
+# so raising this asks for more information from the initial condition.
 node_counts = 2, 2
+# The order in which CQMOM conditions the dimensions. It does not reorder
+# coordinates, moments, or output columns.
 conditioning_order = 0, 1
 
 [initial]
+# Marginals are normalised individually, then combined and scaled once by the
+# number_density below.
 type = independent_product
 number_density = 2.5
 

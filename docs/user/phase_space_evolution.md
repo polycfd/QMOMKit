@@ -1,74 +1,124 @@
-# Phase-Space Evolution and Time Integration
+# Phase-space evolution and time integration
 
-QMOM and CQMOM turn raw moments into quadrature nodes and weights. Phase-space evolution
-uses that quadrature representation to evolve a distribution in time, then
-returns updated moments and quadrature for the next step or for output.
+QMOM and CQMOM turn raw moments into quadrature nodes and weights. This guide
+covers what to do with that quadrature next: advancing it in time and getting
+updated moments back for the following step or for output.
 
-QMOMKit treats phase-space evolution as a set of numerical utilities. Your application
-supplies the phase-space velocity, moment sources, boundary exchange
-contributions, timestep loop, and physical interpretation of coordinates that
-are present in your model. QMOMKit supplies the public routines that advance
-nodes, advance moment sources, reconstruct moments, and compose these pieces
-into a phase-space evolution step.
+QMOMKit supplies the numerical machinery — advancing nodes, integrating
+sources, reconstructing moments, and composing those into one step. Your
+application supplies the physics and the surrounding timestep loop, and decides
+what the phase-space coordinates mean.
 
-This division is useful for models with both smooth and source-like moment
-evolution. Smooth effects such as growth, drift, acceleration, or relaxation can often be represented by moving
-quadrature nodes through phase space. Internal or volumetric effects such as
-breakage, aggregation, jumps, or externally computed rates are often more
-naturally represented as raw-moment source terms. Phase-space boundary exchange
-such as nucleation, injection, removal, or evaporation/condensation boundary
-contributions can be supplied as a `MomentBoundaryContribution`. QMOMKit
-combines the phase-space evolution steps while leaving the physics in caller-supplied
-callbacks.
+The split between the two kinds of physics is the useful part. Smooth effects
+such as growth, drift, acceleration, or relaxation move quadrature nodes
+through phase space. Effects that create or destroy population — breakage,
+aggregation, chemistry, or rates computed elsewhere — change the moments
+directly instead. Exchange across a phase-space boundary, such as nucleation,
+injection, removal, or evaporation, is a third contribution added to the source
+rates.
 
-QMOMKit separates phase-space evolution physics into independent callbacks. Provide only
-the callbacks required by your model: `PhaseSpaceVelocity` for phase-space
-advection, `MomentSource` or `CqmomMomentSource` for moment-source evolution,
-and `MomentBoundaryContribution` or
-`CqmomMomentBoundaryContribution` for phase-space boundary exchange. Examples
-that show several callbacks together are illustrative combinations, not a
-requirement for every simulation.
+Each kind is a separate callback, and you provide only the ones your model
+needs. Examples showing several together are illustrative combinations, not a
+requirement. [Callbacks](callbacks.md) gives their signatures and rules.
 
-## Phase-Space Evolution Workflow
+## What is on this page
 
-A typical phase-space evolution workflow alternates between the two representations:
-quadrature is convenient for phase-space advection, while raw moments are
-convenient for moment-source updates and the next reconstruction.
+| Section | Covers |
+| --- | --- |
+| [Workflow](#phase-space-evolution-workflow) | How a step is composed, and which routine to call |
+| [Physics callbacks](#physics-callbacks) | Which physics belongs in which callback |
+| [Node advection](#node-advection) | Moving quadrature nodes through a velocity field |
+| [Moment source terms](#moment-source-terms) | Rates applied directly to raw moments |
+| [Boundary contributions](#boundary-contributions) | Exchange across a phase-space boundary |
+| [Time integration](#time-integration) | Splitting schemes and node-advection schemes |
+| [Full step](#full-phase-space-evolution-step) | Complete QMOM and CQMOM steps, and driving the stages yourself |
+| [Configuration](#configuration-workflow) | Loading these settings from a `.qmom` file |
+| [Batch wrappers](#batch-convenience-wrappers) | Advancing many states with shared settings |
+| [Practical guidance](#practical-guidance) | Ordering, sizes, and what to check |
+
+For callback signatures and examples see [Callbacks](callbacks.md); when a step
+fails, see [Troubleshooting](troubleshooting.md).
+
+## Phase-space evolution workflow
+
+A step alternates between the two representations. Quadrature is the convenient
+form for moving nodes; raw moments are the convenient form for source terms and
+for the next reconstruction.
 
 ```text
 initial moments/quadrature
         ↓
-node evolution, if present
+node advection, if present
         ↓
-moment-source or boundary-rate evolution, if present
-        ↓
-time integration
+moment sources and boundary rates, if present
         ↓
 updated quadrature/moments
 ```
 
-The two main operations are:
+There are two operations to compose:
 
-- node advection: phase-space advection of quadrature abscissas in phase space;
-- moment-source update: evolution of raw moments through user-supplied source
-  and optional boundary contribution rates.
+- **node advection** moves quadrature abscissas through a velocity field;
+- **the moment-source update** applies source and boundary rates to the raw
+  moments.
 
-For a full phase-space evolution step, QMOMKit can compose these operations with a selected
-phase-space evolution scheme. Advanced applications can instead call the lower-level
-composable routines directly when they manage individual phase-space evolution operations
-themselves.
+Most applications want both composed for them, which is what
+`advance_qmom_phase_space(...)` and `advance_cqmom_phase_space(...)` do. Where
+one of those helpers asks for physics your model does not have, pass a callback
+that returns zero rates.
 
-If a model has only phase-space advection, the advanced composable
-operation is `advance_nodes(...)`, followed by moment reconstruction as needed.
-If it has only moment-source evolution, the advanced composable operation is
-`advance_moments_with_source(...)`. Use the higher-level
-`advance_qmom_phase_space(...)` or `advance_cqmom_phase_space(...)` helpers when
-you want QMOMKit to compose phase-space advection and source-like moment evolution
-in one macro step. Where a convenience helper signature includes a callback
-slot for physics that is absent from your model, use a simple zero-rate
-callback for that slot.
+If you would rather drive the pieces yourself, call `advance_nodes(...)` for
+advection alone — reconstructing moments afterwards as needed — or
+`advance_moments_with_source(...)` for sources alone. That is the right choice
+when your application needs to interleave its own work between the two.
 
-## Node Advection
+## Physics callbacks
+
+This section covers *which* physics belongs in which callback. For the
+signatures, worked examples, and the rules every callback must satisfy, see
+[Callbacks](callbacks.md).
+
+Physics callbacks are the main place where an application extends QMOMKit.
+QMOMKit handles moment storage, moment ordering, quadrature reconstruction,
+state updates, and the operator splitting. Your application supplies the
+physical model: phase-space advection and moment-source or source-like
+moment rates.
+
+Provide a `PhaseSpaceVelocity` when the model can be written as a velocity in
+the phase-space coordinates:
+
+$$\frac{\mathrm{d}\xi}{\mathrm{d}t} = \dot{\xi}(t, x)$$
+
+This is the right place for drift, growth, relaxation, acceleration, or any
+effect naturally represented by moving existing nodes.
+
+Provide a `MomentSource` — `CqmomMomentSource` in several dimensions — for
+effects that change moment values instead, together with an optional boundary
+contribution for exchange across a phase-space boundary:
+
+$$\frac{\mathrm{d}M_\alpha}{\mathrm{d}t} = S_\alpha(t, M) + B_\alpha(t, M)$$
+
+Boundary contributions are added to the source rates rather than forming a
+separate operator.
+
+The extension points are independent: a model may use only a velocity, only a
+source, a source with a boundary contribution, a velocity with a source, or all
+of them. Choose the routine matching the composition you need, and where a
+composed helper asks for physics your model does not have, pass a callback
+returning zero rates.
+
+Most applications change three things:
+
+- configuration: phase-space names, node counts, initial condition, output,
+  and time-integration settings;
+- physics callbacks: whichever velocity fields, moment-source terms, or
+  boundary exchange contributions the model actually needs;
+- step options: timestep controls, tolerances, and splitting scheme.
+
+Most applications can treat internal moment storage, reconstruction logic,
+quadrature layout, and CQMOM representation details as QMOMKit-owned parts of
+the workflow.
+
+## Node advection
 
 Node advection moves quadrature node coordinates through a phase-space
 velocity field. Use it when the model says that existing
@@ -119,10 +169,10 @@ ordered by phase-space dimension. `velocities` arrives with the same size and
 must be filled with $\mathrm{d}\xi/\mathrm{d}t$ in the same layout. Do not
 resize it; a size mismatch is reported as a velocity failure.
 
-Fill every entry. Leaving one unwritten is a contract violation, not a request
-for zero velocity: the affected node would simply not move. Debug builds detect
-it and report a velocity failure naming the node and phase-space dimension;
-release builds cannot, so treat a partial fill as a bug in your callback.
+Fill every entry. Leaving one unwritten is a mistake rather than a request for
+zero velocity, and the affected node would simply not move. A debug build
+catches it and names the node and phase-space dimension; an optimised build
+cannot, so it is worth developing callbacks against a debug build.
 
 QMOMKit does not assign a physical meaning to those coordinates; `x`,
 `diameter`, `velocity`, or any other interpretation comes from your application
@@ -162,10 +212,8 @@ vector per node per right-hand-side evaluation; prefer writing a
 `PhaseSpaceVelocity` is the single velocity form accepted by
 `advance_nodes(...)`, by the advection-only stages, and by the full
 `advance_qmom_phase_space(...)` and `advance_cqmom_phase_space(...)`
-operations. Measured over a full Strang step with two nodes per dimension,
-writing it directly rather than adapting a per-node callback removes close to
-thirty percent of the step's heap allocations in two dimensions, rising to about
-forty percent in five.
+operations. The saving from writing it directly grows with phase-space
+dimension, because the node count does.
 
 Use the advanced `advance_nodes(...)` operation when you already have a
 quadrature and want to evolve only the node positions:
@@ -206,7 +254,7 @@ const qmomkit::CqmomNodeAdvectionResult advanced =
     qmomkit::advance_nodes(cqmom_result.quadrature, time, time_step, velocity, node_options);
 ```
 
-The full QMOM and CQMOM phase-space evolution helpers described below keep accepted state
+The full QMOM and CQMOM helpers described below keep accepted state
 together with the reconstruction settings needed for the next step.
 
 `NodeAdvectionOptions::scheme` selects how node trajectories are integrated:
@@ -215,11 +263,11 @@ together with the reconstruction settings needed for the next step.
 - `rk45`: the adaptive Dormand-Prince RK5(4)7M scheme [[Dormand & Prince, 1980](https://www.doi.org/10.1016/0771-050X(80)90013-3)];
 - `ssp_rk3`: the fixed-stage SSP-RK3 scheme [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)].
 
-All three choices integrate the same advection quadrature-node trajectory equation.
-SSP-RK3 node advection does not retry, reduce the timestep, or perform
-realizability checks. Its accuracy is controlled by the timestep chosen by the
-caller. Realizability remains a property of reconstructed moments and later
-quadrature inversions, not of the coordinate trajectory step itself.
+All three choices integrate the same advection quadrature-node trajectory
+equation. SSP-RK3 node advection does not retry, reduce the timestep, or
+perform realizability checks. Its accuracy is controlled by the timestep chosen
+by the caller. Realizability remains a property of reconstructed moments and
+later quadrature inversions, not of the coordinate trajectory step itself.
 
 Configuration-driven drivers can load the complete node-advection controls
 with `qmomkit::config::load_node_advection_options(...)`. For RK23 and RK45,
@@ -231,16 +279,16 @@ estimate it from the state, derivatives, or tolerances; accepted states use
 the higher-order embedded solution and the methods reuse FSAL derivatives
 internally.
 
-## Moment Source Terms
+## Moment source terms
 
 Moment sources represent internal or volumetric changes that act directly on
-raw moments. They are integrated using the  explicit third-order strong-stability-preserving 
-Runge-Kutta step [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)].
+raw moments. They are integrated with an explicit third-order strong-stability-preserving
+Runge-Kutta (SSP-RK3) scheme [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)].
 Use moment sources when the model gives rates for moments, or when an event
 changes moments without being well described as smooth coordinate
 motion. Examples include aggregation, fragmentation, relaxation, chemistry, or
 any other model that can be written as:
-$$\frac{\mathrm{d}m}{\mathrm{d}t} = S(t, m)$$
+$$\frac{\mathrm{d}M}{\mathrm{d}t} = S(t, M)$$
 
 
 Users provide a `MomentSource` callback when moment-source evolution is part of
@@ -259,26 +307,29 @@ qmomkit::MomentSource source =
 
 The returned vector must have the same size as the current stage vector.
 QMOMKit does not know what each component means; the ordering must match the
-moment ordering used by your QMOM setup. CQMOM phase-space evolution uses the
+moment ordering used by your QMOM setup. CQMOM uses the
 context-specific callback below so multidimensional source terms can follow the
 configured CQMOM moment layout.
 
 ### QmomSourceContext
 
-`QmomSourceContext` is a non-owning, stage-local view of the one-dimensional
-QMOM moment state. Use:
+`QmomSourceContext` gives a source callback the moment values it needs. It is
+valid only for the duration of the call, and the values it reports are those of
+the current Runge-Kutta stage rather than the accepted state. Use:
 
-- `context.value(order)` for a tracked current-stage value;
-- `QmomSourceContext::moment(order)` for ordinary integer-order access. Tracked
-  orders return their stage value directly, while untracked orders are evaluated from
-  a quadrature reconstructed from that same SSP-RK stage when QMOM
-  reconstruction metadata is present. Generic source-only updates reject
-  untracked requests;
-- `context.generalized_moment(order)` for a finite, non-negative scalar order
-  from that same stage-local quadrature. Integer and fractional orders use the
-  same validation and negative-abscissa domain rules as
-  `evaluate_generalized_moment(...)`; this derived query is not added to the
-  transported state.
+- `context.value(order)` for the current value of a transported moment;
+- `context.moment(order)` for any integer order. Transported orders return their
+  stage value directly; an order you do not transport is evaluated from a
+  quadrature built from that same stage;
+- `context.generalized_moment(order)` for a real, non-negative order, evaluated
+  from that same quadrature. It obeys the same rules as
+  `evaluate_generalized_moment(...)`, and it is a query only: asking for it does
+  not add that order to the moments you evolve.
+
+Requests for an order you do not transport need a quadrature, so they work only
+when you evolve a `QmomState`. The generic vector-based
+`advance_moments_with_source(...)` shown below has no reconstruction settings to
+work from and rejects them.
 
 Use the advanced `advance_moments_with_source(...)` operation when you want to
 advance only the moment-source part of a workflow:
@@ -294,9 +345,6 @@ if (!update.ok())
 }
 ```
 
-Generic source-only updates do not carry reconstruction metadata. An untracked
-`context.moment(...)` request is therefore rejected.
-
 After a moment-source update, reconstruct quadrature before applying another
 phase-space advection step:
 
@@ -304,141 +352,6 @@ phase-space advection step:
 const qmomkit::QmomResult post_source =
     qmomkit::compute_qmom(qmomkit::MomentSet(update.moments), node_count);
 ```
-
-## Boundary Contributions
-
-Boundary contributions are optional additive raw-moment rates caused by
-phase-space boundary exchange. Use `MomentBoundaryContribution` only when the
-model describes nucleation, injection, removal, evaporation/condensation
-exchange, or similar production/destruction $B$ through a phase-space boundary:
-$$\frac{\mathrm{d}m}{\mathrm{d}t} = S(t, m) + B(t, m)$$
-
-
-
-For one-dimensional QMOM:
-
-```cpp
-qmomkit::MomentBoundaryContribution boundary =
-    [](double time, const std::vector<double>& moments)
-    {
-        constexpr double rate = 0.02;
-        constexpr double boundary_coordinate = 0.1;
-
-        std::vector<double> values(moments.size(), 0.0);
-        double power = 1.0;
-        for (double& value : values)
-        {
-            value = rate * power;
-            power *= boundary_coordinate;
-        }
-
-        (void)time;
-        return qmomkit::MomentBoundaryRate{values};
-    };
-```
-
-Use `advance_moments_with_source(...)` when QMOMKit should perform SSP-RK3
-moment-source integration, or use the phase-space evolution helpers when it
-should also own the configured operator-splitting sequence.
-
-For CQMOM, use `CqmomMomentBoundaryContribution`. It receives the same
-`CqmomSourceContext` as `CqmomMomentSource` and returns one additive rate per
-context entry:
-
-```cpp
-qmomkit::CqmomMomentBoundaryContribution boundary =
-    [](double time, const qmomkit::CqmomSourceContext& context)
-    {
-        std::vector<double> values(context.size(), 0.0);
-
-        for (std::size_t entry = 0; entry < context.size(); ++entry)
-        {
-            const qmomkit::MultiIndexView order = context.index(entry);
-            values[entry] = /* boundary exchange rate for M_order */;
-        }
-
-        (void)time;
-        return qmomkit::CqmomMomentRate{values};
-    };
-```
-
-Boundary contributions are not a generic PDE boundary-condition framework.
-They do not define mesh faces, normals, reflection, clipping, or boundary
-geometry. They are runtime physics callbacks, just like velocities and moment
-sources, and are not stored in `QmomCase`, `CqmomCase`, or `CqmomState`.
-
-When a boundary callback is supplied to a phase-space evolution helper, it is evaluated
-with the moment source during each SSP-RK3 moment-source stage:
-
-```text
-effective_rate(t, m) = source(t, m) + boundary(t, m)
-```
-
-The boundary-aware phase-space evolution overloads take an explicit options argument to
-keep overload resolution unambiguous.
-
-## Physics Callbacks
-
-Physics callbacks are the main place where an application extends QMOMKit.
-QMOMKit handles moment storage, moment ordering, quadrature reconstruction,
-state updates, and operator-split phase-space evolution. Your application supplies the
-physical model: phase-space advection and moment-source or source-like
-moment rates.
-
-The callback extension points are independent. A model may use only
-`PhaseSpaceVelocity`, only `MomentSource`, moment source plus boundary contribution,
-velocity plus moment source, or all three categories. Choose the public routine that
-matches the needed composition, and keep absent physics explicit as either no
-callback in lower-level workflows or a zero-rate callback in full phase-space evolution
-helpers whose signature requires one.
-
-Most applications change three things:
-
-- configuration: phase-space names, node counts, initial condition, output,
-  and time-integration settings;
-- physics callbacks: whichever velocity fields, moment-source terms, or
-  boundary exchange contributions the model actually needs;
-- phase-space evolution options: timestep controls, tolerances, and splitting scheme.
-
-Most applications can treat internal moment storage, reconstruction logic,
-quadrature layout, and CQMOM representation details as QMOMKit-owned parts of
-the workflow.
-
-### Phase-Space Advection
-
-Advection physics moves quadrature nodes through phase space. Provide a
-`PhaseSpaceVelocity` callback only when the physical model can be written as a
-coordinate velocity:
-$$\frac{\mathrm{d}x}{\mathrm{d}t} = \dot{\xi}(t, x)$$
-
-
-The callback receives the current time and every terminal node coordinate at
-once, packed node-major with phase-space dimension order within each node. It
-fills one velocity component per coordinate. This is the right place for drift,
-growth, relaxation, acceleration, or any effect that is naturally represented by
-moving nodes.
-
-### Moment Sources
-
-Moment-source physics updates raw moments directly. Provide a `MomentSource`
-only for internal or volumetric moment evolution and, when needed, a
-`MomentBoundaryContribution` for phase-space boundary exchange. For CQMOM use
-`CqmomMomentSource` and `CqmomMomentBoundaryContribution`. The combined model
-is:
-$$\frac{\mathrm{d}M_\alpha}{\mathrm{d}t} = S_\alpha(t, M) + B_\alpha(t, M)$$
-
-
-This is the right place for effects that change moment values rather than
-by phase-space advection moving existing nodes. The phase-space evolution helpers compose phase-space advection
-and moment-source parts with the selected scheme. Boundary contributions enter
-the existing moment-source update; they do not add a separate phase-space evolution operator.
-
-A moment source returns its derivative vector, whereas a `PhaseSpaceVelocity`
-fills a buffer the library supplies. The difference is deliberate: a moment
-source is evaluated once per SSP-RK stage, a handful of times per step, while
-the velocity is evaluated for every quadrature node and so is called far more
-often as the phase space grows. Write moment sources in the natural way and
-return the vector; there is nothing to gain from avoiding it.
 
 ### CqmomSourceContext
 
@@ -468,26 +381,22 @@ Use:
   directly; an untracked entry is evaluated from a quadrature built from that
   same stage's moments. During intermediate SSP-RK stages, this is not the
   accepted pre-source quadrature;
-- `context.generalized_moment(orders)` to obtain a derived non-negative
-  real-order raw moment from that same source-stage quadrature. This uses the
-  same lazy, context-local quadrature cache as untracked `moment(alpha)`
-  requests and does not add a generalized moment to the transported state.
-  The order vector has one `double` per phase-space dimension. A negative
-  abscissa is valid only when its requested order is integral; a fractional
-  order at a negative abscissa has no real-valued result and is rejected;
-- `context.for_each_terminal_node(...)` for a quadrature-level source closure.
-  It visits the global weight and phase-space-order coordinates of each
-  terminal node from that same stage quadrature. The coordinate reference is
-  read-only and valid only during its visitor callback;
+- `context.generalized_moment(orders)` for a real, non-negative order in each
+  phase-space dimension, evaluated from that same stage quadrature. Asking for
+  it does not add that order to the moments you evolve. A negative abscissa is
+  valid only at an integer order; a fractional order there has no real value and
+  is rejected;
+- `context.for_each_terminal_node(...)` to visit each terminal node's weight and
+  coordinates directly, when a rate is easier to write over nodes than over
+  moments. The coordinates it hands you are read-only and valid only inside the
+  visit;
 - `context.hierarchy()` for the CQMOM hierarchy associated with the state.
 
-Use `context.moment(...)` for moment-based source closures and
-`context.for_each_terminal_node(...)` for quadrature-level source closures.
-Source callbacks do not reconstruct CQMOM quadrature manually during
-phase-space source evolution; both operations use the same context-local
-stage reconstruction when needed. Generic source-only APIs do not carry
-reconstruction metadata and reject untracked
-`context.moment(...)` and terminal-node visitor requests.
+Write the rate over moments with `context.moment(...)`, or over nodes with
+`context.for_each_terminal_node(...)`; there is no need to reconstruct a
+quadrature yourself, as the context does it for you when one is needed. As in
+the one-dimensional case, both require a `CqmomState` to evolve: the generic
+vector-based source update rejects them.
 
 The returned source values correspond to the context ordering. For entry `i`,
 compute the derivative for `context.index(i)` from the current state and write
@@ -495,8 +404,8 @@ that derivative to return entry `i`. The multi-index uses phase-space
 dimension order.
 
 QMOMKit may request only the moments required by the configured hierarchy, so
-CQMOM moment-source and boundary callbacks are most robust when they iterate over the
-context entries instead of assuming a dense rectangular tensor.
+CQMOM moment-source and boundary callbacks are most robust when they iterate
+over the context entries instead of assuming a dense rectangular tensor.
 
 For example, in a volume-based phase space `(V,T,u,v,w)`, a diameter factor
 is proportional to `V^(1/3)`. A breakup closure for transported order `p` can
@@ -516,7 +425,7 @@ CQMOM moment-source callbacks usually look like this:
 
 ```cpp
 qmomkit::CqmomMomentSource source =
-    [](double time, const qmomkit::CqmomSourceContext& context)
+    [](double, const qmomkit::CqmomSourceContext& context)
     {
         const qmomkit::PhaseSpaceHierarchy& hierarchy = context.hierarchy();
         std::vector<double> derivatives(context.size(), 0.0);
@@ -538,7 +447,6 @@ qmomkit::CqmomMomentSource source =
             derivatives[entry] = rate * moment;
         }
 
-        (void)time;
         return qmomkit::CqmomMomentRate{derivatives};
     };
 ```
@@ -546,31 +454,77 @@ qmomkit::CqmomMomentSource source =
 This pattern is dimension-independent: it uses the hierarchy dimension count
 instead of assuming a two-dimensional phase space.
 
-## Bounded CQMOM Support During Phase-Space Evolution
+## Boundary contributions
 
-When a `CqmomCase` or `CqmomState` carries coordinate support from
-`phase_space.support_lower` and `phase_space.support_upper`, every CQMOM
-reconstruction for that coordinate checks the returned abscissas against the
-same interval. This includes initial inversion, post-source inversion, current
-active-count preservation, and adaptive growth attempts.
+Boundary contributions are optional additive raw-moment rates caused by
+phase-space boundary exchange. Use `MomentBoundaryContribution` only when the
+model describes nucleation, injection, removal, evaporation/condensation
+exchange, or similar production/destruction $B$ through a phase-space boundary:
+$$\frac{\mathrm{d}M}{\mathrm{d}t} = S(t, M) + B(t, M)$$
 
-Fixed branch counts are strict: if reconstruction returns nodes outside the
-declared interval, the stage fails and the returned state rolls back to the
-input state. Adaptive branch counts first try to preserve the current count,
-then reduce to a lower count when needed. Growth trials are allowed only toward
-the configured maximum; if a growth candidate returns out-of-interval nodes,
-the current accepted count is retained.
+For one-dimensional QMOM:
 
-QMOMKit verifies the returned nodes using the quadrature-bound tolerance.
-Boundary nodes and nodes inside the interval within that tolerance are accepted
-unchanged. Nodes outside the interval by more than the tolerance are rejected.
-QMOMKit does not clip, project, or otherwise move nodes to fit the interval.
+```cpp
+qmomkit::MomentBoundaryContribution boundary =
+    [](double time, const std::vector<double>& moments)
+    {
+        constexpr double rate = 0.02;
+        constexpr double boundary_coordinate = 0.1;
 
-Successful post-source stages store canonical moments reconstructed from the
-accepted quadrature and active counts. The returned state contains the accepted
-bounded quadrature closure.
+        std::vector<double> values(moments.size(), 0.0);
+        double power = 1.0;
+        for (double& value : values)
+        {
+            value = rate * power;
+            power *= boundary_coordinate;
+        }
 
-## Time Integration
+        (void)time;
+        return qmomkit::MomentBoundaryRate{values};
+    };
+```
+
+Use `advance_moments_with_source(...)` when QMOMKit should perform SSP-RK3
+moment-source integration, or use the composed helpers when it
+should also own the configured operator-splitting sequence.
+
+For CQMOM, use `CqmomMomentBoundaryContribution`. It receives the same
+`CqmomSourceContext` as `CqmomMomentSource` and returns one additive rate per
+context entry:
+
+```cpp
+qmomkit::CqmomMomentBoundaryContribution boundary =
+    [](double time, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> values(context.size(), 0.0);
+
+        for (std::size_t entry = 0; entry < context.size(); ++entry)
+        {
+            const qmomkit::MultiIndexView order = context.index(entry);
+            values[entry] = /* boundary exchange rate for M_order */;
+        }
+
+        (void)time;
+        return qmomkit::CqmomMomentRate{values};
+    };
+```
+
+Boundary contributions are not a generic PDE boundary-condition framework.
+They do not define mesh faces, normals, reflection, clipping, or boundary
+geometry. They are runtime physics callbacks, just like velocities and moment
+sources, and are not stored in `QmomCase`, `CqmomCase`, or `CqmomState`.
+
+When a boundary callback is supplied to one of these helpers, it is evaluated
+with the moment source during each SSP-RK3 moment-source stage:
+
+```text
+effective_rate(t, M) = source(t, M) + boundary(t, M)
+```
+
+The boundary-aware overloads take an explicit options argument to
+keep overload resolution unambiguous.
+
+## Time integration
 
 QMOMKit uses two user-visible integration roles:
 
@@ -581,7 +535,7 @@ QMOMKit uses two user-visible integration roles:
   moment updates with SSP-RK3.
 
 Most users interact with these through `NodeAdvectionOptions`,
-`MomentSourceUpdateOptions`, or the higher-level phase-space evolution options:
+`MomentSourceUpdateOptions`, or the higher-level step options:
 
 ```cpp
 qmomkit::QmomPhaseSpaceEvolutionOptions options;
@@ -590,7 +544,7 @@ options.node_options.adaptive_options.relative_tolerance = 1.0e-7;
 options.source_options.ssp_rk3_options.max_retries = 4;
 ```
 
-The full phase-space evolution helpers support three schemes:
+Phase-space evolution supports three splitting schemes:
 
 ```text
 strang
@@ -599,21 +553,23 @@ srcadv
 ```
 
 `strang` is the default. It applies a phase-space advection half-step, a moment-source full stage,
-and a second phase-space advection half-step. This is second-order Strang splitting 
+and a second phase-space advection half-step. This is second-order Strang splitting
 [[Strang, 1968)](https://www.doi.org/10.1137/0705041)] and is
 the usual choice when both phase-space advection and source-like moment
 evolution matter.
 
 `advsrc` applies phase-space advection first, then the moment-source update. `srcadv` applies
 the moment-source update first, then phase-space advection. These first-order Lie
-splitting schemes [[Descombes et al., 2007](https://www.doi.org/10.1080/00207160701458716)] 
+splitting schemes [[Descombes et al., 2007](https://www.doi.org/10.1080/00207160701458716)]
 can be useful for comparisons, simple workflows, or cases
 where your application deliberately wants a fixed splitting order.
 
-## Full Phase-Space Evolution Step
+## Full phase-space evolution step
+
+### One-dimensional QMOM
 
 Use `QmomCase::initial_state()` to construct an accepted one-dimensional state,
-then use `advance_qmom_phase_space(...)` to advance that state by one phase-space evolution
+then use `advance_qmom_phase_space(...)` to advance that state by one
 step:
 
 ```cpp
@@ -705,12 +661,12 @@ const qmomkit::QmomPhaseSpaceEvolutionResult second =
         source_stage.state, time + 0.5 * time_step, 0.5 * time_step, velocity, options);
 ```
 
-Phase-space advection stages move the accepted quadrature topology and reconstruct the
-stored moment vector without another QMOM inversion. Moment-source stages own
-the moment-source update and the same fixed or adaptive post-source reconstruction
-policy used by the full phase-space evolution helper. Application-managed workflows should
-pass `QmomState` objects between stages instead of reconstructing quadrature or
-mutating moments manually.
+Phase-space advection stages move the accepted quadrature topology and
+reconstruct the stored moment vector without another QMOM inversion.
+Moment-source stages own the moment-source update and the same fixed or
+adaptive post-source reconstruction policy used by the composed helper.
+Application-managed workflows should pass `QmomState` objects between stages
+instead of reconstructing quadrature or mutating moments manually.
 
 If the model also has phase-space boundary exchange, define a
 `MomentBoundaryContribution` and call the boundary-aware overload with explicit
@@ -738,6 +694,8 @@ const qmomkit::QmomPhaseSpaceEvolutionResult result =
         state, time, step, velocity, source, boundary, options);
 ```
 
+### Inspecting and writing the state
+
 `QmomState` exposes read-only `moments()`, `quadrature()`,
 `maximum_node_count()`, and `qmom_options()` accessors. Its
 stored moments are reconstructed from its accepted quadrature, and
@@ -748,7 +706,7 @@ unavailable; no public restart/import factory is currently provided.
 In adaptive QMOM, `QmomState::maximum_node_count()` remains the configured maximum. Node advection
 preserves the active count and reconstructs the stored moment vector
 from the advected quadrature without another Wheeler inversion. After an
-accepted moment-source update, phase-space evolution first reconstructs at the current active count
+accepted moment-source update, QMOMKit first reconstructs at the current active count
 and then tries at most one additional node when the configured maximum permits
 it. Fixed-count QMOM remains strict at `node_count`.
 
@@ -761,6 +719,8 @@ time node_index weight x0
 Create it with the configured maximum node count. Fixed and adaptive QMOM use
 the same writer, and adaptive output writes only active nodes without padding
 inactive entries.
+
+### Multidimensional CQMOM
 
 For CQMOM, use `advance_cqmom_phase_space(...)` with the `CqmomState` obtained
 from the loaded CQMOM case when QMOMKit should own one complete configured
@@ -824,8 +784,10 @@ const qmomkit::CqmomPhaseSpaceEvolutionResult result_with_boundary =
         state, time, time_step, velocity, cqmom_source, cqmom_boundary, options);
 ```
 
-Applications that own advection and moment-source stage orchestration can use the public CQMOM stage
-helpers directly:
+### Driving the stages yourself
+
+Applications that own advection and moment-source stage orchestration can use
+the public CQMOM stage helpers directly:
 
 ```cpp
 const qmomkit::CqmomPhaseSpaceEvolutionResult first =
@@ -852,8 +814,8 @@ const qmomkit::CqmomPhaseSpaceEvolutionResult second =
         0.5 * time_step, velocity, options);
 ```
 
-The boundary-aware moment-source evolution stage has the same shape as the high-level
-boundary overload:
+The boundary-aware moment-source evolution stage has the same shape as the
+high-level boundary overload:
 
 ```cpp
 const qmomkit::CqmomPhaseSpaceEvolutionResult source_with_boundary =
@@ -862,68 +824,69 @@ const qmomkit::CqmomPhaseSpaceEvolutionResult source_with_boundary =
         cqmom_source, cqmom_boundary, options);
 ```
 
-Phase-space advection CQMOM stages preserve terminal paths and active branch counts, move
-the accepted terminal quadrature nodes, and reconstruct moments from that
-advected quadrature without a post-stage CQMOM inversion. Moment-source stages
-advance the CQMOM phase-space evolution moment layout, then apply the same recursive fixed
-or adaptive reconstruction policy used by `advance_cqmom_phase_space(...)`.
-Moment-source stages ignore node-advection options, phase-space advection stages ignore moment-source
-integration options, and standalone stage helpers do not use the splitting
-scheme option. On failure, the returned state is the stage input state; the
-returned quadrature, when present, is diagnostic unless `result.ok()` is true.
+Phase-space advection CQMOM stages preserve terminal paths and active branch
+counts, move the accepted terminal quadrature nodes, and reconstruct moments
+from that advected quadrature without a post-stage CQMOM inversion.
+Moment-source stages advance the CQMOM phase-space evolution moment layout,
+then apply the same recursive fixed or adaptive reconstruction policy used by
+`advance_cqmom_phase_space(...)`. Moment-source stages ignore node-advection
+options, phase-space advection stages ignore moment-source integration options,
+and standalone stage helpers do not use the splitting scheme option. On
+failure, the returned state is the stage input state; the returned quadrature,
+when present, is diagnostic unless `result.ok()` is true.
 
 Here `compute_cqmom(...)` computes the initial quadrature, while
 `CqmomCase::initial_state()` creates the runtime state that phase-space evolution advances.
 
-Adaptive branch counts configured on the `CqmomCase` are preserved by
-`CqmomState` phase-space evolution. In adaptive mode, the hierarchy node counts remain the
-maximum branch counts; the state also retains the current branch-specific
-active counts associated with its ragged quadrature. Node advection preserves
-terminal paths and therefore preserves active counts. Moments are
-reconstructed by summation from the advected quadrature; this stage does not
-grow active branch counts.
+### Adaptive node counts
 
-At reconstruction boundaries, existing branches use their current active count
-as the ceiling, so active counts may stay the same or decrease but cannot grow.
-After an accepted moment-source update, post-source inversion first
-tests the current active count; if that count remains valid and the configured
-maximum is larger, it tries exactly one additional node. Growth is accepted only
-when that trial returns the requested `Nactive + 1` nodes. If a parent topology
-change creates a genuinely new descendant branch, the descendant begins from
-its own configured maximum node count, and adaptive Wheeler determines its
-initial active count.
+In adaptive mode the node counts you configure are ceilings rather than fixed
+sizes: each branch uses as many nodes as its local moments support, and the
+state remembers how many that currently is. Moving nodes does not change those
+counts, since advection relocates the existing nodes rather than adding any. A
+branch can only gain a node at a reconstruction, described next.
 
-Adaptive `CqmomState` construction seeds active counts from the initial CQMOM
-inversion; if that inversion fails, state construction fails instead of creating
-a state with inconsistent adaptive metadata. Failed CQMOM phase-space evolution through
-`CqmomState` returns the previous state metadata so callers can retry from the
-last accepted step.
+Node counts shrink readily and grow cautiously. A reconstruction during a step
+may reduce a branch's count if its moments no longer support the current one,
+but never raises it. Growth happens only after an accepted moment-source update,
+and only one node at a time: QMOMKit retries with one extra node and keeps the
+result only if that larger rule actually succeeds. This asymmetry is deliberate,
+since a branch that has just lost resolution is rarely ready to regain it in the
+same step. A branch that appears for the first time starts from its configured
+maximum and settles wherever its own moments allow.
 
-`CqmomPhaseSpaceEvolutionOptions` contains only phase-space evolution stage policies: node advection,
-moment-source integration, and the phase-space evolution scheme.
-CQMOM inversion policies such as Wheeler options, adaptive branch counts,
-diagnostic level, and Vandermonde solver belong to `CqmomCase` and are preserved
-by `CqmomState`. Successful CQMOM phase-space evolution through `CqmomState` persists active
-adaptive topology for the next call. Explicit dense and lean case types remain
-available for advanced static inversion and specialized initialization, but
-normal CQMOM phase-space evolution uses `CqmomCase::initial_state()` and
-`advance_cqmom_phase_space(...)` with the storage-independent `CqmomState` API.
+An adaptive `CqmomState` takes its starting active counts from the initial
+inversion, so if that inversion fails you get no state at all rather than an
+unusable one. A failed step likewise returns the previous state, so you can
+retry from the last accepted one.
 
-For storage-independent CQMOM physics, use `CqmomMomentSource` and
-`CqmomMomentBoundaryContribution`. `CqmomSourceContext` exposes the CQMOM moment
-layout selected for phase-space evolution, with the same indices, values, ordering, hierarchy,
-and lookup behavior for `CqmomState` with dense or lean moment storage.
+### Where each option belongs
+
+The two option groups divide cleanly, which is worth knowing when deciding
+where a setting belongs. `CqmomPhaseSpaceEvolutionOptions` holds only what a
+step does: node advection, moment-source integration, and the splitting scheme.
+How the quadrature is reconstructed — Wheeler options, adaptive branch counts,
+diagnostic level, solver choice — belongs to `CqmomCase`, and `CqmomState`
+carries it forward from step to step along with the adaptive node counts it has
+settled on.
+
+Write CQMOM physics against `CqmomMomentSource` and
+`CqmomMomentBoundaryContribution`. The context they receive presents the same
+moments in the same order however the state stores them internally, so a
+callback written once works unchanged for either storage choice.
+
+### Checking the result
 
 `result.ok()` identifies whether returned moments or quadrature describe an
 accepted phase-space evolution step. On failure, `result.message` and `result.diagnostics`
 indicate whether the inversion, node advection, moment-source update, or
 moment reconstruction failed.
 
-## Configuration Workflow
+## Configuration workflow
 
-Configuration files can select initialization, quadrature settings, phase-space evolution
-scheme, and output options for drivers that read those sections. The phase-space evolution
-scheme is set in:
+Configuration files can select initialization, quadrature settings, phase-space
+evolution scheme, and output options for drivers that read those sections. The
+phase-space evolution scheme is set in:
 
 ```ini
 [time_integration]
@@ -1005,20 +968,20 @@ examples/qmom_1d_breakage_advection/
 examples/cqmom_2d_minimal/
 ```
 
-## Batch Convenience Wrappers
+## Batch convenience wrappers
 
 When an application owns several independent accepted states with shared
-phase-space evolution controls, it can call the `*_batch(...)` accepted-state phase-space evolution
-wrappers. QMOM and CQMOM provide matching phase-space advection stage, moment-source evolution stage,
-and complete phase-space evolution batch families, including the corresponding
-boundary-aware overloads.
+phase-space evolution controls, it can call the `*_batch(...)` accepted-state
+phase-space evolution wrappers. QMOM and CQMOM provide matching phase-space
+advection stage, moment-source evolution stage, and complete phase-space
+evolution batch families, including the corresponding boundary-aware overloads.
 
 A batch call is a serial convenience wrapper around the corresponding scalar
 call. It processes input positions in increasing order and returns one result
 per input in the same order. Each entry retains its own adaptive substeps,
-retries, active node or branch topology, diagnostics, and phase-space evolution status. An
-empty input returns an empty result without invoking callbacks or validating the
-shared arguments.
+retries, active node or branch topology, diagnostics, and phase-space evolution
+status. An empty input returns an empty result without invoking callbacks or
+validating the shared arguments.
 
 Use ordinary batch functions such as `advance_qmom_phase_space_batch(...)` when
 one scalar callback applies to every entry. When external data vary by input
@@ -1057,19 +1020,18 @@ const std::vector<qmomkit::QmomPhaseSpaceEvolutionResult> indexed_results =
         indexed_source, options);
 ```
 
-Time, time step, and phase-space evolution options are shared by a batch; each
-`QmomState` supplies its own reconstruction metadata. Applications needing heterogeneous controls should make explicit
-scalar calls. An unsuccessful scalar result is retained at its input position
-and does not stop later entries. An exception that escapes a scalar call also
-escapes the batch call unchanged and stops processing.
+A batch shares one time, time step, and set of options, while each state keeps
+its own reconstruction settings. If entries need different controls, call them
+individually instead. A failed entry keeps its place in the returned vector and
+does not stop the others, but an exception escaping one entry stops the batch.
 
 Batch wrappers do not provide threading, MPI, scheduling, or spatial
 organization. Calling scalar APIs inside an application-managed parallel loop
 remains fully supported.
 
-## Practical Guidance
+## Practical guidance
 
-Coordinate order links the phase-space evolution callback to the configured model. A
+Coordinate order links each callback to the configured model. A
 `PhaseSpaceVelocity` callback receives coordinates in phase-space dimension
 order within each node, the same order used by CQMOM moments, node counts, and
 output.
@@ -1089,12 +1051,12 @@ Moment sources update raw moments. Quadrature nodes are rebuilt from those
 moments before another node-advection step.
 
 Boundary contributions are added to the moment-source rate and integrated by
-the same SSP-RK3 moment-source update path. Moment-source retries, acceptability predicates,
-and post-source inversion behavior are shared.
+the same SSP-RK3 moment-source update path. Moment-source retries,
+acceptability predicates, and post-source inversion behavior are shared.
 
 The evolved moment set still needs to support the requested quadrature.
-Phase-space evolution can fail if updated moments no longer support the requested QMOM or
-CQMOM reconstruction.
+Phase-space evolution can fail if updated moments no longer support the
+requested QMOM or CQMOM reconstruction.
 
 Callbacks are application code. QMOMKit does not provide meshes, boundary
 conditions, boundary geometry, physical source models, or units. The library

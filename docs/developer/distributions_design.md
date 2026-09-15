@@ -1,4 +1,4 @@
-# Distribution Design
+# Distribution design
 
 This page documents the current QMOMKit design for analytical distribution
 handling.
@@ -7,9 +7,22 @@ For raw moments, number density function (NDF) conventions, tensor storage, and
 phase-space ordering, see [numerical_conventions.md](numerical_conventions.md).
 For configuration-file mapping, see
 [configuration_design.md](configuration_design.md). User-facing examples and
-workflow guidance live in [docs/user/distributions.md](../user/distributions.md).
+workflow guidance live in
+[docs/user/distributions.md](../user/distributions.md).
 
-## Role Of Distributions
+## Contents
+
+- [Role Of Distributions](#role-of-distributions)
+- [Distribution Abstraction](#distribution-abstraction)
+- [Analytical Distribution Families](#analytical-distribution-families)
+- [Mixture Distributions](#mixture-distributions)
+- [Independent Product Distributions](#independent-product-distributions)
+- [Numerical Behavior](#numerical-behavior)
+- [Initialization Interaction](#initialization-interaction)
+- [API Boundary](#api-boundary)
+- [Extension Principles](#extension-principles)
+
+## Role of distributions
 
 Distribution support is an initialization layer. A distribution describes a
 compact analytical source for moments; QMOM and CQMOM algorithms consume the
@@ -30,13 +43,13 @@ MomentSet, CqmomMomentData, or RawMomentTensor
 compute_qmom(...) or compute_cqmom(...)
 ```
 
-After moment generation, the reconstruction algorithms have no memory of whether
-the input moments came from an analytical distribution, an explicit moment list,
-a sample-derived ensemble, or another upstream calculation. This keeps
-distribution handling separate from quadrature reconstruction, phase-space evolution,
-realizability checks, and application physics.
+After moment generation, the reconstruction algorithms have no memory of
+whether the input moments came from an analytical distribution, an explicit
+moment list, a sample-derived ensemble, or another upstream calculation. This
+keeps distribution handling separate from quadrature reconstruction,
+phase-space evolution, realizability checks, and application physics.
 
-## Distribution Abstraction
+## Distribution abstraction
 
 The public distribution API lives in:
 
@@ -104,7 +117,7 @@ $$m_0 = n_0$$
 where $p(\xi)$ is the normalized analytical shape and $n_0$ is the supplied
 `total_weight`. The result is not normalized away before being returned.
 
-## Analytical Distribution Families
+## Analytical distribution families
 
 Analytical families provide closed-form raw moments for normalized
 one-dimensional shapes. Parameter validation happens before moment values are
@@ -131,7 +144,7 @@ that each family maps typed parameters to raw analytical moments, validates
 invalid parameters as `RawMomentStatus::invalid_input`, and reports numerical
 overflow, underflow, or non-finite results through `RawMomentResult`.
 
-## Mixture Distributions
+## Mixture distributions
 
 A one-dimensional mixture is represented by:
 
@@ -171,7 +184,7 @@ order. This improves robustness for heterogeneous component scales, but it does
 not change the mathematical convention or guarantee that all high-order moments
 remain representable in `double`.
 
-## Independent Product Distributions
+## Independent product distributions
 
 Multidimensional analytical initialization is represented by:
 
@@ -228,7 +241,7 @@ $$m_\alpha = n_0 \prod_r E_r[\xi_{r}^{\alpha_r}]$$
 
 The output preserves request order and duplicate requests.
 
-## Numerical Behavior
+## Numerical behavior
 
 Distribution moment generation uses explicit result objects:
 
@@ -265,10 +278,10 @@ Stable numerical rules include:
 
 Distribution generation validates parameters and numerical representability. It
 does not perform support-aware realizability analysis, run QMOM or CQMOM
-inversion, or repair generated moments. Downstream algorithms still report their
-own statuses.
+inversion, or repair generated moments. Downstream algorithms still report
+their own statuses.
 
-## Initialization Interaction
+## Initialization interaction
 
 Distribution-generated moments enter QMOMKit through the same public case
 objects as explicit moments. One-dimensional QMOM initialization uses
@@ -306,7 +319,8 @@ IndependentProductDistribution
       -> CqmomDenseCase
 ```
 
-For CQMOM workflows that can benefit from selective generation, the data flow is:
+For CQMOM workflows that can benefit from selective generation, the data flow
+is:
 
 ```text
 CQMOM hierarchy
@@ -340,15 +354,15 @@ moment initialization has precedence in configuration: explicit moments are
 treated as the source of truth, and distribution fields that would otherwise
 generate moments are not active in that path.
 
-Generated moments must still be sufficient for the requested reconstruction. For
-one-dimensional QMOM, an `N`-node inversion needs at least `2 * N` moments. For
-dense CQMOM compatibility, the generated tensor extents must be large enough for
-the configured phase-space hierarchy and node counts. For lean CQMOM
+Generated moments must still be sufficient for the requested reconstruction.
+For one-dimensional QMOM, an `N`-node inversion needs at least `2 * N` moments.
+For dense CQMOM compatibility, the generated tensor extents must be large
+enough for the configured phase-space hierarchy and node counts. For lean CQMOM
 initialization, sufficiency is encoded by `CqmomMomentLayout`. Those
 reconstruction requirements belong to QMOM case and CQMOM case validation and
 algorithm status handling, not to the distribution object itself.
 
-## API Boundary
+## API boundary
 
 Public distribution concepts include:
 
@@ -381,7 +395,7 @@ Implementation details include:
 These implementation details support the public API but are not downstream
 extension points.
 
-## Extension Principles
+## Extension principles
 
 Adding a distribution capability should preserve the separation between
 initialization and reconstruction:
@@ -396,5 +410,6 @@ initialization and reconstruction:
   distribution names.
 
 Distribution support should remain a deterministic moment-generation layer. It
-should not become an application-level solver, a sampling library, a PDF/CDF evaluation
-package, or a hidden control path for QMOM/CQMOM reconstruction behavior.
+should not become an application-level solver, a sampling library, a PDF/CDF
+evaluation package, or a hidden control path for QMOM/CQMOM reconstruction
+behavior.

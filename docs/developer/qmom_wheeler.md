@@ -1,13 +1,25 @@
-# QMOM Wheeler Inversion
+# QMOM Wheeler inversion
 
 This page documents the current QMOMKit design for one-dimensional QMOM
-inversion with the Wheeler algorithm [[Wheeler, 1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)].
+inversion with the Wheeler algorithm [[Wheeler,
+1974](https://www.doi.org/10.1216/RMJ-1974-4-2-287)].
 
 For raw-moment, node, abscissa, weight, and ordering conventions, see
-[numerical_conventions.md](numerical_conventions.md). This page describes how those conventions are used
-by the Wheeler inversion implementation.
+[numerical_conventions.md](numerical_conventions.md). This page describes how
+those conventions are used by the Wheeler inversion implementation.
 
-## Role of Wheeler Inversion
+## Contents
+
+- [Role of Wheeler Inversion](#role-of-wheeler-inversion)
+- [QMOM Representation](#qmom-representation)
+- [Algorithm Overview](#algorithm-overview)
+- [Adaptive Wheeler](#adaptive-wheeler)
+- [Optional Abscissa-Bound Acceptance](#optional-abscissa-bound-acceptance)
+- [Numerical Assumptions And Failure Handling](#numerical-assumptions-and-failure-handling)
+- [API Relationship](#api-relationship)
+- [Validation Expectations](#validation-expectations)
+
+## Role of Wheeler inversion
 
 QMOM represents a one-dimensional number density function through a finite set
 of raw moments:
@@ -27,7 +39,7 @@ by public QMOM reconstruction and by CQMOM branch-local reconstructions. CQMOM
 conditioning, branch paths, and terminal multidimensional weights are separate
 topics for [cqmom_recursive.md](cqmom_recursive.md).
 
-## QMOM Representation
+## QMOM representation
 
 The one-dimensional input is a `qmomkit::MomentSet` whose entries are stored in
 ascending moment order:
@@ -64,7 +76,7 @@ preconditioning; Wheeler still operates on raw moments and does not perform
 centering or $m_0$ normalization. A moment sequence with $m_0 = 1$ is treated
 as a unit-number-density sequence, not as a separate probability convention.
 
-## Algorithm Overview
+## Algorithm overview
 
 QMOMKit uses the Wheeler recurrence to construct recurrence coefficients for
 the orthogonal polynomial sequence associated with the supplied raw moments.
@@ -99,11 +111,12 @@ in implementation files and are not exposed as public API objects.
 
 ## Adaptive Wheeler
 
-The adaptive Wheeler alogrithm [[Marchisio & Fox, 2013](https://www.doi.org/10.1017/CBO9781139016599)] allows a case for up to $N$ nodes to return a smaller
-accepted quadrature rule when the supplied moments are effectively supported
-by fewer distinct nodes. This is important near the boundary of realizable
-moment space, where a fixed-node inversion can encounter nearly duplicate
-nodes, tiny weights, or degenerate recurrence data.
+The adaptive Wheeler alogrithm [[Marchisio & Fox,
+2013](https://www.doi.org/10.1017/CBO9781139016599)] allows a case for up to
+$N$ nodes to return a smaller accepted quadrature rule when the supplied
+moments are effectively supported by fewer distinct nodes. This is important
+near the boundary of realizable moment space, where a fixed-node inversion can
+encounter nearly duplicate nodes, tiny weights, or degenerate recurrence data.
 
 Adaptive behavior is controlled by `QmomOptions` or `WheelerOptions`:
 
@@ -116,14 +129,14 @@ Adaptive behavior is controlled by `QmomOptions` or `WheelerOptions`:
 The adaptive algorithm starts from the requested maximum node count. It checks
 the Wheeler recurrence data for degeneracy, may reduce the active node count,
 then attempts candidate quadratures from the active count down to one node.
-A multi-node adaptive rule is accepted only when the configured weight-ratio
-and node-separation criteria pass. If no multi-node candidate passes those
-adaptive criteria, the current implementation can still return a successful
-reduced one-node quadrature when that one-node rule is mathematically defined.
+A multi-node adaptive rule is accepted only when both the `rmin` weight-ratio
+and the `eabs` node-separation criteria above pass. If no multi-node candidate
+passes them, the current implementation can still return a successful reduced
+one-node quadrature when that one-node rule is mathematically defined.
 Therefore, `success` means the returned rule was accepted; it does not
 guarantee that the originally requested node count was retained.
 
-## Optional Abscissa-Bound Acceptance
+## Optional abscissa-bound acceptance
 
 `AbscissaBounds` adds an optional acceptance condition around ordinary Wheeler
 inversion. It is not a bounded Wheeler variant and does not change recurrence,
@@ -158,7 +171,7 @@ enabling branch-specific adaptive node counts automatically uses adaptive
 Wheeler for each marginal and conditional inversion. Standalone QMOM remains
 independently controlled by its own adaptive option.
 
-## Numerical Assumptions And Failure Handling
+## Numerical assumptions and failure handling
 
 The Wheeler implementation assumes:
 
@@ -188,11 +201,11 @@ Current status values are:
 - `not_realizable`: the supplied moments fail a realizability or recurrence
   check.
 
-Non-success statuses may still carry diagnostic fallback data. This behavior
-is intentional and supports downstream diagnostics or controlled failure
-handling. Fallback values may not preserve the original moment sequence and
-must not be treated as a successful quadrature rule. Callers should check the
-status before using abscissas or weights in reconstruction, phase-space evolution,
+Non-success statuses may still carry diagnostic fallback data. This behavior is
+intentional and supports downstream diagnostics or controlled failure handling.
+Fallback values may not preserve the original moment sequence and must not be
+treated as a successful quadrature rule. Callers should check the status before
+using abscissas or weights in reconstruction, phase-space evolution,
 validation, or output.
 
 Numerical conditioning is most sensitive when moments are high order, nodes
@@ -201,7 +214,7 @@ sequence lies near the boundary of realizable moment space. Changes to
 thresholds, recurrence checks, eigenvalue sorting, or fallback behavior are
 convention changes and require matching unit and verification coverage.
 
-## API Relationship
+## API relationship
 
 The preferred public QMOM entry points are declared in `<qmomkit/qmom.hpp>`:
 
@@ -267,7 +280,7 @@ The following are implementation details:
 Public headers should not expose the internal recurrence or eigensolver data
 structures unless QMOMKit deliberately adds a supported diagnostic API.
 
-## Validation Expectations
+## Validation expectations
 
 Wheeler changes should preserve the core invariant that successful quadrature
 reconstructs the supplied raw moments to the documented tolerance:
@@ -286,5 +299,5 @@ Existing coverage includes:
 - deterministic verification against known quadrature rules.
 
 Any Wheeler behavior change must update the relevant unit and verification
-tests before QMOM, CQMOM, phase-space evolution, configuration parsing, or validation
-workflows rely on it.
+tests before QMOM, CQMOM, phase-space evolution, configuration parsing, or
+validation workflows rely on it.

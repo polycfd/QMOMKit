@@ -1,19 +1,19 @@
 # Time integration and node motion
 
-Public algorithms in [runge_kutta.cpp](../../../src/runge_kutta.cpp) are declared
-in [runge_kutta.hpp](../../../include/qmomkit/runge_kutta.hpp). Internal tableaus
-and stage arithmetic live in
-[embedded_runge_kutta.cpp](../../../src/internal/embedded_runge_kutta.cpp) and its
-[header](../../../src/internal/embedded_runge_kutta.hpp).
+Public algorithms in [runge_kutta.cpp](../../../src/runge_kutta.cpp) are
+declared in [runge_kutta.hpp](../../../include/qmomkit/runge_kutta.hpp).
+Internal tableaus and stage arithmetic live in
+[embedded_runge_kutta.cpp](../../../src/internal/embedded_runge_kutta.cpp) and
+its [header](../../../src/internal/embedded_runge_kutta.hpp).
 [node_advection.cpp](../../../src/node_advection.cpp) adapts them through
-[node_advection.hpp](../../../include/qmomkit/node_advection.hpp).
-These algorithms advance generic vectors; physical meanings reside in callbacks.
-See [phase-space design](../phase_space_evolution_design.md).
+[node_advection.hpp](../../../include/qmomkit/node_advection.hpp). These
+algorithms advance generic vectors; physical meanings reside in callbacks. See
+[phase-space design](../phase_space_evolution_design.md).
 
 ## SSP-RK3 attempt and retries — Level A
 
-Local `try_ssp_rk3_step` performs exactly one attempt from the supplied original
-state `y` and positive step `h`:
+Local `try_ssp_rk3_step` performs exactly one attempt from the supplied
+original state `y` and positive step `h`:
 
 1. Evaluate `k1=f(t,y)`, form `y1=y+h*k1`, then apply the Stage1 predicate.
 2. Evaluate `k2=f(t+h,y1)`, form `y2=3*y/4+(y1+h*k2)/4`, then apply Stage2.
@@ -25,30 +25,32 @@ stage prevents later RHS calls. One derivative buffer serves all three stages,
 since each stage's derivative is consumed into the next stage state before the
 following stage overwrites it. `rhs_checked` sizes that buffer, hands it to the
 callback, and enforces that the callback neither resized it nor left an entry
-unwritten, and that every derivative is finite. Intermediate state acceptance depends on predicates and subsequent
-RHS checks; there is an explicit finite check on the final candidate.
+unwritten, and that every derivative is finite. Intermediate state acceptance
+depends on predicates and subsequent RHS checks; there is an explicit finite
+check on the final candidate.
 
-The second stage also constructs the second-order test state
-`(y+y1+h*k2)/2`. With `estimate_error`, the reported estimate is the Euclidean norm
-of its difference from `yn`, divided by `||yn||` unless that norm is zero. It is
+The second stage also constructs the second-order test state `(y+y1+h*k2)/2`.
+With `estimate_error`, the reported estimate is the Euclidean norm of its
+difference from `yn`, divided by `||yn||` unless that norm is zero. It is
 **not** an error-controlled acceptance criterion. Norm computation can itself
 overflow at extreme scale; the estimate is not a certified error bound.
 
-Public `ssp_rk3_step` validates initial state/time/step and a finite nonnegative
-minimum step, then loops over attempts.
-Predicate rejection halves `h` and restarts at the **original** `t,y`; it does not
-continue a rejected intermediate state. `max_retries` or the configured minimum
-stops retry with original state and a rejection/minimum-step status. Arithmetic or
-callback exceptions are not handled as predicate retries. Source wrappers translate
+Public `ssp_rk3_step` validates initial state/time/step and a finite
+nonnegative minimum step, then loops over attempts. Predicate rejection halves
+`h` and restarts at the **original** `t,y`; it does not continue a rejected
+intermediate state. `max_retries` or the configured minimum stops retry with
+original state and a rejection/minimum-step status. Arithmetic or callback
+exceptions are not handled as predicate retries. Source wrappers translate
 those exceptions into source failure. Before a retry is evaluated, its halved
 step must be finite, positive, and strictly smaller than the rejected step;
 otherwise the stepper returns `minimum_timestep_reached`. A zero configured
 minimum remains valid and means no positive configured floor.
 
-Evidence: [RK unit tests](../../../tests/unit/runge_kutta.cpp) inspect the stage
-formula/times, predicate short-circuit, retries, and error-estimate behavior;
-[source tests](../../../tests/unit/moment_source.cpp) establish that the enclosing
-source driver finishes the whole interval. These are separate acceptance layers.
+Evidence: [RK unit tests](../../../tests/unit/runge_kutta.cpp) inspect the
+stage formula/times, predicate short-circuit, retries, and error-estimate
+behavior; [source tests](../../../tests/unit/moment_source.cpp) establish that
+the enclosing source driver finishes the whole interval. These are separate
+acceptance layers.
 
 ## Embedded RK stage arithmetic — Level A
 
@@ -77,26 +79,25 @@ without the controller moving it anywhere. An accepting controller must instead
 install the outgoing slope of a first-same-as-last (FSAL) tableau — its last
 stage, swapped into slot zero — or clear the flag. RHS shape and finite
 derivative checks remain in this layer. Cache validity is an internal caller
-invariant: the cached derivative must belong to the current starting state/time.
-`embedded_rk_controller_exponent` returns `-1/(embedded_order+1)` for the error
-controller.
+invariant: the cached derivative must belong to the current starting
+state/time. `embedded_rk_controller_exponent` returns `-1/(embedded_order+1)`
+for the error controller.
 
 Evidence: [RK tests](../../../tests/unit/runge_kutta.cpp) check method-specific
 stage arithmetic and function-evaluation accounting, including FSAL reuse, and
 that a reused workspace takes the same step as a fresh one while its cache
-replaces exactly one evaluation.
-No independent arbitrary-tableau facility or interpolation/dense-output contract
-is implemented by these helpers.
+replaces exactly one evaluation. No independent arbitrary-tableau facility or
+interpolation/dense-output contract is implemented by these helpers.
 
 ## Embedded controller — Level A
 
-`integrate_embedded_rk` advances an initial finite vector from `t0` to `t_bound`,
-including backward integration. It resolves the tableau, validates dimensions,
-times, positive finite relative/absolute tolerances, and nonzero `max_steps`.
-Equal endpoints return success before checking nonessential step-size controls.
-For a nonzero interval, initial step must be positive; zero maximum step means
-interval length, and zero minimum means ten floating-point spacings at current
-time in the integration direction.
+`integrate_embedded_rk` advances an initial finite vector from `t0` to
+`t_bound`, including backward integration. It resolves the tableau, validates
+dimensions, times, positive finite relative/absolute tolerances, and nonzero
+`max_steps`. Equal endpoints return success before checking nonessential
+step-size controls. For a nonzero interval, initial step must be positive; zero
+maximum step means interval length, and zero minimum means ten floating-point
+spacings at current time in the integration direction.
 
 The outer loop tracks accepted state/time until the endpoint or accepted-step
 limit. The inner loop retries one proposed step:
@@ -115,16 +116,16 @@ limit. The inner loop retries one proposed step:
   returns step-size-underflow status. The accepted-step budget counts accepted
   steps, not rejected attempts.
 
-Failure statuses retain the last accepted state/time. Invalid RHS values may throw
-instead of returning an integration status. Lower-bound acceptance is an explicit
-implemented policy. It means success alone does not certify satisfaction of the
-requested local-error norm. Counters
-and last step are diagnostic, not a global error estimate.
+Failure statuses retain the last accepted state/time. Invalid RHS values may
+throw instead of returning an integration status. Lower-bound acceptance is an
+explicit implemented policy. It means success alone does not certify
+satisfaction of the requested local-error norm. Counters and last step are
+diagnostic, not a global error estimate.
 
 Evidence: [RK tests](../../../tests/unit/runge_kutta.cpp), notably
-`test_rk23_accepts_finite_update_at_minimum_step`, plus short-final-interval and
-RK45 cases, test the policy directly. Autonomous analytical trajectories and
-refinement tests provide accuracy evidence for specific cases; they do not
+`test_rk23_accepts_finite_update_at_minimum_step`, plus short-final-interval
+and RK45 cases, test the policy directly. Autonomous analytical trajectories
+and refinement tests provide accuracy evidence for specific cases; they do not
 characterize floor-dominated integration or all time/scale combinations.
 
 ## Node trajectory adaptation — Level A
@@ -134,29 +135,31 @@ excluded. `node_rhs_from_velocity` hands that vector to the velocity callback
 unchanged at every stage — the packed callback layout is the ODE state layout,
 so no gather or scatter is needed — and validates the filled rank/finiteness,
 attributing any failure back to its node and phase-space dimension.
-`unpack_nodes` restores per-coordinate arrays. This preserves terminal list order
-and does not reconstruct a new CQMOM tree.
+`unpack_nodes` restores per-coordinate arrays. This preserves terminal list
+order and does not reconstruct a new CQMOM tree.
 
-`integrate_nodes_embedded_rk` integrates to `t+h`, translates controller failure
-into integration failure, and returns original coordinates on failure. Callback
-exceptions become velocity failure. `integrate_nodes_ssp_rk3` uses the same
-three-stage trajectory formula directly, with signed or zero step supported;
-it has no source predicates, source retry loop, or embedded controller. Thus
-selecting SSP-RK3 for advection is different from invoking the source stepper.
-`integrate_nodes` dispatches the chosen scheme.
+`integrate_nodes_embedded_rk` integrates to `t+h`, translates controller
+failure into integration failure, and returns original coordinates on failure.
+Callback exceptions become velocity failure. `integrate_nodes_ssp_rk3` uses the
+same three-stage trajectory formula directly, with signed or zero step
+supported; it has no source predicates, source retry loop, or embedded
+controller. Thus selecting SSP-RK3 for advection is different from invoking the
+source stepper. `integrate_nodes` dispatches the chosen scheme.
 
-Public `advance_nodes` overloads validate finite shape, weights, coordinates, and
-where applicable producing QMOM success status or CQMOM terminal paths. Successful
-motion preserves weights, hierarchy, terminal paths, and rectangular/ragged flags;
-only coordinates change. It does not constrain intermediate trajectories to
-configured support intervals. Support-aware reconstruction is a different stage.
-The caller's velocity need not conserve kinetic energy or any physical quantity.
+Public `advance_nodes` overloads validate finite shape, weights, coordinates,
+and where applicable producing QMOM success status or CQMOM terminal paths.
+Successful motion preserves weights, hierarchy, terminal paths, and
+rectangular/ragged flags; only coordinates change. It does not constrain
+intermediate trajectories to configured support intervals. Support-aware
+reconstruction is a different stage. The caller's velocity need not conserve
+kinetic energy or any physical quantity.
 
-Evidence: [node-advection unit tests](../../../tests/unit/node_advection.cpp) and
-[component tests](../../../tests/component_regression/node_advection.cpp) cover
-constant/linear motion, schemes, callback failure, and retained weights/topology.
-[Phase-space tests](../../../tests/unit/phase_space_evolution.cpp) verify later
-moment reconstruction and stage composition. Boundary crossings during a node
+Evidence: [node-advection unit tests](../../../tests/unit/node_advection.cpp)
+and [component tests](../../../tests/component_regression/node_advection.cpp)
+cover constant/linear motion, schemes, callback failure, and retained
+weights/topology. [Phase-space
+tests](../../../tests/unit/phase_space_evolution.cpp) verify later moment
+reconstruction and stage composition. Boundary crossings during a node
 trajectory remain a separate question from bounded inversion acceptance.
 
 ## Supporting functions — Level C

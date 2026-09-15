@@ -18,10 +18,10 @@ The central question is:
 > has lost numerical independence; changing the solver cannot recover the
 > missing information.
 
-There is no physical model, time integration, regularization, or hidden tolerance relaxation. 
-The sweep and both output files are deterministic.
+There is no physical model, time integration, regularization, or hidden
+tolerance relaxation. The sweep and both output files are deterministic.
 
-## Prescribed Population
+## Prescribed population
 
 For separation parameter $\delta$, the four exact atoms are
 
@@ -62,7 +62,7 @@ M_{0,0}=1,\qquad M_{1,0}=0.1\delta,\qquad M_{0,1}=0.5,
 \qquad M_{2,0}=0.25\delta^2.
 $$
 
-## Where The Numerical Difficulty Comes From
+## Where the numerical difficulty comes from
 
 In the x-first order, the weighted parent system is
 
@@ -99,7 +99,7 @@ It remains well conditioned. Reversing the conditioning order relocates the
 weak x-inversion to later Wheeler or conditional stages; it does not remove
 the underlying degeneracy.
 
-## Why Compare Several Solvers?
+## Why compare several solvers?
 
 The fixed-count sweep requests four explicit policies:
 
@@ -116,7 +116,7 @@ A common failure across all four means that the two-node system has lost
 numerical independence, so selecting a different solver cannot restore the
 missing information.
 
-## What The Diagnostics Mean
+## What the diagnostics mean
 
 ### Relative singular value
 
@@ -164,7 +164,7 @@ small residual means the computed weights satisfy the represented system
 closely; it does not establish independent columns or a stable solution.
 Residuals remain available in the complete flat diagnostics file.
 
-## Conditioning Orders
+## Conditioning orders
 
 ### x_then_y — (0,1)
 
@@ -181,7 +181,7 @@ Residuals remain available in the complete flat diagnostics file.
 The second order is not unconditionally better. It can report a later
 Wheeler/QMOM failure instead of an earlier conditional-moment failure.
 
-## Fixed And Adaptive Reconstructions
+## Fixed and adaptive reconstructions
 
 The fixed-count sweep uses node counts $(2,2)$, fixed branch counts, and
 
@@ -201,7 +201,7 @@ conditional Vandermonde solve. It is not triggered by QR or SVD. The adaptive
 rows represent lower-order quadratures and are not solver alternatives for the
 fixed two-node formulation. Together, the example produces 66 total rows.
 
-## Build And Run
+## Build and run
 
 Install QMOMKit, then configure this directory as a standalone installed
 package consumer:
@@ -212,17 +212,17 @@ package consumer:
 
     cmake -S examples/cqmom_2d_borderline_conditioning -B examples/cqmom_2d_borderline_conditioning/build -DCMAKE_PREFIX_PATH="$PWD/install"
     cmake --build examples/cqmom_2d_borderline_conditioning/build
-    
+
     cd examples/cqmom_2d_borderline_conditioning/build
     ./cqmom_2d_borderline_conditioning_example
 
-## Output Files
+## Output files
 
 ### output/report.md
 
 This is the recommended starting point for interpretation. It explains
 the formulation, defines the metrics, compares Dense/BP/QR/SVD by conditioning
-order, lists the observed failed stages, and shows the lower-node cases. 
+order, lists the observed failed stages, and shows the lower-node cases.
 
 ### output/diagnostics.txt
 
@@ -232,7 +232,7 @@ residuals, moment errors, failure messages, and adaptive rows. It is
 whitespace-delimited with a commented header and uses a dash for unavailable
 values.
 
-## How To Read The Report
+## How to read the report
 
 1. Read the central solver-comparison message.
 2. Compare the relative singular value and condition number at one $\delta$.
@@ -244,7 +244,7 @@ values.
 6. Compare fixed-count failure with the adaptive $\delta=0$ result as a
    lower-node reconstruction.
 
-## Expected Behavior
+## Expected behavior
 
 Large separations should be successful for all direct policies. As $\delta$
 decreases, $r_\sigma$ shrinks and $\kappa_2$ grows. Near the numerical

@@ -1,7 +1,7 @@
 # CQMOM
 
-CQMOM, the Conditional Quadrature Method of Moments 
-[[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)], extends quadrature-based
+CQMOM, the Conditional Quadrature Method of Moments [[Yuan & Fox,
+2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)], extends quadrature-based
 moment reconstruction to multidimensional phase spaces. A multidimensional
 population may depend on variables such as size, velocity, temperature, or any
 other application-defined properties. QMOMKit treats these generically as
@@ -14,30 +14,31 @@ weight and one abscissa in every configured phase-space dimension. This
 provides a compact representation that can be used to evaluate multidimensional
 closures or evolve coupled phase-space dynamics.
 
-In one dimension, QMOM reconstructs a quadrature from a raw moment sequence.
-In multiple dimensions, the CQMOM implementation of QMOMKit reconstructs the quadrature 
-recursively [[Bouguezzoul, 2026](https://publications.polymtl.ca/76505/)] 
-through marginal and conditional one-dimensional reconstructions. 
+In one dimension, QMOM reconstructs a quadrature from a raw moment sequence. In
+multiple dimensions, the CQMOM implementation of QMOMKit reconstructs the
+quadrature recursively [[Bouguezzoul,
+2026](https://publications.polymtl.ca/76505/)] through marginal and conditional
+one-dimensional reconstructions.
 
-A CQMOM case defines the phase-space dimensions, maximum node counts, conditioning order, initial
-moments, and reconstruction options used consistently throughout the
-calculation.
+A CQMOM case defines the phase-space dimensions, maximum node counts,
+conditioning order, initial moments, and reconstruction options used
+consistently throughout the calculation.
 
 QMOMKit uses raw, unnormalized tensor moments:
 $$M[k_0, ..., k_{D-1}] = \sum_j W_j \prod_d xi_{d,j}^{k_d}$$
 The zeroth tensor moment `M[0, ..., 0]` is the total quadrature weight or
 number density.
 
-## CQMOM Workflow
+## CQMOM workflow
 
 The typical CQMOM workflow starts from a modelling description rather than from
-internal storage choices. That description can come from a `.qmom` configuration
-file or from direct C++ setup. In either case, users name or order the
-coordinates, set the requested node counts, choose the conditioning order, and
-describe the initial moments. File-based setup builds a `CqmomCase`; direct C++
-setup can provide `CqmomDenseCase` or `CqmomLeanCase` when the application
-intentionally manages dense or lean moment storage, then promote either typed
-representation to the normal `CqmomCase` workflow.
+internal storage choices. That description can come from a `.qmom`
+configuration file or from direct C++ setup. In either case, users name or
+order the coordinates, set the requested node counts, choose the conditioning
+order, and describe the initial moments. File-based setup builds a `CqmomCase`;
+direct C++ setup can provide `CqmomDenseCase` or `CqmomLeanCase` when the
+application intentionally manages dense or lean moment storage, then promote
+either typed representation to the normal `CqmomCase` workflow.
 
 ```text
 configuration file:
@@ -77,7 +78,7 @@ At the user level, this means:
 The result is a set of weighted multidimensional nodes. Each terminal node has
 one global weight and one abscissa per phase-space dimension.
 
-## Automatic Reconstruction Scaling
+## Automatic reconstruction scaling
 
 Set `QmomOptions::automatic_scaling = true` on the shared CQMOM/QMOM options,
 or set `automatic_scaling = true` in the configuration `[phase_space]`
@@ -100,11 +101,11 @@ For the usual CQMOM path, users specify the phase space, initial condition, and
 reconstruction settings. QMOMKit determines which moments are needed for the
 configured hierarchy and avoids exposing the internal moment storage.
 
-### Replacing Initial Moments Programmatically
+### Replacing initial moments programmatically
 
 When an application obtains a complete `RawMomentTensor` after loading its
-ordinary CQMOM setup, it can make a separate phase-space evolution-capable case without
-rewriting configuration text:
+ordinary CQMOM setup, it can make a separate phase-space evolution-capable case
+without rewriting configuration text:
 
 ```cpp
 const auto replaced = qmomkit::config::with_initial_moments(base_case, std::move(raw_moments));
@@ -118,14 +119,14 @@ const qmomkit::CqmomCase cqmom_case = replaced.value();
 
 The new case retains the base hierarchy, conditioning order, support, storage
 selection, and every reconstruction policy. A dense base retains the complete
-tensor; a lean base extracts its fixed required layout. The transformation checks
-rank, extents, value count, finiteness, and required coverage only. It does not
-test realizability: `compute_cqmom(...)` reports numerical reconstruction
-status, and `initial_state()` keeps its existing exception-on-failure behavior.
-The producer of the raw moments can be a sampler, measurement pipeline, or any
-other application code.
+tensor; a lean base extracts its fixed required layout. The transformation
+checks rank, extents, value count, finiteness, and required coverage only. It
+does not test realizability: `compute_cqmom(...)` reports numerical
+reconstruction status, and `initial_state()` keeps its existing
+exception-on-failure behavior. The producer of the raw moments can be a
+sampler, measurement pipeline, or any other application code.
 
-## Using CQMOM In QMOMKit
+## Using CQMOM in QMOMKit
 
 Include the umbrella header when following the user guide examples:
 
@@ -134,8 +135,8 @@ Include the umbrella header when following the user guide examples:
 ```
 
 The example below loads a two-dimensional CQMOM case from configuration and
-computes the initial quadrature. It stops at reconstruction; phase-space evolution is shown
-afterward as an optional step.
+computes the initial quadrature. It stops at reconstruction; phase-space
+evolution is shown afterward as an optional step.
 
 ```cpp
 #include <qmomkit/qmomkit.hpp>
@@ -174,8 +175,9 @@ int main()
 }
 ```
 
-If this reconstructed distribution evolves in time, create the phase-space evolution state
-from the same case and pass it to `advance_cqmom_phase_space(...)`:
+If this reconstructed distribution evolves in time, create the phase-space
+evolution state from the same case and pass it to
+`advance_cqmom_phase_space(...)`:
 
 ```cpp
 qmomkit::CqmomState state = cqmom_case.initial_state();
@@ -217,7 +219,7 @@ mean = -0.5
 standard_deviation = 1.25
 ```
 
-### Choosing The Vandermonde Solver
+### Choosing the Vandermonde solver
 
 CQMOM reconstructs conditional quantities by solving branch-local
 conditional Vandermonde systems. QMOMKit provides several solver policies for
@@ -246,7 +248,7 @@ exact policy behavior.
 Developer-level numerical details are in the
 [Linear Algebra Guide](../developer/linear_algebra.md).
 
-### Reconstruction Diagnostics
+### Reconstruction diagnostics
 
 CQMOM always runs the numerical checks required to accept or reject a branch,
 including solver acceptance, support validation, and
@@ -261,7 +263,8 @@ diagnostic_level = basic
 Use `basic` for structural branch records and `detailed` when residual and
 condition-estimate diagnostics are needed; detailed reporting may perform extra
 work. A failed reconstruction still returns its status and available failure
-context at every level. See the [Configuration Guide](configuration.md) for the exact syntax.
+context at every level. See the [Configuration Guide](configuration.md) for the
+exact syntax.
 
 For this normal configuration path, the CQMOM hierarchy determines the
 required raw moments automatically. Advanced full-tensor workflows may also
@@ -285,7 +288,7 @@ const double x0 = result.quadrature.abscissa(0, node_index);
 const double x1 = result.quadrature.abscissa(1, node_index);
 ```
 
-## Conditioning And Ordering
+## Conditioning and ordering
 
 Phase-space dimensions are the stable coordinate order used by moment tensors,
 node counts, output coordinates, and callbacks. Choose this order to match the
@@ -328,7 +331,7 @@ numerical conditioning in a multidimensional reconstruction. Keep the order
 explicit in configuration files, examples, and validation output so results
 are reproducible and callback coordinate order stays easy to audit.
 
-## Fixed And Adaptive Quadrature
+## Fixed and adaptive quadrature
 
 The default CQMOM setup uses a fixed branch quadrature. This is the easiest
 mode to reason about: each branch must produce the requested number of nodes
@@ -341,7 +344,7 @@ rule. This can be useful near degenerate or boundary-like states where a fixed
 node count may be too ambitious. Enable it explicitly in configuration with
 adaptive branch counts:
 
-```text
+```ini
 [phase_space]
 adaptive_branch_counts = true
 ```
@@ -356,20 +359,20 @@ over `weights()` and `abscissas()` instead of assuming rectangular multi-index
 storage.
 
 Adaptive branch counts are supported in both reconstruction and the normal
-configured `CqmomState` phase-space evolution workflow. `CqmomState` keeps the required
-moment representation for the configured hierarchy, while each reconstructed
-quadrature may contain adaptive active node counts.
+configured `CqmomState` phase-space evolution workflow. `CqmomState` keeps the
+required moment representation for the configured hierarchy, while each
+reconstructed quadrature may contain adaptive active node counts.
 
 As with QMOM, always check `result.ok()` before using the quadrature. If CQMOM
 fails, inspect `result.status`, `result.message`, and diagnostics to determine
 which phase-space dimension or conditioning step was not accepted.
 
-## Moment Reconstruction From Quadrature
+## Moment reconstruction from quadrature
 
 Native CQMOM moments remain integer-order polynomial raw moments with
 phase-space-order multi-indices. QMOMKit reconstructs those moments from
-terminal quadrature when output, validation, or phase-space evolution handoff needs raw
-moment values.
+terminal quadrature when output, validation, or phase-space evolution handoff
+needs raw moment values.
 
 After checking that a CQMOM quadrature result is valid, callers may also
 evaluate generalized moments with finite real exponent vectors as derived
@@ -386,7 +389,7 @@ These values are not CQMOM reconstruction inputs, phase-space-evolved state, or 
 `CqmomMomentData`/`RawMomentTensor` entries. Non-integer exponents require
 non-negative abscissas in the corresponding dimensions.
 
-## Advanced Representation Workflows
+## Advanced representation workflows
 
 The workflows in this section are advanced explicit dense and lean
 representations for static inversion, specialized initialization, validation,
@@ -394,7 +397,7 @@ and expert workflows. They are for applications that deliberately manage moment
 storage themselves, and they are not required for configuration-driven CQMOM
 onboarding.
 
-### Explicit Dense Representation Workflow
+### Explicit dense representation workflow
 
 Some applications already own full tensor moments. This is useful for external
 data exchange, validation against analytical tensors, debugging, and
@@ -424,7 +427,7 @@ application intentionally manages dense moment storage. To use the same normal
 state/evolution workflow as configuration-driven CQMOM, construct
 `CqmomCase{dense_case}` and call `initial_state()`.
 
-### Explicit Lean Representation Workflow
+### Explicit lean representation workflow
 
 Some applications can produce exactly the raw moments required by a CQMOM
 hierarchy and want direct control over that compact required-moment
@@ -438,14 +441,14 @@ a different physical model; it is the compact representation used for the
 moments required by the configured hierarchy and conditioning order. Normal
 configuration workflows build and hide this representation automatically.
 
-For phase-space evolution, use `CqmomCase::initial_state()` and pass the resulting
-`CqmomState` to `advance_cqmom_phase_space(...)` when QMOMKit should own the
-configured macro-step sequence. Applications that own stage orchestration can
-pass the same `CqmomState` through `advance_cqmom_advection(...)` and
-`advance_cqmom_moment_source(...)`. `CqmomState` preserves the configured
-reconstruction policy, selected moment storage, and adaptive branch-count
-topology between successful phase-space evolution calls. Dense and lean case types remain
-available for callers that intentionally manage static inversion inputs and can
-be promoted to the same storage-independent public CQMOM phase-space evolution
-workflow. `CqmomState::quadrature()` exposes the current accepted terminal
-quadrature.
+To evolve a case in time, create its runtime state with
+`CqmomCase::initial_state()` and pass that `CqmomState` to
+`advance_cqmom_phase_space(...)`, which performs a complete step. If you would
+rather drive the stages yourself, the same state goes through
+`advance_cqmom_advection(...)` and `advance_cqmom_moment_source(...)`.
+
+The state carries your configuration forward between calls — reconstruction
+settings and, in adaptive mode, the node counts each branch has settled on — so
+you do not re-supply them each step. `CqmomState::quadrature()` gives the
+currently accepted quadrature at any point. See
+[Phase-space evolution](phase_space_evolution.md) for the step itself.

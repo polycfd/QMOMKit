@@ -1,14 +1,30 @@
+# Five-dimensional CQMOM case in (V, T, u, v, w): particle volume,
+# temperature and the three velocity components. Two nodes per dimension
+# give 2^5 = 32 terminal nodes.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
 names = V, T, u, v, w
+# Quadrature nodes per coordinate. The terminal node count is their product, so
+# this is the setting that drives the cost of a step.
 node_counts = 2, 2, 2, 2, 2
+# Identity order here: the dimensions are conditioned as listed. Changing it
+# changes only the order of the conditional inversions.
 conditioning_order = 0, 1, 2, 3, 4
+# Fixed branch counts: every branch keeps two nodes.
 adaptive_branch_counts = false
+# Volume (~5e-13 m^3) and temperature (~3.5e2 K) differ by roughly fifteen
+# orders of magnitude, which is exactly the case local scaling exists for.
+# Raw moments, callbacks and output remain in physical units.
 automatic_scaling = true
 
 [time_integration]
+# Second-order splitting: half advection, full source, half advection.
 scheme = strang
 
 [time_integration.node_advection]
+# Node-trajectory integrator; the adaptive controls below apply to it.
 scheme = rk23
 
 [time_integration.node_advection.adaptive]
@@ -19,11 +35,14 @@ max_step = 1.0e-2
 min_step = 1.0e-6
 
 [initial]
+# Marginals are normalised individually, then combined and scaled once by the
+# number_density below.
 type = independent_product
 number_density = 1.0
 
 [initial.dimension.0]
 family = lognormal
+# exp(-28.278...) = 5.24e-13 m^3, the volume of a ~100 um sphere.
 mu_log = -28.278050699307204
 sigma_log = 0.36
 
@@ -47,8 +66,11 @@ family = normal
 mean = 0.0
 standard_deviation = 0.5
 
+# Output is driver-controlled: QMOMKit writes nothing unless the example wires
+# these settings into its writers.
 [output]
 directory = output
 write_moments = true
 write_quadrature = true
+# Simulated-time interval between writes, not a step count.
 interval = 0.0025

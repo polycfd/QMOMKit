@@ -1,9 +1,20 @@
+# One-dimensional QMOM case shared by the deterministic run and its Monte
+# Carlo companion. Both sample this same distribution so their histories
+# start from an identical population.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
 names = d
+# Quadrature nodes per coordinate. An n-node rule needs the moments m0..m(2n-1),
+# so raising this asks for more information from the initial condition.
 node_counts = 3
 
 [initial]
+# Component densities are absolute, not fractions: m0 is their sum.
 type = mixture
+# Highest raw-moment order to generate. Omit it and QMOMKit derives the
+# minimum the node count requires.
 maximum_order = 5
 
 [initial.mixture.component.0]
@@ -18,8 +29,11 @@ number_density = 0.5
 mean = 3.0
 standard_deviation = 0.2
 
+# Output is driver-controlled: QMOMKit writes nothing unless the example wires
+# these settings into its writers.
 [output]
 directory = output
 write_moments = true
 write_quadrature = true
+# Simulated-time interval between writes, not a step count.
 interval = 0.1

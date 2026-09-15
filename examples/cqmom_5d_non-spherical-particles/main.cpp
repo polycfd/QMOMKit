@@ -35,6 +35,9 @@ int main(int argc, char* argv[])
     {
         using namespace cqmom_5d_non_spherical_particles;
 
+        // The phase space here is (d, chi, u, v, w) with three nodes per
+        // dimension, so the quadrature carries 3^5 = 243 terminal nodes. The
+        // callbacks below see all of them at once, packed node-major.
         auto configured = qmomkit::config::load_cqmom(configuration_file);
         if (!configured)
         {
@@ -87,12 +90,17 @@ int main(int argc, char* argv[])
         validate_particle_model_parameters(particle_parameters);
         const BinaryFragmentationParameters breakage_parameters = binary_fragmentation_parameters();
         validate_binary_fragmentation_parameters(breakage_parameters);
+        // The model parameters are validated before the callbacks are built, so a
+        // bad coefficient is reported here rather than as a velocity failure deep
+        // inside the first step.
         const qmomkit::PhaseSpaceVelocity velocity = particle_phase_space_velocity(particle_parameters);
         const qmomkit::CqmomMomentSource source = binary_breakage_source(breakage_parameters);
 
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
         const qmomkit::CqmomPhaseSpaceEvolutionOptions evolution_options = std::move(evolution_configured).value();
         const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
+        // The hierarchy requires more moments than this example reports, so the
+        // summary asks for a chosen subset rather than the whole layout.
         const qmomkit::RawMomentRequest terminal_moment_request{select_terminal_moment_indices(moment_layout.required_indices)};
 
         std::cout << qmomkit::format_cqmom_settings(cqmom_case.moment_storage(), cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(),
@@ -143,6 +151,9 @@ int main(int argc, char* argv[])
         {
             const double step = std::min(time_step, final_time - time);
             const qmomkit::CqmomPhaseSpaceEvolutionResult evolved =
+                // One complete step. With 243 terminal nodes the packed velocity
+                // form matters: the callback is evaluated once per stage for all
+                // nodes together rather than once per node.
                 qmomkit::advance_cqmom_phase_space(state, time, step, velocity, source, evolution_options);
             if (!evolved.ok())
             {

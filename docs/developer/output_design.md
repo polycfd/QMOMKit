@@ -1,8 +1,17 @@
-# Output Design
+# Output design
 
-This page documents the current QMOMKit design for output handling. 
+This page documents the current QMOMKit design for output handling.
 
-## Role Of Output
+## Contents
+
+- [Role Of Output](#role-of-output)
+- [Output Architecture](#output-architecture)
+- [Moment History Output](#moment-history-output)
+- [Quadrature History Output](#quadrature-history-output)
+- [Configuration Interaction](#configuration-interaction)
+- [Extension Principles](#extension-principles)
+
+## Role of output
 
 QMOMKit output converts numerical state into reproducible external
 representations. The output layer records moment and quadrature histories in a
@@ -21,7 +30,7 @@ Applications and drivers decide when to construct writers and when to call
 `write(...)`. This keeps the core numerical algorithms reusable in contexts
 that do not use filesystem output.
 
-## Output Architecture
+## Output architecture
 
 The public output API lives in:
 
@@ -46,8 +55,8 @@ QuadratureWriter
 - optional generalized moment exponent vectors for state-based moment output.
 
 The numerical algorithms do not consume `OutputOptions` directly. A driver may
-parse it from configuration, create directories, construct writers, and schedule
-calls according to its own simulation loop.
+parse it from configuration, create directories, construct writers, and
+schedule calls according to its own simulation loop.
 
 `MomentWriter` writes raw moment histories. Construction opens exactly one text
 file, writes one header row, and each `write(...)` call appends one time row.
@@ -74,7 +83,7 @@ CQMOM dimension counts, and aligned CQMOM terminal weights, paths, and
 abscissas. Invalid rows are reported through exceptions rather than silently
 truncated or reshaped.
 
-## Moment History Output
+## Moment history output
 
 Moment history output records native integer-order raw moments of the number
 density function at explicit times supplied by the caller. A state-based writer
@@ -94,8 +103,8 @@ fixed writer behavior, not a user-configurable option. It preserves
 high-precision floating-point text representation for reproducible output in
 ordinary validation workflows.
 
-For one-dimensional QMOM moment output, the all-moment writer uses ascending raw
-moment order:
+For one-dimensional QMOM moment output, the all-moment writer uses ascending
+raw moment order:
 
 ```text
 M[0], M[1], M[2], ...
@@ -147,7 +156,7 @@ $$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
 Requested output preserves request order and duplicate requested indices. It
 does not create a dense `RawMomentTensor`.
 
-## Quadrature History Output
+## Quadrature history output
 
 Quadrature history output records quadrature weights and abscissas at explicit
 times supplied by the caller.
@@ -170,10 +179,10 @@ The writer accepts `Quadrature1D` and `QmomResult`. Callers are responsible for
 checking numerical status before writing a result object. Output helpers do not
 reinterpret a failed reconstruction as valid numerical data.
 
-For CQMOM quadrature, each row represents one active terminal node at one output
-time. The row contains the output time, the terminal node's local index within
-that quadrature, the recursive conditioning path, the accumulated terminal
-weight, and abscissas in phase-space dimension order:
+For CQMOM quadrature, each row represents one active terminal node at one
+output time. The row contains the output time, the terminal node's local index
+within that quadrature, the recursive conditioning path, the accumulated
+terminal weight, and abscissas in phase-space dimension order:
 
 ```text
 # time node_index path_0 path_1 weight x0 x1
@@ -198,7 +207,7 @@ weight, and phase-space coordinates.
 filtering, restart files, visualization formats, checkpoints, parallel I/O, and
 logging are outside the current output API.
 
-## Configuration Interaction
+## Configuration interaction
 
 Configuration can describe optional output settings:
 
@@ -211,8 +220,8 @@ interval = 0.1
 ```
 
 Parsing this section creates an `OutputOptions` object. It does not modify
-`QmomCase`, `CqmomDenseCase`, phase-space evolution options, time integrators, moment
-sources, or velocity callbacks.
+`QmomCase`, `CqmomDenseCase`, phase-space evolution options, time integrators,
+moment sources, or velocity callbacks.
 
 If no output section is present, parsed output options use the default
 application-controlled behavior:
@@ -225,8 +234,9 @@ interval = unset
 ```
 
 The optional interval is cadence metadata for the driver. QMOMKit does not own
-an output scheduler. A driver that uses the interval must decide how to align it
-with its timestep sequence, final time, retry behavior, and validation output.
+an output scheduler. A driver that uses the interval must decide how to align
+it with its timestep sequence, final time, retry behavior, and validation
+output.
 
 Configuration controls whether a driver may choose to create writers. It does
 not define output data semantics. Moment and quadrature column ordering remain
@@ -234,7 +244,7 @@ the responsibility of the writer contracts and the numerical conventions.
 Likewise, configuration may provide an output directory, but it does not choose
 the filenames passed to `MomentWriter` or `QuadratureWriter`.
 
-## Extension Principles
+## Extension principles
 
 Output extensions should preserve reproducibility and keep file I/O separate
 from numerical algorithms.

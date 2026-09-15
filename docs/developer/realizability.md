@@ -1,11 +1,27 @@
 # Realizability
 
-This page documents the current QMOMKit design for realizability handling. 
+This page documents the current QMOMKit design for realizability handling.
 
 For raw-moment, number-density, and storage conventions, see
-[numerical_conventions.md](numerical_conventions.md). For source updates and phase-space evolution composition, see [phase_space_evolution_design.md](phase_space_evolution_design.md). For configuration mapping of runtime policies, see [configuration_design.md](configuration_design.md).
+[numerical_conventions.md](numerical_conventions.md). For source updates and
+phase-space evolution composition, see
+[phase_space_evolution_design.md](phase_space_evolution_design.md). For
+configuration mapping of runtime policies, see
+[configuration_design.md](configuration_design.md).
 
-## Role Of Realizability
+## Contents
+
+- [Role Of Realizability](#role-of-realizability)
+- [Supported Moment Domains](#supported-moment-domains)
+- [Mathematical Criteria](#mathematical-criteria)
+- [Realizability Checks](#realizability-checks)
+- [Runtime Checks In Phase-Space Evolution](#runtime-checks-in-phase-space-evolution)
+- [Interaction With QMOM And CQMOM](#interaction-with-qmom-and-cqmom)
+- [Failure Handling](#failure-handling)
+- [Public API Boundary](#public-api-boundary)
+- [Extension Principles](#extension-principles)
+
+## Role of realizability
 
 Realizability is the question of whether a truncated raw moment sequence can
 come from a nonnegative number density function on an allowed support. QMOMKit
@@ -30,7 +46,7 @@ QMOMKit treats realizability as an explicit numerical contract. The library
 provides opt-in checks; it does not silently repair moment sets, renormalize
 moments, or infer supports from coordinate names.
 
-## Supported Moment Domains
+## Supported moment domains
 
 Current explicit realizability checks are one-dimensional. They evaluate
 `MomentSet` sequences against a selected support:
@@ -50,15 +66,15 @@ positive. Typical examples are particle size, mass, count-like quantities, or
 other variables whose support is `[0, infinity)`.
 
 `MomentSupport::bounded_interval` applies when the coordinate must lie within a
-closed interval. The public check uses an explicit `BoundedInterval` with finite
-bounds and requires `lower < upper`. This support is appropriate for
-interval-constrained quantities such as bounded normalized coordinates or volume
-fractions.
+closed interval. The public check uses an explicit `BoundedInterval` with
+finite bounds and requires `lower < upper`. This support is appropriate for
+interval-constrained quantities such as bounded normalized coordinates or
+volume fractions.
 
 Support is semantic input from the caller. It is not inferred from distribution
 family, phase-space dimension name, output label, or units.
 
-## Mathematical Criteria
+## Mathematical criteria
 
 QMOMKit's explicit realizability checks are based on classical
 one-dimensional truncated moment problems. The implementation uses these
@@ -68,9 +84,9 @@ criteria to decide whether a finite sequence
 m_0, m_1, ..., m_N
 ```
 
-can represent a nonnegative measure on the caller-selected support. The criteria
-are support-aware: the same numeric sequence may be admissible on one support
-and inadmissible on another.
+can represent a nonnegative measure on the caller-selected support. The
+criteria are support-aware: the same numeric sequence may be admissible on one
+support and inadmissible on another.
 
 For `MomentSupport::real_line`, the relevant model is the Hamburger moment
 problem. The coordinate may take any real value, so the primary requirement is
@@ -82,8 +98,8 @@ on the boundary of moment space.
 For `MomentSupport::nonnegative`, the relevant model is the Stieltjes moment
 problem. The moment sequence must satisfy the real-line positivity requirements
 and the additional constraints implied by support on `[0, infinity)`. These
-additional conditions reject moment sequences that may be realizable on the full
-real line but require mass outside the nonnegative support.
+additional conditions reject moment sequences that may be realizable on the
+full real line but require mass outside the nonnegative support.
 
 For `MomentSupport::bounded_interval`, the relevant model is the Hausdorff
 moment problem on an explicit interval `[lower, upper]`. The sequence must be
@@ -100,7 +116,7 @@ live. `check_realizability(...)` applies the criteria selected by
 `MomentSupport` or `BoundedInterval` and reports the resulting classification
 through `RealizabilityResult`.
 
-## Realizability Checks
+## Realizability checks
 
 The public check is:
 
@@ -148,8 +164,8 @@ bounded-interval limits.
 `not_realizable` means the supplied numbers form a well-defined request but
 cannot represent a valid nonnegative measure on the selected support. Examples
 include negative `m_0`, zero total number density with nonzero higher moments,
-or moment sequences that fail the support-specific realizability conditions. The
-all-zero sequence is treated as a boundary-realizable zero measure.
+or moment sequences that fail the support-specific realizability conditions.
+The all-zero sequence is treated as a boundary-realizable zero measure.
 
 `RealizabilityOptions` controls numerical tolerance. With relative tolerance
 enabled, the effective threshold, roundoff allowance, and numerical matrix
@@ -160,7 +176,7 @@ absolute threshold. Near the boundary, the implementation may report
 `numerically_indeterminate` rather than accepting or rejecting with false
 precision.
 
-## Runtime Checks In Phase-Space Evolution
+## Runtime checks in phase-space evolution
 
 Runtime realizability checks apply only to transported raw moments during
 moment-source SSP-RK3 evolution. They are independent of node advection:
@@ -191,10 +207,10 @@ integration attempt is rejected and the configured retry controls cannot obtain
 an accepted moment state, moment-source evolution reports failure through its
 normal status and diagnostics.
 
-## Interaction With QMOM And CQMOM
+## Interaction with QMOM and CQMOM
 
-Realizability is a constraint on moment representations. It is not a replacement
-for QMOM or CQMOM reconstruction status.
+Realizability is a constraint on moment representations. It is not a
+replacement for QMOM or CQMOM reconstruction status.
 
 For one-dimensional QMOM, explicit checks can be used before calling
 `compute_qmom(...)` when the workflow needs support-aware validation. Wheeler
@@ -216,15 +232,15 @@ moment realizability, and reconstruction success:
 - QMOM and CQMOM reconstruction report whether the requested quadrature was
   accepted.
 
-Each layer reports its own status. A successful earlier layer does not guarantee
-success in a later one.
+Each layer reports its own status. A successful earlier layer does not
+guarantee success in a later one.
 
-## Failure Handling
+## Failure handling
 
-Realizability APIs use explicit result objects rather than exceptions for normal
-classification failure. Callers should check `RealizabilityResult::status` or
-`realizable()` before using a moment sequence as accepted input under the
-selected support settings.
+Realizability APIs use explicit result objects rather than exceptions for
+normal classification failure. Callers should check
+`RealizabilityResult::status` or `realizable()` before using a moment sequence
+as accepted input under the selected support settings.
 
 Failure handling rules are:
 
@@ -242,7 +258,7 @@ of explicit realizability checking. Retry behavior applies only to
 moment-source integration with runtime checking enabled and configured retry
 controls.
 
-## Public API Boundary
+## Public API boundary
 
 The public realizability API lives in:
 
@@ -276,7 +292,7 @@ Implementation details include:
 These implementation details support the public contracts but are not
 downstream extension points.
 
-## Extension Principles
+## Extension principles
 
 Realizability changes should preserve these rules:
 
@@ -293,6 +309,6 @@ Realizability changes should preserve these rules:
 - document any new support domain, status, or runtime-check behavior before
   exposing it through public configuration.
 
-The goal is conservative numerical validation: realizability support should help
-developers and drivers detect invalid moment states early without hiding the
-source of the failure.
+The goal is conservative numerical validation: realizability support should
+help developers and drivers detect invalid moment states early without hiding
+the source of the failure.

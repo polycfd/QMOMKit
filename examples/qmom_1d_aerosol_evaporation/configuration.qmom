@@ -1,8 +1,16 @@
+# One-dimensional QMOM case for an evaporating aerosol, initialised from a
+# three-mode lognormal size distribution.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
 names = d
+# Quadrature nodes per coordinate. An n-node rule needs the moments m0..m(2n-1),
+# so raising this asks for more information from the initial condition.
 node_counts = 6
 
 [initial]
+# Component densities are absolute, not fractions: m0 is their sum.
 type = mixture
 
 [initial.mixture.component.0]
@@ -23,8 +31,11 @@ number_density = 1.6e4
 mu_log = 4.8121843553724173
 sigma_log = 0.60813380623298863
 
+# Output is driver-controlled: QMOMKit writes nothing unless the example wires
+# these settings into its writers.
 [output]
 directory = output
 write_moments = true
 write_quadrature = true
+# Simulated-time interval between writes, not a step count.
 interval = 2.0

@@ -1,4 +1,4 @@
-# Monte Carlo Companion Package
+# Monte Carlo companion package
 
 QMOMKit includes the optional `QMOMKitMonteCarlo` companion package under
 `tools/monte_carlo/`. It provides finite ensemble sampling, sample-derived raw
@@ -6,9 +6,10 @@ moments, advection sample evolution, and moment-history comparison utilities.
 It is useful when you want a sampled reference beside a QMOM or CQMOM
 calculation.
 
-The companion package is **not** needed for ordinary QMOM or CQMOM reconstruction.
+The companion package is **not** needed for ordinary QMOM or CQMOM
+reconstruction.
 
-## When To Use It
+## When to use it
 
 Use the Monte Carlo package for two common tasks.
 
@@ -32,11 +33,10 @@ sample-derived raw moments
     -> reconstructed raw-moment history
 ```
 
-For direct comparisons, initialize both paths from the same finite realization
-when practical. That keeps initial sampling fluctuation common to the Monte
-Carlo and deterministic paths.
+For direct comparisons, initialize both the moment-based solution and the Monte
+Carlo solution from the same ensemble. That eliminates initial sampling fluctuations.
 
-## Inject A Local Population Birth
+## Inject a local population birth
 
 `inject_population(...)` adds a generic birth contribution to an existing
 Monte Carlo ensemble. The caller supplies the integrated birth amount
@@ -57,7 +57,7 @@ other sampling APIs. A zero birth amount is a successful no-op. Positive birth
 requires a non-empty ensemble with positive finite number density; birth into
 an empty or zero-density population is not supported by this initial API.
 
-## Install QMOMKit Core
+## Install QMOMKit core
 
 Build and install the core QMOMKit package from the repository root first:
 
@@ -69,7 +69,7 @@ cmake --install build
 
 This writes the core package to `install/` in the repository root.
 
-## Build the Monte Carlo Package
+## Build the Monte Carlo package
 
 Configure the companion package against the installed QMOMKit package:
 
@@ -88,7 +88,7 @@ This builds the Monte Carlo library and the user-facing
 the companion package into the same repository-local `install/` prefix as
 QMOMKit. It does not run tests.
 
-## Using The C++ API
+## Using the C++ API
 
 The optional package can also be used directly as an installed C++ library,
 without using the supplied drivers. It provides reusable finite-ensemble
@@ -125,7 +125,7 @@ return a result object with `ok()`, `status`, and `message`; use its payload
 only after `ok()` succeeds. `sample_initialization(...)` follows the same
 pattern and exposes both its `sampling` and `moments` results.
 
-### Sample And Initialize From One Realization
+### Sample and initialize from one realization
 
 This small example samples a log-normal population and computes moments from
 that exact realization. Those moments can initialize a corresponding QMOM
@@ -163,11 +163,12 @@ int main()
 For an existing ensemble, `compute_ensemble_moments(...)` estimates a complete
 one-dimensional `MomentSet` or multidimensional `RawMomentTensor` and their
 standard errors. `compute_requested_ensemble_moments(...)` evaluates only the
-multi-indices in a `qmomkit::RawMomentRequest`; it preserves request order and
-does not allocate an omitted dense tensor. These raw moments provide the common
-quantities for comparison with QMOM or CQMOM results.
+multi-indices listed in a `qmomkit::RawMomentRequest`, in the order requested,
+which is the cheaper choice when you need a handful of moments from a large
+phase space. Either way, these raw moments are what you compare against QMOM or
+CQMOM results.
 
-### Evolve An Ensemble
+### Evolve an ensemble
 
 `evolve_ensemble(...)` independently advances every sample with the supplied
 phase-space velocity. It performs coordinate advection only: moment sources,
@@ -207,10 +208,10 @@ The companion examples show how reusable sampling, moment estimation, and
 advection utilities can be combined with application-specific particle models.
 They are stochastic particle-based companion/reference realizations, not exact
 truth solvers, so their later moments need not match deterministic QMOM/CQMOM
-results exactly. See the Monte Carlo entries in the [examples guide](examples.md)
-for the current 1D and multidimensional workflows.
+results exactly. See the Monte Carlo entries in the [examples
+guide](examples.md) for the current 1D and multidimensional workflows.
 
-## Run The Example Driver
+## Run the example driver
 
 The sample-based initialization driver reads an analytical QMOM or CQMOM
 configuration, samples the initial distribution once, and writes aligned
@@ -252,7 +253,7 @@ The deterministic and Monte Carlo moment-history files use the same time grid
 and moment columns. The statistics file records sample count, seed, number
 density, and standard-error columns.
 
-## Compare Moment Histories
+## Compare moment histories
 
 Use the comparison script on two aligned moment-history text tables:
 
@@ -286,7 +287,7 @@ z_score = signed_error / Monte Carlo standard error
 Large z-scores are diagnostic signals. They are not automatic proof that either
 calculation is wrong.
 
-## Estimate Selected Multidimensional Moments
+## Estimate selected multidimensional moments
 
 When only a requested set of multidimensional raw moments is needed, use the
 selective estimator instead of constructing a dense tensor:
@@ -301,12 +302,11 @@ const qmomkit::monte_carlo::SelectedEnsembleMomentEstimate estimate =
 
 On success, `estimate.indices`, `estimate.values`, and
 `estimate.standard_errors` are aligned in the original request order, including
-duplicate indices. The estimator applies the same total-number-density
-normalization as the dense API, computes each requested monomial directly, and
-does not allocate a dense tensor for omitted moments. Check `estimate.ok()` and
-use `estimate.message` for a failed validation or numerical evaluation.
+duplicate indices. The estimator normalizes by total number density exactly as the dense form
+does, so the two agree on any moment both compute. Check `estimate.ok()` and
+read `estimate.message` when it fails.
 
-## Output Format
+## Output format
 
 Normal Monte Carlo output follows the same text-table convention as QMOMKit
 example output:
@@ -331,7 +331,7 @@ phase-space order. Each row in a moment-history file represents one output
 time. Each row in `moment_comparison.txt` represents one time and one compared
 moment.
 
-## Run Tests Separately
+## Run tests separately
 
 Configure separate builds with tests enabled. Run both Debug and Release so the
 same validation checks are exercised with and without optimization.
@@ -358,7 +358,7 @@ ctest --test-dir tools/monte_carlo/build-tests-release --output-on-failure
 
 Tests are not run by `cmake --build`; run `ctest` explicitly.
 
-## Use The Installed Companion Package
+## Use the installed companion package
 
 A separate project that uses the companion package should point
 `CMAKE_PREFIX_PATH` at the shared install prefix:

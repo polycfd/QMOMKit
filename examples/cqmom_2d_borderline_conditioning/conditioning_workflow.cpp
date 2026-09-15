@@ -267,11 +267,22 @@ void validate_successful_quadrature(const qmomkit::CqmomResult& result)
     }
 }
 
+// One reconstruction of the prescribed population, with everything that varies
+// across the sweep passed in: the node separation, the conditioning order, the
+// solver, and whether adaptive branch counts are allowed. Everything the run
+// reports is read back from the CQMOM result and its diagnostics.
 RunRecord run_reconstruction(const double delta, const std::vector<std::size_t>& conditioning_order, const SolverChoice& choice,
                              const bool adaptive_branch_counts, const std::string& mode)
 {
+    // The moments are built analytically from four exact atoms, so the only
+    // thing degrading as delta shrinks is the conditioning of the inversion -
+    // not the accuracy of the input.
     const qmomkit::RawMomentTensor moments = exact_moments(delta);
     const qmomkit::PhaseSpaceHierarchy hierarchy({configured_node_count, configured_node_count}, conditioning_order);
+    // `detailed` diagnostics are requested because this example exists to read
+    // them: the condition estimate and residual norm below are only populated at
+    // that level. An explicit dense case is used because the moments are supplied
+    // as a full tensor rather than generated from a configuration.
     const qmomkit::CqmomDenseCase case_{hierarchy, moments, {}, {}, adaptive_branch_counts, qmomkit::CqmomDiagnosticLevel::detailed, choice.solver};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
     validate_successful_quadrature(result);
@@ -282,6 +293,8 @@ RunRecord run_reconstruction(const double delta, const std::vector<std::size_t>&
     record.delta = delta;
     record.conditioning_order = order_value(conditioning_order);
     record.requested_solver = choice.label;
+    // The requested solver and the selected one can differ: `automatic` resolves
+    // to a concrete policy, which the diagnostics report.
     record.selected_solver = diagnostic.has_value() ? solver_name(diagnostic->conditional_vandermonde_selected_solver) : "-";
     record.success = result.ok();
     record.status = status_name(result.status);

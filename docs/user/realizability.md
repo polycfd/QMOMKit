@@ -3,14 +3,12 @@
 Realizability asks whether a moment sequence can come from a valid
 distribution on a chosen support. For QMOMKit users, this is the question:
 
-```text
-Can these raw moments represent nonnegative distribution mass somewhere in
-the allowed phase-space domain?
-```
+_Can these raw moments represent nonnegative distribution mass somewhere in
+the allowed phase-space domain?_
 
 Not every list of numbers is a valid moment representation. For example, a
 one-dimensional sequence with positive $m_0$ but a negative variance cannot
-represent a physical distribution on the real line. A sequence may also be
+represent a physical distribution. A sequence may also be
 valid on one support but invalid on another; moments that are possible on the
 real line may be impossible if the variable must be nonnegative or bounded.
 
@@ -27,7 +25,7 @@ counts, or quadrature topology. Conversely, a reconstruction result reports
 whether the requested quadrature could be constructed; it is not a general
 support-aware realizability check.
 
-## When Realizability Matters
+## When realizability matters
 
 Realizability can matter at several points in a QMOMKit workflow:
 
@@ -42,10 +40,11 @@ Distribution-based initialization usually produces consistent moments when
 parameters are valid, but explicit moments and evolved moments should still be
 checked when the workflow can approach the boundary of moment space.
 
-## Explicit Checks
+## Explicit checks
 
-When a one-dimensional coordinate has a known support, `check_realizability(...)`
-checks whether a raw moment sequence is consistent with that support:
+When a one-dimensional coordinate has a known support,
+`check_realizability(...)` checks whether a raw moment sequence is consistent
+with that support:
 
 ```cpp
 #include <qmomkit/realizability.hpp>
@@ -101,7 +100,7 @@ with the magnitude of the moment matrices, so positive number-density scaling
 does not by itself change the classification within floating-point limits. With
 `relative_tolerance = false`, `tolerance` is an absolute threshold.
 
-## Support Constraints
+## Support constraints
 
 Choose the support that matches the physical variable represented by the
 moments. The support is part of the modelling assumption: a velocity component,
@@ -133,7 +132,7 @@ const auto result = qmomkit::check_realizability(moments, support);
 
 For bounded intervals, `lower` must be strictly less than `upper`.
 
-## Reconstruction Status Is Separate
+## Reconstruction status is separate
 
 QMOM and CQMOM reconstruction also report whether a requested quadrature was
 accepted.
@@ -173,7 +172,7 @@ Explicit realizability checks are one-dimensional. CQMOM runtime checks use
 only the configured coordinate marginals, as described below; they do not
 assess the full multidimensional reconstruction.
 
-## Runtime Realizability Checks
+## Runtime realizability checks
 
 For phase-space evolution, realizability settings check transported raw moments
 after moment-source evolution. They are useful when a source update may move
@@ -221,7 +220,7 @@ This is intentional: the runtime check is focused on the selected coordinate
 marginal. Use CQMOM reconstruction status and diagnostics separately when you
 need information about the quadrature result.
 
-## Configuration Examples
+## Configuration examples
 
 Use `support = real_line` for unconstrained one-dimensional variables:
 
@@ -254,7 +253,7 @@ upper = 1.0
 Include the applicable form above in the configuration file for the workflow
 that performs the runtime realizability check.
 
-## Practical Guidance
+## Practical guidance
 
 Start with physically meaningful moments of the number density function (NDF).
 $m_0$ should carry the intended total number density. Mixing normalized
@@ -277,3 +276,11 @@ before accepting the state.
 Expect boundary states in some physical workflows. A boundary state can be
 valid, but it may indicate that the represented distribution has collapsed to
 fewer effective points or is close to a constrained support boundary.
+
+## When a check fails
+
+A failed realizability check usually means the moments themselves are wrong
+rather than that the check is too strict. [Troubleshooting](troubleshooting.md)
+covers how to find the offending moment order, what commonly produces
+unrealizable moments, and what to do when a case becomes unrealizable part-way
+through a run.

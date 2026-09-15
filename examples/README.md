@@ -5,7 +5,7 @@ They are small programs and configuration files meant for orientation. Each
 example is built like a separate project that links against an installed
 QMOMKit package.
 
-## Getting Started
+## Getting started
 
 For a short QMOM path, start with:
 
@@ -26,14 +26,14 @@ For the corresponding CQMOM path, continue with:
 The [user example guide](../docs/user/examples.md) explains the learning path,
 optional branches, and prerequisites in more detail.
 
-## Initialization And Diagnostics
+## Initialization and diagnostics
 
 - `qmom_mixture_initialization/`: generate QMOM moments from an
   absolute-density mixture when a single analytical distribution is not enough.
 - `realizability_check/`: explicitly classify a raw 1D moment sequence under a
   declared support assumption before attempting reconstruction.
 
-## QMOM Evolution
+## QMOM evolution
 
 - `qmom_1d_aerosol_evaporation/`: configuration-driven six-node, node-advection
   workflow without a moment source.
@@ -42,7 +42,8 @@ optional branches, and prerequisites in more detail.
 - `qmom_1d_explicit_strang_splitting/`: advanced application-owned Strang
   staging through the public advection and moment-source stage APIs; use after
   the library-managed workflow.
-## CQMOM Numerical Controls
+
+## CQMOM numerical controls
 
 - `cqmom_2d_adaptive_node_counts/`: adaptive conditional branch reduction,
   persistence, and controlled recovery during phase-space evolution.
@@ -50,7 +51,7 @@ optional branches, and prerequisites in more detail.
   conditioning order, Vandermonde solver policy, failed-stage interpretation,
   and lower-node adaptive reconstruction.
 
-## Monte Carlo Companion/Reference Workflows
+## Monte Carlo companion / reference workflows
 
 These examples require QMOMKitMonteCarlo. Their direct particle executables
 are stochastic companion/reference realizations for the same sampled
@@ -66,7 +67,7 @@ tests or exact solutions.
 - `cqmom_3d_droplets_condensation-nucleation/`: 3D condensation and finite-time
   nucleation boundary birth with a direct droplet-population companion.
 
-## Advanced Physical And Source-Closure Examples
+## Advanced physical and source-closure examples
 
 - `cqmom_4d_particles_breakage_recoil/`: terminal-quadrature traversal closes a
   nonlinear daughter-state transformation with diameter-dependent recoil and a
@@ -79,7 +80,7 @@ tests or exact solutions.
   a paired bounded/unbounded reconstruction diagnostic plus a direct MC
   companion.
 
-## Package Dependencies
+## Package dependencies
 
 Standard examples consume the installed QMOMKit package:
 
@@ -96,7 +97,7 @@ find_package(QMOMKitMonteCarlo CONFIG REQUIRED)
 target_link_libraries(example_target PRIVATE qmomkit_monte_carlo::qmomkit_monte_carlo)
 ```
 
-## Build Pattern
+## Build pattern
 
 Install QMOMKit first, as described in the [installation guide](../docs/user/installation.md).
 From an example directory, configure against that install prefix:
@@ -113,8 +114,10 @@ Examples using the Monte Carlo companion to produce reference results
 need `QMOMKitMonteCarlo` installed to the same prefix;
 see its [README](../tools/monte_carlo/README.md).
 
-Examples with a local `configuration.qmom` copy it into `build/` during CMake
-configuration, so generated output is written under the build directory.
+Most examples with a local `configuration.qmom` copy it into `build/` during
+CMake configuration, so generated output is written under the build directory.
+A few instead take the configuration file as a command-line argument and are run
+from the example directory; their own README says which.
 
 Examples that write QMOM or CQMOM moments and quadrature use
 `qmomkit::MomentWriter` and `qmomkit::QuadratureWriter` to write `.txt` files. These
@@ -122,12 +125,12 @@ files are whitespace-delimited text tables with commented header lines.
 Monte Carlo particle snapshots, when present, are custom sample-level output
 and are not QMOMKit moment or quadrature files.
 
-## Configuration Files
+## Configuration files
 
 Configuration files are kept with the executable workflows that use them. For
 example, see `qmom_mixture_initialization/configuration.qmom`,
 `qmom_1d_breakage_advection/configuration.qmom`, and
-`cqmom_2d_minimal/configuration.qmom`. The user configuration guide also
+`cqmom_2d_adaptive_node_counts/configuration.qmom`. The user configuration guide also
 includes inline syntax for explicit moments and runtime realizability settings.
 
 Monte Carlo companion configuration examples live with the companion package
@@ -136,7 +139,7 @@ under `tools/monte_carlo/configuration/`:
 - `qmom_distribution_lognormal.qmom`
 - `cqmom_independent_product_2d.qmom`
 
-## Examples Versus Tests
+## Examples versus tests
 
 Examples are intended to be readable and short. They are built with the normal
 CMake installed-package workflow but are not registered as CTest tests.

@@ -86,7 +86,10 @@ concrete physical setting.
 
 The use of generative AI tools is permitted when contributing to QMOMKit. The
 use of AI does not lower or raise the technical standard applied to a
-contribution.
+contribution. QMOMKit itself has been developed with substantial AI assistance;
+[DEVELOPMENT_PHILOSOPHY.md](DEVELOPMENT_PHILOSOPHY.md) explains why that makes
+evidence of correctness, rather than the origin of an implementation, the thing
+that counts.
 
 Contributors remain fully responsible for AI-assisted contributions and should:
 

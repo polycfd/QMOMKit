@@ -1,4 +1,4 @@
-# Numerical Conventions
+# Numerical conventions
 
 This page is the stable developer reference for QMOMKit numerical conventions.
 It describes the conventions that algorithms, tests, examples, configuration
@@ -17,7 +17,17 @@ Algorithm-specific details belong in:
 - [configuration_design.md](configuration_design.md) for parser behavior and configuration-to-request
   mapping.
 
-## Moment Conventions
+## Contents
+
+- [Moment Conventions](#moment-conventions)
+- [Tensor Moment Conventions](#tensor-moment-conventions)
+- [Phase-Space Conventions](#phase-space-conventions)
+- [Conditioning Order Conventions](#conditioning-order-conventions)
+- [Quadrature Conventions](#quadrature-conventions)
+- [Distribution And Initialization Conventions](#distribution-and-initialization-conventions)
+- [Rules For Maintainers](#rules-for-maintainers)
+
+## Moment conventions
 
 QMOMKit uses raw moments of the number density function (NDF). A
 one-dimensional raw moment is
@@ -69,7 +79,7 @@ containers. Algorithms report invalid input or numerical failure through their
 documented result/status types; non-empty output data alone is not a success
 criterion.
 
-## Tensor Moment Conventions
+## Tensor moment conventions
 
 A multidimensional raw moment uses a phase-space-order multi-index:
 $$\alpha = [\alpha_0, \alpha_1, ..., \alpha_{d-1}]$$
@@ -115,7 +125,7 @@ They are not ordered by conditioning level, callback order, file column order,
 or any recursive traversal detail unless a specific internal data structure
 explicitly documents another layout.
 
-## Phase-Space Conventions
+## Phase-space conventions
 
 A phase-space dimension is the stable coordinate axis identifier used by
 QMOMKit. Dimension indices are
@@ -145,17 +155,18 @@ ordinary phase-space dimensions. A workflow that uses both velocity and
 internal coordinates must define one explicit phase-space order and use it
 consistently in moments, quadrature, callbacks, output, and validation.
 
-For phase-space evolution callbacks, a node coordinate vector is ordered by phase-space
-dimension:
+For phase-space evolution callbacks, a node coordinate vector is ordered by
+phase-space dimension:
 
 ```text
 coordinates[r] corresponds to phase-space dimension r
 ```
 
 The returned phase-space velocity vector uses the same order and size. See
-`phase_space_evolution_design.md` for phase-space evolution-specific callback behavior.
+`phase_space_evolution_design.md` for phase-space evolution-specific callback
+behavior.
 
-## Conditioning Order Conventions
+## Conditioning order conventions
 
 Conditioning order is separate from phase-space dimension order. It defines
 the order in which CQMOM conditions dimensions:
@@ -201,7 +212,7 @@ permutation with no duplicate, missing, or out-of-range dimensions.
 Recursive path storage, branch-local moment slices, and traversal details are
 implementation topics for `cqmom_recursive.md`.
 
-## Quadrature Conventions
+## Quadrature conventions
 
 QMOMKit uses the terms node and abscissa as follows:
 
@@ -240,10 +251,11 @@ interpreted by iterating over exposed terminal nodes, weights, abscissas, and
 paths rather than assuming rectangular storage.
 
 Local conditional weights that arise inside CQMOM reconstruction are not the
-same as final global weights. The distinction between local conditional
-weights and accumulated terminal weights belongs in [cqmom_recursive.md](cqmom_recursive.md).
+same as final global weights. The distinction between local conditional weights
+and accumulated terminal weights belongs in
+[cqmom_recursive.md](cqmom_recursive.md).
 
-## Distribution And Initialization Conventions
+## Distribution and initialization conventions
 
 Distribution helpers are initialization tools. They generate raw moments of an
 NDF and raw NDF moment tensors; the rest of the QMOMKit workflow consumes those
@@ -283,13 +295,13 @@ Requested maximum orders are inclusive. In one dimension, `maximum_order = 3`
 generates `m_0` through `m_3`. For product tensors,
 `maximum_orders[r] = 3` gives `extents[r] = 4`.
 
-Configuration files preserve the same conventions. Explicit moments are
-already raw moments. Distribution-based initialization is converted to raw
-moments before QMOM case objects or CQMOM case objects are constructed.
-Parser-specific
-precedence and field mapping belong in [configuration_design.md](configuration_design.md).
+Configuration files preserve the same conventions. Explicit moments are already
+raw moments. Distribution-based initialization is converted to raw moments
+before QMOM case objects or CQMOM case objects are constructed. Parser-specific
+precedence and field mapping belong in
+[configuration_design.md](configuration_design.md).
 
-## Rules For Maintainers
+## Rules for maintainers
 
 Preserve these conventions unless a deliberate convention change is reviewed,
 documented, and covered by tests:

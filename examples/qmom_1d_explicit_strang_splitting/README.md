@@ -1,7 +1,8 @@
 # Explicit 1D QMOM Strang Splitting
 
 This example demonstrates application-managed Strang splitting for adaptive
-one-dimensional QMOM phase-space evolution. The application owns the stage sequence:
+one-dimensional QMOM phase-space evolution. The application owns the stage
+sequence:
 
 ```text
 C(dt/2) -> D(dt) -> C(dt/2)
@@ -9,28 +10,30 @@ C(dt/2) -> D(dt) -> C(dt/2)
 
 and calls the public stage API directly.
 
-The example-local velocity and source callbacks are defined in [physics.cpp](./physics.cpp);
-the application-owned stage sequence remains visible in [main.cpp](./main.cpp).
+The example-local velocity and source callbacks are defined in
+[physics.cpp](./physics.cpp); the application-owned stage sequence remains
+visible in [main.cpp](./main.cpp).
 
-## API Levels
+## API levels
 
-`advance_qmom_phase_space(...)` is the library-managed complete phase-space evolution
-workflow. It owns the configured Strang or Lie stage ordering for one macro
-step.
+`advance_qmom_phase_space(...)` is the library-managed complete phase-space
+evolution workflow. It owns the configured Strang or Lie stage ordering for one
+macro step.
 
 `advance_qmom_advection(...)` and `advance_qmom_moment_source(...)` let the
 surrounding application own the splitting sequence while still passing accepted
 `QmomState` objects between stages.
 
-## Numerical Distinction
+## Numerical distinction
 
 The advection stage directly advects the current quadrature nodes and
 reconstructs the stored raw moments from those same active nodes. It preserves
 the active node count.
 
-The moment-source-evolution stage integrates raw moments through the source callback and
-then performs fixed or adaptive QMOM reconstruction. Adaptive reduction and
-controlled one-node growth occur only after this moment-source reconstruction.
+The moment-source-evolution stage integrates raw moments through the source
+callback and then performs fixed or adaptive QMOM reconstruction. Adaptive
+reduction and controlled one-node growth occur only after this moment-source
+reconstruction.
 
 ## Model
 
@@ -61,7 +64,7 @@ $S(t)$ is positive only over the finite interval $[0.16, 0.25)$. The source
 preserves total mass and zero mean while allowing an adaptively reduced
 one-node state to regrow to two nodes.
 
-## Explicit Strang Sequence
+## Explicit Strang sequence
 
 The time loop keeps the three public stage calls visible:
 
@@ -85,7 +88,7 @@ For a macro step beginning at `time`, the first advection half-step starts at
 `time`, the moment-source stage starts at `time + 0.5 * time_step`, and
 the second advection half-step also starts at `time + 0.5 * time_step`.
 
-## Transactional Commit
+## Transactional commit
 
 The host application advances a trial state through all three stages. The
 accepted macro-step state is updated only after the second advection
@@ -107,7 +110,7 @@ moment-source reconstruction reduces two nodes to one, the finite source pulse
 regrows the state to two nodes, and later source-free reconstruction reduces it
 again.
 
-## Build And Run
+## Build and run
 
 From the repository root, install QMOMKit, then configure this standalone
 example against the installed package:
@@ -126,7 +129,7 @@ cd build
 ./qmom_1d_explicit_strang_splitting_example
 ```
 
-## Output
+## Output files
 
 The executable writes:
 

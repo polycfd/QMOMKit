@@ -1,4 +1,4 @@
-# Distribution-Based Moment Initialization
+# Distribution-based moment initialization
 
 QMOMKit can generate raw moments from supported analytical distributions. This
 is useful when an initial population is easier to describe through familiar
@@ -24,7 +24,7 @@ moments, and the usual QMOM or CQMOM APIs consume those moments. Dense tensors
 are one explicit CQMOM representation, not the universal CQMOM initialization
 path.
 
-## Raw Moment Convention
+## Raw moment convention
 
 Generated moments are unnormalized raw moments of the number density function.
 The distribution parameters describe the shape of the population, and
@@ -48,7 +48,7 @@ M[k_0, ..., k_D-1] = number_density * product_d E[x_d^k_d]
 M[0, ..., 0] = number_density
 ```
 
-## Supported Distributions
+## Supported distributions
 
 QMOMKit provides analytical raw moments for these one-dimensional distribution
 families:
@@ -79,7 +79,7 @@ Moment generation reports a status. Check `ok()` before passing generated
 moments into QMOM or CQMOM so invalid parameters or unsupported requests are
 caught before reconstruction.
 
-## QMOM Initialization
+## QMOM initialization
 
 For one-dimensional QMOM, generate moments through `compute_raw_moments`, then
 pass the returned `MomentSet` to `compute_qmom`. This mirrors the physical
@@ -177,7 +177,7 @@ int main()
 
 The generated `MomentSet` can be passed directly to `compute_qmom`.
 
-## CQMOM Initialization
+## CQMOM initialization
 
 For multidimensional CQMOM, independent-product initialization covers cases
 where the initial coordinates can be described as independent marginal
@@ -252,7 +252,7 @@ Keep these settings separate:
 - `conditioning_order` controls the CQMOM conditioning order. It does not
   change tensor storage order or select different marginals.
 
-## Configuration Files (`.qmom`)
+## Configuration files (`.qmom`)
 
 The same distribution workflows are available through QMOMKit configuration
 files. For one-dimensional QMOM, use:
@@ -287,10 +287,10 @@ mean = 0.0
 standard_deviation = 1.0
 ```
 
-See [configuration.md](./configuration.md) for complete configuration-file examples and field
-semantics.
+See [Configuration](configuration.md) for complete configuration-file
+examples and field semantics.
 
-## Practical Considerations
+## Practical considerations
 
 Keep the raw-moment convention consistent. Passing moments with their physical
 $m_0$ preserves the total number density; choosing $m_0 = 1$ represents a

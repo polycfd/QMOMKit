@@ -1,11 +1,24 @@
+# Two-dimensional CQMOM case in (R, U): bubble radius and wall velocity.
+# The run is advection-only, so no source settings appear here.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
 names = R, U
+# Quadrature nodes per coordinate. An n-node rule needs the moments m0..m(2n-1),
+# so raising this asks for more information from the initial condition.
 node_counts = 2, 2
+# The order in which CQMOM conditions the dimensions. It does not reorder
+# coordinates, moments, or output columns.
 conditioning_order = 0, 1
 
 [initial]
+# Marginals are normalised individually, then combined and scaled once by the
+# number_density below.
 type = independent_product
 number_density = 1.0
+# Retain raw moments up to these per-dimension orders, which the sampled
+# initialisation needs; it does not change the reconstruction order.
 maximum_orders = 3, 3
 
 [initial.dimension.0]
@@ -18,8 +31,11 @@ family = normal
 mean = 0.0
 standard_deviation = 0.2
 
+# Output is driver-controlled: QMOMKit writes nothing unless the example wires
+# these settings into its writers.
 [output]
 directory = output
 write_moments = true
 write_quadrature = true
+# Simulated-time interval between writes, not a step count.
 interval = 0.1

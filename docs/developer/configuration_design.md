@@ -1,4 +1,4 @@
-# Configuration Design
+# Configuration design
 
 This page documents the current QMOMKit design for configuration handling.
 
@@ -8,11 +8,24 @@ QMOMKit algorithms by themselves.
 
 QMOMKit case configuration files use the user-facing `.qmom` extension.
 
-For raw-moment, tensor, phase-space, conditioning-order, distribution, node, and
-weight conventions, see [numerical_conventions.md](numerical_conventions.md). For phase-space evolution behavior, see
+For raw-moment, tensor, phase-space, conditioning-order, distribution, node,
+and weight conventions, see
+[numerical_conventions.md](numerical_conventions.md). For phase-space evolution
+behavior, see
 [phase_space_evolution_design.md](phase_space_evolution_design.md).
 
-## Configuration Philosophy
+## Contents
+
+- [Configuration Philosophy](#configuration-philosophy)
+- [Configuration Architecture](#configuration-architecture)
+- [QMOM And CQMOM Mapping](#qmom-and-cqmom-mapping)
+- [Distribution Initialization Design](#distribution-initialization-design)
+- [Phase-Space Evolution and Policy Configuration](#phase-space-evolution-and-policy-configuration)
+- [Validation And Error Handling](#validation-and-error-handling)
+- [Public API Boundary](#public-api-boundary)
+- [Extension Principles](#extension-principles)
+
+## Configuration philosophy
 
 QMOMKit configuration is a text form of the same numerical setup that users can
 build through the C++ API. It exists so examples, verification drivers, Monte
@@ -28,10 +41,11 @@ The core design principle is separation:
   they do for programmatically constructed inputs.
 
 A valid configuration is not a guarantee that a numerical reconstruction or
-phase-space evolution step will succeed. Configuration validation checks structure,
-supported values, and basic consistency before execution. Algorithmic statuses
-from QMOM, CQMOM, realizability checks, node advection, source updates, and
-phase-space evolution remain part of the runtime numerical algorithms.
+phase-space evolution step will succeed. Configuration validation checks
+structure, supported values, and basic consistency before execution.
+Algorithmic statuses from QMOM, CQMOM, realizability checks, node advection,
+source updates, and phase-space evolution remain part of the runtime numerical
+algorithms.
 
 Configuration is intentionally application agnostic. It does not define meshes,
 boundary conditions, CFD operators, source callbacks, velocity callbacks, MPI
@@ -43,7 +57,7 @@ controls, such as reconstruction thresholds and source-integration acceptance
 callbacks, remain API-only unless they acquire a documented configuration
 contract.
 
-## Configuration Architecture
+## Configuration architecture
 
 The conceptual flow is:
 
@@ -80,7 +94,7 @@ The main parts of configuration handling are:
 - case construction: builds `QmomCase`, `CqmomCase`, or explicit
   representation `CqmomLeanCase` and `CqmomDenseCase` objects from initialized
   moments, phase-space hierarchy, and options;
-- policy extraction: parses an optional phase-space evolution scheme, phase-space evolution options,
+- policy extraction: parses an optional splitting scheme, evolution options,
   output options, and runtime realizability policy objects for drivers that
   choose to use them.
 
@@ -89,7 +103,7 @@ extension code. Successful public configuration calls return populated public
 objects through `value()`, while failed calls return a formatted diagnostic
 string through `error()` and no value.
 
-## QMOM And CQMOM Mapping
+## QMOM and CQMOM mapping
 
 Configuration maps user-facing setup concepts to the same public object types
 that direct C++ callers use.
@@ -158,9 +172,9 @@ CqmomMomentStorage
 CqmomCase
 ```
 
-This is the recommended user-facing loading path exposed by
-`load_cqmom(...)`. The returned `CqmomCase` stores the selected dense or lean
-moment representation and reconstruction policies while avoiding any distinction
+This is the recommended user-facing loading path exposed by `load_cqmom(...)`.
+The returned `CqmomCase` stores the selected dense or lean moment
+representation and reconstruction policies while avoiding any distinction
 between analytical and explicit moment input in ordinary use. If
 `cqmom.moment_storage` is omitted, the neutral parser selects lean storage.
 
@@ -207,9 +221,9 @@ returns `CqmomLeanCase` directly for callers that intentionally manage the
 required CQMOM moment representation.
 
 Phase-space node counts are attached to phase-space dimensions, not to
-conditioning levels. If `conditioning_order` is omitted, identity order is used.
-If it is provided, it must be a permutation of the phase-space dimensions.
-CQMOM configuration requires at least two phase-space dimensions; a
+conditioning levels. If `conditioning_order` is omitted, identity order is
+used. If it is provided, it must be a permutation of the phase-space
+dimensions. CQMOM configuration requires at least two phase-space dimensions; a
 one-dimensional phase space is interpreted as QMOM.
 
 Explicit tensor moments are indexed in phase-space dimension order:
@@ -218,11 +232,11 @@ Explicit tensor moments are indexed in phase-space dimension order:
 M[i0,i1,...] = m_[i0,i1,...]
 ```
 
-For explicit dense representation loading, the declared tensor extents define the
-complete expected moment tensor. Configuration loading validates rank, index
-range, completeness, and that each extent is large enough for the requested node
-count in that dimension before creating a `CqmomDenseCase`. Recursive CQMOM
-success is still checked later by `compute_cqmom(...)`.
+For explicit dense representation loading, the declared tensor extents define
+the complete expected moment tensor. Configuration loading validates rank,
+index range, completeness, and that each extent is large enough for the
+requested node count in that dimension before creating a `CqmomDenseCase`.
+Recursive CQMOM success is still checked later by `compute_cqmom(...)`.
 
 `phase_space.adaptive_branch_counts` controls whether CQMOM may accept
 branch-dependent quadrature counts and, when enabled, automatically enables
@@ -235,7 +249,7 @@ The optional `[cqmom] diagnostic_level = detailed|basic|none` setting maps to
 the CQMOM diagnostic policy stored in the loaded case. If omitted,
 configuration preserves the public default `CqmomDiagnosticLevel::none`.
 
-### Immutable Explicit-Moment Replacement
+### Immutable explicit-moment replacement
 
 `config::with_initial_moments(const CqmomCase&, RawMomentTensor)` is the normal
 programmatic boundary for replacing the explicit initial tensor of an existing
@@ -251,7 +265,7 @@ programmatic and parsed explicit tensors share the same lifecycle: structural
 errors are configuration failures, while non-realizability is reported by
 `compute_cqmom(...)` or by `CqmomCase::initial_state()`.
 
-## Distribution Initialization Design
+## Distribution initialization design
 
 Configuration can reference analytical distributions as a compact way to define
 initial moments. Distribution specifications are not runtime probability
@@ -297,11 +311,12 @@ Mixture component densities are absolute number-density contributions. An
 independent-product initialization has one global number density; per-dimension
 number densities are not part of the CQMOM configuration model.
 
-Generated moments follow the conventions in [numerical_conventions.md](numerical_conventions.md): $m_0$ is
-the total number density, moments are not normalized away, and multidimensional
-tensor entries follow phase-space dimension order.
+Generated moments follow the conventions in
+[numerical_conventions.md](numerical_conventions.md): $m_0$ is the total number
+density, moments are not normalized away, and multidimensional tensor entries
+follow phase-space dimension order.
 
-## Phase-Space Evolution and Policy Configuration
+## Phase-space evolution and policy configuration
 
 Configuration may include optional runtime settings that are useful to drivers:
 
@@ -311,10 +326,10 @@ Configuration may include optional runtime settings that are useful to drivers:
 - runtime realizability policy.
 
 These settings are parsed into public objects or enum values. They do not
-install callbacks, run phase-space evolution, write output, or define a physical model.
-Case loaders validate recognized runtime settings when those settings are
-present in the same `.qmom` file, but they still return only `QmomCase` or
-`CqmomCase`.
+install callbacks, run phase-space evolution, write output, or define a
+physical model. Case loaders validate recognized runtime settings when those
+settings are present in the same `.qmom` file, but they still return only
+`QmomCase` or `CqmomCase`.
 
 | Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
 | --- | --- | --- | --- |
@@ -324,8 +339,8 @@ present in the same `.qmom` file, but they still return only `QmomCase` or
 | `time_integration.node_advection.*` | yes | no | yes |
 | `time_integration.realizability.*` | yes | no | yes |
 
-Phase-space evolution scheme configuration maps to `PhaseSpaceEvolutionScheme`. If omitted, the
-parsed scheme defaults to `PhaseSpaceEvolutionScheme::strang`.
+Phase-space evolution scheme configuration maps to `PhaseSpaceEvolutionScheme`.
+If omitted, the parsed scheme defaults to `PhaseSpaceEvolutionScheme::strang`.
 
 Node-advection configuration maps to `NodeAdvectionOptions`. The scheme lives
 under `[time_integration.node_advection]` so it is not confused with
@@ -349,26 +364,26 @@ Drivers parse or load the complete `NodeAdvectionOptions` object with
 `parse_node_advection_options(...)` or `load_node_advection_options(...)`.
 When only the integration scheme is needed, they inspect its `.scheme` member.
 
-CQMOM active-count evolution during moment-source stages is automatic. Advection
-reconstruction constrains each existing adaptive branch to its current active
-count. After an accepted moment-source update, adaptive CQMOM passes the
-current active topology and enables the internal one-node growth trial. New
-descendants whose parent topology changed start from configured maximum counts
-and adapt downward.
+CQMOM active-count evolution during moment-source stages is automatic.
+Advection reconstruction constrains each existing adaptive branch to its
+current active count. After an accepted moment-source update, adaptive CQMOM
+passes the current active topology and enables the internal one-node growth
+trial. New descendants whose parent topology changed start from configured
+maximum counts and adapt downward.
 
 The parser default-constructs `NodeAdvectionOptions` and only overwrites keys
 that are present, so configuration parsing does not duplicate
 `AdaptiveRkOptions` defaults. If omitted, the parsed node-advection scheme
 defaults to `NodeAdvectionScheme::rk23`. Applications can assign the parsed
-object directly to phase-space evolution options. This configuration choice affects only
-advection quadrature-node trajectories; it does not configure moment-source
-integration, realizability policies, or phase-space evolution splitting.
+object directly to the evolution options. This configuration choice affects
+only advection quadrature-node trajectories; it does not configure
+moment-source integration, realizability policies, or operator splitting.
 
 `[time_integration.realizability]` configures QMOM realizability checks during
 moment-source SSP-RK3 evolution. For CQMOM,
 `[time_integration.realizability.<coordinate>]` configures realizability
 checks for individual phase-space coordinates; the zero-based coordinate index
-must be smaller than the configured phase-space rank. When phase-space evolution
+must be smaller than the configured phase-space rank. When evolution
 options are loaded from the configuration file, the corresponding QMOM or
 CQMOM phase-space evolution path consumes these settings during its
 moment-source stage. Support is explicit; it is not inferred from distribution
@@ -378,7 +393,7 @@ Output configuration maps to `OutputOptions`. Numerical algorithms do not write
 files because output settings are present. Drivers choose whether and how to
 connect those options to output helpers.
 
-## Validation And Error Handling
+## Validation and error handling
 
 Configuration APIs return:
 
@@ -410,15 +425,15 @@ Explicit moment initialization is the intentional precedence rule. When
 explicit moments are provided, they are the source of truth for the initialized
 moment representation. Distribution-based `[initial]` entries that would
 otherwise generate moments are unused in that path, and the current
-configuration behavior may ignore those unused initialization entries instead of
-validating them as active inputs.
+configuration behavior may ignore those unused initialization entries instead
+of validating them as active inputs.
 
-Runtime numerical failure remains separate. A configuration can be syntactically
-and structurally valid while the configured moment sequence is not accepted by
-QMOM or CQMOM reconstruction under the selected options. Callers must check both
-configuration results and algorithm results.
+Runtime numerical failure remains separate. A configuration can be
+syntactically and structurally valid while the configured moment sequence is
+not accepted by QMOM or CQMOM reconstruction under the selected options.
+Callers must check both configuration results and algorithm results.
 
-## Public API Boundary
+## Public API boundary
 
 The public user-facing configuration API lives in:
 
@@ -463,10 +478,10 @@ Implementation details include:
 These details support the public API but are not extension points for projects
 that use QMOMKit.
 
-## Extension Principles
+## Extension principles
 
-Configuration changes should preserve the existing separation between syntax and
-runtime behavior.
+Configuration changes should preserve the existing separation between syntax
+and runtime behavior.
 
 Stable rules for adding configuration capabilities are:
 

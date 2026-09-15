@@ -1,14 +1,34 @@
+# Three-dimensional CQMOM case in (r, w, T): droplet radius, fall velocity
+# and temperature. Two settings here are worth noticing before changing
+# anything: the conditioning order is not the identity, and automatic
+# scaling is on because the coordinates differ by orders of magnitude.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
 names = r, w, T
+# Quadrature nodes per coordinate. An n-node rule needs the moments m0..m(2n-1),
+# so raising this asks for more information from the initial condition.
 node_counts = 3, 3, 3
+# Not the identity order: radius is conditioned first, then temperature, then
+# velocity. This changes only the order of the conditional inversions, never
+# the meaning or the output order of the coordinates.
 conditioning_order = 0, 2, 1
+# Branch node counts become ceilings; a branch whose local moments cannot
+# support three nodes will use fewer.
 adaptive_branch_counts = true
+# The coordinates span about six orders of magnitude (r ~ 1e-4 m, w ~ 1 m/s,
+# T ~ 3e2 K). Scaling normalises each one locally for the inversion; raw
+# moments, callbacks and output stay in physical units.
 automatic_scaling = true
 
 [time_integration]
+# Second-order splitting. The example checks this value and refuses to run
+# with a first-order scheme, because the nucleation burst is short.
 scheme = strang
 
 [time_integration.node_advection]
+# Node-trajectory integrator; the adaptive controls below apply to it.
 scheme = rk23
 
 [time_integration.node_advection.adaptive]
@@ -19,6 +39,8 @@ max_step = 1.0e-2
 min_step = 1.0e-9
 
 [initial]
+# Marginals are normalised individually, then combined and scaled once by the
+# number_density below.
 type = independent_product
 number_density = 1.0
 
@@ -37,8 +59,11 @@ family = normal
 mean = 293.15
 standard_deviation = 3.0
 
+# Output is driver-controlled: QMOMKit writes nothing unless the example wires
+# these settings into its writers.
 [output]
 directory = output
 write_moments = true
 write_quadrature = true
+# Simulated-time interval between writes, not a step count.
 interval = 0.1

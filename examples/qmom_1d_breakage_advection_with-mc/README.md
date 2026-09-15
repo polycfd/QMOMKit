@@ -49,9 +49,10 @@ distribution
     -> statistical moments
 ```
 
-The distribution remains defined in [configuration.qmom](./configuration.qmom). This example draws
-10,000 samples with a fixed seed. With $d$ as the particle-diameter coordinate,
-the QMOM workflow estimates raw, unnormalized moments from the ensemble as
+The distribution remains defined in [configuration.qmom](./configuration.qmom).
+This example draws 10,000 samples with a fixed seed. With $d$ as the
+particle-diameter coordinate, the QMOM workflow estimates raw, unnormalized
+moments from the ensemble as
 
 $$
 M_k = \frac{n_0}{N}\sum_{p=1}^{N} d_p^k,
@@ -59,8 +60,8 @@ $$
 
 where $n_0$ is the configured total number density and $N$ is the sample count.
 It uses those moments to construct a `qmomkit::QmomCase` and initial
-`qmomkit::QmomState`. The Monte Carlo workflow evolves the sampled ensemble directly with the same advection and
-binary-fragmentation models.
+`qmomkit::QmomState`. The Monte Carlo workflow evolves the sampled ensemble
+directly with the same advection and binary-fragmentation models.
 
 The sample is finite, so its raw moments include ordinary Monte Carlo sampling
 uncertainty. Increasing the sample count generally reduces this uncertainty,
@@ -87,8 +88,9 @@ QMOM reconstruction
 Phase-space advection half-step
 ```
 
-The phase-space advection physics and moment-source binary fragmentation source are in
-[physics.cpp](./physics.cpp). The time controls are local constants in [main.cpp](./main.cpp):
+The phase-space advection physics and moment-source binary fragmentation source
+are in [physics.cpp](./physics.cpp). The time controls are local constants in
+[main.cpp](./main.cpp):
 
 - `initial_time`
 - `final_time`
@@ -97,10 +99,10 @@ The phase-space advection physics and moment-source binary fragmentation source 
 The output directory, enabled files, and output cadence are read from
 `[output]` in [configuration.qmom](./configuration.qmom).
 
-## Monte Carlo Moment Evolution
+## Monte Carlo moment evolution
 
-The Monte Carlo workflow uses the same configured distribution, sample count, and
-initialization seed as the QMOM workflow. It then applies the same Strang
+The Monte Carlo workflow uses the same configured distribution, sample count,
+and initialization seed as the QMOM workflow. It then applies the same Strang
 sequence directly to the sampled ensemble:
 
 ```text
@@ -112,12 +114,12 @@ Advection sampled-ensemble half-step
 ```
 
 The advection sampled-ensemble update uses
-`qmomkit::monte_carlo::evolve_ensemble`.
-The stochastic breakage mechanics are local to this example in
-[particles_mc.cpp](./particles_mc.cpp). The advection velocity and fragmentation rate are shared
-with the QMOM workflow through [physics.cpp](./physics.cpp).
+`qmomkit::monte_carlo::evolve_ensemble`. The stochastic breakage mechanics are
+local to this example in [particles_mc.cpp](./particles_mc.cpp). The advection
+velocity and fragmentation rate are shared with the QMOM workflow through
+[physics.cpp](./physics.cpp).
 
-## Build
+## Build and run
 
 From the repository root, install both packages into the shared
 repository-local `install/` prefix:
@@ -171,7 +173,7 @@ These files are written with `qmomkit::MomentWriter` and
 `qmomkit::QuadratureWriter`. They are whitespace-delimited text tables with a
 commented header line.
 
-## Run the Direct Monte Carlo Companion
+## Run the direct Monte Carlo companion
 
 From the same build directory, run:
 

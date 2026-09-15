@@ -59,8 +59,8 @@ Without it the executable still builds and runs, and counter benchmarks skip
 with an explanatory message.
 
 To measure instrumentation overhead, install two packages with identical
-compiler settings and different prefixes (`...=ON` and `...=OFF`), configure one
-benchmark build against each, and run the same
+compiler settings and different prefixes (`...=ON` and `...=OFF`), configure
+one benchmark build against each, and run the same
 `--benchmark_filter=performance_instrumentation_overhead` on both. Do not link
 instrumented and non-instrumented libraries into one executable.
 

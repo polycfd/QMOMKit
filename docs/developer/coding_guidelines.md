@@ -1,16 +1,16 @@
-# Coding Guidelines
+# Coding guidelines
 
-This page documents QMOMKit-specific development principles. It complements the public API boundaries in
-[architecture.md](architecture.md), the mathematical conventions in
-[numerical_conventions.md](numerical_conventions.md), and the correctness,
-validation, and performance practices in [testing.md](testing.md),
+This page documents QMOMKit-specific development principles. It complements the
+public API boundaries in [architecture.md](architecture.md), the mathematical
+conventions in [numerical_conventions.md](numerical_conventions.md), and the
+correctness, validation, and performance practices in [testing.md](testing.md),
 [validation.md](validation.md), and [benchmarks.md](benchmarks.md).
 
 These guidelines describe stable engineering expectations for QMOMKit. They are
 not a generic C++ style guide, a contribution workflow, or an instruction file
 for automated development tools.
 
-## Project Philosophy
+## Project philosophy
 
 QMOMKit is a reusable C++ library for QMOM, CQMOM, and
 phase-space evolution algorithms. The core package remains independent of CFD
@@ -33,7 +33,7 @@ Development should preserve these priorities:
 Clear, conservative designs are preferred over broad abstractions that obscure
 the mathematical contract.
 
-## Public API Discipline
+## Public API discipline
 
 Public QMOMKit API lives under `include/qmomkit/`. Installed headers represent
 supported functionality and should expose stable concepts such as requests,
@@ -58,11 +58,11 @@ Public APIs require deliberate design:
 - update public-header tests when supported headers or public API dependencies
   change.
 
-The QMOMKitMonteCarlo companion package is a separate consumer-oriented package.
-It may depend on `qmomkit::qmomkit`, but the core package should not depend on
-Monte Carlo headers or implementation details.
+The QMOMKitMonteCarlo companion package is a separate consumer-oriented
+package. It may depend on `qmomkit::qmomkit`, but the core package should not
+depend on Monte Carlo headers or implementation details.
 
-## Numerical Code Principles
+## Numerical code principles
 
 Numerical code must preserve the conventions documented in
 [numerical_conventions.md](numerical_conventions.md). In particular, QMOMKit
@@ -90,12 +90,12 @@ alters moment interpretation, quadrature representation, conditioning order, or
 realizability behavior should be reflected in developer documentation and
 covered by focused verification.
 
-## Assertions and Runtime Checks
+## Assertions and runtime checks
 
 QMOMKit distinguishes between runtime validation and assertions. Runtime checks
 protect public interfaces, caller-provided data, and numerical correctness.
-Assertions document internal invariants that should always hold after validation
-and object construction.
+Assertions document internal invariants that should always hold after
+validation and object construction.
 
 Use runtime validation for conditions that can arise from valid external usage
 or caller-controlled workflows, including:
@@ -108,11 +108,11 @@ or caller-controlled workflows, including:
 - recoverable numerical failures such as non-realizability, singular systems,
   or rejected integration candidates.
 
-Runtime checks should provide meaningful status values, diagnostics, exceptions,
-or error messages according to the API contract. They should not be removed only
-because they appear in numerical code; many validation branches preserve
-documented failure behavior and protect callers from interpreting diagnostic
-data as successful output.
+Runtime checks should provide meaningful status values, diagnostics,
+exceptions, or error messages according to the API contract. They should not be
+removed only because they appear in numerical code; many validation branches
+preserve documented failure behavior and protect callers from interpreting
+diagnostic data as successful output.
 
 Use assertions for internal invariants that should be guaranteed by earlier
 validation, construction, or algorithm logic, including:
@@ -129,13 +129,13 @@ the algorithm even when they would be invalid as final public output.
 
 Performance changes to validation should be justified by profiling,
 benchmarking, or clear evidence that the check runs in a computational
-bottleneck. Numerical safety checks should not be removed from hot paths without
-considering the resulting failure behavior. Prefer maintainable improvements
-such as moving validation to an appropriate boundary, avoiding repeated
-validation of unchanged data, or making expensive diagnostics optional where the
-public contract allows it.
+bottleneck. Numerical safety checks should not be removed from hot paths
+without considering the resulting failure behavior. Prefer maintainable
+improvements such as moving validation to an appropriate boundary, avoiding
+repeated validation of unchanged data, or making expensive diagnostics optional
+where the public contract allows it.
 
-## Testing and Validation Expectations
+## Testing and validation expectations
 
 Testing, validation, and benchmarking serve different purposes:
 
@@ -150,25 +150,26 @@ API changes should preserve public-header coverage. Package and export changes
 should preserve installed-package consumer validation.
 
 Scientific changes require more than matching a previous regression result.
-When a method, tolerance, status rule, reconstruction path, phase-space evolution update, or
-realizability decision changes the numerical behavior, the relevant validation
-assumptions should be updated and documented. Numerical discrepancies should be
-explained rather than hidden by undocumented tolerance changes.
+When a method, tolerance, status rule, reconstruction path, phase-space
+evolution update, or realizability decision changes the numerical behavior, the
+relevant validation assumptions should be updated and documented. Numerical
+discrepancies should be explained rather than hidden by undocumented tolerance
+changes.
 
 Benchmarks should remain separate from correctness tests. They are useful for
 tracking representative performance, but they do not establish mathematical
 correctness.
 
-## Documentation Expectations
+## Documentation expectations
 
 Documentation should describe the current design. Avoid stage labels, migration
 notes, optimization history, temporary limitations, and roadmap language in
 developer references.
 
-User-facing behavior belongs in `docs/user/`. Knowledge and guidelines for development
-belongs in `docs/developer/`. Local implementation details may be documented in
-source comments when they help explain mathematical intent, assumptions, or
-constraints.
+User-facing behavior belongs in `docs/user/`. Knowledge and guidelines for
+development belongs in `docs/developer/`. Local implementation details may be
+documented in source comments when they help explain mathematical intent,
+assumptions, or constraints.
 
 Public interfaces should have concise comments that identify inputs, outputs,
 status behavior, and important assumptions. Longer explanations should live in
@@ -186,10 +187,10 @@ semantics, examples, or public behavior change. Developer documentation should
 be updated when architecture, numerical conventions, algorithms, testing,
 validation, benchmark methodology, or coding principles change.
 
-## Dependency and Build Philosophy
+## Dependency and build philosophy
 
-The core library keeps runtime dependencies minimal. The root package builds and
-installs the core `qmomkit::qmomkit` target and its public headers. Tests,
+The core library keeps runtime dependencies minimal. The root package builds
+and installs the core `qmomkit::qmomkit` target and its public headers. Tests,
 benchmarks, examples, and companion tools are standalone consumers of installed
 packages rather than dependencies of the core library build.
 
@@ -203,10 +204,11 @@ Dependency choices should preserve the package model:
 - keep test-framework choices separate from the runtime package;
 - avoid coupling examples or Monte Carlo tooling back into core algorithms.
 
-QMOMKit currently uses C++17 for the public target. Build-related changes should
-preserve the installed-package workflow and exported CMake target behavior.
+QMOMKit currently uses C++17 for the public target. Build-related changes
+should preserve the installed-package workflow and exported CMake target
+behavior.
 
-## Code Quality Expectations
+## Code quality expectations
 
 QMOMKit code should favor readability, simplicity, explicit behavior, and
 conservative modern C++. The repository formatting and static-analysis settings

@@ -52,9 +52,10 @@ CQMOM phase-space evolution
 
 The CQMOM driver loads this numerical setup as a normal `CqmomCase`, estimates
 the complete sampled tensor, and creates an immutable replacement case with
-`with_initial_moments(...)`. The hierarchy, storage selection, and reconstruction
-policies therefore remain those declared by `configuration.qmom`; sampling is
-only one possible producer of replacement raw moments.
+`with_initial_moments(...)`. The hierarchy, storage selection, and
+reconstruction policies therefore remain those declared by
+`configuration.qmom`; sampling is only one possible producer of replacement raw
+moments.
 
 Monte Carlo sampled-distribution companion:
 
@@ -73,7 +74,7 @@ phase-space advection + stochastic moment-source evolution
 
 Both workflows use the same `configuration.qmom`, distribution, sample count,
 initialization seed, phase-space ordering, advection velocity, binary
-fragmentation model, and Strang splitting. 
+fragmentation model, and Strang splitting.
 
 The phase-space ordering is $(d,u)$,
 
@@ -119,13 +120,14 @@ The default CQMOM hierarchy is `node_counts = 2, 2`, meaning:
 - four terminal CQMOM nodes.
 
 The CQMOM driver also supports adaptive branch counts through the same
-`CqmomState` phase-space evolution workflow. With adaptive branch counts enabled, these
-node counts are maximums and output may contain fewer active terminal nodes.
+`CqmomState` phase-space evolution workflow. With adaptive branch counts
+enabled, these node counts are maximums and output may contain fewer active
+terminal nodes.
 
 The sampled moment tensor contains $M_{i,j}$ for $i=0,\ldots,3$ and
 $j=0,\ldots,3$.
 
-## Advection Velocity
+## Advection velocity
 
 The shared velocity is in `physics.cpp`:
 
@@ -141,7 +143,7 @@ uses `qmomkit::advance_cqmom_phase_space(...)` with `qmomkit::CqmomState`. The
 direct MC driver advances sampled ensemble coordinates with
 `qmomkit::monte_carlo::evolve_ensemble(...)`.
 
-## Moment Source
+## Moment source
 
 The shared fragmentation model is:
 
@@ -188,7 +190,7 @@ The time controls are local constants in each driver:
 The output directory, enabled files, and output cadence are read from
 `[output]` in `configuration.qmom` through `qmomkit::OutputOptions`.
 
-## Build
+## Build and run
 
 Requires:
 
@@ -227,7 +229,7 @@ cmake --build build
 
 The build copies `configuration.qmom` into `build/`.
 
-## Run The CQMOM Workflow
+## Run the CQMOM workflow
 
 Run from the build directory so generated output stays there:
 
@@ -254,7 +256,7 @@ inspecting the reconstructed representation. All four files are written through
 QMOMKit-native writers as whitespace-delimited text tables with commented
 headers.
 
-## Run The Direct MC Workflow
+## Run the direct Monte Carlo workflow
 
 From the same build directory, run:
 

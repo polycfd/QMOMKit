@@ -1,17 +1,32 @@
+# One-dimensional QMOM case used to drive Strang splitting by hand. The
+# time_integration settings below are loaded separately by the example and
+# are what its manual staging reproduces.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
 names = u
+# Quadrature nodes per coordinate. An n-node rule needs the moments m0..m(2n-1),
+# so raising this asks for more information from the initial condition.
 node_counts = 2
 
+# Explicit raw moments instead of an analytical distribution: m0=1, m1=0,
+# m2=1, m3=0 is a zero-mean unit-variance population.
 [moments]
 values = 1.0, 0.0, 1.0, 0.0
 
 [qmom]
+# Adaptive Wheeler may return fewer than the requested nodes when the
+# moments no longer support them.
 adaptive = true
 
 [time_integration]
+# Second-order operator splitting: half advection, full source, half advection.
 scheme = strang
 
 [time_integration.node_advection]
+# Node-trajectory integrator. Adaptive RK23 is the default; the controls
+# below apply to it and to rk45.
 scheme = rk23
 
 [time_integration.node_advection.adaptive]
@@ -20,8 +35,11 @@ absolute_tolerance = 1.0e-12
 initial_step = 1.0e-4
 max_step = 2.0e-3
 min_step = 1.0e-12
+# Safety ceiling on adaptive steps per call, not a target.
 max_steps = 100000
 
+# Output is driver-controlled: QMOMKit writes nothing unless the example wires
+# these settings into its writers.
 [output]
 directory = output
 write_quadrature = true

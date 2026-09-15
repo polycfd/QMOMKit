@@ -2,12 +2,12 @@
 
 ## Purpose and workflows
 
-This standalone example is based on the work of 
-[Bryngelson et al. (2023)](https://www.doi.org/10.1016/j.jcp.2023.111917) and 
+This standalone example is based on the work of
+[Bryngelson et al. (2023)](https://www.doi.org/10.1016/j.jcp.2023.111917) and
 evolves a spatially uniform bubble population in the
 two-dimensional cavitation phase space $\boldsymbol{\xi} = (R,U)$,
 where $R$ is the instantaneous dimensionless bubble radius and
-$U=\dot R$ is the dimensionless radial velocity. 
+$U=\dot R$ is the dimensionless radial velocity.
 
 The example contains two executables:
 
@@ -17,14 +17,14 @@ The example contains two executables:
 - `cqmom_2d_bubbles_cavitation_mc_example`: evolves the same deterministic
   finite sampled population directly with the Monte Carlo companion utilities.
 
-Both workflows use the same [configuration.qmom](./configuration.qmom), distribution parameters,
-sample count, initialization seed, coordinate order, and advection
-phase-space velocity. The Monte Carlo executable is a direct sampled-population
-companion for this example.
+Both workflows use the same [configuration.qmom](./configuration.qmom),
+distribution parameters, sample count, initialization seed, coordinate order,
+and advection phase-space velocity. The Monte Carlo executable is a direct
+sampled-population companion for this example.
 
-The CQMOM driver retains the normal case loaded from [configuration.qmom](./configuration.qmom) and
-replaces its initial moments with the complete sampled tensor using
-`with_initial_moments(...)`.
+The CQMOM driver retains the normal case loaded from
+[configuration.qmom](./configuration.qmom) and replaces its initial moments
+with the complete sampled tensor using `with_initial_moments(...)`.
 
 The CQMOM workflow is:
 
@@ -66,10 +66,10 @@ advection sample evolution
 
 The configured phase-space order is (R, U).
 
-The same order is used by [configuration.qmom](./configuration.qmom), the sampled ensemble, the
-phase-space velocity callback, CQMOM moment exponents, quadrature abscissas,
-and output files. Coordinate names are example metadata; QMOMKit itself treats
-them as generic phase-space coordinates.
+The same order is used by [configuration.qmom](./configuration.qmom), the
+sampled ensemble, the phase-space velocity callback, CQMOM moment exponents,
+quadrature abscissas, and output files. Coordinate names are example metadata;
+QMOMKit itself treats them as generic phase-space coordinates.
 
 For a number density function $n(R,U)$, the raw (unnormalized) moments are
 
@@ -104,8 +104,8 @@ Carlo companion.
 
 ## Cavitation model
 
-The advection callback in [physics.cpp](./physics.cpp) advances each point in phase space
-with
+The advection callback in [physics.cpp](./physics.cpp) advances each point in
+phase space with
 
 $$
 \frac{\mathrm{d}R}{\mathrm{d}t}=U,
@@ -191,7 +191,7 @@ $$
 Both executables are initialized based on the same sample of 10000 bubbles
 through the shared sampling helper. The CQMOM executable computes empirical raw
 moments from that finite sample and builds a sampled-moment CQMOM case. The
-direct Monte Carlo executable evolves the sampled ensemble itself. 
+direct Monte Carlo executable evolves the sampled ensemble itself.
 
 ## Numerical workflow and configuration
 
@@ -213,7 +213,7 @@ The `node_counts = 2, 2` setting gives two nodes in $R$, two conditional
 nodes in $U$, and four terminal CQMOM nodes in the full default topology.
 The `conditioning_order = 0, 1` setting reconstructs $R$ first and $U$
 second. The `maximum_orders = 3, 3` setting requests sampled tensor moments
-with orders $0,\ldots,3$ in each configured phase-space dimension. 
+with orders $0,\ldots,3$ in each configured phase-space dimension.
 
 The driver time controls are compiled local constants:
 
@@ -233,11 +233,10 @@ write_quadrature = true
 interval = 0.1
 ```
 
-[configuration.qmom](./configuration.qmom) does not contain 
-an explicit `[time_integration]` section.
-The CQMOM executable loads the default phase-space evolution options and advances the
-accepted CQMOM state with `qmomkit::advance_cqmom_advection(...)`.
-During advection CQMOM phase-space
+[configuration.qmom](./configuration.qmom) does not contain an explicit
+`[time_integration]` section. The CQMOM executable loads the default
+phase-space evolution options and advances the accepted CQMOM state with
+`qmomkit::advance_cqmom_advection(...)`. During advection CQMOM phase-space
 advection, quadrature abscissas move and weights are preserved over the
 advection advancement; raw moments change because the abscissas change.
 
@@ -245,7 +244,7 @@ The direct Monte Carlo executable advances every sample with
 `qmomkit::monte_carlo::evolve_ensemble(...)` and the same cavitation velocity
 callback.
 
-## Build
+## Build and run
 
 This example is a standalone installed-package consumer. It requires both
 QMOMKit and the optional QMOMKitMonteCarlo companion package.

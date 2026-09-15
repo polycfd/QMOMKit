@@ -44,6 +44,9 @@ int main()
     const qmomkit::NodeAdvectionOptions node_advection_options = std::move(node_advection_configured).value();
     const qmomkit::OutputOptions output_options = std::move(output_configured).value();
 
+    // This example deliberately works one level below `QmomState`. Evaporation is
+    // pure node motion, so it inverts the moments once and then advances the
+    // quadrature directly, reconstructing moments from it whenever output is due.
     const qmomkit::QmomResult initial_reconstruction = qmomkit::compute_qmom(qmom_case);
     if (!initial_reconstruction.ok())
     {
@@ -66,6 +69,7 @@ int main()
         return 1;
     }
 
+    // The only physics is a shrink rate for the droplet diameter.
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_aerosol_evaporation::evaporation_velocity();
 
     std::optional<qmomkit::MomentWriter> moment_writer;
@@ -99,6 +103,9 @@ int main()
     while (time < final_time - 1.0e-12)
     {
         const double step = std::min(time_step, final_time - time);
+        // advance_nodes(...) moves the abscissas and leaves the weights untouched,
+        // which is what makes this the right operation for evaporation: droplets
+        // shrink, but none are created or destroyed.
         const qmomkit::QmomNodeAdvectionResult advection = qmomkit::advance_nodes(quadrature, time, step, velocity, node_advection_options);
         if (!advection.ok())
         {
@@ -107,6 +114,8 @@ int main()
         }
 
         quadrature = advection.quadrature;
+        // Application-side physics, not a QMOMKit step: hold shrinking droplets at
+        // a residual diameter so abscissas cannot cross zero.
         qmom_1d_aerosol_evaporation::enforce_residual_diameter(quadrature);
         if (quadrature.weights.size() != qmom_case.node_count)
         {
@@ -114,6 +123,8 @@ int main()
             return 1;
         }
 
+        // Moments are derived from the moved nodes rather than transported, so they
+        // are recomputed here rather than carried between steps.
         moments = qmomkit::reconstruct_raw_moments(quadrature, qmom_case.moments.values().size());
         if (!std::all_of(moments.begin(), moments.end(), [](const double value) { return std::isfinite(value); }))
         {

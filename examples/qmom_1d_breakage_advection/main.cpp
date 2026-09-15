@@ -18,6 +18,9 @@ int main()
     const double final_time = 1.0;
     const double time_step = 0.01;
 
+    // Three loads from one file. load_qmom(...) validates every recognised key
+    // but returns only the case, so the output and evolution settings have to be
+    // requested separately.
     auto configured = qmomkit::config::load_qmom(configuration_file);
     if (!configured)
     {
@@ -41,6 +44,9 @@ int main()
     const qmomkit::QmomCase qmom_case = std::move(configured).value();
     const qmomkit::OutputOptions output_options = std::move(output_configured).value();
     const std::vector<double> initial_moments = qmom_case.moments.values();
+    // initial_state() inverts the configured moments, so it throws when they do
+    // not admit a quadrature at the requested node count. Constructing the state
+    // inside a try block keeps that failure separate from a configuration error.
     std::optional<qmomkit::QmomState> initial_state_storage;
     try
     {
@@ -54,6 +60,9 @@ int main()
     qmomkit::QmomState state = *initial_state_storage;
     const qmomkit::QmomResult initial_quadrature = state.quadrature();
 
+    // The physics is supplied as two callbacks defined in physics.cpp: a velocity
+    // that moves the quadrature abscissas, and a source that changes the moments
+    // directly. QMOMKit composes them; it never interprets the coordinates.
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_breakage_advection::advection_velocity();
     const qmomkit::MomentSource source = qmom_1d_breakage_advection::binary_fragmentation_source();
     qmomkit::QmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
@@ -90,6 +99,9 @@ int main()
     while (time < final_time - 1.0e-12)
     {
         const double current_step = std::min(time_step, final_time - time);
+        // One complete step: advection and moment source composed by the
+        // configured splitting scheme. The returned state replaces the current
+        // one only after ok() confirms the step was accepted.
         const qmomkit::QmomPhaseSpaceEvolutionResult phase_space_evolved =
             qmomkit::advance_qmom_phase_space(state, time, current_step, velocity, source, phase_space_evolution_options);
         if (!phase_space_evolved.ok())

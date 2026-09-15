@@ -57,8 +57,8 @@ $$
 \end{aligned}
 $$
 
-with $a=5$ and $u_{\mathrm{eq}}=0$ by default. Therefore the size distribution remains
-fixed, while the velocity variance decays as:
+with $a=5$ and $u_{\mathrm{eq}}=0$ by default. Therefore the size distribution
+remains fixed, while the velocity variance decays as:
 
 $$
 \operatorname{Var}[u](t)
@@ -107,7 +107,7 @@ velocity variance and adaptive Wheeler reduces recovered branches back toward
 one node. This repeated collapse and regrowth is the active-node-count behavior
 validated by the example.
 
-## Build And Run
+## Build and run
 
 From the repository root, install QMOMKit, then configure the example as a
 standalone package consumer:
@@ -129,7 +129,7 @@ cd build
 The executable performs concise runtime consistency checks for the demonstrated
 adaptive lifecycle and exits with failure if that lifecycle is not obtained.
 
-## Output
+## Output files
 
 The executable writes the standard deterministic CQMOM files when output is
 enabled:

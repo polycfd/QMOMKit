@@ -2,8 +2,8 @@
 
 This example checks a raw moment sequence against the QMOMKit realizability
 utilities and reports the resulting status. It is a diagnostic of moment
-validity only; it does not reconstruct a quadrature or advance a phase-space evolution
-state.
+validity only; it does not reconstruct a quadrature or advance a phase-space
+evolution state.
 
 The sequence used by [main.cpp](./main.cpp) is
 $m_0=1$, $m_1=1$, $m_2=2$, and $m_3=6$. These are the raw, unnormalized

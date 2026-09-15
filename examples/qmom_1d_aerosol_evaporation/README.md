@@ -1,15 +1,16 @@
 # 1D QMOM Aerosol Evaporation
 
-This example, inspired by [Feng et al. (2023)](https://www.doi.org/10.1016/j.ijmultiphaseflow.2023.104500), 
-evolves a one-dimensional aerosol diameter distribution through
-evaporation with a fixed six-node QMOM quadrature. The phase-space coordinate
-is the particle diameter, $d$, in micrometres. 
+This example, inspired by [Feng et al.
+(2023)](https://www.doi.org/10.1016/j.ijmultiphaseflow.2023.104500), evolves a
+one-dimensional aerosol diameter distribution through evaporation with a fixed
+six-node QMOM quadrature. The phase-space coordinate is the particle diameter,
+$d$, in micrometres.
 
 ## Model
 
 The initial distribution is a three-component log-normal mixture defined in
-[configuration.qmom](./configuration.qmom). QMOMKit generates the raw moments $M_0,...,M_{11}$ from
-that analytical definition.
+[configuration.qmom](./configuration.qmom). QMOMKit generates the raw moments
+$M_0,...,M_{11}$ from that analytical definition.
 
 The evaporation law is the $d^2$-law,
 
@@ -37,9 +38,11 @@ configuration
     -> updated raw moments and output
 ```
 
-[physics.cpp](./physics.cpp) declares the callback function for the evaporation law and residual-diameter condition.
+[physics.cpp](./physics.cpp) declares the callback function for the evaporation
+law and residual-diameter condition.
 
-The advection of the quadrature nodes preserves all six weights and QMOMKit reconstructs the raw moments from the moved quadrature.
+The advection of the quadrature nodes preserves all six weights and QMOMKit
+reconstructs the raw moments from the moved quadrature.
 
 ## Build and run
 

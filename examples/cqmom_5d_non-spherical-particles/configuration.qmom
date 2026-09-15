@@ -1,18 +1,37 @@
+# Five-dimensional CQMOM case in (d, chi, u, v, w): diameter, aspect ratio
+# and the three velocity components. Three nodes per dimension give
+# 3^5 = 243 terminal nodes, so the packed velocity callback matters here.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
 [phase_space]
 names = d, chi, u, v, w
+# Quadrature nodes per coordinate. The terminal node count is their product, so
+# this is the setting that drives the cost of a step.
 node_counts = 3, 3, 3, 3, 3
+# Identity order here: the dimensions are conditioned as listed. Changing it
+# changes only the order of the conditional inversions.
 conditioning_order = 0, 1, 2, 3, 4
+# Branch node counts become ceilings rather than fixed sizes.
 adaptive_branch_counts = true
+# The aspect ratio is physically confined to [0, 1], so it is declared as a
+# bounded support: a reconstruction placing a node outside the interval is
+# rejected rather than clipped. `none` leaves a coordinate unconstrained.
+# Entries are in phase-space order, not conditioning order.
 support_lower = none, 0.0, none, none, none
 support_upper = none, 1.0, none, none, none
 
+# Reconstruction diagnostics are off by default; raise this to `basic` or
+# `detailed` when a branch failure needs explaining.
 [cqmom]
 diagnostic_level = none
 
 [time_integration]
+# Second-order splitting: half advection, full source, half advection.
 scheme = strang
 
 [time_integration.node_advection]
+# Node-trajectory integrator; the adaptive controls below apply to it.
 scheme = rk23
 
 [time_integration.node_advection.adaptive]
@@ -23,6 +42,8 @@ max_step = 1.0e-2
 min_step = 1.0e-9
 
 [initial]
+# Marginals are normalised individually, then combined and scaled once by the
+# number_density below.
 type = independent_product
 number_density = 1.0
 
@@ -32,11 +53,15 @@ mu_log = -8.9596725473
 sigma_log = 0.1529473098
 
 [initial.dimension.1]
+# Beta is supported on [0, 1], matching the declared aspect-ratio bounds.
+# alpha=6, beta=14 gives a mean aspect ratio of 0.3.
 family = beta
 alpha = 6.0
 beta = 14.0
 
 [initial.dimension.2]
+# A marginal may itself be a mixture: this makes the streamwise velocity
+# bimodal, which is what exercises the adaptive branch counts.
 type = mixture
 
 [initial.dimension.2.mixture.component.0]
@@ -61,8 +86,11 @@ family = normal
 mean = 0.0
 standard_deviation = 0.5
 
+# Output is driver-controlled: QMOMKit writes nothing unless the example wires
+# these settings into its writers.
 [output]
 directory = output
 write_moments = true
 write_quadrature = true
+# Simulated-time interval between writes, not a step count.
 interval = 0.1

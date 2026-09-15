@@ -1,10 +1,10 @@
 # Installing QMOMKit
 
 This page describes the repository-local installation workflow for QMOMKit.
-The root project builds and installs the QMOMKit CMake package. 
+The root project builds and installs the QMOMKit CMake package.
 
 Normal tests
-can be enabled in the root build so they validate the current source tree.
+can be enabled in the root build so they validate the current codebase.
 Examples, benchmarks, the installed-package consumer, and the Monte Carlo
 companion package are standalone projects that use an installed package.
 
@@ -12,9 +12,9 @@ companion package are standalone projects that use an installed package.
 
 QMOMKit has **no** mandatory third-party numerical dependency.
 QMOMKit only requires a C++17 compiler and CMake 3.16 or newer. CTest is needed
-to build and run the test suite. 
+to build and run the test suite.
 
-## Build And Install QMOMKit
+## Build and install QMOMKit
 
 From the repository root, configure, build, and install the core package:
 
@@ -33,9 +33,9 @@ install/
 └── lib/cmake/QMOMKit/
 ```
 
-The installed CMake package exports the `qmomkit::qmomkit` target. Application codes
-using QMOMKit should point `CMAKE_PREFIX_PATH` at this `install/` directory and 
-would typically use the installed package through CMake:
+The installed CMake package exports the `qmomkit::qmomkit` target. Application
+codes using QMOMKit should point `CMAKE_PREFIX_PATH` at this `install/`
+directory and would typically use the installed package through CMake:
 
 ```cmake
 find_package(QMOMKit CONFIG REQUIRED)
@@ -49,7 +49,23 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/QMOMKit/install
 cmake --build build
 ```
 
-## Build Tests
+## Build options
+
+QMOMKit defines two CMake options, both `OFF` by default:
+
+| Option | Effect |
+| --- | --- |
+| `QMOMKIT_BUILD_TESTS` | Build the unit, regression, verification, and public-header tests. |
+| `QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION` | Compile in counters that record how much numerical work a workload performs. |
+
+Performance instrumentation is a development aid rather than a runtime feature:
+with it off, the counter calls compile to no-ops and no counter storage is
+allocated, so ordinary builds carry no cost. Numerical results are identical
+either way. See
+[performance instrumentation](../developer/performance_instrumentation.md) for
+what the counters record and how to read them.
+
+## Build tests
 
 Normal unit, regression, verification, and public-header tests link the current
 build-tree QMOMKit target. Installation is not required:
@@ -63,7 +79,7 @@ ctest --test-dir build-tests --output-on-failure
 For more detailed test selection, such as running only unit or verification
 tests, see [tests/README.md](../../tests/README.md).
 
-## Build Examples
+## Build examples
 
 Examples are also standalone CMake projects. Build a standard example
 from its own directory after installing QMOMKit:
@@ -80,7 +96,7 @@ Each example has its own README with the exact executable name and any local
 configuration files it expects. Examples with a local `configuration.qmom`
 copy it into their `build/` directory during CMake configuration.
 
-## Optional QMOMKitMonteCarlo Package
+## Optional QMOMKitMonteCarlo package
 
 `QMOMKitMonteCarlo` is an optional companion package under
 `tools/monte_carlo/`. It provides finite ensemble sampling, sample-derived raw

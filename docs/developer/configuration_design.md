@@ -1,4 +1,4 @@
-# Configuration Design
+# Configuration design
 
 This page documents the current QMOMKit design for configuration handling.
 
@@ -25,7 +25,7 @@ behavior, see
 - [Public API Boundary](#public-api-boundary)
 - [Extension Principles](#extension-principles)
 
-## Configuration Philosophy
+## Configuration philosophy
 
 QMOMKit configuration is a text form of the same numerical setup that users can
 build through the C++ API. It exists so examples, verification drivers, Monte
@@ -57,7 +57,7 @@ controls, such as reconstruction thresholds and source-integration acceptance
 callbacks, remain API-only unless they acquire a documented configuration
 contract.
 
-## Configuration Architecture
+## Configuration architecture
 
 The conceptual flow is:
 
@@ -103,7 +103,7 @@ extension code. Successful public configuration calls return populated public
 objects through `value()`, while failed calls return a formatted diagnostic
 string through `error()` and no value.
 
-## QMOM And CQMOM Mapping
+## QMOM and CQMOM mapping
 
 Configuration maps user-facing setup concepts to the same public object types
 that direct C++ callers use.
@@ -249,7 +249,7 @@ The optional `[cqmom] diagnostic_level = detailed|basic|none` setting maps to
 the CQMOM diagnostic policy stored in the loaded case. If omitted,
 configuration preserves the public default `CqmomDiagnosticLevel::none`.
 
-### Immutable Explicit-Moment Replacement
+### Immutable explicit-moment replacement
 
 `config::with_initial_moments(const CqmomCase&, RawMomentTensor)` is the normal
 programmatic boundary for replacing the explicit initial tensor of an existing
@@ -265,7 +265,7 @@ programmatic and parsed explicit tensors share the same lifecycle: structural
 errors are configuration failures, while non-realizability is reported by
 `compute_cqmom(...)` or by `CqmomCase::initial_state()`.
 
-## Distribution Initialization Design
+## Distribution initialization design
 
 Configuration can reference analytical distributions as a compact way to define
 initial moments. Distribution specifications are not runtime probability
@@ -316,7 +316,7 @@ Generated moments follow the conventions in
 density, moments are not normalized away, and multidimensional tensor entries
 follow phase-space dimension order.
 
-## Phase-Space Evolution and Policy Configuration
+## Phase-space evolution and policy configuration
 
 Configuration may include optional runtime settings that are useful to drivers:
 
@@ -393,7 +393,7 @@ Output configuration maps to `OutputOptions`. Numerical algorithms do not write
 files because output settings are present. Drivers choose whether and how to
 connect those options to output helpers.
 
-## Validation And Error Handling
+## Validation and error handling
 
 Configuration APIs return:
 
@@ -433,7 +433,7 @@ syntactically and structurally valid while the configured moment sequence is
 not accepted by QMOM or CQMOM reconstruction under the selected options.
 Callers must check both configuration results and algorithm results.
 
-## Public API Boundary
+## Public API boundary
 
 The public user-facing configuration API lives in:
 
@@ -478,7 +478,7 @@ Implementation details include:
 These details support the public API but are not extension points for projects
 that use QMOMKit.
 
-## Extension Principles
+## Extension principles
 
 Configuration changes should preserve the existing separation between syntax
 and runtime behavior.

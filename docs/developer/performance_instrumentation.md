@@ -1,4 +1,4 @@
-# Performance Instrumentation
+# Performance instrumentation
 
 ## Contents
 

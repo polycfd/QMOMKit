@@ -22,7 +22,7 @@ intended. The reasoning behind that position is recorded in
 - [Registered Root CTest Inventory](#registered-root-ctest-inventory)
 - [Test-suite Maintenance](#test-suite-maintenance)
 
-## Debug Build Requirement
+## Debug build requirement
 
 The unit tests use C/C++ `assert()`. `assert()` is disabled when `NDEBUG` is
 defined, and normal Release builds define `NDEBUG`; therefore a Release CTest
@@ -48,7 +48,7 @@ ctest --test-dir build -R '^unit_wheeler_nonfinite_moment_reports_invalid_input$
 Keep the existing assertion-based unit tests intact. Do not use a Release CTest
 result as evidence that the functional unit suite passed.
 
-## Test-suite Organization
+## Test-suite organization
 
 QMOMKit is a numerical C++ library, so correctness requires more than
 exercising code paths. A passing test should usually demonstrate a mathematical
@@ -92,7 +92,7 @@ When adding a new test, choose the directory by purpose:
    analytical, manufactured, convergence, or otherwise independent reference,
    use `tests/verification/`.
 
-### Test Project Structure
+### Test project structure
 
 The primary test project lives under:
 
@@ -105,7 +105,7 @@ unit, component regression, verification, and public-header tests link the
 current build-tree `qmomkit` target and compile against the current source-tree
 public headers. Installation is not required for the normal correctness suite.
 
-### Running Tests
+### Running tests
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
@@ -113,7 +113,7 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-### CTest Naming and Current Count
+### CTest naming and current count
 
 CTest names identify the tested contract. Several executables accept a local
 selector so independently meaningful groups can be registered separately. The
@@ -154,9 +154,9 @@ That directory is a minimal external CMake project. It validates installed
 package discovery, exported target linkage, and installed public-header usage
 without repository source include paths or `add_subdirectory`.
 
-## Test Categories
+## Test categories
 
-### Unit Tests
+### Unit tests
 
 Unit tests verify isolated functions, classes, data structures, options, and
 local API contracts. They should be focused, fast, deterministic, and specific
@@ -178,7 +178,7 @@ structures, realizability checks and policies, configuration mapping,
 distribution helpers, output helpers, node advection, moment-source evolution,
 raw-moment reconstruction, and phase-space evolution components.
 
-### Component Regression Tests
+### Component regression tests
 
 Component regression tests protect important implementation behavior that is
 larger than an isolated unit contract but narrower than mathematical
@@ -204,7 +204,7 @@ batch/scalar parity, round trips, captured fixtures, and comparisons between
 related production paths remain valuable consistency/regression evidence, but
 must not be presented as independent algorithm verification.
 
-### Verification Tests
+### Verification tests
 
 Verification tests provide mathematical evidence that the numerical algorithms
 behave as intended. They compare against analytical solutions, manufactured
@@ -231,7 +231,7 @@ order, conditioning order does not redefine phase-space order, and quadrature
 weights are not normalized unless the case explicitly defines unit total number
 density.
 
-### Public-Header Tests
+### Public-header tests
 
 Public-header tests are compile-time interface checks. Each translation unit in
 `tests/public_headers/` includes one current public header from
@@ -246,7 +246,7 @@ When a public header is added, renamed, or given new direct dependencies, the
 public-header coverage should be updated so downstream include behavior remains
 visible.
 
-### Package Consumer Tests
+### Package consumer tests
 
 Package consumer tests validate the installed-package experience rather than
 the in-tree build. The consumer project should behave like an external
@@ -267,7 +267,7 @@ CMake target behavior, not correctness or regression behavior inside the normal
 This category is most important when package exports, installation rules,
 public headers, or CMake package metadata change.
 
-## Numerical Validation Principles
+## Numerical validation principles
 
 Analytical solutions are preferred when the exact answer is known in closed
 form. They are useful for Wheeler inversion, low-dimensional CQMOM cases,
@@ -303,7 +303,7 @@ Realizability tests should cover accepted, boundary, rejected, invalid-input,
 and numerically indeterminate cases. They should also verify that policies
 reject candidate moment states without implying automatic correction.
 
-## Adding New Tests
+## Adding new tests
 
 When adding functionality, add tests at the level where the new behavior is
 owned.
@@ -333,7 +333,7 @@ Prefer deterministic tests. Stochastic or Monte Carlo workflows are valuable
 for independent validation, but normal correctness tests should not depend on
 random sampling noise unless the uncertainty model is explicit and controlled.
 
-## Relationship With Benchmarks
+## Relationship with benchmarks
 
 Tests establish correctness. Benchmarks measure performance.
 
@@ -345,7 +345,7 @@ verification tests.
 Benchmark structure and interpretation belong in
 [benchmarks.md](benchmarks.md).
 
-## Registered Root CTest Inventory
+## Registered root CTest inventory
 
 The root inventory contains 862 CTest registrations: 861 logical runtime tests
 across the three runtime tiers (663 unit, 31 component-regression, and 167
@@ -369,14 +369,14 @@ ctest --test-dir build -N -L public_headers
 ctest --test-dir build --show-only=json-v1
 ```
 
-### External Installed-Package Consumer Check
+### External installed-package consumer check
 
 `tests/package_consumer/` is outside the root CTest count. After installing
 QMOMKit, configure and build it as an external project to verify
 `find_package(QMOMKit CONFIG REQUIRED)`, `qmomkit::qmomkit`, and installed
 headers without repository include paths.
 
-## Test-suite Maintenance
+## Test-suite maintenance
 
 When adding, removing, renaming, or splitting a root CTest registration, update
 this inventory in the same change and give every entry a distinct contract and

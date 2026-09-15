@@ -23,7 +23,7 @@ Wheeler inversion used at each recursive branch, see
 - [API Boundary](#api-boundary)
 - [Validation Expectations](#validation-expectations)
 
-## Role Of Recursive CQMOM
+## Role of recursive CQMOM
 
 QMOM [[McGraw, 1997](https://www.doi.org/10.1080/02786829708965471)] reconstructs a one-dimensional quadrature rule from a one-dimensional raw
 moment sequence. CQMOM [[Yuan & Fox, 2011](https://www.doi.org/10.1016/j.jcp.2011.07.020)] extends this idea to multidimensional raw moment
@@ -47,7 +47,7 @@ The public API for CQMOM is:
 compute_cqmom(...)
 ```
 
-## Conditional Moment Representation
+## Conditional moment representation
 
 CQMOM separates two orderings:
 
@@ -93,7 +93,7 @@ the weighted Vandermonde convention for global raw moment tensors. Recursive
 CQMOM uses the same mathematical solve on branch-local moment slices while
 walking the full conditioning tree.
 
-## Root Moment Storage
+## Root moment storage
 
 QMOMKit's scalable CQMOM representation is the required moment set: the minimal
 set of raw moments required by the configured hierarchy and conditioning order.
@@ -105,7 +105,7 @@ indices. Representation choices are hidden by default. Callers that need direct
 control can opt into an explicit dense representation workflow or an explicit
 lean representation workflow.
 
-### Explicit Dense Representation Workflow
+### Explicit dense representation workflow
 
 The public dense CQMOM case accepts:
 
@@ -131,7 +131,7 @@ delegates using the lean CQMOM moment representation. This keeps dense tensor
 control at the API boundary while avoiding dense tensor lookup as the recursive
 working representation.
 
-### Explicit Lean Representation Workflow
+### Explicit lean representation workflow
 
 The lean root representation is described by:
 
@@ -181,7 +181,7 @@ representation. The lean public path stores indexed moments for the duration of
 reconstruction, then delegates through this same view-based recursive
 algorithm.
 
-## Validated And Reused Setup Paths
+## Validated and reused setup paths
 
 The CQMOM implementation of QMOMKit has two validation boundaries.
 
@@ -231,7 +231,7 @@ diagnostics use the same recursive algorithm as the explicit and adaptive
 paths. Reconstruction borrows the prepared graph for the duration of the call;
 it does not copy branch-layout ownership per reconstruction or per branch.
 
-## Recursive Construction
+## Recursive construction
 
 The recursive construction starts from a root CQMOM moment view whose indices
 are still phase-space-order raw moment indices. Internally, the root moment
@@ -281,7 +281,7 @@ child_accumulated_weight =
 The root accumulated weight is `1`. At a terminal branch, the accumulated
 weight is the global multidimensional quadrature weight.
 
-## Vandermonde Solver
+## Vandermonde solver
 
 Conditional moment reconstruction requires solving weighted Vandermonde
 systems. At each non-terminal recursive branch, Wheeler provides parent
@@ -353,7 +353,7 @@ residual rejection. Solver thresholds and performance measurements belong in
 [linear_algebra.md](linear_algebra.md), source comments, and benchmark
 documentation according to their level of detail.
 
-## Terminal Quadrature Representation
+## Terminal quadrature representation
 
 QMOMKit terminal quadrature data is exposed through `CqmomQuadrature`.
 Coordinates are always stored by phase-space dimension:
@@ -410,7 +410,7 @@ node multi-indices. For adaptive ragged output, paths are exposed so callers
 and diagnostics can identify the conditioning branch that produced each
 terminal node.
 
-## Adaptive Recursive CQMOM
+## Adaptive recursive CQMOM
 
 Adaptive recursive CQMOM separates standalone QMOM controls from CQMOM branch
 controls:
@@ -449,7 +449,7 @@ relations, near-boundary moment sequences, and high-dimensional cases where
 some branches are effectively lower order than the configured maximum
 hierarchy.
 
-### Borderline Conditioning Example
+### Borderline conditioning example
 
 The
 [`cqmom_2d_borderline_conditioning`](../../examples/cqmom_2d_borderline_conditioning/README.md)
@@ -482,7 +482,7 @@ requested and active node counts, solver details, residuals, and condition
 estimates. For the related linear-algebra workflow and limitations, see related
 [internal linear algebra](linear_algebra.md#borderline-conditioning-example).
 
-## Numerical Assumptions And Failure Handling
+## Numerical assumptions and failure handling
 
 The CQMOM implementation of QMOMKit assumes:
 
@@ -537,7 +537,7 @@ Callers must check `CqmomResult::ok()` or `status` before using quadrature
 data. A failed result can contain partially assembled diagnostic data, but
 that data is not a valid reconstructed multidimensional quadrature.
 
-### Bounded Coordinate Support
+### Bounded coordinate support
 
 Recursive CQMOM accepts optional `AbscissaBounds` in phase-space dimension
 order. These bounds apply only to reconstructed CQMOM quadrature abscissas. An
@@ -612,7 +612,7 @@ Configuration files control the same request field with:
 diagnostic_level = detailed|basic|none
 ```
 
-## API Boundary
+## API boundary
 
 The public CQMOM API is declared in `<qmomkit/cqmom.hpp>`:
 
@@ -686,7 +686,7 @@ Implementation details include:
 - recursive tree nodes;
 - branch-state traversal;
 
-## Validation Expectations
+## Validation expectations
 
 Successful CQMOM reconstruction is validated primarily by reconstructing raw
 moments from the recovered terminal quadrature:

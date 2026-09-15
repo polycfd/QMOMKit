@@ -1,4 +1,4 @@
-# Configuring QMOMKit Workflows
+# Configuring QMOMKit workflows
 
 A `.qmom` file describes the repeatable numerical part of a case: the phase
 space, the initial condition, and the numerical settings. Keeping that in a text
@@ -9,7 +9,7 @@ Configuration files are optional. Everything they express can also be built
 directly in C++, which is the better choice when the surrounding application
 already owns the setup data — see [Configuring without a file](#configuring-without-a-file).
 
-## Your First Configuration File
+## Your first configuration file
 
 The smallest useful file declares a phase space and an initial condition. Save
 this as `configuration.qmom`:
@@ -64,7 +64,7 @@ The rest of this guide builds outward from that file: a larger phase space, an
 initial condition described analytically rather than by moments, and the
 settings that control reconstruction, time evolution, and output.
 
-## How A Configuration File Is Organised
+## How a configuration file is organised
 
 A `.qmom` file is a sequence of named sections. Only `[phase_space]` and an
 initial condition are required; everything else has a default.
@@ -92,7 +92,7 @@ A configuration file stops at the numerical setup. Physics callbacks, model
 coefficients, meshes, boundary conditions, units, and the timestep loop are
 application code — see [Callbacks](callbacks.md).
 
-## Describing The Phase Space
+## Describing the phase space
 
 The `[phase_space]` section is the backbone of a case. Its dimension count
 decides the method: one coordinate uses QMOM, several use CQMOM. Coordinate
@@ -122,7 +122,7 @@ This section is what ties the file to your model: every callback coordinate
 vector, output column, and moment multi-index follows the phase-space dimension
 order declared here.
 
-### Coordinate Supports
+### Coordinate supports
 
 Coordinates are unconstrained by default, so abscissas may be placed anywhere on
 the real line. When a coordinate has a known closed bounded support, declare it
@@ -175,7 +175,7 @@ mode it fails with diagnostics. These bounds constrain quadrature abscissas
 only — they are not moment realizability settings, which are covered under
 [runtime realizability](#runtime-realizability-settings).
 
-### Automatic Reconstruction Scaling
+### Automatic reconstruction scaling
 
 Set `automatic_scaling = true` in `[phase_space]` to normalize coordinates
 locally for a QMOM or CQMOM reconstruction:
@@ -198,19 +198,35 @@ Configured bounds are mapped to the normalized reconstruction only internally.
 The bounded-reconstruction tolerance therefore applies in normalized
 coordinates. If a safe transformation cannot be formed, QMOMKit follows the
 ordinary unscaled reconstruction path.
-## Setting The Initial Condition
+## Setting the initial condition
 
-A case needs initial raw moments. There are two ways to supply them, and the
+A case needs initial raw moments. There are three ways to obtain them, and the
 choice is usually made for you by where the data comes from:
 
 - **`[moments]`** when another code, a measurement pipeline, or a data file
   already gives you raw moments;
 - **`[initial]`** when the starting population is easier to describe as an
-  analytical distribution and you want QMOMKit to generate the moments.
+  analytical distribution and you want QMOMKit to generate the moments;
+- **sampled moments** when you want the initial moments to come from a finite
+  sampled population rather than from the analytical distribution itself.
 
-If both are present, the explicit `[moments]` values win.
+If both `[moments]` and `[initial]` are present, the explicit `[moments]` values
+win.
 
-### Explicit Moments
+Sampling is the one option that is not a configuration-file setting. The
+optional [Monte Carlo companion](monte_carlo.md) draws an ensemble from a
+distribution and estimates its raw moments, which you then hand to QMOMKit from
+C++ the same way you would any other explicit moments. Reach for it when a
+deterministic run and a stochastic reference run should start from exactly the
+same realization, so that any later difference between them comes from the
+evolution rather than from a different starting population.
+
+See [Sample and initialize from one realization](monte_carlo.md#sample-and-initialize-from-one-realization)
+in the Monte Carlo guide for the API, and the `sampling.cpp` file in examples
+such as [`cqmom_5d_particles_breakage_heat-transfer`](../../examples/cqmom_5d_particles_breakage_heat-transfer/README.md)
+for a complete case built this way.
+
+### Explicit moments
 
 Use explicit moments when another code, measurement pipeline, or data file
 already provides raw moments:
@@ -233,7 +249,7 @@ m0, m1, m2, ...
 For `N` QMOM nodes, provide at least `2 * N` moments. `m0` is the total number
 density; QMOMKit does not normalize it away.
 
-### A Single Distribution
+### A single distribution
 
 Use `[initial] type = distribution` when the initial condition is easier to
 describe as an analytical one-dimensional distribution than as a table of raw
@@ -292,7 +308,7 @@ constraints are:
 
 `number_density` for a single distribution must be finite and non-negative.
 
-### A Mixture Of Distributions
+### A mixture of distributions
 
 Use `[initial] type = mixture` when one analytical distribution is not enough
 to describe the initial population, such as a population with multiple modes
@@ -331,7 +347,7 @@ Component sections must be contiguous starting at
 `[initial.mixture.component.0]`. Each component `number_density` must be
 finite and non-negative, and at least one component must have positive density.
 
-### Independent Marginals For CQMOM
+### Independent marginals for CQMOM
 
 Use `[initial] type = independent_product` when a multidimensional initial
 condition can be described as independent one-dimensional marginals multiplied
@@ -393,7 +409,7 @@ independent-product initialization generates only those required moments.
 To retain more initial moments than the reconstruction needs, see
 [retaining extra moments](#retaining-extra-moments).
 
-## Reconstruction Settings
+## Reconstruction settings
 
 The default setup is fixed: every branch uses exactly the requested node counts
 and the quadrature layout is rectangular. That is usually the clearest starting
@@ -437,7 +453,7 @@ adaptive = true
 For ordinary fixed-node QMOM, omit the section or set `adaptive = false`.
 Diagnostic level and solver policy are covered under
 [advanced settings](#advanced-settings).
-## Time-Evolution Settings
+## Time-evolution settings
 
 A `.qmom` file may contain both case settings and phase-space evolution settings.
 `load_qmom(...)` and `load_cqmom(...)` return only the case configuration, but
@@ -603,7 +619,7 @@ physical coordinate order, and do not change moment storage, reconstruction, or
 evolution. An integer-valued generalized request remains an explicit appended
 column even when the corresponding ordinary moment is already written.
 
-## Runtime Realizability Settings
+## Runtime realizability settings
 
 For QMOM, the realizability settings in
 `[time_integration.realizability]` enable checks during moment-source SSP-RK3
@@ -671,7 +687,7 @@ not check mixed moments or conditional moments, and they do not validate
 quadrature reconstruction, adaptive topology, or branch counts. These are
 intentionally separate from the coordinate-marginal realizability checks.
 
-## Loading A Configuration From C++
+## Loading a configuration from C++
 
 Use `load_qmom(...)` for a one-dimensional configuration and `load_cqmom(...)`
 for a multidimensional one:
@@ -725,7 +741,7 @@ can build a replacement case with
 loaded hierarchy, supports, storage choice, and reconstruction settings, and
 validates the tensor's structure — equivalent to having written those moments
 into the file, without serialising and reparsing it.
-## Configuring Without A File
+## Configuring without a file
 
 Applications that already own their setup data can skip the file entirely and
 construct cases directly. Both routes describe the same thing and produce case
@@ -835,11 +851,11 @@ int main()
 }
 ```
 
-## Advanced Settings
+## Advanced settings
 
 Most cases need none of the following.
 
-### Retaining Extra Moments
+### Retaining extra moments
 
 `initial.maximum_orders` is an optional advanced setting for dense CQMOM
 initialization; it is not needed to specify the normal CQMOM moment set. With
@@ -863,7 +879,7 @@ CQMOM layout, or the moments independently evolved by source callbacks.
 During dense phase-space evolution, those additional entries are regenerated
 from the reconstructed quadrature rather than transported independently.
 
-### Dense Tensor Moments
+### Dense tensor moments
 
 Use explicit tensor moments when your application already has a full raw
 moment tensor from external data, validation, debugging, or interoperability:
@@ -895,7 +911,7 @@ evaluating raw moments from its sample population. Dense remains a first-class
 supported expert workflow for callers that intentionally manage full tensor
 moment storage.
 
-### CQMOM Diagnostics And Solver Options
+### CQMOM diagnostics and solver options
 
 Most applications can omit the `[cqmom]` and `[vandermonde]` sections. Add
 them when you need more or less reconstruction diagnostics, or when a
@@ -964,7 +980,7 @@ the finite truncated minimum-norm solution. SVD rank and Jacobi tolerances are
 internal defaults. Loaded CQMOM cases and states expose the configured policy
 through `vandermonde_solver()` and `rcond` through `conditional_options()`.
 
-## Practical Guidance
+## Practical guidance
 
 Keep units consistent. Distribution parameters, moment values, and phase-space
 coordinate names should refer to the same coordinate convention.
@@ -997,7 +1013,7 @@ Remember precedence rules. Explicit `[moments]` values are the source of truth
 when present. If explicit moments and `[initial]` are both present, the
 explicit moments are used.
 
-## Example Files
+## Example files
 
 The inline examples in this guide cover explicit moments, mixture
 initialization, and runtime realizability settings. Executable examples keep

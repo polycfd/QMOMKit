@@ -12,7 +12,7 @@ This page describes the current QMOMKit software architecture.
 - [Build Philosophy](#build-philosophy)
 - [Design Principles](#design-principles)
 
-## Project Overview
+## Project overview
 
 QMOMKit is a C++ library for quadrature-based moment methods.
 It turns raw moments of a number density function into quadrature
@@ -100,7 +100,7 @@ storage and may select dense storage explicitly with `cqmom.moment_storage`.
 representations for static inversion, specialized initialization, validation,
 and expert workflows.
 
-### QMOM and CQMOM Terminology
+### QMOM and CQMOM terminology
 
 Use these QMOM and CQMOM terms consistently in developer documentation and
 implementation comments:
@@ -131,9 +131,9 @@ and `QmomOptions` inside `QmomCase`.
 For mathematical storage and ordering rules, see
 `numerical_conventions.md`.
 
-## Package Architecture
+## Package architecture
 
-### QMOMKit Core Package
+### QMOMKit core package
 
 The repository root CMake project builds the core library target:
 
@@ -167,7 +167,7 @@ source-tree tests are added only when `QMOMKIT_BUILD_TESTS=ON`. Benchmarks,
 examples, installed-package consumers, and Monte Carlo tooling remain separate
 projects.
 
-### QMOMKitMonteCarlo Companion Package
+### QMOMKitMonteCarlo companion package
 
 `tools/monte_carlo/` contains the optional QMOMKitMonteCarlo companion package.
 It provides Monte Carlo sampling, ensemble moment extraction, evolution,
@@ -199,7 +199,7 @@ QMOMKitMonteCarlo is not part of the core library. Its headers live
 under `tools/monte_carlo/include/monte_carlo/`, not under
 `include/qmomkit/`.
 
-## Repository Structure
+## Repository structure
 
 The repository is organized around a small core package and standalone
 consumers:
@@ -230,7 +230,7 @@ docs/
 Generated build and install directories may exist inside these trees during
 local development. They are not architectural components.
 
-## Public And Internal Boundaries
+## Public and internal boundaries
 
 ### Public API
 
@@ -261,7 +261,7 @@ Public headers should expose stable types, requests, results, options, and
 functions. They should not expose implementation-only utilities or private
 algorithm plumbing.
 
-### Internal Implementation
+### Internal implementation
 
 Core implementation files live in:
 
@@ -286,7 +286,7 @@ algorithm code.
 Some repository tests include internal headers to validate lower-level
 behavior. That does not make those headers public API.
 
-## Consumer Model
+## Consumer model
 
 The root package is consumed through its installed CMake package:
 
@@ -321,7 +321,7 @@ correctness tests exercise the current source-tree implementation. Repository
 tests may add `src/` to their include path for focused internal validation, but
 downstream consumers should rely on installed headers and exported targets.
 
-## Build Philosophy
+## Build philosophy
 
 The root CMake project is the core-library/package build. It compiles the
 QMOMKit library and installs the exported CMake package.
@@ -338,7 +338,7 @@ Tests, benchmarks, tools, and examples are built according to their purpose:
 The core build has no mandatory third-party numerical dependency. Benchmark
 support may use Google Benchmark in the standalone benchmark project only.
 
-### Canonical Build Modes
+### Canonical build modes
 
 Use an explicit build type for reproducible development with
 single-configuration generators such as Unix Makefiles or Ninja. When the root
@@ -379,7 +379,7 @@ package. Configure those standalone consumer builds with an explicit build type
 too, and use an installed QMOMKit library built with the configuration intended
 for the task.
 
-## Design Principles
+## Design principles
 
 QMOMKit architecture follows these stable principles:
 

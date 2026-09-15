@@ -1,8 +1,8 @@
-# QMOMKit Glossary
+# QMOMKit glossary
 
 This glossary explains common scientific terms used in the QMOMKit user guide.
 
-## Mathematical Concepts
+## Mathematical concepts
 
 | Term | Explanation | More information |
 |---|---|---|
@@ -14,7 +14,7 @@ This glossary explains common scientific terms used in the QMOMKit user guide.
 | realizability | The question of whether a supplied moment sequence can come from a nonnegative distribution on a chosen support. It matters because impossible moments may fail quadrature reconstruction or need to be rejected during evolution. | [Realizability](realizability.md) |
 | zeroth moment | The moment with all orders equal to zero, representing total number density or total quadrature weight. In one dimension this is $m_0$; in multiple dimensions it is $M_{[0,...,0]}$. | [Configuration](configuration.md) |
 
-## Quadrature Concepts
+## Quadrature concepts
 
 | Term | Explanation | More information |
 |---|---|---|
@@ -26,7 +26,7 @@ This glossary explains common scientific terms used in the QMOMKit user guide.
 | terminal node | In CQMOM, a quadrature node carrying one coordinate in every phase-space dimension, reached by conditioning through each dimension in turn. The terminal node count is the product of the per-dimension node counts, so it grows quickly with phase-space dimension. | [Multidimensional CQMOM](cqmom.md) |
 | moment reconstruction | The post-reconstruction step that evaluates native integer-order raw moments from an accepted quadrature, for output, validation, or handoff to another workflow. | [One-Dimensional QMOM](qmom.md) |
 
-## QMOM Concepts
+## QMOM concepts
 
 | Term | Explanation | More information |
 |---|---|---|
@@ -36,7 +36,7 @@ This glossary explains common scientific terms used in the QMOMKit user guide.
 | CQMOM | The Conditional Quadrature Method of Moments for multidimensional phase spaces. Use it when the represented population depends on several ordered coordinates. | [Multidimensional CQMOM](cqmom.md) |
 | QMOM | The Quadrature Method of Moments for one-dimensional moment sequences. Use it when a population is represented by one phase-space coordinate. | [One-Dimensional QMOM](qmom.md) |
 
-## Simulation Concepts
+## Simulation concepts
 
 | Term | Explanation | More information |
 |---|---|---|

@@ -1,4 +1,4 @@
-# Output Design
+# Output design
 
 This page documents the current QMOMKit design for output handling.
 
@@ -11,7 +11,7 @@ This page documents the current QMOMKit design for output handling.
 - [Configuration Interaction](#configuration-interaction)
 - [Extension Principles](#extension-principles)
 
-## Role Of Output
+## Role of output
 
 QMOMKit output converts numerical state into reproducible external
 representations. The output layer records moment and quadrature histories in a
@@ -30,7 +30,7 @@ Applications and drivers decide when to construct writers and when to call
 `write(...)`. This keeps the core numerical algorithms reusable in contexts
 that do not use filesystem output.
 
-## Output Architecture
+## Output architecture
 
 The public output API lives in:
 
@@ -83,7 +83,7 @@ CQMOM dimension counts, and aligned CQMOM terminal weights, paths, and
 abscissas. Invalid rows are reported through exceptions rather than silently
 truncated or reshaped.
 
-## Moment History Output
+## Moment history output
 
 Moment history output records native integer-order raw moments of the number
 density function at explicit times supplied by the caller. A state-based writer
@@ -156,7 +156,7 @@ $$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
 Requested output preserves request order and duplicate requested indices. It
 does not create a dense `RawMomentTensor`.
 
-## Quadrature History Output
+## Quadrature history output
 
 Quadrature history output records quadrature weights and abscissas at explicit
 times supplied by the caller.
@@ -207,7 +207,7 @@ weight, and phase-space coordinates.
 filtering, restart files, visualization formats, checkpoints, parallel I/O, and
 logging are outside the current output API.
 
-## Configuration Interaction
+## Configuration interaction
 
 Configuration can describe optional output settings:
 
@@ -244,7 +244,7 @@ the responsibility of the writer contracts and the numerical conventions.
 Likewise, configuration may provide an output directory, but it does not choose
 the filenames passed to `MomentWriter` or `QuadratureWriter`.
 
-## Extension Principles
+## Extension principles
 
 Output extensions should preserve reproducibility and keep file I/O separate
 from numerical algorithms.

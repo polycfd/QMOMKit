@@ -1,4 +1,4 @@
-# Coding Guidelines
+# Coding guidelines
 
 This page documents QMOMKit-specific development principles. It complements the
 public API boundaries in [architecture.md](architecture.md), the mathematical
@@ -10,7 +10,7 @@ These guidelines describe stable engineering expectations for QMOMKit. They are
 not a generic C++ style guide, a contribution workflow, or an instruction file
 for automated development tools.
 
-## Project Philosophy
+## Project philosophy
 
 QMOMKit is a reusable C++ library for QMOM, CQMOM, and
 phase-space evolution algorithms. The core package remains independent of CFD
@@ -33,7 +33,7 @@ Development should preserve these priorities:
 Clear, conservative designs are preferred over broad abstractions that obscure
 the mathematical contract.
 
-## Public API Discipline
+## Public API discipline
 
 Public QMOMKit API lives under `include/qmomkit/`. Installed headers represent
 supported functionality and should expose stable concepts such as requests,
@@ -62,7 +62,7 @@ The QMOMKitMonteCarlo companion package is a separate consumer-oriented
 package. It may depend on `qmomkit::qmomkit`, but the core package should not
 depend on Monte Carlo headers or implementation details.
 
-## Numerical Code Principles
+## Numerical code principles
 
 Numerical code must preserve the conventions documented in
 [numerical_conventions.md](numerical_conventions.md). In particular, QMOMKit
@@ -90,7 +90,7 @@ alters moment interpretation, quadrature representation, conditioning order, or
 realizability behavior should be reflected in developer documentation and
 covered by focused verification.
 
-## Assertions and Runtime Checks
+## Assertions and runtime checks
 
 QMOMKit distinguishes between runtime validation and assertions. Runtime checks
 protect public interfaces, caller-provided data, and numerical correctness.
@@ -135,7 +135,7 @@ improvements such as moving validation to an appropriate boundary, avoiding
 repeated validation of unchanged data, or making expensive diagnostics optional
 where the public contract allows it.
 
-## Testing and Validation Expectations
+## Testing and validation expectations
 
 Testing, validation, and benchmarking serve different purposes:
 
@@ -160,7 +160,7 @@ Benchmarks should remain separate from correctness tests. They are useful for
 tracking representative performance, but they do not establish mathematical
 correctness.
 
-## Documentation Expectations
+## Documentation expectations
 
 Documentation should describe the current design. Avoid stage labels, migration
 notes, optimization history, temporary limitations, and roadmap language in
@@ -187,7 +187,7 @@ semantics, examples, or public behavior change. Developer documentation should
 be updated when architecture, numerical conventions, algorithms, testing,
 validation, benchmark methodology, or coding principles change.
 
-## Dependency and Build Philosophy
+## Dependency and build philosophy
 
 The core library keeps runtime dependencies minimal. The root package builds
 and installs the core `qmomkit::qmomkit` target and its public headers. Tests,
@@ -208,7 +208,7 @@ QMOMKit currently uses C++17 for the public target. Build-related changes
 should preserve the installed-package workflow and exported CMake target
 behavior.
 
-## Code Quality Expectations
+## Code quality expectations
 
 QMOMKit code should favor readability, simplicity, explicit behavior, and
 conservative modern C++. The repository formatting and static-analysis settings

@@ -12,7 +12,7 @@ Examples that write moments or quadrature use whitespace-delimited QMOMKit
 `.txt` files with commented headers. Individual READMEs describe their specific
 build commands, configuration, output, and expected behavior.
 
-## How To Use This Guide
+## How to use this guide
 
 The progression below starts with 1D QMOM reconstruction, then introduces
 phase-space evolution, CQMOM, numerical controls, and specialist workflows.
@@ -22,7 +22,7 @@ branches.
 For a concise repository-level map and generic build pattern, see
 [`examples/README.md`](../../examples/README.md).
 
-## Stage 1: Raw Moments And Initialization
+## Stage 1: raw moments and initialization
 
 Start here before evolving a QMOM or CQMOM state. These examples establish that
 QMOMKit consumes raw, unnormalized number-density moments: the zeroth moment is
@@ -68,7 +68,7 @@ For configuration syntax, including explicit moments, distributions, mixtures,
 and realizability policy, see [configuration.md](configuration.md). Complete
 `.qmom` examples live beside the executable workflows that use them.
 
-## Stage 2: Basic QMOM Evolution
+## Stage 2: basic QMOM evolution
 
 Prerequisite: understand the Stage 1 raw-moment and quadrature concepts. These
 examples separate the main 1D evolution mechanisms before combining them.
@@ -100,7 +100,7 @@ splitting: advection acts on nodes and binary fragmentation acts on moments.
 Example README:
 [`examples/qmom_1d_breakage_advection/README.md`](../../examples/qmom_1d_breakage_advection/README.md)
 
-## Stage 3: Application-Owned QMOM Workflows
+## Stage 3: application-owned QMOM workflows
 
 Prerequisite: complete a normal library-managed QMOM evolution workflow first.
 These are advanced integration patterns for applications that own more of the
@@ -116,7 +116,7 @@ reconstruction; the application decides how to compose successful stages.
 Example README:
 [`examples/qmom_1d_explicit_strang_splitting/README.md`](../../examples/qmom_1d_explicit_strang_splitting/README.md)
 
-## Stage 4: QMOM Monte Carlo Companion/Reference Workflow
+## Stage 4: QMOM Monte Carlo companion/reference workflow
 
 Prerequisite: understand the normal 1D breakage/advection workflow. MC examples
 draw a finite sampled population and evolve particles directly under the same
@@ -135,7 +135,7 @@ direct particle companion. It is the natural MC branch from
 Example README:
 [`examples/qmom_1d_breakage_advection_with-mc/README.md`](../../examples/qmom_1d_breakage_advection_with-mc/README.md)
 
-## Stage 5: CQMOM Fundamentals
+## Stage 5: CQMOM fundamentals
 
 Prerequisite: understand Stage 1 and the distinction between raw moments and a
 quadrature. These are the primary CQMOM starting points.
@@ -160,7 +160,7 @@ adaptive or physics-specialist CQMOM examples.
 Example README:
 [`examples/cqmom_2d_minimal/README.md`](../../examples/cqmom_2d_minimal/README.md)
 
-## Stage 6: CQMOM Numerical Controls
+## Stage 6: CQMOM numerical controls
 
 Prerequisite: understand the hierarchy and evolution workflow in Stage 5. These
 examples demonstrate different numerical capabilities and are not
@@ -186,7 +186,7 @@ It is not a phase-space physical application.
 Example README:
 [`examples/cqmom_2d_borderline_conditioning/README.md`](../../examples/cqmom_2d_borderline_conditioning/README.md)
 
-## Stage 7: CQMOM Sampled Physical Workflows
+## Stage 7: CQMOM sampled physical workflows
 
 Prerequisite: Stage 5; Stage 6 is useful when interpreting reconstruction
 topology. These are application-motivated CQMOM workflows, each with a distinct
@@ -220,7 +220,7 @@ the same sampled population.
 Example README:
 [`examples/cqmom_3d_droplets_condensation-nucleation/README.md`](../../examples/cqmom_3d_droplets_condensation-nucleation/README.md)
 
-## Stage 8: Specialist High-Dimensional CQMOM Workflows
+## Stage 8: specialist high-dimensional CQMOM workflows
 
 These optional advanced branches assume comfort with CQMOM evolution,
 conditioning, and source callbacks. They demonstrate three distinct closure or
@@ -258,7 +258,7 @@ conditional support loss without clipping nodes.
 Example README:
 [`examples/cqmom_5d_non-spherical-particles/README.md`](../../examples/cqmom_5d_non-spherical-particles/README.md)
 
-## Next Steps
+## Next steps
 
 The [phase-space evolution guide](phase_space_evolution.md) defines callback
 contracts and splitting behavior. The [configuration guide](configuration.md)

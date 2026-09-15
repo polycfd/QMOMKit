@@ -1,4 +1,4 @@
-# Distribution Design
+# Distribution design
 
 This page documents the current QMOMKit design for analytical distribution
 handling.
@@ -22,7 +22,7 @@ workflow guidance live in
 - [API Boundary](#api-boundary)
 - [Extension Principles](#extension-principles)
 
-## Role Of Distributions
+## Role of distributions
 
 Distribution support is an initialization layer. A distribution describes a
 compact analytical source for moments; QMOM and CQMOM algorithms consume the
@@ -49,7 +49,7 @@ moment list, a sample-derived ensemble, or another upstream calculation. This
 keeps distribution handling separate from quadrature reconstruction,
 phase-space evolution, realizability checks, and application physics.
 
-## Distribution Abstraction
+## Distribution abstraction
 
 The public distribution API lives in:
 
@@ -117,7 +117,7 @@ $$m_0 = n_0$$
 where $p(\xi)$ is the normalized analytical shape and $n_0$ is the supplied
 `total_weight`. The result is not normalized away before being returned.
 
-## Analytical Distribution Families
+## Analytical distribution families
 
 Analytical families provide closed-form raw moments for normalized
 one-dimensional shapes. Parameter validation happens before moment values are
@@ -144,7 +144,7 @@ that each family maps typed parameters to raw analytical moments, validates
 invalid parameters as `RawMomentStatus::invalid_input`, and reports numerical
 overflow, underflow, or non-finite results through `RawMomentResult`.
 
-## Mixture Distributions
+## Mixture distributions
 
 A one-dimensional mixture is represented by:
 
@@ -184,7 +184,7 @@ order. This improves robustness for heterogeneous component scales, but it does
 not change the mathematical convention or guarantee that all high-order moments
 remain representable in `double`.
 
-## Independent Product Distributions
+## Independent product distributions
 
 Multidimensional analytical initialization is represented by:
 
@@ -241,7 +241,7 @@ $$m_\alpha = n_0 \prod_r E_r[\xi_{r}^{\alpha_r}]$$
 
 The output preserves request order and duplicate requests.
 
-## Numerical Behavior
+## Numerical behavior
 
 Distribution moment generation uses explicit result objects:
 
@@ -281,7 +281,7 @@ does not perform support-aware realizability analysis, run QMOM or CQMOM
 inversion, or repair generated moments. Downstream algorithms still report
 their own statuses.
 
-## Initialization Interaction
+## Initialization interaction
 
 Distribution-generated moments enter QMOMKit through the same public case
 objects as explicit moments. One-dimensional QMOM initialization uses
@@ -362,7 +362,7 @@ initialization, sufficiency is encoded by `CqmomMomentLayout`. Those
 reconstruction requirements belong to QMOM case and CQMOM case validation and
 algorithm status handling, not to the distribution object itself.
 
-## API Boundary
+## API boundary
 
 Public distribution concepts include:
 
@@ -395,7 +395,7 @@ Implementation details include:
 These implementation details support the public API but are not downstream
 extension points.
 
-## Extension Principles
+## Extension principles
 
 Adding a distribution capability should preserve the separation between
 initialization and reconstruction:

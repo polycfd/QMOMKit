@@ -1,4 +1,4 @@
-# Phase-Space Evolution Design
+# Phase-space evolution design
 
 This page documents the current QMOMKit design for phase-space evolution and
 time integration.
@@ -21,7 +21,7 @@ reconstruction behavior, see [qmom_wheeler.md](qmom_wheeler.md) and
 - [Batch Convenience Wrappers](#batch-convenience-wrappers)
 - [Validation Expectations](#validation-expectations)
 
-## Phase-Space Evolution Architecture Overview
+## Phase-space evolution architecture overview
 
 QMOMKit phase-space evolution is built from three numerical operations:
 
@@ -55,7 +55,7 @@ motion is represented by advancing quadrature nodes, while moment-source or
 source-like effects are represented by advancing raw moments. Physical-space
 transport of moments is not part of this design.
 
-## Node Advection
+## Node advection
 
 Node advection advances quadrature abscissas through a phase-space advection
 velocity field. It preserves quadrature weights and terminal paths.
@@ -169,7 +169,7 @@ already accepted active-count metadata without re-deriving it. Moment
 reconstruction updates values only; it must not replace configured maximum
 counts with active counts or discard the active-count metadata.
 
-## Moment Sources and Boundary Contributions
+## Moment sources and boundary contributions
 
 Moment-source evolution advances raw moments directly:
 
@@ -308,12 +308,12 @@ are wrapped before they enter the existing source failure pathway so
 diagnostics identify the boundary contribution callback as the origin. Source
 callback exceptions keep the existing source failure behavior.
 
-## Time Integration
+## Time integration
 
 QMOMKit exposes generic Runge-Kutta utilities, but evolution uses them in
 different numerical roles.
 
-### Node-Advection Integration
+### Node-advection integration
 
 Node advection advances quadrature coordinates through:
 
@@ -383,7 +383,7 @@ same recursive CQMOM, node-advection, moment-reconstruction, and source-update
 algorithms; accepting a configured case policy and replacing it with `false`,
 `detailed`, `automatic`, or another aggregate default is a bug.
 
-### Moment-Source SSP-RK3
+### Moment-source SSP-RK3
 
 The moment-source SSP-RK3 advances raw moment vectors through moment-source
 updates. It is an explicit third-order strong-stability-preserving Runge-Kutta
@@ -414,7 +414,7 @@ reconstruction is a separate numerical operation, not realizability checking.
 Realizability checks do not validate inversion, node counts, CQMOM branch
 topology, or reconstructed quadrature states.
 
-## Time Integration Details
+## Time integration details
 
 The public Runge-Kutta utilities are generic vector ODE solvers. Phase-space
 evolution uses them through node-advection and moment-source wrappers where
@@ -450,7 +450,7 @@ source callback or SSP-RK3 validation failures and report
 node advection to `PhaseSpaceEvolutionStatus::advection_failed` and failed
 moment-source updates to `PhaseSpaceEvolutionStatus::moment_source_failed`.
 
-### SSP-RK3 Details
+### SSP-RK3 details
 
 SSP-RK3 advances one raw-moment state over a requested timestep:
 $$y' = f(t, y)$$
@@ -615,7 +615,7 @@ step. Node advection maps embedded-RK failure to
 inside scheme-specific diagnostics. Phase-space evolution aggregates
 scheme-neutral node-advection step, rejected-step, and RHS-evaluation counts.
 
-## Phase-Space Evolution Composition
+## Phase-space evolution composition
 
 The composed helpers combine the lower-level operations with a selected
 operator-splitting scheme:
@@ -659,7 +659,7 @@ public callers pass `CqmomState` objects between stages and inspect the
 `CqmomPhaseSpaceEvolutionResult::quadrature` value when they need the accepted
 or diagnostic quadrature.
 
-### Strang Splitting
+### Strang splitting
 
 `PhaseSpaceEvolutionScheme::strang` is the default second-order Strang
 splitting:
@@ -705,7 +705,7 @@ final moment reconstruction
 The `advsrc` and `srcadv` schemes are useful for comparisons, diagnostics, or
 applications that deliberately want a fixed first-order splitting order.
 
-### Extending Phase-Space Evolution Schemes
+### Extending phase-space evolution schemes
 
 Phase-space evolution split sequencing is centralized in the internal
 phase-space evolution sequence executor. New phase-space evolution schemes or
@@ -735,7 +735,7 @@ move QMOM or CQMOM representation details into the shared sequence code, or
 require the dense and lean representation workflows to share storage-specific
 code.
 
-## Failure And Status Handling
+## Failure and status handling
 
 Phase-space evolution APIs use explicit result and diagnostics objects. Callers
 must check `ok()` or the status field before using returned moments or
@@ -812,7 +812,7 @@ moments, including lazy source-stage reconstruction and post-source inversion;
 a failed bounded inversion follows the ordinary stage or macro-step rollback
 contract.
 
-## Public API Boundary
+## Public API boundary
 
 Public phase-space evolution and time-evolution entry points include:
 
@@ -1035,7 +1035,7 @@ Implementation details include:
 These details support the public APIs but should not become required concepts
 for projects that use QMOMKit.
 
-## Batch Convenience Wrappers
+## Batch convenience wrappers
 
 The accepted-state batch functions are serial convenience wrappers
 only. Each wrapper reserves one result per input and delegates in increasing
@@ -1066,7 +1066,7 @@ parallelism, mesh ownership, per-entry operation controls, batch diagnostics,
 or persistent batch state. Hosts retain responsibility for spatial organization
 and may instead call the scalar functions inside their own parallel loops.
 
-## Validation Expectations
+## Validation expectations
 
 Phase-space evolution changes should be validated through analytical or
 manufactured cases that exercise the relevant representation path. For a

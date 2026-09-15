@@ -1,4 +1,4 @@
-# QMOMKit Quick Start
+# QMOMKit quick start
 
 QMOMKit turns raw moments into quadrature representations for use in a larger
 application or validation workflow. Use the resulting weighted nodes to
@@ -172,7 +172,7 @@ const double x0 = quadrature.abscissa(0, node_index);
 const double x1 = quadrature.abscissa(1, node_index);
 ```
 
-## After The First Inversion
+## After the first inversion
 
 Once you have a quadrature representation, a larger workflow can:
 

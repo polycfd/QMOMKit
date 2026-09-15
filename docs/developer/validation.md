@@ -3,7 +3,7 @@
 This page documents the QMOMKit numerical validation strategy. It answers how
 QMOMKit establishes that its numerical methods are correct and trustworthy.
 
-## Validation Philosophy
+## Validation philosophy
 
 Numerical correctness requires more than passing unit tests. Unit tests protect
 local contracts, failure handling, and regression behavior, but validation asks
@@ -33,9 +33,9 @@ implement. Stochastic validation is useful when an independent ensemble
 reference is valuable, but it must be interpreted statistically rather than as
 exact pass/fail equality.
 
-## Validation Hierarchy
+## Validation hierarchy
 
-### Algorithm Verification
+### Algorithm verification
 
 Algorithm verification validates an individual numerical algorithm against a
 known mathematical object.
@@ -57,7 +57,7 @@ moments should be defined independently of the Wheeler implementation. If a
 case verifies recursive CQMOM, it should make terminal weights, phase-space
 coordinates, conditioning paths, and raw tensor reconstruction visible.
 
-### Numerical Method Verification
+### Numerical method verification
 
 Numerical method verification validates a composition of numerical methods,
 typically with time evolution or staged phase-space evolution composition.
@@ -77,7 +77,7 @@ tolerance, and expected qualitative behavior, such as conservation of `m_0`,
 unchanged node weights during node advection, or second-order behavior for
 Strang splitting in a noncommuting case.
 
-### Application-Level Validation
+### Application-level validation
 
 Application-level validation checks whether a complete QMOMKit workflow behaves
 credibly for a physically meaningful or workflow-level setup. QMOMKit remains a
@@ -98,7 +98,7 @@ Application-level validation may combine multiple features, but each case
 should state what capability is being validated and which observed quantities
 are primary evidence rather than diagnostics.
 
-## Analytical And Manufactured Solutions
+## Analytical and manufactured solutions
 
 Analytical references are preferred when an exact solution is available. They
 are useful because the expected behavior can be derived without calling the
@@ -128,7 +128,7 @@ start from exact nodes, weights, source equations, conditioning paths, or
 terminal quadrature and then generate the raw moments that QMOMKit should
 recover.
 
-## Monte Carlo Validation
+## Monte Carlo validation
 
 `tools/monte_carlo/` contains the optional QMOMKitMonteCarlo companion package.
 It provides an independent stochastic ensemble reference for validation
@@ -178,7 +178,7 @@ diagnostic signal, not automatically a QMOMKit failure.
 For the detailed Monte Carlo reference-data and output conventions, see
 [monte_carlo.md](monte_carlo.md).
 
-## Validation Conventions
+## Validation conventions
 
 Validation cases use the raw moment conventions in [numerical_conventions.md](numerical_conventions.md).
 For a multidimensional multi-index $\alpha$:
@@ -217,7 +217,7 @@ comparison:
 - numerical tolerances and error metrics;
 - Monte Carlo seed, sample count, and standard errors, when applicable.
 
-## Adding Validation Cases
+## Adding validation cases
 
 When adding a new numerical method or extending an existing one, define the
 validation contract before relying on the result.

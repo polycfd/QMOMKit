@@ -5,7 +5,7 @@ operation returns a result carrying three things: `ok()`, a `status` naming the
 category of failure, and a `message` describing the specific one. This page maps
 the failures you are most likely to meet onto what to do about them.
 
-## Reading A Failure
+## Reading a failure
 
 Two checks are separate and both matter:
 
@@ -53,7 +53,7 @@ down where to look:
 | `step_size_underflow` | Adaptive node integration | The requested tolerance needs a step below `min_step` |
 | `max_steps_exceeded` | Adaptive node integration | The interval needs more steps than `max_steps` allows |
 
-## Reconstruction Problems
+## Reconstruction problems
 
 ### `Moment sequence has fewer than 2*n entries.`
 
@@ -122,7 +122,7 @@ Either the bounds are wrong, or the moments are. Note that QMOMKit never clips
 nodes into the interval — a candidate outside it is rejected, not projected. In
 adaptive mode the reconstruction retries at lower node counts before giving up.
 
-## Evolution Problems
+## Evolution problems
 
 ### The velocity callback is reported as non-finite
 
@@ -205,7 +205,7 @@ Messages of the form `... rate values must match the source context size.` or
 exactly `context.size()` values, in context order, all finite. See
 [Callbacks](callbacks.md).
 
-## Getting More Information
+## Getting more information
 
 **Check realizability directly** rather than inferring it from a reconstruction
 failure — `check_realizability(...)` names the offending moment order.

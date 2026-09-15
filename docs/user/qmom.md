@@ -13,7 +13,7 @@ $$m_k = \sum_i w_i x_i^k$$
 
 $m_0$ is the total quadrature weight or number density.
 
-## QMOM Workflow
+## QMOM workflow
 
 The usual one-dimensional workflow begins with the quantity your application
 already knows how to produce: raw moments of the number density function. QMOM
@@ -53,7 +53,7 @@ For $N$ nodes, provide at least $2N$ moments: $m_0, m_1, ..., m_{2N-1}$
 Returned abscissas are sorted in ascending order. Weights are stored in the
 same order, so `weights[i]` belongs to `abscissas[i]`.
 
-## Automatic Reconstruction Scaling
+## Automatic reconstruction scaling
 
 For moment sets whose coordinate magnitude makes raw-moment powers poorly
 scaled, set `QmomOptions::automatic_scaling = true`. QMOMKit chooses a
@@ -147,7 +147,7 @@ idea is available for CQMOM quadrature with a phase-space-order exponent
 vector. These values are derived post-processing quantities. Non-integer
 exponents require non-negative abscissas.
 
-## Options And Diagnostics
+## Options and diagnostics
 
 The simplest call uses default numerical options. This is the right starting
 point when the requested number of nodes is fixed by the model:
@@ -166,7 +166,7 @@ options.adaptive = true;
 const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, node_count, options);
 ```
 
-### Optional Abscissa Bounds
+### Optional abscissa bounds
 
 `AbscissaBounds` optionally requires returned QMOM nodes to lie in a closed
 interval. QMOMKit still performs ordinary Wheeler inversion; it accepts the
@@ -208,7 +208,7 @@ workflow can approach the boundary of moment space, use explicit status
 handling and consider the optional realizability checks described in the
 realizability user guide.
 
-## Next Steps
+## Next steps
 
 For a population described by more than one coordinate, CQMOM extends this
 reconstruction to multiple dimensions by conditioning them in turn — see

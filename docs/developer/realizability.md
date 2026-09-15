@@ -21,7 +21,7 @@ configuration mapping of runtime policies, see
 - [Public API Boundary](#public-api-boundary)
 - [Extension Principles](#extension-principles)
 
-## Role Of Realizability
+## Role of realizability
 
 Realizability is the question of whether a truncated raw moment sequence can
 come from a nonnegative number density function on an allowed support. QMOMKit
@@ -46,7 +46,7 @@ QMOMKit treats realizability as an explicit numerical contract. The library
 provides opt-in checks; it does not silently repair moment sets, renormalize
 moments, or infer supports from coordinate names.
 
-## Supported Moment Domains
+## Supported moment domains
 
 Current explicit realizability checks are one-dimensional. They evaluate
 `MomentSet` sequences against a selected support:
@@ -74,7 +74,7 @@ volume fractions.
 Support is semantic input from the caller. It is not inferred from distribution
 family, phase-space dimension name, output label, or units.
 
-## Mathematical Criteria
+## Mathematical criteria
 
 QMOMKit's explicit realizability checks are based on classical
 one-dimensional truncated moment problems. The implementation uses these
@@ -116,7 +116,7 @@ live. `check_realizability(...)` applies the criteria selected by
 `MomentSupport` or `BoundedInterval` and reports the resulting classification
 through `RealizabilityResult`.
 
-## Realizability Checks
+## Realizability checks
 
 The public check is:
 
@@ -176,7 +176,7 @@ absolute threshold. Near the boundary, the implementation may report
 `numerically_indeterminate` rather than accepting or rejecting with false
 precision.
 
-## Runtime Checks In Phase-Space Evolution
+## Runtime checks in phase-space evolution
 
 Runtime realizability checks apply only to transported raw moments during
 moment-source SSP-RK3 evolution. They are independent of node advection:
@@ -207,7 +207,7 @@ integration attempt is rejected and the configured retry controls cannot obtain
 an accepted moment state, moment-source evolution reports failure through its
 normal status and diagnostics.
 
-## Interaction With QMOM And CQMOM
+## Interaction with QMOM and CQMOM
 
 Realizability is a constraint on moment representations. It is not a
 replacement for QMOM or CQMOM reconstruction status.
@@ -235,7 +235,7 @@ moment realizability, and reconstruction success:
 Each layer reports its own status. A successful earlier layer does not
 guarantee success in a later one.
 
-## Failure Handling
+## Failure handling
 
 Realizability APIs use explicit result objects rather than exceptions for
 normal classification failure. Callers should check
@@ -258,7 +258,7 @@ of explicit realizability checking. Retry behavior applies only to
 moment-source integration with runtime checking enabled and configured retry
 controls.
 
-## Public API Boundary
+## Public API boundary
 
 The public realizability API lives in:
 
@@ -292,7 +292,7 @@ Implementation details include:
 These implementation details support the public contracts but are not
 downstream extension points.
 
-## Extension Principles
+## Extension principles
 
 Realizability changes should preserve these rules:
 

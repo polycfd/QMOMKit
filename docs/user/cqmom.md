@@ -29,7 +29,7 @@ $$M[k_0, ..., k_{D-1}] = \sum_j W_j \prod_d xi_{d,j}^{k_d}$$
 The zeroth tensor moment `M[0, ..., 0]` is the total quadrature weight or
 number density.
 
-## CQMOM Workflow
+## CQMOM workflow
 
 The typical CQMOM workflow starts from a modelling description rather than from
 internal storage choices. That description can come from a `.qmom`
@@ -78,7 +78,7 @@ At the user level, this means:
 The result is a set of weighted multidimensional nodes. Each terminal node has
 one global weight and one abscissa per phase-space dimension.
 
-## Automatic Reconstruction Scaling
+## Automatic reconstruction scaling
 
 Set `QmomOptions::automatic_scaling = true` on the shared CQMOM/QMOM options,
 or set `automatic_scaling = true` in the configuration `[phase_space]`
@@ -101,7 +101,7 @@ For the usual CQMOM path, users specify the phase space, initial condition, and
 reconstruction settings. QMOMKit determines which moments are needed for the
 configured hierarchy and avoids exposing the internal moment storage.
 
-### Replacing Initial Moments Programmatically
+### Replacing initial moments programmatically
 
 When an application obtains a complete `RawMomentTensor` after loading its
 ordinary CQMOM setup, it can make a separate phase-space evolution-capable case
@@ -126,7 +126,7 @@ reconstruction status, and `initial_state()` keeps its existing
 exception-on-failure behavior. The producer of the raw moments can be a
 sampler, measurement pipeline, or any other application code.
 
-## Using CQMOM In QMOMKit
+## Using CQMOM in QMOMKit
 
 Include the umbrella header when following the user guide examples:
 
@@ -219,7 +219,7 @@ mean = -0.5
 standard_deviation = 1.25
 ```
 
-### Choosing The Vandermonde Solver
+### Choosing the Vandermonde solver
 
 CQMOM reconstructs conditional quantities by solving branch-local
 conditional Vandermonde systems. QMOMKit provides several solver policies for
@@ -248,7 +248,7 @@ exact policy behavior.
 Developer-level numerical details are in the
 [Linear Algebra Guide](../developer/linear_algebra.md).
 
-### Reconstruction Diagnostics
+### Reconstruction diagnostics
 
 CQMOM always runs the numerical checks required to accept or reject a branch,
 including solver acceptance, support validation, and
@@ -288,7 +288,7 @@ const double x0 = result.quadrature.abscissa(0, node_index);
 const double x1 = result.quadrature.abscissa(1, node_index);
 ```
 
-## Conditioning And Ordering
+## Conditioning and ordering
 
 Phase-space dimensions are the stable coordinate order used by moment tensors,
 node counts, output coordinates, and callbacks. Choose this order to match the
@@ -331,7 +331,7 @@ numerical conditioning in a multidimensional reconstruction. Keep the order
 explicit in configuration files, examples, and validation output so results
 are reproducible and callback coordinate order stays easy to audit.
 
-## Fixed And Adaptive Quadrature
+## Fixed and adaptive quadrature
 
 The default CQMOM setup uses a fixed branch quadrature. This is the easiest
 mode to reason about: each branch must produce the requested number of nodes
@@ -367,7 +367,7 @@ As with QMOM, always check `result.ok()` before using the quadrature. If CQMOM
 fails, inspect `result.status`, `result.message`, and diagnostics to determine
 which phase-space dimension or conditioning step was not accepted.
 
-## Moment Reconstruction From Quadrature
+## Moment reconstruction from quadrature
 
 Native CQMOM moments remain integer-order polynomial raw moments with
 phase-space-order multi-indices. QMOMKit reconstructs those moments from
@@ -389,7 +389,7 @@ These values are not CQMOM reconstruction inputs, phase-space-evolved state, or 
 `CqmomMomentData`/`RawMomentTensor` entries. Non-integer exponents require
 non-negative abscissas in the corresponding dimensions.
 
-## Advanced Representation Workflows
+## Advanced representation workflows
 
 The workflows in this section are advanced explicit dense and lean
 representations for static inversion, specialized initialization, validation,
@@ -397,7 +397,7 @@ and expert workflows. They are for applications that deliberately manage moment
 storage themselves, and they are not required for configuration-driven CQMOM
 onboarding.
 
-### Explicit Dense Representation Workflow
+### Explicit dense representation workflow
 
 Some applications already own full tensor moments. This is useful for external
 data exchange, validation against analytical tensors, debugging, and
@@ -427,7 +427,7 @@ application intentionally manages dense moment storage. To use the same normal
 state/evolution workflow as configuration-driven CQMOM, construct
 `CqmomCase{dense_case}` and call `initial_state()`.
 
-### Explicit Lean Representation Workflow
+### Explicit lean representation workflow
 
 Some applications can produce exactly the raw moments required by a CQMOM
 hierarchy and want direct control over that compact required-moment

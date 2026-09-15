@@ -1,4 +1,4 @@
-# QMOMKit User Guide
+# QMOMKit user guide
 
 QMOMKit is a C++ library for the quadrature method of moments (QMOM) and
 conditional quadrature method of moments (CQMOM). It provides the numerical
@@ -36,7 +36,7 @@ model-specific velocity, source, and boundary callbacks. In coupled
 simulations, the application also remains responsible for physical-space
 transport, spatial discretization, and the surrounding solver infrastructure.
 
-## Recommended Reading Path
+## Recommended reading path
 
 For a first pass through QMOMKit, read:
 
@@ -80,7 +80,7 @@ the most direct:
 - checking support consistency: [Realizability](realizability.md);
 - a reconstruction or step that failed: [Troubleshooting](troubleshooting.md).
 
-## Output At A Glance
+## Output at a glance
 
 QMOMKit-native output helpers write whitespace-delimited text tables.
 `MomentWriter` records native integer-order raw moments and, for state-aware
@@ -89,7 +89,7 @@ derived columns. `QuadratureWriter` records reconstructed node weights and
 abscissas. Generalized moments remain derived quantities evaluated from a valid
 quadrature result; they do not become stored or reconstructed state moments.
 
-## User Extension Points
+## User extension points
 
 Most user extensions happen outside the core numerical algorithms:
 
@@ -102,7 +102,7 @@ Most user extensions happen outside the core numerical algorithms:
 - use the [developer documentation](../developer/README.md) when adding new numerical algorithms or changing
   QMOMKit internals.
 
-## User Documents
+## User documents
 
 - [Glossary](glossary.md): concise explanations of scientific terms used
   throughout the user guide.

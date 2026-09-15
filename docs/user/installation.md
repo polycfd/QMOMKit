@@ -14,7 +14,7 @@ QMOMKit has **no** mandatory third-party numerical dependency.
 QMOMKit only requires a C++17 compiler and CMake 3.16 or newer. CTest is needed
 to build and run the test suite.
 
-## Build And Install QMOMKit
+## Build and install QMOMKit
 
 From the repository root, configure, build, and install the core package:
 
@@ -49,7 +49,7 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/QMOMKit/install
 cmake --build build
 ```
 
-## Build Options
+## Build options
 
 QMOMKit defines two CMake options, both `OFF` by default:
 
@@ -65,7 +65,7 @@ either way. See
 [performance instrumentation](../developer/performance_instrumentation.md) for
 what the counters record and how to read them.
 
-## Build Tests
+## Build tests
 
 Normal unit, regression, verification, and public-header tests link the current
 build-tree QMOMKit target. Installation is not required:
@@ -79,7 +79,7 @@ ctest --test-dir build-tests --output-on-failure
 For more detailed test selection, such as running only unit or verification
 tests, see [tests/README.md](../../tests/README.md).
 
-## Build Examples
+## Build examples
 
 Examples are also standalone CMake projects. Build a standard example
 from its own directory after installing QMOMKit:
@@ -96,7 +96,7 @@ Each example has its own README with the exact executable name and any local
 configuration files it expects. Examples with a local `configuration.qmom`
 copy it into their `build/` directory during CMake configuration.
 
-## Optional QMOMKitMonteCarlo Package
+## Optional QMOMKitMonteCarlo package
 
 `QMOMKitMonteCarlo` is an optional companion package under
 `tools/monte_carlo/`. It provides finite ensemble sampling, sample-derived raw

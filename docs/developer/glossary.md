@@ -1,10 +1,10 @@
-# Developer Glossary
+# Developer glossary
 
 This glossary is a navigation aid for common QMOMKit developer symbols and
 concepts. Please follow the linked design page for more detailed explanations,
 conventions, and extension rules.
 
-## Frequently Encountered Symbols
+## Frequently encountered symbols
 
 | Category | Symbol | Description | More information |
 |---|---|---|---|

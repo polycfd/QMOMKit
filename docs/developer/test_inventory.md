@@ -112,7 +112,7 @@ renamed test rather than a deleted one.
 
 ## Verification tests
 
-### QMOM / Wheeler Analytical
+### QMOM / Wheeler analytical
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -122,13 +122,13 @@ renamed test rather than a deleted one.
 | `verification_wheeler_analytical_three_node_reference` | `tests/verification/qmom/wheeler_analytical.cpp` | `three_node_reference` | Verifies the three node reference numerical property of analytical Wheeler reconstruction against its reference. | — |
 | `verification_wheeler_analytical_input_node_order_does_not_change_moments_or_sorted_output` | `tests/verification/qmom/wheeler_analytical.cpp` | `input_node_order_does_not_change_moments_or_sorted_output` | Verifies the input node order does not change moments or sorted output numerical property of analytical Wheeler reconstruction against its reference. | — |
 
-### QMOM / Adaptive Qmom
+### QMOM / adaptive Qmom
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
 | `verification_adaptive_qmom_adaptive_public_qmom_reconstruction` | `tests/verification/qmom/adaptive_qmom.cpp` | `adaptive_public_qmom_reconstruction` | Verifies the adaptive public QMOM reconstruction numerical property of adaptive QMOM reconstruction against its reference. | — |
 
-### QMOM / Quadrature Bounds
+### QMOM / quadrature bounds
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -136,7 +136,7 @@ renamed test rather than a deleted one.
 | `verification_qmom_quadrature_bounds_fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping` | `tests/verification/qmom/quadrature_bounds.cpp` | `fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping` | Verifies that bounded QMOM reconstruction rejects out-of-bound nodes rather than clipping them. | — |
 | `verification_qmom_quadrature_bounds_adaptive_bounded_qmom_uses_highest_admissible_count` | `tests/verification/qmom/quadrature_bounds.cpp` | `adaptive_bounded_qmom_uses_highest_admissible_count` | Verifies that adaptive bounded QMOM selects the highest admissible quadrature order. | — |
 
-### QMOM / Qmom Compute Failures
+### QMOM / Qmom compute failures
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -159,7 +159,7 @@ renamed test rather than a deleted one.
 | `verification_qmom_analytical_gaussian_n2` | `tests/verification/qmom/qmom_analytical.cpp` | `gaussian_n2` (configuration: `gaussian_n2.qmom`) | Verifies QMOM reconstruction and moment recovery for the configured gaussian n2 quadrature rule. | Configuration case `gaussian_n2.qmom` |
 | `verification_qmom_analytical_gaussian_n3` | `tests/verification/qmom/qmom_analytical.cpp` | `gaussian_n3` (configuration: `gaussian_n3.qmom`) | Verifies QMOM reconstruction and moment recovery for the configured gaussian n3 quadrature rule. | Configuration case `gaussian_n3.qmom` |
 
-### CQMOM / Recursive Quadrature
+### CQMOM / recursive quadrature
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -173,7 +173,7 @@ renamed test rather than a deleted one.
 | `verification_recursive_quadrature_manufactured_recursive_adaptive_non_identity_conditioning_order` | `tests/verification/cqmom/recursive_quadrature.cpp` | `recursive_adaptive_non_identity_conditioning_order` | Verifies the prescribed recursive CQMOM result for recursive adaptive non identity conditioning order. | — |
 | `verification_recursive_quadrature_manufactured_recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders` | `tests/verification/cqmom/recursive_quadrature.cpp` | `recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_orders` | Verifies the prescribed recursive CQMOM result for recursive adaptive velocity collapse reduces for both conditioning orders. | — |
 
-### CQMOM / Quadrature Bounds
+### CQMOM / quadrature bounds
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -181,13 +181,13 @@ renamed test rather than a deleted one.
 | `verification_cqmom_quadrature_bounds_rejected_nodes_outside_interval` | `tests/verification/cqmom/quadrature_bounds.cpp` | `rejected_nodes_outside_interval` | Verifies the configured coordinate-specific bounds in bounded CQMOM reconstruction. | — |
 | `verification_cqmom_quadrature_bounds_coordinate_specific_bounds_in_recursive_cqmom` | `tests/verification/cqmom/quadrature_bounds.cpp` | `coordinate_specific_bounds_in_recursive_cqmom` | Verifies the configured coordinate-specific bounds in bounded CQMOM reconstruction. | — |
 
-### CQMOM / Adaptive Branch Growth
+### CQMOM / adaptive branch growth
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
 | `verification_cqmom_adaptive_branch_growth_adaptive_branch_reinjection` | `tests/verification/cqmom/adaptive_branch_growth.cpp` | `adaptive_branch_reinjection` | Verifies the adaptive branch reinjection numerical property of adaptive CQMOM branch growth against its reference. | — |
 
-### CQMOM / Recursive CQMOM
+### CQMOM / recursive CQMOM
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -204,21 +204,21 @@ renamed test rather than a deleted one.
 | `verification_cqmom_recursive_dimension_sweep_D5` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D5` | Verifies that recursive CQMOM reconstructs the prescribed dimension sweep D5 manufactured quadrature. | — |
 | `verification_cqmom_recursive_dimension_sweep_D6` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D6` | Verifies that recursive CQMOM reconstructs the prescribed dimension sweep D6 manufactured quadrature. | — |
 
-### CQMOM / Conditional Moments
+### CQMOM / conditional moments
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
 | `verification_conditional_moments_analytical_two_parent_nodes_conditional_orders_zero_to_three` | `tests/verification/cqmom/conditional_moments.cpp` | `two_parent_nodes_conditional_orders_zero_to_three` | Verifies conditional moments against the analytical two parent nodes conditional orders zero to three quadrature reference. | — |
 | `verification_conditional_moments_analytical_analytically_known_2d_quadrature_reference_case` | `tests/verification/cqmom/conditional_moments.cpp` | `analytically_known_2d_quadrature_reference_case` | Verifies conditional moments against the analytical analytically known 2d quadrature reference case quadrature reference. | — |
 
-### CQMOM / Automatic Scaling
+### CQMOM / automatic scaling
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
 | `verification_cqmom_automatic_scaling_unit_invariance` | `tests/verification/cqmom/automatic_scaling.cpp` | `unit-invariance` | Verifies, for both dense and lean configured CQMOM cases, terminal paths, normalized physical coordinates, weights, active branch counts, and reconstructed raw moments for reference and rescaled representations. | — |
 | `verification_cqmom_automatic_scaling_feature_sensitive` | `tests/verification/cqmom/automatic_scaling.cpp` | `feature-sensitive` | Verifies that automatic scaling recovers the prescribed five-terminal rule and raw moments for disparate units, whereas the corresponding unscaled reconstruction fails or loses terminals. | — |
 
-### CQMOM / Moment Reconstruction
+### CQMOM / moment reconstruction
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -299,7 +299,7 @@ renamed test rather than a deleted one.
 | `verification_realizability_analytical_hausdorff` | `tests/verification/realizability/realizability_analytical.cpp` | `hausdorff` | Verifies the expected support-aware realizability classification and diagnostics for hausdorff. | — |
 | `verification_realizability_analytical_near_boundary_and_scaling` | `tests/verification/realizability/realizability_analytical.cpp` | `near_boundary_and_scaling` | Verifies the expected support-aware realizability classification and diagnostics for near boundary and scaling. | — |
 
-### Vandermonde / Solver Selection
+### Vandermonde / solver selection
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -310,7 +310,7 @@ renamed test rather than a deleted one.
 | `verification_vandermonde_solver_moore_penrose` | `tests/verification/vandermonde/solver_selection.cpp` | `moore_penrose` (fixture directory: `tests/verification/vandermonde`) | Verifies that the Moore-Penrose Vandermonde policy reconstructs the prescribed analytical conditional quadrature. | Shared analytical fixture |
 | `verification_vandermonde_solver_bjorck_pereyra` | `tests/verification/vandermonde/solver_selection.cpp` | `bjorck_pereyra` (fixture directory: `tests/verification/vandermonde`) | Verifies that the bjorck pereyra Vandermonde policy reconstructs the prescribed analytical conditional quadrature. | Shared analytical fixture |
 
-### Vandermonde / Clustered Solver Policy
+### Vandermonde / clustered solver policy
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
@@ -335,7 +335,7 @@ renamed test rather than a deleted one.
 | `unit_runge_kutta_rhs_that_resizes_the_derivative_buffer_is_rejected` | `tests/unit/runge_kutta.cpp` | `rhs_that_resizes_the_derivative_buffer_is_rejected` | Checks that both Runge-Kutta drivers reject an `OdeRhs` that resizes the supplied derivative buffer, with the wrong-size message rather than a downstream one. | — |
 | `unit_runge_kutta_rk23_rejects_min_step_exceeding_max_step` | `tests/unit/runge_kutta.cpp` | `rk23_rejects_min_step_exceeding_max_step` | Checks that adaptive RK23 rejects a configured minimum step larger than the effective maximum step. | — |
 
-### Runge-Kutta / Runge Kutta Convergence
+### Runge-Kutta / Runge Kutta convergence
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |

@@ -1,4 +1,4 @@
-# Monte Carlo Companion Package
+# Monte Carlo companion package
 
 This page documents the development and validation conventions for the optional
 QMOMKitMonteCarlo companion package under `tools/monte_carlo/`.
@@ -8,7 +8,7 @@ For user-facing build and run instructions, see
 validation policy, see [validation.md](validation.md). For test category
 guidance, see [testing.md](testing.md).
 
-## Package Role
+## Package role
 
 QMOMKitMonteCarlo provides finite ensemble sampling, ensemble moment
 estimation, advection sample evolution, text output, and comparison utilities.
@@ -28,7 +28,7 @@ absolute raw moments of the number density function, phase-space dimension
 order for sample coordinates and tensor indices, explicit status values, and
 deterministic output ordering.
 
-## Reference Construction
+## Reference construction
 
 Monte Carlo validation compares raw moment histories:
 
@@ -61,7 +61,7 @@ finite-sample discrepancy. If the deterministic path starts from analytical
 moments while the Monte Carlo path starts from a finite sample, the comparison
 also includes sampling error at the initial time.
 
-## Moment Conventions
+## Moment conventions
 
 For a multidimensional multi-index $\alpha$:
 $$M_{\alpha} = \int \prod_{d} \xi_{d}^{\alpha_{d}} n(\xi) \ \mathrm{d} \xi$$
@@ -147,7 +147,7 @@ distribution adapters are not guaranteed to produce bit-for-bit identical
 samples on every platform. Tests should use mathematical tolerances or
 uncertainty checks rather than exact sampled values.
 
-## Comparison Quantities
+## Comparison quantities
 
 Use explicit reference and computed histories. For each compared moment:
 
@@ -172,7 +172,7 @@ If the standard error is zero, the z-score is zero for exact agreement and
 signed infinity for nonzero signed error. Large z-scores are diagnostic
 signals; they are not automatic proof that either calculation is wrong.
 
-## Output Format
+## Output format
 
 Normal Monte Carlo output follows the QMOMKit text-table convention:
 
@@ -194,7 +194,7 @@ use compact multi-index labels such as `M00`, `M01`, and `M10` in QMOMKit
 phase-space order. Comparison tables should include both `signed_error` and
 `absolute_error`; a signed quantity must not be named `absolute_error`.
 
-## Tolerances And Uncertainty
+## Tolerances and uncertainty
 
 Deterministic validation cases should use exact or manufactured expected values
 and fixed tolerances. Monte Carlo validation should account for sampling
@@ -213,7 +213,7 @@ Tolerance choice should consider:
 Do not relax tolerances simply to match a previous output file. If a tolerance
 changes, document the reason in the relevant test or validation description.
 
-## Adding A Monte Carlo Validation Case
+## Adding a Monte Carlo validation case
 
 Add a Monte Carlo validation case when a stochastic ensemble reference gives
 useful evidence that deterministic QMOM or CQMOM moment evolution behaves as

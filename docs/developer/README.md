@@ -1,4 +1,4 @@
-# QMOMKit Developer Guide
+# QMOMKit developer guide
 
 The developer guide is for QMOMKit maintainers, contributors, advanced
 developers, and AI-assisted development workflows. It documents stable
@@ -27,7 +27,7 @@ Developer documentation preserves stable conventions and design intent. It does
 not preserve development stages, task history, roadmaps, or agent-specific
 operating instructions.
 
-## Table Of Contents
+## Table of contents
 
 - [Implementation and Function Reference](function_reference/README.md): source-to-intent
   mapping and function contracts for the current implementation.
@@ -84,7 +84,7 @@ contributor expectations.
   principles, public API discipline, numerical code practices, documentation
   expectations, dependency philosophy, and code quality expectations.
 
-## Guide Boundaries
+## Guide boundaries
 
 The developer guide describes design rules and implementation contracts that
 help maintainers reason about the library. It stays focused on the core

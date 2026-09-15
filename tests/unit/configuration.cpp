@@ -1,6 +1,7 @@
 #include "qmomkit/configuration.hpp"
 
 #include "internal/cqmom_case.hpp"
+#include "internal/recursive_quadrature.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 #include "test_case_dispatch.hpp"
@@ -1434,28 +1435,28 @@ void test_fixed_cqmom_prepared_metadata_ownership()
     dense_case.adaptive_branch_counts = false;
     dense_case.qmom_options.adaptive = false;
     const qmomkit::CqmomCase fixed_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_case);
-    const auto& fixed_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(fixed_case);
+    const auto& fixed_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(fixed_case);
     assert(fixed_metadata != nullptr);
 
     const qmomkit::CqmomCase copied_case = fixed_case;
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(copied_case).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(copied_case).get() == fixed_metadata.get());
 
     qmomkit::CqmomCase movable_case = fixed_case;
     qmomkit::CqmomCase moved_case = std::move(movable_case);
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(moved_case).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(moved_case).get() == fixed_metadata.get());
 
     const qmomkit::CqmomCase distinct_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_case);
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(distinct_case).get() != fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(distinct_case).get() != fixed_metadata.get());
 
     const auto replaced = qmomkit::config::with_initial_moments(fixed_case, dense_case.moments);
     assert(replaced.ok());
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(replaced.value()).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(replaced.value()).get() == fixed_metadata.get());
 
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense_case.hierarchy);
     const qmomkit::CqmomCase lean_case = qmomkit::internal::CqmomConstructionAccess::create_case(qmomkit::CqmomLeanCase{
         qmomkit::extract_cqmom_moments(dense_case.moments, layout), dense_case.conditional_options, dense_case.qmom_options,
         dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver, dense_case.coordinate_support});
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(lean_case) != nullptr);
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(lean_case) != nullptr);
     const qmomkit::CqmomResult dense_result = qmomkit::compute_cqmom(fixed_case);
     const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(lean_case);
     assert(dense_result.ok());
@@ -1466,25 +1467,30 @@ void test_fixed_cqmom_prepared_metadata_ownership()
     adaptive_dense_case.adaptive_branch_counts = true;
     adaptive_dense_case.qmom_options.adaptive = true;
     const qmomkit::CqmomCase adaptive_case = qmomkit::internal::CqmomConstructionAccess::create_case(std::move(adaptive_dense_case));
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(adaptive_case) == nullptr);
+    // An adaptive case prepares metadata too. Its branch tree carries a child
+    // case for every parent node count Wheeler could realize, so it is a pure
+    // function of the hierarchy and is built once rather than per reconstruction.
+    const auto& adaptive_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(adaptive_case);
+    assert(adaptive_metadata != nullptr);
+    assert(adaptive_metadata->adaptive_branch_counts);
 
     const qmomkit::CqmomState initial_state = fixed_case.initial_state();
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(initial_state).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(initial_state).get() == fixed_metadata.get());
     const qmomkit::CqmomState copied_state = initial_state;
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(copied_state).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(copied_state).get() == fixed_metadata.get());
     qmomkit::CqmomState movable_state = initial_state;
     qmomkit::CqmomState moved_state = std::move(movable_state);
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(moved_state).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(moved_state).get() == fixed_metadata.get());
 
     std::optional<qmomkit::CqmomState> surviving_state;
-    const qmomkit::internal::PreparedFixedCqmomMetadata* surviving_metadata = nullptr;
+    const qmomkit::internal::PreparedCqmomMetadata* surviving_metadata = nullptr;
     {
         const qmomkit::CqmomCase temporary_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_case);
-        surviving_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(temporary_case).get();
+        surviving_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(temporary_case).get();
         surviving_state.emplace(temporary_case.initial_state());
     }
     assert(surviving_state.has_value());
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(*surviving_state).get() == surviving_metadata);
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(*surviving_state).get() == surviving_metadata);
     assert(surviving_state->hierarchy().node_counts() == dense_case.hierarchy.node_counts());
     assert(surviving_state->hierarchy().conditioning_order() == dense_case.hierarchy.conditioning_order());
 }
@@ -1528,27 +1534,27 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     dense_case.adaptive_branch_counts = false;
     dense_case.qmom_options.adaptive = false;
     const qmomkit::CqmomCase fixed_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_case);
-    const auto& prepared_fixed_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_fixed_metadata(fixed_case);
-    assert(prepared_fixed_metadata != nullptr);
+    const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(fixed_case);
+    assert(prepared_metadata != nullptr);
 
     const qmomkit::CqmomState new_lineage_state = qmomkit::internal::CqmomConstructionAccess::create_state(dense_case);
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(new_lineage_state) != nullptr);
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(new_lineage_state).get() != prepared_fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(new_lineage_state) != nullptr);
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(new_lineage_state).get() != prepared_metadata.get());
 
-    const qmomkit::CqmomState descendant_state = qmomkit::internal::CqmomConstructionAccess::create_state(dense_case, prepared_fixed_metadata);
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(descendant_state).get() == prepared_fixed_metadata.get());
+    const qmomkit::CqmomState descendant_state = qmomkit::internal::CqmomConstructionAccess::create_state(dense_case, prepared_metadata);
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(descendant_state).get() == prepared_metadata.get());
 
-    const auto assert_rejected = [&prepared_fixed_metadata](const qmomkit::CqmomDenseCase& incompatible_case)
+    const auto assert_rejected = [&prepared_metadata](const qmomkit::CqmomDenseCase& incompatible_case)
     {
         bool rejected = false;
         try
         {
-            static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(incompatible_case, prepared_fixed_metadata));
+            static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(incompatible_case, prepared_metadata));
         }
         catch (const std::invalid_argument& error)
         {
             rejected = true;
-            assert(std::string(error.what()).find("Prepared fixed CQMOM metadata is incompatible") != std::string::npos);
+            assert(std::string(error.what()).find("Prepared CQMOM metadata is incompatible") != std::string::npos);
         }
         assert(rejected);
     };
@@ -1574,12 +1580,12 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     bool lean_rejected = false;
     try
     {
-        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(reordered_lean_case, prepared_fixed_metadata));
+        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(reordered_lean_case, prepared_metadata));
     }
     catch (const std::invalid_argument& error)
     {
         lean_rejected = true;
-        assert(std::string(error.what()).find("Prepared fixed CQMOM metadata is incompatible") != std::string::npos);
+        assert(std::string(error.what()).find("Prepared CQMOM metadata is incompatible") != std::string::npos);
     }
     assert(lean_rejected);
 
@@ -1598,19 +1604,27 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     qmomkit::CqmomDenseCase adaptive_case = dense_case;
     adaptive_case.adaptive_branch_counts = true;
     adaptive_case.qmom_options.adaptive = true;
+    // Metadata built for a fixed case must not be reused by an adaptive one:
+    // its branch tree carries only the single configured parent node count,
+    // not a case for every count Wheeler could realize. The compatibility check
+    // rejects the mismatch.
     bool adaptive_rejected = false;
     try
     {
-        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(adaptive_case, prepared_fixed_metadata));
+        static_cast<void>(qmomkit::internal::CqmomConstructionAccess::create_state(adaptive_case, prepared_metadata));
     }
     catch (const std::invalid_argument& error)
     {
         adaptive_rejected = true;
-        assert(std::string(error.what()).find("Adaptive CQMOM cases must not carry") != std::string::npos);
+        assert(std::string(error.what()).find("incompatible with the target") != std::string::npos);
     }
     assert(adaptive_rejected);
+    // An adaptive case prepares its own metadata instead of rebuilding the
+    // branch tree at every reconstruction.
     const qmomkit::CqmomState adaptive_state = qmomkit::internal::CqmomConstructionAccess::create_state(std::move(adaptive_case));
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(adaptive_state) == nullptr);
+    const auto& adaptive_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(adaptive_state);
+    assert(adaptive_metadata != nullptr);
+    assert(adaptive_metadata->adaptive_branch_counts);
 }
 
 void test_cqmom_case_replacement_rejects_structural_tensor_errors()

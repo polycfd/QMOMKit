@@ -327,10 +327,10 @@ void test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_en
     const qmomkit::CqmomLeanCase fixed_case{qmomkit::extract_cqmom_moments(independent_product_dense_moments(fixed_hierarchy), fixed_layout)};
     const qmomkit::CqmomState fixed_state = qmomkit::internal::CqmomConstructionAccess::create_case(fixed_case).initial_state();
     const qmomkit::CqmomState fixed_cache_miss_state = qmomkit::internal::CqmomConstructionAccess::create_state(
-        fixed_case, qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(fixed_state));
-    const auto& fixed_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(fixed_state);
+        fixed_case, qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(fixed_state));
+    const auto& fixed_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(fixed_state);
     assert(fixed_metadata != nullptr);
-    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(fixed_cache_miss_state).get() == fixed_metadata.get());
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(fixed_cache_miss_state).get() == fixed_metadata.get());
     qmomkit::internal::performance::CounterSession fixed_session;
     {
         qmomkit::internal::performance::CounterScope scope(fixed_session);
@@ -341,8 +341,8 @@ void test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_en
             qmomkit::advance_cqmom_moment_source(fixed_state, 0.0, 0.1, zero_source, options);
         assert(advection.ok());
         assert(moment_source.ok());
-        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(advection.state).get() == fixed_metadata.get());
-        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(moment_source.state).get() == fixed_metadata.get());
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(advection.state).get() == fixed_metadata.get());
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(moment_source.state).get() == fixed_metadata.get());
     }
     assert_active_count_counters(fixed_session.snapshot(), 0, 0, 0);
 #if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
@@ -915,11 +915,11 @@ void test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_me
 
         for (const qmomkit::CqmomState& state : states)
         {
-            assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(state) != nullptr);
+            assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(state) != nullptr);
             const qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_moment_source(state, 0.0, 0.1, zero_source);
             assert(result.ok());
-            assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(result.state).get() ==
-                   qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(state).get());
+            assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(result.state).get() ==
+                   qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(state).get());
         }
     }
 

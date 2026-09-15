@@ -380,30 +380,37 @@ std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vecto
     return layout;
 }
 
-PreparedFixedCqmomMetadata::PreparedFixedCqmomMetadata(CqmomMomentLayout prepared_moment_layout,
-                                                       std::shared_ptr<const BranchMomentLayout> prepared_root_branch_layout)
-    : moment_layout(std::move(prepared_moment_layout)), root_branch_layout(std::move(prepared_root_branch_layout))
+PreparedCqmomMetadata::PreparedCqmomMetadata(CqmomMomentLayout prepared_moment_layout,
+                                             std::shared_ptr<const BranchMomentLayout> prepared_root_branch_layout,
+                                             const bool prepared_adaptive_branch_counts)
+    : moment_layout(std::move(prepared_moment_layout)), root_branch_layout(std::move(prepared_root_branch_layout)),
+      adaptive_branch_counts(prepared_adaptive_branch_counts)
 {
     if (root_branch_layout == nullptr)
     {
-        throw std::invalid_argument("Prepared fixed CQMOM metadata requires a root branch layout.");
+        throw std::invalid_argument("Prepared CQMOM metadata requires a root branch layout.");
     }
 }
 
-std::shared_ptr<const PreparedFixedCqmomMetadata> create_prepared_fixed_cqmom_metadata(CqmomMomentLayout moment_layout)
+std::shared_ptr<const PreparedCqmomMetadata> create_prepared_cqmom_metadata(CqmomMomentLayout moment_layout, const bool adaptive_branch_counts)
 {
-    validate_fixed_cqmom_moment_layout(moment_layout, "Prepared fixed CQMOM metadata requires the canonical CQMOM moment layout.");
-    std::shared_ptr<const BranchMomentLayout> root_branch_layout = create_ordered_root_layout(moment_layout, false);
-    std::shared_ptr<const PreparedFixedCqmomMetadata> metadata(
-        new PreparedFixedCqmomMetadata(std::move(moment_layout), std::move(root_branch_layout)));
+    validate_fixed_cqmom_moment_layout(moment_layout, "Prepared CQMOM metadata requires the canonical CQMOM moment layout.");
+    // An adaptive tree is built the same way, only wider: create_branch_moment_layout
+    // materializes a child case for every parent node count Wheeler could
+    // realize, so the result covers every runtime outcome and depends on nothing
+    // but the hierarchy. That is what makes it cacheable rather than rebuilt per
+    // reconstruction.
+    std::shared_ptr<const BranchMomentLayout> root_branch_layout = create_ordered_root_layout(moment_layout, adaptive_branch_counts);
+    std::shared_ptr<const PreparedCqmomMetadata> metadata(
+        new PreparedCqmomMetadata(std::move(moment_layout), std::move(root_branch_layout), adaptive_branch_counts));
     internal::performance::record_cqmom_prepared_metadata_build();
     return metadata;
 }
 
-bool prepared_fixed_cqmom_metadata_is_compatible(const PreparedFixedCqmomMetadata& metadata, const PhaseSpaceHierarchy& hierarchy,
-                                                 const CqmomMomentLayout* const expected_layout)
+bool prepared_cqmom_metadata_is_compatible(const PreparedCqmomMetadata& metadata, const PhaseSpaceHierarchy& hierarchy,
+                                           const bool adaptive_branch_counts, const CqmomMomentLayout* const expected_layout)
 {
-    if (metadata.root_branch_layout == nullptr)
+    if (metadata.root_branch_layout == nullptr || metadata.adaptive_branch_counts != adaptive_branch_counts)
     {
         return false;
     }
@@ -1636,18 +1643,23 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
     std::shared_ptr<const BranchMomentLayout> dynamic_root_branch_layout;
     try
     {
-        const bool use_prepared_fixed_metadata = request.prepared_fixed_metadata != nullptr && !request.adaptive_branch_counts;
-        if (use_prepared_fixed_metadata)
+        // Adaptive requests use prepared metadata too: the tree it holds already
+        // covers every parent node count, so nothing about it depends on what
+        // Wheeler realizes at run time. Compatibility requires the flags to
+        // match, so an adaptive request never picks up a fixed tree.
+        const bool use_prepared_metadata =
+            request.prepared_metadata != nullptr && request.prepared_metadata->adaptive_branch_counts == request.adaptive_branch_counts;
+        if (use_prepared_metadata)
         {
-            const PreparedFixedCqmomMetadata& metadata = *request.prepared_fixed_metadata;
+            const PreparedCqmomMetadata& metadata = *request.prepared_metadata;
             internal::performance::record_cqmom_prepared_metadata_use();
             root_slice = create_ordered_root_slice(metadata.moment_layout, request.moments, *metadata.root_branch_layout);
         }
         else
         {
-            if (request.require_prepared_fixed_metadata && !request.adaptive_branch_counts)
+            if (request.require_prepared_metadata)
             {
-                throw std::logic_error("Fixed normal CQMOM reconstruction requires prepared metadata.");
+                throw std::logic_error("Normal CQMOM reconstruction requires prepared metadata.");
             }
             std::optional<CqmomMomentLayout> generated_root_layout;
             const CqmomMomentLayout* root_layout = request.validated_layout;
@@ -1959,12 +1971,11 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
         return result;
     }
 
-    return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
-                                                                    wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
-                                                                    request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
-                                                                    request.allow_active_branch_count_growth, request.coordinate_support,
-                                                                    request.prepared_fixed_metadata, request.require_prepared_fixed_metadata},
-                                                                   request.moments.layout);
+    return compute_recursive_quadrature_from_validated_moment_view(
+        {request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options, wheeler_options, request.adaptive_branch_counts,
+         request.diagnostic_level, request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
+         request.allow_active_branch_count_growth, request.coordinate_support, request.prepared_metadata, request.require_prepared_metadata},
+        request.moments.layout);
 }
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(const RecursiveQuadratureMomentDataRequest& request)
@@ -1992,12 +2003,11 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
         return result;
     }
 
-    return compute_recursive_quadrature_from_validated_moment_view({request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options,
-                                                                    wheeler_options, request.adaptive_branch_counts, request.diagnostic_level,
-                                                                    request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
-                                                                    request.allow_active_branch_count_growth, request.coordinate_support,
-                                                                    request.prepared_fixed_metadata, request.require_prepared_fixed_metadata},
-                                                                   request.moments.layout);
+    return compute_recursive_quadrature_from_validated_moment_view(
+        {request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options, wheeler_options, request.adaptive_branch_counts,
+         request.diagnostic_level, request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
+         request.allow_active_branch_count_growth, request.coordinate_support, request.prepared_metadata, request.require_prepared_metadata},
+        request.moments.layout);
 }
 
 RecursiveQuadratureResult compute_recursive_quadrature(const RecursiveQuadratureRequest& request)

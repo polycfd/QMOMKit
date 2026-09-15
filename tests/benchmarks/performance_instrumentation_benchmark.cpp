@@ -565,17 +565,17 @@ std::vector<qmomkit::CqmomState> make_states(const qmomkit::CqmomCase& case_, co
 
 qmomkit::CqmomState state_without_accepted_quadrature(const qmomkit::CqmomState& state)
 {
-    const auto& prepared_fixed_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_fixed_metadata(state);
+    const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(state);
     if (const qmomkit::CqmomDenseCase* dense_case = qmomkit::internal::CqmomConstructionAccess::state_dense_case(state))
     {
-        return qmomkit::internal::CqmomConstructionAccess::create_state(*dense_case, state.active_branch_counts(), prepared_fixed_metadata);
+        return qmomkit::internal::CqmomConstructionAccess::create_state(*dense_case, state.active_branch_counts(), prepared_metadata);
     }
     const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::CqmomConstructionAccess::state_lean_case(state);
     if (lean_case == nullptr)
     {
         throw std::logic_error("CQMOM phase-space evolution benchmark state has unknown storage.");
     }
-    return qmomkit::internal::CqmomConstructionAccess::create_state(*lean_case, state.active_branch_counts(), prepared_fixed_metadata);
+    return qmomkit::internal::CqmomConstructionAccess::create_state(*lean_case, state.active_branch_counts(), prepared_metadata);
 }
 
 std::vector<qmomkit::CqmomState> make_phase_space_evolution_states(const qmomkit::CqmomCase& case_, const std::size_t state_count,

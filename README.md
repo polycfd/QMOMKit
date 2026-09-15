@@ -151,6 +151,25 @@ Generative AI tools have been used extensively during the development of QMOMKit
 
 QMOMKit therefore relies on a deliberately rigorous approach to testing, numerical validation, and documentation, so that its behavior can be checked rather than taken on trust. See [DEVELOPMENT_PHILOSOPHY.md](DEVELOPMENT_PHILOSOPHY.md) for the full statement and for where that evidence lives.
 
+## How to cite
+
+If QMOMKit contributes to your academic work, please cite the QMOMKit paper:
+
+Fabian Denner, Bruna Campos, and Bruno Blais, *QMOMKit: A C++ library for the quadrature method of moments in arbitrary-dimensional phase space*, arXiv:2610.?????, 2026. doi: [10.48550/arXiv.2610.?????](https://www.doi.org/10.48550/arXiv.2610.?????)
+
+```bibtex
+@misc{qmomkit,
+  author  = {Denner, Fabian and Campos, Bruna and Blais, Bruno},
+  title   = {QMOMKit: A C++ library for the quadrature method of moments in arbitrary-dimensional phase space},
+  eprint={2610.?????},
+  archivePrefix={arXiv},
+  year    = {2026},
+  doi     = {10.48550/arXiv.2610.?????},
+}
+```
+
+The studies behind the paper can be reproduced from this repository; see the [paper studies README](paper/README.md).
+
 ## Authors
 
 - [Fabian Denner](https://www.polymtl.ca/expertises/en/denner-fabian)

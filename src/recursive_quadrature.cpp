@@ -173,22 +173,100 @@ namespace
     return create_branch_moment_layout(std::move(ordered_extents), std::move(ordered_indices), adaptive_branch_counts);
 }
 
-void append_unique_index(std::vector<MultiIndex>& indices, MultiIndex index)
+// Mixed-radix code of a multi-index over `bounds`, or nullopt when the index
+// does not fit. Deliberately does not reuse `flatten_multi_index`, which throws
+// its own out_of_range for an out-of-range component; callers here need to tell
+// "absent" apart from "malformed" and to keep their own error text.
+[[nodiscard]] std::optional<std::size_t> multi_index_code(const MultiIndex& index, const std::vector<std::size_t>& bounds)
 {
-    if (std::find(indices.begin(), indices.end(), index) == indices.end())
+    if (index.size() != bounds.size())
+    {
+        return std::nullopt;
+    }
+    std::size_t code = 0;
+    for (std::size_t axis = 0; axis < bounds.size(); ++axis)
+    {
+        if (index[axis] >= bounds[axis])
+        {
+            return std::nullopt;
+        }
+        // An index space too large to code is reported as uncodable rather than
+        // wrapped: a wrapped code would collide silently and two distinct
+        // indices would be treated as one.
+        if (bounds[axis] != 0 && code > (std::numeric_limits<std::size_t>::max() - index[axis]) / bounds[axis])
+        {
+            return std::nullopt;
+        }
+        code = code * bounds[axis] + index[axis];
+    }
+    return code;
+}
+
+// Insert `code` into a sorted code set, reporting whether it was new. A
+// std::unordered_set would allocate a node per element, which measured as a net
+// loss here: the sets are small and short-lived and this code is allocation
+// bound, so one growing vector beats per-element nodes.
+[[nodiscard]] bool insert_unique_code(std::vector<std::size_t>& sorted_codes, const std::size_t code)
+{
+    const auto position = std::lower_bound(sorted_codes.begin(), sorted_codes.end(), code);
+    if (position != sorted_codes.end() && *position == code)
+    {
+        return false;
+    }
+    sorted_codes.insert(position, code);
+    return true;
+}
+
+// Append `index` unless an equal index is already present. `seen_codes` carries
+// the codes appended so far, so the duplicate test is an integer lookup rather
+// than a scan comparing whole vectors. First-occurrence order is preserved.
+void append_unique_index(std::vector<MultiIndex>& indices, std::vector<std::size_t>& seen_codes, const std::vector<std::size_t>& bounds,
+                         MultiIndex index)
+{
+    const std::optional<std::size_t> code = multi_index_code(index, bounds);
+    if (!code.has_value())
+    {
+        // Outside the layout's own extents: fall back to the exhaustive test
+        // rather than risk two distinct indices sharing a code.
+        if (std::find(indices.begin(), indices.end(), index) == indices.end())
+        {
+            indices.push_back(std::move(index));
+        }
+        return;
+    }
+    if (insert_unique_code(seen_codes, *code))
     {
         indices.push_back(std::move(index));
     }
 }
 
-[[nodiscard]] std::size_t local_branch_offset(const std::vector<MultiIndex>& indices, const MultiIndex& index)
+[[nodiscard]] std::size_t local_branch_offset(const BranchMomentLayout& layout, const MultiIndex& index)
 {
-    const auto found = std::find(indices.begin(), indices.end(), index);
-    if (found == indices.end())
+    // The table is absent only when some index of this layout could not be
+    // coded, in which case coding the query would be wasted work and its result
+    // unusable. Testing for it first keeps that case on the scan it needs.
+    if (!layout.offsets_by_code.empty())
+    {
+        const std::optional<std::size_t> code = multi_index_code(index, layout.extents);
+        if (code.has_value())
+        {
+            const auto found =
+                std::lower_bound(layout.offsets_by_code.begin(), layout.offsets_by_code.end(), *code,
+                                 [](const std::pair<std::size_t, std::size_t>& entry, const std::size_t value) { return entry.first < value; });
+            if (found != layout.offsets_by_code.end() && found->first == *code)
+            {
+                return found->second;
+            }
+            throw std::out_of_range("Branch-local moment layout does not contain the requested moment.");
+        }
+    }
+
+    const auto found = std::find(layout.indices.begin(), layout.indices.end(), index);
+    if (found == layout.indices.end())
     {
         throw std::out_of_range("Branch-local moment layout does not contain the requested moment.");
     }
-    return static_cast<std::size_t>(std::distance(indices.begin(), found));
+    return static_cast<std::size_t>(std::distance(layout.indices.begin(), found));
 }
 
 [[nodiscard]] BranchMomentChildLayout create_child_layout_case(const BranchMomentLayout& layout, const std::size_t parent_node_count,
@@ -201,11 +279,13 @@ void append_unique_index(std::vector<MultiIndex>& indices, MultiIndex index)
     // represented by the current parent nodes; the remaining indices become
     // the child branch coordinates.
     std::vector<MultiIndex> child_indices;
+    const std::vector<std::size_t> child_bounds(layout.extents.begin() + 1, layout.extents.end());
+    std::vector<std::size_t> child_codes;
     for (const MultiIndex& parent_index : layout.indices)
     {
         if (!parent_index.empty() && parent_index.front() < parent_node_count)
         {
-            append_unique_index(child_indices, MultiIndex(parent_index.begin() + 1, parent_index.end()));
+            append_unique_index(child_indices, child_codes, child_bounds, MultiIndex(parent_index.begin() + 1, parent_index.end()));
         }
     }
 
@@ -225,7 +305,7 @@ void append_unique_index(std::vector<MultiIndex>& indices, MultiIndex index)
         for (std::size_t parent_order = 0; parent_order < parent_node_count; ++parent_order)
         {
             parent_index[0] = parent_order;
-            column.parent_offsets_by_order.push_back(local_branch_offset(layout.indices, parent_index));
+            column.parent_offsets_by_order.push_back(local_branch_offset(layout, parent_index));
         }
         child_case.rhs_columns.push_back(std::move(column));
     }
@@ -250,6 +330,22 @@ std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vecto
     layout->extents = std::move(extents);
     layout->indices = std::move(indices);
 
+    // Built before the first lookup below, and reused by every later one.
+    layout->offsets_by_code.reserve(layout->indices.size());
+    for (std::size_t position = 0; position < layout->indices.size(); ++position)
+    {
+        const std::optional<std::size_t> code = multi_index_code(layout->indices[position], layout->extents);
+        if (!code.has_value())
+        {
+            // An index outside the declared extents cannot be coded uniquely, so
+            // abandon the table and let lookups fall back to scanning.
+            layout->offsets_by_code.clear();
+            break;
+        }
+        layout->offsets_by_code.emplace_back(*code, position);
+    }
+    std::sort(layout->offsets_by_code.begin(), layout->offsets_by_code.end());
+
     // A branch-local layout is ordered by conditioning level. Its leading axis
     // supplies the one-dimensional moment sequence for the next Wheeler solve.
     layout->wheeler_offsets.reserve(layout->extents.front());
@@ -257,7 +353,7 @@ std::shared_ptr<const BranchMomentLayout> create_branch_moment_layout(std::vecto
     for (std::size_t order = 0; order < layout->extents.front(); ++order)
     {
         wheeler_index.front() = order;
-        layout->wheeler_offsets.push_back(local_branch_offset(layout->indices, wheeler_index));
+        layout->wheeler_offsets.push_back(local_branch_offset(*layout, wheeler_index));
     }
 
     if (layout->extents.size() == 1)
@@ -1149,6 +1245,16 @@ CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarch
     const std::vector<std::size_t>& order = hierarchy.conditioning_order();
 
     std::vector<MultiIndex> indices;
+    // Every level enumerates a sub-box of the same index space, so the levels
+    // overlap and the union has to be deduplicated. The widest any phase-space
+    // axis gets is the 2*N Wheeler span it spans while it is the active axis,
+    // which bounds the code used to test for duplicates.
+    std::vector<std::size_t> index_bounds(dimensions, 0);
+    for (std::size_t phase_space_dimension = 0; phase_space_dimension < dimensions; ++phase_space_dimension)
+    {
+        index_bounds[phase_space_dimension] = checked_multiply(2, hierarchy.node_count(phase_space_dimension));
+    }
+    std::vector<std::size_t> seen_codes;
     for (std::size_t level = 0; level < dimensions; ++level)
     {
         // Required moments are enumerated in conditioning order for one
@@ -1176,7 +1282,15 @@ CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarch
             // Public layouts store phase-space-order indices even though the
             // recursive enumeration is performed in conditioning order.
             const MultiIndex phase_space_index = from_ordered_index(ordered_index, order);
-            if (std::find(indices.begin(), indices.end(), phase_space_index) == indices.end())
+            const std::optional<std::size_t> code = internal::multi_index_code(phase_space_index, index_bounds);
+            if (code.has_value())
+            {
+                if (internal::insert_unique_code(seen_codes, *code))
+                {
+                    indices.push_back(phase_space_index);
+                }
+            }
+            else if (std::find(indices.begin(), indices.end(), phase_space_index) == indices.end())
             {
                 indices.push_back(phase_space_index);
             }

@@ -11,6 +11,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace qmomkit::internal
@@ -107,6 +108,13 @@ struct BranchMomentLayout
     std::vector<MultiIndex> indices;
     // Offsets of the leading-axis moment sequence consumed by Wheeler.
     std::vector<std::size_t> wheeler_offsets;
+    // Position of each entry of `indices`, keyed by its mixed-radix code over
+    // `extents` and sorted by that code. Looking an index up by scanning
+    // `indices` compares whole vectors, which is why this is materialized once
+    // per layout instead: the child-case builder performs one lookup per RHS
+    // column per parent node count, and an adaptive layout builds a case for
+    // every node count Wheeler could realize.
+    std::vector<std::pair<std::size_t, std::size_t>> offsets_by_code;
     // Child solve layouts keyed by the parent node count realized by Wheeler.
     std::vector<BranchMomentChildLayout> child_layouts_by_parent_node_count;
 };

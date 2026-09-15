@@ -382,13 +382,27 @@ namespace internal
 BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& moment_sequence, const BoundedQuadratureSelectionRequest& request,
                                                      const AbscissaBounds interval, const WheelerOptions& wheeler_options)
 {
+    // Both selection branches below assume at least one requested node. The
+    // adaptive branch counts candidates down to one, so a zero initial count
+    // skips its loop entirely and would leave the default-constructed selection,
+    // whose quadrature still carries the default success status, as the result.
+    // Rejecting the malformed request here keeps the bounded path's status for a
+    // zero node count the same as the unbounded Wheeler path's.
+    if (request.initial_node_count == 0 || request.configured_node_count == 0)
+    {
+        BoundedQuadratureSelection rejected;
+        rejected.quadrature.status = QuadratureStatus::invalid_input;
+        rejected.quadrature.message = "Bounded-support quadrature requires a positive node count.";
+        return rejected;
+    }
+
     const auto evaluate = [&](const std::size_t node_count, std::string attempt_type)
     {
         BoundedQuadratureCandidate candidate;
         candidate.node_count = node_count;
         candidate.attempt_type = std::move(attempt_type);
         const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, node_count);
-        if (node_count == 0 || !required_moment_count.has_value() || moment_sequence.size() < *required_moment_count)
+        if (!required_moment_count.has_value() || moment_sequence.size() < *required_moment_count)
         {
             candidate.quadrature.status = QuadratureStatus::invalid_input;
             candidate.message = "Bounded-support candidate does not have enough moments.";

@@ -789,6 +789,39 @@ void test_qmom_rejects_node_count_with_unrepresentable_moment_requirement()
     assert(result.message.find("too large") != std::string::npos);
 }
 
+void test_qmom_rejects_zero_node_count()
+{
+    // A zero node count is invalid input for every combination of inversion
+    // options. The adaptive bounded-support combination is the one that used to
+    // report success with an empty quadrature, which a caller that checks ok()
+    // before reading weights and abscissas cannot defend against.
+    const qmomkit::MomentSet moments{1.0, 0.8, 2.8, 4.4};
+    const qmomkit::AbscissaBounds bounds{-10.0, 10.0};
+
+    const auto assert_rejected = [](const qmomkit::QmomResult& result)
+    {
+        assert(!result.ok());
+        assert(result.status == qmomkit::QmomStatus::invalid_input);
+        assert(result.message.find("positive") != std::string::npos);
+        assert(result.weights.empty());
+        assert(result.abscissas.empty());
+    };
+
+    for (const bool adaptive : {false, true})
+    {
+        for (const bool automatic_scaling : {false, true})
+        {
+            qmomkit::QmomOptions options;
+            options.adaptive = adaptive;
+            options.automatic_scaling = automatic_scaling;
+
+            assert_rejected(qmomkit::compute_qmom(moments, 0, options));
+            assert_rejected(qmomkit::compute_qmom(moments, 0, options, bounds));
+            assert_rejected(qmomkit::compute_qmom(qmomkit::QmomCase{moments, 0, options, bounds}));
+        }
+    }
+}
+
 void test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds()
 {
     const std::vector<double> abscissas{2.0e50, 5.0e50};
@@ -1359,6 +1392,7 @@ int main(const int argc, char** argv)
              test_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage},
             {"qmom_public_api_matches_wheeler", test_qmom_public_api_matches_wheeler},
             {"qmom_rejects_node_count_with_unrepresentable_moment_requirement", test_qmom_rejects_node_count_with_unrepresentable_moment_requirement},
+            {"qmom_rejects_zero_node_count", test_qmom_rejects_zero_node_count},
             {"qmom_automatic_scaling_restores_physical_abscissas_and_bounds", test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds},
             {"qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments",
              test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments},

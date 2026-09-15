@@ -156,8 +156,10 @@ rule wins. A permitted growth trial requires previous active metadata, adaptive
 policies, no current count loss, and spare configured capacity; it evaluates
 active+1 once. Rejected growth preserves the accepted current rule. Diagnostics
 may describe a rejected candidate while returned quadrature describes the
-accepted fallback; these must not be conflated. The private request assumes a
-positive initial count supplied upstream.
+accepted fallback; these must not be conflated. Both branches require a positive
+initial and configured count; the selector rejects anything else as invalid
+input before evaluating a candidate, so the adaptive descent never returns a
+default-constructed selection whose quadrature would still read as successful.
 
 Evidence: bounded tests in
 [`tests/unit/recursive_quadrature.cpp`](../../../tests/unit/recursive_quadrature.cpp),

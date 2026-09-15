@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 665 |
+| Unit logical tests | 666 |
 | Component/regression logical tests | 31 |
 | Verification logical tests | 167 |
-| **Runtime logical tests** | **863** |
+| **Runtime logical tests** | **864** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **864** |
+| **Total CTest registrations** | **865** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -420,7 +420,7 @@ renamed test rather than a deleted one.
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 863 runtime logical-test
+The `public_headers` registration is not part of the 864 runtime logical-test
 count. It compiles and links 23 public-header translation units as one separate
 CTest check; it is not 23 runtime tests.
 
@@ -710,6 +710,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage` | `tests/unit/public_api.cpp` | `cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage` | Checks that public API rejects unrepresentable required moment extent before storage in the public QMOMKit API. | — |
 | `unit_public_api_qmom_public_api_matches_wheeler` | `tests/unit/public_api.cpp` | `qmom_public_api_matches_wheeler` | Checks that public API matches wheeler in the public QMOMKit API. | — |
 | `unit_public_api_qmom_rejects_node_count_with_unrepresentable_moment_requirement` | `tests/unit/public_api.cpp` | `qmom_rejects_node_count_with_unrepresentable_moment_requirement` | Checks that rejects node count with unrepresentable moment requirement in the public QMOMKit API. | — |
+| `unit_public_api_qmom_rejects_zero_node_count` | `tests/unit/public_api.cpp` | `qmom_rejects_zero_node_count` | Checks that a zero node count is rejected as invalid input for every combination of adaptive inversion, automatic scaling, and bounded support, and that no such result reports success with an empty quadrature. | — |
 | `unit_public_api_qmom_automatic_scaling_restores_physical_abscissas_and_bounds` | `tests/unit/public_api.cpp` | `qmom_automatic_scaling_restores_physical_abscissas_and_bounds` | Checks that automatic scaling restores physical abscissas and bounds in the public QMOMKit API. | — |
 | `unit_public_api_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments` | `tests/unit/public_api.cpp` | `qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments` | Checks that automatic scaling is covariant and uses existing scale moments in the public QMOMKit API. | — |
 | `unit_public_api_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction` | `tests/unit/public_api.cpp` | `qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction` | Checks that automatic scaling rejects nonzero underflow before reconstruction in the public QMOMKit API. | — |

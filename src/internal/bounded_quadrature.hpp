@@ -31,6 +31,13 @@ struct BoundedQuadratureSelectionRequest
     bool allow_growth = false;
 };
 
+/**
+ * Outcome of a bounded-support quadrature selection.
+ *
+ * `success` and `quadrature.status` always agree: an unsuccessful selection
+ * carries a non-success quadrature status and a message describing why. Callers
+ * that only forward the quadrature therefore still report the failure.
+ */
 struct BoundedQuadratureSelection
 {
     Quadrature1D quadrature;

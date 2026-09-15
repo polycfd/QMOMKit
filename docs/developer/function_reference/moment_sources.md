@@ -10,9 +10,9 @@ design](../phase_space_evolution_design.md) and [SSP-RK3](time_integration.md).
 
 ## Completing a source interval — Level A
 
-The public `advance_moments_with_source` overloads validate initial moments,
+The public `advance_qmom_moments_with_source` overloads validate initial moments,
 time, positive requested step, callbacks, and source controls, then adapt the
-source to an `OdeRhs`. `MomentSource` returns its rates and `OdeRhs` fills a
+source to an `OdeRhs`. `QmomMomentSource` returns its rates and `OdeRhs` fills a
 buffer, so the adapter copies the returned rates into the buffer the integrator
 supplies; a source that returned the wrong number of rates resizes it there and
 is reported as a wrong-sized right-hand side. The local overload with that same

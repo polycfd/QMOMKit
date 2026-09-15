@@ -96,7 +96,7 @@ void test_zero_advection_and_zero_source_preserve_qmom()
     const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(
         state, 0.0, 0.4,
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); }),
-        [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>(context.size(), 0.0); }, options);
+        [](double, const qmomkit::QmomSourceContext& context) { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; }, options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     assert_vector_near(result.state.moments(), moments, 1.0e-12);
@@ -124,7 +124,7 @@ void test_combined_advection_and_source_qmom_analytical()
         {
             rhs[i] = source_rate * context.value(i);
         }
-        return rhs;
+        return qmomkit::QmomMomentRate{std::move(rhs)};
     };
 
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);

@@ -62,7 +62,7 @@ int main()
 
     qmomkit::QmomState state = *initial_state_storage;
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_explicit_strang_splitting::advection_velocity();
-    const qmomkit::MomentSource source = qmom_1d_explicit_strang_splitting::variance_injection_source();
+    const qmomkit::QmomMomentSource source = qmom_1d_explicit_strang_splitting::variance_injection_source();
 
     std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;
     try

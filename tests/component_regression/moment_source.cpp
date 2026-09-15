@@ -35,13 +35,13 @@ void test_constant_source_term()
     const std::vector<double> source_values{1.0, -2.0, 0.5};
     constexpr double time_step = 0.25;
 
-    const qmomkit::MomentSourceUpdateResult result =
-        qmomkit::advance_moments_with_source(initial, 1.5, time_step,
-                                             [source_values](double, const qmomkit::QmomSourceContext& context)
-                                             {
-                                                 QMOMKIT_VERIFY_CHECK(context.size() == source_values.size());
-                                                 return source_values;
-                                             });
+    const qmomkit::QmomMomentSourceUpdateResult result =
+        qmomkit::advance_qmom_moments_with_source(initial, 1.5, time_step,
+                                                  [source_values](double, const qmomkit::QmomSourceContext& context)
+                                                  {
+                                                      QMOMKIT_VERIFY_CHECK(context.size() == source_values.size());
+                                                      return qmomkit::QmomMomentRate{source_values};
+                                                  });
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.status == qmomkit::MomentSourceUpdateStatus::success);
@@ -59,16 +59,17 @@ void test_linear_source_term()
     constexpr double lambda = -0.75;
     constexpr double time_step = 0.4;
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(initial, 0.0, time_step,
-                                                                                          [](double, const qmomkit::QmomSourceContext& context)
-                                                                                          {
-                                                                                              std::vector<double> derivative(context.size(), 0.0);
-                                                                                              for (std::size_t i = 0; i < context.size(); ++i)
-                                                                                              {
-                                                                                                  derivative[i] = lambda * context.value(i);
-                                                                                              }
-                                                                                              return derivative;
-                                                                                          });
+    const qmomkit::QmomMomentSourceUpdateResult result =
+        qmomkit::advance_qmom_moments_with_source(initial, 0.0, time_step,
+                                                  [](double, const qmomkit::QmomSourceContext& context)
+                                                  {
+                                                      std::vector<double> derivative(context.size(), 0.0);
+                                                      for (std::size_t i = 0; i < context.size(); ++i)
+                                                      {
+                                                          derivative[i] = lambda * context.value(i);
+                                                      }
+                                                      return qmomkit::QmomMomentRate{std::move(derivative)};
+                                                  });
 
     const double factor = rk3_linear_factor(lambda, time_step);
     QMOMKIT_VERIFY_CHECK(result.ok());
@@ -80,9 +81,9 @@ void test_vector_valued_coupled_source_term()
     const std::vector<double> initial{1.0, 0.0};
     constexpr double time_step = 0.2;
 
-    const qmomkit::MomentSourceUpdateResult result =
-        qmomkit::advance_moments_with_source(initial, 0.0, time_step, [](double, const qmomkit::QmomSourceContext& context)
-                                             { return std::vector<double>{context.value(1), -context.value(0)}; });
+    const qmomkit::QmomMomentSourceUpdateResult result =
+        qmomkit::advance_qmom_moments_with_source(initial, 0.0, time_step, [](double, const qmomkit::QmomSourceContext& context)
+                                                  { return qmomkit::QmomMomentRate{std::vector<double>{context.value(1), -context.value(0)}}; });
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     assert_vector_near(result.moments, {1.0 - 0.5 * time_step * time_step, -time_step + (time_step * time_step * time_step) / 6.0}, 1.0e-15);

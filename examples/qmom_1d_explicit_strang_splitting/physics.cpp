@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace qmom_1d_explicit_strang_splitting
@@ -23,7 +24,7 @@ qmomkit::PhaseSpaceVelocity advection_velocity()
     };
 }
 
-qmomkit::MomentSource variance_injection_source()
+qmomkit::QmomMomentSource variance_injection_source()
 {
     return [](const double time, const qmomkit::QmomSourceContext& context)
     {
@@ -36,7 +37,7 @@ qmomkit::MomentSource variance_injection_source()
         {
             derivative[2] = variance_injection_rate;
         }
-        return derivative;
+        return qmomkit::QmomMomentRate{std::move(derivative)};
     };
 }
 

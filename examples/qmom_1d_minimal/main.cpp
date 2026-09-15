@@ -36,7 +36,7 @@ int main()
     };
 
     // Define the callback for the moment source
-    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& context)
+    const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& context)
     {
         std::vector<double> derivative(context.size(), 0.0);
         for (std::size_t order = 0; order < context.size(); ++order)
@@ -44,7 +44,7 @@ int main()
             const double daughter_factor = std::pow(2.0, 1.0 - static_cast<double>(order));
             derivative[order] = 0.5 * (daughter_factor - 1.0) * context.value(order);
         }
-        return derivative;
+        return qmomkit::QmomMomentRate{std::move(derivative)};
     };
 
     // Configure the output

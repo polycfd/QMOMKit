@@ -18,9 +18,9 @@ Each runtime logical test is registered exactly once with CTest.
 | Unit logical tests | 663 |
 | Component/regression logical tests | 31 |
 | Verification logical tests | 167 |
-| **Runtime logical tests** | **861** |
+| **Runtime logical tests** | **862** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **862** |
+| **Total CTest registrations** | **863** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -420,7 +420,7 @@ renamed test rather than a deleted one.
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 861 runtime logical-test
+The `public_headers` registration is not part of the 862 runtime logical-test
 count. It compiles and links 23 public-header translation units as one separate
 CTest check; it is not 23 runtime tests.
 
@@ -1098,6 +1098,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_dense_and_lean_state_source_contexts_are_identical` | `tests/unit/phase_space_evolution.cpp` | `dense_and_lean_state_source_contexts_are_identical` | Verifies dense and lean state source contexts are identical. | — |
 | `unit_phase_space_evolution_cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage` | Checks that source context reconstructs untracked moments from each rk stage in phase-space evolution. | — |
 | `unit_phase_space_evolution_cqmom_source_context_visits_terminal_nodes_from_each_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_visits_terminal_nodes_from_each_rk_stage` | Checks CQMOM source contexts visit every terminal node at each RK stage. | — |
+| `unit_phase_space_evolution_qmom_boundary_context_matches_source_context` | `tests/unit/phase_space_evolution.cpp` | `qmom_boundary_context_matches_source_context` | Checks that the QMOM boundary callback receives the same source context as the source callback, including derived generalized moments. | — |
 | `unit_phase_space_evolution_qmom_source_context_generalized_moment_semantics` | `tests/unit/phase_space_evolution.cpp` | `qmom_source_context_generalized_moment_semantics` | Verifies QMOM source-context generalized-moment semantics and validation. | — |
 | `unit_phase_space_evolution_qmom_source_context_generalized_moment_uses_current_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `qmom_source_context_generalized_moment_uses_current_rk_stage` | Verifies QMOM source-context generalized moments use the current RK stage quadrature. | — |
 | `unit_phase_space_evolution_cqmom_source_context_generalized_moments_use_stage_quadrature` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_generalized_moments_use_stage_quadrature` | Verifies CQMOM source context generalized moments use stage quadrature. | — |

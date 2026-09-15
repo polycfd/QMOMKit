@@ -25,15 +25,14 @@ public:
 // This entry point is for validated QMOM phase-space evolution only. The
 // caller owns the source-stage reconstruction metadata; evolving values,
 // source controls, callbacks, and callback rates are still validated.
-[[nodiscard]] MomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step,
-                                                                                const MomentSource& source, const MomentSourceUpdateOptions& options,
-                                                                                std::size_t reconstruction_node_count,
-                                                                                const QmomOptions& reconstruction_options,
-                                                                                std::optional<AbscissaBounds> reconstruction_bounds);
+[[nodiscard]] QmomMomentSourceUpdateResult
+advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step, const QmomMomentSource& source,
+                                         const MomentSourceUpdateOptions& options, std::size_t reconstruction_node_count,
+                                         const QmomOptions& reconstruction_options, std::optional<AbscissaBounds> reconstruction_bounds);
 
-[[nodiscard]] MomentSourceUpdateResult
-advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step, const MomentSource& source,
-                                         const MomentBoundaryContribution& boundary, const MomentSourceUpdateOptions& options,
+[[nodiscard]] QmomMomentSourceUpdateResult
+advance_trusted_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step, const QmomMomentSource& source,
+                                         const QmomMomentBoundaryContribution& boundary, const MomentSourceUpdateOptions& options,
                                          std::size_t reconstruction_node_count, const QmomOptions& reconstruction_options,
                                          std::optional<AbscissaBounds> reconstruction_bounds);
 

@@ -110,9 +110,9 @@ void verify_direct_phase_space_advection()
     QMOMKIT_VERIFY_CHECK(error(qmomkit::reconstruct_raw_moments(final_quadrature, expected.size()), expected) < 2.0e-11);
 }
 
-qmomkit::MomentSource injection_source()
+qmomkit::QmomMomentSource injection_source()
 {
-    return [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>(context.size(), 0.1); };
+    return [](double, const qmomkit::QmomSourceContext& context) { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.1)}; };
 }
 
 std::vector<double> exact_injection_solution()

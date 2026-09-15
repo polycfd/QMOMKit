@@ -180,16 +180,16 @@ dm/dt = source(t, m)
 The public source callback is:
 
 ```cpp
-using MomentSource =
-    std::function<std::vector<double>(double, const QmomSourceContext&)>;
+using QmomMomentSource =
+    std::function<QmomMomentRate(double, const QmomSourceContext&)>;
 ```
 
 The callback receives the current time and a non-owning view of the current
-raw-moment SSP-RK stage. It must return a derivative vector with the same
-size.
+raw-moment SSP-RK stage. It must return a derivative with the same size. The
+signature mirrors `CqmomMomentSource` exactly, one dimension lower.
 
 Returning the derivative rather than filling a supplied buffer is a deliberate
-asymmetry: `MomentSource` is the one public callback that still returns, while
+asymmetry: `QmomMomentSource` is the one public callback that still returns, while
 `PhaseSpaceVelocity` and `OdeRhs` both fill. The callbacks are invoked at
 different rates. A moment source runs once per SSP-RK stage, three times per
 phase-space step, independent of node count and phase-space dimension. The
@@ -200,11 +200,11 @@ velocity is carried across, and is evaluated at the same rate. Measured on a
 QMOM step with three nodes, the three returned source vectors account for about
 three percent of the step's allocations. The fill form is therefore worth its
 extra awkwardness on the per-node path and is not worth it here, where
-returning a vector keeps the most common callback the simplest to write.
+returning a rate keeps the most common callback the simplest to write.
 
-The library absorbs that asymmetry in one place, where a `MomentSource` is
-wrapped as an `OdeRhs`: the returned rates are copied into the supplied buffer
-rather than moved, so the integrator keeps the buffer it reuses.
+The library absorbs that asymmetry in one place, where a `QmomMomentSource` is
+wrapped as an `OdeRhs`: the returned rate values are copied into the supplied
+buffer rather than moved, so the integrator keeps the buffer it reuses.
 
 `context.moment(order)` returns a tracked stage value directly; during QMOM
 phase-space source evolution, an untracked order is evaluated from a quadrature
@@ -220,22 +220,23 @@ mean.
 Phase-space boundary exchange uses a separate public concept:
 
 ```cpp
-struct MomentBoundaryRate
+struct QmomMomentRate
 {
     std::vector<double> values;
 };
 
-using MomentBoundaryContribution =
-    std::function<MomentBoundaryRate(double, const std::vector<double>&)>;
+using QmomMomentBoundaryContribution =
+    std::function<QmomMomentRate(double, const QmomSourceContext&)>;
 ```
 
-`MomentBoundaryContribution` represents additive raw-moment rates from
+`QmomMomentBoundaryContribution` represents additive raw-moment rates from
 nucleation, injection, removal, evaporation/condensation exchange, or similar
 phase-space boundary physics. It is not a PDE boundary-condition framework and
 does not introduce boundary geometry, node clipping, reflection, mesh faces, or
 finite-volume concepts.
 
-For QMOM, the vector is the one-dimensional raw moment sequence. CQMOM uses the
+The boundary callback receives the same context as the source callback, so both
+see the same stage view and the same derived-moment operations. CQMOM uses the
 CQMOM-native source callback over a `CqmomSourceContext` view of the current
 moment-source moments, so physical CQMOM source models do not need to depend on
 dense tensor or lean required-moment storage. Equivalent dense-backed and
@@ -817,7 +818,7 @@ contract.
 Public phase-space evolution and time-evolution entry points include:
 
 - `advance_nodes(...)`
-- `advance_moments_with_source(...)`
+- `advance_qmom_moments_with_source(...)`
 - `advance_qmom_advection(...)`
 - `advance_qmom_moment_source(...)`
 - `advance_qmom_phase_space(...)`
@@ -841,15 +842,15 @@ QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(
     const QmomState& state,
     double t,
     double time_step,
-    const MomentSource& source,
+    const QmomMomentSource& source,
     const QmomPhaseSpaceEvolutionOptions& options = {});
 
 QmomPhaseSpaceEvolutionResult advance_qmom_moment_source(
     const QmomState& state,
     double t,
     double time_step,
-    const MomentSource& source,
-    const MomentBoundaryContribution& boundary,
+    const QmomMomentSource& source,
+    const QmomMomentBoundaryContribution& boundary,
     const QmomPhaseSpaceEvolutionOptions& options);
 
 QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(
@@ -857,7 +858,7 @@ QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,
-    const MomentSource& source,
+    const QmomMomentSource& source,
     const QmomPhaseSpaceEvolutionOptions& options = {});
 
 QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(
@@ -865,8 +866,8 @@ QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(
     double t,
     double time_step,
     const PhaseSpaceVelocity& velocity,
-    const MomentSource& source,
-    const MomentBoundaryContribution& boundary,
+    const QmomMomentSource& source,
+    const QmomMomentBoundaryContribution& boundary,
     const QmomPhaseSpaceEvolutionOptions& options);
 
 CqmomPhaseSpaceEvolutionResult advance_cqmom_advection(
@@ -1017,7 +1018,7 @@ The lower-level public helpers are:
 
 - `advance_nodes(...)`: phase-space advection with unchanged
   weights;
-- `advance_moments_with_source(...)`: moment-source evolution of raw moments through
+- `advance_qmom_moments_with_source(...)`: moment-source evolution of raw moments through
   SSP-RK3;
 - `ssp_rk3_step(...)`: generic vector SSP-RK3 utility;
 - `integrate_embedded_rk(...)`: generic adaptive vector RK23/RK45 utility.

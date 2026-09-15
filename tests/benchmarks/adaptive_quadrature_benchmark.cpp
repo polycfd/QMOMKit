@@ -292,7 +292,7 @@ void validate_qmom_fixture(const QmomEventFixture& fixture)
     (void)canonical_moments_from_qmom_result(selected, fixture.target_moments.size());
 }
 
-qmomkit::MomentSource qmom_source_to_target(const QmomEventFixture& fixture)
+qmomkit::QmomMomentSource qmom_source_to_target(const QmomEventFixture& fixture)
 {
     const std::vector<double> initial = fixture.initial_state.moments();
     const std::vector<double> target = fixture.target_moments;
@@ -307,7 +307,7 @@ qmomkit::MomentSource qmom_source_to_target(const QmomEventFixture& fixture)
         {
             rate[i] = target[i] - initial[i];
         }
-        return rate;
+        return qmomkit::QmomMomentRate{std::move(rate)};
     };
 }
 
@@ -441,7 +441,7 @@ void run_qmom_full_step(benchmark::State& state, const QmomEventFixture& fixture
 
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
-    const qmomkit::MomentSource source = qmom_source_to_target(fixture);
+    const qmomkit::QmomMomentSource source = qmom_source_to_target(fixture);
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
 

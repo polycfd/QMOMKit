@@ -1,7 +1,7 @@
 # Moment-Source Analytical Verification
 
 These cases exercise the public moment-source update,
-`qmomkit::advance_moments_with_source(...)`, which advances raw moments through
+`qmomkit::advance_qmom_moments_with_source(...)`, which advances raw moments through
 a caller-supplied source term. The verification workflow then separately checks
 final QMOM/CQMOM inversion and raw-moment reconstruction so the evolved moments
 are tested as reconstructable moment states. Initial moment states and

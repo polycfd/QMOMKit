@@ -64,36 +64,38 @@ private:
 };
 
 /**
+ * One-dimensional raw-moment derivative.
+ *
+ * `values[i]` stores dm_i/dt for the raw moment of order `i`, in the same order
+ * as the moment vector it belongs to.
+ */
+struct QmomMomentRate
+{
+    std::vector<double> values;
+};
+
+/**
  * Generic moment-source callback.
  *
- * The context exposes the current raw-moment SSP-RK stage. The returned vector
+ * The context exposes the current raw-moment SSP-RK stage. The returned rate
  * must have the same size and represents dm/dt at the supplied time. The
  * library assigns no physical meaning to any component.
  */
-using MomentSource = std::function<std::vector<double>(double, const QmomSourceContext&)>;
+using QmomMomentSource = std::function<QmomMomentRate(double, const QmomSourceContext&)>;
 
 /**
- * One-dimensional raw-moment rate from phase-space boundary exchange.
+ * User callback for phase-space boundary exchange contributions to raw-moment
+ * rates.
+ *
+ * The callback receives the same context as the source callback and returns one
+ * additive rate per moment entry, in context order.
  *
  * Boundary contributions are additive rates for raw moments caused by
  * nucleation, injection, removal, evaporation/condensation exchange, or similar
  * phase-space boundary physics. They are not a generic PDE boundary-condition
  * framework.
  */
-struct MomentBoundaryRate
-{
-    std::vector<double> values;
-};
-
-/**
- * User callback for phase-space boundary exchange contributions to raw-moment
- * rates.
- *
- * The callback receives the current time and the current raw-moment vector. It
- * returns one additive rate per moment entry, in the same order as the input
- * moment vector.
- */
-using MomentBoundaryContribution = std::function<MomentBoundaryRate(double, const std::vector<double>&)>;
+using QmomMomentBoundaryContribution = std::function<QmomMomentRate(double, const QmomSourceContext&)>;
 
 /**
  * Non-owning mathematical view of the current CQMOM source state.
@@ -230,7 +232,7 @@ struct MomentSourceUpdateOptions
     // Per-coordinate policies for CQMOM moment-data updates, indexed by phase-space
     // dimension. Only the CQMOM (`CqmomMomentData`) overloads of
     // `advance_cqmom_moments_with_source` read and enforce this field. The QMOM
-    // (`std::vector<double>`) overloads of `advance_moments_with_source` reject any
+    // (`std::vector<double>`) overloads of `advance_qmom_moments_with_source` reject any
     // configured entry here (any element holding a value) with
     // `MomentSourceUpdateStatus::invalid_input`; a vector that is merely sized but
     // holds no policy is inert and accepted, matching the CQMOM path's own
@@ -249,7 +251,7 @@ struct MomentSourceUpdateDiagnostics
     std::string message;
 };
 
-struct MomentSourceUpdateResult
+struct QmomMomentSourceUpdateResult
 {
     std::vector<double> moments;
     MomentSourceUpdateStatus status = MomentSourceUpdateStatus::success;
@@ -282,17 +284,19 @@ struct CqmomMomentSourceUpdateResult
  * `options.ssp_rk3_options.accept`; rejected candidates use the SSP-RK3 retry
  * policy with timestep halving.
  */
-[[nodiscard]] MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, double t, double time_step,
-                                                                   const MomentSource& source, const MomentSourceUpdateOptions& options = {});
+[[nodiscard]] QmomMomentSourceUpdateResult advance_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step,
+                                                                            const QmomMomentSource& source,
+                                                                            const MomentSourceUpdateOptions& options = {});
 
 /**
  * Advanced composable operation: advance raw moments through a generic moment source
  * plus an additive phase-space boundary exchange contribution using the same
  * SSP-RK3 moment-source update path.
  */
-[[nodiscard]] MomentSourceUpdateResult advance_moments_with_source(const std::vector<double>& moments, double t, double time_step,
-                                                                   const MomentSource& source, const MomentBoundaryContribution& boundary,
-                                                                   const MomentSourceUpdateOptions& options);
+[[nodiscard]] QmomMomentSourceUpdateResult advance_qmom_moments_with_source(const std::vector<double>& moments, double t, double time_step,
+                                                                            const QmomMomentSource& source,
+                                                                            const QmomMomentBoundaryContribution& boundary,
+                                                                            const MomentSourceUpdateOptions& options);
 
 /**
  * Advanced composable operation: advance fixed-layout CQMOM moments through a

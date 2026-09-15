@@ -179,6 +179,13 @@ private:
 
     [[nodiscard]] const CqmomQuadrature& reconstructed_stage_quadrature() const;
 
+    /**
+     * Entry positions ordered by their multi-index, so a lookup by index is a
+     * binary search rather than a scan. Built on first use and only when a
+     * by-index lookup happens.
+     */
+    [[nodiscard]] const std::vector<std::size_t>& sorted_index_positions() const;
+
     double time_ = 0.0;
     const PhaseSpaceHierarchy* hierarchy_;
     const MultiIndexTable* indices_;
@@ -187,6 +194,7 @@ private:
     const std::vector<CqmomActiveBranchCount>* active_branch_counts_ = nullptr;
     const internal::PreparedCqmomMetadata* prepared_metadata_ = nullptr;
     mutable std::optional<CqmomQuadrature> reconstructed_stage_quadrature_;
+    mutable std::optional<std::vector<std::size_t>> sorted_index_positions_;
 };
 
 /**

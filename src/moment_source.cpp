@@ -10,6 +10,7 @@
 #include <cmath>
 #include <exception>
 #include <iterator>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -82,6 +83,11 @@ namespace
     MomentSourceUpdateDiagnostics diagnostics;
     diagnostics.message = message;
     return CqmomMomentSourceUpdateResult{std::move(moments), MomentSourceUpdateStatus::source_failed, diagnostics, std::move(message)};
+}
+
+[[nodiscard]] bool multi_index_precedes(const MultiIndexView lhs, const MultiIndexView rhs) noexcept
+{
+    return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
 }
 
 void validate_source_context(const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices, const std::vector<double>& values)
@@ -708,14 +714,54 @@ double CqmomSourceContext::value(const std::size_t i) const
     return values_->at(i);
 }
 
+const std::vector<std::size_t>& CqmomSourceContext::sorted_index_positions() const
+{
+    // A callback that reaches its moments by multi-index performs one lookup per
+    // entry it fills, so scanning the table for each one costs a quadratic
+    // number of index comparisons in the moment count and comes to dominate the
+    // source stage well before the phase space is large. Ordering the entries
+    // once turns each lookup into a binary search. The order is built per
+    // context, which is once per SSP-RK stage, and only when a by-index lookup
+    // actually occurs: a callback that addresses entries by position never pays
+    // for it.
+    if (!sorted_index_positions_.has_value())
+    {
+        std::vector<std::size_t> positions(indices_->size(), 0);
+        std::iota(positions.begin(), positions.end(), std::size_t{0});
+        std::sort(positions.begin(), positions.end(),
+                  [this](const std::size_t lhs, const std::size_t rhs)
+                  {
+                      const MultiIndexView left = (*indices_)[lhs];
+                      const MultiIndexView right = (*indices_)[rhs];
+                      if (multi_index_precedes(left, right))
+                      {
+                          return true;
+                      }
+                      if (multi_index_precedes(right, left))
+                      {
+                          return false;
+                      }
+                      // A caller-supplied table may repeat an index. Breaking
+                      // ties by position keeps the first occurrence the one a
+                      // lookup reports, as the previous scan did.
+                      return lhs < rhs;
+                  });
+        sorted_index_positions_ = std::move(positions);
+    }
+    return *sorted_index_positions_;
+}
+
 std::optional<std::size_t> CqmomSourceContext::position(const MultiIndexView moment_index) const
 {
-    const auto found = std::find(indices_->begin(), indices_->end(), moment_index);
-    if (found == indices_->end())
+    const std::vector<std::size_t>& positions = sorted_index_positions();
+    const auto found =
+        std::lower_bound(positions.begin(), positions.end(), moment_index, [this](const std::size_t position, const MultiIndexView target)
+                         { return multi_index_precedes((*indices_)[position], target); });
+    if (found == positions.end() || (*indices_)[*found] != moment_index)
     {
         return std::nullopt;
     }
-    return static_cast<std::size_t>(std::distance(indices_->begin(), found));
+    return *found;
 }
 
 std::optional<double> CqmomSourceContext::value(const MultiIndexView moment_index) const

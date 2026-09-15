@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 667 |
+| Unit logical tests | 668 |
 | Component/regression logical tests | 31 |
 | Verification logical tests | 167 |
-| **Runtime logical tests** | **865** |
+| **Runtime logical tests** | **866** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **866** |
+| **Total CTest registrations** | **867** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -420,7 +420,7 @@ renamed test rather than a deleted one.
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 865 runtime logical-test
+The `public_headers` registration is not part of the 866 runtime logical-test
 count. It compiles and links 23 public-header translation units as one separate
 CTest check; it is not 23 runtime tests.
 
@@ -957,6 +957,7 @@ CTest check; it is not 23 runtime tests.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
+| `unit_moment_source_cqmom_source_context_index_lookup_matches_a_scan` | `tests/unit/moment_source.cpp` | `cqmom_source_context_index_lookup_matches_a_scan` | Checks that the CQMOM source context's by-index lookup agrees with a scan entry for entry, reports an absent index as absent, and resolves a repeated index to its first occurrence. | — |
 | `unit_moment_source_accept_all_predicate` | `tests/unit/moment_source.cpp` | `accept_all_predicate` | Verifies accept all predicate. | — |
 | `unit_moment_source_reject_negative_moments_predicate_accepts_nonnegative_update` | `tests/unit/moment_source.cpp` | `reject_negative_moments_predicate_accepts_nonnegative_update` | Checks that reject negative moments predicate accepts nonnegative update in moment-source integration. | — |
 | `unit_moment_source_retry_behavior_completes_requested_interval_from_unchanged_state` | `tests/unit/moment_source.cpp` | `retry_behavior_completes_requested_interval_from_unchanged_state` | Verifies retry behavior completes requested interval from unchanged state. | — |

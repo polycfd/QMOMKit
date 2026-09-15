@@ -1,9 +1,11 @@
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -879,11 +881,89 @@ void test_cqmom_boundary_contribution_uses_source_context_ordering()
 
 } // namespace
 
+void test_cqmom_source_context_index_lookup_matches_a_scan()
+{
+    // position() is backed by an ordered view of the entries rather than a
+    // scan. It must still agree with a scan entry for entry, report a missing
+    // index as absent, and -- because a caller-supplied table may repeat an
+    // index -- report the first occurrence of a repeated one.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    qmomkit::MultiIndexTable indices;
+    for (const qmomkit::MultiIndex& index : std::vector<qmomkit::MultiIndex>{{0, 0}, {1, 0}, {0, 1}, {2, 1}, {1, 0}, {3, 2}, {0, 1}})
+    {
+        indices.push_back(index);
+    }
+    const std::vector<double> values{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0};
+    const qmomkit::CqmomSourceContext context(0.0, hierarchy, indices, values);
+
+    for (std::size_t entry = 0; entry < indices.size(); ++entry)
+    {
+        const qmomkit::MultiIndexView index = indices[entry];
+        const auto scanned = std::find(indices.begin(), indices.end(), index);
+        const std::size_t expected = static_cast<std::size_t>(std::distance(indices.begin(), scanned));
+
+        const std::optional<std::size_t> position = context.position(index);
+        assert(position.has_value());
+        assert(*position == expected);
+
+        const std::optional<double> value = context.value(index);
+        assert(value.has_value());
+        assert_near(*value, values[expected], 1.0e-15);
+    }
+
+    // The repeated entries resolve to their first occurrence, not their last.
+    assert(*context.position(qmomkit::MultiIndex{1, 0}) == 1);
+    assert(*context.position(qmomkit::MultiIndex{0, 1}) == 2);
+
+    // The table above is too short to discriminate: a sort of a few entries is
+    // stable in practice, so first-occurrence order survives by luck rather than
+    // by the ordering being built to preserve it. Repeat the check on a table
+    // long enough to be sorted by an unstable algorithm, with every index
+    // duplicated and the copies far apart.
+    qmomkit::MultiIndexTable repeated;
+    std::vector<qmomkit::MultiIndex> distinct;
+    for (std::size_t first = 0; first < 10; ++first)
+    {
+        for (std::size_t second = 0; second < 10; ++second)
+        {
+            distinct.push_back(qmomkit::MultiIndex{first, second});
+        }
+    }
+    for (auto entry = distinct.rbegin(); entry != distinct.rend(); ++entry)
+    {
+        repeated.push_back(*entry);
+    }
+    for (const qmomkit::MultiIndex& entry : distinct)
+    {
+        repeated.push_back(entry);
+    }
+    const std::vector<double> repeated_values(repeated.size(), 1.0);
+    const qmomkit::CqmomSourceContext repeated_context(0.0, hierarchy, repeated, repeated_values);
+
+    for (const qmomkit::MultiIndex& entry : distinct)
+    {
+        const auto scanned = std::find(repeated.begin(), repeated.end(), qmomkit::MultiIndexView(entry));
+        const std::size_t expected = static_cast<std::size_t>(std::distance(repeated.begin(), scanned));
+        const std::optional<std::size_t> position = repeated_context.position(entry);
+        assert(position.has_value());
+        assert(*position == expected);
+    }
+
+    // A query whose rank does not match the table is absent, not a match.
+    assert(!context.position(qmomkit::MultiIndex{0, 0, 0}).has_value());
+
+    // Absent indices, including ones that sort before and after every entry.
+    assert(!context.position(qmomkit::MultiIndex{9, 9}).has_value());
+    assert(!context.position(qmomkit::MultiIndex{2, 0}).has_value());
+    assert(!context.value(qmomkit::MultiIndex{9, 9}).has_value());
+}
+
 int main(const int argc, char** argv)
 {
     return qmomkit::test::dispatch_test_case(
         argc, argv,
         {
+            {"cqmom_source_context_index_lookup_matches_a_scan", test_cqmom_source_context_index_lookup_matches_a_scan},
             {"accept_all_predicate", test_accept_all_predicate},
             {"reject_negative_moments_predicate_accepts_nonnegative_update", test_reject_negative_moments_predicate_accepts_nonnegative_update},
             {"retry_behavior_completes_requested_interval_from_unchanged_state",

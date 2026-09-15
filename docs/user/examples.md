@@ -2,8 +2,7 @@
 
 QMOMKit examples are small standalone applications that consume an installed
 QMOMKit package. They demonstrate numerical workflows rather than complete
-applications or solvers. Start with the stages relevant to your work; the full
-suite is not a mandatory linear sequence.
+applications or solvers. 
 
 Install QMOMKit before building an example. Examples with Monte Carlo (MC)
 companions also require the optional QMOMKitMonteCarlo package; see

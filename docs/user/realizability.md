@@ -3,14 +3,12 @@
 Realizability asks whether a moment sequence can come from a valid
 distribution on a chosen support. For QMOMKit users, this is the question:
 
-```text
-Can these raw moments represent nonnegative distribution mass somewhere in
-the allowed phase-space domain?
-```
+_Can these raw moments represent nonnegative distribution mass somewhere in
+the allowed phase-space domain?_
 
 Not every list of numbers is a valid moment representation. For example, a
 one-dimensional sequence with positive $m_0$ but a negative variance cannot
-represent a physical distribution on the real line. A sequence may also be
+represent a physical distribution. A sequence may also be
 valid on one support but invalid on another; moments that are possible on the
 real line may be impossible if the variable must be nonnegative or bounded.
 

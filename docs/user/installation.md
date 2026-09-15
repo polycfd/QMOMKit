@@ -4,7 +4,7 @@ This page describes the repository-local installation workflow for QMOMKit.
 The root project builds and installs the QMOMKit CMake package.
 
 Normal tests
-can be enabled in the root build so they validate the current source tree.
+can be enabled in the root build so they validate the current codebase.
 Examples, benchmarks, the installed-package consumer, and the Monte Carlo
 companion package are standalone projects that use an installed package.
 

@@ -33,9 +33,8 @@ sample-derived raw moments
     -> reconstructed raw-moment history
 ```
 
-For direct comparisons, initialize both paths from the same finite realization
-when practical. That keeps initial sampling fluctuation common to the Monte
-Carlo and deterministic paths.
+For direct comparisons, initialize both the moment-based solution and the Monte
+Carlo solution from the same ensemble. That eliminates initial sampling fluctuations.
 
 ## Inject A Local Population Birth
 

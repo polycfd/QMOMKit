@@ -87,7 +87,7 @@ moment rates.
 Provide a `PhaseSpaceVelocity` when the model can be written as a velocity in
 the phase-space coordinates:
 
-$$\frac{\mathrm{d}x}{\mathrm{d}t} = \dot{\xi}(t, x)$$
+$$\frac{\mathrm{d}\xi}{\mathrm{d}t} = \dot{\xi}(t, x)$$
 
 This is the right place for drift, growth, relaxation, acceleration, or any
 effect naturally represented by moving existing nodes.
@@ -284,12 +284,12 @@ internally.
 
 Moment sources represent internal or volumetric changes that act directly on
 raw moments. They are integrated with an explicit third-order strong-stability-preserving
-Runge-Kutta step [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)].
+Runge-Kutta (SSP-RK3) scheme [[Shu & Osher, 1988](https://www.doi.org/10.1016/0021-9991(88)90177-5)].
 Use moment sources when the model gives rates for moments, or when an event
 changes moments without being well described as smooth coordinate
 motion. Examples include aggregation, fragmentation, relaxation, chemistry, or
 any other model that can be written as:
-$$\frac{\mathrm{d}m}{\mathrm{d}t} = S(t, m)$$
+$$\frac{\mathrm{d}M}{\mathrm{d}t} = S(t, M)$$
 
 
 Users provide a `MomentSource` callback when moment-source evolution is part of
@@ -461,8 +461,7 @@ Boundary contributions are optional additive raw-moment rates caused by
 phase-space boundary exchange. Use `MomentBoundaryContribution` only when the
 model describes nucleation, injection, removal, evaporation/condensation
 exchange, or similar production/destruction $B$ through a phase-space boundary:
-$$\frac{\mathrm{d}m}{\mathrm{d}t} = S(t, m) + B(t, m)$$
-
+$$\frac{\mathrm{d}M}{\mathrm{d}t} = S(t, M) + B(t, M)$$
 
 For one-dimensional QMOM:
 
@@ -520,35 +519,11 @@ When a boundary callback is supplied to one of these helpers, it is evaluated
 with the moment source during each SSP-RK3 moment-source stage:
 
 ```text
-effective_rate(t, m) = source(t, m) + boundary(t, m)
+effective_rate(t, M) = source(t, M) + boundary(t, M)
 ```
 
 The boundary-aware overloads take an explicit options argument to
 keep overload resolution unambiguous.
-
-## Bounded CQMOM Support During Phase-Space Evolution
-
-When a `CqmomCase` or `CqmomState` carries coordinate support from
-`phase_space.support_lower` and `phase_space.support_upper`, every CQMOM
-reconstruction for that coordinate checks the returned abscissas against the
-same interval. This includes initial inversion, post-source inversion, current
-active-count preservation, and adaptive growth attempts.
-
-Fixed branch counts are strict: if reconstruction returns nodes outside the
-declared interval, the stage fails and the returned state rolls back to the
-input state. Adaptive branch counts first try to preserve the current count,
-then reduce to a lower count when needed. Growth trials are allowed only toward
-the configured maximum; if a growth candidate returns out-of-interval nodes,
-the current accepted count is retained.
-
-QMOMKit verifies the returned nodes using the quadrature-bound tolerance.
-Boundary nodes and nodes inside the interval within that tolerance are accepted
-unchanged. Nodes outside the interval by more than the tolerance are rejected.
-QMOMKit does not clip, project, or otherwise move nodes to fit the interval.
-
-Successful post-source stages store canonical moments reconstructed from the
-accepted quadrature and active counts. The returned state contains the accepted
-bounded quadrature closure.
 
 ## Time Integration
 
@@ -570,7 +545,7 @@ options.node_options.adaptive_options.relative_tolerance = 1.0e-7;
 options.source_options.ssp_rk3_options.max_retries = 4;
 ```
 
-The composed helpers support three splitting schemes:
+Phase-space evolution supports three splitting schemes:
 
 ```text
 strang

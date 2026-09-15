@@ -7,12 +7,12 @@ This glossary explains common scientific terms used in the QMOMKit user guide.
 | Term | Explanation | More information |
 |---|---|---|
 | distribution | A mathematical description of how population mass is spread over one or more coordinates. In QMOMKit, distributions are mainly used to generate initial raw moments. | [Distributions](distributions.md) |
-| generalized moment | A moment-like quantity evaluated from a valid quadrature using finite real exponents. Generalized moments are derived post-processing values, not reconstruction inputs or phase-space-evolved state. | [One-Dimensional QMOM](qmom.md) |
+| generalized moment | A moment of integer or fractional order evaluated from a valid quadrature using finite real exponents. Generalized moments are derived post-processing values, not reconstruction inputs or phase-space-evolved state. | [One-Dimensional QMOM](qmom.md) |
 | moment | A weighted integral or sum of powers of coordinates that summarizes a distribution. Moment-method workflows store and evolve these summaries instead of the full distribution. | [One-Dimensional QMOM](qmom.md) |
 | phase space | The ordered set of coordinates used to describe the represented population. Coordinate names are labels; the chosen order controls moment indices, quadrature coordinates, callbacks, and output. | [Configuration](configuration.md) |
 | raw moment | An uncentered, unnormalized moment of the number density function. QMOMKit preserves the total number density instead of automatically scaling moments to probability moments. | [Distributions](distributions.md) |
 | realizability | The question of whether a supplied moment sequence can come from a nonnegative distribution on a chosen support. It matters because impossible moments may fail quadrature reconstruction or need to be rejected during evolution. | [Realizability](realizability.md) |
-| zeroth moment | The moment with all orders equal to zero, representing total number density or total quadrature weight. In one dimension this is `m0`; in multiple dimensions it is `M[0,...,0]`. | [Configuration](configuration.md) |
+| zeroth moment | The moment with all orders equal to zero, representing total number density or total quadrature weight. In one dimension this is $m_0$; in multiple dimensions it is $M_{[0,...,0]}$. | [Configuration](configuration.md) |
 
 ## Quadrature Concepts
 

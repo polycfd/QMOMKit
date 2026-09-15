@@ -344,7 +344,7 @@ rule. This can be useful near degenerate or boundary-like states where a fixed
 node count may be too ambitious. Enable it explicitly in configuration with
 adaptive branch counts:
 
-```text
+```ini
 [phase_space]
 adaptive_branch_counts = true
 ```

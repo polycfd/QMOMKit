@@ -388,8 +388,7 @@ independent-product populations.
 
 For the normal `load_cqmom(...)` path, `node_counts` and
 `conditioning_order` determine which raw moments are required. Analytical
-independent-product initialization generates only those required moments and
-does not construct a dense `RawMomentTensor`.
+independent-product initialization generates only those required moments.
 
 To retain more initial moments than the reconstruction needs, see
 [retaining extra moments](#retaining-extra-moments).
@@ -453,7 +452,7 @@ still be loaded into phase-space evolution options explicitly.
 | `time_integration.node_advection.*` | yes | no | yes |
 | `time_integration.realizability.*` | yes | no | yes |
 
-A configuration file may select the phase-space evolution operator-ordering
+A configuration file may select the phase-space evolution operator-splitting
 scheme:
 
 ```ini
@@ -474,7 +473,7 @@ moment-source evolution. If `scheme` is omitted, the default is
 `strang`, the usual second-order composition for cases where both parts are
 active.
 
-A configuration file may also select the advection node-advection scheme:
+A configuration file may also select the node-advection scheme:
 
 ```ini
 [time_integration.node_advection]
@@ -537,21 +536,6 @@ Drivers can print `format_node_advection_options(...)` at startup to report
 the effective scheme and controls. For fixed-step node advection, that summary
 reports the selected scheme only; it does not imply that adaptive controls are
 active.
-
-### CQMOM Moment-Source Active Counts
-
-When adaptive branch counts are enabled, QMOMKit automatically reduces
-branch-local node counts when moment information collapses. Phase-space
-advection cannot increase active counts. After an accepted
-moment-source update, each existing branch may increase by at most one
-node toward its configured maximum when the updated moments support that
-additional node.
-
-Initial reconstruction starts each branch from the configured maximum and lets
-adaptive Wheeler determine the active count. Newly created descendant branches
-also begin from the configured maximum and adapt downward. Users configure the
-maximum node counts, whether CQMOM branch counts are adaptive, and adaptive
-Wheeler tolerances; moment-source node-count evolution is automatic.
 
 The configuration file stores runtime numerical choices and the initial
 numerical setup. Your application still provides the advection velocity and
@@ -660,9 +644,6 @@ lower = 0.0
 upper = 1.0
 ```
 
-The QMOM settings apply only to moment-source evolution. They do not apply to
-node advection, quadrature evolution, or reconstructed nodes and weights.
-
 For CQMOM, use coordinate-specific realizability settings for the individual
 phase-space coordinates that require checks. A zero-based coordinate suffix
 identifies the coordinate and must be smaller than the configured phase-space
@@ -764,7 +745,7 @@ The same concepts appear either way:
 |---|---|---|
 | Concept | `.qmom` file | Direct C++ setup |
 |---|---|---|
-| phase space | `[phase_space]` names, node counts, conditioning order, adaptive branch settings | construct `QmomCase` or a public CQMOM case with the desired coordinate count, node counts, hierarchy, and ordering |
+| phase space | `[phase_space]` names, node counts, conditioning order, adaptive branch settings | construct `QmomCase` or a CQMOM case with the desired coordinate count, node counts, hierarchy, and ordering |
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a dense tensor representation from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
@@ -773,9 +754,7 @@ The same concepts appear either way:
 
 Not every C++ option has a `.qmom` key. The file format covers the case and
 runtime configuration surface; low-level controls such as reconstruction
-thresholds and source-integration acceptance callbacks stay API-only. Physics
-callbacks, model coefficients, meshes, boundary conditions, units, and the
-timestep loop are application code in both routes.
+thresholds and source-integration acceptance callbacks stay API-only.
 
 For one-dimensional QMOM, construct the case from the moments, node count, and
 options:
@@ -790,10 +769,7 @@ int main()
     qmomkit::QmomOptions qmom_options;
     qmom_options.adaptive = false;
 
-    const qmomkit::QmomCase qmom_case{
-        qmomkit::MomentSet({1.0, 0.8, 2.8, 4.4}),
-        2,
-        qmom_options};
+    const qmomkit::QmomCase qmom_case{qmomkit::MomentSet({1.0, 0.8, 2.8, 4.4}), 2, qmom_options};
 
     const qmomkit::QmomResult qmom = qmomkit::compute_qmom(qmom_case);
     if (!qmom.ok())
@@ -881,7 +857,7 @@ When it is omitted, QMOMKit derives the minimum dense extent from the node
 count: `extent[d] = 2 * node_counts[d]`, or equivalently a maximum raw order
 of `2 * node_counts[d] - 1`. Supplied values must not be smaller than that
 minimum. Larger values retain additional initial raw moments in the dense
-state, which is useful when moments are evaluated from a sample population.
+state.
 They do not increase reconstruction order, branch capacity, the structured
 CQMOM layout, or the moments independently evolved by source callbacks.
 During dense phase-space evolution, those additional entries are regenerated

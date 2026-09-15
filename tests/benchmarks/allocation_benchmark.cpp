@@ -224,7 +224,7 @@ void bm_allocations_qmom_phase_space_step(benchmark::State& state, const Velocit
     const qmomkit::QmomCase qmom_case{moments, 3, {}};
     const qmomkit::PhaseSpaceVelocity velocity = velocity_for(form);
     const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& context)
-    { return std::vector<double>(context.size(), 0.0); };
+    { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;

@@ -112,7 +112,7 @@ void verify_direct_phase_space_advection()
 
 qmomkit::QmomMomentSource injection_source()
 {
-    return [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>(context.size(), 0.1); };
+    return [](double, const qmomkit::QmomSourceContext& context) { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.1)}; };
 }
 
 std::vector<double> exact_injection_solution()

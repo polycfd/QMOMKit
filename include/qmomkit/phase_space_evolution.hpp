@@ -177,7 +177,7 @@ using BatchPhaseSpaceVelocity = std::function<void(std::size_t batch_index, doub
  * `batch_index` is the zero-based position of the state in the collection
  * supplied to a batch phase-space evolution operation.
  */
-using BatchQmomMomentSource = std::function<std::vector<double>(std::size_t batch_index, double time, const QmomSourceContext& context)>;
+using BatchQmomMomentSource = std::function<QmomMomentRate(std::size_t batch_index, double time, const QmomSourceContext& context)>;
 
 /**
  * Batch-index-aware one-dimensional boundary-contribution callback.
@@ -185,7 +185,7 @@ using BatchQmomMomentSource = std::function<std::vector<double>(std::size_t batc
  * `batch_index` is the zero-based position of the state in the collection
  * supplied to a batch phase-space evolution operation.
  */
-using BatchQmomMomentBoundaryContribution = std::function<QmomMomentRate(std::size_t batch_index, double time, const std::vector<double>& moments)>;
+using BatchQmomMomentBoundaryContribution = std::function<QmomMomentRate(std::size_t batch_index, double time, const QmomSourceContext& context)>;
 
 /**
  * Batch-index-aware CQMOM moment-source callback.

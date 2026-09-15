@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace qmom_1d_explicit_strang_splitting
@@ -36,7 +37,7 @@ qmomkit::QmomMomentSource variance_injection_source()
         {
             derivative[2] = variance_injection_rate;
         }
-        return derivative;
+        return qmomkit::QmomMomentRate{std::move(derivative)};
     };
 }
 

@@ -125,13 +125,13 @@ void validate_rate(const CqmomMomentRate& rate, const std::size_t expected_size)
         {"CQMOM moment-source rate values must match the source context size.", "CQMOM moment-source rate values must be finite."});
 }
 
-void validate_source_rate(const std::vector<double>& rate, const std::size_t expected_size)
+void validate_source_rate(const QmomMomentRate& rate, const std::size_t expected_size)
 {
-    if (rate.size() != expected_size)
+    if (rate.values.size() != expected_size)
     {
         throw std::invalid_argument("Moment-source callback rate values must match the moment state size.");
     }
-    if (!internal::all_finite(rate))
+    if (!internal::all_finite(rate.values))
     {
         throw std::invalid_argument("Moment-source callback rate values must be finite.");
     }
@@ -356,21 +356,21 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
     // operator, so SSP-RK3 still sees a single combined RHS.
     return [source, boundary](const double stage_time, const QmomSourceContext& context)
     {
-        std::vector<double> source_rate = source(stage_time, context);
+        QmomMomentRate source_rate = source(stage_time, context);
         validate_source_rate(source_rate, context.size());
         QmomMomentRate boundary_rate;
         try
         {
-            boundary_rate = boundary(stage_time, context.values());
+            boundary_rate = boundary(stage_time, context);
         }
         catch (const std::exception& error)
         {
             throw boundary_callback_error(error);
         }
         validate_boundary_rate(boundary_rate, context.size());
-        for (std::size_t i = 0; i < source_rate.size(); ++i)
+        for (std::size_t i = 0; i < source_rate.values.size(); ++i)
         {
-            source_rate[i] += boundary_rate.values[i];
+            source_rate.values[i] += boundary_rate.values[i];
         }
         return source_rate;
     };
@@ -380,13 +380,14 @@ void validate_trusted_moment_data_request(const CqmomMomentData& moments, const 
 // runs once per SSP-RK stage, three times per phase-space step, independent of
 // node count and phase-space dimension, so a per-call allocation there stays a
 // small constant share of the step. This is the one place where that returned
-// vector meets the fill-style `OdeRhs`.
+// rate meets the fill-style `OdeRhs`.
 //
 // Taking the rates by reference is what keeps this free. Three of the four call
-// sites hand over the source's returned value directly, but the CQMOM one must
-// name it first in order to validate it, and a by-value parameter would copy
-// that named vector once per SSP-RK stage: three extra allocations per 3-D
-// phase-space step, measured. Whether the body then copies or moves is a wash.
+// sites hand over the returned rate's values directly, from a temporary that
+// outlives the call, but the CQMOM one must name the rate first in order to
+// validate it, and a by-value parameter would copy that named vector once per
+// SSP-RK stage: three extra allocations per 3-D phase-space step, measured.
+// Whether the body then copies or moves is a wash.
 //
 // A source that returned the wrong number of rates resizes the buffer here, so
 // `rhs_checked` reports it exactly as it did before.
@@ -824,7 +825,7 @@ QmomMomentSourceUpdateResult advance_qmom_moments_with_source(const std::vector<
     const OdeRhs rhs = [&source](const double stage_time, const std::vector<double>& state, std::vector<double>& derivative)
     {
         const QmomSourceContext context{stage_time, state};
-        assign_source_rates(source(stage_time, context), derivative);
+        assign_source_rates(source(stage_time, context).values, derivative);
     };
     return advance_qmom_moments_with_source(moments, t, time_step, rhs, options);
 }
@@ -899,7 +900,7 @@ QmomMomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std:
     {
         const QmomSourceContext context =
             QmomSourceContextAccess::create(stage_time, state, reconstruction_node_count, reconstruction_options, reconstruction_bounds);
-        assign_source_rates(source(stage_time, context), derivative);
+        assign_source_rates(source(stage_time, context).values, derivative);
     };
     return advance_qmom_moments_with_source(moments, t, time_step, rhs, options);
 }
@@ -926,7 +927,7 @@ QmomMomentSourceUpdateResult advance_trusted_qmom_moments_with_source(const std:
     {
         const QmomSourceContext context =
             QmomSourceContextAccess::create(stage_time, state, reconstruction_node_count, reconstruction_options, reconstruction_bounds);
-        assign_source_rates(composed_source(stage_time, context), derivative);
+        assign_source_rates(composed_source(stage_time, context).values, derivative);
     };
     return advance_qmom_moments_with_source(moments, t, time_step, rhs, options);
 }

@@ -294,7 +294,7 @@ std::vector<double> advance_qmom_plan(const CaseDefinition& definition, const st
     {
         const qmomkit::QmomMomentSourceUpdateResult update = qmomkit::advance_qmom_moments_with_source(
             current, time, plan.dt, [&definition](double, const qmomkit::QmomSourceContext& context)
-            { return qmom_source(definition.name, context.values()); }, source_options());
+            { return qmomkit::QmomMomentRate{qmom_source(definition.name, context.values())}; }, source_options());
         verify_source_diagnostics(update, plan.dt, result);
         if (!update.ok())
         {
@@ -315,7 +315,7 @@ std::vector<double> advance_cqmom_plan(const qmomkit::RawMomentTensor& initial_t
     {
         const qmomkit::QmomMomentSourceUpdateResult update = qmomkit::advance_qmom_moments_with_source(
             current, time, plan.dt, [&initial_tensor](double, const qmomkit::QmomSourceContext& context)
-            { return common_rate_source(initial_tensor, context.values()); }, source_options());
+            { return qmomkit::QmomMomentRate{common_rate_source(initial_tensor, context.values())}; }, source_options());
         verify_source_diagnostics(update, plan.dt, result);
         if (!update.ok())
         {

@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace qmom_1d_breakage_advection_with_mc
@@ -35,7 +36,7 @@ qmomkit::QmomMomentSource binary_fragmentation_source()
             const double daughter_factor = std::pow(2.0, 1.0 - static_cast<double>(order));
             source[order] = fragmentation_rate * (daughter_factor - 1.0) * context.value(order);
         }
-        return source;
+        return qmomkit::QmomMomentRate{std::move(source)};
     };
 }
 

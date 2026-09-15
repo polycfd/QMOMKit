@@ -588,22 +588,22 @@ void commuting_velocity(double, const std::vector<double>& coordinates, std::vec
     }
 }
 
-std::vector<double> commuting_source(double, const qmomkit::QmomSourceContext& context)
+qmomkit::QmomMomentRate commuting_source(double, const qmomkit::QmomSourceContext& context)
 {
     std::vector<double> rhs(context.size(), 0.0);
     for (std::size_t order = 1; order < context.size(); ++order)
     {
         rhs[order] = -commuting_lambda_scale * static_cast<double>(order) * context.value(order);
     }
-    return rhs;
+    return qmomkit::QmomMomentRate{std::move(rhs)};
 }
 
-std::vector<double> zero_qmom_source(double, const qmomkit::QmomSourceContext& context)
+qmomkit::QmomMomentRate zero_qmom_source(double, const qmomkit::QmomSourceContext& context)
 {
-    return std::vector<double>(context.size(), 0.0);
+    return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)};
 }
 
-qmomkit::QmomMomentRate qmom_boundary_injection_removal(double, const std::vector<double>& moments)
+qmomkit::QmomMomentRate qmom_boundary_injection_removal(double, const qmomkit::QmomSourceContext& moments)
 {
     constexpr double injection_rate = 0.08;
     constexpr double injection_coordinate = 0.25;
@@ -619,7 +619,9 @@ qmomkit::QmomMomentRate qmom_boundary_injection_removal(double, const std::vecto
 
 std::vector<double> qmom_boundary_rate_values(const std::size_t count)
 {
-    return qmom_boundary_injection_removal(0.0, std::vector<double>(count, 0.0)).values;
+    // The context is a non-owning view, so the moment vector must outlive the call.
+    const std::vector<double> moments(count, 0.0);
+    return qmom_boundary_injection_removal(0.0, qmomkit::QmomSourceContext{0.0, moments}).values;
 }
 
 std::vector<double> qmom_constant_source_values(const std::size_t count)
@@ -632,9 +634,9 @@ std::vector<double> qmom_constant_source_values(const std::size_t count)
     return rate;
 }
 
-std::vector<double> qmom_constant_source(double, const qmomkit::QmomSourceContext& context)
+qmomkit::QmomMomentRate qmom_constant_source(double, const qmomkit::QmomSourceContext& context)
 {
-    return qmom_constant_source_values(context.size());
+    return qmomkit::QmomMomentRate{qmom_constant_source_values(context.size())};
 }
 
 std::vector<double> noncommuting_exact(const std::vector<double>& initial, const double elapsed)
@@ -684,14 +686,14 @@ void noncommuting_velocity(double, const std::vector<double>&, std::vector<doubl
     std::fill(velocities.begin(), velocities.end(), noncommuting_b);
 }
 
-std::vector<double> noncommuting_source(double, const qmomkit::QmomSourceContext& context)
+qmomkit::QmomMomentRate noncommuting_source(double, const qmomkit::QmomSourceContext& context)
 {
     std::vector<double> rhs(context.size(), 0.0);
     for (std::size_t order = 1; order < context.size(); ++order)
     {
         rhs[order] = -noncommuting_gamma * static_cast<double>(order) * context.value(order);
     }
-    return rhs;
+    return qmomkit::QmomMomentRate{std::move(rhs)};
 }
 
 QmomStepRun run_qmom_steps(const std::vector<double>& initial, const std::size_t node_count, const double t0, const double dt,
@@ -969,11 +971,11 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
         qmomkit::QmomMomentBoundaryContribution boundary;
         std::string expected_message_fragment;
     };
-    const std::vector<BoundaryFailureCase> failure_cases{{"wrong size", [](double, const std::vector<double>& moments)
+    const std::vector<BoundaryFailureCase> failure_cases{{"wrong size", [](double, const qmomkit::QmomSourceContext& moments)
                                                           { return qmomkit::QmomMomentRate{std::vector<double>(moments.size() + 1, 0.0)}; },
                                                           "boundary contribution"},
                                                          {"NaN",
-                                                          [](double, const std::vector<double>& moments)
+                                                          [](double, const qmomkit::QmomSourceContext& moments)
                                                           {
                                                               std::vector<double> rate(moments.size(), 0.0);
                                                               rate.front() = std::numeric_limits<double>::quiet_NaN();
@@ -981,7 +983,7 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
                                                           },
                                                           "boundary contribution"},
                                                          {"infinity",
-                                                          [](double, const std::vector<double>& moments)
+                                                          [](double, const qmomkit::QmomSourceContext& moments)
                                                           {
                                                               std::vector<double> rate(moments.size(), 0.0);
                                                               rate.front() = std::numeric_limits<double>::infinity();
@@ -1011,7 +1013,7 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
         verification.runs.push_back(failure_summary);
     }
 
-    const qmomkit::QmomMomentBoundaryContribution nonrealizable_boundary = [](double, const std::vector<double>& moments)
+    const qmomkit::QmomMomentBoundaryContribution nonrealizable_boundary = [](double, const qmomkit::QmomSourceContext& moments)
     {
         std::vector<double> rate(moments.size(), 0.0);
         rate.front() = -100.0;
@@ -1375,7 +1377,7 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
         {
             rates.front() = -20.0;
         }
-        return rates;
+        return qmomkit::QmomMomentRate{std::move(rates)};
     };
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });

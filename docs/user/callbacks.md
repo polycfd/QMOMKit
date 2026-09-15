@@ -47,8 +47,8 @@ Physics callbacks, which most applications write:
 | --- | --- | --- |
 | `PhaseSpaceVelocity` | `void(double, const std::vector<double>&, std::vector<double>&, std::size_t)` | Node velocity for all nodes at once |
 | `PerNodePhaseSpaceVelocity` | `std::vector<double>(double, const std::vector<double>&)` | Convenience form, one node at a time |
-| `QmomMomentSource` | `std::vector<double>(double, const QmomSourceContext&)` | QMOM raw-moment rates |
-| `QmomMomentBoundaryContribution` | `QmomMomentRate(double, const std::vector<double>&)` | QMOM phase-space boundary exchange |
+| `QmomMomentSource` | `QmomMomentRate(double, const QmomSourceContext&)` | QMOM raw-moment rates |
+| `QmomMomentBoundaryContribution` | `QmomMomentRate(double, const QmomSourceContext&)` | QMOM phase-space boundary exchange |
 | `CqmomMomentSource` | `CqmomMomentRate(double, const CqmomSourceContext&)` | CQMOM raw-moment rates |
 | `CqmomMomentBoundaryContribution` | `CqmomMomentRate(double, const CqmomSourceContext&)` | CQMOM boundary exchange |
 
@@ -142,18 +142,17 @@ value of entry `i` at this SSP-RK stage:
 const qmomkit::QmomMomentSource source =
     [](double, const qmomkit::QmomSourceContext& context)
 {
-    std::vector<double> rates(context.size(), 0.0);
+    qmomkit::QmomMomentRate rate{std::vector<double>(context.size(), 0.0)};
     for (std::size_t order = 0; order < context.size(); ++order)
     {
-        rates[order] = -0.1 * context.value(order);
+        rate.values[order] = -0.1 * context.value(order);
     }
-    return rates;
+    return rate;
 };
 ```
 
-The CQMOM form is the same, wrapped in a `CqmomMomentRate`. Because CQMOM
-moments are multi-indexed, use `context.index(entry)` to learn which moment an
-entry is:
+The CQMOM form has the same shape. Because CQMOM moments are multi-indexed, use
+`context.index(entry)` to learn which moment an entry is:
 
 ```cpp
 const qmomkit::CqmomMomentSource source =
@@ -182,9 +181,9 @@ are added to the moment-source rates rather than forming a separate operator:
 
 ```cpp
 const qmomkit::QmomMomentBoundaryContribution boundary =
-    [](double, const std::vector<double>& moments)
+    [](double, const qmomkit::QmomSourceContext& context)
 {
-    qmomkit::QmomMomentRate rate{std::vector<double>(moments.size(), 0.0)};
+    qmomkit::QmomMomentRate rate{std::vector<double>(context.size(), 0.0)};
     rate.values[0] = 1.0e-3;
     return rate;
 };

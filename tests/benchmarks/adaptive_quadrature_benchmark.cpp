@@ -307,7 +307,7 @@ qmomkit::QmomMomentSource qmom_source_to_target(const QmomEventFixture& fixture)
         {
             rate[i] = target[i] - initial[i];
         }
-        return rate;
+        return qmomkit::QmomMomentRate{std::move(rate)};
     };
 }
 

@@ -64,15 +64,6 @@ private:
 };
 
 /**
- * Generic moment-source callback.
- *
- * The context exposes the current raw-moment SSP-RK stage. The returned vector
- * must have the same size and represents dm/dt at the supplied time. The
- * library assigns no physical meaning to any component.
- */
-using QmomMomentSource = std::function<std::vector<double>(double, const QmomSourceContext&)>;
-
-/**
  * One-dimensional raw-moment derivative.
  *
  * `values[i]` stores dm_i/dt for the raw moment of order `i`, in the same order
@@ -84,19 +75,27 @@ struct QmomMomentRate
 };
 
 /**
+ * Generic moment-source callback.
+ *
+ * The context exposes the current raw-moment SSP-RK stage. The returned rate
+ * must have the same size and represents dm/dt at the supplied time. The
+ * library assigns no physical meaning to any component.
+ */
+using QmomMomentSource = std::function<QmomMomentRate(double, const QmomSourceContext&)>;
+
+/**
  * User callback for phase-space boundary exchange contributions to raw-moment
  * rates.
  *
- * The callback receives the current time and the current raw-moment vector. It
- * returns one additive rate per moment entry, in the same order as the input
- * moment vector.
+ * The callback receives the same context as the source callback and returns one
+ * additive rate per moment entry, in context order.
  *
  * Boundary contributions are additive rates for raw moments caused by
  * nucleation, injection, removal, evaporation/condensation exchange, or similar
  * phase-space boundary physics. They are not a generic PDE boundary-condition
  * framework.
  */
-using QmomMomentBoundaryContribution = std::function<QmomMomentRate(double, const std::vector<double>&)>;
+using QmomMomentBoundaryContribution = std::function<QmomMomentRate(double, const QmomSourceContext&)>;
 
 /**
  * Non-owning mathematical view of the current CQMOM source state.

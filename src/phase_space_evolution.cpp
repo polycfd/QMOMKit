@@ -1562,8 +1562,8 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_moment_source_batch_with
                                           { return source(batch_index, callback_time, context); }}
                        : QmomMomentSource{};
             const QmomMomentBoundaryContribution local_boundary =
-                boundary ? QmomMomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const std::vector<double>& moments)
-                                                          { return boundary(batch_index, callback_time, moments); }}
+                boundary ? QmomMomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const QmomSourceContext& context)
+                                                          { return boundary(batch_index, callback_time, context); }}
                          : QmomMomentBoundaryContribution{};
             return advance_qmom_moment_source(state, time, time_step, local_source, local_boundary, options);
         });
@@ -1655,8 +1655,8 @@ std::vector<QmomPhaseSpaceEvolutionResult> advance_qmom_phase_space_batch_with_i
                                           { return source(batch_index, callback_time, context); }}
                        : QmomMomentSource{};
             const QmomMomentBoundaryContribution local_boundary =
-                boundary ? QmomMomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const std::vector<double>& moments)
-                                                          { return boundary(batch_index, callback_time, moments); }}
+                boundary ? QmomMomentBoundaryContribution{[&boundary, batch_index](const double callback_time, const QmomSourceContext& context)
+                                                          { return boundary(batch_index, callback_time, context); }}
                          : QmomMomentBoundaryContribution{};
             return advance_qmom_phase_space(state, time, time_step, local_velocity, local_source, local_boundary, options);
         });

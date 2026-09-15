@@ -9,6 +9,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -190,7 +191,7 @@ qmomkit::QmomMomentSource noncommuting_source()
         {
             rate[order] = -noncommuting_gamma * static_cast<double>(order) * context.value(order);
         }
-        return rate;
+        return qmomkit::QmomMomentRate{std::move(rate)};
     };
 }
 

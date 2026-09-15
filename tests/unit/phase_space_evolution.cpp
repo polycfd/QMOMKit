@@ -128,7 +128,7 @@ qmomkit::QmomMomentSource qmom_source_from_to(const std::vector<double>& initial
         {
             rate[i] = target[i] - initial[i];
         }
-        return rate;
+        return qmomkit::QmomMomentRate{std::move(rate)};
     };
 }
 
@@ -1448,7 +1448,7 @@ void test_qmom_bounded_state_advection_and_source_reconstruction_semantics()
     const qmomkit::QmomMomentSource untracked_moment_source = [](double, const qmomkit::QmomSourceContext& context)
     {
         static_cast<void>(context.moment(2));
-        return std::vector<double>(context.size(), 0.0);
+        return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)};
     };
     const qmomkit::QmomPhaseSpaceEvolutionResult lazy_reconstruction =
         qmomkit::advance_qmom_moment_source(advected.state, 1.0, 0.1, untracked_moment_source);
@@ -1457,7 +1457,7 @@ void test_qmom_bounded_state_advection_and_source_reconstruction_semantics()
     assert(lazy_reconstruction.message.find("source-stage quadrature reconstruction failed") != std::string::npos);
 
     const qmomkit::QmomMomentSource move_outside_bounds = [](double, const qmomkit::QmomSourceContext& context)
-    { return std::vector<double>{0.0, 1.0}; };
+    { return qmomkit::QmomMomentRate{std::vector<double>{0.0, 1.0}}; };
     const qmomkit::QmomPhaseSpaceEvolutionResult post_source = qmomkit::advance_qmom_moment_source(initial, 0.0, 1.0, move_outside_bounds);
     assert(!post_source.ok());
     assert(post_source.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
@@ -1488,7 +1488,7 @@ void test_qmom_bounded_post_source_automatic_scaling_is_unit_covariant()
         const qmomkit::AbscissaBounds bounds{0.5 * factor, 1.5 * factor};
         const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d(physical_nodes, weights, 4), 2, qmom_options, bounds);
         const qmomkit::QmomMomentSource zero_source = [](double, const qmomkit::QmomSourceContext& context)
-        { return std::vector<double>(context.size(), 0.0); };
+        { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
         qmomkit::QmomPhaseSpaceEvolutionOptions scaled_options;
         const qmomkit::QmomPhaseSpaceEvolutionResult scaled = qmomkit::advance_qmom_moment_source(state, 0.0, 1.0, zero_source, scaled_options);
@@ -1540,8 +1540,8 @@ void test_public_qmom_moment_source_stage_adaptive_policy()
 
     const qmomkit::QmomState two_node_state = qmom_state_from_moments(raw_moments_1d({-0.75, 1.25}, {0.4, 0.6}, 6), 3, qmom_options);
     const qmomkit::QmomPhaseSpaceEvolutionResult retained = qmomkit::advance_qmom_moment_source(
-        two_node_state, 0.0, 0.2, [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); },
-        options);
+        two_node_state, 0.0, 0.2,
+        [](double, const qmomkit::QmomSourceContext& moments) { return qmomkit::QmomMomentRate{std::vector<double>(moments.size(), 0.0)}; }, options);
     assert(retained.ok());
     assert(retained.state.active_node_count() == two_node_state.active_node_count());
     assert_qmom_state_canonical(retained.state, 1.0e-12);
@@ -1572,7 +1572,7 @@ void test_public_qmom_moment_source_stage_adaptive_policy()
 void test_public_qmom_moment_source_stage_failures_roll_back()
 {
     const qmomkit::QmomState state = qmom_state_from_moments({1.0, 2.0}, 1);
-    const auto bad_source = [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{1.0, 2.0, 3.0}; };
+    const auto bad_source = [](double, const qmomkit::QmomSourceContext&) { return qmomkit::QmomMomentRate{std::vector<double>{1.0, 2.0, 3.0}}; };
     const qmomkit::QmomPhaseSpaceEvolutionResult source_failure = qmomkit::advance_qmom_moment_source(state, 0.0, 0.1, bad_source);
     assert(!source_failure.ok());
     assert(source_failure.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
@@ -1583,7 +1583,7 @@ void test_public_qmom_moment_source_stage_failures_roll_back()
     {
         std::vector<double> rate(moments.size(), 0.0);
         rate.front() = -20.0;
-        return rate;
+        return qmomkit::QmomMomentRate{std::move(rate)};
     };
     const qmomkit::QmomPhaseSpaceEvolutionResult inversion_failure = qmomkit::advance_qmom_moment_source(state, 0.0, 0.1, nonrealizable_source);
     assert(!inversion_failure.ok());
@@ -1619,7 +1619,7 @@ void test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature()
         {
             rate[order] = lambda * context.value(order);
         }
-        return rate;
+        return qmomkit::QmomMomentRate{std::move(rate)};
     };
 
     qmomkit::internal::performance::CounterSession session;
@@ -1637,6 +1637,50 @@ void test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature()
 #else
     assert(session.snapshot().reconstruction.qmom_reconstructions == 0);
 #endif
+}
+
+// The boundary callback receives the same context as the source callback, so it
+// can read the current stage and derive moments from it rather than being handed
+// only the raw moment vector. This pins that the two callbacks observe the same
+// stage within one invocation.
+void test_qmom_boundary_context_matches_source_context()
+{
+    const std::vector<double> abscissas{1.0, 4.0};
+    const std::vector<double> weights{0.25, 0.75};
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d(abscissas, weights, 6), 2);
+
+    std::vector<double> source_view;
+    std::vector<double> boundary_view;
+    double source_generalized = 0.0;
+    double boundary_generalized = 0.0;
+    bool boundary_called = false;
+
+    const qmomkit::QmomMomentSource source = [&](double, const qmomkit::QmomSourceContext& context)
+    {
+        source_view.assign(context.values().begin(), context.values().end());
+        source_generalized = context.generalized_moment(0.5);
+        return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)};
+    };
+    const qmomkit::QmomMomentBoundaryContribution boundary = [&](double, const qmomkit::QmomSourceContext& context)
+    {
+        boundary_view.assign(context.values().begin(), context.values().end());
+        // Available only because the boundary callback now receives the context.
+        boundary_generalized = context.generalized_moment(0.5);
+        assert_near(context.generalized_moment(0.0), 1.0, 2.0e-12);
+        boundary_called = true;
+        return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)};
+    };
+
+    const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_moment_source(state, 0.0, 0.1, source, boundary, {});
+    assert(result.ok());
+    assert(boundary_called);
+    assert(boundary_view.size() == source_view.size());
+    for (std::size_t i = 0; i < source_view.size(); ++i)
+    {
+        assert_near(boundary_view[i], source_view[i], 0.0);
+    }
+    assert_near(boundary_generalized, source_generalized, 0.0);
+    assert_near(boundary_generalized, 0.25 * std::sqrt(1.0) + 0.75 * std::sqrt(4.0), 2.0e-12);
 }
 
 void test_qmom_source_context_generalized_moment_semantics()
@@ -1670,7 +1714,7 @@ void test_qmom_source_context_generalized_moment_semantics()
         expect_invalid_order(std::numeric_limits<double>::infinity());
         expect_invalid_order(-std::numeric_limits<double>::infinity());
         positive_checked = true;
-        return std::vector<double>(context.size(), 0.0);
+        return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)};
     };
     const qmomkit::QmomPhaseSpaceEvolutionResult positive_result = qmomkit::advance_qmom_moment_source(positive_state, 0.0, 0.1, positive_source);
     assert(positive_result.ok());
@@ -1692,7 +1736,7 @@ void test_qmom_source_context_generalized_moment_semantics()
         assert(rejected_fractional_power);
         assert_near(context.generalized_moment(3.0), context.value(3), 2.0e-10);
         negative_checked = true;
-        return std::vector<double>(context.size(), 0.0);
+        return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)};
     };
     const qmomkit::QmomPhaseSpaceEvolutionResult negative_result = qmomkit::advance_qmom_moment_source(negative_state, 0.0, 0.1, negative_source);
     assert(negative_result.ok());
@@ -1720,7 +1764,7 @@ void test_qmom_source_context_generalized_moment_uses_current_rk_stage()
         {
             rate[order] = coefficient * context.value(order);
         }
-        return rate;
+        return qmomkit::QmomMomentRate{std::move(rate)};
     };
 
     const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_moment_source(state, 0.0, time_step, source);
@@ -1744,7 +1788,7 @@ void test_configured_qmom_source_realizability_policy_matches_programmatic_adapt
             ++calls;
             std::vector<double> rate(moments.size(), 0.0);
             rate[2] = -10.0;
-            return rate;
+            return qmomkit::QmomMomentRate{std::move(rate)};
         };
     };
     const auto parse_options = [](const std::string& check_mode)
@@ -1775,8 +1819,8 @@ void test_configured_qmom_source_realizability_policy_matches_programmatic_adapt
 
     std::size_t boundary_calls = 0;
     const qmomkit::QmomMomentSource zero_source = [](double, const qmomkit::QmomSourceContext& moments)
-    { return std::vector<double>(moments.size(), 0.0); };
-    const qmomkit::QmomMomentBoundaryContribution boundary_source = [&boundary_calls](double, const std::vector<double>& moments)
+    { return qmomkit::QmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
+    const qmomkit::QmomMomentBoundaryContribution boundary_source = [&boundary_calls](double, const qmomkit::QmomSourceContext& moments)
     {
         ++boundary_calls;
         std::vector<double> rate(moments.size(), 0.0);
@@ -1821,9 +1865,9 @@ void test_public_qmom_moment_source_stage_boundary_matches_source_update()
     const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& moments)
     {
         assert(moments.size() == 2);
-        return std::vector<double>{0.0, 1.0};
+        return qmomkit::QmomMomentRate{std::vector<double>{0.0, 1.0}};
     };
-    const qmomkit::QmomMomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
+    const qmomkit::QmomMomentBoundaryContribution boundary = [](double, const qmomkit::QmomSourceContext& moments)
     {
         assert(moments.size() == 2);
         return qmomkit::QmomMomentRate{std::vector<double>{0.25, -0.5}};
@@ -1862,7 +1906,7 @@ void test_public_qmom_stage_composition_matches_strang_phase_space_evolution()
         {
             rhs[order] = -(0.2 + 0.05 * time) * static_cast<double>(order) * moments.value(order);
         }
-        return rhs;
+        return qmomkit::QmomMomentRate{std::move(rhs)};
     };
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options = tight_node_options();
@@ -1894,7 +1938,7 @@ void test_public_qmom_stage_composition_matches_lie_phase_space_evolution()
         {
             rhs[order] = -(0.1 + 0.02 * time) * static_cast<double>(order) * moments.value(order);
         }
-        return rhs;
+        return qmomkit::QmomMomentRate{std::move(rhs)};
     };
     constexpr double dt = 0.2;
 
@@ -1923,7 +1967,8 @@ void test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_mac
     const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.25}, {0.4, 0.6}, 4), 2);
     const qmomkit::PhaseSpaceVelocity velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{0.5}; });
-    const auto bad_source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size() + 1, 0.0); };
+    const auto bad_source = [](double, const qmomkit::QmomSourceContext& moments)
+    { return qmomkit::QmomMomentRate{std::vector<double>(moments.size() + 1, 0.0)}; };
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options = tight_node_options();
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
@@ -1941,7 +1986,8 @@ void test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_mac
 void test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes()
 {
     const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.25}, {0.4, 0.6}, 4), 2);
-    const auto zero_source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& moments)
+    { return qmomkit::QmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions srcadv_options;
     srcadv_options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
@@ -2658,7 +2704,8 @@ void test_advection_only_matches_direct_operator_qmom()
 
     const qmomkit::PhaseSpaceVelocity velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>{0.5 * xi[0]}; });
-    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state)
+    { return qmomkit::QmomMomentRate{std::vector<double>(state.size(), 0.0)}; };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options = tight_node_options();
@@ -2683,7 +2730,7 @@ void test_source_only_matches_direct_operator_qmom()
     const auto source = [](double, const qmomkit::QmomSourceContext& state)
     {
         assert(state.size() == 2);
-        return std::vector<double>{0.0, 3.0};
+        return qmomkit::QmomMomentRate{std::vector<double>{0.0, 3.0}};
     };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
@@ -2707,9 +2754,9 @@ void test_source_plus_boundary_matches_direct_operator_qmom()
     const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& state)
     {
         assert(state.size() == 2);
-        return std::vector<double>{0.0, 1.0};
+        return qmomkit::QmomMomentRate{std::vector<double>{0.0, 1.0}};
     };
-    const qmomkit::QmomMomentBoundaryContribution boundary = [](double, const std::vector<double>& state)
+    const qmomkit::QmomMomentBoundaryContribution boundary = [](double, const qmomkit::QmomSourceContext& state)
     {
         assert(state.size() == 2);
         return qmomkit::QmomMomentRate{std::vector<double>{0.25, -0.5}};
@@ -4342,7 +4389,8 @@ void test_qmom_state_copy_move_workflow()
 
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
-    const auto zero_source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& moments)
+    { return qmomkit::QmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::advsrc;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
@@ -4384,7 +4432,8 @@ void test_qmom_adaptive_phase_space_evolution_preserves_active_count_with_zero_s
 
     const qmomkit::PhaseSpaceVelocity velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>{0.2 * xi[0]}; });
-    const auto zero_source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& moments)
+    { return qmomkit::QmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::advsrc;
     options.node_options = tight_node_options();
@@ -4422,7 +4471,7 @@ void test_qmom_adaptive_post_source_reduction_and_growth_policy()
             {
                 rate[i] = target[i] - initial[i];
             }
-            return rate;
+            return qmomkit::QmomMomentRate{std::move(rate)};
         };
     };
 
@@ -4469,7 +4518,7 @@ void test_qmom_fixed_post_source_requires_configured_count()
         {
             rate[i] = one_node_moments[i] - initial[i];
         }
-        return rate;
+        return qmomkit::QmomMomentRate{std::move(rate)};
     };
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
@@ -4501,7 +4550,7 @@ void test_first_order_schemes_differ_for_noncommuting_qmom()
         {
             rhs[order] = -0.2 * static_cast<double>(order) * state.value(order);
         }
-        return rhs;
+        return qmomkit::QmomMomentRate{std::move(rhs)};
     };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions advsrc_options;
@@ -4532,7 +4581,7 @@ void test_strang_source_uses_physical_time_interval_for_nonautonomous_source()
     const auto source = [&callback_times](const double time, const qmomkit::QmomSourceContext& moments)
     {
         callback_times.push_back(time);
-        return std::vector<double>{time, 0.0};
+        return qmomkit::QmomMomentRate{std::vector<double>{time, 0.0}};
     };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
@@ -4564,7 +4613,8 @@ void test_diagnostics_are_aggregated()
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
     const qmomkit::PhaseSpaceVelocity velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>{xi[0]}; });
-    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state)
+    { return qmomkit::QmomMomentRate{std::vector<double>(state.size(), 0.0)}; };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options = tight_node_options();
@@ -4588,7 +4638,8 @@ void test_qmom_phase_space_evolution_node_advection_scheme_selection()
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 2);
     const qmomkit::PhaseSpaceVelocity velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{0.5}; });
-    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state)
+    { return qmomkit::QmomMomentRate{std::vector<double>(state.size(), 0.0)}; };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions ssp_options;
     ssp_options.scheme = qmomkit::PhaseSpaceEvolutionScheme::advsrc;
@@ -4668,7 +4719,8 @@ void test_failure_propagation_from_advection_operator()
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
     const qmomkit::PhaseSpaceVelocity bad_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{1.0, 2.0}; });
-    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); };
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state)
+    { return qmomkit::QmomMomentRate{std::vector<double>(state.size(), 0.0)}; };
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
@@ -4687,7 +4739,7 @@ void test_failure_propagation_from_source_operator()
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
-    const auto bad_source = [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{1.0, 2.0, 3.0}; };
+    const auto bad_source = [](double, const qmomkit::QmomSourceContext&) { return qmomkit::QmomMomentRate{std::vector<double>{1.0, 2.0, 3.0}}; };
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
 
@@ -4706,8 +4758,9 @@ void test_failure_propagation_from_boundary_contribution()
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
-    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); };
-    const qmomkit::QmomMomentBoundaryContribution bad_boundary = [](double, const std::vector<double>& state)
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state)
+    { return qmomkit::QmomMomentRate{std::vector<double>(state.size(), 0.0)}; };
+    const qmomkit::QmomMomentBoundaryContribution bad_boundary = [](double, const qmomkit::QmomSourceContext& state)
     { return qmomkit::QmomMomentRate{std::vector<double>(state.size() + 1, 0.0)}; };
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
@@ -4729,8 +4782,9 @@ void test_boundary_contribution_post_source_inversion_failure()
     const qmomkit::QmomState state = qmom_state_from_moments(moments, 1);
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
-    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state) { return std::vector<double>(state.size(), 0.0); };
-    const qmomkit::QmomMomentBoundaryContribution removal = [](double, const std::vector<double>& state)
+    const auto zero_source = [](double, const qmomkit::QmomSourceContext& state)
+    { return qmomkit::QmomMomentRate{std::vector<double>(state.size(), 0.0)}; };
+    const qmomkit::QmomMomentBoundaryContribution removal = [](double, const qmomkit::QmomSourceContext& state)
     {
         std::vector<double> rate(state.size(), 0.0);
         rate.front() = -20.0;
@@ -4799,7 +4853,7 @@ void test_packed_velocity_phase_space_step_matches_per_node_form()
 
         const qmomkit::QmomState qmom_state = qmom_state_from_moments({1.0, 0.5, 0.75, 0.875, 1.5, 3.0}, 3);
         const qmomkit::QmomMomentSource qmom_source = [](double, const qmomkit::QmomSourceContext& context)
-        { return std::vector<double>(context.size(), 0.0); };
+        { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
         qmomkit::QmomPhaseSpaceEvolutionOptions qmom_options;
         qmom_options.scheme = scheme;
@@ -4960,6 +5014,7 @@ void run_all_phase_space_evolution_tests()
     test_public_qmom_moment_source_stage_adaptive_policy();
     test_public_qmom_moment_source_stage_failures_roll_back();
     test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature();
+    test_qmom_boundary_context_matches_source_context();
     test_qmom_source_context_generalized_moment_semantics();
     test_qmom_source_context_generalized_moment_uses_current_rk_stage();
     test_configured_qmom_source_realizability_policy_matches_programmatic_adapter();
@@ -5073,6 +5128,7 @@ void run_qmom_phase_space_evolution_tests()
     test_public_qmom_moment_source_stage_fixed_mode_is_strict();
     test_public_qmom_moment_source_stage_adaptive_policy();
     test_public_qmom_moment_source_stage_failures_roll_back();
+    test_qmom_boundary_context_matches_source_context();
     test_qmom_source_context_generalized_moment_semantics();
     test_qmom_source_context_generalized_moment_uses_current_rk_stage();
     test_configured_qmom_source_realizability_policy_matches_programmatic_adapter();
@@ -5209,6 +5265,7 @@ int main(const int argc, char** argv)
             {"public_qmom_moment_source_stage_adaptive_policy", test_public_qmom_moment_source_stage_adaptive_policy},
             {"public_qmom_moment_source_stage_failures_roll_back", test_public_qmom_moment_source_stage_failures_roll_back},
             {"qmom_source_context_uses_current_rk_stage_and_caches_quadrature", test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature},
+            {"qmom_boundary_context_matches_source_context", test_qmom_boundary_context_matches_source_context},
             {"qmom_source_context_generalized_moment_semantics", test_qmom_source_context_generalized_moment_semantics},
             {"qmom_source_context_generalized_moment_uses_current_rk_stage", test_qmom_source_context_generalized_moment_uses_current_rk_stage},
             {"configured_qmom_source_realizability_policy_matches_programmatic_adapter",

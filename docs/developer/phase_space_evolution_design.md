@@ -181,12 +181,12 @@ The public source callback is:
 
 ```cpp
 using QmomMomentSource =
-    std::function<std::vector<double>(double, const QmomSourceContext&)>;
+    std::function<QmomMomentRate(double, const QmomSourceContext&)>;
 ```
 
 The callback receives the current time and a non-owning view of the current
-raw-moment SSP-RK stage. It must return a derivative vector with the same
-size.
+raw-moment SSP-RK stage. It must return a derivative with the same size. The
+signature mirrors `CqmomMomentSource` exactly, one dimension lower.
 
 Returning the derivative rather than filling a supplied buffer is a deliberate
 asymmetry: `QmomMomentSource` is the one public callback that still returns, while
@@ -200,11 +200,11 @@ velocity is carried across, and is evaluated at the same rate. Measured on a
 QMOM step with three nodes, the three returned source vectors account for about
 three percent of the step's allocations. The fill form is therefore worth its
 extra awkwardness on the per-node path and is not worth it here, where
-returning a vector keeps the most common callback the simplest to write.
+returning a rate keeps the most common callback the simplest to write.
 
 The library absorbs that asymmetry in one place, where a `QmomMomentSource` is
-wrapped as an `OdeRhs`: the returned rates are copied into the supplied buffer
-rather than moved, so the integrator keeps the buffer it reuses.
+wrapped as an `OdeRhs`: the returned rate values are copied into the supplied
+buffer rather than moved, so the integrator keeps the buffer it reuses.
 
 `context.moment(order)` returns a tracked stage value directly; during QMOM
 phase-space source evolution, an untracked order is evaluated from a quadrature
@@ -226,7 +226,7 @@ struct QmomMomentRate
 };
 
 using QmomMomentBoundaryContribution =
-    std::function<QmomMomentRate(double, const std::vector<double>&)>;
+    std::function<QmomMomentRate(double, const QmomSourceContext&)>;
 ```
 
 `QmomMomentBoundaryContribution` represents additive raw-moment rates from
@@ -235,7 +235,8 @@ phase-space boundary physics. It is not a PDE boundary-condition framework and
 does not introduce boundary geometry, node clipping, reflection, mesh faces, or
 finite-volume concepts.
 
-For QMOM, the vector is the one-dimensional raw moment sequence. CQMOM uses the
+The boundary callback receives the same context as the source callback, so both
+see the same stage view and the same derived-moment operations. CQMOM uses the
 CQMOM-native source callback over a `CqmomSourceContext` view of the current
 moment-source moments, so physical CQMOM source models do not need to depend on
 dense tensor or lean required-moment storage. Equivalent dense-backed and

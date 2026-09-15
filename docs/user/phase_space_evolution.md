@@ -298,14 +298,14 @@ the model:
 qmomkit::QmomMomentSource source =
     [](double time, const qmomkit::QmomSourceContext& context)
     {
-        std::vector<double> derivative(context.size(), 0.0);
-        derivative[0] = 0.0;
-        derivative[1] = -0.1 * context.value(1);
-        return derivative;
+        qmomkit::QmomMomentRate rate{std::vector<double>(context.size(), 0.0)};
+        rate.values[0] = 0.0;
+        rate.values[1] = -0.1 * context.value(1);
+        return rate;
     };
 ```
 
-The returned vector must have the same size as the current stage vector.
+The returned rate must have the same size as the current stage vector.
 QMOMKit does not know what each component means; the ordering must match the
 moment ordering used by your QMOM setup. CQMOM uses the
 context-specific callback below so multidimensional source terms can follow the
@@ -466,12 +466,12 @@ For one-dimensional QMOM:
 
 ```cpp
 qmomkit::QmomMomentBoundaryContribution boundary =
-    [](double time, const std::vector<double>& moments)
+    [](double time, const qmomkit::QmomSourceContext& context)
     {
         constexpr double rate = 0.02;
         constexpr double boundary_coordinate = 0.1;
 
-        std::vector<double> values(moments.size(), 0.0);
+        std::vector<double> values(context.size(), 0.0);
         double power = 1.0;
         for (double& value : values)
         {
@@ -488,9 +488,9 @@ Use `advance_qmom_moments_with_source(...)` when QMOMKit should perform SSP-RK3
 moment-source integration, or use the composed helpers when it
 should also own the configured operator-splitting sequence.
 
-For CQMOM, use `CqmomMomentBoundaryContribution`. It receives the same
-`CqmomSourceContext` as `CqmomMomentSource` and returns one additive rate per
-context entry:
+For CQMOM, use `CqmomMomentBoundaryContribution`. The two forms are shaped
+alike: each boundary callback receives the same context as its own source
+callback and returns one additive rate per context entry:
 
 ```cpp
 qmomkit::CqmomMomentBoundaryContribution boundary =
@@ -598,7 +598,7 @@ int main()
     const qmomkit::QmomMomentSource source =
         [](double, const qmomkit::QmomSourceContext& context)
         {
-            return std::vector<double>(context.size(), 0.0);
+            return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)};
         };
 
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
@@ -674,12 +674,12 @@ phase-space evolution options:
 
 ```cpp
 const qmomkit::QmomMomentBoundaryContribution boundary =
-    [](double, const std::vector<double>& current_moments)
+    [](double, const qmomkit::QmomSourceContext& context)
     {
         constexpr double injection_rate = 0.02;
         constexpr double injection_coordinate = 0.1;
 
-        std::vector<double> rate(current_moments.size(), 0.0);
+        std::vector<double> rate(context.size(), 0.0);
         double power = 1.0;
         for (double& value : rate)
         {
@@ -1036,10 +1036,9 @@ Coordinate order links each callback to the configured model. A
 order within each node, the same order used by CQMOM moments, node counts, and
 output.
 
-Each moment callback must return the same number of rates as the moments it
-receives. A `QmomMomentSource` callback returns the same number of moment
-derivatives it receives. A `QmomMomentBoundaryContribution` callback returns the
-same number of additive boundary rates. A `CqmomMomentSource` or
+Each moment callback must return one rate per entry of the context it receives.
+A `QmomMomentSource` or `QmomMomentBoundaryContribution` callback returns one
+rate per `QmomSourceContext` entry; a `CqmomMomentSource` or
 `CqmomMomentBoundaryContribution` callback returns one rate per
 `CqmomSourceContext` entry.
 

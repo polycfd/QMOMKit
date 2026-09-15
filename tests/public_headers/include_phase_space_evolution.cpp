@@ -99,9 +99,9 @@ using CqmomBatchBoundaryPhaseSpaceEvolutionBatch = std::vector<qmomkit::CqmomPha
 static_assert(std::is_same_v<qmomkit::BatchPhaseSpaceVelocity,
                              std::function<void(std::size_t, double, const std::vector<double>&, std::vector<double>&, std::size_t)>>);
 static_assert(
-    std::is_same_v<qmomkit::BatchQmomMomentSource, std::function<std::vector<double>(std::size_t, double, const qmomkit::QmomSourceContext&)>>);
+    std::is_same_v<qmomkit::BatchQmomMomentSource, std::function<qmomkit::QmomMomentRate(std::size_t, double, const qmomkit::QmomSourceContext&)>>);
 static_assert(std::is_same_v<qmomkit::BatchQmomMomentBoundaryContribution,
-                             std::function<qmomkit::QmomMomentRate(std::size_t, double, const std::vector<double>&)>>);
+                             std::function<qmomkit::QmomMomentRate(std::size_t, double, const qmomkit::QmomSourceContext&)>>);
 static_assert(std::is_same_v<qmomkit::BatchCqmomMomentSource,
                              std::function<qmomkit::CqmomMomentRate(std::size_t, double, const qmomkit::CqmomSourceContext&)>>);
 static_assert(std::is_same_v<qmomkit::BatchCqmomMomentBoundaryContribution,
@@ -142,7 +142,7 @@ struct DualCqmomMomentSource
     (void)qmomkit::advance_qmom_advection_batch(qmom_states, 0.0, 0.1, nullptr);
     (void)qmomkit::advance_qmom_advection_batch_with_index(qmom_states, 0.0, 0.1, nullptr);
 
-    const auto generic_qmom_source = [](auto&&...) { return std::vector<double>{}; };
+    const auto generic_qmom_source = [](auto&&...) { return qmomkit::QmomMomentRate{}; };
     const auto generic_qmom_boundary = [](auto&&...) { return qmomkit::QmomMomentRate{std::vector<double>{}}; };
     (void)qmomkit::advance_qmom_moment_source_batch(qmom_states, 0.0, 0.1, generic_qmom_source);
     (void)qmomkit::advance_qmom_moment_source_batch_with_index(qmom_states, 0.0, 0.1, generic_qmom_source);

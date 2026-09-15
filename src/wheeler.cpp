@@ -454,12 +454,12 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
     if (!request.adaptive)
     {
         BoundedQuadratureCandidate fixed = evaluate(request.configured_node_count, "fixed");
+        const bool accepted = fixed.accepted;
         selection.quadrature = fixed.quadrature;
         selection.selected_node_count_ceiling = request.configured_node_count;
-        selection.success = fixed.accepted;
         selection.diagnostic_candidate = std::move(fixed);
-        selection.accepted_fallback_node_count = selection.success ? request.configured_node_count : 0;
-        if (!selection.success)
+        selection.accepted_fallback_node_count = accepted ? request.configured_node_count : 0;
+        if (!accepted)
         {
             selection.quadrature.message = selection.diagnostic_candidate.message;
         }
@@ -494,7 +494,6 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
             selection.quadrature = std::move(candidate.quadrature);
             selection.selected_node_count_ceiling = candidate_count;
             selection.reduced = reduced;
-            selection.success = true;
             selection.accepted_fallback_node_count = candidate_count;
             break;
         }

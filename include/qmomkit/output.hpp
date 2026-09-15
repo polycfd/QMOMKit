@@ -169,8 +169,9 @@ private:
     std::vector<std::vector<double>> generalized_moment_orders_;
     RawMomentRequest raw_moment_request_;
     std::vector<std::string> labels_;
-    std::size_t precision;
-    std::size_t column_width;
+    // Both are established in every constructor's member initializer list.
+    std::size_t precision_;
+    std::size_t column_width_;
 };
 
 /**
@@ -224,8 +225,9 @@ private:
     std::size_t dimension_count_ = 1;
     std::size_t maximum_node_count_ = 0;
     std::vector<std::string> labels_;
-    std::size_t precision;
-    std::size_t column_width;
+    // Both are established in every constructor's member initializer list.
+    std::size_t precision_;
+    std::size_t column_width_;
 };
 
 } // namespace qmomkit

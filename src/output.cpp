@@ -33,10 +33,13 @@ namespace
     return std::string(left_padding, ' ') + label + std::string(padding - left_padding, ' ');
 }
 
-void write_column_header(std::ofstream& output, std::size_t& column_width, const std::size_t precision, const std::vector<std::string>& labels,
-                         const char* context)
+[[nodiscard]] std::size_t column_width_for(const std::size_t precision)
 {
-    column_width = std::max(precision + 8, std::size_t(6));
+    return std::max(precision + 8, std::size_t(6));
+}
+
+void write_column_header(std::ofstream& output, const std::size_t column_width, const std::vector<std::string>& labels, const char* context)
+{
     output << centered_column_label("# time", column_width);
     for (const std::string& label : labels)
     {
@@ -295,7 +298,8 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
                            std::vector<std::size_t> flat_indices, std::vector<std::string> labels,
                            std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision)
     : output_(path), layout_(layout), extents_(std::move(extents)), flat_indices_(std::move(flat_indices)),
-      generalized_moment_orders_(std::move(generalized_moment_orders)), labels_(std::move(labels)), precision(precision)
+      generalized_moment_orders_(std::move(generalized_moment_orders)), labels_(std::move(labels)), precision_(precision),
+      column_width_(column_width_for(precision))
 {
     if (!output_)
     {
@@ -311,7 +315,7 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
 MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, CqmomMomentLayout cqmom_layout,
                            std::vector<std::string> labels, std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision)
     : output_(path), layout_(layout), cqmom_layout_(std::move(cqmom_layout)), generalized_moment_orders_(std::move(generalized_moment_orders)),
-      labels_(std::move(labels)), precision(precision)
+      labels_(std::move(labels)), precision_(precision), column_width_(column_width_for(precision))
 {
     if (!output_)
     {
@@ -328,7 +332,7 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
 MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, std::vector<MultiIndex> state_indices,
                            std::vector<std::string> labels, std::vector<std::vector<double>> generalized_moment_orders, const std::size_t precision)
     : output_(path), layout_(layout), state_indices_(std::move(state_indices)), generalized_moment_orders_(std::move(generalized_moment_orders)),
-      labels_(std::move(labels)), precision(precision)
+      labels_(std::move(labels)), precision_(precision), column_width_(column_width_for(precision))
 {
     if (!output_)
     {
@@ -343,7 +347,8 @@ MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout
 
 MomentWriter::MomentWriter(const std::filesystem::path& path, const MomentLayout layout, RawMomentRequest request, std::vector<std::string> labels,
                            const std::size_t precision)
-    : output_(path), layout_(layout), raw_moment_request_(std::move(request)), labels_(std::move(labels)), precision(precision)
+    : output_(path), layout_(layout), raw_moment_request_(std::move(request)), labels_(std::move(labels)), precision_(precision),
+      column_width_(column_width_for(precision))
 {
     if (!output_)
     {
@@ -384,7 +389,7 @@ std::string MomentWriter::layout_mismatch_message(const char* const overload, co
 
 void MomentWriter::write_header()
 {
-    write_column_header(output_, column_width, precision, labels_, "moment output");
+    write_column_header(output_, column_width_, labels_, "moment output");
 }
 
 void MomentWriter::write_row(const double time, const std::vector<double>& values)
@@ -398,14 +403,14 @@ void MomentWriter::write_row(const double time, const std::vector<double>& value
         throw std::invalid_argument("Moment output values must be finite.");
     }
 
-    output_ << std::scientific << std::setprecision(precision) << std::setw(column_width) << time;
+    output_ << std::scientific << std::setprecision(precision_) << std::setw(column_width_) << time;
     for (const std::size_t flat_index : flat_indices_)
     {
         if (flat_index >= values.size())
         {
             throw std::out_of_range("Selected moment output index is outside the supplied moments.");
         }
-        output_ << ' ' << std::setprecision(precision) << std::setw(column_width) << values[flat_index];
+        output_ << ' ' << std::setprecision(precision_) << std::setw(column_width_) << values[flat_index];
     }
     output_ << '\n';
     if (!output_)
@@ -429,14 +434,14 @@ void MomentWriter::write_aligned_row(const double time, const std::vector<double
         throw std::invalid_argument("Moment output row does not match the writer column count.");
     }
 
-    output_ << std::scientific << std::setprecision(precision) << std::setw(column_width) << time;
+    output_ << std::scientific << std::setprecision(precision_) << std::setw(column_width_) << time;
     for (const double value : values)
     {
-        output_ << ' ' << std::setprecision(precision) << std::setw(column_width) << value;
+        output_ << ' ' << std::setprecision(precision_) << std::setw(column_width_) << value;
     }
     for (const double value : generalized_values)
     {
-        output_ << ' ' << std::setprecision(precision) << std::setw(column_width) << value;
+        output_ << ' ' << std::setprecision(precision_) << std::setw(column_width_) << value;
     }
     output_ << '\n';
     if (!output_)
@@ -654,7 +659,7 @@ QuadratureWriter QuadratureWriter::for_cqmom(const std::filesystem::path& path, 
 QuadratureWriter::QuadratureWriter(const std::filesystem::path& path, const QuadratureLayout layout, const std::size_t dimension_count,
                                    const std::size_t maximum_node_count, std::vector<std::string> labels, const std::size_t precision)
     : output_(path), layout_(layout), dimension_count_(dimension_count), maximum_node_count_(maximum_node_count), labels_(std::move(labels)),
-      precision(precision)
+      precision_(precision), column_width_(column_width_for(precision))
 {
     if (!output_)
     {
@@ -669,7 +674,7 @@ QuadratureWriter::QuadratureWriter(const std::filesystem::path& path, const Quad
 
 void QuadratureWriter::write_header()
 {
-    write_column_header(output_, column_width, precision, labels_, "quadrature output");
+    write_column_header(output_, column_width_, labels_, "quadrature output");
 }
 
 void QuadratureWriter::write_row(const double time, const std::vector<double>& values)
@@ -687,10 +692,10 @@ void QuadratureWriter::write_row(const double time, const std::vector<double>& v
         throw std::invalid_argument("Quadrature output row does not match the writer column count.");
     }
 
-    output_ << std::scientific << std::setprecision(precision) << std::setw(column_width) << time;
+    output_ << std::scientific << std::setprecision(precision_) << std::setw(column_width_) << time;
     for (const double value : values)
     {
-        output_ << ' ' << std::setprecision(precision) << std::setw(column_width) << value;
+        output_ << ' ' << std::setprecision(precision_) << std::setw(column_width_) << value;
     }
     output_ << '\n';
     if (!output_)

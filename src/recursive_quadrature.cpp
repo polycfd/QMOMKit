@@ -67,22 +67,12 @@ IndexedMomentSet::IndexedMomentSet(std::vector<std::size_t> key_extents, MultiIn
     }
 }
 
-const std::vector<std::size_t>& IndexedMomentSet::key_extents() const noexcept
-{
-    return key_extents_;
-}
-
 const MultiIndexTable& IndexedMomentSet::indices() const noexcept
 {
     return indices_;
 }
 
 const std::vector<double>& IndexedMomentSet::values() const noexcept
-{
-    return values_;
-}
-
-std::vector<double>& IndexedMomentSet::mutable_values() noexcept
 {
     return values_;
 }

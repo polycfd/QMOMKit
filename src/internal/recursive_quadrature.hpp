@@ -30,10 +30,8 @@ public:
     IndexedMomentSet() = default;
     IndexedMomentSet(std::vector<std::size_t> key_extents, MultiIndexTable indices, std::vector<double> values);
 
-    [[nodiscard]] const std::vector<std::size_t>& key_extents() const noexcept;
     [[nodiscard]] const MultiIndexTable& indices() const noexcept;
     [[nodiscard]] const std::vector<double>& values() const noexcept;
-    [[nodiscard]] std::vector<double>& mutable_values() noexcept;
     [[nodiscard]] std::size_t size() const noexcept;
     [[nodiscard]] bool contains(const MultiIndex& index) const;
     [[nodiscard]] std::size_t offset(MultiIndexView index) const;

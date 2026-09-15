@@ -346,8 +346,8 @@ Benchmark structure and interpretation belong in
 
 ## Registered root CTest inventory
 
-The root inventory contains 867 CTest registrations: 866 logical runtime tests
-across the three runtime tiers (668 unit, 31 component-regression, and 167
+The root inventory contains 860 CTest registrations: 859 logical runtime tests
+across the three runtime tiers (663 unit, 31 component-regression, and 165
 verification), plus the `public_headers` supporting compile/link check. CTest
 names use the tier prefix followed by a subsystem and a descriptive case name.
 

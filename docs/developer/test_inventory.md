@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 668 |
+| Unit logical tests | 663 |
 | Component/regression logical tests | 31 |
-| Verification logical tests | 167 |
-| **Runtime logical tests** | **866** |
+| Verification logical tests | 165 |
+| **Runtime logical tests** | **859** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **867** |
+| **Total CTest registrations** | **860** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -208,8 +208,6 @@ renamed test rather than a deleted one.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
-| `verification_conditional_moments_analytical_two_parent_nodes_conditional_orders_zero_to_three` | `tests/verification/cqmom/conditional_moments.cpp` | `two_parent_nodes_conditional_orders_zero_to_three` | Verifies conditional moments against the analytical two parent nodes conditional orders zero to three quadrature reference. | — |
-| `verification_conditional_moments_analytical_analytically_known_2d_quadrature_reference_case` | `tests/verification/cqmom/conditional_moments.cpp` | `analytically_known_2d_quadrature_reference_case` | Verifies conditional moments against the analytical analytically known 2d quadrature reference case quadrature reference. | — |
 
 ### CQMOM / automatic scaling
 
@@ -420,7 +418,7 @@ renamed test rather than a deleted one.
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 866 runtime logical-test
+The `public_headers` registration is not part of the 859 runtime logical-test
 count. It compiles and links 23 public-header translation units as one separate
 CTest check; it is not 23 runtime tests.
 
@@ -572,11 +570,6 @@ CTest check; it is not 23 runtime tests.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
-| `unit_conditional_moments_non_identity_conditioning_order_uses_phase_space_moment_axes` | `tests/unit/conditional_moments.cpp` | `non_identity_conditioning_order_uses_phase_space_moment_axes` | Checks that non identity conditioning order uses phase-space moment axes in conditional-moment reconstruction. | — |
-| `unit_conditional_moments_unused_phase_space_axes_are_read_at_zero_order` | `tests/unit/conditional_moments.cpp` | `unused_phase_space_axes_are_read_at_zero_order` | Checks conditional-moment extraction reads unconditioned phase-space axes only at zeroth order. | — |
-| `unit_conditional_moments_singular_parent_abscissas_fail` | `tests/unit/conditional_moments.cpp` | `singular_parent_abscissas_fail` | Checks conditional-moment recovery returns a failure status for singular parent abscissas. | — |
-| `unit_conditional_moments_nearly_singular_parent_abscissas_warn` | `tests/unit/conditional_moments.cpp` | `nearly_singular_parent_abscissas_warn` | Checks conditional-moment recovery reports a numerical warning for nearly singular parent abscissas. | — |
-| `unit_conditional_moments_invalid_inputs_report_failure` | `tests/unit/conditional_moments.cpp` | `invalid_inputs_report_failure` | Checks that conditional-moment reconstruction rejects the specified invalid input before producing result data. | — |
 
 
 

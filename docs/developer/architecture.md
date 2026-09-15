@@ -113,7 +113,7 @@ implementation comments:
 | Lean | Compact CQMOM required-moment representation containing only the moments required for a given hierarchy. Lean is not a different physical model. |
 | Explicit representation workflow | Workflow where the user intentionally chooses and manages the CQMOM moment representation, either dense or lean. |
 | MomentData | Storage container for CQMOM required moments associated with a hierarchy, represented publicly by `CqmomMomentData`. |
-| Request | Mathematical query/request for moments, such as `RawMomentRequest` or `ConditionalMomentRequest`. A request asks for moment values or one conditional-moment reconstruction; it is not a QMOM or CQMOM problem definition. |
+| Request | Mathematical query/request for moments, such as `RawMomentRequest`. A request asks for moment values; it is not a QMOM or CQMOM problem definition. |
 | Quadrature | Discrete representation reconstructed from moments, such as weights and abscissas in `QmomResult`, `Quadrature1D`, or `CqmomQuadrature`. |
 
 `QmomCase` and `CqmomCase` are problem definitions, not moment requests.

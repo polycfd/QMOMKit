@@ -82,15 +82,6 @@ owner is retained when present in the definition signature. Trivial defaulted
 ownership operations are covered by the state/result helper tables, even when
 excluded from the executable-body count.
 
-### `include/qmomkit/conditional_moments.hpp`
-
-[Source](../../../include/qmomkit/conditional_moments.hpp) · [Responsibilities,
-contracts, and evidence](conditional_systems.md)
-
-| Function or overload family | Definition lines |
-|---|---|
-| `ConditionalMomentResult::ok` | [70](../../../include/qmomkit/conditional_moments.hpp#L70) |
-
 ### `include/qmomkit/conditioning_path.hpp`
 
 [Source](../../../include/qmomkit/conditioning_path.hpp) · [Responsibilities,
@@ -272,19 +263,6 @@ contracts, and evidence](time_integration.md)
 | Function or overload family | Definition lines |
 |---|---|
 | `SspRk3Result::ok` | [84](../../../include/qmomkit/runge_kutta.hpp#L84) |
-
-### `src/conditional_moments.cpp`
-
-[Source](../../../src/conditional_moments.cpp) · [Responsibilities, contracts,
-and evidence](conditional_systems.md)
-
-| Function or overload family | Definition lines |
-|---|---|
-| `invalid_result` | [25](../../../src/conditional_moments.cpp#L25) |
-| `valid_options` | [40](../../../src/conditional_moments.cpp#L40) |
-| `extract_rhs` | [47](../../../src/conditional_moments.cpp#L47) |
-| `ConditionalMomentResult::moment` | [72](../../../src/conditional_moments.cpp#L72) |
-| `reconstruct_conditional_moments` | [81](../../../src/conditional_moments.cpp#L81) |
 
 ### `src/conditioning_path.cpp`
 

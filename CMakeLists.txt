@@ -19,7 +19,6 @@ option(QMOMKIT_BUILD_TESTS "Build QMOMKit tests" OFF)
 
 add_library(
     qmomkit
-    src/conditional_moments.cpp
     src/conditioning_path.cpp
     src/configuration.cpp
     src/distributions.cpp

@@ -88,10 +88,9 @@ Here `c_i,q` is the conditional raw target moment of order `q` at parent node
 nodes, and columns of `C` and `M` are target moment orders or flattened
 remaining branch-local moment indices.
 
-The public one-level function `reconstruct_conditional_moments(...)` exposes
-the weighted Vandermonde convention for global raw moment tensors. Recursive
-CQMOM uses the same mathematical solve on branch-local moment slices while
-walking the full conditioning tree.
+Recursive CQMOM applies this solve to branch-local moment slices while walking
+the full conditioning tree. `solve_conditional_vandermonde_system` owns the
+convention; the solver policy in `VandermondeSolver` selects the kernel.
 
 ## Root moment storage
 
@@ -666,12 +665,6 @@ sparse tensor operations.
 diagnostics, and failed phase-space dimension. `CqmomQuadrature` exposes fixed
 rectangular or adaptive ragged terminal quadrature storage through a common
 public container.
-
-The public `reconstruct_conditional_moments(...)` API is a supported
-lower-level mathematical utility for one conditional-moment reconstruction
-from a global raw moment tensor. It documents and exposes the weighted
-Vandermonde convention, but it is not the public multidimensional CQMOM entry
-point and it does not perform recursive quadrature assembly.
 
 Implementation details include:
 

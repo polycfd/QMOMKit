@@ -3,7 +3,6 @@ set(unit_test_sources
     wheeler.cpp
     runge_kutta.cpp
     recursive_quadrature.cpp
-    conditional_moments.cpp
     bjorck_pereyra.cpp
     householder_qr.cpp
     jacobi_svd.cpp

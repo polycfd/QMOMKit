@@ -307,52 +307,6 @@ void bm_vandermonde_solver_selection(benchmark::State& state, const qmomkit::Van
                                solver);
 }
 
-std::vector<double> make_mixed_moments()
-{
-    const std::vector<std::size_t> extents{3, 6};
-    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
-    const std::vector<double> parent_abscissas{-1.0, 0.35, 1.75};
-    const std::vector<double> parent_weights{0.2, 0.3, 0.5};
-    const std::vector<std::vector<double>> conditional_moments{
-        {1.0, -2.0, 4.0, -8.0, 16.0, -32.0}, {1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125}, {1.0, 1.5, 2.25, 3.375, 5.0625, 7.59375}};
-
-    for (std::size_t parent_order = 0; parent_order < extents[0]; ++parent_order)
-    {
-        for (std::size_t target_order = 0; target_order < extents[1]; ++target_order)
-        {
-            double value = 0.0;
-            for (std::size_t node = 0; node < parent_abscissas.size(); ++node)
-            {
-                value +=
-                    parent_weights[node] * std::pow(parent_abscissas[node], static_cast<int>(parent_order)) * conditional_moments[node][target_order];
-            }
-            moments[qmomkit::flatten_multi_index({parent_order, target_order}, extents)] = value;
-        }
-    }
-    return moments;
-}
-
-void bm_vandermonde_public_conditional_reconstruction(benchmark::State& state)
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({3, 3});
-    const std::vector<std::size_t> extents{3, 6};
-    const qmomkit::ConditionalMomentRequest request{hierarchy, 0, {-1.0, 0.35, 1.75}, {0.2, 0.3, 0.5}, {extents, make_mixed_moments()}, {}};
-    const qmomkit::ConditionalMomentResult setup_check = qmomkit::reconstruct_conditional_moments(request);
-    if (!setup_check.ok())
-    {
-        state.SkipWithError("deterministic conditional-moment fixture failed setup");
-        return;
-    }
-
-    for (auto _ : state)
-    {
-        const qmomkit::ConditionalMomentResult result = qmomkit::reconstruct_conditional_moments(request);
-        const double residual_norm = result.diagnostics.residual_norm.value_or(0.0);
-        benchmark::DoNotOptimize(result.conditional_moments.data());
-        benchmark::DoNotOptimize(&residual_norm);
-    }
-}
-
 BENCHMARK_CAPTURE(bm_vandermonde_scaling_matrix_size, dense, qmomkit::VandermondeSolver::dense)
     ->ArgName("N")
     ->Args({4})
@@ -402,7 +356,5 @@ BENCHMARK_CAPTURE(bm_vandermonde_solver_selection, automatic, qmomkit::Vandermon
     ->Args({16, 8})
     ->Args({32, 64})
     ->Args({64, 256});
-
-BENCHMARK(bm_vandermonde_public_conditional_reconstruction);
 
 } // namespace

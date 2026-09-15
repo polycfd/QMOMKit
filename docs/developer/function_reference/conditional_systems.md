@@ -204,27 +204,21 @@ different temporary scaling and iteration budgets. Wheeler and realizability
 tests exercise eigenpairs for selected inputs; the kernel does not expose an
 independent convergence result.
 
-## A/B — public one-level conditional moments
+## A/B — conditional-moment option and diagnostic types
 
-`qmomkit::reconstruct_conditional_moments`, declared in
 [`conditional_moments.hpp`](../../../include/qmomkit/conditional_moments.hpp)
-and defined in
-[`conditional_moments.cpp`](../../../src/conditional_moments.cpp), validates
-hierarchy rank, a level with a next dimension, finite matching parents, full
-tensor shape, required parent orders, and numerical options. Local
-`extract_rhs` loops over parent and target orders with every other global
-coordinate order set to zero. It does not incorporate an earlier conditioning
-path, and is not the recursive branch-slice routine.
+declares the types the CQMOM workflows share: `ConditionalMomentOptions`
+carries the singular tolerance, conditioning-warning threshold and
+Moore-Penrose cutoff; `ConditionalMomentStatus` and
+`ConditionalMomentDiagnostics` report per-branch outcomes through
+`CqmomDiagnostics`. The residual norm and condition estimate in the
+diagnostics are optional and are populated only at
+`CqmomDiagnosticLevel::detailed`.
 
-It always calls dense elimination directly, then computes residual and infinity
-condition estimate for reporting. A singular solve returns `singular_system`;
-otherwise solution rows become parent-major conditional moment sequences. The
-warning threshold affects diagnostics only. `ConditionalMomentResult::moment`
-checks node/order bounds; callers must still check result status.
-[`tests/unit/conditional_moments.cpp`](../../../tests/unit/conditional_moments.cpp)
-and
-[`verification/cqmom/conditional_moments.cpp`](../../../tests/verification/cqmom/conditional_moments.cpp)
-exercise manufactured conditional values, shape failures and singular parents.
+The conditional solve itself is not a standalone public entry point. It is
+performed by `solve_conditional_vandermonde_system` on branch-local slices
+during recursive assembly, so the solver policy, tolerances and diagnostics
+that apply to it are the ones documented for CQMOM reconstruction.
 
 ## B/C — supporting helpers
 

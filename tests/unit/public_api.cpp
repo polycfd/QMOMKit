@@ -1,3 +1,4 @@
+#include "internal/cqmom_case.hpp"
 #include "internal/performance.hpp"
 #include "internal/reconstruction_scaling.hpp"
 #include "qmomkit/qmomkit.hpp"
@@ -278,6 +279,117 @@ qmomkit::RawMomentTensor public_cqmom_promotion_moments()
                 0.475675,
                 0.622865,
             }};
+}
+
+// Assigning through a reference keeps the self-assignment cases out of reach of
+// -Wself-assign while still calling the same operator the caller would.
+template <class T> void assign_from(T& target, const T& source)
+{
+    target = source;
+}
+
+qmomkit::RawMomentTensor scaled_moments(qmomkit::RawMomentTensor moments, const double factor)
+{
+    // Scaling every raw moment by the same factor scales the quadrature weights
+    // and leaves the abscissas alone, so the result stays realizable.
+    for (double& value : moments.values)
+    {
+        value *= factor;
+    }
+    return moments;
+}
+
+// CqmomCase and CqmomState are pimpl types whose copy operations are written by
+// hand: the payload variant has to be deep-copied while the prepared metadata is
+// deliberately shared. Copy assignment is also how every CQMOM example advances
+// its loop (`state = result.state`), and none of the four assignment operators
+// had a caller anywhere in the library, the tests or the examples.
+void test_cqmom_case_and_state_assignment_preserve_independent_values()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::RawMomentTensor first_moments = public_cqmom_promotion_moments();
+    const qmomkit::RawMomentTensor second_moments = scaled_moments(first_moments, 2.0);
+    assert(first_moments.values != second_moments.values);
+
+    const qmomkit::CqmomCase first_case{qmomkit::CqmomDenseCase{hierarchy, first_moments}};
+    const qmomkit::CqmomCase second_case{qmomkit::CqmomDenseCase{hierarchy, second_moments}};
+
+    // `initial_state()` stores the canonical moments derived from the accepted
+    // quadrature rather than echoing the input tensor, so compare states to states.
+    const std::vector<double> first_values = first_case.initial_state().moment_values();
+    const std::vector<double> second_values = second_case.initial_state().moment_values();
+    assert(first_values != second_values);
+
+    // Copy assignment replaces the target's payload, leaves the source alone, and
+    // keeps sharing the source's immutable prepared metadata.
+    qmomkit::CqmomCase assigned_case = first_case;
+    assert(assigned_case.initial_state().moment_values() == first_values);
+    assigned_case = second_case;
+    assert(assigned_case.initial_state().moment_values() == second_values);
+    assert(second_case.initial_state().moment_values() == second_values);
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(assigned_case).get() ==
+           qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(second_case).get());
+
+    // The self-assignment guard: without it the payload is released before it is
+    // read back, so the case has to survive this and stay usable afterwards.
+    assign_from(assigned_case, assigned_case);
+    assert(assigned_case.initial_state().moment_values() == second_values);
+    const qmomkit::CqmomResult after_self_assignment = qmomkit::compute_cqmom(assigned_case);
+    assert(after_self_assignment.ok());
+
+    qmomkit::CqmomCase movable_case = first_case;
+    qmomkit::CqmomCase move_assigned_case = second_case;
+    move_assigned_case = std::move(movable_case);
+    assert(move_assigned_case.initial_state().moment_values() == first_values);
+
+    // A copy is independent of later edits to the original, which is what
+    // `config::with_initial_moments` returning a new case relies on.
+    const qmomkit::CqmomCase copied_case = first_case;
+    const auto replaced = qmomkit::config::with_initial_moments(first_case, second_moments);
+    assert(replaced.ok());
+    assert(replaced.value().initial_state().moment_values() == second_values);
+    assert(copied_case.initial_state().moment_values() == first_values);
+    assert(first_case.initial_state().moment_values() == first_values);
+
+    // The evolution-loop pattern every CQMOM example uses: snapshot the state,
+    // advance, then assign the result back over the live state.
+    // The buffer is packed over every terminal node, so fill all of it: a
+    // partially filled buffer is a contract violation, not a small drift.
+    const qmomkit::PhaseSpaceVelocity velocity = [](const double, const std::vector<double>&, std::vector<double>& velocities, const std::size_t)
+    { std::fill(velocities.begin(), velocities.end(), 0.5); };
+
+    qmomkit::CqmomState state = first_case.initial_state();
+    const std::vector<double> initial_values = state.moment_values();
+    const qmomkit::CqmomState snapshot = state;
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult advanced = qmomkit::advance_cqmom_advection(state, 0.0, 0.1, velocity);
+    assert(advanced.ok());
+    state = advanced.state;
+    assert(state.moment_values() != initial_values);
+    assert(advanced.state.moment_values() == state.moment_values());
+    // The snapshot is the rollback target, so it must not follow the live state.
+    assert(snapshot.moment_values() == initial_values);
+    assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(snapshot).get() ==
+           qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(state).get());
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult second_step = qmomkit::advance_cqmom_advection(state, 0.1, 0.1, velocity);
+    assert(second_step.ok());
+    const std::vector<double> after_first_step = state.moment_values();
+    state = second_step.state;
+    assert(state.moment_values() != after_first_step);
+    assert(snapshot.moment_values() == initial_values);
+
+    const std::vector<double> before_self_assignment = state.moment_values();
+    assign_from(state, state);
+    assert(state.moment_values() == before_self_assignment);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult after_self_step = qmomkit::advance_cqmom_advection(state, 0.2, 0.1, velocity);
+    assert(after_self_step.ok());
+
+    qmomkit::CqmomState movable_state = first_case.initial_state();
+    qmomkit::CqmomState move_assigned_state = state;
+    move_assigned_state = std::move(movable_state);
+    assert(move_assigned_state.moment_values() == initial_values);
+    assert(state.moment_values() == before_self_assignment);
 }
 
 void test_cqmom_dense_case_promotes_to_state_and_exposes_quadrature()
@@ -1398,6 +1510,7 @@ int main(const int argc, char** argv)
         argc, argv,
         {
             {"moment_set_public_container_behavior", test_moment_set_public_container_behavior},
+            {"cqmom_case_and_state_assignment_preserve_independent_values", test_cqmom_case_and_state_assignment_preserve_independent_values},
             {"cqmom_moment_layout_two_dimensional_reduced_set", test_cqmom_moment_layout_two_dimensional_reduced_set},
             {"cqmom_moment_layout_three_dimensional_recursive_indices", test_cqmom_moment_layout_three_dimensional_recursive_indices},
             {"cqmom_moment_layout_non_identity_conditioning_order", test_cqmom_moment_layout_non_identity_conditioning_order},

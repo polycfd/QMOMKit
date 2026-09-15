@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 664 |
+| Unit logical tests | 665 |
 | Component/regression logical tests | 31 |
 | Verification logical tests | 165 |
-| **Runtime logical tests** | **860** |
+| **Runtime logical tests** | **861** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **861** |
+| **Total CTest registrations** | **862** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -722,6 +722,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_cqmom_diagnostics_default_bounded_support_placeholder` | `tests/unit/public_api.cpp` | `cqmom_diagnostics_default_bounded_support_placeholder` | Verifies CQMOM diagnostics default bounded support placeholder. | — |
 | `unit_public_api_cqmom_storage_settings_format` | `tests/unit/public_api.cpp` | `cqmom_storage_settings_format` | Verifies CQMOM storage settings format. | — |
 | `unit_public_api_cqmom_dense_case_promotes_to_state_and_exposes_quadrature` | `tests/unit/public_api.cpp` | `cqmom_dense_case_promotes_to_state_and_exposes_quadrature` | Checks that an explicit `CqmomDenseCase` promotes to a `CqmomState` and exposes its accepted quadrature. | — |
+| `unit_public_api_cqmom_case_and_state_assignment_preserve_independent_values` | `tests/unit/public_api.cpp` | `cqmom_case_and_state_assignment_preserve_independent_values` | Checks that copy and move assignment of `CqmomCase` and `CqmomState` replace the target, leave the source and earlier copies independent, and keep sharing the prepared metadata. | — |
 | `unit_public_api_cqmom_lean_case_promotes_to_state_and_exposes_quadrature` | `tests/unit/public_api.cpp` | `cqmom_lean_case_promotes_to_state_and_exposes_quadrature` | Checks that an explicit `CqmomLeanCase` promotes to a `CqmomState` and exposes its accepted quadrature. | — |
 
 ### Configuration

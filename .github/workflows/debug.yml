@@ -31,7 +31,7 @@ jobs:
     
     steps:
 
-      # Checks-out Lethe with branch of triggering commit
+      # Checks-out QMOMKit with branch of triggering commit
       - name: Checkout code
         uses: actions/checkout@v2
 

@@ -181,7 +181,7 @@ qmomkit::PhaseSpaceVelocity noncommuting_velocity()
     return qmomkit::make_phase_space_velocity([](double, const std::vector<double>&) { return std::vector<double>{noncommuting_b}; });
 }
 
-qmomkit::MomentSource noncommuting_source()
+qmomkit::QmomMomentSource noncommuting_source()
 {
     return [](double, const qmomkit::QmomSourceContext& context)
     {

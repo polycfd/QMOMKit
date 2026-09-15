@@ -64,7 +64,7 @@ int main()
     // that moves the quadrature abscissas, and a source that changes the moments
     // directly. QMOMKit composes them; it never interprets the coordinates.
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_breakage_advection::advection_velocity();
-    const qmomkit::MomentSource source = qmom_1d_breakage_advection::binary_fragmentation_source();
+    const qmomkit::QmomMomentSource source = qmom_1d_breakage_advection::binary_fragmentation_source();
     qmomkit::QmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
 
     std::optional<qmomkit::MomentWriter> moment_writer;

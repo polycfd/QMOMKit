@@ -603,7 +603,7 @@ std::vector<double> zero_qmom_source(double, const qmomkit::QmomSourceContext& c
     return std::vector<double>(context.size(), 0.0);
 }
 
-qmomkit::MomentBoundaryRate qmom_boundary_injection_removal(double, const std::vector<double>& moments)
+qmomkit::QmomMomentRate qmom_boundary_injection_removal(double, const std::vector<double>& moments)
 {
     constexpr double injection_rate = 0.08;
     constexpr double injection_coordinate = 0.25;
@@ -614,7 +614,7 @@ qmomkit::MomentBoundaryRate qmom_boundary_injection_removal(double, const std::v
     {
         rate[order] = injection_rate * integer_power(injection_coordinate, order) + removal_rate * integer_power(removal_coordinate, order);
     }
-    return qmomkit::MomentBoundaryRate{rate};
+    return qmomkit::QmomMomentRate{rate};
 }
 
 std::vector<double> qmom_boundary_rate_values(const std::size_t count)
@@ -695,7 +695,7 @@ std::vector<double> noncommuting_source(double, const qmomkit::QmomSourceContext
 }
 
 QmomStepRun run_qmom_steps(const std::vector<double>& initial, const std::size_t node_count, const double t0, const double dt,
-                           const std::size_t steps, const qmomkit::PhaseSpaceVelocity& velocity, const qmomkit::MomentSource& source,
+                           const std::size_t steps, const qmomkit::PhaseSpaceVelocity& velocity, const qmomkit::QmomMomentSource& source,
                            const qmomkit::QmomOptions& reconstruction_options, const qmomkit::QmomPhaseSpaceEvolutionOptions& options)
 {
     qmomkit::QmomState state = qmom_state_from_moments(initial, node_count, reconstruction_options);
@@ -725,7 +725,7 @@ QmomStepRun run_qmom_steps(const std::vector<double>& initial, const std::size_t
 
 RunSummary validate_qmom_run(VerificationResult& verification, const std::vector<double>& initial, const std::size_t node_count, const double t0,
                              const double dt, const std::size_t steps, const qmomkit::PhaseSpaceVelocity& velocity,
-                             const qmomkit::MomentSource& source, const qmomkit::QmomPhaseSpaceEvolutionOptions& options,
+                             const qmomkit::QmomMomentSource& source, const qmomkit::QmomPhaseSpaceEvolutionOptions& options,
                              const qmomkit::QmomOptions& reconstruction_options, const std::vector<double>& exact, const double moment_tolerance,
                              const double reconstruction_tolerance)
 {
@@ -809,8 +809,8 @@ void validate_commuting_component_checks(VerificationResult& verification, const
     }
 
     constexpr double source_probe_step = 0.002;
-    const qmomkit::MomentSourceUpdateResult sourced =
-        qmomkit::advance_moments_with_source(case_.moments.values(), 0.0, source_probe_step, commuting_source, {});
+    const qmomkit::QmomMomentSourceUpdateResult sourced =
+        qmomkit::advance_qmom_moments_with_source(case_.moments.values(), 0.0, source_probe_step, commuting_source, {});
     if (!sourced.ok())
     {
         append_failure(verification, "moment-source operator component check failed.");
@@ -966,18 +966,18 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
     struct BoundaryFailureCase
     {
         std::string name;
-        qmomkit::MomentBoundaryContribution boundary;
+        qmomkit::QmomMomentBoundaryContribution boundary;
         std::string expected_message_fragment;
     };
     const std::vector<BoundaryFailureCase> failure_cases{{"wrong size", [](double, const std::vector<double>& moments)
-                                                          { return qmomkit::MomentBoundaryRate{std::vector<double>(moments.size() + 1, 0.0)}; },
+                                                          { return qmomkit::QmomMomentRate{std::vector<double>(moments.size() + 1, 0.0)}; },
                                                           "boundary contribution"},
                                                          {"NaN",
                                                           [](double, const std::vector<double>& moments)
                                                           {
                                                               std::vector<double> rate(moments.size(), 0.0);
                                                               rate.front() = std::numeric_limits<double>::quiet_NaN();
-                                                              return qmomkit::MomentBoundaryRate{rate};
+                                                              return qmomkit::QmomMomentRate{rate};
                                                           },
                                                           "boundary contribution"},
                                                          {"infinity",
@@ -985,7 +985,7 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
                                                           {
                                                               std::vector<double> rate(moments.size(), 0.0);
                                                               rate.front() = std::numeric_limits<double>::infinity();
-                                                              return qmomkit::MomentBoundaryRate{rate};
+                                                              return qmomkit::QmomMomentRate{rate};
                                                           },
                                                           "boundary contribution"}};
 
@@ -1011,11 +1011,11 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
         verification.runs.push_back(failure_summary);
     }
 
-    const qmomkit::MomentBoundaryContribution nonrealizable_boundary = [](double, const std::vector<double>& moments)
+    const qmomkit::QmomMomentBoundaryContribution nonrealizable_boundary = [](double, const std::vector<double>& moments)
     {
         std::vector<double> rate(moments.size(), 0.0);
         rate.front() = -100.0;
-        return qmomkit::MomentBoundaryRate{rate};
+        return qmomkit::QmomMomentRate{rate};
     };
     const qmomkit::QmomPhaseSpaceEvolutionResult nonrealizable_result =
         qmomkit::advance_qmom_phase_space(initial_state, 0.0, 0.02, zero_velocity, zero_qmom_source, nonrealizable_boundary, options);

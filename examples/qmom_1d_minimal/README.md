@@ -21,7 +21,7 @@ QmomState
 
 The example includes:
 - phase-space advection through `qmomkit::PhaseSpaceVelocity`;
-- a moment source through `qmomkit::MomentSource`.
+- a moment source through `qmomkit::QmomMomentSource`.
 
 QMOMKit handles the quadrature representation, moment reconstruction, time
 integration, and phase-space evolution splitting inside

@@ -47,14 +47,14 @@ Physics callbacks, which most applications write:
 | --- | --- | --- |
 | `PhaseSpaceVelocity` | `void(double, const std::vector<double>&, std::vector<double>&, std::size_t)` | Node velocity for all nodes at once |
 | `PerNodePhaseSpaceVelocity` | `std::vector<double>(double, const std::vector<double>&)` | Convenience form, one node at a time |
-| `MomentSource` | `std::vector<double>(double, const QmomSourceContext&)` | QMOM raw-moment rates |
-| `MomentBoundaryContribution` | `MomentBoundaryRate(double, const std::vector<double>&)` | QMOM phase-space boundary exchange |
+| `QmomMomentSource` | `std::vector<double>(double, const QmomSourceContext&)` | QMOM raw-moment rates |
+| `QmomMomentBoundaryContribution` | `QmomMomentRate(double, const std::vector<double>&)` | QMOM phase-space boundary exchange |
 | `CqmomMomentSource` | `CqmomMomentRate(double, const CqmomSourceContext&)` | CQMOM raw-moment rates |
 | `CqmomMomentBoundaryContribution` | `CqmomMomentRate(double, const CqmomSourceContext&)` | CQMOM boundary exchange |
 
 Batch variants take a leading `std::size_t batch_index` and are otherwise
-identical: `BatchPhaseSpaceVelocity`, `BatchMomentSource`,
-`BatchMomentBoundaryContribution`, `BatchCqmomMomentSource`, and
+identical: `BatchPhaseSpaceVelocity`, `BatchQmomMomentSource`,
+`BatchQmomMomentBoundaryContribution`, `BatchCqmomMomentSource`, and
 `BatchCqmomMomentBoundaryContribution`. See
 [Batch convenience wrappers](phase_space_evolution.md#batch-convenience-wrappers).
 
@@ -68,7 +68,7 @@ realizability policies directly:
 | `StageAcceptancePredicate` | `bool(SspRk3Stage, const std::vector<double>&)` | Accept or reject an individual stage |
 | `MomentStateConverter` | `MomentSet(const std::vector<double>&)` | View a state vector as a moment set |
 
-`MomentBoundaryRate` and `CqmomMomentRate` are thin structs holding a single
+`QmomMomentRate` and `CqmomMomentRate` are thin structs holding a single
 `values` vector.
 
 ## Phase-space velocity
@@ -134,12 +134,12 @@ the packed form for anything but small phase spaces or a quick experiment. See
 
 ## Moment sources
 
-A `MomentSource` returns one rate per entry the context asks for, in context
+A `QmomMomentSource` returns one rate per entry the context asks for, in context
 order. `context.size()` is that count and `context.value(i)` is the current
 value of entry `i` at this SSP-RK stage:
 
 ```cpp
-const qmomkit::MomentSource source =
+const qmomkit::QmomMomentSource source =
     [](double, const qmomkit::QmomSourceContext& context)
 {
     std::vector<double> rates(context.size(), 0.0);
@@ -181,10 +181,10 @@ Boundary contributions describe exchange through a phase-space boundary. They
 are added to the moment-source rates rather than forming a separate operator:
 
 ```cpp
-const qmomkit::MomentBoundaryContribution boundary =
+const qmomkit::QmomMomentBoundaryContribution boundary =
     [](double, const std::vector<double>& moments)
 {
-    qmomkit::MomentBoundaryRate rate{std::vector<double>(moments.size(), 0.0)};
+    qmomkit::QmomMomentRate rate{std::vector<double>(moments.size(), 0.0)};
     rate.values[0] = 1.0e-3;
     return rate;
 };

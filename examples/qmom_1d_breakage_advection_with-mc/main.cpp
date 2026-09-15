@@ -95,7 +95,7 @@ int main()
 
     const qmomkit::QmomResult initial_quadrature = state.quadrature();
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_breakage_advection_with_mc::advection_velocity();
-    const qmomkit::MomentSource source = qmom_1d_breakage_advection_with_mc::binary_fragmentation_source();
+    const qmomkit::QmomMomentSource source = qmom_1d_breakage_advection_with_mc::binary_fragmentation_source();
     qmomkit::QmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
     std::optional<qmomkit::MomentWriter> moment_history_writer;
     std::optional<qmomkit::QuadratureWriter> quadrature_history_writer;

@@ -68,7 +68,7 @@ that returns zero rates.
 
 If you would rather drive the pieces yourself, call `advance_nodes(...)` for
 advection alone — reconstructing moments afterwards as needed — or
-`advance_moments_with_source(...)` for sources alone. That is the right choice
+`advance_qmom_moments_with_source(...)` for sources alone. That is the right choice
 when your application needs to interleave its own work between the two.
 
 ## Physics callbacks
@@ -91,7 +91,7 @@ $$\frac{\mathrm{d}\xi}{\mathrm{d}t} = \dot{\xi}(t, x)$$
 This is the right place for drift, growth, relaxation, acceleration, or any
 effect naturally represented by moving existing nodes.
 
-Provide a `MomentSource` — `CqmomMomentSource` in several dimensions — for
+Provide a `QmomMomentSource` — `CqmomMomentSource` in several dimensions — for
 effects that change moment values instead, together with an optional boundary
 contribution for exchange across a phase-space boundary:
 
@@ -291,11 +291,11 @@ any other model that can be written as:
 $$\frac{\mathrm{d}M}{\mathrm{d}t} = S(t, M)$$
 
 
-Users provide a `MomentSource` callback when moment-source evolution is part of
+Users provide a `QmomMomentSource` callback when moment-source evolution is part of
 the model:
 
 ```cpp
-qmomkit::MomentSource source =
+qmomkit::QmomMomentSource source =
     [](double time, const qmomkit::QmomSourceContext& context)
     {
         std::vector<double> derivative(context.size(), 0.0);
@@ -328,15 +328,15 @@ the current Runge-Kutta stage rather than the accepted state. Use:
 
 Requests for an order you do not transport need a quadrature, so they work only
 when you evolve a `QmomState`. The generic vector-based
-`advance_moments_with_source(...)` shown below has no reconstruction settings to
+`advance_qmom_moments_with_source(...)` shown below has no reconstruction settings to
 work from and rejects them.
 
-Use the advanced `advance_moments_with_source(...)` operation when you want to
+Use the advanced `advance_qmom_moments_with_source(...)` operation when you want to
 advance only the moment-source part of a workflow:
 
 ```cpp
-const qmomkit::MomentSourceUpdateResult update =
-    qmomkit::advance_moments_with_source(moments, time, time_step, source);
+const qmomkit::QmomMomentSourceUpdateResult update =
+    qmomkit::advance_qmom_moments_with_source(moments, time, time_step, source);
 
 if (!update.ok())
 {
@@ -457,7 +457,7 @@ instead of assuming a two-dimensional phase space.
 ## Boundary contributions
 
 Boundary contributions are optional additive raw-moment rates caused by
-phase-space boundary exchange. Use `MomentBoundaryContribution` only when the
+phase-space boundary exchange. Use `QmomMomentBoundaryContribution` only when the
 model describes nucleation, injection, removal, evaporation/condensation
 exchange, or similar production/destruction $B$ through a phase-space boundary:
 $$\frac{\mathrm{d}M}{\mathrm{d}t} = S(t, M) + B(t, M)$$
@@ -465,7 +465,7 @@ $$\frac{\mathrm{d}M}{\mathrm{d}t} = S(t, M) + B(t, M)$$
 For one-dimensional QMOM:
 
 ```cpp
-qmomkit::MomentBoundaryContribution boundary =
+qmomkit::QmomMomentBoundaryContribution boundary =
     [](double time, const std::vector<double>& moments)
     {
         constexpr double rate = 0.02;
@@ -480,11 +480,11 @@ qmomkit::MomentBoundaryContribution boundary =
         }
 
         (void)time;
-        return qmomkit::MomentBoundaryRate{values};
+        return qmomkit::QmomMomentRate{values};
     };
 ```
 
-Use `advance_moments_with_source(...)` when QMOMKit should perform SSP-RK3
+Use `advance_qmom_moments_with_source(...)` when QMOMKit should perform SSP-RK3
 moment-source integration, or use the composed helpers when it
 should also own the configured operator-splitting sequence.
 
@@ -595,7 +595,7 @@ int main()
             }
         };
 
-    const qmomkit::MomentSource source =
+    const qmomkit::QmomMomentSource source =
         [](double, const qmomkit::QmomSourceContext& context)
         {
             return std::vector<double>(context.size(), 0.0);
@@ -669,11 +669,11 @@ Application-managed workflows should pass `QmomState` objects between stages
 instead of reconstructing quadrature or mutating moments manually.
 
 If the model also has phase-space boundary exchange, define a
-`MomentBoundaryContribution` and call the boundary-aware overload with explicit
+`QmomMomentBoundaryContribution` and call the boundary-aware overload with explicit
 phase-space evolution options:
 
 ```cpp
-const qmomkit::MomentBoundaryContribution boundary =
+const qmomkit::QmomMomentBoundaryContribution boundary =
     [](double, const std::vector<double>& current_moments)
     {
         constexpr double injection_rate = 0.02;
@@ -686,7 +686,7 @@ const qmomkit::MomentBoundaryContribution boundary =
             value = injection_rate * power;
             power *= injection_coordinate;
         }
-        return qmomkit::MomentBoundaryRate{rate};
+        return qmomkit::QmomMomentRate{rate};
     };
 
 const qmomkit::QmomPhaseSpaceEvolutionResult result =
@@ -1003,7 +1003,7 @@ const qmomkit::BatchPhaseSpaceVelocity indexed_velocity =
         std::fill(velocities.begin(), velocities.end(), 0.0);
     };
 
-const qmomkit::BatchMomentSource indexed_source =
+const qmomkit::BatchQmomMomentSource indexed_source =
     [&local_rates](std::size_t batch_index, double, const qmomkit::QmomSourceContext& context)
     {
         std::vector<double> rates(context.size(), 0.0);
@@ -1037,8 +1037,8 @@ order within each node, the same order used by CQMOM moments, node counts, and
 output.
 
 Each moment callback must return the same number of rates as the moments it
-receives. A `MomentSource` callback returns the same number of moment
-derivatives it receives. A `MomentBoundaryContribution` callback returns the
+receives. A `QmomMomentSource` callback returns the same number of moment
+derivatives it receives. A `QmomMomentBoundaryContribution` callback returns the
 same number of additive boundary rates. A `CqmomMomentSource` or
 `CqmomMomentBoundaryContribution` callback returns one rate per
 `CqmomSourceContext` entry.

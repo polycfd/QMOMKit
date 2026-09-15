@@ -16,6 +16,6 @@ constexpr double fragmentation_rate = 0.5;
 /**
  * User-editable moment source for binary fragmentation d -> d/2.
  */
-[[nodiscard]] qmomkit::MomentSource binary_fragmentation_source();
+[[nodiscard]] qmomkit::QmomMomentSource binary_fragmentation_source();
 
 } // namespace qmom_1d_breakage_advection_with_mc

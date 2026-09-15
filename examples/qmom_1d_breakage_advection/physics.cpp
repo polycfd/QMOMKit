@@ -31,7 +31,7 @@ qmomkit::PhaseSpaceVelocity advection_velocity()
     };
 }
 
-qmomkit::MomentSource binary_fragmentation_source()
+qmomkit::QmomMomentSource binary_fragmentation_source()
 {
     return [](double, const qmomkit::QmomSourceContext& context)
     {

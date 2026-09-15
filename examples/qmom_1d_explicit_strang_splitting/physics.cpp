@@ -23,7 +23,7 @@ qmomkit::PhaseSpaceVelocity advection_velocity()
     };
 }
 
-qmomkit::MomentSource variance_injection_source()
+qmomkit::QmomMomentSource variance_injection_source()
 {
     return [](const double time, const qmomkit::QmomSourceContext& context)
     {

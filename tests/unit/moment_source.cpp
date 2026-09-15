@@ -101,7 +101,7 @@ void test_accept_all_predicate()
     options.ssp_rk3_options.accept = [](const std::vector<double>&) { return true; };
     options.ssp_rk3_options.max_retries = 4;
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(
         {1.0}, 0.0, 0.2, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{3.0}; }, options);
 
     assert(result.ok());
@@ -127,7 +127,7 @@ void test_reject_negative_moments_predicate_accepts_nonnegative_update()
     };
     options.ssp_rk3_options.max_retries = 2;
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(
         {0.3, 1.0}, 0.0, 0.2, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{-0.5, -1.0}; }, options);
 
     assert(result.ok());
@@ -149,7 +149,7 @@ void test_retry_behavior_completes_requested_interval_from_unchanged_state()
     options.ssp_rk3_options.min_time_step = 0.25;
 
     std::vector<double> initial_stage_values;
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(
         {0.0}, 0.0, 1.0,
         [&initial_stage_values](const double stage_time, const qmomkit::QmomSourceContext& state)
         {
@@ -182,7 +182,7 @@ void test_repeated_reduced_steps_complete_requested_interval()
         return acceptance_calls == 2 || acceptance_calls == 4 || acceptance_calls == 6 || acceptance_calls == 7;
     };
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(
         {0.0}, 0.0, 1.0, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{1.0}; }, options);
 
     assert(result.ok());
@@ -206,7 +206,7 @@ void test_failure_after_accepted_retry_preserves_original_state()
     options.ssp_rk3_options.max_retries = 1;
     options.ssp_rk3_options.min_time_step = 0.3;
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(
         initial, 0.0, 1.0, [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 1.0); }, options);
 
     assert(!result.ok());
@@ -228,7 +228,7 @@ void test_failure_behavior_minimum_timestep_preserves_original_state()
     options.ssp_rk3_options.max_retries = 10;
     options.ssp_rk3_options.min_time_step = 0.2;
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(
         initial, 0.0, 1.0, [](double, const qmomkit::QmomSourceContext&) { return std::vector<double>{-8.0}; }, options);
 
     assert(!result.ok());
@@ -254,7 +254,7 @@ void test_reduced_accepted_step_must_reduce_remaining_interval()
     options.ssp_rk3_options.max_retries = 54;
 
     const std::vector<double> initial{0.0};
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(
         initial, 0.0, 1.0,
         [&source_calls](double, const qmomkit::QmomSourceContext& context)
         {
@@ -281,7 +281,7 @@ void test_nan_minimum_timestep_is_invalid()
     options.ssp_rk3_options.min_time_step = std::numeric_limits<double>::quiet_NaN();
     std::size_t source_calls = 0;
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(
         {1.0}, 0.0, 0.1,
         [&source_calls](double, const qmomkit::QmomSourceContext& context)
         {
@@ -307,7 +307,7 @@ void test_qmom_rejects_coordinate_realizability_policies()
     options.coordinate_realizability_policies = {policy};
     std::size_t source_calls = 0;
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(
         {1.0}, 0.0, 0.1,
         [&source_calls](double, const qmomkit::QmomSourceContext& context)
         {
@@ -327,7 +327,7 @@ void test_qmom_rejects_coordinate_realizability_policies()
     // unconfigured entries, and must not be rejected.
     qmomkit::MomentSourceUpdateOptions inert_options;
     inert_options.coordinate_realizability_policies.resize(3);
-    const qmomkit::MomentSourceUpdateResult inert_result = qmomkit::advance_moments_with_source(
+    const qmomkit::QmomMomentSourceUpdateResult inert_result = qmomkit::advance_qmom_moments_with_source(
         {1.0}, 0.0, 0.1, [](double, const qmomkit::QmomSourceContext& context) { return std::vector<double>(context.size(), 0.0); }, inert_options);
     assert(inert_result.ok());
 }
@@ -745,12 +745,12 @@ void test_boundary_contribution_adds_to_moment_source()
     const std::vector<double> initial{1.0, 2.0, -1.0};
     constexpr double time_step = 0.25;
 
-    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& moments)
+    const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& moments)
     { return std::vector<double>{1.0, 0.0, -0.5 * moments.value(2)}; };
-    const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
-    { return qmomkit::MomentBoundaryRate{std::vector<double>(moments.size(), 0.5)}; };
+    const qmomkit::QmomMomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
+    { return qmomkit::QmomMomentRate{std::vector<double>(moments.size(), 0.5)}; };
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(initial, 0.0, time_step, source, boundary, {});
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(initial, 0.0, time_step, source, boundary, {});
 
     assert(result.ok());
     assert_vector_near(result.moments, {1.375, 2.125, -0.76497395833333337}, 1.0e-15);
@@ -759,11 +759,12 @@ void test_boundary_contribution_adds_to_moment_source()
 void test_boundary_contribution_wrong_size_fails_with_boundary_message()
 {
     const std::vector<double> initial{1.0, 2.0};
-    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
-    const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
-    { return qmomkit::MomentBoundaryRate{std::vector<double>(moments.size() + 1, 0.0)}; };
+    const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& moments)
+    { return std::vector<double>(moments.size(), 0.0); };
+    const qmomkit::QmomMomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
+    { return qmomkit::QmomMomentRate{std::vector<double>(moments.size() + 1, 0.0)}; };
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(initial, 0.0, 0.1, source, boundary, {});
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(initial, 0.0, 0.1, source, boundary, {});
 
     assert(!result.ok());
     assert(result.status == qmomkit::MomentSourceUpdateStatus::source_failed);
@@ -774,15 +775,16 @@ void test_boundary_contribution_wrong_size_fails_with_boundary_message()
 void test_boundary_contribution_non_finite_fails_with_boundary_message()
 {
     const std::vector<double> initial{1.0, 2.0};
-    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
-    const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
+    const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& moments)
+    { return std::vector<double>(moments.size(), 0.0); };
+    const qmomkit::QmomMomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
     {
         std::vector<double> rate(moments.size(), 0.0);
         rate.front() = std::numeric_limits<double>::quiet_NaN();
-        return qmomkit::MomentBoundaryRate{rate};
+        return qmomkit::QmomMomentRate{rate};
     };
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(initial, 0.0, 0.1, source, boundary, {});
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(initial, 0.0, 0.1, source, boundary, {});
 
     assert(!result.ok());
     assert(result.status == qmomkit::MomentSourceUpdateStatus::source_failed);
@@ -793,11 +795,12 @@ void test_boundary_contribution_non_finite_fails_with_boundary_message()
 void test_boundary_contribution_callback_exception_fails_with_boundary_message()
 {
     const std::vector<double> initial{1.0};
-    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext& moments) { return std::vector<double>(moments.size(), 0.0); };
-    const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>&) -> qmomkit::MomentBoundaryRate
+    const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& moments)
+    { return std::vector<double>(moments.size(), 0.0); };
+    const qmomkit::QmomMomentBoundaryContribution boundary = [](double, const std::vector<double>&) -> qmomkit::QmomMomentRate
     { throw std::runtime_error("user model rejected the stage"); };
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(initial, 0.0, 0.1, source, boundary, {});
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(initial, 0.0, 0.1, source, boundary, {});
 
     assert(!result.ok());
     assert(result.status == qmomkit::MomentSourceUpdateStatus::source_failed);
@@ -810,12 +813,12 @@ void test_boundary_contribution_callback_exception_fails_with_boundary_message()
 void test_source_callback_exception_keeps_source_message()
 {
     const std::vector<double> initial{1.0};
-    const qmomkit::MomentSource source = [](double, const qmomkit::QmomSourceContext&) -> std::vector<double>
+    const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext&) -> std::vector<double>
     { throw std::runtime_error("source model rejected the stage"); };
-    const qmomkit::MomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
-    { return qmomkit::MomentBoundaryRate{std::vector<double>(moments.size(), 0.0)}; };
+    const qmomkit::QmomMomentBoundaryContribution boundary = [](double, const std::vector<double>& moments)
+    { return qmomkit::QmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
 
-    const qmomkit::MomentSourceUpdateResult result = qmomkit::advance_moments_with_source(initial, 0.0, 0.1, source, boundary, {});
+    const qmomkit::QmomMomentSourceUpdateResult result = qmomkit::advance_qmom_moments_with_source(initial, 0.0, 0.1, source, boundary, {});
 
     assert(!result.ok());
     assert(result.status == qmomkit::MomentSourceUpdateStatus::source_failed);

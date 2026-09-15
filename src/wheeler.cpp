@@ -382,13 +382,27 @@ namespace internal
 BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& moment_sequence, const BoundedQuadratureSelectionRequest& request,
                                                      const AbscissaBounds interval, const WheelerOptions& wheeler_options)
 {
+    // Both selection branches below assume at least one requested node. The
+    // adaptive branch counts candidates down to one, so a zero initial count
+    // skips its loop entirely and would leave the default-constructed selection,
+    // whose quadrature still carries the default success status, as the result.
+    // Rejecting the malformed request here keeps the bounded path's status for a
+    // zero node count the same as the unbounded Wheeler path's.
+    if (request.initial_node_count == 0 || request.configured_node_count == 0)
+    {
+        BoundedQuadratureSelection rejected;
+        rejected.quadrature.status = QuadratureStatus::invalid_input;
+        rejected.quadrature.message = "Bounded-support quadrature requires a positive node count.";
+        return rejected;
+    }
+
     const auto evaluate = [&](const std::size_t node_count, std::string attempt_type)
     {
         BoundedQuadratureCandidate candidate;
         candidate.node_count = node_count;
         candidate.attempt_type = std::move(attempt_type);
         const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, node_count);
-        if (node_count == 0 || !required_moment_count.has_value() || moment_sequence.size() < *required_moment_count)
+        if (!required_moment_count.has_value() || moment_sequence.size() < *required_moment_count)
         {
             candidate.quadrature.status = QuadratureStatus::invalid_input;
             candidate.message = "Bounded-support candidate does not have enough moments.";
@@ -453,8 +467,19 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
     }
 
     const std::size_t first_count = request.initial_node_count;
+    // A candidate needs 2*n moments, so every count above half the sequence
+    // length is rejected without an inversion. Descending through them one at a
+    // time costs one attempt per count and never reaches a viable rule any
+    // sooner, which for a requested count far above the available moments is an
+    // unbounded loop rather than a diagnosis. Begin at the largest count the
+    // sequence can feed instead; the descent then selects exactly the rule it
+    // would have selected. At least one candidate is always evaluated, so a
+    // sequence too short even for one node still reports the evaluator's
+    // failure rather than ending the descent with no attempt at all.
+    const std::size_t supported_count = moment_sequence.size() / 2;
+    const std::size_t start_count = std::min(first_count, std::max<std::size_t>(supported_count, 1));
     std::optional<BoundedQuadratureCandidate> rejected_candidate;
-    for (std::size_t candidate_count = first_count; candidate_count >= 1; --candidate_count)
+    for (std::size_t candidate_count = start_count; candidate_count >= 1; --candidate_count)
     {
         const char* attempt_type =
             candidate_count == first_count ? (request.previous_active_node_count.has_value() ? "current" : "configured") : "fallback";
@@ -462,7 +487,10 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         if (candidate.accepted)
         {
             const bool reduced = candidate_count < first_count;
-            selection.diagnostic_candidate = reduced ? *rejected_candidate : candidate;
+            // Reduction is measured against the requested count, so a clamped
+            // start can be both reduced and accepted on its first attempt, with
+            // no rejected candidate to describe.
+            selection.diagnostic_candidate = reduced && rejected_candidate.has_value() ? *rejected_candidate : candidate;
             selection.quadrature = std::move(candidate.quadrature);
             selection.selected_node_count_ceiling = candidate_count;
             selection.reduced = reduced;

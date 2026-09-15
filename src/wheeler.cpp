@@ -467,8 +467,19 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
     }
 
     const std::size_t first_count = request.initial_node_count;
+    // A candidate needs 2*n moments, so every count above half the sequence
+    // length is rejected without an inversion. Descending through them one at a
+    // time costs one attempt per count and never reaches a viable rule any
+    // sooner, which for a requested count far above the available moments is an
+    // unbounded loop rather than a diagnosis. Begin at the largest count the
+    // sequence can feed instead; the descent then selects exactly the rule it
+    // would have selected. At least one candidate is always evaluated, so a
+    // sequence too short even for one node still reports the evaluator's
+    // failure rather than ending the descent with no attempt at all.
+    const std::size_t supported_count = moment_sequence.size() / 2;
+    const std::size_t start_count = std::min(first_count, std::max<std::size_t>(supported_count, 1));
     std::optional<BoundedQuadratureCandidate> rejected_candidate;
-    for (std::size_t candidate_count = first_count; candidate_count >= 1; --candidate_count)
+    for (std::size_t candidate_count = start_count; candidate_count >= 1; --candidate_count)
     {
         const char* attempt_type =
             candidate_count == first_count ? (request.previous_active_node_count.has_value() ? "current" : "configured") : "fallback";
@@ -476,7 +487,10 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         if (candidate.accepted)
         {
             const bool reduced = candidate_count < first_count;
-            selection.diagnostic_candidate = reduced ? *rejected_candidate : candidate;
+            // Reduction is measured against the requested count, so a clamped
+            // start can be both reduced and accepted on its first attempt, with
+            // no rejected candidate to describe.
+            selection.diagnostic_candidate = reduced && rejected_candidate.has_value() ? *rejected_candidate : candidate;
             selection.quadrature = std::move(candidate.quadrature);
             selection.selected_node_count_ceiling = candidate_count;
             selection.reduced = reduced;

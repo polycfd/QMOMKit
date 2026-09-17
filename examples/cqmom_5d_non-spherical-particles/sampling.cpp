@@ -4,7 +4,6 @@
 #include <iostream>
 #include <optional>
 #include <sstream>
-#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -25,40 +24,71 @@ std::optional<std::string> read_configuration_text(const std::filesystem::path& 
     return contents.str();
 }
 
-std::optional<qmomkit::monte_carlo::TensorSampledInitialization>
-sample_initial_distribution(const qmomkit::config::InitialConditionSpecification& initial_condition, const qmomkit::PhaseSpaceHierarchy& hierarchy)
+namespace
 {
-    const qmomkit::monte_carlo::SamplingOptions sampling_options{initialization_sample_count, initialization_seed};
 
-    return std::visit(
-        [&](const auto& specification) -> std::optional<qmomkit::monte_carlo::TensorSampledInitialization>
+// Both entry points below sample the same thing and differ only in which
+// moments they estimate from the draw, so the configuration check and the
+// sampling options live here once.
+[[nodiscard]] const qmomkit::config::IndependentProductInitialization*
+sampleable_specification(const qmomkit::config::InitialConditionSpecification& initial_condition)
+{
+    const auto* const specification = std::get_if<qmomkit::config::IndependentProductInitialization>(&initial_condition);
+    if (specification == nullptr)
+    {
+        std::cerr << "Monte Carlo initialization requires a sampleable independent-product CQMOM configuration.\n";
+    }
+    return specification;
+}
+
+[[nodiscard]] qmomkit::monte_carlo::SamplingOptions example_sampling_options()
+{
+    return {initialization_sample_count, initialization_seed};
+}
+
+} // namespace
+
+std::optional<SampledInitialEnsemble> sample_initial_ensemble(const qmomkit::config::InitialConditionSpecification& initial_condition,
+                                                              const qmomkit::PhaseSpaceHierarchy& hierarchy)
+{
+    const qmomkit::config::IndependentProductInitialization* const specification = sampleable_specification(initial_condition);
+    if (specification == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    // Configured maximum orders are inclusive, so the reported extents are one
+    // larger; without them the hierarchy's own extents are already the 2*N span.
+    std::vector<std::size_t> moment_extents;
+    if (specification->maximum_orders.has_value())
+    {
+        moment_extents.reserve(specification->maximum_orders->size());
+        for (const std::size_t maximum_order : *specification->maximum_orders)
         {
-            using Specification = std::decay_t<decltype(specification)>;
-            if constexpr (std::is_same_v<Specification, qmomkit::config::IndependentProductInitialization>)
-            {
-                std::vector<std::size_t> maximum_orders;
-                if (specification.maximum_orders.has_value())
-                {
-                    maximum_orders = *specification.maximum_orders;
-                }
-                else
-                {
-                    const std::vector<std::size_t> extents = hierarchy.moment_extents();
-                    maximum_orders.reserve(extents.size());
-                    for (const std::size_t extent : extents)
-                    {
-                        maximum_orders.push_back(extent - 1);
-                    }
-                }
-                return qmomkit::monte_carlo::sample_initialization(specification.distribution, maximum_orders, sampling_options);
-            }
-            else
-            {
-                std::cerr << "Monte Carlo initialization requires a sampleable independent-product CQMOM configuration.\n";
-                return std::nullopt;
-            }
-        },
-        initial_condition);
+            moment_extents.push_back(maximum_order + 1);
+        }
+    }
+    else
+    {
+        moment_extents = hierarchy.moment_extents();
+    }
+
+    return SampledInitialEnsemble{qmomkit::monte_carlo::sample_independent_product(specification->distribution, example_sampling_options()),
+                                  std::move(moment_extents)};
+}
+
+std::optional<qmomkit::monte_carlo::SelectedSampledInitialization>
+sample_requested_initial_moments(const qmomkit::config::InitialConditionSpecification& initial_condition, const qmomkit::RawMomentRequest& request)
+{
+    const qmomkit::config::IndependentProductInitialization* const specification = sampleable_specification(initial_condition);
+    if (specification == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    // maximum_orders is dense metadata; the requested indices come from the
+    // CQMOM hierarchy instead, so it has no effect on this path.
+    return qmomkit::monte_carlo::sample_initialization(specification->distribution, request, example_sampling_options());
 }
 
 } // namespace cqmom_5d_non_spherical_particles

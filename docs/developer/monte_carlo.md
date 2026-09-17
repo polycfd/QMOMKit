@@ -126,6 +126,19 @@ payload; a successful result is the only result whose values are usable as
 estimated moments. The selective API is an additive Monte Carlo-package API and
 does not alter the existing dense overloads.
 
+`sample_initialization(distribution, request, options)` pairs one draw with that
+same selective estimator and returns `SelectedSampledInitialization`. For
+identical `SamplingOptions` it draws the identical ensemble as the dense
+`maximum_orders` overload, so the two agree on every shared index; only the
+evaluated set differs. A failed draw yields an empty estimate with
+`EnsembleMomentStatus::invalid_input`, matching the dense and one-dimensional
+initialization overloads. This is what lets a CQMOM caller request the moments
+its hierarchy requires — through `create_cqmom_moment_layout(...)` and
+`create_cqmom_moment_data(...)` — without evaluating the rest of the dense
+rectangle. A Monte Carlo reference run sharing that realization is free to
+estimate whatever it reports separately, through the dense overload or through
+`sample_independent_product(...)` plus its own estimator.
+
 ## Reproducibility
 
 A Monte Carlo validation case should record enough information to reproduce and

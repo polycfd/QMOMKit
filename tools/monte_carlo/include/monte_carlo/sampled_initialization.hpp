@@ -39,6 +39,7 @@ template <class MomentEstimate> struct SampledInitializationResult
 
 using OneDimensionalSampledInitialization = SampledInitializationResult<OneDimensionalMomentEstimate>;
 using TensorSampledInitialization = SampledInitializationResult<TensorMomentEstimate>;
+using SelectedSampledInitialization = SampledInitializationResult<SelectedEnsembleMomentEstimate>;
 
 /**
  * Sample a one-dimensional distribution and compute raw moments from the same
@@ -69,5 +70,22 @@ using TensorSampledInitialization = SampledInitializationResult<TensorMomentEsti
  */
 [[nodiscard]] TensorSampledInitialization sample_initialization(const qmomkit::IndependentProductDistribution& distribution,
                                                                 const std::vector<std::size_t>& maximum_orders, const SamplingOptions& options);
+
+/**
+ * Sample an independent multidimensional product and estimate only the
+ * requested raw moments from the same finite sample ensemble.
+ *
+ * The request is evaluated exactly as `compute_requested_ensemble_moments`
+ * does: request order and duplicate entries are preserved, and no dense moment
+ * tensor is constructed. A caller that needs only the moments a CQMOM hierarchy
+ * requires therefore evaluates that set rather than the full rectangle, which
+ * for higher-dimensional hierarchies is most of the estimation work.
+ *
+ * For identical `SamplingOptions` this draws the same ensemble as the dense
+ * overload, so a requested moment equals the corresponding entry of the dense
+ * tensor estimated from that ensemble.
+ */
+[[nodiscard]] SelectedSampledInitialization sample_initialization(const qmomkit::IndependentProductDistribution& distribution,
+                                                                  const qmomkit::RawMomentRequest& request, const SamplingOptions& options);
 
 } // namespace qmomkit::monte_carlo

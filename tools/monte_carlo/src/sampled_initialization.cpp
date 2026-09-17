@@ -20,6 +20,11 @@ namespace
     return TensorMomentEstimate{{}, {}, EnsembleMomentStatus::invalid_input, "Sampling failed: " + sampling.message};
 }
 
+[[nodiscard]] SelectedEnsembleMomentEstimate skipped_selected_moments(const SamplingResult& sampling)
+{
+    return SelectedEnsembleMomentEstimate{{}, {}, {}, EnsembleMomentStatus::invalid_input, "Sampling failed: " + sampling.message};
+}
+
 } // namespace
 
 OneDimensionalSampledInitialization sample_initialization(const qmomkit::DistributionSpecification& distribution, const double number_density,
@@ -58,6 +63,21 @@ TensorSampledInitialization sample_initialization(const qmomkit::IndependentProd
     }
 
     TensorMomentEstimate moments = compute_ensemble_moments(sampling.ensemble, sampling.number_density, maximum_orders);
+    return {std::move(sampling), std::move(moments)};
+}
+
+SelectedSampledInitialization sample_initialization(const qmomkit::IndependentProductDistribution& distribution,
+                                                    const qmomkit::RawMomentRequest& request, const SamplingOptions& options)
+{
+    // Sampling is the same draw as the dense overload for the same options; only
+    // the moment estimator differs, so the two agree on any shared index.
+    SamplingResult sampling = sample_independent_product(distribution, options);
+    if (!sampling.ok())
+    {
+        return {sampling, skipped_selected_moments(sampling)};
+    }
+
+    SelectedEnsembleMomentEstimate moments = compute_requested_ensemble_moments(sampling.ensemble, sampling.number_density, request);
     return {std::move(sampling), std::move(moments)};
 }
 

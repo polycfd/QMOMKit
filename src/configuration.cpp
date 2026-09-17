@@ -2516,6 +2516,37 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, 
     }
 }
 
+ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, CqmomMomentData explicit_moments)
+{
+    try
+    {
+        // A dense case retains the entries outside the required layout and
+        // regenerates them from reconstructed quadrature, so it cannot be
+        // rebuilt from the required set alone. Reporting that here keeps the
+        // replacement lossless for both storage choices instead of silently
+        // inventing the missing tensor entries.
+        const CqmomLeanCase* const lean_case = qmomkit::internal::CqmomConstructionAccess::case_lean_case(base_case);
+        if (lean_case == nullptr)
+        {
+            return ConfigurationResult<CqmomCase>::failure("Lean CQMOM moment data replaces the initial moments of a lean-storage base case only; "
+                                                           "supply a raw moment tensor for a dense-storage base case.");
+        }
+
+        internal::validate_cqmom_moment_data_matches_hierarchy(
+            explicit_moments, base_case.hierarchy(),
+            {"Lean CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.",
+             "Lean CQMOM moment data value count does not match its required CQMOM moment layout.", "Lean CQMOM moment data values must be finite."});
+
+        return ConfigurationResult<CqmomCase>{
+            qmomkit::internal::CqmomConstructionAccess::create_case(qmomkit::internal::with_moments(*lean_case, std::move(explicit_moments)),
+                                                                    qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case))};
+    }
+    catch (const std::exception& error)
+    {
+        return ConfigurationResult<CqmomCase>::failure("Unable to replace CQMOM initial moments: " + std::string(error.what()));
+    }
+}
+
 ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);

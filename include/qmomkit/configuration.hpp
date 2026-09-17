@@ -199,6 +199,24 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  */
 [[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, RawMomentTensor explicit_moments);
 
+/**
+ * Create a normal CQMOM case with replacement lean initial raw moments.
+ *
+ * This overload accepts the required CQMOM moment set directly, so a caller
+ * that already produces lean moment data does not have to materialize a dense
+ * tensor whose additional entries the case never reads. The base case must use
+ * lean storage; a dense base case retains its complete tensor and therefore
+ * needs the `RawMomentTensor` overload.
+ *
+ * The returned immutable case preserves the base case hierarchy, storage
+ * choice, coordinate support, and all reconstruction policies. The supplied
+ * layout must match the required CQMOM moment layout of the base hierarchy.
+ * This operation validates moment-set structure only; CQMOM realizability and
+ * reconstruction remain the responsibility of `compute_cqmom(...)` and
+ * `CqmomCase::initial_state()`.
+ */
+[[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, CqmomMomentData explicit_moments);
+
 /** Parse a current QMOM configuration string. */
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");
 

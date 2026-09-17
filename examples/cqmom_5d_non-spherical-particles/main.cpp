@@ -68,7 +68,15 @@ int main(int argc, char* argv[])
             print_configuration_errors(initial_condition.error());
             return 1;
         }
-        const auto sampled = sample_initial_distribution(std::move(initial_condition).value(), configured.value().hierarchy());
+        // CQMOM consumes only the moments its hierarchy requires, so the sampler
+        // is asked for exactly those indices rather than for a dense tensor
+        // whose remaining entries the case never reads. The lean replacement
+        // then seeds the case without that tensor ever being built. For the
+        // shipped configuration this is 606 moments instead of 7776; see the
+        // README for the figures that belong to that hierarchy.
+        const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(configured.value().hierarchy());
+        const qmomkit::RawMomentRequest required_moments{moment_layout.required_indices.to_multi_indices()};
+        const auto sampled = sample_requested_initial_moments(std::move(initial_condition).value(), required_moments);
         if (!sampled.has_value())
         {
             return 1;
@@ -79,7 +87,9 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        auto sampled_case = qmomkit::config::with_initial_moments(configured.value(), std::move(sampled->moments.moments));
+        auto sampled_case = qmomkit::config::with_initial_moments(
+            configured.value(),
+            qmomkit::create_cqmom_moment_data(moment_layout, qmomkit::make_selected_raw_moment_result(required_moments, sampled->moments.values)));
         if (!sampled_case)
         {
             print_configuration_errors(sampled_case.error());
@@ -98,8 +108,9 @@ int main(int argc, char* argv[])
 
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
         const qmomkit::CqmomPhaseSpaceEvolutionOptions evolution_options = std::move(evolution_configured).value();
-        const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
-        // The hierarchy requires more moments than this example reports, so the
+        // Replacement preserves the hierarchy, so moment_layout built above is
+        // this case's layout too and is reused rather than rebuilt here. The
+        // hierarchy requires more moments than this example reports, so the
         // summary asks for a chosen subset rather than the whole layout.
         const qmomkit::RawMomentRequest terminal_moment_request{select_terminal_moment_indices(moment_layout.required_indices)};
 

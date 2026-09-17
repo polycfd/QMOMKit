@@ -75,14 +75,14 @@ int main(int argc, char* argv[])
             print_configuration_errors(initial_condition.error());
             return 1;
         }
-        const auto sampled = sample_initial_distribution(std::move(initial_condition).value(), configured_case.hierarchy());
+        const auto sampled = sample_initial_ensemble(std::move(initial_condition).value(), configured_case.hierarchy());
         if (!sampled.has_value())
         {
             return 1;
         }
-        if (!sampled->ok())
+        if (!sampled->sampling.ok())
         {
-            std::cerr << sampled->sampling.message << sampled->moments.message << '\n';
+            std::cerr << sampled->sampling.message << '\n';
             return 1;
         }
 
@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
         const std::vector<qmomkit::MultiIndex> terminal_moment_indices = select_terminal_moment_indices(moment_layout.required_indices);
         qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(ensemble.size());
-        const std::vector<std::size_t> moment_extents = sampled->moments.moments.extents;
+        const std::vector<std::size_t> moment_extents = sampled->moment_extents;
 
         const ParticleModelParameters particle_parameters = particle_model_parameters();
         validate_particle_model_parameters(particle_parameters);

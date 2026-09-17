@@ -744,6 +744,13 @@ can build a replacement case with
 loaded hierarchy, supports, storage choice, and reconstruction settings, and
 validates the tensor's structure — equivalent to having written those moments
 into the file, without serialising and reparsing it.
+
+If the moments already arrive as the required CQMOM moment set rather than a
+full tensor, pass `CqmomMomentData` instead:
+`qmomkit::config::with_initial_moments(base_case, moment_data)`. The result is
+the same case, and it avoids building a dense tensor whose extra entries the
+case never reads. This overload needs a lean-storage base case; a dense base
+case keeps its complete tensor and so requires the tensor overload.
 ## Configuring without a file
 
 Applications that already own their setup data can skip the file entirely and

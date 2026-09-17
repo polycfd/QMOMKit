@@ -114,7 +114,7 @@ in the preceding section and in [installation.md](installation.md).
 |---|---|---|
 | Represent a finite population | `ensemble.hpp`: `Sample`, `Ensemble`, `SamplingOptions` | Store generic phase-space samples in QMOMKit phase-space order. |
 | Sample analytical or discrete data | `sampling.hpp`, `explicit_distribution.hpp` | Sample supported distributions, mixtures, independent products, or an explicit weighted discrete distribution. |
-| Initialize from one finite realization | `sampled_initialization.hpp`: `sample_initialization(...)` | Pair an ensemble with the raw moments estimated from that same sample. |
+| Initialize from one finite realization | `sampled_initialization.hpp`: `sample_initialization(...)` | Pair an ensemble with the raw moments estimated from that same sample, either complete or only the requested multi-indices. |
 | Estimate raw moments | `moments.hpp`: `compute_ensemble_moments(...)`, `compute_requested_ensemble_moments(...)` | Estimate complete one-dimensional/tensor moments or only requested multi-indices, with standard errors. |
 | Advect samples or explicit quadrature nodes | `evolution.hpp`: `evolve_ensemble(...)`, `evolve_quadrature_nodes(...)`, `evolve_explicit_quadrature(...)` | Advance coordinates through a caller-supplied `PhaseSpaceVelocity`. Each sample is evaluated as a single packed node, and every velocity entry must be written. |
 | Add a stochastic birth | `birth.hpp`: `inject_population(...)` | Add samples for a caller-supplied integrated birth amount and normalized birth sampler. |
@@ -124,6 +124,15 @@ The public-header comments are the detailed API reference. Most operations
 return a result object with `ok()`, `status`, and `message`; use its payload
 only after `ok()` succeeds. `sample_initialization(...)` follows the same
 pattern and exposes both its `sampling` and `moments` results.
+
+For a multidimensional product, `sample_initialization(...)` accepts either
+`maximum_orders`, which estimates the complete dense tensor, or a
+`qmomkit::RawMomentRequest`, which estimates only the listed multi-indices. The
+two draw the same ensemble for the same `SamplingOptions`, so they agree on
+every shared index. Prefer the request form when a CQMOM hierarchy needs far
+fewer moments than its dense tensor holds; pass
+`create_cqmom_moment_layout(hierarchy).required_indices` and adapt the estimate
+with `create_cqmom_moment_data(...)`.
 
 ### Sample and initialize from one realization
 

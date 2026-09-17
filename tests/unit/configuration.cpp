@@ -1429,6 +1429,125 @@ void test_cqmom_case_replaces_lean_initial_moments_immutably()
     assert(replaced_state.moment_values() == canonical_replacement.values);
 }
 
+qmomkit::CqmomLeanCase cqmom_lean_replacement_base()
+{
+    const qmomkit::CqmomDenseCase dense_base = cqmom_dense_replacement_base();
+    return {qmomkit::extract_cqmom_moments(dense_base.moments, qmomkit::create_cqmom_moment_layout(dense_base.hierarchy)),
+            dense_base.conditional_options,
+            dense_base.qmom_options,
+            dense_base.adaptive_branch_counts,
+            dense_base.diagnostic_level,
+            dense_base.vandermonde_solver,
+            dense_base.coordinate_support};
+}
+
+void test_cqmom_case_replaces_lean_initial_moments_from_moment_data()
+{
+    const qmomkit::CqmomLeanCase lean_base = cqmom_lean_replacement_base();
+    const qmomkit::CqmomCase base_case = qmomkit::internal::CqmomConstructionAccess::create_case(lean_base);
+    const qmomkit::CqmomMomentLayout& layout = lean_base.moments.layout;
+    const std::vector<double> base_values = base_case.initial_state().moment_values();
+
+    const qmomkit::RawMomentTensor replacement_tensor = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
+    qmomkit::CqmomMomentData replacement = qmomkit::extract_cqmom_moments(replacement_tensor, layout);
+
+    const auto transformed = qmomkit::config::with_initial_moments(base_case, replacement);
+    assert(transformed.ok());
+    const qmomkit::CqmomCase replaced_case = transformed.value();
+    assert(replaced_case.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    assert_cqmom_case_policies_equal(replaced_case, base_case);
+
+    // The supplied moment data is copied into the returned case, so mutating it
+    // afterwards must not reach either case.
+    replacement.values[0] = -999.0;
+    assert(base_case.initial_state().moment_values() == base_values);
+
+    const qmomkit::CqmomState replaced_state = replaced_case.initial_state();
+    assert(replaced_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
+    assert(replaced_state.moment_indices() == layout.required_indices.to_multi_indices());
+
+    // The lean-native replacement must be indistinguishable from supplying the
+    // same moments as a dense tensor: same quadrature, same canonical state.
+    const auto tensor_transformed = qmomkit::config::with_initial_moments(base_case, replacement_tensor);
+    assert(tensor_transformed.ok());
+    const qmomkit::CqmomResult moment_data_result = qmomkit::compute_cqmom(replaced_case);
+    const qmomkit::CqmomResult tensor_result = qmomkit::compute_cqmom(tensor_transformed.value());
+    assert(moment_data_result.ok());
+    assert(tensor_result.ok());
+    assert_cqmom_quadratures_near(moment_data_result.quadrature, tensor_result.quadrature);
+    assert(replaced_state.moment_values() == tensor_transformed.value().initial_state().moment_values());
+
+    const qmomkit::CqmomMomentData canonical_replacement =
+        qmomkit::extract_cqmom_moments(qmomkit::reconstruct_raw_moments(moment_data_result.quadrature, replacement_tensor.extents), layout);
+    assert(replaced_state.moment_values() == canonical_replacement.values);
+
+    // A fixed lineage reuses the immutable prepared metadata rather than
+    // rebuilding the branch graph for the replacement case.
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(replaced_case).get() ==
+           qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case).get());
+}
+
+void test_cqmom_case_moment_data_replacement_rejects_invalid_input()
+{
+    const qmomkit::CqmomLeanCase lean_base = cqmom_lean_replacement_base();
+    const qmomkit::CqmomCase lean_case = qmomkit::internal::CqmomConstructionAccess::create_case(lean_base);
+    const qmomkit::CqmomCase dense_case = qmomkit::internal::CqmomConstructionAccess::create_case(cqmom_dense_replacement_base());
+    const qmomkit::CqmomMomentLayout& layout = lean_base.moments.layout;
+    const std::vector<double> lean_base_values = lean_case.initial_state().moment_values();
+    const std::vector<double> dense_base_values = dense_case.initial_state().moment_values();
+
+    const qmomkit::CqmomMomentData valid = qmomkit::extract_cqmom_moments(cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0}), layout);
+
+    // Dense storage retains tensor entries outside the required layout, so the
+    // required set alone cannot replace its moments.
+    const auto dense_storage = qmomkit::config::with_initial_moments(dense_case, valid);
+    assert(!dense_storage.ok());
+    assert(has_message_fragment(dense_storage, "dense-storage"));
+
+    // A layout built for a different conditioning order is not the required
+    // layout of the base hierarchy.
+    const qmomkit::CqmomMomentLayout other_layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2, 2}));
+    const qmomkit::CqmomMomentData wrong_layout{other_layout, std::vector<double>(other_layout.required_indices.size(), 1.0)};
+    const auto layout_mismatch = qmomkit::config::with_initial_moments(lean_case, wrong_layout);
+    assert(!layout_mismatch.ok());
+    // "layout" alone also appears in the value-count message, so the fragment
+    // has to be specific enough to tell the two rejections apart.
+    assert(has_message_fragment(layout_mismatch, "layout must match the required"));
+
+    const qmomkit::CqmomMomentData wrong_value_count{layout, std::vector<double>(valid.values.size() + 1, 1.0)};
+    const auto value_count = qmomkit::config::with_initial_moments(lean_case, wrong_value_count);
+    assert(!value_count.ok());
+    assert(has_message_fragment(value_count, "value count"));
+
+    qmomkit::CqmomMomentData nonfinite = valid;
+    nonfinite.values[0] = std::numeric_limits<double>::quiet_NaN();
+    const auto finite = qmomkit::config::with_initial_moments(lean_case, nonfinite);
+    assert(!finite.ok());
+    assert(has_message_fragment(finite, "finite"));
+
+    // Every rejection leaves both base cases untouched.
+    assert(lean_case.initial_state().moment_values() == lean_base_values);
+    assert(dense_case.initial_state().moment_values() == dense_base_values);
+}
+
+void test_cqmom_case_moment_data_replacement_defers_realizability()
+{
+    const qmomkit::CqmomLeanCase lean_base = cqmom_lean_replacement_base();
+    const qmomkit::CqmomCase base_case = qmomkit::internal::CqmomConstructionAccess::create_case(lean_base);
+    qmomkit::CqmomMomentData nonrealizable = qmomkit::extract_cqmom_moments(cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0}), lean_base.moments.layout);
+    // The layout enumerates m_[0,0] first. It is the total number density, so a
+    // negative value is structurally valid but not realizable: replacement must
+    // accept it and reconstruction must reject it.
+    assert(nonrealizable.layout.required_indices[0] == qmomkit::MultiIndex({0, 0}));
+    nonrealizable.values[0] = -1.0;
+
+    const auto transformed = qmomkit::config::with_initial_moments(base_case, std::move(nonrealizable));
+    assert(transformed.ok());
+    const qmomkit::CqmomResult reconstruction = qmomkit::compute_cqmom(transformed.value());
+    assert(!reconstruction.ok());
+    assert(reconstruction.status == qmomkit::CqmomStatus::qmom_failed);
+}
+
 void test_fixed_cqmom_prepared_metadata_ownership()
 {
     qmomkit::CqmomDenseCase dense_case = cqmom_dense_replacement_base();
@@ -3991,6 +4110,9 @@ void run_all_configuration_tests()
     test_cqmom_case_initial_state_preserves_case_settings();
     test_cqmom_case_replaces_dense_initial_moments_immutably();
     test_cqmom_case_replaces_lean_initial_moments_immutably();
+    test_cqmom_case_replaces_lean_initial_moments_from_moment_data();
+    test_cqmom_case_moment_data_replacement_rejects_invalid_input();
+    test_cqmom_case_moment_data_replacement_defers_realizability();
     test_fixed_cqmom_prepared_metadata_ownership();
     test_fixed_cqmom_prepared_metadata_is_concurrently_readable();
     test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility();
@@ -4074,6 +4196,9 @@ void run_cqmom_case_state_tests()
     test_cqmom_case_initial_state_preserves_case_settings();
     test_cqmom_case_replaces_dense_initial_moments_immutably();
     test_cqmom_case_replaces_lean_initial_moments_immutably();
+    test_cqmom_case_replaces_lean_initial_moments_from_moment_data();
+    test_cqmom_case_moment_data_replacement_rejects_invalid_input();
+    test_cqmom_case_moment_data_replacement_defers_realizability();
     test_fixed_cqmom_prepared_metadata_ownership();
     test_fixed_cqmom_prepared_metadata_is_concurrently_readable();
     test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility();
@@ -4166,6 +4291,9 @@ int main(const int argc, char** argv)
             {"cqmom_case_initial_state_preserves_case_settings", test_cqmom_case_initial_state_preserves_case_settings},
             {"cqmom_case_replaces_dense_initial_moments_immutably", test_cqmom_case_replaces_dense_initial_moments_immutably},
             {"cqmom_case_replaces_lean_initial_moments_immutably", test_cqmom_case_replaces_lean_initial_moments_immutably},
+            {"cqmom_case_replaces_lean_initial_moments_from_moment_data", test_cqmom_case_replaces_lean_initial_moments_from_moment_data},
+            {"cqmom_case_moment_data_replacement_rejects_invalid_input", test_cqmom_case_moment_data_replacement_rejects_invalid_input},
+            {"cqmom_case_moment_data_replacement_defers_realizability", test_cqmom_case_moment_data_replacement_defers_realizability},
             {"fixed_cqmom_prepared_metadata_ownership", test_fixed_cqmom_prepared_metadata_ownership},
             {"fixed_cqmom_prepared_metadata_is_concurrently_readable", test_fixed_cqmom_prepared_metadata_is_concurrently_readable},
             {"fixed_cqmom_state_prepared_metadata_invariant_and_compatibility", test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility},

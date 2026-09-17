@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <iostream>
+#include <string>
 #include <vector>
 
 namespace
@@ -69,6 +70,63 @@ void test_multidimensional_tensor_layout()
     const std::size_t flat = qmomkit::flatten_multi_index(order, initialization.moments.moments.extents);
     CHECK(flat == 23);
     CHECK(qmomkit::unflatten_multi_index(flat, initialization.moments.moments.extents) == order);
+}
+
+void check_close_relative(const double actual, const double expected, const double relative_tolerance, const std::string& context)
+{
+    update_maximum_error(std::abs(actual - expected));
+    CHECK_CLOSE_CONTEXT(actual, expected, 0.0, relative_tolerance, context);
+}
+
+void test_selected_initialization_matches_dense_tensor()
+{
+    const qmomkit::IndependentProductDistribution product{
+        {qmomkit::GammaDistribution{2.0, 0.5}, qmomkit::NormalDistribution{0.25, 0.75}, qmomkit::BetaDistribution{2.0, 5.0}}, 4.0};
+    const qmomkit::monte_carlo::SamplingOptions options{2500, 3301};
+    const std::vector<std::size_t> maximum_orders{1, 2, 3};
+    const std::vector<qmomkit::MultiIndex> requested{{0, 0, 0}, {1, 0, 0}, {0, 2, 0}, {1, 2, 3}, {0, 1, 1}};
+
+    const qmomkit::monte_carlo::TensorSampledInitialization dense = qmomkit::monte_carlo::sample_initialization(product, maximum_orders, options);
+    const qmomkit::monte_carlo::SelectedSampledInitialization selected =
+        qmomkit::monte_carlo::sample_initialization(product, qmomkit::RawMomentRequest{requested}, options);
+
+    CHECK(dense.ok());
+    CHECK(selected.ok());
+
+    // The two overloads differ only in which moments they evaluate. Identical
+    // sampling options draw the identical ensemble, so every shared index must
+    // carry the same estimate; that equality is what lets a caller choose the
+    // requested form purely to avoid evaluating the rest of the rectangle.
+    CHECK(selected.sampling.ensemble.size() == dense.sampling.ensemble.size());
+    CHECK(selected.sampling.seed == dense.sampling.seed);
+    CHECK(selected.sampling.number_density == dense.sampling.number_density);
+    CHECK(selected.moments.indices == requested);
+    CHECK(selected.moments.values.size() == requested.size());
+    CHECK(selected.moments.standard_errors.size() == requested.size());
+
+    for (std::size_t entry = 0; entry < requested.size(); ++entry)
+    {
+        const std::size_t flat = qmomkit::flatten_multi_index(requested[entry], dense.moments.moments.extents);
+        check_close_relative(selected.moments.values[entry], dense.moments.moments.values[flat], 1.0e-14, "requested entry " + std::to_string(entry));
+        check_close_relative(selected.moments.standard_errors[entry], dense.moments.standard_errors[flat], 1.0e-14,
+                             "requested standard error " + std::to_string(entry));
+    }
+}
+
+void test_selected_initialization_error_propagation()
+{
+    const qmomkit::IndependentProductDistribution invalid_product{{qmomkit::NormalDistribution{0.0, -1.0}}, 1.0};
+    const qmomkit::monte_carlo::SelectedSampledInitialization invalid = qmomkit::monte_carlo::sample_initialization(
+        invalid_product, qmomkit::RawMomentRequest{{{0}, {1}}}, qmomkit::monte_carlo::SamplingOptions{100, 6301});
+
+    CHECK(!invalid.ok());
+    CHECK(!invalid.sampling.ok());
+    CHECK(!invalid.moments.ok());
+    // A failed draw must not leave a partially populated estimate that a caller
+    // could mistake for a valid zero-moment realization.
+    CHECK(invalid.moments.indices.empty());
+    CHECK(invalid.moments.values.empty());
+    CHECK(invalid.moments.standard_errors.empty());
 }
 
 void test_reproducibility()
@@ -135,6 +193,8 @@ int main()
     test_one_dimensional_distribution_density();
     test_mixture_absolute_density();
     test_multidimensional_tensor_layout();
+    test_selected_initialization_matches_dense_tensor();
+    test_selected_initialization_error_propagation();
     test_reproducibility();
     test_statistical_sanity_improves_with_sample_count();
     test_error_propagation();

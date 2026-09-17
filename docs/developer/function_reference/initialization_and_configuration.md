@@ -213,7 +213,12 @@ succeed. The QMOM's large-count guard and dense CQMOM's extent checks protect
 their distinct storage requirements. `with_initial_moments` validates
 replacement tensor structure/finiteness and required hierarchy coverage,
 preserves case settings/prepared metadata, and defers realizability/inversion.
-Dense keeps dense storage; lean extracts required entries.
+Dense keeps dense storage; lean extracts required entries. Its
+`CqmomMomentData` overload replaces a lean case from the required moment set
+without a dense tensor, validating that the supplied layout is the hierarchy's
+required layout with one finite value per index. It rejects a dense base case,
+whose retained non-required entries the required set cannot reproduce. Both
+overloads yield the same case for the same moments.
 
 Public `parse_qmom`, `parse_cqmom_dense`, `parse_cqmom_lean`, and neutral
 `parse_cqmom` compose parser, initializer, and constructor. Neutral dispatch

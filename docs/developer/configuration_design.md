@@ -265,6 +265,27 @@ programmatic and parsed explicit tensors share the same lifecycle: structural
 errors are configuration failures, while non-realizability is reported by
 `compute_cqmom(...)` or by `CqmomCase::initial_state()`.
 
+`config::with_initial_moments(const CqmomCase&, CqmomMomentData)` is the lean
+overload of the same boundary. A caller whose moments already arrive as the
+required CQMOM moment set — from `compute_raw_moments(...)` with the layout's
+`required_indices` adapted by `create_cqmom_moment_data(...)`, or from any other
+producer that evaluates exactly those indices — replaces the initial moments
+directly instead of materializing a dense tensor whose additional entries the
+case never reads. For
+a hierarchy whose dense tensor is much larger than its required set, that is the
+difference between generating the required moments and generating the full
+rectangle.
+
+The lean overload requires a lean-storage base case. Dense storage retains the
+tensor entries outside the required layout and regenerates them from
+reconstructed quadrature, so the required set alone cannot reproduce a dense
+case; that combination is reported as a configuration failure rather than
+completed by inventing the missing entries. The overload validates that the
+supplied layout is the required CQMOM moment layout of the base hierarchy, that
+there is one value per required index, and that the values are finite. It leaves
+realizability to reconstruction exactly as the tensor overload does, and both
+overloads produce the same case for the same moments.
+
 ## Distribution initialization design
 
 Configuration can reference analytical distributions as a compact way to define
@@ -452,6 +473,8 @@ Public configuration capabilities include:
 - `initialize_cqmom_moment_data(...)`;
 - `create_qmom_case(...)`, `create_cqmom_dense_case(...)`, and
   `create_cqmom_lean_case(...)`;
+- `with_initial_moments(...)` for a `RawMomentTensor` or `CqmomMomentData`
+  replacement;
 - `parse_phase_space_evolution_scheme(...)`;
 - `parse_node_advection_options(...)` and
   `load_node_advection_options(...)`;

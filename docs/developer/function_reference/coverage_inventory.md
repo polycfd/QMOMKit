@@ -48,7 +48,7 @@ The rule that closes it: **when a change adds a file under `src/` or
 a definition to a file that already has a section, add its row. A section that
 lists a file is a claim that it lists all of that file's definitions.
 
-The inventory includes **1013 definition locations**, grouped by named function
+The inventory includes **1016 definition locations**, grouped by named function
 within each defining file. Overloads and separately compiled instrumentation
 branches share a row with distinct line links. The count includes trivial
 helpers and is not a count of numerical algorithms. Detailed pages cover the
@@ -886,9 +886,12 @@ evidence](time_integration.md)
 | `integrate_nodes_ssp_rk3` | [200](../../../src/node_advection.cpp#L200) |
 | `integrate_nodes` | [265](../../../src/node_advection.cpp#L265) |
 | `scheme_name` | [296](../../../src/node_advection.cpp#L296) |
-| `make_phase_space_velocity` | [395](../../../src/node_advection.cpp#L395) |
-| `advance_nodes` | [312](../../../src/node_advection.cpp#L312), [340](../../../src/node_advection.cpp#L340), [351](../../../src/node_advection.cpp#L351) |
-| `format_node_advection_options` | [439](../../../src/node_advection.cpp#L439) |
+| `PooledCoordinateBuffer::PooledCoordinateBuffer` | [326](../../../src/node_advection.cpp#L326) |
+| `PooledCoordinateBuffer::~PooledCoordinateBuffer` | [347](../../../src/node_advection.cpp#L347) |
+| `PooledCoordinateBuffer::free_list` | [359](../../../src/node_advection.cpp#L359) |
+| `make_phase_space_velocity` | [453](../../../src/node_advection.cpp#L453) |
+| `advance_nodes` | [370](../../../src/node_advection.cpp#L370), [398](../../../src/node_advection.cpp#L398), [409](../../../src/node_advection.cpp#L409) |
+| `format_node_advection_options` | [493](../../../src/node_advection.cpp#L493) |
 
 ### `src/output.cpp`
 

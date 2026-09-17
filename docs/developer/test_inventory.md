@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 665 |
+| Unit logical tests | 666 |
 | Component/regression logical tests | 31 |
 | Verification logical tests | 165 |
-| **Runtime logical tests** | **861** |
+| **Runtime logical tests** | **862** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **862** |
+| **Total CTest registrations** | **863** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -353,6 +353,7 @@ renamed test rather than a deleted one.
 | `verification_node_advection_linear_system_2d` | `tests/verification/node_advection/node_advection_analytical.cpp` | `linear_system_2d` (configuration: `linear_system_2d.qmom`) | Verifies node-advection evolution against the analytical linear system 2d solution. | Configuration case `linear_system_2d.qmom` |
 | `unit_node_advection_adapted_velocity_is_safe_to_share_between_threads` | `tests/unit/node_advection.cpp` | `adapted_velocity_is_safe_to_share_between_threads` | Checks that one adapted velocity object shared across threads produces the same results as serial use, since the adapter reuses a coordinate buffer. | — |
 | `unit_node_advection_adapted_velocity_matches_directly_written_velocity_exactly` | `tests/unit/node_advection.cpp` | `adapted_velocity_matches_directly_written_velocity_exactly` | Checks that the same physics written packed and reached through `make_phase_space_velocity` agree exactly, for every node-advection scheme. | — |
+| `unit_node_advection_reentrant_velocity_callback_keeps_its_coordinate_argument` | `tests/unit/node_advection.cpp` | `reentrant_velocity_callback_keeps_its_coordinate_argument` | Checks that a velocity callback re-entering node advection on the same thread leaves its caller's coordinate argument unmoved and unchanged. | — |
 | `unit_node_advection_partially_filled_velocity_is_reported_in_debug_builds` | `tests/unit/node_advection.cpp` | `partially_filled_velocity_is_reported_in_debug_builds` | Checks that a packed velocity callback leaving an entry unwritten is reported in debug builds, which size and finiteness checks alone cannot detect. | — |
 | `unit_node_advection_velocity_adapter_preserves_results_and_emptiness` | `tests/unit/node_advection.cpp` | `velocity_adapter_preserves_results_and_emptiness` | Checks that the per-node adapter preserves results and propagates an empty callback as an empty adapted callback. | — |
 | `unit_node_advection_velocity_diagnostics_report_node_and_dimension_context` | `tests/unit/node_advection.cpp` | `velocity_diagnostics_report_node_and_dimension_context` | Checks that a non-finite velocity entry is attributed to its node and phase-space dimension with the offending coordinate and velocity slices. | — |
@@ -419,7 +420,7 @@ renamed test rather than a deleted one.
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 859 runtime logical-test
+The `public_headers` registration is not part of the 862 runtime logical-test
 count. It compiles and links 23 public-header translation units as one separate
 CTest check; it is not 23 runtime tests.
 

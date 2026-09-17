@@ -307,6 +307,64 @@ struct IntegratedNodes
     return "unknown";
 }
 
+// Coordinate buffer for the per-node velocity adapter below.
+//
+// The buffer must live in the calling frame, not in shared storage, because the
+// adapter hands a reference to it straight to a user callback. A callback that
+// re-enters node advection on this thread would otherwise resize that shared
+// buffer underneath the reference its caller is still holding, which
+// reallocates it and replaces its contents mid-call.
+//
+// Keeping the buffer by value makes that impossible, and recycling only its
+// capacity through a thread-local free list keeps the steady state free of
+// allocation. A free list rather than an indexed pool because a reference into
+// a pool would dangle again as soon as a deeper call grew it. The list is
+// thread-local so that one velocity object shared by an application-managed
+// parallel loop still gets one buffer per thread.
+struct PooledCoordinateBuffer
+{
+    PooledCoordinateBuffer()
+    {
+        std::vector<std::vector<double>>& available = free_list();
+        if (!available.empty())
+        {
+            buffer = std::move(available.back());
+            available.pop_back();
+            return;
+        }
+        // Every live buffer returns itself to the list below, and a destructor
+        // is noexcept, so the room for that return is reserved here instead,
+        // where a failed allocation still propagates. Growing by one whenever
+        // the list is exhausted settles at the deepest re-entrancy this thread
+        // has reached.
+        available.reserve(available.capacity() + 1);
+    }
+
+    // Returned on every exit path, including a throwing callback, so a failed
+    // right-hand-side evaluation does not retire the capacity. The constructor
+    // reserved this slot, so the push cannot allocate; the guard keeps that
+    // true rather than trusting it, because allocating here would terminate.
+    ~PooledCoordinateBuffer()
+    {
+        std::vector<std::vector<double>>& available = free_list();
+        if (available.size() < available.capacity())
+        {
+            available.push_back(std::move(buffer));
+        }
+    }
+
+    PooledCoordinateBuffer(const PooledCoordinateBuffer&) = delete;
+    PooledCoordinateBuffer& operator=(const PooledCoordinateBuffer&) = delete;
+
+    [[nodiscard]] static std::vector<std::vector<double>>& free_list()
+    {
+        static thread_local std::vector<std::vector<double>> buffers;
+        return buffers;
+    }
+
+    std::vector<double> buffer;
+};
+
 } // namespace
 
 QmomNodeAdvectionResult advance_nodes(const Quadrature1D& quadrature, const double t, const double time_step, const PhaseSpaceVelocity& velocity,
@@ -406,18 +464,14 @@ PhaseSpaceVelocity make_phase_space_velocity(PerNodePhaseSpaceVelocity velocity)
     {
         const std::size_t nodes = coordinates.size() / dimensions;
 
-        // One coordinate buffer is reused across nodes and across
-        // right-hand-side evaluations, which is what the per-node path did
-        // before the callback shapes were merged. It is thread-local rather
-        // than captured because one velocity object may be shared by an
-        // application-managed parallel loop, and it is resized inside the node
-        // loop so that a callback re-entering node advection on this thread
-        // cannot leave it too short. Resizing to the size it already has is
-        // free once the capacity is grown.
-        static thread_local std::vector<double> node_coordinate;
+        // Owned by this invocation so that a re-entrant callback cannot resize
+        // it underneath the reference passed below; its capacity is recycled
+        // across evaluations, so this is reuse without sharing.
+        PooledCoordinateBuffer pooled;
+        std::vector<double>& node_coordinate = pooled.buffer;
+        node_coordinate.assign(dimensions, 0.0);
         for (std::size_t node = 0; node < nodes; ++node)
         {
-            node_coordinate.resize(dimensions);
             for (std::size_t dimension = 0; dimension < dimensions; ++dimension)
             {
                 node_coordinate[dimension] = coordinates[node * dimensions + dimension];

@@ -534,6 +534,45 @@ void test_velocity_diagnostics_report_node_and_dimension_context()
 // writes only part of it cannot be caught by size or finiteness alone. Debug
 // builds poison the buffer to detect it; in release builds the check is
 // compiled out and, like every assert-based test here, this one is inert.
+// The adapter hands the callback a reference to its coordinate buffer. A
+// callback that re-enters node advection on the same thread must not be able to
+// resize that buffer underneath the reference its caller is still holding: with
+// shared storage the re-entrant call reallocates it, so the outer callback's
+// argument moves in memory and its contents are replaced mid-call.
+void test_reentrant_velocity_callback_keeps_its_coordinate_argument()
+{
+    // The inner system is wider than the outer one, so a shared buffer has to
+    // grow, which is what makes the reallocation observable.
+    const qmomkit::PhaseSpaceVelocity inner = qmomkit::make_phase_space_velocity([](const double, const std::vector<double>& coordinate)
+                                                                                 { return std::vector<double>(coordinate.size(), 0.0); });
+
+    bool reentered = false;
+    bool argument_survived = true;
+    const qmomkit::PhaseSpaceVelocity outer = qmomkit::make_phase_space_velocity(
+        [&inner, &reentered, &argument_survived](const double time, const std::vector<double>& coordinate)
+        {
+            const double* const held = coordinate.data();
+            const std::size_t held_size = coordinate.size();
+            if (!reentered)
+            {
+                reentered = true;
+                std::vector<double> inner_coordinates(3 * 5, 1.0);
+                std::vector<double> inner_velocities(3 * 5, 0.0);
+                inner(time, inner_coordinates, inner_velocities, 5);
+            }
+            argument_survived = argument_survived && coordinate.data() == held && coordinate.size() == held_size && coordinate.size() == 2 &&
+                                coordinate[0] == 4.0 && coordinate[1] == 9.0;
+            return std::vector<double>(coordinate.size(), 0.0);
+        });
+
+    std::vector<double> coordinates{4.0, 9.0};
+    std::vector<double> velocities(coordinates.size(), 0.0);
+    outer(0.0, coordinates, velocities, 2);
+
+    assert(reentered);
+    assert(argument_survived);
+}
+
 void test_partially_filled_velocity_is_reported_in_debug_builds()
 {
     const qmomkit::CqmomResult cqmom_result = make_fixed_two_dimensional_cqmom();
@@ -746,6 +785,7 @@ int main(const int argc, char** argv)
             {"velocity_adapter_preserves_results_and_emptiness", test_velocity_adapter_preserves_results_and_emptiness},
             {"velocity_diagnostics_report_node_and_dimension_context", test_velocity_diagnostics_report_node_and_dimension_context},
             {"adapted_velocity_is_safe_to_share_between_threads", test_adapted_velocity_is_safe_to_share_between_threads},
+            {"reentrant_velocity_callback_keeps_its_coordinate_argument", test_reentrant_velocity_callback_keeps_its_coordinate_argument},
             {"partially_filled_velocity_is_reported_in_debug_builds", test_partially_filled_velocity_is_reported_in_debug_builds},
             {"rk23_failure_diagnostics_are_reported", test_rk23_failure_diagnostics_are_reported},
             {"configured_adaptive_options_reach_node_advection", test_configured_adaptive_options_reach_node_advection},

@@ -1,5 +1,6 @@
 #include "monte_carlo/moments.hpp"
 #include "qmomkit/multi_index.hpp"
+#include "test_case_dispatch.hpp"
 #include "test_checks.hpp"
 
 #include <algorithm>
@@ -236,15 +237,18 @@ void test_failed_selection_does_not_mutate_inputs()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_selected_one_dimensional_moments();
-    test_selected_multidimensional_moments_match_dense();
-    test_selected_zero_density_and_integer_power_edges();
-    test_empty_request_requires_valid_ensemble_and_density();
-    test_selected_invalid_inputs_have_no_partial_payload();
-    test_selected_numerical_failures();
-    test_selected_inputs_are_unchanged();
-    test_failed_selection_does_not_mutate_inputs();
-    return 0;
+    return qmomkit::monte_carlo::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"selected_one_dimensional_moments", test_selected_one_dimensional_moments},
+            {"selected_multidimensional_moments_match_dense", test_selected_multidimensional_moments_match_dense},
+            {"selected_zero_density_and_integer_power_edges", test_selected_zero_density_and_integer_power_edges},
+            {"empty_request_requires_valid_ensemble_and_density", test_empty_request_requires_valid_ensemble_and_density},
+            {"selected_invalid_inputs_have_no_partial_payload", test_selected_invalid_inputs_have_no_partial_payload},
+            {"selected_numerical_failures", test_selected_numerical_failures},
+            {"selected_inputs_are_unchanged", test_selected_inputs_are_unchanged},
+            {"failed_selection_does_not_mutate_inputs", test_failed_selection_does_not_mutate_inputs},
+        });
 }

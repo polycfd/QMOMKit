@@ -195,17 +195,38 @@ Normal Monte Carlo output follows the QMOMKit text-table convention:
 - optional metadata comments before the data header;
 - 17-digit floating-point text precision for reproducible scientific checks.
 
-Example moment-history table:
+Two table shapes are produced. A moment-history table comes from the shared
+`qmomkit::MomentWriter` and follows the column schema in
+[output_design.md](output_design.md): time first, then one column per moment,
+with comment lines right-aligned into their columns.
 
 ```text
-# time sample_count M0 M1 M2
-0.0 100000 1.0 2.0 5.0
+         # time                     M[0]                      M[1]
+  0.00000000000000000e+00   1.00000000000000000e+00   2.00000000000000000e+00
 ```
 
-One-dimensional moment labels use `M0`, `M1`, and so on. Tensor moment labels
-use compact multi-index labels such as `M00`, `M01`, and `M10` in QMOMKit
-phase-space order. Comparison tables should include both `signed_error` and
-`absolute_error`; a signed quantity must not be named `absolute_error`.
+Moment labels are bracketed multi-indices in QMOMKit phase-space order: `M[0]`,
+`M[1]` in one dimension and `M[0,0]`, `M[0,1]`, `M[1,0]` in two. Configured
+generalized columns are appended after the ordinary ones as `G[...]`.
+
+`write_moment_text` instead reports a single estimate with its sampling
+metadata, one row per moment index rather than per time:
+
+```text
+# samples=2
+# seed=4242
+# number_density=6
+# alpha_0 value standard_error
+0 6 0
+1 12 6
+```
+
+The `alpha_*` columns carry the multi-index, so a tensor estimate has one per
+phase-space dimension. Recording the sample count, seed, and absolute number
+density is what makes a stochastic estimate reproducible.
+
+Comparison tables should include both `signed_error` and `absolute_error`; a
+signed quantity must not be named `absolute_error`.
 
 ## Tolerances and uncertainty
 

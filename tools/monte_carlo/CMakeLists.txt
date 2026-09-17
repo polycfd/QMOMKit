@@ -58,36 +58,34 @@ add_executable(monte_carlo_sample_based_initialization_example examples/sample_b
 target_link_libraries(monte_carlo_sample_based_initialization_example PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
 
 if(BUILD_TESTING)
-    add_executable(monte_carlo_population_birth_tests tests/population_birth.cpp)
-    target_link_libraries(monte_carlo_population_birth_tests PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
-    add_test(NAME monte_carlo_population_birth COMMAND monte_carlo_population_birth_tests)
-    set_tests_properties(monte_carlo_population_birth PROPERTIES LABELS monte_carlo)
+    # Each logical case is registered with CTest on its own, so a failure names
+    # the behavior that broke instead of the file it lives in. Selectors are
+    # discovered from the `void test_*()` definitions, so adding a case to a
+    # source file is enough to register it.
+    function(monte_carlo_add_test_executable target_name source_file)
+        add_executable(${target_name} ${source_file})
+        target_link_libraries(${target_name} PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
+        target_include_directories(${target_name} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/tests")
 
-    add_executable(monte_carlo_sampling_moment_validation_tests tests/sampling_moment_validation.cpp)
-    target_link_libraries(monte_carlo_sampling_moment_validation_tests PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
-    add_test(NAME monte_carlo_sampling_moment_validation COMMAND monte_carlo_sampling_moment_validation_tests)
-    set_tests_properties(monte_carlo_sampling_moment_validation PROPERTIES LABELS monte_carlo)
+        string(REGEX REPLACE "^monte_carlo_(.*)_tests$" "\\1" test_subsystem "${target_name}")
+        file(STRINGS "${source_file}" case_definitions REGEX "^[ \t]*(static[ \t]+)?void[ \t]+test_[A-Za-z0-9_]+[ \t]*\\([ \t]*\\)")
+        if(case_definitions STREQUAL "")
+            message(FATAL_ERROR "No test cases discovered in ${source_file}")
+        endif()
+        foreach(definition IN LISTS case_definitions)
+            string(REGEX REPLACE "^[ \t]*(static[ \t]+)?void[ \t]+test_([A-Za-z0-9_]+)[ \t]*\\(.*" "\\2" selector "${definition}")
+            add_test(NAME monte_carlo_${test_subsystem}_${selector} COMMAND ${target_name} ${selector})
+            set_tests_properties(monte_carlo_${test_subsystem}_${selector} PROPERTIES LABELS monte_carlo)
+        endforeach()
+    endfunction()
 
-    add_executable(monte_carlo_ensemble_evolution_tests tests/ensemble_evolution.cpp)
-    target_link_libraries(monte_carlo_ensemble_evolution_tests PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
-    add_test(NAME monte_carlo_ensemble_evolution COMMAND monte_carlo_ensemble_evolution_tests)
-    set_tests_properties(monte_carlo_ensemble_evolution PROPERTIES LABELS monte_carlo)
-
-    add_executable(monte_carlo_quadrature_ensemble_comparison_tests tests/quadrature_ensemble_comparison.cpp)
-    target_link_libraries(monte_carlo_quadrature_ensemble_comparison_tests PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
-    add_test(NAME monte_carlo_quadrature_ensemble_comparison COMMAND monte_carlo_quadrature_ensemble_comparison_tests)
-    set_tests_properties(monte_carlo_quadrature_ensemble_comparison PROPERTIES LABELS monte_carlo)
-
-    add_executable(monte_carlo_sampled_initialization_tests tests/sampled_initialization.cpp)
-    target_link_libraries(monte_carlo_sampled_initialization_tests PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
-    add_test(NAME monte_carlo_sampled_initialization COMMAND monte_carlo_sampled_initialization_tests)
-    set_tests_properties(monte_carlo_sampled_initialization PROPERTIES LABELS monte_carlo)
-
-    add_executable(monte_carlo_selective_moments_tests tests/selective_moments.cpp)
-    target_link_libraries(monte_carlo_selective_moments_tests PRIVATE qmomkit_monte_carlo qmomkit::qmomkit)
-    add_test(NAME monte_carlo_selective_moments COMMAND monte_carlo_selective_moments_tests)
-    set_tests_properties(monte_carlo_selective_moments PROPERTIES LABELS monte_carlo)
-
+    monte_carlo_add_test_executable(monte_carlo_population_birth_tests tests/population_birth.cpp)
+    monte_carlo_add_test_executable(monte_carlo_sampling_moment_validation_tests tests/sampling_moment_validation.cpp)
+    monte_carlo_add_test_executable(monte_carlo_ensemble_evolution_tests tests/ensemble_evolution.cpp)
+    monte_carlo_add_test_executable(monte_carlo_quadrature_ensemble_comparison_tests tests/quadrature_ensemble_comparison.cpp)
+    monte_carlo_add_test_executable(monte_carlo_sampled_initialization_tests tests/sampled_initialization.cpp)
+    monte_carlo_add_test_executable(monte_carlo_selective_moments_tests tests/selective_moments.cpp)
+    monte_carlo_add_test_executable(monte_carlo_output_tests tests/output.cpp)
 endif()
 
 install(

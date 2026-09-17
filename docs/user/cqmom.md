@@ -126,6 +126,23 @@ reconstruction status, and `initial_state()` keeps its existing
 exception-on-failure behavior. The producer of the raw moments can be a
 sampler, measurement pipeline, or any other application code.
 
+When the producer can supply the required CQMOM moment set directly, pass
+`CqmomMomentData` instead of a tensor:
+
+```cpp
+const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(base_case.hierarchy());
+const qmomkit::RawMomentRequest request{layout.required_indices.to_multi_indices()};
+const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(product_distribution, request);
+const auto replaced = qmomkit::config::with_initial_moments(base_case, qmomkit::create_cqmom_moment_data(layout, selected));
+```
+
+This asks for exactly the moments the hierarchy needs rather than a full
+rectangular tensor, which matters when the two differ substantially: a
+five-dimensional hierarchy with three nodes per coordinate requires 606 moments,
+while its dense tensor holds 7776. The resulting case is the same either way.
+The overload requires a lean-storage base case, because dense storage retains
+the tensor entries outside the required layout.
+
 ## Using CQMOM in QMOMKit
 
 Include the umbrella header when following the user guide examples:

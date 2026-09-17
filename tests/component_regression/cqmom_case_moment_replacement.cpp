@@ -195,6 +195,51 @@ void test_parsed_and_programmatic_replacement_match()
     assert_states_match(replaced_phase_space_evolution.state, parsed_phase_space_evolution.state);
 }
 
+// A lean-storage caller that already holds the required CQMOM moment set must
+// reach exactly the case the dense tensor overload would have produced, rather
+// than a differently prepared lineage.
+void test_moment_data_and_tensor_replacement_match()
+{
+    const auto base = qmomkit::config::parse_cqmom(base_configuration, "replacement-base");
+    QMOMKIT_VERIFY_CHECK(base.ok());
+    QMOMKIT_VERIFY_CHECK(base.value().moment_storage() == qmomkit::CqmomMomentStorage::lean);
+
+    const qmomkit::CqmomMomentData moment_data =
+        qmomkit::extract_cqmom_moments(replacement_tensor(), qmomkit::create_cqmom_moment_layout(base.value().hierarchy()));
+
+    const auto from_moment_data = qmomkit::config::with_initial_moments(base.value(), moment_data);
+    const auto from_tensor = qmomkit::config::with_initial_moments(base.value(), replacement_tensor());
+    QMOMKIT_VERIFY_CHECK(from_moment_data.ok());
+    QMOMKIT_VERIFY_CHECK(from_tensor.ok());
+    assert_cases_match(from_moment_data.value(), from_tensor.value());
+
+    const qmomkit::CqmomResult moment_data_result = qmomkit::compute_cqmom(from_moment_data.value());
+    const qmomkit::CqmomResult tensor_result = qmomkit::compute_cqmom(from_tensor.value());
+    QMOMKIT_VERIFY_CHECK(moment_data_result.ok());
+    QMOMKIT_VERIFY_CHECK(tensor_result.ok());
+    assert_quadratures_match(moment_data_result.quadrature, tensor_result.quadrature);
+    assert_diagnostics_match(moment_data_result.diagnostics, tensor_result.diagnostics);
+
+    const qmomkit::CqmomState moment_data_state = from_moment_data.value().initial_state();
+    const qmomkit::CqmomState tensor_state = from_tensor.value().initial_state();
+    assert_states_match(moment_data_state, tensor_state);
+
+    const qmomkit::PhaseSpaceVelocity zero_velocity = qmomkit::make_phase_space_velocity([](double, const std::vector<double>& coordinates)
+                                                                                         { return std::vector<double>(coordinates.size(), 0.0); });
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult moment_data_phase_space_evolution =
+        qmomkit::advance_cqmom_phase_space(moment_data_state, 0.0, 0.1, zero_velocity, zero_source, options);
+    const qmomkit::CqmomPhaseSpaceEvolutionResult tensor_phase_space_evolution =
+        qmomkit::advance_cqmom_phase_space(tensor_state, 0.0, 0.1, zero_velocity, zero_source, options);
+    QMOMKIT_VERIFY_CHECK(moment_data_phase_space_evolution.ok());
+    QMOMKIT_VERIFY_CHECK(tensor_phase_space_evolution.ok());
+    assert_states_match(moment_data_phase_space_evolution.state, tensor_phase_space_evolution.state);
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -202,5 +247,6 @@ int main(const int argc, char** argv)
     return qmomkit::test::dispatch_test_case(argc, argv,
                                              {
                                                  {"parsed_and_programmatic_replacement_match", test_parsed_and_programmatic_replacement_match},
+                                                 {"moment_data_and_tensor_replacement_match", test_moment_data_and_tensor_replacement_match},
                                              });
 }

@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 666 |
-| Component/regression logical tests | 31 |
+| Unit logical tests | 669 |
+| Component/regression logical tests | 32 |
 | Verification logical tests | 165 |
-| **Runtime logical tests** | **862** |
+| **Runtime logical tests** | **866** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **863** |
+| **Total CTest registrations** | **867** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -76,6 +76,7 @@ renamed test rather than a deleted one.
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
 | `component_regression_cqmom_case_moment_replacement_parsed_and_programmatic_replacement_match` | `tests/component_regression/cqmom_case_moment_replacement.cpp` | `parsed_and_programmatic_replacement_match` | Checks that parsed and programmatic CQMOM moment replacement produce equivalent reconstructed states. | — |
+| `component_regression_cqmom_case_moment_replacement_moment_data_and_tensor_replacement_match` | `tests/component_regression/cqmom_case_moment_replacement.cpp` | `moment_data_and_tensor_replacement_match` | Checks that replacing lean CQMOM initial moments from required moment data matches the dense tensor overload through case settings, quadrature, diagnostics, state, and one evolution step. | — |
 
 ### CQMOM compute failures
 
@@ -759,6 +760,9 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_cqmom_case_initial_state_preserves_case_settings` | `tests/unit/configuration.cpp` | `cqmom_case_initial_state_preserves_case_settings` | Checks that case initial state preserves case settings in configuration loading. | — |
 | `unit_configuration_cqmom_case_replaces_dense_initial_moments_immutably` | `tests/unit/configuration.cpp` | `cqmom_case_replaces_dense_initial_moments_immutably` | Verifies CQMOM case replaces dense initial moments immutably. | — |
 | `unit_configuration_cqmom_case_replaces_lean_initial_moments_immutably` | `tests/unit/configuration.cpp` | `cqmom_case_replaces_lean_initial_moments_immutably` | Verifies CQMOM case replaces lean initial moments immutably. | — |
+| `unit_configuration_cqmom_case_replaces_lean_initial_moments_from_moment_data` | `tests/unit/configuration.cpp` | `cqmom_case_replaces_lean_initial_moments_from_moment_data` | Verifies the `CqmomMomentData` replacement overload copies its input, preserves case policies and prepared metadata, and matches the dense tensor overload. | — |
+| `unit_configuration_cqmom_case_moment_data_replacement_rejects_invalid_input` | `tests/unit/configuration.cpp` | `cqmom_case_moment_data_replacement_rejects_invalid_input` | Verifies the `CqmomMomentData` replacement overload rejects a dense base case, a non-required layout, a wrong value count, and non-finite values without altering either base case. | — |
+| `unit_configuration_cqmom_case_moment_data_replacement_defers_realizability` | `tests/unit/configuration.cpp` | `cqmom_case_moment_data_replacement_defers_realizability` | Verifies the `CqmomMomentData` replacement overload accepts a structurally valid but non-realizable moment set and leaves the failure to reconstruction. | — |
 | `unit_configuration_fixed_cqmom_prepared_metadata_ownership` | `tests/unit/configuration.cpp` | `fixed_cqmom_prepared_metadata_ownership` | Verifies fixed CQMOM prepared metadata ownership. | — |
 | `unit_configuration_fixed_cqmom_prepared_metadata_is_concurrently_readable` | `tests/unit/configuration.cpp` | `fixed_cqmom_prepared_metadata_is_concurrently_readable` | Checks that fixed CQMOM prepared metadata is concurrently readable in configuration loading. | — |
 | `unit_configuration_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility` | `tests/unit/configuration.cpp` | `fixed_cqmom_state_prepared_metadata_invariant_and_compatibility` | Verifies fixed CQMOM state prepared metadata invariant and compatibility. | — |

@@ -17,6 +17,38 @@ namespace qmomkit::internal
 struct PreparedCqmomMetadata;
 using PreparedCqmomMetadataPtr = std::shared_ptr<const PreparedCqmomMetadata>;
 
+// A successor case is the same case with new moment values: every other
+// setting is carried unchanged. These two helpers are the one place that knows
+// how to carry them, so the four sites that build a successor no longer each
+// re-list the settings. Adding a setting to either case struct means adding it
+// here as well, which is one place to miss rather than four.
+//
+// The settings are listed individually rather than carried by copying the whole
+// case and then replacing its moments: a wholesale copy also duplicates the
+// outgoing moment values that are about to be replaced, which measured at
+// +12 allocations per phase-space step.
+[[nodiscard]] inline CqmomDenseCase with_moments(const CqmomDenseCase& case_, RawMomentTensor moments)
+{
+    return CqmomDenseCase{case_.hierarchy,          std::move(moments),           case_.conditional_options,
+                          case_.qmom_options,       case_.adaptive_branch_counts, case_.diagnostic_level,
+                          case_.vandermonde_solver, case_.coordinate_support};
+}
+
+[[nodiscard]] inline CqmomLeanCase with_moments(const CqmomLeanCase& case_, CqmomMomentData moments)
+{
+    return CqmomLeanCase{std::move(moments),     case_.conditional_options, case_.qmom_options,      case_.adaptive_branch_counts,
+                         case_.diagnostic_level, case_.vandermonde_solver,  case_.coordinate_support};
+}
+
+// The moment-source stage re-inverts from a lean moment set whatever storage
+// the case itself uses, so a dense case also has to hand its settings to a lean
+// one. Same carrying rule as above, across the two case types.
+[[nodiscard]] inline CqmomLeanCase lean_case_with_moments(const CqmomDenseCase& case_, CqmomMomentData moments)
+{
+    return CqmomLeanCase{std::move(moments),     case_.conditional_options, case_.qmom_options,      case_.adaptive_branch_counts,
+                         case_.diagnostic_level, case_.vandermonde_solver,  case_.coordinate_support};
+}
+
 class CqmomConstructionAccess
 {
 public:

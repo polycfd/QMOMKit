@@ -17,10 +17,10 @@ Each runtime logical test is registered exactly once with CTest.
 | --- | ---: |
 | Unit logical tests | 669 |
 | Component/regression logical tests | 32 |
-| Verification logical tests | 165 |
-| **Runtime logical tests** | **866** |
+| Verification logical tests | 170 |
+| **Runtime logical tests** | **871** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **867** |
+| **Total CTest registrations** | **872** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -136,6 +136,11 @@ renamed test rather than a deleted one.
 | `verification_qmom_quadrature_bounds_fixed_bounded_qmom_accepts_nodes_inside_interval` | `tests/verification/qmom/quadrature_bounds.cpp` | `fixed_bounded_qmom_accepts_nodes_inside_interval` | Verifies that bounded QMOM reconstruction accepts nodes within the configured interval. | — |
 | `verification_qmom_quadrature_bounds_fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping` | `tests/verification/qmom/quadrature_bounds.cpp` | `fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping` | Verifies that bounded QMOM reconstruction rejects out-of-bound nodes rather than clipping them. | — |
 | `verification_qmom_quadrature_bounds_adaptive_bounded_qmom_uses_highest_admissible_count` | `tests/verification/qmom/quadrature_bounds.cpp` | `adaptive_bounded_qmom_uses_highest_admissible_count` | Verifies that adaptive bounded QMOM selects the highest admissible quadrature order. | — |
+| `verification_qmom_moment_space_boundary_coalescing_nodes_preserve_supplied_moments` | `tests/verification/qmom/moment_space_boundary.cpp` | `coalescing_nodes_preserve_supplied_moments` | Verifies that every accepted fixed-count rule over a node-coalescence sweep reproduces the moments its node count represents, with non-negative weights summing to m_0 and sorted abscissas, and that a rejection reports non-realizability. | — |
+| `verification_qmom_moment_space_boundary_adaptive_reduction_preserves_represented_moments` | `tests/verification/qmom/moment_space_boundary.cpp` | `adaptive_reduction_preserves_represented_moments` | Verifies that adaptive inversion accepts every point of the same node-coalescence sweep, including where fixed-count inversion rejects. | — |
+| `verification_qmom_moment_space_boundary_accepted_reduction_respects_weight_ratio` | `tests/verification/qmom/moment_space_boundary.cpp` | `accepted_reduction_respects_weight_ratio` | Verifies that every accepted multi-node rule satisfies the documented adaptive acceptance criterion min(w)/max(w) > rmin as a middle weight collapses. | — |
+| `verification_qmom_moment_space_boundary_boundary_crossing_matches_realizability` | `tests/verification/qmom/moment_space_boundary.cpp` | `boundary_crossing_matches_realizability` | Verifies that compute_qmom and check_realizability agree on which side of the realizability boundary a perturbed moment sequence lies. | — |
+| `verification_qmom_moment_space_boundary_fixed_count_does_not_reduce_on_the_boundary` | `tests/verification/qmom/moment_space_boundary.cpp` | `fixed_count_does_not_reduce_on_the_boundary` | Verifies that a fixed-count request on the boundary reports non-realizability rather than silently returning the reduced rule, which adaptive inversion accepts. | — |
 
 ### QMOM / Qmom compute failures
 

@@ -90,6 +90,25 @@ std::size_t data_header_index(const std::vector<std::string>& lines)
     return header;
 }
 
+// Value of a `key=value` metadata comment appearing before the data header.
+// Searching by key keeps the check independent of the order the writer emits
+// them in, and returning a number keeps it independent of double formatting.
+double metadata_value(const std::vector<std::string>& lines, const std::size_t header_index, const std::string& key)
+{
+    for (std::size_t index = 0; index < header_index; ++index)
+    {
+        for (const std::string& field : split(lines[index]))
+        {
+            if (field.rfind(key, 0) == 0)
+            {
+                return std::stod(field.substr(key.size()));
+            }
+        }
+    }
+    CHECK(false);
+    return 0.0;
+}
+
 bool contains_field(const std::vector<std::string>& fields, const std::string& wanted)
 {
     for (const std::string& field : fields)
@@ -128,14 +147,17 @@ void test_one_dimensional_moment_text_records_metadata_and_columns()
     }
     CHECK(lines.size() >= 2);
 
+    const std::size_t header = data_header_index(lines);
+
     // The sample count, seed, and absolute number density are what make a
     // stochastic estimate reproducible, so each must survive into the file as
-    // its own metadata comment rather than merely appearing somewhere.
-    CHECK(contains_field(split(lines[0]), "samples=2"));
-    CHECK(contains_field(split(lines[1]), "seed=4242"));
-    CHECK(contains_field(split(lines[2]), "number_density=6"));
+    // its own metadata comment. The keys are searched rather than indexed, and
+    // the density is compared numerically, so neither the order of the metadata
+    // lines nor the text formatting of a double is pinned here.
+    CHECK(metadata_value(lines, header, "samples=") == 2.0);
+    CHECK(metadata_value(lines, header, "seed=") == 4242.0);
+    CHECK_CLOSE(metadata_value(lines, header, "number_density="), number_density, 1.0e-12);
 
-    const std::size_t header = data_header_index(lines);
     CHECK(is_comment(lines[header]));
     for (std::size_t index = 0; index < header; ++index)
     {

@@ -98,6 +98,57 @@ Distribution-specific checks:
 - standard-normal nodes are symmetric about zero, paired weights are equal, and
   odd reconstructed moments vanish within tolerance.
 
+## Moment-Space Boundary Cases
+
+`moment_space_boundary.cpp` covers the regime
+[qmom_wheeler.md](../../../docs/developer/qmom_wheeler.md) identifies as most
+sensitive: moment sequences approaching the boundary of realizable moment
+space. The cases above are either comfortably interior, such as the classical
+quadrature rules, or exactly degenerate; these cover the approach itself.
+
+Every reference is constructed from known nodes and weights, so the expected
+moments are defined independently of the inversion under test. Two families are
+used:
+
+| Family | Construction | Boundary approached by |
+| --- | --- | --- |
+| Node coalescence | three-node rule with the upper two nodes `separation` apart | `separation -> 0` |
+| Weight collapse | three-node rule with a small middle weight | middle weight `-> 0` |
+
+A third construction takes the six raw moments of an exact two-node rule. For a
+three-node request that sequence lies exactly on the boundary: it is realizable,
+but only by two atoms. Perturbing `m_4` alone then moves it strictly inside or
+strictly outside while every other moment stays on the boundary.
+
+The registered cases are:
+
+- `coalescing_nodes_preserve_supplied_moments`: over a separation sweep, every
+  accepted rule reproduces the moments its node count represents, carries
+  non-negative weights summing to `m_0`, and returns sorted abscissas. A
+  rejection reports `not_realizable`, because the input is structurally valid
+  and realizable by construction.
+- `adaptive_reduction_preserves_represented_moments`: the same sweep with
+  adaptive inversion is accepted at every point, including where fixed-count
+  inversion is entitled to reject.
+- `accepted_reduction_respects_weight_ratio`: every accepted multi-node rule
+  satisfies `min(w) / max(w) > rmin`, which is the documented adaptive
+  acceptance criterion.
+- `boundary_crossing_matches_realizability`: inside the boundary,
+  `compute_qmom` succeeds and `check_realizability` reports strict
+  realizability; outside it, both report non-realizability. Two independent
+  implementations of the same mathematical fact must agree on which side a
+  sequence lies.
+- `fixed_count_does_not_reduce_on_the_boundary`: a fixed three-node request on
+  the boundary must report `not_realizable` rather than quietly returning the
+  two-node rule, while the same sequence is accepted once reduction is
+  permitted.
+
+These cases deliberately assert mathematical invariants and documented
+contracts, not the separation or weight at which behavior changes. That
+threshold depends on floating-point conditioning and is not a contract; pinning
+it would make the suite platform-sensitive without testing anything QMOMKit
+promises.
+
 ## Tolerance Policy
 
 The current tolerance is `1e-12` for direct weights, abscissas, reconstructed

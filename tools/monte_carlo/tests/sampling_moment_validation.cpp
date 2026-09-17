@@ -4,6 +4,7 @@
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/multi_index.hpp"
+#include "test_case_dispatch.hpp"
 #include "test_checks.hpp"
 
 #include <algorithm>
@@ -326,19 +327,22 @@ void test_invalid_inputs_and_output()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_all_supported_single_family_sampling_smoke();
-    test_single_distribution_validation();
-    test_mixture_validation();
-    test_independent_product_validation();
-    test_independent_product_mixture_marginal_validation();
-    test_standard_error_convergence();
-    test_asymmetric_tensor_moment_layout();
-    test_generalized_moment_output();
-    test_generalized_moment_matches_cqmom_quadrature();
-    test_invalid_inputs_and_output();
-
+    const int status = qmomkit::monte_carlo::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"all_supported_single_family_sampling_smoke", test_all_supported_single_family_sampling_smoke},
+            {"single_distribution_validation", test_single_distribution_validation},
+            {"mixture_validation", test_mixture_validation},
+            {"independent_product_validation", test_independent_product_validation},
+            {"independent_product_mixture_marginal_validation", test_independent_product_mixture_marginal_validation},
+            {"standard_error_convergence", test_standard_error_convergence},
+            {"asymmetric_tensor_moment_layout", test_asymmetric_tensor_moment_layout},
+            {"generalized_moment_output", test_generalized_moment_output},
+            {"generalized_moment_matches_cqmom_quadrature", test_generalized_moment_matches_cqmom_quadrature},
+            {"invalid_inputs_and_output", test_invalid_inputs_and_output},
+        });
     std::cout << "Monte Carlo sampling moment validation maximum analytical absolute error: " << global_maximum_error << '\n';
-    return 0;
+    return status;
 }

@@ -2,6 +2,7 @@
 
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/multi_index.hpp"
+#include "test_case_dispatch.hpp"
 #include "test_checks.hpp"
 
 #include <algorithm>
@@ -188,17 +189,20 @@ void test_error_propagation()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_one_dimensional_distribution_density();
-    test_mixture_absolute_density();
-    test_multidimensional_tensor_layout();
-    test_selected_initialization_matches_dense_tensor();
-    test_selected_initialization_error_propagation();
-    test_reproducibility();
-    test_statistical_sanity_improves_with_sample_count();
-    test_error_propagation();
-
+    const int status = qmomkit::monte_carlo::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"one_dimensional_distribution_density", test_one_dimensional_distribution_density},
+            {"mixture_absolute_density", test_mixture_absolute_density},
+            {"multidimensional_tensor_layout", test_multidimensional_tensor_layout},
+            {"selected_initialization_matches_dense_tensor", test_selected_initialization_matches_dense_tensor},
+            {"selected_initialization_error_propagation", test_selected_initialization_error_propagation},
+            {"reproducibility", test_reproducibility},
+            {"statistical_sanity_improves_with_sample_count", test_statistical_sanity_improves_with_sample_count},
+            {"error_propagation", test_error_propagation},
+        });
     std::cout << "Monte Carlo sampled initialization maximum absolute error: " << global_maximum_error << '\n';
-    return 0;
+    return status;
 }

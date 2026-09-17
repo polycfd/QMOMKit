@@ -323,7 +323,12 @@ configuration, or public target behavior changes.
 
 The optional Monte Carlo companion package has its own CMake project and tests
 under `tools/monte_carlo/`. Configure that project with `BUILD_TESTING=ON` when
-running its tests, then run them explicitly with CTest.
+running its tests, then run them explicitly with CTest. It follows the same
+registration convention as the root suite: each logical case is registered with
+CTest on its own as `monte_carlo_<subsystem>_<case>`, discovered from the
+`void test_*()` definitions in each test source, so a failure names the behavior
+rather than the file. Those registrations are not part of the root inventory,
+which covers root CTest only.
 
 Update examples only when the user-facing workflow changes. Examples are not a
 substitute for automated correctness tests.
@@ -346,8 +351,8 @@ Benchmark structure and interpretation belong in
 
 ## Registered root CTest inventory
 
-The root inventory contains 867 CTest registrations: 866 logical runtime tests
-across the three runtime tiers (669 unit, 32 component-regression, and 165
+The root inventory contains 872 CTest registrations: 871 logical runtime tests
+across the three runtime tiers (669 unit, 32 component-regression, and 170
 verification), plus the `public_headers` supporting compile/link check. CTest
 names use the tier prefix followed by a subsystem and a descriptive case name.
 

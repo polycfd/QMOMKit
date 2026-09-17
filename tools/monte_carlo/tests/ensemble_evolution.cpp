@@ -2,6 +2,7 @@
 #include "monte_carlo/moments.hpp"
 #include "monte_carlo/sampling.hpp"
 #include "qmomkit/distributions.hpp"
+#include "test_case_dispatch.hpp"
 #include "test_checks.hpp"
 
 #include <algorithm>
@@ -399,16 +400,19 @@ void test_reproducibility()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_single_sample_constant_velocity();
-    test_convenience_evolution_uses_default_adaptive_initial_step();
-    test_single_sample_linear_growth();
-    test_deterministic_ensemble_rk23_max_step_convergence();
-    test_single_sample_affine_evolution();
-    test_ensemble_evolution_and_moments();
-    test_failure_inputs_preserve_original();
-    test_failure_during_integration();
-    test_reproducibility();
-    return 0;
+    return qmomkit::monte_carlo::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"single_sample_constant_velocity", test_single_sample_constant_velocity},
+            {"convenience_evolution_uses_default_adaptive_initial_step", test_convenience_evolution_uses_default_adaptive_initial_step},
+            {"single_sample_linear_growth", test_single_sample_linear_growth},
+            {"deterministic_ensemble_rk23_max_step_convergence", test_deterministic_ensemble_rk23_max_step_convergence},
+            {"single_sample_affine_evolution", test_single_sample_affine_evolution},
+            {"ensemble_evolution_and_moments", test_ensemble_evolution_and_moments},
+            {"failure_inputs_preserve_original", test_failure_inputs_preserve_original},
+            {"failure_during_integration", test_failure_during_integration},
+            {"reproducibility", test_reproducibility},
+        });
 }

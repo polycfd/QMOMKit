@@ -2,6 +2,7 @@
 #include "monte_carlo/evolution.hpp"
 #include "monte_carlo/moments.hpp"
 #include "qmomkit/multi_index.hpp"
+#include "test_case_dispatch.hpp"
 #include "test_checks.hpp"
 
 #include <cmath>
@@ -186,13 +187,16 @@ void test_injected_samples_are_evolved()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_zero_birth_is_a_no_op();
-    test_deterministic_birth_preserves_weight_and_moments();
-    test_multidimensional_birth_preserves_phase_space_order();
-    test_seed_reproducibility();
-    test_invalid_inputs();
-    test_injected_samples_are_evolved();
-    return 0;
+    return qmomkit::monte_carlo::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"zero_birth_is_a_no_op", test_zero_birth_is_a_no_op},
+            {"deterministic_birth_preserves_weight_and_moments", test_deterministic_birth_preserves_weight_and_moments},
+            {"multidimensional_birth_preserves_phase_space_order", test_multidimensional_birth_preserves_phase_space_order},
+            {"seed_reproducibility", test_seed_reproducibility},
+            {"invalid_inputs", test_invalid_inputs},
+            {"injected_samples_are_evolved", test_injected_samples_are_evolved},
+        });
 }

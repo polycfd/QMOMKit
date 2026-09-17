@@ -97,10 +97,21 @@ cmake --build tools/monte_carlo/build-tests-debug
 ctest --test-dir tools/monte_carlo/build-tests-debug --output-on-failure
 ```
 
-The registered tests are named for the behavior they check, such as
-`monte_carlo_sampling_moment_validation`,
-`monte_carlo_ensemble_evolution`, and
-`monte_carlo_quadrature_ensemble_comparison`.
+Every logical case is registered with CTest on its own, so a failure names the
+behavior that broke rather than the file it lives in. Names are
+`monte_carlo_<subsystem>_<case>`, for example
+`monte_carlo_ensemble_evolution_reproducibility` and
+`monte_carlo_output_generalized_columns_are_appended_when_requested`. Run one
+case, or a subsystem, with a CTest regular expression:
+
+```bash
+ctest --test-dir tools/monte_carlo/build-tests-debug -R monte_carlo_output --output-on-failure
+```
+
+Selectors are discovered from the `void test_*()` definitions in each test
+source, so adding a case to an existing file registers it with no CMake change.
+Running a test executable with no argument still runs all of its cases, which
+keeps direct invocation useful while developing.
 
 ## Documentation
 

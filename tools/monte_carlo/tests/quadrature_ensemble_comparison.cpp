@@ -4,6 +4,7 @@
 #include "monte_carlo/moments.hpp"
 #include "monte_carlo/sampling.hpp"
 #include "qmomkit/multi_index.hpp"
+#include "test_case_dispatch.hpp"
 #include "test_checks.hpp"
 
 #include <algorithm>
@@ -1177,20 +1178,23 @@ void test_failure_propagation()
 
 } // namespace
 
-int main()
+int main(const int argc, char** argv)
 {
-    test_explicit_quadrature_construction();
-    test_direct_moment_comparison_utilities();
-    test_multidimensional_sampling_and_dimension_validation();
-    test_deterministic_sampling_and_number_density();
-    test_two_dimensional_constant_velocity_comparison();
-    test_two_dimensional_affine_comparison();
-    test_two_dimensional_coupled_linear_comparison();
-    test_asymmetric_tensor_indexing();
-    test_constant_velocity_comparison();
-    test_affine_evolution_comparison();
-    test_text_output();
-    test_sample_count_convergence();
-    test_failure_propagation();
-    return 0;
+    return qmomkit::monte_carlo::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"explicit_quadrature_construction", test_explicit_quadrature_construction},
+            {"direct_moment_comparison_utilities", test_direct_moment_comparison_utilities},
+            {"multidimensional_sampling_and_dimension_validation", test_multidimensional_sampling_and_dimension_validation},
+            {"deterministic_sampling_and_number_density", test_deterministic_sampling_and_number_density},
+            {"two_dimensional_constant_velocity_comparison", test_two_dimensional_constant_velocity_comparison},
+            {"two_dimensional_affine_comparison", test_two_dimensional_affine_comparison},
+            {"two_dimensional_coupled_linear_comparison", test_two_dimensional_coupled_linear_comparison},
+            {"asymmetric_tensor_indexing", test_asymmetric_tensor_indexing},
+            {"constant_velocity_comparison", test_constant_velocity_comparison},
+            {"affine_evolution_comparison", test_affine_evolution_comparison},
+            {"text_output", test_text_output},
+            {"sample_count_convergence", test_sample_count_convergence},
+            {"failure_propagation", test_failure_propagation},
+        });
 }

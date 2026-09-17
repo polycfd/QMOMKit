@@ -267,3 +267,10 @@ Before adding the case, define:
 Use deterministic analytical or manufactured validation instead when an exact
 reference is available. Monte Carlo evidence complements deterministic
 validation; it does not replace it.
+
+Register the case by adding a `void test_<case>()` function to the relevant
+source under `tools/monte_carlo/tests/` and listing it in that file's dispatch
+table. The CMake project discovers those definitions and registers each one with
+CTest as `monte_carlo_<subsystem>_<case>`, so no CMake change is needed for a
+new case in an existing file. A new test source needs one
+`monte_carlo_add_test_executable(...)` line.

@@ -323,7 +323,12 @@ configuration, or public target behavior changes.
 
 The optional Monte Carlo companion package has its own CMake project and tests
 under `tools/monte_carlo/`. Configure that project with `BUILD_TESTING=ON` when
-running its tests, then run them explicitly with CTest.
+running its tests, then run them explicitly with CTest. It follows the same
+registration convention as the root suite: each logical case is registered with
+CTest on its own as `monte_carlo_<subsystem>_<case>`, discovered from the
+`void test_*()` definitions in each test source, so a failure names the behavior
+rather than the file. Those registrations are not part of the root inventory,
+which covers root CTest only.
 
 Update examples only when the user-facing workflow changes. Examples are not a
 substitute for automated correctness tests.

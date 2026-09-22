@@ -502,6 +502,6 @@ ctest --test-dir build -R verification_cqmom_independent_product_4d --output-on-
 ctest --test-dir build -R verification_cqmom_independent_product_5d --output-on-failure
 ctest --test-dir build -R verification_cqmom_independent_product_6d --output-on-failure
 ctest --test-dir build -R verification_cqmom_mixed_affine_independent_4d --output-on-failure
-ctest --test-dir build -R 'verification_cqmom_automatic_scaling_(reference|rescaled)' --output-on-failure
+ctest --test-dir build -R 'verification_cqmom_automatic_scaling_' --output-on-failure
 ctest --test-dir build -R verification_cqmom_automatic_scaling_feature_sensitive --output-on-failure
 ```

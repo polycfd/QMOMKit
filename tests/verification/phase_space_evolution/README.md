@@ -464,7 +464,7 @@ ctest --test-dir build -R verification_phase_space_evolution_qmom_phase_space_ev
 ctest --test-dir build -R verification_phase_space_evolution_noncommuting_convergence --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_commuting_cqmom_2d --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_commuting_cqmom_state_adaptive_2d --output-on-failure
-ctest --test-dir build -R 'verification_phase_space_evolution_automatic_scaling_cqmom_(reference|rescaled)' --output-on-failure
+ctest --test-dir build -R 'verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant' --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_cqmom_native_source --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_cqmom_combined_native_source --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_cqmom_native_source_failures --output-on-failure

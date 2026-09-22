@@ -256,8 +256,6 @@ int main(const int argc, char** argv)
 
     const std::string selected_solver = argc == 3 ? argv[2] : "";
     bool matched = selected_solver.empty();
-    std::vector<PolicyReport> reports;
-    reports.reserve(policies.size());
     for (const SolverPolicy& policy : policies)
     {
         if (!selected_solver.empty() && selected_solver != policy.name)
@@ -265,7 +263,9 @@ int main(const int argc, char** argv)
             continue;
         }
         matched = true;
-        reports.push_back(verify_policy(policy, configured.value(), prescribed_rule, prescribed_moments));
+        // verify_policy reports and exits on any breach; its report was only
+        // ever read by the success table that no longer exists.
+        verify_policy(policy, configured.value(), prescribed_rule, prescribed_moments);
     }
     if (!matched)
     {

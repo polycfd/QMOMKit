@@ -1,3 +1,29 @@
+// The adaptive QMOM path returning fewer nodes than requested when the data
+// supports fewer.
+//
+// What is verified
+//   That a moment sequence generated from two points is inverted to exactly
+//   those two points even though three were requested, that the weights sum to
+//   the zeroth moment, and that all six supplied moments are reproduced from
+//   the two-node result.
+//
+// How the reference is constructed
+//   Chosen, not computed: two positions and weights are picked and the six
+//   moments are built from them. A two-point set is exactly determined by its
+//   first four moments, so the remaining two are reproduced only if the
+//   inversion found the right pair rather than any pair fitting a subset.
+//
+// Error metric and pass criteria
+//   Maximum absolute deviation of positions, weights and rebuilt moments from
+//   the chosen values, at 1.0e-12. The node count must be two, not three: a
+//   third node would have to carry zero or negative weight.
+//
+// Reproduce
+//   ctest -R verification_adaptive_public_qmom_reconstruction
+//
+// Build modes
+//   Both. Checks go through QMOMKIT_VERIFY_*, not assert().
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/qmom.hpp"

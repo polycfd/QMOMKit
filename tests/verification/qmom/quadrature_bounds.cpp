@@ -1,3 +1,31 @@
+// QMOM inversion when the caller restricts the positions to an interval.
+//
+// What is verified
+//   That a fixed-node inversion is accepted when its positions already lie
+//   inside the requested interval; that it is rejected, rather than quietly
+//   moved onto the boundary, when a position falls outside; and that the
+//   adaptive path returns the largest node count whose positions all fit.
+//
+// How the reference is constructed
+//   Chosen, not computed. Each case starts from positions and weights picked
+//   to sit either inside or outside the interval under test, and the moments
+//   are built from them. The expected outcome is therefore known before the
+//   inversion runs: which node count survives, and where the surviving nodes
+//   must be.
+//
+// Error metric and pass criteria
+//   Status must match the expected outcome exactly. Where a quadrature is
+//   expected, positions and weights must agree with the chosen values to
+//   1.0e-12 absolute. The rejection case additionally checks that the returned
+//   position is unchanged, which is what distinguishes rejection from
+//   clipping.
+//
+// Reproduce
+//   ctest -R verification_qmom_.*bounded
+//
+// Build modes
+//   Both. Checks go through QMOMKIT_VERIFY_*, not assert().
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/qmom.hpp"
 #include "test_case_dispatch.hpp"

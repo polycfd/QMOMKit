@@ -1,3 +1,36 @@
+// The recursive CQMOM inversion, against quadratures written down in advance.
+//
+// What is verified
+//   That the recursion recovers the quadrature the moments came from, for one
+//   to three dimensions, for identity and non-identity conditioning orders, for
+//   non-uniform node counts per axis, and for adaptive cases where individual
+//   branches must return fewer nodes than requested. Also that the one
+//   dimensional case reduces to plain Wheeler, and that a branch which collapses
+//   does so for either conditioning order.
+//
+// How the reference is constructed
+//   Chosen, not computed. Each case builds the answer first - positions and
+//   weights placed directly into a RecursiveQuadrature - and then evaluates its
+//   raw moments with a local helper that sums weight times position to the
+//   required power. That helper is written in this file and does not call the
+//   library's reconstruction, so the reference does not depend on the code path
+//   under test. Feeding those moments back in must return the quadrature the
+//   case started from.
+//
+// Error metric and pass criteria
+//   Maximum absolute deviation of the rebuilt moments from the prescribed ones,
+//   with the branch node counts and diagnostic record counts required to match
+//   exactly. Tolerances are per case: 1.0e-10 for the well-separated fixed
+//   cases, loosening to 1.0e-8 and 1.0e-7 where the case deliberately places
+//   positions close together or drives a branch to collapse, since the solve
+//   behind those is correspondingly worse conditioned.
+//
+// Reproduce
+//   ctest -R verification_recursive_quadrature
+//
+// Build modes
+//   Both. Failures are reported through an exit code, not assert().
+
 #include "internal/recursive_quadrature.hpp"
 
 #include "../verification_helpers.hpp"

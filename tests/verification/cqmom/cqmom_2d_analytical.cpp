@@ -1,3 +1,64 @@
+// Two-dimensional CQMOM reconstruction against discrete measures whose exact
+// quadrature is known in closed form.
+//
+// What is verified
+//   That compute_cqmom recovers the parent nodes and weights on the first
+//   conditioning axis, the conditional nodes and weights on the second, the
+//   terminal paths and global weights, and the adaptive branch node counts,
+//   and that reconstructing raw moments from the recovered quadrature returns
+//   the moments the case started from.
+//
+// How the reference is constructed
+//   The reference is chosen, not computed. Each case below writes down the
+//   answer directly: a handful of points in the (x, y) plane, each carrying a
+//   weight, which is exactly what a CQMOM quadrature is. The parent list gives
+//   the x positions and what share of the population sits at each; for every
+//   parent, a second list gives the y positions reached from it and how that
+//   parent's share splits between them. The moments in the matching .qmom file
+//   are then the raw moments of that set of weighted points, worked out by
+//   hand,
+//
+//       M[i,j] = sum_p w_p * x_p^i * sum_c v_(p,c) * y_(p,c)^j,
+//
+//   so the exact CQMOM answer is the set of points we started from. Nothing
+//   in the reference is read back from QMOMKit, which is what makes this a
+//   verification rather than a change detector. A two-node axis is exactly
+//   determined by the four moments the hierarchy requires, so there is only
+//   one quadrature that fits, and the comparison is against that one answer.
+//
+// Assumptions
+//   Both axes use two requested nodes and extents {4, 4}; conditioning order
+//   is {0, 1}, so x is the parent axis. The adaptive cases expect Wheeler to
+//   return fewer nodes on a branch that reaches fewer y positions than the two
+//   requested, which is why their branch counts differ from {2, 2}.
+//
+// Error metric
+//   Maximum absolute error over abscissas, maximum absolute error over
+//   weights, and maximum moment error relative to max(|expected|, 1). The
+//   absolute moment error is reported for diagnosis but deliberately not
+//   gated: moment magnitudes span 1 to ~5.6e3 across these cases, so an
+//   absolute bound would be a different criterion per case. deterministic_affine
+//   shows this directly — its absolute moment error of ~6e-12 exceeds the
+//   tolerance while its relative error is ~1e-15.
+//
+// Tolerance
+//   1.0e-12 on abscissas, weights and relative moment error. The decimal
+//   moment literals are themselves only accurate to ~2.6e-16 relative, and the
+//   observed errors are 3.1e-15 to 6.8e-15 on abscissas, 2.0e-15 to 2.9e-15 on
+//   weights, and 3.8e-16 to 1.1e-15 on relative moments. The tolerance
+//   therefore sits roughly two to three orders of magnitude above the
+//   measured margin: loose enough not to pin a specific rounding path, tight
+//   enough that a genuine inversion error cannot hide beneath it.
+//
+// Reproduce
+//   ctest -R "verification_cqmom_(independent_product|deterministic_affine|branch_dependent)"
+//   or run the executable directly with a .qmom path and the matching case
+//   identifier.
+//
+// Build modes
+//   Both. This study uses explicit comparisons and an exit code rather than
+//   assert(), so unlike the unit tier it is not weakened by NDEBUG.
+
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 
@@ -16,6 +77,8 @@
 namespace
 {
 
+// Gates abscissas, weights and the unit-floored relative moment error. The
+// absolute moment error is reported but not gated; see the header.
 constexpr double tolerance = 1.0e-12;
 
 struct ErrorMetrics
@@ -85,6 +148,11 @@ std::vector<std::pair<double, double>> sort_rule(std::vector<std::pair<double, d
     return rule;
 }
 
+// y is spread the same way whatever x is, so both parents lead to the same
+// pair of y positions. Non-adaptive, so Wheeler must return the full {2, 2}
+// branch counts and rectangular storage.
+//
+//   0.4*d(x-1)[0.25*d(y+1) + 0.75*d(y-2)] + 0.6*d(x-3)[0.25*d(y+1) + 0.75*d(y-2)]
 ExpectedCase independent_product()
 {
     return ExpectedCase{
@@ -96,6 +164,13 @@ ExpectedCase independent_product()
         {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})}};
 }
 
+// Each parent leads to exactly one y position, lying on the straight line
+// y = 2x + 1: parent x=1 gives y=3, parent x=3 gives y=7. Adaptive, so each
+// branch must come back with one node instead of the two requested, giving
+// branch counts {1, 1} and ragged storage. A branch that failed to reduce
+// would have to invent a second y position that is not in the data.
+//
+//   0.4*d(x-1)d(y-3) + 0.6*d(x-3)d(y-7)
 ExpectedCase deterministic_affine()
 {
     return ExpectedCase{"deterministic_affine",
@@ -106,6 +181,12 @@ ExpectedCase deterministic_affine()
                         {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({1, 0})}};
 }
 
+// The two parents lead to different numbers of y positions - one from x=1,
+// two from x=3 - which is the shape rectangular storage cannot hold. Adaptive,
+// so the expected branch counts are {1, 2}: one branch reduced, the other not,
+// within a single reconstruction.
+//
+//   0.35*d(x-1)d(y+0.5) + 0.65*d(x-3)[0.3*d(y-1) + 0.7*d(y-4)]
 ExpectedCase branch_dependent()
 {
     return ExpectedCase{"branch_dependent",
@@ -416,29 +497,36 @@ int main(const int argc, char** argv)
     const VerificationResult result = verify_case(*expected, configured.value());
     const bool passed =
         result.passed && result.errors.node <= tolerance && result.errors.weight <= tolerance && result.errors.moment_relative <= tolerance;
-    std::cout << "QMOMKit two-dimensional CQMOM analytical verification\n";
-    std::cout << "Configuration: " << configuration_path << '\n';
-    std::cout << "Tolerance: " << std::scientific << tolerance << " (absolute, with unit-floored relative moment error)\n\n";
-    std::cout << std::left << std::setw(28) << "case" << std::right << std::setw(14) << "node abs" << std::setw(14) << "weight abs" << std::setw(14)
-              << "moment abs" << std::setw(14) << "moment rel" << std::setw(16) << "branch counts" << std::setw(9) << "status" << '\n';
-    std::cout << std::string(109, '-') << '\n';
-    std::cout << std::left << std::setw(28) << expected->name << std::right << std::scientific << std::setprecision(4) << std::setw(14)
-              << result.errors.node << std::setw(14) << result.errors.weight << std::setw(14) << result.errors.moment_absolute << std::setw(14)
-              << result.errors.moment_relative;
-    std::cout << std::setw(8) << "[";
-    for (std::size_t index = 0; index < result.recovered_branch_counts.size(); ++index)
+    // Silent on success. These numbers exist to diagnose a failure, and CTest
+    // surfaces stderr through --output-on-failure.
+    if (!(passed))
     {
-        if (index != 0)
+        std::cerr << "QMOMKit two-dimensional CQMOM analytical verification\n";
+        std::cerr << "Configuration: " << configuration_path << '\n';
+        std::cerr << "Tolerance: " << std::scientific << tolerance << " (absolute, with unit-floored relative moment error)\n\n";
+        std::cerr << std::left << std::setw(28) << "case" << std::right << std::setw(14) << "node abs" << std::setw(14) << "weight abs"
+                  << std::setw(14) << "moment abs" << std::setw(14) << "moment rel" << std::setw(16) << "branch counts" << std::setw(9) << "status"
+                  << '\n';
+        std::cerr << std::string(109, '-') << '\n';
+        std::cerr << std::left << std::setw(28) << expected->name << std::right << std::scientific << std::setprecision(4) << std::setw(14)
+                  << result.errors.node << std::setw(14) << result.errors.weight << std::setw(14) << result.errors.moment_absolute << std::setw(14)
+                  << result.errors.moment_relative;
+        std::cerr << std::setw(8) << "[";
+        for (std::size_t index = 0; index < result.recovered_branch_counts.size(); ++index)
         {
-            std::cout << ',';
+            if (index != 0)
+            {
+                std::cerr << ',';
+            }
+            std::cerr << result.recovered_branch_counts[index];
         }
-        std::cout << result.recovered_branch_counts[index];
-    }
-    std::cout << "]" << std::setw(9) << (passed ? "PASS" : "FAIL") << '\n';
+        std::cerr << "]" << std::setw(9) << (passed ? "PASS" : "FAIL") << '\n';
 
-    if (!result.passed)
-    {
-        std::cerr << result.message << '\n';
+        if (!result.passed)
+        {
+            std::cerr << result.message << '\n';
+        }
     }
+
     return passed ? 0 : 1;
 }

@@ -1,3 +1,32 @@
+// Wheeler's inversion against sets of weighted points chosen in advance.
+//
+// What is verified
+//   That compute_quadrature returns exactly the positions and weights the
+//   moments were built from, for one, two and three nodes; that reconstructing
+//   the moments from the result returns the input; and that presenting the
+//   same points in a different input order changes neither the moments nor the
+//   sorted output.
+//
+// How the reference is constructed
+//   Chosen, not computed. Each case starts from a list of positions and
+//   weights, and the moments handed to the inversion are built from them by
+//   construct_moments, which sums weight times position to the required power.
+//   A set of n points is exactly determined by its first 2n moments, so the
+//   inversion has one correct answer and it is the list we started from.
+//
+// Error metric and pass criteria
+//   Maximum absolute deviation of each position and weight from the chosen
+//   value, and of each rebuilt moment from the input moment. Tolerances are
+//   per case, at 1.0e-14 for the small well-separated cases; the values are
+//   order one, so this is a few units in the last place of a double.
+//
+// Reproduce
+//   ctest -R verification_wheeler_analytical
+//
+// Build modes
+//   Both. QMOMKIT_VERIFY_CHECK and QMOMKIT_VERIFY_NEAR report and exit rather
+//   than relying on assert(), so NDEBUG does not weaken this study.
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"

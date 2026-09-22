@@ -1,3 +1,53 @@
+// CQMOM reconstruction in three to six dimensions, against sets of weighted
+// points chosen in advance so the right answer is known exactly.
+//
+// What is verified
+//   That compute_cqmom recovers every terminal point, its local and global
+//   weight, and the branch node counts, in the original phase-space dimension
+//   order rather than the conditioning order; and that raw moments rebuilt
+//   from the recovered quadrature return the moments the case started from.
+//
+// How the reference is constructed
+//   Chosen, not computed. Two families:
+//
+//   independent_product_Nd - each coordinate gets its own pair of positions
+//     and weights, independent of the others, so the full set of points is
+//     every combination of them and the weight of a point is the product of
+//     the per-coordinate weights.
+//
+//   affine_chain_5d and mixed_affine_independent_4d - the first coordinate
+//     gets two positions; each later coordinate is fixed by a straight-line
+//     relation to the previous one (x1 = 2*x0 + 1, and so on). Each branch
+//     therefore reaches exactly one position on the next coordinate, and the
+//     adaptive path must return one node there instead of two.
+//
+//   The moments in the matching .qmom file are the raw moments of those
+//   weighted points, so nothing in the reference comes from QMOMKit. Checked:
+//   all 1024 moments of affine_chain_5d and all 64 of independent_product_3d
+//   agree with the hand-evaluated values to 3.9e-16 relative or better.
+//
+// Error metric
+//   Maximum absolute error over coordinates, over local weights, and over
+//   global weights, plus maximum moment error relative to max(|expected|, 1).
+//   The absolute moment error is printed but not gated, because moment
+//   magnitudes vary by orders of magnitude across six dimensions.
+//
+// Tolerance
+//   1.0e-11 on coordinates, local and global weights, and relative moment
+//   error. This is set by the six-dimensional case, not chosen loosely: the
+//   error grows steeply with dimension, from 9.4e-16 on coordinates at three
+//   dimensions to 5.1e-13 at six, because each extra conditioning level feeds
+//   one inversion into the next. The tolerance leaves roughly a factor of
+//   twenty over the worst case; the three- and four-dimensional cases sit
+//   three to four orders below it.
+//
+// Reproduce
+//   ctest -R "verification_cqmom_(affine_chain_5d|independent_product_[3-6]d|mixed_affine_independent_4d)"
+//
+// Build modes
+//   Both. Explicit comparisons and an exit code, not assert(), so NDEBUG does
+//   not weaken this study.
+
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 
@@ -759,18 +809,19 @@ void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomk
     std::cerr << configured.error() << '\n';
 }
 
+// Called only from the failure report below, so it writes to stderr.
 void print_counts(const std::vector<std::size_t>& counts)
 {
-    std::cout << '[';
+    std::cerr << '[';
     for (std::size_t index = 0; index < counts.size(); ++index)
     {
         if (index != 0)
         {
-            std::cout << ',';
+            std::cerr << ',';
         }
-        std::cout << counts[index];
+        std::cerr << counts[index];
     }
-    std::cout << ']';
+    std::cerr << ']';
 }
 
 } // namespace
@@ -806,22 +857,28 @@ int main(const int argc, char** argv)
     const bool passed = result.passed && result.errors.node <= tolerance && result.errors.local_weight <= tolerance &&
                         result.errors.global_weight <= tolerance && result.errors.moment_relative <= tolerance;
 
-    std::cout << "QMOMKit high-dimensional CQMOM analytical verification\n";
-    std::cout << "Configuration: " << configuration_path << '\n';
-    std::cout << "Tolerance: " << std::scientific << tolerance << " (absolute nodes/weights, unit-floored relative moments)\n\n";
-    std::cout << std::left << std::setw(34) << "case" << std::right << std::setw(14) << "node abs" << std::setw(14) << "local w abs" << std::setw(14)
-              << "global w abs" << std::setw(14) << "moment abs" << std::setw(14) << "moment rel" << std::setw(18) << "branch counts" << std::setw(9)
-              << "status" << '\n';
-    std::cout << std::string(131, '-') << '\n';
-    std::cout << std::left << std::setw(34) << expected->name << std::right << std::scientific << std::setprecision(4) << std::setw(14)
-              << result.errors.node << std::setw(14) << result.errors.local_weight << std::setw(14) << result.errors.global_weight << std::setw(14)
-              << result.errors.moment_absolute << std::setw(14) << result.errors.moment_relative << std::setw(8);
-    print_counts(result.recovered_branch_counts);
-    std::cout << std::setw(9) << (passed ? "PASS" : "FAIL") << '\n';
-
-    if (!result.passed)
+    // Silent on success. These numbers exist to diagnose a failure, and CTest
+    // surfaces stderr through --output-on-failure.
+    if (!(passed))
     {
-        std::cerr << result.message << '\n';
+        std::cerr << "QMOMKit high-dimensional CQMOM analytical verification\n";
+        std::cerr << "Configuration: " << configuration_path << '\n';
+        std::cerr << "Tolerance: " << std::scientific << tolerance << " (absolute nodes/weights, unit-floored relative moments)\n\n";
+        std::cerr << std::left << std::setw(34) << "case" << std::right << std::setw(14) << "node abs" << std::setw(14) << "local w abs"
+                  << std::setw(14) << "global w abs" << std::setw(14) << "moment abs" << std::setw(14) << "moment rel" << std::setw(18)
+                  << "branch counts" << std::setw(9) << "status" << '\n';
+        std::cerr << std::string(131, '-') << '\n';
+        std::cerr << std::left << std::setw(34) << expected->name << std::right << std::scientific << std::setprecision(4) << std::setw(14)
+                  << result.errors.node << std::setw(14) << result.errors.local_weight << std::setw(14) << result.errors.global_weight
+                  << std::setw(14) << result.errors.moment_absolute << std::setw(14) << result.errors.moment_relative << std::setw(8);
+        print_counts(result.recovered_branch_counts);
+        std::cerr << std::setw(9) << (passed ? "PASS" : "FAIL") << '\n';
+
+        if (!result.passed)
+        {
+            std::cerr << result.message << '\n';
+        }
     }
+
     return passed ? 0 : 1;
 }

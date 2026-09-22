@@ -1,3 +1,32 @@
+// The Vandermonde solver a caller asks for is the one that gets used.
+//
+// What is verified
+//   That the requested solver reaches the conditional solve, that the solver
+//   actually selected is reported back in the diagnostics, and that every
+//   solver returns the same quadrature on a well-conditioned problem, so the
+//   choice is a performance and robustness decision rather than a numerical
+//   one.
+//
+// How the reference is constructed
+//   Chosen, not computed. A prescribed rule defines the quadrature and its raw
+//   moments are evaluated from it, so all solvers are measured against the same
+//   independent answer rather than against each other.
+//
+// Error metric and pass criteria
+//   Maximum absolute deviation from the prescribed rule and from the configured
+//   moments, both at 1.0e-12, plus exact agreement between the requested
+//   solver, the selected solver and the algorithm named in the diagnostics. The
+//   system here is deliberately small and well conditioned, which is what makes
+//   a tight tolerance the right choice: any solver that cannot hit it on this
+//   problem is wrong rather than merely unlucky.
+//
+// Reproduce
+//   ctest -R verification_vandermonde
+//
+// Build modes
+//   Both. Failures are reported through explicit comparisons and an exit code,
+//   not assert().
+
 #include "../verification_helpers.hpp"
 #include "internal/recursive_quadrature.hpp"
 #include "qmomkit/configuration.hpp"
@@ -412,33 +441,40 @@ int main(const int argc, char** argv)
                         verification.errors.dense_bp_node <= workflow_tolerance && verification.errors.dense_bp_weight <= workflow_tolerance &&
                         verification.errors.dense_bp_moment <= workflow_tolerance;
 
-    std::cout << "QMOMKit Vandermonde solver selection verification\n";
-    std::cout << "Reference: fixed 2D independent-product CQMOM system\n";
-    std::cout << "Tolerance: " << std::scientific << reference_tolerance << " absolute\n\n";
-    std::cout << std::left << std::setw(38) << "solver policy" << std::setw(38) << "selected policy" << "algorithm used\n";
-    std::cout << std::string(96, '-') << '\n';
-    for (const SolverCase& solver_case : cases)
+    // Silent on success. These numbers exist to diagnose a failure, and CTest
+    // surfaces stderr through --output-on-failure.
+    if (!(passed))
     {
-        std::cout << std::left << std::setw(38) << solver_name(solver_case.requested_solver) << std::setw(38)
-                  << solver_name(solver_case.expected_selected_solver) << algorithm_name(solver_case.expected_algorithm) << '\n';
-    }
-    std::cout << '\n';
-    std::cout << std::left << std::setw(30) << "reference node error" << std::right << std::scientific << std::setprecision(4) << std::setw(14)
-              << verification.errors.reference_node << '\n';
-    std::cout << std::left << std::setw(30) << "reference weight error" << std::right << std::setw(14) << verification.errors.reference_weight
-              << '\n';
-    std::cout << std::left << std::setw(30) << "reference moment error" << std::right << std::setw(14) << verification.errors.reference_moment
-              << '\n';
-    std::cout << std::left << std::setw(30) << "dense/bp node difference" << std::right << std::setw(14) << verification.errors.dense_bp_node << '\n';
-    std::cout << std::left << std::setw(30) << "dense/bp weight difference" << std::right << std::setw(14) << verification.errors.dense_bp_weight
-              << '\n';
-    std::cout << std::left << std::setw(30) << "dense/bp moment difference" << std::right << std::setw(14) << verification.errors.dense_bp_moment
-              << '\n';
-    std::cout << "\nStatus: " << (passed ? "PASS" : "FAIL") << '\n';
+        std::cerr << "QMOMKit Vandermonde solver selection verification\n";
+        std::cerr << "Reference: fixed 2D independent-product CQMOM system\n";
+        std::cerr << "Tolerance: " << std::scientific << reference_tolerance << " absolute\n\n";
+        std::cerr << std::left << std::setw(38) << "solver policy" << std::setw(38) << "selected policy" << "algorithm used\n";
+        std::cerr << std::string(96, '-') << '\n';
+        for (const SolverCase& solver_case : cases)
+        {
+            std::cerr << std::left << std::setw(38) << solver_name(solver_case.requested_solver) << std::setw(38)
+                      << solver_name(solver_case.expected_selected_solver) << algorithm_name(solver_case.expected_algorithm) << '\n';
+        }
+        std::cerr << '\n';
+        std::cerr << std::left << std::setw(30) << "reference node error" << std::right << std::scientific << std::setprecision(4) << std::setw(14)
+                  << verification.errors.reference_node << '\n';
+        std::cerr << std::left << std::setw(30) << "reference weight error" << std::right << std::setw(14) << verification.errors.reference_weight
+                  << '\n';
+        std::cerr << std::left << std::setw(30) << "reference moment error" << std::right << std::setw(14) << verification.errors.reference_moment
+                  << '\n';
+        std::cerr << std::left << std::setw(30) << "dense/bp node difference" << std::right << std::setw(14) << verification.errors.dense_bp_node
+                  << '\n';
+        std::cerr << std::left << std::setw(30) << "dense/bp weight difference" << std::right << std::setw(14) << verification.errors.dense_bp_weight
+                  << '\n';
+        std::cerr << std::left << std::setw(30) << "dense/bp moment difference" << std::right << std::setw(14) << verification.errors.dense_bp_moment
+                  << '\n';
+        std::cerr << "\nStatus: " << (passed ? "PASS" : "FAIL") << '\n';
 
-    if (!verification.passed)
-    {
-        std::cerr << verification.message << '\n';
+        if (!verification.passed)
+        {
+            std::cerr << verification.message << '\n';
+        }
     }
+
     return passed ? 0 : 1;
 }

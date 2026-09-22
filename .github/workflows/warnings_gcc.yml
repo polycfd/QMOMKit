@@ -1,0 +1,43 @@
+name: CI-Warnings-GCC
+
+on:
+# Runs on every push on main branch. If a push contains multiple commits, it will be ran on the latest one.
+  push:
+    # Runs on every push on main branch
+    branches:
+      - main
+  pull_request:
+    paths-ignore:
+      - 'doc/**'
+      - 'examples/**'
+
+# Cancels running instances when a pull request is updated by a commit
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  cancel-in-progress: ${{github.event_name == 'pull_request'}}
+
+
+env:
+  COMPILE_JOBS: 8
+
+jobs:
+  build:
+    name: Build
+    runs-on: self-hosted
+
+    strategy:
+      fail-fast: false
+
+    steps:
+
+      # Checks-out QMOMKit with branch of triggering commit
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Compiles the library and tests with GCC, turning every enabled warning
+      # into an error so the build aborts on the first warning
+      - name: Compile QMOMKit with warnings as errors (GCC)
+        run: |
+          cmake -S . -B build-warnings-gcc -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON \
+            -DCMAKE_CXX_COMPILER=g++ -DCMAKE_CXX_FLAGS="-Werror"
+          cmake --build build-warnings-gcc -j${{ env.COMPILE_JOBS}}

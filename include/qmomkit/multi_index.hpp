@@ -40,7 +40,7 @@ public:
      * view stored from a braced list dangles immediately, exactly as one stored
      * from a temporary index does.
      */
-    MultiIndexView(std::initializer_list<std::size_t> entries) noexcept : entries_(entries.begin()), rank_(entries.size()) {}
+    MultiIndexView(std::initializer_list<std::size_t> entries) noexcept : MultiIndexView(entries.begin(), entries.size()) {}
 
     [[nodiscard]] std::size_t size() const noexcept
     {

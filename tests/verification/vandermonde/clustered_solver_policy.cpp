@@ -1,3 +1,39 @@
+// Vandermonde solver choice on a deliberately ill-conditioned CQMOM problem.
+//
+// What is verified
+//   That each solver the caller can request is actually the one used, that all
+//   of them recover the same prescribed rule on a hard problem, and that the
+//   reported condition estimate lands in the range the problem was built to
+//   produce.
+//
+// How the reference is constructed
+//   Chosen, not computed, and chosen to be hard. The three parent positions are
+//   clustered at x = 1.0, 1.007, 1.014, which makes the weighted 3x3
+//   conditional system badly conditioned - kappa_2 is about 2.33e5 - while the
+//   per-parent child rules stay positive so the whole problem remains solvable.
+//   The moments handed to the library are the raw moments of that rule.
+//
+// Error metric and pass criteria
+//   Maximum absolute deviation of positions, weights and moments from the
+//   prescribed rule, plus the reported residual and condition estimate.
+//
+// Tolerances
+//   Looser than elsewhere on purpose, and set by the conditioning rather than
+//   picked: positions 5.0e-4, weights 2.0e-5, moments 1.0e-7 absolute and
+//   1.0e-8 relative. With kappa_2 near 2.3e5, double-precision inputs accurate
+//   to about 1e-16 can only pin the solution to roughly 1e-11 before the CQMOM
+//   levels compound it, so tight bounds here would assert a particular rounding
+//   path rather than a property of the solver. The condition estimate itself is
+//   required to fall between 1.0e5 and 1.0e6, which is what makes the case
+//   ill-conditioned by construction rather than by accident.
+//
+// Reproduce
+//   ctest -R verification_.*clustered
+//
+// Build modes
+//   Both. Failures are reported through explicit comparisons and an exit code,
+//   not assert().
+
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 
@@ -192,22 +228,6 @@ PolicyReport verify_policy(const SolverPolicy& policy, qmomkit::CqmomDenseCase c
     return report;
 }
 
-void print_report(const std::vector<PolicyReport>& reports)
-{
-    std::cout << "QMOMKit clustered CQMOM solver-policy verification\n";
-    std::cout << "Conditional system: A(p,i) = w_i x_i^p, x = {1, 1.007, 1.014}, kappa_2(A) about 2.33e5\n\n";
-    std::cout << std::left << std::setw(40) << "policy" << std::setw(12) << "status" << std::setw(16) << "node error" << std::setw(16)
-              << "weight error" << std::setw(16) << "moment error" << std::setw(16) << "residual"
-              << "condition" << '\n';
-    std::cout << std::string(130, '-') << '\n';
-    for (const PolicyReport& report : reports)
-    {
-        std::cout << std::left << std::setw(40) << report.name << std::setw(12) << (report.success ? "success" : "failure") << std::scientific
-                  << std::setprecision(4) << std::setw(16) << report.errors.node << std::setw(16) << report.errors.weight << std::setw(16)
-                  << report.errors.moment << std::setw(16) << report.errors.residual << report.errors.condition << '\n';
-    }
-}
-
 } // namespace
 
 int main(const int argc, char** argv)
@@ -236,8 +256,6 @@ int main(const int argc, char** argv)
 
     const std::string selected_solver = argc == 3 ? argv[2] : "";
     bool matched = selected_solver.empty();
-    std::vector<PolicyReport> reports;
-    reports.reserve(policies.size());
     for (const SolverPolicy& policy : policies)
     {
         if (!selected_solver.empty() && selected_solver != policy.name)
@@ -245,13 +263,14 @@ int main(const int argc, char** argv)
             continue;
         }
         matched = true;
-        reports.push_back(verify_policy(policy, configured.value(), prescribed_rule, prescribed_moments));
+        // verify_policy reports and exits on any breach; its report was only
+        // ever read by the success table that no longer exists.
+        verify_policy(policy, configured.value(), prescribed_rule, prescribed_moments);
     }
     if (!matched)
     {
         std::cerr << "Unknown clustered solver case '" << selected_solver << "'.\n";
         return 2;
     }
-    print_report(reports);
     return 0;
 }

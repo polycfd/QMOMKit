@@ -1,3 +1,33 @@
+// CQMOM with automatic scaling enabled, on a problem whose coordinates span
+// very different magnitudes.
+//
+// What is verified
+//   That switching automatic scaling on does not change the answer: the
+//   quadrature recovered from a rescaled problem, once mapped back, must match
+//   the one recovered from the canonical problem, and both must reproduce the
+//   moments they were given.
+//
+// How the reference is constructed
+//   Chosen, not computed. A canonical rule of weighted points is written down
+//   and a second copy is produced by rescaling each coordinate by a fixed
+//   factor. The raw moments of both are evaluated from their own point sets, so
+//   the two cases have independent references that are related by a known
+//   transformation.
+//
+// Error metric and pass criteria
+//   Maximum absolute deviation of positions, weights and moments from the
+//   prescribed rules, at 2.0e-10, with 1.0e-10 where the comparison is
+//   sensitive to the scaling step. These sit above the 1.0e-12 used by the
+//   unscaled studies because scaling multiplies and divides the data by the
+//   chosen factors, and each pass costs a little accuracy.
+//
+// Reproduce
+//   ctest -R verification_cqmom_.*scaling
+//
+// Build modes
+//   Both. Failures are reported through explicit comparisons and an exit code,
+//   not assert().
+
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 
@@ -228,12 +258,16 @@ int run_feature_sensitive_case()
         }
     }
 
-    std::cout << std::scientific << std::setprecision(4)
-              << "feature_sensitive units=(1e8,1e-8,1e4) scaled_terminals=" << (scaled.ok() ? scaled.quadrature.weights().size() : 0)
-              << " scaled_node_error=" << scaled_errors.node << " scaled_weight_error=" << scaled_errors.weight
-              << " scaled_moment_error=" << scaled_errors.moment << " scaled_tolerance=" << feature_sensitive_tolerance
-              << " unscaled_terminals=" << unscaled_terminal_count << " unscaled_moment_error=" << unscaled_moment_error
-              << " verdict=" << (passed ? "PASS" : "FAIL") << '\n';
+    // Silent on success. These numbers exist to diagnose a failure, and CTest
+    // surfaces stderr through --output-on-failure.
+    if (!passed)
+    {
+        std::cerr << std::scientific << std::setprecision(4)
+                  << "feature_sensitive units=(1e8,1e-8,1e4) scaled_terminals=" << (scaled.ok() ? scaled.quadrature.weights().size() : 0)
+                  << " scaled_node_error=" << scaled_errors.node << " scaled_weight_error=" << scaled_errors.weight
+                  << " scaled_moment_error=" << scaled_errors.moment << " scaled_tolerance=" << feature_sensitive_tolerance
+                  << " unscaled_terminals=" << unscaled_terminal_count << " unscaled_moment_error=" << unscaled_moment_error << '\n';
+    }
     return passed ? 0 : 1;
 }
 
@@ -286,9 +320,11 @@ int run_configured_case(const std::filesystem::path& configuration_path, const s
     check_result("lean", qmomkit::compute_cqmom(lean_case), dense_case.moments, units, errors, passed);
     passed = passed && errors.node <= tolerance && errors.weight <= tolerance && errors.moment <= tolerance;
 
-    std::cout << std::scientific << std::setprecision(4) << "representation=" << representation << " max_normalized_node_error=" << errors.node
-              << " max_weight_error=" << errors.weight << " max_relative_moment_error=" << errors.moment << " tolerance=" << tolerance
-              << " verdict=" << (passed ? "PASS" : "FAIL") << '\n';
+    if (!passed)
+    {
+        std::cerr << std::scientific << std::setprecision(4) << "representation=" << representation << " max_normalized_node_error=" << errors.node
+                  << " max_weight_error=" << errors.weight << " max_relative_moment_error=" << errors.moment << " tolerance=" << tolerance << '\n';
+    }
     return passed ? 0 : 1;
 }
 

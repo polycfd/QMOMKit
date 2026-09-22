@@ -1,3 +1,32 @@
+// The two public CQMOM entry points agreeing with each other and with a known
+// answer.
+//
+// What is verified
+//   That the dense and lean representations of the same problem produce the
+//   same quadrature, that the lean case carries exactly the moments its
+//   hierarchy requires and no others, that the diagnostics describe the same
+//   reconstruction in both, and that rebuilt moments return the configured
+//   values. The point is that choosing a storage form is a data-transfer
+//   decision, not a numerical one.
+//
+// How the reference is constructed
+//   Chosen, not computed. A rule of weighted points is written down and its raw
+//   moments are evaluated from it; both workflows are then measured against
+//   that same independent answer rather than against each other. Comparing the
+//   two workflows alone would pass even if both were wrong in the same way.
+//
+// Error metric and pass criteria
+//   Maximum absolute deviation of positions, weights and rebuilt moments from
+//   the prescribed rule, at 1.0e-12, applied separately to each workflow. The
+//   lean representation is additionally required to hold exactly the required
+//   index set, which is a structural check rather than a numerical one.
+//
+// Reproduce
+//   ctest -R verification_cqmom_public_workflows
+//
+// Build modes
+//   Both. Failures are reported through an exit code, not assert().
+
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 
@@ -383,24 +412,30 @@ int main(const int argc, char** argv)
                         verification.errors.moment <= tolerance && verification.errors.workflow_node <= tolerance &&
                         verification.errors.workflow_weight <= tolerance && verification.errors.workflow_moment <= tolerance;
 
-    std::cout << "QMOMKit CQMOM public workflow verification\n";
-    std::cout << "Configuration: " << configuration_path << '\n';
-    std::cout << "Reference: independent 2D product quadrature with known terminal weights and coordinates\n";
-    std::cout << "Tolerance: " << std::scientific << tolerance << " absolute\n\n";
-    std::cout << std::left << std::setw(28) << "check" << std::right << std::setw(14) << "max error" << '\n';
-    std::cout << std::string(42, '-') << '\n';
-    std::cout << std::left << std::setw(28) << "reference nodes" << std::right << std::scientific << std::setprecision(4) << std::setw(14)
-              << verification.errors.node << '\n';
-    std::cout << std::left << std::setw(28) << "reference weights" << std::right << std::setw(14) << verification.errors.weight << '\n';
-    std::cout << std::left << std::setw(28) << "reference moments" << std::right << std::setw(14) << verification.errors.moment << '\n';
-    std::cout << std::left << std::setw(28) << "workflow nodes" << std::right << std::setw(14) << verification.errors.workflow_node << '\n';
-    std::cout << std::left << std::setw(28) << "workflow weights" << std::right << std::setw(14) << verification.errors.workflow_weight << '\n';
-    std::cout << std::left << std::setw(28) << "workflow moments" << std::right << std::setw(14) << verification.errors.workflow_moment << '\n';
-    std::cout << "\nStatus: " << (passed ? "PASS" : "FAIL") << '\n';
-
-    if (!verification.passed)
+    // Silent on success. These numbers exist to diagnose a failure, and CTest
+    // surfaces stderr through --output-on-failure.
+    if (!(passed))
     {
-        std::cerr << verification.message << '\n';
+        std::cerr << "QMOMKit CQMOM public workflow verification\n";
+        std::cerr << "Configuration: " << configuration_path << '\n';
+        std::cerr << "Reference: independent 2D product quadrature with known terminal weights and coordinates\n";
+        std::cerr << "Tolerance: " << std::scientific << tolerance << " absolute\n\n";
+        std::cerr << std::left << std::setw(28) << "check" << std::right << std::setw(14) << "max error" << '\n';
+        std::cerr << std::string(42, '-') << '\n';
+        std::cerr << std::left << std::setw(28) << "reference nodes" << std::right << std::scientific << std::setprecision(4) << std::setw(14)
+                  << verification.errors.node << '\n';
+        std::cerr << std::left << std::setw(28) << "reference weights" << std::right << std::setw(14) << verification.errors.weight << '\n';
+        std::cerr << std::left << std::setw(28) << "reference moments" << std::right << std::setw(14) << verification.errors.moment << '\n';
+        std::cerr << std::left << std::setw(28) << "workflow nodes" << std::right << std::setw(14) << verification.errors.workflow_node << '\n';
+        std::cerr << std::left << std::setw(28) << "workflow weights" << std::right << std::setw(14) << verification.errors.workflow_weight << '\n';
+        std::cerr << std::left << std::setw(28) << "workflow moments" << std::right << std::setw(14) << verification.errors.workflow_moment << '\n';
+        std::cerr << "\nStatus: " << (passed ? "PASS" : "FAIL") << '\n';
+
+        if (!verification.passed)
+        {
+            std::cerr << verification.message << '\n';
+        }
     }
+
     return passed ? 0 : 1;
 }

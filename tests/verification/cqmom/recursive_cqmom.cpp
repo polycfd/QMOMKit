@@ -1,3 +1,33 @@
+// Ragged adaptive CQMOM, where different branches end up with different
+// numbers of nodes.
+//
+// What is verified
+//   That an adaptive reconstruction returns the prescribed ragged structure -
+//   the right number of nodes on each branch, in the right terminal paths, with
+//   the right local and global weights - and reproduces the moments it was
+//   given. Ragged output is the case rectangular storage cannot represent, so
+//   it is where the adaptive path is genuinely exercised.
+//
+// How the reference is constructed
+//   Chosen, not computed. Each case writes down the intended ragged quadrature
+//   and evaluates its raw moments with a local helper that sums weight times
+//   position to the required power. The helper is defined in this file and does
+//   not call the library's reconstruction, so the reference is independent of
+//   the path being tested.
+//
+// Error metric and pass criteria
+//   Maximum absolute and relative moment error, and maximum absolute error on
+//   weights and positions, each against a per-case tolerance passed in by the
+//   caller. Structure is compared exactly: a branch returning the right numbers
+//   with the wrong node count is a failure, because the node count is the
+//   property these cases exist to pin.
+//
+// Reproduce
+//   ctest -R verification_recursive_cqmom
+//
+// Build modes
+//   Both. Failures are reported through an exit code, not assert().
+
 #include "../verification_helpers.hpp"
 #include "internal/recursive_quadrature.hpp"
 #include "qmomkit/qmomkit.hpp"
@@ -103,14 +133,18 @@ ValidationMetrics validate_case(const std::string& name, const qmomkit::internal
         }
     }
 
-    std::cout << std::setprecision(17) << name << " max_abs_moment_error=" << metrics.max_abs_moment_error
-              << " max_rel_moment_error=" << metrics.max_rel_moment_error << " max_weight_error=" << metrics.max_weight_error
-              << " max_abscissa_error=" << metrics.max_abscissa_error << '\n';
-
-    QMOMKIT_VERIFY_CHECK(metrics.max_abs_moment_error <= moment_tolerance);
-    QMOMKIT_VERIFY_CHECK(metrics.max_rel_moment_error <= moment_tolerance);
-    QMOMKIT_VERIFY_CHECK(metrics.max_weight_error <= node_tolerance);
-    QMOMKIT_VERIFY_CHECK(metrics.max_abscissa_error <= node_tolerance);
+    // Silent on success; on failure the measured errors and the bounds they
+    // missed go to stderr, which CTest surfaces with --output-on-failure.
+    const bool within_tolerances = metrics.max_abs_moment_error <= moment_tolerance && metrics.max_rel_moment_error <= moment_tolerance &&
+                                   metrics.max_weight_error <= node_tolerance && metrics.max_abscissa_error <= node_tolerance;
+    if (!within_tolerances)
+    {
+        std::cerr << std::setprecision(17) << name << " max_abs_moment_error=" << metrics.max_abs_moment_error
+                  << " max_rel_moment_error=" << metrics.max_rel_moment_error << " max_weight_error=" << metrics.max_weight_error
+                  << " max_abscissa_error=" << metrics.max_abscissa_error << " moment_tolerance=" << moment_tolerance
+                  << " node_tolerance=" << node_tolerance << '\n';
+    }
+    QMOMKIT_VERIFY_CHECK(within_tolerances);
     return metrics;
 }
 
@@ -198,14 +232,18 @@ ValidationMetrics validate_adaptive_case(const std::string& name, const RaggedAd
         }
     }
 
-    std::cout << std::setprecision(17) << name << " max_abs_moment_error=" << metrics.max_abs_moment_error
-              << " max_rel_moment_error=" << metrics.max_rel_moment_error << " max_weight_error=" << metrics.max_weight_error
-              << " max_abscissa_error=" << metrics.max_abscissa_error << '\n';
-
-    QMOMKIT_VERIFY_CHECK(metrics.max_abs_moment_error <= moment_tolerance);
-    QMOMKIT_VERIFY_CHECK(metrics.max_rel_moment_error <= moment_tolerance);
-    QMOMKIT_VERIFY_CHECK(metrics.max_weight_error <= node_tolerance);
-    QMOMKIT_VERIFY_CHECK(metrics.max_abscissa_error <= node_tolerance);
+    // Silent on success; on failure the measured errors and the bounds they
+    // missed go to stderr, which CTest surfaces with --output-on-failure.
+    const bool within_tolerances = metrics.max_abs_moment_error <= moment_tolerance && metrics.max_rel_moment_error <= moment_tolerance &&
+                                   metrics.max_weight_error <= node_tolerance && metrics.max_abscissa_error <= node_tolerance;
+    if (!within_tolerances)
+    {
+        std::cerr << std::setprecision(17) << name << " max_abs_moment_error=" << metrics.max_abs_moment_error
+                  << " max_rel_moment_error=" << metrics.max_rel_moment_error << " max_weight_error=" << metrics.max_weight_error
+                  << " max_abscissa_error=" << metrics.max_abscissa_error << " moment_tolerance=" << moment_tolerance
+                  << " node_tolerance=" << node_tolerance << '\n';
+    }
+    QMOMKIT_VERIFY_CHECK(within_tolerances);
     return metrics;
 }
 
@@ -237,11 +275,13 @@ ValidationMetrics validate_moment_closure_case(const std::string& name, const qm
         metrics.max_rel_moment_error = std::max(metrics.max_rel_moment_error, abs_error / scale);
     }
 
-    std::cout << std::setprecision(17) << name << " max_abs_moment_error=" << metrics.max_abs_moment_error
-              << " max_rel_moment_error=" << metrics.max_rel_moment_error << '\n';
-
-    QMOMKIT_VERIFY_CHECK(metrics.max_abs_moment_error <= moment_tolerance);
-    QMOMKIT_VERIFY_CHECK(metrics.max_rel_moment_error <= moment_tolerance);
+    const bool within_tolerances = metrics.max_abs_moment_error <= moment_tolerance && metrics.max_rel_moment_error <= moment_tolerance;
+    if (!within_tolerances)
+    {
+        std::cerr << std::setprecision(17) << name << " max_abs_moment_error=" << metrics.max_abs_moment_error
+                  << " max_rel_moment_error=" << metrics.max_rel_moment_error << " moment_tolerance=" << moment_tolerance << '\n';
+    }
+    QMOMKIT_VERIFY_CHECK(within_tolerances);
     return metrics;
 }
 

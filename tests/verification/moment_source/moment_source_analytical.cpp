@@ -1,3 +1,35 @@
+// Moment source terms integrated against solutions that can be written down.
+//
+// What is verified
+//   That advancing moments under a source term reproduces the exact solution of
+//   the corresponding ordinary differential equation, for sources that act on
+//   each moment order independently and for sources that couple orders.
+//
+// How the reference is constructed
+//   The source terms are chosen so the resulting equations are solvable on
+//   paper, and the exact moments are evaluated directly from those solutions.
+//   The order-dependent case relaxes each moment towards a target at its own
+//   rate, dM_k/dt = -lambda_k*(M_k - T_k), whose solution is
+//
+//       M_k(t) = T_k + (M_k(0) - T_k)*exp(-lambda_k*t),
+//
+//   and the coupled case uses a linear system with a known closed form. The
+//   starting moments come from a chosen set of weighted points, so the initial
+//   state is exact as well.
+//
+// Error metric and pass criteria
+//   Maximum deviation of the advanced moments from the closed-form solution, at
+//   2.0e-6, and of moments rebuilt from the resulting quadrature at 2.0e-8.
+//   Both sit above machine precision because the moments are produced by a time
+//   integrator over a finite interval: the bound reflects the accuracy the
+//   integrator was asked for, not the accuracy of the arithmetic.
+//
+// Reproduce
+//   ctest -R verification_.*moment_source
+//
+// Build modes
+//   Both. Failures are reported through an exit code, not assert().
+
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/moment_source.hpp"
@@ -503,36 +535,43 @@ int main(const int argc, char** argv)
                         result.errors.reconstruction_abs <= reconstruction_tolerance &&
                         result.errors.reconstruction_rel <= reconstruction_tolerance && result.errors.conservation_abs <= reconstruction_tolerance;
 
-    std::cout << "QMOMKit moment-source analytical verification\n";
-    std::cout << "Configuration: " << configuration_path << '\n';
-    std::cout << "Moment tolerance: " << std::scientific << moment_tolerance << ", reconstruction tolerance: " << reconstruction_tolerance << "\n\n";
-    std::cout << std::left << std::setw(32) << "case" << std::right << std::setw(14) << "moment abs" << std::setw(14) << "moment rel" << std::setw(14)
-              << "recon abs" << std::setw(14) << "recon rel" << std::setw(14) << "m0 abs" << std::setw(14) << "coarse err" << std::setw(14)
-              << "refined err" << std::setw(9) << "status" << '\n';
-    std::cout << std::string(125, '-') << '\n';
-    std::cout << std::left << std::setw(32) << definition->name << std::right << std::scientific << std::setprecision(4) << std::setw(14)
-              << result.errors.moment_abs << std::setw(14) << result.errors.moment_rel << std::setw(14) << result.errors.reconstruction_abs
-              << std::setw(14) << result.errors.reconstruction_rel << std::setw(14) << result.errors.conservation_abs << std::setw(14)
-              << result.coarse_error << std::setw(14) << result.refined_error << std::setw(9) << (passed ? "PASS" : "FAIL") << '\n';
-
-    if (case_identifier == "linear_coupled")
+    // Silent on success. These numbers exist to diagnose a failure, and CTest
+    // surfaces stderr through --output-on-failure.
+    if (!(passed))
     {
-        std::cout << "SSP-RK3 linear-coupled refinement errors:";
-        for (const double error : result.refinement_errors)
+        std::cerr << "QMOMKit moment-source analytical verification\n";
+        std::cerr << "Configuration: " << configuration_path << '\n';
+        std::cerr << "Moment tolerance: " << std::scientific << moment_tolerance << ", reconstruction tolerance: " << reconstruction_tolerance
+                  << "\n\n";
+        std::cerr << std::left << std::setw(32) << "case" << std::right << std::setw(14) << "moment abs" << std::setw(14) << "moment rel"
+                  << std::setw(14) << "recon abs" << std::setw(14) << "recon rel" << std::setw(14) << "m0 abs" << std::setw(14) << "coarse err"
+                  << std::setw(14) << "refined err" << std::setw(9) << "status" << '\n';
+        std::cerr << std::string(125, '-') << '\n';
+        std::cerr << std::left << std::setw(32) << definition->name << std::right << std::scientific << std::setprecision(4) << std::setw(14)
+                  << result.errors.moment_abs << std::setw(14) << result.errors.moment_rel << std::setw(14) << result.errors.reconstruction_abs
+                  << std::setw(14) << result.errors.reconstruction_rel << std::setw(14) << result.errors.conservation_abs << std::setw(14)
+                  << result.coarse_error << std::setw(14) << result.refined_error << std::setw(9) << (passed ? "PASS" : "FAIL") << '\n';
+
+        if (case_identifier == "linear_coupled")
         {
-            std::cout << ' ' << error;
+            std::cerr << "SSP-RK3 linear-coupled refinement errors:";
+            for (const double error : result.refinement_errors)
+            {
+                std::cerr << ' ' << error;
+            }
+            std::cerr << '\n';
+            if (result.observed_orders.size() >= 2)
+            {
+                std::cerr << "SSP-RK3 linear-coupled finest observed orders: " << result.observed_orders[result.observed_orders.size() - 2] << ' '
+                          << result.observed_orders.back() << '\n';
+            }
         }
-        std::cout << '\n';
-        if (result.observed_orders.size() >= 2)
+
+        if (!result.passed)
         {
-            std::cout << "SSP-RK3 linear-coupled finest observed orders: " << result.observed_orders[result.observed_orders.size() - 2] << ' '
-                      << result.observed_orders.back() << '\n';
+            std::cerr << result.message << '\n';
         }
     }
 
-    if (!result.passed)
-    {
-        std::cerr << result.message << '\n';
-    }
     return passed ? 0 : 1;
 }

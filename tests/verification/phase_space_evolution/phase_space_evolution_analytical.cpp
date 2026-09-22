@@ -1,3 +1,62 @@
+// Phase-space evolution against closed-form solutions. This file holds several
+// related studies sharing one set of helpers; the registered case names say
+// which is which.
+//
+// What is verified
+//   Commuting cases. The velocity is u(x) = a*x and the source removes each
+//     moment order at its own rate, so both operators act on moment order k as
+//     a multiple of M_k. They therefore commute, splitting introduces no error
+//     at all, and all three orderings must return the same answer. This is an
+//     exactness check, not a convergence one.
+//
+//   Non-commuting cases. The node velocity is a constant, which couples M_k to
+//     M_(k-1) rather than to itself, alongside a decay. The operators no longer
+//     commute, so splitting error appears and its size distinguishes the
+//     schemes. This is where the splitting order is measured.
+//
+//   Boundary contributions and native sources, checked against the same kind of
+//     closed-form reference, plus the failure paths: what dense, lean and QMOM
+//     evolution report when a step or an inversion cannot succeed.
+//
+// How the reference is constructed
+//   Written down, not computed. For the commuting case the moments follow
+//
+//       M_k(t) = M_k(0) * exp((k*a - lambda_k) * t),
+//
+//   with a = 0.2 and lambda_k = 0.05*k. For the non-commuting case a constant
+//   node velocity b = 0.45 with decay gamma = 0.17 gives a triangular linear
+//   system in the moments, solved here in closed form. Both expressions are
+//   evaluated directly and depend on no part of the evolution machinery. The
+//   starting moments come from chosen weighted points, so the initial state is
+//   exact as well.
+//
+// Error metric and pass criteria
+//   Maximum moment error relative to max(|expected|, 1). Observed splitting
+//   order is the base-2 logarithm of the ratio of errors between successive
+//   halvings of the time step.
+//
+//   Commuting cases are held to 1.0e-14 to 1.0e-12: the splitting is exact
+//   here, so the only error is the time integrator's, and a looser bound would
+//   hide a genuine splitting defect.
+//
+//   Non-commuting cases are held to 8.0e-4 for Strang and 3.0e-2 for the
+//   first-order orderings, because at a fixed step those schemes really are
+//   that far from the exact answer; the meaningful statement is the rate at
+//   which the gap closes. The observed order must exceed 1.85 for Strang and
+//   0.85 for the first-order orderings on the finest pair, five to eight
+//   percent below the nominal 2 and 1. A separate convergence summary requires
+//   an order above 2.4 where a higher-order combination is expected.
+//
+//   Failure cases require a specific non-success status and leave the state
+//   unchanged, since a partially advanced state that looks plausible is the
+//   dangerous outcome.
+//
+// Reproduce
+//   ctest -R verification_phase_space_evolution
+//
+// Build modes
+//   Both. Failures are reported through an exit code, not assert().
+
 #include "../../../src/internal/cqmom_case.hpp"
 #include "qmomkit/qmomkit.hpp"
 
@@ -319,15 +378,6 @@ double scaled_infinity_error(const std::vector<double>& computed, const std::vec
         error = std::max(error, std::abs(computed[i] - exact[i]) / std::max(1.0, std::abs(exact[i])));
     }
     return error;
-}
-
-void print_vector_comparison(const std::string& title, const std::vector<double>& computed, const std::vector<double>& exact)
-{
-    std::cout << title << '\n';
-    for (std::size_t i = 0; i < computed.size(); ++i)
-    {
-        std::cout << "  m[" << i << "] computed=" << computed[i] << " exact=" << exact[i] << " error=" << computed[i] - exact[i] << '\n';
-    }
 }
 
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::QmomCase>& configured)
@@ -763,7 +813,6 @@ RunSummary validate_qmom_run(VerificationResult& verification, const std::vector
                                                  qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> reconstructed = qmomkit::reconstruct_raw_moments(final_quadrature, exact.size());
     update_reconstruction_errors(summary.errors, reconstructed, exact);
-    print_vector_comparison("Final QMOM moments", result.state.moments(), exact);
     if (summary.errors.moment_scaled > moment_tolerance)
     {
         summary.success = false;
@@ -919,7 +968,6 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
         update_reconstruction_errors(boundary_summary.errors, qmomkit::reconstruct_raw_moments(final_quadrature, boundary_exact.size()),
                                      boundary_exact);
         boundary_summary.error_norm = scaled_infinity_error(boundary_result.state.moments(), boundary_exact);
-        print_vector_comparison("Final QMOM boundary contribution moments", boundary_result.state.moments(), boundary_exact);
         if (boundary_summary.errors.moment_scaled > 5.0e-11 || boundary_summary.errors.reconstruction_scaled > 5.0e-11)
         {
             boundary_summary.success = false;
@@ -956,7 +1004,6 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
         update_reconstruction_errors(combined_summary.errors, qmomkit::reconstruct_raw_moments(final_quadrature, combined_exact.size()),
                                      combined_exact);
         combined_summary.error_norm = scaled_infinity_error(combined_result.state.moments(), combined_exact);
-        print_vector_comparison("Final QMOM combined boundary/source moments", combined_result.state.moments(), combined_exact);
         if (combined_summary.errors.moment_scaled > 5.0e-11 || combined_summary.errors.reconstruction_scaled > 5.0e-11)
         {
             combined_summary.success = false;
@@ -1948,7 +1995,6 @@ VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configura
         summary.success = false;
         append_failure(verification, "CQMOM phase-space evolution result did not retain final quadrature.");
     }
-    print_vector_comparison("Final CQMOM phase-space evolution moments", result_required.values, exact_required.values);
     if (std::abs(time - elapsed) > 1.0e-12)
     {
         summary.success = false;
@@ -2176,7 +2222,6 @@ VerificationResult run_cqmom_boundary_contribution(const std::filesystem::path& 
         update_errors(summary.errors, reconstructed.values, exact);
         update_reconstruction_errors(summary.errors, reconstructed.values, exact);
         summary.error_norm = scaled_infinity_error(reconstructed.values, exact);
-        print_vector_comparison("Final CQMOM boundary contribution moments", reconstructed.values, exact);
     }
     else
     {
@@ -2290,7 +2335,6 @@ VerificationResult run_cqmom_combined_native_source(const std::filesystem::path&
         update_reconstruction_errors(summary.errors, reconstructed.values, exact);
         summary.error_norm = scaled_infinity_error(reconstructed.values, exact);
         summary.errors.conservation = std::abs(reconstructed.values.front() - exact.front());
-        print_vector_comparison("Final combined CQMOM moments", reconstructed.values, exact);
     }
     else
     {
@@ -2394,7 +2438,6 @@ VerificationResult run_cqmom_native_source(const std::filesystem::path& configur
         update_reconstruction_errors(summary.errors, reconstructed.values, exact);
         summary.error_norm = scaled_infinity_error(reconstructed.values, exact);
         summary.errors.conservation = std::abs(reconstructed.values.front() - exact.front());
-        print_vector_comparison("Final CQMOM-native source moments", reconstructed.values, exact);
     }
     else
     {
@@ -3747,7 +3790,6 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
         update_errors(summary.errors, reconstructed.values, exact);
         update_reconstruction_errors(summary.errors, reconstructed.values, exact);
         summary.error_norm = scaled_infinity_error(reconstructed.values, exact);
-        print_vector_comparison("Final adaptive CQMOM state moments", reconstructed.values, exact);
     }
     else
     {
@@ -3918,15 +3960,16 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     return verification;
 }
 
-void print_summary(const std::string& case_name, const VerificationResult& result)
+// Silent on success; CTest surfaces stderr with --output-on-failure.
+void report_failure(const std::string& case_name, const VerificationResult& result)
 {
-    std::cout << std::setprecision(17);
-    std::cout << "Case: " << case_name << '\n';
-    std::cout << "scheme dt steps final_time error_norm observed_order max_abs max_scaled reconstruction_abs reconstruction_scaled m0_error "
+    std::cerr << std::setprecision(17);
+    std::cerr << "Case: " << case_name << '\n';
+    std::cerr << "scheme dt steps final_time error_norm observed_order max_abs max_scaled reconstruction_abs reconstruction_scaled m0_error "
                  "retry_count success\n";
     for (const RunSummary& run : result.runs)
     {
-        std::cout << phase_space_evolution_scheme_name(run.scheme) << ' ' << run.dt << ' ' << run.steps << ' ' << run.final_time << ' '
+        std::cerr << phase_space_evolution_scheme_name(run.scheme) << ' ' << run.dt << ' ' << run.steps << ' ' << run.final_time << ' '
                   << run.error_norm << ' ' << run.observed_order << ' ' << run.errors.moment_absolute << ' ' << run.errors.moment_scaled << ' '
                   << run.errors.reconstruction_absolute << ' ' << run.errors.reconstruction_scaled << ' ' << run.errors.conservation << ' '
                   << run.retry_count << ' ' << run.success << '\n';
@@ -3941,8 +3984,11 @@ int run_cqmom_automatic_scaling_is_unit_invariant()
     const VerificationResult rescaled =
         run_automatic_scaling_cqmom_state_adaptive_2d(case_directory / "automatic_scaling_cqmom_state_adaptive_rescaled.qmom", {1.0e6, 1.0e-6});
 
-    print_summary("automatic_scaling_cqmom_state_adaptive_reference", reference);
-    print_summary("automatic_scaling_cqmom_state_adaptive_rescaled", rescaled);
+    if (!reference.passed || !rescaled.passed)
+    {
+        report_failure("automatic_scaling_cqmom_state_adaptive_reference", reference);
+        report_failure("automatic_scaling_cqmom_state_adaptive_rescaled", rescaled);
+    }
     if (!reference.passed)
     {
         std::cerr << reference.message << '\n';
@@ -3952,28 +3998,6 @@ int run_cqmom_automatic_scaling_is_unit_invariant()
         std::cerr << rescaled.message << '\n';
     }
     return reference.passed && rescaled.passed ? 0 : 1;
-}
-
-bool write_output_file(const std::filesystem::path& output_path, const std::string& case_name, const VerificationResult& result)
-{
-    std::ofstream output(output_path);
-    if (!output)
-    {
-        return false;
-    }
-    output << std::setprecision(17);
-    output << "case scheme dt step_count final_time error_norm observed_order zeroth_moment_error reconstruction_error retry_count success\n";
-    for (const RunSummary& run : result.runs)
-    {
-        if (!run.output_row)
-        {
-            continue;
-        }
-        output << case_name << ' ' << phase_space_evolution_scheme_name(run.scheme) << ' ' << run.dt << ' ' << run.steps << ' ' << run.final_time
-               << ' ' << run.error_norm << ' ' << run.observed_order << ' ' << run.errors.conservation << ' ' << run.errors.reconstruction_scaled
-               << ' ' << run.retry_count << ' ' << run.success << '\n';
-    }
-    return output.good();
 }
 
 void print_usage()
@@ -3990,7 +4014,7 @@ int main(int argc, char** argv)
     {
         return run_cqmom_automatic_scaling_is_unit_invariant();
     }
-    if (argc != 3 && argc != 5)
+    if (argc != 3)
     {
         print_usage();
         return 2;
@@ -3998,16 +4022,6 @@ int main(int argc, char** argv)
 
     const std::filesystem::path configuration_path = argv[1];
     const std::string case_name = argv[2];
-    std::filesystem::path output_path;
-    if (argc == 5)
-    {
-        if (std::string(argv[3]) != "--output")
-        {
-            print_usage();
-            return 2;
-        }
-        output_path = argv[4];
-    }
 
     VerificationResult result;
     if (case_name == "commuting_qmom")
@@ -4088,11 +4102,9 @@ int main(int argc, char** argv)
         return 2;
     }
 
-    print_summary(case_name, result);
-    if (!output_path.empty() && !write_output_file(output_path, case_name, result))
+    if (!result.passed)
     {
-        std::cerr << "Unable to write phase-space evolution analytical output file '" << output_path.string() << "'.\n";
-        return 1;
+        report_failure(case_name, result);
     }
     if (!result.passed)
     {

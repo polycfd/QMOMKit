@@ -1,3 +1,33 @@
+// CQMOM inversion when the caller restricts a coordinate to an interval.
+//
+// What is verified
+//   That a branch whose positions already lie inside the requested interval is
+//   accepted unchanged; that one with a position outside is rejected rather
+//   than moved onto the boundary; and that a bound placed on one phase-space
+//   coordinate applies to that coordinate rather than to whichever conditioning
+//   level happens to hold it.
+//
+// How the reference is constructed
+//   Chosen, not computed. Each case starts from a terminal rule written in
+//   phase-space coordinate order and builds the moments from it, so the
+//   expected positions and weights are known before the inversion runs. The
+//   coordinate-specific case matters because phase-space order and conditioning
+//   order are distinct: a bound on y must follow y even when y is conditioned
+//   first.
+//
+// Error metric and pass criteria
+//   Status must match the expected outcome; accepted positions and weights must
+//   agree with the chosen rule to 1.0e-12 absolute. The rejection case checks
+//   the returned position is unchanged, which is what separates rejection from
+//   clipping.
+//
+// Reproduce
+//   ctest -R verification_cqmom_.*nodes_inside_interval
+//   ctest -R verification_cqmom_.*coordinate_specific_bounds
+//
+// Build modes
+//   Both. Checks go through QMOMKIT_VERIFY_*, not assert().
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/cqmom.hpp"
 #include "qmomkit/moment_reconstruction.hpp"

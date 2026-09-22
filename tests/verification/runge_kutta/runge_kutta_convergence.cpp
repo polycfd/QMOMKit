@@ -1,3 +1,84 @@
+// Convergence order of the time integrators.
+//
+// What is verified
+//   Two different things, deliberately kept apart.
+//
+//   Asymptotic convergence order, with the step size forced. The controller is
+//   pinned to a single step (initial = min = max) and its tolerances set to
+//   1.0e-15 so it cannot adapt, giving a genuine halving refinement. SSP-RK3,
+//   RK23 and RK45 are each checked this way, along with the embedded error
+//   estimate of the two pairs.
+//
+//   Controller behaviour, with the step size free. The requested tolerance is
+//   tightened tenfold per run and the controller chooses its own steps. What is
+//   checked here is that the achieved error stays within the tolerance asked
+//   for, that it falls at every tightening, that the work does not decrease,
+//   and that the error scales roughly in proportion to the tolerance.
+//
+// How the reference is constructed
+//   The test problem is y' = -y from t = 0, whose exact solution exp(-t) is
+//   known in closed form. The reference is that value, evaluated directly, so
+//   it does not depend on any integrator.
+//
+// Error metric
+//   Absolute error of the final value against exp(-t). Slopes are taken on
+//   log-log axes: against the step size for the fixed-step studies, where the
+//   slope is a convergence order, and against the requested tolerance for the
+//   adaptive studies, where it is not.
+//
+// Pass criteria
+//   Every slope is taken from the finest pair of runs alone - the estimate
+//   between the second smallest and the smallest control value. Convergence
+//   order is an asymptotic statement, so a coarser pair, or an average over the
+//   sweep, would report a pre-asymptotic value and let it gate the result.
+//
+//   Fixed step, dt halved exactly:
+//     SSP-RK3          observed order > 2.85, five percent below nominal 3
+//     RK23             solution and embedded order both 3.0 +/- 0.15
+//     RK45             solution and embedded order both 5.0 +/- 0.15
+//   Free step, tolerance tightened tenfold:
+//     RK23 and RK45    achieved error within the requested tolerance, and the
+//                      error-versus-tolerance slope between 0.85 and 1.25
+//
+//   RK23 and RK45 are each checked on two numbers that come out equal - 3 for
+//   RK23, 5 for RK45 - but that measure different things:
+//
+//     final error order          how fast the answer at the end of the whole
+//       run approaches the exact value as the step is halved. This is the order
+//       of the method: it is off by roughly h^(p+1) on each step and takes 1/h
+//       steps, leaving roughly h^p at the end.
+//
+//     single step estimate order how fast the scheme's own error estimate for
+//       one step shrinks as the step is halved. That estimate is the gap
+//       between the two answers the scheme produces for the same step, and its
+//       size is set by the less accurate of the two, which is off by roughly
+//       h^p on a single step.
+//
+//   So both land on p, one by accumulating over a whole run and one from a
+//   single step. Neither is the accuracy of the less accurate answer over a
+//   whole run, which would be p-1; the scheme never forms that, and this study
+//   does not measure it.
+//
+//   The adaptive studies deliberately assert no order. Measuring error against
+//   the average accepted step there does not give the order of the method, it
+//   gives the controller's step exponent, because the controller sets the step
+//   from the tolerance as tol^(1/(q+1)) with q the embedded order. That
+//   coincides with the nominal order only when the accepted step count is large
+//   enough for its integer rounding to wash out. At these tolerances RK45 takes
+//   5 to 14 steps and the measurement reads about 7 rather than 5; the fixed
+//   step study above reads 5.03 on the same method.
+//
+// Output
+//   Nothing on success. When a check fails, the reason and the full refinement
+//   table go to stderr, because a bare pass/fail cannot distinguish an order
+//   that grazed its threshold from one that collapsed.
+//
+// Reproduce
+//   ctest -R verification_.*(ssp_rk3|rk23|rk45).*convergence
+//
+// Build modes
+//   Both. Checks go through QMOMKIT_VERIFY_*, not assert().
+
 #include "../verification_helpers.hpp"
 #include "internal/embedded_runge_kutta.hpp"
 #include "qmomkit/runge_kutta.hpp"
@@ -9,6 +90,7 @@
 #include <iostream>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -31,17 +113,22 @@ struct AdaptiveRun
     std::size_t function_evaluations = 0;
     double average_step = 0.0;
     double error = 0.0;
-    double observed_order = std::numeric_limits<double>::quiet_NaN();
+    // Slope of achieved error against requested tolerance. Not a convergence
+    // order: the controller chooses the steps, so there is no refined h here.
+    double tolerance_slope = std::numeric_limits<double>::quiet_NaN();
 };
 
 struct EmbeddedFixedRun
 {
     std::size_t steps = 0;
     double dt = 0.0;
-    double solution_error = 0.0;
-    double embedded_difference = 0.0;
-    double solution_order = std::numeric_limits<double>::quiet_NaN();
-    double embedded_order = std::numeric_limits<double>::quiet_NaN();
+    // Error left at the end of the whole run.
+    double final_error = 0.0;
+    // The error estimate the scheme forms for a single step, which is the gap
+    // between its two answers for that step.
+    double single_step_estimate = 0.0;
+    double final_error_order = std::numeric_limits<double>::quiet_NaN();
+    double single_step_estimate_order = std::numeric_limits<double>::quiet_NaN();
 };
 
 qmomkit::OdeRhs exponential_decay_rhs()
@@ -49,12 +136,61 @@ qmomkit::OdeRhs exponential_decay_rhs()
     return [](double, const std::vector<double>& state, std::vector<double>& derivative) { derivative[0] = -state[0]; };
 }
 
-double observed_order(const double coarse_error, const double fine_error, const double coarse_step, const double fine_step)
+// Slope of one quantity against another on log-log axes. It is a convergence
+// order only when the control variable is a refined step size; against a
+// requested tolerance it measures how faithfully the controller delivers what
+// it was asked for.
+double log_slope(const double coarse_value, const double fine_value, const double coarse_control, const double fine_control)
 {
-    QMOMKIT_VERIFY_CHECK(coarse_error > 0.0);
-    QMOMKIT_VERIFY_CHECK(fine_error > 0.0);
-    QMOMKIT_VERIFY_CHECK(coarse_step > fine_step);
-    return std::log(coarse_error / fine_error) / std::log(coarse_step / fine_step);
+    QMOMKIT_VERIFY_CHECK(coarse_value > 0.0);
+    QMOMKIT_VERIFY_CHECK(fine_value > 0.0);
+    QMOMKIT_VERIFY_CHECK(coarse_control > fine_control);
+    return std::log(coarse_value / fine_value) / std::log(coarse_control / fine_control);
+}
+
+// Refinement tables are built only when a check fails. A bare "expression was
+// false" cannot distinguish an order that grazed its threshold from one that
+// collapsed, and that difference is the whole diagnosis; on a passing run the
+// same table tells a reader nothing and CTest hides it anyway.
+[[noreturn]] void fail_with_table(const std::string& reason, const std::string& header, const std::string& rows)
+{
+    std::cerr << reason << '\n' << header << '\n' << rows;
+    std::exit(EXIT_FAILURE);
+}
+
+std::string fixed_step_rows(const std::vector<FixedStepRun>& runs)
+{
+    std::ostringstream out;
+    out << std::setprecision(17);
+    for (const FixedStepRun& run : runs)
+    {
+        out << run.steps << ' ' << run.dt << ' ' << run.error << ' ' << run.observed_order << '\n';
+    }
+    return out.str();
+}
+
+std::string adaptive_rows(const std::vector<AdaptiveRun>& runs)
+{
+    std::ostringstream out;
+    out << std::setprecision(17);
+    for (const AdaptiveRun& run : runs)
+    {
+        out << run.tolerance << ' ' << run.accepted_steps << ' ' << run.rejected_steps << ' ' << run.function_evaluations << ' ' << run.average_step
+            << ' ' << run.error << ' ' << run.tolerance_slope << '\n';
+    }
+    return out.str();
+}
+
+std::string embedded_rows(const std::vector<EmbeddedFixedRun>& runs)
+{
+    std::ostringstream out;
+    out << std::setprecision(17);
+    for (const EmbeddedFixedRun& run : runs)
+    {
+        out << run.steps << ' ' << run.dt << ' ' << run.final_error << ' ' << run.single_step_estimate << ' ' << run.final_error_order << ' '
+            << run.single_step_estimate_order << '\n';
+    }
+    return out.str();
 }
 
 std::vector<FixedStepRun> verify_ssp_rk3_convergence()
@@ -89,14 +225,16 @@ std::vector<FixedStepRun> verify_ssp_rk3_convergence()
     for (std::size_t run = 1; run < runs.size(); ++run)
     {
         QMOMKIT_VERIFY_CHECK(runs[run].error < runs[run - 1].error);
-        runs[run].observed_order = observed_order(runs[run - 1].error, runs[run].error, runs[run - 1].dt, runs[run].dt);
+        runs[run].observed_order = log_slope(runs[run - 1].error, runs[run].error, runs[run - 1].dt, runs[run].dt);
     }
 
-    // The coarsest pair may still contain pre-asymptotic behavior, but the
-    // last refinements should be clearly third order for this smooth scalar
-    // problem.
-    QMOMKIT_VERIFY_CHECK(runs[runs.size() - 2].observed_order > 2.85);
-    QMOMKIT_VERIFY_CHECK(runs[runs.size() - 1].observed_order > 2.85);
+    // Only the finest pair: the order is asymptotic, so the estimate from the
+    // second smallest to the smallest step is the one that carries meaning.
+    if (!(runs.back().observed_order > 2.85))
+    {
+        fail_with_table("SSP-RK3 fixed-step order " + std::to_string(runs.back().observed_order) + " did not exceed 2.85.",
+                        "steps dt error observed_order", fixed_step_rows(runs));
+    }
     return runs;
 }
 
@@ -135,15 +273,20 @@ std::vector<AdaptiveRun> verify_rk23_convergence()
     {
         QMOMKIT_VERIFY_CHECK(runs[run].error < runs[run - 1].error);
         QMOMKIT_VERIFY_CHECK(runs[run].accepted_steps >= runs[run - 1].accepted_steps);
-        runs[run].observed_order = observed_order(runs[run - 1].error, runs[run].error, runs[run - 1].average_step, runs[run].average_step);
+        runs[run].tolerance_slope = log_slope(runs[run - 1].error, runs[run].error, runs[run - 1].tolerance, runs[run].tolerance);
+        // The controller must deliver at least the accuracy it was asked for.
+        QMOMKIT_VERIFY_CHECK(runs[run].error <= runs[run].tolerance);
     }
 
-    // Bogacki-Shampine RK23 advances the accepted solution with the third-order
-    // formula while controlling an embedded second-order error estimate. The
-    // finest tolerance refinements should therefore show a clear high-order
-    // trend when measured against the accepted average step size.
-    QMOMKIT_VERIFY_CHECK(runs[runs.size() - 2].observed_order > 2.2);
-    QMOMKIT_VERIFY_CHECK(runs[runs.size() - 1].observed_order > 2.2);
+    // Tightening the requested tolerance tenfold should shrink the achieved
+    // error about tenfold. The order of the method is established by the
+    // fixed-step study instead, where a step size actually exists to refine.
+    if (!(runs.back().tolerance_slope > 0.85 && runs.back().tolerance_slope < 1.25))
+    {
+        fail_with_table("RK23 error did not track the requested tolerance: slope " + std::to_string(runs.back().tolerance_slope) +
+                            " is outside [0.85, 1.25].",
+                        "tolerance accepted_steps rejected_steps function_evaluations average_step error tolerance_slope", adaptive_rows(runs));
+    }
     return runs;
 }
 
@@ -181,18 +324,24 @@ std::vector<AdaptiveRun> verify_rk45_adaptive_convergence()
     {
         QMOMKIT_VERIFY_CHECK(runs[run].error < runs[run - 1].error);
         QMOMKIT_VERIFY_CHECK(runs[run].accepted_steps >= runs[run - 1].accepted_steps);
-        runs[run].observed_order = observed_order(runs[run - 1].error, runs[run].error, runs[run - 1].average_step, runs[run].average_step);
+        runs[run].tolerance_slope = log_slope(runs[run - 1].error, runs[run].error, runs[run - 1].tolerance, runs[run].tolerance);
+        // The controller must deliver at least the accuracy it was asked for.
+        QMOMKIT_VERIFY_CHECK(runs[run].error <= runs[run].tolerance);
     }
 
-    // Adaptive step sizes do not form a fixed-step order study, but the fine
-    // refinements should still exhibit a distinctly fifth-order accepted trend.
-    QMOMKIT_VERIFY_CHECK(runs[runs.size() - 2].observed_order > 4.2);
-    QMOMKIT_VERIFY_CHECK(runs[runs.size() - 1].observed_order > 4.2);
+    // Same contract as RK23: error proportional to the requested tolerance. The
+    // fifth-order claim belongs to the fixed-step study.
+    if (!(runs.back().tolerance_slope > 0.85 && runs.back().tolerance_slope < 1.25))
+    {
+        fail_with_table("RK45 error did not track the requested tolerance: slope " + std::to_string(runs.back().tolerance_slope) +
+                            " is outside [0.85, 1.25].",
+                        "tolerance accepted_steps rejected_steps function_evaluations average_step error tolerance_slope", adaptive_rows(runs));
+    }
     return runs;
 }
 
-std::vector<EmbeddedFixedRun> verify_embedded_fixed_step_convergence(const qmomkit::EmbeddedRkMethod method, const double expected_solution_order,
-                                                                     const double expected_embedded_order)
+std::vector<EmbeddedFixedRun> verify_embedded_fixed_step_convergence(const qmomkit::EmbeddedRkMethod method, const double expected_final_error_order,
+                                                                     const double expected_single_step_estimate_order)
 {
     constexpr double final_time = 1.0;
     const double exact = std::exp(-final_time);
@@ -222,58 +371,24 @@ std::vector<EmbeddedFixedRun> verify_embedded_fixed_step_convergence(const qmomk
 
     for (std::size_t run = 1; run < runs.size(); ++run)
     {
-        runs[run].solution_order = observed_order(runs[run - 1].solution_error, runs[run].solution_error, runs[run - 1].dt, runs[run].dt);
-        runs[run].embedded_order = observed_order(runs[run - 1].embedded_difference, runs[run].embedded_difference, runs[run - 1].dt, runs[run].dt);
+        runs[run].final_error_order = log_slope(runs[run - 1].final_error, runs[run].final_error, runs[run - 1].dt, runs[run].dt);
+        runs[run].single_step_estimate_order =
+            log_slope(runs[run - 1].single_step_estimate, runs[run].single_step_estimate, runs[run - 1].dt, runs[run].dt);
     }
 
-    QMOMKIT_VERIFY_CHECK(runs.back().solution_order > expected_solution_order - 0.15);
-    QMOMKIT_VERIFY_CHECK(runs.back().solution_order < expected_solution_order + 0.15);
-    QMOMKIT_VERIFY_CHECK(runs.back().embedded_order > expected_embedded_order - 0.15);
-    QMOMKIT_VERIFY_CHECK(runs.back().embedded_order < expected_embedded_order + 0.15);
+    const bool final_ok =
+        runs.back().final_error_order > expected_final_error_order - 0.15 && runs.back().final_error_order < expected_final_error_order + 0.15;
+    const bool estimate_ok = runs.back().single_step_estimate_order > expected_single_step_estimate_order - 0.15 &&
+                             runs.back().single_step_estimate_order < expected_single_step_estimate_order + 0.15;
+    if (!final_ok || !estimate_ok)
+    {
+        fail_with_table("Fixed-step order outside its band: final error order " + std::to_string(runs.back().final_error_order) + " expected " +
+                            std::to_string(expected_final_error_order) + ", single step estimate order " +
+                            std::to_string(runs.back().single_step_estimate_order) + " expected " +
+                            std::to_string(expected_single_step_estimate_order) + ", both +/- 0.15.",
+                        "steps dt final_error single_step_estimate final_error_order single_step_estimate_order", embedded_rows(runs));
+    }
     return runs;
-}
-
-void print_ssp_table(const std::vector<FixedStepRun>& runs)
-{
-    std::cout << "SSP-RK3 convergence for y'=-y, y(0)=1, T=1\n";
-    std::cout << "steps dt error observed_order\n";
-    for (const FixedStepRun& run : runs)
-    {
-        std::cout << run.steps << ' ' << run.dt << ' ' << run.error << ' ' << run.observed_order << '\n';
-    }
-}
-
-void print_rk23_table(const std::vector<AdaptiveRun>& runs)
-{
-    std::cout << "Adaptive RK23 convergence for y'=-y, y(0)=1, T=2\n";
-    std::cout << "tolerance accepted_steps rejected_steps function_evaluations average_step error observed_order\n";
-    for (const AdaptiveRun& run : runs)
-    {
-        std::cout << run.tolerance << ' ' << run.accepted_steps << ' ' << run.rejected_steps << ' ' << run.function_evaluations << ' '
-                  << run.average_step << ' ' << run.error << ' ' << run.observed_order << '\n';
-    }
-}
-
-void print_rk45_adaptive_table(const std::vector<AdaptiveRun>& runs)
-{
-    std::cout << "Adaptive RK45 convergence for y'=-y, y(0)=1, T=2\n";
-    std::cout << "tolerance accepted_steps rejected_steps function_evaluations average_step error observed_order\n";
-    for (const AdaptiveRun& run : runs)
-    {
-        std::cout << run.tolerance << ' ' << run.accepted_steps << ' ' << run.rejected_steps << ' ' << run.function_evaluations << ' '
-                  << run.average_step << ' ' << run.error << ' ' << run.observed_order << '\n';
-    }
-}
-
-void print_embedded_fixed_step_table(const char* const method, const std::vector<EmbeddedFixedRun>& runs)
-{
-    std::cout << method << " fixed-step convergence for y'=-y, y(0)=1, T=1\n";
-    std::cout << "steps dt solution_error embedded_difference solution_order embedded_order\n";
-    for (const EmbeddedFixedRun& run : runs)
-    {
-        std::cout << run.steps << ' ' << run.dt << ' ' << run.solution_error << ' ' << run.embedded_difference << ' ' << run.solution_order << ' '
-                  << run.embedded_order << '\n';
-    }
 }
 
 } // namespace
@@ -286,11 +401,10 @@ int main(const int argc, char** argv)
         return 2;
     }
 
-    std::cout << std::setprecision(17);
     const std::string selector = argc == 2 ? argv[1] : "";
     if (selector.empty() || selector == "ssp_rk3")
     {
-        print_ssp_table(verify_ssp_rk3_convergence());
+        verify_ssp_rk3_convergence();
         if (!selector.empty())
         {
             return 0;
@@ -298,7 +412,7 @@ int main(const int argc, char** argv)
     }
     if (selector.empty() || selector == "rk23_adaptive")
     {
-        print_rk23_table(verify_rk23_convergence());
+        verify_rk23_convergence();
         if (!selector.empty())
         {
             return 0;
@@ -306,7 +420,7 @@ int main(const int argc, char** argv)
     }
     if (selector.empty() || selector == "rk23_fixed_step")
     {
-        print_embedded_fixed_step_table("RK23", verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk23, 3.0, 3.0));
+        verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk23, 3.0, 3.0);
         if (!selector.empty())
         {
             return 0;
@@ -314,7 +428,7 @@ int main(const int argc, char** argv)
     }
     if (selector.empty() || selector == "rk45_adaptive")
     {
-        print_rk45_adaptive_table(verify_rk45_adaptive_convergence());
+        verify_rk45_adaptive_convergence();
         if (!selector.empty())
         {
             return 0;
@@ -322,7 +436,7 @@ int main(const int argc, char** argv)
     }
     if (selector.empty() || selector == "rk45_fixed_step")
     {
-        print_embedded_fixed_step_table("RK45", verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk45, 5.0, 5.0));
+        verify_embedded_fixed_step_convergence(qmomkit::EmbeddedRkMethod::rk45, 5.0, 5.0);
         return 0;
     }
 

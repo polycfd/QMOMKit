@@ -1,3 +1,28 @@
+// Failure reporting for moment sets that cannot produce a quadrature.
+//
+// What is verified
+//   That each invalid input produces a specific non-success status and a
+//   message naming the cause, rather than a silent fallback or a quadrature
+//   built from unusable data.
+//
+// How the reference is constructed
+//   Chosen by construction: each case is a moment set that violates a stated
+//   requirement - too few moments for the requested node count, a negative
+//   zeroth moment, a negative variance, a zero node count. The expected status
+//   and a fragment of the expected message are written next to each case.
+//   There is no numerical reference here because no quadrature should exist.
+//
+// Pass criteria
+//   The returned status must equal the expected status, and the returned
+//   message must contain the expected fragment. A match on status alone would
+//   not show that the diagnostic points at the right cause.
+//
+// Reproduce
+//   ctest -R verification_qmom_compute_failure
+//
+// Build modes
+//   Both. Checks go through QMOMKIT_VERIFY_*, not assert().
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
 
@@ -64,10 +89,6 @@ int main(const int argc, char** argv)
         {"zero node count", qmomkit::MomentSet{1.0, 0.0}, 0, qmomkit::QmomStatus::invalid_input, "positive"},
     };
 
-    std::cout << "QMOMKit direct QMOM compute failure verification\n";
-    std::cout << std::left << std::setw(28) << "case" << std::setw(20) << "expected status" << "message fragment\n";
-    std::cout << std::string(72, '-') << '\n';
-
     const std::string selected_case = argc == 2 ? argv[1] : "";
     if (argc > 2)
     {
@@ -84,20 +105,6 @@ int main(const int argc, char** argv)
         }
         matched = true;
         verify_failure_case(failure_case);
-        std::cout << std::left << std::setw(28) << failure_case.name << std::setw(20);
-        switch (failure_case.expected_status)
-        {
-        case qmomkit::QmomStatus::invalid_input:
-            std::cout << "invalid_input";
-            break;
-        case qmomkit::QmomStatus::not_realizable:
-            std::cout << "not_realizable";
-            break;
-        case qmomkit::QmomStatus::success:
-            std::cout << "success";
-            break;
-        }
-        std::cout << failure_case.expected_message_fragment << '\n';
     }
 
     if (!matched)

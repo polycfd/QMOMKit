@@ -1,3 +1,42 @@
+// Raw moments computed from named distributions, against their textbook
+// closed-form expressions.
+//
+// What is verified
+//   That initialising moments from a named distribution - normal, log-normal,
+//   beta, gamma, exponential, Weibull, and mixtures and independent products of
+//   them - produces the raw moments that distribution is known to have, and
+//   that the resulting sequences are realizable and invert to sensible
+//   quadratures.
+//
+// How the reference is constructed
+//   Not invented for this test. Each expected moment is evaluated from the
+//   published expression for that family, written out in this file:
+//
+//     log-normal   E[X^k] = exp(k*mu + k^2*sigma^2/2)
+//     beta         E[X^k] = product over j < k of (alpha + j)/(alpha + beta + j)
+//     Weibull      E[X^k] = scale^k * Gamma(1 + k/shape)
+//     gamma, normal, exponential   the corresponding standard expressions
+//
+//   Moments are scaled by the configured total number density, since QMOMKit
+//   carries raw moments of the number density function rather than of a
+//   normalised distribution, and m0 is the total number density rather than 1.
+//
+// Error metric and pass criteria
+//   Each moment is compared on an absolute-or-relative basis, so a single
+//   bound works across orders whose magnitudes differ by many decades - a
+//   high-order log-normal moment is enormous while a low-order one is near
+//   unity, and an absolute bound alone would be meaningless for one of them.
+//   Tolerances run from 1.0e-14 to 1.0e-10 per case. The looser ones are on the
+//   families whose expressions involve the gamma function, where the reference
+//   itself carries the error of the standard library's tgamma rather than being
+//   exact in floating point.
+//
+// Reproduce
+//   ctest -R verification_distributions
+//
+// Build modes
+//   Both. Failures are reported through an exit code, not assert().
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/distributions.hpp"

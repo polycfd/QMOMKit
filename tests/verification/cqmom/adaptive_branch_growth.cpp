@@ -1,3 +1,34 @@
+// Adaptive CQMOM branches gaining nodes during a moment-source step.
+//
+// What is verified
+//   That a branch which starts with one conditional node can grow to two when
+//   the moments move to a state that needs two, that the resulting terminal
+//   paths and per-branch node counts match the target, and that the growth is
+//   reported in the node-count transition diagnostics rather than happening
+//   silently.
+//
+// How the reference is constructed
+//   Chosen at both ends, not computed. The starting state is built from a
+//   two-point rule in x where each x carries a single y. The target is built
+//   from a three-point rule where x = 1 has split into two y positions. Both
+//   moment tensors are evaluated from their point sets, and the source is then
+//   defined as the constant rate that carries one to the other over unit time,
+//   so the exact final moments are known in advance.
+//
+// Error metric and pass criteria
+//   Terminal paths and per-branch node counts must match exactly, and the
+//   diagnostics must record a growth transition. Numerical comparisons use
+//   5.0e-11 absolute. That is looser than the 1.0e-12 used by the studies that
+//   set moments directly, because here the target is reached by integrating a
+//   source over a unit interval, so time-integration error sits on top of the
+//   inversion error.
+//
+// Reproduce
+//   ctest -R verification_adaptive_branch_reinjection
+//
+// Build modes
+//   Both. Checks go through QMOMKIT_VERIFY_*, not assert().
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"

@@ -1,3 +1,31 @@
+// Rebuilding raw moments from a CQMOM quadrature, and refusing to do so when
+// the request does not match the quadrature.
+//
+// What is verified
+//   That moments rebuilt from a recovered quadrature match the moments it came
+//   from, for a dense QMOM rule, for a selected subset of CQMOM indices, and
+//   for the full set a hierarchy requires; and that mismatched requests are
+//   rejected rather than answered with a partially filled tensor.
+//
+// How the reference is constructed
+//   Chosen, not computed. A rule of weighted points is written down, its raw
+//   moments are evaluated from it, and those moments are what the
+//   reconstruction must return. Because the quadrature is the starting point
+//   rather than something the library derived, a reconstruction that silently
+//   dropped or reordered an index would show up as a moment mismatch.
+//
+// Error metric and pass criteria
+//   Maximum absolute deviation of each rebuilt moment from the prescribed
+//   value, at 1.0e-12. The failure cases additionally require a non-success
+//   status rather than a best-effort answer, because a partially filled tensor
+//   that looks plausible is the dangerous outcome here.
+//
+// Reproduce
+//   ctest -R verification_.*moment_reconstruction
+//
+// Build modes
+//   Both. Failures are reported through an exit code, not assert().
+
 #include "qmomkit/qmomkit.hpp"
 
 #include <algorithm>
@@ -299,17 +327,15 @@ int main(const int argc, char** argv)
         return 2;
     }
 
-    std::cout << "QMOMKit raw moment reconstruction verification\n";
-    std::cout << "Configuration: " << configuration_path << '\n';
-    std::cout << "Reference: independent 1D and 2D quadratures with analytical raw moments\n";
-    std::cout << "Maximum error: " << verification.maximum_error << '\n';
-
     if (verification.maximum_error > tolerance)
     {
         append_failure(verification, "raw moment reconstruction exceeded the analytical tolerance.");
     }
+    // Silent on success; CTest surfaces stderr with --output-on-failure.
     if (!verification.passed)
     {
+        std::cerr << "Configuration: " << configuration_path << '\n';
+        std::cerr << "Maximum error: " << verification.maximum_error << " against tolerance " << tolerance << '\n';
         std::cerr << verification.message << '\n';
         return 1;
     }

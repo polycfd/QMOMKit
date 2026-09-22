@@ -1,3 +1,37 @@
+// The moment and quadrature writers, checked by reading their files back.
+//
+// What is verified
+//   That MomentWriter and QuadratureWriter produce files whose headers name the
+//   right columns and whose rows carry the values that were handed to them, for
+//   both QMOM and CQMOM, and that appending across time steps keeps the history
+//   consistent.
+//
+// How the reference is constructed
+//   Chosen, not computed. The state written out is built from a prescribed rule
+//   of weighted points, so every number that should appear in the file is known
+//   before the writer runs. The file is then parsed back and compared field by
+//   field against that prescription, which is what makes this a round trip
+//   rather than a smoke test.
+//
+// Error metric and pass criteria
+//   Header labels must match exactly. Parsed values must agree with the
+//   prescribed ones to 1.0e-13 absolute - tighter than the inversion studies
+//   because nothing numerical happens here: the only loss is decimal formatting
+//   and parsing, so anything larger would indicate a formatting defect rather
+//   than arithmetic.
+//
+// Note on file output
+//   The files written here are the subject under test, not diagnostics, so they
+//   are produced on every run and read back. Like the other studies this one
+//   prints nothing to the console on success; failures are reported through
+//   QMOMKIT_VERIFY_* and an exit code.
+//
+// Reproduce
+//   ctest -R verification_output
+//
+// Build modes
+//   Both. Failures are reported through an exit code, not assert().
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
@@ -379,12 +413,5 @@ int main(const int argc, char** argv)
         QMOMKIT_VERIFY_CHECK(has_dense_only_moment);
     }
 
-    std::cout << "QMOMKit output writer workflow verification\n";
-    std::cout << "QMOM configuration: " << qmom_configuration << '\n';
-    std::cout << "CQMOM configuration: " << cqmom_configuration << '\n';
-    std::cout << "Dense CQMOM configuration: " << dense_cqmom_configuration << '\n';
-    std::cout << "Output directory: " << output_directory << '\n';
-    std::cout << "Tolerance: " << std::scientific << tolerance << '\n';
-    std::cout << "Verified moment and quadrature text output for public QMOM and CQMOM workflows.\n";
     return 0;
 }

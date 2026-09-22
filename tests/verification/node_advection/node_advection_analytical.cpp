@@ -1,3 +1,38 @@
+// Moving quadrature positions along a velocity field, against trajectories
+// that can be written down in closed form.
+//
+// What is verified
+//   That advancing the positions reproduces the exact trajectory, and that
+//   advection changes positions only - weights, hierarchy and terminal paths
+//   come through untouched, which is what makes the operation a transport step
+//   rather than a new inversion.
+//
+// How the reference is constructed
+//   The velocity fields are chosen so the trajectory is solvable on paper, and
+//   the exact position is evaluated directly from that solution:
+//
+//     constant_velocity  dx/dt = 0.6          x(t) = x0 + 0.6*t
+//     linear_growth      dx/dt = 0.55*x       x(t) = x0*exp(0.55*t)
+//     affine_evolution   dx/dt = -0.4*x + 0.7 x(t) = (x0 + b/a)*exp(a*t) - b/a
+//                                             with a = -0.4 and b = 0.7
+//
+//   Nothing in the reference comes from an integrator.
+//
+// Error metric and pass criteria
+//   Maximum absolute deviation of each position from its exact trajectory, at
+//   5.0e-8. That is looser than the inversion studies because the positions are
+//   produced by a time integrator asked for a relative accuracy of 1.0e-10, and
+//   its error accumulates over the interval; the bound sits above what the
+//   controller was asked to deliver rather than at machine precision. Weights
+//   and topology are compared exactly, since advection has no licence to change
+//   them at all.
+//
+// Reproduce
+//   ctest -R verification_node_advection
+//
+// Build modes
+//   Both. Failures are reported through an exit code, not assert().
+
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/node_advection.hpp"
@@ -599,21 +634,27 @@ int main(const int argc, char** argv)
     const bool passed = result.passed && result.errors.node <= tolerance && result.errors.weight <= tolerance &&
                         result.errors.moment_relative <= tolerance && result.errors.moment_absolute <= 1.0e-5;
 
-    std::cout << "QMOMKit node-advection analytical verification\n";
-    std::cout << "Configuration: " << configuration_path << '\n';
-    std::cout << "Tolerance: " << std::scientific << tolerance << " (nodes/weights and unit-floored relative moments)\n\n";
-    std::cout << std::left << std::setw(28) << "case" << std::right << std::setw(14) << "node abs" << std::setw(14) << "weight abs" << std::setw(14)
-              << "moment abs" << std::setw(14) << "moment rel" << std::setw(14) << "loose err" << std::setw(14) << "tight err" << std::setw(9)
-              << "status" << '\n';
-    std::cout << std::string(121, '-') << '\n';
-    std::cout << std::left << std::setw(28) << definition->name << std::right << std::scientific << std::setprecision(4) << std::setw(14)
-              << result.errors.node << std::setw(14) << result.errors.weight << std::setw(14) << result.errors.moment_absolute << std::setw(14)
-              << result.errors.moment_relative << std::setw(14) << result.loose_error << std::setw(14) << result.tight_error << std::setw(9)
-              << (passed ? "PASS" : "FAIL") << '\n';
-
-    if (!result.passed)
+    // Silent on success. These numbers exist to diagnose a failure, and CTest
+    // surfaces stderr through --output-on-failure.
+    if (!(passed))
     {
-        std::cerr << result.message << '\n';
+        std::cerr << "QMOMKit node-advection analytical verification\n";
+        std::cerr << "Configuration: " << configuration_path << '\n';
+        std::cerr << "Tolerance: " << std::scientific << tolerance << " (nodes/weights and unit-floored relative moments)\n\n";
+        std::cerr << std::left << std::setw(28) << "case" << std::right << std::setw(14) << "node abs" << std::setw(14) << "weight abs"
+                  << std::setw(14) << "moment abs" << std::setw(14) << "moment rel" << std::setw(14) << "loose err" << std::setw(14) << "tight err"
+                  << std::setw(9) << "status" << '\n';
+        std::cerr << std::string(121, '-') << '\n';
+        std::cerr << std::left << std::setw(28) << definition->name << std::right << std::scientific << std::setprecision(4) << std::setw(14)
+                  << result.errors.node << std::setw(14) << result.errors.weight << std::setw(14) << result.errors.moment_absolute << std::setw(14)
+                  << result.errors.moment_relative << std::setw(14) << result.loose_error << std::setw(14) << result.tight_error << std::setw(9)
+                  << (passed ? "PASS" : "FAIL") << '\n';
+
+        if (!result.passed)
+        {
+            std::cerr << result.message << '\n';
+        }
     }
+
     return passed ? 0 : 1;
 }

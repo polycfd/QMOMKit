@@ -1,3 +1,57 @@
+// QMOM phase-space evolution against a problem whose exact answer is known in
+// closed form, and a measurement of the splitting order.
+//
+// What is verified
+//   direct_advection - that advecting the quadrature and then rebuilding the
+//     moments reproduces the exact solution, and that advection alone moves
+//     the positions while leaving the weights untouched.
+//   phase_space_source - that combining advection with a source term converges
+//     to the exact solution as the time step shrinks, at the order each
+//     splitting scheme is supposed to achieve.
+//
+// How the reference is constructed
+//   The velocity is chosen as u(x) = x, which is the case that can be solved
+//   on paper. Each quadrature position then satisfies dx/dt = x, so it grows
+//   as x(t) = x(0)*exp(t), and advection never changes a weight. The raw
+//   moment of order k is a weighted sum of the k-th powers of the positions,
+//   so it follows
+//
+//       M_k(t) = M_k(0) * exp(k*t).
+//
+//   Adding a source that injects 0.1 into every moment per unit time gives
+//
+//       dM_k/dt = k*M_k + 0.1,
+//
+//   whose solution is M_0(t) = M_0(0) + 0.1*t and, for k >= 1,
+//       M_k(t) = M_k(0)*exp(k*t) + 0.1*(exp(k*t) - 1)/k.
+//
+//   That closed form is the reference. The starting moments come from three
+//   chosen positions and weights, so the initial state is exact as well and
+//   nothing here is taken from a previous QMOMKit run.
+//
+// Error metric
+//   Maximum moment error relative to max(|expected|, 1). The observed order of
+//   convergence is the base-2 logarithm of the ratio of errors between
+//   successive halvings of the time step.
+//
+// Pass criteria
+//   direct_advection - positions within 2.0e-12 absolute of x(0)*exp(0.1),
+//     weights bit-for-bit unchanged, rebuilt moments within 2.0e-11 relative.
+//   phase_space_source - the error must fall at every refinement, and over the
+//     last two refinements the observed order must exceed 1.7 for Strang and
+//     lie between 0.7 and 1.3 for the two first-order orderings. Those bounds
+//     are the textbook orders of the schemes: second order for Strang, first
+//     order for a single advection-then-source or source-then-advection pass.
+//     They are stated as ranges because an observed order measured from two
+//     finite steps is itself only approximate.
+//
+// Reproduce
+//   ctest -R verification_phase_space_evolution_qmom_linear_advection
+//
+// Build modes
+//   Both. The checks use QMOMKIT_VERIFY_CHECK, which reports and exits rather
+//   than relying on assert(), so NDEBUG does not weaken this study.
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
 

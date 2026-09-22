@@ -1,3 +1,39 @@
+// One-dimensional inversion as a moment sequence approaches the edge of the
+// set of moments a real distribution can produce.
+//
+// What is verified
+//   That an inversion accepted near that edge still satisfies the properties
+//   every quadrature must have - positive weights that sum to the zeroth
+//   moment, positions in increasing order - and still reproduces the moments
+//   it was given, whatever node count the adaptive path settles on. The
+//   neighbouring files cover only sequences that are comfortably interior
+//   (classical rules) or exactly degenerate; these cover the approach itself,
+//   which qmom_wheeler.md names as the most sensitive regime.
+//
+// How the reference is constructed
+//   Chosen, not computed. Each case starts from positions and weights, with
+//   two of the positions placed a controlled distance apart, and the moments
+//   are built from them. Shrinking that separation walks the sequence towards
+//   the edge while keeping the exact answer known at every step.
+//
+// Error metric
+//   Maximum absolute deviation of the rebuilt moments from the supplied
+//   moments.
+//
+// Pass criteria
+//   Rebuilt moments within 1.0e-12 absolute, plus the quadrature properties
+//   above on every accepted result. The separation at which the adaptive path
+//   starts returning fewer nodes is deliberately not pinned: that threshold
+//   depends on floating-point conditioning rather than on any documented
+//   contract, so asserting it would turn a numerical accident into a
+//   requirement.
+//
+// Reproduce
+//   ctest -R verification_qmom_.*(coalescing|adaptive_reduction|boundary)
+//
+// Build modes
+//   Both. Checks go through QMOMKIT_VERIFY_*, not assert().
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/qmom.hpp"
@@ -8,18 +44,6 @@
 #include <cmath>
 #include <cstddef>
 #include <vector>
-
-// Behavior of one-dimensional inversion as a moment sequence approaches the
-// boundary of realizable moment space. `qmom_wheeler.md` names this the most
-// sensitive regime, but the neighbouring verification files only cover
-// sequences that are either comfortably interior (classical quadrature rules)
-// or exactly degenerate. These cases cover the approach itself.
-//
-// Every reference here is constructed from known nodes and weights, so the
-// expected moments are defined independently of the inversion under test. The
-// cases deliberately assert mathematical invariants and documented contracts
-// rather than the value of the separation at which behavior changes: that
-// threshold depends on floating-point conditioning and is not a contract.
 
 namespace
 {

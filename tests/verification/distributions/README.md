@@ -32,13 +32,12 @@ moment scale, not to the behavior of a previous implementation.
 
 The CTest registrations are:
 
-- `verification_distribution_families_analytical`;
-- `verification_distribution_mixtures_analytical`;
-- `verification_distribution_independent_products_analytical`;
-- `verification_distribution_configuration_initialization`.
+- `verification_distributions_analytical_*`, one registration per distribution
+  family, mixture, independent product, and configuration-driven initialization
+  case.
 
-Run all distribution analytical verification groups with:
+Run all distribution analytical verification cases with:
 
 ```bash
-ctest --test-dir build -R '^verification_distribution_' --output-on-failure
+ctest --test-dir build -R '^verification_distributions_analytical_' --output-on-failure
 ```

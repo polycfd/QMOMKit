@@ -1,3 +1,29 @@
+// Public configuration loaders rejecting malformed or incomplete .qmom files.
+//
+// What is verified
+//   That each faulty configuration is refused with a specific error, and that
+//   the loader returns no case at all rather than a partially constructed one
+//   a caller might then use.
+//
+// How the reference is constructed
+//   By construction rather than by computation: each case is a .qmom file
+//   containing one deliberate fault - a malformed section header, an invalid
+//   boolean, missing moments, a hierarchy the loader cannot infer, an unknown
+//   Vandermonde solver, a moment set that cannot support the requested node
+//   count. The expected error is written beside each case. There is no
+//   numerical reference because no case should be produced.
+//
+// Pass criteria
+//   The load must fail, the reported error must identify the intended cause,
+//   and the result must hold no case. Checking failure alone would not
+//   distinguish a correct diagnosis from an unrelated one.
+//
+// Reproduce
+//   ctest -R verification_configuration
+//
+// Build modes
+//   Both. Checks go through QMOMKIT_VERIFY_*, not assert().
+
 #include "../verification_helpers.hpp"
 #include "qmomkit/configuration.hpp"
 
@@ -65,7 +91,6 @@ void verify_failed_load(const qmomkit::config::ConfigurationResult<T>& result, c
 void verify_case(const ExpectedFailure& expected, const std::filesystem::path& directory)
 {
     const std::filesystem::path path = directory / expected.filename;
-    std::cerr << "Checking " << expected.filename << '\n';
     QMOMKIT_VERIFY_CHECK(std::filesystem::exists(path));
 
     if (expected.loader == Loader::qmom)
@@ -146,7 +171,5 @@ int main(const int argc, char** argv)
         return 2;
     }
 
-    std::cout << "QMOMKit configuration failure-path verification\n";
-    std::cout << "Verified " << selected_filename << " through public load_qmom/load_cqmom workflows.\n";
     return 0;
 }

@@ -1,3 +1,35 @@
+// Deciding whether a moment sequence could have come from a real distribution.
+//
+// What is verified
+//   That sequences known to be realizable are accepted and sequences known not
+//   to be are rejected, and that in both cases the diagnostics identify which
+//   order and which matrix decided it, with a pivot whose sign and magnitude
+//   are consistent with that verdict.
+//
+// How the reference is constructed
+//   By construction on both sides. Realizable cases are built from actual
+//   weighted points, so a distribution producing those moments demonstrably
+//   exists. Unrealizable cases are built by taking such a sequence and
+//   violating a specific requirement - a negative zeroth moment, a negative
+//   variance, a Hankel determinant driven through zero - so the expected
+//   verdict and the order at which it should be reached are both known before
+//   the check runs.
+//
+// Error metric and pass criteria
+//   Verdict and reported order must match exactly. The reported pivot must
+//   exceed the tolerance actually used for a strictly realizable sequence, and
+//   fall below its negative for a rejected one, which is what distinguishes a
+//   decision from a coin flip near the boundary. Numerical comparisons use
+//   1.0e-8, looser than the inversion studies because these sequences are
+//   deliberately placed near the boundary where the determinants are small
+//   differences of larger numbers.
+//
+// Reproduce
+//   ctest -R verification_realizability
+//
+// Build modes
+//   Both. Failures are reported through an exit code, not assert().
+
 #include "../verification_helpers.hpp"
 #include "test_case_dispatch.hpp"
 

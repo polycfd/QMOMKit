@@ -2,6 +2,7 @@
 
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/release.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/release.yml/badge.svg" alt="CI-Release"></a>
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/debug.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/debug.yml/badge.svg" alt="CI-Debug"></a>
+<a href="https://github.com/polycfd/QMOMKit/actions/workflows/warnings_gcc.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/warnings_gcc.yml/badge.svg" alt="CI-Warnings-GCC"></a>
 <a href="https://github.com/polycfd/QMOMKit/actions/workflows/clang-format.yml"><img src="https://github.com/polycfd/QMOMKit/actions/workflows/clang-format.yml/badge.svg" alt="CI-Indentation"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
 

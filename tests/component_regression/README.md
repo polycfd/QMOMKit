@@ -36,3 +36,39 @@ Current component regression coverage includes:
   reinversion and active-count persistence through zero-rate state evolution.
   Its original generation provenance is not recoverable, so it is not
   independent numerical verification.
+- CQMOM recorded reference values across a case matrix spanning phase-space
+  dimension, conditioning order, node counts, adaptive branch counts, bounded
+  coordinate support, every Vandermonde solver policy, and all three splitting
+  schemes. Each case is additionally checked against the quadrature nodes its
+  moments were computed from, so the recorded values are analytically anchored
+  rather than merely self-consistent;
+- CQMOM dense/lean moment-storage parity across that same case matrix.
+
+## The CQMOM case matrix
+
+`cqmom_case_matrix.*` defines one case matrix shared by
+`cqmom_reference_values.cpp` and `cqmom_dense_lean_parity_matrix.cpp`. The two
+tests answer different questions and neither replaces the other:
+
+- the reference-value test asks *did the result change?* and compares
+  bit-exactly against recorded values;
+- the parity test asks *do the two storage schemes agree?* and compares the two
+  paths against each other to round-off.
+
+A change inside the shared reconstruction core moves both storage paths
+together, so it is caught by the reference test and not by the parity test.
+
+The six Vandermonde solver cases can produce identical numbers to one another,
+because the systems they solve are well conditioned. They are still six
+separate cases: each pins its own dispatch path, so silently routing one solver
+to another implementation changes that case's recorded values and no others.
+
+### Regenerating the recorded values
+
+`cqmom_reference_values.inc` is generated, but no generator is shipped: the
+values are meant to be stable, and regenerating them should be a deliberate act
+with the same justification as any other change to numerical behaviour. To
+regenerate, write a short program that links the library, includes
+`cqmom_case_matrix.hpp`, walks `static_cases()` and `evolution_cases()` exactly
+as the test does, and prints each accepted quadrature at `%.17g`. Keep it
+outside the repository.

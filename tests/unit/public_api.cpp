@@ -392,23 +392,6 @@ void test_cqmom_case_and_state_assignment_preserve_independent_values()
     assert(state.moment_values() == before_self_assignment);
 }
 
-void test_cqmom_dense_case_promotes_to_state_and_exposes_quadrature()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    qmomkit::CqmomDenseCase dense_case{hierarchy, public_cqmom_promotion_moments()};
-    const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(dense_case);
-    assert(expected.ok());
-
-    const qmomkit::CqmomCase case_{std::move(dense_case)};
-    const qmomkit::CqmomState state = case_.initial_state();
-
-    assert(case_.moment_storage() == qmomkit::CqmomMomentStorage::dense);
-    assert(state.moment_storage() == qmomkit::CqmomMomentStorage::dense);
-    assert(state.hierarchy().node_counts() == hierarchy.node_counts());
-    assert(state.moment_values().size() == 16);
-    assert_same_quadrature(state.quadrature(), expected.quadrature, 1.0e-10);
-}
-
 void test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -699,50 +682,6 @@ void test_create_cqmom_moment_data_from_independent_product_selected_moments()
     }
 }
 
-void test_lean_cqmom_public_api_matches_dense_two_dimensional()
-{
-    assert_public_lean_cqmom_matches_dense(qmomkit::PhaseSpaceHierarchy({2, 2}));
-}
-
-void test_lean_cqmom_public_api_matches_dense_three_dimensional()
-{
-    assert_public_lean_cqmom_matches_dense(qmomkit::PhaseSpaceHierarchy({2, 2, 2}));
-}
-
-void test_lean_cqmom_public_api_matches_dense_non_identity()
-{
-    assert_public_lean_cqmom_matches_dense(qmomkit::PhaseSpaceHierarchy({2, 2, 2}, {2, 0, 1}));
-}
-
-void test_lean_cqmom_public_api_matches_dense_unequal_node_counts()
-{
-    assert_public_lean_cqmom_matches_dense(qmomkit::PhaseSpaceHierarchy({2, 3, 4}));
-}
-
-void test_lean_cqmom_public_api_matches_dense_adaptive()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2});
-    const std::vector<std::size_t> extents{4, 4, 4};
-    const std::vector<double> weights{0.05, 0.05, 0.30, 0.60};
-    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, -1.0, 1.0}, {-2.0, -2.0, 2.0, 3.0}, {-1.0, 1.0, 0.0, 2.0}};
-    const qmomkit::RawMomentTensor dense_moments{extents, raw_moments_from_terminals(extents, weights, abscissas)};
-    const qmomkit::QmomOptions qmom_options{true, 1.0e-10, 1.0e-10, 1.0e-12};
-
-    qmomkit::CqmomDenseCase dense_case{hierarchy, dense_moments, {}, qmom_options, true};
-    dense_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
-    qmomkit::CqmomLeanCase lean_case{lean_moments_from_dense(hierarchy, dense_moments), {}, qmom_options, true};
-    lean_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
-
-    const qmomkit::CqmomResult dense = qmomkit::compute_cqmom(dense_case);
-    const qmomkit::CqmomResult lean = qmomkit::compute_cqmom(lean_case);
-
-    assert(dense.ok());
-    assert(lean.ok());
-    assert(dense.quadrature.adaptive_branch_counts_enabled());
-    assert(!dense.quadrature.has_rectangular_storage());
-    assert_same_cqmom_result(lean, dense, 1.0e-10);
-}
-
 void test_lean_cqmom_public_api_rejects_missing_values()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -799,47 +738,6 @@ void test_lean_cqmom_public_api_rejects_incompatible_layout()
     assert(!result.ok());
     assert(result.status == qmomkit::CqmomStatus::invalid_input);
     assert(result.message == "CQMOM moment data layout must match the recursive hierarchy.");
-}
-
-void test_cqmom_public_api_reports_missing_required_dense_moment()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const std::vector<std::size_t> extents{3, 4};
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {extents, indexed_values(extents)}, {}, {}});
-
-    assert(!result.ok());
-    assert(result.status == qmomkit::CqmomStatus::invalid_input);
-    assert(!result.message.empty());
-}
-
-void test_cqmom_public_api_preserves_dense_invalid_input_messages()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-
-    const qmomkit::CqmomResult rank =
-        qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, qmomkit::RawMomentTensor{{4}, std::vector<double>(4, 1.0)}, {}, {}});
-    assert(!rank.ok());
-    assert(rank.status == qmomkit::CqmomStatus::invalid_input);
-    assert(rank.message == "Raw moment extents must match the hierarchy dimension.");
-
-    const qmomkit::CqmomResult count =
-        qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, qmomkit::RawMomentTensor{{4, 4}, std::vector<double>(15, 1.0)}, {}, {}});
-    assert(!count.ok());
-    assert(count.status == qmomkit::CqmomStatus::invalid_input);
-    assert(count.message == "Raw moment data size does not match its extents.");
-
-    qmomkit::RawMomentTensor nonfinite{{4, 4}, std::vector<double>(16, 1.0)};
-    nonfinite.values.front() = std::numeric_limits<double>::infinity();
-    const qmomkit::CqmomResult finite = qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, nonfinite, {}, {}});
-    assert(!finite.ok());
-    assert(finite.status == qmomkit::CqmomStatus::invalid_input);
-    assert(finite.message == "Raw moments must be finite.");
-
-    const qmomkit::CqmomResult extents =
-        qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{hierarchy, qmomkit::RawMomentTensor{{3, 4}, indexed_values({3, 4})}, {}, {}});
-    assert(!extents.ok());
-    assert(extents.status == qmomkit::CqmomStatus::invalid_input);
-    assert(extents.message == "Raw moment extents must contain at least 2*N orders per dimension.");
 }
 
 template <typename Case> void assert_cqmom_rejects_unrepresentable_required_moment_extent(const Case& case_)
@@ -1477,31 +1375,6 @@ void test_cqmom_diagnostics_default_bounded_support_placeholder()
     assert_near(diagnostics.bounded_support_interval.upper, 0.0, 0.0);
 }
 
-void test_cqmom_storage_settings_format()
-{
-    assert(qmomkit::to_string(qmomkit::CqmomMomentStorage::lean) == "lean");
-    assert(qmomkit::to_string(qmomkit::CqmomMomentStorage::dense) == "dense");
-
-    const std::string formatted = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::dense, true, qmomkit::VandermondeSolver::dense,
-                                                                 qmomkit::CqmomDiagnosticLevel::detailed);
-    assert(formatted.find("moment storage = dense") != std::string::npos);
-    assert(formatted.find("adaptive branch counts = enabled") != std::string::npos);
-    assert(formatted.find("Vandermonde solver = dense") != std::string::npos);
-    assert(formatted.find("diagnostic level = detailed") != std::string::npos);
-
-    const std::string pivoted_qr = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false, qmomkit::VandermondeSolver::pivoted_qr,
-                                                                  qmomkit::CqmomDiagnosticLevel::basic);
-    assert(pivoted_qr.find("Vandermonde solver = pivoted_qr") != std::string::npos);
-
-    const std::string svd = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false, qmomkit::VandermondeSolver::svd,
-                                                           qmomkit::CqmomDiagnosticLevel::basic);
-    assert(svd.find("Vandermonde solver = svd") != std::string::npos);
-
-    const std::string moore_penrose = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false,
-                                                                     qmomkit::VandermondeSolver::moore_penrose, qmomkit::CqmomDiagnosticLevel::basic);
-    assert(moore_penrose.find("Vandermonde solver = moore_penrose") != std::string::npos);
-}
-
 } // namespace
 
 int main(const int argc, char** argv)
@@ -1528,19 +1401,11 @@ int main(const int argc, char** argv)
             {"create_cqmom_moment_data_rejects_non_finite_values", test_create_cqmom_moment_data_rejects_non_finite_values},
             {"create_cqmom_moment_data_from_independent_product_selected_moments",
              test_create_cqmom_moment_data_from_independent_product_selected_moments},
-            {"cqmom_dense_case_promotes_to_state_and_exposes_quadrature", test_cqmom_dense_case_promotes_to_state_and_exposes_quadrature},
             {"cqmom_lean_case_promotes_to_state_and_exposes_quadrature", test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature},
-            {"lean_cqmom_public_api_matches_dense_two_dimensional", test_lean_cqmom_public_api_matches_dense_two_dimensional},
-            {"lean_cqmom_public_api_matches_dense_three_dimensional", test_lean_cqmom_public_api_matches_dense_three_dimensional},
-            {"lean_cqmom_public_api_matches_dense_non_identity", test_lean_cqmom_public_api_matches_dense_non_identity},
-            {"lean_cqmom_public_api_matches_dense_unequal_node_counts", test_lean_cqmom_public_api_matches_dense_unequal_node_counts},
-            {"lean_cqmom_public_api_matches_dense_adaptive", test_lean_cqmom_public_api_matches_dense_adaptive},
             {"lean_cqmom_public_api_rejects_missing_values", test_lean_cqmom_public_api_rejects_missing_values},
             {"lean_cqmom_public_api_rejects_non_finite_values", test_lean_cqmom_public_api_rejects_non_finite_values},
             {"lean_cqmom_public_api_rejects_invalid_options", test_lean_cqmom_public_api_rejects_invalid_options},
             {"lean_cqmom_public_api_rejects_incompatible_layout", test_lean_cqmom_public_api_rejects_incompatible_layout},
-            {"cqmom_public_api_reports_missing_required_dense_moment", test_cqmom_public_api_reports_missing_required_dense_moment},
-            {"cqmom_public_api_preserves_dense_invalid_input_messages", test_cqmom_public_api_preserves_dense_invalid_input_messages},
             {"cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage",
              test_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage},
             {"qmom_public_api_matches_wheeler", test_qmom_public_api_matches_wheeler},
@@ -1565,6 +1430,5 @@ int main(const int argc, char** argv)
             {"cqmom_diagnostic_levels_control_expensive_diagnostics", test_cqmom_diagnostic_levels_control_expensive_diagnostics},
             {"cqmom_none_diagnostics_preserves_failure_context", test_cqmom_none_diagnostics_preserves_failure_context},
             {"cqmom_diagnostics_default_bounded_support_placeholder", test_cqmom_diagnostics_default_bounded_support_placeholder},
-            {"cqmom_storage_settings_format", test_cqmom_storage_settings_format},
         });
 }

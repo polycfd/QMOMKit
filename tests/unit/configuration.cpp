@@ -700,42 +700,6 @@ sigma_log = 0.45
     assert_tensor_near(initialized.value(), expected.moments);
 }
 
-void test_lean_cqmom_initialization_matches_dense_subselection()
-{
-    const auto initial = qmomkit::config::parse_cqmom_initial_condition(R"(
-[phase_space]
-node_counts = 2, 2
-conditioning_order = 1, 0
-
-[initial]
-type = independent_product
-number_density = 2.5
-maximum_orders = 3, 3
-
-[initial.dimension.0]
-family = gamma
-shape = 3.0
-scale = 0.2
-
-[initial.dimension.1]
-family = normal
-mean = -0.5
-standard_deviation = 1.25
-)");
-    assert(initial.ok());
-
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
-    const auto dense = qmomkit::config::initialize_cqmom_dense_moments(initial.value());
-    const auto lean = qmomkit::config::initialize_cqmom_moment_data(initial.value(), hierarchy);
-    assert(dense.ok());
-    assert(lean.ok());
-
-    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomMomentData expected = qmomkit::extract_cqmom_moments(dense.value(), layout);
-    assert_cqmom_moments_near(lean.value(), expected);
-    assert_near(lean.value().moment({0, 0}), 2.5);
-}
-
 void test_lean_cqmom_initialization_matches_example_flow()
 {
     const auto initial = qmomkit::config::parse_cqmom_initial_condition(R"(
@@ -979,54 +943,6 @@ standard_deviation = 1.25
     assert(result.ok());
 }
 
-void test_cqmom_lean_case_matches_dense_case_path()
-{
-    const std::string text = R"(
-[phase_space]
-names = size, velocity
-node_counts = 2, 2
-conditioning_order = 1, 0
-
-[initial]
-type = independent_product
-number_density = 2.5
-maximum_orders = 3, 3
-
-[initial.dimension.0]
-family = gamma
-shape = 3.0
-scale = 0.2
-
-[initial.dimension.1]
-family = normal
-mean = -0.5
-standard_deviation = 1.25
-)";
-
-    const auto dense = qmomkit::config::parse_cqmom_dense(text);
-    const auto lean = qmomkit::config::parse_cqmom_lean(text);
-    assert(dense.ok());
-    assert(lean.ok());
-
-    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense.value().hierarchy);
-    const qmomkit::CqmomMomentData expected = qmomkit::extract_cqmom_moments(dense.value().moments, layout);
-    assert_cqmom_moments_near(lean.value().moments, expected);
-
-    const qmomkit::CqmomResult dense_result = qmomkit::compute_cqmom(dense.value());
-    const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(lean.value());
-    assert(dense_result.ok());
-    assert(lean_result.ok());
-    assert(dense_result.quadrature.weights().size() == lean_result.quadrature.weights().size());
-    for (std::size_t node = 0; node < dense_result.quadrature.weights().size(); ++node)
-    {
-        assert_near(lean_result.quadrature.weights()[node], dense_result.quadrature.weights()[node]);
-        for (std::size_t dimension = 0; dimension < dense_result.quadrature.number_of_dimensions(); ++dimension)
-        {
-            assert_near(lean_result.quadrature.abscissas()[dimension][node], dense_result.quadrature.abscissas()[dimension][node]);
-        }
-    }
-}
-
 void test_cqmom_lean_case_selects_explicit_dense_tensor()
 {
     const auto lean = qmomkit::config::parse_cqmom_lean(cqmom_text, "cqmom-test");
@@ -1237,41 +1153,6 @@ support_upper = none, 2.0
     assert(has_message_fragment(lower_negative_inf, "support_lower must contain finite numbers or none entries"));
 }
 
-void test_cqmom_case_moment_storage_selection()
-{
-    std::string dense_text = cqmom_text;
-    dense_text += "\n[cqmom]\nmoment_storage = dense\n";
-    const auto dense_case_result = qmomkit::config::parse_cqmom(dense_text, "cqmom-dense-storage");
-    const auto explicit_dense = qmomkit::config::parse_cqmom_dense(dense_text, "cqmom-dense-storage");
-    const auto conflicting_lean = qmomkit::config::parse_cqmom_lean(dense_text, "cqmom-dense-storage");
-    assert(dense_case_result.ok());
-    assert(explicit_dense.ok());
-    assert(!conflicting_lean.ok());
-    assert(has_message_fragment(conflicting_lean, "parse_cqmom_lean requires cqmom.moment_storage = lean"));
-
-    const qmomkit::CqmomCase dense_case = dense_case_result.value();
-    assert(dense_case.moment_storage() == qmomkit::CqmomMomentStorage::dense);
-    assert(dense_case.initial_state().moment_storage() == qmomkit::CqmomMomentStorage::dense);
-
-    std::string lean_text = cqmom_text;
-    lean_text += "\n[cqmom]\nmoment_storage = lean\n";
-    const auto lean_case_result = qmomkit::config::parse_cqmom(lean_text, "cqmom-lean-storage");
-    const auto explicit_lean = qmomkit::config::parse_cqmom_lean(lean_text, "cqmom-lean-storage");
-    const auto conflicting_dense = qmomkit::config::parse_cqmom_dense(lean_text, "cqmom-lean-storage");
-    assert(lean_case_result.ok());
-    assert(explicit_lean.ok());
-    assert(!conflicting_dense.ok());
-    assert(has_message_fragment(conflicting_dense, "parse_cqmom_dense requires cqmom.moment_storage = dense"));
-    assert(lean_case_result.value().moment_storage() == qmomkit::CqmomMomentStorage::lean);
-    assert(lean_case_result.value().initial_state().moment_storage() == qmomkit::CqmomMomentStorage::lean);
-
-    std::string invalid_text = cqmom_text;
-    invalid_text += "\n[cqmom]\nmoment_storage = compact\n";
-    const auto invalid = qmomkit::config::parse_cqmom(invalid_text, "cqmom-invalid-storage");
-    assert(!invalid.ok());
-    assert(has_message_fragment(invalid, "cqmom.moment_storage must be lean or dense"));
-}
-
 void test_cqmom_case_initial_state_preserves_case_settings()
 {
     const auto case_result = qmomkit::config::parse_cqmom(cqmom_text, "cqmom-test");
@@ -1347,45 +1228,6 @@ qmomkit::CqmomDenseCase cqmom_dense_replacement_base()
             qmomkit::CqmomDiagnosticLevel::basic,
             qmomkit::VandermondeSolver::dense,
             cqmom_replacement_support()};
-}
-
-void test_cqmom_case_replaces_dense_initial_moments_immutably()
-{
-    const qmomkit::CqmomDenseCase dense_base = cqmom_dense_replacement_base();
-    const qmomkit::CqmomCase base_case = qmomkit::internal::CqmomConstructionAccess::create_case(dense_base);
-    qmomkit::RawMomentTensor replacement = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
-    const qmomkit::RawMomentTensor expected_replacement = replacement;
-
-    const auto transformed = qmomkit::config::with_initial_moments(base_case, replacement);
-    assert(transformed.ok());
-    const qmomkit::CqmomCase replaced_case = transformed.value();
-    assert(replaced_case.moment_storage() == qmomkit::CqmomMomentStorage::dense);
-    assert_cqmom_case_policies_equal(replaced_case, base_case);
-
-    replacement.values[0] = -999.0;
-    const qmomkit::CqmomState base_state = base_case.initial_state();
-    const qmomkit::CqmomState replaced_state = replaced_case.initial_state();
-    assert(base_state.moment_storage() == qmomkit::CqmomMomentStorage::dense);
-    assert(replaced_state.moment_storage() == qmomkit::CqmomMomentStorage::dense);
-    assert(replaced_state.moment_indices() == qmomkit::enumerate_multi_indices(expected_replacement.extents));
-
-    const qmomkit::CqmomResult base_result = qmomkit::compute_cqmom(base_case);
-    const qmomkit::CqmomResult replaced_result = qmomkit::compute_cqmom(replaced_case);
-    const qmomkit::CqmomResult expected_base_result = qmomkit::compute_cqmom(dense_base);
-    const qmomkit::CqmomResult expected_result = qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{
-        dense_base.hierarchy, expected_replacement, dense_base.conditional_options, dense_base.qmom_options, dense_base.adaptive_branch_counts,
-        dense_base.diagnostic_level, dense_base.vandermonde_solver, dense_base.coordinate_support});
-    assert(base_result.ok());
-    assert(replaced_result.ok());
-    assert(expected_base_result.ok());
-    assert(expected_result.ok());
-    assert_cqmom_quadratures_near(base_result.quadrature, expected_base_result.quadrature);
-    assert_cqmom_quadratures_near(replaced_result.quadrature, expected_result.quadrature);
-
-    const qmomkit::RawMomentTensor canonical_base = qmomkit::reconstruct_raw_moments(base_result.quadrature, dense_base.moments.extents);
-    const qmomkit::RawMomentTensor canonical_replacement = qmomkit::reconstruct_raw_moments(replaced_result.quadrature, expected_replacement.extents);
-    assert_tensor_near({dense_base.moments.extents, base_state.moment_values()}, canonical_base);
-    assert_tensor_near({expected_replacement.extents, replaced_state.moment_values()}, canonical_replacement);
 }
 
 void test_cqmom_case_replaces_lean_initial_moments_immutably()
@@ -4093,22 +3935,18 @@ void run_all_configuration_tests()
     test_valid_cqmom_matches_programmatic_case();
     test_cqmom_independent_product_initialization_matches_direct_api();
     test_cqmom_independent_product_mixture_marginal_initialization();
-    test_lean_cqmom_initialization_matches_dense_subselection();
     test_lean_cqmom_initialization_matches_example_flow();
     test_lean_cqmom_initialization_omits_maximum_orders();
     test_dense_cqmom_initialization_omits_maximum_orders();
     test_lean_cqmom_initialization_selects_explicit_dense_tensor();
     test_cqmom_lean_case_uses_selected_analytical_moments();
-    test_cqmom_lean_case_matches_dense_case_path();
     test_cqmom_lean_case_selects_explicit_dense_tensor();
     test_cqmom_case_uses_selected_analytical_moments();
     test_cqmom_case_accepts_explicit_dense_tensor();
     test_cqmom_case_parses_coordinate_support();
     test_cqmom_factories_preserve_coordinate_support();
     test_cqmom_case_rejects_invalid_coordinate_support();
-    test_cqmom_case_moment_storage_selection();
     test_cqmom_case_initial_state_preserves_case_settings();
-    test_cqmom_case_replaces_dense_initial_moments_immutably();
     test_cqmom_case_replaces_lean_initial_moments_immutably();
     test_cqmom_case_replaces_lean_initial_moments_from_moment_data();
     test_cqmom_case_moment_data_replacement_rejects_invalid_input();
@@ -4175,7 +4013,6 @@ void run_initialization_tests()
     test_valid_cqmom_matches_programmatic_case();
     test_cqmom_independent_product_initialization_matches_direct_api();
     test_cqmom_independent_product_mixture_marginal_initialization();
-    test_lean_cqmom_initialization_matches_dense_subselection();
     test_lean_cqmom_initialization_matches_example_flow();
     test_lean_cqmom_initialization_omits_maximum_orders();
     test_dense_cqmom_initialization_omits_maximum_orders();
@@ -4185,16 +4022,13 @@ void run_initialization_tests()
 void run_cqmom_case_state_tests()
 {
     test_cqmom_lean_case_uses_selected_analytical_moments();
-    test_cqmom_lean_case_matches_dense_case_path();
     test_cqmom_lean_case_selects_explicit_dense_tensor();
     test_cqmom_case_uses_selected_analytical_moments();
     test_cqmom_case_accepts_explicit_dense_tensor();
     test_cqmom_case_parses_coordinate_support();
     test_cqmom_factories_preserve_coordinate_support();
     test_cqmom_case_rejects_invalid_coordinate_support();
-    test_cqmom_case_moment_storage_selection();
     test_cqmom_case_initial_state_preserves_case_settings();
-    test_cqmom_case_replaces_dense_initial_moments_immutably();
     test_cqmom_case_replaces_lean_initial_moments_immutably();
     test_cqmom_case_replaces_lean_initial_moments_from_moment_data();
     test_cqmom_case_moment_data_replacement_rejects_invalid_input();
@@ -4274,22 +4108,18 @@ int main(const int argc, char** argv)
             {"qmom_automatic_scaling_is_owned_by_case_and_state", test_qmom_automatic_scaling_is_owned_by_case_and_state},
             {"cqmom_independent_product_initialization_matches_direct_api", test_cqmom_independent_product_initialization_matches_direct_api},
             {"cqmom_independent_product_mixture_marginal_initialization", test_cqmom_independent_product_mixture_marginal_initialization},
-            {"lean_cqmom_initialization_matches_dense_subselection", test_lean_cqmom_initialization_matches_dense_subselection},
             {"lean_cqmom_initialization_matches_example_flow", test_lean_cqmom_initialization_matches_example_flow},
             {"lean_cqmom_initialization_omits_maximum_orders", test_lean_cqmom_initialization_omits_maximum_orders},
             {"dense_cqmom_initialization_omits_maximum_orders", test_dense_cqmom_initialization_omits_maximum_orders},
             {"lean_cqmom_initialization_selects_explicit_dense_tensor", test_lean_cqmom_initialization_selects_explicit_dense_tensor},
             {"cqmom_lean_case_uses_selected_analytical_moments", test_cqmom_lean_case_uses_selected_analytical_moments},
-            {"cqmom_lean_case_matches_dense_case_path", test_cqmom_lean_case_matches_dense_case_path},
             {"cqmom_lean_case_selects_explicit_dense_tensor", test_cqmom_lean_case_selects_explicit_dense_tensor},
             {"cqmom_case_uses_selected_analytical_moments", test_cqmom_case_uses_selected_analytical_moments},
             {"cqmom_case_accepts_explicit_dense_tensor", test_cqmom_case_accepts_explicit_dense_tensor},
             {"cqmom_case_parses_coordinate_support", test_cqmom_case_parses_coordinate_support},
             {"cqmom_factories_preserve_coordinate_support", test_cqmom_factories_preserve_coordinate_support},
             {"cqmom_case_rejects_invalid_coordinate_support", test_cqmom_case_rejects_invalid_coordinate_support},
-            {"cqmom_case_moment_storage_selection", test_cqmom_case_moment_storage_selection},
             {"cqmom_case_initial_state_preserves_case_settings", test_cqmom_case_initial_state_preserves_case_settings},
-            {"cqmom_case_replaces_dense_initial_moments_immutably", test_cqmom_case_replaces_dense_initial_moments_immutably},
             {"cqmom_case_replaces_lean_initial_moments_immutably", test_cqmom_case_replaces_lean_initial_moments_immutably},
             {"cqmom_case_replaces_lean_initial_moments_from_moment_data", test_cqmom_case_replaces_lean_initial_moments_from_moment_data},
             {"cqmom_case_moment_data_replacement_rejects_invalid_input", test_cqmom_case_moment_data_replacement_rejects_invalid_input},

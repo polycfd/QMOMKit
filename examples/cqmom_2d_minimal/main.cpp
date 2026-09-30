@@ -16,9 +16,22 @@ int main()
     const double final_time = 1.0;
     const double time_step = 0.01;
 
-    // Create the CASE and initialize the STATE
-    qmomkit::CqmomDenseCase dense_case{hierarchy, initial_moments};
-    const qmomkit::CqmomCase cqmom_case{std::move(dense_case)};
+    // Create the CASE and initialize the STATE.
+    //
+    // CQMOM reconstructs from a fixed subset of the moment tensor rather than
+    // from all of it: for this hierarchy, 10 of the 16 entries. The layout names
+    // exactly which moments those are, and extract_cqmom_moments picks them out
+    // of the tensor above. A caller whose moments already arrive as that subset
+    // can build the case from them directly and skip the tensor entirely.
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    qmomkit::CqmomLeanCase case_definition{qmomkit::extract_cqmom_moments(initial_moments, layout),
+                                           {},                                    // conditional-moment options
+                                           {},                                    // QMOM options
+                                           false,                                 // adaptive branch counts
+                                           qmomkit::CqmomDiagnosticLevel::none,   // diagnostics
+                                           qmomkit::VandermondeSolver::automatic, // solver policy
+                                           {}};                                   // coordinate support
+    const qmomkit::CqmomCase cqmom_case{std::move(case_definition)};
     qmomkit::CqmomState state = cqmom_case.initial_state();
 
     // Define the callback for the phase-space advection velocity. The callback

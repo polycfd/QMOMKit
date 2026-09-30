@@ -274,17 +274,25 @@ void validate_successful_quadrature(const qmomkit::CqmomResult& result)
 RunRecord run_reconstruction(const double delta, const std::vector<std::size_t>& conditioning_order, const SolverChoice& choice,
                              const bool adaptive_branch_counts, const std::string& mode)
 {
-    // The moments are built analytically from four exact atoms, so the only
-    // thing degrading as delta shrinks is the conditioning of the inversion -
-    // not the accuracy of the input.
+    // The moments are built analytically from four exact quadrature nodes, so
+    // the only thing degrading as delta shrinks is the conditioning of the
+    // inversion - not the accuracy of the input.
     const qmomkit::RawMomentTensor moments = exact_moments(delta);
     const qmomkit::PhaseSpaceHierarchy hierarchy({configured_node_count, configured_node_count}, conditioning_order);
     // `detailed` diagnostics are requested because this example exists to read
     // them: the condition estimate and residual norm below are only populated at
-    // that level. An explicit dense case is used because the moments are supplied
-    // as a full tensor rather than generated from a configuration.
-    const qmomkit::CqmomDenseCase case_{hierarchy, moments, {}, {}, adaptive_branch_counts, qmomkit::CqmomDiagnosticLevel::detailed, choice.solver};
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+    // that level. An explicit case is built rather than one loaded from a
+    // configuration, because the moments are produced analytically above; the
+    // tensor is reduced to the moments the hierarchy actually reconstructs from.
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomLeanCase case_definition{qmomkit::extract_cqmom_moments(moments, layout),
+                                                 {}, // conditional-moment options
+                                                 {}, // QMOM options
+                                                 adaptive_branch_counts,
+                                                 qmomkit::CqmomDiagnosticLevel::detailed,
+                                                 choice.solver,
+                                                 {}}; // coordinate support
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_definition);
     validate_successful_quadrature(result);
 
     const std::optional<qmomkit::CqmomDiagnostics> diagnostic = conditional_diagnostic(result);

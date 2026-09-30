@@ -9,19 +9,19 @@ time controls, and output setup are in `main.cpp`.
 The example follows this state-centric workflow:
 
 ```text
-CqmomDenseCase -> CqmomCase -> initial_state() -> CqmomState
-                                                   |
-                                                   v
-                                  advance_cqmom_phase_space(...)
-                                                   |
-                                                   v
-                                           state.quadrature()
+CqmomLeanCase -> CqmomCase -> initial_state() -> CqmomState
+                                                  |
+                                                  v
+                                 advance_cqmom_phase_space(...)
+                                                  |
+                                                  v
+                                          state.quadrature()
 ```
 
 The two phase-space coordinates are generic coordinates `x0` and `x1`. The
-case uses two nodes in each coordinate and conditioning order `{0, 1}`. It is
-constructed from a dense `4 x 4` raw-moment tensor, with rows indexed by the
-order in `x0` and columns by the order in `x1`:
+case uses two nodes in each coordinate and conditioning order `{0, 1}`. The
+moments are written out as a `4 x 4` raw-moment tensor, with rows indexed by
+the order in `x0` and columns by the order in `x1`:
 
 $$
 \begin{bmatrix}
@@ -31,6 +31,13 @@ $$
 9.5 & 0 & 2.375 & 0
 \end{bmatrix}.
 $$
+
+CQMOM does not use all sixteen entries. It reconstructs from a fixed subset
+determined by the hierarchy, which here is ten of them, and
+`create_cqmom_moment_layout(...)` names exactly which. The example therefore
+passes the tensor through `extract_cqmom_moments(...)` to select that subset
+before building the case. A caller whose moments already arrive as that subset
+can build the case from them directly and never form the tensor.
 
 ## Model
 
@@ -82,3 +89,9 @@ writes:
 The moment history uses QMOMKit's state-aware moment writer, and the
 quadrature history is written from `state.quadrature()`. No generalized
 moments are requested.
+
+The moment history holds the ten moments the state carries, not all sixteen
+entries of the tensor the case was built from. The six that are absent are the
+ones CQMOM does not reconstruct from, so the state never stores them. Any of
+them can be recovered when needed with
+`reconstruct_raw_moments(state.quadrature(), extents)`.

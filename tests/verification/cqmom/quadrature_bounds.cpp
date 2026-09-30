@@ -76,9 +76,11 @@ qmomkit::RawMomentTensor raw_moments_from_terminals(const std::vector<std::size_
     return {extents, moments};
 }
 
-qmomkit::CqmomDenseCase bounded_case(const std::vector<double>& moments, const qmomkit::AbscissaBounds interval)
+qmomkit::CqmomLeanCase bounded_case(const std::vector<double>& moments, const qmomkit::AbscissaBounds interval)
 {
-    qmomkit::CqmomDenseCase case_{qmomkit::PhaseSpaceHierarchy({2}), {{4}, moments}};
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2});
+    qmomkit::CqmomLeanCase case_{
+        qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))};
     case_.coordinate_support = {interval};
     case_.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     return case_;
@@ -137,7 +139,8 @@ void verify_coordinate_specific_bounds_in_recursive_cqmom()
     const qmomkit::AbscissaBounds y_bounds{-2.0, 0.0};
     const qmomkit::RawMomentTensor expected = raw_moments_from_terminals({4, 4}, weights, abscissas);
 
-    qmomkit::CqmomDenseCase case_{qmomkit::PhaseSpaceHierarchy({2, 2}, {1, 0}), expected};
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
+    qmomkit::CqmomLeanCase case_{qmomkit::extract_cqmom_moments(expected, qmomkit::create_cqmom_moment_layout(hierarchy))};
     case_.coordinate_support = {x_bounds, y_bounds};
     case_.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);

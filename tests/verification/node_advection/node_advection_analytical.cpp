@@ -535,16 +535,20 @@ void compare_cqmom_state(const qmomkit::CqmomQuadrature& quadrature, const std::
     }
 }
 
-void verify_initial_cqmom_state(const qmomkit::CqmomDenseCase& dense_case, const qmomkit::CqmomQuadrature& quadrature, VerificationResult& result)
+void verify_initial_cqmom_state(const qmomkit::CqmomLeanCase& case_, const qmomkit::CqmomQuadrature& quadrature, VerificationResult& result)
 {
     const std::vector<TerminalNode> expected_nodes = expected_initial_linear_system_nodes();
-    compare_cqmom_state(quadrature, expected_nodes, dense_case.moments.extents, result);
+    const std::vector<std::size_t> extents = case_.moments.layout.hierarchy.moment_extents();
+    compare_cqmom_state(quadrature, expected_nodes, extents, result);
 
-    const qmomkit::RawMomentTensor expected_moments = exact_cqmom_moments(expected_nodes, dense_case.moments.extents);
+    // The case holds the moments its hierarchy reconstructs from, so the
+    // analytically summed tensor is reduced the same way before comparison.
+    const qmomkit::CqmomMomentData expected_moments =
+        qmomkit::extract_cqmom_moments(exact_cqmom_moments(expected_nodes, extents), case_.moments.layout);
     for (std::size_t index = 0; index < expected_moments.values.size(); ++index)
     {
-        update_error(result.errors.moment_absolute, dense_case.moments.values[index], expected_moments.values[index]);
-        update_relative_error(result.errors.moment_relative, dense_case.moments.values[index], expected_moments.values[index]);
+        update_error(result.errors.moment_absolute, case_.moments.values[index], expected_moments.values[index]);
+        update_relative_error(result.errors.moment_relative, case_.moments.values[index], expected_moments.values[index]);
     }
 }
 
@@ -585,7 +589,7 @@ void verify_cqmom_plan(const qmomkit::CqmomQuadrature& initial, const TimePlan& 
 VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std::filesystem::path& configuration_path)
 {
     VerificationResult result;
-    const auto configured = qmomkit::config::load_cqmom_dense(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
     if (!configured.ok())
     {
         append_failure(result, "Failed to load CQMOM configuration.");
@@ -606,8 +610,8 @@ VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std
         append_failure(result, "2D linear-system case did not produce the expected adaptive ragged CQMOM quadrature.");
     }
     verify_initial_cqmom_state(configured.value(), cqmom.quadrature, result);
-    verify_cqmom_plan(cqmom.quadrature, definition.one_step, configured.value().moments.extents, result);
-    verify_cqmom_plan(cqmom.quadrature, definition.multi_step, configured.value().moments.extents, result);
+    verify_cqmom_plan(cqmom.quadrature, definition.one_step, configured.value().moments.layout.hierarchy.moment_extents(), result);
+    verify_cqmom_plan(cqmom.quadrature, definition.multi_step, configured.value().moments.layout.hierarchy.moment_extents(), result);
     return result;
 }
 

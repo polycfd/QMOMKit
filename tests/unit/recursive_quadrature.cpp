@@ -683,7 +683,11 @@ void assert_public_cqmom_matches_dense_recursive_reference(const qmomkit::PhaseS
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
     const qmomkit::internal::RecursiveQuadratureResult dense = qmomkit::internal::compute_recursive_quadrature(
         {hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense});
-    const qmomkit::CqmomDenseCase public_case{hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed};
+    const qmomkit::CqmomLeanCase public_case{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)),
+                                             {},
+                                             {},
+                                             false,
+                                             qmomkit::CqmomDiagnosticLevel::detailed};
     const qmomkit::CqmomResult public_result = qmomkit::compute_cqmom(public_case);
 
     assert_cqmom_result_matches_recursive_result(public_result, dense, 1.0e-10);
@@ -1016,11 +1020,13 @@ void test_fixed_public_terminal_paths_align_with_physical_storage()
 
     const std::vector<qmomkit::ConditioningPath> identity_paths{qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 1}),
                                                                 qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})};
-    const qmomkit::CqmomResult identity = qmomkit::compute_cqmom(qmomkit::CqmomDenseCase{qmomkit::PhaseSpaceHierarchy({2, 2}), {extents, moments}});
+    const qmomkit::PhaseSpaceHierarchy identity_hierarchy({2, 2});
+    const qmomkit::CqmomResult identity = qmomkit::compute_cqmom(
+        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(identity_hierarchy))});
     assert(identity.ok());
     assert(identity.quadrature.terminal_paths().to_conditioning_paths() == identity_paths);
 
-    const qmomkit::CqmomDenseCase cqmom_case{hierarchy, {extents, moments}};
+    const qmomkit::CqmomLeanCase cqmom_case{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     assert(result.ok());
     assert(result.quadrature.has_rectangular_storage());

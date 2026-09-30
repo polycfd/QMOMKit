@@ -440,42 +440,42 @@ qmomkit::RawMomentTensor expected_raw_moments(const ExpectedCase& expected)
     return moments;
 }
 
-void verify_configuration(const ExpectedCase& expected, const qmomkit::CqmomDenseCase& dense_case, VerificationResult& result)
+void verify_configuration(const ExpectedCase& expected, const qmomkit::CqmomLeanCase& configured_case, VerificationResult& result)
 {
     // The .qmom file is part of the reference definition. Before running the
     // algorithm, verify that it encodes the intended hierarchy, adaptive policy,
     // and analytical moment tensor.
-    if (dense_case.hierarchy.node_counts() != expected.node_counts)
+    if (configured_case.moments.layout.hierarchy.node_counts() != expected.node_counts)
     {
         append_failure(result, "Configured node_counts do not match expected hierarchy.");
     }
-    if (dense_case.hierarchy.conditioning_order() != expected.conditioning_order)
+    if (configured_case.moments.layout.hierarchy.conditioning_order() != expected.conditioning_order)
     {
         append_failure(result, "Configured conditioning_order does not match expected case.");
     }
-    if (dense_case.moments.extents != expected.extents)
+    if (configured_case.moments.layout.hierarchy.moment_extents() != expected.extents)
     {
         append_failure(result, "Configured extents do not match expected case.");
     }
-    if (dense_case.qmom_options.adaptive != expected.adaptive_wheeler)
+    if (configured_case.qmom_options.adaptive != expected.adaptive_wheeler)
     {
         append_failure(result, "Configured qmom.adaptive does not match expected case.");
     }
-    if (dense_case.adaptive_branch_counts != expected.adaptive_branch_counts)
+    if (configured_case.adaptive_branch_counts != expected.adaptive_branch_counts)
     {
         append_failure(result, "Configured adaptive_branch_counts does not match expected case.");
     }
 
-    const qmomkit::RawMomentTensor analytical = expected_raw_moments(expected);
-    if (analytical.values.size() != dense_case.moments.values.size())
+    const qmomkit::CqmomMomentData analytical = qmomkit::extract_cqmom_moments(expected_raw_moments(expected), configured_case.moments.layout);
+    if (analytical.values.size() != configured_case.moments.values.size())
     {
-        append_failure(result, "Configured moment tensor size does not match analytical tensor size.");
+        append_failure(result, "Configured moment count does not match the analytical reference.");
         return;
     }
     for (std::size_t index = 0; index < analytical.values.size(); ++index)
     {
-        update_error(result.errors.moment_absolute, dense_case.moments.values[index], analytical.values[index]);
-        update_relative_error(result.errors.moment_relative, dense_case.moments.values[index], analytical.values[index]);
+        update_error(result.errors.moment_absolute, configured_case.moments.values[index], analytical.values[index]);
+        update_relative_error(result.errors.moment_relative, configured_case.moments.values[index], analytical.values[index]);
     }
 }
 
@@ -771,16 +771,16 @@ void verify_reconstructed_moments(const qmomkit::CqmomQuadrature& quadrature, co
     }
 }
 
-VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::CqmomDenseCase& dense_case)
+VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::CqmomLeanCase& configured_case)
 {
     // Verify one high-dimensional CQMOM workflow from configured dense moments
     // through public compute_cqmom output. The reference is the manufactured
     // terminal quadrature plus moments assembled above, so failures point to
     // hierarchy, branch-count, terminal, or reconstruction behavior.
     VerificationResult result;
-    verify_configuration(expected, dense_case, result);
+    verify_configuration(expected, configured_case, result);
 
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(dense_case);
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(configured_case);
     if (!cqmom.ok())
     {
         append_failure(result, "compute_cqmom failed: " + cqmom.message);
@@ -800,11 +800,11 @@ VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::Cqmo
     verify_terminals(expected, terminals, result);
     verify_local_weights(expected, terminals, result);
     verify_independent_conditional_rules(expected, terminals, result);
-    verify_reconstructed_moments(cqmom.quadrature, dense_case.moments, result);
+    verify_reconstructed_moments(cqmom.quadrature, expected_raw_moments(expected), result);
     return result;
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomDenseCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -846,7 +846,7 @@ int main(const int argc, char** argv)
         return 2;
     }
 
-    const auto configured = qmomkit::config::load_cqmom_dense(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);

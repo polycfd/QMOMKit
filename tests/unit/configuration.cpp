@@ -496,10 +496,16 @@ void test_valid_cqmom_matches_programmatic_case()
 {
     const auto configured = qmomkit::config::parse_cqmom_lean(cqmom_text, "cqmom-test");
     assert(configured.ok());
-    const qmomkit::CqmomDenseCase direct{qmomkit::PhaseSpaceHierarchy({1, 1}, {1, 0}), {{2, 2}, {1.0, 1.5, 0.5, 0.75}}, {}, {true}, true};
-    assert(configured.value().moments.layout.hierarchy.node_counts() == direct.hierarchy.node_counts());
-    assert(configured.value().moments.layout.hierarchy.conditioning_order() == direct.hierarchy.conditioning_order());
-    assert_cqmom_moments_near_tensor(configured.value().moments, direct.moments);
+    const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1}, {1, 0});
+    const qmomkit::CqmomLeanCase direct{
+        qmomkit::extract_cqmom_moments({{2, 2}, {1.0, 1.5, 0.5, 0.75}}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, {true}, true};
+    assert(configured.value().moments.layout.hierarchy.node_counts() == direct.moments.layout.hierarchy.node_counts());
+    assert(configured.value().moments.layout.hierarchy.conditioning_order() == direct.moments.layout.hierarchy.conditioning_order());
+    assert(configured.value().moments.values.size() == direct.moments.values.size());
+    for (std::size_t index = 0; index < direct.moments.values.size(); ++index)
+    {
+        assert_near(configured.value().moments.values[index], direct.moments.values[index]);
+    }
     assert(configured.value().adaptive_branch_counts);
     assert(configured.value().qmom_options.adaptive);
     assert(!configured.value().qmom_options.automatic_scaling);

@@ -76,7 +76,7 @@
 namespace qmomkit
 {
 
-struct TestDenseCqmomPhaseSpaceEvolutionOptions : CqmomPhaseSpaceEvolutionOptions
+struct TestCqmomPhaseSpaceEvolutionOptions : CqmomPhaseSpaceEvolutionOptions
 {
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
@@ -99,9 +99,9 @@ struct TestLeanCqmomPhaseSpaceEvolutionState
     CqmomMomentData moments;
 };
 
-struct TestDenseCqmomPhaseSpaceEvolutionResult
+struct TestCqmomPhaseSpaceEvolutionResult
 {
-    RawMomentTensor moments;
+    CqmomMomentData moments;
     std::optional<CqmomQuadrature> quadrature;
     PhaseSpaceEvolutionStatus status = PhaseSpaceEvolutionStatus::success;
     PhaseSpaceEvolutionDiagnostics diagnostics;
@@ -129,28 +129,27 @@ struct TestLeanCqmomPhaseSpaceEvolutionResult
     }
 };
 
-TestDenseCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const RawMomentTensor& moments, const PhaseSpaceHierarchy& hierarchy,
-                                                                  const double t, const double time_step, const PhaseSpaceVelocity& velocity,
-                                                                  const CqmomMomentSource& source,
-                                                                  const TestDenseCqmomPhaseSpaceEvolutionOptions& options)
+TestCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomMomentData& moments, const double t, const double time_step,
+                                                             const PhaseSpaceVelocity& velocity, const CqmomMomentSource& source,
+                                                             const TestCqmomPhaseSpaceEvolutionOptions& options)
 {
-    CqmomDenseCase dense_case{hierarchy,
-                              moments,
-                              options.conditional_options,
-                              options.qmom_options,
-                              options.adaptive_branch_counts,
-                              options.diagnostic_level,
-                              options.vandermonde_solver};
-    CqmomState state = internal::CqmomConstructionAccess::create_state(dense_case);
+    const CqmomMomentLayout& layout = moments.layout;
+    CqmomLeanCase case_{moments,
+                        options.conditional_options,
+                        options.qmom_options,
+                        options.adaptive_branch_counts,
+                        options.diagnostic_level,
+                        options.vandermonde_solver};
+    CqmomState state = internal::CqmomConstructionAccess::create_state(case_);
     const CqmomPhaseSpaceEvolutionResult result =
         advance_cqmom_phase_space(state, t, time_step, velocity, source, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
     const CqmomState& result_state = result.ok() ? result.state : state;
-    return TestDenseCqmomPhaseSpaceEvolutionResult{RawMomentTensor{moments.extents, result_state.moment_values()},
-                                                   result.quadrature,
-                                                   result.status,
-                                                   result.diagnostics,
-                                                   result.final_time,
-                                                   result.message};
+    return TestCqmomPhaseSpaceEvolutionResult{CqmomMomentData{layout, result_state.moment_values()},
+                                              result.quadrature,
+                                              result.status,
+                                              result.diagnostics,
+                                              result.final_time,
+                                              result.message};
 }
 
 TestLeanCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const TestLeanCqmomPhaseSpaceEvolutionState& lean_state, const double t,
@@ -385,11 +384,6 @@ void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomk
     std::cerr << configured.error() << '\n';
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomDenseCase>& configured)
-{
-    std::cerr << configured.error() << '\n';
-}
-
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
 {
     std::cerr << configured.error() << '\n';
@@ -428,14 +422,14 @@ const char* phase_space_evolution_scheme_name(const qmomkit::PhaseSpaceEvolution
     return "unknown";
 }
 
-qmomkit::TestDenseCqmomPhaseSpaceEvolutionOptions cqmom_options(const qmomkit::CqmomDenseCase& dense_case)
+qmomkit::TestCqmomPhaseSpaceEvolutionOptions cqmom_options(const qmomkit::CqmomLeanCase& configured_case)
 {
-    qmomkit::TestDenseCqmomPhaseSpaceEvolutionOptions options;
-    options.conditional_options = dense_case.conditional_options;
-    options.qmom_options = dense_case.qmom_options;
-    options.adaptive_branch_counts = dense_case.adaptive_branch_counts;
-    options.diagnostic_level = dense_case.diagnostic_level;
-    options.vandermonde_solver = dense_case.vandermonde_solver;
+    qmomkit::TestCqmomPhaseSpaceEvolutionOptions options;
+    options.conditional_options = configured_case.conditional_options;
+    options.qmom_options = configured_case.qmom_options;
+    options.adaptive_branch_counts = configured_case.adaptive_branch_counts;
+    options.diagnostic_level = configured_case.diagnostic_level;
+    options.vandermonde_solver = configured_case.vandermonde_solver;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
     options.node_options.adaptive_options.relative_tolerance = 1.0e-12;
     options.node_options.adaptive_options.absolute_tolerance = 1.0e-14;
@@ -1485,15 +1479,16 @@ VerificationResult run_qmom_phase_space_evolution_inversion_failures(const std::
     return verification;
 }
 
-std::vector<double> cqmom_exact_values(const qmomkit::RawMomentTensor& initial, const double elapsed)
+std::vector<double> cqmom_exact_values(const qmomkit::CqmomMomentData& initial, const double elapsed)
 {
     // CQMOM commuting reference: diagonal phase-space scaling and diagonal
     // source damping give each tensor moment M_ij an exact scalar exponential
     // factor based on its multi-index.
     std::vector<double> exact(initial.values.size(), 0.0);
+    const std::vector<qmomkit::MultiIndex> indices = initial.layout.required_indices.to_multi_indices();
     for (std::size_t flat = 0; flat < initial.values.size(); ++flat)
     {
-        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, initial.extents);
+        const qmomkit::MultiIndex& index = indices[flat];
         const double lambda = cqmom_lambda_scale * static_cast<double>(index[0] + index[1]);
         const double exponent = static_cast<double>(index[0]) * cqmom_a + static_cast<double>(index[1]) * cqmom_c - lambda;
         exact[flat] = initial.values[flat] * std::exp(exponent * elapsed);
@@ -1501,12 +1496,13 @@ std::vector<double> cqmom_exact_values(const qmomkit::RawMomentTensor& initial, 
     return exact;
 }
 
-std::vector<double> cqmom_advection_exact_values(const qmomkit::RawMomentTensor& initial, const double elapsed)
+std::vector<double> cqmom_advection_exact_values(const qmomkit::CqmomMomentData& initial, const double elapsed)
 {
     std::vector<double> exact(initial.values.size(), 0.0);
+    const std::vector<qmomkit::MultiIndex> indices = initial.layout.required_indices.to_multi_indices();
     for (std::size_t flat = 0; flat < initial.values.size(); ++flat)
     {
-        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, initial.extents);
+        const qmomkit::MultiIndex& index = indices[flat];
         const double exponent = static_cast<double>(index[0]) * cqmom_a + static_cast<double>(index[1]) * cqmom_c;
         exact[flat] = initial.values[flat] * std::exp(exponent * elapsed);
     }
@@ -1932,7 +1928,7 @@ VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configura
     // final phase_space_evolved moments and quadrature reconstruction are compared with
     // the exact tensor exponential reference on that layout.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom_dense(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -1940,20 +1936,21 @@ VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configura
         return verification;
     }
 
-    const qmomkit::CqmomDenseCase& dense_case = configured.value();
+    const qmomkit::CqmomLeanCase& configured_case = configured.value();
     const qmomkit::CqmomMomentSource source = cqmom_source_for_context;
-    const auto options = cqmom_options(dense_case);
+    const auto options = cqmom_options(configured_case);
     const double dt = 0.04;
     const std::size_t steps = 5;
     const double elapsed = dt * static_cast<double>(steps);
-    qmomkit::RawMomentTensor moments = dense_case.moments;
+    qmomkit::CqmomMomentData moments = configured_case.moments;
     double time = 0.0;
     bool diagnostics_successful = true;
     std::size_t retry_count = 0;
-    qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult result;
+    qmomkit::TestCqmomPhaseSpaceEvolutionResult result{
+        configured_case.moments, std::nullopt, qmomkit::PhaseSpaceEvolutionStatus::success, {}, 0.0, ""};
     for (std::size_t step = 0; step < steps; ++step)
     {
-        result = qmomkit::advance_cqmom_phase_space(moments, dense_case.hierarchy, time, dt, cqmom_velocity, source, options);
+        result = qmomkit::advance_cqmom_phase_space(moments, time, dt, cqmom_velocity, source, options);
         if (!result.ok())
         {
             append_failure(verification, "CQMOM phase-space evolution integrator failed: " + result.message);
@@ -1977,18 +1974,13 @@ VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configura
     summary.retry_count = retry_count;
     summary.success = result.ok() && diagnostics_successful;
     summary.output_row = true;
-    const std::vector<double> exact = cqmom_exact_values(dense_case.moments, elapsed);
-    const qmomkit::CqmomMomentLayout phase_space_evolution_layout = qmomkit::create_cqmom_moment_layout(dense_case.hierarchy);
-    const qmomkit::CqmomMomentData result_required = qmomkit::extract_cqmom_moments(result.moments, phase_space_evolution_layout);
-    const qmomkit::CqmomMomentData exact_required =
-        qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{dense_case.moments.extents, exact}, phase_space_evolution_layout);
-    update_errors(summary.errors, result_required.values, exact_required.values);
-    summary.error_norm = scaled_infinity_error(result_required.values, exact_required.values);
+    const std::vector<double> exact = cqmom_exact_values(configured_case.moments, elapsed);
+    update_errors(summary.errors, result.moments.values, exact);
+    summary.error_norm = scaled_infinity_error(result.moments.values, exact);
     if (result.quadrature.has_value())
     {
-        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result.quadrature, dense_case.moments.extents);
-        const qmomkit::CqmomMomentData reconstructed_required = qmomkit::extract_cqmom_moments(reconstructed, phase_space_evolution_layout);
-        update_reconstruction_errors(summary.errors, reconstructed_required.values, exact_required.values);
+        const qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(*result.quadrature, configured_case.moments.layout);
+        update_reconstruction_errors(summary.errors, reconstructed.values, exact);
     }
     else
     {
@@ -2670,9 +2662,9 @@ void verify_cqmom_initial_inversion_failure_result(const qmomkit::CqmomPhaseSpac
     }
 }
 
-void verify_cqmom_dense_advection_failure_result(const std::string& case_name, const qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult& result,
-                                                 const qmomkit::RawMomentTensor& initial_moments, const std::string& expected_message_fragment,
-                                                 VerificationResult& verification)
+void verify_cqmom_advection_failure_result(const std::string& case_name, const qmomkit::TestCqmomPhaseSpaceEvolutionResult& result,
+                                           const qmomkit::CqmomMomentData& initial_moments, const std::string& expected_message_fragment,
+                                           VerificationResult& verification)
 {
     // Dense phase-space evolution is the public workflow for callers that own full raw
     // moment tensors. A velocity callback failure should have the same
@@ -2703,9 +2695,10 @@ void verify_cqmom_dense_advection_failure_result(const std::string& case_name, c
     {
         append_failure(verification, case_name + " advanced final_time despite dense phase-space advection failure.");
     }
-    if (result.moments.extents != initial_moments.extents || !vectors_equal(result.moments.values, initial_moments.values, 0.0))
+    if (result.moments.layout.required_indices != initial_moments.layout.required_indices ||
+        !vectors_equal(result.moments.values, initial_moments.values, 0.0))
     {
-        append_failure(verification, case_name + " changed dense moments during a failed advection substep.");
+        append_failure(verification, case_name + " changed its moments during a failed advection substep.");
     }
     if (result.diagnostics.moment_source_diagnostics.accepted || result.diagnostics.moment_source_diagnostics.rejected ||
         result.diagnostics.first_reconstruction_diagnostics.success || result.diagnostics.final_reconstruction_diagnostics.success)
@@ -2758,7 +2751,7 @@ void verify_cqmom_lean_advection_failure_result(const std::string& case_name, co
     }
 }
 
-void verify_cqmom_dense_source_failure_result(const std::string& case_name, const qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult& result,
+void verify_cqmom_dense_source_failure_result(const std::string& case_name, const qmomkit::TestCqmomPhaseSpaceEvolutionResult& result,
                                               const std::string& expected_message_fragment, VerificationResult& verification)
 {
     // Dense phase-space evolution uses the generic raw-moment source callback. Returning a
@@ -2833,7 +2826,7 @@ void verify_cqmom_lean_source_failure_result(const std::string& case_name, const
     }
 }
 
-void verify_cqmom_dense_post_source_inversion_failure_result(const qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult& result,
+void verify_cqmom_dense_post_source_inversion_failure_result(const qmomkit::TestCqmomPhaseSpaceEvolutionResult& result,
                                                              const double expected_failure_time, VerificationResult& verification)
 {
     // Dense full-tensor phase-space evolution integrates a finite source successfully, but
@@ -2919,8 +2912,7 @@ void verify_cqmom_lean_post_source_inversion_failure_result(const qmomkit::TestL
     }
 }
 
-void verify_cqmom_dense_initial_inversion_failure_result(const qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult& result,
-                                                         VerificationResult& verification)
+void verify_cqmom_dense_initial_inversion_failure_result(const qmomkit::TestCqmomPhaseSpaceEvolutionResult& result, VerificationResult& verification)
 {
     // Dense initial failure represents a full raw tensor that cannot produce a
     // realizable CQMOM quadrature. Phase-space evolution should stop before advection or
@@ -2987,29 +2979,29 @@ void verify_cqmom_lean_initial_inversion_failure_result(const qmomkit::TestLeanC
     }
 }
 
-void verify_dense_helper_based_common_cqmom_phase_space_evolution(const qmomkit::CqmomDenseCase& dense_case, VerificationResult& verification)
+void verify_helper_based_common_cqmom_phase_space_evolution(const qmomkit::CqmomLeanCase& configured_case, VerificationResult& verification)
 {
-    qmomkit::CqmomDenseCase policy_case = dense_case;
+    qmomkit::CqmomLeanCase policy_case = configured_case;
     policy_case.qmom_options.adaptive = true;
     policy_case.adaptive_branch_counts = true;
     policy_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     policy_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
-    qmomkit::TestDenseCqmomPhaseSpaceEvolutionOptions options = cqmom_options(policy_case);
+    qmomkit::TestCqmomPhaseSpaceEvolutionOptions options = cqmom_options(policy_case);
 
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
-    const qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult result =
-        qmomkit::advance_cqmom_phase_space(policy_case.moments, policy_case.hierarchy, 0.0, 0.02, zero_velocity, zero_source, options);
+    const qmomkit::TestCqmomPhaseSpaceEvolutionResult result =
+        qmomkit::advance_cqmom_phase_space(policy_case.moments, 0.0, 0.02, zero_velocity, zero_source, options);
     if (!result.ok())
     {
         append_failure(verification, "helper-based dense CQMOM policy probe failed: " + result.message);
     }
     else
     {
-        verify_helper_based_common_cqmom_policies("helper-based dense CQMOM", result.diagnostics, policy_case.hierarchy.number_of_dimensions(),
-                                                  verification);
+        verify_helper_based_common_cqmom_policies("helper-based dense CQMOM", result.diagnostics,
+                                                  policy_case.moments.layout.hierarchy.number_of_dimensions(), verification);
     }
 
     RunSummary summary;
@@ -3018,11 +3010,12 @@ void verify_dense_helper_based_common_cqmom_phase_space_evolution(const qmomkit:
     summary.steps = 1;
     summary.final_time = result.final_time;
     summary.retry_count = result.diagnostics.moment_source_retries;
-    summary.success = result.ok() && result.diagnostics.cqmom_diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic &&
-                      result.diagnostics.cqmom_vandermonde_solver == qmomkit::VandermondeSolver::dense &&
-                      cqmom_diagnostics_enable_adaptive_branch_counts(result.diagnostics.initial_cqmom_diagnostics) &&
-                      cqmom_diagnostics_request_solver(result.diagnostics.initial_cqmom_diagnostics, policy_case.hierarchy.number_of_dimensions(),
-                                                       qmomkit::VandermondeSolver::dense);
+    summary.success =
+        result.ok() && result.diagnostics.cqmom_diagnostic_level == qmomkit::CqmomDiagnosticLevel::basic &&
+        result.diagnostics.cqmom_vandermonde_solver == qmomkit::VandermondeSolver::dense &&
+        cqmom_diagnostics_enable_adaptive_branch_counts(result.diagnostics.initial_cqmom_diagnostics) &&
+        cqmom_diagnostics_request_solver(result.diagnostics.initial_cqmom_diagnostics, policy_case.moments.layout.hierarchy.number_of_dimensions(),
+                                         qmomkit::VandermondeSolver::dense);
     verification.runs.push_back(summary);
 }
 
@@ -3219,15 +3212,15 @@ VerificationResult run_cqmom_phase_space_evolution_inversion_failures(const std:
         return verification;
     }
 
-    const auto configured_dense = qmomkit::config::load_cqmom_dense(configuration_path);
-    if (!configured_dense.ok())
+    const auto configured_state_case = qmomkit::config::load_cqmom_lean(configuration_path);
+    if (!configured_state_case.ok())
     {
-        print_configuration_errors(configured_dense);
+        print_configuration_errors(configured_state_case);
         append_failure(verification, "unable to load dense CQMOM phase-space evolution inversion-failure configuration.");
         return verification;
     }
 
-    qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(configured_dense.value());
+    qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(configured_state_case.value());
     qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_state_options();
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
     const qmomkit::PhaseSpaceVelocity zero_velocity =
@@ -3256,7 +3249,7 @@ VerificationResult run_cqmom_dense_phase_space_evolution_failures(const std::fil
     // failures while verifying that dense diagnostic moments remain available on
     // failure.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom_dense(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3264,16 +3257,16 @@ VerificationResult run_cqmom_dense_phase_space_evolution_failures(const std::fil
         return verification;
     }
 
-    const qmomkit::CqmomDenseCase& dense_case = configured.value();
-    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(dense_case);
+    const qmomkit::CqmomLeanCase& configured_case = configured.value();
+    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(configured_case);
     if (!initial.ok())
     {
         append_failure(verification, "initial dense CQMOM phase-space evolution failure inversion failed: " + initial.message);
         return verification;
     }
-    verify_dense_helper_based_common_cqmom_phase_space_evolution(dense_case, verification);
+    verify_helper_based_common_cqmom_phase_space_evolution(configured_case, verification);
 
-    qmomkit::TestDenseCqmomPhaseSpaceEvolutionOptions options = cqmom_options(dense_case);
+    qmomkit::TestCqmomPhaseSpaceEvolutionOptions options = cqmom_options(configured_case);
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
     constexpr double dt = 0.08;
     const qmomkit::PhaseSpaceVelocity zero_velocity =
@@ -3300,10 +3293,10 @@ VerificationResult run_cqmom_dense_phase_space_evolution_failures(const std::fil
 
     for (const AdvectionFailureCase& failure_case : advection_failure_cases)
     {
-        const qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult result =
-            qmomkit::advance_cqmom_phase_space(dense_case.moments, dense_case.hierarchy, 0.0, dt, failure_case.velocity, zero_source, options);
-        verify_cqmom_dense_advection_failure_result(failure_case.name, result, dense_case.moments, failure_case.expected_message_fragment,
-                                                    verification);
+        const qmomkit::TestCqmomPhaseSpaceEvolutionResult result =
+            qmomkit::advance_cqmom_phase_space(configured_case.moments, 0.0, dt, failure_case.velocity, zero_source, options);
+        verify_cqmom_advection_failure_result(failure_case.name, result, configured_case.moments, failure_case.expected_message_fragment,
+                                              verification);
 
         RunSummary summary;
         summary.scheme = options.scheme;
@@ -3319,8 +3312,8 @@ VerificationResult run_cqmom_dense_phase_space_evolution_failures(const std::fil
 
     const qmomkit::CqmomMomentSource wrong_size_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size() + 1, 0.0)}; };
-    const qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult source_failure =
-        qmomkit::advance_cqmom_phase_space(dense_case.moments, dense_case.hierarchy, 0.0, dt, zero_velocity, wrong_size_source, options);
+    const qmomkit::TestCqmomPhaseSpaceEvolutionResult source_failure =
+        qmomkit::advance_cqmom_phase_space(configured_case.moments, 0.0, dt, zero_velocity, wrong_size_source, options);
     verify_cqmom_dense_source_failure_result("dense CQMOM wrong moment-source rate size", source_failure,
                                              "CQMOM moment-source rate values must match the source context size.", verification);
 
@@ -3346,8 +3339,8 @@ VerificationResult run_cqmom_dense_phase_space_evolution_failures(const std::fil
         }
         return qmomkit::CqmomMomentRate{rates};
     };
-    const qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult post_source_inversion =
-        qmomkit::advance_cqmom_phase_space(dense_case.moments, dense_case.hierarchy, 0.0, dt, zero_velocity, nonrealizable_source, options);
+    const qmomkit::TestCqmomPhaseSpaceEvolutionResult post_source_inversion =
+        qmomkit::advance_cqmom_phase_space(configured_case.moments, 0.0, dt, zero_velocity, nonrealizable_source, options);
     verify_cqmom_dense_post_source_inversion_failure_result(post_source_inversion, 0.0, verification);
 
     RunSummary inversion_summary;
@@ -3482,7 +3475,7 @@ VerificationResult run_cqmom_dense_phase_space_evolution_inversion_failures(cons
     // is invalid for CQMOM. This protects early exit before any user velocity or
     // source callback can alter diagnostics.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom_dense(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3490,15 +3483,15 @@ VerificationResult run_cqmom_dense_phase_space_evolution_inversion_failures(cons
         return verification;
     }
 
-    const qmomkit::CqmomDenseCase& dense_case = configured.value();
-    qmomkit::TestDenseCqmomPhaseSpaceEvolutionOptions options = cqmom_options(dense_case);
+    const qmomkit::CqmomLeanCase& configured_case = configured.value();
+    qmomkit::TestCqmomPhaseSpaceEvolutionOptions options = cqmom_options(configured_case);
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
     { return qmomkit::CqmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
-    const qmomkit::TestDenseCqmomPhaseSpaceEvolutionResult result =
-        qmomkit::advance_cqmom_phase_space(dense_case.moments, dense_case.hierarchy, 0.0, 0.08, zero_velocity, zero_source, options);
+    const qmomkit::TestCqmomPhaseSpaceEvolutionResult result =
+        qmomkit::advance_cqmom_phase_space(configured_case.moments, 0.0, 0.08, zero_velocity, zero_source, options);
     verify_cqmom_dense_initial_inversion_failure_result(result, verification);
 
     RunSummary summary;
@@ -3729,8 +3722,8 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
         append_failure(verification, "initial adaptive CQMOM state quadrature did not provide one terminal path per node.");
     }
 
-    const std::vector<std::size_t> extents{4, 4};
-    const qmomkit::RawMomentTensor initial_moments = qmomkit::reconstruct_raw_moments(initial.quadrature, extents);
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
+    const qmomkit::CqmomMomentData initial_moments = qmomkit::reconstruct_cqmom_moments(initial.quadrature, layout);
     qmomkit::CqmomState state = cqmom_case.initial_state();
     const qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_state_options();
     const double dt = 0.04;
@@ -3786,7 +3779,7 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
             summary.success = false;
             append_failure(verification, "final adaptive CQMOM state quadrature did not provide one terminal path per node.");
         }
-        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result->quadrature, extents);
+        const qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(*result->quadrature, layout);
         update_errors(summary.errors, reconstructed.values, exact);
         update_reconstruction_errors(summary.errors, reconstructed.values, exact);
         summary.error_norm = scaled_infinity_error(reconstructed.values, exact);

@@ -73,21 +73,9 @@ int main()
     }
 
     const qmomkit::PhaseSpaceHierarchy cqmom_hierarchy({1, 1});
-    const qmomkit::RawMomentTensor cqmom_dense_moments{{2, 2}, {1.0, 0.0, 0.0, 0.0}};
+    const qmomkit::RawMomentTensor cqmom_moment_tensor{{2, 2}, {1.0, 0.0, 0.0, 0.0}};
 
-    qmomkit::CqmomDenseCase dense_case{cqmom_hierarchy, cqmom_dense_moments};
-    const qmomkit::CqmomResult dense_static = qmomkit::compute_cqmom(dense_case);
-    if (!dense_static.ok())
-    {
-        return 1;
-    }
-    const qmomkit::CqmomState dense_state = qmomkit::CqmomCase{std::move(dense_case)}.initial_state();
-    if (dense_state.quadrature().total_nodes() != 1 || dense_state.quadrature().weights().size() != 1)
-    {
-        return 1;
-    }
-
-    qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments(cqmom_dense_moments, qmomkit::create_cqmom_moment_layout(cqmom_hierarchy))};
+    qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments(cqmom_moment_tensor, qmomkit::create_cqmom_moment_layout(cqmom_hierarchy))};
     const qmomkit::CqmomResult lean_static = qmomkit::compute_cqmom(lean_case);
     if (!lean_static.ok())
     {

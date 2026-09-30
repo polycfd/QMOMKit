@@ -14,12 +14,6 @@
 namespace
 {
 
-enum class CqmomStorage
-{
-    dense,
-    lean
-};
-
 struct QmomEventFixture
 {
     std::size_t maximum_node_count = 0;
@@ -744,14 +738,6 @@ CqmomFallbackFixture cqmom_2d_parent_n3_to_n2_fallback_fixture()
             4};
 }
 
-qmomkit::CqmomDenseCase make_dense_case(const CqmomEventFixture& fixture, const std::vector<double>& moments)
-{
-    qmomkit::CqmomDenseCase dense_case{fixture.hierarchy, {fixture.extents, moments}, {}, fixture.qmom_options, true};
-    dense_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::none;
-    dense_case.vandermonde_solver = qmomkit::VandermondeSolver::automatic;
-    return dense_case;
-}
-
 qmomkit::CqmomLeanCase make_lean_case(const CqmomEventFixture& fixture, const std::vector<double>& moments)
 {
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
@@ -764,21 +750,9 @@ qmomkit::CqmomLeanCase make_lean_case(const CqmomEventFixture& fixture, const st
     return lean_case;
 }
 
-qmomkit::CqmomCase make_cqmom_case(const CqmomEventFixture& fixture, const std::vector<double>& moments, const CqmomStorage storage)
+qmomkit::CqmomCase make_cqmom_case(const CqmomEventFixture& fixture, const std::vector<double>& moments)
 {
-    if (storage == CqmomStorage::dense)
-    {
-        return qmomkit::internal::CqmomConstructionAccess::create_case(make_dense_case(fixture, moments));
-    }
     return qmomkit::internal::CqmomConstructionAccess::create_case(make_lean_case(fixture, moments));
-}
-
-qmomkit::CqmomDenseCase make_dense_case(const CqmomFallbackFixture& fixture)
-{
-    qmomkit::CqmomDenseCase dense_case{fixture.hierarchy, {fixture.extents, fixture.moments}, {}, adaptive_qmom_options(), true};
-    dense_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::none;
-    dense_case.vandermonde_solver = qmomkit::VandermondeSolver::automatic;
-    return dense_case;
 }
 
 qmomkit::CqmomLeanCase make_lean_case(const CqmomFallbackFixture& fixture)
@@ -793,12 +767,8 @@ qmomkit::CqmomLeanCase make_lean_case(const CqmomFallbackFixture& fixture)
 }
 
 qmomkit::CqmomResult compute_cqmom_fallback_fixture(const CqmomFallbackFixture& fixture,
-                                                    const std::vector<qmomkit::CqmomActiveBranchCount>& active_counts, const CqmomStorage storage)
+                                                    const std::vector<qmomkit::CqmomActiveBranchCount>& active_counts)
 {
-    if (storage == CqmomStorage::dense)
-    {
-        return qmomkit::internal::compute_cqmom_internal(make_dense_case(fixture), active_counts, false);
-    }
     return qmomkit::internal::compute_cqmom_internal(make_lean_case(fixture), active_counts, false);
 }
 
@@ -868,10 +838,10 @@ void compare_cqmom_reconstructed_moments(const CqmomFallbackFixture& fixture, co
     }
 }
 
-void validate_cqmom_fallback_fixture(const CqmomFallbackFixture& fixture, const CqmomStorage storage)
+void validate_cqmom_fallback_fixture(const CqmomFallbackFixture& fixture)
 {
-    const qmomkit::CqmomResult direct = compute_cqmom_fallback_fixture(fixture, fixture.direct_active_counts, storage);
-    const qmomkit::CqmomResult fallback = compute_cqmom_fallback_fixture(fixture, fixture.fallback_active_counts, storage);
+    const qmomkit::CqmomResult direct = compute_cqmom_fallback_fixture(fixture, fixture.direct_active_counts);
+    const qmomkit::CqmomResult fallback = compute_cqmom_fallback_fixture(fixture, fixture.fallback_active_counts);
     if (!direct.ok() || !fallback.ok())
     {
         throw std::runtime_error("CQMOM direct/fallback fixture reconstruction failed.");
@@ -886,7 +856,7 @@ void validate_cqmom_fallback_fixture(const CqmomFallbackFixture& fixture, const 
     compare_cqmom_reconstructed_moments(fixture, direct.quadrature, fallback.quadrature);
 }
 
-void set_cqmom_fallback_counters(benchmark::State& state, const CqmomFallbackFixture& fixture, const CqmomStorage storage, const std::size_t ceiling)
+void set_cqmom_fallback_counters(benchmark::State& state, const CqmomFallbackFixture& fixture, const std::size_t ceiling)
 {
     state.counters["dimensions"] = static_cast<double>(fixture.hierarchy.number_of_dimensions());
     state.counters["configured_terminal_nodes"] = static_cast<double>(fixture.hierarchy.total_nodes());
@@ -896,15 +866,13 @@ void set_cqmom_fallback_counters(benchmark::State& state, const CqmomFallbackFix
     state.counters["fallback_ceiling"] = static_cast<double>(fixture.fallback_ceiling);
     state.counters["accepted_count"] = static_cast<double>(fixture.accepted_count);
     state.counters["moment_count"] = static_cast<double>(fixture.moments.size());
-    state.counters["storage"] = storage == CqmomStorage::dense ? 0.0 : 1.0;
 }
 
-void run_cqmom_direct_fallback_reconstruction(benchmark::State& state, const CqmomFallbackFixture& fixture, const CqmomStorage storage,
-                                              const bool fallback)
+void run_cqmom_direct_fallback_reconstruction(benchmark::State& state, const CqmomFallbackFixture& fixture, const bool fallback)
 {
     try
     {
-        validate_cqmom_fallback_fixture(fixture, storage);
+        validate_cqmom_fallback_fixture(fixture);
     }
     catch (const std::exception& error)
     {
@@ -913,21 +881,13 @@ void run_cqmom_direct_fallback_reconstruction(benchmark::State& state, const Cqm
     }
 
     const std::vector<qmomkit::CqmomActiveBranchCount>& active_counts = fallback ? fixture.fallback_active_counts : fixture.direct_active_counts;
-    set_cqmom_fallback_counters(state, fixture, storage, fallback ? fixture.fallback_ceiling : fixture.direct_ceiling);
+    set_cqmom_fallback_counters(state, fixture, fallback ? fixture.fallback_ceiling : fixture.direct_ceiling);
     for (auto _ : state)
     {
-        const qmomkit::CqmomResult result = compute_cqmom_fallback_fixture(fixture, active_counts, storage);
-        if (storage == CqmomStorage::dense)
-        {
-            const qmomkit::RawMomentTensor canonical = qmomkit::reconstruct_raw_moments(result.quadrature, fixture.extents);
-            benchmark::DoNotOptimize(canonical.values.data());
-        }
-        else
-        {
-            const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
-            const qmomkit::CqmomMomentData canonical = qmomkit::reconstruct_cqmom_moments(result.quadrature, layout);
-            benchmark::DoNotOptimize(canonical.values.data());
-        }
+        const qmomkit::CqmomResult result = compute_cqmom_fallback_fixture(fixture, active_counts);
+        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
+        const qmomkit::CqmomMomentData canonical = qmomkit::reconstruct_cqmom_moments(result.quadrature, layout);
+        benchmark::DoNotOptimize(canonical.values.data());
         benchmark::DoNotOptimize(result.quadrature.weights().data());
         benchmark::DoNotOptimize(result.quadrature.abscissas().data());
     }
@@ -964,40 +924,30 @@ void validate_expected_cqmom_counts(const CqmomEventFixture& fixture, const qmom
     }
 }
 
-qmomkit::CqmomResult run_cqmom_event_reconstruction(const CqmomEventFixture& fixture, const CqmomStorage storage,
+qmomkit::CqmomResult run_cqmom_event_reconstruction(const CqmomEventFixture& fixture,
                                                     const std::vector<qmomkit::CqmomActiveBranchCount>& active_counts)
 {
-    if (storage == CqmomStorage::dense)
-    {
-        return qmomkit::internal::compute_cqmom_internal(make_dense_case(fixture, fixture.target_moments), active_counts, true);
-    }
     return qmomkit::internal::compute_cqmom_internal(make_lean_case(fixture, fixture.target_moments), active_counts, true);
 }
 
-void canonicalize_cqmom_result(const CqmomEventFixture& fixture, const qmomkit::CqmomResult& result, const CqmomStorage storage)
+void canonicalize_cqmom_result(const CqmomEventFixture& fixture, const qmomkit::CqmomResult& result)
 {
-    if (storage == CqmomStorage::dense)
-    {
-        const qmomkit::RawMomentTensor canonical = qmomkit::reconstruct_raw_moments(result.quadrature, fixture.extents);
-        benchmark::DoNotOptimize(canonical.values.data());
-        return;
-    }
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
     const qmomkit::CqmomMomentData canonical = qmomkit::reconstruct_cqmom_moments(result.quadrature, layout);
     benchmark::DoNotOptimize(canonical.values.data());
 }
 
-void validate_cqmom_fixture(const CqmomEventFixture& fixture, const CqmomStorage storage)
+void validate_cqmom_fixture(const CqmomEventFixture& fixture)
 {
-    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments, storage);
+    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments);
     const qmomkit::CqmomState initial_state = initial_case.initial_state();
-    const qmomkit::CqmomResult selected = run_cqmom_event_reconstruction(fixture, storage, initial_state.active_branch_counts());
+    const qmomkit::CqmomResult selected = run_cqmom_event_reconstruction(fixture, initial_state.active_branch_counts());
     if (!selected.ok())
     {
         throw std::runtime_error("CQMOM fixture reconstruction failed: " + selected.message);
     }
     validate_expected_cqmom_counts(fixture, selected.quadrature);
-    canonicalize_cqmom_result(fixture, selected, storage);
+    canonicalize_cqmom_result(fixture, selected);
 }
 
 qmomkit::CqmomMomentSource cqmom_source_to_target(const qmomkit::CqmomState& initial_state, const qmomkit::CqmomMomentData& target)
@@ -1036,10 +986,10 @@ void validate_cqmom_state_canonical(const qmomkit::CqmomState& state, const qmom
     }
 }
 
-void validate_cqmom_step_fixture(const CqmomEventFixture& fixture, const CqmomStorage storage)
+void validate_cqmom_step_fixture(const CqmomEventFixture& fixture)
 {
-    validate_cqmom_fixture(fixture, storage);
-    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments, storage);
+    validate_cqmom_fixture(fixture);
+    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments);
     const qmomkit::CqmomState initial_state = initial_case.initial_state();
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
     const qmomkit::CqmomMomentData target = qmomkit::extract_cqmom_moments({fixture.extents, fixture.target_moments}, layout);
@@ -1057,22 +1007,20 @@ void validate_cqmom_step_fixture(const CqmomEventFixture& fixture, const CqmomSt
     validate_cqmom_state_canonical(result.state, *result.quadrature);
 }
 
-void set_cqmom_counters(benchmark::State& state, const CqmomEventFixture& fixture, const CqmomStorage storage,
-                        const std::size_t active_branch_count_before)
+void set_cqmom_counters(benchmark::State& state, const CqmomEventFixture& fixture, const std::size_t active_branch_count_before)
 {
     state.counters["dimensions"] = static_cast<double>(fixture.hierarchy.number_of_dimensions());
     state.counters["configured_terminal_nodes"] = static_cast<double>(fixture.hierarchy.total_nodes());
     state.counters["terminal_nodes_after"] = static_cast<double>(fixture.expected_terminal_nodes_after);
     state.counters["active_branches_before"] = static_cast<double>(active_branch_count_before);
     state.counters["moment_count"] = static_cast<double>(fixture.target_moments.size());
-    state.counters["storage"] = storage == CqmomStorage::dense ? 0.0 : 1.0;
 }
 
-void run_cqmom_reconstruction_event(benchmark::State& state, const CqmomEventFixture& fixture, const CqmomStorage storage)
+void run_cqmom_reconstruction_event(benchmark::State& state, const CqmomEventFixture& fixture)
 {
     try
     {
-        validate_cqmom_fixture(fixture, storage);
+        validate_cqmom_fixture(fixture);
     }
     catch (const std::exception& error)
     {
@@ -1080,25 +1028,25 @@ void run_cqmom_reconstruction_event(benchmark::State& state, const CqmomEventFix
         return;
     }
 
-    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments, storage);
+    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments);
     const qmomkit::CqmomState initial_state = initial_case.initial_state();
     const std::vector<qmomkit::CqmomActiveBranchCount> active_counts = initial_state.active_branch_counts();
-    set_cqmom_counters(state, fixture, storage, active_counts.size());
+    set_cqmom_counters(state, fixture, active_counts.size());
 
     for (auto _ : state)
     {
-        const qmomkit::CqmomResult result = run_cqmom_event_reconstruction(fixture, storage, active_counts);
-        canonicalize_cqmom_result(fixture, result, storage);
+        const qmomkit::CqmomResult result = run_cqmom_event_reconstruction(fixture, active_counts);
+        canonicalize_cqmom_result(fixture, result);
         benchmark::DoNotOptimize(result.quadrature.weights().data());
         benchmark::DoNotOptimize(result.quadrature.abscissas().data());
     }
 }
 
-void run_cqmom_full_step(benchmark::State& state, const CqmomEventFixture& fixture, const CqmomStorage storage)
+void run_cqmom_full_step(benchmark::State& state, const CqmomEventFixture& fixture)
 {
     try
     {
-        validate_cqmom_step_fixture(fixture, storage);
+        validate_cqmom_step_fixture(fixture);
     }
     catch (const std::exception& error)
     {
@@ -1106,7 +1054,7 @@ void run_cqmom_full_step(benchmark::State& state, const CqmomEventFixture& fixtu
         return;
     }
 
-    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments, storage);
+    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments);
     const qmomkit::CqmomState initial_state = initial_case.initial_state();
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
     const qmomkit::CqmomMomentData target = qmomkit::extract_cqmom_moments({fixture.extents, fixture.target_moments}, layout);
@@ -1115,7 +1063,7 @@ void run_cqmom_full_step(benchmark::State& state, const CqmomEventFixture& fixtu
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
     qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
-    set_cqmom_counters(state, fixture, storage, initial_state.active_branch_counts().size());
+    set_cqmom_counters(state, fixture, initial_state.active_branch_counts().size());
 
     for (auto _ : state)
     {
@@ -1194,100 +1142,55 @@ void register_qmom_benchmarks()
 
 void register_cqmom_benchmarks()
 {
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Lean/Direct/ConditionalN2", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n3_to_n2_fallback_fixture(), CqmomStorage::lean, false); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Lean/Fallback/ConditionalN3_to_N2", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n3_to_n2_fallback_fixture(), CqmomStorage::lean, true); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Dense/Direct/ConditionalN2", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n3_to_n2_fallback_fixture(), CqmomStorage::dense, false); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Dense/Fallback/ConditionalN3_to_N2", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n3_to_n2_fallback_fixture(), CqmomStorage::dense, true); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Lean/Direct/ConditionalN1", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n2_to_n1_fallback_fixture(), CqmomStorage::lean, false); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Lean/Fallback/ConditionalN2_to_N1", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n2_to_n1_fallback_fixture(), CqmomStorage::lean, true); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Dense/Direct/ConditionalN1", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n2_to_n1_fallback_fixture(), CqmomStorage::dense, false); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Dense/Fallback/ConditionalN2_to_N1", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n2_to_n1_fallback_fixture(), CqmomStorage::dense, true); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Lean/Direct/ParentN2", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_parent_n3_to_n2_fallback_fixture(), CqmomStorage::lean, false); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Lean/Fallback/ParentN3_to_N2", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_parent_n3_to_n2_fallback_fixture(), CqmomStorage::lean, true); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Dense/Direct/ParentN2", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_parent_n3_to_n2_fallback_fixture(), CqmomStorage::dense, false); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/Reconstruction/Dense/Fallback/ParentN3_to_N2", [](benchmark::State& state)
-        { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_parent_n3_to_n2_fallback_fixture(), CqmomStorage::dense, true); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Direct/ConditionalN2", [](benchmark::State& state)
+                                 { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n3_to_n2_fallback_fixture(), false); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Fallback/ConditionalN3_to_N2", [](benchmark::State& state)
+                                 { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n3_to_n2_fallback_fixture(), true); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Direct/ConditionalN1", [](benchmark::State& state)
+                                 { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n2_to_n1_fallback_fixture(), false); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Fallback/ConditionalN2_to_N1", [](benchmark::State& state)
+                                 { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_conditional_n2_to_n1_fallback_fixture(), true); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Direct/ParentN2", [](benchmark::State& state)
+                                 { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_parent_n3_to_n2_fallback_fixture(), false); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Fallback/ParentN3_to_N2", [](benchmark::State& state)
+                                 { run_cqmom_direct_fallback_reconstruction(state, cqmom_2d_parent_n3_to_n2_fallback_fixture(), true); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/ConditionalRetain",
+                                 [](benchmark::State& state) { run_cqmom_reconstruction_event(state, cqmom_2d_conditional_retain_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/ConditionalRejectedGrowth", [](benchmark::State& state)
+                                 { run_cqmom_reconstruction_event(state, cqmom_2d_conditional_rejected_growth_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/ConditionalReduce",
+                                 [](benchmark::State& state) { run_cqmom_reconstruction_event(state, cqmom_2d_conditional_reduce_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/ConditionalGrow",
+                                 [](benchmark::State& state) { run_cqmom_reconstruction_event(state, cqmom_2d_conditional_growth_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/RootReduce",
+                                 [](benchmark::State& state) { run_cqmom_reconstruction_event(state, cqmom_2d_root_reduce_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/RootGrowNonIdentityOrder",
+                                 [](benchmark::State& state) { run_cqmom_reconstruction_event(state, cqmom_2d_root_growth_nonidentity_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom3D/Reconstruction/RaggedRetain",
+                                 [](benchmark::State& state) { run_cqmom_reconstruction_event(state, cqmom_3d_ragged_retain_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom3D/Reconstruction/TerminalGrow",
+                                 [](benchmark::State& state) { run_cqmom_reconstruction_event(state, cqmom_3d_terminal_growth_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom3D/Reconstruction/NonterminalReduce",
+                                 [](benchmark::State& state) { run_cqmom_reconstruction_event(state, cqmom_3d_nonterminal_reduce_fixture()); });
 
-    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Dense/ConditionalRetain", [](benchmark::State& state)
-                                 { run_cqmom_reconstruction_event(state, cqmom_2d_conditional_retain_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Dense/ConditionalRejectedGrowth", [](benchmark::State& state)
-                                 { run_cqmom_reconstruction_event(state, cqmom_2d_conditional_rejected_growth_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Dense/ConditionalReduce", [](benchmark::State& state)
-                                 { run_cqmom_reconstruction_event(state, cqmom_2d_conditional_reduce_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Dense/ConditionalGrow", [](benchmark::State& state)
-                                 { run_cqmom_reconstruction_event(state, cqmom_2d_conditional_growth_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Dense/RootReduce", [](benchmark::State& state)
-                                 { run_cqmom_reconstruction_event(state, cqmom_2d_root_reduce_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom2D/Reconstruction/Dense/RootGrowNonIdentityOrder", [](benchmark::State& state)
-                                 { run_cqmom_reconstruction_event(state, cqmom_2d_root_growth_nonidentity_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom3D/Reconstruction/Dense/RaggedRetain", [](benchmark::State& state)
-                                 { run_cqmom_reconstruction_event(state, cqmom_3d_ragged_retain_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom3D/Reconstruction/Dense/TerminalGrow", [](benchmark::State& state)
-                                 { run_cqmom_reconstruction_event(state, cqmom_3d_terminal_growth_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom3D/Reconstruction/Dense/NonterminalReduce", [](benchmark::State& state)
-                                 { run_cqmom_reconstruction_event(state, cqmom_3d_nonterminal_reduce_fixture(), CqmomStorage::dense); });
-
-    benchmark::RegisterBenchmark("Cqmom2D/FullStep/Dense/ConditionalRetain", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_2d_conditional_retain_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom2D/FullStep/Lean/ConditionalRetain", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_2d_conditional_retain_fixture(), CqmomStorage::lean); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/FullStep/Dense/ConditionalRetainN2_Max2", [](benchmark::State& state)
-        { run_cqmom_full_step(state, cqmom_2d_conditional_retain_n2_max2_rejected_growth_pair_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark(
-        "Cqmom2D/FullStep/Lean/ConditionalRetainN2_Max2", [](benchmark::State& state)
-        { run_cqmom_full_step(state, cqmom_2d_conditional_retain_n2_max2_rejected_growth_pair_fixture(), CqmomStorage::lean); });
-    benchmark::RegisterBenchmark("Cqmom2D/FullStep/Dense/ConditionalRejectedGrowth", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_2d_conditional_rejected_growth_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom2D/FullStep/Lean/ConditionalRejectedGrowth", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_2d_conditional_rejected_growth_fixture(), CqmomStorage::lean); });
-    benchmark::RegisterBenchmark("Cqmom2D/FullStep/Dense/ConditionalReduce", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_2d_conditional_reduce_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom2D/FullStep/Lean/ConditionalReduce", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_2d_conditional_reduce_fixture(), CqmomStorage::lean); });
-    benchmark::RegisterBenchmark("Cqmom2D/FullStep/Dense/ConditionalGrow", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_2d_conditional_growth_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom2D/FullStep/Lean/ConditionalGrow", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_2d_conditional_growth_fixture(), CqmomStorage::lean); });
-    benchmark::RegisterBenchmark("Cqmom2D/FullStep/Dense/RootReduce",
-                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_2d_root_reduce_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom2D/FullStep/Lean/RootReduce",
-                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_2d_root_reduce_fixture(), CqmomStorage::lean); });
-    benchmark::RegisterBenchmark("Cqmom3D/FullStep/Dense/RaggedRetain",
-                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_3d_ragged_retain_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom3D/FullStep/Lean/RaggedRetain",
-                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_3d_ragged_retain_fixture(), CqmomStorage::lean); });
-    benchmark::RegisterBenchmark("Cqmom3D/FullStep/Dense/TerminalGrow", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_3d_terminal_growth_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom3D/FullStep/Lean/TerminalGrow",
-                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_3d_terminal_growth_fixture(), CqmomStorage::lean); });
-    benchmark::RegisterBenchmark("Cqmom3D/FullStep/Dense/NonterminalReduce", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_3d_nonterminal_reduce_fixture(), CqmomStorage::dense); });
-    benchmark::RegisterBenchmark("Cqmom3D/FullStep/Lean/NonterminalReduce", [](benchmark::State& state)
-                                 { run_cqmom_full_step(state, cqmom_3d_nonterminal_reduce_fixture(), CqmomStorage::lean); });
+    benchmark::RegisterBenchmark("Cqmom2D/FullStep/ConditionalRetain",
+                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_2d_conditional_retain_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom2D/FullStep/ConditionalRetainN2_Max2", [](benchmark::State& state)
+                                 { run_cqmom_full_step(state, cqmom_2d_conditional_retain_n2_max2_rejected_growth_pair_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom2D/FullStep/ConditionalRejectedGrowth",
+                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_2d_conditional_rejected_growth_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom2D/FullStep/ConditionalReduce",
+                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_2d_conditional_reduce_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom2D/FullStep/ConditionalGrow",
+                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_2d_conditional_growth_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom2D/FullStep/RootReduce",
+                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_2d_root_reduce_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom3D/FullStep/RaggedRetain",
+                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_3d_ragged_retain_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom3D/FullStep/TerminalGrow",
+                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_3d_terminal_growth_fixture()); });
+    benchmark::RegisterBenchmark("Cqmom3D/FullStep/NonterminalReduce",
+                                 [](benchmark::State& state) { run_cqmom_full_step(state, cqmom_3d_nonterminal_reduce_fixture()); });
 }
 
 const bool registered = []

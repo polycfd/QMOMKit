@@ -80,7 +80,7 @@ quadrature as the dense and default workflows.
 
 Direct public `compute_cqmom(...)` failure/status regression coverage lives in
 `tests/component_regression/cqmom_compute_failures.cpp`. It checks invalid
-public requests and status mapping across default, dense, and lean public case
+public requests and status mapping across the default and lean public case
 objects. This verification directory keeps the analytical and public workflow
 success cases.
 
@@ -92,29 +92,31 @@ consistent behavior for:
 
 ```text
 compute_cqmom(CqmomCase)
-compute_cqmom(CqmomDenseCase)
 compute_cqmom(CqmomLeanCase)
 ```
 
-All three workflows must fail with `CqmomStatus::qmom_failed`, preserve an
+Both workflows must fail with `CqmomStatus::qmom_failed`, preserve an
 explanatory message, and expose public diagnostics identifying the root
 operation and non-success QMOM status.
 
-The same verifier also covers invalid public compute inputs that should be
-rejected before successful quadrature is exposed:
+The same verifier also covers structural mistakes in a full raw moment tensor,
+which `extract_cqmom_moments(...)` rejects by throwing before a case exists:
 
-- dense tensor extent rank mismatch;
-- dense tensor value-count mismatch;
-- non-finite dense raw moments;
-- dense extents that omit required CQMOM moments;
+- tensor extent rank mismatch (`std::invalid_argument`);
+- tensor value-count mismatch (`std::invalid_argument`);
+- extents that omit a required CQMOM moment (`std::out_of_range`);
+
+and invalid public compute inputs that should be rejected before successful
+quadrature is exposed:
+
 - lean moment data with missing required values;
 - lean moment data with non-finite values;
 - lean moment data whose required-index layout does not match its hierarchy;
 - adaptive Wheeler reductions requested without enabling
   `adaptive_branch_counts`.
 
-These failures are expected to return `CqmomStatus::invalid_input` with useful
-messages. Diagnostic wording is not required to be identical across public
+The compute failures are expected to return `CqmomStatus::invalid_input` with
+useful messages. Diagnostic wording is not required to be identical across public
 representations, but the user-facing behavior must be consistent: `ok()` is
 false, status is non-success, and no invalid quadrature is reported as
 successful.

@@ -72,19 +72,6 @@ void assert_diagnostic_vector_near(const std::string& text, const std::string& l
     }
 }
 
-std::vector<double> raw_moments_1d(const std::vector<double>& abscissas, const std::vector<double>& weights, const std::size_t moment_count)
-{
-    std::vector<double> moments(moment_count, 0.0);
-    for (std::size_t order = 0; order < moment_count; ++order)
-    {
-        for (std::size_t node = 0; node < abscissas.size(); ++node)
-        {
-            moments[order] += weights[node] * std::pow(abscissas[node], static_cast<int>(order));
-        }
-    }
-    return moments;
-}
-
 std::vector<double> raw_moments_from_terminals(const std::vector<std::size_t>& extents, const std::vector<double>& weights,
                                                const std::vector<std::vector<double>>& abscissas)
 {

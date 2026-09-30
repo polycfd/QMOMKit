@@ -1668,11 +1668,6 @@ std::vector<double> cqmom_native_source_terminal_y()
     return {-1.0, 2.0, -1.0, 2.0};
 }
 
-std::vector<double> cqmom_native_source_initial_weights()
-{
-    return {0.4 * 0.25, 0.4 * 0.75, 0.6 * 0.25, 0.6 * 0.75};
-}
-
 std::vector<double> cqmom_native_source_weight_rates()
 {
     return {0.02, -0.01, 0.03, -0.015};

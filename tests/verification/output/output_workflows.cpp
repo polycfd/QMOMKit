@@ -144,8 +144,8 @@ std::filesystem::path output_path(const qmomkit::OutputOptions& options, const s
 
 void remove_known_outputs(const std::filesystem::path& directory)
 {
-    for (const std::string& filename : {"qmom_moments.txt", "qmom_quadrature.txt", "cqmom_moments.txt", "cqmom_quadrature.txt",
-                                        "cqmom_lean_state.txt", "cqmom_dense_state.txt", "disabled_moments.txt", "disabled_quadrature.txt"})
+    for (const char* const filename : {"qmom_moments.txt", "qmom_quadrature.txt", "cqmom_moments.txt", "cqmom_quadrature.txt", "cqmom_lean_state.txt",
+                                       "cqmom_dense_state.txt", "disabled_moments.txt", "disabled_quadrature.txt"})
     {
         std::filesystem::remove(directory / filename);
     }

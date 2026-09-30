@@ -489,7 +489,7 @@ void test_cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial()
 
     const qmomkit::CqmomMomentSourceUpdateResult result =
         qmomkit::advance_cqmom_moments_with_source(initial, 0.0, time_step,
-                                                   [lambda](double, const qmomkit::CqmomSourceContext& moments)
+                                                   [](double, const qmomkit::CqmomSourceContext& moments)
                                                    {
                                                        std::vector<double> rate(moments.size(), 0.0);
                                                        for (std::size_t i = 0; i < moments.size(); ++i)

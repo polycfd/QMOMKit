@@ -120,26 +120,6 @@ void assert_matches_dense_reference(const std::vector<double>& abscissas, const 
     assert(qmomkit::internal::residual_norm(system, structured.solution, rhs) <= residual_tolerance);
 }
 
-void assert_matches_dense_reference_relative(const std::vector<double>& abscissas, const std::vector<double>& weights,
-                                             const qmomkit::internal::DenseMatrix& expected_solution, const double absolute_tolerance,
-                                             const double relative_tolerance, const double residual_tolerance)
-{
-    const qmomkit::internal::DenseMatrix rhs = make_rhs(abscissas, weights, expected_solution);
-    const qmomkit::internal::DenseMatrix system = qmomkit::internal::make_conditional_vandermonde_matrix(abscissas, weights);
-
-    const qmomkit::internal::LinearSolveResult dense = qmomkit::internal::solve_dense(system, rhs, singular_tolerance, singular_message);
-    assert(dense.success);
-
-    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::bjorck_pereyra, singular_tolerance, false, 1.0e-10};
-    const qmomkit::internal::VandermondeSolveResult structured =
-        qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
-    assert(structured.success);
-
-    assert_matrix_close(structured.solution, dense.solution, absolute_tolerance, relative_tolerance);
-    assert_matrix_close(structured.solution, expected_solution, absolute_tolerance, relative_tolerance);
-    assert(qmomkit::internal::residual_norm(system, structured.solution, rhs) <= residual_tolerance);
-}
-
 void assert_wrapper_matches_dense_reference(const std::vector<double>& abscissas, const std::vector<double>& weights,
                                             const qmomkit::internal::DenseMatrix& expected_solution, const qmomkit::VandermondeSolver solver,
                                             const qmomkit::VandermondeSolver expected_selected_solver,

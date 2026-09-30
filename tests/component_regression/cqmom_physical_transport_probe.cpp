@@ -21,8 +21,6 @@ namespace
 // not independent numerical verification. The semantic contract is successful adaptive ragged reinversion and preservation of resulting active
 // branch counts through zero-rate state evolution; the physical half-step below is diagnostic context only. Update this fixture only for an
 // intentional, independently justified change to that contract or reconstruction policy, never by regenerating current output to make it pass.
-constexpr double pi = 3.141592653589793238462643383279502884;
-
 struct Recurrence2Diagnostic
 {
     double sigma22 = 0.0;

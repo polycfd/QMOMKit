@@ -1922,7 +1922,7 @@ void test_cqmom_vandermonde_rcond_parses_and_validates_for_all_solvers()
     assert(std::abs(representation_neutral.value().conditional_options().moore_penrose_rcond - 0.25) <= 1.0e-15);
     assert(std::abs(representation_neutral.value().initial_state().conditional_options().moore_penrose_rcond - 0.25) <= 1.0e-15);
 
-    for (const std::string& invalid_rcond : {"-0.1", "1", "1.1", "nan", "inf"})
+    for (const std::string invalid_rcond : {"-0.1", "1", "1.1", "nan", "inf"})
     {
         const auto invalid = qmomkit::config::parse_cqmom_lean(cqmom_vandermonde_solver_text("dense", invalid_rcond));
         assert(!invalid.ok());

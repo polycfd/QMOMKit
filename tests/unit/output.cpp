@@ -37,13 +37,6 @@ namespace
     return contents.str();
 }
 
-[[nodiscard]] std::string format_double(const double value)
-{
-    std::ostringstream output;
-    output << std::setprecision(17) << value;
-    return output.str();
-}
-
 [[nodiscard]] std::string format_scientific(const double value)
 {
     std::ostringstream output;

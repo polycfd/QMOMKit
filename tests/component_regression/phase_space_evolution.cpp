@@ -65,14 +65,6 @@ qmomkit::RawMomentTensor fixed_cqmom_moments()
     return {extents, raw_moments_from_terminals(extents, weights, abscissas)};
 }
 
-qmomkit::RawMomentTensor adaptive_cqmom_moments()
-{
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> weights{0.1, 0.3, 0.6};
-    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0}, {-2.0, 2.0, 3.0}};
-    return {extents, raw_moments_from_terminals(extents, weights, abscissas)};
-}
-
 qmomkit::NodeAdvectionOptions tight_node_options()
 {
     qmomkit::NodeAdvectionOptions options;

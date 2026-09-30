@@ -667,20 +667,6 @@ void assert_cqmom_state_active_counts_match_accepted_quadrature(const qmomkit::C
     assert(active_counts_equal(state.active_branch_counts(), qmomkit::internal::active_branch_counts_from_quadrature(*accepted)));
 }
 
-void assert_cqmom_initial_state_stores_accepted_quadrature(const qmomkit::CqmomCase& case_, const double tolerance)
-{
-    const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(case_);
-    assert(expected.ok());
-
-    const qmomkit::CqmomState state = case_.initial_state();
-    const std::optional<qmomkit::CqmomQuadrature>& accepted = qmomkit::internal::CqmomConstructionAccess::state_accepted_quadrature(state);
-
-    assert(accepted.has_value());
-    assert_cqmom_quadrature_near(*accepted, expected.quadrature, tolerance);
-    assert_cqmom_state_active_counts_match_accepted_quadrature(state);
-    assert_cqmom_state_moments_match_quadrature(state, *accepted, tolerance);
-}
-
 qmomkit::CqmomMomentSource source_from_to(const qmomkit::CqmomMomentData& initial, const qmomkit::CqmomMomentData& target)
 {
     return [initial, target](double, const qmomkit::CqmomSourceContext& moments)
@@ -693,51 +679,6 @@ qmomkit::CqmomMomentSource source_from_to(const qmomkit::CqmomMomentData& initia
         }
         return qmomkit::CqmomMomentRate{rate};
     };
-}
-
-struct SourceContextSnapshot
-{
-    bool captured = false;
-    double time = 0.0;
-    std::size_t dimension_count = 0;
-    std::vector<std::size_t> node_counts;
-    std::vector<std::size_t> conditioning_order;
-    std::vector<qmomkit::MultiIndex> indices;
-    std::vector<double> values;
-    std::vector<double> lookup_values;
-    std::optional<double> m0;
-};
-
-void capture_source_context_once(SourceContextSnapshot& snapshot, const qmomkit::CqmomSourceContext& context)
-{
-    if (snapshot.captured)
-    {
-        return;
-    }
-    snapshot.captured = true;
-    snapshot.time = context.time();
-    snapshot.dimension_count = context.dimension_count();
-    snapshot.node_counts = context.hierarchy().node_counts();
-    snapshot.conditioning_order = context.hierarchy().conditioning_order();
-    snapshot.indices = context.indices().to_multi_indices();
-    snapshot.values = context.values();
-    snapshot.lookup_values.reserve(context.size());
-    for (const qmomkit::MultiIndexView index : context.indices())
-    {
-        const std::optional<double> value = context.value(index);
-        assert(value.has_value());
-        snapshot.lookup_values.push_back(*value);
-    }
-    snapshot.m0 = context.value(qmomkit::MultiIndex(context.dimension_count(), 0));
-}
-
-void assert_source_context_snapshots_near(const SourceContextSnapshot& dense, const SourceContextSnapshot& lean, const double tolerance)
-{
-    assert(dense.captured);
-    assert(dense.m0.has_value());
-    assert_vector_near(dense.values, lean.values, tolerance);
-    assert_vector_near(dense.lookup_values, lean.lookup_values, tolerance);
-    assert_near(*dense.m0, *lean.m0, tolerance);
 }
 
 bool diagnostics_request_solver(const std::vector<qmomkit::CqmomDiagnostics>& diagnostics, const std::size_t dimensions,
@@ -1114,7 +1055,7 @@ void test_qmom_bounded_state_advection_and_source_reconstruction_semantics()
     assert(lazy_reconstruction.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
     assert(lazy_reconstruction.message.find("source-stage quadrature reconstruction failed") != std::string::npos);
 
-    const qmomkit::QmomMomentSource move_outside_bounds = [](double, const qmomkit::QmomSourceContext& context)
+    const qmomkit::QmomMomentSource move_outside_bounds = [](double, const qmomkit::QmomSourceContext&)
     { return qmomkit::QmomMomentRate{std::vector<double>{0.0, 1.0}}; };
     const qmomkit::QmomPhaseSpaceEvolutionResult post_source = qmomkit::advance_qmom_moment_source(initial, 0.0, 1.0, move_outside_bounds);
     assert(!post_source.ok());
@@ -3016,7 +2957,7 @@ void test_state_cqmom_phase_space_evolution_matches_lean_fixed_layout()
             return std::vector<double>{0.2 * xi[0] + 0.1, -0.15 * xi[1] + 0.05};
         });
     constexpr double lambda = -0.35;
-    const auto source = [lambda](double, const qmomkit::CqmomSourceContext& state_values)
+    const auto source = [](double, const qmomkit::CqmomSourceContext& state_values)
     {
         std::vector<double> rate(state_values.size(), 0.0);
         for (std::size_t i = 0; i < state_values.size(); ++i)
@@ -3130,19 +3071,6 @@ void test_cqmom_source_context_visits_terminal_nodes_from_each_rk_stage()
         assert(result.ok());
         assert(calls == 3);
     }
-}
-
-qmomkit::CqmomMomentSource proportional_cqmom_source(const double coefficient)
-{
-    return [coefficient](double, const qmomkit::CqmomSourceContext& moments)
-    {
-        std::vector<double> rate(moments.size(), 0.0);
-        for (std::size_t entry = 0; entry < moments.size(); ++entry)
-        {
-            rate[entry] = coefficient * moments.value(entry);
-        }
-        return qmomkit::CqmomMomentRate{rate};
-    };
 }
 
 qmomkit::CqmomCase fixed_cqmom_case_with_hierarchy(const qmomkit::RawMomentTensor& moments, const std::vector<std::size_t>& conditioning_order)
@@ -3607,7 +3535,7 @@ void test_strang_source_uses_physical_time_interval_for_nonautonomous_source()
     std::vector<double> callback_times;
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
-    const auto source = [&callback_times](const double time, const qmomkit::QmomSourceContext& moments)
+    const auto source = [&callback_times](const double time, const qmomkit::QmomSourceContext&)
     {
         callback_times.push_back(time);
         return qmomkit::QmomMomentRate{std::vector<double>{time, 0.0}};

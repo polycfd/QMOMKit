@@ -56,16 +56,6 @@ qmomkit::CqmomResult make_fixed_two_dimensional_cqmom()
     return qmomkit::compute_cqmom({hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, {}, {}});
 }
 
-qmomkit::CqmomResult make_adaptive_two_dimensional_cqmom()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> weights{0.1, 0.3, 0.6};
-    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0}, {-2.0, 2.0, 3.0}};
-    return qmomkit::compute_cqmom(
-        {hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true});
-}
-
 void test_constant_phase_space_velocity_for_qmom()
 {
     const std::vector<double> input_abscissas{-1.0, 2.0};

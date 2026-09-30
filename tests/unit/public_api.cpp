@@ -216,66 +216,10 @@ void assert_same_quadrature(const qmomkit::CqmomQuadrature& lhs, const qmomkit::
     }
 }
 
-void assert_same_cqmom_result(const qmomkit::CqmomResult& lhs, const qmomkit::CqmomResult& rhs, const double tolerance)
-{
-    assert(lhs.status == rhs.status);
-    assert(lhs.ok() == rhs.ok());
-    assert(lhs.message == rhs.message);
-    assert(lhs.failed_phase_space_dimension == rhs.failed_phase_space_dimension);
-    assert(lhs.diagnostics.size() == rhs.diagnostics.size());
-    for (std::size_t diagnostic = 0; diagnostic < lhs.diagnostics.size(); ++diagnostic)
-    {
-        assert(lhs.diagnostics[diagnostic].conditioning_level == rhs.diagnostics[diagnostic].conditioning_level);
-        assert(lhs.diagnostics[diagnostic].parent_path == rhs.diagnostics[diagnostic].parent_path);
-        assert(lhs.diagnostics[diagnostic].phase_space_dimension == rhs.diagnostics[diagnostic].phase_space_dimension);
-        assert(lhs.diagnostics[diagnostic].requested_node_count == rhs.diagnostics[diagnostic].requested_node_count);
-        assert(lhs.diagnostics[diagnostic].actual_node_count == rhs.diagnostics[diagnostic].actual_node_count);
-        assert(lhs.diagnostics[diagnostic].adaptive_branch_counts_enabled == rhs.diagnostics[diagnostic].adaptive_branch_counts_enabled);
-        assert(lhs.diagnostics[diagnostic].adaptive_node_count_reduced == rhs.diagnostics[diagnostic].adaptive_node_count_reduced);
-        assert(lhs.diagnostics[diagnostic].qmom_status == rhs.diagnostics[diagnostic].qmom_status);
-        assert(lhs.diagnostics[diagnostic].conditional_moment_status == rhs.diagnostics[diagnostic].conditional_moment_status);
-        assert(lhs.diagnostics[diagnostic].conditional_moment_diagnostics.residual_norm.has_value() ==
-               rhs.diagnostics[diagnostic].conditional_moment_diagnostics.residual_norm.has_value());
-        assert(lhs.diagnostics[diagnostic].conditional_moment_diagnostics.condition_estimate.has_value() ==
-               rhs.diagnostics[diagnostic].conditional_moment_diagnostics.condition_estimate.has_value());
-        assert(lhs.diagnostics[diagnostic].conditional_moment_diagnostics.conditioning_warning ==
-               rhs.diagnostics[diagnostic].conditional_moment_diagnostics.conditioning_warning);
-    }
-    assert_same_quadrature(lhs.quadrature, rhs.quadrature, tolerance);
-}
-
 qmomkit::CqmomMomentData lean_moments_from_dense(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& dense)
 {
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     return qmomkit::extract_cqmom_moments(dense, layout);
-}
-
-void assert_public_lean_cqmom_matches_dense(const qmomkit::PhaseSpaceHierarchy& hierarchy)
-{
-    const std::vector<std::size_t> extents = hierarchy.moment_extents();
-    std::vector<double> weights(hierarchy.total_nodes(), 0.0);
-    std::vector<std::vector<double>> abscissas(hierarchy.number_of_dimensions(), std::vector<double>(hierarchy.total_nodes(), 0.0));
-
-    for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(hierarchy))
-    {
-        const std::size_t flat_node = hierarchy.flatten_node_index(node_index);
-        double weight = 1.0;
-        for (std::size_t dimension = 0; dimension < hierarchy.number_of_dimensions(); ++dimension)
-        {
-            weight *= 0.25 + 0.06 * static_cast<double>(dimension + node_index[dimension] + 1);
-            abscissas[dimension][flat_node] = -1.0 + 0.35 * static_cast<double>(dimension) + 0.8 * static_cast<double>(node_index[dimension]);
-        }
-        weights[flat_node] = weight;
-    }
-
-    const qmomkit::RawMomentTensor dense_moments{extents, raw_moments_from_grid(hierarchy, extents, weights, abscissas)};
-    const qmomkit::CqmomResult dense = qmomkit::compute_cqmom({hierarchy, dense_moments, {}, {}});
-    const qmomkit::CqmomMomentData lean_moments = lean_moments_from_dense(hierarchy, dense_moments);
-    const qmomkit::CqmomResult lean = qmomkit::compute_cqmom({lean_moments, {}, {}});
-
-    assert(dense.ok());
-    assert(lean.ok());
-    assert_same_cqmom_result(lean, dense, 1.0e-10);
 }
 
 qmomkit::RawMomentTensor public_cqmom_promotion_moments()

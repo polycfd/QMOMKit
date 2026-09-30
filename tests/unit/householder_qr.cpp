@@ -13,8 +13,6 @@
 namespace
 {
 
-constexpr double default_tolerance = 1.0e-12;
-
 qmomkit::internal::DenseMatrix make_matrix(const std::vector<std::vector<double>>& rows)
 {
     const std::size_t row_count = rows.size();

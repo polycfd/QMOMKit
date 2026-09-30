@@ -454,7 +454,7 @@ void test_cqmom_source_update_reuses_stage_layout_when_enabled()
     {
         qmomkit::internal::performance::CounterScope scope(session);
         result.emplace(qmomkit::advance_cqmom_moments_with_source(moments, 0.0, time_step,
-                                                                  [lambda](double, const qmomkit::CqmomSourceContext& context)
+                                                                  [](double, const qmomkit::CqmomSourceContext& context)
                                                                   {
                                                                       std::vector<double> rate(context.size(), 0.0);
                                                                       for (std::size_t i = 0; i < rate.size(); ++i)
@@ -748,8 +748,10 @@ void test_public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_e
 #endif
 }
 
-void assert_trusted_case_reconstruction_uses_prepared_metadata(const std::vector<std::size_t>& node_counts, const std::size_t expected_wheeler_calls,
-                                                               const std::size_t expected_vandermonde_solves)
+// The expected counts are only checked when instrumentation is compiled in.
+void assert_trusted_case_reconstruction_uses_prepared_metadata(const std::vector<std::size_t>& node_counts,
+                                                               [[maybe_unused]] const std::size_t expected_wheeler_calls,
+                                                               [[maybe_unused]] const std::size_t expected_vandermonde_solves)
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);

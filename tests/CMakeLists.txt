@@ -12,6 +12,22 @@ set(QMOMKIT_REPOSITORY_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
 # larger default timeout.
 set(QMOMKIT_TEST_TIMEOUT_SECONDS 300)
 
+# Hold the tests to the same warning level as the library. This is set for the
+# whole directory rather than per target because several test executables are
+# declared with add_executable directly instead of through the helper below.
+#
+# Debug only: the tests assert through C/C++ assert(), which NDEBUG removes, so
+# a Release build leaves the parameters and locals that feed those assertions
+# unused and reports hundreds of warnings that say nothing about the code. The
+# test suite is run in Debug, which is also where these warnings are actionable.
+#
+# Aggregate initialization in the tests deliberately leaves trailing fields at
+# their default member initializers, which is all that
+# -Wmissing-field-initializers reports here, so only that warning is disabled.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options($<$<CONFIG:Debug>:-Wall> $<$<CONFIG:Debug>:-Wextra> $<$<CONFIG:Debug>:-Wno-missing-field-initializers>)
+endif()
+
 function(qmomkit_add_test_executable target_name)
     add_executable(${target_name} ${ARGN})
     target_include_directories(${target_name} PRIVATE "${QMOMKIT_REPOSITORY_ROOT}/src" "${QMOMKIT_REPOSITORY_ROOT}/tests")

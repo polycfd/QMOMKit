@@ -164,22 +164,6 @@ std::string path_key(const qmomkit::ConditioningPath& path)
     return output.str();
 }
 
-bool lexicographic_coordinates_less(const std::vector<double>& lhs, const std::vector<double>& rhs)
-{
-    for (std::size_t dimension = 0; dimension < lhs.size(); ++dimension)
-    {
-        if (lhs[dimension] < rhs[dimension])
-        {
-            return true;
-        }
-        if (rhs[dimension] < lhs[dimension])
-        {
-            return false;
-        }
-    }
-    return false;
-}
-
 qmomkit::ConditioningPath rectangular_path_from_node_index(const qmomkit::MultiIndex& node_index, const std::vector<std::size_t>& conditioning_order)
 {
     std::vector<std::size_t> path(conditioning_order.size(), 0);
@@ -236,20 +220,6 @@ std::vector<std::pair<double, double>> sort_rule(std::vector<std::pair<double, d
 {
     std::sort(rule.begin(), rule.end(), [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
     return rule;
-}
-
-std::vector<TerminalPoint> sort_expected_by_coordinates(std::vector<TerminalPoint> terminals)
-{
-    std::sort(terminals.begin(), terminals.end(),
-              [](const TerminalPoint& lhs, const TerminalPoint& rhs) { return lexicographic_coordinates_less(lhs.coordinates, rhs.coordinates); });
-    return terminals;
-}
-
-std::vector<RecoveredTerminal> sort_recovered_by_coordinates(std::vector<RecoveredTerminal> terminals)
-{
-    std::sort(terminals.begin(), terminals.end(), [](const RecoveredTerminal& lhs, const RecoveredTerminal& rhs)
-              { return lexicographic_coordinates_less(lhs.coordinates, rhs.coordinates); });
-    return terminals;
 }
 
 std::vector<std::size_t> prefix_vector(const qmomkit::ConditioningPath& path, const std::size_t size)

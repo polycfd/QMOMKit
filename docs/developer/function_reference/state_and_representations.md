@@ -101,16 +101,15 @@ configured maximum node count, and read-only reconstruction options. The
 maximum and reconstruction options are copied from `QmomCase` and remain
 authoritative for every subsequent evolution transition.
 
-`CqmomCase` and `CqmomState` hide a dense-or-lean variant. Public accessors
-expose representation-neutral hierarchy and policies; numerical algorithms
-dispatch internally to the held case. Typed dense and lean cases can be
-promoted through the public `CqmomCase` constructors.
+`CqmomCase` and `CqmomState` hold a `CqmomLeanCase` and do not expose it.
+Public accessors read the hierarchy and policies from it; numerical algorithms
+use the held case directly. A `CqmomLeanCase` is promoted through the public
+`CqmomCase` constructor.
 `CqmomCase::initial_state` computes a successful quadrature, derives active
 branch counts, reconstructs the stored representation from that accepted
 quadrature, and stores the same quadrature in the state.
 `CqmomState::quadrature()` exposes that stored accepted quadrature by const
-reference. Dense states reconstruct their complete tensor at the original
-extents; lean states reconstruct exactly their required layout in its existing
+reference. A state reconstructs exactly its required layout in its existing
 order. Thus every successfully constructed initial state has stored moments and
 cached accepted quadrature describing the same current state. Adaptive
 reduction may replace higher supplied moments with the reduced quadrature's
@@ -126,17 +125,16 @@ fixed metadata. `CqmomConstructionAccess` supplies internal variant/cache
 references; it is a trusted access boundary, not an ordinary public
 representation API.
 
-`CqmomState::moment_indices`, `moment_values`, and `moment` expose dense
-enumeration or lean required data consistently. An unavailable lean moment
-returns no value; source-context closure is a separate operation. Mutable
-advanced dense/lean case structs must pass public validation before normal
-reconstruction. Internally trusted calls rely on their creator's structural
+`CqmomState::moment_indices`, `moment_values`, and `moment` expose the
+required moment data. A moment outside that set returns no value;
+source-context closure is a separate operation. A mutable `CqmomLeanCase` must
+pass public validation before normal reconstruction. Internally trusted calls rely on their creator's structural
 checks.
 
 Evidence: [configuration tests](../../../tests/unit/configuration.cpp) inspect
 case construction/replacement, copying, metadata reuse, and validation;
 [phase-space tests](../../../tests/unit/phase_space_evolution.cpp) cover fixed
-and adaptive dense/lean cache ownership, stored-moment versus
+and adaptive cache ownership, stored-moment versus
 accepted-quadrature consistency, source-context agreement, and zero-source
 invariance.
 
@@ -144,7 +142,7 @@ invariance.
 
 `compute_qmom` overloads resolve case/options/bounds and map Wheeler status;
 [QMOM reconstruction](qmom_reconstruction.md) explains scaling and selection.
-`compute_cqmom` validates public dense/lean inputs or dispatches an opaque case
+`compute_cqmom` validates a public `CqmomLeanCase` or dispatches an opaque case
 to `compute_cqmom_internal`. Fixed normal workflows supply prepared metadata;
 adaptive workflows construct count-dependent layouts. Scaling wraps the
 internal reconstruction with reversible coordinate transformations.
@@ -163,7 +161,7 @@ accompany a failed result.
 |---|---|---|
 | Case/state constructors, assignments, destructors | Own variant data; ordinary copying preserves independent evolving values. Moves follow C++ ownership rules; access to a moved-from opaque payload is not established here as a supported workflow. | Public API/configuration tests |
 | Hierarchy, option, support, storage, weight, abscissa, path, and count getters | Return the corresponding stored metadata/value/reference; no recomputation or realizability checks. Reference lifetime follows the owner. | Public-header and API tests |
-| `CqmomConstructionAccess` variant and metadata accessors | Internal dispatch and cache sharing; do not convert dense storage into lean storage merely to inspect it. | State/metadata tests |
+| `CqmomConstructionAccess` case and metadata accessors | Internal access and cache sharing; they hand out the held case by reference rather than copying it. | State/metadata tests |
 | `default_conditioning_order`, `ordered_extents`, `from_ordered_index`, `phase_space_node_index_to_path`, `phase_space_index_to_conditioning_path`, `rectangular_terminal_paths` | Translate the two index conventions; fixed paths are generated from physical row-major indices to align with rectangular value offsets. | Non-identity hierarchy tests |
 | `validate_positive_extents`, `checked_multiply`, `validate_conditioning_order`, `validate_abscissas` | Structural preconditions for indexing/allocation and finite quadrature storage. | Invalid-input tests |
 | Result `ok`/boolean helpers; `to_string`, `format_cqmom_settings` | Read status or serialize selected settings. They do not establish numerical acceptance beyond the stored status. | API/configuration formatting tests |

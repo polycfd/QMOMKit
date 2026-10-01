@@ -18,7 +18,7 @@ executable:
 |---|---|
 | `wheeler_benchmark` | Fixed and adaptive one-dimensional Wheeler inversion. |
 | `vandermonde_benchmark` | Vandermonde solver kernels: size and right-hand-side scaling, clustered/mixed-sign/tiny-weight robustness, solver selection, and the public one-level conditional reconstruction. |
-| `cqmom_benchmark` | Representative full CQMOM workloads: conditioning-order traversal, adaptive ragged output, high-dimensional recursion, diagnostic overhead, and dense-versus-lean representation scaling. |
+| `cqmom_benchmark` | Representative full CQMOM workloads: conditioning-order traversal, adaptive ragged output, high-dimensional recursion, diagnostic overhead, and moment-representation scaling. |
 | `adaptive_quadrature_benchmark` | Adaptive QMOM/CQMOM lifecycle: paired `Reconstruction` and `FullStep` timings for retained counts, rejected growth, reductions, and `Direct`/`Fallback` reconstruction-ceiling pairs. |
 | `performance_instrumentation_benchmark` | Representative workloads reported with internal workload counters (see below). |
 | `allocation_benchmark` | Heap allocations and bytes per phase-space step and per reconstruction, via a counting `operator new`. Phase-space steps are measured for both velocity callback forms, directly written and adapted per node. |

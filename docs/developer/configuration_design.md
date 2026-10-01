@@ -89,11 +89,10 @@ The main parts of configuration handling are:
   sections, unknown keys, invalid values, missing required data, and
   inconsistent configuration combinations;
 - initialization: turns explicit moments or analytical distribution
-  specifications into `MomentSet`, CQMOM required moments, or explicit dense
+  specifications into `MomentSet`, CQMOM required moments, or explicit full
   representation tensors;
-- case construction: builds `QmomCase`, `CqmomCase`, or explicit
-  representation `CqmomLeanCase` and `CqmomDenseCase` objects from initialized
-  moments, phase-space hierarchy, and options;
+- case construction: builds `QmomCase`, `CqmomCase`, or an explicit
+  `CqmomLeanCase` from initialized moments, phase-space hierarchy, and options;
 - policy extraction: parses an optional splitting scheme, evolution options,
   output options, and runtime realizability policy objects for drivers that
   choose to use them.
@@ -218,10 +217,10 @@ Explicit tensor moments are indexed in phase-space dimension order:
 M[i0,i1,...] = m_[i0,i1,...]
 ```
 
-For explicit dense representation loading, the declared tensor extents define
+When moments are declared as an explicit tensor, the declared extents define
 the complete expected moment tensor. Configuration loading validates rank,
-index range, completeness, and that each extent is large enough for the
-requested node count in that dimension before creating a `CqmomDenseCase`.
+index range and completeness, and selecting the required moments from it
+rejects a tensor too small for the requested node counts.
 Recursive CQMOM success is still checked later by `compute_cqmom(...)`.
 
 `phase_space.adaptive_branch_counts` controls whether CQMOM may accept
@@ -240,12 +239,11 @@ configuration preserves the public default `CqmomDiagnosticLevel::none`.
 `config::with_initial_moments(const CqmomCase&, RawMomentTensor)` is the normal
 programmatic boundary for replacing the explicit initial tensor of an existing
 normal case. It copies the base case representation and policies, then replaces
-only its initial moments: dense storage retains the full supplied tensor, while
-lean storage derives the fixed layout from the base hierarchy and extracts its
-required values. The base case is unchanged.
+only its initial moments, deriving the fixed layout from the base hierarchy and
+extracting its required values. The base case is unchanged.
 
 This boundary validates tensor rank, positive non-overflowing extents, value
-count, finiteness, and dense or lean reconstruction coverage without parser
+count, finiteness, and reconstruction coverage without parser
 metadata. It deliberately does not invoke CQMOM inversion. Consequently,
 programmatic and parsed explicit tensors share the same lifecycle: structural
 errors are configuration failures, while non-realizability is reported by
@@ -262,11 +260,7 @@ a hierarchy whose dense tensor is much larger than its required set, that is the
 difference between generating the required moments and generating the full
 rectangle.
 
-The lean overload requires a lean-storage base case. Dense storage retains the
-tensor entries outside the required layout and regenerates them from
-reconstructed quadrature, so the required set alone cannot reproduce a dense
-case; that combination is reported as a configuration failure rather than
-completed by inventing the missing entries. The overload validates that the
+The overload taking the required moment set validates that the
 supplied layout is the required CQMOM moment layout of the base hierarchy, that
 there is one value per required index, and that the values are finite. It leaves
 realizability to reconstruction exactly as the tensor overload does, and both
@@ -296,12 +290,10 @@ independent product marginals + global number_density + maximum_orders
       -> RawMomentTensor
 ```
 
-for the explicit dense representation workflow, where `maximum_orders` is
-optional configuration metadata: if it is omitted, case construction derives
-the minimum rectangular tensor extent from the CQMOM hierarchy. It can be
-provided to request a larger tensor, including when a sample-based
-initialization evaluates raw moments from a sample population. The required
-normal CQMOM moment set is not selected from this tensor extent. The lean
+for callers that build a full raw moment tensor themselves, where
+`maximum_orders` sets the retained tensor extent, including when a sample-based
+initialization evaluates raw moments from a sample population. Configured CQMOM
+loading does not consult it. The lean
 path is:
 
 ```text
@@ -312,7 +304,7 @@ independent product marginals + global number_density + CQMOM hierarchy
 for the explicit lean representation workflow. The lean path derives the
 requested raw moment multi-indices from the hierarchy and conditioning order
 instead of from rectangular tensor extents. In this path, `maximum_orders` is
-optional dense metadata and is not used to select moments.
+optional tensor metadata and is not used to select moments.
 
 Mixture component densities are absolute number-density contributions. An
 independent-product initialization has one global number density; per-dimension

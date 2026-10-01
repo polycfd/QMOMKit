@@ -525,7 +525,6 @@ contracts, and evidence](state_and_representations.md)
 | Function or overload family | Definition lines |
 |---|---|
 | `with_moments` | [30](../../../src/internal/cqmom_case.hpp#L30), [37](../../../src/internal/cqmom_case.hpp#L37) |
-| `lean_case_with_moments` | [46](../../../src/internal/cqmom_case.hpp#L46) |
 
 ### `src/internal/cqmom_validation.hpp`
 
@@ -967,7 +966,6 @@ contracts, and evidence](phase_space_evolution.md)
 | `advance_qmom_moment_source` | [753](../../../src/phase_space_evolution.cpp#L753), [759](../../../src/phase_space_evolution.cpp#L759) |
 | `advance_qmom_phase_space` | [766](../../../src/phase_space_evolution.cpp#L766), [773](../../../src/phase_space_evolution.cpp#L773) |
 | `initialize_cqmom_diagnostics` | [783](../../../src/phase_space_evolution.cpp#L783), [790](../../../src/phase_space_evolution.cpp#L790), [797](../../../src/phase_space_evolution.cpp#L797) |
-| `validate_dense_cqmom_moments_for_phase_space_evolution` | [810](../../../src/phase_space_evolution.cpp#L810) |
 | `validate_lean_cqmom_moments_for_phase_space_evolution` | [817](../../../src/phase_space_evolution.cpp#L817) |
 | `validate_cqmom_state_for_phase_space_evolution` | [824](../../../src/phase_space_evolution.cpp#L824) |
 | `validate_cqmom_advection_input` | [839](../../../src/phase_space_evolution.cpp#L839) |
@@ -978,7 +976,6 @@ contracts, and evidence](phase_space_evolution.md)
 | `cqmom_state_failure` | [911](../../../src/phase_space_evolution.cpp#L911) |
 | `cqmom_success` | [919](../../../src/phase_space_evolution.cpp#L919) |
 | `materialize_cqmom_phase_space_evolution_result` | [924](../../../src/phase_space_evolution.cpp#L924) |
-| `dense_state_from_accepted_quadrature` | [945](../../../src/phase_space_evolution.cpp#L945) |
 | `lean_state_from_accepted_quadrature` | [954](../../../src/phase_space_evolution.cpp#L954) |
 | `prepare_cqmom_phase_space_evolution_working_state` | [963](../../../src/phase_space_evolution.cpp#L963) |
 | `advance_cqmom_advection_stage` | [1006](../../../src/phase_space_evolution.cpp#L1006) |
@@ -1015,7 +1012,6 @@ evidence](state_and_representations.md)
 | `compute_qmom_unscaled` | [35](../../../src/public_api.cpp#L35) |
 | `compute_qmom_with_automatic_scaling` | [52](../../../src/public_api.cpp#L52) |
 | `to_qmom_status` | [74](../../../src/public_api.cpp#L74) |
-| `visit_case` | [101](../../../src/public_api.cpp#L101) |
 | `hierarchy` | [106](../../../src/public_api.cpp#L106) |
 | `qmom_options` | [113](../../../src/public_api.cpp#L113) |
 | `conditional_options` | [118](../../../src/public_api.cpp#L118) |
@@ -1061,10 +1057,8 @@ evidence](state_and_representations.md)
 | `make_prepared_metadata` | [491](../../../src/public_api.cpp#L491), [501](../../../src/public_api.cpp#L501) |
 | `CqmomConstructionAccess::create_case` | [518](../../../src/public_api.cpp#L518), [512](../../../src/public_api.cpp#L512) |
 | `CqmomConstructionAccess::create_state` | [543](../../../src/public_api.cpp#L543), [535](../../../src/public_api.cpp#L535), [550](../../../src/public_api.cpp#L550), [561](../../../src/public_api.cpp#L561), [555](../../../src/public_api.cpp#L555), [569](../../../src/public_api.cpp#L569), [529](../../../src/public_api.cpp#L529), [524](../../../src/public_api.cpp#L524) |
-| `CqmomConstructionAccess::case_dense_case` | [576](../../../src/public_api.cpp#L576) |
-| `CqmomConstructionAccess::case_lean_case` | [581](../../../src/public_api.cpp#L581) |
-| `CqmomConstructionAccess::state_dense_case` | [586](../../../src/public_api.cpp#L586) |
-| `CqmomConstructionAccess::state_lean_case` | [591](../../../src/public_api.cpp#L591) |
+| `CqmomConstructionAccess::case_definition` | [581](../../../src/public_api.cpp#L581) |
+| `CqmomConstructionAccess::state_definition` | [591](../../../src/public_api.cpp#L591) |
 | `CqmomConstructionAccess::state_active_branch_counts` | [596](../../../src/public_api.cpp#L596) |
 | `CqmomConstructionAccess::state_accepted_quadrature` | [601](../../../src/public_api.cpp#L601) |
 | `CqmomConstructionAccess::case_prepared_metadata` | [606](../../../src/public_api.cpp#L606) |

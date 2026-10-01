@@ -181,7 +181,7 @@ copies, transformations that preserve structure, or phase-space evolution
 successors. `cqmom_prepared_metadata_uses` increments once when a fixed trusted
 reconstruction consumes compatible metadata. `cqmom_dynamic_metadata_builds`
 increments once per reconstruction that creates root/branch metadata
-dynamically, such as an adaptive normal case or an explicit dense/lean case. A
+dynamically, such as an adaptive normal case or an explicit case. A
 valid fixed normal case/state never contributes a dynamic-metadata build;
 missing metadata is an internal contract violation. These coarse counters do
 not replace `moment_layout_builds`: the latter still counts individual

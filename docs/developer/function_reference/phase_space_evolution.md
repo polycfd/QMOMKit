@@ -77,8 +77,8 @@ preservation of all higher ODE moments after reduction.
 
 `prepare_cqmom_phase_space_evolution_working_state` reuses the state's accepted
 quadrature and active-count vector when present. Normal
-`CqmomCase::initial_state` already populates them and canonicalizes dense or
-lean stored moments from that same accepted quadrature. If absent, it
+`CqmomCase::initial_state` already populates them and canonicalizes the stored
+moments from that same accepted quadrature. If absent, it
 reconstructs once using existing active constraints, with growth disabled,
 derives counts from the resulting quadrature, and records initial transitions.
 Failure ends the stage with rollback state. No fresh reconstruction is required
@@ -86,30 +86,27 @@ merely because this is the first public advection call.
 
 The working structure borrows cached state data or owns newly reconstructed
 data; it is local to the stage. Fixed hierarchy/layout metadata is immutable
-and shared along accepted state lineage. Dense and lean storage are dispatch
-choices, not different operator-splitting algorithms.
+and shared along accepted state lineage.
 
 ## CQMOM accepted advection and source — Level A
 
 `advance_cqmom_advection_stage` moves the accepted terminal coordinates with
-fixed weights, hierarchy, paths, and active topology. Dense states regenerate
-every stored tensor moment; lean states regenerate the required layout.
+fixed weights, hierarchy, paths, and active topology. The state regenerates its
+required layout.
 Successors keep the accepted moved quadrature and active counts. No source
 growth/reduction policy runs during node motion.
 
-`advance_cqmom_moment_source_stage` first extracts the required layout from a
-dense state or directly uses the lean required data. Both representations
-integrate the **same required moment vector**. Dense-only higher moments are
-not independently advanced by the callback's tracked vector. Context closure
-supplies untracked quantities from each RK stage as needed.
+`advance_cqmom_moment_source_stage` uses the state's required moment data
+directly, integrating the **same required moment vector** the reconstruction
+consumes. Context closure supplies untracked quantities from each RK stage as
+needed.
 
 After source integration, reconstruct with previous active counts and
 configured adaptive growth permission. Failure is an inversion failure,
 distinct from a callback/predicate failure. On success, derive active counts
-and rebuild stored moments from the accepted quadrature: all dense extents for
-dense storage, required indices for lean storage.
-`dense_state_from_accepted_quadrature` and
-`lean_state_from_accepted_quadrature` retain policies, hierarchy, and
+and rebuild the stored moments from the accepted quadrature at the required
+indices. `lean_state_from_accepted_quadrature` retains policies, hierarchy,
+and
 compatible prepared metadata while replacing evolving values/cache.
 
 `record_cqmom_node_count_transitions` compares before/after branch maps keyed
@@ -124,8 +121,7 @@ reconstruction](cqmom_reconstruction.md).
 Evidence: [evolution tests](../../../tests/unit/phase_space_evolution.cpp)
 include `test_public_cqmom_advection_stage_preserves_topology`,
 `test_public_cqmom_moment_source_stage_growth_is_limited_to_one_node`,
-`test_lean_cqmom_moment_source_stage_canonicalizes_adaptive_reduction`, and
-`test_dense_state_reconstructs_dense_only_moments_after_moment_source_source`.
+and `test_lean_cqmom_moment_source_stage_canonicalizes_adaptive_reduction`.
 Ancestor-collapse/growth tests check transition identity. These finite examples
 do not characterize topology chatter or accuracy across many
 collapse/reappearance cycles.
@@ -166,7 +162,7 @@ exception can still interrupt the loop. Empty batches perform no scalar calls.
 
 Scalar public wrappers select the stage/macro helper and boundary composition;
 they do not introduce additional numerical solvers. Validation helpers separate
-common time/callback checks from dense/lean state requirements.
+common time/callback checks from state requirements.
 `active_branch_key`, key `operator<`, `path_has_prefix`, and
 `has_changed_strict_ancestor` supply the transition map operations described
 above.

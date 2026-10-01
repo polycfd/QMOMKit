@@ -239,9 +239,8 @@ The boundary callback receives the same context as the source callback, so both
 see the same stage view and the same derived-moment operations. CQMOM uses the
 CQMOM-native source callback over a `CqmomSourceContext` view of the current
 moment-source moments, so physical CQMOM source models do not need to depend on
-dense tensor or lean required-moment storage. Equivalent dense-backed and
-lean-backed `CqmomState` objects expose the same selected CQMOM moment layout;
-dense-only tensor entries remain internal unless they are part of that layout.
+how the moments are stored. A `CqmomState` exposes the selected CQMOM moment
+layout.
 
 The CQMOM source context exposes:
 
@@ -379,9 +378,8 @@ node-advection/embedded-RK controls, moment-source SSP-RK3 controls, and stage
 sequencing. Conditional moment controls, standalone QMOM controls, CQMOM
 Wheeler controls, adaptive branch-count enablement, CQMOM diagnostic level, and
 Vandermonde solver selection are case-owned policies stored in `CqmomState`.
-Dense-backed and lean-backed states must pass these policies through to the
-same recursive CQMOM, node-advection, moment-reconstruction, and source-update
-algorithms; accepting a configured case policy and replacing it with `false`,
+A state must pass these policies through to the recursive CQMOM,
+node-advection, moment-reconstruction, and source-update algorithms; accepting a configured case policy and replacing it with `false`,
 `detailed`, `automatic`, or another aggregate default is a bug.
 
 ### Moment-source SSP-RK3
@@ -726,15 +724,12 @@ evolution paths:
 
 - moment and quadrature reconstruction;
 - QMOM and CQMOM inversion;
-- dense CQMOM `RawMomentTensor` handling;
-- lean CQMOM `CqmomMomentData` handling;
+- CQMOM `CqmomMomentData` handling;
 - source representation adaptation, including `CqmomSourceContext`;
 - result and state construction, including `CqmomState` wrapping.
 
 New schemes should not create a new generic phase-space evolution abstraction,
-move QMOM or CQMOM representation details into the shared sequence code, or
-require the dense and lean representation workflows to share storage-specific
-code.
+or move QMOM or CQMOM representation details into the shared sequence code.
 
 ## Failure and status handling
 
@@ -931,22 +926,19 @@ explicitly. This keeps overload resolution unambiguous while preserving default
 options on the source-only overloads.
 
 `CqmomSourceContext` exposes the CQMOM moment layout selected for phase-space
-evolution. For equivalent states, dense-backed and lean-backed `CqmomState`
-phase-space evolution must present identical context indices, values, ordering,
-hierarchy, and lookup behavior to `CqmomMomentSource` and
-`CqmomMomentBoundaryContribution`. Dense storage may retain additional raw
-tensor moments internally, but those dense-only entries are not part of the
+evolution. `CqmomState` phase-space evolution presents context indices, values,
+ordering, hierarchy, and lookup behavior to `CqmomMomentSource` and
+`CqmomMomentBoundaryContribution` that follow that layout. Moments outside it
+are not part of the
 callback context unless they are also in the phase-space evolution CQMOM moment
 layout.
 
 CQMOM moment-source callbacks update the canonical phase-space evolution moment
 layout. After a successful moment-source stage inversion, the accepted
 quadrature becomes the canonical branch representation for the returned state.
-Lean storage reconstructs the retained CQMOM layout from that quadrature for
-every accepted post-source state, even when the active topology is unchanged.
-Dense storage reconstructs the complete configured dense tensor from that
-quadrature, including higher-order or mixed tensor entries that were not
-exposed to the source callback. Stored post-source moments are therefore the
+The retained CQMOM layout is reconstructed from that quadrature for every
+accepted post-source state, even when the active topology is unchanged. Stored
+post-source moments are therefore the
 moments implied by the accepted quadrature, not independently retained source
 variables. In adaptive mode, reduction or growth can replace source-candidate
 higher-order information with the closure represented by the accepted
@@ -987,8 +979,7 @@ the configured splitting scheme. The public `advance_cqmom_advection(...)` and
 `advance_cqmom_moment_source(...)` stage helpers are for applications that own
 stage orchestration or acceptance externally.
 
-`CqmomState` stores the selected dense or lean moment representation,
-reconstruction policy, current active branch-count metadata, and, after
+`CqmomState` stores the required CQMOM moments, reconstruction policy, current active branch-count metadata, and, after
 successful evolution, a private accepted quadrature cache while remaining
 representation neutral to callers. In adaptive mode, the hierarchy node counts
 are configured maxima. `CqmomState::active_branch_counts()` reports the current
@@ -1010,9 +1001,8 @@ ignore the split-scheme option because the caller owns composition order.
 `CqmomPhaseSpaceEvolutionOptions` contains only stage policies. CQMOM inversion
 policies such as Wheeler options, conditional reconstruction options, adaptive
 branch counts, diagnostic level, and Vandermonde solver are case-owned policies
-preserved by `CqmomState`. `CqmomDenseCase` and `CqmomLeanCase` remain public
-advanced/static inversion inputs, but public CQMOM evolution remains the
-storage-independent `CqmomState` API.
+preserved by `CqmomState`. `CqmomLeanCase` remains a public static-inversion
+input, but public CQMOM evolution remains the `CqmomState` API.
 
 The lower-level public helpers are:
 

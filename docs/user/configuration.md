@@ -741,16 +741,22 @@ your application then fills in with its physics.
 An application that loads a case and later obtains a complete raw moment tensor
 can build a replacement case with
 `qmomkit::config::with_initial_moments(base_case, tensor)`. This keeps the
-loaded hierarchy, supports, storage choice, and reconstruction settings, and
-validates the tensor's structure — equivalent to having written those moments
+loaded hierarchy, supports, and reconstruction settings, and validates the
+tensor's structure — equivalent to having written those moments
 into the file, without serialising and reparsing it.
 
 If the moments already arrive as the required CQMOM moment set rather than a
 full tensor, pass `CqmomMomentData` instead:
 `qmomkit::config::with_initial_moments(base_case, moment_data)`. The result is
-the same case, and it avoids building a dense tensor whose extra entries the
-case never reads. This overload needs a lean-storage base case; a dense base
-case keeps its complete tensor and so requires the tensor overload.
+the same case, and it avoids building a full tensor whose extra entries the case
+never reads.
+
+Use the `RawMomentTensor` overload when the moments come from outside QMOMKit,
+as for instance the Monte Carlo companion's sampled moments do. It selects the moments the
+hierarchy needs, and reports a tensor of the wrong rank or size, or one missing
+a required moment, as a configuration error you can inspect. Extracting those
+moments yourself with `extract_cqmom_moments(...)` signals the same problems by
+throwing instead.
 ## Configuring without a file
 
 Applications that already own their setup data can skip the file entirely and
@@ -808,16 +814,14 @@ int main()
 }
 ```
 
-For multidimensional CQMOM, use one of the explicit case types: `CqmomDenseCase`
-when the application has full rectangular tensor moments, `CqmomLeanCase` when
-it provides only the moments the hierarchy requires. Either can be promoted to a
-`CqmomCase`, so an explicitly constructed case still reaches `initial_state()`
-and ordinary time evolution. If you would rather have QMOMKit derive the
-required moments from a configured independent-product initialisation,
-`load_cqmom(...)` remains the simpler route.
+For multidimensional CQMOM, build a `CqmomLeanCase` from the moments the
+hierarchy requires. It can be promoted to a `CqmomCase`, so an explicitly
+constructed case still reaches `initial_state()` and ordinary time evolution. If
+you would rather have QMOMKit derive the required moments from a configured
+independent-product initialisation, `load_cqmom(...)` remains the simpler route.
 
-This example uses `CqmomDenseCase` because the application already owns the full
-tensor:
+This example starts from a full tensor the application already owns and selects
+the required moments from it:
 
 ```cpp
 #include <qmomkit/qmomkit.hpp>
@@ -840,9 +844,8 @@ int main()
     qmomkit::QmomOptions qmom_options;
     qmom_options.adaptive = false;
 
-    const qmomkit::CqmomDenseCase cqmom_case{
-        hierarchy,
-        moments,
+    const qmomkit::CqmomLeanCase cqmom_case{
+        qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
         {},
         qmom_options};
 

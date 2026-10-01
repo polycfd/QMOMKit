@@ -19,7 +19,7 @@ universal numerical guarantees from bounded test cases.
 | [Realizability](realizability.md) | Support-specific matrix classification, range checks, acceptance predicates |
 | [Conditional systems and linear algebra](conditional_systems.md) | Weighted Vandermonde equations, BP, dense elimination, QR, SVD, eigenkernel |
 | [Recursive CQMOM](cqmom_reconstruction.md) | Required layouts, conditional slices, branch traversal, active-count constraints |
-| [State and representations](state_and_representations.md) | Phase-space indices, conditioning paths, dense/lean storage, accepted state and metadata ownership |
+| [State and representations](state_and_representations.md) | Phase-space indices, conditioning paths, moment storage, accepted state and metadata ownership |
 | [Moment evaluation and rates](moment_evaluation.md) | Integer/generalized quadrature moments and chain-rule advection rates |
 | [Sources and source contexts](moment_sources.md) | Stage-local moment access, boundary addition, source interval completion, marginal predicates |
 | [Time integration and node motion](time_integration.md) | SSP-RK3, embedded RK23/RK45, controllers, node packing |

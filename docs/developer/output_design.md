@@ -181,7 +181,7 @@ The `for_qmom(path, moment_count)`, `for_cqmom(path, extents, ...)` and
 overload that carries no generalized values; it may be used only when the writer
 has no generalized-moment columns. A writer configured with
 `generalized_moment_orders` needs the overload that supplies them: explicit
-values for the dense and lean CQMOM families, and for QMOM either explicit values
+values for both `for_cqmom` families above, and for QMOM either explicit values
 or a `Quadrature1D` that the writer evaluates. The two state-based families
 always evaluate their configured generalized columns from the quadrature passed
 with the row, and `for_cqmom(path, raw_moment_request)` has no generalized-column
@@ -255,7 +255,7 @@ interval = 0.1
 ```
 
 Parsing this section creates an `OutputOptions` object. It does not modify
-`QmomCase`, `CqmomDenseCase`, phase-space evolution options, time integrators,
+`QmomCase`, `CqmomLeanCase`, phase-space evolution options, time integrators,
 moment sources, or velocity callbacks.
 
 If no output section is present, parsed output options use the default

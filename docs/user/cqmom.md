@@ -32,13 +32,12 @@ number density.
 ## CQMOM workflow
 
 The typical CQMOM workflow starts from a modelling description rather than from
-internal storage choices. That description can come from a `.qmom`
+internal storage. That description can come from a `.qmom`
 configuration file or from direct C++ setup. In either case, users name or
 order the coordinates, set the requested node counts, choose the conditioning
 order, and describe the initial moments. File-based setup builds a `CqmomCase`;
-direct C++ setup can provide `CqmomDenseCase` or `CqmomLeanCase` when the
-application intentionally manages dense or lean moment storage, then promote
-either typed representation to the normal `CqmomCase` workflow.
+direct C++ setup can build a `CqmomLeanCase` when the application assembles the
+required moments itself, then promote it to the normal `CqmomCase` workflow.
 
 ```text
 configuration file:
@@ -48,11 +47,11 @@ configuration file:
 
 direct API:
     C++ setup
-    -> CqmomDenseCase or CqmomLeanCase
+    -> CqmomLeanCase
     -> CqmomCase
 
 reconstruction:
-    CqmomCase, CqmomDenseCase, or CqmomLeanCase
+    CqmomCase or CqmomLeanCase
     -> compute_cqmom(...)
     -> CqmomResult / CqmomQuadrature
     -> inspect / evaluate / output
@@ -66,8 +65,8 @@ normal optional phase-space evolution:
 At the user level, this means:
 
 1. Define the CQMOM setup in a `.qmom` file or directly in C++.
-2. Load it with `load_cqmom(...)`, or construct a `CqmomDenseCase` or
-   `CqmomLeanCase` and pass it to `CqmomCase` in C++.
+2. Load it with `load_cqmom(...)`, or construct a `CqmomLeanCase` and pass it
+   to `CqmomCase` in C++.
 3. Keep the case object as the configured problem definition.
 4. Call `compute_cqmom(...)` to compute the initial quadrature.
 5. Inspect the quadrature, evaluate derived quantities, or write output.
@@ -88,12 +87,11 @@ recursive problem, then returns nodes and bounded-support diagnostics in
 physical coordinates. Raw moments, weights, callbacks, states, and configured
 coordinate supports keep their physical meaning.
 
-`CqmomCase` is the representation-neutral immutable setup produced by the normal
-configuration loader or by promoting a typed `CqmomDenseCase` or
-`CqmomLeanCase`. Normal CQMOM phase-space evolution creates `CqmomState` from
-`CqmomCase` and advances it with `advance_cqmom_phase_space(...)`, independent of
-whether the case stores moments densely or leanly. The explicit dense and lean
-types also remain available for static inversion with `compute_cqmom(...)`.
+`CqmomCase` is the immutable setup produced by the normal configuration loader
+or by promoting a `CqmomLeanCase`. Normal CQMOM phase-space evolution creates
+`CqmomState` from `CqmomCase` and advances it with
+`advance_cqmom_phase_space(...)`. `CqmomLeanCase` also remains available for
+static inversion with `compute_cqmom(...)`.
 In all cases, `compute_cqmom(...)` returns quadrature; it does not return a
 phase-space evolution state.
 
@@ -117,9 +115,9 @@ if (!replaced)
 const qmomkit::CqmomCase cqmom_case = replaced.value();
 ```
 
-The new case retains the base hierarchy, conditioning order, support, storage
-selection, and every reconstruction policy. A dense base retains the complete
-tensor; a lean base extracts its fixed required layout. The transformation
+The new case retains the base hierarchy, conditioning order, support, and every
+reconstruction policy, and selects the moments the hierarchy needs from the
+supplied tensor. The transformation
 checks rank, extents, value count, finiteness, and required coverage only. It
 does not test realizability: `compute_cqmom(...)` reports numerical
 reconstruction status, and `initial_state()` keeps its existing
@@ -139,9 +137,7 @@ const auto replaced = qmomkit::config::with_initial_moments(base_case, qmomkit::
 This asks for exactly the moments the hierarchy needs rather than a full
 rectangular tensor, which matters when the two differ substantially: a
 five-dimensional hierarchy with three nodes per coordinate requires 606 moments,
-while its dense tensor holds 7776. The resulting case is the same either way.
-The overload requires a lean-storage base case, because dense storage retains
-the tensor entries outside the required layout.
+while the full tensor holds 7776. The resulting case is the same either way.
 
 ## Using CQMOM in QMOMKit
 
@@ -202,8 +198,7 @@ const qmomkit::CqmomQuadrature& quadrature = state.quadrature();
 ```
 
 Write the moments represented by the current state with a state-aware moment
-writer. Lean states write their hierarchy moments, while dense states write the
-complete configured tensor:
+writer. A state writes the moments its hierarchy reconstructs from:
 
 ```cpp
 qmomkit::OutputOptions output_options;
@@ -404,18 +399,17 @@ non-negative abscissas in the corresponding dimensions.
 
 ## Advanced representation workflows
 
-The workflows in this section are advanced explicit dense and lean
-representations for static inversion, specialized initialization, validation,
-and expert workflows. They are for applications that deliberately manage moment
-storage themselves, and they are not required for configuration-driven CQMOM
-onboarding.
+The workflows in this section are for static inversion, specialized
+initialization, validation, and expert use. They are for applications that
+assemble the moments themselves, and they are not required for
+configuration-driven CQMOM onboarding.
 
-### Explicit dense representation workflow
+### Starting from a full moment tensor
 
-Some applications already own full tensor moments. This is useful for external
-data exchange, validation against analytical tensors, debugging, and
-interoperability with dense tensor codes. In those cases, construct a
-`RawMomentTensor` and use `CqmomDenseCase` explicitly:
+Some applications already own full tensor moments, from external data exchange,
+validation against analytical tensors, debugging, or interoperability with codes
+that work in tensors. Select the moments the hierarchy needs from the tensor and
+build a case from those:
 
 ```cpp
 const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -429,16 +423,17 @@ const qmomkit::RawMomentTensor moments{
         1.121875, 0.493625, 0.475675, 0.622865,
     }};
 
-const qmomkit::CqmomDenseCase dense_case{hierarchy, moments};
-const qmomkit::CqmomResult result = qmomkit::compute_cqmom(dense_case);
+const qmomkit::CqmomLeanCase case_{
+    qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy))};
+const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
 ```
 
-This path is not the recommended beginner workflow. It is the explicit dense
-representation workflow for callers that deliberately need full rectangular
-tensor input. Dense remains a first-class supported expert workflow when the
-application intentionally manages dense moment storage. To use the same normal
-state/evolution workflow as configuration-driven CQMOM, construct
-`CqmomCase{dense_case}` and call `initial_state()`.
+`extract_cqmom_moments(...)` throws if the tensor is the wrong rank or too small
+to contain a moment the hierarchy needs. If the tensor comes from outside the
+application and you would rather check a status than catch an exception, load or
+build a case first and replace its moments with
+`config::with_initial_moments(case, tensor)`, which performs the same selection
+and returns a configuration error instead.
 
 ### Explicit lean representation workflow
 

@@ -198,10 +198,10 @@ verification tests when the behavior is a public mathematical workflow with an
 independent reference.
 
 Independent numerical verification requires an analytical, manufactured,
-convergence, conservation, or otherwise independent reference. Dense/lean or
-batch/scalar parity, round trips, captured fixtures, and comparisons between
-related production paths remain valuable consistency/regression evidence, but
-must not be presented as independent algorithm verification.
+convergence, conservation, or otherwise independent reference. Batch/scalar
+parity, round trips, captured fixtures, and comparisons between related
+production paths remain valuable consistency/regression evidence, but must not
+be presented as independent algorithm verification.
 
 ### Verification tests
 

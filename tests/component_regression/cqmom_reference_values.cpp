@@ -24,8 +24,7 @@
  *   3. Recorded values. The accepted weights and abscissas are compared against
  *      the values recorded below, which pins the result far more tightly than
  *      recovery alone: it also fixes node ordering, conditioning-path ordering,
- *      which branches adaptive reconstruction kept, and the last bit of every
- *      value.
+ *      and which branches adaptive reconstruction kept.
  *
  *   Evolution cases carry only the recorded check, because once the state has
  *   been advanced it is no longer the node list the case was built from.
@@ -33,16 +32,24 @@
  * PASS CRITERIA
  *   Recovery: every node the case was built from is matched by an accepted
  *   node, with weight and coordinates agreeing to 1e-12 absolute.
- *   Recorded values: status, node count and every weight and abscissa compare
- *   bit-exactly against the recorded value.
+ *   Prepared-path agreement: bit-exact, because both routes run in the same
+ *   build and any difference is a real one.
+ *   Recorded values: status and node count exactly; every weight and abscissa
+ *   within 1e-12 relative, with a 1e-15 absolute floor.
  *
- *   The recorded comparison is deliberately exact rather than using a
- *   tolerance. Its purpose is to prove that a refactor changed nothing, and a
- *   tolerance would hide exactly the drift it exists to detect. A failure
- *   therefore reports how many representable floating-point values separate the
- *   produced and recorded numbers, so that a real numerical change (many steps)
- *   is immediately distinguishable from a compiler or platform difference (one
- *   or two steps).
+ *   The recorded comparison cannot be exact. The values were produced by one
+ *   compiler, and another reproduces the same computation with different last
+ *   bits, so an exact comparison reports a toolchain difference as a
+ *   regression. The budget is set from measurement, far above that noise and
+ *   far below any change of algorithm or ordering; the rationale and the
+ *   measured figures are at check_recorded_value below. A failure reports the
+ *   absolute difference, the number of representable values separating the two
+ *   numbers, and the budget it exceeded.
+ *
+ *   This bounds how tightly a refactor can be pinned by this file alone. To
+ *   show that a refactor changed nothing at all, run this suite before and
+ *   after the change with one compiler and compare: within a single toolchain
+ *   the results are reproducible bit for bit.
  *
  * WHEN IT IS TESTED
  *   Debug and Release. The checks are explicit and do not rely on assert().
@@ -120,15 +127,35 @@ struct ReferenceQuadrature
     return static_cast<long double>(std::llabs(actual_bits - expected_bits));
 }
 
+// The recorded values were produced by one compiler. Another compiler evaluates
+// the same algorithm with different instruction selection and fused multiply-add
+// contraction, so the last bits differ even when nothing about the computation
+// has changed. Comparing exactly would therefore report a toolchain difference
+// as a regression, so the recorded check is relative.
+//
+// The budget is chosen from measurement: across the whole matrix, GCC differs
+// from the recording toolchain by at most 27 representable values, which is
+// about 6e-15 relative for the magnitudes recorded here. A change of algorithm,
+// node ordering or branch selection moves results by many orders more than that,
+// so this budget separates the two.
+constexpr double recorded_relative_tolerance = 1.0e-12;
+// Guards a future recording close to zero, where the relative term alone would
+// be unusable. Every value recorded today is far enough from zero that the
+// relative term governs.
+constexpr double recorded_absolute_floor = 1.0e-15;
+
 void check_recorded_value(const std::string& case_name, const char* quantity, const std::size_t position, const double actual, const double expected)
 {
-    if (actual == expected)
+    const double difference = std::abs(actual - expected);
+    const double allowed = std::max(recorded_absolute_floor, recorded_relative_tolerance * std::abs(expected));
+    if (std::isfinite(actual) && std::isfinite(expected) && difference <= allowed)
     {
         return;
     }
     std::ostringstream detail;
     detail << std::setprecision(17) << "case " << case_name << ", " << quantity << '[' << position << "]: produced " << actual << ", recorded "
-           << expected << ", " << static_cast<double>(representable_values_between(actual, expected)) << " representable values apart";
+           << expected << ", differing by " << difference << " (" << static_cast<double>(representable_values_between(actual, expected))
+           << " representable values), which exceeds the permitted " << allowed;
     qmomkit::verification::fail_check("recorded value comparison", __FILE__, __LINE__, detail.str());
 }
 

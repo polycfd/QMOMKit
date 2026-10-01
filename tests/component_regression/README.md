@@ -50,8 +50,12 @@ Current component regression coverage includes:
 `cqmom_reference_values.cpp` and `cqmom_dense_lean_parity_matrix.cpp`. The two
 tests answer different questions and neither replaces the other:
 
-- the reference-value test asks *did the result change?* and compares
-  bit-exactly against recorded values;
+- the reference-value test asks *did the result change?* and compares against
+  recorded values to 1e-12 relative. The budget absorbs the differing last bits
+  another compiler produces for the same computation, measured at up to 27
+  representable values, while staying far below any change of algorithm or
+  ordering. Pinning a refactor more tightly than that needs a before-and-after
+  run with one compiler, where results are reproducible bit for bit;
 - the parity test asks *do the two storage schemes agree?* and compares the two
   paths against each other to round-off.
 

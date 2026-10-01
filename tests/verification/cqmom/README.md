@@ -2,8 +2,9 @@
 
 These cases verify the public CQMOM path from configuration loading through
 `qmomkit::compute_cqmom(...)`. Inputs are loaded from `.qmom` files in this
-directory through `qmomkit::config::load_cqmom_dense`; the executables do
-not overwrite or regenerate configured raw moments.
+directory through `qmomkit::config::load_cqmom_lean` and
+`qmomkit::config::load_cqmom`; the executables do not overwrite or regenerate
+configured raw moments.
 
 ## Raw Moment Reconstruction
 
@@ -43,19 +44,16 @@ than by returning a status object.
 paths on the independent-product case:
 
 ```text
-load_cqmom_dense(...) -> CqmomDenseCase -> compute_cqmom(...)
-load_cqmom_lean(...)  -> CqmomLeanCase  -> compute_cqmom(...)
-load_cqmom(...)       -> CqmomCase      -> compute_cqmom(...)
+load_cqmom_lean(...) -> CqmomLeanCase -> compute_cqmom(...)
+load_cqmom(...)      -> CqmomCase     -> compute_cqmom(...)
 ```
 
 The default `CqmomCase` workflow is the normal user path because it stores the
-configured CQMOM setup and avoids exposing dense or lean moment storage. The
-dense workflow is useful when callers intentionally provide a full rectangular
-raw-moment tensor. The lean workflow is useful when callers intentionally
-manage only the minimal CQMOM moment layout required by recursive
-reconstruction.
+configured CQMOM setup and avoids exposing the moment storage it uses. The
+lean workflow is useful when callers intentionally manage only the minimal
+CQMOM moment layout required by recursive reconstruction.
 
-All three workflows are expected to recover the same analytical terminal
+Both workflows are expected to recover the same analytical terminal
 quadrature and reconstruct the same raw moments for the same mathematical
 problem. A failure indicates a public representation mismatch, lost
 configuration policy, or an unintended difference in diagnostics rather than a
@@ -74,7 +72,7 @@ The explicit lean checks also verify the expert representation itself:
 These checks document that the public lean workflow does not require a dense
 tensor at compute time: `compute_cqmom(CqmomLeanCase)` receives the selected
 required moment representation and must produce the same mathematical
-quadrature as the dense and default workflows.
+quadrature as the default workflow.
 
 ## Public Compute Failure Contracts
 
@@ -249,7 +247,7 @@ reconstruction because the branch structures are analytically known.
 The public workflow executable `cqmom_public_workflows_verification` reuses the
 independent-product reference. It checks successful computation, terminal node
 and weight accuracy, raw-moment reconstruction, branch diagnostics, and
-dense/default/lean equivalence. The expert lean workflow is covered as part of
+default/lean equivalence. The expert lean workflow is covered as part of
 `verification_cqmom_public_workflows`.
 
 ## Tolerance Policy
@@ -452,24 +450,24 @@ Mhat_a0,a1,a2 = M'_a0,a1,a2 / (s0^a0 s1^a1 s2^a2)
 ```
 
 when read back in canonical units, irrespective of the recursive order. The
-verifier loads both dense and lean configured cases, confirms the configured
-automatic-scaling/adaptive policy, reconstructs each route, and checks paths,
-active branch counts, global weights, physical coordinates, and all 64 raw
-moments against the terminal-rule oracle.  It also compares the lean
-required-index layout with an otherwise identical case whose scaling option is
-off, while both configured scaling routes perform real reconstruction.  This
-is scaling-enabled interaction and covariance evidence: it covers adaptive
-topology, non-identity conditioning, dense/lean paths, configuration
-propagation, physical-unit restoration, and required-layout invariance. It
-does not claim scaling is necessary for the `(1e6,1e-6,1e3)` representation.
+verifier loads the configured case, confirms the configured
+automatic-scaling/adaptive policy, reconstructs it, and checks paths, active
+branch counts, global weights, physical coordinates, and all 64 raw moments
+against the terminal-rule oracle.  It also compares the required-index layout
+with an otherwise identical case whose scaling option is off, confirming that
+enabling scaling does not change the layout.  This is scaling-enabled
+interaction and covariance evidence: it covers adaptive topology, non-identity
+conditioning, configuration propagation, physical-unit restoration, and
+required-layout invariance. It does not claim scaling is necessary for the
+`(1e6,1e-6,1e3)` representation.
 
 The tolerance is `2e-10` for unit-floored relative node and moment errors and
 absolute weights. It leaves cross-platform margin for nested adaptive
 inversions; observed errors are near machine precision.
 
 `verification_cqmom_automatic_scaling_feature_sensitive` uses the same
-independently prescribed five-terminal rule through the direct public dense
-CQMOM route, but represents its coordinates in units `(1e8,1e-8,1e4)`. The
+independently prescribed five-terminal rule through the direct public CQMOM
+route, but represents its coordinates in units `(1e8,1e-8,1e4)`. The
 complete `4 x 4 x 4` raw tensor is explicitly summed from those physical
 nodes and positive weights, so the terminal rule remains the oracle. The
 physical factors create mixed moments from approximately `1e-24` to `1e36`;

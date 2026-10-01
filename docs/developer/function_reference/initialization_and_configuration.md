@@ -115,7 +115,7 @@ with a negative-sign check; `parse_double` requires full finite conversion.
 List parsers reject empty entries/trailing commas; optional-bound lists
 additionally recognize `none`.
 
-`parse_qmom`, `parse_cqmom_dense`, `parse_cqmom_lean`, and `parse_cqmom` each
+`parse_qmom`, `parse_cqmom_lean`, and `parse_cqmom` each
 call `parse_file` exactly once and share the resulting `ParsedFile` with the
 initial-condition step, instead of re-parsing the same text a second time.
 `parse_qmom_initial_condition_from_parsed` and
@@ -202,27 +202,27 @@ moments; explicit copying does not independently invert or classify it.
 full independent product, with maximum orders required for standalone dense
 generation. `initialize_cqmom_moment_data` first obtains the hierarchy's
 required layout, then extracts explicit data or requests selected analytical
-moments. Case construction can infer omitted dense maximum orders from
-configured counts; lean initialization uses required indices rather than
-computing an unnecessary full tensor.
+moments. Configured case construction uses required indices rather than
+computing an unnecessary full tensor, so it neither needs nor consults
+`initial.maximum_orders`.
 
-`create_qmom_case`, `create_cqmom_dense_case`, and `create_cqmom_lean_case`
-validate structural suitability and package initialized data with numerical
-settings. They do not guarantee that `initial_state` reconstruction will
-succeed. The QMOM's large-count guard and dense CQMOM's extent checks protect
-their distinct storage requirements. `with_initial_moments` validates
+`create_qmom_case` and `create_cqmom_lean_case` validate structural
+suitability and package initialized data with numerical settings. They do not
+guarantee that `initial_state` reconstruction will succeed. The QMOM's
+large-count guard protects its own requirement; CQMOM moment extraction rejects
+a tensor that does not contain every required moment. `with_initial_moments` validates
 replacement tensor structure/finiteness and required hierarchy coverage,
 preserves case settings/prepared metadata, and defers realizability/inversion.
-Dense keeps dense storage; lean extracts required entries. Its
-`CqmomMomentData` overload replaces a lean case from the required moment set
-without a dense tensor, validating that the supplied layout is the hierarchy's
-required layout with one finite value per index. It rejects a dense base case,
-whose retained non-required entries the required set cannot reproduce. Both
-overloads yield the same case for the same moments.
+It extracts the moments the hierarchy requires from the supplied tensor. Its
+`CqmomMomentData` overload takes that required moment set directly, validating
+that the supplied layout is the hierarchy's required layout with one finite
+value per index. Both overloads yield the same case for the same moments; the
+tensor overload exists for moment data arriving from outside QMOMKit, where
+reporting a malformed tensor as a configuration error is more useful than
+throwing.
 
-Public `parse_qmom`, `parse_cqmom_dense`, `parse_cqmom_lean`, and neutral
-`parse_cqmom` compose parser, initializer, and constructor. Neutral dispatch
-honors configured storage. Each `load_*` reads a file then invokes its
+Public `parse_qmom`, `parse_cqmom_lean`, and neutral `parse_cqmom` compose
+parser, initializer, and constructor. Each `load_*` reads a file then invokes its
 corresponding parser with the filename as diagnostic source. The reader does
 not enforce a filename extension; `.qmom` is the documented configuration
 convention.
@@ -231,7 +231,7 @@ Evidence: [configuration tests](../../../tests/unit/configuration.cpp) and
 [case-replacement
 regression](../../../tests/component_regression/cqmom_case_moment_replacement.cpp)
 cover preserved settings, layout compatibility, deferred inversion, and
-dense/lean replacement. [Explicit QMOM
+replacement through both initial-moment overloads. [Explicit QMOM
 example](../../../examples/qmom_explicit_moments/README.md) shows the
 distinction between specified raw moments and reconstructed nodes.
 

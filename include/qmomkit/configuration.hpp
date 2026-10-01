@@ -164,18 +164,6 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
                                                              std::optional<AbscissaBounds> abscissa_bounds = {});
 
 /**
- * Advanced: create an explicit dense CQMOM case from parsed initialization.
- *
- * Coordinate support is indexed by phase-space dimension. Omit it, or leave it
- * empty, for unconstrained real-line reconstruction.
- */
-[[nodiscard]] ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditionSpecification& initial_condition,
-                                                                          const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
-                                                                          bool adaptive_branch_counts = false,
-                                                                          std::string source_name = "<initialization>",
-                                                                          CqmomCoordinateSupport coordinate_support = {});
-
-/**
  * Advanced: create an explicit lean CQMOM case from parsed initialization.
  *
  * Coordinate support has the same phase-space-indexed semantics as the dense
@@ -188,30 +176,38 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
                                                                         CqmomCoordinateSupport coordinate_support = {});
 
 /**
- * Create a normal CQMOM case with replacement explicit initial raw moments.
+ * Create a CQMOM case with replacement initial moments, taken from a full raw
+ * moment tensor.
  *
- * The returned immutable case preserves the base case hierarchy, storage
- * choice, coordinate support, and all reconstruction policies. Dense cases
- * retain the complete supplied tensor; lean cases extract their fixed required
- * CQMOM moment layout from it. This operation validates tensor structure only;
- * CQMOM realizability and reconstruction remain the responsibility of
- * `compute_cqmom(...)` and `CqmomCase::initial_state()`.
+ * This is the entry point for moment data produced outside QMOMKit, such as the
+ * raw moments the Monte Carlo companion evaluates from a sample population: the
+ * caller supplies the whole tensor and QMOMKit selects the moments the
+ * hierarchy reconstructs from. Prefer this overload over extracting those
+ * moments yourself when the tensor comes from outside, because a tensor that is
+ * the wrong rank, the wrong size, or too small to contain a required moment is
+ * reported here as a configuration error you can inspect, whereas
+ * `extract_cqmom_moments(...)` signals the same problems by throwing.
+ *
+ * The returned immutable case preserves the base case hierarchy, coordinate
+ * support, reconstruction policies, and prepared metadata. This operation
+ * validates tensor structure only; CQMOM realizability and reconstruction
+ * remain the responsibility of `compute_cqmom(...)` and
+ * `CqmomCase::initial_state()`.
  */
 [[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, RawMomentTensor explicit_moments);
 
 /**
- * Create a normal CQMOM case with replacement lean initial raw moments.
+ * Create a CQMOM case with replacement initial moments, supplied as the
+ * required CQMOM moment set.
  *
- * This overload accepts the required CQMOM moment set directly, so a caller
- * that already produces lean moment data does not have to materialize a dense
- * tensor whose additional entries the case never reads. The base case must use
- * lean storage; a dense base case retains its complete tensor and therefore
- * needs the `RawMomentTensor` overload.
+ * Use this overload when the caller already holds exactly the moments the
+ * hierarchy reconstructs from, so that no full tensor has to be built for
+ * entries the case never reads.
  *
- * The returned immutable case preserves the base case hierarchy, storage
- * choice, coordinate support, and all reconstruction policies. The supplied
- * layout must match the required CQMOM moment layout of the base hierarchy.
- * This operation validates moment-set structure only; CQMOM realizability and
+ * The returned immutable case preserves the base case hierarchy, coordinate
+ * support, reconstruction policies, and prepared metadata. The supplied layout
+ * must match the required CQMOM moment layout of the base hierarchy. This
+ * operation validates moment-set structure only; CQMOM realizability and
  * reconstruction remain the responsibility of `compute_cqmom(...)` and
  * `CqmomCase::initial_state()`.
  */
@@ -219,9 +215,6 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 
 /** Parse a current QMOM configuration string. */
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");
-
-/** Advanced: parse configuration into an explicit dense CQMOM case. */
-[[nodiscard]] ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(std::string_view text, std::string source_name = "<string>");
 
 /** Advanced: parse configuration into an explicit lean CQMOM case. */
 [[nodiscard]] ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(std::string_view text, std::string source_name = "<string>");
@@ -256,9 +249,6 @@ parse_coordinate_realizability_policies(std::string_view text, std::string sourc
 
 /** Load and parse a QMOM configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<QmomCase> load_qmom(const std::filesystem::path& filename);
-
-/** Advanced: load an explicit dense CQMOM case from exactly the requested file. */
-[[nodiscard]] ConfigurationResult<CqmomDenseCase> load_cqmom_dense(const std::filesystem::path& filename);
 
 /** Advanced: load an explicit lean CQMOM case from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<CqmomLeanCase> load_cqmom_lean(const std::filesystem::path& filename);

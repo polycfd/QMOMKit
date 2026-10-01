@@ -109,7 +109,7 @@ M[1,1] = 0.0
         return 1;
     }
     const qmomkit::CqmomState replaced_state = replaced_case.value().initial_state();
-    if (replaced_state.moment_storage() != qmomkit::CqmomMomentStorage::lean || replaced_state.moment_values().empty())
+    if (replaced_state.moment_values().empty())
     {
         return 1;
     }

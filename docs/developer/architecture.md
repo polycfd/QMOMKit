@@ -39,8 +39,8 @@ reconstruction inputs or phase-space-evolved states.
 
 Moment generation, CQMOM reconstruction, and reconstruction-time storage are
 separate responsibilities. Analytical distributions can produce `MomentSet`
-data for QMOM, selected required CQMOM moments, or dense full moment tensors
-for explicit dense workflows. CQMOM records the hierarchy, conditioning order,
+data for QMOM, the required CQMOM moments for a hierarchy, or a full raw moment
+tensor for callers that want one. CQMOM records the hierarchy, conditioning order,
 and required-moment layout. Internal recursive storage adapts those moments for
 efficient traversal without making distribution objects aware of CQMOM.
 
@@ -92,13 +92,12 @@ scheduling.
 
 `CqmomCase` and `CqmomState` are the neutral public objects for normal CQMOM
 workflows. Normal CQMOM phase-space evolution creates a `CqmomState` from
-`CqmomCase` and advances it with `advance_cqmom_phase_space(...)`, independent
-of dense or lean storage. Normal configured workflows default to lean moment
-storage and may select dense storage explicitly with `cqmom.moment_storage`.
-`CqmomDenseCase` with `RawMomentTensor` and `CqmomLeanCase` with
-`CqmomMomentLayout` and `CqmomMomentData` remain supported advanced explicit
-representations for static inversion, specialized initialization, validation,
-and expert workflows.
+`CqmomCase` and advances it with `advance_cqmom_phase_space(...)`. A case holds
+the moments the hierarchy reconstructs from, and configured workflows always
+build that representation.
+`CqmomLeanCase` with `CqmomMomentLayout` and `CqmomMomentData` is the case a
+caller builds directly, for static inversion, specialized initialization,
+validation and expert workflows.
 
 ### QMOM and CQMOM terminology
 
@@ -109,24 +108,21 @@ implementation comments:
 |------|---------|
 | Case | Problem definition used by a solver workflow, including initial moments and reconstruction settings. `QmomCase` is the configured one-dimensional QMOM case. `CqmomCase` is the normal representation-independent CQMOM case. |
 | State | Evolving runtime state during time integration or phase-space evolution. QMOM uses `QmomState`; CQMOM uses `CqmomState`. |
-| Dense | Full tensor moment representation, normally `RawMomentTensor`. Dense is not legacy; it is an explicit full-tensor workflow for CQMOM callers that choose that representation. |
-| Lean | Compact CQMOM required-moment representation containing only the moments required for a given hierarchy. Lean is not a different physical model. |
-| Explicit representation workflow | Workflow where the user intentionally chooses and manages the CQMOM moment representation, either dense or lean. |
+| Raw moment tensor | Full rectangular moment representation, `RawMomentTensor`. It is an input and an output format — distributions and sample populations produce one, and `reconstruct_raw_moments(...)` returns one — not a representation a case or state holds. |
+| Required moments | The moments a hierarchy reconstructs from, held by `CqmomMomentData` with its `CqmomMomentLayout`. This is what a case and a state store. |
 | MomentData | Storage container for CQMOM required moments associated with a hierarchy, represented publicly by `CqmomMomentData`. |
 | Request | Mathematical query/request for moments, such as `RawMomentRequest`. A request asks for moment values; it is not a QMOM or CQMOM problem definition. |
 | Quadrature | Discrete representation reconstructed from moments, such as weights and abscissas in `QmomResult`, `Quadrature1D`, or `CqmomQuadrature`. |
 
 `QmomCase` and `CqmomCase` are problem definitions, not moment requests.
-`CqmomDenseCase` and `CqmomLeanCase` are advanced explicit representation
-workflows for expert callers that need to manage dense full tensors or lean
-required moment data directly. They do not replace `CqmomCase` and
-`CqmomState` as the normal representation-independent CQMOM workflow
-abstractions.
+`CqmomLeanCase` is the case an expert caller builds directly when it already
+owns the required moments; it does not replace `CqmomCase` and `CqmomState` as
+the normal CQMOM workflow abstractions.
 
-Dense and lean terminology is specific to CQMOM's multidimensional moment
-storage choices. QMOM does not need dense or lean case terminology because its
-one-dimensional setup is represented directly by `MomentSet`, `node_count`,
-and `QmomOptions` inside `QmomCase`.
+A caller holding a full raw moment tensor selects the required moments from it
+with `extract_cqmom_moments(...)`, or hands the tensor to
+`config::with_initial_moments(...)`, which does the same selection and reports a
+malformed tensor as a configuration error.
 
 For mathematical storage and ordering rules, see
 `numerical_conventions.md`.

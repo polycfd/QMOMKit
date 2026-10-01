@@ -99,36 +99,27 @@ set of raw moments required by the configured hierarchy and conditioning order.
 The normal user workflow loads a `CqmomCase` and computes its quadrature with
 `compute_cqmom(CqmomCase)`. If the distribution evolves in time, the same case
 can create a `CqmomState` for phase-space evolution. Users on this path do not
-manage internal branch-local storage, dense tensor extents, or required moment
-indices. Representation choices are hidden by default. Callers that need direct
-control can opt into an explicit dense representation workflow or an explicit
-lean representation workflow.
+manage internal branch-local storage, tensor extents, or required moment
+indices. Callers that need direct control can assemble the required moments themselves
+and use an explicit `CqmomLeanCase`.
 
-### Explicit dense representation workflow
+### Starting from a full moment tensor
 
-The public dense CQMOM case accepts:
-
-```text
-RawMomentTensor
-```
-
-as an explicit full rectangular tensor moment representation. A dense tensor is
-convenient for callers that need full tensor access, already own rectangular
-moment data, exchange data with other tools, debug tensor values, or validate
-against full manufactured tensors. Dense is a first-class supported explicit
-representation workflow. The dense public representation remains
-phase-space ordered:
+A caller that already owns a full rectangular tensor — from other tools, from a
+sample population, or from a manufactured reference — selects the moments the
+hierarchy needs with `extract_cqmom_moments(...)`. The tensor is phase-space
+ordered:
 
 ```text
 values[flatten_multi_index(alpha, extents)] == m_alpha
 ```
 
-Recursive CQMOM does not require every entry of that rectangle. The public
-`compute_cqmom(CqmomDenseCase)` path validates the dense tensor, constructs the
-fixed-node CQMOM requirement layout, selects the required entries, and then
-delegates using the lean CQMOM moment representation. This keeps dense tensor
-control at the API boundary while avoiding dense tensor lookup as the recursive
-working representation.
+Recursive CQMOM does not require every entry of that rectangle, so the
+extraction both narrows the data and checks it: a tensor of the wrong rank, the
+wrong size, or one that omits a required moment is rejected there, before any
+case is built. `config::with_initial_moments(case, tensor)` performs the same
+selection and reports those problems as a configuration error instead of
+throwing.
 
 ### Explicit lean representation workflow
 
@@ -150,7 +141,7 @@ values[i] == m_(layout.required_indices[i])
 ```
 
 The values are aligned with the layout order. Public helper functions construct
-this data either by extracting from a dense `RawMomentTensor` or by validating
+this data either by extracting from a `RawMomentTensor` or by validating
 a selected raw-moment result produced elsewhere. The public case type named:
 
 ```text
@@ -173,10 +164,10 @@ construction order for indices and values, rejects duplicate keys, and builds a
 sorted flat-key offset table for moment lookup. It is intentionally scoped to
 CQMOM-required moment storage, not arbitrary sparse tensor manipulation.
 
-`CqmomMomentView` is an internal non-owning adapter over either a dense
+`CqmomMomentView` is an internal non-owning adapter over either a full
 `RawMomentTensor` or an `IndexedMomentSet`. Recursive code reads moments
 through the view so the traversal is independent of the owning root
-representation. The lean public path stores indexed moments for the duration of
+representation. The public path stores indexed moments for the duration of
 reconstruction, then delegates through this same view-based recursive
 algorithm.
 
@@ -188,13 +179,11 @@ Explicit representation workflows perform full metadata and value validation
 before reconstruction:
 
 - user-provided `CqmomMomentData`;
-- explicit `CqmomLeanCase`;
-- explicit `CqmomDenseCase`.
+- explicit `CqmomLeanCase`.
 
 These paths validate hierarchy consistency, conditioning order, the required
-fixed CQMOM moment layout, value count, and finite moment values. The dense
-path also validates rectangular tensor extents before extracting the required
-lean moment set.
+fixed CQMOM moment layout, value count, and finite moment values. Extracting
+the required moments from a full tensor validates its extents first.
 
 `CqmomCase` and `CqmomState` are normal public workflows. For these objects,
 QMOMKit can reuse setup information that was already checked when the case or
@@ -217,8 +206,8 @@ a dynamic fallback. Case and state copies share the immutable owner; a state
 can therefore outlive its case without retaining mutable aliases.
 
 Adaptive normal cases retain the dynamic branch-layout path because their
-active topology is runtime data. Explicit `CqmomDenseCase` and
-`CqmomLeanCase` reconstruction likewise remains dynamic. Neither path uses a
+active topology is runtime data. Explicit `CqmomLeanCase` reconstruction
+likewise remains dynamic. Neither path uses a
 process-wide cache or lazy initialization.
 
 Reusing setup information does not mean unchecked numerical data. These paths
@@ -421,8 +410,8 @@ controls:
   adaptive Wheeler for every marginal and conditional inversion.
 
 The adaptive branch-count policy is available through the normal
-`CqmomCase`/`CqmomState` workflow and through explicit `CqmomDenseCase` and
-`CqmomLeanCase` workflows.
+`CqmomCase`/`CqmomState` workflow and through the explicit `CqmomLeanCase`
+workflow.
 
 When adaptive branch counts are disabled, recursive CQMOM expects fixed
 rectangular output storage. In that mode, adaptive Wheeler is rejected because
@@ -490,7 +479,7 @@ The CQMOM implementation of QMOMKit assumes:
 - conditioning order is a permutation of phase-space dimensions;
 - node counts are positive and owned by phase-space dimensions;
 - all raw moments and numerical options are finite;
-- dense raw moment tensor extents contain at least
+- a raw moment tensor the required moments are selected from has extents of at least
   `2 * node_counts[dimension]` orders, even when adaptive branch counts are
   enabled;
 - branch-local one-dimensional slices follow the same raw moment convention
@@ -617,7 +606,6 @@ The public CQMOM API is declared in `<qmomkit/cqmom.hpp>`:
 
 ```cpp
 qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomCase& case_);
-qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomDenseCase& dense_case);
 qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomLeanCase& lean_case);
 ```
 
@@ -626,7 +614,6 @@ Public CQMOM concepts include:
 - `compute_cqmom`
 - `CqmomCase`
 - `CqmomState`
-- `CqmomDenseCase`
 - `CqmomLeanCase`
 - `CqmomResult`
 - `CqmomQuadrature`
@@ -641,23 +628,16 @@ Public CQMOM concepts include:
 `CqmomCase` and `CqmomState` are the neutral public objects for the normal
 CQMOM workflow. The case stores initialized moment data and reconstruction
 policies; a state is created from the case when users choose CQMOM phase-space
-evolution. This workflow avoids exposing dense or lean moment storage to users.
+evolution. This workflow does not expose how the moments are stored.
 
-`CqmomDenseCase` bundles the phase-space hierarchy, raw moment tensor,
-conditional-moment numerical options, QMOM/Wheeler options, and the adaptive
-branch-count policy. It is the advanced explicit dense representation workflow
-for callers that intentionally use full rectangular tensor moment storage.
-
-`CqmomLeanCase` bundles lean CQMOM moment data, the same
-conditional-moment and QMOM/Wheeler options, and the same adaptive branch-count
-and diagnostic controls. It is the public case type for callers that can
-produce required CQMOM moments directly. It is the advanced explicit lean
-representation workflow and provides direct control over the required CQMOM
-moment representation. The dense `CqmomDenseCase` path internally selects the
-same required moment data before recursive reconstruction.
+`CqmomLeanCase` bundles the required CQMOM moment data, the conditional-moment
+and QMOM/Wheeler options, and the adaptive branch-count and diagnostic
+controls. It is the public case type for callers that produce the required
+CQMOM moments directly, including those that select them from a full tensor
+with `extract_cqmom_moments(...)`.
 
 `CqmomMomentLayout` and `CqmomMomentData` are public data-transfer types for
-the lean CQMOM moment representation. They are not intended to expose
+the required CQMOM moments. They are not intended to expose
 recursive tree state, branch-local slices, solver workspaces, or arbitrary
 sparse tensor operations.
 

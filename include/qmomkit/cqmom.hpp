@@ -19,7 +19,6 @@ namespace qmomkit
 class CqmomCase;
 class CqmomQuadrature;
 class CqmomState;
-struct CqmomDenseCase;
 struct CqmomResult;
 struct CqmomLeanCase;
 struct SelectedRawMomentResult;
@@ -80,7 +79,6 @@ public:
     [[nodiscard]] std::vector<double> node(MultiIndexView node_index) const;
 
 private:
-    friend CqmomResult compute_cqmom(const CqmomDenseCase& dense_case);
     friend CqmomResult compute_cqmom(const CqmomLeanCase& lean_case);
     friend class internal::CqmomConstructionAccess;
 
@@ -110,16 +108,9 @@ enum class CqmomDiagnosticLevel
     detailed
 };
 
-enum class CqmomMomentStorage
-{
-    lean,
-    dense
-};
-
 using CqmomCoordinateSupport = std::vector<std::optional<AbscissaBounds>>;
 
-[[nodiscard]] std::string to_string(CqmomMomentStorage storage);
-[[nodiscard]] std::string format_cqmom_settings(CqmomMomentStorage storage, bool adaptive_branch_counts, VandermondeSolver vandermonde_solver,
+[[nodiscard]] std::string format_cqmom_settings(bool adaptive_branch_counts, VandermondeSolver vandermonde_solver,
                                                 CqmomDiagnosticLevel diagnostic_level);
 
 struct CqmomDiagnostics
@@ -200,28 +191,6 @@ struct CqmomMomentData
 };
 
 /**
- * Advanced explicit dense representation for static CQMOM inversion.
- *
- * `moments` is a raw multidimensional moment tensor flattened in phase-space
- * dimension order. `hierarchy` supplies the phase-space node counts and the
- * conditioning order used by the CQMOM construction. Diagnostics are opt-in.
- * `detailed` preserves residual and condition-estimate
- * reporting; lower levels may leave optional expensive diagnostic values
- * unavailable.
- */
-struct CqmomDenseCase
-{
-    PhaseSpaceHierarchy hierarchy;
-    RawMomentTensor moments;
-    ConditionalMomentOptions conditional_options;
-    QmomOptions qmom_options;
-    bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
-    VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
-    CqmomCoordinateSupport coordinate_support;
-};
-
-/**
  * Advanced explicit lean representation for static CQMOM inversion from
  * required CQMOM moments.
  *
@@ -244,11 +213,10 @@ struct CqmomLeanCase
 /**
  * User-facing mutable CQMOM runtime state.
  *
- * A state owns the current CQMOM moments and reconstruction policies while
- * hiding the storage representation used internally. Normal CQMOM phase-space evolution
- * creates this state from `CqmomCase`; its accepted terminal quadrature is
- * available through `quadrature()`. The state can be passed to
- * `advance_cqmom_phase_space(...)`.
+ * A state owns the current CQMOM moments and reconstruction policies. Normal
+ * CQMOM phase-space evolution creates this state from `CqmomCase`; its accepted
+ * terminal quadrature is available through `quadrature()`. The state can be
+ * passed to `advance_cqmom_phase_space(...)`.
  */
 class CqmomState
 {
@@ -267,7 +235,6 @@ public:
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
     [[nodiscard]] const CqmomCoordinateSupport& coordinate_support() const noexcept;
-    [[nodiscard]] CqmomMomentStorage moment_storage() const noexcept;
     [[nodiscard]] const std::vector<CqmomActiveBranchCount>& active_branch_counts() const noexcept;
     [[nodiscard]] std::vector<MultiIndex> moment_indices() const;
     [[nodiscard]] const std::vector<double>& moment_values() const noexcept;
@@ -286,16 +253,14 @@ private:
 /**
  * User-facing CQMOM case for reconstruction workflows.
  *
- * A case owns the initialized CQMOM state and reconstruction options while
- * hiding the storage representation used internally. Users can inspect the
- * phase-space hierarchy and numerical policies, construct it from a typed
- * `CqmomDenseCase` or `CqmomLeanCase`, then pass the case directly to
- * `compute_cqmom(...)` or create an evolution state with `initial_state()`.
+ * A case owns the initialized CQMOM state and reconstruction options. Users
+ * can inspect the phase-space hierarchy and numerical policies, construct it
+ * from a `CqmomLeanCase`, then pass the case directly to `compute_cqmom(...)`
+ * or create an evolution state with `initial_state()`.
  */
 class CqmomCase
 {
 public:
-    explicit CqmomCase(CqmomDenseCase dense_case);
     explicit CqmomCase(CqmomLeanCase lean_case);
 
     CqmomCase(const CqmomCase& other);
@@ -311,7 +276,6 @@ public:
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
     [[nodiscard]] const CqmomCoordinateSupport& coordinate_support() const noexcept;
-    [[nodiscard]] CqmomMomentStorage moment_storage() const noexcept;
     [[nodiscard]] CqmomState initial_state() const;
 
 private:
@@ -338,17 +302,6 @@ struct CqmomResult
         return status == CqmomStatus::success;
     }
 };
-
-/**
- * Advanced explicit dense-representation static CQMOM inversion.
- *
- * Fixed rectangular hierarchies remain the default. Adaptive branch-specific
- * node counts are enabled explicitly with `CqmomDenseCase::adaptive_branch_counts`
- * and automatically enable adaptive Wheeler for all marginal and conditional
- * inversions. Standalone QMOM remains independently configurable. This does
- * not implement phase-space evolution or operator splitting.
- */
-[[nodiscard]] CqmomResult compute_cqmom(const CqmomDenseCase& dense_case);
 
 /**
  * Advanced explicit lean-representation static CQMOM inversion from required

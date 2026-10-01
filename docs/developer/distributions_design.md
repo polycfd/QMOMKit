@@ -316,7 +316,6 @@ intentionally use full rectangular tensor storage:
 IndependentProductDistribution
       -> TensorMomentResult
       -> RawMomentTensor
-      -> CqmomDenseCase
 ```
 
 For CQMOM workflows that can benefit from selective generation, the data flow
@@ -332,7 +331,7 @@ IndependentProductDistribution
       -> CqmomMomentData
       -> CqmomCase
 
-or, for explicit lean representation workflows:
+or, for an explicit case built by the caller:
 
 SelectedRawMomentResult
       -> CqmomMomentData
@@ -345,9 +344,8 @@ and returns generic selected raw moments. Conversion from selected raw moments
 into CQMOM moment data occurs outside the distribution layer, so distributions
 remain independent of QMOM/CQMOM reconstruction details.
 
-The dense `CqmomDenseCase` workflow remains supported. Public CQMOM
-reconstruction internally extracts the required CQMOM moment data from a dense
-input tensor before recursive reconstruction.
+A caller holding a full raw moment tensor selects the required CQMOM moment
+data from it with `extract_cqmom_moments(...)` before building a case.
 
 Configuration parsing uses the same public generation functions. Explicit
 moment initialization has precedence in configuration: explicit moments are

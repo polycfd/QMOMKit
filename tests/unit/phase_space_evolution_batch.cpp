@@ -94,7 +94,6 @@ void assert_phase_space_evolution_diagnostics_equal(const qmomkit::PhaseSpaceEvo
 {
     assert(actual.scheme == expected.scheme);
     assert(actual.failed_stage == expected.failed_stage);
-    assert(actual.cqmom_moment_storage == expected.cqmom_moment_storage);
     assert(actual.cqmom_diagnostic_level == expected.cqmom_diagnostic_level);
     assert(actual.cqmom_vandermonde_solver == expected.cqmom_vandermonde_solver);
     assert(actual.post_source_qmom_status == expected.post_source_qmom_status);
@@ -208,7 +207,6 @@ void assert_cqmom_state_equal(const qmomkit::CqmomState& actual, const qmomkit::
             assert_near(actual.coordinate_support()[dimension]->upper, expected.coordinate_support()[dimension]->upper);
         }
     }
-    assert(actual.moment_storage() == expected.moment_storage());
     assert(actual.moment_indices() == expected.moment_indices());
     assert_vector_near(actual.moment_values(), expected.moment_values());
     assert_active_counts_equal(actual.active_branch_counts(), expected.active_branch_counts());

@@ -873,7 +873,7 @@ settled on.
 Write CQMOM physics against `CqmomMomentSource` and
 `CqmomMomentBoundaryContribution`. The context they receive presents the same
 moments in the same order however the state stores them internally, so a
-callback written once works unchanged for either storage choice.
+callback written once does not depend on that.
 
 ### Checking the result
 

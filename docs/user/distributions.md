@@ -240,7 +240,7 @@ int main()
 `maximum_orders` are inclusive. In the example above, the generated tensor has
 extents `{4, 4}`.
 Choose tensor extents that satisfy the requested CQMOM node counts. Supplying a
-rectangular tensor remains available for explicit dense workflows;
+rectangular tensor remains available for callers that want one;
 reconstruction will use the required CQMOM moments internally.
 
 Keep these settings separate:

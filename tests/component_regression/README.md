@@ -42,25 +42,19 @@ Current component regression coverage includes:
   schemes. Each case is additionally checked against the quadrature nodes its
   moments were computed from, so the recorded values are analytically anchored
   rather than merely self-consistent;
-- CQMOM dense/lean moment-storage parity across that same case matrix.
+- CQMOM reconstruction of two moment sets that are harder to invert than a rule
+  whose nodes are far apart: one whose velocities have been changed by drag, and
+  one with two velocity nodes 1.5e-6 apart.
 
 ## The CQMOM case matrix
 
-`cqmom_case_matrix.*` defines one case matrix shared by
-`cqmom_reference_values.cpp` and `cqmom_dense_lean_parity_matrix.cpp`. The two
-tests answer different questions and neither replaces the other:
-
-- the reference-value test asks *did the result change?* and compares against
-  recorded values to 1e-12 relative. The budget absorbs the differing last bits
-  another compiler produces for the same computation, measured at up to 27
-  representable values, while staying far below any change of algorithm or
-  ordering. Pinning a refactor more tightly than that needs a before-and-after
-  run with one compiler, where results are reproducible bit for bit;
-- the parity test asks *do the two storage schemes agree?* and compares the two
-  paths against each other to round-off.
-
-A change inside the shared reconstruction core moves both storage paths
-together, so it is caught by the reference test and not by the parity test.
+`cqmom_case_matrix.*` defines the case matrix `cqmom_reference_values.cpp`
+runs. That test asks *did the result change?* and compares against recorded
+values to 1e-12 relative. The budget absorbs the differing last bits another
+compiler produces for the same computation, measured at up to 27 representable
+values, while staying far below any change of algorithm or ordering. Pinning a
+refactor more tightly than that needs a before-and-after run with one compiler,
+where results are reproducible bit for bit.
 
 The six Vandermonde solver cases can produce identical numbers to one another,
 because the systems they solve are well conditioned. They are still six

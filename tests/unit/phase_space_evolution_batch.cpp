@@ -272,7 +272,7 @@ qmomkit::CqmomState cqmom_state(const double weight, const double x, const doubl
                                       "\n"
                                       "M[1,1] = " +
                                       std::to_string(weight * x * y) + "\n";
-    const auto parsed = qmomkit::config::parse_cqmom(configuration, "phase_space_evolution-batch");
+    const auto parsed = qmomkit::config::parse_cqmom_prepared(configuration, "phase_space_evolution-batch");
     assert(parsed.ok());
     return parsed.value().initial_state();
 }

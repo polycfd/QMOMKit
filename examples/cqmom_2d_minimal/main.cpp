@@ -31,7 +31,7 @@ int main()
                                            qmomkit::CqmomDiagnosticLevel::none,   // diagnostics
                                            qmomkit::VandermondeSolver::automatic, // solver policy
                                            {}};                                   // coordinate support
-    const qmomkit::CqmomCase cqmom_case{std::move(case_definition)};
+    const qmomkit::CqmomPreparedCase cqmom_case{std::move(case_definition)};
     qmomkit::CqmomState state = cqmom_case.initial_state();
 
     // Define the callback for the phase-space advection velocity. The callback

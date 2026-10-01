@@ -64,7 +64,7 @@ qmomkit::RawMomentTensor raw_moments_from_terminals(const std::vector<double>& w
     return {extents, moments};
 }
 
-qmomkit::CqmomCase adaptive_case_from_moments(const qmomkit::RawMomentTensor& moments)
+qmomkit::CqmomPreparedCase adaptive_case_from_moments(const qmomkit::RawMomentTensor& moments)
 {
     std::ostringstream text;
     text.precision(17);
@@ -83,7 +83,7 @@ qmomkit::CqmomCase adaptive_case_from_moments(const qmomkit::RawMomentTensor& mo
         text << "M[" << index[0] << ',' << index[1] << "] = " << moments.values[flat] << '\n';
     }
 
-    const auto parsed = qmomkit::config::parse_cqmom(text.str(), "adaptive-branch-growth");
+    const auto parsed = qmomkit::config::parse_cqmom_prepared(text.str(), "adaptive-branch-growth");
     QMOMKIT_VERIFY_CHECK(parsed.ok());
     return parsed.value();
 }

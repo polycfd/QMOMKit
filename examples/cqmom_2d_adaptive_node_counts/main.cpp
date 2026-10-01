@@ -24,7 +24,7 @@ int main()
         // Three separate loads from one file: the case, the output settings, and
         // the evolution controls. The case loader validates every recognised key
         // but returns only the case, so the other two must be asked for.
-        auto configured = qmomkit::config::load_cqmom(configuration_file);
+        auto configured = qmomkit::config::load_cqmom_prepared(configuration_file);
         if (!configured)
         {
             cqmom_2d_adaptive_node_counts::print_configuration_errors(configured.error());
@@ -47,7 +47,7 @@ int main()
         // enables. Each CQMOM branch then uses as many nodes as its local moments
         // support, and the state tracks how many that currently is, so
         // state.active_branch_counts() changes as the run proceeds.
-        const qmomkit::CqmomCase cqmom_case = std::move(configured).value();
+        const qmomkit::CqmomPreparedCase cqmom_case = std::move(configured).value();
         qmomkit::CqmomState state = cqmom_case.initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
         const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());

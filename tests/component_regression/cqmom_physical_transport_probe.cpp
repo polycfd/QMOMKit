@@ -88,7 +88,7 @@ qmomkit::PhaseSpaceVelocity physical_velocity()
         });
 }
 
-qmomkit::CqmomCase exact_case()
+qmomkit::CqmomPreparedCase exact_case()
 {
     const std::string text = R"(
 [phase_space]
@@ -126,7 +126,7 @@ family = normal
 mean = 1.0
 standard_deviation = 1.0
 )";
-    const auto parsed = qmomkit::config::parse_cqmom(text, "physical_transport_probe");
+    const auto parsed = qmomkit::config::parse_cqmom_prepared(text, "physical_transport_probe");
     QMOMKIT_VERIFY_CHECK(parsed.ok());
     return parsed.value();
 }
@@ -390,7 +390,7 @@ int main(const int argc, char** argv)
         std::cerr << "Usage: cqmom_physical_transport_probe [physical_transport]\n";
         return 2;
     }
-    const qmomkit::CqmomCase cqmom_case = exact_case();
+    const qmomkit::CqmomPreparedCase cqmom_case = exact_case();
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_case);
     QMOMKIT_VERIFY_CHECK(initial.ok());
 

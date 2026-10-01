@@ -306,7 +306,7 @@ required moment data:
 IndependentProductDistribution
       -> SelectedRawMomentResult
       -> CqmomMomentData
-      -> CqmomCase
+      -> CqmomPreparedCase
 ```
 
 The explicit dense CQMOM initialization route remains available when callers
@@ -329,7 +329,7 @@ CQMOM hierarchy
 IndependentProductDistribution
       -> SelectedRawMomentResult
       -> CqmomMomentData
-      -> CqmomCase
+      -> CqmomPreparedCase
 
 or, for an explicit case built by the caller:
 

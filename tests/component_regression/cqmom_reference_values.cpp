@@ -17,7 +17,7 @@
  *      values were themselves wrong.
  *
  *   2. Prepared-path agreement. The same case is reconstructed a second time
- *      through CqmomCase, which reuses a reconstruction plan built once from
+ *      through CqmomPreparedCase, which reuses a reconstruction plan built once from
  *      the hierarchy instead of deriving it per call. Both routes must return
  *      the identical quadrature, down to the last bit.
  *
@@ -234,7 +234,7 @@ void check_recovers_generating_nodes(const qmomkit::case_matrix::StaticCase& cas
 }
 
 /*
- * Reconstructing through CqmomCase reuses a reconstruction plan built once from
+ * Reconstructing through CqmomPreparedCase reuses a reconstruction plan built once from
  * the hierarchy, where the explicit case derives one per call. The two routes
  * must agree exactly: the plan is bookkeeping about which moments are needed
  * and in what order, and does not enter the arithmetic.
@@ -262,7 +262,7 @@ void run_static_case(const qmomkit::case_matrix::StaticCase& case_)
     QMOMKIT_VERIFY_CHECK(result.ok());
 
     check_recovers_generating_nodes(case_, result.quadrature);
-    check_prepared_path_agrees(result, qmomkit::compute_cqmom(qmomkit::CqmomCase(explicit_case)));
+    check_prepared_path_agrees(result, qmomkit::compute_cqmom(qmomkit::CqmomPreparedCase(explicit_case)));
     compare_against_reference(case_.name, result.quadrature, static_cast<int>(result.status));
 }
 
@@ -274,7 +274,7 @@ void run_evolution_case(const qmomkit::case_matrix::EvolutionCase& case_)
     qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.scheme = case_.scheme;
 
-    qmomkit::CqmomState state = qmomkit::CqmomCase(qmomkit::case_matrix::lean_case_of(case_.reconstruction)).initial_state();
+    qmomkit::CqmomState state = qmomkit::CqmomPreparedCase(qmomkit::case_matrix::lean_case_of(case_.reconstruction)).initial_state();
     double time = 0.0;
     int status = 0;
     for (std::size_t step = 0; step < case_.step_count; ++step)

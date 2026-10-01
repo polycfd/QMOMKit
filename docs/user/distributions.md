@@ -192,9 +192,10 @@ products are not represented. See the configuration guide for the nested
 `.qmom` marginal-mixture syntax.
 
 For the normal configured workflow, describe those marginals in a
-multidimensional `.qmom` configuration file and load it with `load_cqmom(...)`.
-QMOMKit then generates the required CQMOM moments for the requested hierarchy.
-Users do not need to build or manage that required moment set themselves.
+multidimensional `.qmom` configuration file and load it with
+`load_cqmom_prepared(...)`. QMOMKit then generates the required CQMOM moments
+for the requested hierarchy. Users do not need to build or manage that required
+moment set themselves.
 
 The direct C++ example below is the explicit full-tensor compatibility path
 for applications that already manage rectangular tensor moments.

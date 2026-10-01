@@ -63,7 +63,7 @@ qmomkit::RawMomentTensor replacement_tensor()
     return {{2, 2}, {1.0, 0.5, 1.0, 0.5}};
 }
 
-void assert_cases_match(const qmomkit::CqmomCase& actual, const qmomkit::CqmomCase& expected)
+void assert_cases_match(const qmomkit::CqmomPreparedCase& actual, const qmomkit::CqmomPreparedCase& expected)
 {
     QMOMKIT_VERIFY_CHECK(actual.hierarchy().node_counts() == expected.hierarchy().node_counts());
     QMOMKIT_VERIFY_CHECK(actual.hierarchy().conditioning_order() == expected.hierarchy().conditioning_order());
@@ -152,8 +152,8 @@ void assert_states_match(const qmomkit::CqmomState& actual, const qmomkit::Cqmom
 
 void test_parsed_and_programmatic_replacement_match()
 {
-    const auto base = qmomkit::config::parse_cqmom(base_configuration, "replacement-base");
-    const auto parsed = qmomkit::config::parse_cqmom(explicit_replacement_configuration, "replacement-parsed");
+    const auto base = qmomkit::config::parse_cqmom_prepared(base_configuration, "replacement-base");
+    const auto parsed = qmomkit::config::parse_cqmom_prepared(explicit_replacement_configuration, "replacement-parsed");
     QMOMKIT_VERIFY_CHECK(base.ok());
     QMOMKIT_VERIFY_CHECK(parsed.ok());
 
@@ -196,7 +196,7 @@ void test_parsed_and_programmatic_replacement_match()
 // differently prepared lineage.
 void test_moment_data_and_tensor_replacement_match()
 {
-    const auto base = qmomkit::config::parse_cqmom(base_configuration, "replacement-base");
+    const auto base = qmomkit::config::parse_cqmom_prepared(base_configuration, "replacement-base");
     QMOMKIT_VERIFY_CHECK(base.ok());
 
     const qmomkit::CqmomMomentData moment_data =

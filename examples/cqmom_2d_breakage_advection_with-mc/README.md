@@ -44,13 +44,13 @@ CQMOM case
 compute_cqmom(...) -> initial quadrature
         |
         v
-CqmomCase::initial_state() -> CqmomState
+CqmomPreparedCase::initial_state() -> CqmomState
         |
         v
 CQMOM phase-space evolution
 ```
 
-The CQMOM driver loads this numerical setup as a normal `CqmomCase`, estimates
+The CQMOM driver loads this numerical setup as a normal `CqmomPreparedCase`, estimates
 the complete sampled tensor, and creates an immutable replacement case with
 `with_initial_moments(...)`. The hierarchy, storage selection, and
 reconstruction policies therefore remain those declared by
@@ -107,8 +107,8 @@ uncertainty. Increasing the sample count generally reduces that uncertainty,
 but high-order tensor moments can require substantially more samples.
 
 The CQMOM driver treats the sampled raw moment tensor as an initialization
-object and asks the configuration API for a `qmomkit::CqmomCase` consumed by
-`qmomkit::compute_cqmom(...)` and `qmomkit::CqmomCase::initial_state()`. The
+object and asks the configuration API for a `qmomkit::CqmomPreparedCase` consumed by
+`qmomkit::compute_cqmom(...)` and `qmomkit::CqmomPreparedCase::initial_state()`. The
 direct MC driver uses the sampled ensemble itself. Because the two drivers are
 separate executables, they reproduce the same initial ensemble by using the
 same configuration, sample count, seed, and sampling utility.

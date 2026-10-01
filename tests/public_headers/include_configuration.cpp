@@ -3,11 +3,11 @@
 namespace
 {
 
-using CqmomInitialMomentReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase> (*)(const qmomkit::CqmomCase&,
-                                                                                                   qmomkit::RawMomentTensor);
+using CqmomInitialMomentReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(const qmomkit::CqmomPreparedCase&,
+                                                                                                           qmomkit::RawMomentTensor);
 
-using CqmomLeanInitialMomentReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase> (*)(const qmomkit::CqmomCase&,
-                                                                                                       qmomkit::CqmomMomentData);
+using CqmomLeanInitialMomentReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(const qmomkit::CqmomPreparedCase&,
+                                                                                                               qmomkit::CqmomMomentData);
 
 [[maybe_unused]] CqmomInitialMomentReplacement cqmom_initial_moment_replacement = qmomkit::config::with_initial_moments;
 

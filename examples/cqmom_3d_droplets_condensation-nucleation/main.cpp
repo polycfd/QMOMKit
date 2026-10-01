@@ -39,7 +39,7 @@ int main()
         if (!configuration_text.has_value())
             return 1;
 
-        auto configured_cqmom = qmomkit::config::parse_cqmom(*configuration_text, configuration_file.string());
+        auto configured_cqmom = qmomkit::config::parse_cqmom_prepared(*configuration_text, configuration_file.string());
         if (!configured_cqmom)
         {
             cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(configured_cqmom.error());
@@ -70,7 +70,7 @@ int main()
             cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(sampled_case_result.error());
             return 1;
         }
-        const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
+        const qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case_result).value();
 
         qmomkit::CqmomState state = cqmom_case.initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();

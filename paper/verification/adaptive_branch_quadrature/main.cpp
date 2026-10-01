@@ -38,7 +38,7 @@ struct Sample
     std::vector<std::size_t> branch_counts;
 };
 
-std::size_t validate_case(const qmomkit::CqmomCase& case_)
+std::size_t validate_case(const qmomkit::CqmomPreparedCase& case_)
 {
     const qmomkit::PhaseSpaceHierarchy& hierarchy = case_.hierarchy();
     if (hierarchy.number_of_dimensions() != 2 || hierarchy.conditioning_order() != std::vector<std::size_t>{0, 1} || !case_.adaptive_branch_counts())
@@ -228,7 +228,7 @@ int main(const int argc, char** argv)
     try
     {
         const std::filesystem::path configuration_file = argc == 2 ? argv[1] : "configuration.qmom";
-        auto configured = qmomkit::config::load_cqmom(configuration_file);
+        auto configured = qmomkit::config::load_cqmom_prepared(configuration_file);
         if (!configured.ok())
         {
             std::cerr << configured.error() << '\n';
@@ -247,7 +247,7 @@ int main(const int argc, char** argv)
             return 1;
         }
 
-        const qmomkit::CqmomCase case_ = std::move(configured).value();
+        const qmomkit::CqmomPreparedCase case_ = std::move(configured).value();
         const std::size_t configured_velocity_node_count = validate_case(case_);
         const std::size_t configured_size_node_count = case_.hierarchy().node_count(0);
         const qmomkit::CqmomPhaseSpaceEvolutionOptions evolution_options = std::move(evolution_options_configured).value();

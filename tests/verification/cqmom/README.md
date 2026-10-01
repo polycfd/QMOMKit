@@ -3,7 +3,7 @@
 These cases verify the public CQMOM path from configuration loading through
 `qmomkit::compute_cqmom(...)`. Inputs are loaded from `.qmom` files in this
 directory through `qmomkit::config::load_cqmom_lean` and
-`qmomkit::config::load_cqmom`; the executables do not overwrite or regenerate
+`qmomkit::config::load_cqmom_prepared`; the executables do not overwrite or regenerate
 configured raw moments.
 
 ## Raw Moment Reconstruction
@@ -45,10 +45,10 @@ paths on the independent-product case:
 
 ```text
 load_cqmom_lean(...) -> CqmomLeanCase -> compute_cqmom(...)
-load_cqmom(...)      -> CqmomCase     -> compute_cqmom(...)
+load_cqmom_prepared(...)      -> CqmomPreparedCase     -> compute_cqmom(...)
 ```
 
-The default `CqmomCase` workflow is the normal user path because it stores the
+The default `CqmomPreparedCase` workflow is the normal user path because it stores the
 configured CQMOM setup and avoids exposing the moment storage it uses. The
 lean workflow is useful when callers intentionally manage only the minimal
 CQMOM moment layout required by recursive reconstruction.
@@ -89,7 +89,7 @@ moment sequence has negative total number density. The verifier checks
 consistent behavior for:
 
 ```text
-compute_cqmom(CqmomCase)
+compute_cqmom(CqmomPreparedCase)
 compute_cqmom(CqmomLeanCase)
 ```
 

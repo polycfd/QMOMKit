@@ -47,7 +47,7 @@ int main()
             return 1;
         }
 
-        auto configured_cqmom = qmomkit::config::parse_cqmom(*configuration_text, configuration_file.string());
+        auto configured_cqmom = qmomkit::config::parse_cqmom_prepared(*configuration_text, configuration_file.string());
         if (!configured_cqmom)
         {
             paper_3d_droplets_condensation_nucleation::print_configuration_errors(configured_cqmom.error());
@@ -84,7 +84,7 @@ int main()
             paper_3d_droplets_condensation_nucleation::print_configuration_errors(sampled_case_result.error());
             return 1;
         }
-        const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
+        const qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case_result).value();
 
         const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
         if (!cqmom.ok())
@@ -149,7 +149,6 @@ int main()
                                                     qmomkit::invalid_dimension_index,
                                                     {}};
         };
-
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
         std::optional<qmomkit::MomentWriter> mc_moment_history_writer;

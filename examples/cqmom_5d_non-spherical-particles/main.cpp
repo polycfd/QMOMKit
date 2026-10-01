@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
         // The phase space here is (d, chi, u, v, w) with three nodes per
         // dimension, so the quadrature carries 3^5 = 243 terminal nodes. The
         // callbacks below see all of them at once, packed node-major.
-        auto configured = qmomkit::config::load_cqmom(configuration_file);
+        auto configured = qmomkit::config::load_cqmom_prepared(configuration_file);
         if (!configured)
         {
             print_configuration_errors(configured.error());
@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
             print_configuration_errors(sampled_case.error());
             return 1;
         }
-        qmomkit::CqmomCase cqmom_case = std::move(sampled_case).value();
+        qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case).value();
         const ParticleModelParameters particle_parameters = particle_model_parameters();
         validate_particle_model_parameters(particle_parameters);
         const BinaryFragmentationParameters breakage_parameters = binary_fragmentation_parameters();

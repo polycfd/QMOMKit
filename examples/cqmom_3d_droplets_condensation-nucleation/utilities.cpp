@@ -112,7 +112,7 @@ void ensure_output_directory(const std::filesystem::path& path)
     }
 }
 
-void print_cqmom_run_configuration(const qmomkit::CqmomCase& cqmom_case,
+void print_cqmom_run_configuration(const qmomkit::CqmomPreparedCase& cqmom_case,
                                    const qmomkit::CqmomPhaseSpaceEvolutionOptions& phase_space_evolution_options)
 {
     std::cout << std::setprecision(12);
@@ -129,7 +129,7 @@ void print_cqmom_run_configuration(const qmomkit::CqmomCase& cqmom_case,
     std::cout << qmomkit::format_node_advection_options(phase_space_evolution_options.node_options);
 }
 
-void print_monte_carlo_run_configuration(const qmomkit::CqmomCase& cqmom_case, const qmomkit::NodeAdvectionOptions& node_options)
+void print_monte_carlo_run_configuration(const qmomkit::CqmomPreparedCase& cqmom_case, const qmomkit::NodeAdvectionOptions& node_options)
 {
     std::cout << std::setprecision(12);
     std::cout << "phase-space dimensions: 3\n";

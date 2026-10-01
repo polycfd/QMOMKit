@@ -2,7 +2,7 @@ set(component_case_sources
     moment_source.cpp
     node_advection.cpp
     phase_space_evolution.cpp
-    cqmom_case_moment_replacement.cpp
+    cqmom_prepared_case_moment_replacement.cpp
     cqmom_drag_and_degenerate_moments.cpp
 )
 

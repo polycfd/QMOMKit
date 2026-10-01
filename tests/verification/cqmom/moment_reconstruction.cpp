@@ -118,7 +118,7 @@ double analytical_qmom_moment(const std::size_t order)
     return moment;
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -277,7 +277,7 @@ int main(const int argc, char** argv)
     }
 
     const std::filesystem::path configuration_path = argv[1];
-    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);

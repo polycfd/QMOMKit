@@ -176,8 +176,8 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
                                                                         CqmomCoordinateSupport coordinate_support = {});
 
 /**
- * Create a CQMOM case with replacement initial moments, taken from a full raw
- * moment tensor.
+ * Create a prepared CQMOM case with replacement initial moments, taken from a
+ * full raw moment tensor.
  *
  * This is the entry point for moment data produced outside QMOMKit, such as the
  * raw moments the Monte Carlo companion evaluates from a sample population: the
@@ -192,13 +192,13 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * support, reconstruction policies, and prepared metadata. This operation
  * validates tensor structure only; CQMOM realizability and reconstruction
  * remain the responsibility of `compute_cqmom(...)` and
- * `CqmomCase::initial_state()`.
+ * `CqmomPreparedCase::initial_state()`.
  */
-[[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, RawMomentTensor explicit_moments);
+[[nodiscard]] ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_case, RawMomentTensor explicit_moments);
 
 /**
- * Create a CQMOM case with replacement initial moments, supplied as the
- * required CQMOM moment set.
+ * Create a prepared CQMOM case with replacement initial moments, supplied as
+ * the required CQMOM moment set.
  *
  * Use this overload when the caller already holds exactly the moments the
  * hierarchy reconstructs from, so that no full tensor has to be built for
@@ -209,9 +209,9 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * must match the required CQMOM moment layout of the base hierarchy. This
  * operation validates moment-set structure only; CQMOM realizability and
  * reconstruction remain the responsibility of `compute_cqmom(...)` and
- * `CqmomCase::initial_state()`.
+ * `CqmomPreparedCase::initial_state()`.
  */
-[[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, CqmomMomentData explicit_moments);
+[[nodiscard]] ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_case, CqmomMomentData explicit_moments);
 
 /** Parse a current QMOM configuration string. */
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");
@@ -219,8 +219,8 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Advanced: parse configuration into an explicit lean CQMOM case. */
 [[nodiscard]] ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(std::string_view text, std::string source_name = "<string>");
 
-/** Parse a current CQMOM configuration string into a user-facing CQMOM case. */
-[[nodiscard]] ConfigurationResult<CqmomCase> parse_cqmom(std::string_view text, std::string source_name = "<string>");
+/** Parse a current CQMOM configuration string into a prepared CQMOM case. */
+[[nodiscard]] ConfigurationResult<CqmomPreparedCase> parse_cqmom_prepared(std::string_view text, std::string source_name = "<string>");
 
 /** Parse optional runtime realizability policy configuration. */
 [[nodiscard]] ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(std::string_view text, std::string source_name = "<string>");
@@ -253,8 +253,8 @@ parse_coordinate_realizability_policies(std::string_view text, std::string sourc
 /** Advanced: load an explicit lean CQMOM case from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<CqmomLeanCase> load_cqmom_lean(const std::filesystem::path& filename);
 
-/** Load and parse a CQMOM configuration into a user-facing CQMOM case from exactly the requested file. */
-[[nodiscard]] ConfigurationResult<CqmomCase> load_cqmom(const std::filesystem::path& filename);
+/** Load and parse a CQMOM configuration into a prepared CQMOM case from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<CqmomPreparedCase> load_cqmom_prepared(const std::filesystem::path& filename);
 
 /** Load and parse output configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<OutputOptions> load_output_options(const std::filesystem::path& filename);

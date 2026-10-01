@@ -33,7 +33,7 @@ int main()
             return 1;
         }
 
-        auto configured_cqmom = qmomkit::config::parse_cqmom(*configuration_text, configuration_file.string());
+        auto configured_cqmom = qmomkit::config::parse_cqmom_prepared(*configuration_text, configuration_file.string());
         if (!configured_cqmom)
         {
             cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(configured_cqmom.error());
@@ -59,7 +59,7 @@ int main()
             cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(phase_space_evolution_configured.error());
             return 1;
         }
-        const qmomkit::CqmomCase cqmom_case = std::move(configured_cqmom).value();
+        const qmomkit::CqmomPreparedCase cqmom_case = std::move(configured_cqmom).value();
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
         const qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
         const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());

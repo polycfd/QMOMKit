@@ -707,7 +707,7 @@ sigma_log = 0.45
         assert_near_absolute_relative(selected.values[index], analytical_moment(request.indices[index]), 1.0e-12, 1.0e-12);
     }
 
-    const auto configured = qmomkit::config::parse_cqmom(configuration);
+    const auto configured = qmomkit::config::parse_cqmom_prepared(configuration);
     QMOMKIT_VERIFY_CHECK(configured.ok());
     const qmomkit::CqmomState initial_state = configured.value().initial_state();
     QMOMKIT_VERIFY_CHECK(initial_state.moment_indices().size() == initial_state.moment_values().size());

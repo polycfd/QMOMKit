@@ -96,12 +96,12 @@ convention; the solver policy in `VandermondeSolver` selects the kernel.
 
 QMOMKit's scalable CQMOM representation is the required moment set: the minimal
 set of raw moments required by the configured hierarchy and conditioning order.
-The normal user workflow loads a `CqmomCase` and computes its quadrature with
-`compute_cqmom(CqmomCase)`. If the distribution evolves in time, the same case
-can create a `CqmomState` for phase-space evolution. Users on this path do not
-manage internal branch-local storage, tensor extents, or required moment
-indices. Callers that need direct control can assemble the required moments themselves
-and use an explicit `CqmomLeanCase`.
+The normal user workflow loads a `CqmomPreparedCase` and computes its
+quadrature with `compute_cqmom(CqmomPreparedCase)`. If the distribution evolves
+in time, the same case can create a `CqmomState` for phase-space evolution.
+Users on this path do not manage internal branch-local storage, tensor extents,
+or required moment indices. Callers that need direct control can assemble the
+required moments themselves and use an explicit `CqmomLeanCase`.
 
 ### Starting from a full moment tensor
 
@@ -185,11 +185,11 @@ These paths validate hierarchy consistency, conditioning order, the required
 fixed CQMOM moment layout, value count, and finite moment values. Extracting
 the required moments from a full tensor validates its extents first.
 
-`CqmomCase` and `CqmomState` are normal public workflows. For these objects,
-QMOMKit can reuse setup information that was already checked when the case or
-state was created or loaded. Reconstruction therefore reuses the existing
-hierarchy, conditioning order, and moment layout instead of regenerating and
-comparing the global required layout on every reconstruction.
+`CqmomPreparedCase` and `CqmomState` are normal public workflows. For these
+objects, QMOMKit can reuse setup information that was already checked when the
+case or state was created or loaded. Reconstruction therefore reuses the
+existing hierarchy, conditioning order, and moment layout instead of
+regenerating and comparing the global required layout on every reconstruction.
 
 For fixed-topology normal cases, construction also eagerly prepares one
 immutable internal metadata object. It contains the required CQMOM moment
@@ -410,8 +410,8 @@ controls:
   adaptive Wheeler for every marginal and conditional inversion.
 
 The adaptive branch-count policy is available through the normal
-`CqmomCase`/`CqmomState` workflow and through the explicit `CqmomLeanCase`
-workflow.
+`CqmomPreparedCase`/`CqmomState` workflow and through the explicit
+`CqmomLeanCase` workflow.
 
 When adaptive branch counts are disabled, recursive CQMOM expects fixed
 rectangular output storage. In that mode, adaptive Wheeler is rejected because
@@ -605,14 +605,14 @@ diagnostic_level = detailed|basic|none
 The public CQMOM API is declared in `<qmomkit/cqmom.hpp>`:
 
 ```cpp
-qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomCase& case_);
+qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomPreparedCase& case_);
 qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomLeanCase& lean_case);
 ```
 
 Public CQMOM concepts include:
 
 - `compute_cqmom`
-- `CqmomCase`
+- `CqmomPreparedCase`
 - `CqmomState`
 - `CqmomLeanCase`
 - `CqmomResult`
@@ -625,10 +625,11 @@ Public CQMOM concepts include:
 - `PhaseSpaceHierarchy`
 - `ConditioningPath`
 
-`CqmomCase` and `CqmomState` are the neutral public objects for the normal
-CQMOM workflow. The case stores initialized moment data and reconstruction
-policies; a state is created from the case when users choose CQMOM phase-space
-evolution. This workflow does not expose how the moments are stored.
+`CqmomPreparedCase` and `CqmomState` are the neutral public objects for the
+normal CQMOM workflow. The case stores initialized moment data and
+reconstruction policies; a state is created from the case when users choose
+CQMOM phase-space evolution. This workflow does not expose how the moments are
+stored.
 
 `CqmomLeanCase` bundles the required CQMOM moment data, the conditional-moment
 and QMOM/Wheeler options, and the adaptive branch-count and diagnostic

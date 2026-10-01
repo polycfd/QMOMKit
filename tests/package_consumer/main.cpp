@@ -81,13 +81,13 @@ int main()
     {
         return 1;
     }
-    const qmomkit::CqmomState lean_state = qmomkit::CqmomCase{std::move(lean_case)}.initial_state();
+    const qmomkit::CqmomState lean_state = qmomkit::CqmomPreparedCase{std::move(lean_case)}.initial_state();
     if (lean_state.quadrature().total_nodes() != 1 || lean_state.quadrature().weights().size() != 1)
     {
         return 1;
     }
 
-    const auto base_case = qmomkit::config::parse_cqmom(R"(
+    const auto base_case = qmomkit::config::parse_cqmom_prepared(R"(
 [phase_space]
 node_counts = 1, 1
 

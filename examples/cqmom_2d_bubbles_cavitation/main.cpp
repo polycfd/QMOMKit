@@ -45,7 +45,7 @@ int main()
         if (!configuration_text.has_value())
             return 1;
 
-        auto configured_cqmom = qmomkit::config::parse_cqmom(*configuration_text, configuration_file.string());
+        auto configured_cqmom = qmomkit::config::parse_cqmom_prepared(*configuration_text, configuration_file.string());
         if (!configured_cqmom)
         {
             cqmom_2d_bubbles_cavitation::print_configuration_errors(configured_cqmom.error());
@@ -81,7 +81,7 @@ int main()
             cqmom_2d_bubbles_cavitation::print_configuration_errors(sampled_case_result.error());
             return 1;
         }
-        const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
+        const qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case_result).value();
 
         // The case is the fixed setup; the state is what advances in time.
         qmomkit::CqmomState state = cqmom_case.initial_state();

@@ -40,13 +40,13 @@ int main(int argc, char* argv[])
     {
         using namespace cqmom_5d_non_spherical_particles;
 
-        auto configured = qmomkit::config::load_cqmom(configuration_file);
+        auto configured = qmomkit::config::load_cqmom_prepared(configuration_file);
         if (!configured)
         {
             print_configuration_errors(configured.error());
             return 1;
         }
-        const qmomkit::CqmomCase configured_case = std::move(configured).value();
+        const qmomkit::CqmomPreparedCase configured_case = std::move(configured).value();
 
         auto output_configured = qmomkit::config::load_output_options(configuration_file);
         if (!output_configured)

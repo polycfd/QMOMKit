@@ -143,9 +143,10 @@ quadrature. These are the primary CQMOM starting points.
 ### `cqmom_independent_product_initialization`
 
 Start here for multidimensional CQMOM. It demonstrates
-`load_cqmom(...) -> CqmomCase -> compute_cqmom(...)`, an independent-product
-initial distribution, and the relationship between phase-space order and
-conditioning order. It creates a `CqmomState` but does not evolve it.
+`load_cqmom_prepared(...) -> CqmomPreparedCase -> compute_cqmom(...)`, an
+independent-product initial distribution, and the relationship between
+phase-space order and conditioning order. It creates a `CqmomState` but does
+not evolve it.
 
 Example README:
 [`examples/cqmom_independent_product_initialization/README.md`](../../examples/cqmom_independent_product_initialization/README.md)

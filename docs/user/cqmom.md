@@ -32,32 +32,38 @@ number density.
 ## CQMOM workflow
 
 The typical CQMOM workflow starts from a modelling description rather than from
-internal storage. That description can come from a `.qmom`
-configuration file or from direct C++ setup. In either case, users name or
-order the coordinates, set the requested node counts, choose the conditioning
-order, and describe the initial moments. File-based setup builds a `CqmomCase`;
-direct C++ setup can build a `CqmomLeanCase` when the application assembles the
-required moments itself, then promote it to the normal `CqmomCase` workflow.
+internal storage. That description can come from a `.qmom` configuration file
+or from direct C++ setup. In either case, users name or order the coordinates,
+set the requested node counts, choose the conditioning order, and describe the
+initial moments. File-based setup builds a `CqmomPreparedCase`; direct C++
+setup can build a `CqmomLeanCase` when the application assembles the required
+moments itself, then promote it to the normal `CqmomPreparedCase` workflow.
+
+Both case types hold the same moments and produce the same quadrature. A
+prepared case also carries the recursive branch structure implied by the
+phase-space hierarchy, so reconstructing repeatedly from the same hierarchy
+does not rebuild it. Prefer the prepared case unless you have a reason to hold
+the moments yourself.
 
 ```text
 configuration file:
     .qmom file
-    -> load_cqmom(...)
-    -> CqmomCase
+    -> load_cqmom_prepared(...)
+    -> CqmomPreparedCase
 
 direct API:
     C++ setup
     -> CqmomLeanCase
-    -> CqmomCase
+    -> CqmomPreparedCase
 
 reconstruction:
-    CqmomCase or CqmomLeanCase
+    CqmomPreparedCase or CqmomLeanCase
     -> compute_cqmom(...)
     -> CqmomResult / CqmomQuadrature
     -> inspect / evaluate / output
 
 normal optional phase-space evolution:
-    CqmomCase::initial_state()
+    CqmomPreparedCase::initial_state()
     -> CqmomState
     -> advance_cqmom_phase_space(...)
 ```
@@ -65,14 +71,14 @@ normal optional phase-space evolution:
 At the user level, this means:
 
 1. Define the CQMOM setup in a `.qmom` file or directly in C++.
-2. Load it with `load_cqmom(...)`, or construct a `CqmomLeanCase` and pass it
-   to `CqmomCase` in C++.
+2. Load it with `load_cqmom_prepared(...)`, or construct a `CqmomLeanCase`
+   and pass it to `CqmomPreparedCase` in C++.
 3. Keep the case object as the configured problem definition.
 4. Call `compute_cqmom(...)` to compute the initial quadrature.
 5. Inspect the quadrature, evaluate derived quantities, or write output.
-6. If the case evolves in time, call `CqmomCase::initial_state()` to create the
-   runtime state for phase-space evolution and pass that `CqmomState` to
-   `advance_cqmom_phase_space(...)`.
+6. If the case evolves in time, call `CqmomPreparedCase::initial_state()` to
+   create the runtime state for phase-space evolution and pass that
+   `CqmomState` to `advance_cqmom_phase_space(...)`.
 
 The result is a set of weighted multidimensional nodes. Each terminal node has
 one global weight and one abscissa per phase-space dimension.
@@ -87,13 +93,12 @@ recursive problem, then returns nodes and bounded-support diagnostics in
 physical coordinates. Raw moments, weights, callbacks, states, and configured
 coordinate supports keep their physical meaning.
 
-`CqmomCase` is the immutable setup produced by the normal configuration loader
-or by promoting a `CqmomLeanCase`. Normal CQMOM phase-space evolution creates
-`CqmomState` from `CqmomCase` and advances it with
+`CqmomPreparedCase` is the immutable setup produced by the normal configuration
+loader or by promoting a `CqmomLeanCase`. Normal CQMOM phase-space evolution
+creates `CqmomState` from `CqmomPreparedCase` and advances it with
 `advance_cqmom_phase_space(...)`. `CqmomLeanCase` also remains available for
-static inversion with `compute_cqmom(...)`.
-In all cases, `compute_cqmom(...)` returns quadrature; it does not return a
-phase-space evolution state.
+static inversion with `compute_cqmom(...)`. In all cases, `compute_cqmom(...)`
+returns quadrature; it does not return a phase-space evolution state.
 
 For the usual CQMOM path, users specify the phase space, initial condition, and
 reconstruction settings. QMOMKit determines which moments are needed for the
@@ -112,7 +117,7 @@ if (!replaced)
     std::cerr << replaced.error() << '\n';
     return 1;
 }
-const qmomkit::CqmomCase cqmom_case = replaced.value();
+const qmomkit::CqmomPreparedCase cqmom_case = replaced.value();
 ```
 
 The new case retains the base hierarchy, conditioning order, support, and every
@@ -158,14 +163,14 @@ evolution is shown afterward as an optional step.
 
 int main()
 {
-    const auto configured = qmomkit::config::load_cqmom("configuration.qmom");
+    const auto configured = qmomkit::config::load_cqmom_prepared("configuration.qmom");
     if (!configured)
     {
         std::cerr << configured.error() << '\n';
         return 1;
     }
 
-    const qmomkit::CqmomCase cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase cqmom_case = configured.value();
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     if (!result.ok())
@@ -450,7 +455,7 @@ moments required by the configured hierarchy and conditioning order. Normal
 configuration workflows build and hide this representation automatically.
 
 To evolve a case in time, create its runtime state with
-`CqmomCase::initial_state()` and pass that `CqmomState` to
+`CqmomPreparedCase::initial_state()` and pass that `CqmomState` to
 `advance_cqmom_phase_space(...)`, which performs a complete step. If you would
 rather drive the stages yourself, the same state goes through
 `advance_cqmom_advection(...)` and `advance_cqmom_moment_source(...)`.

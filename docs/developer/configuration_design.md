@@ -91,7 +91,7 @@ The main parts of configuration handling are:
 - initialization: turns explicit moments or analytical distribution
   specifications into `MomentSet`, CQMOM required moments, or explicit full
   representation tensors;
-- case construction: builds `QmomCase`, `CqmomCase`, or an explicit
+- case construction: builds `QmomCase`, `CqmomPreparedCase`, or an explicit
   `CqmomLeanCase` from initialized moments, phase-space hierarchy, and options;
 - policy extraction: parses an optional splitting scheme, evolution options,
   output options, and runtime realizability policy objects for drivers that
@@ -167,13 +167,13 @@ QmomOptions
 adaptive_branch_counts
 CqmomDiagnosticLevel
 VandermondeSolver
-CqmomCase
+CqmomPreparedCase
 ```
 
-This is the recommended user-facing loading path exposed by `load_cqmom(...)`.
-The returned `CqmomCase` stores the moment representation and reconstruction
-policies while avoiding any distinction between analytical and explicit moment
-input in ordinary use.
+This is the recommended user-facing loading path exposed by
+`load_cqmom_prepared(...)`. The returned `CqmomPreparedCase` stores the moment
+representation and reconstruction policies while avoiding any distinction
+between analytical and explicit moment input in ordinary use.
 
 The explicit lean representation workflow maps parsed CQMOM setup data to:
 
@@ -235,29 +235,28 @@ configuration preserves the public default `CqmomDiagnosticLevel::none`.
 
 ### Immutable explicit-moment replacement
 
-`config::with_initial_moments(const CqmomCase&, RawMomentTensor)` is the normal
-programmatic boundary for replacing the explicit initial tensor of an existing
-normal case. It copies the base case representation and policies, then replaces
-only its initial moments, deriving the fixed layout from the base hierarchy and
-extracting its required values. The base case is unchanged.
+`config::with_initial_moments(const CqmomPreparedCase&, RawMomentTensor)` is
+the normal programmatic boundary for replacing the explicit initial tensor of
+an existing normal case. It copies the base case representation and policies,
+then replaces only its initial moments, deriving the fixed layout from the base
+hierarchy and extracting its required values. The base case is unchanged.
 
 This boundary validates tensor rank, positive non-overflowing extents, value
 count, finiteness, and reconstruction coverage without parser
 metadata. It deliberately does not invoke CQMOM inversion. Consequently,
 programmatic and parsed explicit tensors share the same lifecycle: structural
 errors are configuration failures, while non-realizability is reported by
-`compute_cqmom(...)` or by `CqmomCase::initial_state()`.
+`compute_cqmom(...)` or by `CqmomPreparedCase::initial_state()`.
 
-`config::with_initial_moments(const CqmomCase&, CqmomMomentData)` is the lean
-overload of the same boundary. A caller whose moments already arrive as the
-required CQMOM moment set — from `compute_raw_moments(...)` with the layout's
-`required_indices` adapted by `create_cqmom_moment_data(...)`, or from any other
-producer that evaluates exactly those indices — replaces the initial moments
-directly instead of materializing a dense tensor whose additional entries the
-case never reads. For
-a hierarchy whose dense tensor is much larger than its required set, that is the
-difference between generating the required moments and generating the full
-rectangle.
+`config::with_initial_moments(const CqmomPreparedCase&, CqmomMomentData)` is
+the lean overload of the same boundary. A caller whose moments already arrive
+as the required CQMOM moment set — from `compute_raw_moments(...)` with the
+layout's `required_indices` adapted by `create_cqmom_moment_data(...)`, or from
+any other producer that evaluates exactly those indices — replaces the initial
+moments directly instead of materializing a dense tensor whose additional
+entries the case never reads. For a hierarchy whose dense tensor is much larger
+than its required set, that is the difference between generating the required
+moments and generating the full rectangle.
 
 The overload taking the required moment set validates that the
 supplied layout is the required CQMOM moment layout of the base hierarchy, that
@@ -327,7 +326,7 @@ These settings are parsed into public objects or enum values. They do not
 install callbacks, run phase-space evolution, write output, or define a
 physical model. Case loaders validate recognized runtime settings when those
 settings are present in the same `.qmom` file, but they still return only
-`QmomCase` or `CqmomCase`.
+`QmomCase` or `CqmomPreparedCase`.
 
 | Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
 | --- | --- | --- | --- |

@@ -389,7 +389,7 @@ void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomk
     std::cerr << configured.error() << '\n';
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -2003,7 +2003,7 @@ VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configura
     // The manufactured discrete quadrature therefore has
     // x(t) = exp(t) x(0) and y(t) = y(0) + (exp(t) - 1) x(0).
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -2011,7 +2011,7 @@ VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configura
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase& cqmom_case = configured.value();
     const qmomkit::CqmomResult initial_result = qmomkit::compute_cqmom(cqmom_case);
     if (!initial_result.ok())
     {
@@ -2131,7 +2131,7 @@ VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configura
 VerificationResult run_cqmom_boundary_contribution(const std::filesystem::path& configuration_path)
 {
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -2139,7 +2139,7 @@ VerificationResult run_cqmom_boundary_contribution(const std::filesystem::path& 
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase& cqmom_case = configured.value();
     if (cqmom_case.hierarchy().node_counts() != std::vector<std::size_t>{2, 2} ||
         cqmom_case.hierarchy().conditioning_order() != std::vector<std::size_t>{1, 0})
     {
@@ -2232,7 +2232,7 @@ VerificationResult run_cqmom_boundary_contribution(const std::filesystem::path& 
 VerificationResult run_cqmom_combined_native_source(const std::filesystem::path& configuration_path)
 {
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -2240,7 +2240,7 @@ VerificationResult run_cqmom_combined_native_source(const std::filesystem::path&
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase& cqmom_case = configured.value();
     if (cqmom_case.hierarchy().node_counts() != std::vector<std::size_t>{2, 2} ||
         cqmom_case.hierarchy().conditioning_order() != std::vector<std::size_t>{0, 1})
     {
@@ -2345,7 +2345,7 @@ VerificationResult run_cqmom_combined_native_source(const std::filesystem::path&
 VerificationResult run_cqmom_native_source(const std::filesystem::path& configuration_path)
 {
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -2353,7 +2353,7 @@ VerificationResult run_cqmom_native_source(const std::filesystem::path& configur
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase& cqmom_case = configured.value();
     if (cqmom_case.hierarchy().node_counts() != std::vector<std::size_t>{2, 2} ||
         cqmom_case.hierarchy().conditioning_order() != std::vector<std::size_t>{0, 1})
     {
@@ -2361,9 +2361,9 @@ VerificationResult run_cqmom_native_source(const std::filesystem::path& configur
         return verification;
     }
 
-    // This is the normal user workflow: load_cqmom(...) owns the configured
+    // This is the normal user workflow: load_cqmom_prepared(...) owns the configured
     // state, compute_cqmom(...) verifies the initial analytical quadrature, and
-    // CqmomCase::initial_state() is passed to advance_cqmom_phase_space(...).
+    // CqmomPreparedCase::initial_state() is passed to advance_cqmom_phase_space(...).
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_case);
     if (!initial.ok())
     {
@@ -3058,7 +3058,7 @@ void verify_lean_helper_based_common_cqmom_phase_space_evolution(const qmomkit::
 VerificationResult run_cqmom_phase_space_evolution_failures(const std::filesystem::path& configuration_path)
 {
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3066,7 +3066,7 @@ VerificationResult run_cqmom_phase_space_evolution_failures(const std::filesyste
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase& cqmom_case = configured.value();
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_case);
     if (!initial.ok())
     {
@@ -3199,7 +3199,7 @@ VerificationResult run_cqmom_phase_space_evolution_failures(const std::filesyste
 VerificationResult run_cqmom_phase_space_evolution_inversion_failures(const std::filesystem::path& configuration_path)
 {
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3595,7 +3595,7 @@ VerificationResult run_cqmom_native_source_failures(const std::filesystem::path&
     // result should fail at the source stage while preserving useful callback
     // diagnostics.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3603,7 +3603,7 @@ VerificationResult run_cqmom_native_source_failures(const std::filesystem::path&
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase& cqmom_case = configured.value();
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_case);
     if (!initial.ok())
     {
@@ -3683,7 +3683,7 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
     // verifies that ragged adaptive quadrature remains valid for phase-space evolution and
     // reconstructs the exact analytical moment tensor after splitting.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3691,7 +3691,7 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase& cqmom_case = configured.value();
     if (!cqmom_case.adaptive_branch_counts() || !cqmom_case.qmom_options().adaptive)
     {
         append_failure(verification, "adaptive CQMOM state verification requires adaptive_branch_counts and adaptive QMOM.");
@@ -3808,7 +3808,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     // oracle P(gamma dt). The source callback visits public terminal nodes,
     // proving source-stage reconstruction presents physical coordinates.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3816,7 +3816,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
         return verification;
     }
 
-    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase& cqmom_case = configured.value();
     if (!cqmom_case.qmom_options().automatic_scaling || !cqmom_case.qmom_options().adaptive || !cqmom_case.adaptive_branch_counts() ||
         cqmom_case.hierarchy().conditioning_order() != std::vector<std::size_t>({1, 0}))
     {

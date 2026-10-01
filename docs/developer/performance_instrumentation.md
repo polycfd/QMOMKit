@@ -171,8 +171,8 @@ A high moment-layout-build count indicates metadata preparation work: required
 CQMOM moment-layout generation, branch-local layout construction, or validation
 paths that rebuild expected layouts. Interpret this with the benchmark type.
 For public input paths, one expected-layout build may be intentional validation
-work. For trusted `CqmomCase` or `CqmomState` paths, repeated global-layout
-builds are usually more interesting than branch-local layouts.
+work. For trusted `CqmomPreparedCase` or `CqmomState` paths, repeated
+global-layout builds are usually more interesting than branch-local layouts.
 
 `cqmom_prepared_metadata_builds` increments once when a fixed normal case or a
 direct fixed normal state starts a new lineage and eagerly constructs its

@@ -359,7 +359,7 @@ checks apply to raw moment states during moment-source SSP-RK3 evolution.
 Quadrature reconstruction and inversion are separate numerical operations.
 
 For adaptive CQMOM evolution through `CqmomState`, active branch counts are
-part of accepted state metadata. `CqmomCase::initial_state()` seeds that
+part of accepted state metadata. `CqmomPreparedCase::initial_state()` seeds that
 metadata from the initial trusted inversion and fails state construction if the
 initial adaptive topology cannot be reconstructed. Later state inversions
 validate supplied active-count metadata strictly: there must be exactly one
@@ -650,13 +650,13 @@ state is still the state accepted before the complete split step began.
 
 Successful CQMOM stage and macro-step states carry a private accepted
 quadrature cache for the next CQMOM stage. A stage starting from a fresh
-`CqmomCase::initial_state()` computes the initial CQMOM quadrature once before
-applying the requested operation. A stage starting from a previously accepted
-CQMOM phase-space evolution state reuses the cached accepted quadrature rather
-than reinverting its stored moments. The cache is an implementation detail:
-public callers pass `CqmomState` objects between stages and inspect the
-`CqmomPhaseSpaceEvolutionResult::quadrature` value when they need the accepted
-or diagnostic quadrature.
+`CqmomPreparedCase::initial_state()` computes the initial CQMOM quadrature once
+before applying the requested operation. A stage starting from a previously
+accepted CQMOM phase-space evolution state reuses the cached accepted
+quadrature rather than reinverting its stored moments. The cache is an
+implementation detail: public callers pass `CqmomState` objects between stages
+and inspect the `CqmomPhaseSpaceEvolutionResult::quadrature` value when they
+need the accepted or diagnostic quadrature.
 
 ### Strang splitting
 

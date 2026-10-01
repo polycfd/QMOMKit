@@ -263,20 +263,20 @@ qmomkit::RawMomentTensor scaled_moments(qmomkit::RawMomentTensor moments, const 
     return moments;
 }
 
-// CqmomCase and CqmomState are pimpl types whose copy operations are written by
+// CqmomPreparedCase and CqmomState are pimpl types whose copy operations are written by
 // hand: the payload variant has to be deep-copied while the prepared metadata is
 // deliberately shared. Copy assignment is also how every CQMOM example advances
 // its loop (`state = result.state`), and none of the four assignment operators
 // had a caller anywhere in the library, the tests or the examples.
-void test_cqmom_case_and_state_assignment_preserve_independent_values()
+void test_cqmom_prepared_case_and_state_assignment_preserve_independent_values()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor first_moments = public_cqmom_promotion_moments();
     const qmomkit::RawMomentTensor second_moments = scaled_moments(first_moments, 2.0);
     assert(first_moments.values != second_moments.values);
 
-    const qmomkit::CqmomCase first_case{cqmom_case_from_tensor(hierarchy, first_moments)};
-    const qmomkit::CqmomCase second_case{cqmom_case_from_tensor(hierarchy, second_moments)};
+    const qmomkit::CqmomPreparedCase first_case{cqmom_case_from_tensor(hierarchy, first_moments)};
+    const qmomkit::CqmomPreparedCase second_case{cqmom_case_from_tensor(hierarchy, second_moments)};
 
     // `initial_state()` stores the canonical moments derived from the accepted
     // quadrature rather than echoing the input tensor, so compare states to states.
@@ -286,7 +286,7 @@ void test_cqmom_case_and_state_assignment_preserve_independent_values()
 
     // Copy assignment replaces the target's payload, leaves the source alone, and
     // keeps sharing the source's immutable prepared metadata.
-    qmomkit::CqmomCase assigned_case = first_case;
+    qmomkit::CqmomPreparedCase assigned_case = first_case;
     assert(assigned_case.initial_state().moment_values() == first_values);
     assigned_case = second_case;
     assert(assigned_case.initial_state().moment_values() == second_values);
@@ -301,14 +301,14 @@ void test_cqmom_case_and_state_assignment_preserve_independent_values()
     const qmomkit::CqmomResult after_self_assignment = qmomkit::compute_cqmom(assigned_case);
     assert(after_self_assignment.ok());
 
-    qmomkit::CqmomCase movable_case = first_case;
-    qmomkit::CqmomCase move_assigned_case = second_case;
+    qmomkit::CqmomPreparedCase movable_case = first_case;
+    qmomkit::CqmomPreparedCase move_assigned_case = second_case;
     move_assigned_case = std::move(movable_case);
     assert(move_assigned_case.initial_state().moment_values() == first_values);
 
     // A copy is independent of later edits to the original, which is what
     // `config::with_initial_moments` returning a new case relies on.
-    const qmomkit::CqmomCase copied_case = first_case;
+    const qmomkit::CqmomPreparedCase copied_case = first_case;
     const auto replaced = qmomkit::config::with_initial_moments(first_case, second_moments);
     assert(replaced.ok());
     assert(replaced.value().initial_state().moment_values() == second_values);
@@ -364,7 +364,7 @@ void test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature()
     const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(lean_case);
     assert(expected.ok());
 
-    const qmomkit::CqmomCase case_{std::move(lean_case)};
+    const qmomkit::CqmomPreparedCase case_{std::move(lean_case)};
     const qmomkit::CqmomState state = case_.initial_state();
 
     assert(state.hierarchy().node_counts() == hierarchy.node_counts());
@@ -1353,7 +1353,8 @@ int main(const int argc, char** argv)
         argc, argv,
         {
             {"moment_set_public_container_behavior", test_moment_set_public_container_behavior},
-            {"cqmom_case_and_state_assignment_preserve_independent_values", test_cqmom_case_and_state_assignment_preserve_independent_values},
+            {"cqmom_prepared_case_and_state_assignment_preserve_independent_values",
+             test_cqmom_prepared_case_and_state_assignment_preserve_independent_values},
             {"cqmom_moment_layout_two_dimensional_reduced_set", test_cqmom_moment_layout_two_dimensional_reduced_set},
             {"cqmom_moment_layout_three_dimensional_recursive_indices", test_cqmom_moment_layout_three_dimensional_recursive_indices},
             {"cqmom_moment_layout_non_identity_conditioning_order", test_cqmom_moment_layout_non_identity_conditioning_order},

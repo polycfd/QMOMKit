@@ -1987,10 +1987,9 @@ void test_cqmom_phase_space_evolution_success_materializes_an_independent_final_
     }
 
     const qmomkit::CqmomCase case_ = fixed_cqmom_case();
-    const qmomkit::CqmomLeanCase* backend = qmomkit::internal::CqmomConstructionAccess::case_lean_case(case_);
-    assert(backend != nullptr);
     const qmomkit::CqmomState cache_miss_state =
-        qmomkit::internal::CqmomConstructionAccess::create_state(*backend, qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(case_));
+        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::internal::CqmomConstructionAccess::case_definition(case_),
+                                                                 qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(case_));
     assert(!qmomkit::internal::CqmomConstructionAccess::state_accepted_quadrature(cache_miss_state).has_value());
     assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(cache_miss_state).get() ==
            qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(case_).get());
@@ -1999,9 +1998,8 @@ void test_cqmom_phase_space_evolution_success_materializes_an_independent_final_
 
 qmomkit::CqmomState adaptive_cqmom_state_without_accepted_quadrature(const qmomkit::CqmomState& state)
 {
-    const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::CqmomConstructionAccess::state_lean_case(state);
-    assert(lean_case != nullptr);
-    return qmomkit::internal::CqmomConstructionAccess::create_state(*lean_case, state.active_branch_counts());
+    return qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::internal::CqmomConstructionAccess::state_definition(state),
+                                                                    state.active_branch_counts());
 }
 
 void test_adaptive_cqmom_phase_space_evolution_state_counts_match_accepted_quadrature()
@@ -2843,12 +2841,11 @@ void test_adaptive_state_rejects_duplicate_active_count_metadata()
 {
     const qmomkit::CqmomState good_state = adaptive_cqmom_case().initial_state();
     assert(good_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
-    const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::CqmomConstructionAccess::state_lean_case(good_state);
-    assert(lean_case != nullptr);
+    const qmomkit::CqmomLeanCase& lean_case = qmomkit::internal::CqmomConstructionAccess::state_definition(good_state);
     std::vector<qmomkit::CqmomActiveBranchCount> bad_counts = good_state.active_branch_counts();
     assert(!bad_counts.empty());
     bad_counts.push_back(bad_counts.front());
-    const qmomkit::CqmomState bad_state = qmomkit::internal::CqmomConstructionAccess::create_state(*lean_case, std::move(bad_counts));
+    const qmomkit::CqmomState bad_state = qmomkit::internal::CqmomConstructionAccess::create_state(lean_case, std::move(bad_counts));
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)
@@ -2870,12 +2867,11 @@ void test_adaptive_state_rejects_missing_active_count_metadata()
 {
     const qmomkit::CqmomState good_state = adaptive_cqmom_case().initial_state();
     assert(good_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
-    const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::CqmomConstructionAccess::state_lean_case(good_state);
-    assert(lean_case != nullptr);
+    const qmomkit::CqmomLeanCase& lean_case = qmomkit::internal::CqmomConstructionAccess::state_definition(good_state);
     std::vector<qmomkit::CqmomActiveBranchCount> bad_counts = good_state.active_branch_counts();
     assert(!bad_counts.empty());
     bad_counts.pop_back();
-    const qmomkit::CqmomState bad_state = qmomkit::internal::CqmomConstructionAccess::create_state(*lean_case, std::move(bad_counts));
+    const qmomkit::CqmomState bad_state = qmomkit::internal::CqmomConstructionAccess::create_state(lean_case, std::move(bad_counts));
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& moments)

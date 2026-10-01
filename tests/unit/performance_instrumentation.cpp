@@ -155,9 +155,8 @@ qmomkit::CqmomState adaptive_ragged_lean_state()
 
 qmomkit::CqmomState adaptive_ragged_state_without_cache(const qmomkit::CqmomState& state)
 {
-    const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::CqmomConstructionAccess::state_lean_case(state);
-    assert(lean_case != nullptr);
-    return qmomkit::internal::CqmomConstructionAccess::create_state(*lean_case, state.active_branch_counts());
+    return qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::internal::CqmomConstructionAccess::state_definition(state),
+                                                                    state.active_branch_counts());
 }
 
 void test_instrumentation_mode_matches_build_option()

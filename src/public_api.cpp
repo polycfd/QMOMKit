@@ -18,7 +18,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
-#include <variant>
 #include <vector>
 
 namespace qmomkit
@@ -85,64 +84,47 @@ namespace
     return QmomStatus::invalid_input;
 }
 
-template <class... Ts> struct Overloaded : Ts...
+// A case holds exactly one moment representation, so these read its settings
+// directly. The hierarchy is reached through the moment layout rather than
+// stored separately.
+[[nodiscard]] const PhaseSpaceHierarchy& hierarchy(const CqmomLeanCase& case_)
 {
-    using Ts::operator()...;
-};
-template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
-
-using CqmomCaseVariant = std::variant<CqmomDenseCase, CqmomLeanCase>;
-
-// Both alternatives spell the shared settings with the same member names, so a
-// single generic projection reads a setting from either one. `hierarchy` below
-// still needs an explicit pair, because a lean case reaches it through its
-// moment layout rather than storing it directly. A setting added to both case
-// structs needs no new visitor here.
-template <class Projection> [[nodiscard]] decltype(auto) visit_case(const CqmomCaseVariant& case_, Projection&& projection)
-{
-    return std::visit(std::forward<Projection>(projection), case_);
+    return case_.moments.layout.hierarchy;
 }
 
-[[nodiscard]] const PhaseSpaceHierarchy& hierarchy(const CqmomCaseVariant& case_)
+[[nodiscard]] const QmomOptions& qmom_options(const CqmomLeanCase& case_)
 {
-    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) -> const PhaseSpaceHierarchy& { return dense_case.hierarchy; },
-                                 [](const CqmomLeanCase& lean_case) -> const PhaseSpaceHierarchy& { return lean_case.moments.layout.hierarchy; }},
-                      case_);
+    return case_.qmom_options;
 }
 
-[[nodiscard]] const QmomOptions& qmom_options(const CqmomCaseVariant& case_)
+[[nodiscard]] const ConditionalMomentOptions& conditional_options(const CqmomLeanCase& case_)
 {
-    return visit_case(case_, [](const auto& alternative) -> const QmomOptions& { return alternative.qmom_options; });
+    return case_.conditional_options;
 }
 
-[[nodiscard]] const ConditionalMomentOptions& conditional_options(const CqmomCaseVariant& case_)
+[[nodiscard]] bool adaptive_branch_counts(const CqmomLeanCase& case_)
 {
-    return visit_case(case_, [](const auto& alternative) -> const ConditionalMomentOptions& { return alternative.conditional_options; });
+    return case_.adaptive_branch_counts;
 }
 
-[[nodiscard]] bool adaptive_branch_counts(const CqmomCaseVariant& case_)
+[[nodiscard]] CqmomDiagnosticLevel diagnostic_level(const CqmomLeanCase& case_)
 {
-    return visit_case(case_, [](const auto& alternative) -> bool { return alternative.adaptive_branch_counts; });
+    return case_.diagnostic_level;
 }
 
-[[nodiscard]] CqmomDiagnosticLevel diagnostic_level(const CqmomCaseVariant& case_)
+[[nodiscard]] VandermondeSolver vandermonde_solver(const CqmomLeanCase& case_)
 {
-    return visit_case(case_, [](const auto& alternative) -> CqmomDiagnosticLevel { return alternative.diagnostic_level; });
+    return case_.vandermonde_solver;
 }
 
-[[nodiscard]] VandermondeSolver vandermonde_solver(const CqmomCaseVariant& case_)
+[[nodiscard]] const CqmomCoordinateSupport& coordinate_support(const CqmomLeanCase& case_)
 {
-    return visit_case(case_, [](const auto& alternative) -> VandermondeSolver { return alternative.vandermonde_solver; });
+    return case_.coordinate_support;
 }
 
-[[nodiscard]] const CqmomCoordinateSupport& coordinate_support(const CqmomCaseVariant& case_)
+[[nodiscard]] CqmomMomentStorage moment_storage(const CqmomLeanCase&)
 {
-    return visit_case(case_, [](const auto& alternative) -> const CqmomCoordinateSupport& { return alternative.coordinate_support; });
-}
-
-[[nodiscard]] CqmomMomentStorage moment_storage(const CqmomCaseVariant& case_)
-{
-    return std::holds_alternative<CqmomDenseCase>(case_) ? CqmomMomentStorage::dense : CqmomMomentStorage::lean;
+    return CqmomMomentStorage::lean;
 }
 
 [[nodiscard]] std::string diagnostic_level_name(const CqmomDiagnosticLevel level)
@@ -215,13 +197,13 @@ QmomState QmomCase::initial_state() const
 
 struct CqmomCase::Data
 {
-    CqmomCaseVariant case_;
+    CqmomLeanCase case_;
     internal::PreparedCqmomMetadataPtr prepared_metadata;
 };
 
 struct CqmomState::Data
 {
-    CqmomCaseVariant case_;
+    CqmomLeanCase case_;
     internal::PreparedCqmomMetadataPtr prepared_metadata;
     std::vector<CqmomActiveBranchCount> active_branch_counts;
     std::optional<CqmomQuadrature> accepted_quadrature;
@@ -252,8 +234,6 @@ std::string format_cqmom_settings(const CqmomMomentStorage storage, const bool a
 }
 
 CqmomCase::CqmomCase(std::unique_ptr<Data> data) : data_(std::move(data)) {}
-
-CqmomCase::CqmomCase(CqmomDenseCase dense_case) : CqmomCase(internal::CqmomConstructionAccess::create_case(std::move(dense_case))) {}
 
 CqmomCase::CqmomCase(CqmomLeanCase lean_case) : CqmomCase(internal::CqmomConstructionAccess::create_case(std::move(lean_case))) {}
 
@@ -320,32 +300,17 @@ CqmomState CqmomCase::initial_state() const
     // the reconstruction call below takes.
     const internal::PreparedCqmomMetadataPtr& prepared_metadata_handle = data_->prepared_metadata;
     const internal::PreparedCqmomMetadata* prepared_metadata = prepared_metadata_handle.get();
-    CqmomResult accepted = std::visit(Overloaded{[prepared_metadata](const CqmomDenseCase& dense_case)
-                                                 { return internal::compute_cqmom_internal(dense_case, {}, false, prepared_metadata, true); },
-                                                 [prepared_metadata](const CqmomLeanCase& lean_case)
-                                                 { return internal::compute_cqmom_internal(lean_case, {}, false, prepared_metadata, true); }},
-                                      data_->case_);
+    CqmomResult accepted = internal::compute_cqmom_internal(data_->case_, {}, false, prepared_metadata, true);
     if (!accepted.ok())
     {
         throw std::runtime_error("CQMOM initial state quadrature reconstruction failed: " + accepted.message);
     }
     CqmomQuadrature accepted_quadrature = std::move(accepted.quadrature);
     std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(accepted_quadrature);
-    return std::visit(Overloaded{[&active_counts, &accepted_quadrature, &prepared_metadata_handle](const CqmomDenseCase& dense_case)
-                                 {
-                                     CqmomDenseCase canonical_case =
-                                         internal::with_moments(dense_case, reconstruct_raw_moments(accepted_quadrature, dense_case.moments.extents));
-                                     return internal::CqmomConstructionAccess::create_state(std::move(canonical_case), std::move(active_counts),
-                                                                                            std::move(accepted_quadrature), prepared_metadata_handle);
-                                 },
-                                 [&active_counts, &accepted_quadrature, &prepared_metadata_handle](const CqmomLeanCase& lean_case)
-                                 {
-                                     CqmomLeanCase canonical_case = internal::with_moments(
-                                         lean_case, internal::reconstruct_trusted_cqmom_moments(accepted_quadrature, lean_case.moments.layout));
-                                     return internal::CqmomConstructionAccess::create_state(std::move(canonical_case), std::move(active_counts),
-                                                                                            std::move(accepted_quadrature), prepared_metadata_handle);
-                                 }},
-                      data_->case_);
+    CqmomLeanCase canonical_case =
+        internal::with_moments(data_->case_, internal::reconstruct_trusted_cqmom_moments(accepted_quadrature, data_->case_.moments.layout));
+    return internal::CqmomConstructionAccess::create_state(std::move(canonical_case), std::move(active_counts), std::move(accepted_quadrature),
+                                                           prepared_metadata_handle);
 }
 
 CqmomState::CqmomState(std::unique_ptr<Data> data) : data_(std::move(data)) {}
@@ -423,62 +388,27 @@ const std::vector<CqmomActiveBranchCount>& CqmomState::active_branch_counts() co
 
 std::vector<MultiIndex> CqmomState::moment_indices() const
 {
-    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) { return enumerate_multi_indices(dense_case.moments.extents); },
-                                 [](const CqmomLeanCase& lean_case) { return lean_case.moments.layout.required_indices.to_multi_indices(); }},
-                      data_->case_);
+    return data_->case_.moments.layout.required_indices.to_multi_indices();
 }
 
 const std::vector<double>& CqmomState::moment_values() const noexcept
 {
-    return std::visit(Overloaded{[](const CqmomDenseCase& dense_case) -> const std::vector<double>& { return dense_case.moments.values; },
-                                 [](const CqmomLeanCase& lean_case) -> const std::vector<double>& { return lean_case.moments.values; }},
-                      data_->case_);
+    return data_->case_.moments.values;
 }
 
 std::optional<double> CqmomState::moment(const MultiIndexView index) const
 {
-    return std::visit(Overloaded{[&index](const CqmomDenseCase& dense_case) -> std::optional<double>
-                                 {
-                                     if (index.size() != dense_case.moments.extents.size())
-                                     {
-                                         return std::nullopt;
-                                     }
-                                     for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
-                                     {
-                                         if (index[dimension] >= dense_case.moments.extents[dimension])
-                                         {
-                                             return std::nullopt;
-                                         }
-                                     }
-                                     return dense_case.moments.values[flatten_multi_index(index, dense_case.moments.extents)];
-                                 },
-                                 [&index](const CqmomLeanCase& lean_case) -> std::optional<double>
-                                 {
-                                     if (!lean_case.moments.contains_required_index(index))
-                                     {
-                                         return std::nullopt;
-                                     }
-                                     return lean_case.moments.moment(index);
-                                 }},
-                      data_->case_);
+    if (!data_->case_.moments.contains_required_index(index))
+    {
+        return std::nullopt;
+    }
+    return data_->case_.moments.moment(index);
 }
 
 namespace internal
 {
 namespace
 {
-void validate_prepared_metadata(const PreparedCqmomMetadata& metadata, const CqmomDenseCase& dense_case)
-{
-    // Prepared metadata is created only from the canonical layout. For a dense
-    // target, that canonical ordering is uniquely determined by the hierarchy;
-    // dense extents are checked against the hierarchy at every reconstruction
-    // and are not part of the cached graph.
-    if (!prepared_cqmom_metadata_is_compatible(metadata, dense_case.hierarchy, dense_case.adaptive_branch_counts))
-    {
-        throw std::invalid_argument("Prepared CQMOM metadata is incompatible with the target dense case.");
-    }
-}
-
 void validate_prepared_metadata(const PreparedCqmomMetadata& metadata, const CqmomLeanCase& lean_case)
 {
     if (!prepared_cqmom_metadata_is_compatible(metadata, lean_case.moments.layout.hierarchy, lean_case.adaptive_branch_counts,
@@ -486,16 +416,6 @@ void validate_prepared_metadata(const PreparedCqmomMetadata& metadata, const Cqm
     {
         throw std::invalid_argument("Prepared CQMOM metadata is incompatible with the target lean case.");
     }
-}
-
-[[nodiscard]] PreparedCqmomMetadataPtr make_prepared_metadata(const CqmomDenseCase& dense_case, PreparedCqmomMetadataPtr prepared_metadata)
-{
-    if (prepared_metadata != nullptr)
-    {
-        validate_prepared_metadata(*prepared_metadata, dense_case);
-        return prepared_metadata;
-    }
-    return create_prepared_cqmom_metadata(create_cqmom_moment_layout(dense_case.hierarchy), dense_case.adaptive_branch_counts);
 }
 
 [[nodiscard]] PreparedCqmomMetadataPtr make_prepared_metadata(const CqmomLeanCase& lean_case, PreparedCqmomMetadataPtr prepared_metadata)
@@ -509,42 +429,10 @@ void validate_prepared_metadata(const PreparedCqmomMetadata& metadata, const Cqm
 }
 } // namespace
 
-CqmomCase CqmomConstructionAccess::create_case(CqmomDenseCase dense_case, PreparedCqmomMetadataPtr prepared_metadata)
-{
-    prepared_metadata = make_prepared_metadata(dense_case, std::move(prepared_metadata));
-    return CqmomCase(std::make_unique<CqmomCase::Data>(CqmomCase::Data{std::move(dense_case), std::move(prepared_metadata)}));
-}
-
 CqmomCase CqmomConstructionAccess::create_case(CqmomLeanCase lean_case, PreparedCqmomMetadataPtr prepared_metadata)
 {
     prepared_metadata = make_prepared_metadata(lean_case, std::move(prepared_metadata));
     return CqmomCase(std::make_unique<CqmomCase::Data>(CqmomCase::Data{std::move(lean_case), std::move(prepared_metadata)}));
-}
-
-CqmomState CqmomConstructionAccess::create_state(CqmomDenseCase dense_case, PreparedCqmomMetadataPtr prepared_metadata)
-{
-    return create_state(std::move(dense_case), {}, std::nullopt, std::move(prepared_metadata));
-}
-
-CqmomState CqmomConstructionAccess::create_state(CqmomDenseCase dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
-                                                 PreparedCqmomMetadataPtr prepared_metadata)
-{
-    return create_state(std::move(dense_case), std::move(active_branch_counts), std::nullopt, std::move(prepared_metadata));
-}
-
-CqmomState CqmomConstructionAccess::create_state(CqmomDenseCase dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
-                                                 std::optional<CqmomQuadrature> accepted_quadrature, PreparedCqmomMetadataPtr prepared_metadata)
-{
-    prepared_metadata = make_prepared_metadata(dense_case, std::move(prepared_metadata));
-    return CqmomState(std::make_unique<CqmomState::Data>(
-        CqmomState::Data{std::move(dense_case), std::move(prepared_metadata), std::move(active_branch_counts), std::move(accepted_quadrature)}));
-}
-
-CqmomState CqmomConstructionAccess::create_state(CqmomDenseCase dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
-                                                 CqmomQuadrature&& accepted_quadrature, PreparedCqmomMetadataPtr prepared_metadata)
-{
-    return create_state(std::move(dense_case), std::move(active_branch_counts), std::optional<CqmomQuadrature>{std::move(accepted_quadrature)},
-                        std::move(prepared_metadata));
 }
 
 CqmomState CqmomConstructionAccess::create_state(CqmomLeanCase lean_case, PreparedCqmomMetadataPtr prepared_metadata)
@@ -573,24 +461,14 @@ CqmomState CqmomConstructionAccess::create_state(CqmomLeanCase lean_case, std::v
                         std::move(prepared_metadata));
 }
 
-const CqmomDenseCase* CqmomConstructionAccess::case_dense_case(const CqmomCase& case_)
+const CqmomLeanCase& CqmomConstructionAccess::case_definition(const CqmomCase& case_)
 {
-    return std::get_if<CqmomDenseCase>(&case_.data_->case_);
+    return case_.data_->case_;
 }
 
-const CqmomLeanCase* CqmomConstructionAccess::case_lean_case(const CqmomCase& case_)
+const CqmomLeanCase& CqmomConstructionAccess::state_definition(const CqmomState& state)
 {
-    return std::get_if<CqmomLeanCase>(&case_.data_->case_);
-}
-
-const CqmomDenseCase* CqmomConstructionAccess::state_dense_case(const CqmomState& state)
-{
-    return std::get_if<CqmomDenseCase>(&state.data_->case_);
-}
-
-const CqmomLeanCase* CqmomConstructionAccess::state_lean_case(const CqmomState& state)
-{
-    return std::get_if<CqmomLeanCase>(&state.data_->case_);
+    return state.data_->case_;
 }
 
 const std::vector<CqmomActiveBranchCount>& CqmomConstructionAccess::state_active_branch_counts(const CqmomState& state)
@@ -793,11 +671,6 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
 }
 } // namespace
 
-CqmomResult compute_cqmom(const CqmomDenseCase& dense_case)
-{
-    return internal::compute_cqmom_internal(dense_case);
-}
-
 CqmomResult compute_cqmom(const CqmomLeanCase& lean_case)
 {
     const PhaseSpaceHierarchy& hierarchy = lean_case.moments.layout.hierarchy;
@@ -846,67 +719,6 @@ CqmomResult compute_cqmom(const CqmomLeanCase& lean_case)
 namespace internal
 {
 
-CqmomResult compute_cqmom_internal(const CqmomDenseCase& dense_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
-                                   const bool allow_active_branch_count_growth, const PreparedCqmomMetadata* const prepared_metadata,
-                                   const bool require_prepared_metadata)
-{
-    if (!cqmom_required_moment_extents_representable(dense_case.hierarchy))
-    {
-        return invalid_cqmom_hierarchy_result(dense_case.hierarchy, dense_case.adaptive_branch_counts);
-    }
-    if (require_prepared_metadata && !dense_case.adaptive_branch_counts && prepared_metadata == nullptr)
-    {
-        throw std::logic_error("Fixed normal CQMOM reconstruction requires prepared metadata.");
-    }
-    RecursiveQuadratureResult result{RecursiveQuadrature(dense_case.hierarchy), RecursiveQuadratureStatus::success, "", {}, {}, 0};
-    result.quadrature.set_adaptive_branch_counts_enabled(dense_case.adaptive_branch_counts);
-    std::optional<CqmomMomentData> lean_moments;
-
-    try
-    {
-        validate_dense_cqmom_reconstruction_tensor(dense_case.moments, dense_case.hierarchy, "Raw moment extents must match the hierarchy dimension.",
-                                                   "Raw moment data size does not match its extents.", "Raw moments must be finite.",
-                                                   "Raw moment extents must contain at least 2*N orders per dimension.");
-        std::optional<CqmomMomentLayout> generated_layout;
-        const CqmomMomentLayout* layout = prepared_metadata == nullptr ? nullptr : &prepared_metadata->moment_layout;
-        if (layout == nullptr)
-        {
-            generated_layout.emplace(create_cqmom_moment_layout(dense_case.hierarchy));
-            layout = &*generated_layout;
-        }
-        lean_moments = extract_cqmom_moments(dense_case.moments, *layout);
-    }
-    catch (const std::exception& ex)
-    {
-        result.status = RecursiveQuadratureStatus::invalid_input;
-        result.message = ex.what();
-    }
-    if (lean_moments.has_value())
-    {
-        if (dense_case.qmom_options.automatic_scaling)
-        {
-            const std::optional<CqmomScalingContext> scaling = make_cqmom_scaling_context(*lean_moments, dense_case.coordinate_support);
-            if (scaling.has_value())
-            {
-                result = compute_recursive_quadrature_from_moment_data(
-                    {dense_case.hierarchy, scaling->moments, dense_case.conditional_options, to_wheeler_options(dense_case.qmom_options),
-                     dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver, active_branch_counts,
-                     allow_active_branch_count_growth, scaling->coordinate_support, prepared_metadata, require_prepared_metadata});
-                if (can_restore_cqmom_result(result, scaling->scales))
-                {
-                    return to_cqmom_result(result, dense_case.hierarchy, &scaling->scales);
-                }
-            }
-        }
-        result = compute_recursive_quadrature_from_moment_data(
-            {dense_case.hierarchy, *lean_moments, dense_case.conditional_options, to_wheeler_options(dense_case.qmom_options),
-             dense_case.adaptive_branch_counts, dense_case.diagnostic_level, dense_case.vandermonde_solver, std::move(active_branch_counts),
-             allow_active_branch_count_growth, dense_case.coordinate_support, prepared_metadata, require_prepared_metadata});
-    }
-
-    return to_cqmom_result(result, dense_case.hierarchy);
-}
-
 CqmomResult compute_cqmom_internal(const CqmomLeanCase& lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
                                    const bool allow_active_branch_count_growth, const PreparedCqmomMetadata* const prepared_metadata,
                                    const bool require_prepared_metadata)
@@ -948,11 +760,7 @@ CqmomResult compute_cqmom_internal(const CqmomLeanCase& lean_case, std::vector<C
 CqmomResult compute_cqmom(const CqmomCase& case_)
 {
     const internal::PreparedCqmomMetadata* prepared_metadata = case_.data_->prepared_metadata.get();
-    return std::visit(Overloaded{[prepared_metadata](const CqmomDenseCase& dense_case)
-                                 { return internal::compute_cqmom_internal(dense_case, {}, false, prepared_metadata, true); },
-                                 [prepared_metadata](const CqmomLeanCase& lean_case)
-                                 { return internal::compute_cqmom_internal(lean_case, {}, false, prepared_metadata, true); }},
-                      case_.data_->case_);
+    return internal::compute_cqmom_internal(case_.data_->case_, {}, false, prepared_metadata, true);
 }
 
 } // namespace qmomkit

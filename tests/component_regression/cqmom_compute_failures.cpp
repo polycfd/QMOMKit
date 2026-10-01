@@ -300,7 +300,8 @@ void verify_adaptive_policy_rejection()
     const std::vector<double> moments = raw_moments_from_terminals(extents, weights, abscissas);
     const qmomkit::QmomOptions adaptive_qmom{true, 1.0e-10, 1.0e-10, 1.0e-12};
 
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, adaptive_qmom, false});
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{
+        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, false});
 
     QMOMKIT_VERIFY_CHECK(!result.ok());
     QMOMKIT_VERIFY_CHECK(result.status == qmomkit::CqmomStatus::invalid_input);

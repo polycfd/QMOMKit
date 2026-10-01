@@ -1312,12 +1312,10 @@ void test_cqmom_case_replaces_lean_initial_moments_from_moment_data()
 
 void test_cqmom_case_moment_data_replacement_rejects_invalid_input()
 {
-    const qmomkit::CqmomLeanCase lean_base = cqmom_replacement_base();
-    const qmomkit::CqmomCase lean_case = qmomkit::internal::CqmomConstructionAccess::create_case(lean_base);
-    const qmomkit::CqmomCase case_ = qmomkit::internal::CqmomConstructionAccess::create_case(cqmom_replacement_base());
-    const qmomkit::CqmomMomentLayout& layout = lean_base.moments.layout;
-    const std::vector<double> lean_base_values = lean_case.initial_state().moment_values();
-    const std::vector<double> dense_base_values = case_.initial_state().moment_values();
+    const qmomkit::CqmomLeanCase base = cqmom_replacement_base();
+    const qmomkit::CqmomCase case_ = qmomkit::internal::CqmomConstructionAccess::create_case(base);
+    const qmomkit::CqmomMomentLayout& layout = base.moments.layout;
+    const std::vector<double> base_values = case_.initial_state().moment_values();
 
     const qmomkit::CqmomMomentData valid = qmomkit::extract_cqmom_moments(cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0}), layout);
 
@@ -1325,26 +1323,25 @@ void test_cqmom_case_moment_data_replacement_rejects_invalid_input()
     // layout of the base hierarchy.
     const qmomkit::CqmomMomentLayout other_layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2, 2}));
     const qmomkit::CqmomMomentData wrong_layout{other_layout, std::vector<double>(other_layout.required_indices.size(), 1.0)};
-    const auto layout_mismatch = qmomkit::config::with_initial_moments(lean_case, wrong_layout);
+    const auto layout_mismatch = qmomkit::config::with_initial_moments(case_, wrong_layout);
     assert(!layout_mismatch.ok());
     // "layout" alone also appears in the value-count message, so the fragment
     // has to be specific enough to tell the two rejections apart.
     assert(has_message_fragment(layout_mismatch, "layout must match the required"));
 
     const qmomkit::CqmomMomentData wrong_value_count{layout, std::vector<double>(valid.values.size() + 1, 1.0)};
-    const auto value_count = qmomkit::config::with_initial_moments(lean_case, wrong_value_count);
+    const auto value_count = qmomkit::config::with_initial_moments(case_, wrong_value_count);
     assert(!value_count.ok());
     assert(has_message_fragment(value_count, "value count"));
 
     qmomkit::CqmomMomentData nonfinite = valid;
     nonfinite.values[0] = std::numeric_limits<double>::quiet_NaN();
-    const auto finite = qmomkit::config::with_initial_moments(lean_case, nonfinite);
+    const auto finite = qmomkit::config::with_initial_moments(case_, nonfinite);
     assert(!finite.ok());
     assert(has_message_fragment(finite, "finite"));
 
-    // Every rejection leaves both base cases untouched.
-    assert(lean_case.initial_state().moment_values() == lean_base_values);
-    assert(case_.initial_state().moment_values() == dense_base_values);
+    // Every rejection leaves the base case untouched.
+    assert(case_.initial_state().moment_values() == base_values);
 }
 
 void test_cqmom_case_moment_data_replacement_defers_realizability()

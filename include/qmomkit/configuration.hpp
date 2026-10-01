@@ -176,30 +176,38 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
                                                                         CqmomCoordinateSupport coordinate_support = {});
 
 /**
- * Create a normal CQMOM case with replacement explicit initial raw moments.
+ * Create a CQMOM case with replacement initial moments, taken from a full raw
+ * moment tensor.
  *
- * The returned immutable case preserves the base case hierarchy, storage
- * choice, coordinate support, and all reconstruction policies. Dense cases
- * retain the complete supplied tensor; lean cases extract their fixed required
- * CQMOM moment layout from it. This operation validates tensor structure only;
- * CQMOM realizability and reconstruction remain the responsibility of
- * `compute_cqmom(...)` and `CqmomCase::initial_state()`.
+ * This is the entry point for moment data produced outside QMOMKit, such as the
+ * raw moments the Monte Carlo companion evaluates from a sample population: the
+ * caller supplies the whole tensor and QMOMKit selects the moments the
+ * hierarchy reconstructs from. Prefer this overload over extracting those
+ * moments yourself when the tensor comes from outside, because a tensor that is
+ * the wrong rank, the wrong size, or too small to contain a required moment is
+ * reported here as a configuration error you can inspect, whereas
+ * `extract_cqmom_moments(...)` signals the same problems by throwing.
+ *
+ * The returned immutable case preserves the base case hierarchy, coordinate
+ * support, reconstruction policies, and prepared metadata. This operation
+ * validates tensor structure only; CQMOM realizability and reconstruction
+ * remain the responsibility of `compute_cqmom(...)` and
+ * `CqmomCase::initial_state()`.
  */
 [[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, RawMomentTensor explicit_moments);
 
 /**
- * Create a normal CQMOM case with replacement lean initial raw moments.
+ * Create a CQMOM case with replacement initial moments, supplied as the
+ * required CQMOM moment set.
  *
- * This overload accepts the required CQMOM moment set directly, so a caller
- * that already produces lean moment data does not have to materialize a dense
- * tensor whose additional entries the case never reads. The base case must use
- * lean storage; a dense base case retains its complete tensor and therefore
- * needs the `RawMomentTensor` overload.
+ * Use this overload when the caller already holds exactly the moments the
+ * hierarchy reconstructs from, so that no full tensor has to be built for
+ * entries the case never reads.
  *
- * The returned immutable case preserves the base case hierarchy, storage
- * choice, coordinate support, and all reconstruction policies. The supplied
- * layout must match the required CQMOM moment layout of the base hierarchy.
- * This operation validates moment-set structure only; CQMOM realizability and
+ * The returned immutable case preserves the base case hierarchy, coordinate
+ * support, reconstruction policies, and prepared metadata. The supplied layout
+ * must match the required CQMOM moment layout of the base hierarchy. This
+ * operation validates moment-set structure only; CQMOM realizability and
  * reconstruction remain the responsibility of `compute_cqmom(...)` and
  * `CqmomCase::initial_state()`.
  */

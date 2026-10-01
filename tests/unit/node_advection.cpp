@@ -98,7 +98,8 @@ qmomkit::CqmomResult make_fixed_two_dimensional_cqmom()
     const std::vector<std::size_t> extents{4, 4};
     const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
-    return qmomkit::compute_cqmom({hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, {}, {}});
+    return qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments(
+        {extents, raw_moments_from_terminals(extents, weights, abscissas)}, qmomkit::create_cqmom_moment_layout(hierarchy))});
 }
 
 qmomkit::CqmomResult make_adaptive_two_dimensional_cqmom()
@@ -108,7 +109,11 @@ qmomkit::CqmomResult make_adaptive_two_dimensional_cqmom()
     const std::vector<double> weights{0.1, 0.3, 0.6};
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0}, {-2.0, 2.0, 3.0}};
     return qmomkit::compute_cqmom(
-        {hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true});
+        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, raw_moments_from_terminals(extents, weights, abscissas)},
+                                                              qmomkit::create_cqmom_moment_layout(hierarchy)),
+                               {},
+                               {true, 1.0e-10, 1.0e-10, 1.0e-12},
+                               true});
 }
 
 void test_adaptive_quadrature_structure_is_preserved()

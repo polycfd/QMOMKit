@@ -2376,30 +2376,6 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, 
             return ConfigurationResult<CqmomCase>::failure(*structure_error);
         }
 
-        if (const CqmomDenseCase* const dense_case = qmomkit::internal::CqmomConstructionAccess::case_dense_case(base_case); dense_case != nullptr)
-        {
-            for (std::size_t dimension = 0; dimension < hierarchy.number_of_dimensions(); ++dimension)
-            {
-                const std::size_t node_count = hierarchy.node_count(dimension);
-                if (node_count > std::numeric_limits<std::size_t>::max() / 2 || explicit_moments.extents[dimension] < 2 * node_count)
-                {
-                    return ConfigurationResult<CqmomCase>::failure(
-                        "Raw moment tensor extents must contain at least 2*N orders for every base CQMOM phase-space dimension.");
-                }
-            }
-
-            CqmomDenseCase replaced_case = *dense_case;
-            replaced_case.moments = std::move(explicit_moments);
-            return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(
-                std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case))};
-        }
-
-        const CqmomLeanCase* const lean_case = qmomkit::internal::CqmomConstructionAccess::case_lean_case(base_case);
-        if (lean_case == nullptr)
-        {
-            return ConfigurationResult<CqmomCase>::failure("The base CQMOM case has no recognized moment storage.");
-        }
-
         const CqmomMomentLayout layout = create_cqmom_moment_layout(hierarchy);
         for (const MultiIndexView index : layout.required_indices)
         {
@@ -2410,7 +2386,7 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, 
             }
         }
 
-        CqmomLeanCase replaced_case = *lean_case;
+        CqmomLeanCase replaced_case = qmomkit::internal::CqmomConstructionAccess::case_definition(base_case);
         replaced_case.moments = extract_cqmom_moments(explicit_moments, layout);
         return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(
             std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case))};
@@ -2425,26 +2401,14 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_case, 
 {
     try
     {
-        // A dense case retains the entries outside the required layout and
-        // regenerates them from reconstructed quadrature, so it cannot be
-        // rebuilt from the required set alone. Reporting that here keeps the
-        // replacement lossless for both storage choices instead of silently
-        // inventing the missing tensor entries.
-        const CqmomLeanCase* const lean_case = qmomkit::internal::CqmomConstructionAccess::case_lean_case(base_case);
-        if (lean_case == nullptr)
-        {
-            return ConfigurationResult<CqmomCase>::failure("Lean CQMOM moment data replaces the initial moments of a lean-storage base case only; "
-                                                           "supply a raw moment tensor for a dense-storage base case.");
-        }
-
         internal::validate_cqmom_moment_data_matches_hierarchy(
             explicit_moments, base_case.hierarchy(),
             {"Lean CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.",
              "Lean CQMOM moment data value count does not match its required CQMOM moment layout.", "Lean CQMOM moment data values must be finite."});
 
-        return ConfigurationResult<CqmomCase>{
-            qmomkit::internal::CqmomConstructionAccess::create_case(qmomkit::internal::with_moments(*lean_case, std::move(explicit_moments)),
-                                                                    qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case))};
+        return ConfigurationResult<CqmomCase>{qmomkit::internal::CqmomConstructionAccess::create_case(
+            qmomkit::internal::with_moments(qmomkit::internal::CqmomConstructionAccess::case_definition(base_case), std::move(explicit_moments)),
+            qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case))};
     }
     catch (const std::exception& error)
     {

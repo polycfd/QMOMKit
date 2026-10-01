@@ -980,7 +980,8 @@ void test_one_dimensional_cqmom_agrees_with_qmom()
     const qmomkit::QmomResult qmom = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2);
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2});
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom({hierarchy, {{4}, moments}, {}, {}});
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
+        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
 
     assert(qmom.ok());
     assert(cqmom.ok());
@@ -1224,12 +1225,14 @@ void test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_coun
     const std::vector<double> moments = raw_moments_from_terminals(extents, weights, abscissas);
     const qmomkit::QmomOptions adaptive_qmom{true, 1.0e-10, 1.0e-10, 1.0e-12};
 
-    const qmomkit::CqmomResult fixed = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, {}, false});
+    const qmomkit::CqmomResult fixed = qmomkit::compute_cqmom(
+        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, {}, false});
     assert(fixed.ok());
     assert(!fixed.quadrature.adaptive_branch_counts_enabled());
     assert(fixed.quadrature.has_rectangular_storage());
 
-    const qmomkit::CqmomResult rejected = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, adaptive_qmom, false});
+    const qmomkit::CqmomResult rejected = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{
+        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, false});
     assert(!rejected.ok());
     assert(rejected.status == qmomkit::CqmomStatus::invalid_input);
     assert(rejected.failed_phase_space_dimension == 0);
@@ -1237,7 +1240,8 @@ void test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_coun
     assert(rejected.message.find("Adaptive branch-specific node counts") != std::string::npos);
     assert(rejected.message.find("adaptive_branch_counts") != std::string::npos);
 
-    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom({hierarchy, {extents, moments}, {}, adaptive_qmom, true});
+    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{
+        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, true});
     assert(adaptive.ok());
     assert(adaptive.quadrature.adaptive_branch_counts_enabled());
     assert(!adaptive.quadrature.has_rectangular_storage());

@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 625 |
+| Unit logical tests | 628 |
 | Component/regression logical tests | 71 |
 | Verification logical tests | 170 |
-| **Runtime logical tests** | **866** |
+| **Runtime logical tests** | **869** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **867** |
+| **Total CTest registrations** | **870** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -600,6 +600,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_recursive_quadrature_recursive_automatic_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `recursive_automatic_independent_of_diagnostic_level` | Checks successful recursive automatic-solver reconstruction has identical numerics at none, basic, and detailed diagnostic levels. | — |
 | `unit_recursive_quadrature_recursive_dense_and_bp_equivalence_adaptive` | `tests/unit/recursive_quadrature.cpp` | `recursive_dense_and_bp_equivalence_adaptive` | Checks that the compared recursive CQMOM reconstruction paths produce equivalent results for the tested input. | — |
 | `unit_recursive_quadrature_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch` | `tests/unit/recursive_quadrature.cpp` | `recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch` | Checks that adaptive reduces roundoff deterministic mixed affine branch in recursive CQMOM reconstruction. | — |
+| `unit_recursive_quadrature_public_cqmom_bp_success_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `public_cqmom_bp_success_independent_of_diagnostic_level` | Checks that the public CQMOM reconstruction accepts an identical quadrature at every diagnostic level for the Björck–Pereyra policy on a three-dimensional non-identity conditioning order. | — |
 | `unit_recursive_quadrature_recursive_bp_failure_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `recursive_bp_failure_independent_of_diagnostic_level` | Checks recursive Björck–Pereyra failure status and failing branch are independent of diagnostic level. | — |
 | `unit_recursive_quadrature_conditioning_path_table_grows_iterates_and_compares` | `tests/unit/recursive_quadrature.cpp` | `conditioning_path_table_grows_iterates_and_compares` | Checks that `ConditioningPathTable` grows, iterates, and compares equal by contents. | — |
 | `unit_recursive_quadrature_conditioning_path_table_rejects_uneven_depth_and_checks_bounds` | `tests/unit/recursive_quadrature.cpp` | `conditioning_path_table_rejects_uneven_depth_and_checks_bounds` | Checks that `ConditioningPathTable` rejects paths of unequal depth and bounds-checks row access. | — |
@@ -757,6 +758,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts` | `tests/unit/public_api.cpp` | `cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts` | Checks that public API rejects adaptive wheeler without adaptive branch counts in the public QMOMKit API. | — |
 | `unit_public_api_cqmom_diagnostic_levels_control_expensive_diagnostics` | `tests/unit/public_api.cpp` | `cqmom_diagnostic_levels_control_expensive_diagnostics` | Verifies CQMOM diagnostic levels control expensive diagnostics. | — |
 | `unit_public_api_cqmom_none_diagnostics_preserves_failure_context` | `tests/unit/public_api.cpp` | `cqmom_none_diagnostics_preserves_failure_context` | Checks that none diagnostics preserves failure context in the public QMOMKit API. | — |
+| `unit_public_api_cqmom_storage_settings_format` | `tests/unit/public_api.cpp` | `cqmom_storage_settings_format` | Checks that the CQMOM settings summary renders moment storage, adaptive branch counts, every Vandermonde solver policy, and the diagnostic level. | — |
 | `unit_public_api_cqmom_diagnostics_default_bounded_support_placeholder` | `tests/unit/public_api.cpp` | `cqmom_diagnostics_default_bounded_support_placeholder` | Verifies CQMOM diagnostics default bounded support placeholder. | — |
 | `unit_public_api_cqmom_case_and_state_assignment_preserve_independent_values` | `tests/unit/public_api.cpp` | `cqmom_case_and_state_assignment_preserve_independent_values` | Checks that copy and move assignment of `CqmomCase` and `CqmomState` replace the target, leave the source and earlier copies independent, and keep sharing the prepared metadata. | — |
 | `unit_public_api_cqmom_lean_case_promotes_to_state_and_exposes_quadrature` | `tests/unit/public_api.cpp` | `cqmom_lean_case_promotes_to_state_and_exposes_quadrature` | Checks that an explicit `CqmomLeanCase` promotes to a `CqmomState` and exposes its accepted quadrature. | — |
@@ -1075,6 +1077,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_public_qmom_stage_composition_matches_strang_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | `unit_phase_space_evolution_public_qmom_stage_composition_matches_strang_phase_space_evolution` | Checks that QMOM stage composition matches strang phase-space evolution in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_qmom_stage_composition_matches_lie_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | `unit_phase_space_evolution_public_qmom_stage_composition_matches_lie_phase_space_evolution` | Checks that QMOM stage composition matches lie phase-space evolution in phase-space evolution. | — |
 | `unit_phase_space_evolution_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input` | `tests/unit/phase_space_evolution.cpp` | `qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input` | Verifies QMOM phase space evolution failure after first stage rolls back to macro input. | — |
+| `unit_phase_space_evolution_cqmom_initial_state_stores_accepted_quadrature` | `tests/unit/phase_space_evolution.cpp` | `cqmom_initial_state_stores_accepted_quadrature` | Checks that promoting a fixed or adaptive case to state stores the quadrature that reconstructing the case accepts, with matching active branch counts and moments. | — |
 | `unit_phase_space_evolution_cqmom_initial_state_canonicalizes_adaptively_reduced_moments` | `tests/unit/phase_space_evolution.cpp` | `cqmom_initial_state_canonicalizes_adaptively_reduced_moments` | Verifies CQMOM initial state canonicalizes adaptively reduced moments. | — |
 | `unit_phase_space_evolution_cqmom_first_advection_stage_uses_initial_accepted_quadrature` | `tests/unit/phase_space_evolution.cpp` | `cqmom_first_advection_stage_uses_initial_accepted_quadrature` | Checks that first advection stage uses initial accepted quadrature in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_cqmom_advection_stage_preserves_topology` | `tests/unit/phase_space_evolution.cpp` | `unit_phase_space_evolution_public_cqmom_advection_stage_preserves_topology` | Checks that CQMOM advection stage preserves topology in phase-space evolution. | — |

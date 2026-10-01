@@ -667,6 +667,23 @@ void assert_cqmom_state_active_counts_match_accepted_quadrature(const qmomkit::C
     assert(active_counts_equal(state.active_branch_counts(), qmomkit::internal::active_branch_counts_from_quadrature(*accepted)));
 }
 
+// A case promoted to state must carry exactly the quadrature that reconstructing
+// that case accepts, together with the active branch counts and moments implied
+// by it. This is the invariant every evolution entry point relies on.
+void assert_cqmom_initial_state_stores_accepted_quadrature(const qmomkit::CqmomCase& case_, const double tolerance)
+{
+    const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(case_);
+    assert(expected.ok());
+
+    const qmomkit::CqmomState state = case_.initial_state();
+    const std::optional<qmomkit::CqmomQuadrature>& accepted = qmomkit::internal::CqmomConstructionAccess::state_accepted_quadrature(state);
+
+    assert(accepted.has_value());
+    assert_cqmom_quadrature_near(*accepted, expected.quadrature, tolerance);
+    assert_cqmom_state_active_counts_match_accepted_quadrature(state);
+    assert_cqmom_state_moments_match_quadrature(state, *accepted, tolerance);
+}
+
 qmomkit::CqmomMomentSource source_from_to(const qmomkit::CqmomMomentData& initial, const qmomkit::CqmomMomentData& target)
 {
     return [initial, target](double, const qmomkit::CqmomSourceContext& moments)
@@ -1641,6 +1658,12 @@ void test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes
     assert(strang.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::second_advection_half_step);
     assert_vector_near(strang.state.moments(), state.moments(), 0.0);
     assert_qmom_quadrature_near(strang.state.quadrature(), state.quadrature(), 0.0);
+}
+
+void test_cqmom_initial_state_stores_accepted_quadrature()
+{
+    assert_cqmom_initial_state_stores_accepted_quadrature(fixed_cqmom_case(), 5.0e-10);
+    assert_cqmom_initial_state_stores_accepted_quadrature(adaptive_cqmom_case(), 5.0e-10);
 }
 
 void test_cqmom_initial_state_canonicalizes_adaptively_reduced_moments()
@@ -4189,6 +4212,7 @@ int main(const int argc, char** argv)
              test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input},
             {"qmom_macro_rollbacks_preserve_the_original_state_after_later_successes",
              test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes},
+            {"cqmom_initial_state_stores_accepted_quadrature", test_cqmom_initial_state_stores_accepted_quadrature},
             {"cqmom_initial_state_canonicalizes_adaptively_reduced_moments", test_cqmom_initial_state_canonicalizes_adaptively_reduced_moments},
             {"cqmom_first_advection_stage_uses_initial_accepted_quadrature", test_cqmom_first_advection_stage_uses_initial_accepted_quadrature},
             {"public_cqmom_advection_stage_preserves_topology", test_public_cqmom_advection_stage_preserves_topology},

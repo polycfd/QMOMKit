@@ -248,6 +248,37 @@ qmomkit::CqmomCoordinateSupport bounded_support_for_dimension(const std::size_t 
     return support;
 }
 
+void assert_cqmom_results_numerically_equivalent(const qmomkit::CqmomResult& actual, const qmomkit::CqmomResult& expected, const double tolerance)
+{
+    assert(actual.status == expected.status);
+    assert(actual.ok() == expected.ok());
+    assert(actual.failed_phase_space_dimension == expected.failed_phase_space_dimension);
+    if (!actual.ok())
+    {
+        return;
+    }
+
+    assert(actual.quadrature.hierarchy().node_counts() == expected.quadrature.hierarchy().node_counts());
+    assert(actual.quadrature.hierarchy().conditioning_order() == expected.quadrature.hierarchy().conditioning_order());
+    assert(actual.quadrature.adaptive_branch_counts_enabled() == expected.quadrature.adaptive_branch_counts_enabled());
+    assert(actual.quadrature.has_rectangular_storage() == expected.quadrature.has_rectangular_storage());
+    assert(actual.quadrature.terminal_paths() == expected.quadrature.terminal_paths());
+    assert(actual.quadrature.weights().size() == expected.quadrature.weights().size());
+    assert(actual.quadrature.abscissas().size() == expected.quadrature.abscissas().size());
+    for (std::size_t node = 0; node < expected.quadrature.weights().size(); ++node)
+    {
+        assert_near(actual.quadrature.weights()[node], expected.quadrature.weights()[node], tolerance);
+    }
+    for (std::size_t dimension = 0; dimension < expected.quadrature.abscissas().size(); ++dimension)
+    {
+        assert(actual.quadrature.abscissas()[dimension].size() == expected.quadrature.abscissas()[dimension].size());
+        for (std::size_t node = 0; node < expected.quadrature.abscissas()[dimension].size(); ++node)
+        {
+            assert_near(actual.quadrature.abscissas()[dimension][node], expected.quadrature.abscissas()[dimension][node], tolerance);
+        }
+    }
+}
+
 void assert_terminal_coordinate_inside_interval(const qmomkit::internal::RecursiveQuadratureResult& result, const std::size_t dimension,
                                                 const qmomkit::AbscissaBounds interval, const double tolerance)
 {
@@ -1734,6 +1765,36 @@ void test_recursive_bp_failure_independent_of_diagnostic_level()
     }
 }
 
+// Diagnostics are observational: raising the diagnostic level may compute extra
+// residuals and condition estimates, but the accepted quadrature must be
+// identical, not merely close. This is checked on a three-dimensional
+// non-identity conditioning order with the Bjorck-Pereyra solver, where the
+// extra diagnostic work touches every conditional branch.
+void test_public_cqmom_bp_success_independent_of_diagnostic_level()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
+    const std::vector<std::size_t> extents{4, 4, 4};
+    const std::vector<double> weights{0.05, 0.15, 0.20, 0.10, 0.12, 0.18, 0.08, 0.12};
+    const std::vector<std::vector<double>> abscissas{{-1.5, 0.25, -0.75, 1.75, -1.25, 0.75, -0.10, 2.00},
+                                                     {-2.0, -1.0, 0.5, 1.5, -1.5, -0.5, 1.0, 2.0},
+                                                     {-0.80, -0.80, -0.20, -0.20, 0.60, 0.60, 1.20, 1.20}};
+    const qmomkit::RawMomentTensor moments{extents, raw_moments_from_terminal_quadrature(abscissas, weights, extents)};
+    const qmomkit::CqmomMomentData required_moments = qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy));
+
+    std::vector<qmomkit::CqmomResult> results;
+    for (const qmomkit::CqmomDiagnosticLevel level : diagnostic_levels())
+    {
+        results.push_back(
+            qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{required_moments, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra}));
+    }
+
+    assert(results.front().ok());
+    for (const qmomkit::CqmomResult& result : results)
+    {
+        assert_cqmom_results_numerically_equivalent(result, results.front(), 0.0);
+    }
+}
+
 // A flat multi-index table stores equal-rank indices contiguously, so copying
 // one costs a single allocation instead of one per row. These tests pin the
 // contract that moment layouts and terminal-path tables will rely on.
@@ -2048,6 +2109,7 @@ int main(const int argc, char** argv)
             {"recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch",
              test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch},
             {"recursive_bp_failure_independent_of_diagnostic_level", test_recursive_bp_failure_independent_of_diagnostic_level},
+            {"public_cqmom_bp_success_independent_of_diagnostic_level", test_public_cqmom_bp_success_independent_of_diagnostic_level},
             {"multi_index_table_round_trips_and_views_rows", test_multi_index_table_round_trips_and_views_rows},
             {"multi_index_table_storage_is_contiguous_and_row_major", test_multi_index_table_storage_is_contiguous_and_row_major},
             {"multi_index_table_accepts_flat_storage_and_rejects_ragged_input", test_multi_index_table_accepts_flat_storage_and_rejects_ragged_input},

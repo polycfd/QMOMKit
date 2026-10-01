@@ -367,8 +367,6 @@ void test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature()
     const qmomkit::CqmomCase case_{std::move(lean_case)};
     const qmomkit::CqmomState state = case_.initial_state();
 
-    assert(case_.moment_storage() == qmomkit::CqmomMomentStorage::lean);
-    assert(state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(state.hierarchy().node_counts() == hierarchy.node_counts());
     assert(state.moment_indices() == qmomkit::create_cqmom_moment_layout(hierarchy).required_indices.to_multi_indices());
     assert(state.moment_values().size() == state.moment_indices().size());
@@ -1317,28 +1315,24 @@ void test_cqmom_none_diagnostics_preserves_failure_context()
     assert(!result.diagnostics.front().message.empty());
 }
 
-void test_cqmom_storage_settings_format()
+void test_cqmom_settings_format()
 {
-    assert(qmomkit::to_string(qmomkit::CqmomMomentStorage::lean) == "lean");
-    assert(qmomkit::to_string(qmomkit::CqmomMomentStorage::dense) == "dense");
-
-    const std::string formatted = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::dense, true, qmomkit::VandermondeSolver::dense,
-                                                                 qmomkit::CqmomDiagnosticLevel::detailed);
-    assert(formatted.find("moment storage = dense") != std::string::npos);
+    const std::string formatted = qmomkit::format_cqmom_settings(true, qmomkit::VandermondeSolver::dense, qmomkit::CqmomDiagnosticLevel::detailed);
     assert(formatted.find("adaptive branch counts = enabled") != std::string::npos);
     assert(formatted.find("Vandermonde solver = dense") != std::string::npos);
     assert(formatted.find("diagnostic level = detailed") != std::string::npos);
 
-    const std::string pivoted_qr = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false, qmomkit::VandermondeSolver::pivoted_qr,
-                                                                  qmomkit::CqmomDiagnosticLevel::basic);
+    const std::string pivoted_qr =
+        qmomkit::format_cqmom_settings(false, qmomkit::VandermondeSolver::pivoted_qr, qmomkit::CqmomDiagnosticLevel::basic);
+    assert(pivoted_qr.find("adaptive branch counts = disabled") != std::string::npos);
     assert(pivoted_qr.find("Vandermonde solver = pivoted_qr") != std::string::npos);
+    assert(pivoted_qr.find("diagnostic level = basic") != std::string::npos);
 
-    const std::string svd = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false, qmomkit::VandermondeSolver::svd,
-                                                           qmomkit::CqmomDiagnosticLevel::basic);
+    const std::string svd = qmomkit::format_cqmom_settings(false, qmomkit::VandermondeSolver::svd, qmomkit::CqmomDiagnosticLevel::basic);
     assert(svd.find("Vandermonde solver = svd") != std::string::npos);
 
-    const std::string moore_penrose = qmomkit::format_cqmom_settings(qmomkit::CqmomMomentStorage::lean, false,
-                                                                     qmomkit::VandermondeSolver::moore_penrose, qmomkit::CqmomDiagnosticLevel::basic);
+    const std::string moore_penrose =
+        qmomkit::format_cqmom_settings(false, qmomkit::VandermondeSolver::moore_penrose, qmomkit::CqmomDiagnosticLevel::basic);
     assert(moore_penrose.find("Vandermonde solver = moore_penrose") != std::string::npos);
 }
 
@@ -1405,7 +1399,7 @@ int main(const int argc, char** argv)
              test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts},
             {"cqmom_diagnostic_levels_control_expensive_diagnostics", test_cqmom_diagnostic_levels_control_expensive_diagnostics},
             {"cqmom_none_diagnostics_preserves_failure_context", test_cqmom_none_diagnostics_preserves_failure_context},
-            {"cqmom_storage_settings_format", test_cqmom_storage_settings_format},
+            {"cqmom_settings_format", test_cqmom_settings_format},
             {"cqmom_diagnostics_default_bounded_support_placeholder", test_cqmom_diagnostics_default_bounded_support_placeholder},
         });
 }

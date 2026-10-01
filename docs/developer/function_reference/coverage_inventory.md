@@ -1019,13 +1019,11 @@ evidence](state_and_representations.md)
 | `diagnostic_level` | [128](../../../src/public_api.cpp#L128) |
 | `vandermonde_solver` | [133](../../../src/public_api.cpp#L133) |
 | `coordinate_support` | [138](../../../src/public_api.cpp#L138) |
-| `moment_storage` | [143](../../../src/public_api.cpp#L143) |
 | `diagnostic_level_name` | [148](../../../src/public_api.cpp#L148) |
 | `vandermonde_solver_name` | [162](../../../src/public_api.cpp#L162) |
 | `compute_qmom` | [183](../../../src/public_api.cpp#L183), [188](../../../src/public_api.cpp#L188), [194](../../../src/public_api.cpp#L194) |
 | `QmomState::QmomState` | [199](../../../src/public_api.cpp#L199) |
 | `QmomCase::initial_state` | [206](../../../src/public_api.cpp#L206) |
-| `to_string` | [230](../../../src/public_api.cpp#L230) |
 | `format_cqmom_settings` | [242](../../../src/public_api.cpp#L242) |
 | `CqmomCase::CqmomCase` | [254](../../../src/public_api.cpp#L254), [256](../../../src/public_api.cpp#L256), [258](../../../src/public_api.cpp#L258), [260](../../../src/public_api.cpp#L260), [271](../../../src/public_api.cpp#L271) |
 | `CqmomCase::operator=` | [262](../../../src/public_api.cpp#L262), [273](../../../src/public_api.cpp#L273) |
@@ -1036,7 +1034,6 @@ evidence](state_and_representations.md)
 | `CqmomCase::diagnostic_level` | [297](../../../src/public_api.cpp#L297) |
 | `CqmomCase::vandermonde_solver` | [302](../../../src/public_api.cpp#L302) |
 | `CqmomCase::coordinate_support` | [307](../../../src/public_api.cpp#L307) |
-| `CqmomCase::moment_storage` | [312](../../../src/public_api.cpp#L312) |
 | `CqmomCase::initial_state` | [317](../../../src/public_api.cpp#L317) |
 | `CqmomState::CqmomState` | [351](../../../src/public_api.cpp#L351), [353](../../../src/public_api.cpp#L353), [364](../../../src/public_api.cpp#L364) |
 | `CqmomState::operator=` | [355](../../../src/public_api.cpp#L355), [366](../../../src/public_api.cpp#L366) |
@@ -1048,7 +1045,6 @@ evidence](state_and_representations.md)
 | `CqmomState::diagnostic_level` | [399](../../../src/public_api.cpp#L399) |
 | `CqmomState::vandermonde_solver` | [404](../../../src/public_api.cpp#L404) |
 | `CqmomState::coordinate_support` | [409](../../../src/public_api.cpp#L409) |
-| `CqmomState::moment_storage` | [414](../../../src/public_api.cpp#L414) |
 | `CqmomState::active_branch_counts` | [419](../../../src/public_api.cpp#L419) |
 | `CqmomState::moment_indices` | [424](../../../src/public_api.cpp#L424) |
 | `CqmomState::moment_values` | [431](../../../src/public_api.cpp#L431) |

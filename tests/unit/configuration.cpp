@@ -990,26 +990,20 @@ standard_deviation = 1.25
 void test_cqmom_case_accepts_explicit_dense_tensor()
 {
     const auto case_result = qmomkit::config::parse_cqmom(cqmom_text, "cqmom-test");
-    const auto dense = qmomkit::config::parse_cqmom_lean(cqmom_text, "cqmom-test");
     const auto lean = qmomkit::config::parse_cqmom_lean(cqmom_text, "cqmom-test");
     assert(case_result.ok());
-    assert(dense.ok());
     assert(lean.ok());
 
     const qmomkit::CqmomCase cqmom_case = case_result.value();
-    assert(cqmom_case.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(cqmom_case.hierarchy().node_counts() == std::vector<std::size_t>({1, 1}));
     assert(cqmom_case.hierarchy().conditioning_order() == std::vector<std::size_t>({1, 0}));
     assert(cqmom_case.adaptive_branch_counts());
     assert(cqmom_case.qmom_options().adaptive);
 
     const qmomkit::CqmomResult case_compute = qmomkit::compute_cqmom(cqmom_case);
-    const qmomkit::CqmomResult dense_compute = qmomkit::compute_cqmom(dense.value());
     const qmomkit::CqmomResult lean_compute = qmomkit::compute_cqmom(lean.value());
     assert(case_compute.ok());
-    assert(dense_compute.ok());
     assert(lean_compute.ok());
-    assert_cqmom_quadratures_near(case_compute.quadrature, dense_compute.quadrature);
     assert_cqmom_quadratures_near(case_compute.quadrature, lean_compute.quadrature);
 }
 
@@ -1024,10 +1018,8 @@ support_upper = none, 2.0
 diagnostic_level = basic
 )";
     const auto case_result = qmomkit::config::parse_cqmom(text, "cqmom-support");
-    const auto dense = qmomkit::config::parse_cqmom_lean(text, "cqmom-support");
     const auto lean = qmomkit::config::parse_cqmom_lean(text, "cqmom-support");
     assert(case_result.ok());
-    assert(dense.ok());
     assert(lean.ok());
 
     const qmomkit::CqmomCase cqmom_case = case_result.value();
@@ -1036,7 +1028,6 @@ diagnostic_level = basic
     assert(cqmom_case.coordinate_support()[1].has_value());
     assert_near(cqmom_case.coordinate_support()[1]->lower, 1.0);
     assert_near(cqmom_case.coordinate_support()[1]->upper, 2.0);
-    assert(dense.value().coordinate_support.size() == cqmom_case.coordinate_support().size());
     assert(lean.value().coordinate_support.size() == cqmom_case.coordinate_support().size());
 
     const qmomkit::CqmomResult computed = qmomkit::compute_cqmom(cqmom_case);
@@ -1058,22 +1049,17 @@ void test_cqmom_factories_preserve_coordinate_support()
     assert(initial.ok());
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1}, {1, 0});
-    const auto dense_default = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy);
-    const auto lean_default = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy);
-    assert(dense_default.ok());
-    assert(lean_default.ok());
-    assert(dense_default.value().coordinate_support.empty());
-    assert(lean_default.value().coordinate_support.empty());
+    const auto defaulted = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy);
+    assert(defaulted.ok());
+    assert(defaulted.value().coordinate_support.empty());
 
     qmomkit::CqmomCoordinateSupport support(2);
     support[1] = qmomkit::AbscissaBounds{2.0, 5.0};
 
-    const auto dense = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy, qmomkit::QmomOptions{}, false, "dense-factory", support);
-    const auto lean = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy, qmomkit::QmomOptions{}, false, "lean-factory", support);
-    assert(dense.ok());
-    assert(lean.ok());
-    assert_coordinate_support_matches_shifted_interval(dense.value().coordinate_support);
-    assert_coordinate_support_matches_shifted_interval(lean.value().coordinate_support);
+    const auto configured =
+        qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy, qmomkit::QmomOptions{}, false, "support-factory", support);
+    assert(configured.ok());
+    assert_coordinate_support_matches_shifted_interval(configured.value().coordinate_support);
 }
 
 void test_cqmom_case_rejects_invalid_coordinate_support()
@@ -1151,7 +1137,6 @@ void test_cqmom_case_initial_state_preserves_case_settings()
     assert(state.adaptive_branch_counts() == cqmom_case.adaptive_branch_counts());
     assert(state.diagnostic_level() == cqmom_case.diagnostic_level());
     assert(state.vandermonde_solver() == cqmom_case.vandermonde_solver());
-    assert(state.moment_storage() == cqmom_case.moment_storage());
 
     const qmomkit::CqmomState copied = state;
     assert(copied.hierarchy().node_counts() == state.hierarchy().node_counts());
@@ -1241,14 +1226,11 @@ void test_cqmom_case_replaces_lean_initial_moments_immutably()
     const auto transformed = qmomkit::config::with_initial_moments(base_case, replacement);
     assert(transformed.ok());
     const qmomkit::CqmomCase replaced_case = transformed.value();
-    assert(replaced_case.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert_cqmom_case_policies_equal(replaced_case, base_case);
 
     replacement.values[0] = -999.0;
     const qmomkit::CqmomState base_state = base_case.initial_state();
     const qmomkit::CqmomState replaced_state = replaced_case.initial_state();
-    assert(base_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
-    assert(replaced_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(base_state.moment_indices() == layout.required_indices.to_multi_indices());
     assert(replaced_state.moment_indices() == expected_moments.layout.required_indices.to_multi_indices());
 
@@ -1277,7 +1259,6 @@ void test_cqmom_case_replaces_lean_initial_moments_from_moment_data()
     const auto transformed = qmomkit::config::with_initial_moments(base_case, replacement);
     assert(transformed.ok());
     const qmomkit::CqmomCase replaced_case = transformed.value();
-    assert(replaced_case.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert_cqmom_case_policies_equal(replaced_case, base_case);
 
     // The supplied moment data is copied into the returned case, so mutating it
@@ -1286,7 +1267,6 @@ void test_cqmom_case_replaces_lean_initial_moments_from_moment_data()
     assert(base_case.initial_state().moment_values() == base_values);
 
     const qmomkit::CqmomState replaced_state = replaced_case.initial_state();
-    assert(replaced_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(replaced_state.moment_indices() == layout.required_indices.to_multi_indices());
 
     // The lean-native replacement must be indistinguishable from supplying the
@@ -1390,11 +1370,13 @@ void test_fixed_cqmom_prepared_metadata_ownership()
         qmomkit::CqmomLeanCase{case_.moments, case_.conditional_options, case_.qmom_options, case_.adaptive_branch_counts, case_.diagnostic_level,
                                case_.vandermonde_solver, case_.coordinate_support});
     assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(lean_case) != nullptr);
-    const qmomkit::CqmomResult dense_result = qmomkit::compute_cqmom(fixed_case);
-    const qmomkit::CqmomResult lean_result = qmomkit::compute_cqmom(lean_case);
-    assert(dense_result.ok());
-    assert(lean_result.ok());
-    assert_cqmom_quadratures_near(lean_result.quadrature, dense_result.quadrature);
+    // The same case reached two ways: passed on directly, and reassembled field
+    // by field. Both must prepare metadata and invert to the same quadrature.
+    const qmomkit::CqmomResult direct_result = qmomkit::compute_cqmom(fixed_case);
+    const qmomkit::CqmomResult reassembled_result = qmomkit::compute_cqmom(lean_case);
+    assert(direct_result.ok());
+    assert(reassembled_result.ok());
+    assert_cqmom_quadratures_near(reassembled_result.quadrature, direct_result.quadrature);
 
     qmomkit::CqmomLeanCase adaptive_case_copy = case_;
     adaptive_case_copy.adaptive_branch_counts = true;
@@ -2405,9 +2387,7 @@ accept_boundary = false
 
     const auto cqmom_case = qmomkit::config::parse_cqmom(cqmom_case_text_with_runtime(runtime));
     assert(cqmom_case.ok());
-    assert(cqmom_case.value().moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(cqmom_case.value().diagnostic_level() == qmomkit::CqmomDiagnosticLevel::none);
-    assert(cqmom_case.value().initial_state().moment_storage() == qmomkit::CqmomMomentStorage::lean);
 
     const auto policy = qmomkit::config::parse_realizability_policy(runtime);
     assert(policy.ok());

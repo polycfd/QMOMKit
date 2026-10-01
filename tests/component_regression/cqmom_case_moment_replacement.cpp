@@ -77,7 +77,6 @@ void assert_cases_match(const qmomkit::CqmomCase& actual, const qmomkit::CqmomCa
     QMOMKIT_VERIFY_CHECK(actual.adaptive_branch_counts() == expected.adaptive_branch_counts());
     QMOMKIT_VERIFY_CHECK(actual.diagnostic_level() == expected.diagnostic_level());
     QMOMKIT_VERIFY_CHECK(actual.vandermonde_solver() == expected.vandermonde_solver());
-    QMOMKIT_VERIFY_CHECK(actual.moment_storage() == expected.moment_storage());
     QMOMKIT_VERIFY_CHECK(actual.coordinate_support().size() == expected.coordinate_support().size());
     for (std::size_t dimension = 0; dimension < actual.coordinate_support().size(); ++dimension)
     {
@@ -132,7 +131,6 @@ void assert_diagnostics_match(const std::vector<qmomkit::CqmomDiagnostics>& actu
 
 void assert_states_match(const qmomkit::CqmomState& actual, const qmomkit::CqmomState& expected)
 {
-    QMOMKIT_VERIFY_CHECK(actual.moment_storage() == expected.moment_storage());
     QMOMKIT_VERIFY_CHECK(actual.moment_indices() == expected.moment_indices());
     QMOMKIT_VERIFY_CHECK(actual.moment_values().size() == expected.moment_values().size());
     for (std::size_t index = 0; index < actual.moment_values().size(); ++index)
@@ -193,14 +191,13 @@ void test_parsed_and_programmatic_replacement_match()
     assert_states_match(replaced_phase_space_evolution.state, parsed_phase_space_evolution.state);
 }
 
-// A lean-storage caller that already holds the required CQMOM moment set must
-// reach exactly the case the dense tensor overload would have produced, rather
-// than a differently prepared lineage.
+// A caller that already holds the required CQMOM moment set must reach exactly
+// the case the raw moment tensor overload would have produced, rather than a
+// differently prepared lineage.
 void test_moment_data_and_tensor_replacement_match()
 {
     const auto base = qmomkit::config::parse_cqmom(base_configuration, "replacement-base");
     QMOMKIT_VERIFY_CHECK(base.ok());
-    QMOMKIT_VERIFY_CHECK(base.value().moment_storage() == qmomkit::CqmomMomentStorage::lean);
 
     const qmomkit::CqmomMomentData moment_data =
         qmomkit::extract_cqmom_moments(replacement_tensor(), qmomkit::create_cqmom_moment_layout(base.value().hierarchy()));

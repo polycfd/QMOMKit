@@ -628,33 +628,16 @@ bool active_counts_equal(const std::vector<qmomkit::CqmomActiveBranchCount>& lhs
     return true;
 }
 
-std::vector<double> common_cqmom_moment_values(const qmomkit::CqmomState& state)
-{
-    if (state.moment_storage() == qmomkit::CqmomMomentStorage::lean)
-    {
-        return state.moment_values();
-    }
-    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(state.hierarchy());
-    const qmomkit::RawMomentTensor dense_moments{state.hierarchy().moment_extents(), state.moment_values()};
-    return qmomkit::extract_cqmom_moments(dense_moments, layout).values;
-}
-
-void assert_common_cqmom_moments_near(const qmomkit::CqmomState& lhs, const qmomkit::CqmomState& rhs, const double tolerance)
+void assert_cqmom_moments_near(const qmomkit::CqmomState& lhs, const qmomkit::CqmomState& rhs, const double tolerance)
 {
     assert(lhs.hierarchy().node_counts() == rhs.hierarchy().node_counts());
     assert(lhs.hierarchy().conditioning_order() == rhs.hierarchy().conditioning_order());
-    assert_vector_near(common_cqmom_moment_values(lhs), common_cqmom_moment_values(rhs), tolerance);
+    assert_vector_near(lhs.moment_values(), rhs.moment_values(), tolerance);
 }
 
 void assert_cqmom_state_moments_match_quadrature(const qmomkit::CqmomState& state, const qmomkit::CqmomQuadrature& quadrature, const double tolerance)
 {
     const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(quadrature, state.hierarchy().moment_extents());
-    if (state.moment_storage() == qmomkit::CqmomMomentStorage::dense)
-    {
-        assert_vector_near(state.moment_values(), reconstructed.values, tolerance);
-        return;
-    }
-
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(state.hierarchy());
     const qmomkit::CqmomMomentData reconstructed_required = qmomkit::extract_cqmom_moments(reconstructed, layout);
     assert_vector_near(state.moment_values(), reconstructed_required.values, tolerance);
@@ -1727,7 +1710,7 @@ void assert_cqmom_phase_space_evolution_results_match(const qmomkit::CqmomPhaseS
     assert(expected.quadrature.has_value());
     assert_cqmom_quadrature_near(*actual.quadrature, *expected.quadrature, tolerance);
     assert(active_counts_equal(actual.state.active_branch_counts(), expected.state.active_branch_counts()));
-    assert_common_cqmom_moments_near(actual.state, expected.state, tolerance);
+    assert_cqmom_moments_near(actual.state, expected.state, tolerance);
 }
 
 void assert_cqmom_result_owns_independent_accepted_quadrature(const qmomkit::CqmomPhaseSpaceEvolutionResult& result, const double tolerance)
@@ -1748,7 +1731,6 @@ void assert_cqmom_result_owns_independent_accepted_quadrature(const qmomkit::Cqm
 
 void assert_cqmom_states_equal(const qmomkit::CqmomState& actual, const qmomkit::CqmomState& expected)
 {
-    assert(actual.moment_storage() == expected.moment_storage());
     assert(actual.hierarchy().node_counts() == expected.hierarchy().node_counts());
     assert(actual.hierarchy().conditioning_order() == expected.hierarchy().conditioning_order());
     assert(actual.moment_indices() == expected.moment_indices());
@@ -1885,7 +1867,6 @@ void test_lean_cqmom_moment_source_stage_canonicalizes_adaptive_reduction()
 
     assert(stage.ok());
     assert(stage.quadrature.has_value());
-    assert(stage.state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     assert(stage.quadrature->total_nodes() == 1);
     assert(active_counts_contain(stage.state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 1, 0, configured_node_count));
     assert(transitions_contain(stage.diagnostics.cqmom_node_count_transitions, qmomkit::PhaseSpaceEvolutionStage::post_source_inversion, 0,
@@ -2058,7 +2039,6 @@ void test_adaptive_cqmom_phase_space_evolution_state_counts_match_accepted_quadr
                 qmomkit::advance_cqmom_phase_space(cache_miss_scheme_state, 0.0, 0.1, velocity, zero_source, options);
             assert(cache_miss_scheme.ok());
             assert(cache_miss_scheme.quadrature.has_value());
-            assert(cache_miss_scheme.state.moment_storage() == state.moment_storage());
             assert(cache_miss_scheme.quadrature->adaptive_branch_counts_enabled());
             assert(!cache_miss_scheme.quadrature->terminal_paths().empty());
             assert_cqmom_state_active_counts_match_accepted_quadrature(cache_miss_scheme.state);
@@ -2840,7 +2820,6 @@ void test_fixed_state_phase_space_evolution_does_not_store_adaptive_branch_count
 void test_adaptive_state_rejects_duplicate_active_count_metadata()
 {
     const qmomkit::CqmomState good_state = adaptive_cqmom_case().initial_state();
-    assert(good_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     const qmomkit::CqmomLeanCase& lean_case = qmomkit::internal::CqmomConstructionAccess::state_definition(good_state);
     std::vector<qmomkit::CqmomActiveBranchCount> bad_counts = good_state.active_branch_counts();
     assert(!bad_counts.empty());
@@ -2866,7 +2845,6 @@ void test_adaptive_state_rejects_duplicate_active_count_metadata()
 void test_adaptive_state_rejects_missing_active_count_metadata()
 {
     const qmomkit::CqmomState good_state = adaptive_cqmom_case().initial_state();
-    assert(good_state.moment_storage() == qmomkit::CqmomMomentStorage::lean);
     const qmomkit::CqmomLeanCase& lean_case = qmomkit::internal::CqmomConstructionAccess::state_definition(good_state);
     std::vector<qmomkit::CqmomActiveBranchCount> bad_counts = good_state.active_branch_counts();
     assert(!bad_counts.empty());
@@ -3264,7 +3242,7 @@ void test_cqmom_phase_space_evolution_vandermonde_policy_independent_of_diagnost
         }
         if (evolved.ok())
         {
-            assert_common_cqmom_moments_near(evolved.state, reference->state, 1.0e-5);
+            assert_cqmom_moments_near(evolved.state, reference->state, 1.0e-5);
         }
         assert(active_counts_equal(evolved.state.active_branch_counts(), reference->state.active_branch_counts()));
     }

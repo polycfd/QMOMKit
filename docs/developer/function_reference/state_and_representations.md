@@ -164,7 +164,7 @@ accompany a failed result.
 | `CqmomConstructionAccess` case and metadata accessors | Internal access and cache sharing; they hand out the held case by reference rather than copying it. | State/metadata tests |
 | `default_conditioning_order`, `ordered_extents`, `from_ordered_index`, `phase_space_node_index_to_path`, `phase_space_index_to_conditioning_path`, `rectangular_terminal_paths` | Translate the two index conventions; fixed paths are generated from physical row-major indices to align with rectangular value offsets. | Non-identity hierarchy tests |
 | `validate_positive_extents`, `checked_multiply`, `validate_conditioning_order`, `validate_abscissas` | Structural preconditions for indexing/allocation and finite quadrature storage. | Invalid-input tests |
-| Result `ok`/boolean helpers; `to_string`, `format_cqmom_settings` | Read status or serialize selected settings. They do not establish numerical acceptance beyond the stored status. | API/configuration formatting tests |
+| Result `ok`/boolean helpers; `format_cqmom_settings` | Read status or serialize selected settings. They do not establish numerical acceptance beyond the stored status. | API/configuration formatting tests |
 
 Every concrete definition/overload is locatable through the inventory, including
 inline moment-container and result helpers that need no separate algorithm section.

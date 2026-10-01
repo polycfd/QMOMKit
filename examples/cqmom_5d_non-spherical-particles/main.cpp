@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
         // summary asks for a chosen subset rather than the whole layout.
         const qmomkit::RawMomentRequest terminal_moment_request{select_terminal_moment_indices(moment_layout.required_indices)};
 
-        std::cout << qmomkit::format_cqmom_settings(cqmom_case.moment_storage(), cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(),
+        std::cout << qmomkit::format_cqmom_settings(cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(),
                                                     cqmom_case.diagnostic_level());
         std::cout << "Phase-space evolution scheme: ";
         switch (evolution_options.scheme)

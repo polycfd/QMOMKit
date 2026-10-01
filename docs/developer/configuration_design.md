@@ -167,7 +167,6 @@ QmomOptions
 adaptive_branch_counts
 CqmomDiagnosticLevel
 VandermondeSolver
-CqmomMomentStorage
 CqmomCase
 ```
 

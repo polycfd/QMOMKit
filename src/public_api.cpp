@@ -122,11 +122,6 @@ namespace
     return case_.coordinate_support;
 }
 
-[[nodiscard]] CqmomMomentStorage moment_storage(const CqmomLeanCase&)
-{
-    return CqmomMomentStorage::lean;
-}
-
 [[nodiscard]] std::string diagnostic_level_name(const CqmomDiagnosticLevel level)
 {
     switch (level)
@@ -209,24 +204,11 @@ struct CqmomState::Data
     std::optional<CqmomQuadrature> accepted_quadrature;
 };
 
-std::string to_string(const CqmomMomentStorage storage)
-{
-    switch (storage)
-    {
-    case CqmomMomentStorage::lean:
-        return "lean";
-    case CqmomMomentStorage::dense:
-        return "dense";
-    }
-    return "unknown";
-}
-
-std::string format_cqmom_settings(const CqmomMomentStorage storage, const bool adaptive_branch_counts, const VandermondeSolver vandermonde_solver,
+std::string format_cqmom_settings(const bool adaptive_branch_counts, const VandermondeSolver vandermonde_solver,
                                   const CqmomDiagnosticLevel diagnostic_level)
 {
     std::ostringstream output;
     output << "CQMOM settings:\n"
-           << "  moment storage = " << to_string(storage) << '\n'
            << "  adaptive branch counts = " << (adaptive_branch_counts ? "enabled" : "disabled") << '\n'
            << "  Vandermonde solver = " << vandermonde_solver_name(vandermonde_solver) << '\n'
            << "  diagnostic level = " << diagnostic_level_name(diagnostic_level) << '\n';
@@ -287,11 +269,6 @@ VandermondeSolver CqmomCase::vandermonde_solver() const noexcept
 const CqmomCoordinateSupport& CqmomCase::coordinate_support() const noexcept
 {
     return qmomkit::coordinate_support(data_->case_);
-}
-
-CqmomMomentStorage CqmomCase::moment_storage() const noexcept
-{
-    return qmomkit::moment_storage(data_->case_);
 }
 
 CqmomState CqmomCase::initial_state() const
@@ -374,11 +351,6 @@ VandermondeSolver CqmomState::vandermonde_solver() const noexcept
 const CqmomCoordinateSupport& CqmomState::coordinate_support() const noexcept
 {
     return qmomkit::coordinate_support(data_->case_);
-}
-
-CqmomMomentStorage CqmomState::moment_storage() const noexcept
-{
-    return qmomkit::moment_storage(data_->case_);
 }
 
 const std::vector<CqmomActiveBranchCount>& CqmomState::active_branch_counts() const noexcept

@@ -782,7 +782,6 @@ namespace
 
 void initialize_cqmom_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, const CqmomLeanCase& lean_case)
 {
-    diagnostics.cqmom_moment_storage = CqmomMomentStorage::lean;
     diagnostics.cqmom_diagnostic_level = lean_case.diagnostic_level;
     diagnostics.cqmom_vandermonde_solver = lean_case.vandermonde_solver;
 }

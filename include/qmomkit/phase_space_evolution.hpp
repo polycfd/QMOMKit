@@ -88,7 +88,6 @@ struct PhaseSpaceEvolutionDiagnostics
 {
     PhaseSpaceEvolutionScheme scheme = PhaseSpaceEvolutionScheme::strang;
     PhaseSpaceEvolutionStage failed_stage = PhaseSpaceEvolutionStage::none;
-    CqmomMomentStorage cqmom_moment_storage = CqmomMomentStorage::lean;
     CqmomDiagnosticLevel cqmom_diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver cqmom_vandermonde_solver = VandermondeSolver::automatic;
     QmomStatus post_source_qmom_status = QmomStatus::success;

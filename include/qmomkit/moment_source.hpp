@@ -104,8 +104,7 @@ using QmomMomentBoundaryContribution = std::function<QmomMomentRate(double, cons
  * `CqmomMomentSource`. The context exposes the CQMOM moment layout selected for
  * phase-space evolution, along with phase-space hierarchy, stage time, moment multi-indices,
  * and moment values. The time is explicit and matches the stage or evaluation
- * time passed as the first argument to the callback. That layout is independent
- * of the underlying dense or lean CQMOM moment storage backend.
+ * time passed as the first argument to the callback.
  * Phase-space source contexts may cache a quadrature reconstructed from their
  * current stage values while evaluating an untracked requested moment or
  * visiting terminal nodes.

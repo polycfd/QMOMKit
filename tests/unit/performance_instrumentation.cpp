@@ -800,7 +800,12 @@ void test_trusted_cqmom_case_reconstruction_skips_global_layout_validation_when_
     assert_trusted_case_reconstruction_uses_prepared_metadata({2, 2, 2}, 7, 3);
 }
 
-void test_fixed_and_dynamic_cqmom_metadata_counters()
+// Both fixed and adaptive cases reconstruct from prepared metadata. The branch
+// layout a case prepares differs between the two - an adaptive tree carries a
+// child case for every parent node count Wheeler could realize - so the cached
+// plan is keyed on adaptive_branch_counts and is reused only by a matching
+// request. Neither kind falls back to building metadata per reconstruction.
+void test_fixed_and_adaptive_cqmom_metadata_counters()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -829,9 +834,9 @@ void test_fixed_and_dynamic_cqmom_metadata_counters()
     assert(fixed_counters.reconstruction.cqmom_prepared_metadata_builds == 1);
     assert(fixed_counters.reconstruction.cqmom_prepared_metadata_uses == 2);
     assert(fixed_counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
-    assert(adaptive_counters.reconstruction.cqmom_prepared_metadata_builds == 0);
-    assert(adaptive_counters.reconstruction.cqmom_prepared_metadata_uses == 0);
-    assert(adaptive_counters.reconstruction.cqmom_dynamic_metadata_builds == 1);
+    assert(adaptive_counters.reconstruction.cqmom_prepared_metadata_builds == 1);
+    assert(adaptive_counters.reconstruction.cqmom_prepared_metadata_uses == 1);
+    assert(adaptive_counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
 #else
     assert(fixed_counters.reconstruction.cqmom_prepared_metadata_builds == 0);
     assert(fixed_counters.reconstruction.cqmom_prepared_metadata_uses == 0);
@@ -913,7 +918,7 @@ int main(const int argc, char** argv)
              test_public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_enabled},
             {"trusted_cqmom_case_reconstruction_skips_global_layout_validation_when_enabled",
              test_trusted_cqmom_case_reconstruction_skips_global_layout_validation_when_enabled},
-            {"fixed_and_dynamic_cqmom_metadata_counters", test_fixed_and_dynamic_cqmom_metadata_counters},
+            {"fixed_and_adaptive_cqmom_metadata_counters", test_fixed_and_adaptive_cqmom_metadata_counters},
             {"every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_metadata",
              test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_metadata},
         });

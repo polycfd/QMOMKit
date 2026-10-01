@@ -173,10 +173,9 @@ CqmomCase
 ```
 
 This is the recommended user-facing loading path exposed by `load_cqmom(...)`.
-The returned `CqmomCase` stores the selected dense or lean moment
-representation and reconstruction policies while avoiding any distinction
-between analytical and explicit moment input in ordinary use. If
-`cqmom.moment_storage` is omitted, the neutral parser selects lean storage.
+The returned `CqmomCase` stores the moment representation and reconstruction
+policies while avoiding any distinction between analytical and explicit moment
+input in ordinary use.
 
 The explicit lean representation workflow maps parsed CQMOM setup data to:
 
@@ -195,26 +194,13 @@ exactly `CqmomMomentLayout::required_indices` from
 `RawMomentTensor`; `initial.maximum_orders` has no effect on the requested
 lean moment layout.
 
-The explicit dense representation workflow maps parsed CQMOM setup data to:
-
-```text
-RawMomentTensor
-CqmomDenseCase
-```
-
-This path is exposed through `load_cqmom_dense(...)` for callers that
-intentionally choose full rectangular tensor moment storage for full tensor
-access, external data, validation, debugging, or interoperability. Analytical
-independent-product configuration on this path uses explicit
-`initial.maximum_orders` when present; when omitted, the dense tensor extents
-come from `PhaseSpaceHierarchy::moment_extents()`. The derived extent in
-dimension `d` is `2 * node_counts[d]`, so the corresponding maximum raw order
-is `2 * node_counts[d] - 1`; explicit dense orders may be larger but not
-smaller. Reconstruction still consumes only the `CqmomMomentLayout` required
-by the hierarchy and conditioning order. A dense state retains the additional
-entries, but phase-space evolution regenerates them from reconstructed
-quadrature after evolving the required layout, rather than independently
-transporting them.
+Analytical independent-product configuration uses explicit
+`initial.maximum_orders` when present; when omitted, the tensor extents come
+from `PhaseSpaceHierarchy::moment_extents()`. The derived extent in dimension
+`d` is `2 * node_counts[d]`, so the corresponding maximum raw order is
+`2 * node_counts[d] - 1`; explicit orders may be larger but not smaller.
+Reconstruction consumes only the `CqmomMomentLayout` required by the hierarchy
+and conditioning order.
 
 `load_cqmom_lean(...)` exposes the explicit lean representation workflow and
 returns `CqmomLeanCase` directly for callers that intentionally manage the
@@ -465,14 +451,12 @@ include/qmomkit/configuration.hpp
 Public configuration capabilities include:
 
 - `parse_qmom(...)` and `load_qmom(...)`;
-- `parse_cqmom_dense(...)` and `load_cqmom_dense(...)`;
 - `parse_cqmom_lean(...)` and `load_cqmom_lean(...)`;
 - `parse_qmom_initial_condition(...)` and
   `parse_cqmom_initial_condition(...)`;
 - `initialize_moments(...)` and `initialize_cqmom_dense_moments(...)`;
 - `initialize_cqmom_moment_data(...)`;
-- `create_qmom_case(...)`, `create_cqmom_dense_case(...)`, and
-  `create_cqmom_lean_case(...)`;
+- `create_qmom_case(...)` and `create_cqmom_lean_case(...)`;
 - `with_initial_moments(...)` for a `RawMomentTensor` or `CqmomMomentData`
   replacement;
 - `parse_phase_space_evolution_scheme(...)`;

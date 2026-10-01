@@ -164,18 +164,6 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
                                                              std::optional<AbscissaBounds> abscissa_bounds = {});
 
 /**
- * Advanced: create an explicit dense CQMOM case from parsed initialization.
- *
- * Coordinate support is indexed by phase-space dimension. Omit it, or leave it
- * empty, for unconstrained real-line reconstruction.
- */
-[[nodiscard]] ConfigurationResult<CqmomDenseCase> create_cqmom_dense_case(const InitialConditionSpecification& initial_condition,
-                                                                          const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
-                                                                          bool adaptive_branch_counts = false,
-                                                                          std::string source_name = "<initialization>",
-                                                                          CqmomCoordinateSupport coordinate_support = {});
-
-/**
  * Advanced: create an explicit lean CQMOM case from parsed initialization.
  *
  * Coordinate support has the same phase-space-indexed semantics as the dense
@@ -220,9 +208,6 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 /** Parse a current QMOM configuration string. */
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");
 
-/** Advanced: parse configuration into an explicit dense CQMOM case. */
-[[nodiscard]] ConfigurationResult<CqmomDenseCase> parse_cqmom_dense(std::string_view text, std::string source_name = "<string>");
-
 /** Advanced: parse configuration into an explicit lean CQMOM case. */
 [[nodiscard]] ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(std::string_view text, std::string source_name = "<string>");
 
@@ -256,9 +241,6 @@ parse_coordinate_realizability_policies(std::string_view text, std::string sourc
 
 /** Load and parse a QMOM configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<QmomCase> load_qmom(const std::filesystem::path& filename);
-
-/** Advanced: load an explicit dense CQMOM case from exactly the requested file. */
-[[nodiscard]] ConfigurationResult<CqmomDenseCase> load_cqmom_dense(const std::filesystem::path& filename);
 
 /** Advanced: load an explicit lean CQMOM case from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<CqmomLeanCase> load_cqmom_lean(const std::filesystem::path& filename);

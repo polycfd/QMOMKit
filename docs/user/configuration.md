@@ -867,27 +867,25 @@ Most cases need none of the following.
 
 ### Retaining extra moments
 
-`initial.maximum_orders` is an optional advanced setting for dense CQMOM
-initialization; it is not needed to specify the normal CQMOM moment set. With
-the default lean storage, it has no effect: QMOMKit evaluates the structured
-moment layout implied by `node_counts` and `conditioning_order`.
+`initial.maximum_orders` does not affect configured CQMOM loading. The moment
+set QMOMKit builds follows from `node_counts` and `conditioning_order` alone, so
+supplying the key changes nothing about the case a loader returns.
 
-With dense storage, `maximum_orders[d]` gives the largest raw-moment order in
-dimension `d` for the retained rectangular tensor:
+It is carried through `parse_cqmom_initial_condition(...)` for applications that
+build a full raw moment tensor themselves with
+`initialize_cqmom_dense_moments(...)`, which requires it for an
+independent-product specification. There, `maximum_orders[d]` gives the largest
+raw-moment order retained in dimension `d`:
 
 ```text
 extent[d] = maximum_orders[d] + 1
 ```
 
-When it is omitted, QMOMKit derives the minimum dense extent from the node
-count: `extent[d] = 2 * node_counts[d]`, or equivalently a maximum raw order
-of `2 * node_counts[d] - 1`. Supplied values must not be smaller than that
-minimum. Larger values retain additional initial raw moments in the dense
-state.
-They do not increase reconstruction order, branch capacity, the structured
-CQMOM layout, or the moments independently evolved by source callbacks.
-During dense phase-space evolution, those additional entries are regenerated
-from the reconstructed quadrature rather than transported independently.
+Parsing checks that the key has one entry per phase-space dimension, that each
+order is representable, that the resulting extents do not overflow, and that the
+entry count matches the configured marginals. It does not check the orders
+against `node_counts`: a tensor too small to contain every moment the hierarchy
+requires is rejected when those moments are extracted from it.
 
 ### Dense tensor moments
 
@@ -909,17 +907,10 @@ M[1,1] = 1.0
 
 Tensor entries use phase-space dimension order. For a two-dimensional tensor,
 `M[1,0]` means order `1` in dimension `0` and order `0` in dimension `1`.
-Applications that need this representation can load it with
-`load_cqmom_dense(...)` and use the explicit dense representation APIs.
-Independent-product configurations loaded through this dense representation
-workflow may omit `initial.maximum_orders`; QMOMKit then derives the minimum
-dense tensor extents from the configured quadrature. When supplied, each value
-must be at least `2 * node_counts[d] - 1` and selects a larger retained
-rectangular tensor only; it does not change the CQMOM reconstruction layout or
-branch counts. Sample-based initialization can use these larger extents when
-evaluating raw moments from its sample population. Dense remains a first-class
-supported expert workflow for callers that intentionally manage full tensor
-moment storage.
+Configured CQMOM loading builds the moment set implied by `node_counts` and
+`conditioning_order`; `initial.maximum_orders` does not change it. Sample-based
+initialization can use larger extents when evaluating raw moments from its
+sample population.
 
 ### CQMOM diagnostics and solver options
 
@@ -929,20 +920,12 @@ validation study deliberately compares solver policies:
 
 ```ini
 [cqmom]
-moment_storage = lean
 diagnostic_level = detailed|basic|none
 
 [vandermonde]
 solver = automatic
 rcond = 1.0e-14
 ```
-
-`moment_storage` selects the internal raw-moment representation for
-representation-neutral `load_cqmom(...)` workflows. Supported values are `lean`
-and `dense`. If omitted, `lean` is used explicitly. The selected moment storage
-is reported by `CqmomCase::moment_storage()` and `CqmomState::moment_storage()`.
-This setting is distinct from `vandermonde.solver = dense`, which selects a
-linear solver for conditional reconstruction rather than moment storage.
 
 `diagnostic_level` controls optional reconstruction observability only. Required
 numerical checks, solver acceptance, support checks, adaptive

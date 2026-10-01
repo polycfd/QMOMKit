@@ -284,16 +284,12 @@ context at every level. See the [Configuration Guide](configuration.md) for the
 exact syntax.
 
 For this normal configuration path, the CQMOM hierarchy determines the
-required raw moments automatically. Advanced full-tensor workflows may also
-omit `maximum_orders`; QMOMKit then derives the minimum dense extents from the
-configured quadrature. `initial.maximum_orders` is therefore not a normal
-reconstruction requirement: in lean storage it has no effect, while in dense
-storage larger values retain a larger rectangular initial raw-moment tensor.
-They do not change the hierarchy, reconstruction order, or branch counts.
-Sample-based initialization can use the larger tensor extent when evaluating
-raw moments from samples; after dense evolution, entries outside the required
-CQMOM layout are regenerated from quadrature rather than evolved
-independently.
+required raw moments automatically. `initial.maximum_orders` is therefore not a
+reconstruction requirement and does not affect a configured case. It applies to
+applications that build a full raw moment tensor themselves, where larger values
+retain a larger rectangular initial raw-moment tensor. They do not change the
+hierarchy, reconstruction order, or branch counts. Sample-based initialization
+can use the larger tensor extent when evaluating raw moments from samples.
 
 For fixed rectangular quadratures, you can also access a node by its
 phase-space-order multi-index:

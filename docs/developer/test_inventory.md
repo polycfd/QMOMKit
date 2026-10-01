@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 628 |
+| Unit logical tests | 629 |
 | Component/regression logical tests | 71 |
 | Verification logical tests | 170 |
-| **Runtime logical tests** | **869** |
+| **Runtime logical tests** | **870** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **870** |
+| **Total CTest registrations** | **871** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -774,6 +774,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_all_supported_distribution_families_parse` | `tests/unit/configuration.cpp` | `all_supported_distribution_families_parse` | Verifies all supported distribution families parse. | — |
 | `unit_configuration_qmom_mixture_initialization_matches_direct_api` | `tests/unit/configuration.cpp` | `qmom_mixture_initialization_matches_direct_api` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
 | `unit_configuration_mixture_zero_density_component_is_skipped` | `tests/unit/configuration.cpp` | `mixture_zero_density_component_is_skipped` | Checks that mixture zero density component is skipped in configuration loading. | — |
+| `unit_configuration_cqmom_rejects_the_removed_moment_storage_key` | `tests/unit/configuration.cpp` | `cqmom_rejects_the_removed_moment_storage_key` | Checks that a configuration carrying the removed `cqmom.moment_storage` key is rejected by every CQMOM loader, and that the same configuration without it still loads. | — |
 | `unit_configuration_valid_cqmom_matches_programmatic_case` | `tests/unit/configuration.cpp` | `valid_cqmom_matches_programmatic_case` | Checks that valid CQMOM matches programmatic case in configuration loading. | — |
 | `unit_configuration_phase_space_automatic_scaling_parses_for_qmom_and_cqmom` | `tests/unit/configuration.cpp` | `phase_space_automatic_scaling_parses_for_qmom_and_cqmom` | Checks that phase-space automatic scaling parses for QMOM and CQMOM in configuration loading. | — |
 | `unit_configuration_qmom_automatic_scaling_is_owned_by_case_and_state` | `tests/unit/configuration.cpp` | `qmom_automatic_scaling_is_owned_by_case_and_state` | Verifies QMOM automatic scaling is transferred from configuration through the case into the evolving state. | — |
@@ -781,7 +782,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_cqmom_independent_product_mixture_marginal_initialization` | `tests/unit/configuration.cpp` | `cqmom_independent_product_mixture_marginal_initialization` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
 | `unit_configuration_lean_cqmom_initialization_matches_example_flow` | `tests/unit/configuration.cpp` | `lean_cqmom_initialization_matches_example_flow` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
 | `unit_configuration_lean_cqmom_initialization_omits_maximum_orders` | `tests/unit/configuration.cpp` | `lean_cqmom_initialization_omits_maximum_orders` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
-| `unit_configuration_dense_cqmom_initialization_omits_maximum_orders` | `tests/unit/configuration.cpp` | `dense_cqmom_initialization_omits_maximum_orders` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
+| `unit_configuration_cqmom_initialization_ignores_maximum_orders` | `tests/unit/configuration.cpp` | `cqmom_initialization_ignores_maximum_orders` | Checks that a configured CQMOM case is the same whether `initial.maximum_orders` is supplied or omitted, since the moment set follows from the hierarchy. | — |
 | `unit_configuration_lean_cqmom_initialization_selects_explicit_dense_tensor` | `tests/unit/configuration.cpp` | `lean_cqmom_initialization_selects_explicit_dense_tensor` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
 | `unit_configuration_cqmom_lean_case_selects_explicit_dense_tensor` | `tests/unit/configuration.cpp` | `cqmom_lean_case_selects_explicit_dense_tensor` | Checks that lean case selects explicit dense tensor in configuration loading. | — |
 | `unit_configuration_cqmom_case_uses_selected_analytical_moments` | `tests/unit/configuration.cpp` | `cqmom_case_uses_selected_analytical_moments` | Checks that case uses selected analytical moments in configuration loading. | — |

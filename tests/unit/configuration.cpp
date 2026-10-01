@@ -492,6 +492,27 @@ scale = 2.0
     assert_near(configured.value().moments[3], 144.0);
 }
 
+// cqmom.moment_storage selected between two moment representations. Only one
+// remains, so the key is no longer recognized and is rejected like any other
+// unknown key, through every CQMOM loader.
+void test_cqmom_rejects_the_removed_moment_storage_key()
+{
+    const std::string with_removed_key = std::string(cqmom_text) + "\n[cqmom]\nmoment_storage = lean\n";
+
+    const auto configured = qmomkit::config::parse_cqmom(with_removed_key, "cqmom-test");
+    assert(!configured.ok());
+    assert(has_failure(configured));
+    assert(has_message_fragment(configured, "moment_storage"));
+
+    const auto lean = qmomkit::config::parse_cqmom_lean(with_removed_key, "cqmom-test");
+    assert(!lean.ok());
+    assert(has_failure(lean));
+
+    // The same configuration without the key still loads through both loaders.
+    assert(qmomkit::config::parse_cqmom(cqmom_text, "cqmom-test").ok());
+    assert(qmomkit::config::parse_cqmom_lean(cqmom_text, "cqmom-test").ok());
+}
+
 void test_valid_cqmom_matches_programmatic_case()
 {
     const auto configured = qmomkit::config::parse_cqmom_lean(cqmom_text, "cqmom-test");
@@ -799,7 +820,11 @@ standard_deviation = 1.25
     assert_cqmom_quadratures_near(case_compute.quadrature, lean_result.quadrature);
 }
 
-void test_dense_cqmom_initialization_omits_maximum_orders()
+// Configured CQMOM loading builds the moment set implied by the hierarchy, so
+// supplying initial.maximum_orders or omitting it must produce the same case.
+// The orders used below are the hierarchy's own extents, used only to compute
+// the analytical reference; the loader does not derive them.
+void test_cqmom_initialization_ignores_maximum_orders()
 {
     const std::string omitted_order_text = R"(
 [phase_space]
@@ -850,18 +875,18 @@ sigma_log = 0.2
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1}, {1, 0});
     const std::vector<std::size_t> extents = hierarchy.moment_extents();
-    const std::vector<std::size_t> inferred_orders{1, 1};
-    assert(inferred_orders.size() == extents.size());
+    const std::vector<std::size_t> hierarchy_orders{1, 1};
+    assert(hierarchy_orders.size() == extents.size());
     for (std::size_t dimension = 0; dimension < extents.size(); ++dimension)
     {
-        assert(inferred_orders[dimension] == extents[dimension] - 1);
+        assert(hierarchy_orders[dimension] == extents[dimension] - 1);
     }
 
     const auto case_ = qmomkit::config::create_cqmom_lean_case(initial.value(), hierarchy);
     assert(case_.ok());
 
     const qmomkit::IndependentProductDistribution direct{{qmomkit::BetaDistribution{2.0, 5.0}, qmomkit::LogNormalDistribution{0.1, 0.2}}, 2.5};
-    const qmomkit::TensorMomentResult expected = qmomkit::compute_raw_moments(direct, inferred_orders);
+    const qmomkit::TensorMomentResult expected = qmomkit::compute_raw_moments(direct, hierarchy_orders);
     assert(expected.ok());
     assert_cqmom_moments_near_tensor(case_.value().moments, expected.moments);
 
@@ -3857,12 +3882,13 @@ void run_all_configuration_tests()
     test_all_supported_distribution_families_parse();
     test_qmom_mixture_initialization_matches_direct_api();
     test_mixture_zero_density_component_is_skipped();
+    test_cqmom_rejects_the_removed_moment_storage_key();
     test_valid_cqmom_matches_programmatic_case();
     test_cqmom_independent_product_initialization_matches_direct_api();
     test_cqmom_independent_product_mixture_marginal_initialization();
     test_lean_cqmom_initialization_matches_example_flow();
     test_lean_cqmom_initialization_omits_maximum_orders();
-    test_dense_cqmom_initialization_omits_maximum_orders();
+    test_cqmom_initialization_ignores_maximum_orders();
     test_lean_cqmom_initialization_selects_explicit_dense_tensor();
     test_cqmom_lean_case_selects_explicit_dense_tensor();
     test_cqmom_case_uses_selected_analytical_moments();
@@ -3934,12 +3960,13 @@ void run_initialization_tests()
     test_all_supported_distribution_families_parse();
     test_qmom_mixture_initialization_matches_direct_api();
     test_mixture_zero_density_component_is_skipped();
+    test_cqmom_rejects_the_removed_moment_storage_key();
     test_valid_cqmom_matches_programmatic_case();
     test_cqmom_independent_product_initialization_matches_direct_api();
     test_cqmom_independent_product_mixture_marginal_initialization();
     test_lean_cqmom_initialization_matches_example_flow();
     test_lean_cqmom_initialization_omits_maximum_orders();
-    test_dense_cqmom_initialization_omits_maximum_orders();
+    test_cqmom_initialization_ignores_maximum_orders();
     test_lean_cqmom_initialization_selects_explicit_dense_tensor();
 }
 
@@ -4026,6 +4053,7 @@ int main(const int argc, char** argv)
             {"all_supported_distribution_families_parse", test_all_supported_distribution_families_parse},
             {"qmom_mixture_initialization_matches_direct_api", test_qmom_mixture_initialization_matches_direct_api},
             {"mixture_zero_density_component_is_skipped", test_mixture_zero_density_component_is_skipped},
+            {"cqmom_rejects_the_removed_moment_storage_key", test_cqmom_rejects_the_removed_moment_storage_key},
             {"valid_cqmom_matches_programmatic_case", test_valid_cqmom_matches_programmatic_case},
             {"phase_space_automatic_scaling_parses_for_qmom_and_cqmom", test_phase_space_automatic_scaling_parses_for_qmom_and_cqmom},
             {"qmom_automatic_scaling_is_owned_by_case_and_state", test_qmom_automatic_scaling_is_owned_by_case_and_state},
@@ -4033,7 +4061,7 @@ int main(const int argc, char** argv)
             {"cqmom_independent_product_mixture_marginal_initialization", test_cqmom_independent_product_mixture_marginal_initialization},
             {"lean_cqmom_initialization_matches_example_flow", test_lean_cqmom_initialization_matches_example_flow},
             {"lean_cqmom_initialization_omits_maximum_orders", test_lean_cqmom_initialization_omits_maximum_orders},
-            {"dense_cqmom_initialization_omits_maximum_orders", test_dense_cqmom_initialization_omits_maximum_orders},
+            {"cqmom_initialization_ignores_maximum_orders", test_cqmom_initialization_ignores_maximum_orders},
             {"lean_cqmom_initialization_selects_explicit_dense_tensor", test_lean_cqmom_initialization_selects_explicit_dense_tensor},
             {"cqmom_lean_case_selects_explicit_dense_tensor", test_cqmom_lean_case_selects_explicit_dense_tensor},
             {"cqmom_case_uses_selected_analytical_moments", test_cqmom_case_uses_selected_analytical_moments},

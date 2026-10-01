@@ -37,7 +37,6 @@
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/output.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <filesystem>
@@ -144,8 +143,8 @@ std::filesystem::path output_path(const qmomkit::OutputOptions& options, const s
 
 void remove_known_outputs(const std::filesystem::path& directory)
 {
-    for (const char* const filename : {"qmom_moments.txt", "qmom_quadrature.txt", "cqmom_moments.txt", "cqmom_quadrature.txt", "cqmom_lean_state.txt",
-                                       "cqmom_dense_state.txt", "disabled_moments.txt", "disabled_quadrature.txt"})
+    for (const char* const filename : {"qmom_moments.txt", "qmom_quadrature.txt", "cqmom_moments.txt", "cqmom_quadrature.txt", "cqmom_state.txt",
+                                       "disabled_moments.txt", "disabled_quadrature.txt"})
     {
         std::filesystem::remove(directory / filename);
     }
@@ -333,17 +332,16 @@ int main(const int argc, char** argv)
     // Output verification is intentionally workflow-level: compute public QMOM
     // and CQMOM quadratures, write moments/quadrature with OutputOptions, and
     // parse the files back as a downstream text consumer would.
-    if (argc != 6)
+    if (argc != 5)
     {
-        std::cerr << "Usage: output_workflows_verification <qmom.qmom> <cqmom.qmom> <dense-cqmom.qmom> <output-directory> <qmom|cqmom>\n";
+        std::cerr << "Usage: output_workflows_verification <qmom.qmom> <cqmom.qmom> <output-directory> <qmom|cqmom>\n";
         return 2;
     }
 
     const std::filesystem::path qmom_configuration = argv[1];
     const std::filesystem::path cqmom_configuration = argv[2];
-    const std::filesystem::path dense_cqmom_configuration = argv[3];
-    const std::filesystem::path output_directory = argv[4];
-    const std::string selected_case = argv[5];
+    const std::filesystem::path output_directory = argv[3];
+    const std::string selected_case = argv[4];
     if (selected_case != "qmom" && selected_case != "cqmom")
     {
         std::cerr << "Unknown output workflow case '" << selected_case << "'.\n";
@@ -389,28 +387,9 @@ int main(const int argc, char** argv)
         verify_cqmom_moment_output(output_directory / "cqmom_moments.txt");
         verify_cqmom_quadrature_output(output_directory / "cqmom_quadrature.txt", cqmom_result.quadrature);
 
-        const qmomkit::CqmomState lean_state = configured_cqmom.value().initial_state();
-        write_cqmom_state_output(output_directory / "cqmom_lean_state.txt", lean_state, cqmom_result.quadrature);
-        verify_cqmom_state_output(output_directory / "cqmom_lean_state.txt", lean_state);
-
-        const auto configured_dense_cqmom = qmomkit::config::load_cqmom(dense_cqmom_configuration);
-        if (!configured_dense_cqmom.ok())
-        {
-            print_configuration_errors(configured_dense_cqmom);
-            return 1;
-        }
-        const qmomkit::CqmomState dense_state = configured_dense_cqmom.value().initial_state();
-        const qmomkit::CqmomResult dense_result = qmomkit::compute_cqmom(configured_dense_cqmom.value());
-        QMOMKIT_VERIFY_CHECK(dense_result.ok());
-        write_cqmom_state_output(output_directory / "cqmom_dense_state.txt", dense_state, dense_result.quadrature);
-        verify_cqmom_state_output(output_directory / "cqmom_dense_state.txt", dense_state);
-
-        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(dense_state.hierarchy());
-        const std::vector<qmomkit::MultiIndex> dense_indices = dense_state.moment_indices();
-        const bool has_dense_only_moment = std::any_of(
-            dense_indices.begin(), dense_indices.end(), [&layout](const qmomkit::MultiIndex& index)
-            { return std::find(layout.required_indices.begin(), layout.required_indices.end(), index) == layout.required_indices.end(); });
-        QMOMKIT_VERIFY_CHECK(has_dense_only_moment);
+        const qmomkit::CqmomState state = configured_cqmom.value().initial_state();
+        write_cqmom_state_output(output_directory / "cqmom_state.txt", state, cqmom_result.quadrature);
+        verify_cqmom_state_output(output_directory / "cqmom_state.txt", state);
     }
 
     return 0;

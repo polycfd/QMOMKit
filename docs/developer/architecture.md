@@ -93,8 +93,8 @@ scheduling.
 `CqmomCase` and `CqmomState` are the neutral public objects for normal CQMOM
 workflows. Normal CQMOM phase-space evolution creates a `CqmomState` from
 `CqmomCase` and advances it with `advance_cqmom_phase_space(...)`, independent
-of dense or lean storage. Normal configured workflows default to lean moment
-storage and may select dense storage explicitly with `cqmom.moment_storage`.
+of dense or lean storage. Configured workflows always build the lean moment
+representation.
 `CqmomDenseCase` with `RawMomentTensor` and `CqmomLeanCase` with
 `CqmomMomentLayout` and `CqmomMomentData` remain supported advanced explicit
 representations for static inversion, specialized initialization, validation,

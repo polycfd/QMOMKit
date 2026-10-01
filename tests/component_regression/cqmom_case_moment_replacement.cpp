@@ -20,7 +20,6 @@ support_upper = none, 1.0
 adaptive = true
 
 [cqmom]
-moment_storage = lean
 diagnostic_level = detailed
 
 [vandermonde]
@@ -46,7 +45,6 @@ support_upper = none, 1.0
 adaptive = true
 
 [cqmom]
-moment_storage = lean
 diagnostic_level = detailed
 
 [vandermonde]

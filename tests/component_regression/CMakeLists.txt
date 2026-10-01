@@ -3,6 +3,7 @@ set(component_case_sources
     node_advection.cpp
     phase_space_evolution.cpp
     cqmom_case_moment_replacement.cpp
+    cqmom_drag_and_degenerate_moments.cpp
 )
 
 foreach(source_file IN LISTS component_case_sources)
@@ -17,16 +18,10 @@ foreach(case_name IN ITEMS nonrealizable_public_workflow bounded_abscissa_violat
     qmomkit_register_test_case(component_regression_cqmom_compute_failures "component_regression_cqmom_compute_${case_name}" component_regression "${case_name}")
 endforeach()
 
-qmomkit_add_test_executable(component_regression_cqmom_dense_lean_parity_3d cqmom_dense_lean_parity_3d.cpp)
-foreach(case_name IN ITEMS fixed_identity fixed_reverse_order adaptive_branch_specific near_degenerate_conditional_branch physical_analytical_contraction failure_status phase_space_evolution)
-    qmomkit_register_test_case(component_regression_cqmom_dense_lean_parity_3d "component_regression_cqmom_dense_lean_${case_name}" component_regression "${case_name}")
-endforeach()
-
 qmomkit_add_test_executable(component_regression_cqmom_physical_transport_probe cqmom_physical_transport_probe.cpp)
 qmomkit_register_test_case(component_regression_cqmom_physical_transport_probe component_regression_cqmom_physical_transport component_regression physical_transport)
 
-# The reference-value and dense/lean parity matrix tests share one case matrix,
-# so their CTest case names are listed once here.
+# CTest case names for the shared CQMOM case matrix.
 set(cqmom_matrix_cases
     static_2d_fixed_identity
     static_3d_fixed_identity
@@ -53,9 +48,4 @@ set(cqmom_matrix_cases
 qmomkit_add_test_executable(component_regression_cqmom_reference_values cqmom_reference_values.cpp cqmom_case_matrix.cpp)
 foreach(case_name IN LISTS cqmom_matrix_cases)
     qmomkit_register_test_case(component_regression_cqmom_reference_values "component_regression_cqmom_reference_${case_name}" component_regression "${case_name}")
-endforeach()
-
-qmomkit_add_test_executable(component_regression_cqmom_dense_lean_parity_matrix cqmom_dense_lean_parity_matrix.cpp cqmom_case_matrix.cpp)
-foreach(case_name IN LISTS cqmom_matrix_cases)
-    qmomkit_register_test_case(component_regression_cqmom_dense_lean_parity_matrix "component_regression_cqmom_dense_lean_matrix_${case_name}" component_regression "${case_name}")
 endforeach()

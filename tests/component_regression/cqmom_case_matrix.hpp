@@ -1,12 +1,10 @@
 #pragma once
 
 /*
- * Shared CQMOM case matrix for the reference-value and dense/lean parity
- * regression tests.
+ * CQMOM case matrix for the reference-value regression test.
  *
- * Both tests must exercise exactly the same cases: one records what QMOMKit
- * produces, the other records that the dense and lean storage schemes produce
- * it identically. Defining the matrix once keeps them from drifting apart.
+ * The matrix is defined here, separately from the test that runs it, so that
+ * the cases and the values recorded for them stay independent of each other.
  *
  * Every case is built from an explicit list of quadrature nodes, and the raw
  * moments are computed from those nodes. Each case is therefore realizable by

@@ -40,7 +40,20 @@ jobs:
           cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
           cmake --build build-tests -j${{ env.COMPILE_JOBS}} 
 
-      # These tests require a single core each so we will run them in parallel
       - name: Run QMOMKit tests (Debug)
         run: |
-          ctest --test-dir build-tests --output-on-failure -j${{ env.TEST_JOBS }} 
+          ctest --test-dir build-tests --output-on-failure -j${{ env.TEST_JOBS }}
+
+      # Performance instrumentation selects a different implementation of the
+      # counters and compiles the counter assertions in the tests, neither of
+      # which the build above contains. Without this step that configuration is
+      # never built or run, and expectations in it go stale unnoticed.
+      - name: Compile QMOMKit with performance instrumentation (Debug)
+        run: |
+          cmake -S . -B build-tests-instrumented -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON \
+            -DQMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION=ON
+          cmake --build build-tests-instrumented -j${{ env.COMPILE_JOBS }}
+
+      - name: Run QMOMKit tests with performance instrumentation (Debug)
+        run: |
+          ctest --test-dir build-tests-instrumented --output-on-failure -j${{ env.TEST_JOBS }} 

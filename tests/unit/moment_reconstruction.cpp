@@ -115,47 +115,6 @@ std::vector<double> manufactured_terminal_moments(const std::vector<std::size_t>
     return moments;
 }
 
-std::vector<double> selected_terminal_moments(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas,
-                                              const std::vector<qmomkit::MultiIndex>& indices)
-{
-    std::vector<double> moments;
-    moments.reserve(indices.size());
-    for (const qmomkit::MultiIndex& index : indices)
-    {
-        double value = 0.0;
-        for (std::size_t node = 0; node < weights.size(); ++node)
-        {
-            double contribution = weights[node];
-            for (std::size_t dimension = 0; dimension < abscissas.size(); ++dimension)
-            {
-                double power = 1.0;
-                for (std::size_t order = 0; order < index[dimension]; ++order)
-                {
-                    power *= abscissas[dimension][node];
-                }
-                contribution *= power;
-            }
-            value += contribution;
-        }
-        moments.push_back(value);
-    }
-    return moments;
-}
-
-std::vector<std::vector<double>> perturb_abscissas(const std::vector<std::vector<double>>& abscissas,
-                                                   const std::vector<std::vector<double>>& velocities, const double epsilon)
-{
-    std::vector<std::vector<double>> perturbed = abscissas;
-    for (std::size_t dimension = 0; dimension < abscissas.size(); ++dimension)
-    {
-        for (std::size_t node = 0; node < abscissas[dimension].size(); ++node)
-        {
-            perturbed[dimension][node] += epsilon * velocities[node][dimension];
-        }
-    }
-    return perturbed;
-}
-
 void compare_cqmom_moment_data_reconstruction_to_dense(const qmomkit::PhaseSpaceHierarchy& hierarchy, const std::vector<double>& weights,
                                                        const std::vector<std::vector<double>>& abscissas, const double tolerance)
 {

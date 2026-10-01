@@ -480,7 +480,7 @@ int run_qmom_case(const std::filesystem::path& configuration_path, const std::st
 int run_cqmom_case(const std::filesystem::path& configuration_path, const std::string& configuration_text,
                    const std::filesystem::path& output_directory)
 {
-    const auto configured = qmomkit::config::load_cqmom_dense(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured.error());
@@ -494,7 +494,7 @@ int run_cqmom_case(const std::filesystem::path& configuration_path, const std::s
     }
 
     const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-        sample_cqmom_initial_condition(initial_condition.value(), configured.value().hierarchy);
+        sample_cqmom_initial_condition(initial_condition.value(), configured.value().moments.layout.hierarchy);
     if (!sampled.has_value())
     {
         return 1;
@@ -506,11 +506,15 @@ int run_cqmom_case(const std::filesystem::path& configuration_path, const std::s
     }
 
     // The deterministic path starts from the tensor moments estimated from the
-    // same finite realization used by the Monte Carlo path.
+    // same finite realization used by the Monte Carlo path. The tensor itself is
+    // kept: it supplies the column labels and the Monte Carlo comparison below.
+    // Only the CQMOM case is built from the subset the hierarchy reconstructs
+    // from.
     qmomkit::RawMomentTensor qmomkit_moments = sampled->moments.moments;
-    qmomkit::CqmomDenseCase dense_case = configured.value();
-    dense_case.moments = qmomkit_moments;
-    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(dense_case);
+    qmomkit::CqmomLeanCase case_definition = configured.value();
+    const qmomkit::CqmomMomentLayout layout = case_definition.moments.layout;
+    case_definition.moments = qmomkit::extract_cqmom_moments(qmomkit_moments, layout);
+    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(case_definition);
     if (!initial.ok())
     {
         std::cerr << "Initial sample-based CQMOM inversion failed: " << initial.message << '\n';

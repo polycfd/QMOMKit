@@ -248,31 +248,34 @@ bool is_zeroth_index(const qmomkit::MultiIndex& index)
     return std::all_of(index.begin(), index.end(), [](const std::size_t value) { return value == 0; });
 }
 
-std::vector<double> exact_common_rate(const qmomkit::RawMomentTensor& initial, const double elapsed)
+std::vector<double> exact_common_rate(const qmomkit::CqmomMomentData& initial, const double elapsed)
 {
     constexpr double lambda = 0.45;
-    const qmomkit::RawMomentTensor target = target_common_rate_tensor(initial.extents);
+    const qmomkit::CqmomMomentData target =
+        qmomkit::extract_cqmom_moments(target_common_rate_tensor(initial.layout.hierarchy.moment_extents()), initial.layout);
     std::vector<double> exact(initial.values.size(), 0.0);
     const double factor = std::exp(-lambda * elapsed);
-    for (std::size_t flat = 0; flat < initial.values.size(); ++flat)
+    const std::vector<qmomkit::MultiIndex> indices = initial.layout.required_indices.to_multi_indices();
+    for (std::size_t entry = 0; entry < initial.values.size(); ++entry)
     {
-        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, initial.extents);
-        exact[flat] = is_zeroth_index(index) ? initial.values[flat] : target.values[flat] + (initial.values[flat] - target.values[flat]) * factor;
+        exact[entry] =
+            is_zeroth_index(indices[entry]) ? initial.values[entry] : target.values[entry] + (initial.values[entry] - target.values[entry]) * factor;
     }
     return exact;
 }
 
-std::vector<double> common_rate_source(const qmomkit::RawMomentTensor& initial_shape, const std::vector<double>& moments)
+std::vector<double> common_rate_source(const qmomkit::CqmomMomentData& initial_shape, const std::vector<double>& moments)
 {
     constexpr double lambda = 0.45;
-    const qmomkit::RawMomentTensor target = target_common_rate_tensor(initial_shape.extents);
+    const qmomkit::CqmomMomentData target =
+        qmomkit::extract_cqmom_moments(target_common_rate_tensor(initial_shape.layout.hierarchy.moment_extents()), initial_shape.layout);
     std::vector<double> derivative(moments.size(), 0.0);
-    for (std::size_t flat = 0; flat < moments.size(); ++flat)
+    const std::vector<qmomkit::MultiIndex> indices = initial_shape.layout.required_indices.to_multi_indices();
+    for (std::size_t entry = 0; entry < moments.size(); ++entry)
     {
-        const qmomkit::MultiIndex index = qmomkit::unflatten_multi_index(flat, initial_shape.extents);
-        if (!is_zeroth_index(index))
+        if (!is_zeroth_index(indices[entry]))
         {
-            derivative[flat] = -lambda * (moments[flat] - target.values[flat]);
+            derivative[entry] = -lambda * (moments[entry] - target.values[entry]);
         }
     }
     return derivative;
@@ -339,15 +342,15 @@ std::vector<double> advance_qmom_plan(const CaseDefinition& definition, const st
     return current;
 }
 
-std::vector<double> advance_cqmom_plan(const qmomkit::RawMomentTensor& initial_tensor, const TimePlan& plan, VerificationResult& result)
+std::vector<double> advance_cqmom_plan(const qmomkit::CqmomMomentData& initial_moments, const TimePlan& plan, VerificationResult& result)
 {
-    std::vector<double> current = initial_tensor.values;
+    std::vector<double> current = initial_moments.values;
     double time = plan.t0;
     for (std::size_t step = 0; step < plan.steps; ++step)
     {
         const qmomkit::QmomMomentSourceUpdateResult update = qmomkit::advance_qmom_moments_with_source(
-            current, time, plan.dt, [&initial_tensor](double, const qmomkit::QmomSourceContext& context)
-            { return qmomkit::QmomMomentRate{common_rate_source(initial_tensor, context.values())}; }, source_options());
+            current, time, plan.dt, [&initial_moments](double, const qmomkit::QmomSourceContext& context)
+            { return qmomkit::QmomMomentRate{common_rate_source(initial_moments, context.values())}; }, source_options());
         verify_source_diagnostics(update, plan.dt, result);
         if (!update.ok())
         {
@@ -355,7 +358,7 @@ std::vector<double> advance_cqmom_plan(const qmomkit::RawMomentTensor& initial_t
         }
         current = update.moments;
         time += plan.dt;
-        update_error(result.errors.conservation_abs, current.front(), initial_tensor.values.front());
+        update_error(result.errors.conservation_abs, current.front(), initial_moments.values.front());
     }
     return current;
 }
@@ -404,9 +407,9 @@ VerificationResult verify_qmom_case(const CaseDefinition& definition, const std:
     return result;
 }
 
-void verify_cqmom_reconstruction(const qmomkit::CqmomDenseCase& configured, const std::vector<double>& moments, VerificationResult& result)
+void verify_cqmom_reconstruction(const qmomkit::CqmomLeanCase& configured, const std::vector<double>& moments, VerificationResult& result)
 {
-    qmomkit::CqmomDenseCase final_case = configured;
+    qmomkit::CqmomLeanCase final_case = configured;
     final_case.moments.values = moments;
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(final_case);
     if (!cqmom.ok())
@@ -414,7 +417,7 @@ void verify_cqmom_reconstruction(const qmomkit::CqmomDenseCase& configured, cons
         append_failure(result, "Final CQMOM inversion failed: " + cqmom.message);
         return;
     }
-    if (cqmom.quadrature.hierarchy().conditioning_order() != configured.hierarchy.conditioning_order())
+    if (cqmom.quadrature.hierarchy().conditioning_order() != configured.moments.layout.hierarchy.conditioning_order())
     {
         append_failure(result, "CQMOM conditioning order was not preserved.");
     }
@@ -422,21 +425,21 @@ void verify_cqmom_reconstruction(const qmomkit::CqmomDenseCase& configured, cons
     {
         append_failure(result, "CQMOM fixed/adaptive storage settings were not preserved.");
     }
-    const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(cqmom.quadrature, configured.moments.extents);
+    const qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(cqmom.quadrature, configured.moments.layout);
     compare_reconstruction(reconstructed.values, moments, result.errors);
 }
 
 VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std::filesystem::path& configuration_path)
 {
     VerificationResult result;
-    const auto configured = qmomkit::config::load_cqmom_dense(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
     if (!configured.ok())
     {
         append_failure(result, "Failed to load CQMOM configuration.");
         return result;
     }
-    if (configured.value().hierarchy.conditioning_order() != std::vector<std::size_t>{1, 0} || configured.value().qmom_options.adaptive ||
-        configured.value().adaptive_branch_counts)
+    if (configured.value().moments.layout.hierarchy.conditioning_order() != std::vector<std::size_t>{1, 0} ||
+        configured.value().qmom_options.adaptive || configured.value().adaptive_branch_counts)
     {
         append_failure(result, "CQMOM configuration did not preserve the expected non-identity fixed settings.");
     }

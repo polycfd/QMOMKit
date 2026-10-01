@@ -93,7 +93,7 @@ x = 1.014 -> y = {0.25, 4}, w_y = {0.25, 0.75}
 The test independently sums all `6 x 4` mixed moments from these six terminal
 points. The configured `automatic` case in
 `clustered_policy_automatic.qmom` is checked against that sum, then the same
-public `CqmomDenseCase` is reconstructed with every public policy.
+public case is reconstructed with every public policy.
 
 At the root conditional solve, the weighted system is
 

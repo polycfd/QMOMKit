@@ -46,26 +46,12 @@
 namespace
 {
 
-void assert_vector_equal(const std::vector<std::size_t>& actual, const std::vector<std::size_t>& expected)
-{
-    QMOMKIT_VERIFY_CHECK(actual == expected);
-}
-
 void assert_terminal_paths_equal(const qmomkit::internal::RecursiveQuadrature& quadrature, const std::vector<qmomkit::ConditioningPath>& expected)
 {
     QMOMKIT_VERIFY_CHECK(quadrature.terminal_paths().size() == expected.size());
     for (std::size_t path = 0; path < expected.size(); ++path)
     {
         QMOMKIT_VERIFY_CHECK(quadrature.terminal_paths()[path] == expected[path]);
-    }
-}
-
-void assert_vector_near(const std::vector<double>& actual, const std::vector<double>& expected)
-{
-    QMOMKIT_VERIFY_CHECK(actual.size() == expected.size());
-    for (std::size_t i = 0; i < actual.size(); ++i)
-    {
-        QMOMKIT_VERIFY_CHECK(actual[i] == expected[i]);
     }
 }
 

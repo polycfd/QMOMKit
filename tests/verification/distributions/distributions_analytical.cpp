@@ -439,6 +439,19 @@ scale = 1.5
     }
 }
 
+// The subject of these checks is the moment tensor a configuration produces, so
+// they parse the initial condition and initialise the tensor directly rather
+// than building a CQMOM case, which holds only the moments it reconstructs from.
+qmomkit::config::ConfigurationResult<qmomkit::RawMomentTensor> parse_configured_moment_tensor(const std::string_view text)
+{
+    const auto initial = qmomkit::config::parse_cqmom_initial_condition(text);
+    if (!initial.ok())
+    {
+        return qmomkit::config::ConfigurationResult<qmomkit::RawMomentTensor>::failure(initial.error());
+    }
+    return qmomkit::config::initialize_cqmom_dense_moments(initial.value());
+}
+
 void verify_configuration_independent_product_two_dimensional()
 {
     constexpr double number_density = 2.75;
@@ -450,7 +463,7 @@ void verify_configuration_independent_product_two_dimensional()
         expected[flat_index] = number_density * gamma_raw_moment(1.5, 2.0, order[0]) * gamma_raw_moment(2.5, 0.5, order[1]);
     }
 
-    const auto configured = qmomkit::config::parse_cqmom_dense(R"(
+    const auto configured = parse_configured_moment_tensor(R"(
 [phase_space]
 node_counts = 3, 1
 
@@ -471,8 +484,8 @@ scale = 0.5
 )");
 
     QMOMKIT_VERIFY_CHECK(configured.ok());
-    assert_tensor_values(configured.value().moments, extents, expected, 1.0e-12, 1.0e-13);
-    assert_near_absolute_relative(configured.value().moments.values[0], number_density, 0.0, 0.0);
+    assert_tensor_values(configured.value(), extents, expected, 1.0e-12, 1.0e-13);
+    assert_near_absolute_relative(configured.value().values[0], number_density, 0.0, 0.0);
 }
 
 void verify_configuration_independent_product_normal_gamma()
@@ -491,7 +504,7 @@ void verify_configuration_independent_product_normal_gamma()
                                gamma_raw_moment(gamma_shape, gamma_scale, order[1]);
     }
 
-    const auto configured = qmomkit::config::parse_cqmom_dense(R"(
+    const std::string configuration_text = R"(
 [phase_space]
 names = x, y
 node_counts = 2, 2
@@ -511,13 +524,20 @@ standard_deviation = 1.25
 family = gamma
 shape = 2.5
 scale = 0.75
-)");
+)";
 
+    const auto configured = parse_configured_moment_tensor(configuration_text);
     QMOMKIT_VERIFY_CHECK(configured.ok());
-    QMOMKIT_VERIFY_CHECK(configured.value().hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
-    assert_tensor_values(configured.value().moments, extents, expected, 1.0e-12, 1.0e-12);
-    assert_near_absolute_relative(configured.value().moments.values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);
-    assert_near_absolute_relative(configured.value().moments.values[qmomkit::flatten_multi_index({1, 2}, extents)],
+
+    // The conditioning order is phase-space configuration rather than moment
+    // data, so it is checked on the parsed case rather than on the tensor.
+    const auto configured_case = qmomkit::config::parse_cqmom_lean(configuration_text);
+    QMOMKIT_VERIFY_CHECK(configured_case.ok());
+    QMOMKIT_VERIFY_CHECK(configured_case.value().moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
+
+    assert_tensor_values(configured.value(), extents, expected, 1.0e-12, 1.0e-12);
+    assert_near_absolute_relative(configured.value().values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);
+    assert_near_absolute_relative(configured.value().values[qmomkit::flatten_multi_index({1, 2}, extents)],
                                   number_density * normal_raw_moment_sum(normal_mean, normal_standard_deviation, 1) *
                                       gamma_raw_moment(gamma_shape, gamma_scale, 2),
                                   1.0e-12, 1.0e-12);
@@ -535,7 +555,7 @@ void verify_configuration_independent_product_beta_log_normal_weibull()
                                weibull_raw_moment(1.5, 2.0, order[2]);
     }
 
-    const auto configured = qmomkit::config::parse_cqmom_dense(R"(
+    const auto configured = parse_configured_moment_tensor(R"(
 [phase_space]
 node_counts = 1, 1, 1
 
@@ -561,8 +581,8 @@ scale = 2.0
 )");
 
     QMOMKIT_VERIFY_CHECK(configured.ok());
-    assert_tensor_values(configured.value().moments, extents, expected, 1.0e-11, 1.0e-12);
-    assert_near_absolute_relative(configured.value().moments.values[0], number_density, 0.0, 0.0);
+    assert_tensor_values(configured.value(), extents, expected, 1.0e-11, 1.0e-12);
+    assert_near_absolute_relative(configured.value().values[0], number_density, 0.0, 0.0);
     QMOMKIT_VERIFY_CHECK(qmomkit::flatten_multi_index({0, 0, 1}, extents) == 1);
     QMOMKIT_VERIFY_CHECK(qmomkit::flatten_multi_index({0, 1, 0}, extents) == 3);
     QMOMKIT_VERIFY_CHECK(qmomkit::flatten_multi_index({1, 0, 0}, extents) == 9);
@@ -592,7 +612,7 @@ void verify_configuration_independent_product_dimension_sweep()
         const std::string text = "[phase_space]\nnode_counts = " + node_counts +
                                  "\n[initial]\ntype = independent_product\nnumber_density = " + std::to_string(number_density) +
                                  "\nmaximum_orders = " + maximum_orders + "\n" + dimension_sections;
-        const auto configured = qmomkit::config::parse_cqmom_dense(text);
+        const auto configured = parse_configured_moment_tensor(text);
         QMOMKIT_VERIFY_CHECK(configured.ok());
 
         const std::vector<std::size_t> extents(dimensions, 2);
@@ -608,11 +628,11 @@ void verify_configuration_independent_product_dimension_sweep()
             expected[flat_index] = value;
         }
 
-        assert_tensor_values(configured.value().moments, extents, expected, 1.0e-12, 1.0e-12);
-        QMOMKIT_VERIFY_CHECK(configured.value().moments.extents.size() == dimensions);
-        assert_near_absolute_relative(configured.value().moments.values[0], number_density, 0.0, 0.0);
+        assert_tensor_values(configured.value(), extents, expected, 1.0e-12, 1.0e-12);
+        QMOMKIT_VERIFY_CHECK(configured.value().extents.size() == dimensions);
+        assert_near_absolute_relative(configured.value().values[0], number_density, 0.0, 0.0);
         qmomkit::MultiIndex last_order(dimensions, 1);
-        assert_near_absolute_relative(configured.value().moments.values[qmomkit::flatten_multi_index(last_order, extents)],
+        assert_near_absolute_relative(configured.value().values[qmomkit::flatten_multi_index(last_order, extents)],
                                       expected[qmomkit::flatten_multi_index(last_order, extents)], 1.0e-12, 1.0e-12);
     }
 }

@@ -37,13 +37,6 @@ namespace
     return contents.str();
 }
 
-[[nodiscard]] std::string format_double(const double value)
-{
-    std::ostringstream output;
-    output << std::setprecision(17) << value;
-    return output.str();
-}
-
 [[nodiscard]] std::string format_scientific(const double value)
 {
     std::ostringstream output;
@@ -380,31 +373,9 @@ void test_cqmom_state_generalized_moment_output()
 
     std::vector<double> dense_values = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
     dense_values[qmomkit::flatten_multi_index({1, 0}, extents)] += 7.0;
-    const qmomkit::CqmomState dense_state =
-        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomDenseCase{hierarchy, {extents, dense_values}, {}, {}});
-
     const std::vector<std::vector<double>> orders{{1.0, 1.5}, {0.5, 0.0}, {1.0, 1.5}};
     qmomkit::OutputOptions output_options;
     output_options.generalized_moment_orders = orders;
-    const std::filesystem::path dense_path = temporary_output_path("qmomkit_cqmom_state_generalized_dense");
-    {
-        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(dense_path, dense_state, output_options);
-        writer.write(0.25, dense_state, quadrature);
-    }
-
-    std::string expected = "# time";
-    for (const qmomkit::MultiIndex& index : dense_state.moment_indices())
-    {
-        expected += " " + cqmom_label(index);
-    }
-    expected += " G[1,1.5] G[0.5,0] G[1,1.5]\n" + format_scientific(0.25);
-    for (const double value : dense_state.moment_values())
-    {
-        expected += " " + format_scientific(value);
-    }
-    // Independently prescribed positive nodes give G[1,1.5] = 995.2 and G[0.5,0] = 3.
-    expected += " " + format_scientific(995.2) + " " + format_scientific(3.0) + " " + format_scientific(995.2) + "\n";
-    assert_text_ignore_whitespaces(read_text_file(dense_path), expected);
 
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     std::vector<double> lean_values;
@@ -413,26 +384,31 @@ void test_cqmom_state_generalized_moment_output()
     {
         lean_values.push_back(dense_values[qmomkit::flatten_multi_index(index, extents)]);
     }
-    const qmomkit::CqmomState lean_state =
+    const qmomkit::CqmomState state =
         qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomLeanCase{qmomkit::CqmomMomentData{layout, lean_values}, {}, {}});
     const std::filesystem::path lean_path = temporary_output_path("qmomkit_cqmom_state_generalized_lean");
     {
-        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(lean_path, lean_state, output_options);
-        writer.write(0.25, lean_state, quadrature);
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(lean_path, state, output_options);
+        writer.write(0.25, state, quadrature);
     }
-    const std::string lean_text = read_text_file(lean_path);
-    const std::size_t header_end = lean_text.find('\n');
-    assert(header_end != std::string::npos);
-    assert(normalize_line(lean_text.substr(0, header_end)).find("G[1,1.5] G[0.5,0] G[1,1.5]") != std::string::npos);
-    const std::size_t row_end = lean_text.find('\n', header_end + 1);
-    assert(row_end != std::string::npos);
-    assert(normalize_line(lean_text.substr(header_end + 1, row_end - header_end - 1))
-               .find(format_scientific(995.2) + " " + format_scientific(3.0) + " " + format_scientific(995.2)) != std::string::npos);
+    std::string expected = "# time";
+    for (const qmomkit::MultiIndex& index : state.moment_indices())
+    {
+        expected += " " + cqmom_label(index);
+    }
+    expected += " G[1,1.5] G[0.5,0] G[1,1.5]\n" + format_scientific(0.25);
+    for (const double value : state.moment_values())
+    {
+        expected += " " + format_scientific(value);
+    }
+    // Independently prescribed positive nodes give G[1,1.5] = 995.2 and G[0.5,0] = 3.
+    expected += " " + format_scientific(995.2) + " " + format_scientific(3.0) + " " + format_scientific(995.2) + "\n";
+    assert_text_ignore_whitespaces(read_text_file(lean_path), expected);
 
     const std::filesystem::path invalid_path = temporary_output_path("qmomkit_cqmom_state_generalized_invalid");
     qmomkit::OutputOptions invalid_rank_options;
     invalid_rank_options.generalized_moment_orders = {{0.5}};
-    assert_throws_invalid_argument([&] { (void)qmomkit::MomentWriter::for_cqmom(invalid_path, dense_state, invalid_rank_options); });
+    assert_throws_invalid_argument([&] { (void)qmomkit::MomentWriter::for_cqmom(invalid_path, state, invalid_rank_options); });
     const qmomkit::CqmomQuadrature negative = qmomkit::internal::CqmomConstructionAccess::create_quadrature(
         hierarchy, weights, {{-1.0, 4.0, 9.0, 16.0}, abscissas[1]}, false, true,
         {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})});
@@ -441,11 +417,10 @@ void test_cqmom_state_generalized_moment_output()
         {
             qmomkit::OutputOptions negative_node_options;
             negative_node_options.generalized_moment_orders = {{0.5, 0.0}};
-            qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(invalid_path, dense_state, negative_node_options);
-            writer.write(0.0, dense_state, negative);
+            qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(invalid_path, state, negative_node_options);
+            writer.write(0.0, state, negative);
         });
 
-    std::filesystem::remove(dense_path);
     std::filesystem::remove(lean_path);
     std::filesystem::remove(invalid_path);
 }
@@ -521,8 +496,8 @@ void test_writer_rejects_rows_from_other_factories()
 
     const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<double> layout_values(moment_layout.required_indices.size(), 1.0);
-    const qmomkit::CqmomState cqmom_state =
-        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomDenseCase{hierarchy, {extents, dense_moments}, {}, {}});
+    const qmomkit::CqmomState cqmom_state = qmomkit::internal::CqmomConstructionAccess::create_state(
+        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, dense_moments}, moment_layout), {}, {}});
     const qmomkit::QmomState qmom_state = qmomkit::QmomCase{qmomkit::MomentSet{1.0, 4.0}, 1}.initial_state();
 
     const std::string qmom_factory = "MomentWriter::for_qmom(path, moment_count[, output_options]) or MomentWriter::for_qmom(path, selected_orders)";

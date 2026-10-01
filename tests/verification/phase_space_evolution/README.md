@@ -407,24 +407,18 @@ realizable. The verifier checks that phase-space evolution reports
 diagnostics, records CQMOM diagnostics for the failed inversion, and stops
 before the second advection half-step.
 
-The same valid configuration also drives dense-backed and lean-backed state
-workflow failure checks:
+The same valid configuration also drives two further failure checks, which
+differ in the entry point a caller uses rather than in how moments are stored:
 
-- `verification_phase_space_evolution_cqmom_dense_phase_space_evolution_failures` loads a
-  `CqmomDenseCase` with `load_cqmom_dense(...)` and adapts it to a dense-backed
-  `CqmomState`;
-- `verification_phase_space_evolution_cqmom_lean_phase_space_evolution_failures` loads a
-  `CqmomLeanCase` with `load_cqmom_lean(...)` and adapts it to a lean-backed
-  `CqmomState`.
+- `verification_phase_space_evolution_cqmom_dense_phase_space_evolution_failures` advances
+  the configured `CqmomMomentData` directly;
+- `verification_phase_space_evolution_cqmom_lean_phase_space_evolution_failures` advances a
+  `CqmomState` built from the same configured case.
 
-`CqmomState` with dense moment storage represents users that intentionally own a
-full rectangular raw moment tensor before creating state. `CqmomState` with lean
-moment storage represents users that own only the required recursive CQMOM
-moment subset. For equivalent deterministic velocity, source, and post-source
-reconstruction failures, these workflows should report the same high-level
-status, failed stage, preserved diagnostics, and useful messages as the default
-`CqmomState` workflow. The tests do not require identical internal diagnostic
-details because the stored representations differ.
+For equivalent deterministic velocity, source, and post-source reconstruction
+failures, both entry points should report the same high-level status, failed
+stage, preserved diagnostics, and useful messages as the default `CqmomState`
+workflow. The tests do not require identical internal diagnostic details.
 
 Configuration: `cqmom_phase_space_evolution_inversion_failures.qmom`
 
@@ -436,11 +430,10 @@ advection or source failure, reports `PhaseSpaceEvolutionStage::initial_inversio
 preserves CQMOM diagnostics and a realizability message, does not advance
 time, and does not report later stages as completed.
 
-The companion dense- and lean-storage cases,
+The companion cases,
 `verification_phase_space_evolution_cqmom_dense_phase_space_evolution_inversion_failures` and
 `verification_phase_space_evolution_cqmom_lean_phase_space_evolution_inversion_failures`, reuse the
-same invalid configured moments through `CqmomState` adapters that preserve the
-chosen storage representation. They document that CQMOM phase-space evolution through
+same invalid configured moments through the two entry points above. They document that CQMOM phase-space evolution through
 `CqmomState` rejects an initially
 unreconstructable moment state before invoking advection or source callbacks.
 

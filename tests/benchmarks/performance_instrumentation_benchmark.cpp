@@ -517,8 +517,7 @@ qmomkit::RawMomentTensor ragged_phase_space_evolution_moments_3d()
     return {extents, std::move(moments)};
 }
 
-CqmomWorkload make_phase_space_evolution_workload(const std::vector<std::size_t>& node_counts, const qmomkit::CqmomMomentStorage storage,
-                                                  const bool adaptive)
+CqmomWorkload make_phase_space_evolution_workload(const std::vector<std::size_t>& node_counts, const bool adaptive)
 {
     qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
     qmomkit::RawMomentTensor dense_moments = independent_product_moments(node_counts);
@@ -545,10 +544,7 @@ CqmomWorkload make_phase_space_evolution_workload(const std::vector<std::size_t>
     qmom_options.eabs = 1.0e-12;
     qmom_options.cutoff = 1.0e-12;
     qmomkit::CqmomLeanCase lean_case{lean_moments, {}, qmom_options, adaptive, qmomkit::CqmomDiagnosticLevel::basic};
-    qmomkit::CqmomCase case_ = storage == qmomkit::CqmomMomentStorage::dense
-                                   ? qmomkit::internal::CqmomConstructionAccess::create_case(qmomkit::CqmomDenseCase{
-                                         hierarchy, dense_moments, {}, qmom_options, adaptive, qmomkit::CqmomDiagnosticLevel::basic})
-                                   : qmomkit::internal::CqmomConstructionAccess::create_case(lean_case);
+    qmomkit::CqmomCase case_ = qmomkit::internal::CqmomConstructionAccess::create_case(lean_case);
     return {std::move(hierarchy), std::move(dense_moments), std::move(lean_moments), std::move(lean_case), std::move(case_)};
 }
 
@@ -566,10 +562,6 @@ std::vector<qmomkit::CqmomState> make_states(const qmomkit::CqmomCase& case_, co
 qmomkit::CqmomState state_without_accepted_quadrature(const qmomkit::CqmomState& state)
 {
     const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(state);
-    if (const qmomkit::CqmomDenseCase* dense_case = qmomkit::internal::CqmomConstructionAccess::state_dense_case(state))
-    {
-        return qmomkit::internal::CqmomConstructionAccess::create_state(*dense_case, state.active_branch_counts(), prepared_metadata);
-    }
     const qmomkit::CqmomLeanCase* lean_case = qmomkit::internal::CqmomConstructionAccess::state_lean_case(state);
     if (lean_case == nullptr)
     {
@@ -1088,8 +1080,8 @@ void bm_cqmom_phase_space_evolution_workload(benchmark::State& state, const qmom
 }
 
 void bm_cqmom_phase_space_evolution_ownership_workload(benchmark::State& state, const CqmomPhaseSpaceEvolutionWorkflow workflow,
-                                                       const qmomkit::CqmomMomentStorage storage, const std::vector<std::size_t>& node_counts,
-                                                       const bool adaptive, const bool cache_miss, const std::string& name)
+                                                       const std::vector<std::size_t>& node_counts, const bool adaptive, const bool cache_miss,
+                                                       const std::string& name)
 {
     if (!instrumentation_is_available(state))
     {
@@ -1098,7 +1090,7 @@ void bm_cqmom_phase_space_evolution_ownership_workload(benchmark::State& state, 
 
     const std::size_t state_count = static_cast<std::size_t>(state.range(0));
     const std::size_t steps_per_state = static_cast<std::size_t>(state.range(1));
-    const CqmomWorkload workload = make_phase_space_evolution_workload(node_counts, storage, adaptive);
+    const CqmomWorkload workload = make_phase_space_evolution_workload(node_counts, adaptive);
     const qmomkit::PhaseSpaceVelocity velocity = velocity_model();
     const qmomkit::CqmomMomentSource source = source_model();
     qmomkit::CqmomPhaseSpaceEvolutionOptions options;
@@ -1348,7 +1340,7 @@ void bm_cqmom_initial_state_prepared(benchmark::State& state, const std::vector<
     record_summary(std::move(summary));
 }
 
-void bm_cqmom_explicit_reconstruction_control(benchmark::State& state, const qmomkit::CqmomMomentStorage storage, const std::string name)
+void bm_cqmom_explicit_reconstruction_control(benchmark::State& state, const std::string name)
 {
     if (!instrumentation_is_available(state))
     {
@@ -1356,7 +1348,6 @@ void bm_cqmom_explicit_reconstruction_control(benchmark::State& state, const qmo
     }
 
     const CqmomWorkload workload = make_workload(nodes_2x2());
-    const qmomkit::CqmomDenseCase dense_case{workload.hierarchy, workload.dense_moments, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic};
     perf::CounterSession session;
     double measured_seconds = 0.0;
     for (auto _ : state)
@@ -1365,8 +1356,7 @@ void bm_cqmom_explicit_reconstruction_control(benchmark::State& state, const qmo
         std::optional<qmomkit::CqmomResult> result;
         {
             perf::CounterScope scope(session);
-            result.emplace(storage == qmomkit::CqmomMomentStorage::dense ? qmomkit::compute_cqmom(dense_case)
-                                                                         : qmomkit::compute_cqmom(workload.lean_case));
+            result.emplace(qmomkit::compute_cqmom(workload.lean_case));
         }
         if (!result->ok())
         {
@@ -1385,7 +1375,7 @@ void bm_cqmom_explicit_reconstruction_control(benchmark::State& state, const qmo
     BenchmarkSummary summary =
         make_summary(name, "CQMOM standalone explicit reconstruction control", nodes_2x2(), workload, counters, measured_seconds,
                      static_cast<std::size_t>(state.iterations()), 1, "reconstruction", CounterMode::enabled_session);
-    summary.solver_policy = storage == qmomkit::CqmomMomentStorage::dense ? "dense explicit" : "lean explicit";
+    summary.solver_policy = "explicit";
     record_summary(std::move(summary));
 }
 
@@ -1396,7 +1386,7 @@ void bm_cqmom_adaptive_reconstruction_control(benchmark::State& state, const std
         return;
     }
 
-    const CqmomWorkload workload = make_phase_space_evolution_workload(nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true);
+    const CqmomWorkload workload = make_phase_space_evolution_workload(nodes_2x2(), true);
     perf::CounterSession session;
     double measured_seconds = 0.0;
     for (auto _ : state)
@@ -1894,20 +1884,16 @@ const bool ownership_phase_space_evolution_benchmarks_registered = []
     {
         const char* name;
         std::vector<std::size_t> node_counts;
-        qmomkit::CqmomMomentStorage storage;
         bool adaptive;
         bool cache_miss;
     };
-    const std::vector<Fixture> fixtures{{"lean_fixed_2d_2x2", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, false, false},
-                                        {"dense_fixed_2d_2x2", nodes_2x2(), qmomkit::CqmomMomentStorage::dense, false, false},
-                                        {"lean_fixed_2d_3x3", nodes_3x3(), qmomkit::CqmomMomentStorage::lean, false, false},
-                                        {"lean_fixed_3d_2x2x2", nodes_2x2x2(), qmomkit::CqmomMomentStorage::lean, false, false},
-                                        {"lean_adaptive_ragged_2d", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true, false},
-                                        {"dense_adaptive_ragged_2d", nodes_2x2(), qmomkit::CqmomMomentStorage::dense, true, false},
-                                        {"lean_adaptive_ragged_3d", nodes_2x2x2(), qmomkit::CqmomMomentStorage::lean, true, false},
-                                        {"lean_adaptive_ragged_2d_cache_miss", nodes_2x2(), qmomkit::CqmomMomentStorage::lean, true, true},
-                                        {"dense_adaptive_ragged_2d_cache_miss", nodes_2x2(), qmomkit::CqmomMomentStorage::dense, true, true},
-                                        {"lean_adaptive_ragged_3d_cache_miss", nodes_2x2x2(), qmomkit::CqmomMomentStorage::lean, true, true}};
+    const std::vector<Fixture> fixtures{{"fixed_2d_2x2", nodes_2x2(), false, false},
+                                        {"fixed_2d_3x3", nodes_3x3(), false, false},
+                                        {"fixed_3d_2x2x2", nodes_2x2x2(), false, false},
+                                        {"adaptive_ragged_2d", nodes_2x2(), true, false},
+                                        {"adaptive_ragged_3d", nodes_2x2x2(), true, false},
+                                        {"adaptive_ragged_2d_cache_miss", nodes_2x2(), true, true},
+                                        {"adaptive_ragged_3d_cache_miss", nodes_2x2x2(), true, true}};
     // Isolated operators plus one composite. The first-order splitting orders
     // (advsrc/srcadv) are covered by the dedicated
     // performance_cqmom_phase_space_evolution_{advsrc,srcadv} benchmarks; repeating
@@ -1923,8 +1909,8 @@ const bool ownership_phase_space_evolution_benchmarks_registered = []
             benchmark::RegisterBenchmark(name.c_str(),
                                          [fixture, workflow, name](benchmark::State& state)
                                          {
-                                             bm_cqmom_phase_space_evolution_ownership_workload(state, workflow, fixture.storage, fixture.node_counts,
-                                                                                               fixture.adaptive, fixture.cache_miss, name);
+                                             bm_cqmom_phase_space_evolution_ownership_workload(state, workflow, fixture.node_counts, fixture.adaptive,
+                                                                                               fixture.cache_miss, name);
                                          })
                 ->Args({32, fixture.cache_miss ? 1 : 4});
         }
@@ -2015,12 +2001,8 @@ BENCHMARK_CAPTURE(bm_cqmom_fixed_case_preparation, cold_5d_2x2x2x2x2, nodes_2x2x
 BENCHMARK_CAPTURE(bm_cqmom_initial_state_prepared, fixed_2d_2x2, nodes_2x2(), "performance_cqmom_initial_state_prepared_2d_2x2")
     ->Name("performance_cqmom_initial_state_prepared_2d_2x2");
 
-BENCHMARK_CAPTURE(bm_cqmom_explicit_reconstruction_control, lean_2d_2x2, qmomkit::CqmomMomentStorage::lean,
-                  "performance_cqmom_reconstruction_explicit_lean_2d_2x2")
+BENCHMARK_CAPTURE(bm_cqmom_explicit_reconstruction_control, lean_2d_2x2, "performance_cqmom_reconstruction_explicit_lean_2d_2x2")
     ->Name("performance_cqmom_reconstruction_explicit_lean_2d_2x2");
-BENCHMARK_CAPTURE(bm_cqmom_explicit_reconstruction_control, dense_2d_2x2, qmomkit::CqmomMomentStorage::dense,
-                  "performance_cqmom_reconstruction_explicit_dense_2d_2x2")
-    ->Name("performance_cqmom_reconstruction_explicit_dense_2d_2x2");
 BENCHMARK_CAPTURE(bm_cqmom_adaptive_reconstruction_control, normal_lean_2d_2x2, "performance_cqmom_reconstruction_adaptive_normal_lean_2d_2x2")
     ->Name("performance_cqmom_reconstruction_adaptive_normal_lean_2d_2x2");
 

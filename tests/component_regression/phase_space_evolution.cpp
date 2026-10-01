@@ -65,14 +65,6 @@ qmomkit::RawMomentTensor fixed_cqmom_moments()
     return {extents, raw_moments_from_terminals(extents, weights, abscissas)};
 }
 
-qmomkit::RawMomentTensor adaptive_cqmom_moments()
-{
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> weights{0.1, 0.3, 0.6};
-    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0}, {-2.0, 2.0, 3.0}};
-    return {extents, raw_moments_from_terminals(extents, weights, abscissas)};
-}
-
 qmomkit::NodeAdvectionOptions tight_node_options()
 {
     qmomkit::NodeAdvectionOptions options;
@@ -159,18 +151,21 @@ void test_cqmom_case_preserves_phase_space_ordering()
     qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.node_options = tight_node_options();
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
-    const qmomkit::CqmomDenseCase dense_case{hierarchy, moments, {}, {}};
-    const qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(dense_case);
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomLeanCase case_{qmomkit::extract_cqmom_moments(moments, layout), {}, {}};
+    const qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(case_);
     const qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_phase_space(state, 0.0, 0.2, velocity, zero_source, options);
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.has_value());
     QMOMKIT_VERIFY_CHECK(result.quadrature->has_rectangular_storage());
 
-    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom({hierarchy, moments, {}, {}});
+    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(case_);
     QMOMKIT_VERIFY_CHECK(initial.ok());
     const qmomkit::CqmomNodeAdvectionResult direct = qmomkit::advance_nodes(initial.quadrature, 0.0, 0.2, velocity, options.node_options);
     QMOMKIT_VERIFY_CHECK(direct.ok());
-    const qmomkit::RawMomentTensor expected = qmomkit::reconstruct_raw_moments(direct.quadrature, moments.extents);
+    // The state carries the moments its hierarchy reconstructs from, so the
+    // independently advected reference is reduced the same way before comparison.
+    const qmomkit::CqmomMomentData expected = qmomkit::reconstruct_cqmom_moments(direct.quadrature, layout);
     assert_vector_near(result.state.moment_values(), expected.values, 5.0e-9);
 }
 

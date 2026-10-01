@@ -85,11 +85,6 @@ void update_error(double& maximum, const double actual, const double expected)
     maximum = std::max(maximum, std::abs(actual - expected));
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomDenseCase>& configured)
-{
-    std::cerr << configured.error() << '\n';
-}
-
 void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
 {
     std::cerr << configured.error() << '\n';
@@ -197,15 +192,14 @@ void verify_diagnostics(const std::string& workflow_name, const qmomkit::CqmomRe
     }
 }
 
-void verify_lean_required_representation(const qmomkit::CqmomLeanCase& lean_case, const qmomkit::CqmomDenseCase& dense_case,
-                                         VerificationResult& verification)
+void verify_required_representation(const qmomkit::CqmomLeanCase& case_, VerificationResult& verification)
 {
     // Expert callers choose CqmomLeanCase when they already work with the
     // minimal recursive moment subset. This check verifies the public loader
     // provides exactly that selected representation and that the selected
     // values are sufficient to recover the same analytical product quadrature.
     const std::vector<qmomkit::MultiIndex> expected_indices = expected_required_indices();
-    const qmomkit::CqmomMomentData& moments = lean_case.moments;
+    const qmomkit::CqmomMomentData& moments = case_.moments;
     if (moments.layout.required_indices.to_multi_indices() != expected_indices)
     {
         append_failure(verification, "explicit lean workflow required-index order did not match the documented fixed 2x2 CQMOM layout.");
@@ -214,9 +208,9 @@ void verify_lean_required_representation(const qmomkit::CqmomLeanCase& lean_case
     {
         append_failure(verification, "explicit lean workflow did not provide one value per required index.");
     }
-    if (moments.values.size() >= dense_case.moments.values.size())
+    if (moments.values.size() >= qmomkit::product_extents(moments.layout.hierarchy.moment_extents()))
     {
-        append_failure(verification, "explicit lean workflow did not use a smaller selected moment representation than the dense tensor.");
+        append_failure(verification, "the required moment set was not smaller than the full moment tensor the hierarchy spans.");
     }
 
     const std::size_t entries = std::min(moments.values.size(), expected_indices.size());
@@ -257,50 +251,44 @@ void verify_reference_quadrature(const std::string& workflow_name, const qmomkit
     }
 }
 
-std::vector<double> reconstructed_values(const qmomkit::CqmomQuadrature& quadrature, const std::vector<std::size_t>& extents)
-{
-    return qmomkit::reconstruct_raw_moments(quadrature, extents).values;
-}
-
 void verify_reconstructed_moments(const std::string& workflow_name, const qmomkit::CqmomQuadrature& quadrature,
-                                  const qmomkit::RawMomentTensor& dense_moments, VerificationResult& verification)
+                                  const qmomkit::CqmomMomentData& configured_moments, VerificationResult& verification)
 {
     // The moment tensor in independent_product.qmom is generated from the same
     // independent analytical quadrature documented above. Matching every
     // configured raw moment verifies that the public workflow returned a
     // mathematically equivalent CQMOM rule, not only visually similar nodes.
-    const std::vector<double> reconstructed = reconstructed_values(quadrature, dense_moments.extents);
-    if (reconstructed.size() != dense_moments.values.size())
+    const qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(quadrature, configured_moments.layout);
+    if (reconstructed.values.size() != configured_moments.values.size())
     {
-        append_failure(verification, workflow_name + " reconstructed moment tensor has the wrong size.");
+        append_failure(verification, workflow_name + " reconstructed moment set has the wrong size.");
         return;
     }
-    for (std::size_t index = 0; index < dense_moments.values.size(); ++index)
+    for (std::size_t index = 0; index < configured_moments.values.size(); ++index)
     {
-        update_error(verification.errors.moment, reconstructed[index], dense_moments.values[index]);
+        update_error(verification.errors.moment, reconstructed.values[index], configured_moments.values[index]);
     }
 }
 
-void compare_workflows(const std::string& workflow_name, const qmomkit::CqmomQuadrature& actual, const qmomkit::CqmomQuadrature& dense_reference,
-                       const std::vector<std::size_t>& extents, VerificationResult& verification)
+void compare_workflows(const std::string& workflow_name, const qmomkit::CqmomQuadrature& actual, const qmomkit::CqmomQuadrature& reference,
+                       const qmomkit::CqmomMomentLayout& layout, VerificationResult& verification)
 {
-    // Dense, default, and lean workflows exist for different user needs:
-    // explicit full tensors, recommended configured state ownership, and
-    // explicit minimal required-moment storage. For the same mathematical
-    // problem they should produce indistinguishable public quadrature and
-    // reconstructed moments.
+    // The explicit case and the configured CqmomCase exist for different user
+    // needs: an explicit moment set the caller owns, and the recommended
+    // configured state ownership. For the same mathematical problem they should
+    // produce indistinguishable public quadrature and reconstructed moments.
     const std::vector<TerminalNode> actual_nodes = terminal_nodes(actual);
-    const std::vector<TerminalNode> reference_nodes = terminal_nodes(dense_reference);
+    const std::vector<TerminalNode> reference_nodes = terminal_nodes(reference);
     if (actual_nodes.size() != reference_nodes.size())
     {
-        append_failure(verification, workflow_name + " terminal node count differs from dense workflow.");
+        append_failure(verification, workflow_name + " terminal node count differs from the explicit workflow.");
         return;
     }
     for (std::size_t node = 0; node < actual_nodes.size(); ++node)
     {
         if (actual_nodes[node].path != reference_nodes[node].path)
         {
-            append_failure(verification, workflow_name + " terminal path differs from dense workflow.");
+            append_failure(verification, workflow_name + " terminal path differs from the explicit workflow.");
             continue;
         }
         update_error(verification.errors.workflow_node, actual_nodes[node].x, reference_nodes[node].x);
@@ -308,16 +296,16 @@ void compare_workflows(const std::string& workflow_name, const qmomkit::CqmomQua
         update_error(verification.errors.workflow_weight, actual_nodes[node].weight, reference_nodes[node].weight);
     }
 
-    const std::vector<double> actual_moments = reconstructed_values(actual, extents);
-    const std::vector<double> reference_moments = reconstructed_values(dense_reference, extents);
-    if (actual_moments.size() != reference_moments.size())
+    const qmomkit::CqmomMomentData actual_moments = qmomkit::reconstruct_cqmom_moments(actual, layout);
+    const qmomkit::CqmomMomentData reference_moments = qmomkit::reconstruct_cqmom_moments(reference, layout);
+    if (actual_moments.values.size() != reference_moments.values.size())
     {
-        append_failure(verification, workflow_name + " reconstructed moment count differs from dense workflow.");
+        append_failure(verification, workflow_name + " reconstructed moment count differs from the explicit workflow.");
         return;
     }
-    for (std::size_t index = 0; index < actual_moments.size(); ++index)
+    for (std::size_t index = 0; index < actual_moments.values.size(); ++index)
     {
-        update_error(verification.errors.workflow_moment, actual_moments[index], reference_moments[index]);
+        update_error(verification.errors.workflow_moment, actual_moments.values[index], reference_moments.values[index]);
     }
 }
 
@@ -337,16 +325,10 @@ int main(const int argc, char** argv)
 
     const std::filesystem::path configuration_path = argv[1];
 
-    const auto dense_case = qmomkit::config::load_cqmom_dense(configuration_path);
-    if (!dense_case.ok())
+    const auto explicit_case = qmomkit::config::load_cqmom_lean(configuration_path);
+    if (!explicit_case.ok())
     {
-        print_configuration_errors(dense_case);
-        return 1;
-    }
-    const auto lean_case = qmomkit::config::load_cqmom_lean(configuration_path);
-    if (!lean_case.ok())
-    {
-        print_configuration_errors(lean_case);
+        print_configuration_errors(explicit_case);
         return 1;
     }
     const auto default_case = qmomkit::config::load_cqmom(configuration_path);
@@ -356,18 +338,13 @@ int main(const int argc, char** argv)
         return 1;
     }
 
-    const qmomkit::CqmomResult dense = qmomkit::compute_cqmom(dense_case.value());
-    const qmomkit::CqmomResult lean = qmomkit::compute_cqmom(lean_case.value());
+    const qmomkit::CqmomResult explicit_result = qmomkit::compute_cqmom(explicit_case.value());
     const qmomkit::CqmomResult default_workflow = qmomkit::compute_cqmom(default_case.value());
 
     VerificationResult verification;
-    if (!dense.ok())
+    if (!explicit_result.ok())
     {
-        append_failure(verification, "dense workflow compute_cqmom failed: " + dense.message);
-    }
-    if (!lean.ok())
-    {
-        append_failure(verification, "lean workflow compute_cqmom failed: " + lean.message);
+        append_failure(verification, "explicit workflow compute_cqmom failed: " + explicit_result.message);
     }
     if (!default_workflow.ok())
     {
@@ -379,34 +356,26 @@ int main(const int argc, char** argv)
         return 1;
     }
 
-    if (dense_case.value().hierarchy.node_counts() != std::vector<std::size_t>({2, 2}) ||
-        dense_case.value().hierarchy.conditioning_order() != std::vector<std::size_t>({0, 1}))
+    if (explicit_case.value().moments.layout.hierarchy.node_counts() != std::vector<std::size_t>({2, 2}) ||
+        explicit_case.value().moments.layout.hierarchy.conditioning_order() != std::vector<std::size_t>({0, 1}))
     {
-        append_failure(verification, "dense workflow did not load the expected fixed 2x2 hierarchy with conditioning_order = {0, 1}.");
+        append_failure(verification, "explicit workflow did not load the expected fixed 2x2 hierarchy with conditioning_order = {0, 1}.");
     }
-    if (default_case.value().hierarchy().node_counts() != dense_case.value().hierarchy.node_counts() ||
-        default_case.value().hierarchy().conditioning_order() != dense_case.value().hierarchy.conditioning_order())
+    if (default_case.value().hierarchy().node_counts() != explicit_case.value().moments.layout.hierarchy.node_counts() ||
+        default_case.value().hierarchy().conditioning_order() != explicit_case.value().moments.layout.hierarchy.conditioning_order())
     {
-        append_failure(verification, "default CqmomCase workflow did not preserve the dense workflow hierarchy.");
-    }
-    if (lean_case.value().moments.layout.hierarchy.node_counts() != dense_case.value().hierarchy.node_counts() ||
-        lean_case.value().moments.layout.hierarchy.conditioning_order() != dense_case.value().hierarchy.conditioning_order())
-    {
-        append_failure(verification, "explicit lean workflow did not preserve the dense workflow hierarchy.");
+        append_failure(verification, "default CqmomCase workflow did not preserve the explicit workflow hierarchy.");
     }
 
-    verify_lean_required_representation(lean_case.value(), dense_case.value(), verification);
-    verify_diagnostics("dense workflow", dense, verification);
-    verify_diagnostics("explicit lean workflow", lean, verification);
+    verify_required_representation(explicit_case.value(), verification);
+    verify_diagnostics("explicit workflow", explicit_result, verification);
     verify_diagnostics("default CqmomCase workflow", default_workflow, verification);
-    verify_reference_quadrature("dense workflow", dense.quadrature, verification);
-    verify_reference_quadrature("explicit lean workflow", lean.quadrature, verification);
+    verify_reference_quadrature("explicit workflow", explicit_result.quadrature, verification);
     verify_reference_quadrature("default CqmomCase workflow", default_workflow.quadrature, verification);
-    verify_reconstructed_moments("dense workflow", dense.quadrature, dense_case.value().moments, verification);
-    verify_reconstructed_moments("explicit lean workflow", lean.quadrature, dense_case.value().moments, verification);
-    verify_reconstructed_moments("default CqmomCase workflow", default_workflow.quadrature, dense_case.value().moments, verification);
-    compare_workflows("explicit lean workflow", lean.quadrature, dense.quadrature, dense_case.value().moments.extents, verification);
-    compare_workflows("default CqmomCase workflow", default_workflow.quadrature, dense.quadrature, dense_case.value().moments.extents, verification);
+    verify_reconstructed_moments("explicit workflow", explicit_result.quadrature, explicit_case.value().moments, verification);
+    verify_reconstructed_moments("default CqmomCase workflow", default_workflow.quadrature, explicit_case.value().moments, verification);
+    compare_workflows("default CqmomCase workflow", default_workflow.quadrature, explicit_result.quadrature, explicit_case.value().moments.layout,
+                      verification);
 
     const bool passed = verification.passed && verification.errors.node <= tolerance && verification.errors.weight <= tolerance &&
                         verification.errors.moment <= tolerance && verification.errors.workflow_node <= tolerance &&

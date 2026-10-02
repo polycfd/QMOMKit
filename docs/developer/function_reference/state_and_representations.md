@@ -104,11 +104,16 @@ authoritative for every subsequent evolution transition.
 `CqmomPreparedCase` and `CqmomState` hold a `CqmomCase` and do not expose
 it. Public accessors read the hierarchy and policies from it; numerical
 algorithms use the held case directly. A `CqmomCase` is promoted through
-the public `CqmomPreparedCase` constructor. `CqmomPreparedCase::initial_state`
+the public `CqmomPreparedCase` constructor. `CqmomCase::initial_state` and
+`CqmomPreparedCase::initial_state` both call `initial_cqmom_state`, which
 computes a successful quadrature, derives active branch counts, reconstructs
 the stored representation from that accepted quadrature, and stores the same
-quadrature in the state. `CqmomState::quadrature()` exposes that stored
-accepted quadrature by const reference. A state reconstructs exactly its
+quadrature in the state. They differ only in where the prepared metadata comes
+from: `CqmomCase::initial_state` builds it on every call, while
+`CqmomPreparedCase::initial_state` hands each state the metadata the prepared
+case already holds. Either way the state keeps that metadata for its whole
+lineage. `CqmomState::quadrature()` exposes that stored accepted quadrature by
+const reference. A state reconstructs exactly its
 required layout in its existing order. Thus every successfully constructed
 initial state has stored moments and cached accepted quadrature describing the
 same current state. Adaptive reduction may replace higher supplied moments with

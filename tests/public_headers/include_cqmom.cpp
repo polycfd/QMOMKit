@@ -26,6 +26,8 @@ using CqmomPreparedCaseInversion = qmomkit::CqmomResult (*)(const qmomkit::Cqmom
 
 using CqmomMomentExtraction = qmomkit::CqmomMomentData (*)(const qmomkit::RawMomentTensor&, const qmomkit::CqmomMomentLayout&);
 
+using CqmomCaseInitialState = qmomkit::CqmomState (qmomkit::CqmomCase::*)() const;
+
 using CqmomPreparedCaseInitialState = qmomkit::CqmomState (qmomkit::CqmomPreparedCase::*)() const;
 
 CqmomCaseInversion cqmom_case_inversion = qmomkit::compute_cqmom;
@@ -33,6 +35,8 @@ CqmomCaseInversion cqmom_case_inversion = qmomkit::compute_cqmom;
 CqmomPreparedCaseInversion cqmom_prepared_case_inversion = qmomkit::compute_cqmom;
 
 CqmomMomentExtraction cqmom_moment_extraction = qmomkit::extract_cqmom_moments;
+
+CqmomCaseInitialState cqmom_case_initial_state = &qmomkit::CqmomCase::initial_state;
 
 CqmomPreparedCaseInitialState cqmom_prepared_case_initial_state = &qmomkit::CqmomPreparedCase::initial_state;
 

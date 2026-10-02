@@ -276,13 +276,15 @@ const CqmomCoordinateSupport& CqmomPreparedCase::coordinate_support() const noex
     return qmomkit::coordinate_support(data_->cqmom_case);
 }
 
-CqmomState CqmomPreparedCase::initial_state() const
+namespace
 {
-    // The owning handle is passed on to the new state; the raw pointer is what
-    // the reconstruction call below takes.
-    const internal::PreparedCqmomMetadataPtr& prepared_metadata_handle = data_->prepared_metadata;
+// Both cases build their initial state here. The metadata handle is passed on
+// to the new state, so its later steps reuse the branch structure; the raw
+// pointer is what the reconstruction call takes.
+CqmomState initial_cqmom_state(const CqmomCase& cqmom_case, const internal::PreparedCqmomMetadataPtr& prepared_metadata_handle)
+{
     const internal::PreparedCqmomMetadata* prepared_metadata = prepared_metadata_handle.get();
-    CqmomResult accepted = internal::compute_cqmom_internal(data_->cqmom_case, {}, false, prepared_metadata, true);
+    CqmomResult accepted = internal::compute_cqmom_internal(cqmom_case, {}, false, prepared_metadata, true);
     if (!accepted.ok())
     {
         throw std::runtime_error("CQMOM initial state quadrature reconstruction failed: " + accepted.message);
@@ -290,9 +292,22 @@ CqmomState CqmomPreparedCase::initial_state() const
     CqmomQuadrature accepted_quadrature = std::move(accepted.quadrature);
     std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(accepted_quadrature);
     CqmomCase canonical_cqmom_case =
-        internal::with_moments(data_->cqmom_case, internal::reconstruct_trusted_cqmom_moments(accepted_quadrature, data_->cqmom_case.moments.layout));
+        internal::with_moments(cqmom_case, internal::reconstruct_trusted_cqmom_moments(accepted_quadrature, cqmom_case.moments.layout));
     return internal::CqmomConstructionAccess::create_state(std::move(canonical_cqmom_case), std::move(active_counts), std::move(accepted_quadrature),
                                                            prepared_metadata_handle);
+}
+} // namespace
+
+CqmomState CqmomCase::initial_state() const
+{
+    // The branch structure is built directly rather than through a
+    // CqmomPreparedCase, which would first copy this case.
+    return initial_cqmom_state(*this, internal::create_prepared_cqmom_metadata(moments.layout, adaptive_branch_counts));
+}
+
+CqmomState CqmomPreparedCase::initial_state() const
+{
+    return initial_cqmom_state(data_->cqmom_case, data_->prepared_metadata);
 }
 
 CqmomState::CqmomState(std::unique_ptr<Data> data) : data_(std::move(data)) {}

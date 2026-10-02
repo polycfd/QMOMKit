@@ -191,8 +191,8 @@ struct CqmomMomentData
 };
 
 /**
- * Advanced explicit lean representation for static CQMOM inversion from
- * required CQMOM moments.
+ * Advanced explicit lean representation for CQMOM inversion and phase-space
+ * evolution from required CQMOM moments.
  *
  * `moments.layout` supplies the hierarchy, conditioning order, and required
  * phase-space-order raw moment indices. `moments.values` stores one value per
@@ -208,15 +208,32 @@ struct CqmomCase
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     CqmomCoordinateSupport coordinate_support;
+
+    /**
+     * Construct the accepted initial phase-space evolution state and
+     * canonicalize stored moments from the accepted quadrature.
+     *
+     * Each call builds the recursive branch structure for the hierarchy and
+     * hands it to the new state, which reuses it in every later step. To create
+     * states for many sets of moments on one hierarchy, build one
+     * `CqmomPreparedCase` and derive each case from it with
+     * `config::with_initial_moments(...)`, which keeps its branch structure;
+     * for the same moments both routes give the same state. Throws
+     * `std::runtime_error` when the initial moments cannot be reconstructed and
+     * `std::invalid_argument` when `moments.layout` is not the required layout
+     * of its hierarchy.
+     */
+    [[nodiscard]] CqmomState initial_state() const;
 };
 
 /**
  * User-facing mutable CQMOM runtime state.
  *
  * A state owns the current CQMOM moments and reconstruction policies. Normal
- * CQMOM phase-space evolution creates this state from `CqmomPreparedCase`; its accepted
- * terminal quadrature is available through `quadrature()`. The state can be
- * passed to `advance_cqmom_phase_space(...)`.
+ * CQMOM phase-space evolution creates this state with `initial_state()` from a
+ * `CqmomCase` or a `CqmomPreparedCase`; its accepted terminal quadrature is
+ * available through `quadrature()`. The state can be passed to
+ * `advance_cqmom_phase_space(...)`.
  */
 class CqmomState
 {

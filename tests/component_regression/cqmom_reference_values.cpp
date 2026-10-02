@@ -6,7 +6,7 @@
  *   support, every Vandermonde solver policy, and all three splitting schemes.
  *
  * HOW IT IS TESTED
- *   Two independent checks per static case.
+ *   Three checks per static case.
  *
  *   1. Analytical recovery. Every case is built from an explicit list of
  *      quadrature nodes, and its raw moments are computed from those nodes.
@@ -26,14 +26,20 @@
  *      recovery alone: it also fixes node ordering, conditioning-path ordering,
  *      and which branches adaptive reconstruction kept.
  *
- *   Evolution cases carry only the recorded check, because once the state has
- *   been advanced it is no longer the node list the case was built from.
+ *   In addition, an initial state is created both from the case and from
+ *   CqmomPreparedCase. The two must be identical, and the state's quadrature
+ *   must be the one reconstruction returned.
+ *
+ *   Evolution cases carry the recorded check and the initial-state check: the
+ *   two initial states are advanced side by side and must stay identical after
+ *   every step. Recovery does not apply, because once the state has been
+ *   advanced it is no longer the node list the case was built from.
  *
  * PASS CRITERIA
  *   Recovery: every node the case was built from is matched by an accepted
  *   node, with weight and coordinates agreeing to 1e-12 absolute.
- *   Prepared-path agreement: bit-exact, because both routes run in the same
- *   build and any difference is a real one.
+ *   Prepared-path and initial-state agreement: bit-exact, because both routes
+ *   run in the same build and any difference is a real one.
  *   Recorded values: status and node count exactly; every weight and abscissa
  *   within 1e-12 relative, with a 1e-15 absolute floor.
  *
@@ -233,6 +239,21 @@ void check_recovers_generating_nodes(const qmomkit::case_matrix::StaticCase& cas
     }
 }
 
+void check_quadratures_identical(const qmomkit::CqmomQuadrature& actual, const qmomkit::CqmomQuadrature& expected)
+{
+    QMOMKIT_VERIFY_CHECK(actual.weights().size() == expected.weights().size());
+    QMOMKIT_VERIFY_CHECK(actual.number_of_dimensions() == expected.number_of_dimensions());
+
+    for (std::size_t node = 0; node < actual.weights().size(); ++node)
+    {
+        QMOMKIT_VERIFY_CHECK(actual.weights()[node] == expected.weights()[node]);
+        for (std::size_t dimension = 0; dimension < actual.number_of_dimensions(); ++dimension)
+        {
+            QMOMKIT_VERIFY_CHECK(actual.abscissas()[dimension][node] == expected.abscissas()[dimension][node]);
+        }
+    }
+}
+
 /*
  * Reconstructing through CqmomPreparedCase reuses a reconstruction plan built once from
  * the hierarchy, where the explicit case derives one per call. The two routes
@@ -242,17 +263,32 @@ void check_recovers_generating_nodes(const qmomkit::case_matrix::StaticCase& cas
 void check_prepared_path_agrees(const qmomkit::CqmomResult& direct, const qmomkit::CqmomResult& prepared)
 {
     QMOMKIT_VERIFY_CHECK(direct.status == prepared.status);
-    QMOMKIT_VERIFY_CHECK(direct.quadrature.weights().size() == prepared.quadrature.weights().size());
-    QMOMKIT_VERIFY_CHECK(direct.quadrature.number_of_dimensions() == prepared.quadrature.number_of_dimensions());
+    check_quadratures_identical(direct.quadrature, prepared.quadrature);
+}
 
-    for (std::size_t node = 0; node < direct.quadrature.weights().size(); ++node)
+/*
+ * A state created from the case builds its reconstruction plan in that call,
+ * where a state created through CqmomPreparedCase takes the plan the prepared
+ * case already holds. The plan does not enter the arithmetic, so the two states
+ * must agree exactly: moments, active branch counts, and accepted quadrature.
+ */
+void check_states_identical(const qmomkit::CqmomState& actual, const qmomkit::CqmomState& expected)
+{
+    QMOMKIT_VERIFY_CHECK(actual.moment_values() == expected.moment_values());
+
+    const std::vector<qmomkit::CqmomActiveBranchCount>& actual_counts = actual.active_branch_counts();
+    const std::vector<qmomkit::CqmomActiveBranchCount>& expected_counts = expected.active_branch_counts();
+    QMOMKIT_VERIFY_CHECK(actual_counts.size() == expected_counts.size());
+    for (std::size_t branch = 0; branch < actual_counts.size(); ++branch)
     {
-        QMOMKIT_VERIFY_CHECK(direct.quadrature.weights()[node] == prepared.quadrature.weights()[node]);
-        for (std::size_t dimension = 0; dimension < direct.quadrature.number_of_dimensions(); ++dimension)
-        {
-            QMOMKIT_VERIFY_CHECK(direct.quadrature.abscissas()[dimension][node] == prepared.quadrature.abscissas()[dimension][node]);
-        }
+        QMOMKIT_VERIFY_CHECK(actual_counts[branch].conditioning_level == expected_counts[branch].conditioning_level);
+        QMOMKIT_VERIFY_CHECK(actual_counts[branch].parent_path == expected_counts[branch].parent_path);
+        QMOMKIT_VERIFY_CHECK(actual_counts[branch].phase_space_dimension == expected_counts[branch].phase_space_dimension);
+        QMOMKIT_VERIFY_CHECK(actual_counts[branch].configured_node_count == expected_counts[branch].configured_node_count);
+        QMOMKIT_VERIFY_CHECK(actual_counts[branch].active_node_count == expected_counts[branch].active_node_count);
     }
+
+    check_quadratures_identical(actual.quadrature(), expected.quadrature());
 }
 
 void run_static_case(const qmomkit::case_matrix::StaticCase& case_)
@@ -262,7 +298,13 @@ void run_static_case(const qmomkit::case_matrix::StaticCase& case_)
     QMOMKIT_VERIFY_CHECK(result.ok());
 
     check_recovers_generating_nodes(case_, result.quadrature);
-    check_prepared_path_agrees(result, qmomkit::compute_cqmom(qmomkit::CqmomPreparedCase(explicit_case)));
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case(explicit_case);
+    check_prepared_path_agrees(result, qmomkit::compute_cqmom(cqmom_prepared_case));
+
+    const qmomkit::CqmomState initial = explicit_case.initial_state();
+    check_quadratures_identical(initial.quadrature(), result.quadrature);
+    check_states_identical(initial, cqmom_prepared_case.initial_state());
+
     compare_against_reference(case_.name, result.quadrature, static_cast<int>(result.status));
 }
 
@@ -274,7 +316,11 @@ void run_evolution_case(const qmomkit::case_matrix::EvolutionCase& case_)
     qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.scheme = case_.scheme;
 
-    qmomkit::CqmomState state = qmomkit::CqmomPreparedCase(qmomkit::case_matrix::lean_case_of(case_.reconstruction)).initial_state();
+    const qmomkit::CqmomCase explicit_case = qmomkit::case_matrix::lean_case_of(case_.reconstruction);
+    qmomkit::CqmomState state = qmomkit::CqmomPreparedCase(explicit_case).initial_state();
+    qmomkit::CqmomState case_state = explicit_case.initial_state();
+    check_states_identical(case_state, state);
+
     double time = 0.0;
     int status = 0;
     for (std::size_t step = 0; step < case_.step_count; ++step)
@@ -283,7 +329,15 @@ void run_evolution_case(const qmomkit::case_matrix::EvolutionCase& case_)
             qmomkit::advance_cqmom_phase_space(state, time, case_.time_step, velocity, source, options);
         status = static_cast<int>(evolved.status);
         QMOMKIT_VERIFY_CHECK(evolved.ok());
+
+        const qmomkit::CqmomPhaseSpaceEvolutionResult case_evolved =
+            qmomkit::advance_cqmom_phase_space(case_state, time, case_.time_step, velocity, source, options);
+        QMOMKIT_VERIFY_CHECK(case_evolved.status == evolved.status);
+        QMOMKIT_VERIFY_CHECK(case_evolved.final_time == evolved.final_time);
+        check_states_identical(case_evolved.state, evolved.state);
+
         state = evolved.state;
+        case_state = case_evolved.state;
         time = evolved.final_time;
     }
 

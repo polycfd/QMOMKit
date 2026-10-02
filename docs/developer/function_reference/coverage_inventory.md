@@ -400,9 +400,9 @@ evidence](initialization_and_configuration.md)
 | `parse_cqmom_case_settings` | [1875](../../../src/configuration.cpp#L1875) |
 | `parse_qmom_initial_condition_from_parsed` | [1990](../../../src/configuration.cpp#L1990) |
 | `parse_cqmom_initial_condition_from_parsed` | [2085](../../../src/configuration.cpp#L2085) |
-| `initialize_moments` | [2198](../../../src/configuration.cpp#L2198) |
-| `initialize_cqmom_dense_moments` | [2233](../../../src/configuration.cpp#L2233) |
-| `initialize_cqmom_moment_data` | [2263](../../../src/configuration.cpp#L2263) |
+| `initialize_qmom_moments` | [2198](../../../src/configuration.cpp#L2198) |
+| `initialize_cqmom_moment_tensor` | [2233](../../../src/configuration.cpp#L2233) |
+| `initialize_cqmom_moments` | [2263](../../../src/configuration.cpp#L2263) |
 | `parse_qmom_initial_condition` | [2310](../../../src/configuration.cpp#L2310) |
 | `parse_cqmom_initial_condition` | [2316](../../../src/configuration.cpp#L2316) |
 | `create_qmom_case` | [2322](../../../src/configuration.cpp#L2322) |
@@ -913,14 +913,14 @@ evidence](utilities.md)
 | `MomentWriter::write_header` | [390](../../../src/output.cpp#L390) |
 | `MomentWriter::write_row` | [395](../../../src/output.cpp#L395) |
 | `MomentWriter::write_aligned_row` | [422](../../../src/output.cpp#L422) |
-| `MomentWriter::write` | [453](../../../src/output.cpp#L453), [472](../../../src/output.cpp#L472), [495](../../../src/output.cpp#L495), [514](../../../src/output.cpp#L514), [533](../../../src/output.cpp#L533), [556](../../../src/output.cpp#L556), [583](../../../src/output.cpp#L583), [602](../../../src/output.cpp#L602), [616](../../../src/output.cpp#L616), [635](../../../src/output.cpp#L635) |
-| `QuadratureWriter::for_qmom` | [649](../../../src/output.cpp#L649) |
-| `QuadratureWriter::for_cqmom` | [654](../../../src/output.cpp#L654) |
-| `QuadratureWriter::QuadratureWriter` | [659](../../../src/output.cpp#L659) |
-| `QuadratureWriter::write_header` | [675](../../../src/output.cpp#L675) |
-| `QuadratureWriter::write_row` | [680](../../../src/output.cpp#L680) |
-| `QuadratureWriter::write_qmom_row` | [707](../../../src/output.cpp#L707) |
-| `QuadratureWriter::write` | [737](../../../src/output.cpp#L737), [742](../../../src/output.cpp#L742), [747](../../../src/output.cpp#L747) |
+| `MomentWriter::write` | [453](../../../src/output.cpp#L453), [472](../../../src/output.cpp#L472), [495](../../../src/output.cpp#L495), [514](../../../src/output.cpp#L514), [533](../../../src/output.cpp#L533), [556](../../../src/output.cpp#L556), [584](../../../src/output.cpp#L584), [603](../../../src/output.cpp#L603), [617](../../../src/output.cpp#L617), [636](../../../src/output.cpp#L636) |
+| `QuadratureWriter::for_qmom` | [650](../../../src/output.cpp#L650) |
+| `QuadratureWriter::for_cqmom` | [655](../../../src/output.cpp#L655) |
+| `QuadratureWriter::QuadratureWriter` | [660](../../../src/output.cpp#L660) |
+| `QuadratureWriter::write_header` | [676](../../../src/output.cpp#L676) |
+| `QuadratureWriter::write_row` | [681](../../../src/output.cpp#L681) |
+| `QuadratureWriter::write_qmom_row` | [708](../../../src/output.cpp#L708) |
+| `QuadratureWriter::write` | [738](../../../src/output.cpp#L738), [743](../../../src/output.cpp#L743), [748](../../../src/output.cpp#L748) |
 | `centered_column_label` | [24](../../../src/output.cpp#L24) |
 | `generalized_moment_label` | [71](../../../src/output.cpp#L71) |
 | `append_generalized_labels` | [87](../../../src/output.cpp#L87) |

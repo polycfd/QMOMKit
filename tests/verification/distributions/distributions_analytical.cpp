@@ -449,7 +449,7 @@ qmomkit::config::ConfigurationResult<qmomkit::RawMomentTensor> parse_configured_
     {
         return qmomkit::config::ConfigurationResult<qmomkit::RawMomentTensor>::failure(initial.error());
     }
-    return qmomkit::config::initialize_cqmom_dense_moments(initial.value());
+    return qmomkit::config::initialize_cqmom_moment_tensor(initial.value());
 }
 
 void verify_configuration_independent_product_two_dimensional()

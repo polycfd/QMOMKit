@@ -451,8 +451,8 @@ Public configuration capabilities include:
 - `parse_cqmom(...)` and `load_cqmom(...)`;
 - `parse_qmom_initial_condition(...)` and
   `parse_cqmom_initial_condition(...)`;
-- `initialize_moments(...)` and `initialize_cqmom_dense_moments(...)`;
-- `initialize_cqmom_moment_data(...)`;
+- `initialize_qmom_moments(...)` and `initialize_cqmom_moments(...)`;
+- `initialize_cqmom_moment_tensor(...)`;
 - `create_qmom_case(...)` and `create_cqmom_case(...)`;
 - `with_initial_moments(...)` for a `RawMomentTensor` or `CqmomMomentData`
   replacement;

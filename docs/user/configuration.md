@@ -887,7 +887,7 @@ supplying the key changes nothing about the case a loader returns.
 
 It is carried through `parse_cqmom_initial_condition(...)` for applications that
 build a full raw moment tensor themselves with
-`initialize_cqmom_dense_moments(...)`, which requires it for an
+`initialize_cqmom_moment_tensor(...)`, which requires it for an
 independent-product specification. There, `maximum_orders[d]` gives the largest
 raw-moment order retained in dimension `d`:
 

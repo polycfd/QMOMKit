@@ -2195,7 +2195,7 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
 
 } // namespace
 
-ConfigurationResult<MomentSet> initialize_moments(const InitialConditionSpecification& specification, std::string source_name)
+ConfigurationResult<MomentSet> initialize_qmom_moments(const InitialConditionSpecification& specification, std::string source_name)
 {
     if (const auto* explicit_moments = std::get_if<ExplicitMomentInitialization>(&specification))
     {
@@ -2230,7 +2230,7 @@ ConfigurationResult<MomentSet> initialize_moments(const InitialConditionSpecific
     return ConfigurationResult<MomentSet>{moments.moments};
 }
 
-ConfigurationResult<RawMomentTensor> initialize_cqmom_dense_moments(const InitialConditionSpecification& specification, std::string source_name)
+ConfigurationResult<RawMomentTensor> initialize_cqmom_moment_tensor(const InitialConditionSpecification& specification, std::string source_name)
 {
     if (const auto* explicit_tensor = std::get_if<ExplicitTensorInitialization>(&specification))
     {
@@ -2260,8 +2260,8 @@ ConfigurationResult<RawMomentTensor> initialize_cqmom_dense_moments(const Initia
          "Multidimensional initialization requires explicit tensor moments or an independent product specification."});
 }
 
-ConfigurationResult<CqmomMomentData> initialize_cqmom_moment_data(const InitialConditionSpecification& specification,
-                                                                  const PhaseSpaceHierarchy& hierarchy, std::string source_name)
+ConfigurationResult<CqmomMomentData> initialize_cqmom_moments(const InitialConditionSpecification& specification,
+                                                              const PhaseSpaceHierarchy& hierarchy, std::string source_name)
 {
     try
     {
@@ -2333,7 +2333,7 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
             {ConfigurationErrorCode::invalid_value, std::move(source_name), 0, "QMOM node_count is too large to derive the required moment count."});
     }
 
-    ConfigurationResult<MomentSet> initialized = initialize_moments(initial_condition, source_name);
+    ConfigurationResult<MomentSet> initialized = initialize_qmom_moments(initial_condition, source_name);
     if (!initialized)
     {
         return ConfigurationResult<QmomCase>::failure(initialized.error());
@@ -2350,7 +2350,7 @@ ConfigurationResult<CqmomCase> create_cqmom_case(const InitialConditionSpecifica
                                                  const QmomOptions& qmom_options, const bool adaptive_branch_counts, std::string source_name,
                                                  CqmomCoordinateSupport coordinate_support)
 {
-    ConfigurationResult<CqmomMomentData> initialized = initialize_cqmom_moment_data(initial_condition, hierarchy, std::move(source_name));
+    ConfigurationResult<CqmomMomentData> initialized = initialize_cqmom_moments(initial_condition, hierarchy, std::move(source_name));
     if (!initialized)
     {
         return ConfigurationResult<CqmomCase>::failure(initialized.error());

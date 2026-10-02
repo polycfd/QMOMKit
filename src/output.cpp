@@ -245,7 +245,7 @@ MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, std::vec
 {
     const std::vector<std::size_t> indices = sequential_indices(product_extents(extents));
     std::vector<std::string> labels = all_cqmom_labels(extents);
-    return MomentWriter(path, MomentLayout::cqmom_dense, std::move(extents), indices, std::move(labels), {}, precision);
+    return MomentWriter(path, MomentLayout::cqmom_moment_tensor, std::move(extents), indices, std::move(labels), {}, precision);
 }
 
 MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, std::vector<std::size_t> extents, std::vector<MultiIndex> selected_moments,
@@ -261,8 +261,8 @@ MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, std::vec
     const std::vector<std::size_t> flat_indices = flatten_selected_indices(extents, selected_moments);
     std::vector<std::string> labels = cqmom_labels(MultiIndexTable(selected_moments));
     append_generalized_labels(labels, generalized_moment_orders);
-    return MomentWriter(path, MomentLayout::cqmom_dense, std::move(extents), flat_indices, std::move(labels), std::move(generalized_moment_orders),
-                        precision);
+    return MomentWriter(path, MomentLayout::cqmom_moment_tensor, std::move(extents), flat_indices, std::move(labels),
+                        std::move(generalized_moment_orders), precision);
 }
 
 MomentWriter MomentWriter::for_cqmom(const std::filesystem::path& path, const CqmomMomentLayout& layout, const std::size_t precision)
@@ -371,7 +371,7 @@ std::string MomentWriter::layout_mismatch_message(const char* const overload, co
             return "MomentWriter::for_qmom(path, moment_count[, output_options]) or MomentWriter::for_qmom(path, selected_orders)";
         case MomentLayout::qmom_state:
             return "MomentWriter::for_qmom(path, qmom_state, output_options)";
-        case MomentLayout::cqmom_dense:
+        case MomentLayout::cqmom_moment_tensor:
             return "MomentWriter::for_cqmom(path, extents, ...)";
         case MomentLayout::cqmom_moment_data:
             return "MomentWriter::for_cqmom(path, cqmom_moment_layout, ...)";
@@ -530,17 +530,17 @@ void MomentWriter::write(const double time, const QmomState& state, const QmomRe
     write_aligned_row(time, state.moments(), generalized_values);
 }
 
-void MomentWriter::write(const double time, const RawMomentTensor& moments)
+void MomentWriter::write(const double time, const RawMomentTensor& moment_tensor)
 {
-    if (layout_ != MomentLayout::cqmom_dense)
+    if (layout_ != MomentLayout::cqmom_moment_tensor)
     {
-        throw std::invalid_argument(layout_mismatch_message("write(time, RawMomentTensor)", MomentLayout::cqmom_dense, layout_));
+        throw std::invalid_argument(layout_mismatch_message("write(time, RawMomentTensor)", MomentLayout::cqmom_moment_tensor, layout_));
     }
-    if (moments.extents != extents_)
+    if (moment_tensor.extents != extents_)
     {
         throw std::invalid_argument("CQMOM moment output tensor extents do not match the writer extents.");
     }
-    if (moments.values.size() != product_extents(moments.extents))
+    if (moment_tensor.values.size() != product_extents(moment_tensor.extents))
     {
         throw std::invalid_argument("CQMOM moment output tensor size does not match its extents.");
     }
@@ -550,20 +550,21 @@ void MomentWriter::write(const double time, const RawMomentTensor& moments)
             "MomentWriter::write(time, RawMomentTensor) cannot supply the writer's generalized-moment columns; use write(time, "
             "RawMomentTensor, generalized_values).");
     }
-    write_row(time, moments.values);
+    write_row(time, moment_tensor.values);
 }
 
-void MomentWriter::write(const double time, const RawMomentTensor& moments, const std::vector<double>& generalized_values)
+void MomentWriter::write(const double time, const RawMomentTensor& moment_tensor, const std::vector<double>& generalized_values)
 {
-    if (layout_ != MomentLayout::cqmom_dense)
+    if (layout_ != MomentLayout::cqmom_moment_tensor)
     {
-        throw std::invalid_argument(layout_mismatch_message("write(time, RawMomentTensor, generalized_values)", MomentLayout::cqmom_dense, layout_));
+        throw std::invalid_argument(
+            layout_mismatch_message("write(time, RawMomentTensor, generalized_values)", MomentLayout::cqmom_moment_tensor, layout_));
     }
-    if (moments.extents != extents_)
+    if (moment_tensor.extents != extents_)
     {
         throw std::invalid_argument("CQMOM moment output tensor extents do not match the writer extents.");
     }
-    if (moments.values.size() != product_extents(moments.extents))
+    if (moment_tensor.values.size() != product_extents(moment_tensor.extents))
     {
         throw std::invalid_argument("CQMOM moment output tensor size does not match its extents.");
     }
@@ -571,11 +572,11 @@ void MomentWriter::write(const double time, const RawMomentTensor& moments, cons
     values.reserve(flat_indices_.size());
     for (const std::size_t flat_index : flat_indices_)
     {
-        if (flat_index >= moments.values.size())
+        if (flat_index >= moment_tensor.values.size())
         {
             throw std::out_of_range("Selected moment output index is outside the supplied moments.");
         }
-        values.push_back(moments.values[flat_index]);
+        values.push_back(moment_tensor.values[flat_index]);
     }
     write_aligned_row(time, values, generalized_values);
 }

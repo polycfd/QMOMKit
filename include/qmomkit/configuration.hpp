@@ -126,17 +126,18 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * distribution and mixture specifications are evaluated through the
  * raw-moment generation API.
  */
-[[nodiscard]] ConfigurationResult<MomentSet> initialize_moments(const InitialConditionSpecification& specification,
-                                                                std::string source_name = "<initialization>");
+[[nodiscard]] ConfigurationResult<MomentSet> initialize_qmom_moments(const InitialConditionSpecification& specification,
+                                                                     std::string source_name = "<initialization>");
 
 /**
- * Generate dense multidimensional raw moments from an initialization specification.
+ * Generate a full multidimensional raw moment tensor from an initialization
+ * specification.
  *
  * Explicit tensors are returned unchanged. Independent product specifications
- * are evaluated through the tensor raw-moment generation API and require dense
- * tensor maximum-order metadata.
+ * are evaluated through the tensor raw-moment generation API and require
+ * `maximum_orders`, which sets the tensor extents.
  */
-[[nodiscard]] ConfigurationResult<RawMomentTensor> initialize_cqmom_dense_moments(const InitialConditionSpecification& specification,
+[[nodiscard]] ConfigurationResult<RawMomentTensor> initialize_cqmom_moment_tensor(const InitialConditionSpecification& specification,
                                                                                   std::string source_name = "<initialization>");
 
 /**
@@ -144,11 +145,11 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  *
  * Explicit tensor specifications are adapted by extracting the required CQMOM
  * moments. Independent product specifications are evaluated through selected
- * raw-moment generation, avoiding construction of a dense `RawMomentTensor`.
+ * raw-moment generation, avoiding construction of a full `RawMomentTensor`.
  */
-[[nodiscard]] ConfigurationResult<CqmomMomentData> initialize_cqmom_moment_data(const InitialConditionSpecification& specification,
-                                                                                const PhaseSpaceHierarchy& hierarchy,
-                                                                                std::string source_name = "<initialization>");
+[[nodiscard]] ConfigurationResult<CqmomMomentData> initialize_cqmom_moments(const InitialConditionSpecification& specification,
+                                                                            const PhaseSpaceHierarchy& hierarchy,
+                                                                            std::string source_name = "<initialization>");
 
 /** Parse current QMOM initialization into explicit or generated moments. */
 [[nodiscard]] ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(std::string_view text,

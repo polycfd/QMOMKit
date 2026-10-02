@@ -401,7 +401,7 @@ shape = 2.0
 scale = 3.0
 )");
     assert(initial.ok());
-    const auto moments = qmomkit::config::initialize_moments(initial.value());
+    const auto moments = qmomkit::config::initialize_qmom_moments(initial.value());
     assert(moments.ok());
     const qmomkit::RawMomentResult expected = qmomkit::compute_raw_moments(qmomkit::GammaDistribution{2.0, 3.0}, 3, 4.0);
     assert(expected.ok());
@@ -664,7 +664,7 @@ mu_log = 0.1
 sigma_log = 0.2
 )");
     assert(initial.ok());
-    const auto tensor = qmomkit::config::initialize_cqmom_dense_moments(initial.value());
+    const auto tensor = qmomkit::config::initialize_cqmom_moment_tensor(initial.value());
     const qmomkit::TensorMomentResult expected_tensor = qmomkit::compute_raw_moments(
         qmomkit::IndependentProductDistribution{{qmomkit::BetaDistribution{2.0, 5.0}, qmomkit::LogNormalDistribution{0.1, 0.2}}, 4.0}, {1, 1});
     assert(expected_tensor.ok());
@@ -728,7 +728,7 @@ sigma_log = 0.45
     const qmomkit::IndependentProductDistribution direct{{qmomkit::DistributionSpecification{qmomkit::NormalDistribution{-0.4, 0.7}}, *mixture},
                                                          2.75};
     const qmomkit::TensorMomentResult expected = qmomkit::compute_raw_moments(direct, {1, 2});
-    const auto initialized = qmomkit::config::initialize_cqmom_dense_moments(initial.value());
+    const auto initialized = qmomkit::config::initialize_cqmom_moment_tensor(initial.value());
     assert(expected.ok());
     assert(initialized.ok());
     assert_tensor_near(initialized.value(), expected.moments);
@@ -759,7 +759,7 @@ standard_deviation = 1.25
     assert(initial.ok());
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {0, 1});
-    const auto configured = qmomkit::config::initialize_cqmom_moment_data(initial.value(), hierarchy);
+    const auto configured = qmomkit::config::initialize_cqmom_moments(initial.value(), hierarchy);
     assert(configured.ok());
 
     const qmomkit::IndependentProductDistribution distribution{{qmomkit::GammaDistribution{3.0, 0.2}, qmomkit::NormalDistribution{-0.5, 1.25}}, 2.5};
@@ -804,7 +804,7 @@ standard_deviation = 1.25
     assert(!independent_product->maximum_orders.has_value());
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {0, 1});
-    const auto initialized = qmomkit::config::initialize_cqmom_moment_data(initial.value(), hierarchy);
+    const auto initialized = qmomkit::config::initialize_cqmom_moments(initial.value(), hierarchy);
     assert(initialized.ok());
     assert(initialized.value().layout.hierarchy.node_counts() == std::vector<std::size_t>({2, 2}));
     assert_near(initialized.value().moment({0, 0}), 2.5);
@@ -914,7 +914,7 @@ void test_lean_cqmom_initialization_selects_explicit_dense_tensor()
     assert(initial.ok());
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1}, {1, 0});
-    const auto lean = qmomkit::config::initialize_cqmom_moment_data(initial.value(), hierarchy);
+    const auto lean = qmomkit::config::initialize_cqmom_moments(initial.value(), hierarchy);
     assert(lean.ok());
 
     const qmomkit::RawMomentTensor dense{{2, 2}, {1.0, 1.5, 0.5, 0.75}};
@@ -3777,7 +3777,7 @@ values = 3.0, 1.0, 2.0, 4.0
 type = mixture
 )");
     assert(initial.ok());
-    const auto moments = qmomkit::config::initialize_moments(initial.value());
+    const auto moments = qmomkit::config::initialize_qmom_moments(initial.value());
     assert(moments.ok());
     assert(moments.value().values() == std::vector<double>({3.0, 1.0, 2.0, 4.0}));
 

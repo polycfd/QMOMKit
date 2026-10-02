@@ -196,11 +196,11 @@ automatic-scaling values across the QMOM evolution loader.
 
 ## Initialization, construction, and replacement — Levels A/B
 
-`initialize_moments` copies an explicit sequence or computes analytical
+`initialize_qmom_moments` copies an explicit sequence or computes analytical
 moments; explicit copying does not independently invert or classify it.
-`initialize_cqmom_dense_moments` copies an explicit tensor or evaluates the
-full independent product, with maximum orders required for standalone dense
-generation. `initialize_cqmom_moment_data` first obtains the hierarchy's
+`initialize_cqmom_moment_tensor` copies an explicit tensor or evaluates the
+full independent product, with maximum orders required to set the tensor
+extents. `initialize_cqmom_moments` first obtains the hierarchy's
 required layout, then extracts explicit data or requests selected analytical
 moments. Configured case construction uses required indices rather than
 computing an unnecessary full tensor, so it neither needs nor consults

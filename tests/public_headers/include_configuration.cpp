@@ -16,10 +16,10 @@ namespace public_header_pins
 using QmomMomentInitializer = qmomkit::config::ConfigurationResult<qmomkit::MomentSet> (*)(const qmomkit::config::InitialConditionSpecification&,
                                                                                            std::string);
 
-using CqmomDenseMomentInitializer =
+using CqmomMomentTensorInitializer =
     qmomkit::config::ConfigurationResult<qmomkit::RawMomentTensor> (*)(const qmomkit::config::InitialConditionSpecification&, std::string);
 
-using CqmomMomentDataInitializer = qmomkit::config::ConfigurationResult<qmomkit::CqmomMomentData> (*)(
+using CqmomMomentInitializer = qmomkit::config::ConfigurationResult<qmomkit::CqmomMomentData> (*)(
     const qmomkit::config::InitialConditionSpecification&, const qmomkit::PhaseSpaceHierarchy&, std::string);
 
 using CqmomCaseFactory = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase> (*)(const qmomkit::config::InitialConditionSpecification&,
@@ -47,11 +47,11 @@ using CqmomPreparedCaseMomentTensorReplacement =
 using CqmomPreparedCaseMomentDataReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(const qmomkit::CqmomPreparedCase&,
                                                                                                                     qmomkit::CqmomMomentData);
 
-QmomMomentInitializer qmom_moment_initializer = qmomkit::config::initialize_moments;
+QmomMomentInitializer qmom_moment_initializer = qmomkit::config::initialize_qmom_moments;
 
-CqmomDenseMomentInitializer cqmom_dense_moment_initializer = qmomkit::config::initialize_cqmom_dense_moments;
+CqmomMomentTensorInitializer cqmom_moment_tensor_initializer = qmomkit::config::initialize_cqmom_moment_tensor;
 
-CqmomMomentDataInitializer cqmom_moment_data_initializer = qmomkit::config::initialize_cqmom_moment_data;
+CqmomMomentInitializer cqmom_moment_initializer = qmomkit::config::initialize_cqmom_moments;
 
 CqmomCaseFactory cqmom_case_factory = qmomkit::config::create_cqmom_case;
 

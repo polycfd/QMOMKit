@@ -362,10 +362,10 @@ struct CqmomResult
 [[nodiscard]] CqmomMomentLayout create_cqmom_moment_layout(const PhaseSpaceHierarchy& hierarchy);
 
 /**
- * Extract the moments required by `layout` from a dense phase-space-order raw
- * moment tensor.
+ * Extract the moments required by `layout` from a phase-space-order raw moment
+ * tensor.
  */
-[[nodiscard]] CqmomMomentData extract_cqmom_moments(const RawMomentTensor& moments, const CqmomMomentLayout& layout);
+[[nodiscard]] CqmomMomentData extract_cqmom_moments(const RawMomentTensor& moment_tensor, const CqmomMomentLayout& layout);
 
 /**
  * Validate and adapt selected raw moments to required CQMOM moment data.

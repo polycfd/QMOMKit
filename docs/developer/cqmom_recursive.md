@@ -626,8 +626,8 @@ Public CQMOM concepts include:
 - `PhaseSpaceHierarchy`
 - `ConditioningPath`
 
-`CqmomPreparedCase` and `CqmomState` are the neutral public objects for the
-normal CQMOM workflow. The case stores initialized moment data and
+`CqmomPreparedCase` and `CqmomState` are the public objects for the normal
+CQMOM workflow. The case stores initialized moment data and
 reconstruction policies; a state is created from the case when users choose
 CQMOM phase-space evolution. This workflow does not expose how the moments are
 stored.

@@ -81,6 +81,23 @@ int main()
     {
         return 1;
     }
+    const qmomkit::CqmomState cqmom_case_state = lean_case.initial_state();
+    if (cqmom_case_state.quadrature().total_nodes() != 1)
+    {
+        return 1;
+    }
+    // Both overloads must store exactly the replacement moments, which differ
+    // from the ones the case holds.
+    const qmomkit::RawMomentTensor replacement_moment_tensor{{2, 2}, {2.0, 1.0, 0.5, 0.25}};
+    const qmomkit::CqmomMomentData replacement_moments = qmomkit::extract_cqmom_moments(replacement_moment_tensor, lean_case.moments.layout);
+    const auto tensor_replaced_cqmom_case_result = qmomkit::config::with_initial_moments(lean_case, replacement_moment_tensor);
+    const auto moment_set_replaced_cqmom_case_result = qmomkit::config::with_initial_moments(lean_case, replacement_moments);
+    if (replacement_moments.values == lean_case.moments.values || !tensor_replaced_cqmom_case_result.ok() ||
+        tensor_replaced_cqmom_case_result.value().moments.values != replacement_moments.values || !moment_set_replaced_cqmom_case_result.ok() ||
+        moment_set_replaced_cqmom_case_result.value().moments.values != replacement_moments.values)
+    {
+        return 1;
+    }
     const qmomkit::CqmomState lean_state = qmomkit::CqmomPreparedCase{std::move(lean_case)}.initial_state();
     if (lean_state.quadrature().total_nodes() != 1 || lean_state.quadrature().weights().size() != 1)
     {

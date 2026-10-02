@@ -285,13 +285,13 @@ RunRecord run_reconstruction(const double delta, const std::vector<std::size_t>&
     // configuration, because the moments are produced analytically above; the
     // tensor is reduced to the moments the hierarchy actually reconstructs from.
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomLeanCase case_definition{qmomkit::extract_cqmom_moments(moments, layout),
-                                                 {}, // conditional-moment options
-                                                 {}, // QMOM options
-                                                 adaptive_branch_counts,
-                                                 qmomkit::CqmomDiagnosticLevel::detailed,
-                                                 choice.solver,
-                                                 {}}; // coordinate support
+    const qmomkit::CqmomCase case_definition{qmomkit::extract_cqmom_moments(moments, layout),
+                                             {}, // conditional-moment options
+                                             {}, // QMOM options
+                                             adaptive_branch_counts,
+                                             qmomkit::CqmomDiagnosticLevel::detailed,
+                                             choice.solver,
+                                             {}}; // coordinate support
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_definition);
     validate_successful_quadrature(result);
 

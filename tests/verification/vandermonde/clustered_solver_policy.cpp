@@ -167,7 +167,7 @@ void verify_configured_moments(const qmomkit::CqmomMomentData& configured, const
     }
 }
 
-PolicyReport verify_policy(const SolverPolicy& policy, qmomkit::CqmomLeanCase case_, const std::vector<TerminalNode>& prescribed_rule,
+PolicyReport verify_policy(const SolverPolicy& policy, qmomkit::CqmomCase case_, const std::vector<TerminalNode>& prescribed_rule,
                            const qmomkit::RawMomentTensor& prescribed_moments)
 {
     case_.vandermonde_solver = policy.requested;
@@ -243,7 +243,7 @@ int main(const int argc, char** argv)
 
     const std::vector<TerminalNode> prescribed_rule = prescribed_terminal_rule();
     const qmomkit::RawMomentTensor prescribed_moments = moments_from_terminal_rule(prescribed_rule);
-    const auto configured = qmomkit::config::load_cqmom_lean(std::filesystem::path(argv[1]));
+    const auto configured = qmomkit::config::load_cqmom(std::filesystem::path(argv[1]));
     require(configured.ok(), configured.error());
     require(configured.value().vandermonde_solver == qmomkit::VandermondeSolver::automatic,
             "Clustered solver-policy configuration did not preserve the automatic policy.");

@@ -101,7 +101,7 @@ quadrature with `compute_cqmom(CqmomPreparedCase)`. If the distribution evolves
 in time, the same case can create a `CqmomState` for phase-space evolution.
 Users on this path do not manage internal branch-local storage, tensor extents,
 or required moment indices. Callers that need direct control can assemble the
-required moments themselves and use an explicit `CqmomLeanCase`.
+required moments themselves and use an explicit `CqmomCase`.
 
 ### Starting from a full moment tensor
 
@@ -145,7 +145,7 @@ this data either by extracting from a `RawMomentTensor` or by validating
 a selected raw-moment result produced elsewhere. The public case type named:
 
 ```text
-CqmomLeanCase
+CqmomCase
 ```
 
 accepts `CqmomMomentData` directly for callers that can produce the lean moment
@@ -179,7 +179,7 @@ Explicit representation workflows perform full metadata and value validation
 before reconstruction:
 
 - user-provided `CqmomMomentData`;
-- explicit `CqmomLeanCase`.
+- explicit `CqmomCase`.
 
 These paths validate hierarchy consistency, conditioning order, the required
 fixed CQMOM moment layout, value count, and finite moment values. Extracting
@@ -206,7 +206,7 @@ a dynamic fallback. Case and state copies share the immutable owner; a state
 can therefore outlive its case without retaining mutable aliases.
 
 Adaptive normal cases retain the dynamic branch-layout path because their
-active topology is runtime data. Explicit `CqmomLeanCase` reconstruction
+active topology is runtime data. Explicit `CqmomCase` reconstruction
 likewise remains dynamic. Neither path uses a
 process-wide cache or lazy initialization.
 
@@ -411,7 +411,7 @@ controls:
 
 The adaptive branch-count policy is available through the normal
 `CqmomPreparedCase`/`CqmomState` workflow and through the explicit
-`CqmomLeanCase` workflow.
+`CqmomCase` workflow.
 
 When adaptive branch counts are disabled, recursive CQMOM expects fixed
 rectangular output storage. In that mode, adaptive Wheeler is rejected because
@@ -606,7 +606,7 @@ The public CQMOM API is declared in `<qmomkit/cqmom.hpp>`:
 
 ```cpp
 qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomPreparedCase& cqmom_prepared_case);
-qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomLeanCase& lean_case);
+qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomCase& cqmom_case);
 ```
 
 Public CQMOM concepts include:
@@ -614,7 +614,7 @@ Public CQMOM concepts include:
 - `compute_cqmom`
 - `CqmomPreparedCase`
 - `CqmomState`
-- `CqmomLeanCase`
+- `CqmomCase`
 - `CqmomResult`
 - `CqmomQuadrature`
 - `CqmomDiagnostics`
@@ -631,7 +631,7 @@ reconstruction policies; a state is created from the case when users choose
 CQMOM phase-space evolution. This workflow does not expose how the moments are
 stored.
 
-`CqmomLeanCase` bundles the required CQMOM moment data, the conditional-moment
+`CqmomCase` bundles the required CQMOM moment data, the conditional-moment
 and QMOM/Wheeler options, and the adaptive branch-count and diagnostic
 controls. It is the public case type for callers that produce the required
 CQMOM moments directly, including those that select them from a full tensor

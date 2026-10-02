@@ -242,7 +242,7 @@ qmomkit::RawMomentTensor one_dimensional_cqmom_moments(const std::size_t configu
 
 qmomkit::CqmomState one_dimensional_adaptive_cqmom_state(const qmomkit::CqmomMomentData& moments)
 {
-    qmomkit::CqmomLeanCase lean_case{moments, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic};
+    qmomkit::CqmomCase lean_case{moments, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic};
     return qmomkit::internal::CqmomConstructionAccess::create_state(lean_case);
 }
 
@@ -315,8 +315,8 @@ TestCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const TestCqmomPhas
         return TestCqmomPhaseSpaceEvolutionResult{lean_state, std::nullopt, PhaseSpaceEvolutionStatus::invalid_input, std::move(diagnostics),
                                                   t,          message};
     }
-    CqmomLeanCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
-                            options.diagnostic_level, options.vandermonde_solver};
+    CqmomCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
+                        options.diagnostic_level, options.vandermonde_solver};
     CqmomState state = internal::CqmomConstructionAccess::create_state(lean_case);
     const CqmomPhaseSpaceEvolutionResult result =
         advance_cqmom_phase_space(state, t, time_step, velocity, source, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
@@ -344,8 +344,8 @@ TestCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const TestCqmomPhas
         return TestCqmomPhaseSpaceEvolutionResult{lean_state, std::nullopt, PhaseSpaceEvolutionStatus::invalid_input, std::move(diagnostics),
                                                   t,          message};
     }
-    CqmomLeanCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
-                            options.diagnostic_level, options.vandermonde_solver};
+    CqmomCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
+                        options.diagnostic_level, options.vandermonde_solver};
     CqmomState state = internal::CqmomConstructionAccess::create_state(lean_case);
     const CqmomPhaseSpaceEvolutionResult result =
         advance_cqmom_phase_space(state, t, time_step, velocity, source, boundary, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
@@ -2630,7 +2630,7 @@ void test_adaptive_state_bounded_support_rejects_post_source_growth()
     qmomkit::CqmomCoordinateSupport support(2);
     support[0] = qmomkit::AbscissaBounds{0.0, 1.0};
 
-    qmomkit::CqmomLeanCase lean_case{initial_required, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic};
+    qmomkit::CqmomCase lean_case{initial_required, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic};
     lean_case.coordinate_support = support;
     const qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(lean_case);
     const qmomkit::PhaseSpaceVelocity zero_velocity =
@@ -2821,7 +2821,7 @@ void test_fixed_state_phase_space_evolution_does_not_store_adaptive_branch_count
 void test_adaptive_state_rejects_duplicate_active_count_metadata()
 {
     const qmomkit::CqmomState good_state = adaptive_cqmom_prepared_case().initial_state();
-    const qmomkit::CqmomLeanCase& lean_case = qmomkit::internal::CqmomConstructionAccess::state_definition(good_state);
+    const qmomkit::CqmomCase& lean_case = qmomkit::internal::CqmomConstructionAccess::state_definition(good_state);
     std::vector<qmomkit::CqmomActiveBranchCount> bad_counts = good_state.active_branch_counts();
     assert(!bad_counts.empty());
     bad_counts.push_back(bad_counts.front());
@@ -2846,7 +2846,7 @@ void test_adaptive_state_rejects_duplicate_active_count_metadata()
 void test_adaptive_state_rejects_missing_active_count_metadata()
 {
     const qmomkit::CqmomState good_state = adaptive_cqmom_prepared_case().initial_state();
-    const qmomkit::CqmomLeanCase& lean_case = qmomkit::internal::CqmomConstructionAccess::state_definition(good_state);
+    const qmomkit::CqmomCase& lean_case = qmomkit::internal::CqmomConstructionAccess::state_definition(good_state);
     std::vector<qmomkit::CqmomActiveBranchCount> bad_counts = good_state.active_branch_counts();
     assert(!bad_counts.empty());
     bad_counts.pop_back();
@@ -3219,8 +3219,8 @@ void test_cqmom_phase_space_evolution_vandermonde_policy_independent_of_diagnost
          {qmomkit::CqmomDiagnosticLevel::none, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::CqmomDiagnosticLevel::detailed})
     {
         const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-        const qmomkit::CqmomLeanCase case_{qmomkit::extract_cqmom_moments(moments, layout), {}, {}, false, level,
-                                           qmomkit::VandermondeSolver::bjorck_pereyra};
+        const qmomkit::CqmomCase case_{qmomkit::extract_cqmom_moments(moments, layout), {}, {}, false, level,
+                                       qmomkit::VandermondeSolver::bjorck_pereyra};
 
         const qmomkit::CqmomPhaseSpaceEvolutionResult evolved = qmomkit::advance_cqmom_phase_space(
             qmomkit::internal::CqmomConstructionAccess::create_state(case_), 0.0, 0.1, zero_velocity, zero_source, options);

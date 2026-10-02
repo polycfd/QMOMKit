@@ -20,7 +20,7 @@ class CqmomPreparedCase;
 class CqmomQuadrature;
 class CqmomState;
 struct CqmomResult;
-struct CqmomLeanCase;
+struct CqmomCase;
 struct SelectedRawMomentResult;
 
 namespace internal
@@ -79,7 +79,7 @@ public:
     [[nodiscard]] std::vector<double> node(MultiIndexView node_index) const;
 
 private:
-    friend CqmomResult compute_cqmom(const CqmomLeanCase& lean_case);
+    friend CqmomResult compute_cqmom(const CqmomCase& cqmom_case);
     friend class internal::CqmomConstructionAccess;
 
     CqmomQuadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights, std::vector<std::vector<double>> abscissas,
@@ -199,7 +199,7 @@ struct CqmomMomentData
  * layout index. This path avoids requiring a full rectangular raw moment
  * tensor.
  */
-struct CqmomLeanCase
+struct CqmomCase
 {
     CqmomMomentData moments;
     ConditionalMomentOptions conditional_options;
@@ -257,15 +257,15 @@ private:
  * addition the recursive branch structure implied by the phase-space
  * hierarchy. Building that structure once lets every later reconstruction of
  * the same hierarchy skip it; that reuse is the only difference from
- * `CqmomLeanCase`, and both yield the same quadrature. Construct it from a
- * `CqmomLeanCase`, inspect the hierarchy and numerical policies through its
+ * `CqmomCase`, and both yield the same quadrature. Construct it from a
+ * `CqmomCase`, inspect the hierarchy and numerical policies through its
  * accessors, then pass it to `compute_cqmom(...)` or create an evolution state
  * with `initial_state()`.
  */
 class CqmomPreparedCase
 {
 public:
-    explicit CqmomPreparedCase(CqmomLeanCase lean_case);
+    explicit CqmomPreparedCase(CqmomCase cqmom_case);
 
     CqmomPreparedCase(const CqmomPreparedCase& other);
     CqmomPreparedCase& operator=(const CqmomPreparedCase& other);
@@ -312,12 +312,12 @@ struct CqmomResult
  * raw moment data.
  *
  * The required-moment layout must match the hierarchy stored in
- * `lean_case.moments.layout`. Adaptive branch-specific node counts are enabled
- * explicitly with `CqmomLeanCase::adaptive_branch_counts` and automatically
+ * `cqmom_case.moments.layout`. Adaptive branch-specific node counts are enabled
+ * explicitly with `CqmomCase::adaptive_branch_counts` and automatically
  * enable adaptive Wheeler for all marginal and conditional inversions.
  * Standalone QMOM remains independently configurable.
  */
-[[nodiscard]] CqmomResult compute_cqmom(const CqmomLeanCase& lean_case);
+[[nodiscard]] CqmomResult compute_cqmom(const CqmomCase& cqmom_case);
 
 /**
  * Construct a multidimensional CQMOM quadrature from the normal user-facing

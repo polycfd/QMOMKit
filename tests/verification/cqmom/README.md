@@ -2,7 +2,7 @@
 
 These cases verify the public CQMOM path from configuration loading through
 `qmomkit::compute_cqmom(...)`. Inputs are loaded from `.qmom` files in this
-directory through `qmomkit::config::load_cqmom_lean` and
+directory through `qmomkit::config::load_cqmom` and
 `qmomkit::config::load_cqmom_prepared`; the executables do not overwrite or regenerate
 configured raw moments.
 
@@ -31,7 +31,7 @@ the ordering rule explicit: the repeated `{2,0}` entry must appear twice with
 the same value, and no sorting or deduplication may occur.
 
 The `reconstruct_cqmom_moments(...)` check uses the public lean
-`CqmomMomentLayout` from `load_cqmom_lean(...)` and verifies values align with
+`CqmomMomentLayout` from `load_cqmom(...)` and verifies values align with
 `layout.required_indices`. Failure-path checks cover an unsuccessful 1D
 quadrature, a selected CQMOM request with the wrong rank, and a CQMOM layout
 whose hierarchy does not match the quadrature. These public APIs report invalid
@@ -44,7 +44,7 @@ than by returning a status object.
 paths on the independent-product case:
 
 ```text
-load_cqmom_lean(...) -> CqmomLeanCase -> compute_cqmom(...)
+load_cqmom(...) -> CqmomCase -> compute_cqmom(...)
 load_cqmom_prepared(...)      -> CqmomPreparedCase     -> compute_cqmom(...)
 ```
 
@@ -70,7 +70,7 @@ The explicit lean checks also verify the expert representation itself:
 - every selected value matches the independent-product analytical moment.
 
 These checks document that the public lean workflow does not require a dense
-tensor at compute time: `compute_cqmom(CqmomLeanCase)` receives the selected
+tensor at compute time: `compute_cqmom(CqmomCase)` receives the selected
 required moment representation and must produce the same mathematical
 quadrature as the default workflow.
 
@@ -90,7 +90,7 @@ consistent behavior for:
 
 ```text
 compute_cqmom(CqmomPreparedCase)
-compute_cqmom(CqmomLeanCase)
+compute_cqmom(CqmomCase)
 ```
 
 Both workflows must fail with `CqmomStatus::qmom_failed`, preserve an

@@ -9,7 +9,7 @@ time controls, and output setup are in `main.cpp`.
 The example follows this state-centric workflow:
 
 ```text
-CqmomLeanCase -> CqmomPreparedCase -> initial_state() -> CqmomState
+CqmomCase -> CqmomPreparedCase -> initial_state() -> CqmomState
                                                   |
                                                   v
                                  advance_cqmom_phase_space(...)

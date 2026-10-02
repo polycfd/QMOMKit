@@ -75,7 +75,7 @@ int main()
     const qmomkit::PhaseSpaceHierarchy cqmom_hierarchy({1, 1});
     const qmomkit::RawMomentTensor cqmom_moment_tensor{{2, 2}, {1.0, 0.0, 0.0, 0.0}};
 
-    qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments(cqmom_moment_tensor, qmomkit::create_cqmom_moment_layout(cqmom_hierarchy))};
+    qmomkit::CqmomCase lean_case{qmomkit::extract_cqmom_moments(cqmom_moment_tensor, qmomkit::create_cqmom_moment_layout(cqmom_hierarchy))};
     const qmomkit::CqmomResult lean_static = qmomkit::compute_cqmom(lean_case);
     if (!lean_static.ok())
     {

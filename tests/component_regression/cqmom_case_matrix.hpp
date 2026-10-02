@@ -70,6 +70,6 @@ struct EvolutionCase
 [[nodiscard]] PhaseSpaceHierarchy hierarchy_of(const StaticCase& case_);
 [[nodiscard]] RawMomentTensor dense_moments_of(const StaticCase& case_);
 [[nodiscard]] CqmomMomentData moments_of(const StaticCase& case_);
-[[nodiscard]] CqmomLeanCase lean_case_of(const StaticCase& case_);
+[[nodiscard]] CqmomCase lean_case_of(const StaticCase& case_);
 
 } // namespace qmomkit::case_matrix

@@ -180,12 +180,12 @@ std::vector<double> raw_moments_from_terminals(const std::vector<std::size_t>& e
 // reconstructs from. The tests below state their moments as tensors because
 // that is how their analytical references are computed; the parameters mirror
 // the case fields so that each call reads as the case it builds.
-qmomkit::CqmomLeanCase cqmom_case_from_tensor(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moments,
-                                              const qmomkit::ConditionalMomentOptions& conditional_options = {},
-                                              const qmomkit::QmomOptions& qmom_options = {}, const bool adaptive_branch_counts = false,
-                                              const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
-                                              const qmomkit::VandermondeSolver vandermonde_solver = qmomkit::VandermondeSolver::automatic,
-                                              qmomkit::CqmomCoordinateSupport coordinate_support = {})
+qmomkit::CqmomCase cqmom_case_from_tensor(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moments,
+                                          const qmomkit::ConditionalMomentOptions& conditional_options = {},
+                                          const qmomkit::QmomOptions& qmom_options = {}, const bool adaptive_branch_counts = false,
+                                          const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
+                                          const qmomkit::VandermondeSolver vandermonde_solver = qmomkit::VandermondeSolver::automatic,
+                                          qmomkit::CqmomCoordinateSupport coordinate_support = {})
 {
     return {qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
             conditional_options,
@@ -360,7 +360,7 @@ void test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor dense_moments = public_cqmom_promotion_moments();
-    qmomkit::CqmomLeanCase lean_case{lean_moments_from_dense(hierarchy, dense_moments)};
+    qmomkit::CqmomCase lean_case{lean_moments_from_dense(hierarchy, dense_moments)};
     const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(lean_case);
     assert(expected.ok());
 
@@ -651,7 +651,7 @@ void test_lean_cqmom_public_api_rejects_missing_values()
     qmomkit::CqmomMomentData moment_data = lean_moments_from_dense(hierarchy, {extents, indexed_values(extents)});
     moment_data.values.pop_back();
 
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{moment_data});
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomCase{moment_data});
 
     assert(!result.ok());
     assert(result.status == qmomkit::CqmomStatus::invalid_input);
@@ -665,7 +665,7 @@ void test_lean_cqmom_public_api_rejects_non_finite_values()
     qmomkit::CqmomMomentData moment_data = lean_moments_from_dense(hierarchy, {extents, indexed_values(extents)});
     moment_data.values.front() = std::numeric_limits<double>::infinity();
 
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{moment_data});
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomCase{moment_data});
 
     assert(!result.ok());
     assert(result.status == qmomkit::CqmomStatus::invalid_input);
@@ -677,7 +677,7 @@ void test_lean_cqmom_public_api_rejects_invalid_options()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const std::vector<std::size_t> extents{4, 4};
     const qmomkit::CqmomMomentData moment_data = lean_moments_from_dense(hierarchy, {extents, indexed_values(extents)});
-    qmomkit::CqmomLeanCase lean_case{moment_data};
+    qmomkit::CqmomCase lean_case{moment_data};
     lean_case.conditional_options.singular_tolerance = 0.0;
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(lean_case);
@@ -692,7 +692,7 @@ void test_lean_cqmom_public_api_rejects_incompatible_layout()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2});
     const qmomkit::PhaseSpaceHierarchy incompatible_hierarchy({2, 2, 2}, {2, 0, 1});
     const qmomkit::CqmomMomentData moment_data = lean_moments_from_dense(incompatible_hierarchy, {{4, 4, 4}, indexed_values({4, 4, 4})});
-    qmomkit::CqmomLeanCase lean_case{moment_data};
+    qmomkit::CqmomCase lean_case{moment_data};
     lean_case.moments.layout.hierarchy = hierarchy;
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(lean_case);
@@ -725,7 +725,7 @@ void test_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before
     const qmomkit::PhaseSpaceHierarchy hierarchy({node_count});
 
     const qmomkit::CqmomMomentData moments{{hierarchy, {}}, {}};
-    const qmomkit::CqmomLeanCase case_{moments};
+    const qmomkit::CqmomCase case_{moments};
     assert_cqmom_rejects_unrepresentable_required_moment_extent(case_);
 }
 
@@ -945,9 +945,9 @@ void test_cqmom_automatic_scaling_falls_back_atomically_when_preparation_is_unsa
 
     qmomkit::QmomOptions options;
     options.automatic_scaling = true;
-    const qmomkit::CqmomResult scaled = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{moments, {}, options});
+    const qmomkit::CqmomResult scaled = qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, options});
     options.automatic_scaling = false;
-    const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{moments, {}, options});
+    const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, options});
 
     assert(scaled.status == unscaled.status);
     assert(scaled.message == unscaled.message);
@@ -978,8 +978,8 @@ void test_one_dimensional_cqmom_agrees_with_qmom()
     const qmomkit::QmomResult qmom = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2);
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2});
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+    const qmomkit::CqmomResult cqmom =
+        qmomkit::compute_cqmom(qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
 
     assert(qmom.ok());
     assert(cqmom.ok());
@@ -1224,12 +1224,12 @@ void test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_coun
     const qmomkit::QmomOptions adaptive_qmom{true, 1.0e-10, 1.0e-10, 1.0e-12};
 
     const qmomkit::CqmomResult fixed = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, {}, false});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, {}, false});
     assert(fixed.ok());
     assert(!fixed.quadrature.adaptive_branch_counts_enabled());
     assert(fixed.quadrature.has_rectangular_storage());
 
-    const qmomkit::CqmomResult rejected = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{
+    const qmomkit::CqmomResult rejected = qmomkit::compute_cqmom(qmomkit::CqmomCase{
         qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, false});
     assert(!rejected.ok());
     assert(rejected.status == qmomkit::CqmomStatus::invalid_input);
@@ -1238,7 +1238,7 @@ void test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_coun
     assert(rejected.message.find("Adaptive branch-specific node counts") != std::string::npos);
     assert(rejected.message.find("adaptive_branch_counts") != std::string::npos);
 
-    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{
+    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomCase{
         qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, true});
     assert(adaptive.ok());
     assert(adaptive.quadrature.adaptive_branch_counts_enabled());
@@ -1267,7 +1267,7 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
     assert(default_result.diagnostics.empty());
     assert(default_session.snapshot().linear_algebra.condition_estimates == 0);
 
-    qmomkit::CqmomLeanCase detailed_case = default_case;
+    qmomkit::CqmomCase detailed_case = default_case;
     detailed_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
     const qmomkit::CqmomResult detailed_result = qmomkit::compute_cqmom(detailed_case);
     assert(detailed_result.ok());
@@ -1276,7 +1276,7 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
     assert(detailed_result.diagnostics.front().conditional_moment_diagnostics.residual_norm.has_value());
     assert(detailed_result.diagnostics.front().conditional_moment_diagnostics.condition_estimate.has_value());
 
-    qmomkit::CqmomLeanCase basic_case = default_case;
+    qmomkit::CqmomCase basic_case = default_case;
     basic_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     const qmomkit::CqmomResult basic_result = qmomkit::compute_cqmom(basic_case);
     assert(basic_result.ok());
@@ -1291,7 +1291,7 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
         assert(!diagnostics.conditional_moment_diagnostics.conditioning_warning);
     }
 
-    qmomkit::CqmomLeanCase none_case = default_case;
+    qmomkit::CqmomCase none_case = default_case;
     none_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::none;
     const qmomkit::CqmomResult none_result = qmomkit::compute_cqmom(none_case);
     assert(none_result.ok());

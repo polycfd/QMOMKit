@@ -535,7 +535,7 @@ void compare_cqmom_state(const qmomkit::CqmomQuadrature& quadrature, const std::
     }
 }
 
-void verify_initial_cqmom_state(const qmomkit::CqmomLeanCase& case_, const qmomkit::CqmomQuadrature& quadrature, VerificationResult& result)
+void verify_initial_cqmom_state(const qmomkit::CqmomCase& case_, const qmomkit::CqmomQuadrature& quadrature, VerificationResult& result)
 {
     const std::vector<TerminalNode> expected_nodes = expected_initial_linear_system_nodes();
     const std::vector<std::size_t> extents = case_.moments.layout.hierarchy.moment_extents();
@@ -589,7 +589,7 @@ void verify_cqmom_plan(const qmomkit::CqmomQuadrature& initial, const TimePlan& 
 VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std::filesystem::path& configuration_path)
 {
     VerificationResult result;
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         append_failure(result, "Failed to load CQMOM configuration.");

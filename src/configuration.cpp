@@ -2346,23 +2346,22 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
     return ConfigurationResult<QmomCase>{QmomCase{std::move(initialized).value(), node_count, options, std::move(abscissa_bounds)}};
 }
 
-ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialConditionSpecification& initial_condition,
-                                                          const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options,
-                                                          const bool adaptive_branch_counts, std::string source_name,
-                                                          CqmomCoordinateSupport coordinate_support)
+ConfigurationResult<CqmomCase> create_cqmom_case(const InitialConditionSpecification& initial_condition, const PhaseSpaceHierarchy& hierarchy,
+                                                 const QmomOptions& qmom_options, const bool adaptive_branch_counts, std::string source_name,
+                                                 CqmomCoordinateSupport coordinate_support)
 {
     ConfigurationResult<CqmomMomentData> initialized = initialize_cqmom_moment_data(initial_condition, hierarchy, std::move(source_name));
     if (!initialized)
     {
-        return ConfigurationResult<CqmomLeanCase>::failure(initialized.error());
+        return ConfigurationResult<CqmomCase>::failure(initialized.error());
     }
-    return ConfigurationResult<CqmomLeanCase>{CqmomLeanCase{std::move(initialized).value(),
-                                                            {},
-                                                            qmom_options,
-                                                            adaptive_branch_counts,
-                                                            CqmomDiagnosticLevel::none,
-                                                            VandermondeSolver::automatic,
-                                                            std::move(coordinate_support)}};
+    return ConfigurationResult<CqmomCase>{CqmomCase{std::move(initialized).value(),
+                                                    {},
+                                                    qmom_options,
+                                                    adaptive_branch_counts,
+                                                    CqmomDiagnosticLevel::none,
+                                                    VandermondeSolver::automatic,
+                                                    std::move(coordinate_support)}};
 }
 
 ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_cqmom_prepared_case, RawMomentTensor explicit_moments)
@@ -2386,10 +2385,10 @@ ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedC
             }
         }
 
-        CqmomLeanCase replaced_case = qmomkit::internal::CqmomConstructionAccess::case_definition(base_cqmom_prepared_case);
-        replaced_case.moments = extract_cqmom_moments(explicit_moments, layout);
+        CqmomCase replaced_cqmom_case = qmomkit::internal::CqmomConstructionAccess::case_definition(base_cqmom_prepared_case);
+        replaced_cqmom_case.moments = extract_cqmom_moments(explicit_moments, layout);
         return ConfigurationResult<CqmomPreparedCase>{qmomkit::internal::CqmomConstructionAccess::create_prepared_case(
-            std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_cqmom_prepared_case))};
+            std::move(replaced_cqmom_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_cqmom_prepared_case))};
     }
     catch (const std::exception& error)
     {
@@ -2472,29 +2471,29 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     return create_qmom_case(initial_condition.value(), node_counts[0], qmom_options.value_or(QmomOptions{}), std::move(source_name), abscissa_bounds);
 }
 
-ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(const std::string_view text, std::string source_name)
+ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::string source_name)
 {
     ParsedFile parsed = parse_file(text, source_name);
     ConfigurationResult<ParsedCqmomCaseSettings> settings = parse_cqmom_case_settings(parsed, source_name);
     if (!settings)
     {
-        return ConfigurationResult<CqmomLeanCase>::failure(settings.error());
+        return ConfigurationResult<CqmomCase>::failure(settings.error());
     }
     ConfigurationResult<InitialConditionSpecification> initial_condition = parse_cqmom_initial_condition_from_parsed(std::move(parsed), source_name);
     if (!initial_condition)
     {
-        return ConfigurationResult<CqmomLeanCase>::failure(initial_condition.error());
+        return ConfigurationResult<CqmomCase>::failure(initial_condition.error());
     }
-    ConfigurationResult<CqmomLeanCase> lean_case =
-        create_cqmom_lean_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
-                               settings.value().adaptive_branch_counts, std::move(source_name), settings.value().coordinate_support);
-    if (lean_case)
+    ConfigurationResult<CqmomCase> cqmom_case_result =
+        create_cqmom_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
+                          settings.value().adaptive_branch_counts, std::move(source_name), settings.value().coordinate_support);
+    if (cqmom_case_result)
     {
-        lean_case.value().diagnostic_level = settings.value().diagnostic_level;
-        lean_case.value().vandermonde_solver = settings.value().vandermonde_solver;
-        lean_case.value().conditional_options.moore_penrose_rcond = settings.value().moore_penrose_rcond;
+        cqmom_case_result.value().diagnostic_level = settings.value().diagnostic_level;
+        cqmom_case_result.value().vandermonde_solver = settings.value().vandermonde_solver;
+        cqmom_case_result.value().conditional_options.moore_penrose_rcond = settings.value().moore_penrose_rcond;
     }
-    return lean_case;
+    return cqmom_case_result;
 }
 
 ConfigurationResult<CqmomPreparedCase> parse_cqmom_prepared(const std::string_view text, std::string source_name)
@@ -2512,17 +2511,18 @@ ConfigurationResult<CqmomPreparedCase> parse_cqmom_prepared(const std::string_vi
         return ConfigurationResult<CqmomPreparedCase>::failure(initial_condition.error());
     }
 
-    ConfigurationResult<CqmomLeanCase> lean_case =
-        create_cqmom_lean_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
-                               settings.value().adaptive_branch_counts, source_name, settings.value().coordinate_support);
-    if (!lean_case)
+    ConfigurationResult<CqmomCase> cqmom_case_result =
+        create_cqmom_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
+                          settings.value().adaptive_branch_counts, source_name, settings.value().coordinate_support);
+    if (!cqmom_case_result)
     {
-        return ConfigurationResult<CqmomPreparedCase>::failure(lean_case.error());
+        return ConfigurationResult<CqmomPreparedCase>::failure(cqmom_case_result.error());
     }
-    lean_case.value().diagnostic_level = settings.value().diagnostic_level;
-    lean_case.value().vandermonde_solver = settings.value().vandermonde_solver;
-    lean_case.value().conditional_options.moore_penrose_rcond = settings.value().moore_penrose_rcond;
-    return ConfigurationResult<CqmomPreparedCase>{qmomkit::internal::CqmomConstructionAccess::create_prepared_case(std::move(lean_case).value())};
+    cqmom_case_result.value().diagnostic_level = settings.value().diagnostic_level;
+    cqmom_case_result.value().vandermonde_solver = settings.value().vandermonde_solver;
+    cqmom_case_result.value().conditional_options.moore_penrose_rcond = settings.value().moore_penrose_rcond;
+    return ConfigurationResult<CqmomPreparedCase>{
+        qmomkit::internal::CqmomConstructionAccess::create_prepared_case(std::move(cqmom_case_result).value())};
 }
 
 ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::string_view text, std::string source_name)
@@ -2791,9 +2791,9 @@ ConfigurationResult<QmomCase> load_qmom(const std::filesystem::path& filename)
     return load_configuration<QmomCase>(filename, parse_qmom);
 }
 
-ConfigurationResult<CqmomLeanCase> load_cqmom_lean(const std::filesystem::path& filename)
+ConfigurationResult<CqmomCase> load_cqmom(const std::filesystem::path& filename)
 {
-    return load_configuration<CqmomLeanCase>(filename, parse_cqmom_lean);
+    return load_configuration<CqmomCase>(filename, parse_cqmom);
 }
 
 ConfigurationResult<CqmomPreparedCase> load_cqmom_prepared(const std::filesystem::path& filename)

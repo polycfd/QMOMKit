@@ -406,11 +406,11 @@ evidence](initialization_and_configuration.md)
 | `parse_qmom_initial_condition` | [2310](../../../src/configuration.cpp#L2310) |
 | `parse_cqmom_initial_condition` | [2316](../../../src/configuration.cpp#L2316) |
 | `create_qmom_case` | [2322](../../../src/configuration.cpp#L2322) |
-| `create_cqmom_lean_case` | [2349](../../../src/configuration.cpp#L2349) |
-| `with_initial_moments` | [2368](../../../src/configuration.cpp#L2368), [2400](../../../src/configuration.cpp#L2400) |
-| `parse_qmom` | [2420](../../../src/configuration.cpp#L2420) |
-| `parse_cqmom_lean` | [2475](../../../src/configuration.cpp#L2475) |
-| `parse_cqmom_prepared` | [2500](../../../src/configuration.cpp#L2500) |
+| `create_cqmom_case` | [2349](../../../src/configuration.cpp#L2349) |
+| `with_initial_moments` | [2367](../../../src/configuration.cpp#L2367), [2399](../../../src/configuration.cpp#L2399) |
+| `parse_qmom` | [2419](../../../src/configuration.cpp#L2419) |
+| `parse_cqmom` | [2474](../../../src/configuration.cpp#L2474) |
+| `parse_cqmom_prepared` | [2499](../../../src/configuration.cpp#L2499) |
 | `parse_realizability_policy` | [2528](../../../src/configuration.cpp#L2528) |
 | `parse_coordinate_realizability_policies` | [2557](../../../src/configuration.cpp#L2557) |
 | `parse_phase_space_evolution_scheme` | [2577](../../../src/configuration.cpp#L2577) |
@@ -420,7 +420,7 @@ evidence](initialization_and_configuration.md)
 | `parse_output_options` | [2671](../../../src/configuration.cpp#L2671) |
 | `load_configuration` | [2777](../../../src/configuration.cpp#L2777) |
 | `load_qmom` | [2789](../../../src/configuration.cpp#L2789) |
-| `load_cqmom_lean` | [2794](../../../src/configuration.cpp#L2794) |
+| `load_cqmom` | [2794](../../../src/configuration.cpp#L2794) |
 | `load_cqmom_prepared` | [2799](../../../src/configuration.cpp#L2799) |
 | `load_output_options` | [2804](../../../src/configuration.cpp#L2804) |
 | `load_node_advection_options` | [2809](../../../src/configuration.cpp#L2809) |
@@ -966,7 +966,7 @@ contracts, and evidence](phase_space_evolution.md)
 | `advance_qmom_moment_source` | [753](../../../src/phase_space_evolution.cpp#L753), [759](../../../src/phase_space_evolution.cpp#L759) |
 | `advance_qmom_phase_space` | [766](../../../src/phase_space_evolution.cpp#L766), [773](../../../src/phase_space_evolution.cpp#L773) |
 | `initialize_cqmom_diagnostics` | [783](../../../src/phase_space_evolution.cpp#L783), [789](../../../src/phase_space_evolution.cpp#L789) |
-| `validate_lean_cqmom_moments_for_phase_space_evolution` | [794](../../../src/phase_space_evolution.cpp#L794) |
+| `validate_cqmom_moments_for_phase_space_evolution` | [794](../../../src/phase_space_evolution.cpp#L794) |
 | `validate_cqmom_state_for_phase_space_evolution` | [801](../../../src/phase_space_evolution.cpp#L801) |
 | `validate_cqmom_advection_input` | [806](../../../src/phase_space_evolution.cpp#L806) |
 | `validate_cqmom_moment_source_input` | [816](../../../src/phase_space_evolution.cpp#L816) |
@@ -976,7 +976,7 @@ contracts, and evidence](phase_space_evolution.md)
 | `cqmom_state_failure` | [878](../../../src/phase_space_evolution.cpp#L878) |
 | `cqmom_success` | [886](../../../src/phase_space_evolution.cpp#L886) |
 | `materialize_cqmom_phase_space_evolution_result` | [891](../../../src/phase_space_evolution.cpp#L891) |
-| `lean_state_from_accepted_quadrature` | [912](../../../src/phase_space_evolution.cpp#L912) |
+| `cqmom_state_from_accepted_quadrature` | [912](../../../src/phase_space_evolution.cpp#L912) |
 | `prepare_cqmom_phase_space_evolution_working_state` | [921](../../../src/phase_space_evolution.cpp#L921) |
 | `advance_cqmom_advection_stage` | [960](../../../src/phase_space_evolution.cpp#L960) |
 | `advance_cqmom_moment_source_stage` | [1019](../../../src/phase_space_evolution.cpp#L1019) |

@@ -815,7 +815,7 @@ int main()
 }
 ```
 
-For multidimensional CQMOM, build a `CqmomLeanCase` from the moments the
+For multidimensional CQMOM, build a `CqmomCase` from the moments the
 hierarchy requires. It can be promoted to a `CqmomPreparedCase`, so an
 explicitly constructed case still reaches `initial_state()` and ordinary time
 evolution. If you would rather have QMOMKit derive the required moments from a
@@ -846,7 +846,7 @@ int main()
     qmomkit::QmomOptions qmom_options;
     qmom_options.adaptive = false;
 
-    const qmomkit::CqmomLeanCase cqmom_case{
+    const qmomkit::CqmomCase cqmom_case{
         qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
         {},
         qmom_options};

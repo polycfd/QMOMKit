@@ -115,7 +115,7 @@ with a negative-sign check; `parse_double` requires full finite conversion.
 List parsers reject empty entries/trailing commas; optional-bound lists
 additionally recognize `none`.
 
-`parse_qmom`, `parse_cqmom_lean`, and `parse_cqmom_prepared` each
+`parse_qmom`, `parse_cqmom`, and `parse_cqmom_prepared` each
 call `parse_file` exactly once and share the resulting `ParsedFile` with the
 initial-condition step, instead of re-parsing the same text a second time.
 `parse_qmom_initial_condition_from_parsed` and
@@ -206,7 +206,7 @@ moments. Configured case construction uses required indices rather than
 computing an unnecessary full tensor, so it neither needs nor consults
 `initial.maximum_orders`.
 
-`create_qmom_case` and `create_cqmom_lean_case` validate structural
+`create_qmom_case` and `create_cqmom_case` validate structural
 suitability and package initialized data with numerical settings. They do not
 guarantee that `initial_state` reconstruction will succeed. The QMOM's
 large-count guard protects its own requirement; CQMOM moment extraction rejects
@@ -221,7 +221,7 @@ tensor overload exists for moment data arriving from outside QMOMKit, where
 reporting a malformed tensor as a configuration error is more useful than
 throwing.
 
-Public `parse_qmom`, `parse_cqmom_lean`, and neutral `parse_cqmom_prepared`
+Public `parse_qmom`, `parse_cqmom`, and neutral `parse_cqmom_prepared`
 compose parser, initializer, and constructor. Each `load_*` reads a file then
 invokes its corresponding parser with the filename as diagnostic source. The
 reader does not enforce a filename extension; `.qmom` is the documented

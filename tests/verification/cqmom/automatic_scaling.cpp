@@ -225,7 +225,7 @@ int run_feature_sensitive_case()
     qmomkit::QmomOptions scaled_options;
     scaled_options.adaptive = true;
     scaled_options.automatic_scaling = true;
-    const qmomkit::CqmomLeanCase scaled_case{
+    const qmomkit::CqmomCase scaled_case{
         qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, scaled_options, true};
 
     bool passed = true;
@@ -239,7 +239,7 @@ int run_feature_sensitive_case()
         passed = false;
     }
 
-    qmomkit::CqmomLeanCase unscaled_case = scaled_case;
+    qmomkit::CqmomCase unscaled_case = scaled_case;
     unscaled_case.qmom_options.automatic_scaling = false;
     const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(unscaled_case);
     const std::size_t unscaled_terminal_count = unscaled.ok() ? unscaled.quadrature.weights().size() : 0;
@@ -285,14 +285,14 @@ int run_configured_case(const std::filesystem::path& configuration_path, const s
         return 2;
     }
 
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         std::cerr << configured.error() << '\n';
         return 1;
     }
 
-    const qmomkit::CqmomLeanCase& case_ = configured.value();
+    const qmomkit::CqmomCase& case_ = configured.value();
     bool passed = case_.moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({2, 0, 1}) && case_.adaptive_branch_counts &&
                   case_.qmom_options.adaptive && case_.qmom_options.automatic_scaling;
     if (!passed)
@@ -305,7 +305,7 @@ int run_configured_case(const std::filesystem::path& configuration_path, const s
     // physical rule, while their case-level layouts are also compared to an
     // otherwise identical explicit automatic_scaling=false case.
     const qmomkit::CqmomMomentLayout required_layout = qmomkit::create_cqmom_moment_layout(case_.moments.layout.hierarchy);
-    qmomkit::CqmomLeanCase unscaled_case = case_;
+    qmomkit::CqmomCase unscaled_case = case_;
     unscaled_case.qmom_options.automatic_scaling = false;
     if (case_.moments.layout.required_indices != required_layout.required_indices ||
         unscaled_case.moments.layout.required_indices != case_.moments.layout.required_indices)

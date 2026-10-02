@@ -901,11 +901,11 @@ void test_fixed_public_terminal_paths_align_with_physical_storage()
                                                                 qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})};
     const qmomkit::PhaseSpaceHierarchy identity_hierarchy({2, 2});
     const qmomkit::CqmomResult identity = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(identity_hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(identity_hierarchy))});
     assert(identity.ok());
     assert(identity.quadrature.terminal_paths().to_conditioning_paths() == identity_paths);
 
-    const qmomkit::CqmomLeanCase cqmom_case{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))};
+    const qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     assert(result.ok());
     assert(result.quadrature.has_rectangular_storage());
@@ -1785,7 +1785,7 @@ void test_public_cqmom_bp_success_independent_of_diagnostic_level()
     for (const qmomkit::CqmomDiagnosticLevel level : diagnostic_levels())
     {
         results.push_back(
-            qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{required_moments, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra}));
+            qmomkit::compute_cqmom(qmomkit::CqmomCase{required_moments, {}, {}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra}));
     }
 
     assert(results.front().ok());

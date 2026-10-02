@@ -105,7 +105,7 @@ After source integration, reconstruct with previous active counts and
 configured adaptive growth permission. Failure is an inversion failure,
 distinct from a callback/predicate failure. On success, derive active counts
 and rebuild the stored moments from the accepted quadrature at the required
-indices. `lean_state_from_accepted_quadrature` retains policies, hierarchy,
+indices. `cqmom_state_from_accepted_quadrature` retains policies, hierarchy,
 and
 compatible prepared metadata while replacing evolving values/cache.
 

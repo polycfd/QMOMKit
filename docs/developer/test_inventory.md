@@ -732,7 +732,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_cqmom_settings_format` | `tests/unit/public_api.cpp` | `cqmom_settings_format` | Checks that the CQMOM settings summary renders adaptive branch counts in both states, every Vandermonde solver policy, and the diagnostic level. | — |
 | `unit_public_api_cqmom_diagnostics_default_bounded_support_placeholder` | `tests/unit/public_api.cpp` | `cqmom_diagnostics_default_bounded_support_placeholder` | Verifies CQMOM diagnostics default bounded support placeholder. | — |
 | `unit_public_api_cqmom_prepared_case_and_state_assignment_preserve_independent_values` | `tests/unit/public_api.cpp` | `cqmom_prepared_case_and_state_assignment_preserve_independent_values` | Checks that copy and move assignment of `CqmomPreparedCase` and `CqmomState` replace the target, leave the source and earlier copies independent, and keep sharing the prepared metadata. | — |
-| `unit_public_api_cqmom_lean_case_promotes_to_state_and_exposes_quadrature` | `tests/unit/public_api.cpp` | `cqmom_lean_case_promotes_to_state_and_exposes_quadrature` | Checks that an explicit `CqmomLeanCase` promotes to a `CqmomState` and exposes its accepted quadrature. | — |
+| `unit_public_api_cqmom_lean_case_promotes_to_state_and_exposes_quadrature` | `tests/unit/public_api.cpp` | `cqmom_lean_case_promotes_to_state_and_exposes_quadrature` | Checks that an explicit `CqmomCase` promotes to a `CqmomState` and exposes its accepted quadrature. | — |
 
 ### Configuration
 

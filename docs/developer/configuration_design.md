@@ -92,7 +92,7 @@ The main parts of configuration handling are:
   specifications into `MomentSet`, CQMOM required moments, or explicit full
   representation tensors;
 - case construction: builds `QmomCase`, `CqmomPreparedCase`, or an explicit
-  `CqmomLeanCase` from initialized moments, phase-space hierarchy, and options;
+  `CqmomCase` from initialized moments, phase-space hierarchy, and options;
 - policy extraction: parses an optional splitting scheme, evolution options,
   output options, and runtime realizability policy objects for drivers that
   choose to use them.
@@ -200,8 +200,8 @@ from `PhaseSpaceHierarchy::moment_extents()`. The derived extent in dimension
 Reconstruction consumes only the `CqmomMomentLayout` required by the hierarchy
 and conditioning order.
 
-`load_cqmom_lean(...)` exposes the explicit lean representation workflow and
-returns `CqmomLeanCase` directly for callers that intentionally manage the
+`load_cqmom(...)` exposes the explicit lean representation workflow and
+returns `CqmomCase` directly for callers that intentionally manage the
 required CQMOM moment representation.
 
 Phase-space node counts are attached to phase-space dimensions, not to
@@ -441,12 +441,12 @@ include/qmomkit/configuration.hpp
 Public configuration capabilities include:
 
 - `parse_qmom(...)` and `load_qmom(...)`;
-- `parse_cqmom_lean(...)` and `load_cqmom_lean(...)`;
+- `parse_cqmom(...)` and `load_cqmom(...)`;
 - `parse_qmom_initial_condition(...)` and
   `parse_cqmom_initial_condition(...)`;
 - `initialize_moments(...)` and `initialize_cqmom_dense_moments(...)`;
 - `initialize_cqmom_moment_data(...)`;
-- `create_qmom_case(...)` and `create_cqmom_lean_case(...)`;
+- `create_qmom_case(...)` and `create_cqmom_case(...)`;
 - `with_initial_moments(...)` for a `RawMomentTensor` or `CqmomMomentData`
   replacement;
 - `parse_phase_space_evolution_scheme(...)`;

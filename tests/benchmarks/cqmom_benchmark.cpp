@@ -179,9 +179,9 @@ CqmomRepresentationFixture make_representation_fixture(const std::size_t dimensi
     return {std::move(fixture), std::move(layout), std::move(lean_moments), std::move(indexed_moments)};
 }
 
-qmomkit::CqmomLeanCase create_case(const CqmomFixture& fixture, const std::optional<qmomkit::CqmomDiagnosticLevel> diagnostic_level = std::nullopt)
+qmomkit::CqmomCase create_case(const CqmomFixture& fixture, const std::optional<qmomkit::CqmomDiagnosticLevel> diagnostic_level = std::nullopt)
 {
-    qmomkit::CqmomLeanCase case_{
+    qmomkit::CqmomCase case_{
         qmomkit::extract_cqmom_moments({fixture.extents, fixture.moments}, qmomkit::create_cqmom_moment_layout(fixture.hierarchy)),
         {},
         fixture.qmom_options,
@@ -348,7 +348,7 @@ void set_branch_solve_counters(benchmark::State& state, const BranchSolveStats& 
 void run_cqmom_benchmark(benchmark::State& state, const CqmomFixture& fixture,
                          const std::optional<qmomkit::CqmomDiagnosticLevel> diagnostic_level = std::nullopt)
 {
-    const qmomkit::CqmomLeanCase case_ = create_case(fixture, diagnostic_level);
+    const qmomkit::CqmomCase case_ = create_case(fixture, diagnostic_level);
     const qmomkit::CqmomResult setup_check = qmomkit::compute_cqmom(case_);
     if (!setup_check.ok())
     {
@@ -409,11 +409,11 @@ void run_recursive_cqmom_application_benchmark(benchmark::State& state, const Cq
 void run_cqmom_public_lean_representation_benchmark(benchmark::State& state, const std::size_t dimensions, const std::size_t node_count)
 {
     const CqmomRepresentationFixture fixture = make_representation_fixture(dimensions, node_count);
-    qmomkit::CqmomLeanCase lean_case{fixture.lean_moments,
-                                     {},
-                                     fixture.dense_fixture.qmom_options,
-                                     fixture.dense_fixture.adaptive_branch_counts,
-                                     qmomkit::CqmomDiagnosticLevel::none};
+    qmomkit::CqmomCase lean_case{fixture.lean_moments,
+                                 {},
+                                 fixture.dense_fixture.qmom_options,
+                                 fixture.dense_fixture.adaptive_branch_counts,
+                                 qmomkit::CqmomDiagnosticLevel::none};
     const qmomkit::CqmomResult setup_check = qmomkit::compute_cqmom(lean_case);
     if (!setup_check.ok())
     {

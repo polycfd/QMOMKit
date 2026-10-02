@@ -169,11 +169,10 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * Coordinate support has the same phase-space-indexed semantics as the dense
  * factory and is carried into the resulting case/state.
  */
-[[nodiscard]] ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialConditionSpecification& initial_condition,
-                                                                        const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
-                                                                        bool adaptive_branch_counts = false,
-                                                                        std::string source_name = "<initialization>",
-                                                                        CqmomCoordinateSupport coordinate_support = {});
+[[nodiscard]] ConfigurationResult<CqmomCase> create_cqmom_case(const InitialConditionSpecification& initial_condition,
+                                                               const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
+                                                               bool adaptive_branch_counts = false, std::string source_name = "<initialization>",
+                                                               CqmomCoordinateSupport coordinate_support = {});
 
 /**
  * Create a prepared CQMOM case with replacement initial moments, taken from a
@@ -219,7 +218,7 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");
 
 /** Advanced: parse configuration into an explicit lean CQMOM case. */
-[[nodiscard]] ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(std::string_view text, std::string source_name = "<string>");
+[[nodiscard]] ConfigurationResult<CqmomCase> parse_cqmom(std::string_view text, std::string source_name = "<string>");
 
 /** Parse a current CQMOM configuration string into a prepared CQMOM case. */
 [[nodiscard]] ConfigurationResult<CqmomPreparedCase> parse_cqmom_prepared(std::string_view text, std::string source_name = "<string>");
@@ -253,7 +252,7 @@ parse_coordinate_realizability_policies(std::string_view text, std::string sourc
 [[nodiscard]] ConfigurationResult<QmomCase> load_qmom(const std::filesystem::path& filename);
 
 /** Advanced: load an explicit lean CQMOM case from exactly the requested file. */
-[[nodiscard]] ConfigurationResult<CqmomLeanCase> load_cqmom_lean(const std::filesystem::path& filename);
+[[nodiscard]] ConfigurationResult<CqmomCase> load_cqmom(const std::filesystem::path& filename);
 
 /** Load and parse a CQMOM configuration into a prepared CQMOM case from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<CqmomPreparedCase> load_cqmom_prepared(const std::filesystem::path& filename);

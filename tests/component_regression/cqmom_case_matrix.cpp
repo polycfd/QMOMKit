@@ -294,10 +294,10 @@ CqmomMomentData moments_of(const StaticCase& case_)
     return extract_cqmom_moments(dense_moments_of(case_), layout);
 }
 
-CqmomLeanCase lean_case_of(const StaticCase& case_)
+CqmomCase lean_case_of(const StaticCase& case_)
 {
-    return CqmomLeanCase{moments_of(case_),       {}, {}, case_.adaptive_branch_counts, CqmomDiagnosticLevel::basic, case_.vandermonde_solver,
-                         case_.coordinate_support};
+    return CqmomCase{moments_of(case_),       {}, {}, case_.adaptive_branch_counts, CqmomDiagnosticLevel::basic, case_.vandermonde_solver,
+                     case_.coordinate_support};
 }
 
 } // namespace qmomkit::case_matrix

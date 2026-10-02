@@ -738,15 +738,15 @@ CqmomFallbackFixture cqmom_2d_parent_n3_to_n2_fallback_fixture()
             4};
 }
 
-qmomkit::CqmomLeanCase make_lean_case(const CqmomEventFixture& fixture, const std::vector<double>& moments)
+qmomkit::CqmomCase make_lean_case(const CqmomEventFixture& fixture, const std::vector<double>& moments)
 {
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
-    qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments({fixture.extents, moments}, layout),
-                                     {},
-                                     fixture.qmom_options,
-                                     true,
-                                     qmomkit::CqmomDiagnosticLevel::none,
-                                     qmomkit::VandermondeSolver::automatic};
+    qmomkit::CqmomCase lean_case{qmomkit::extract_cqmom_moments({fixture.extents, moments}, layout),
+                                 {},
+                                 fixture.qmom_options,
+                                 true,
+                                 qmomkit::CqmomDiagnosticLevel::none,
+                                 qmomkit::VandermondeSolver::automatic};
     return lean_case;
 }
 
@@ -755,7 +755,7 @@ qmomkit::CqmomPreparedCase make_cqmom_prepared_case(const CqmomEventFixture& fix
     return qmomkit::internal::CqmomConstructionAccess::create_prepared_case(make_lean_case(fixture, moments));
 }
 
-qmomkit::CqmomLeanCase make_lean_case(const CqmomFallbackFixture& fixture)
+qmomkit::CqmomCase make_lean_case(const CqmomFallbackFixture& fixture)
 {
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
     return {qmomkit::extract_cqmom_moments({fixture.extents, fixture.moments}, layout),

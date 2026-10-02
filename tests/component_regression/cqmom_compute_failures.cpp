@@ -142,13 +142,13 @@ void verify_nonrealizable_public_workflows()
     // workflows to ensure status mapping is workflow-invariant.
     const std::string configuration = nonrealizable_cqmom_configuration();
     const auto default_case = qmomkit::config::parse_cqmom_prepared(configuration, "nonrealizable_cqmom");
-    const auto lean_case = qmomkit::config::parse_cqmom_lean(configuration, "nonrealizable_cqmom");
+    const auto lean_case = qmomkit::config::parse_cqmom(configuration, "nonrealizable_cqmom");
 
     QMOMKIT_VERIFY_CHECK(default_case.ok());
     QMOMKIT_VERIFY_CHECK(lean_case.ok());
 
     verify_nonrealizable_result("default CqmomPreparedCase", qmomkit::compute_cqmom(default_case.value()));
-    verify_nonrealizable_result("lean CqmomLeanCase", qmomkit::compute_cqmom(lean_case.value()));
+    verify_nonrealizable_result("lean CqmomCase", qmomkit::compute_cqmom(lean_case.value()));
 }
 
 void verify_bounded_abscissa_violation_reaches_wheeler()
@@ -266,15 +266,14 @@ void verify_lean_invalid_inputs(const std::string& selected_case = {})
     {
         qmomkit::CqmomMomentData missing_values = qmomkit::extract_cqmom_moments({extents, indexed_values(extents)}, layout);
         missing_values.values.pop_back();
-        verify_lean_invalid_result("lean missing required value", qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{missing_values}),
-                                   "values must match");
+        verify_lean_invalid_result("lean missing required value", qmomkit::compute_cqmom(qmomkit::CqmomCase{missing_values}), "values must match");
     }
 
     if (selected_case.empty() || selected_case == "lean_nonfinite_value")
     {
         qmomkit::CqmomMomentData nonfinite_values = qmomkit::extract_cqmom_moments({extents, indexed_values(extents)}, layout);
         nonfinite_values.values[0] = std::numeric_limits<double>::quiet_NaN();
-        verify_lean_invalid_result("lean non-finite value", qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{nonfinite_values}), "finite");
+        verify_lean_invalid_result("lean non-finite value", qmomkit::compute_cqmom(qmomkit::CqmomCase{nonfinite_values}), "finite");
     }
 
     if (selected_case.empty() || selected_case == "lean_incompatible_layout")
@@ -283,7 +282,7 @@ void verify_lean_invalid_inputs(const std::string& selected_case = {})
         const qmomkit::CqmomMomentLayout incompatible_layout = qmomkit::create_cqmom_moment_layout(incompatible_hierarchy);
         qmomkit::CqmomMomentData incompatible = qmomkit::extract_cqmom_moments({{4, 4, 4}, indexed_values({4, 4, 4})}, incompatible_layout);
         incompatible.layout.hierarchy = qmomkit::PhaseSpaceHierarchy({2, 2, 2});
-        verify_lean_invalid_result("lean incompatible layout", qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{incompatible}), "layout");
+        verify_lean_invalid_result("lean incompatible layout", qmomkit::compute_cqmom(qmomkit::CqmomCase{incompatible}), "layout");
     }
 }
 
@@ -300,7 +299,7 @@ void verify_adaptive_policy_rejection()
     const std::vector<double> moments = raw_moments_from_terminals(extents, weights, abscissas);
     const qmomkit::QmomOptions adaptive_qmom{true, 1.0e-10, 1.0e-10, 1.0e-12};
 
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomCase{
         qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, false});
 
     QMOMKIT_VERIFY_CHECK(!result.ok());

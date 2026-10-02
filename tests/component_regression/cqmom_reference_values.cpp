@@ -257,7 +257,7 @@ void check_prepared_path_agrees(const qmomkit::CqmomResult& direct, const qmomki
 
 void run_static_case(const qmomkit::case_matrix::StaticCase& case_)
 {
-    const qmomkit::CqmomLeanCase explicit_case = qmomkit::case_matrix::lean_case_of(case_);
+    const qmomkit::CqmomCase explicit_case = qmomkit::case_matrix::lean_case_of(case_);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(explicit_case);
     QMOMKIT_VERIFY_CHECK(result.ok());
 

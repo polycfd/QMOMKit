@@ -22,16 +22,16 @@ using CqmomDenseMomentInitializer =
 using CqmomMomentDataInitializer = qmomkit::config::ConfigurationResult<qmomkit::CqmomMomentData> (*)(
     const qmomkit::config::InitialConditionSpecification&, const qmomkit::PhaseSpaceHierarchy&, std::string);
 
-using CqmomLeanCaseFactory = qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase> (*)(const qmomkit::config::InitialConditionSpecification&,
-                                                                                              const qmomkit::PhaseSpaceHierarchy&,
-                                                                                              const qmomkit::QmomOptions&, bool, std::string,
-                                                                                              qmomkit::CqmomCoordinateSupport);
+using CqmomCaseFactory = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase> (*)(const qmomkit::config::InitialConditionSpecification&,
+                                                                                      const qmomkit::PhaseSpaceHierarchy&,
+                                                                                      const qmomkit::QmomOptions&, bool, std::string,
+                                                                                      qmomkit::CqmomCoordinateSupport);
 
-using CqmomLeanCaseParser = qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase> (*)(std::string_view, std::string);
+using CqmomCaseParser = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase> (*)(std::string_view, std::string);
 
 using CqmomPreparedCaseParser = qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(std::string_view, std::string);
 
-using CqmomLeanCaseLoader = qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase> (*)(const std::filesystem::path&);
+using CqmomCaseLoader = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase> (*)(const std::filesystem::path&);
 
 using CqmomPreparedCaseLoader = qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(const std::filesystem::path&);
 
@@ -47,13 +47,13 @@ CqmomDenseMomentInitializer cqmom_dense_moment_initializer = qmomkit::config::in
 
 CqmomMomentDataInitializer cqmom_moment_data_initializer = qmomkit::config::initialize_cqmom_moment_data;
 
-CqmomLeanCaseFactory cqmom_lean_case_factory = qmomkit::config::create_cqmom_lean_case;
+CqmomCaseFactory cqmom_case_factory = qmomkit::config::create_cqmom_case;
 
-CqmomLeanCaseParser cqmom_lean_case_parser = qmomkit::config::parse_cqmom_lean;
+CqmomCaseParser cqmom_case_parser = qmomkit::config::parse_cqmom;
 
 CqmomPreparedCaseParser cqmom_prepared_case_parser = qmomkit::config::parse_cqmom_prepared;
 
-CqmomLeanCaseLoader cqmom_lean_case_loader = qmomkit::config::load_cqmom_lean;
+CqmomCaseLoader cqmom_case_loader = qmomkit::config::load_cqmom;
 
 CqmomPreparedCaseLoader cqmom_prepared_case_loader = qmomkit::config::load_cqmom_prepared;
 

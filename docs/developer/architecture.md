@@ -95,7 +95,7 @@ workflows. Normal CQMOM phase-space evolution creates a `CqmomState` from
 `CqmomPreparedCase` and advances it with `advance_cqmom_phase_space(...)`. Both
 case types hold the moments the hierarchy reconstructs from; a prepared case
 also holds the recursive branch structure that hierarchy implies, so repeated
-reconstructions reuse it instead of rebuilding it. `CqmomLeanCase` with
+reconstructions reuse it instead of rebuilding it. `CqmomCase` with
 `CqmomMomentLayout` and `CqmomMomentData` is the case a caller builds directly,
 for static inversion, specialized initialization, validation and expert
 workflows.
@@ -116,7 +116,7 @@ implementation comments:
 | Quadrature | Discrete representation reconstructed from moments, such as weights and abscissas in `QmomResult`, `Quadrature1D`, or `CqmomQuadrature`. |
 
 `QmomCase` and `CqmomPreparedCase` are problem definitions, not moment
-requests. `CqmomLeanCase` is the case an expert caller builds directly when it
+requests. `CqmomCase` is the case an expert caller builds directly when it
 already owns the required moments; it does not replace `CqmomPreparedCase` and
 `CqmomState` as the normal CQMOM workflow abstractions.
 

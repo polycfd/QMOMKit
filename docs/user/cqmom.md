@@ -36,7 +36,7 @@ internal storage. That description can come from a `.qmom` configuration file
 or from direct C++ setup. In either case, users name or order the coordinates,
 set the requested node counts, choose the conditioning order, and describe the
 initial moments. File-based setup builds a `CqmomPreparedCase`; direct C++
-setup can build a `CqmomLeanCase` when the application assembles the required
+setup can build a `CqmomCase` when the application assembles the required
 moments itself, then promote it to the normal `CqmomPreparedCase` workflow.
 
 Both case types hold the same moments and produce the same quadrature. A
@@ -53,11 +53,11 @@ configuration file:
 
 direct API:
     C++ setup
-    -> CqmomLeanCase
+    -> CqmomCase
     -> CqmomPreparedCase
 
 reconstruction:
-    CqmomPreparedCase or CqmomLeanCase
+    CqmomPreparedCase or CqmomCase
     -> compute_cqmom(...)
     -> CqmomResult / CqmomQuadrature
     -> inspect / evaluate / output
@@ -71,7 +71,7 @@ normal optional phase-space evolution:
 At the user level, this means:
 
 1. Define the CQMOM setup in a `.qmom` file or directly in C++.
-2. Load it with `load_cqmom_prepared(...)`, or construct a `CqmomLeanCase`
+2. Load it with `load_cqmom_prepared(...)`, or construct a `CqmomCase`
    and pass it to `CqmomPreparedCase` in C++.
 3. Keep the case object as the configured problem definition.
 4. Call `compute_cqmom(...)` to compute the initial quadrature.
@@ -94,9 +94,9 @@ physical coordinates. Raw moments, weights, callbacks, states, and configured
 coordinate supports keep their physical meaning.
 
 `CqmomPreparedCase` is the immutable setup produced by the normal configuration
-loader or by promoting a `CqmomLeanCase`. Normal CQMOM phase-space evolution
+loader or by promoting a `CqmomCase`. Normal CQMOM phase-space evolution
 creates `CqmomState` from `CqmomPreparedCase` and advances it with
-`advance_cqmom_phase_space(...)`. `CqmomLeanCase` also remains available for
+`advance_cqmom_phase_space(...)`. `CqmomCase` also remains available for
 static inversion with `compute_cqmom(...)`. In all cases, `compute_cqmom(...)`
 returns quadrature; it does not return a phase-space evolution state.
 
@@ -428,7 +428,7 @@ const qmomkit::RawMomentTensor moments{
         1.121875, 0.493625, 0.475675, 0.622865,
     }};
 
-const qmomkit::CqmomLeanCase case_{
+const qmomkit::CqmomCase case_{
     qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy))};
 const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
 ```
@@ -446,7 +446,7 @@ Some applications can produce exactly the raw moments required by a CQMOM
 hierarchy and want direct control over that compact required-moment
 representation. In those cases, use `CqmomMomentLayout` to describe the
 required moment multi-indices, store values in `CqmomMomentData`, and construct
-`CqmomLeanCase` explicitly.
+`CqmomCase` explicitly.
 
 The explicit lean representation workflow is an expert workflow for callers
 that intentionally manage the required CQMOM moment representation. Lean is not

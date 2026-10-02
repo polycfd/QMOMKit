@@ -137,7 +137,7 @@ and evidence](state_and_representations.md)
 | `CqmomQuadrature::adaptive_branch_counts_enabled` | [64](../../../include/qmomkit/cqmom.hpp#L64) |
 | `CqmomQuadrature::has_rectangular_storage` | [68](../../../include/qmomkit/cqmom.hpp#L68) |
 | `CqmomQuadrature::terminal_paths` | [72](../../../include/qmomkit/cqmom.hpp#L72) |
-| `CqmomResult::ok` | [321](../../../include/qmomkit/cqmom.hpp#L321) |
+| `CqmomResult::ok` | [328](../../../include/qmomkit/cqmom.hpp#L328) |
 | `CqmomQuadrature::hierarchy` | [44](../../../include/qmomkit/cqmom.hpp#L44) |
 
 ### `include/qmomkit/distributions.hpp`

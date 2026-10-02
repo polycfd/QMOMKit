@@ -101,7 +101,7 @@ quadrature with `compute_cqmom(CqmomPreparedCase)`. If the distribution evolves
 in time, the same case can create a `CqmomState` for phase-space evolution.
 Users on this path do not manage internal branch-local storage, tensor extents,
 or required moment indices. Callers that need direct control can assemble the
-required moments themselves and use an explicit `CqmomCase`.
+required moments themselves, build a `CqmomCase` from them, and prepare it.
 
 ### Starting from a full moment tensor
 
@@ -117,13 +117,13 @@ values[flatten_multi_index(alpha, extents)] == m_alpha
 Recursive CQMOM does not require every entry of that rectangle, so the
 extraction both narrows the data and checks it: a tensor of the wrong rank, the
 wrong size, or one that omits a required moment is rejected there, before any
-case is built. `config::with_initial_moments(case, tensor)` performs the same
-selection and reports those problems as a configuration error instead of
-throwing.
+case is built. `config::with_initial_moments(cqmom_prepared_case, tensor)`
+performs the same selection and reports those problems as a configuration error
+instead of throwing.
 
-### Explicit lean representation workflow
+### Required moment set
 
-The lean root representation is described by:
+The required moment set is described by:
 
 ```text
 CqmomMomentLayout
@@ -148,10 +148,10 @@ a selected raw-moment result produced elsewhere. The public case type named:
 CqmomCase
 ```
 
-accepts `CqmomMomentData` directly for callers that can produce the lean moment
-set directly.
+accepts `CqmomMomentData` directly for callers that can produce the required
+moment set directly.
 
-Inside recursive reconstruction, lean moment data is adapted at the root
+Inside recursive reconstruction, the moment data is adapted at the root
 boundary to:
 
 ```text
@@ -205,10 +205,11 @@ graph. Missing or incompatible metadata is an internal contract violation, not
 a dynamic fallback. Case and state copies share the immutable owner; a state
 can therefore outlive its case without retaining mutable aliases.
 
-Adaptive normal cases retain the dynamic branch-layout path because their
-active topology is runtime data. Explicit `CqmomCase` reconstruction
-likewise remains dynamic. Neither path uses a
-process-wide cache or lazy initialization.
+Adaptive prepared cases build the same metadata, widened to every node count a
+branch can reach, so their reconstructions reuse it as well and record no
+dynamic branch-layout build. Explicit `CqmomCase` reconstruction builds the
+branch layout dynamically on each call. Neither path uses a process-wide cache
+or lazy initialization.
 
 Reusing setup information does not mean unchecked numerical data. These paths
 still validate evolving moment values, vector sizes, finite values, runtime
@@ -633,9 +634,11 @@ stored.
 
 `CqmomCase` bundles the required CQMOM moment data, the conditional-moment
 and QMOM/Wheeler options, and the adaptive branch-count and diagnostic
-controls. It is the public case type for callers that produce the required
-CQMOM moments directly, including those that select them from a full tensor
-with `extract_cqmom_moments(...)`.
+controls. It mirrors `QmomCase` and is the case definition from which a
+`CqmomPreparedCase` is built, for callers that build or edit a case in code,
+including those that select the required moments from a full tensor with
+`extract_cqmom_moments(...)`. Reconstructing it or creating a state from it
+directly rebuilds the branch structure on every call.
 
 `CqmomMomentLayout` and `CqmomMomentData` are public data-transfer types for
 the required CQMOM moments. They are not intended to expose

@@ -157,8 +157,8 @@ struct CqmomActiveBranchCount
 };
 
 /**
- * Advanced explicit-representation layout for the raw moments required by
- * fixed-node recursive CQMOM reconstruction.
+ * Layout of the raw moments that fixed-node recursive CQMOM reconstruction
+ * requires.
  *
  * The hierarchy owns phase-space dimensions, node counts, and conditioning
  * order. `required_indices` stores phase-space-order raw moment multi-indices
@@ -172,12 +172,10 @@ struct CqmomMomentLayout
 };
 
 /**
- * Advanced explicit lean representation values for the raw moments identified
- * by a `CqmomMomentLayout`.
+ * Values of the raw moments identified by a `CqmomMomentLayout`.
  *
- * `values[i]` stores the raw moment for `layout.required_indices[i]`. This
- * representation stores only moments required by fixed-node recursive CQMOM
- * reconstruction.
+ * `values[i]` stores the raw moment for `layout.required_indices[i]`. Only the
+ * moments required by fixed-node recursive CQMOM reconstruction are stored.
  */
 struct CqmomMomentData
 {
@@ -191,13 +189,19 @@ struct CqmomMomentData
 };
 
 /**
- * Advanced explicit lean representation for CQMOM inversion and phase-space
- * evolution from required CQMOM moments.
+ * CQMOM case definition: the initial moments and every reconstruction setting,
+ * in an open struct that mirrors `QmomCase`.
+ *
+ * Build or edit a case here, then construct a `CqmomPreparedCase` from it,
+ * which is the normal CQMOM workflow. A case can also be passed to
+ * `compute_cqmom(...)` or create a state with `initial_state()` directly. Each
+ * such call builds the recursive branch structure again, which costs about as
+ * much as preparing the case once, but the structure is then not shared with
+ * any later call or state.
  *
  * `moments.layout` supplies the hierarchy, conditioning order, and required
  * phase-space-order raw moment indices. `moments.values` stores one value per
- * layout index. This path avoids requiring a full rectangular raw moment
- * tensor.
+ * layout index, so no full rectangular raw moment tensor is needed.
  */
 struct CqmomCase
 {
@@ -214,11 +218,11 @@ struct CqmomCase
      * canonicalize stored moments from the accepted quadrature.
      *
      * Each call builds the recursive branch structure for the hierarchy and
-     * hands it to the new state, which reuses it in every later step. To create
-     * states for many sets of moments on one hierarchy, build one
-     * `CqmomPreparedCase` and derive each case from it with
-     * `config::with_initial_moments(...)`, which keeps its branch structure;
-     * for the same moments both routes give the same state. Throws
+     * hands it to the new state, which reuses it in every later step. A state
+     * created by `CqmomPreparedCase::initial_state()` shares the structure the
+     * prepared case already holds instead, so prefer that route whenever more
+     * than one state is created on a hierarchy. For the same moments both
+     * routes give the same state. Throws
      * `std::runtime_error` when the initial moments cannot be reconstructed and
      * `std::invalid_argument` when `moments.layout` is not the required layout
      * of its hierarchy.
@@ -230,10 +234,10 @@ struct CqmomCase
  * User-facing mutable CQMOM runtime state.
  *
  * A state owns the current CQMOM moments and reconstruction policies. Normal
- * CQMOM phase-space evolution creates this state with `initial_state()` from a
- * `CqmomCase` or a `CqmomPreparedCase`; its accepted terminal quadrature is
- * available through `quadrature()`. The state can be passed to
- * `advance_cqmom_phase_space(...)`.
+ * CQMOM phase-space evolution creates this state with
+ * `CqmomPreparedCase::initial_state()`; `CqmomCase::initial_state()` creates
+ * the same state. Its accepted terminal quadrature is available through
+ * `quadrature()`. The state can be passed to `advance_cqmom_phase_space(...)`.
  */
 class CqmomState
 {
@@ -268,16 +272,19 @@ private:
 };
 
 /**
- * CQMOM case that carries prepared reconstruction structure.
+ * The normal CQMOM case: initial moments and reconstruction settings together
+ * with the prepared recursive branch structure.
  *
- * A prepared case owns the initial moments and reconstruction options, and in
- * addition the recursive branch structure implied by the phase-space
- * hierarchy. Building that structure once lets every later reconstruction of
- * the same hierarchy skip it; that reuse is the only difference from
- * `CqmomCase`, and both yield the same quadrature. Construct it from a
- * `CqmomCase`, inspect the hierarchy and numerical policies through its
- * accessors, then pass it to `compute_cqmom(...)` or create an evolution state
- * with `initial_state()`.
+ * The branch structure follows from the phase-space hierarchy and the
+ * adaptive-branch setting alone. A prepared case builds it once, and every
+ * reconstruction, every state created with `initial_state()`, and every case
+ * derived with `config::with_initial_moments(...)` shares it instead of
+ * building it again. That reuse is the only difference from `CqmomCase`, and
+ * both yield the same quadrature. Load a prepared case with
+ * `config::load_cqmom_prepared(...)` or construct it from a `CqmomCase`,
+ * inspect the hierarchy and numerical policies through its accessors, then pass
+ * it to `compute_cqmom(...)` or create an evolution state with
+ * `initial_state()`.
  */
 class CqmomPreparedCase
 {
@@ -325,20 +332,26 @@ struct CqmomResult
 };
 
 /**
- * Advanced explicit lean-representation static CQMOM inversion from required
- * raw moment data.
+ * Construct a multidimensional CQMOM quadrature directly from a CQMOM case
+ * definition.
  *
- * The required-moment layout must match the hierarchy stored in
- * `cqmom_case.moments.layout`. Adaptive branch-specific node counts are enabled
- * explicitly with `CqmomCase::adaptive_branch_counts` and automatically
- * enable adaptive Wheeler for all marginal and conditional inversions.
- * Standalone QMOM remains independently configurable.
+ * Each call checks the moment layout and builds the recursive branch structure
+ * again; reconstructing from a `CqmomPreparedCase` does neither. The
+ * required-moment layout must match the hierarchy stored in
+ * `cqmom_case.moments.layout`; a layout that does not is reported as a failed
+ * result. Adaptive branch-specific node counts are enabled explicitly with
+ * `CqmomCase::adaptive_branch_counts` and automatically enable adaptive Wheeler
+ * for all marginal and conditional inversions. Standalone QMOM remains
+ * independently configurable.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomCase& cqmom_case);
 
 /**
- * Construct a multidimensional CQMOM quadrature from the normal user-facing
- * CQMOM case.
+ * Construct a multidimensional CQMOM quadrature from a prepared CQMOM case, the
+ * normal CQMOM workflow.
+ *
+ * The prepared branch structure is reused, so repeated reconstructions on one
+ * hierarchy do not rebuild it.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomPreparedCase& cqmom_prepared_case);
 

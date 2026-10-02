@@ -224,8 +224,9 @@ throwing. The `CqmomCase` overloads hold the validation. The
 the replaced case the base case's prepared metadata through
 `with_prepared_metadata_of`, so both kinds of base case report the same errors.
 
-Public `parse_qmom`, `parse_cqmom`, and neutral `parse_cqmom_prepared`
-compose parser, initializer, and constructor. Each `load_*` reads a file then
+Public `parse_qmom`, `parse_cqmom`, and `parse_cqmom_prepared` compose parser,
+initializer, and constructor; `parse_cqmom_prepared` additionally prepares the
+case. Each `load_*` reads a file then
 invokes its corresponding parser with the filename as diagnostic source. The
 reader does not enforce a filename extension; `.qmom` is the documented
 configuration convention.

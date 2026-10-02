@@ -175,7 +175,8 @@ This is the recommended user-facing loading path exposed by
 representation and reconstruction policies while avoiding any distinction
 between analytical and explicit moment input in ordinary use.
 
-The explicit lean representation workflow maps parsed CQMOM setup data to:
+Both CQMOM loaders initialize the moments the same way, mapping parsed CQMOM
+setup data to:
 
 ```text
 InitialConditionSpecification
@@ -190,7 +191,7 @@ exactly `CqmomMomentLayout::required_indices` from
 `create_cqmom_moment_layout(...)` and adapts the selected result to
 `CqmomMomentData`. This path does not construct a dense
 `RawMomentTensor`; `initial.maximum_orders` has no effect on the requested
-lean moment layout.
+moment layout.
 
 Analytical independent-product configuration uses explicit
 `initial.maximum_orders` when present; when omitted, the tensor extents come
@@ -200,9 +201,9 @@ from `PhaseSpaceHierarchy::moment_extents()`. The derived extent in dimension
 Reconstruction consumes only the `CqmomMomentLayout` required by the hierarchy
 and conditioning order.
 
-`load_cqmom(...)` exposes the explicit lean representation workflow and
-returns `CqmomCase` directly for callers that intentionally manage the
-required CQMOM moment representation.
+`load_cqmom(...)` returns the same configuration as an editable `CqmomCase`
+definition, for callers that change settings in code before preparing it;
+`load_cqmom_prepared(...)` returns that definition already prepared.
 
 Phase-space node counts are attached to phase-space dimensions, not to
 conditioning levels. If `conditioning_order` is omitted, identity order is
@@ -235,17 +236,17 @@ configuration preserves the public default `CqmomDiagnosticLevel::none`.
 
 ### Immutable explicit-moment replacement
 
-`config::with_initial_moments(const CqmomCase&, RawMomentTensor)` is the
-programmatic boundary for replacing the explicit initial tensor of an existing
-case. It keeps the base case's settings and replaces only its initial moments,
-deriving the fixed layout from the base hierarchy and extracting its required
-values. The base case is unchanged.
-
-The overloads taking a `CqmomPreparedCase` validate and replace through the
-`CqmomCase` overloads, so both kinds of base case report the same errors. They
-then give the new case the base case's prepared metadata: the hierarchy is
-unchanged, so every case derived from one prepared case shares one recursive
+`config::with_initial_moments(const CqmomPreparedCase&, RawMomentTensor)` is
+the programmatic boundary for replacing the explicit initial tensor of an
+existing case. It keeps the base case's settings and prepared metadata and
+replaces only its initial moments, deriving the fixed layout from the base
+hierarchy and extracting its required values. The base case is unchanged. So is
+the hierarchy, so every case derived from one prepared case shares one recursive
 branch structure.
+
+The overloads taking a `CqmomCase` hold the validation and the replacement. The
+prepared overloads call them and then attach the base case's prepared metadata,
+so both kinds of base case report the same errors.
 
 This boundary validates tensor rank, positive non-overflowing extents, value
 count, finiteness, and reconstruction coverage without parser
@@ -254,15 +255,16 @@ programmatic and parsed explicit tensors share the same lifecycle: structural
 errors are configuration failures, while non-realizability is reported by
 `compute_cqmom(...)` or by `initial_state()`.
 
-`config::with_initial_moments(const CqmomCase&, CqmomMomentData)` and its
-`CqmomPreparedCase` counterpart take the required moment set instead of a
-tensor. A caller whose moments already arrive as the required CQMOM moment set
-— from `compute_raw_moments(...)` with the layout's `required_indices` adapted
-by `create_cqmom_moment_data(...)`, or from any other producer that evaluates
+`config::with_initial_moments(const CqmomPreparedCase&, CqmomMomentData)` and
+its `CqmomCase` counterpart take the required moment set instead of a tensor.
+A caller whose moments already arrive as the required CQMOM moment set — from
+`compute_raw_moments(...)` with the layout's `required_indices` adapted by
+`create_cqmom_moment_data(...)`, or from any other producer that evaluates
 exactly those indices — replaces the initial moments directly instead of
-materializing a dense tensor whose additional entries the case never reads. For a hierarchy whose dense tensor is much larger
-than its required set, that is the difference between generating the required
-moments and generating the full rectangle.
+materializing a dense tensor whose additional entries the case never reads. For
+a hierarchy whose dense tensor is much larger than its required set, that is the
+difference between generating the required moments and generating the full
+rectangle.
 
 The overload taking the required moment set validates that the
 supplied layout is the required CQMOM moment layout of the base hierarchy, that
@@ -297,17 +299,16 @@ independent product marginals + global number_density + maximum_orders
 for callers that build a full raw moment tensor themselves, where
 `maximum_orders` sets the retained tensor extent, including when a sample-based
 initialization evaluates raw moments from a sample population. Configured CQMOM
-loading does not consult it. The lean
-path is:
+loading does not consult it. Its own path is:
 
 ```text
 independent product marginals + global number_density + CQMOM hierarchy
       -> CqmomMomentData
 ```
 
-for the explicit lean representation workflow. The lean path derives the
-requested raw moment multi-indices from the hierarchy and conditioning order
-instead of from rectangular tensor extents. In this path, `maximum_orders` is
+for both CQMOM loaders. This path derives the requested raw moment
+multi-indices from the hierarchy and conditioning order instead of from
+rectangular tensor extents. In this path, `maximum_orders` is
 optional tensor metadata and is not used to select moments.
 
 Mixture component densities are absolute number-density contributions. An

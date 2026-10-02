@@ -1001,8 +1001,10 @@ ignore the split-scheme option because the caller owns composition order.
 `CqmomPhaseSpaceEvolutionOptions` contains only stage policies. CQMOM inversion
 policies such as Wheeler options, conditional reconstruction options, adaptive
 branch counts, diagnostic level, and Vandermonde solver are case-owned policies
-preserved by `CqmomState`. `CqmomCase` remains a public static-inversion
-input, but public CQMOM evolution remains the `CqmomState` API.
+preserved by `CqmomState`. Normal CQMOM evolution creates that state with
+`CqmomPreparedCase::initial_state()`; `CqmomCase::initial_state()` creates the
+same state but builds the branch structure again. Either way, public CQMOM
+evolution goes through the `CqmomState` API.
 
 The lower-level public helpers are:
 

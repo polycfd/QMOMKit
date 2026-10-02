@@ -35,11 +35,17 @@ using CqmomCaseLoader = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>
 
 using CqmomPreparedCaseLoader = qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(const std::filesystem::path&);
 
-using CqmomInitialMomentReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(const qmomkit::CqmomPreparedCase&,
-                                                                                                           qmomkit::RawMomentTensor);
+using CqmomCaseMomentTensorReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase> (*)(const qmomkit::CqmomCase&,
+                                                                                                      qmomkit::RawMomentTensor);
 
-using CqmomLeanInitialMomentReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(const qmomkit::CqmomPreparedCase&,
-                                                                                                               qmomkit::CqmomMomentData);
+using CqmomCaseMomentDataReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase> (*)(const qmomkit::CqmomCase&,
+                                                                                                    qmomkit::CqmomMomentData);
+
+using CqmomPreparedCaseMomentTensorReplacement =
+    qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(const qmomkit::CqmomPreparedCase&, qmomkit::RawMomentTensor);
+
+using CqmomPreparedCaseMomentDataReplacement = qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase> (*)(const qmomkit::CqmomPreparedCase&,
+                                                                                                                    qmomkit::CqmomMomentData);
 
 QmomMomentInitializer qmom_moment_initializer = qmomkit::config::initialize_moments;
 
@@ -57,8 +63,12 @@ CqmomCaseLoader cqmom_case_loader = qmomkit::config::load_cqmom;
 
 CqmomPreparedCaseLoader cqmom_prepared_case_loader = qmomkit::config::load_cqmom_prepared;
 
-CqmomInitialMomentReplacement cqmom_initial_moment_replacement = qmomkit::config::with_initial_moments;
+CqmomCaseMomentTensorReplacement cqmom_case_moment_tensor_replacement = qmomkit::config::with_initial_moments;
 
-CqmomLeanInitialMomentReplacement cqmom_lean_initial_moment_replacement = qmomkit::config::with_initial_moments;
+CqmomCaseMomentDataReplacement cqmom_case_moment_data_replacement = qmomkit::config::with_initial_moments;
+
+CqmomPreparedCaseMomentTensorReplacement cqmom_prepared_case_moment_tensor_replacement = qmomkit::config::with_initial_moments;
+
+CqmomPreparedCaseMomentDataReplacement cqmom_prepared_case_moment_data_replacement = qmomkit::config::with_initial_moments;
 
 } // namespace public_header_pins

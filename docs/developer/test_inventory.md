@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 632 |
+| Unit logical tests | 636 |
 | Component/regression logical tests | 47 |
 | Verification logical tests | 170 |
-| **Runtime logical tests** | **849** |
+| **Runtime logical tests** | **853** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **850** |
+| **Total CTest registrations** | **854** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -446,8 +446,8 @@ renamed test rather than a deleted one.
 
 ## Public-header check
 
-The `public_headers` registration is not part of the 871 runtime logical-test
-count. It compiles and links 23 public-header translation units as one separate
+The `public_headers` registration is not part of the runtime logical-test
+count in the overview. It compiles and links 23 public-header translation units as one separate
 CTest check; it is not 23 runtime tests.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
@@ -762,7 +762,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_cqmom_factories_preserve_coordinate_support` | `tests/unit/configuration.cpp` | `cqmom_factories_preserve_coordinate_support` | Verifies CQMOM factories preserve coordinate support. | — |
 | `unit_configuration_cqmom_prepared_case_rejects_invalid_coordinate_support` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_rejects_invalid_coordinate_support` | Checks that a prepared case rejects invalid coordinate support in configuration loading. | — |
 | `unit_configuration_cqmom_prepared_case_initial_state_preserves_case_settings` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_initial_state_preserves_case_settings` | Checks that the initial state of a prepared case preserves the case settings in configuration loading. | — |
-| `unit_configuration_cqmom_prepared_case_replaces_lean_initial_moments_immutably` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_replaces_lean_initial_moments_immutably` | Verifies a prepared CQMOM case replaces lean initial moments immutably. | — |
+| `unit_configuration_cqmom_prepared_case_replaces_lean_initial_moments_immutably` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_replaces_lean_initial_moments_immutably` | Verifies a prepared CQMOM case replaces lean initial moments immutably and shares the base case's prepared metadata. | — |
 | `unit_configuration_cqmom_prepared_case_replaces_lean_initial_moments_from_moment_data` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_replaces_lean_initial_moments_from_moment_data` | Verifies the `CqmomMomentData` replacement overload copies its input, preserves case policies and prepared metadata, and matches the dense tensor overload. | — |
 | `unit_configuration_cqmom_prepared_case_moment_data_replacement_rejects_invalid_input` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_moment_data_replacement_rejects_invalid_input` | Verifies the `CqmomMomentData` replacement overload rejects a non-required layout, a wrong value count, and non-finite values without altering the base case. | — |
 | `unit_configuration_cqmom_prepared_case_moment_data_replacement_defers_realizability` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_moment_data_replacement_defers_realizability` | Verifies the `CqmomMomentData` replacement overload accepts a structurally valid but non-realizable moment set and leaves the failure to reconstruction. | — |
@@ -771,6 +771,10 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility` | `tests/unit/configuration.cpp` | `fixed_cqmom_state_prepared_metadata_invariant_and_compatibility` | Verifies fixed CQMOM state prepared metadata invariant and compatibility. | — |
 | `unit_configuration_cqmom_prepared_case_replacement_rejects_structural_tensor_errors` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_replacement_rejects_structural_tensor_errors` | Checks that prepared case replacement rejects structural tensor errors in configuration loading. | — |
 | `unit_configuration_cqmom_prepared_case_replacement_defers_realizability` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_replacement_defers_realizability` | Verifies prepared CQMOM case replacement defers realizability. | — |
+| `unit_configuration_cqmom_case_replaces_initial_moments_from_tensor` | `tests/unit/configuration.cpp` | `cqmom_case_replaces_initial_moments_from_tensor` | Checks that `config::with_initial_moments(const CqmomCase&, RawMomentTensor)` keeps every base setting of a base with all settings off their defaults, selects exactly the moments `extract_cqmom_moments` selects, ignores tensor entries beyond those the hierarchy reads, does not depend on the base case's own moments being valid, and gives exactly the case and initial state of the prepared overload. The source file also checks at compile time that an open base case selects the overloads returning an open case. | — |
+| `unit_configuration_cqmom_case_replaces_initial_moments_from_moment_data` | `tests/unit/configuration.cpp` | `cqmom_case_replaces_initial_moments_from_moment_data` | Checks that `config::with_initial_moments(const CqmomCase&, CqmomMomentData)` keeps every base setting of a base with all settings off their defaults, stores the supplied moments exactly, does not depend on the base case's own moments being valid, and gives exactly the case and initial state of the prepared overload. | — |
+| `unit_configuration_cqmom_case_replacement_rejects_invalid_moments` | `tests/unit/configuration.cpp` | `cqmom_case_replacement_rejects_invalid_moments` | Checks that the open-case replacement rejects a tensor of the wrong rank, with an empty or overflowing extent, the wrong value count, a non-finite value, or a missing required moment in either coordinate, and moment data with another layout, the wrong value count, or a non-finite value, each with the same message as the prepared overload. | — |
+| `unit_configuration_cqmom_case_replacement_defers_realizability` | `tests/unit/configuration.cpp` | `cqmom_case_replacement_defers_realizability` | Checks that the open-case replacement accepts well-formed but non-realizable moments from a tensor or moment data, leaving `compute_cqmom` and `initial_state()` to report the failure. | — |
 | `unit_configuration_cqmom_prepared_case_file_loading` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_file_loading` | Verifies prepared CQMOM case file loading. | — |
 | `unit_configuration_cqmom_independent_product_zero_density_skips_marginal_validation` | `tests/unit/configuration.cpp` | `cqmom_independent_product_zero_density_skips_marginal_validation` | Verifies CQMOM independent product zero density skips marginal validation. | — |
 | `unit_configuration_cqmom_adaptive_options_validate_compatibility` | `tests/unit/configuration.cpp` | `cqmom_adaptive_options_validate_compatibility` | Verifies CQMOM adaptive options validate compatibility. | — |

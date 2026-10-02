@@ -235,26 +235,32 @@ configuration preserves the public default `CqmomDiagnosticLevel::none`.
 
 ### Immutable explicit-moment replacement
 
-`config::with_initial_moments(const CqmomPreparedCase&, RawMomentTensor)` is
-the normal programmatic boundary for replacing the explicit initial tensor of
-an existing normal case. It copies the base case representation and policies,
-then replaces only its initial moments, deriving the fixed layout from the base
-hierarchy and extracting its required values. The base case is unchanged.
+`config::with_initial_moments(const CqmomCase&, RawMomentTensor)` is the
+programmatic boundary for replacing the explicit initial tensor of an existing
+case. It keeps the base case's settings and replaces only its initial moments,
+deriving the fixed layout from the base hierarchy and extracting its required
+values. The base case is unchanged.
+
+The overloads taking a `CqmomPreparedCase` validate and replace through the
+`CqmomCase` overloads, so both kinds of base case report the same errors. They
+then give the new case the base case's prepared metadata: the hierarchy is
+unchanged, so every case derived from one prepared case shares one recursive
+branch structure.
 
 This boundary validates tensor rank, positive non-overflowing extents, value
 count, finiteness, and reconstruction coverage without parser
 metadata. It deliberately does not invoke CQMOM inversion. Consequently,
 programmatic and parsed explicit tensors share the same lifecycle: structural
 errors are configuration failures, while non-realizability is reported by
-`compute_cqmom(...)` or by `CqmomPreparedCase::initial_state()`.
+`compute_cqmom(...)` or by `initial_state()`.
 
-`config::with_initial_moments(const CqmomPreparedCase&, CqmomMomentData)` is
-the lean overload of the same boundary. A caller whose moments already arrive
-as the required CQMOM moment set — from `compute_raw_moments(...)` with the
-layout's `required_indices` adapted by `create_cqmom_moment_data(...)`, or from
-any other producer that evaluates exactly those indices — replaces the initial
-moments directly instead of materializing a dense tensor whose additional
-entries the case never reads. For a hierarchy whose dense tensor is much larger
+`config::with_initial_moments(const CqmomCase&, CqmomMomentData)` and its
+`CqmomPreparedCase` counterpart take the required moment set instead of a
+tensor. A caller whose moments already arrive as the required CQMOM moment set
+— from `compute_raw_moments(...)` with the layout's `required_indices` adapted
+by `create_cqmom_moment_data(...)`, or from any other producer that evaluates
+exactly those indices — replaces the initial moments directly instead of
+materializing a dense tensor whose additional entries the case never reads. For a hierarchy whose dense tensor is much larger
 than its required set, that is the difference between generating the required
 moments and generating the full rectangle.
 

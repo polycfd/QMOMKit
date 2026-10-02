@@ -175,8 +175,8 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
                                                                CqmomCoordinateSupport coordinate_support = {});
 
 /**
- * Create a prepared CQMOM case with replacement initial moments, taken from a
- * full raw moment tensor.
+ * Create a CQMOM case with replacement initial moments, taken from a full raw
+ * moment tensor.
  *
  * This is the entry point for moment data produced outside QMOMKit, such as the
  * raw moments the Monte Carlo companion evaluates from a sample population: the
@@ -187,9 +187,39 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * reported here as a configuration error you can inspect, whereas
  * `extract_cqmom_moments(...)` signals the same problems by throwing.
  *
- * The returned immutable case preserves the base case hierarchy, coordinate
- * support, reconstruction policies, and prepared metadata. This operation
- * validates tensor structure only; CQMOM realizability and reconstruction
+ * The returned case keeps the hierarchy, coordinate support, and
+ * reconstruction policies of the base case, which is left unchanged. This
+ * operation validates tensor structure only; CQMOM realizability and
+ * reconstruction remain the responsibility of `compute_cqmom(...)` and
+ * `CqmomCase::initial_state()`.
+ */
+[[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_cqmom_case, RawMomentTensor explicit_moments);
+
+/**
+ * Create a CQMOM case with replacement initial moments, supplied as the
+ * required CQMOM moment set.
+ *
+ * Use this overload when the caller already holds exactly the moments the
+ * hierarchy reconstructs from, so that no full tensor has to be built for
+ * entries the case never reads.
+ *
+ * The returned case keeps the hierarchy, coordinate support, and
+ * reconstruction policies of the base case, which is left unchanged. The
+ * supplied layout must match the required CQMOM moment layout of the base
+ * hierarchy. This operation validates moment-set structure only; CQMOM
+ * realizability and reconstruction remain the responsibility of
+ * `compute_cqmom(...)` and `CqmomCase::initial_state()`.
+ */
+[[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_cqmom_case, CqmomMomentData explicit_moments);
+
+/**
+ * Create a prepared CQMOM case with replacement initial moments, taken from a
+ * full raw moment tensor.
+ *
+ * The tensor is validated and its moments selected exactly as by the
+ * `CqmomCase` overload, with the same errors. The returned immutable case also
+ * keeps the prepared metadata of the base case, so cases derived this way
+ * share one recursive branch structure. CQMOM realizability and reconstruction
  * remain the responsibility of `compute_cqmom(...)` and
  * `CqmomPreparedCase::initial_state()`.
  */
@@ -200,16 +230,11 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * Create a prepared CQMOM case with replacement initial moments, supplied as
  * the required CQMOM moment set.
  *
- * Use this overload when the caller already holds exactly the moments the
- * hierarchy reconstructs from, so that no full tensor has to be built for
- * entries the case never reads.
- *
- * The returned immutable case preserves the base case hierarchy, coordinate
- * support, reconstruction policies, and prepared metadata. The supplied layout
- * must match the required CQMOM moment layout of the base hierarchy. This
- * operation validates moment-set structure only; CQMOM realizability and
- * reconstruction remain the responsibility of `compute_cqmom(...)` and
- * `CqmomPreparedCase::initial_state()`.
+ * The moment set is validated exactly as by the `CqmomCase` overload, with the
+ * same errors. The returned immutable case also keeps the prepared metadata of
+ * the base case, so cases derived this way share one recursive branch
+ * structure. CQMOM realizability and reconstruction remain the responsibility
+ * of `compute_cqmom(...)` and `CqmomPreparedCase::initial_state()`.
  */
 [[nodiscard]] ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_cqmom_prepared_case,
                                                                           CqmomMomentData explicit_moments);

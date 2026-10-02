@@ -219,7 +219,10 @@ that the supplied layout is the hierarchy's required layout with one finite
 value per index. Both overloads yield the same case for the same moments; the
 tensor overload exists for moment data arriving from outside QMOMKit, where
 reporting a malformed tensor as a configuration error is more useful than
-throwing.
+throwing. The `CqmomCase` overloads hold the validation. The
+`CqmomPreparedCase` overloads call them, pass a failure on unchanged, and give
+the replaced case the base case's prepared metadata through
+`with_prepared_metadata_of`, so both kinds of base case report the same errors.
 
 Public `parse_qmom`, `parse_cqmom`, and neutral `parse_cqmom_prepared`
 compose parser, initializer, and constructor. Each `load_*` reads a file then

@@ -1249,6 +1249,11 @@ void test_cqmom_prepared_case_replaces_lean_initial_moments_immutably()
         qmomkit::extract_cqmom_moments(qmomkit::reconstruct_raw_moments(replaced_result.quadrature, replacement.extents), layout);
     assert(base_state.moment_values() == canonical_base.values);
     assert(replaced_state.moment_values() == canonical_replacement.values);
+
+    // The replacement case shares the base case's prepared metadata rather than
+    // building the branch structure again.
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(replaced_cqmom_prepared_case).get() ==
+           qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_cqmom_prepared_case).get());
 }
 
 void test_cqmom_prepared_case_replaces_lean_initial_moments_from_moment_data()
@@ -1604,6 +1609,215 @@ void test_cqmom_prepared_case_replacement_defers_realizability()
         initial_state_failed = std::string(error.what()).find("CQMOM initial state quadrature reconstruction failed") != std::string::npos;
     }
     assert(initial_state_failed);
+}
+
+// Everything in a replaced case except its moments comes from the base case.
+void assert_cqmom_case_settings_equal(const qmomkit::CqmomCase& actual, const qmomkit::CqmomCase& expected)
+{
+    assert(actual.moments.layout.hierarchy.node_counts() == expected.moments.layout.hierarchy.node_counts());
+    assert(actual.moments.layout.hierarchy.conditioning_order() == expected.moments.layout.hierarchy.conditioning_order());
+    assert(actual.qmom_options.adaptive == expected.qmom_options.adaptive);
+    assert(actual.qmom_options.rmin == expected.qmom_options.rmin);
+    assert(actual.qmom_options.eabs == expected.qmom_options.eabs);
+    assert(actual.qmom_options.cutoff == expected.qmom_options.cutoff);
+    assert(actual.qmom_options.automatic_scaling == expected.qmom_options.automatic_scaling);
+    assert(actual.conditional_options.singular_tolerance == expected.conditional_options.singular_tolerance);
+    assert(actual.conditional_options.conditioning_warning_threshold == expected.conditional_options.conditioning_warning_threshold);
+    assert(actual.conditional_options.moore_penrose_rcond == expected.conditional_options.moore_penrose_rcond);
+    assert(actual.adaptive_branch_counts == expected.adaptive_branch_counts);
+    assert(actual.diagnostic_level == expected.diagnostic_level);
+    assert(actual.vandermonde_solver == expected.vandermonde_solver);
+    assert(actual.coordinate_support.size() == expected.coordinate_support.size());
+    for (std::size_t dimension = 0; dimension < actual.coordinate_support.size(); ++dimension)
+    {
+        assert(actual.coordinate_support[dimension].has_value() == expected.coordinate_support[dimension].has_value());
+        if (actual.coordinate_support[dimension].has_value())
+        {
+            assert(actual.coordinate_support[dimension]->lower == expected.coordinate_support[dimension]->lower);
+            assert(actual.coordinate_support[dimension]->upper == expected.coordinate_support[dimension]->upper);
+        }
+    }
+}
+
+void assert_cqmom_moment_data_equal(const qmomkit::CqmomMomentData& actual, const qmomkit::CqmomMomentData& expected)
+{
+    assert(actual.layout.hierarchy.node_counts() == expected.layout.hierarchy.node_counts());
+    assert(actual.layout.hierarchy.conditioning_order() == expected.layout.hierarchy.conditioning_order());
+    assert(actual.layout.required_indices == expected.layout.required_indices);
+    assert(actual.values == expected.values);
+}
+
+// A replacement through the open case must give exactly the case that the
+// prepared overload holds, and therefore the same initial state.
+template <class Moments>
+void assert_cqmom_case_replacement_matches_prepared(const qmomkit::CqmomCase& replaced_cqmom_case, const qmomkit::CqmomCase& base_cqmom_case,
+                                                    const Moments& moments)
+{
+    const auto replaced_cqmom_prepared_case_result = qmomkit::config::with_initial_moments(qmomkit::CqmomPreparedCase(base_cqmom_case), moments);
+    assert(replaced_cqmom_prepared_case_result.ok());
+    const qmomkit::CqmomCase& expected_cqmom_case =
+        qmomkit::internal::CqmomConstructionAccess::case_definition(replaced_cqmom_prepared_case_result.value());
+    assert_cqmom_case_settings_equal(replaced_cqmom_case, expected_cqmom_case);
+    assert_cqmom_moment_data_equal(replaced_cqmom_case.moments, expected_cqmom_case.moments);
+    assert(replaced_cqmom_case.initial_state().moment_values() == replaced_cqmom_prepared_case_result.value().initial_state().moment_values());
+}
+
+// Every setting is moved away from its default, so a replacement that dropped
+// one would show.
+qmomkit::CqmomCase fully_configured_cqmom_replacement_base()
+{
+    qmomkit::CqmomCase base_cqmom_case = cqmom_replacement_base();
+    base_cqmom_case.qmom_options.adaptive = true;
+    base_cqmom_case.qmom_options.automatic_scaling = true;
+    base_cqmom_case.conditional_options.moore_penrose_rcond = 1.0e-13;
+    return base_cqmom_case;
+}
+
+// An open case's moments can be changed after it is built. Replacement reads
+// only the new moments, so it must not depend on the old ones being valid.
+qmomkit::CqmomCase with_broken_moments(qmomkit::CqmomCase cqmom_case)
+{
+    cqmom_case.moments.values.assign(2, std::numeric_limits<double>::quiet_NaN());
+    return cqmom_case;
+}
+
+// An open base case selects the overloads that return an open case.
+static_assert(std::is_same_v<decltype(qmomkit::config::with_initial_moments(std::declval<const qmomkit::CqmomCase&>(),
+                                                                            std::declval<qmomkit::RawMomentTensor>())),
+                             qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>>);
+static_assert(std::is_same_v<decltype(qmomkit::config::with_initial_moments(std::declval<const qmomkit::CqmomCase&>(),
+                                                                            std::declval<qmomkit::CqmomMomentData>())),
+                             qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>>);
+
+void test_cqmom_case_replaces_initial_moments_from_tensor()
+{
+    const qmomkit::CqmomCase base_cqmom_case = fully_configured_cqmom_replacement_base();
+    const qmomkit::RawMomentTensor replacement = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
+
+    const auto replaced_cqmom_case_result = qmomkit::config::with_initial_moments(base_cqmom_case, replacement);
+    assert(replaced_cqmom_case_result.ok());
+    const qmomkit::CqmomCase& replaced_cqmom_case = replaced_cqmom_case_result.value();
+    assert_cqmom_case_settings_equal(replaced_cqmom_case, base_cqmom_case);
+    assert_cqmom_moment_data_equal(replaced_cqmom_case.moments, qmomkit::extract_cqmom_moments(replacement, base_cqmom_case.moments.layout));
+    assert(replaced_cqmom_case.moments.values != base_cqmom_case.moments.values);
+    assert_cqmom_case_replacement_matches_prepared(replaced_cqmom_case, base_cqmom_case, replacement);
+
+    // Entries beyond those the hierarchy reads are ignored.
+    qmomkit::RawMomentTensor larger{{5, 6}, std::vector<double>(30, 7.0)};
+    for (std::size_t first = 0; first < 4; ++first)
+    {
+        for (std::size_t second = 0; second < 4; ++second)
+        {
+            larger.values[first * 6 + second] = replacement.values[first * 4 + second];
+        }
+    }
+    const auto larger_cqmom_case_result = qmomkit::config::with_initial_moments(base_cqmom_case, larger);
+    assert(larger_cqmom_case_result.ok());
+    assert_cqmom_moment_data_equal(larger_cqmom_case_result.value().moments, replaced_cqmom_case.moments);
+
+    const auto from_broken_base_result = qmomkit::config::with_initial_moments(with_broken_moments(base_cqmom_case), replacement);
+    assert(from_broken_base_result.ok());
+    assert_cqmom_case_settings_equal(from_broken_base_result.value(), replaced_cqmom_case);
+    assert_cqmom_moment_data_equal(from_broken_base_result.value().moments, replaced_cqmom_case.moments);
+}
+
+void test_cqmom_case_replaces_initial_moments_from_moment_data()
+{
+    const qmomkit::CqmomCase base_cqmom_case = fully_configured_cqmom_replacement_base();
+    const qmomkit::CqmomMomentData replacement =
+        qmomkit::extract_cqmom_moments(cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0}), base_cqmom_case.moments.layout);
+
+    const auto replaced_cqmom_case_result = qmomkit::config::with_initial_moments(base_cqmom_case, replacement);
+    assert(replaced_cqmom_case_result.ok());
+    const qmomkit::CqmomCase& replaced_cqmom_case = replaced_cqmom_case_result.value();
+    assert_cqmom_case_settings_equal(replaced_cqmom_case, base_cqmom_case);
+    assert_cqmom_moment_data_equal(replaced_cqmom_case.moments, replacement);
+    assert_cqmom_case_replacement_matches_prepared(replaced_cqmom_case, base_cqmom_case, replacement);
+
+    const auto from_broken_base_result = qmomkit::config::with_initial_moments(with_broken_moments(base_cqmom_case), replacement);
+    assert(from_broken_base_result.ok());
+    assert_cqmom_case_settings_equal(from_broken_base_result.value(), replaced_cqmom_case);
+    assert_cqmom_moment_data_equal(from_broken_base_result.value().moments, replaced_cqmom_case.moments);
+}
+
+// The prepared overloads validate through the open-case overloads, so both
+// reject a malformed replacement with the same message.
+template <class Moments> std::string cqmom_replacement_error(const qmomkit::CqmomCase& base_cqmom_case, const Moments& moments)
+{
+    const auto replaced_cqmom_case_result = qmomkit::config::with_initial_moments(base_cqmom_case, moments);
+    const auto replaced_cqmom_prepared_case_result = qmomkit::config::with_initial_moments(qmomkit::CqmomPreparedCase(base_cqmom_case), moments);
+    assert(!replaced_cqmom_case_result.ok());
+    assert(!replaced_cqmom_prepared_case_result.ok());
+    assert(replaced_cqmom_case_result.error() == replaced_cqmom_prepared_case_result.error());
+    return replaced_cqmom_case_result.error();
+}
+
+bool contains(const std::string& text, const std::string& fragment)
+{
+    return text.find(fragment) != std::string::npos;
+}
+
+void test_cqmom_case_replacement_rejects_invalid_moments()
+{
+    const qmomkit::CqmomCase base_cqmom_case = cqmom_replacement_base();
+
+    assert(contains(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4}, std::vector<double>(4, 1.0)}), "rank"));
+    assert(contains(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4, 0}, {}}), "extents"));
+    assert(contains(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4, 4}, std::vector<double>(15, 1.0)}), "value count"));
+    assert(contains(
+        cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{std::numeric_limits<std::size_t>::max(), 2}, std::vector<double>{}}),
+        "overflow"));
+    qmomkit::RawMomentTensor nonfinite_tensor = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
+    nonfinite_tensor.values[5] = std::numeric_limits<double>::quiet_NaN();
+    assert(contains(cqmom_replacement_error(base_cqmom_case, nonfinite_tensor), "finite"));
+    // The base hierarchy conditions on the second coordinate first, so each
+    // coordinate needs four moments and a tensor short in either one lacks one.
+    assert(contains(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{3, 4}, std::vector<double>(12, 1.0)}),
+                    "required CQMOM moment index [3, 0]"));
+    assert(contains(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4, 3}, std::vector<double>(12, 1.0)}),
+                    "required CQMOM moment index [0, 3]"));
+
+    const qmomkit::CqmomMomentLayout& layout = base_cqmom_case.moments.layout;
+    const qmomkit::CqmomMomentLayout other_layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2, 2}));
+    assert(contains(cqmom_replacement_error(base_cqmom_case,
+                                            qmomkit::CqmomMomentData{other_layout, std::vector<double>(other_layout.required_indices.size(), 1.0)}),
+                    "layout must match the required"));
+    assert(contains(
+        cqmom_replacement_error(base_cqmom_case, qmomkit::CqmomMomentData{layout, std::vector<double>(layout.required_indices.size() + 1, 1.0)}),
+        "value count"));
+    qmomkit::CqmomMomentData nonfinite_data = base_cqmom_case.moments;
+    nonfinite_data.values[2] = std::numeric_limits<double>::infinity();
+    assert(contains(cqmom_replacement_error(base_cqmom_case, nonfinite_data), "finite"));
+}
+
+// Replacement checks structure only. Moments that are well formed but not
+// realizable are accepted, and reconstructing them reports the failure.
+void test_cqmom_case_replacement_defers_realizability()
+{
+    const qmomkit::CqmomCase base_cqmom_case = cqmom_replacement_base();
+    qmomkit::RawMomentTensor nonrealizable_tensor = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
+    nonrealizable_tensor.values[0] = -1.0;
+    qmomkit::CqmomMomentData nonrealizable_data = qmomkit::extract_cqmom_moments(nonrealizable_tensor, base_cqmom_case.moments.layout);
+
+    const auto from_tensor = qmomkit::config::with_initial_moments(base_cqmom_case, nonrealizable_tensor);
+    const auto from_moment_data = qmomkit::config::with_initial_moments(base_cqmom_case, nonrealizable_data);
+    for (const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>* replaced_cqmom_case_result : {&from_tensor, &from_moment_data})
+    {
+        assert(replaced_cqmom_case_result->ok());
+        const qmomkit::CqmomResult reconstruction = qmomkit::compute_cqmom(replaced_cqmom_case_result->value());
+        assert(!reconstruction.ok());
+        assert(reconstruction.status == qmomkit::CqmomStatus::qmom_failed);
+        bool initial_state_failed = false;
+        try
+        {
+            static_cast<void>(replaced_cqmom_case_result->value().initial_state());
+        }
+        catch (const std::runtime_error& error)
+        {
+            initial_state_failed = contains(error.what(), "CQMOM initial state quadrature reconstruction failed");
+        }
+        assert(initial_state_failed);
+    }
 }
 
 void test_cqmom_prepared_case_file_loading()
@@ -4068,6 +4282,10 @@ int main(const int argc, char** argv)
             {"cqmom_prepared_case_replacement_rejects_structural_tensor_errors",
              test_cqmom_prepared_case_replacement_rejects_structural_tensor_errors},
             {"cqmom_prepared_case_replacement_defers_realizability", test_cqmom_prepared_case_replacement_defers_realizability},
+            {"cqmom_case_replaces_initial_moments_from_tensor", test_cqmom_case_replaces_initial_moments_from_tensor},
+            {"cqmom_case_replaces_initial_moments_from_moment_data", test_cqmom_case_replaces_initial_moments_from_moment_data},
+            {"cqmom_case_replacement_rejects_invalid_moments", test_cqmom_case_replacement_rejects_invalid_moments},
+            {"cqmom_case_replacement_defers_realizability", test_cqmom_case_replacement_defers_realizability},
             {"cqmom_prepared_case_file_loading", test_cqmom_prepared_case_file_loading},
             {"cqmom_independent_product_zero_density_skips_marginal_validation",
              test_cqmom_independent_product_zero_density_skips_marginal_validation},

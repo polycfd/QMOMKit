@@ -36,14 +36,18 @@ internal storage. That description can come from a `.qmom` configuration file
 or from direct C++ setup. In either case, users name or order the coordinates,
 set the requested node counts, choose the conditioning order, and describe the
 initial moments. File-based setup builds a `CqmomPreparedCase`; direct C++
-setup can build a `CqmomLeanCase` when the application assembles the required
+setup can build a `CqmomCase` when the application assembles the required
 moments itself, then promote it to the normal `CqmomPreparedCase` workflow.
 
 Both case types hold the same moments and produce the same quadrature. A
 prepared case also carries the recursive branch structure implied by the
-phase-space hierarchy, so reconstructing repeatedly from the same hierarchy
-does not rebuild it. Prefer the prepared case unless you have a reason to hold
-the moments yourself.
+phase-space hierarchy. It builds that structure once and shares it with every
+reconstruction, every state it creates, and every case derived from it with
+`config::with_initial_moments(...)`. A `CqmomCase` can also be reconstructed or
+turned into a state directly, but each such call builds the structure again.
+That costs about as much as preparing the case once, so it is fine for a single
+reconstruction or state. For repeated reconstructions, or for many states on
+one hierarchy, use the prepared case.
 
 ```text
 configuration file:
@@ -53,11 +57,11 @@ configuration file:
 
 direct API:
     C++ setup
-    -> CqmomLeanCase
+    -> CqmomCase
     -> CqmomPreparedCase
 
 reconstruction:
-    CqmomPreparedCase or CqmomLeanCase
+    CqmomPreparedCase or CqmomCase
     -> compute_cqmom(...)
     -> CqmomResult / CqmomQuadrature
     -> inspect / evaluate / output
@@ -71,7 +75,7 @@ normal optional phase-space evolution:
 At the user level, this means:
 
 1. Define the CQMOM setup in a `.qmom` file or directly in C++.
-2. Load it with `load_cqmom_prepared(...)`, or construct a `CqmomLeanCase`
+2. Load it with `load_cqmom_prepared(...)`, or construct a `CqmomCase`
    and pass it to `CqmomPreparedCase` in C++.
 3. Keep the case object as the configured problem definition.
 4. Call `compute_cqmom(...)` to compute the initial quadrature.
@@ -94,11 +98,14 @@ physical coordinates. Raw moments, weights, callbacks, states, and configured
 coordinate supports keep their physical meaning.
 
 `CqmomPreparedCase` is the immutable setup produced by the normal configuration
-loader or by promoting a `CqmomLeanCase`. Normal CQMOM phase-space evolution
+loader or by promoting a `CqmomCase`. Normal CQMOM phase-space evolution
 creates `CqmomState` from `CqmomPreparedCase` and advances it with
-`advance_cqmom_phase_space(...)`. `CqmomLeanCase` also remains available for
-static inversion with `compute_cqmom(...)`. In all cases, `compute_cqmom(...)`
-returns quadrature; it does not return a phase-space evolution state.
+`advance_cqmom_phase_space(...)`. A `CqmomCase` can also be passed to
+`compute_cqmom(...)`, create a state with `CqmomCase::initial_state()`, or take
+new moments with `config::with_initial_moments(...)`; each reconstruction or
+state made from it builds the branch structure again. In all cases,
+`compute_cqmom(...)` returns quadrature; it does not return a phase-space
+evolution state.
 
 For the usual CQMOM path, users specify the phase space, initial condition, and
 reconstruction settings. QMOMKit determines which moments are needed for the
@@ -128,6 +135,12 @@ does not test realizability: `compute_cqmom(...)` reports numerical
 reconstruction status, and `initial_state()` keeps its existing
 exception-on-failure behavior. The producer of the raw moments can be a
 sampler, measurement pipeline, or any other application code.
+
+Every case derived from one prepared case this way shares its branch
+structure, so an application that needs a case per cell or per sample should
+derive them all from one prepared base case. `with_initial_moments(...)` also
+accepts a `CqmomCase`, with the same checks and errors, and then returns a
+`CqmomCase`.
 
 When the producer can supply the required CQMOM moment set directly, pass
 `CqmomMomentData` instead of a tensor:
@@ -198,7 +211,7 @@ evolution state from the same case and pass it to
 `advance_cqmom_phase_space(...)`:
 
 ```cpp
-qmomkit::CqmomState state = cqmom_case.initial_state();
+qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
 const qmomkit::CqmomQuadrature& quadrature = state.quadrature();
 ```
 
@@ -402,12 +415,14 @@ These values are not CQMOM reconstruction inputs, phase-space-evolved state, or 
 `CqmomMomentData`/`RawMomentTensor` entries. Non-integer exponents require
 non-negative abscissas in the corresponding dimensions.
 
-## Advanced representation workflows
+## Building a case in code
 
-The workflows in this section are for static inversion, specialized
-initialization, validation, and expert use. They are for applications that
-assemble the moments themselves, and they are not required for
-configuration-driven CQMOM onboarding.
+The workflows in this section build a `CqmomCase` directly. They serve
+applications that assemble the moments themselves: static inversion,
+specialized initialization, validation, or exchange with other codes. They are
+not needed for configuration-driven CQMOM. Construct a `CqmomPreparedCase`
+from the case before reconstructing it repeatedly or creating more than one
+state from it.
 
 ### Starting from a full moment tensor
 
@@ -428,34 +443,31 @@ const qmomkit::RawMomentTensor moments{
         1.121875, 0.493625, 0.475675, 0.622865,
     }};
 
-const qmomkit::CqmomLeanCase case_{
+const qmomkit::CqmomCase cqmom_case{
     qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy))};
-const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 ```
 
 `extract_cqmom_moments(...)` throws if the tensor is the wrong rank or too small
 to contain a moment the hierarchy needs. If the tensor comes from outside the
 application and you would rather check a status than catch an exception, load or
 build a case first and replace its moments with
-`config::with_initial_moments(case, tensor)`, which performs the same selection
-and returns a configuration error instead.
+`config::with_initial_moments(cqmom_case, tensor)`, which performs the same
+selection and returns a configuration error instead.
 
-### Explicit lean representation workflow
+### Starting from the required moment set
 
 Some applications can produce exactly the raw moments required by a CQMOM
-hierarchy and want direct control over that compact required-moment
-representation. In those cases, use `CqmomMomentLayout` to describe the
-required moment multi-indices, store values in `CqmomMomentData`, and construct
-`CqmomLeanCase` explicitly.
+hierarchy. In those cases, use `CqmomMomentLayout` to describe the required
+moment multi-indices, store the values in `CqmomMomentData`, and construct a
+`CqmomCase` from them.
 
-The explicit lean representation workflow is an expert workflow for callers
-that intentionally manage the required CQMOM moment representation. Lean is not
-a different physical model; it is the compact representation used for the
-moments required by the configured hierarchy and conditioning order. Normal
-configuration workflows build and hide this representation automatically.
+The required moment set is not a different physical model. It is the subset of
+raw moments that the configured hierarchy and conditioning order reconstruct
+from, and normal configuration workflows select it automatically.
 
-To evolve a case in time, create its runtime state with
-`CqmomPreparedCase::initial_state()` and pass that `CqmomState` to
+To evolve such a case in time, construct a `CqmomPreparedCase` from it, create
+the runtime state with `initial_state()`, and pass that `CqmomState` to
 `advance_cqmom_phase_space(...)`, which performs a complete step. If you would
 rather drive the stages yourself, the same state goes through
 `advance_cqmom_advection(...)` and `advance_cqmom_moment_source(...)`.

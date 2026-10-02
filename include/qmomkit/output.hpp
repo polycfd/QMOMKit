@@ -116,10 +116,10 @@ public:
     void write(double time, const QmomState& state, const QmomResult& quadrature);
 
     /** Append one row for a multidimensional raw moment tensor. */
-    void write(double time, const RawMomentTensor& moments);
+    void write(double time, const RawMomentTensor& moment_tensor);
 
     /** Append tensor moments followed by generalized-moment values in configured request order. */
-    void write(double time, const RawMomentTensor& moments, const std::vector<double>& generalized_values);
+    void write(double time, const RawMomentTensor& moment_tensor, const std::vector<double>& generalized_values);
 
     /** Append one row for CQMOM required moment data. */
     void write(double time, const CqmomMomentData& moments);
@@ -138,7 +138,7 @@ private:
     {
         qmom,
         qmom_state,
-        cqmom_dense,
+        cqmom_moment_tensor,
         cqmom_moment_data,
         cqmom_state,
         cqmom_requested

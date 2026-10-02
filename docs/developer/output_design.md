@@ -255,7 +255,7 @@ interval = 0.1
 ```
 
 Parsing this section creates an `OutputOptions` object. It does not modify
-`QmomCase`, `CqmomLeanCase`, phase-space evolution options, time integrators,
+`QmomCase`, `CqmomCase`, phase-space evolution options, time integrators,
 moment sources, or velocity callbacks.
 
 If no output section is present, parsed output options use the default

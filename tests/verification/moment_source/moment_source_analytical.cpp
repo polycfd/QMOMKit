@@ -407,9 +407,9 @@ VerificationResult verify_qmom_case(const CaseDefinition& definition, const std:
     return result;
 }
 
-void verify_cqmom_reconstruction(const qmomkit::CqmomLeanCase& configured, const std::vector<double>& moments, VerificationResult& result)
+void verify_cqmom_reconstruction(const qmomkit::CqmomCase& configured, const std::vector<double>& moments, VerificationResult& result)
 {
-    qmomkit::CqmomLeanCase final_case = configured;
+    qmomkit::CqmomCase final_case = configured;
     final_case.moments.values = moments;
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(final_case);
     if (!cqmom.ok())
@@ -432,7 +432,7 @@ void verify_cqmom_reconstruction(const qmomkit::CqmomLeanCase& configured, const
 VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std::filesystem::path& configuration_path)
 {
     VerificationResult result;
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         append_failure(result, "Failed to load CQMOM configuration.");

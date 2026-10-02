@@ -213,7 +213,7 @@ void verify_against_reference(const SolverCase& solver_case, const qmomkit::Cqmo
     }
 }
 
-void verify_solver_diagnostics(const SolverCase& solver_case, const qmomkit::CqmomLeanCase& case_, VerificationResult& verification)
+void verify_solver_diagnostics(const SolverCase& solver_case, const qmomkit::CqmomCase& case_, VerificationResult& verification)
 {
     // Public CqmomResult diagnostics currently report CQMOM branch status but
     // not the Vandermonde requested/selected/algorithm fields. The recursive
@@ -316,7 +316,7 @@ void compare_dense_and_bp(const qmomkit::CqmomResult& dense, const qmomkit::Cqmo
     }
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -352,7 +352,7 @@ int main(const int argc, char** argv)
     bool matched = selected_solver.empty();
     VerificationResult verification;
     std::vector<qmomkit::CqmomResult> computed;
-    std::vector<qmomkit::CqmomLeanCase> loaded_cases;
+    std::vector<qmomkit::CqmomCase> loaded_cases;
     computed.reserve(cases.size());
     loaded_cases.reserve(cases.size());
 
@@ -363,7 +363,7 @@ int main(const int argc, char** argv)
             continue;
         }
         matched = true;
-        const auto configured = qmomkit::config::load_cqmom_lean(solver_case.filename);
+        const auto configured = qmomkit::config::load_cqmom(solver_case.filename);
         if (!configured.ok())
         {
             print_configuration_errors(configured);
@@ -374,7 +374,7 @@ int main(const int argc, char** argv)
             append_failure(verification, solver_case.name + " configuration did not load the requested solver policy.");
         }
 
-        qmomkit::CqmomLeanCase loaded_case = configured.value();
+        qmomkit::CqmomCase loaded_case = configured.value();
         const qmomkit::CqmomResult result = qmomkit::compute_cqmom(loaded_case);
         if (!result.ok())
         {
@@ -392,8 +392,8 @@ int main(const int argc, char** argv)
     {
         const qmomkit::CqmomResult* dense_result = nullptr;
         const qmomkit::CqmomResult* bp_result = nullptr;
-        const qmomkit::CqmomLeanCase* dense_case = nullptr;
-        const qmomkit::CqmomLeanCase* bp_case = nullptr;
+        const qmomkit::CqmomCase* dense_case = nullptr;
+        const qmomkit::CqmomCase* bp_case = nullptr;
         for (std::size_t index = 0; index < loaded_cases.size(); ++index)
         {
             if (loaded_cases[index].vandermonde_solver == qmomkit::VandermondeSolver::dense)

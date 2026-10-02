@@ -287,7 +287,7 @@ void test_requested_cqmom_moments_are_reconstructed_from_quadrature()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(result.ok());
 
     const qmomkit::RawMomentRequest request{{{1, 0}, {0, 2}, {1, 1}}};
@@ -312,7 +312,7 @@ void test_requested_cqmom_moments_preserve_duplicate_columns()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(result.ok());
 
     const qmomkit::RawMomentRequest request{{{1, 0}, {1, 0}, {0, 0}}};
@@ -353,7 +353,7 @@ void test_requested_cqmom_writer_rejects_rank_mismatch()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(result.ok());
 
     const std::filesystem::path path = temporary_output_path("qmomkit_requested_cqmom_rank_mismatch");
@@ -388,7 +388,7 @@ void test_cqmom_state_generalized_moment_output()
         lean_values.push_back(dense_values[qmomkit::flatten_multi_index(index, extents)]);
     }
     const qmomkit::CqmomState state =
-        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomLeanCase{qmomkit::CqmomMomentData{layout, lean_values}, {}, {}});
+        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomCase{qmomkit::CqmomMomentData{layout, lean_values}, {}, {}});
     const std::filesystem::path lean_path = temporary_output_path("qmomkit_cqmom_state_generalized_lean");
     {
         qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(lean_path, state, output_options);
@@ -495,13 +495,13 @@ void test_writer_rejects_rows_from_other_factories()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
     const std::vector<double> dense_moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, dense_moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, dense_moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(result.ok());
 
     const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<double> layout_values(moment_layout.required_indices.size(), 1.0);
     const qmomkit::CqmomState cqmom_state = qmomkit::internal::CqmomConstructionAccess::create_state(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, dense_moments}, moment_layout), {}, {}});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, dense_moments}, moment_layout), {}, {}});
     const qmomkit::QmomState qmom_state = qmomkit::QmomCase{qmomkit::MomentSet{1.0, 4.0}, 1}.initial_state();
 
     const std::string qmom_factory = "MomentWriter::for_qmom(path, moment_count[, output_options]) or MomentWriter::for_qmom(path, selected_orders)";
@@ -638,7 +638,7 @@ void test_cqmom_quadrature_output()
     const std::vector<std::vector<double>> abscissas{{-0.75, -0.75, 1.25, 1.25}, {0.2, 1.4, 0.2, 1.4}};
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
 
     assert(result.ok());
     for (const qmomkit::MultiIndex& node_index : qmomkit::enumerate_quadrature_node_multi_indices(hierarchy))
@@ -683,14 +683,14 @@ void test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts()
     const std::vector<std::vector<double>> fixed_abscissas{{-0.75, -0.75, 1.25, 1.25}, {0.2, 1.4, 0.2, 1.4}};
     const std::vector<double> fixed_moments = raw_moments_from_grid(hierarchy, extents, fixed_weights, fixed_abscissas);
     const qmomkit::CqmomResult fixed = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, fixed_moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, fixed_moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(fixed.ok());
 
     const std::vector<double> adaptive_weights{0.1, 0.3, 0.6};
     const std::vector<std::vector<double>> adaptive_abscissas{{-1.0, -1.0, 1.0}, {-2.0, 2.0, 3.0}};
     const std::vector<double> adaptive_moments = raw_moments_from_terminals(extents, adaptive_weights, adaptive_abscissas);
     const qmomkit::QmomOptions adaptive_qmom{true, 1.0e-10, 1.0e-10, 1.0e-12};
-    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{
+    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomCase{
         qmomkit::extract_cqmom_moments({extents, adaptive_moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, true});
     assert(adaptive.ok());
     assert(adaptive.quadrature.total_nodes() == 3);
@@ -741,7 +741,7 @@ void test_quadrature_writer_rejects_mismatched_inputs()
     {
         const qmomkit::PhaseSpaceHierarchy hierarchy({2});
         const qmomkit::CqmomResult result = qmomkit::compute_cqmom(
-            qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({{4}, {1.0, 0.0, 1.0, 0.0}}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+            qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({{4}, {1.0, 0.0, 1.0, 0.0}}, qmomkit::create_cqmom_moment_layout(hierarchy))});
         assert(result.ok());
 
         qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(cqmom_path, 2);

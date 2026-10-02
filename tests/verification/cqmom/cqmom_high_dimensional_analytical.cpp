@@ -410,7 +410,7 @@ qmomkit::RawMomentTensor expected_raw_moments(const ExpectedCase& expected)
     return moments;
 }
 
-void verify_configuration(const ExpectedCase& expected, const qmomkit::CqmomLeanCase& configured_case, VerificationResult& result)
+void verify_configuration(const ExpectedCase& expected, const qmomkit::CqmomCase& configured_case, VerificationResult& result)
 {
     // The .qmom file is part of the reference definition. Before running the
     // algorithm, verify that it encodes the intended hierarchy, adaptive policy,
@@ -741,7 +741,7 @@ void verify_reconstructed_moments(const qmomkit::CqmomQuadrature& quadrature, co
     }
 }
 
-VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::CqmomLeanCase& configured_case)
+VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::CqmomCase& configured_case)
 {
     // Verify one high-dimensional CQMOM workflow from configured dense moments
     // through public compute_cqmom output. The reference is the manufactured
@@ -774,7 +774,7 @@ VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::Cqmo
     return result;
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -816,7 +816,7 @@ int main(const int argc, char** argv)
         return 2;
     }
 
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);

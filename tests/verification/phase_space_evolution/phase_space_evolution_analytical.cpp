@@ -134,12 +134,12 @@ TestCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomMomentDa
                                                              const TestCqmomPhaseSpaceEvolutionOptions& options)
 {
     const CqmomMomentLayout& layout = moments.layout;
-    CqmomLeanCase case_{moments,
-                        options.conditional_options,
-                        options.qmom_options,
-                        options.adaptive_branch_counts,
-                        options.diagnostic_level,
-                        options.vandermonde_solver};
+    CqmomCase case_{moments,
+                    options.conditional_options,
+                    options.qmom_options,
+                    options.adaptive_branch_counts,
+                    options.diagnostic_level,
+                    options.vandermonde_solver};
     CqmomState state = internal::CqmomConstructionAccess::create_state(case_);
     const CqmomPhaseSpaceEvolutionResult result =
         advance_cqmom_phase_space(state, t, time_step, velocity, source, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
@@ -157,8 +157,8 @@ TestLeanCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const TestLeanC
                                                                  const CqmomMomentSource& source,
                                                                  const TestLeanCqmomPhaseSpaceEvolutionOptions& options)
 {
-    CqmomLeanCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
-                            options.diagnostic_level, options.vandermonde_solver};
+    CqmomCase lean_case{lean_state.moments,       options.conditional_options, options.qmom_options, options.adaptive_branch_counts,
+                        options.diagnostic_level, options.vandermonde_solver};
     CqmomState state = internal::CqmomConstructionAccess::create_state(lean_case);
     const CqmomPhaseSpaceEvolutionResult result =
         advance_cqmom_phase_space(state, t, time_step, velocity, source, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
@@ -384,7 +384,7 @@ void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomk
     std::cerr << configured.error() << '\n';
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -422,7 +422,7 @@ const char* phase_space_evolution_scheme_name(const qmomkit::PhaseSpaceEvolution
     return "unknown";
 }
 
-qmomkit::TestCqmomPhaseSpaceEvolutionOptions cqmom_options(const qmomkit::CqmomLeanCase& configured_case)
+qmomkit::TestCqmomPhaseSpaceEvolutionOptions cqmom_options(const qmomkit::CqmomCase& configured_case)
 {
     qmomkit::TestCqmomPhaseSpaceEvolutionOptions options;
     options.conditional_options = configured_case.conditional_options;
@@ -453,7 +453,7 @@ qmomkit::CqmomPhaseSpaceEvolutionOptions cqmom_state_options()
     return options;
 }
 
-qmomkit::TestLeanCqmomPhaseSpaceEvolutionOptions cqmom_lean_options(const qmomkit::CqmomLeanCase& lean_case)
+qmomkit::TestLeanCqmomPhaseSpaceEvolutionOptions cqmom_lean_options(const qmomkit::CqmomCase& lean_case)
 {
     qmomkit::TestLeanCqmomPhaseSpaceEvolutionOptions options;
     options.conditional_options = lean_case.conditional_options;
@@ -1609,12 +1609,12 @@ qmomkit::CqmomMomentSource make_cqmom_noncommuting_source(const double time_step
         if (rhs_call == 0)
         {
             const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(context.hierarchy());
-            const qmomkit::CqmomLeanCase current_case{qmomkit::CqmomMomentData{layout, context.values()},
-                                                      {},
-                                                      {},
-                                                      false,
-                                                      qmomkit::CqmomDiagnosticLevel::none,
-                                                      qmomkit::VandermondeSolver::automatic};
+            const qmomkit::CqmomCase current_case{qmomkit::CqmomMomentData{layout, context.values()},
+                                                  {},
+                                                  {},
+                                                  false,
+                                                  qmomkit::CqmomDiagnosticLevel::none,
+                                                  qmomkit::VandermondeSolver::automatic};
             const qmomkit::CqmomResult current = qmomkit::compute_cqmom(current_case);
             if (!current.ok())
             {
@@ -1923,7 +1923,7 @@ VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configura
     // final phase_space_evolved moments and quadrature reconstruction are compared with
     // the exact tensor exponential reference on that layout.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -1931,7 +1931,7 @@ VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configura
         return verification;
     }
 
-    const qmomkit::CqmomLeanCase& configured_case = configured.value();
+    const qmomkit::CqmomCase& configured_case = configured.value();
     const qmomkit::CqmomMomentSource source = cqmom_source_for_context;
     const auto options = cqmom_options(configured_case);
     const double dt = 0.04;
@@ -2974,9 +2974,9 @@ void verify_cqmom_lean_initial_inversion_failure_result(const qmomkit::TestLeanC
     }
 }
 
-void verify_helper_based_common_cqmom_phase_space_evolution(const qmomkit::CqmomLeanCase& configured_case, VerificationResult& verification)
+void verify_helper_based_common_cqmom_phase_space_evolution(const qmomkit::CqmomCase& configured_case, VerificationResult& verification)
 {
-    qmomkit::CqmomLeanCase policy_case = configured_case;
+    qmomkit::CqmomCase policy_case = configured_case;
     policy_case.qmom_options.adaptive = true;
     policy_case.adaptive_branch_counts = true;
     policy_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
@@ -3014,9 +3014,9 @@ void verify_helper_based_common_cqmom_phase_space_evolution(const qmomkit::Cqmom
     verification.runs.push_back(summary);
 }
 
-void verify_lean_helper_based_common_cqmom_phase_space_evolution(const qmomkit::CqmomLeanCase& lean_case, VerificationResult& verification)
+void verify_lean_helper_based_common_cqmom_phase_space_evolution(const qmomkit::CqmomCase& lean_case, VerificationResult& verification)
 {
-    qmomkit::CqmomLeanCase policy_case = lean_case;
+    qmomkit::CqmomCase policy_case = lean_case;
     policy_case.qmom_options.adaptive = true;
     policy_case.adaptive_branch_counts = true;
     policy_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
@@ -3207,7 +3207,7 @@ VerificationResult run_cqmom_phase_space_evolution_inversion_failures(const std:
         return verification;
     }
 
-    const auto configured_state_case = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured_state_case = qmomkit::config::load_cqmom(configuration_path);
     if (!configured_state_case.ok())
     {
         print_configuration_errors(configured_state_case);
@@ -3244,7 +3244,7 @@ VerificationResult run_cqmom_dense_phase_space_evolution_failures(const std::fil
     // failures while verifying that dense diagnostic moments remain available on
     // failure.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3252,7 +3252,7 @@ VerificationResult run_cqmom_dense_phase_space_evolution_failures(const std::fil
         return verification;
     }
 
-    const qmomkit::CqmomLeanCase& configured_case = configured.value();
+    const qmomkit::CqmomCase& configured_case = configured.value();
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(configured_case);
     if (!initial.ok())
     {
@@ -3357,7 +3357,7 @@ VerificationResult run_cqmom_lean_phase_space_evolution_failures(const std::file
     // required recursive moment subset. The same callback and realizability
     // failures should map to the same public statuses as dense phase-space evolution.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3365,7 +3365,7 @@ VerificationResult run_cqmom_lean_phase_space_evolution_failures(const std::file
         return verification;
     }
 
-    const qmomkit::CqmomLeanCase& lean_case = configured.value();
+    const qmomkit::CqmomCase& lean_case = configured.value();
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(lean_case);
     if (!initial.ok())
     {
@@ -3470,7 +3470,7 @@ VerificationResult run_cqmom_dense_phase_space_evolution_inversion_failures(cons
     // is invalid for CQMOM. This protects early exit before any user velocity or
     // source callback can alter diagnostics.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3478,7 +3478,7 @@ VerificationResult run_cqmom_dense_phase_space_evolution_inversion_failures(cons
         return verification;
     }
 
-    const qmomkit::CqmomLeanCase& configured_case = configured.value();
+    const qmomkit::CqmomCase& configured_case = configured.value();
     qmomkit::TestCqmomPhaseSpaceEvolutionOptions options = cqmom_options(configured_case);
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
     const qmomkit::PhaseSpaceVelocity zero_velocity =
@@ -3508,7 +3508,7 @@ VerificationResult run_cqmom_lean_phase_space_evolution_inversion_failures(const
     // same early-exit behavior: failed reconstruction, no time advance, and no
     // later-stage diagnostics.
     VerificationResult verification;
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);
@@ -3516,7 +3516,7 @@ VerificationResult run_cqmom_lean_phase_space_evolution_inversion_failures(const
         return verification;
     }
 
-    const qmomkit::CqmomLeanCase& lean_case = configured.value();
+    const qmomkit::CqmomCase& lean_case = configured.value();
     qmomkit::TestLeanCqmomPhaseSpaceEvolutionOptions options = cqmom_lean_options(lean_case);
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
     const qmomkit::TestLeanCqmomPhaseSpaceEvolutionState state{lean_case.moments};

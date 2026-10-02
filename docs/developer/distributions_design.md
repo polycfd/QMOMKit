@@ -335,7 +335,7 @@ or, for an explicit case built by the caller:
 
 SelectedRawMomentResult
       -> CqmomMomentData
-      -> CqmomLeanCase
+      -> CqmomCase
 ```
 
 The CQMOM layer defines `CqmomMomentLayout`, CQMOM moment data, and

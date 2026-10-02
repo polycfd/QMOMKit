@@ -780,10 +780,10 @@ QmomPhaseSpaceEvolutionResult advance_qmom_phase_space(const QmomState& state, c
 namespace
 {
 
-void initialize_cqmom_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, const CqmomLeanCase& lean_case)
+void initialize_cqmom_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, const CqmomCase& cqmom_case)
 {
-    diagnostics.cqmom_diagnostic_level = lean_case.diagnostic_level;
-    diagnostics.cqmom_vandermonde_solver = lean_case.vandermonde_solver;
+    diagnostics.cqmom_diagnostic_level = cqmom_case.diagnostic_level;
+    diagnostics.cqmom_vandermonde_solver = cqmom_case.vandermonde_solver;
 }
 
 void initialize_cqmom_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, const CqmomState& state)
@@ -791,16 +791,16 @@ void initialize_cqmom_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, c
     initialize_cqmom_diagnostics(diagnostics, internal::CqmomConstructionAccess::state_definition(state));
 }
 
-void validate_lean_cqmom_moments_for_phase_space_evolution(const CqmomLeanCase& lean_case)
+void validate_cqmom_moments_for_phase_space_evolution(const CqmomCase& cqmom_case)
 {
-    internal::validate_cqmom_moment_values_match_layout(lean_case.moments,
+    internal::validate_cqmom_moment_values_match_layout(cqmom_case.moments,
                                                         {"", "Lean CQMOM phase-space evolution moments must match the fixed layout size.",
                                                          "Lean CQMOM phase-space evolution moments must be finite."});
 }
 
 void validate_cqmom_state_for_phase_space_evolution(const CqmomState& state)
 {
-    validate_lean_cqmom_moments_for_phase_space_evolution(internal::CqmomConstructionAccess::state_definition(state));
+    validate_cqmom_moments_for_phase_space_evolution(internal::CqmomConstructionAccess::state_definition(state));
 }
 
 void validate_cqmom_advection_input(const CqmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity)
@@ -909,12 +909,12 @@ struct CqmomPhaseSpaceEvolutionWorkingState
                                                                ""});
 }
 
-[[nodiscard]] CqmomState lean_state_from_accepted_quadrature(const CqmomLeanCase& base_case, CqmomMomentData moments,
-                                                             std::vector<CqmomActiveBranchCount> active_counts, CqmomQuadrature&& quadrature,
-                                                             const internal::PreparedCqmomMetadataPtr& prepared_metadata)
+[[nodiscard]] CqmomState cqmom_state_from_accepted_quadrature(const CqmomCase& base_cqmom_case, CqmomMomentData moments,
+                                                              std::vector<CqmomActiveBranchCount> active_counts, CqmomQuadrature&& quadrature,
+                                                              const internal::PreparedCqmomMetadataPtr& prepared_metadata)
 {
-    CqmomLeanCase updated_case = internal::with_moments(base_case, std::move(moments));
-    return internal::CqmomConstructionAccess::create_state(std::move(updated_case), std::move(active_counts), std::move(quadrature),
+    CqmomCase updated_cqmom_case = internal::with_moments(base_cqmom_case, std::move(moments));
+    return internal::CqmomConstructionAccess::create_state(std::move(updated_cqmom_case), std::move(active_counts), std::move(quadrature),
                                                            prepared_metadata);
 }
 
@@ -980,12 +980,12 @@ struct CqmomPhaseSpaceEvolutionWorkingState
                                    diagnostics, t, advection.message);
     }
 
-    const CqmomLeanCase& lean_case = internal::CqmomConstructionAccess::state_definition(state);
+    const CqmomCase& cqmom_case = internal::CqmomConstructionAccess::state_definition(state);
     const internal::PreparedCqmomMetadataPtr& prepared_metadata = internal::CqmomConstructionAccess::state_prepared_metadata(state);
     try
     {
         internal::performance::record_moment_reconstruction_call();
-        CqmomMomentData moments = internal::reconstruct_trusted_cqmom_moments(advection.quadrature, lean_case.moments.layout);
+        CqmomMomentData moments = internal::reconstruct_trusted_cqmom_moments(advection.quadrature, cqmom_case.moments.layout);
         if (final_advection)
         {
             diagnostics.final_reconstruction_diagnostics = successful_reconstruction(moments.values.size());
@@ -995,19 +995,19 @@ struct CqmomPhaseSpaceEvolutionWorkingState
             diagnostics.first_reconstruction_diagnostics = successful_reconstruction(moments.values.size());
         }
         std::vector<CqmomActiveBranchCount> active_counts = take_cqmom_advection_active_counts(working_state);
-        return cqmom_success(lean_state_from_accepted_quadrature(lean_case, std::move(moments), std::move(active_counts),
-                                                                 std::move(advection.quadrature), prepared_metadata),
+        return cqmom_success(cqmom_state_from_accepted_quadrature(cqmom_case, std::move(moments), std::move(active_counts),
+                                                                  std::move(advection.quadrature), prepared_metadata),
                              diagnostics, t + time_step);
     }
     catch (const std::exception& error)
     {
         if (final_advection)
         {
-            diagnostics.final_reconstruction_diagnostics = {false, lean_case.moments.values.size(), error.what()};
+            diagnostics.final_reconstruction_diagnostics = {false, cqmom_case.moments.values.size(), error.what()};
         }
         else
         {
-            diagnostics.first_reconstruction_diagnostics = {false, lean_case.moments.values.size(), error.what()};
+            diagnostics.first_reconstruction_diagnostics = {false, cqmom_case.moments.values.size(), error.what()};
         }
         return cqmom_state_failure(rollback_state, advection.quadrature, PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
                                    final_advection ? PhaseSpaceEvolutionStage::final_moment_reconstruction
@@ -1030,14 +1030,14 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     }
 
     internal::performance::record_moment_source_operator_call();
-    const CqmomLeanCase& lean_case = internal::CqmomConstructionAccess::state_definition(state);
+    const CqmomCase& cqmom_case = internal::CqmomConstructionAccess::state_definition(state);
     const internal::PreparedCqmomMetadataPtr& prepared_metadata = internal::CqmomConstructionAccess::state_prepared_metadata(state);
     CqmomMomentSourceUpdateResult source_update =
         boundary == nullptr
-            ? internal::advance_trusted_cqmom_moments_with_source(lean_case.moments, t, time_step, source, options.source_options, lean_case,
+            ? internal::advance_trusted_cqmom_moments_with_source(cqmom_case.moments, t, time_step, source, options.source_options, cqmom_case,
                                                                   *working_state.active_branch_counts, prepared_metadata.get())
-            : internal::advance_trusted_cqmom_moments_with_source(lean_case.moments, t, time_step, source, *boundary, options.source_options,
-                                                                  lean_case, *working_state.active_branch_counts, prepared_metadata.get());
+            : internal::advance_trusted_cqmom_moments_with_source(cqmom_case.moments, t, time_step, source, *boundary, options.source_options,
+                                                                  cqmom_case, *working_state.active_branch_counts, prepared_metadata.get());
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
     {
@@ -1047,10 +1047,10 @@ struct CqmomPhaseSpaceEvolutionWorkingState
 
     const std::vector<CqmomActiveBranchCount>& before_source_active_branch_counts = *working_state.active_branch_counts;
     internal::performance::record_post_source_inversion();
-    CqmomLeanCase post_source_case = internal::with_moments(lean_case, std::move(source_update.moments));
+    CqmomCase post_source_cqmom_case = internal::with_moments(cqmom_case, std::move(source_update.moments));
     CqmomResult post_source_quadrature =
-        internal::compute_cqmom_internal(post_source_case, *working_state.active_branch_counts, lean_case.adaptive_branch_counts,
-                                         prepared_metadata.get(), !lean_case.adaptive_branch_counts);
+        internal::compute_cqmom_internal(post_source_cqmom_case, *working_state.active_branch_counts, cqmom_case.adaptive_branch_counts,
+                                         prepared_metadata.get(), !cqmom_case.adaptive_branch_counts);
     diagnostics.post_source_cqmom_status = post_source_quadrature.status;
     diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
     if (!post_source_quadrature.ok())
@@ -1063,19 +1063,19 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     try
     {
         internal::performance::record_moment_reconstruction_call();
-        CqmomMomentData moments = internal::reconstruct_trusted_cqmom_moments(post_source_quadrature.quadrature, lean_case.moments.layout);
+        CqmomMomentData moments = internal::reconstruct_trusted_cqmom_moments(post_source_quadrature.quadrature, cqmom_case.moments.layout);
         std::vector<CqmomActiveBranchCount> after_source_active_branch_counts =
             internal::active_branch_counts_from_quadrature(post_source_quadrature.quadrature);
         record_cqmom_node_count_transitions(diagnostics, PhaseSpaceEvolutionStage::post_source_inversion, before_source_active_branch_counts,
                                             after_source_active_branch_counts);
-        return cqmom_success(lean_state_from_accepted_quadrature(lean_case, std::move(moments), std::move(after_source_active_branch_counts),
-                                                                 std::move(post_source_quadrature.quadrature), prepared_metadata),
+        return cqmom_success(cqmom_state_from_accepted_quadrature(cqmom_case, std::move(moments), std::move(after_source_active_branch_counts),
+                                                                  std::move(post_source_quadrature.quadrature), prepared_metadata),
                              diagnostics, t + time_step);
     }
     catch (const std::exception& error)
     {
         std::string message = std::string("Lean CQMOM post-source moment reconstruction failed: ") + error.what();
-        diagnostics.final_reconstruction_diagnostics = {false, lean_case.moments.values.size(), message};
+        diagnostics.final_reconstruction_diagnostics = {false, cqmom_case.moments.values.size(), message};
         return cqmom_state_failure(rollback_state, post_source_quadrature.quadrature, PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
                                    PhaseSpaceEvolutionStage::post_source_inversion, diagnostics, t, std::move(message));
     }

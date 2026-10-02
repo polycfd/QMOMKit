@@ -101,14 +101,19 @@ configured maximum node count, and read-only reconstruction options. The
 maximum and reconstruction options are copied from `QmomCase` and remain
 authoritative for every subsequent evolution transition.
 
-`CqmomPreparedCase` and `CqmomState` hold a `CqmomLeanCase` and do not expose
+`CqmomPreparedCase` and `CqmomState` hold a `CqmomCase` and do not expose
 it. Public accessors read the hierarchy and policies from it; numerical
-algorithms use the held case directly. A `CqmomLeanCase` is promoted through
-the public `CqmomPreparedCase` constructor. `CqmomPreparedCase::initial_state`
+algorithms use the held case directly. A `CqmomCase` is promoted through
+the public `CqmomPreparedCase` constructor. `CqmomCase::initial_state` and
+`CqmomPreparedCase::initial_state` both call `initial_cqmom_state`, which
 computes a successful quadrature, derives active branch counts, reconstructs
 the stored representation from that accepted quadrature, and stores the same
-quadrature in the state. `CqmomState::quadrature()` exposes that stored
-accepted quadrature by const reference. A state reconstructs exactly its
+quadrature in the state. They differ only in where the prepared metadata comes
+from: `CqmomCase::initial_state` builds it on every call, while
+`CqmomPreparedCase::initial_state` hands each state the metadata the prepared
+case already holds. Either way the state keeps that metadata for its whole
+lineage. `CqmomState::quadrature()` exposes that stored accepted quadrature by
+const reference. A state reconstructs exactly its
 required layout in its existing order. Thus every successfully constructed
 initial state has stored moments and cached accepted quadrature describing the
 same current state. Adaptive reduction may replace higher supplied moments with
@@ -127,7 +132,7 @@ representation API.
 
 `CqmomState::moment_indices`, `moment_values`, and `moment` expose the
 required moment data. A moment outside that set returns no value;
-source-context closure is a separate operation. A mutable `CqmomLeanCase` must
+source-context closure is a separate operation. A mutable `CqmomCase` must
 pass public validation before normal reconstruction. Internally trusted calls rely on their creator's structural
 checks.
 
@@ -142,9 +147,10 @@ invariance.
 
 `compute_qmom` overloads resolve case/options/bounds and map Wheeler status;
 [QMOM reconstruction](qmom_reconstruction.md) explains scaling and selection.
-`compute_cqmom` validates a public `CqmomLeanCase` or dispatches an opaque case
-to `compute_cqmom_internal`. Fixed normal workflows supply prepared metadata;
-adaptive workflows construct count-dependent layouts. Scaling wraps the
+`compute_cqmom` validates a public `CqmomCase` or dispatches an opaque case
+to `compute_cqmom_internal`. Prepared cases and states, fixed or adaptive,
+supply their prepared metadata; a `CqmomCase` builds its branch layout on each
+call. Scaling wraps the
 internal reconstruction with reversible coordinate transformations.
 
 `to_qmom_status`, `to_cqmom_status`, `to_cqmom_diagnostics`, `to_cqmom_result`,

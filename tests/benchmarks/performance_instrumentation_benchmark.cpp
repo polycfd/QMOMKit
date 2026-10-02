@@ -26,7 +26,7 @@ struct CqmomWorkload
     qmomkit::PhaseSpaceHierarchy hierarchy;
     qmomkit::RawMomentTensor dense_moments;
     qmomkit::CqmomMomentData lean_moments;
-    qmomkit::CqmomLeanCase lean_case;
+    qmomkit::CqmomCase lean_case;
     qmomkit::CqmomPreparedCase cqmom_prepared_case;
 };
 
@@ -468,7 +468,7 @@ CqmomWorkload make_workload(const std::vector<std::size_t>& node_counts,
     qmomkit::RawMomentTensor dense_moments = independent_product_moments(node_counts);
     qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     qmomkit::CqmomMomentData lean_moments = qmomkit::extract_cqmom_moments(dense_moments, layout);
-    qmomkit::CqmomLeanCase lean_case{lean_moments, {}, {}, false, diagnostic_level, solver};
+    qmomkit::CqmomCase lean_case{lean_moments, {}, {}, false, diagnostic_level, solver};
     qmomkit::CqmomPreparedCase cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_case);
     return {std::move(hierarchy), std::move(dense_moments), std::move(lean_moments), std::move(lean_case), std::move(cqmom_prepared_case)};
 }
@@ -543,7 +543,7 @@ CqmomWorkload make_phase_space_evolution_workload(const std::vector<std::size_t>
     qmom_options.rmin = 1.0e-10;
     qmom_options.eabs = 1.0e-12;
     qmom_options.cutoff = 1.0e-12;
-    qmomkit::CqmomLeanCase lean_case{lean_moments, {}, qmom_options, adaptive, qmomkit::CqmomDiagnosticLevel::basic};
+    qmomkit::CqmomCase lean_case{lean_moments, {}, qmom_options, adaptive, qmomkit::CqmomDiagnosticLevel::basic};
     qmomkit::CqmomPreparedCase cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_case);
     return {std::move(hierarchy), std::move(dense_moments), std::move(lean_moments), std::move(lean_case), std::move(cqmom_prepared_case)};
 }
@@ -562,7 +562,7 @@ std::vector<qmomkit::CqmomState> make_states(const qmomkit::CqmomPreparedCase& c
 qmomkit::CqmomState state_without_accepted_quadrature(const qmomkit::CqmomState& state)
 {
     const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(state);
-    const qmomkit::CqmomLeanCase& lean_case = qmomkit::internal::CqmomConstructionAccess::state_definition(state);
+    const qmomkit::CqmomCase& lean_case = qmomkit::internal::CqmomConstructionAccess::state_definition(state);
     return qmomkit::internal::CqmomConstructionAccess::create_state(lean_case, state.active_branch_counts(), prepared_metadata);
 }
 
@@ -1286,7 +1286,7 @@ void bm_cqmom_fixed_case_preparation(benchmark::State& state, const std::vector<
         {
             perf::CounterScope scope(session);
             cqmom_prepared_case.emplace(qmomkit::internal::CqmomConstructionAccess::create_prepared_case(
-                qmomkit::CqmomLeanCase{lean_moments, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic}));
+                qmomkit::CqmomCase{lean_moments, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic}));
         }
         benchmark::DoNotOptimize(cqmom_prepared_case->hierarchy().number_of_dimensions());
         const auto stop = std::chrono::steady_clock::now();

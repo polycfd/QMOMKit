@@ -121,7 +121,7 @@ void compare_cqmom_moment_data_reconstruction_to_dense(const qmomkit::PhaseSpace
     const std::vector<std::size_t> extents = hierarchy.moment_extents();
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
     assert(cqmom.quadrature.has_rectangular_storage());
 
@@ -191,7 +191,7 @@ void test_cqmom_reconstructs_fixed_non_identity_phase_order_moments()
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
     assert(cqmom.quadrature.has_rectangular_storage());
 
@@ -208,7 +208,7 @@ void test_cqmom_evaluates_generalized_moment()
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
 
     const std::vector<double> exponents{0.5, 0.25};
@@ -231,7 +231,7 @@ void test_cqmom_generalized_moment_rejects_exponent_count_mismatch()
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
 
     assert_throws_invalid_argument_message([&] { (void)qmomkit::evaluate_generalized_moment(cqmom.quadrature, {0.5}); },
@@ -246,7 +246,7 @@ void test_cqmom_generalized_moment_rejects_negative_abscissa_for_fractional_expo
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
 
     assert_throws_domain_error_message([&] { (void)qmomkit::evaluate_generalized_moment(cqmom.quadrature, {0.5, 0.0}); },
@@ -264,7 +264,7 @@ void test_cqmom_reconstructs_selected_requested_moments()
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
 
     const qmomkit::RawMomentRequest request{{{1, 0}, {0, 2}, {1, 1}}};
@@ -284,7 +284,7 @@ void test_cqmom_selected_reconstruction_preserves_duplicate_requests()
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
 
     const qmomkit::RawMomentRequest request{{{1, 0}, {1, 0}, {0, 0}}};
@@ -304,7 +304,7 @@ void test_cqmom_dense_reconstruction_rejects_rank_mismatch()
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
 
     assert_throws_invalid_argument_message([&] { (void)qmomkit::reconstruct_raw_moments(cqmom.quadrature, std::vector<std::size_t>{4}); },
@@ -320,7 +320,7 @@ void test_cqmom_selected_reconstruction_rejects_rank_mismatch()
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
 
     assert_throws_invalid_argument([&] { (void)qmomkit::reconstruct_raw_moments(cqmom.quadrature, qmomkit::RawMomentRequest{{{1}}}); });
@@ -372,11 +372,11 @@ void test_cqmom_reconstructs_adaptive_terminal_moments()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0}, {-2.0, 2.0, 3.0}};
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)),
-                               {},
-                               {true, 1.0e-10, 1.0e-10, 1.0e-12},
-                               true});
+    const qmomkit::CqmomResult cqmom =
+        qmomkit::compute_cqmom(qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)),
+                                                  {},
+                                                  {true, 1.0e-10, 1.0e-10, 1.0e-12},
+                                                  true});
     assert(cqmom.ok());
     assert(!cqmom.quadrature.has_rectangular_storage());
 
@@ -392,11 +392,11 @@ void test_cqmom_moment_data_reconstructs_adaptive_quadrature()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0}, {-2.0, 2.0, 3.0}};
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)),
-                               {},
-                               {true, 1.0e-10, 1.0e-10, 1.0e-12},
-                               true});
+    const qmomkit::CqmomResult cqmom =
+        qmomkit::compute_cqmom(qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)),
+                                                  {},
+                                                  {true, 1.0e-10, 1.0e-10, 1.0e-12},
+                                                  true});
     assert(cqmom.ok());
     assert(!cqmom.quadrature.has_rectangular_storage());
 
@@ -415,7 +415,7 @@ void test_cqmom_moment_data_rejects_mismatched_layout()
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
 
     const qmomkit::CqmomMomentLayout wrong_layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2, 1}));
@@ -432,7 +432,7 @@ void test_cqmom_moment_data_rejects_noncanonical_fixed_layout()
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
 
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomLeanCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(cqmom.ok());
 
     qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);

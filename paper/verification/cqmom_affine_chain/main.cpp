@@ -225,7 +225,7 @@ RunResult run_dimension(const std::size_t dimension)
     const qmomkit::PhaseSpaceHierarchy hierarchy(std::vector<std::size_t>(dimension, nodes_per_rule));
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<double> exact_moments = exact_required_moments(layout);
-    const qmomkit::CqmomLeanCase case_{
+    const qmomkit::CqmomCase case_{
         qmomkit::CqmomMomentData{layout, exact_moments}, {}, qmomkit::QmomOptions{}, false, qmomkit::CqmomDiagnosticLevel::basic,
         qmomkit::VandermondeSolver::automatic,           {}};
     const qmomkit::CqmomResult reconstructed = qmomkit::compute_cqmom(case_);

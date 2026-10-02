@@ -302,7 +302,7 @@ void run_captured_physical_regression()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(captured.hierarchy());
     const qmomkit::CqmomMomentData moments = qmomkit::reconstruct_cqmom_moments(captured, layout);
 
-    qmomkit::CqmomLeanCase lean_case{moments};
+    qmomkit::CqmomCase lean_case{moments};
     lean_case.qmom_options.adaptive = true;
     lean_case.adaptive_branch_counts = true;
     lean_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
@@ -402,7 +402,7 @@ int main(const int argc, char** argv)
 
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
     const qmomkit::CqmomMomentData moments = qmomkit::reconstruct_cqmom_moments(half_step.quadrature, layout);
-    qmomkit::CqmomLeanCase lean_case{moments};
+    qmomkit::CqmomCase lean_case{moments};
     lean_case.conditional_options = cqmom_prepared_case.conditional_options();
     lean_case.qmom_options = cqmom_prepared_case.qmom_options();
     lean_case.adaptive_branch_counts = cqmom_prepared_case.adaptive_branch_counts();

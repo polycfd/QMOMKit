@@ -127,8 +127,8 @@ Current counters are grouped by workload area.
 Reconstruction counters summarize QMOM and CQMOM reconstruction work, including
 QMOM/CQMOM reconstruction calls, Wheeler calls, recursive branch solves,
 adaptive Wheeler reductions, terminal node assembly, and moment-layout
-construction. Fixed normal CQMOM workflows also report prepared-metadata
-builds, prepared-metadata uses, and dynamic-metadata builds.
+construction. CQMOM workflows also report prepared-metadata builds,
+prepared-metadata uses, and dynamic-metadata builds.
 
 Linear algebra counters summarize Vandermonde and dense solve work, including
 Vandermonde solves, solver paths, BP transform updates,
@@ -174,19 +174,21 @@ For public input paths, one expected-layout build may be intentional validation
 work. For trusted `CqmomPreparedCase` or `CqmomState` paths, repeated
 global-layout builds are usually more interesting than branch-local layouts.
 
-`cqmom_prepared_metadata_builds` increments once when a fixed normal case or a
-direct fixed normal state starts a new lineage and eagerly constructs its
-immutable required-layout and branch-layout graph. It does not increment for
-copies, transformations that preserve structure, or phase-space evolution
-successors. `cqmom_prepared_metadata_uses` increments once when a fixed trusted
-reconstruction consumes compatible metadata. `cqmom_dynamic_metadata_builds`
-increments once per reconstruction that creates root/branch metadata
-dynamically, such as an adaptive normal case or an explicit case. A
-valid fixed normal case/state never contributes a dynamic-metadata build;
-missing metadata is an internal contract violation. These coarse counters do
-not replace `moment_layout_builds`: the latter still counts individual
-required-layout and branch-layout objects, including the objects created during
-one eager prepared build.
+`cqmom_prepared_metadata_builds` increments once when a new lineage starts and
+eagerly constructs its immutable required-layout and branch-layout graph: when a
+`CqmomPreparedCase` is constructed, fixed or adaptive, and when a state is
+created from a `CqmomCase` or by a direct internal factory without inherited
+metadata. It does not increment for copies, transformations that preserve
+structure, cases derived with `config::with_initial_moments(...)`, or
+phase-space evolution successors. `cqmom_prepared_metadata_uses` increments once
+when a trusted reconstruction consumes compatible metadata.
+`cqmom_dynamic_metadata_builds` increments once per reconstruction that creates
+root/branch metadata dynamically, such as `compute_cqmom(...)` on a `CqmomCase`.
+A valid prepared case or state never contributes a dynamic-metadata build;
+missing metadata for a fixed one is an internal contract violation. These coarse
+counters do not replace `moment_layout_builds`: the latter still counts
+individual required-layout and branch-layout objects, including the objects
+created during one eager prepared build.
 
 A high node-RHS-evaluation count may reflect many terminal nodes, long
 phase-space evolution intervals, difficult velocity dynamics, or tight

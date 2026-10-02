@@ -126,17 +126,18 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * distribution and mixture specifications are evaluated through the
  * raw-moment generation API.
  */
-[[nodiscard]] ConfigurationResult<MomentSet> initialize_moments(const InitialConditionSpecification& specification,
-                                                                std::string source_name = "<initialization>");
+[[nodiscard]] ConfigurationResult<MomentSet> initialize_qmom_moments(const InitialConditionSpecification& specification,
+                                                                     std::string source_name = "<initialization>");
 
 /**
- * Generate dense multidimensional raw moments from an initialization specification.
+ * Generate a full multidimensional raw moment tensor from an initialization
+ * specification.
  *
  * Explicit tensors are returned unchanged. Independent product specifications
- * are evaluated through the tensor raw-moment generation API and require dense
- * tensor maximum-order metadata.
+ * are evaluated through the tensor raw-moment generation API and require
+ * `maximum_orders`, which sets the tensor extents.
  */
-[[nodiscard]] ConfigurationResult<RawMomentTensor> initialize_cqmom_dense_moments(const InitialConditionSpecification& specification,
+[[nodiscard]] ConfigurationResult<RawMomentTensor> initialize_cqmom_moment_tensor(const InitialConditionSpecification& specification,
                                                                                   std::string source_name = "<initialization>");
 
 /**
@@ -144,11 +145,11 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  *
  * Explicit tensor specifications are adapted by extracting the required CQMOM
  * moments. Independent product specifications are evaluated through selected
- * raw-moment generation, avoiding construction of a dense `RawMomentTensor`.
+ * raw-moment generation, avoiding construction of a full `RawMomentTensor`.
  */
-[[nodiscard]] ConfigurationResult<CqmomMomentData> initialize_cqmom_moment_data(const InitialConditionSpecification& specification,
-                                                                                const PhaseSpaceHierarchy& hierarchy,
-                                                                                std::string source_name = "<initialization>");
+[[nodiscard]] ConfigurationResult<CqmomMomentData> initialize_cqmom_moments(const InitialConditionSpecification& specification,
+                                                                            const PhaseSpaceHierarchy& hierarchy,
+                                                                            std::string source_name = "<initialization>");
 
 /** Parse current QMOM initialization into explicit or generated moments. */
 [[nodiscard]] ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(std::string_view text,
@@ -164,16 +165,17 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
                                                              std::optional<AbscissaBounds> abscissa_bounds = {});
 
 /**
- * Advanced: create an explicit lean CQMOM case from parsed initialization.
+ * Create a CQMOM case definition from an already parsed initialization
+ * specification.
  *
- * Coordinate support has the same phase-space-indexed semantics as the dense
- * factory and is carried into the resulting case/state.
+ * Coordinate support is indexed by phase-space dimension and is carried into
+ * the resulting case and any state created from it. Construct a
+ * `CqmomPreparedCase` from the result for the normal CQMOM workflow.
  */
-[[nodiscard]] ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialConditionSpecification& initial_condition,
-                                                                        const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
-                                                                        bool adaptive_branch_counts = false,
-                                                                        std::string source_name = "<initialization>",
-                                                                        CqmomCoordinateSupport coordinate_support = {});
+[[nodiscard]] ConfigurationResult<CqmomCase> create_cqmom_case(const InitialConditionSpecification& initial_condition,
+                                                               const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
+                                                               bool adaptive_branch_counts = false, std::string source_name = "<initialization>",
+                                                               CqmomCoordinateSupport coordinate_support = {});
 
 /**
  * Create a prepared CQMOM case with replacement initial moments, taken from a
@@ -188,11 +190,12 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * reported here as a configuration error you can inspect, whereas
  * `extract_cqmom_moments(...)` signals the same problems by throwing.
  *
- * The returned immutable case preserves the base case hierarchy, coordinate
- * support, reconstruction policies, and prepared metadata. This operation
- * validates tensor structure only; CQMOM realizability and reconstruction
- * remain the responsibility of `compute_cqmom(...)` and
- * `CqmomPreparedCase::initial_state()`.
+ * The returned immutable case keeps the hierarchy, coordinate support,
+ * reconstruction policies, and prepared metadata of the base case, which is
+ * left unchanged. Cases derived this way therefore share one recursive branch
+ * structure. This operation validates tensor structure only; CQMOM
+ * realizability and reconstruction remain the responsibility of
+ * `compute_cqmom(...)` and `CqmomPreparedCase::initial_state()`.
  */
 [[nodiscard]] ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_cqmom_prepared_case,
                                                                           RawMomentTensor explicit_moments);
@@ -205,23 +208,44 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * hierarchy reconstructs from, so that no full tensor has to be built for
  * entries the case never reads.
  *
- * The returned immutable case preserves the base case hierarchy, coordinate
- * support, reconstruction policies, and prepared metadata. The supplied layout
- * must match the required CQMOM moment layout of the base hierarchy. This
- * operation validates moment-set structure only; CQMOM realizability and
- * reconstruction remain the responsibility of `compute_cqmom(...)` and
- * `CqmomPreparedCase::initial_state()`.
+ * The returned immutable case keeps the hierarchy, coordinate support,
+ * reconstruction policies, and prepared metadata of the base case, which is
+ * left unchanged. The supplied layout must match the required CQMOM moment
+ * layout of the base hierarchy. This operation validates moment-set structure
+ * only; CQMOM realizability and reconstruction remain the responsibility of
+ * `compute_cqmom(...)` and `CqmomPreparedCase::initial_state()`.
  */
 [[nodiscard]] ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_cqmom_prepared_case,
                                                                           CqmomMomentData explicit_moments);
 
+/**
+ * Create a CQMOM case definition with replacement initial moments, taken from a
+ * full raw moment tensor.
+ *
+ * The tensor is validated and its moments selected exactly as by the
+ * `CqmomPreparedCase` overload, with the same errors. The returned case keeps
+ * the settings of the base case, which is left unchanged, but holds no prepared
+ * metadata.
+ */
+[[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_cqmom_case, RawMomentTensor explicit_moments);
+
+/**
+ * Create a CQMOM case definition with replacement initial moments, supplied as
+ * the required CQMOM moment set.
+ *
+ * The moment set is validated exactly as by the `CqmomPreparedCase` overload,
+ * with the same errors. The returned case keeps the settings of the base case,
+ * which is left unchanged, but holds no prepared metadata.
+ */
+[[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_cqmom_case, CqmomMomentData explicit_moments);
+
 /** Parse a current QMOM configuration string. */
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");
 
-/** Advanced: parse configuration into an explicit lean CQMOM case. */
-[[nodiscard]] ConfigurationResult<CqmomLeanCase> parse_cqmom_lean(std::string_view text, std::string source_name = "<string>");
+/** Parse a CQMOM configuration string into a CQMOM case definition. */
+[[nodiscard]] ConfigurationResult<CqmomCase> parse_cqmom(std::string_view text, std::string source_name = "<string>");
 
-/** Parse a current CQMOM configuration string into a prepared CQMOM case. */
+/** Parse a CQMOM configuration string into a prepared CQMOM case, the normal CQMOM workflow. */
 [[nodiscard]] ConfigurationResult<CqmomPreparedCase> parse_cqmom_prepared(std::string_view text, std::string source_name = "<string>");
 
 /** Parse optional runtime realizability policy configuration. */
@@ -252,10 +276,10 @@ parse_coordinate_realizability_policies(std::string_view text, std::string sourc
 /** Load and parse a QMOM configuration from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<QmomCase> load_qmom(const std::filesystem::path& filename);
 
-/** Advanced: load an explicit lean CQMOM case from exactly the requested file. */
-[[nodiscard]] ConfigurationResult<CqmomLeanCase> load_cqmom_lean(const std::filesystem::path& filename);
+/** Load and parse a CQMOM configuration into a CQMOM case definition from exactly the requested file. */
+[[nodiscard]] ConfigurationResult<CqmomCase> load_cqmom(const std::filesystem::path& filename);
 
-/** Load and parse a CQMOM configuration into a prepared CQMOM case from exactly the requested file. */
+/** Load and parse a CQMOM configuration into a prepared CQMOM case, the normal CQMOM workflow, from exactly the requested file. */
 [[nodiscard]] ConfigurationResult<CqmomPreparedCase> load_cqmom_prepared(const std::filesystem::path& filename);
 
 /** Load and parse output configuration from exactly the requested file. */

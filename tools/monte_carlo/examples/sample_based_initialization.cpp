@@ -480,7 +480,7 @@ int run_qmom_case(const std::filesystem::path& configuration_path, const std::st
 int run_cqmom_case(const std::filesystem::path& configuration_path, const std::string& configuration_text,
                    const std::filesystem::path& output_directory)
 {
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured.error());
@@ -511,7 +511,7 @@ int run_cqmom_case(const std::filesystem::path& configuration_path, const std::s
     // Only the CQMOM case is built from the subset the hierarchy reconstructs
     // from.
     qmomkit::RawMomentTensor qmomkit_moments = sampled->moments.moments;
-    qmomkit::CqmomLeanCase case_definition = configured.value();
+    qmomkit::CqmomCase case_definition = configured.value();
     const qmomkit::CqmomMomentLayout layout = case_definition.moments.layout;
     case_definition.moments = qmomkit::extract_cqmom_moments(qmomkit_moments, layout);
     const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(case_definition);

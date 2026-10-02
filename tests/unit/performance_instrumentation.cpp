@@ -149,7 +149,7 @@ qmomkit::CqmomState adaptive_ragged_lean_state()
     qmom_options.rmin = 1.0e-10;
     qmom_options.eabs = 1.0e-12;
     qmom_options.cutoff = 1.0e-12;
-    const qmomkit::CqmomLeanCase lean_case{qmomkit::extract_cqmom_moments(adaptive_ragged_dense_moments(), layout), {}, qmom_options, true};
+    const qmomkit::CqmomCase lean_case{qmomkit::extract_cqmom_moments(adaptive_ragged_dense_moments(), layout), {}, qmom_options, true};
     return qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_case).initial_state();
 }
 
@@ -297,7 +297,7 @@ void test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_en
 
     const qmomkit::PhaseSpaceHierarchy fixed_hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout fixed_layout = qmomkit::create_cqmom_moment_layout(fixed_hierarchy);
-    const qmomkit::CqmomLeanCase fixed_case{qmomkit::extract_cqmom_moments(independent_product_dense_moments(fixed_hierarchy), fixed_layout)};
+    const qmomkit::CqmomCase fixed_case{qmomkit::extract_cqmom_moments(independent_product_dense_moments(fixed_hierarchy), fixed_layout)};
     const qmomkit::CqmomState fixed_state = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(fixed_case).initial_state();
     const qmomkit::CqmomState fixed_cache_miss_state = qmomkit::internal::CqmomConstructionAccess::create_state(
         fixed_case, qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(fixed_state));
@@ -487,7 +487,7 @@ void test_cqmom_generalized_source_moments_reuse_one_quadrature_per_stage_when_e
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomLeanCase lean_case{independent_product_moments(layout)};
+    const qmomkit::CqmomCase lean_case{independent_product_moments(layout)};
     const qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_case).initial_state();
     qmomkit::internal::performance::CounterSession session;
     std::optional<qmomkit::CqmomPhaseSpaceEvolutionResult> result;
@@ -641,7 +641,7 @@ void test_state_phase_space_evolution_source_update_skips_redundant_layout_valid
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData lean_moments = independent_product_moments(layout);
-    const qmomkit::CqmomLeanCase lean_case{lean_moments};
+    const qmomkit::CqmomCase lean_case{lean_moments};
     const qmomkit::CqmomState lean_state = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_case).initial_state();
     const qmomkit::CqmomMomentSource source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
@@ -712,7 +712,7 @@ void test_public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_e
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData moments = independent_product_moments(layout);
-    const qmomkit::CqmomLeanCase lean_case{moments};
+    const qmomkit::CqmomCase lean_case{moments};
 
     qmomkit::internal::performance::CounterSession session;
     std::optional<qmomkit::CqmomResult> result;
@@ -755,7 +755,7 @@ void assert_trusted_case_reconstruction_uses_prepared_metadata(const std::vector
     const qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData moments = independent_product_moments(layout);
-    const qmomkit::CqmomLeanCase lean_case{moments};
+    const qmomkit::CqmomCase lean_case{moments};
     const qmomkit::CqmomResult public_result = qmomkit::compute_cqmom(lean_case);
     assert(public_result.ok());
 
@@ -809,7 +809,7 @@ void test_fixed_and_adaptive_cqmom_metadata_counters()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData moments = independent_product_moments(layout);
-    const qmomkit::CqmomLeanCase fixed_lean_case{moments};
+    const qmomkit::CqmomCase fixed_lean_case{moments};
 
     qmomkit::internal::performance::CounterSession fixed_session;
     {
@@ -820,7 +820,7 @@ void test_fixed_and_adaptive_cqmom_metadata_counters()
         assert(qmomkit::compute_cqmom(fixed_cqmom_prepared_case).ok());
     }
 
-    const qmomkit::CqmomLeanCase adaptive_lean_case{moments, {}, {true, 1.0e-10, 1.0e-12, 1.0e-12}, true};
+    const qmomkit::CqmomCase adaptive_lean_case{moments, {}, {true, 1.0e-10, 1.0e-12, 1.0e-12}, true};
     qmomkit::internal::performance::CounterSession adaptive_session;
     {
         qmomkit::internal::performance::CounterScope scope(adaptive_session);
@@ -852,7 +852,7 @@ void test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_me
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomLeanCase lean_case{independent_product_moments(layout)};
+    const qmomkit::CqmomCase lean_case{independent_product_moments(layout)};
     const qmomkit::CqmomState lean_initial = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_case).initial_state();
     const qmomkit::CqmomQuadrature lean_quadrature = *qmomkit::internal::CqmomConstructionAccess::state_accepted_quadrature(lean_initial);
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
@@ -890,6 +890,78 @@ void test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_me
 #endif
 }
 
+// CqmomCase::initial_state() builds the branch structure on every call, while
+// a CqmomPreparedCase builds it once and hands it on to every case derived from
+// it with config::with_initial_moments(...), and so to the states of those
+// cases. Either way a state steps on the structure it was given and never
+// builds another, so the two routes do the same reconstruction work.
+void test_cqmom_initial_state_builds_branch_structure_once_per_call_or_prepared_case()
+{
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
+    const qmomkit::CqmomMomentData moments = independent_product_moments(layout);
+    // Doubling every moment doubles every weight, so these moments stay
+    // realizable but describe a different state.
+    std::vector<double> doubled_values = moments.values;
+    for (double& value : doubled_values)
+    {
+        value *= 2.0;
+    }
+    const qmomkit::CqmomMomentData doubled_moments{layout, doubled_values};
+    const qmomkit::CqmomCase cqmom_case{moments};
+    const qmomkit::CqmomCase doubled_cqmom_case{doubled_moments};
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+
+    qmomkit::internal::performance::CounterSession case_session;
+    {
+        qmomkit::internal::performance::CounterScope scope(case_session);
+        const qmomkit::CqmomState first = cqmom_case.initial_state();
+        const qmomkit::CqmomState second = doubled_cqmom_case.initial_state();
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(first).get() !=
+               qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(second).get());
+        const qmomkit::CqmomPhaseSpaceEvolutionResult advanced = qmomkit::advance_cqmom_moment_source(first, 0.0, 0.1, zero_source);
+        assert(advanced.ok());
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(advanced.state).get() ==
+               qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(first).get());
+    }
+
+    qmomkit::internal::performance::CounterSession prepared_session;
+    {
+        qmomkit::internal::performance::CounterScope scope(prepared_session);
+        const qmomkit::CqmomPreparedCase cqmom_prepared_case(cqmom_case);
+        const auto doubled_cqmom_prepared_case_result = qmomkit::config::with_initial_moments(cqmom_prepared_case, doubled_moments);
+        assert(doubled_cqmom_prepared_case_result.ok());
+        const qmomkit::CqmomState first = cqmom_prepared_case.initial_state();
+        const qmomkit::CqmomState second = doubled_cqmom_prepared_case_result.value().initial_state();
+        assert(second.moment_values() != first.moment_values());
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(first).get() ==
+               qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(cqmom_prepared_case).get());
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(second).get() ==
+               qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(cqmom_prepared_case).get());
+        const qmomkit::CqmomPhaseSpaceEvolutionResult advanced = qmomkit::advance_cqmom_moment_source(first, 0.0, 0.1, zero_source);
+        assert(advanced.ok());
+        assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(advanced.state).get() ==
+               qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(first).get());
+    }
+
+    const qmomkit::internal::performance::PerformanceCounters case_counters = case_session.snapshot();
+    const qmomkit::internal::performance::PerformanceCounters prepared_counters = prepared_session.snapshot();
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    assert(case_counters.reconstruction.cqmom_prepared_metadata_builds == 2);
+    assert(prepared_counters.reconstruction.cqmom_prepared_metadata_builds == 1);
+    assert(case_counters.reconstruction.cqmom_prepared_metadata_uses > 0);
+    assert(case_counters.reconstruction.cqmom_prepared_metadata_uses == prepared_counters.reconstruction.cqmom_prepared_metadata_uses);
+#else
+    assert(case_counters.reconstruction.cqmom_prepared_metadata_builds == 0);
+    assert(prepared_counters.reconstruction.cqmom_prepared_metadata_builds == 0);
+    assert(case_counters.reconstruction.cqmom_prepared_metadata_uses == 0);
+    assert(prepared_counters.reconstruction.cqmom_prepared_metadata_uses == 0);
+#endif
+    assert(case_counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
+    assert(prepared_counters.reconstruction.cqmom_dynamic_metadata_builds == 0);
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -922,5 +994,7 @@ int main(const int argc, char** argv)
             {"fixed_and_adaptive_cqmom_metadata_counters", test_fixed_and_adaptive_cqmom_metadata_counters},
             {"every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_metadata",
              test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_metadata},
+            {"cqmom_initial_state_builds_branch_structure_once_per_call_or_prepared_case",
+             test_cqmom_initial_state_builds_branch_structure_once_per_call_or_prepared_case},
         });
 }

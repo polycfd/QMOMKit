@@ -190,7 +190,7 @@ struct TerminalNode
 
 [[nodiscard]] qmomkit::CqmomResult reconstruct(const qmomkit::CqmomMomentData& moments)
 {
-    return qmomkit::compute_cqmom(qmomkit::CqmomLeanCase{moments, {}, reconstruction_options(), false});
+    return qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, reconstruction_options(), false});
 }
 
 // Reconstructing the moments from the accepted quadrature must return the

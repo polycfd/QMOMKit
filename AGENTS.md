@@ -172,18 +172,27 @@ multiple phase-space dimensions -> CQMOM
 The normal configured workflows are:
 
 ```text
-load_qmom(...) -> QmomCase -> compute_qmom(...)
+load_qmom(...)           -> QmomCase          -> compute_qmom(...)
+                                              -> initial_state() -> QmomState
+
+load_cqmom_prepared(...) -> CqmomPreparedCase -> compute_cqmom(...)
+                                              -> initial_state() -> CqmomState
 ```
 
-and
+`compute_qmom(...)` and `compute_cqmom(...)` reconstruct a quadrature;
+`initial_state()` creates the state that phase-space evolution advances.
 
-```text
-load_cqmom(...) -> CqmomCase -> compute_cqmom(...) -> CqmomState
-```
-
-`CqmomCase` and `CqmomState` are the default representation-neutral CQMOM
-interfaces. Dense or lean moment representations are advanced interfaces for
-callers that intentionally manage their own moment storage or data transfer.
+`QmomCase` and `QmomState` are the QMOM interfaces. `CqmomPreparedCase` and
+`CqmomState` are the default CQMOM interfaces. QMOM has no prepared
+counterpart, because a one-dimensional reconstruction has no recursive branch
+structure to build. A prepared case builds the recursive branch structure of
+its hierarchy once and shares it with every reconstruction, every state it
+creates, and every case derived from it with
+`config::with_initial_moments(...)`. `CqmomCase` is the CQMOM counterpart of
+`QmomCase`: an open case definition that callers build or edit in code and then
+prepare. Its own `compute_cqmom(...)` and `initial_state()` rebuild the branch
+structure on every call, so they suit a single reconstruction or state rather
+than repeated ones.
 
 Do not expose parser internals, recursive storage details, or solver workspaces
 through configuration or ordinary public workflows.

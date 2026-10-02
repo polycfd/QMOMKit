@@ -1323,15 +1323,15 @@ double CqmomMomentData::moment(const MultiIndexView index) const
     return values[static_cast<std::size_t>(std::distance(layout.required_indices.begin(), found))];
 }
 
-CqmomMomentData extract_cqmom_moments(const RawMomentTensor& moments, const CqmomMomentLayout& layout)
+CqmomMomentData extract_cqmom_moments(const RawMomentTensor& moment_tensor, const CqmomMomentLayout& layout)
 {
-    if (moments.extents.size() != layout.hierarchy.number_of_dimensions())
+    if (moment_tensor.extents.size() != layout.hierarchy.number_of_dimensions())
     {
         throw std::invalid_argument("Dense moment tensor extents must match the CQMOM moment layout dimension.");
     }
 
-    const std::size_t expected_values = product_extents(moments.extents);
-    if (moments.values.size() != expected_values)
+    const std::size_t expected_values = product_extents(moment_tensor.extents);
+    if (moment_tensor.values.size() != expected_values)
     {
         throw std::invalid_argument("Dense moment tensor value count does not match its extents.");
     }
@@ -1340,11 +1340,11 @@ CqmomMomentData extract_cqmom_moments(const RawMomentTensor& moments, const Cqmo
     values.reserve(layout.required_indices.size());
     for (const MultiIndexView index : layout.required_indices)
     {
-        if (!internal::multi_index_within_extents(index, moments.extents))
+        if (!internal::multi_index_within_extents(index, moment_tensor.extents))
         {
             throw std::out_of_range("Dense moment tensor does not contain a required CQMOM moment.");
         }
-        values.push_back(moments.values[flatten_multi_index(index, moments.extents)]);
+        values.push_back(moment_tensor.values[flatten_multi_index(index, moment_tensor.extents)]);
     }
 
     return CqmomMomentData{layout, std::move(values)};

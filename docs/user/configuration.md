@@ -739,6 +739,10 @@ only the case. Time-evolution and output settings must be requested explicitly:
 The evolution loaders return complete option objects with empty callbacks, which
 your application then fills in with its physics.
 
+`load_cqmom(...)` reads the same file into an editable `CqmomCase` definition
+instead, for an application that changes settings in code before preparing the
+case with `qmomkit::CqmomPreparedCase{cqmom_case}`.
+
 An application that loads a case and later obtains a complete raw moment tensor
 can build a replacement case with
 `qmomkit::config::with_initial_moments(base_cqmom_prepared_case, tensor)`. This
@@ -751,6 +755,12 @@ full tensor, pass `CqmomMomentData` instead:
 `qmomkit::config::with_initial_moments(base_cqmom_prepared_case, moment_data)`.
 The result is the same case, and it avoids building a full tensor whose extra
 entries the case never reads.
+
+Every case derived from one prepared base case shares its recursive branch
+structure, so derive the cases for many cells or samples from one base case
+rather than loading or preparing each one. Both overloads also accept a
+`CqmomCase` as the base, with the same checks and errors, and then return a
+`CqmomCase`.
 
 Use the `RawMomentTensor` overload when the moments come from outside QMOMKit,
 as for instance the Monte Carlo companion's sampled moments do. It selects the moments the
@@ -815,12 +825,11 @@ int main()
 }
 ```
 
-For multidimensional CQMOM, build a `CqmomLeanCase` from the moments the
-hierarchy requires. It can be promoted to a `CqmomPreparedCase`, so an
-explicitly constructed case still reaches `initial_state()` and ordinary time
-evolution. If you would rather have QMOMKit derive the required moments from a
-configured independent-product initialisation, `load_cqmom_prepared(...)`
-remains the simpler route.
+For multidimensional CQMOM, build a `CqmomCase` from the moments the
+hierarchy requires, then construct a `CqmomPreparedCase` from it for
+reconstruction and time evolution, as below. If you would rather have QMOMKit
+derive the required moments from a configured independent-product
+initialisation, `load_cqmom_prepared(...)` remains the simpler route.
 
 This example starts from a full tensor the application already owns and selects
 the required moments from it:
@@ -846,7 +855,7 @@ int main()
     qmomkit::QmomOptions qmom_options;
     qmom_options.adaptive = false;
 
-    const qmomkit::CqmomLeanCase cqmom_case{
+    const qmomkit::CqmomCase cqmom_case{
         qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
         {},
         qmom_options};
@@ -878,7 +887,7 @@ supplying the key changes nothing about the case a loader returns.
 
 It is carried through `parse_cqmom_initial_condition(...)` for applications that
 build a full raw moment tensor themselves with
-`initialize_cqmom_dense_moments(...)`, which requires it for an
+`initialize_cqmom_moment_tensor(...)`, which requires it for an
 independent-product specification. There, `maximum_orders[d]` gives the largest
 raw-moment order retained in dimension `d`:
 

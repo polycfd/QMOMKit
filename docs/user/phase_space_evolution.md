@@ -512,7 +512,8 @@ qmomkit::CqmomMomentBoundaryContribution boundary =
 Boundary contributions are not a generic PDE boundary-condition framework.
 They do not define mesh faces, normals, reflection, clipping, or boundary
 geometry. They are runtime physics callbacks, just like velocities and moment
-sources, and are not stored in `QmomCase`, `CqmomPreparedCase`, or `CqmomState`.
+sources, and are not stored in `QmomCase`, `CqmomCase`, `CqmomPreparedCase`, or
+`CqmomState`.
 
 When a boundary callback is supplied to one of these helpers, it is evaluated
 with the moment source during each SSP-RK3 moment-source stage:

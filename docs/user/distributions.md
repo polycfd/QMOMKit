@@ -226,8 +226,9 @@ int main()
     }
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {0, 1});
-    const qmomkit::CqmomResult cqmom =
-        qmomkit::compute_cqmom({hierarchy, tensor.moments});
+    const qmomkit::CqmomCase cqmom_case{
+        qmomkit::extract_cqmom_moments(tensor.moments, qmomkit::create_cqmom_moment_layout(hierarchy))};
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
     if (!cqmom.ok())
     {
         std::cerr << "CQMOM failed: " << cqmom.message << '\n';
@@ -240,9 +241,9 @@ int main()
 
 `maximum_orders` are inclusive. In the example above, the generated tensor has
 extents `{4, 4}`.
-Choose tensor extents that satisfy the requested CQMOM node counts. Supplying a
-rectangular tensor remains available for callers that want one;
-reconstruction will use the required CQMOM moments internally.
+Choose tensor extents that satisfy the requested CQMOM node counts.
+`extract_cqmom_moments(...)` then selects the moments the hierarchy
+reconstructs from, and throws if the tensor is too small to contain one.
 
 Keep these settings separate:
 

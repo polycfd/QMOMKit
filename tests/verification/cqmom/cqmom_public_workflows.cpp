@@ -85,7 +85,7 @@ void update_error(double& maximum, const double actual, const double expected)
     maximum = std::max(maximum, std::abs(actual - expected));
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -192,9 +192,9 @@ void verify_diagnostics(const std::string& workflow_name, const qmomkit::CqmomRe
     }
 }
 
-void verify_required_representation(const qmomkit::CqmomLeanCase& case_, VerificationResult& verification)
+void verify_required_representation(const qmomkit::CqmomCase& case_, VerificationResult& verification)
 {
-    // Expert callers choose CqmomLeanCase when they already work with the
+    // Expert callers choose CqmomCase when they already work with the
     // minimal recursive moment subset. This check verifies the public loader
     // provides exactly that selected representation and that the selected
     // values are sufficient to recover the same analytical product quadrature.
@@ -325,7 +325,7 @@ int main(const int argc, char** argv)
 
     const std::filesystem::path configuration_path = argv[1];
 
-    const auto explicit_case = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto explicit_case = qmomkit::config::load_cqmom(configuration_path);
     if (!explicit_case.ok())
     {
         print_configuration_errors(explicit_case);

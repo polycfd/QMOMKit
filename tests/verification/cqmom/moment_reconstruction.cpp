@@ -123,7 +123,7 @@ void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomk
     std::cerr << configured.error() << '\n';
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -283,7 +283,7 @@ int main(const int argc, char** argv)
         print_configuration_errors(configured);
         return 1;
     }
-    const auto lean = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto lean = qmomkit::config::load_cqmom(configuration_path);
     if (!lean.ok())
     {
         print_configuration_errors(lean);

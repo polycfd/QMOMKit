@@ -148,7 +148,7 @@ optional. When the CQMOM distribution evolves in time, create the runtime state
 separately:
 
 ```cpp
-qmomkit::CqmomState state = cqmom_case.initial_state();
+qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
 ```
 
 That state is passed to `advance_cqmom_phase_space(...)` in a phase-space

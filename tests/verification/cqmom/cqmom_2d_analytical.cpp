@@ -241,7 +241,7 @@ std::map<std::size_t, std::vector<TerminalNode>> group_by_parent(const std::vect
     return grouped;
 }
 
-void verify_configuration_fields(const ExpectedCase& expected, const qmomkit::CqmomLeanCase& configured_case, VerificationResult& result)
+void verify_configuration_fields(const ExpectedCase& expected, const qmomkit::CqmomCase& configured_case, VerificationResult& result)
 {
     if (configured_case.moments.layout.hierarchy.node_counts() != std::vector<std::size_t>{2, 2})
     {
@@ -435,7 +435,7 @@ void verify_reconstructed_moments(const qmomkit::CqmomQuadrature& quadrature, co
     }
 }
 
-VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::CqmomLeanCase& configured_case)
+VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::CqmomCase& configured_case)
 {
     VerificationResult result;
     verify_configuration_fields(expected, configured_case, result);
@@ -463,7 +463,7 @@ VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::Cqmo
     return result;
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomLeanCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -487,7 +487,7 @@ int main(const int argc, char** argv)
         return 2;
     }
 
-    const auto configured = qmomkit::config::load_cqmom_lean(configuration_path);
+    const auto configured = qmomkit::config::load_cqmom(configuration_path);
     if (!configured.ok())
     {
         print_configuration_errors(configured);

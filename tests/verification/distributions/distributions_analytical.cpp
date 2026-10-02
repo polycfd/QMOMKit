@@ -449,7 +449,7 @@ qmomkit::config::ConfigurationResult<qmomkit::RawMomentTensor> parse_configured_
     {
         return qmomkit::config::ConfigurationResult<qmomkit::RawMomentTensor>::failure(initial.error());
     }
-    return qmomkit::config::initialize_cqmom_dense_moments(initial.value());
+    return qmomkit::config::initialize_cqmom_moment_tensor(initial.value());
 }
 
 void verify_configuration_independent_product_two_dimensional()
@@ -531,7 +531,7 @@ scale = 0.75
 
     // The conditioning order is phase-space configuration rather than moment
     // data, so it is checked on the parsed case rather than on the tensor.
-    const auto configured_case = qmomkit::config::parse_cqmom_lean(configuration_text);
+    const auto configured_case = qmomkit::config::parse_cqmom(configuration_text);
     QMOMKIT_VERIFY_CHECK(configured_case.ok());
     QMOMKIT_VERIFY_CHECK(configured_case.value().moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
 

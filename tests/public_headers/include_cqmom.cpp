@@ -3,12 +3,12 @@
 
 // The open case is filled positionally by brace initialization throughout the
 // library, examples and tests, so it must stay an aggregate.
-static_assert(std::is_aggregate_v<qmomkit::CqmomLeanCase>);
+static_assert(std::is_aggregate_v<qmomkit::CqmomCase>);
 
 // A prepared case is built from an open case only on request. Allowing the
 // conversion implicitly would make overloads that accept either case ambiguous.
-static_assert(std::is_constructible_v<qmomkit::CqmomPreparedCase, qmomkit::CqmomLeanCase>);
-static_assert(!std::is_convertible_v<qmomkit::CqmomLeanCase, qmomkit::CqmomPreparedCase>);
+static_assert(std::is_constructible_v<qmomkit::CqmomPreparedCase, qmomkit::CqmomCase>);
+static_assert(!std::is_convertible_v<qmomkit::CqmomCase, qmomkit::CqmomPreparedCase>);
 
 namespace public_header_pins
 {
@@ -20,19 +20,23 @@ namespace public_header_pins
 // as Clang does even without optimization, and the definitions would go
 // unchecked.
 
-using CqmomLeanCaseInversion = qmomkit::CqmomResult (*)(const qmomkit::CqmomLeanCase&);
+using CqmomCaseInversion = qmomkit::CqmomResult (*)(const qmomkit::CqmomCase&);
 
 using CqmomPreparedCaseInversion = qmomkit::CqmomResult (*)(const qmomkit::CqmomPreparedCase&);
 
 using CqmomMomentExtraction = qmomkit::CqmomMomentData (*)(const qmomkit::RawMomentTensor&, const qmomkit::CqmomMomentLayout&);
 
+using CqmomCaseInitialState = qmomkit::CqmomState (qmomkit::CqmomCase::*)() const;
+
 using CqmomPreparedCaseInitialState = qmomkit::CqmomState (qmomkit::CqmomPreparedCase::*)() const;
 
-CqmomLeanCaseInversion cqmom_lean_case_inversion = qmomkit::compute_cqmom;
+CqmomCaseInversion cqmom_case_inversion = qmomkit::compute_cqmom;
 
 CqmomPreparedCaseInversion cqmom_prepared_case_inversion = qmomkit::compute_cqmom;
 
 CqmomMomentExtraction cqmom_moment_extraction = qmomkit::extract_cqmom_moments;
+
+CqmomCaseInitialState cqmom_case_initial_state = &qmomkit::CqmomCase::initial_state;
 
 CqmomPreparedCaseInitialState cqmom_prepared_case_initial_state = &qmomkit::CqmomPreparedCase::initial_state;
 

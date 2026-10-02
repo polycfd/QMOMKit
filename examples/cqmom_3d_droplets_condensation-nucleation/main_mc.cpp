@@ -59,14 +59,15 @@ int main()
             cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(phase_space_evolution_configured.error());
             return 1;
         }
-        const qmomkit::CqmomPreparedCase cqmom_case = std::move(configured_cqmom).value();
+        const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(configured_cqmom).value();
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();
         const qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
-        const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
+        const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
         const qmomkit::RawMomentRequest moment_request{moment_layout.required_indices.to_multi_indices()};
 
         const std::optional<qmomkit::monte_carlo::TensorSampledInitialization> sampled =
-            cqmom_3d_droplets_condensation_nucleation::sample_initial_distribution(std::move(initial_condition).value(), cqmom_case.hierarchy());
+            cqmom_3d_droplets_condensation_nucleation::sample_initial_distribution(std::move(initial_condition).value(),
+                                                                                   cqmom_prepared_case.hierarchy());
         if (!sampled.has_value())
         {
             return 1;
@@ -90,7 +91,8 @@ int main()
         }
         cqmom_3d_droplets_condensation_nucleation::validate_nucleation_interval(initial_time, final_time);
 
-        cqmom_3d_droplets_condensation_nucleation::print_monte_carlo_run_configuration(cqmom_case, phase_space_evolution_options.node_options);
+        cqmom_3d_droplets_condensation_nucleation::print_monte_carlo_run_configuration(cqmom_prepared_case,
+                                                                                       phase_space_evolution_options.node_options);
 
         const auto adapt_monte_carlo_result = [](const qmomkit::monte_carlo::SelectedEnsembleMomentEstimate& estimate)
         {

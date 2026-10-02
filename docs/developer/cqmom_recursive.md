@@ -605,7 +605,7 @@ diagnostic_level = detailed|basic|none
 The public CQMOM API is declared in `<qmomkit/cqmom.hpp>`:
 
 ```cpp
-qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomPreparedCase& case_);
+qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomPreparedCase& cqmom_prepared_case);
 qmomkit::CqmomResult compute_cqmom(const qmomkit::CqmomLeanCase& lean_case);
 ```
 

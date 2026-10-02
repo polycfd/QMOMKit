@@ -283,7 +283,7 @@ public:
     [[nodiscard]] CqmomState initial_state() const;
 
 private:
-    friend CqmomResult compute_cqmom(const CqmomPreparedCase& case_);
+    friend CqmomResult compute_cqmom(const CqmomPreparedCase& cqmom_prepared_case);
     struct Data;
 
     friend class internal::CqmomConstructionAccess;
@@ -323,7 +323,7 @@ struct CqmomResult
  * Construct a multidimensional CQMOM quadrature from the normal user-facing
  * CQMOM case.
  */
-[[nodiscard]] CqmomResult compute_cqmom(const CqmomPreparedCase& case_);
+[[nodiscard]] CqmomResult compute_cqmom(const CqmomPreparedCase& cqmom_prepared_case);
 
 /**
  * Enumerate the minimal fixed-node raw moment multi-indices required by

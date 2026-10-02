@@ -70,9 +70,9 @@ int main()
             cqmom_3d_droplets_condensation_nucleation::print_configuration_errors(sampled_case_result.error());
             return 1;
         }
-        const qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case_result).value();
+        const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(sampled_case_result).value();
 
-        qmomkit::CqmomState state = cqmom_case.initial_state();
+        qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
         // M[0,0,0] is the total number density. The nucleation model is scaled by
         // the initial value, so it is read back from the reconstructed quadrature
@@ -87,7 +87,7 @@ int main()
         const cqmom_3d_droplets_condensation_nucleation::NucleationModel nucleation_model =
             cqmom_3d_droplets_condensation_nucleation::make_nucleation_model(initial_number_moment.values.front());
 
-        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
+        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_3d_droplets_condensation_nucleation::droplet_phase_space_velocity();
 
@@ -107,7 +107,7 @@ int main()
         const qmomkit::CqmomMomentSource zero_moment_source = [](double, const qmomkit::CqmomSourceContext& context)
         { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
         const auto nucleation_boundary = cqmom_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(nucleation_model);
-        cqmom_3d_droplets_condensation_nucleation::print_cqmom_run_configuration(cqmom_case, phase_space_evolution_options);
+        cqmom_3d_droplets_condensation_nucleation::print_cqmom_run_configuration(cqmom_prepared_case, phase_space_evolution_options);
 
         if (output_options.write_moments || output_options.write_quadrature)
         {

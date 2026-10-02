@@ -148,6 +148,6 @@ struct QmomCase
 /**
  * Construct a one-dimensional QMOM quadrature from a case object.
  */
-[[nodiscard]] QmomResult compute_qmom(const QmomCase& case_);
+[[nodiscard]] QmomResult compute_qmom(const QmomCase& qmom_case);
 
 } // namespace qmomkit

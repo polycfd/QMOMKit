@@ -194,7 +194,8 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * remain the responsibility of `compute_cqmom(...)` and
  * `CqmomPreparedCase::initial_state()`.
  */
-[[nodiscard]] ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_case, RawMomentTensor explicit_moments);
+[[nodiscard]] ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_cqmom_prepared_case,
+                                                                          RawMomentTensor explicit_moments);
 
 /**
  * Create a prepared CQMOM case with replacement initial moments, supplied as
@@ -211,7 +212,8 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * reconstruction remain the responsibility of `compute_cqmom(...)` and
  * `CqmomPreparedCase::initial_state()`.
  */
-[[nodiscard]] ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_case, CqmomMomentData explicit_moments);
+[[nodiscard]] ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_cqmom_prepared_case,
+                                                                          CqmomMomentData explicit_moments);
 
 /** Parse a current QMOM configuration string. */
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");

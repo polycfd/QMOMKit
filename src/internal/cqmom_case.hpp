@@ -45,11 +45,11 @@ public:
                                                  PreparedCqmomMetadataPtr prepared_metadata = nullptr);
     [[nodiscard]] static CqmomState create_state(CqmomLeanCase lean_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
                                                  CqmomQuadrature&& accepted_quadrature, PreparedCqmomMetadataPtr prepared_metadata = nullptr);
-    [[nodiscard]] static const CqmomLeanCase& case_definition(const CqmomPreparedCase& case_);
+    [[nodiscard]] static const CqmomLeanCase& case_definition(const CqmomPreparedCase& cqmom_prepared_case);
     [[nodiscard]] static const CqmomLeanCase& state_definition(const CqmomState& state);
     [[nodiscard]] static const std::vector<CqmomActiveBranchCount>& state_active_branch_counts(const CqmomState& state);
     [[nodiscard]] static const std::optional<CqmomQuadrature>& state_accepted_quadrature(const CqmomState& state);
-    [[nodiscard]] static const PreparedCqmomMetadataPtr& case_prepared_metadata(const CqmomPreparedCase& case_);
+    [[nodiscard]] static const PreparedCqmomMetadataPtr& case_prepared_metadata(const CqmomPreparedCase& cqmom_prepared_case);
     [[nodiscard]] static const PreparedCqmomMetadataPtr& state_prepared_metadata(const CqmomState& state);
     [[nodiscard]] static CqmomQuadrature create_quadrature(PhaseSpaceHierarchy hierarchy, std::vector<double> weights,
                                                            std::vector<std::vector<double>> abscissas, bool adaptive_branch_counts_enabled,

@@ -704,9 +704,9 @@ if (!configured)
     return 1;
 }
 
-const qmomkit::CqmomPreparedCase cqmom_case = configured.value();
+const qmomkit::CqmomPreparedCase cqmom_prepared_case = configured.value();
 
-const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
+const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_prepared_case);
 if (!result.ok())
 {
     std::cerr << "CQMOM failed: " << result.message << '\n';
@@ -741,16 +741,16 @@ your application then fills in with its physics.
 
 An application that loads a case and later obtains a complete raw moment tensor
 can build a replacement case with
-`qmomkit::config::with_initial_moments(base_case, tensor)`. This keeps the
-loaded hierarchy, supports, and reconstruction settings, and validates the
-tensor's structure — equivalent to having written those moments
+`qmomkit::config::with_initial_moments(base_cqmom_prepared_case, tensor)`. This
+keeps the loaded hierarchy, supports, and reconstruction settings, and
+validates the tensor's structure — equivalent to having written those moments
 into the file, without serialising and reparsing it.
 
 If the moments already arrive as the required CQMOM moment set rather than a
 full tensor, pass `CqmomMomentData` instead:
-`qmomkit::config::with_initial_moments(base_case, moment_data)`. The result is
-the same case, and it avoids building a full tensor whose extra entries the case
-never reads.
+`qmomkit::config::with_initial_moments(base_cqmom_prepared_case, moment_data)`.
+The result is the same case, and it avoids building a full tensor whose extra
+entries the case never reads.
 
 Use the `RawMomentTensor` overload when the moments come from outside QMOMKit,
 as for instance the Monte Carlo companion's sampled moments do. It selects the moments the
@@ -851,15 +851,15 @@ int main()
         {},
         qmom_options};
 
-    const qmomkit::CqmomPreparedCase normal_case{cqmom_case};
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(normal_case);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case{cqmom_case};
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_prepared_case);
     if (!cqmom.ok())
     {
         std::cerr << "CQMOM failed: " << cqmom.message << '\n';
         return 1;
     }
 
-    const qmomkit::CqmomState state = normal_case.initial_state();
+    const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
     const qmomkit::CqmomQuadrature& quadrature = state.quadrature();
 
     return 0;

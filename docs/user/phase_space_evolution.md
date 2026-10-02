@@ -733,15 +733,15 @@ if (!configured)
     // Report configured.error(), then stop.
 }
 
-const qmomkit::CqmomPreparedCase cqmom_case = configured.value();
+const qmomkit::CqmomPreparedCase cqmom_prepared_case = configured.value();
 
-const qmomkit::CqmomResult initial_quadrature = qmomkit::compute_cqmom(cqmom_case);
+const qmomkit::CqmomResult initial_quadrature = qmomkit::compute_cqmom(cqmom_prepared_case);
 if (!initial_quadrature.ok())
 {
     // Report initial_quadrature.message, then stop.
 }
 
-qmomkit::CqmomState state = cqmom_case.initial_state();
+qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
 
 qmomkit::CqmomPhaseSpaceEvolutionOptions options;
 options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;

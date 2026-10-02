@@ -278,7 +278,7 @@ void compare_qmom_state(const qmomkit::Quadrature1D& quadrature, const std::vect
     }
 }
 
-void verify_initial_qmom_state(const CaseDefinition& definition, const qmomkit::QmomCase& case_, const qmomkit::Quadrature1D& quadrature,
+void verify_initial_qmom_state(const CaseDefinition& definition, const qmomkit::QmomCase& qmom_case, const qmomkit::Quadrature1D& quadrature,
                                VerificationResult& result)
 {
     const std::vector<std::pair<double, double>> expected_rule = expected_initial_qmom_rule(definition.name);
@@ -298,12 +298,12 @@ void verify_initial_qmom_state(const CaseDefinition& definition, const qmomkit::
         expected_weights.push_back(weight);
     }
 
-    compare_qmom_state(quadrature, expected_nodes, expected_weights, case_.moments.size(), result);
-    const std::vector<double> expected_moments = exact_qmom_moments(expected_nodes, expected_weights, case_.moments.size());
-    for (std::size_t order = 0; order < case_.moments.size(); ++order)
+    compare_qmom_state(quadrature, expected_nodes, expected_weights, qmom_case.moments.size(), result);
+    const std::vector<double> expected_moments = exact_qmom_moments(expected_nodes, expected_weights, qmom_case.moments.size());
+    for (std::size_t order = 0; order < qmom_case.moments.size(); ++order)
     {
-        update_error(result.errors.moment_absolute, case_.moments[order], expected_moments[order]);
-        update_relative_error(result.errors.moment_relative, case_.moments[order], expected_moments[order]);
+        update_error(result.errors.moment_absolute, qmom_case.moments[order], expected_moments[order]);
+        update_relative_error(result.errors.moment_relative, qmom_case.moments[order], expected_moments[order]);
     }
 }
 

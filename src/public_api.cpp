@@ -168,9 +168,9 @@ QmomResult compute_qmom(const MomentSet& moments, const std::size_t node_count, 
     return compute_qmom_with_automatic_scaling(moments, node_count, options, abscissa_bounds);
 }
 
-QmomResult compute_qmom(const QmomCase& case_)
+QmomResult compute_qmom(const QmomCase& qmom_case)
 {
-    return compute_qmom(case_.moments, case_.node_count, case_.options, case_.abscissa_bounds);
+    return compute_qmom(qmom_case.moments, qmom_case.node_count, qmom_case.options, qmom_case.abscissa_bounds);
 }
 
 QmomState::QmomState(std::vector<double> moments, QmomResult quadrature, const std::size_t maximum_node_count, QmomOptions qmom_options,
@@ -438,9 +438,9 @@ CqmomState CqmomConstructionAccess::create_state(CqmomLeanCase lean_case, std::v
                         std::move(prepared_metadata));
 }
 
-const CqmomLeanCase& CqmomConstructionAccess::case_definition(const CqmomPreparedCase& case_)
+const CqmomLeanCase& CqmomConstructionAccess::case_definition(const CqmomPreparedCase& cqmom_prepared_case)
 {
-    return case_.data_->case_;
+    return cqmom_prepared_case.data_->case_;
 }
 
 const CqmomLeanCase& CqmomConstructionAccess::state_definition(const CqmomState& state)
@@ -458,9 +458,9 @@ const std::optional<CqmomQuadrature>& CqmomConstructionAccess::state_accepted_qu
     return state.data_->accepted_quadrature;
 }
 
-const PreparedCqmomMetadataPtr& CqmomConstructionAccess::case_prepared_metadata(const CqmomPreparedCase& case_)
+const PreparedCqmomMetadataPtr& CqmomConstructionAccess::case_prepared_metadata(const CqmomPreparedCase& cqmom_prepared_case)
 {
-    return case_.data_->prepared_metadata;
+    return cqmom_prepared_case.data_->prepared_metadata;
 }
 
 const PreparedCqmomMetadataPtr& CqmomConstructionAccess::state_prepared_metadata(const CqmomState& state)
@@ -734,10 +734,10 @@ CqmomResult compute_cqmom_internal(const CqmomLeanCase& lean_case, std::vector<C
 
 } // namespace internal
 
-CqmomResult compute_cqmom(const CqmomPreparedCase& case_)
+CqmomResult compute_cqmom(const CqmomPreparedCase& cqmom_prepared_case)
 {
-    const internal::PreparedCqmomMetadata* prepared_metadata = case_.data_->prepared_metadata.get();
-    return internal::compute_cqmom_internal(case_.data_->case_, {}, false, prepared_metadata, true);
+    const internal::PreparedCqmomMetadata* prepared_metadata = cqmom_prepared_case.data_->prepared_metadata.get();
+    return internal::compute_cqmom_internal(cqmom_prepared_case.data_->case_, {}, false, prepared_metadata, true);
 }
 
 } // namespace qmomkit

@@ -47,10 +47,10 @@ int main()
         // enables. Each CQMOM branch then uses as many nodes as its local moments
         // support, and the state tracks how many that currently is, so
         // state.active_branch_counts() changes as the run proceeds.
-        const qmomkit::CqmomPreparedCase cqmom_case = std::move(configured).value();
-        qmomkit::CqmomState state = cqmom_case.initial_state();
+        const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(configured).value();
+        qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
-        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
+        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const cqmom_2d_adaptive_node_counts::VarianceInjectionParameters source_parameters =
             cqmom_2d_adaptive_node_counts::default_variance_injection_parameters();
@@ -168,9 +168,9 @@ int main()
         }
         cqmom_2d_adaptive_node_counts::print_result_summary(
             initial_moments, final_moments, output_history, active_count_transitions, state.quadrature(), output_options.directory,
-            cqmom_case.hierarchy().conditioning_order(), cqmom_case.hierarchy().node_counts(), source_parameters.relaxation_rate,
+            cqmom_prepared_case.hierarchy().conditioning_order(), cqmom_prepared_case.hierarchy().node_counts(), source_parameters.relaxation_rate,
             source_parameters.equilibrium_velocity, source_parameters.pulse_start, source_parameters.pulse_end, source_parameters.source_rate,
-            source_parameters.velocity_displacement, time_step, final_time, 2 * cqmom_case.hierarchy().node_count(velocity_dimension) - 1,
+            source_parameters.velocity_displacement, time_step, final_time, 2 * cqmom_prepared_case.hierarchy().node_count(velocity_dimension) - 1,
             source_validation_message, moment_layout_message, output_options.write_moments, output_options.write_quadrature);
     }
     catch (const std::exception& error)

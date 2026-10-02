@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
             print_configuration_errors(sampled_case.error());
             return 1;
         }
-        qmomkit::CqmomPreparedCase cqmom_case = std::move(sampled_case).value();
+        qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(sampled_case).value();
         const ParticleModelParameters particle_parameters = particle_model_parameters();
         validate_particle_model_parameters(particle_parameters);
         const BinaryFragmentationParameters breakage_parameters = binary_fragmentation_parameters();
@@ -114,8 +114,8 @@ int main(int argc, char* argv[])
         // summary asks for a chosen subset rather than the whole layout.
         const qmomkit::RawMomentRequest terminal_moment_request{select_terminal_moment_indices(moment_layout.required_indices)};
 
-        std::cout << qmomkit::format_cqmom_settings(cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(),
-                                                    cqmom_case.diagnostic_level());
+        std::cout << qmomkit::format_cqmom_settings(cqmom_prepared_case.adaptive_branch_counts(), cqmom_prepared_case.vandermonde_solver(),
+                                                    cqmom_prepared_case.diagnostic_level());
         std::cout << "Phase-space evolution scheme: ";
         switch (evolution_options.scheme)
         {
@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
         }
         std::cout << '\n' << qmomkit::format_node_advection_options(evolution_options.node_options);
 
-        qmomkit::CqmomState state = cqmom_case.initial_state();
+        qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
         if (output_options.write_quadrature || output_options.write_moments)
         {

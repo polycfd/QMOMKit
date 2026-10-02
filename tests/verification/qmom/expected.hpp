@@ -181,7 +181,7 @@ inline void verify_distribution_properties(const QmomAnalyticalCase& test_case, 
     }
 }
 
-inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_case, const QmomCase& case_)
+inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_case, const QmomCase& qmom_case)
 {
     // Verify a complete public QMOM analytical workflow. The reference is the
     // independently listed quadrature rule above; the test compares recovered
@@ -189,7 +189,7 @@ inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_ca
     // recovered quadrature as the user-visible mathematical guarantee.
     QmomVerificationResult verification;
     verification.name = test_case.name;
-    if (case_.node_count != test_case.weights.size() || case_.moments.empty())
+    if (qmom_case.node_count != test_case.weights.size() || qmom_case.moments.empty())
     {
         verification.message = "Configured node count or moment sequence does not match the analytical case.";
         return verification;
@@ -200,9 +200,9 @@ inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_ca
     {
         expected_mass += static_cast<long double>(weight);
     }
-    update_errors(verification.mass_errors, case_.moments[0], static_cast<double>(expected_mass));
+    update_errors(verification.mass_errors, qmom_case.moments[0], static_cast<double>(expected_mass));
 
-    const QmomResult quadrature = compute_qmom(case_);
+    const QmomResult quadrature = compute_qmom(qmom_case);
     verification.status = quadrature.status;
     verification.message = quadrature.message;
     if (!quadrature.ok() || quadrature.weights.size() != test_case.weights.size() || quadrature.abscissas.size() != test_case.abscissas.size())
@@ -219,7 +219,7 @@ inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_ca
         expected.emplace_back(test_case.abscissas[node], test_case.weights[node]);
         recovered_mass += static_cast<long double>(quadrature.weights[node]);
     }
-    update_errors(verification.mass_errors, static_cast<double>(recovered_mass), case_.moments[0]);
+    update_errors(verification.mass_errors, static_cast<double>(recovered_mass), qmom_case.moments[0]);
     std::sort(recovered.begin(), recovered.end());
     std::sort(expected.begin(), expected.end());
     for (std::size_t node = 0; node < expected.size(); ++node)
@@ -228,7 +228,7 @@ inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_ca
         update_errors(verification.weight_errors, recovered[node].second, expected[node].second);
     }
 
-    for (std::size_t order = 0; order < case_.moments.size(); ++order)
+    for (std::size_t order = 0; order < qmom_case.moments.size(); ++order)
     {
         long double reconstructed = 0.0L;
         for (const auto& node : recovered)
@@ -240,7 +240,7 @@ inline QmomVerificationResult verify_qmom_case(const QmomAnalyticalCase& test_ca
             }
             reconstructed += static_cast<long double>(node.second) * power;
         }
-        update_errors(verification.moment_errors, static_cast<double>(reconstructed), case_.moments[order]);
+        update_errors(verification.moment_errors, static_cast<double>(reconstructed), qmom_case.moments[order]);
         if (test_case.family == QmomAnalyticalCase::Family::gaussian && order % 2 == 1 && !near_zero(static_cast<double>(reconstructed)))
         {
             append_failure(verification, "Gaussian odd reconstructed moment does not vanish within tolerance.");

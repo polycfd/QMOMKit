@@ -120,9 +120,9 @@ int main()
         return 1;
     }
 
-    const qmomkit::CqmomPreparedCase cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = configured.value();
 
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_prepared_case);
     if (!result.ok())
     {
         std::cerr << "CQMOM failed: " << result.message << '\n';

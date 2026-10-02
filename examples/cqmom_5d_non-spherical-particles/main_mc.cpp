@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
             print_configuration_errors(configured.error());
             return 1;
         }
-        const qmomkit::CqmomPreparedCase configured_case = std::move(configured).value();
+        const qmomkit::CqmomPreparedCase configured_cqmom_prepared_case = std::move(configured).value();
 
         auto output_configured = qmomkit::config::load_output_options(configuration_file);
         if (!output_configured)
@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
             print_configuration_errors(initial_condition.error());
             return 1;
         }
-        const auto sampled = sample_initial_ensemble(std::move(initial_condition).value(), configured_case.hierarchy());
+        const auto sampled = sample_initial_ensemble(std::move(initial_condition).value(), configured_cqmom_prepared_case.hierarchy());
         if (!sampled.has_value())
         {
             return 1;
@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(configured_case.hierarchy());
+        const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(configured_cqmom_prepared_case.hierarchy());
         const std::vector<qmomkit::MultiIndex> terminal_moment_indices = select_terminal_moment_indices(moment_layout.required_indices);
         qmomkit::monte_carlo::Ensemble ensemble = sampled->sampling.ensemble;
         const double particle_weight = sampled->sampling.number_density / static_cast<double>(ensemble.size());

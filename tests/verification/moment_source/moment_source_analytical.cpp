@@ -363,11 +363,11 @@ std::vector<double> advance_cqmom_plan(const qmomkit::CqmomMomentData& initial_m
     return current;
 }
 
-void verify_qmom_reconstruction(const qmomkit::QmomCase& configured, const std::vector<double>& moments, VerificationResult& result)
+void verify_qmom_reconstruction(const qmomkit::QmomCase& configured_qmom_case, const std::vector<double>& moments, VerificationResult& result)
 {
-    qmomkit::QmomCase final_case = configured;
-    final_case.moments = qmomkit::MomentSet(moments);
-    const qmomkit::QmomResult qmom = qmomkit::compute_qmom(final_case);
+    qmomkit::QmomCase final_qmom_case = configured_qmom_case;
+    final_qmom_case.moments = qmomkit::MomentSet(moments);
+    const qmomkit::QmomResult qmom = qmomkit::compute_qmom(final_qmom_case);
     if (!qmom.ok())
     {
         append_failure(result, "Final QMOM inversion failed: " + qmom.message);

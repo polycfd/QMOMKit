@@ -2365,11 +2365,11 @@ ConfigurationResult<CqmomLeanCase> create_cqmom_lean_case(const InitialCondition
                                                             std::move(coordinate_support)}};
 }
 
-ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_case, RawMomentTensor explicit_moments)
+ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_cqmom_prepared_case, RawMomentTensor explicit_moments)
 {
     try
     {
-        const PhaseSpaceHierarchy& hierarchy = base_case.hierarchy();
+        const PhaseSpaceHierarchy& hierarchy = base_cqmom_prepared_case.hierarchy();
         const std::optional<std::string> structure_error = validate_replacement_tensor_structure(explicit_moments, hierarchy);
         if (structure_error.has_value())
         {
@@ -2386,10 +2386,10 @@ ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedC
             }
         }
 
-        CqmomLeanCase replaced_case = qmomkit::internal::CqmomConstructionAccess::case_definition(base_case);
+        CqmomLeanCase replaced_case = qmomkit::internal::CqmomConstructionAccess::case_definition(base_cqmom_prepared_case);
         replaced_case.moments = extract_cqmom_moments(explicit_moments, layout);
         return ConfigurationResult<CqmomPreparedCase>{qmomkit::internal::CqmomConstructionAccess::create_prepared_case(
-            std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case))};
+            std::move(replaced_case), qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_cqmom_prepared_case))};
     }
     catch (const std::exception& error)
     {
@@ -2397,18 +2397,19 @@ ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedC
     }
 }
 
-ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_case, CqmomMomentData explicit_moments)
+ConfigurationResult<CqmomPreparedCase> with_initial_moments(const CqmomPreparedCase& base_cqmom_prepared_case, CqmomMomentData explicit_moments)
 {
     try
     {
         internal::validate_cqmom_moment_data_matches_hierarchy(
-            explicit_moments, base_case.hierarchy(),
+            explicit_moments, base_cqmom_prepared_case.hierarchy(),
             {"Lean CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.",
              "Lean CQMOM moment data value count does not match its required CQMOM moment layout.", "Lean CQMOM moment data values must be finite."});
 
         return ConfigurationResult<CqmomPreparedCase>{qmomkit::internal::CqmomConstructionAccess::create_prepared_case(
-            qmomkit::internal::with_moments(qmomkit::internal::CqmomConstructionAccess::case_definition(base_case), std::move(explicit_moments)),
-            qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case))};
+            qmomkit::internal::with_moments(qmomkit::internal::CqmomConstructionAccess::case_definition(base_cqmom_prepared_case),
+                                            std::move(explicit_moments)),
+            qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_cqmom_prepared_case))};
     }
     catch (const std::exception& error)
     {

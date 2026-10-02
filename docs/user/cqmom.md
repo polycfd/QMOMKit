@@ -111,13 +111,13 @@ ordinary CQMOM setup, it can make a separate phase-space evolution-capable case
 without rewriting configuration text:
 
 ```cpp
-const auto replaced = qmomkit::config::with_initial_moments(base_case, std::move(raw_moments));
+const auto replaced = qmomkit::config::with_initial_moments(base_cqmom_prepared_case, std::move(raw_moments));
 if (!replaced)
 {
     std::cerr << replaced.error() << '\n';
     return 1;
 }
-const qmomkit::CqmomPreparedCase cqmom_case = replaced.value();
+const qmomkit::CqmomPreparedCase cqmom_prepared_case = replaced.value();
 ```
 
 The new case retains the base hierarchy, conditioning order, support, and every
@@ -133,10 +133,10 @@ When the producer can supply the required CQMOM moment set directly, pass
 `CqmomMomentData` instead of a tensor:
 
 ```cpp
-const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(base_case.hierarchy());
+const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(base_cqmom_prepared_case.hierarchy());
 const qmomkit::RawMomentRequest request{layout.required_indices.to_multi_indices()};
 const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(product_distribution, request);
-const auto replaced = qmomkit::config::with_initial_moments(base_case, qmomkit::create_cqmom_moment_data(layout, selected));
+const auto replaced = qmomkit::config::with_initial_moments(base_cqmom_prepared_case, qmomkit::create_cqmom_moment_data(layout, selected));
 ```
 
 This asks for exactly the moments the hierarchy needs rather than a full
@@ -170,9 +170,9 @@ int main()
         return 1;
     }
 
-    const qmomkit::CqmomPreparedCase cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = configured.value();
 
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_prepared_case);
     if (!result.ok())
     {
         std::cerr << "CQMOM failed: " << result.message << '\n';

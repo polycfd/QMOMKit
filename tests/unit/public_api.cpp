@@ -275,45 +275,45 @@ void test_cqmom_prepared_case_and_state_assignment_preserve_independent_values()
     const qmomkit::RawMomentTensor second_moments = scaled_moments(first_moments, 2.0);
     assert(first_moments.values != second_moments.values);
 
-    const qmomkit::CqmomPreparedCase first_case{cqmom_case_from_tensor(hierarchy, first_moments)};
-    const qmomkit::CqmomPreparedCase second_case{cqmom_case_from_tensor(hierarchy, second_moments)};
+    const qmomkit::CqmomPreparedCase first_cqmom_prepared_case{cqmom_case_from_tensor(hierarchy, first_moments)};
+    const qmomkit::CqmomPreparedCase second_cqmom_prepared_case{cqmom_case_from_tensor(hierarchy, second_moments)};
 
     // `initial_state()` stores the canonical moments derived from the accepted
     // quadrature rather than echoing the input tensor, so compare states to states.
-    const std::vector<double> first_values = first_case.initial_state().moment_values();
-    const std::vector<double> second_values = second_case.initial_state().moment_values();
+    const std::vector<double> first_values = first_cqmom_prepared_case.initial_state().moment_values();
+    const std::vector<double> second_values = second_cqmom_prepared_case.initial_state().moment_values();
     assert(first_values != second_values);
 
     // Copy assignment replaces the target's payload, leaves the source alone, and
     // keeps sharing the source's immutable prepared metadata.
-    qmomkit::CqmomPreparedCase assigned_case = first_case;
-    assert(assigned_case.initial_state().moment_values() == first_values);
-    assigned_case = second_case;
-    assert(assigned_case.initial_state().moment_values() == second_values);
-    assert(second_case.initial_state().moment_values() == second_values);
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(assigned_case).get() ==
-           qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(second_case).get());
+    qmomkit::CqmomPreparedCase assigned_cqmom_prepared_case = first_cqmom_prepared_case;
+    assert(assigned_cqmom_prepared_case.initial_state().moment_values() == first_values);
+    assigned_cqmom_prepared_case = second_cqmom_prepared_case;
+    assert(assigned_cqmom_prepared_case.initial_state().moment_values() == second_values);
+    assert(second_cqmom_prepared_case.initial_state().moment_values() == second_values);
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(assigned_cqmom_prepared_case).get() ==
+           qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(second_cqmom_prepared_case).get());
 
     // The self-assignment guard: without it the payload is released before it is
     // read back, so the case has to survive this and stay usable afterwards.
-    assign_from(assigned_case, assigned_case);
-    assert(assigned_case.initial_state().moment_values() == second_values);
-    const qmomkit::CqmomResult after_self_assignment = qmomkit::compute_cqmom(assigned_case);
+    assign_from(assigned_cqmom_prepared_case, assigned_cqmom_prepared_case);
+    assert(assigned_cqmom_prepared_case.initial_state().moment_values() == second_values);
+    const qmomkit::CqmomResult after_self_assignment = qmomkit::compute_cqmom(assigned_cqmom_prepared_case);
     assert(after_self_assignment.ok());
 
-    qmomkit::CqmomPreparedCase movable_case = first_case;
-    qmomkit::CqmomPreparedCase move_assigned_case = second_case;
-    move_assigned_case = std::move(movable_case);
-    assert(move_assigned_case.initial_state().moment_values() == first_values);
+    qmomkit::CqmomPreparedCase movable_cqmom_prepared_case = first_cqmom_prepared_case;
+    qmomkit::CqmomPreparedCase move_assigned_cqmom_prepared_case = second_cqmom_prepared_case;
+    move_assigned_cqmom_prepared_case = std::move(movable_cqmom_prepared_case);
+    assert(move_assigned_cqmom_prepared_case.initial_state().moment_values() == first_values);
 
     // A copy is independent of later edits to the original, which is what
     // `config::with_initial_moments` returning a new case relies on.
-    const qmomkit::CqmomPreparedCase copied_case = first_case;
-    const auto replaced = qmomkit::config::with_initial_moments(first_case, second_moments);
+    const qmomkit::CqmomPreparedCase copied_cqmom_prepared_case = first_cqmom_prepared_case;
+    const auto replaced = qmomkit::config::with_initial_moments(first_cqmom_prepared_case, second_moments);
     assert(replaced.ok());
     assert(replaced.value().initial_state().moment_values() == second_values);
-    assert(copied_case.initial_state().moment_values() == first_values);
-    assert(first_case.initial_state().moment_values() == first_values);
+    assert(copied_cqmom_prepared_case.initial_state().moment_values() == first_values);
+    assert(first_cqmom_prepared_case.initial_state().moment_values() == first_values);
 
     // The evolution-loop pattern every CQMOM example uses: snapshot the state,
     // advance, then assign the result back over the live state.
@@ -322,7 +322,7 @@ void test_cqmom_prepared_case_and_state_assignment_preserve_independent_values()
     const qmomkit::PhaseSpaceVelocity velocity = [](const double, const std::vector<double>&, std::vector<double>& velocities, const std::size_t)
     { std::fill(velocities.begin(), velocities.end(), 0.5); };
 
-    qmomkit::CqmomState state = first_case.initial_state();
+    qmomkit::CqmomState state = first_cqmom_prepared_case.initial_state();
     const std::vector<double> initial_values = state.moment_values();
     const qmomkit::CqmomState snapshot = state;
 
@@ -349,7 +349,7 @@ void test_cqmom_prepared_case_and_state_assignment_preserve_independent_values()
     const qmomkit::CqmomPhaseSpaceEvolutionResult after_self_step = qmomkit::advance_cqmom_advection(state, 0.2, 0.1, velocity);
     assert(after_self_step.ok());
 
-    qmomkit::CqmomState movable_state = first_case.initial_state();
+    qmomkit::CqmomState movable_state = first_cqmom_prepared_case.initial_state();
     qmomkit::CqmomState move_assigned_state = state;
     move_assigned_state = std::move(movable_state);
     assert(move_assigned_state.moment_values() == initial_values);
@@ -364,8 +364,8 @@ void test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature()
     const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(lean_case);
     assert(expected.ok());
 
-    const qmomkit::CqmomPreparedCase case_{std::move(lean_case)};
-    const qmomkit::CqmomState state = case_.initial_state();
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case{std::move(lean_case)};
+    const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
 
     assert(state.hierarchy().node_counts() == hierarchy.node_counts());
     assert(state.moment_indices() == qmomkit::create_cqmom_moment_layout(hierarchy).required_indices.to_multi_indices());

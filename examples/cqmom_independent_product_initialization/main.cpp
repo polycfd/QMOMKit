@@ -17,12 +17,12 @@ int main()
     }
 
     // CqmomPreparedCase is the immutable configuration/problem definition.
-    const qmomkit::CqmomPreparedCase cqmom_case = std::move(configured).value();
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(configured).value();
 
     // CqmomState is the runtime state passed to phase-space evolution workflows.
-    const qmomkit::CqmomState state = cqmom_case.initial_state();
+    const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
 
-    const qmomkit::PhaseSpaceHierarchy& hierarchy = cqmom_case.hierarchy();
+    const qmomkit::PhaseSpaceHierarchy& hierarchy = cqmom_prepared_case.hierarchy();
     std::cout << "configuration -> CqmomPreparedCase -> initial_state -> CqmomState\n";
     std::cout << "CqmomPreparedCase: immutable configuration/problem definition\n";
     std::cout << "CqmomState: evolving phase-space evolution state created from the case\n";

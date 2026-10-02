@@ -759,12 +759,12 @@ void assert_trusted_case_reconstruction_uses_prepared_metadata(const std::vector
     const qmomkit::CqmomResult public_result = qmomkit::compute_cqmom(lean_case);
     assert(public_result.ok());
 
-    const qmomkit::CqmomPreparedCase case_ = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_case);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_case);
     qmomkit::internal::performance::CounterSession session;
     std::optional<qmomkit::CqmomResult> trusted_result;
     {
         qmomkit::internal::performance::CounterScope scope(session);
-        trusted_result.emplace(qmomkit::compute_cqmom(case_));
+        trusted_result.emplace(qmomkit::compute_cqmom(cqmom_prepared_case));
     }
 
     assert(trusted_result.has_value());
@@ -814,17 +814,19 @@ void test_fixed_and_adaptive_cqmom_metadata_counters()
     qmomkit::internal::performance::CounterSession fixed_session;
     {
         qmomkit::internal::performance::CounterScope scope(fixed_session);
-        const qmomkit::CqmomPreparedCase fixed_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(fixed_lean_case);
-        assert(qmomkit::compute_cqmom(fixed_case).ok());
-        assert(qmomkit::compute_cqmom(fixed_case).ok());
+        const qmomkit::CqmomPreparedCase fixed_cqmom_prepared_case =
+            qmomkit::internal::CqmomConstructionAccess::create_prepared_case(fixed_lean_case);
+        assert(qmomkit::compute_cqmom(fixed_cqmom_prepared_case).ok());
+        assert(qmomkit::compute_cqmom(fixed_cqmom_prepared_case).ok());
     }
 
     const qmomkit::CqmomLeanCase adaptive_lean_case{moments, {}, {true, 1.0e-10, 1.0e-12, 1.0e-12}, true};
     qmomkit::internal::performance::CounterSession adaptive_session;
     {
         qmomkit::internal::performance::CounterScope scope(adaptive_session);
-        const qmomkit::CqmomPreparedCase adaptive_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(adaptive_lean_case);
-        assert(qmomkit::compute_cqmom(adaptive_case).ok());
+        const qmomkit::CqmomPreparedCase adaptive_cqmom_prepared_case =
+            qmomkit::internal::CqmomConstructionAccess::create_prepared_case(adaptive_lean_case);
+        assert(qmomkit::compute_cqmom(adaptive_cqmom_prepared_case).ok());
     }
 
     const qmomkit::internal::performance::PerformanceCounters fixed_counters = fixed_session.snapshot();

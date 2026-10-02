@@ -88,7 +88,7 @@ qmomkit::PhaseSpaceVelocity physical_velocity()
         });
 }
 
-qmomkit::CqmomPreparedCase exact_case()
+qmomkit::CqmomPreparedCase exact_cqmom_prepared_case()
 {
     const std::string text = R"(
 [phase_space]
@@ -390,8 +390,8 @@ int main(const int argc, char** argv)
         std::cerr << "Usage: cqmom_physical_transport_probe [physical_transport]\n";
         return 2;
     }
-    const qmomkit::CqmomPreparedCase cqmom_case = exact_case();
-    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_case);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = exact_cqmom_prepared_case();
+    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_prepared_case);
     QMOMKIT_VERIFY_CHECK(initial.ok());
 
     qmomkit::NodeAdvectionOptions node_options;
@@ -400,14 +400,14 @@ int main(const int argc, char** argv)
     const qmomkit::CqmomNodeAdvectionResult half_step = qmomkit::advance_nodes(initial.quadrature, 0.0, 0.0025, physical_velocity(), node_options);
     QMOMKIT_VERIFY_CHECK(half_step.ok());
 
-    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
+    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
     const qmomkit::CqmomMomentData moments = qmomkit::reconstruct_cqmom_moments(half_step.quadrature, layout);
     qmomkit::CqmomLeanCase lean_case{moments};
-    lean_case.conditional_options = cqmom_case.conditional_options();
-    lean_case.qmom_options = cqmom_case.qmom_options();
-    lean_case.adaptive_branch_counts = cqmom_case.adaptive_branch_counts();
-    lean_case.diagnostic_level = cqmom_case.diagnostic_level();
-    lean_case.vandermonde_solver = cqmom_case.vandermonde_solver();
+    lean_case.conditional_options = cqmom_prepared_case.conditional_options();
+    lean_case.qmom_options = cqmom_prepared_case.qmom_options();
+    lean_case.adaptive_branch_counts = cqmom_prepared_case.adaptive_branch_counts();
+    lean_case.diagnostic_level = cqmom_prepared_case.diagnostic_level();
+    lean_case.vandermonde_solver = cqmom_prepared_case.vandermonde_solver();
 
     const qmomkit::CqmomResult reinverted = qmomkit::compute_cqmom(lean_case);
     std::cout << "[physical exact probe] status=" << static_cast<int>(reinverted.status) << " message=\"" << reinverted.message

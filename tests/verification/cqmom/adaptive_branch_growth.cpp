@@ -64,7 +64,7 @@ qmomkit::RawMomentTensor raw_moments_from_terminals(const std::vector<double>& w
     return {extents, moments};
 }
 
-qmomkit::CqmomPreparedCase adaptive_case_from_moments(const qmomkit::RawMomentTensor& moments)
+qmomkit::CqmomPreparedCase adaptive_cqmom_prepared_case_from_moments(const qmomkit::RawMomentTensor& moments)
 {
     std::ostringstream text;
     text.precision(17);
@@ -121,7 +121,7 @@ void verify_adaptive_branch_reinjection()
     // prescribed final rule keeps the x marginal and splits only x = 1.
     const qmomkit::RawMomentTensor initial = raw_moments_from_terminals({0.2, 0.8}, {{-1.0, 1.0}, {0.0, 0.125}});
     const qmomkit::RawMomentTensor expected = raw_moments_from_terminals({0.2, 0.3, 0.5}, {{-1.0, 1.0, 1.0}, {0.0, -0.5, 0.5}});
-    const qmomkit::CqmomState initial_state = adaptive_case_from_moments(initial).initial_state();
+    const qmomkit::CqmomState initial_state = adaptive_cqmom_prepared_case_from_moments(initial).initial_state();
 
     QMOMKIT_VERIFY_CHECK(has_active_count(initial_state.active_branch_counts(), 0, {}, 2));
     QMOMKIT_VERIFY_CHECK(has_active_count(initial_state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 1));

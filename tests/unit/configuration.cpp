@@ -272,14 +272,14 @@ void test_valid_qmom_matches_programmatic_case()
 {
     const auto configured = qmomkit::config::parse_qmom(qmom_text, "qmom-test");
     assert(configured.ok());
-    const qmomkit::QmomCase direct{qmomkit::MomentSet({1.0, 0.5, 0.5, 0.5}), 2, {}};
-    assert(configured.value().node_count == direct.node_count);
-    assert(configured.value().moments.values() == direct.moments.values());
+    const qmomkit::QmomCase direct_qmom_case{qmomkit::MomentSet({1.0, 0.5, 0.5, 0.5}), 2, {}};
+    assert(configured.value().node_count == direct_qmom_case.node_count);
+    assert(configured.value().moments.values() == direct_qmom_case.moments.values());
     assert(!configured.value().options.adaptive);
     assert(!configured.value().options.automatic_scaling);
 
     const auto configured_result = qmomkit::compute_qmom(configured.value());
-    const auto direct_result = qmomkit::compute_qmom(direct);
+    const auto direct_result = qmomkit::compute_qmom(direct_qmom_case);
     assert(configured_result.ok());
     assert(direct_result.ok());
     assert(configured_result.weights == direct_result.weights);
@@ -975,12 +975,12 @@ standard_deviation = 1.25
     assert(case_result.ok());
     assert(lean.ok());
 
-    const qmomkit::CqmomPreparedCase cqmom_case = case_result.value();
-    assert(cqmom_case.hierarchy().node_counts() == std::vector<std::size_t>({2, 2}));
-    assert(cqmom_case.hierarchy().conditioning_order() == std::vector<std::size_t>({1, 0}));
-    assert(cqmom_case.diagnostic_level() == qmomkit::CqmomDiagnosticLevel::basic);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = case_result.value();
+    assert(cqmom_prepared_case.hierarchy().node_counts() == std::vector<std::size_t>({2, 2}));
+    assert(cqmom_prepared_case.hierarchy().conditioning_order() == std::vector<std::size_t>({1, 0}));
+    assert(cqmom_prepared_case.diagnostic_level() == qmomkit::CqmomDiagnosticLevel::basic);
 
-    const qmomkit::CqmomResult case_compute = qmomkit::compute_cqmom(cqmom_case);
+    const qmomkit::CqmomResult case_compute = qmomkit::compute_cqmom(cqmom_prepared_case);
     const qmomkit::CqmomResult lean_compute = qmomkit::compute_cqmom(lean.value());
     assert(case_compute.ok());
     assert(lean_compute.ok());
@@ -994,13 +994,13 @@ void test_cqmom_prepared_case_accepts_explicit_dense_tensor()
     assert(case_result.ok());
     assert(lean.ok());
 
-    const qmomkit::CqmomPreparedCase cqmom_case = case_result.value();
-    assert(cqmom_case.hierarchy().node_counts() == std::vector<std::size_t>({1, 1}));
-    assert(cqmom_case.hierarchy().conditioning_order() == std::vector<std::size_t>({1, 0}));
-    assert(cqmom_case.adaptive_branch_counts());
-    assert(cqmom_case.qmom_options().adaptive);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = case_result.value();
+    assert(cqmom_prepared_case.hierarchy().node_counts() == std::vector<std::size_t>({1, 1}));
+    assert(cqmom_prepared_case.hierarchy().conditioning_order() == std::vector<std::size_t>({1, 0}));
+    assert(cqmom_prepared_case.adaptive_branch_counts());
+    assert(cqmom_prepared_case.qmom_options().adaptive);
 
-    const qmomkit::CqmomResult case_compute = qmomkit::compute_cqmom(cqmom_case);
+    const qmomkit::CqmomResult case_compute = qmomkit::compute_cqmom(cqmom_prepared_case);
     const qmomkit::CqmomResult lean_compute = qmomkit::compute_cqmom(lean.value());
     assert(case_compute.ok());
     assert(lean_compute.ok());
@@ -1022,21 +1022,21 @@ diagnostic_level = basic
     assert(case_result.ok());
     assert(lean.ok());
 
-    const qmomkit::CqmomPreparedCase cqmom_case = case_result.value();
-    assert(cqmom_case.coordinate_support().size() == 2);
-    assert(!cqmom_case.coordinate_support()[0].has_value());
-    assert(cqmom_case.coordinate_support()[1].has_value());
-    assert_near(cqmom_case.coordinate_support()[1]->lower, 1.0);
-    assert_near(cqmom_case.coordinate_support()[1]->upper, 2.0);
-    assert(lean.value().coordinate_support.size() == cqmom_case.coordinate_support().size());
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = case_result.value();
+    assert(cqmom_prepared_case.coordinate_support().size() == 2);
+    assert(!cqmom_prepared_case.coordinate_support()[0].has_value());
+    assert(cqmom_prepared_case.coordinate_support()[1].has_value());
+    assert_near(cqmom_prepared_case.coordinate_support()[1]->lower, 1.0);
+    assert_near(cqmom_prepared_case.coordinate_support()[1]->upper, 2.0);
+    assert(lean.value().coordinate_support.size() == cqmom_prepared_case.coordinate_support().size());
 
-    const qmomkit::CqmomResult computed = qmomkit::compute_cqmom(cqmom_case);
+    const qmomkit::CqmomResult computed = qmomkit::compute_cqmom(cqmom_prepared_case);
     assert(computed.ok());
     assert(!computed.diagnostics.empty());
     assert(computed.diagnostics.front().phase_space_dimension == 1);
     assert(computed.diagnostics.front().bounded_support_checked);
 
-    const qmomkit::CqmomState state = cqmom_case.initial_state();
+    const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
     assert(state.coordinate_support().size() == 2);
     assert(state.coordinate_support()[1].has_value());
     assert_near(state.coordinate_support()[1]->lower, 1.0);
@@ -1123,20 +1123,20 @@ void test_cqmom_prepared_case_initial_state_preserves_case_settings()
     const auto case_result = qmomkit::config::parse_cqmom_prepared(cqmom_text, "cqmom-test");
     assert(case_result.ok());
 
-    const qmomkit::CqmomPreparedCase cqmom_case = case_result.value();
-    const qmomkit::CqmomState state = cqmom_case.initial_state();
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = case_result.value();
+    const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
 
-    assert(state.hierarchy().node_counts() == cqmom_case.hierarchy().node_counts());
-    assert(state.hierarchy().conditioning_order() == cqmom_case.hierarchy().conditioning_order());
-    assert(state.qmom_options().adaptive == cqmom_case.qmom_options().adaptive);
-    assert_near(state.qmom_options().rmin, cqmom_case.qmom_options().rmin);
-    assert_near(state.qmom_options().eabs, cqmom_case.qmom_options().eabs);
-    assert_near(state.qmom_options().cutoff, cqmom_case.qmom_options().cutoff);
-    assert_near(state.conditional_options().singular_tolerance, cqmom_case.conditional_options().singular_tolerance);
-    assert_near(state.conditional_options().conditioning_warning_threshold, cqmom_case.conditional_options().conditioning_warning_threshold);
-    assert(state.adaptive_branch_counts() == cqmom_case.adaptive_branch_counts());
-    assert(state.diagnostic_level() == cqmom_case.diagnostic_level());
-    assert(state.vandermonde_solver() == cqmom_case.vandermonde_solver());
+    assert(state.hierarchy().node_counts() == cqmom_prepared_case.hierarchy().node_counts());
+    assert(state.hierarchy().conditioning_order() == cqmom_prepared_case.hierarchy().conditioning_order());
+    assert(state.qmom_options().adaptive == cqmom_prepared_case.qmom_options().adaptive);
+    assert_near(state.qmom_options().rmin, cqmom_prepared_case.qmom_options().rmin);
+    assert_near(state.qmom_options().eabs, cqmom_prepared_case.qmom_options().eabs);
+    assert_near(state.qmom_options().cutoff, cqmom_prepared_case.qmom_options().cutoff);
+    assert_near(state.conditional_options().singular_tolerance, cqmom_prepared_case.conditional_options().singular_tolerance);
+    assert_near(state.conditional_options().conditioning_warning_threshold, cqmom_prepared_case.conditional_options().conditioning_warning_threshold);
+    assert(state.adaptive_branch_counts() == cqmom_prepared_case.adaptive_branch_counts());
+    assert(state.diagnostic_level() == cqmom_prepared_case.diagnostic_level());
+    assert(state.vandermonde_solver() == cqmom_prepared_case.vandermonde_solver());
 
     const qmomkit::CqmomState copied = state;
     assert(copied.hierarchy().node_counts() == state.hierarchy().node_counts());
@@ -1157,27 +1157,33 @@ qmomkit::CqmomCoordinateSupport cqmom_replacement_support()
     return support;
 }
 
-void assert_cqmom_case_policies_equal(const qmomkit::CqmomPreparedCase& actual, const qmomkit::CqmomPreparedCase& expected)
+void assert_cqmom_case_policies_equal(const qmomkit::CqmomPreparedCase& actual_cqmom_prepared_case,
+                                      const qmomkit::CqmomPreparedCase& expected_cqmom_prepared_case)
 {
-    assert(actual.hierarchy().node_counts() == expected.hierarchy().node_counts());
-    assert(actual.hierarchy().conditioning_order() == expected.hierarchy().conditioning_order());
-    assert(actual.qmom_options().adaptive == expected.qmom_options().adaptive);
-    assert_near(actual.qmom_options().rmin, expected.qmom_options().rmin);
-    assert_near(actual.qmom_options().eabs, expected.qmom_options().eabs);
-    assert_near(actual.qmom_options().cutoff, expected.qmom_options().cutoff);
-    assert_near(actual.conditional_options().singular_tolerance, expected.conditional_options().singular_tolerance);
-    assert_near(actual.conditional_options().conditioning_warning_threshold, expected.conditional_options().conditioning_warning_threshold);
-    assert(actual.adaptive_branch_counts() == expected.adaptive_branch_counts());
-    assert(actual.diagnostic_level() == expected.diagnostic_level());
-    assert(actual.vandermonde_solver() == expected.vandermonde_solver());
-    assert(actual.coordinate_support().size() == expected.coordinate_support().size());
-    for (std::size_t dimension = 0; dimension < actual.coordinate_support().size(); ++dimension)
+    assert(actual_cqmom_prepared_case.hierarchy().node_counts() == expected_cqmom_prepared_case.hierarchy().node_counts());
+    assert(actual_cqmom_prepared_case.hierarchy().conditioning_order() == expected_cqmom_prepared_case.hierarchy().conditioning_order());
+    assert(actual_cqmom_prepared_case.qmom_options().adaptive == expected_cqmom_prepared_case.qmom_options().adaptive);
+    assert_near(actual_cqmom_prepared_case.qmom_options().rmin, expected_cqmom_prepared_case.qmom_options().rmin);
+    assert_near(actual_cqmom_prepared_case.qmom_options().eabs, expected_cqmom_prepared_case.qmom_options().eabs);
+    assert_near(actual_cqmom_prepared_case.qmom_options().cutoff, expected_cqmom_prepared_case.qmom_options().cutoff);
+    assert_near(actual_cqmom_prepared_case.conditional_options().singular_tolerance,
+                expected_cqmom_prepared_case.conditional_options().singular_tolerance);
+    assert_near(actual_cqmom_prepared_case.conditional_options().conditioning_warning_threshold,
+                expected_cqmom_prepared_case.conditional_options().conditioning_warning_threshold);
+    assert(actual_cqmom_prepared_case.adaptive_branch_counts() == expected_cqmom_prepared_case.adaptive_branch_counts());
+    assert(actual_cqmom_prepared_case.diagnostic_level() == expected_cqmom_prepared_case.diagnostic_level());
+    assert(actual_cqmom_prepared_case.vandermonde_solver() == expected_cqmom_prepared_case.vandermonde_solver());
+    assert(actual_cqmom_prepared_case.coordinate_support().size() == expected_cqmom_prepared_case.coordinate_support().size());
+    for (std::size_t dimension = 0; dimension < actual_cqmom_prepared_case.coordinate_support().size(); ++dimension)
     {
-        assert(actual.coordinate_support()[dimension].has_value() == expected.coordinate_support()[dimension].has_value());
-        if (actual.coordinate_support()[dimension].has_value())
+        assert(actual_cqmom_prepared_case.coordinate_support()[dimension].has_value() ==
+               expected_cqmom_prepared_case.coordinate_support()[dimension].has_value());
+        if (actual_cqmom_prepared_case.coordinate_support()[dimension].has_value())
         {
-            assert_near(actual.coordinate_support()[dimension]->lower, expected.coordinate_support()[dimension]->lower);
-            assert_near(actual.coordinate_support()[dimension]->upper, expected.coordinate_support()[dimension]->upper);
+            assert_near(actual_cqmom_prepared_case.coordinate_support()[dimension]->lower,
+                        expected_cqmom_prepared_case.coordinate_support()[dimension]->lower);
+            assert_near(actual_cqmom_prepared_case.coordinate_support()[dimension]->upper,
+                        expected_cqmom_prepared_case.coordinate_support()[dimension]->upper);
         }
     }
 }
@@ -1219,23 +1225,23 @@ void test_cqmom_prepared_case_replaces_lean_initial_moments_immutably()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_replacement_hierarchy());
     const qmomkit::CqmomLeanCase lean_base{base.moments,          base.conditional_options, base.qmom_options,      base.adaptive_branch_counts,
                                            base.diagnostic_level, base.vandermonde_solver,  base.coordinate_support};
-    const qmomkit::CqmomPreparedCase base_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_base);
+    const qmomkit::CqmomPreparedCase base_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_base);
     qmomkit::RawMomentTensor replacement = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
     const qmomkit::CqmomMomentData expected_moments = qmomkit::extract_cqmom_moments(replacement, layout);
 
-    const auto transformed = qmomkit::config::with_initial_moments(base_case, replacement);
+    const auto transformed = qmomkit::config::with_initial_moments(base_cqmom_prepared_case, replacement);
     assert(transformed.ok());
-    const qmomkit::CqmomPreparedCase replaced_case = transformed.value();
-    assert_cqmom_case_policies_equal(replaced_case, base_case);
+    const qmomkit::CqmomPreparedCase replaced_cqmom_prepared_case = transformed.value();
+    assert_cqmom_case_policies_equal(replaced_cqmom_prepared_case, base_cqmom_prepared_case);
 
     replacement.values[0] = -999.0;
-    const qmomkit::CqmomState base_state = base_case.initial_state();
-    const qmomkit::CqmomState replaced_state = replaced_case.initial_state();
+    const qmomkit::CqmomState base_state = base_cqmom_prepared_case.initial_state();
+    const qmomkit::CqmomState replaced_state = replaced_cqmom_prepared_case.initial_state();
     assert(base_state.moment_indices() == layout.required_indices.to_multi_indices());
     assert(replaced_state.moment_indices() == expected_moments.layout.required_indices.to_multi_indices());
 
-    const qmomkit::CqmomResult base_result = qmomkit::compute_cqmom(base_case);
-    const qmomkit::CqmomResult replaced_result = qmomkit::compute_cqmom(replaced_case);
+    const qmomkit::CqmomResult base_result = qmomkit::compute_cqmom(base_cqmom_prepared_case);
+    const qmomkit::CqmomResult replaced_result = qmomkit::compute_cqmom(replaced_cqmom_prepared_case);
     assert(base_result.ok());
     assert(replaced_result.ok());
     const qmomkit::CqmomMomentData canonical_base = qmomkit::extract_cqmom_moments(
@@ -1249,31 +1255,31 @@ void test_cqmom_prepared_case_replaces_lean_initial_moments_immutably()
 void test_cqmom_prepared_case_replaces_lean_initial_moments_from_moment_data()
 {
     const qmomkit::CqmomLeanCase lean_base = cqmom_replacement_base();
-    const qmomkit::CqmomPreparedCase base_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_base);
+    const qmomkit::CqmomPreparedCase base_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_base);
     const qmomkit::CqmomMomentLayout& layout = lean_base.moments.layout;
-    const std::vector<double> base_values = base_case.initial_state().moment_values();
+    const std::vector<double> base_values = base_cqmom_prepared_case.initial_state().moment_values();
 
     const qmomkit::RawMomentTensor replacement_tensor = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
     qmomkit::CqmomMomentData replacement = qmomkit::extract_cqmom_moments(replacement_tensor, layout);
 
-    const auto transformed = qmomkit::config::with_initial_moments(base_case, replacement);
+    const auto transformed = qmomkit::config::with_initial_moments(base_cqmom_prepared_case, replacement);
     assert(transformed.ok());
-    const qmomkit::CqmomPreparedCase replaced_case = transformed.value();
-    assert_cqmom_case_policies_equal(replaced_case, base_case);
+    const qmomkit::CqmomPreparedCase replaced_cqmom_prepared_case = transformed.value();
+    assert_cqmom_case_policies_equal(replaced_cqmom_prepared_case, base_cqmom_prepared_case);
 
     // The supplied moment data is copied into the returned case, so mutating it
     // afterwards must not reach either case.
     replacement.values[0] = -999.0;
-    assert(base_case.initial_state().moment_values() == base_values);
+    assert(base_cqmom_prepared_case.initial_state().moment_values() == base_values);
 
-    const qmomkit::CqmomState replaced_state = replaced_case.initial_state();
+    const qmomkit::CqmomState replaced_state = replaced_cqmom_prepared_case.initial_state();
     assert(replaced_state.moment_indices() == layout.required_indices.to_multi_indices());
 
     // The lean-native replacement must be indistinguishable from supplying the
     // same moments as a dense tensor: same quadrature, same canonical state.
-    const auto tensor_transformed = qmomkit::config::with_initial_moments(base_case, replacement_tensor);
+    const auto tensor_transformed = qmomkit::config::with_initial_moments(base_cqmom_prepared_case, replacement_tensor);
     assert(tensor_transformed.ok());
-    const qmomkit::CqmomResult moment_data_result = qmomkit::compute_cqmom(replaced_case);
+    const qmomkit::CqmomResult moment_data_result = qmomkit::compute_cqmom(replaced_cqmom_prepared_case);
     const qmomkit::CqmomResult tensor_result = qmomkit::compute_cqmom(tensor_transformed.value());
     assert(moment_data_result.ok());
     assert(tensor_result.ok());
@@ -1286,16 +1292,16 @@ void test_cqmom_prepared_case_replaces_lean_initial_moments_from_moment_data()
 
     // A fixed lineage reuses the immutable prepared metadata rather than
     // rebuilding the branch graph for the replacement case.
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(replaced_case).get() ==
-           qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_case).get());
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(replaced_cqmom_prepared_case).get() ==
+           qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_cqmom_prepared_case).get());
 }
 
 void test_cqmom_prepared_case_moment_data_replacement_rejects_invalid_input()
 {
     const qmomkit::CqmomLeanCase base = cqmom_replacement_base();
-    const qmomkit::CqmomPreparedCase case_ = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(base);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(base);
     const qmomkit::CqmomMomentLayout& layout = base.moments.layout;
-    const std::vector<double> base_values = case_.initial_state().moment_values();
+    const std::vector<double> base_values = cqmom_prepared_case.initial_state().moment_values();
 
     const qmomkit::CqmomMomentData valid = qmomkit::extract_cqmom_moments(cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0}), layout);
 
@@ -1303,31 +1309,31 @@ void test_cqmom_prepared_case_moment_data_replacement_rejects_invalid_input()
     // layout of the base hierarchy.
     const qmomkit::CqmomMomentLayout other_layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2, 2}));
     const qmomkit::CqmomMomentData wrong_layout{other_layout, std::vector<double>(other_layout.required_indices.size(), 1.0)};
-    const auto layout_mismatch = qmomkit::config::with_initial_moments(case_, wrong_layout);
+    const auto layout_mismatch = qmomkit::config::with_initial_moments(cqmom_prepared_case, wrong_layout);
     assert(!layout_mismatch.ok());
     // "layout" alone also appears in the value-count message, so the fragment
     // has to be specific enough to tell the two rejections apart.
     assert(has_message_fragment(layout_mismatch, "layout must match the required"));
 
     const qmomkit::CqmomMomentData wrong_value_count{layout, std::vector<double>(valid.values.size() + 1, 1.0)};
-    const auto value_count = qmomkit::config::with_initial_moments(case_, wrong_value_count);
+    const auto value_count = qmomkit::config::with_initial_moments(cqmom_prepared_case, wrong_value_count);
     assert(!value_count.ok());
     assert(has_message_fragment(value_count, "value count"));
 
     qmomkit::CqmomMomentData nonfinite = valid;
     nonfinite.values[0] = std::numeric_limits<double>::quiet_NaN();
-    const auto finite = qmomkit::config::with_initial_moments(case_, nonfinite);
+    const auto finite = qmomkit::config::with_initial_moments(cqmom_prepared_case, nonfinite);
     assert(!finite.ok());
     assert(has_message_fragment(finite, "finite"));
 
     // Every rejection leaves the base case untouched.
-    assert(case_.initial_state().moment_values() == base_values);
+    assert(cqmom_prepared_case.initial_state().moment_values() == base_values);
 }
 
 void test_cqmom_prepared_case_moment_data_replacement_defers_realizability()
 {
     const qmomkit::CqmomLeanCase lean_base = cqmom_replacement_base();
-    const qmomkit::CqmomPreparedCase base_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_base);
+    const qmomkit::CqmomPreparedCase base_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_base);
     qmomkit::CqmomMomentData nonrealizable = qmomkit::extract_cqmom_moments(cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0}), lean_base.moments.layout);
     // The layout enumerates m_[0,0] first. It is the total number density, so a
     // negative value is structurally valid but not realizable: replacement must
@@ -1335,7 +1341,7 @@ void test_cqmom_prepared_case_moment_data_replacement_defers_realizability()
     assert(nonrealizable.layout.required_indices[0] == qmomkit::MultiIndex({0, 0}));
     nonrealizable.values[0] = -1.0;
 
-    const auto transformed = qmomkit::config::with_initial_moments(base_case, std::move(nonrealizable));
+    const auto transformed = qmomkit::config::with_initial_moments(base_cqmom_prepared_case, std::move(nonrealizable));
     assert(transformed.ok());
     const qmomkit::CqmomResult reconstruction = qmomkit::compute_cqmom(transformed.value());
     assert(!reconstruction.ok());
@@ -1347,33 +1353,33 @@ void test_fixed_cqmom_prepared_metadata_ownership()
     qmomkit::CqmomLeanCase case_ = cqmom_replacement_base();
     case_.adaptive_branch_counts = false;
     case_.qmom_options.adaptive = false;
-    const qmomkit::CqmomPreparedCase fixed_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(case_);
-    const auto& fixed_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(fixed_case);
+    const qmomkit::CqmomPreparedCase fixed_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(case_);
+    const auto& fixed_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(fixed_cqmom_prepared_case);
     assert(fixed_metadata != nullptr);
 
-    const qmomkit::CqmomPreparedCase copied_case = fixed_case;
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(copied_case).get() == fixed_metadata.get());
+    const qmomkit::CqmomPreparedCase copied_cqmom_prepared_case = fixed_cqmom_prepared_case;
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(copied_cqmom_prepared_case).get() == fixed_metadata.get());
 
-    qmomkit::CqmomPreparedCase movable_case = fixed_case;
-    qmomkit::CqmomPreparedCase moved_case = std::move(movable_case);
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(moved_case).get() == fixed_metadata.get());
+    qmomkit::CqmomPreparedCase movable_cqmom_prepared_case = fixed_cqmom_prepared_case;
+    qmomkit::CqmomPreparedCase moved_cqmom_prepared_case = std::move(movable_cqmom_prepared_case);
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(moved_cqmom_prepared_case).get() == fixed_metadata.get());
 
-    const qmomkit::CqmomPreparedCase distinct_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(case_);
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(distinct_case).get() != fixed_metadata.get());
+    const qmomkit::CqmomPreparedCase distinct_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(case_);
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(distinct_cqmom_prepared_case).get() != fixed_metadata.get());
 
-    const auto replaced = qmomkit::config::with_initial_moments(fixed_case, case_.moments);
+    const auto replaced = qmomkit::config::with_initial_moments(fixed_cqmom_prepared_case, case_.moments);
     assert(replaced.ok());
     assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(replaced.value()).get() == fixed_metadata.get());
 
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_replacement_hierarchy());
-    const qmomkit::CqmomPreparedCase lean_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(
+    const qmomkit::CqmomPreparedCase reassembled_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(
         qmomkit::CqmomLeanCase{case_.moments, case_.conditional_options, case_.qmom_options, case_.adaptive_branch_counts, case_.diagnostic_level,
                                case_.vandermonde_solver, case_.coordinate_support});
-    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(lean_case) != nullptr);
+    assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(reassembled_cqmom_prepared_case) != nullptr);
     // The same case reached two ways: passed on directly, and reassembled field
     // by field. Both must prepare metadata and invert to the same quadrature.
-    const qmomkit::CqmomResult direct_result = qmomkit::compute_cqmom(fixed_case);
-    const qmomkit::CqmomResult reassembled_result = qmomkit::compute_cqmom(lean_case);
+    const qmomkit::CqmomResult direct_result = qmomkit::compute_cqmom(fixed_cqmom_prepared_case);
+    const qmomkit::CqmomResult reassembled_result = qmomkit::compute_cqmom(reassembled_cqmom_prepared_case);
     assert(direct_result.ok());
     assert(reassembled_result.ok());
     assert_cqmom_quadratures_near(reassembled_result.quadrature, direct_result.quadrature);
@@ -1381,15 +1387,16 @@ void test_fixed_cqmom_prepared_metadata_ownership()
     qmomkit::CqmomLeanCase adaptive_case_copy = case_;
     adaptive_case_copy.adaptive_branch_counts = true;
     adaptive_case_copy.qmom_options.adaptive = true;
-    const qmomkit::CqmomPreparedCase adaptive_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(std::move(adaptive_case_copy));
+    const qmomkit::CqmomPreparedCase adaptive_cqmom_prepared_case =
+        qmomkit::internal::CqmomConstructionAccess::create_prepared_case(std::move(adaptive_case_copy));
     // An adaptive case prepares metadata too. Its branch tree carries a child
     // case for every parent node count Wheeler could realize, so it is a pure
     // function of the hierarchy and is built once rather than per reconstruction.
-    const auto& adaptive_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(adaptive_case);
+    const auto& adaptive_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(adaptive_cqmom_prepared_case);
     assert(adaptive_metadata != nullptr);
     assert(adaptive_metadata->adaptive_branch_counts);
 
-    const qmomkit::CqmomState initial_state = fixed_case.initial_state();
+    const qmomkit::CqmomState initial_state = fixed_cqmom_prepared_case.initial_state();
     assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(initial_state).get() == fixed_metadata.get());
     const qmomkit::CqmomState copied_state = initial_state;
     assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(copied_state).get() == fixed_metadata.get());
@@ -1400,9 +1407,9 @@ void test_fixed_cqmom_prepared_metadata_ownership()
     std::optional<qmomkit::CqmomState> surviving_state;
     const qmomkit::internal::PreparedCqmomMetadata* surviving_metadata = nullptr;
     {
-        const qmomkit::CqmomPreparedCase temporary_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(case_);
-        surviving_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(temporary_case).get();
-        surviving_state.emplace(temporary_case.initial_state());
+        const qmomkit::CqmomPreparedCase temporary_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(case_);
+        surviving_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(temporary_cqmom_prepared_case).get();
+        surviving_state.emplace(temporary_cqmom_prepared_case.initial_state());
     }
     assert(surviving_state.has_value());
     assert(qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(*surviving_state).get() == surviving_metadata);
@@ -1415,8 +1422,8 @@ void test_fixed_cqmom_prepared_metadata_is_concurrently_readable()
     qmomkit::CqmomLeanCase case_ = cqmom_replacement_base();
     case_.adaptive_branch_counts = false;
     case_.qmom_options.adaptive = false;
-    const qmomkit::CqmomPreparedCase fixed_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(std::move(case_));
-    const qmomkit::CqmomResult reference = qmomkit::compute_cqmom(fixed_case);
+    const qmomkit::CqmomPreparedCase fixed_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(std::move(case_));
+    const qmomkit::CqmomResult reference = qmomkit::compute_cqmom(fixed_cqmom_prepared_case);
     assert(reference.ok());
 
     std::vector<int> succeeded(4, 0);
@@ -1425,11 +1432,11 @@ void test_fixed_cqmom_prepared_metadata_is_concurrently_readable()
     for (std::size_t worker = 0; worker < succeeded.size(); ++worker)
     {
         workers.emplace_back(
-            [&fixed_case, &reference, &succeeded, worker]()
+            [&fixed_cqmom_prepared_case, &reference, &succeeded, worker]()
             {
                 for (std::size_t iteration = 0; iteration < 16; ++iteration)
                 {
-                    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(fixed_case);
+                    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(fixed_cqmom_prepared_case);
                     assert(result.ok());
                     assert_cqmom_quadratures_near(result.quadrature, reference.quadrature);
                 }
@@ -1448,8 +1455,8 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     qmomkit::CqmomLeanCase case_ = cqmom_replacement_base();
     case_.adaptive_branch_counts = false;
     case_.qmom_options.adaptive = false;
-    const qmomkit::CqmomPreparedCase fixed_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(case_);
-    const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(fixed_case);
+    const qmomkit::CqmomPreparedCase fixed_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(case_);
+    const auto& prepared_metadata = qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(fixed_cqmom_prepared_case);
     assert(prepared_metadata != nullptr);
 
     const qmomkit::CqmomState new_lineage_state = qmomkit::internal::CqmomConstructionAccess::create_state(case_);
@@ -1537,50 +1544,52 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
 void test_cqmom_prepared_case_replacement_rejects_structural_tensor_errors()
 {
     const qmomkit::CqmomLeanCase base = cqmom_replacement_base();
-    const qmomkit::CqmomPreparedCase case_ = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(base);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(base);
     const qmomkit::CqmomLeanCase lean_base{base.moments,          base.conditional_options, base.qmom_options,      base.adaptive_branch_counts,
                                            base.diagnostic_level, base.vandermonde_solver,  base.coordinate_support};
-    const qmomkit::CqmomPreparedCase lean_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_base);
-    const std::vector<double> base_values = case_.initial_state().moment_values();
-    const std::vector<double> lean_base_values = lean_case.initial_state().moment_values();
+    const qmomkit::CqmomPreparedCase reassembled_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(lean_base);
+    const std::vector<double> base_values = cqmom_prepared_case.initial_state().moment_values();
+    const std::vector<double> lean_base_values = reassembled_cqmom_prepared_case.initial_state().moment_values();
 
-    const auto rank = qmomkit::config::with_initial_moments(case_, {{4}, std::vector<double>(4, 1.0)});
+    const auto rank = qmomkit::config::with_initial_moments(cqmom_prepared_case, {{4}, std::vector<double>(4, 1.0)});
     assert(!rank.ok());
     assert(has_message_fragment(rank, "rank"));
 
-    const auto invalid_extents = qmomkit::config::with_initial_moments(case_, {{4, 0}, {}});
+    const auto invalid_extents = qmomkit::config::with_initial_moments(cqmom_prepared_case, {{4, 0}, {}});
     assert(!invalid_extents.ok());
     assert(has_message_fragment(invalid_extents, "extents"));
 
-    const auto value_count = qmomkit::config::with_initial_moments(case_, {{4, 4}, std::vector<double>(15, 1.0)});
+    const auto value_count = qmomkit::config::with_initial_moments(cqmom_prepared_case, {{4, 4}, std::vector<double>(15, 1.0)});
     assert(!value_count.ok());
     assert(has_message_fragment(value_count, "value count"));
 
-    const auto overflow = qmomkit::config::with_initial_moments(case_, {{std::numeric_limits<std::size_t>::max(), 2}, std::vector<double>{}});
+    const auto overflow =
+        qmomkit::config::with_initial_moments(cqmom_prepared_case, {{std::numeric_limits<std::size_t>::max(), 2}, std::vector<double>{}});
     assert(!overflow.ok());
     assert(has_message_fragment(overflow, "overflow"));
 
     qmomkit::RawMomentTensor nonfinite = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
     nonfinite.values[0] = std::numeric_limits<double>::quiet_NaN();
-    const auto finite = qmomkit::config::with_initial_moments(case_, nonfinite);
+    const auto finite = qmomkit::config::with_initial_moments(cqmom_prepared_case, nonfinite);
     assert(!finite.ok());
     assert(has_message_fragment(finite, "finite"));
 
-    const auto lean_index = qmomkit::config::with_initial_moments(lean_case, {{3, 4}, std::vector<double>(12, 1.0)});
+    const auto lean_index = qmomkit::config::with_initial_moments(reassembled_cqmom_prepared_case, {{3, 4}, std::vector<double>(12, 1.0)});
     assert(!lean_index.ok());
     assert(has_message_fragment(lean_index, "required CQMOM moment index"));
 
-    assert(case_.initial_state().moment_values() == base_values);
-    assert(lean_case.initial_state().moment_values() == lean_base_values);
+    assert(cqmom_prepared_case.initial_state().moment_values() == base_values);
+    assert(reassembled_cqmom_prepared_case.initial_state().moment_values() == lean_base_values);
 }
 
 void test_cqmom_prepared_case_replacement_defers_realizability()
 {
-    const qmomkit::CqmomPreparedCase base_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(cqmom_replacement_base());
+    const qmomkit::CqmomPreparedCase base_cqmom_prepared_case =
+        qmomkit::internal::CqmomConstructionAccess::create_prepared_case(cqmom_replacement_base());
     qmomkit::RawMomentTensor nonrealizable = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
     nonrealizable.values[0] = -1.0;
 
-    const auto transformed = qmomkit::config::with_initial_moments(base_case, std::move(nonrealizable));
+    const auto transformed = qmomkit::config::with_initial_moments(base_cqmom_prepared_case, std::move(nonrealizable));
     assert(transformed.ok());
     const qmomkit::CqmomResult reconstruction = qmomkit::compute_cqmom(transformed.value());
     assert(!reconstruction.ok());
@@ -1939,12 +1948,12 @@ void assert_cqmom_case_reports_vandermonde_solver(const std::string& configured_
     const auto parsed = qmomkit::config::parse_cqmom_prepared(cqmom_vandermonde_solver_text(configured_solver));
     assert(parsed.ok());
 
-    const qmomkit::CqmomPreparedCase cqmom_case = parsed.value();
-    assert(cqmom_case.vandermonde_solver() == expected_solver);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = parsed.value();
+    assert(cqmom_prepared_case.vandermonde_solver() == expected_solver);
 
-    const qmomkit::CqmomState state = cqmom_case.initial_state();
+    const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
     assert(state.vandermonde_solver() == expected_solver);
-    assert(state.vandermonde_solver() == cqmom_case.vandermonde_solver());
+    assert(state.vandermonde_solver() == cqmom_prepared_case.vandermonde_solver());
 }
 
 void test_cqmom_prepared_case_and_state_report_vandermonde_solver()

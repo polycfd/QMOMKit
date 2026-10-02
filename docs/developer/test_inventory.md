@@ -452,7 +452,7 @@ CTest check; it is not 23 runtime tests.
 
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
-| `public_headers` | `tests/public_headers/include_*.cpp` | `test_public_headers` | Compiles and links 23 self-contained public-header translation units. | 23 public headers |
+| `public_headers` | `tests/public_headers/include_*.cpp` | `test_public_headers` | Compiles and links 23 self-contained public-header translation units; some also pin the exact signatures of selected entry points. | 23 public headers |
 
 | --- | --- | --- | --- | --- |
 | `unit_wheeler_adaptive_two_node_span_separation_uses_larger_abscissa_magnitude` | `tests/unit/wheeler.cpp` | `adaptive_two_node_span_separation_uses_larger_abscissa_magnitude` | Checks that adaptive Wheeler's two-node separation ratio is normalized by the larger abscissa magnitude, so the same absolute node distance is accepted near the origin but reduced to one node once translated far from zero. | — |

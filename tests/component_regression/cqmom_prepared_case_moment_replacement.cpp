@@ -63,28 +63,33 @@ qmomkit::RawMomentTensor replacement_tensor()
     return {{2, 2}, {1.0, 0.5, 1.0, 0.5}};
 }
 
-void assert_cases_match(const qmomkit::CqmomCase& actual, const qmomkit::CqmomCase& expected)
+void assert_cases_match(const qmomkit::CqmomPreparedCase& actual_cqmom_prepared_case, const qmomkit::CqmomPreparedCase& expected_cqmom_prepared_case)
 {
-    QMOMKIT_VERIFY_CHECK(actual.hierarchy().node_counts() == expected.hierarchy().node_counts());
-    QMOMKIT_VERIFY_CHECK(actual.hierarchy().conditioning_order() == expected.hierarchy().conditioning_order());
-    QMOMKIT_VERIFY_CHECK(actual.qmom_options().adaptive == expected.qmom_options().adaptive);
-    QMOMKIT_VERIFY_NEAR(actual.qmom_options().rmin, expected.qmom_options().rmin, 0.0);
-    QMOMKIT_VERIFY_NEAR(actual.qmom_options().eabs, expected.qmom_options().eabs, 0.0);
-    QMOMKIT_VERIFY_NEAR(actual.qmom_options().cutoff, expected.qmom_options().cutoff, 0.0);
-    QMOMKIT_VERIFY_NEAR(actual.conditional_options().singular_tolerance, expected.conditional_options().singular_tolerance, 0.0);
-    QMOMKIT_VERIFY_NEAR(actual.conditional_options().conditioning_warning_threshold, expected.conditional_options().conditioning_warning_threshold,
-                        0.0);
-    QMOMKIT_VERIFY_CHECK(actual.adaptive_branch_counts() == expected.adaptive_branch_counts());
-    QMOMKIT_VERIFY_CHECK(actual.diagnostic_level() == expected.diagnostic_level());
-    QMOMKIT_VERIFY_CHECK(actual.vandermonde_solver() == expected.vandermonde_solver());
-    QMOMKIT_VERIFY_CHECK(actual.coordinate_support().size() == expected.coordinate_support().size());
-    for (std::size_t dimension = 0; dimension < actual.coordinate_support().size(); ++dimension)
+    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.hierarchy().node_counts() == expected_cqmom_prepared_case.hierarchy().node_counts());
+    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.hierarchy().conditioning_order() ==
+                         expected_cqmom_prepared_case.hierarchy().conditioning_order());
+    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.qmom_options().adaptive == expected_cqmom_prepared_case.qmom_options().adaptive);
+    QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.qmom_options().rmin, expected_cqmom_prepared_case.qmom_options().rmin, 0.0);
+    QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.qmom_options().eabs, expected_cqmom_prepared_case.qmom_options().eabs, 0.0);
+    QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.qmom_options().cutoff, expected_cqmom_prepared_case.qmom_options().cutoff, 0.0);
+    QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.conditional_options().singular_tolerance,
+                        expected_cqmom_prepared_case.conditional_options().singular_tolerance, 0.0);
+    QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.conditional_options().conditioning_warning_threshold,
+                        expected_cqmom_prepared_case.conditional_options().conditioning_warning_threshold, 0.0);
+    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.adaptive_branch_counts() == expected_cqmom_prepared_case.adaptive_branch_counts());
+    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.diagnostic_level() == expected_cqmom_prepared_case.diagnostic_level());
+    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.vandermonde_solver() == expected_cqmom_prepared_case.vandermonde_solver());
+    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.coordinate_support().size() == expected_cqmom_prepared_case.coordinate_support().size());
+    for (std::size_t dimension = 0; dimension < actual_cqmom_prepared_case.coordinate_support().size(); ++dimension)
     {
-        QMOMKIT_VERIFY_CHECK(actual.coordinate_support()[dimension].has_value() == expected.coordinate_support()[dimension].has_value());
-        if (actual.coordinate_support()[dimension].has_value())
+        QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.coordinate_support()[dimension].has_value() ==
+                             expected_cqmom_prepared_case.coordinate_support()[dimension].has_value());
+        if (actual_cqmom_prepared_case.coordinate_support()[dimension].has_value())
         {
-            QMOMKIT_VERIFY_NEAR(actual.coordinate_support()[dimension]->lower, expected.coordinate_support()[dimension]->lower, 0.0);
-            QMOMKIT_VERIFY_NEAR(actual.coordinate_support()[dimension]->upper, expected.coordinate_support()[dimension]->upper, 0.0);
+            QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.coordinate_support()[dimension]->lower,
+                                expected_cqmom_prepared_case.coordinate_support()[dimension]->lower, 0.0);
+            QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.coordinate_support()[dimension]->upper,
+                                expected_cqmom_prepared_case.coordinate_support()[dimension]->upper, 0.0);
         }
     }
 }
@@ -152,8 +157,8 @@ void assert_states_match(const qmomkit::CqmomState& actual, const qmomkit::Cqmom
 
 void test_parsed_and_programmatic_replacement_match()
 {
-    const auto base = qmomkit::config::parse_cqmom(base_configuration, "replacement-base");
-    const auto parsed = qmomkit::config::parse_cqmom(explicit_replacement_configuration, "replacement-parsed");
+    const auto base = qmomkit::config::parse_cqmom_prepared(base_configuration, "replacement-base");
+    const auto parsed = qmomkit::config::parse_cqmom_prepared(explicit_replacement_configuration, "replacement-parsed");
     QMOMKIT_VERIFY_CHECK(base.ok());
     QMOMKIT_VERIFY_CHECK(parsed.ok());
 
@@ -196,7 +201,7 @@ void test_parsed_and_programmatic_replacement_match()
 // differently prepared lineage.
 void test_moment_data_and_tensor_replacement_match()
 {
-    const auto base = qmomkit::config::parse_cqmom(base_configuration, "replacement-base");
+    const auto base = qmomkit::config::parse_cqmom_prepared(base_configuration, "replacement-base");
     QMOMKIT_VERIFY_CHECK(base.ok());
 
     const qmomkit::CqmomMomentData moment_data =

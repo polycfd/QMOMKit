@@ -90,7 +90,7 @@ void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomk
     std::cerr << configured.error() << '\n';
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -273,7 +273,7 @@ void verify_reconstructed_moments(const std::string& workflow_name, const qmomki
 void compare_workflows(const std::string& workflow_name, const qmomkit::CqmomQuadrature& actual, const qmomkit::CqmomQuadrature& reference,
                        const qmomkit::CqmomMomentLayout& layout, VerificationResult& verification)
 {
-    // The explicit case and the configured CqmomCase exist for different user
+    // The explicit case and the configured CqmomPreparedCase exist for different user
     // needs: an explicit moment set the caller owns, and the recommended
     // configured state ownership. For the same mathematical problem they should
     // produce indistinguishable public quadrature and reconstructed moments.
@@ -331,7 +331,7 @@ int main(const int argc, char** argv)
         print_configuration_errors(explicit_case);
         return 1;
     }
-    const auto default_case = qmomkit::config::load_cqmom(configuration_path);
+    const auto default_case = qmomkit::config::load_cqmom_prepared(configuration_path);
     if (!default_case.ok())
     {
         print_configuration_errors(default_case);
@@ -348,7 +348,7 @@ int main(const int argc, char** argv)
     }
     if (!default_workflow.ok())
     {
-        append_failure(verification, "default CqmomCase workflow compute_cqmom failed: " + default_workflow.message);
+        append_failure(verification, "default CqmomPreparedCase workflow compute_cqmom failed: " + default_workflow.message);
     }
     if (!verification.passed)
     {
@@ -364,18 +364,18 @@ int main(const int argc, char** argv)
     if (default_case.value().hierarchy().node_counts() != explicit_case.value().moments.layout.hierarchy.node_counts() ||
         default_case.value().hierarchy().conditioning_order() != explicit_case.value().moments.layout.hierarchy.conditioning_order())
     {
-        append_failure(verification, "default CqmomCase workflow did not preserve the explicit workflow hierarchy.");
+        append_failure(verification, "default CqmomPreparedCase workflow did not preserve the explicit workflow hierarchy.");
     }
 
     verify_required_representation(explicit_case.value(), verification);
     verify_diagnostics("explicit workflow", explicit_result, verification);
-    verify_diagnostics("default CqmomCase workflow", default_workflow, verification);
+    verify_diagnostics("default CqmomPreparedCase workflow", default_workflow, verification);
     verify_reference_quadrature("explicit workflow", explicit_result.quadrature, verification);
-    verify_reference_quadrature("default CqmomCase workflow", default_workflow.quadrature, verification);
+    verify_reference_quadrature("default CqmomPreparedCase workflow", default_workflow.quadrature, verification);
     verify_reconstructed_moments("explicit workflow", explicit_result.quadrature, explicit_case.value().moments, verification);
-    verify_reconstructed_moments("default CqmomCase workflow", default_workflow.quadrature, explicit_case.value().moments, verification);
-    compare_workflows("default CqmomCase workflow", default_workflow.quadrature, explicit_result.quadrature, explicit_case.value().moments.layout,
-                      verification);
+    verify_reconstructed_moments("default CqmomPreparedCase workflow", default_workflow.quadrature, explicit_case.value().moments, verification);
+    compare_workflows("default CqmomPreparedCase workflow", default_workflow.quadrature, explicit_result.quadrature,
+                      explicit_case.value().moments.layout, verification);
 
     const bool passed = verification.passed && verification.errors.node <= tolerance && verification.errors.weight <= tolerance &&
                         verification.errors.moment <= tolerance && verification.errors.workflow_node <= tolerance &&

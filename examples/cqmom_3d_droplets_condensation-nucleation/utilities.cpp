@@ -112,30 +112,31 @@ void ensure_output_directory(const std::filesystem::path& path)
     }
 }
 
-void print_cqmom_run_configuration(const qmomkit::CqmomCase& cqmom_case,
+void print_cqmom_run_configuration(const qmomkit::CqmomPreparedCase& cqmom_prepared_case,
                                    const qmomkit::CqmomPhaseSpaceEvolutionOptions& phase_space_evolution_options)
 {
     std::cout << std::setprecision(12);
     std::cout << "phase-space dimensions: 3\n";
     std::cout << "phase-space ordering: (r [m],w [m/s],T [K])\n";
     std::cout << "conditioning_order = ";
-    print_index_vector(cqmom_case.hierarchy().conditioning_order());
+    print_index_vector(cqmom_prepared_case.hierarchy().conditioning_order());
     std::cout << '\n';
     std::cout << "node_counts = ";
-    print_index_vector(cqmom_case.hierarchy().node_counts());
+    print_index_vector(cqmom_prepared_case.hierarchy().node_counts());
     std::cout << '\n';
     std::cout << "phase-space evolution: Strang-split advection and boundary nucleation\n";
-    std::cout << qmomkit::format_cqmom_settings(cqmom_case.adaptive_branch_counts(), cqmom_case.vandermonde_solver(), cqmom_case.diagnostic_level());
+    std::cout << qmomkit::format_cqmom_settings(cqmom_prepared_case.adaptive_branch_counts(), cqmom_prepared_case.vandermonde_solver(),
+                                                cqmom_prepared_case.diagnostic_level());
     std::cout << qmomkit::format_node_advection_options(phase_space_evolution_options.node_options);
 }
 
-void print_monte_carlo_run_configuration(const qmomkit::CqmomCase& cqmom_case, const qmomkit::NodeAdvectionOptions& node_options)
+void print_monte_carlo_run_configuration(const qmomkit::CqmomPreparedCase& cqmom_prepared_case, const qmomkit::NodeAdvectionOptions& node_options)
 {
     std::cout << std::setprecision(12);
     std::cout << "phase-space dimensions: 3\n";
     std::cout << "phase-space ordering: (r [m],w [m/s],T [K])\n";
     std::cout << "node_counts = ";
-    print_index_vector(cqmom_case.hierarchy().node_counts());
+    print_index_vector(cqmom_prepared_case.hierarchy().node_counts());
     std::cout << '\n';
     std::cout << "particle evolution: Strang-split advection and population nucleation\n";
     std::cout << qmomkit::format_node_advection_options(node_options);

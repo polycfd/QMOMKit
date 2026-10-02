@@ -47,7 +47,7 @@ int main()
             return 1;
         }
 
-        auto configured_cqmom = qmomkit::config::parse_cqmom(*configuration_text, configuration_file.string());
+        auto configured_cqmom = qmomkit::config::parse_cqmom_prepared(*configuration_text, configuration_file.string());
         if (!configured_cqmom)
         {
             paper_3d_droplets_condensation_nucleation::print_configuration_errors(configured_cqmom.error());
@@ -84,9 +84,9 @@ int main()
             paper_3d_droplets_condensation_nucleation::print_configuration_errors(sampled_case_result.error());
             return 1;
         }
-        const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
+        const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(sampled_case_result).value();
 
-        const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
+        const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_prepared_case);
         if (!cqmom.ok())
         {
             std::cerr << "CQMOM inversion failed: " << cqmom.message << '\n';
@@ -104,9 +104,9 @@ int main()
         const paper_3d_droplets_condensation_nucleation::NucleationModel nucleation_model =
             paper_3d_droplets_condensation_nucleation::make_nucleation_model(initial_number_moment.values.front());
 
-        qmomkit::CqmomState state = cqmom_case.initial_state();
+        qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
         qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
-        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
+        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const qmomkit::PhaseSpaceVelocity velocity = paper_3d_droplets_condensation_nucleation::droplet_phase_space_velocity();
         qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();
@@ -129,7 +129,7 @@ int main()
         const qmomkit::CqmomMomentBoundaryContribution nucleation_boundary =
             paper_3d_droplets_condensation_nucleation::nucleation_boundary_contribution(nucleation_model);
 
-        paper_3d_droplets_condensation_nucleation::print_cqmom_run_configuration(cqmom_case, phase_space_evolution_options);
+        paper_3d_droplets_condensation_nucleation::print_cqmom_run_configuration(cqmom_prepared_case, phase_space_evolution_options);
 
         paper_3d_droplets_condensation_nucleation::ensure_output_directory(output_options.directory);
 
@@ -149,7 +149,6 @@ int main()
                                                     qmomkit::invalid_dimension_index,
                                                     {}};
         };
-
 
         std::vector<std::pair<double, qmomkit::CqmomQuadrature>> quadrature_history{{initial_time, quadrature}};
         std::optional<qmomkit::MomentWriter> mc_moment_history_writer;

@@ -115,7 +115,7 @@ with a negative-sign check; `parse_double` requires full finite conversion.
 List parsers reject empty entries/trailing commas; optional-bound lists
 additionally recognize `none`.
 
-`parse_qmom`, `parse_cqmom_lean`, and `parse_cqmom` each
+`parse_qmom`, `parse_cqmom_lean`, and `parse_cqmom_prepared` each
 call `parse_file` exactly once and share the resulting `ParsedFile` with the
 initial-condition step, instead of re-parsing the same text a second time.
 `parse_qmom_initial_condition_from_parsed` and
@@ -221,15 +221,15 @@ tensor overload exists for moment data arriving from outside QMOMKit, where
 reporting a malformed tensor as a configuration error is more useful than
 throwing.
 
-Public `parse_qmom`, `parse_cqmom_lean`, and neutral `parse_cqmom` compose
-parser, initializer, and constructor. Each `load_*` reads a file then invokes its
-corresponding parser with the filename as diagnostic source. The reader does
-not enforce a filename extension; `.qmom` is the documented configuration
-convention.
+Public `parse_qmom`, `parse_cqmom_lean`, and neutral `parse_cqmom_prepared`
+compose parser, initializer, and constructor. Each `load_*` reads a file then
+invokes its corresponding parser with the filename as diagnostic source. The
+reader does not enforce a filename extension; `.qmom` is the documented
+configuration convention.
 
 Evidence: [configuration tests](../../../tests/unit/configuration.cpp) and
 [case-replacement
-regression](../../../tests/component_regression/cqmom_case_moment_replacement.cpp)
+regression](../../../tests/component_regression/cqmom_prepared_case_moment_replacement.cpp)
 cover preserved settings, layout compatibility, deferred inversion, and
 replacement through both initial-moment overloads. [Explicit QMOM
 example](../../../examples/qmom_explicit_moments/README.md) shows the

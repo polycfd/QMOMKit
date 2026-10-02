@@ -750,9 +750,9 @@ qmomkit::CqmomLeanCase make_lean_case(const CqmomEventFixture& fixture, const st
     return lean_case;
 }
 
-qmomkit::CqmomCase make_cqmom_case(const CqmomEventFixture& fixture, const std::vector<double>& moments)
+qmomkit::CqmomPreparedCase make_cqmom_prepared_case(const CqmomEventFixture& fixture, const std::vector<double>& moments)
 {
-    return qmomkit::internal::CqmomConstructionAccess::create_case(make_lean_case(fixture, moments));
+    return qmomkit::internal::CqmomConstructionAccess::create_prepared_case(make_lean_case(fixture, moments));
 }
 
 qmomkit::CqmomLeanCase make_lean_case(const CqmomFallbackFixture& fixture)
@@ -939,8 +939,8 @@ void canonicalize_cqmom_result(const CqmomEventFixture& fixture, const qmomkit::
 
 void validate_cqmom_fixture(const CqmomEventFixture& fixture)
 {
-    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments);
-    const qmomkit::CqmomState initial_state = initial_case.initial_state();
+    const qmomkit::CqmomPreparedCase initial_cqmom_prepared_case = make_cqmom_prepared_case(fixture, fixture.initial_moments);
+    const qmomkit::CqmomState initial_state = initial_cqmom_prepared_case.initial_state();
     const qmomkit::CqmomResult selected = run_cqmom_event_reconstruction(fixture, initial_state.active_branch_counts());
     if (!selected.ok())
     {
@@ -989,8 +989,8 @@ void validate_cqmom_state_canonical(const qmomkit::CqmomState& state, const qmom
 void validate_cqmom_step_fixture(const CqmomEventFixture& fixture)
 {
     validate_cqmom_fixture(fixture);
-    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments);
-    const qmomkit::CqmomState initial_state = initial_case.initial_state();
+    const qmomkit::CqmomPreparedCase initial_cqmom_prepared_case = make_cqmom_prepared_case(fixture, fixture.initial_moments);
+    const qmomkit::CqmomState initial_state = initial_cqmom_prepared_case.initial_state();
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
     const qmomkit::CqmomMomentData target = qmomkit::extract_cqmom_moments({fixture.extents, fixture.target_moments}, layout);
     const qmomkit::PhaseSpaceVelocity zero_velocity =
@@ -1028,8 +1028,8 @@ void run_cqmom_reconstruction_event(benchmark::State& state, const CqmomEventFix
         return;
     }
 
-    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments);
-    const qmomkit::CqmomState initial_state = initial_case.initial_state();
+    const qmomkit::CqmomPreparedCase initial_cqmom_prepared_case = make_cqmom_prepared_case(fixture, fixture.initial_moments);
+    const qmomkit::CqmomState initial_state = initial_cqmom_prepared_case.initial_state();
     const std::vector<qmomkit::CqmomActiveBranchCount> active_counts = initial_state.active_branch_counts();
     set_cqmom_counters(state, fixture, active_counts.size());
 
@@ -1054,8 +1054,8 @@ void run_cqmom_full_step(benchmark::State& state, const CqmomEventFixture& fixtu
         return;
     }
 
-    const qmomkit::CqmomCase initial_case = make_cqmom_case(fixture, fixture.initial_moments);
-    const qmomkit::CqmomState initial_state = initial_case.initial_state();
+    const qmomkit::CqmomPreparedCase initial_cqmom_prepared_case = make_cqmom_prepared_case(fixture, fixture.initial_moments);
+    const qmomkit::CqmomState initial_state = initial_cqmom_prepared_case.initial_state();
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
     const qmomkit::CqmomMomentData target = qmomkit::extract_cqmom_moments({fixture.extents, fixture.target_moments}, layout);
     const qmomkit::CqmomMomentSource source = cqmom_source_to_target(initial_state, target);

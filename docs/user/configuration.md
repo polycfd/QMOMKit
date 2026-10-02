@@ -402,7 +402,7 @@ marginal mixtures. It does not represent correlated joint distributions,
 copulas, multidimensional mixture components, or mixtures of
 independent-product populations.
 
-For the normal `load_cqmom(...)` path, `node_counts` and
+For the normal `load_cqmom_prepared(...)` path, `node_counts` and
 `conditioning_order` determine which raw moments are required. Analytical
 independent-product initialization generates only those required moments.
 
@@ -455,10 +455,11 @@ Diagnostic level and solver policy are covered under
 [advanced settings](#advanced-settings).
 ## Time-evolution settings
 
-A `.qmom` file may contain both case settings and phase-space evolution settings.
-`load_qmom(...)` and `load_cqmom(...)` return only the case configuration, but
-they validate all recognized settings in the file. Phase-space evolution settings must
-still be loaded into phase-space evolution options explicitly.
+A `.qmom` file may contain both case settings and phase-space evolution
+settings. `load_qmom(...)` and `load_cqmom_prepared(...)` return only the case
+configuration, but they validate all recognized settings in the file.
+Phase-space evolution settings must still be loaded into phase-space evolution
+options explicitly.
 
 | Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
 | --- | --- | --- | --- |
@@ -692,20 +693,20 @@ intentionally separate from the coordinate-marginal realizability checks.
 
 ## Loading a configuration from C++
 
-Use `load_qmom(...)` for a one-dimensional configuration and `load_cqmom(...)`
-for a multidimensional one:
+Use `load_qmom(...)` for a one-dimensional configuration and
+`load_cqmom_prepared(...)` for a multidimensional one:
 
 ```cpp
-const auto configured = qmomkit::config::load_cqmom("configuration.qmom");
+const auto configured = qmomkit::config::load_cqmom_prepared("configuration.qmom");
 if (!configured)
 {
     std::cerr << configured.error() << '\n';
     return 1;
 }
 
-const qmomkit::CqmomCase cqmom_case = configured.value();
+const qmomkit::CqmomPreparedCase cqmom_prepared_case = configured.value();
 
-const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
+const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_prepared_case);
 if (!result.ok())
 {
     std::cerr << "CQMOM failed: " << result.message << '\n';
@@ -719,19 +720,19 @@ information where available.
 A loaded case is the fixed setup; it does not change as a simulation runs.
 `compute_qmom(...)` and `compute_cqmom(...)` reconstruct a quadrature from it
 directly. To evolve it in time instead, create the runtime state with
-`QmomCase::initial_state()` or `CqmomCase::initial_state()` and advance that
-`QmomState` or `CqmomState` with `advance_qmom_phase_space(...)` or
-`advance_cqmom_phase_space(...)`. See
-[Phase-space evolution](phase_space_evolution.md) for those calls and the
-callbacks they need.
+`QmomCase::initial_state()` or `CqmomPreparedCase::initial_state()` and advance
+that `QmomState` or `CqmomState` with `advance_qmom_phase_space(...)` or
+`advance_cqmom_phase_space(...)`. See [Phase-space
+evolution](phase_space_evolution.md) for those calls and the callbacks they
+need.
 
 **Case settings and evolution settings load separately.** `load_qmom(...)` and
-`load_cqmom(...)` validate every recognised key in the file, but they return
+`load_cqmom_prepared(...)` validate every recognised key in the file, but they return
 only the case. Time-evolution and output settings must be requested explicitly:
 
 | To load | Call |
 | --- | --- |
-| the case | `load_qmom(...)` or `load_cqmom(...)` |
+| the case | `load_qmom(...)` or `load_cqmom_prepared(...)` |
 | evolution controls | `load_qmom_phase_space_evolution_options(...)` or `load_cqmom_phase_space_evolution_options(...)` |
 | output settings | `load_output_options(...)` |
 
@@ -740,16 +741,16 @@ your application then fills in with its physics.
 
 An application that loads a case and later obtains a complete raw moment tensor
 can build a replacement case with
-`qmomkit::config::with_initial_moments(base_case, tensor)`. This keeps the
-loaded hierarchy, supports, and reconstruction settings, and validates the
-tensor's structure — equivalent to having written those moments
+`qmomkit::config::with_initial_moments(base_cqmom_prepared_case, tensor)`. This
+keeps the loaded hierarchy, supports, and reconstruction settings, and
+validates the tensor's structure — equivalent to having written those moments
 into the file, without serialising and reparsing it.
 
 If the moments already arrive as the required CQMOM moment set rather than a
 full tensor, pass `CqmomMomentData` instead:
-`qmomkit::config::with_initial_moments(base_case, moment_data)`. The result is
-the same case, and it avoids building a full tensor whose extra entries the case
-never reads.
+`qmomkit::config::with_initial_moments(base_cqmom_prepared_case, moment_data)`.
+The result is the same case, and it avoids building a full tensor whose extra
+entries the case never reads.
 
 Use the `RawMomentTensor` overload when the moments come from outside QMOMKit,
 as for instance the Monte Carlo companion's sampled moments do. It selects the moments the
@@ -815,10 +816,11 @@ int main()
 ```
 
 For multidimensional CQMOM, build a `CqmomLeanCase` from the moments the
-hierarchy requires. It can be promoted to a `CqmomCase`, so an explicitly
-constructed case still reaches `initial_state()` and ordinary time evolution. If
-you would rather have QMOMKit derive the required moments from a configured
-independent-product initialisation, `load_cqmom(...)` remains the simpler route.
+hierarchy requires. It can be promoted to a `CqmomPreparedCase`, so an
+explicitly constructed case still reaches `initial_state()` and ordinary time
+evolution. If you would rather have QMOMKit derive the required moments from a
+configured independent-product initialisation, `load_cqmom_prepared(...)`
+remains the simpler route.
 
 This example starts from a full tensor the application already owns and selects
 the required moments from it:
@@ -849,15 +851,15 @@ int main()
         {},
         qmom_options};
 
-    const qmomkit::CqmomCase normal_case{cqmom_case};
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(normal_case);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case{cqmom_case};
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_prepared_case);
     if (!cqmom.ok())
     {
         std::cerr << "CQMOM failed: " << cqmom.message << '\n';
         return 1;
     }
 
-    const qmomkit::CqmomState state = normal_case.initial_state();
+    const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
     const qmomkit::CqmomQuadrature& quadrature = state.quadrature();
 
     return 0;

@@ -512,7 +512,7 @@ qmomkit::CqmomMomentBoundaryContribution boundary =
 Boundary contributions are not a generic PDE boundary-condition framework.
 They do not define mesh faces, normals, reflection, clipping, or boundary
 geometry. They are runtime physics callbacks, just like velocities and moment
-sources, and are not stored in `QmomCase`, `CqmomCase`, or `CqmomState`.
+sources, and are not stored in `QmomCase`, `CqmomPreparedCase`, or `CqmomState`.
 
 When a boundary callback is supplied to one of these helpers, it is evaluated
 with the moment source during each SSP-RK3 moment-source stage:
@@ -727,21 +727,21 @@ from the loaded CQMOM case when QMOMKit should own one complete configured
 splitting step:
 
 ```cpp
-const auto configured = qmomkit::config::load_cqmom("configuration.qmom");
+const auto configured = qmomkit::config::load_cqmom_prepared("configuration.qmom");
 if (!configured)
 {
     // Report configured.error(), then stop.
 }
 
-const qmomkit::CqmomCase cqmom_case = configured.value();
+const qmomkit::CqmomPreparedCase cqmom_prepared_case = configured.value();
 
-const qmomkit::CqmomResult initial_quadrature = qmomkit::compute_cqmom(cqmom_case);
+const qmomkit::CqmomResult initial_quadrature = qmomkit::compute_cqmom(cqmom_prepared_case);
 if (!initial_quadrature.ok())
 {
     // Report initial_quadrature.message, then stop.
 }
 
-qmomkit::CqmomState state = cqmom_case.initial_state();
+qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
 
 qmomkit::CqmomPhaseSpaceEvolutionOptions options;
 options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
@@ -836,7 +836,8 @@ failure, the returned state is the stage input state; the returned quadrature,
 when present, is diagnostic unless `result.ok()` is true.
 
 Here `compute_cqmom(...)` computes the initial quadrature, while
-`CqmomCase::initial_state()` creates the runtime state that phase-space evolution advances.
+`CqmomPreparedCase::initial_state()` creates the runtime state that phase-space
+evolution advances.
 
 ### Adaptive node counts
 
@@ -866,9 +867,9 @@ The two option groups divide cleanly, which is worth knowing when deciding
 where a setting belongs. `CqmomPhaseSpaceEvolutionOptions` holds only what a
 step does: node advection, moment-source integration, and the splitting scheme.
 How the quadrature is reconstructed — Wheeler options, adaptive branch counts,
-diagnostic level, solver choice — belongs to `CqmomCase`, and `CqmomState`
-carries it forward from step to step along with the adaptive node counts it has
-settled on.
+diagnostic level, solver choice — belongs to `CqmomPreparedCase`, and
+`CqmomState` carries it forward from step to step along with the adaptive node
+counts it has settled on.
 
 Write CQMOM physics against `CqmomMomentSource` and
 `CqmomMomentBoundaryContribution`. The context they receive presents the same

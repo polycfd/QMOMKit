@@ -39,7 +39,7 @@ int main()
         if (!configuration_text.has_value())
             return 1;
 
-        auto configured_cqmom = qmomkit::config::parse_cqmom(*configuration_text, configuration_file.string());
+        auto configured_cqmom = qmomkit::config::parse_cqmom_prepared(*configuration_text, configuration_file.string());
         if (!configured_cqmom)
         {
             cqmom_2d_advection_breakage::print_configuration_errors(configured_cqmom.error());
@@ -72,11 +72,11 @@ int main()
             cqmom_2d_advection_breakage::print_configuration_errors(sampled_case_result.error());
             return 1;
         }
-        const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
+        const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(sampled_case_result).value();
 
-        qmomkit::CqmomState state = cqmom_case.initial_state();
+        qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
-        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
+        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const qmomkit::PhaseSpaceVelocity velocity = cqmom_2d_advection_breakage::advection_velocity();
         const qmomkit::CqmomMomentSource source = cqmom_2d_advection_breakage::binary_fragmentation_source();

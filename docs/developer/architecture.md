@@ -71,9 +71,9 @@ The recommended configured CQMOM workflow is:
 
 ```text
 configuration
-    -> load_cqmom(...)
-    -> CqmomCase
-    -> compute_cqmom(CqmomCase)
+    -> load_cqmom_prepared(...)
+    -> CqmomPreparedCase
+    -> compute_cqmom(CqmomPreparedCase)
     -> CqmomResult / CqmomQuadrature
 ```
 
@@ -82,22 +82,23 @@ evaluate derived quantities, write output, or enter optional phase-space
 evolution. QMOM phase-space evolution creates a `QmomState` with
 `QmomCase::initial_state()` and advances it with
 `advance_qmom_phase_space(QmomState, ...)`; normal CQMOM phase-space evolution
-creates a `CqmomState` with `CqmomCase::initial_state()` and advances it with
-`advance_cqmom_phase_space(CqmomState, ...)`.
+creates a `CqmomState` with `CqmomPreparedCase::initial_state()` and advances
+it with `advance_cqmom_phase_space(CqmomState, ...)`.
 
 Accepted-state batch phase-space evolution is a serial collection of these same
 local operations. It does not give QMOMKit ownership of cells, meshes,
 partitions, or parallel execution; applications retain spatial organization and
 scheduling.
 
-`CqmomCase` and `CqmomState` are the neutral public objects for normal CQMOM
+`CqmomPreparedCase` and `CqmomState` are the public objects for normal CQMOM
 workflows. Normal CQMOM phase-space evolution creates a `CqmomState` from
-`CqmomCase` and advances it with `advance_cqmom_phase_space(...)`. A case holds
-the moments the hierarchy reconstructs from, and configured workflows always
-build that representation.
-`CqmomLeanCase` with `CqmomMomentLayout` and `CqmomMomentData` is the case a
-caller builds directly, for static inversion, specialized initialization,
-validation and expert workflows.
+`CqmomPreparedCase` and advances it with `advance_cqmom_phase_space(...)`. Both
+case types hold the moments the hierarchy reconstructs from; a prepared case
+also holds the recursive branch structure that hierarchy implies, so repeated
+reconstructions reuse it instead of rebuilding it. `CqmomLeanCase` with
+`CqmomMomentLayout` and `CqmomMomentData` is the case a caller builds directly,
+for static inversion, specialized initialization, validation and expert
+workflows.
 
 ### QMOM and CQMOM terminology
 
@@ -106,7 +107,7 @@ implementation comments:
 
 | Term | Meaning |
 |------|---------|
-| Case | Problem definition used by a solver workflow, including initial moments and reconstruction settings. `QmomCase` is the configured one-dimensional QMOM case. `CqmomCase` is the normal representation-independent CQMOM case. |
+| Case | Problem definition used by a solver workflow, including initial moments and reconstruction settings. `QmomCase` is the configured one-dimensional QMOM case. `CqmomPreparedCase` is the normal CQMOM case, holding the prepared recursive branch structure alongside the moments. |
 | State | Evolving runtime state during time integration or phase-space evolution. QMOM uses `QmomState`; CQMOM uses `CqmomState`. |
 | Raw moment tensor | Full rectangular moment representation, `RawMomentTensor`. It is an input and an output format — distributions and sample populations produce one, and `reconstruct_raw_moments(...)` returns one — not a representation a case or state holds. |
 | Required moments | The moments a hierarchy reconstructs from, held by `CqmomMomentData` with its `CqmomMomentLayout`. This is what a case and a state store. |
@@ -114,10 +115,10 @@ implementation comments:
 | Request | Mathematical query/request for moments, such as `RawMomentRequest`. A request asks for moment values; it is not a QMOM or CQMOM problem definition. |
 | Quadrature | Discrete representation reconstructed from moments, such as weights and abscissas in `QmomResult`, `Quadrature1D`, or `CqmomQuadrature`. |
 
-`QmomCase` and `CqmomCase` are problem definitions, not moment requests.
-`CqmomLeanCase` is the case an expert caller builds directly when it already
-owns the required moments; it does not replace `CqmomCase` and `CqmomState` as
-the normal CQMOM workflow abstractions.
+`QmomCase` and `CqmomPreparedCase` are problem definitions, not moment
+requests. `CqmomLeanCase` is the case an expert caller builds directly when it
+already owns the required moments; it does not replace `CqmomPreparedCase` and
+`CqmomState` as the normal CQMOM workflow abstractions.
 
 A caller holding a full raw moment tensor selects the required moments from it
 with `extract_cqmom_moments(...)`, or hands the tensor to

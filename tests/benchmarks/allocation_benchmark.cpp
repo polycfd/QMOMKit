@@ -134,12 +134,12 @@ qmomkit::RawMomentTensor product_moment_tensor(const std::size_t dimensions)
     return tensor;
 }
 
-qmomkit::CqmomCase make_lean_case(const std::vector<std::size_t>& node_counts)
+qmomkit::CqmomPreparedCase make_cqmom_prepared_case(const std::vector<std::size_t>& node_counts)
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
     const qmomkit::RawMomentTensor dense = product_moment_tensor(node_counts.size());
     qmomkit::CqmomLeanCase lean{qmomkit::extract_cqmom_moments(dense, qmomkit::create_cqmom_moment_layout(hierarchy))};
-    return qmomkit::CqmomCase{std::move(lean)};
+    return qmomkit::CqmomPreparedCase{std::move(lean)};
 }
 
 qmomkit::PhaseSpaceVelocity make_velocity()
@@ -181,7 +181,7 @@ enum class VelocityForm
 void bm_allocations_cqmom_phase_space_step(benchmark::State& state, const std::vector<std::size_t>& node_counts,
                                            const VelocityForm form = VelocityForm::adapted_per_node)
 {
-    const qmomkit::CqmomCase cqmom_case = make_lean_case(node_counts);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = make_cqmom_prepared_case(node_counts);
     const qmomkit::PhaseSpaceVelocity velocity = velocity_for(form);
     const qmomkit::CqmomMomentSource source = [](double, const qmomkit::CqmomSourceContext& context)
     { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
@@ -189,7 +189,7 @@ void bm_allocations_cqmom_phase_space_step(benchmark::State& state, const std::v
     qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
 
-    qmomkit::CqmomState initial = cqmom_case.initial_state();
+    qmomkit::CqmomState initial = cqmom_prepared_case.initial_state();
     const qmomkit::CqmomPhaseSpaceEvolutionResult warmup = qmomkit::advance_cqmom_phase_space(initial, 0.0, 1.0e-3, velocity, source, options);
     if (!warmup.ok())
     {
@@ -260,8 +260,8 @@ void bm_allocations_qmom_phase_space_step(benchmark::State& state, const Velocit
 
 void bm_allocations_cqmom_reconstruction(benchmark::State& state, const std::vector<std::size_t>& node_counts)
 {
-    const qmomkit::CqmomCase cqmom_case = make_lean_case(node_counts);
-    const qmomkit::CqmomResult setup_check = qmomkit::compute_cqmom(cqmom_case);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = make_cqmom_prepared_case(node_counts);
+    const qmomkit::CqmomResult setup_check = qmomkit::compute_cqmom(cqmom_prepared_case);
     if (!setup_check.ok())
     {
         state.SkipWithError("deterministic CQMOM reconstruction fixture is not realizable");
@@ -272,7 +272,7 @@ void bm_allocations_cqmom_reconstruction(benchmark::State& state, const std::vec
     for (auto _ : state)
     {
         const AllocationScope scope;
-        const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
+        const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_prepared_case);
         benchmark::DoNotOptimize(result.quadrature.weights().data());
     }
     report_allocation_counters(state);

@@ -101,27 +101,27 @@ configured maximum node count, and read-only reconstruction options. The
 maximum and reconstruction options are copied from `QmomCase` and remain
 authoritative for every subsequent evolution transition.
 
-`CqmomCase` and `CqmomState` hold a `CqmomLeanCase` and do not expose it.
-Public accessors read the hierarchy and policies from it; numerical algorithms
-use the held case directly. A `CqmomLeanCase` is promoted through the public
-`CqmomCase` constructor.
-`CqmomCase::initial_state` computes a successful quadrature, derives active
-branch counts, reconstructs the stored representation from that accepted
-quadrature, and stores the same quadrature in the state.
-`CqmomState::quadrature()` exposes that stored accepted quadrature by const
-reference. A state reconstructs exactly its required layout in its existing
-order. Thus every successfully constructed initial state has stored moments and
-cached accepted quadrature describing the same current state. Adaptive
-reduction may replace higher supplied moments with the reduced quadrature's
-closure, as it already does for QMOM and later CQMOM accepted stages. Raw and
-generalized moment views are therefore views of the same accepted state.
+`CqmomPreparedCase` and `CqmomState` hold a `CqmomLeanCase` and do not expose
+it. Public accessors read the hierarchy and policies from it; numerical
+algorithms use the held case directly. A `CqmomLeanCase` is promoted through
+the public `CqmomPreparedCase` constructor. `CqmomPreparedCase::initial_state`
+computes a successful quadrature, derives active branch counts, reconstructs
+the stored representation from that accepted quadrature, and stores the same
+quadrature in the state. `CqmomState::quadrature()` exposes that stored
+accepted quadrature by const reference. A state reconstructs exactly its
+required layout in its existing order. Thus every successfully constructed
+initial state has stored moments and cached accepted quadrature describing the
+same current state. Adaptive reduction may replace higher supplied moments with
+the reduced quadrature's closure, as it already does for QMOM and later CQMOM
+accepted stages. Raw and generalized moment views are therefore views of the
+same accepted state.
 
-`CqmomConstructionAccess::{create_case,create_state}` enforces fixed metadata
-ownership/compatibility and creates the variant payload. Fixed cases eagerly
-prepare immutable hierarchy/layout metadata; copies deep-copy case/state data
-while sharing that immutable metadata. Successors retain the same fixed
-metadata when the layout is unchanged. Adaptive variants reject inappropriate
-fixed metadata. `CqmomConstructionAccess` supplies internal variant/cache
+`CqmomConstructionAccess::{create_prepared_case,create_state}` enforces fixed
+metadata ownership/compatibility and creates the opaque payload. Prepared cases
+eagerly build immutable hierarchy/layout metadata; copies deep-copy case/state
+data while sharing that immutable metadata. Successors retain the same fixed
+metadata when the layout is unchanged. Adaptive cases reject inappropriate
+fixed metadata. `CqmomConstructionAccess` supplies internal payload/cache
 references; it is a trusted access boundary, not an ordinary public
 representation API.
 
@@ -159,7 +159,7 @@ accompany a failed result.
 
 | Family | Purpose and significant semantics | Evidence |
 |---|---|---|
-| Case/state constructors, assignments, destructors | Own variant data; ordinary copying preserves independent evolving values. Moves follow C++ ownership rules; access to a moved-from opaque payload is not established here as a supported workflow. | Public API/configuration tests |
+| Case/state constructors, assignments, destructors | Own the opaque payload; ordinary copying preserves independent evolving values. Moves follow C++ ownership rules; access to a moved-from opaque payload is not established here as a supported workflow. | Public API/configuration tests |
 | Hierarchy, option, support, storage, weight, abscissa, path, and count getters | Return the corresponding stored metadata/value/reference; no recomputation or realizability checks. Reference lifetime follows the owner. | Public-header and API tests |
 | `CqmomConstructionAccess` case and metadata accessors | Internal access and cache sharing; they hand out the held case by reference rather than copying it. | State/metadata tests |
 | `default_conditioning_order`, `ordered_extents`, `from_ordered_index`, `phase_space_node_index_to_path`, `phase_space_index_to_conditioning_path`, `rectangular_terminal_paths` | Translate the two index conventions; fixed paths are generated from physical row-major indices to align with rectangular value offsets. | Non-identity hierarchy tests |

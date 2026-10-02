@@ -5,9 +5,9 @@ shows the complete normal initialization lifecycle:
 
 ```text
 configuration
-    -> load_cqmom(...)
-    -> CqmomCase
-    -> CqmomCase::initial_state()
+    -> load_cqmom_prepared(...)
+    -> CqmomPreparedCase
+    -> CqmomPreparedCase::initial_state()
     -> CqmomState
     -> state.quadrature()
     -> quadrature nodes and weights
@@ -30,14 +30,14 @@ n(\mathrm{size},\mathrm{velocity})\,
 $$
 
 They are unnormalized, so $M_{0,0}$ is the total number density `2.5`.
-`CqmomCase::initial_state()` constructs the initial `CqmomState` from the
+`CqmomPreparedCase::initial_state()` constructs the initial `CqmomState` from the
 configured moment tensor, and the executable reads the accepted conditional
 quadrature from `state.quadrature()`. The direct `compute_cqmom(...)` API
 remains available for standalone reconstruction, but is not used by this
 example. The example does not add phase-space advection, a moment source, or a
 boundary contribution.
 
-`CqmomCase` is the immutable configuration and problem definition. `CqmomState`
+`CqmomPreparedCase` is the immutable configuration and problem definition. `CqmomState`
 is the runtime state that a phase-space evolution workflow evolves later. This
 example creates the state but does not add phase-space evolution physics.
 

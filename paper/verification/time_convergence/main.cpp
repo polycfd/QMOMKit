@@ -213,8 +213,8 @@ SplitRun run_split_case(const qmomkit::PhaseSpaceEvolutionScheme scheme, const s
 {
     const std::vector<double> initial{1.0, 0.5, 1.2399999999999998, 1.4119999999999997};
     const std::size_t step_count = static_cast<std::size_t>(std::lround(splitting_final_time / step_size));
-    const qmomkit::QmomCase case_{qmomkit::MomentSet{initial}, 2, {}};
-    qmomkit::QmomState state = case_.initial_state();
+    const qmomkit::QmomCase qmom_case{qmomkit::MomentSet{initial}, 2, {}};
+    qmomkit::QmomState state = qmom_case.initial_state();
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk45;
     options.node_options.adaptive_options.relative_tolerance = 1.0e-13;

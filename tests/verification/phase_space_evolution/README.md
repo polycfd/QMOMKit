@@ -220,8 +220,8 @@ M_ij(t) = exp((0.16 i - 0.11 j - 0.025 (i + j)) t) M_ij(0)
 Configuration: `commuting_cqmom_state_adaptive_2d.qmom`
 
 This case uses the same diagonal advection operator with a zero CQMOM source
-callback through the recommended configured CQMOM workflow: `load_cqmom(...)`,
-`CqmomCase::initial_state()`, and `advance_cqmom_phase_space(CqmomState, ...)`.
+callback through the recommended configured CQMOM workflow: `load_cqmom_prepared(...)`,
+`CqmomPreparedCase::initial_state()`, and `advance_cqmom_phase_space(CqmomState, ...)`.
 The hierarchy has
 `node_counts = 2, 2`, which is the maximum branch capacity. With
 `adaptive_branch_counts = true`, CQMOM automatically uses adaptive Wheeler for
@@ -267,10 +267,10 @@ Configuration: `cqmom_native_source.qmom`
 This case verifies the public CQMOM physics callback workflow:
 
 ```text
-load_cqmom(...)
-    -> CqmomCase
+load_cqmom_prepared(...)
+    -> CqmomPreparedCase
     -> compute_cqmom(...)
-    -> CqmomCase::initial_state()
+    -> CqmomPreparedCase::initial_state()
     -> CqmomState
     -> advance_cqmom_phase_space(...)
     -> CqmomMomentSource
@@ -307,10 +307,10 @@ This case verifies complete public CQMOM phase-space evolution through `CqmomSta
 both physics callbacks active in the same macro step:
 
 ```text
-load_cqmom(...)
-    -> CqmomCase
+load_cqmom_prepared(...)
+    -> CqmomPreparedCase
     -> compute_cqmom(...)
-    -> CqmomCase::initial_state()
+    -> CqmomPreparedCase::initial_state()
     -> CqmomState
     -> advance_cqmom_phase_space(...)
 ```
@@ -379,9 +379,9 @@ This case checks how CQMOM phase-space evolution through `CqmomState` reports fa
 through:
 
 ```text
-load_cqmom(...)
-    -> CqmomCase
-    -> CqmomCase::initial_state()
+load_cqmom_prepared(...)
+    -> CqmomPreparedCase
+    -> CqmomPreparedCase::initial_state()
     -> CqmomState
     -> advance_cqmom_phase_space(...)
 ```

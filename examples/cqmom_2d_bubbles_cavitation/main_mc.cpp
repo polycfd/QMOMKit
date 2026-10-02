@@ -30,7 +30,7 @@ int main()
             return 1;
         }
 
-        auto configured_cqmom = qmomkit::config::parse_cqmom(*configuration_text, configuration_file.string());
+        auto configured_cqmom = qmomkit::config::parse_cqmom_prepared(*configuration_text, configuration_file.string());
         if (!configured_cqmom)
         {
             cqmom_2d_bubbles_cavitation::print_configuration_errors(configured_cqmom.error());

@@ -33,7 +33,7 @@ conditioning_order = 0, 1
 adaptive_branch_counts = true
 ```
 
-`load_cqmom(...)` uses the configured independent-product distribution to
+`load_cqmom_prepared(...)` uses the configured independent-product distribution to
 compute the required analytical raw moments. `node_counts = 2, 2` requests two
 size nodes and two velocity nodes; with adaptive branch counts enabled, those
 counts are maximums.

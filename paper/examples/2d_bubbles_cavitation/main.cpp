@@ -47,7 +47,7 @@ int main()
             return 1;
         }
 
-        auto configured_cqmom = qmomkit::config::parse_cqmom(*configuration_text, configuration_file.string());
+        auto configured_cqmom = qmomkit::config::parse_cqmom_prepared(*configuration_text, configuration_file.string());
         if (!configured_cqmom)
         {
             paper_2d_bubbles_cavitation::print_configuration_errors(configured_cqmom.error());
@@ -84,18 +84,18 @@ int main()
             paper_2d_bubbles_cavitation::print_configuration_errors(sampled_case_result.error());
             return 1;
         }
-        const qmomkit::CqmomCase cqmom_case = std::move(sampled_case_result).value();
+        const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(sampled_case_result).value();
 
-        const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
+        const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_prepared_case);
         if (!cqmom.ok())
         {
             std::cerr << "CQMOM inversion failed: " << cqmom.message << '\n';
             return 1;
         }
 
-        qmomkit::CqmomState state = cqmom_case.initial_state();
+        qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
         qmomkit::CqmomQuadrature quadrature = cqmom.quadrature;
-        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.hierarchy());
+        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const qmomkit::PhaseSpaceVelocity velocity = paper_2d_bubbles_cavitation::advection_velocity();
         qmomkit::CqmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();

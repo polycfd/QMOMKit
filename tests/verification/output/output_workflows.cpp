@@ -65,7 +65,7 @@ void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomk
     std::cerr << configured.error() << '\n';
 }
 
-void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomCase>& configured)
+void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomkit::CqmomPreparedCase>& configured)
 {
     std::cerr << configured.error() << '\n';
 }
@@ -360,7 +360,7 @@ int main(const int argc, char** argv)
     const qmomkit::QmomResult qmom_result = qmomkit::compute_qmom(configured_qmom.value());
     QMOMKIT_VERIFY_CHECK(qmom_result.status == qmomkit::QmomStatus::success);
 
-    const auto configured_cqmom = qmomkit::config::load_cqmom(cqmom_configuration);
+    const auto configured_cqmom = qmomkit::config::load_cqmom_prepared(cqmom_configuration);
     if (!configured_cqmom.ok())
     {
         print_configuration_errors(configured_cqmom);

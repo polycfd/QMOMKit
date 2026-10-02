@@ -99,7 +99,7 @@ void verify_case(const ExpectedFailure& expected, const std::filesystem::path& d
     }
     else
     {
-        verify_failed_load(qmomkit::config::load_cqmom(path), expected, path);
+        verify_failed_load(qmomkit::config::load_cqmom_prepared(path), expected, path);
     }
 }
 

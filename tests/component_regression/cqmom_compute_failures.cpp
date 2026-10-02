@@ -141,19 +141,19 @@ void verify_nonrealizable_public_workflows()
     // The same non-realizable mathematical case is run through both public
     // workflows to ensure status mapping is workflow-invariant.
     const std::string configuration = nonrealizable_cqmom_configuration();
-    const auto default_case = qmomkit::config::parse_cqmom(configuration, "nonrealizable_cqmom");
+    const auto default_case = qmomkit::config::parse_cqmom_prepared(configuration, "nonrealizable_cqmom");
     const auto lean_case = qmomkit::config::parse_cqmom_lean(configuration, "nonrealizable_cqmom");
 
     QMOMKIT_VERIFY_CHECK(default_case.ok());
     QMOMKIT_VERIFY_CHECK(lean_case.ok());
 
-    verify_nonrealizable_result("default CqmomCase", qmomkit::compute_cqmom(default_case.value()));
+    verify_nonrealizable_result("default CqmomPreparedCase", qmomkit::compute_cqmom(default_case.value()));
     verify_nonrealizable_result("lean CqmomLeanCase", qmomkit::compute_cqmom(lean_case.value()));
 }
 
 void verify_bounded_abscissa_violation_reaches_wheeler()
 {
-    const auto configured = qmomkit::config::parse_cqmom(bounded_abscissa_violation_configuration(), "bounded_abscissa_violation");
+    const auto configured = qmomkit::config::parse_cqmom_prepared(bounded_abscissa_violation_configuration(), "bounded_abscissa_violation");
     QMOMKIT_VERIFY_CHECK(configured.ok());
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(configured.value());

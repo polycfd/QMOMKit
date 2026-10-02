@@ -18,10 +18,10 @@ void print_configuration_errors(const std::string& error);
 
 void ensure_output_directory(const std::filesystem::path& path);
 
-void print_cqmom_run_configuration(const qmomkit::CqmomCase& cqmom_case,
+void print_cqmom_run_configuration(const qmomkit::CqmomPreparedCase& cqmom_prepared_case,
                                    const qmomkit::CqmomPhaseSpaceEvolutionOptions& phase_space_evolution_options);
 
-void print_monte_carlo_run_configuration(const qmomkit::CqmomCase& cqmom_case, const qmomkit::NodeAdvectionOptions& node_options);
+void print_monte_carlo_run_configuration(const qmomkit::CqmomPreparedCase& cqmom_prepared_case, const qmomkit::NodeAdvectionOptions& node_options);
 
 void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,
                           const qmomkit::CqmomQuadrature& final_quadrature, const std::filesystem::path& output_directory, std::size_t sample_count,

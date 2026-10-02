@@ -16,7 +16,7 @@
 
 namespace qmomkit
 {
-class CqmomCase;
+class CqmomPreparedCase;
 class CqmomQuadrature;
 class CqmomState;
 struct CqmomResult;
@@ -214,7 +214,7 @@ struct CqmomLeanCase
  * User-facing mutable CQMOM runtime state.
  *
  * A state owns the current CQMOM moments and reconstruction policies. Normal
- * CQMOM phase-space evolution creates this state from `CqmomCase`; its accepted
+ * CQMOM phase-space evolution creates this state from `CqmomPreparedCase`; its accepted
  * terminal quadrature is available through `quadrature()`. The state can be
  * passed to `advance_cqmom_phase_space(...)`.
  */
@@ -251,23 +251,27 @@ private:
 };
 
 /**
- * User-facing CQMOM case for reconstruction workflows.
+ * CQMOM case that carries prepared reconstruction structure.
  *
- * A case owns the initialized CQMOM state and reconstruction options. Users
- * can inspect the phase-space hierarchy and numerical policies, construct it
- * from a `CqmomLeanCase`, then pass the case directly to `compute_cqmom(...)`
- * or create an evolution state with `initial_state()`.
+ * A prepared case owns the initial moments and reconstruction options, and in
+ * addition the recursive branch structure implied by the phase-space
+ * hierarchy. Building that structure once lets every later reconstruction of
+ * the same hierarchy skip it; that reuse is the only difference from
+ * `CqmomLeanCase`, and both yield the same quadrature. Construct it from a
+ * `CqmomLeanCase`, inspect the hierarchy and numerical policies through its
+ * accessors, then pass it to `compute_cqmom(...)` or create an evolution state
+ * with `initial_state()`.
  */
-class CqmomCase
+class CqmomPreparedCase
 {
 public:
-    explicit CqmomCase(CqmomLeanCase lean_case);
+    explicit CqmomPreparedCase(CqmomLeanCase lean_case);
 
-    CqmomCase(const CqmomCase& other);
-    CqmomCase& operator=(const CqmomCase& other);
-    CqmomCase(CqmomCase&&) noexcept;
-    CqmomCase& operator=(CqmomCase&&) noexcept;
-    ~CqmomCase();
+    CqmomPreparedCase(const CqmomPreparedCase& other);
+    CqmomPreparedCase& operator=(const CqmomPreparedCase& other);
+    CqmomPreparedCase(CqmomPreparedCase&&) noexcept;
+    CqmomPreparedCase& operator=(CqmomPreparedCase&&) noexcept;
+    ~CqmomPreparedCase();
 
     [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
     [[nodiscard]] const QmomOptions& qmom_options() const noexcept;
@@ -279,12 +283,12 @@ public:
     [[nodiscard]] CqmomState initial_state() const;
 
 private:
-    friend CqmomResult compute_cqmom(const CqmomCase& case_);
+    friend CqmomResult compute_cqmom(const CqmomPreparedCase& cqmom_prepared_case);
     struct Data;
 
     friend class internal::CqmomConstructionAccess;
 
-    explicit CqmomCase(std::unique_ptr<Data> data);
+    explicit CqmomPreparedCase(std::unique_ptr<Data> data);
 
     std::unique_ptr<Data> data_;
 };
@@ -319,7 +323,7 @@ struct CqmomResult
  * Construct a multidimensional CQMOM quadrature from the normal user-facing
  * CQMOM case.
  */
-[[nodiscard]] CqmomResult compute_cqmom(const CqmomCase& case_);
+[[nodiscard]] CqmomResult compute_cqmom(const CqmomPreparedCase& cqmom_prepared_case);
 
 /**
  * Enumerate the minimal fixed-node raw moment multi-indices required by

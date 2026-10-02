@@ -77,12 +77,12 @@ preservation of all higher ODE moments after reduction.
 
 `prepare_cqmom_phase_space_evolution_working_state` reuses the state's accepted
 quadrature and active-count vector when present. Normal
-`CqmomCase::initial_state` already populates them and canonicalizes the stored
-moments from that same accepted quadrature. If absent, it
-reconstructs once using existing active constraints, with growth disabled,
-derives counts from the resulting quadrature, and records initial transitions.
-Failure ends the stage with rollback state. No fresh reconstruction is required
-merely because this is the first public advection call.
+`CqmomPreparedCase::initial_state` already populates them and canonicalizes the
+stored moments from that same accepted quadrature. If absent, it reconstructs
+once using existing active constraints, with growth disabled, derives counts
+from the resulting quadrature, and records initial transitions. Failure ends
+the stage with rollback state. No fresh reconstruction is required merely
+because this is the first public advection call.
 
 The working structure borrows cached state data or owns newly reconstructed
 data; it is local to the stage. Fixed hierarchy/layout metadata is immutable

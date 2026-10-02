@@ -20,7 +20,7 @@ int main()
     try
     {
         const std::filesystem::path configuration_file = "configuration.qmom";
-        const auto configured = qmomkit::config::load_cqmom(configuration_file);
+        const auto configured = qmomkit::config::load_cqmom_prepared(configuration_file);
         const auto evolution = qmomkit::config::load_cqmom_phase_space_evolution_options(configuration_file);
         const auto output = qmomkit::config::load_output_options(configuration_file);
         const auto text = read_configuration_text(configuration_file);

@@ -241,6 +241,14 @@ self-contained and do not depend on accidental include order. The linked CTest
 executable does not need numerical runtime assertions; successful compilation
 and linkage are the meaningful checks.
 
+Some translation units also pin entry points. Each pin stores the address of a
+function in a pointer of its exact signature, so a changed parameter or return
+type fails to compile. Pins must have external linkage, for example in a named
+namespace: the linker then has to find each function's definition, so a
+function that is declared but never defined fails the build. In an unnamed
+namespace the compiler may drop unused pins, as Clang does even without
+optimization and GCC does with it, so such pins check only the signature.
+
 When a public header is added, renamed, or given new direct dependencies, the
 public-header coverage should be updated so downstream include behavior remains
 visible.

@@ -38,10 +38,11 @@ struct Sample
     std::vector<std::size_t> branch_counts;
 };
 
-std::size_t validate_case(const qmomkit::CqmomCase& case_)
+std::size_t validate_case(const qmomkit::CqmomPreparedCase& cqmom_prepared_case)
 {
-    const qmomkit::PhaseSpaceHierarchy& hierarchy = case_.hierarchy();
-    if (hierarchy.number_of_dimensions() != 2 || hierarchy.conditioning_order() != std::vector<std::size_t>{0, 1} || !case_.adaptive_branch_counts())
+    const qmomkit::PhaseSpaceHierarchy& hierarchy = cqmom_prepared_case.hierarchy();
+    if (hierarchy.number_of_dimensions() != 2 || hierarchy.conditioning_order() != std::vector<std::size_t>{0, 1} ||
+        !cqmom_prepared_case.adaptive_branch_counts())
     {
         throw std::runtime_error("The adaptive paper case requires a 2D (d,u) hierarchy, conditioning order {0,1}, and adaptive branch counts.");
     }
@@ -228,7 +229,7 @@ int main(const int argc, char** argv)
     try
     {
         const std::filesystem::path configuration_file = argc == 2 ? argv[1] : "configuration.qmom";
-        auto configured = qmomkit::config::load_cqmom(configuration_file);
+        auto configured = qmomkit::config::load_cqmom_prepared(configuration_file);
         if (!configured.ok())
         {
             std::cerr << configured.error() << '\n';
@@ -247,20 +248,20 @@ int main(const int argc, char** argv)
             return 1;
         }
 
-        const qmomkit::CqmomCase case_ = std::move(configured).value();
-        const std::size_t configured_velocity_node_count = validate_case(case_);
-        const std::size_t configured_size_node_count = case_.hierarchy().node_count(0);
+        const qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(configured).value();
+        const std::size_t configured_velocity_node_count = validate_case(cqmom_prepared_case);
+        const std::size_t configured_size_node_count = cqmom_prepared_case.hierarchy().node_count(0);
         const qmomkit::CqmomPhaseSpaceEvolutionOptions evolution_options = std::move(evolution_options_configured).value();
         const qmomkit::OutputOptions output_options = std::move(output_options_configured).value();
 
-        const qmomkit::CqmomResult initial_reconstruction = qmomkit::compute_cqmom(case_);
+        const qmomkit::CqmomResult initial_reconstruction = qmomkit::compute_cqmom(cqmom_prepared_case);
         if (!initial_reconstruction.ok() || !finite_quadrature(initial_reconstruction.quadrature))
         {
             std::cerr << "Initial CQMOM reconstruction failed: " << initial_reconstruction.message << '\n';
             return 1;
         }
 
-        qmomkit::CqmomState state = case_.initial_state();
+        qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
         qmomkit::CqmomQuadrature quadrature = initial_reconstruction.quadrature;
         const Sample initial_sample =
             make_sample(initial_time, quadrature, state.active_branch_counts(), configured_size_node_count, configured_velocity_node_count);

@@ -113,16 +113,16 @@ standard_deviation = 1.25
 
 int main()
 {
-    const auto configured = qmomkit::config::load_cqmom("configuration.qmom");
+    const auto configured = qmomkit::config::load_cqmom_prepared("configuration.qmom");
     if (!configured)
     {
         std::cerr << configured.error() << '\n';
         return 1;
     }
 
-    const qmomkit::CqmomCase cqmom_case = configured.value();
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case = configured.value();
 
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_prepared_case);
     if (!result.ok())
     {
         std::cerr << "CQMOM failed: " << result.message << '\n';

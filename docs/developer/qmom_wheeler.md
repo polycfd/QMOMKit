@@ -224,7 +224,7 @@ qmomkit::QmomResult compute_qmom(
     std::size_t node_count,
     const qmomkit::QmomOptions& options = {});
 
-qmomkit::QmomResult compute_qmom(const qmomkit::QmomCase& case_);
+qmomkit::QmomResult compute_qmom(const qmomkit::QmomCase& qmom_case);
 ```
 
 `QmomCase` bundles:

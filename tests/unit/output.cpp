@@ -476,8 +476,15 @@ void test_writer_rejects_mismatched_inputs()
 
     const std::filesystem::path cqmom_path = temporary_output_path("qmomkit_cqmom_invalid_moments");
     {
+        const std::string extents_message = "The extents of the full tensor of raw moments do not match the writer extents.";
+        const std::string value_count_message = "The value count of the full tensor of raw moments does not match its extents.";
+        const qmomkit::RawMomentTensor wrong_extents{{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}};
+        const qmomkit::RawMomentTensor wrong_value_count{{2, 2}, {1.0, 2.0, 3.0}};
         qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(cqmom_path, {2, 2});
-        assert_throws_invalid_argument([&writer] { writer.write(0.0, qmomkit::RawMomentTensor{{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}); });
+        assert_throws_invalid_argument_message([&] { writer.write(0.0, wrong_extents); }, extents_message);
+        assert_throws_invalid_argument_message([&] { writer.write(0.0, wrong_extents, std::vector<double>{}); }, extents_message);
+        assert_throws_invalid_argument_message([&] { writer.write(0.0, wrong_value_count); }, value_count_message);
+        assert_throws_invalid_argument_message([&] { writer.write(0.0, wrong_value_count, std::vector<double>{}); }, value_count_message);
     }
     std::filesystem::remove(cqmom_path);
 }

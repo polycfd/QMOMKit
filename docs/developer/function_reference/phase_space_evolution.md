@@ -137,10 +137,8 @@ as proof the returned state has advanced there.
 
 `materialize_cqmom_phase_space_evolution_result` obtains the accepted
 quadrature from a successful state's cache; absence is an internal logic error.
-Failure can materialize a diagnostic quadrature separately.
-`neutral_cqmom_message`, `neutral_cqmom_diagnostics`, and
-`neutral_cqmom_result` translate representation- specific wording for neutral
-public APIs; they do not change numerical status. `qmom_from_quadrature`,
+Failure can materialize a diagnostic quadrature separately. Messages are
+passed to the result as their sources wrote them. `qmom_from_quadrature`,
 `qmom_failure`, `cqmom_state_failure`, and `cqmom_success` package already
 decided results. Diagnostic record/finalization helpers preserve per-stage
 counters and aggregate work, not a rigorous global error bound.

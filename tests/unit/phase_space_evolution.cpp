@@ -3433,8 +3433,8 @@ void test_state_cqmom_failure_propagation_from_source_operator()
     assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::moment_source_step);
     assert(result.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::source_failed);
-    assert(result.message.find("Lean CQMOM") == std::string::npos);
-    assert(result.diagnostics.message.find("Lean CQMOM") == std::string::npos);
+    assert(result.message == "CQMOM moment-source rate values must match the source context size.");
+    assert(result.diagnostics.message == result.message);
 }
 
 void test_state_cqmom_phase_space_evolution_api_does_not_expose_moments()
@@ -4016,6 +4016,14 @@ void test_lean_cqmom_phase_space_evolution_preserves_invalid_state_messages()
     assert(layout.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
     assert(layout.message == "CQMOM phase-space evolution moments must match the fixed layout size.");
     assert(layout.diagnostics.message == layout.message);
+
+    qmomkit::TestCqmomPhaseSpaceEvolutionState nonfinite_values = cqmom_state_from_tensor(moments, hierarchy);
+    nonfinite_values.moments.values[2] = std::numeric_limits<double>::quiet_NaN();
+    const qmomkit::TestCqmomPhaseSpaceEvolutionResult nonfinite = qmomkit::advance_cqmom_phase_space(nonfinite_values, 0.0, 0.1, zero_velocity);
+    assert(!nonfinite.ok());
+    assert(nonfinite.status == qmomkit::PhaseSpaceEvolutionStatus::invalid_input);
+    assert(nonfinite.message == "CQMOM phase-space evolution moments must be finite.");
+    assert(nonfinite.diagnostics.message == nonfinite.message);
 }
 
 void test_lean_cqmom_failure_propagation_from_reconstruction()

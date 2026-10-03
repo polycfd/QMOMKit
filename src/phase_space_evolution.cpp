@@ -23,7 +23,6 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -478,35 +477,6 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     return true;
 }
 
-[[nodiscard]] std::string neutral_cqmom_message(std::string message)
-{
-    constexpr std::string_view lean_prefix = "Lean CQMOM ";
-    constexpr std::string_view neutral_prefix = "CQMOM ";
-    std::size_t position = message.find(lean_prefix);
-    while (position != std::string::npos)
-    {
-        message.replace(position, lean_prefix.size(), neutral_prefix);
-        position = message.find(lean_prefix, position + neutral_prefix.size());
-    }
-    return message;
-}
-
-[[nodiscard]] PhaseSpaceEvolutionDiagnostics neutral_cqmom_diagnostics(PhaseSpaceEvolutionDiagnostics diagnostics)
-{
-    diagnostics.message = neutral_cqmom_message(std::move(diagnostics.message));
-    diagnostics.moment_source_diagnostics.message = neutral_cqmom_message(std::move(diagnostics.moment_source_diagnostics.message));
-    diagnostics.first_reconstruction_diagnostics.message = neutral_cqmom_message(std::move(diagnostics.first_reconstruction_diagnostics.message));
-    diagnostics.final_reconstruction_diagnostics.message = neutral_cqmom_message(std::move(diagnostics.final_reconstruction_diagnostics.message));
-    return diagnostics;
-}
-
-[[nodiscard]] CqmomPhaseSpaceEvolutionResult neutral_cqmom_result(CqmomPhaseSpaceEvolutionResult result)
-{
-    result.message = neutral_cqmom_message(std::move(result.message));
-    result.diagnostics = neutral_cqmom_diagnostics(std::move(result.diagnostics));
-    return result;
-}
-
 struct ActiveBranchKey
 {
     std::size_t conditioning_level = 0;
@@ -793,9 +763,9 @@ void initialize_cqmom_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, c
 
 void validate_cqmom_moments_for_phase_space_evolution(const CqmomCase& cqmom_case)
 {
-    internal::validate_cqmom_moment_values_match_layout(cqmom_case.moments,
-                                                        {"", "Lean CQMOM phase-space evolution moments must match the fixed layout size.",
-                                                         "Lean CQMOM phase-space evolution moments must be finite."});
+    internal::validate_cqmom_moment_values_match_layout(
+        cqmom_case.moments,
+        {"", "CQMOM phase-space evolution moments must match the fixed layout size.", "CQMOM phase-space evolution moments must be finite."});
 }
 
 void validate_cqmom_state_for_phase_space_evolution(const CqmomState& state)
@@ -892,8 +862,9 @@ struct CqmomPhaseSpaceEvolutionWorkingState
 {
     if (!outcome.ok())
     {
-        return neutral_cqmom_result(CqmomPhaseSpaceEvolutionResult{std::move(outcome.state), std::move(outcome.diagnostic_quadrature), outcome.status,
-                                                                   std::move(outcome.diagnostics), outcome.final_time, std::move(outcome.message)});
+        return CqmomPhaseSpaceEvolutionResult{std::move(outcome.state), std::move(outcome.diagnostic_quadrature),
+                                              outcome.status,           std::move(outcome.diagnostics),
+                                              outcome.final_time,       std::move(outcome.message)};
     }
 
     const std::optional<CqmomQuadrature>& accepted_quadrature = internal::CqmomConstructionAccess::state_accepted_quadrature(outcome.state);
@@ -904,9 +875,8 @@ struct CqmomPhaseSpaceEvolutionWorkingState
 
     CqmomQuadrature public_quadrature = *accepted_quadrature;
     finalize_diagnostics(outcome.diagnostics);
-    return neutral_cqmom_result(CqmomPhaseSpaceEvolutionResult{std::move(outcome.state), std::move(public_quadrature),
-                                                               PhaseSpaceEvolutionStatus::success, std::move(outcome.diagnostics), outcome.final_time,
-                                                               ""});
+    return CqmomPhaseSpaceEvolutionResult{std::move(outcome.state),       std::move(public_quadrature), PhaseSpaceEvolutionStatus::success,
+                                          std::move(outcome.diagnostics), outcome.final_time,           ""};
 }
 
 [[nodiscard]] CqmomState cqmom_state_from_accepted_quadrature(const CqmomCase& base_cqmom_case, CqmomMomentData moments,
@@ -943,8 +913,7 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     if (!initial_quadrature.ok())
     {
         failure = cqmom_state_failure(rollback_state, std::move(initial_quadrature.quadrature), PhaseSpaceEvolutionStatus::inversion_failed,
-                                      PhaseSpaceEvolutionStage::initial_inversion, diagnostics, t,
-                                      neutral_cqmom_message(std::move(initial_quadrature.message)));
+                                      PhaseSpaceEvolutionStage::initial_inversion, diagnostics, t, std::move(initial_quadrature.message));
         return false;
     }
 
@@ -1056,8 +1025,7 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     if (!post_source_quadrature.ok())
     {
         return cqmom_state_failure(rollback_state, post_source_quadrature.quadrature, PhaseSpaceEvolutionStatus::inversion_failed,
-                                   PhaseSpaceEvolutionStage::post_source_inversion, diagnostics, t,
-                                   neutral_cqmom_message(std::move(post_source_quadrature.message)));
+                                   PhaseSpaceEvolutionStage::post_source_inversion, diagnostics, t, std::move(post_source_quadrature.message));
     }
 
     try
@@ -1074,7 +1042,7 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     }
     catch (const std::exception& error)
     {
-        std::string message = std::string("Lean CQMOM post-source moment reconstruction failed: ") + error.what();
+        std::string message = std::string("CQMOM post-source moment reconstruction failed: ") + error.what();
         diagnostics.final_reconstruction_diagnostics = {false, cqmom_case.moments.values.size(), message};
         return cqmom_state_failure(rollback_state, post_source_quadrature.quadrature, PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
                                    PhaseSpaceEvolutionStage::post_source_inversion, diagnostics, t, std::move(message));

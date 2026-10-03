@@ -223,7 +223,8 @@ void verify_extraction_rejects_structural_mistakes(const std::string& selected_c
     {
         verify_extraction_throws<std::invalid_argument>(
             "extraction extent rank mismatch",
-            [&] { return qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{4}, std::vector<double>(4, 1.0)}, layout); }, "extents must match");
+            [&] { return qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{4}, std::vector<double>(4, 1.0)}, layout); },
+            "The rank of the full tensor of raw moments must match the CQMOM moment layout dimension count.");
     }
 
     if (selected_case.empty() || selected_case == "extraction_value_count")
@@ -231,7 +232,7 @@ void verify_extraction_rejects_structural_mistakes(const std::string& selected_c
         verify_extraction_throws<std::invalid_argument>(
             "extraction value count mismatch",
             [&] { return qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{4, 4}, std::vector<double>(15, 1.0)}, layout); },
-            "value count does not match");
+            "The value count of the full tensor of raw moments does not match its extents.");
     }
 
     if (selected_case.empty() || selected_case == "extraction_missing_required_moment")
@@ -239,7 +240,7 @@ void verify_extraction_rejects_structural_mistakes(const std::string& selected_c
         verify_extraction_throws<std::out_of_range>(
             "extraction missing required moment",
             [&] { return qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{3, 4}, indexed_values({3, 4})}, layout); },
-            "does not contain a required CQMOM moment");
+            "The full tensor of raw moments does not contain a required CQMOM moment.");
     }
 }
 

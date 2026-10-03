@@ -538,11 +538,11 @@ void MomentWriter::write(const double time, const RawMomentTensor& moment_tensor
     }
     if (moment_tensor.extents != extents_)
     {
-        throw std::invalid_argument("CQMOM moment output tensor extents do not match the writer extents.");
+        throw std::invalid_argument("The extents of the full tensor of raw moments do not match the writer extents.");
     }
     if (moment_tensor.values.size() != product_extents(moment_tensor.extents))
     {
-        throw std::invalid_argument("CQMOM moment output tensor size does not match its extents.");
+        throw std::invalid_argument("The value count of the full tensor of raw moments does not match its extents.");
     }
     if (!generalized_moment_orders_.empty())
     {
@@ -562,11 +562,11 @@ void MomentWriter::write(const double time, const RawMomentTensor& moment_tensor
     }
     if (moment_tensor.extents != extents_)
     {
-        throw std::invalid_argument("CQMOM moment output tensor extents do not match the writer extents.");
+        throw std::invalid_argument("The extents of the full tensor of raw moments do not match the writer extents.");
     }
     if (moment_tensor.values.size() != product_extents(moment_tensor.extents))
     {
-        throw std::invalid_argument("CQMOM moment output tensor size does not match its extents.");
+        throw std::invalid_argument("The value count of the full tensor of raw moments does not match its extents.");
     }
     std::vector<double> values;
     values.reserve(flat_indices_.size());

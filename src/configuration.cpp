@@ -1122,7 +1122,8 @@ std::optional<RawMomentTensor> parse_explicit_tensor(ParsedFile& parsed, const s
     if (missing_count != 0)
     {
         add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, 0,
-                  "CQMOM moment tensor is incomplete; " + std::to_string(missing_count) + " entries are missing.");
+                  "The full tensor of raw moments is incomplete; it is missing " + std::to_string(missing_count) + " of its " +
+                      std::to_string(moment_count) + " entries.");
     }
     if (!parsed.errors.empty())
     {
@@ -1175,21 +1176,21 @@ template <class T> ConfigurationResult<T> file_failure(const std::filesystem::pa
 {
     if (moments.extents.size() != hierarchy.number_of_dimensions())
     {
-        return "Raw moment tensor rank must match the base CQMOM hierarchy.";
+        return "The rank of the full tensor of raw moments must match the base CQMOM hierarchy.";
     }
 
     const std::optional<std::size_t> value_count = internal::raw_moment_tensor_value_count(moments.extents);
     if (!value_count.has_value())
     {
-        return "Raw moment tensor extents must be positive and their product must not overflow.";
+        return "The extents of the full tensor of raw moments must be positive and their product must not overflow.";
     }
     if (moments.values.size() != *value_count)
     {
-        return "Raw moment tensor value count does not match its extents.";
+        return "The value count of the full tensor of raw moments does not match its extents.";
     }
     if (!internal::all_finite(moments.values))
     {
-        return "Raw moment tensor values must be finite.";
+        return "The values of the full tensor of raw moments must be finite.";
     }
     return std::nullopt;
 }
@@ -2172,7 +2173,7 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
         {
             add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name,
                       maximum_orders_entry == nullptr ? 0 : maximum_orders_entry->line,
-                      "initial.maximum_orders produce tensor extents whose product overflows.");
+                      "The full tensor of raw moments given by initial.maximum_orders is too large: the product of its extents overflows.");
         }
     }
 
@@ -2241,7 +2242,7 @@ ConfigurationResult<RawMomentTensor> initialize_cqmom_moment_tensor(const Initia
         if (!independent_product->maximum_orders.has_value())
         {
             return failure_result<RawMomentTensor>({ConfigurationErrorCode::missing_entry, std::move(source_name), 0,
-                                                    "initial.maximum_orders is required for standalone dense tensor moment initialization."});
+                                                    "initial.maximum_orders is required to initialize the full tensor of raw moments."});
         }
         TensorMomentResult moments = compute_raw_moments(independent_product->distribution, *independent_product->maximum_orders);
         if (!moments.ok())
@@ -2255,9 +2256,8 @@ ConfigurationResult<RawMomentTensor> initialize_cqmom_moment_tensor(const Initia
         }
         return ConfigurationResult<RawMomentTensor>{moments.moments};
     }
-    return failure_result<RawMomentTensor>(
-        {ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
-         "Multidimensional initialization requires explicit tensor moments or an independent product specification."});
+    return failure_result<RawMomentTensor>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
+                                            "CQMOM initialization requires explicit tensor moments or an independent product specification."});
 }
 
 ConfigurationResult<CqmomMomentData> initialize_cqmom_moments(const InitialConditionSpecification& specification,
@@ -2304,7 +2304,7 @@ ConfigurationResult<CqmomMomentData> initialize_cqmom_moments(const InitialCondi
     }
 
     return failure_result<CqmomMomentData>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
-                                            "Lean CQMOM initialization requires explicit tensor moments or an independent product specification."});
+                                            "CQMOM initialization requires explicit tensor moments or an independent product specification."});
 }
 
 ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(const std::string_view text, std::string source_name)
@@ -2380,7 +2380,7 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_cqmom_
         {
             if (!internal::multi_index_within_extents(index, explicit_moments.extents))
             {
-                return ConfigurationResult<CqmomCase>::failure("Raw moment tensor does not contain required CQMOM moment index " +
+                return ConfigurationResult<CqmomCase>::failure("The full tensor of raw moments does not contain required CQMOM moment index " +
                                                                format_moment_index(index) + ".");
             }
         }
@@ -2399,8 +2399,8 @@ ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_cqmom_
     {
         internal::validate_cqmom_moment_data_matches_hierarchy(
             explicit_moments, base_cqmom_case.moments.layout.hierarchy,
-            {"Lean CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.",
-             "Lean CQMOM moment data value count does not match its required CQMOM moment layout.", "Lean CQMOM moment data values must be finite."});
+            {"CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.",
+             "CQMOM moment data value count does not match its required CQMOM moment layout.", "CQMOM moment data values must be finite."});
 
         return ConfigurationResult<CqmomCase>{qmomkit::internal::with_moments(base_cqmom_case, std::move(explicit_moments))};
     }

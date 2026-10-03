@@ -820,6 +820,49 @@ standard_deviation = 1.25
     assert_cqmom_quadratures_near(case_compute.quadrature, lean_result.quadrature);
 }
 
+// The full tensor of raw moments has no extents of its own for an analytical
+// distribution, so building it requires maximum_orders; the error says so.
+void test_cqmom_moment_tensor_initialization_requires_maximum_orders()
+{
+    const auto initial = qmomkit::config::parse_cqmom_initial_condition(R"(
+[initial]
+type = independent_product
+number_density = 1.0
+
+[initial.dimension.0]
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+
+[initial.dimension.1]
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+)",
+                                                                        "initialization-test");
+    assert(initial.ok());
+    const auto moment_tensor = qmomkit::config::initialize_cqmom_moment_tensor(initial.value(), "initialization-test");
+    assert(!moment_tensor.ok());
+    assert(moment_tensor.error() == "initialization-test: initial.maximum_orders is required to initialize the full tensor of raw moments.");
+}
+
+// CQMOM moments and the full tensor of raw moments come from an explicit
+// tensor or an independent product; both initializers reject a
+// one-dimensional moment sequence with the same message naming both sources.
+void test_cqmom_moment_initialization_rejects_one_dimensional_moments()
+{
+    const auto initial = qmomkit::config::parse_qmom_initial_condition("[moments]\nvalues = 1.0, 0.0, 1.0, 0.0\n", "initialization-test");
+    assert(initial.ok());
+    const std::string expected =
+        "initialization-test: CQMOM initialization requires explicit tensor moments or an independent product specification.";
+    const auto moments = qmomkit::config::initialize_cqmom_moments(initial.value(), qmomkit::PhaseSpaceHierarchy({2, 2}), "initialization-test");
+    assert(!moments.ok());
+    assert(moments.error() == expected);
+    const auto moment_tensor = qmomkit::config::initialize_cqmom_moment_tensor(initial.value(), "initialization-test");
+    assert(!moment_tensor.ok());
+    assert(moment_tensor.error() == expected);
+}
+
 // Configured CQMOM loading builds the moment set implied by the hierarchy, so
 // supplying initial.maximum_orders or omitting it must produce the same case.
 // The orders used below are the hierarchy's own extents, used only to compute
@@ -1485,7 +1528,7 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
         catch (const std::invalid_argument& error)
         {
             rejected = true;
-            assert(std::string(error.what()).find("Prepared CQMOM metadata is incompatible") != std::string::npos);
+            assert(std::string(error.what()) == "Prepared CQMOM metadata is incompatible with the target CQMOM case.");
         }
         assert(rejected);
     };
@@ -1508,7 +1551,7 @@ void test_fixed_cqmom_state_prepared_metadata_invariant_and_compatibility()
     catch (const std::invalid_argument& error)
     {
         lean_rejected = true;
-        assert(std::string(error.what()).find("Prepared CQMOM metadata is incompatible") != std::string::npos);
+        assert(std::string(error.what()) == "Prepared CQMOM metadata is incompatible with the target CQMOM case.");
     }
     assert(lean_rejected);
 
@@ -1770,33 +1813,35 @@ void test_cqmom_case_replacement_rejects_invalid_moments()
 {
     const qmomkit::CqmomCase base_cqmom_case = replacement_base_cqmom_case();
 
-    assert(contains(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4}, std::vector<double>(4, 1.0)}), "rank"));
-    assert(contains(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4, 0}, {}}), "extents"));
-    assert(contains(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4, 4}, std::vector<double>(15, 1.0)}), "value count"));
-    assert(contains(
-        cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{std::numeric_limits<std::size_t>::max(), 2}, std::vector<double>{}}),
-        "overflow"));
+    const std::string extents_message = "The extents of the full tensor of raw moments must be positive and their product must not overflow.";
+    assert(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4}, std::vector<double>(4, 1.0)}) ==
+           "The rank of the full tensor of raw moments must match the base CQMOM hierarchy.");
+    assert(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4, 0}, {}}) == extents_message);
+    assert(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4, 4}, std::vector<double>(15, 1.0)}) ==
+           "The value count of the full tensor of raw moments does not match its extents.");
+    assert(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{std::numeric_limits<std::size_t>::max(), 2}, std::vector<double>{}}) ==
+           extents_message);
     qmomkit::RawMomentTensor nonfinite_tensor = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
     nonfinite_tensor.values[5] = std::numeric_limits<double>::quiet_NaN();
-    assert(contains(cqmom_replacement_error(base_cqmom_case, nonfinite_tensor), "finite"));
+    assert(cqmom_replacement_error(base_cqmom_case, nonfinite_tensor) == "The values of the full tensor of raw moments must be finite.");
     // The base hierarchy conditions on the second coordinate first, so each
     // coordinate needs four moments and a tensor short in either one lacks one.
-    assert(contains(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{3, 4}, std::vector<double>(12, 1.0)}),
-                    "required CQMOM moment index [3, 0]"));
-    assert(contains(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4, 3}, std::vector<double>(12, 1.0)}),
-                    "required CQMOM moment index [0, 3]"));
+    assert(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{3, 4}, std::vector<double>(12, 1.0)}) ==
+           "The full tensor of raw moments does not contain required CQMOM moment index [3, 0].");
+    assert(cqmom_replacement_error(base_cqmom_case, qmomkit::RawMomentTensor{{4, 3}, std::vector<double>(12, 1.0)}) ==
+           "The full tensor of raw moments does not contain required CQMOM moment index [0, 3].");
 
+    const std::string prefix = "Unable to replace CQMOM initial moments: ";
     const qmomkit::CqmomMomentLayout& layout = base_cqmom_case.moments.layout;
     const qmomkit::CqmomMomentLayout other_layout = qmomkit::create_cqmom_moment_layout(qmomkit::PhaseSpaceHierarchy({2, 2}));
-    assert(contains(cqmom_replacement_error(base_cqmom_case,
-                                            qmomkit::CqmomMomentData{other_layout, std::vector<double>(other_layout.required_indices.size(), 1.0)}),
-                    "layout must match the required"));
-    assert(contains(
-        cqmom_replacement_error(base_cqmom_case, qmomkit::CqmomMomentData{layout, std::vector<double>(layout.required_indices.size() + 1, 1.0)}),
-        "value count"));
+    assert(cqmom_replacement_error(base_cqmom_case,
+                                   qmomkit::CqmomMomentData{other_layout, std::vector<double>(other_layout.required_indices.size(), 1.0)}) ==
+           prefix + "CQMOM moment data layout must match the required CQMOM moment layout of the base hierarchy.");
+    assert(cqmom_replacement_error(base_cqmom_case, qmomkit::CqmomMomentData{layout, std::vector<double>(layout.required_indices.size() + 1, 1.0)}) ==
+           prefix + "CQMOM moment data value count does not match its required CQMOM moment layout.");
     qmomkit::CqmomMomentData nonfinite_data = base_cqmom_case.moments;
     nonfinite_data.values[2] = std::numeric_limits<double>::infinity();
-    assert(contains(cqmom_replacement_error(base_cqmom_case, nonfinite_data), "finite"));
+    assert(cqmom_replacement_error(base_cqmom_case, nonfinite_data) == prefix + "CQMOM moment data values must be finite.");
 }
 
 // Replacement checks structure only. Moments that are well formed but not
@@ -3695,6 +3740,9 @@ void test_malformed_nonfinite_invalid_order_and_unknown_key()
                                      "[initial.dimension.1]\nfamily=gamma\nshape=1\nscale=2\n");
     assert(!product_tensor_size_overflow.ok());
     assert(has_failure(product_tensor_size_overflow));
+    assert(
+        has_message_fragment(product_tensor_size_overflow,
+                             "The full tensor of raw moments given by initial.maximum_orders is too large: the product of its extents overflows."));
 
     const auto invalid_product_density =
         qmomkit::config::parse_cqmom("[phase_space]\nnode_counts=1,1\n[initial]\ntype=independent_product\nnumber_density=-1\nmaximum_orders=1,1\n"
@@ -4270,6 +4318,8 @@ int main(const int argc, char** argv)
             {"lean_cqmom_initialization_matches_example_flow", test_lean_cqmom_initialization_matches_example_flow},
             {"lean_cqmom_initialization_omits_maximum_orders", test_lean_cqmom_initialization_omits_maximum_orders},
             {"cqmom_initialization_ignores_maximum_orders", test_cqmom_initialization_ignores_maximum_orders},
+            {"cqmom_moment_tensor_initialization_requires_maximum_orders", test_cqmom_moment_tensor_initialization_requires_maximum_orders},
+            {"cqmom_moment_initialization_rejects_one_dimensional_moments", test_cqmom_moment_initialization_rejects_one_dimensional_moments},
             {"lean_cqmom_initialization_selects_explicit_dense_tensor", test_lean_cqmom_initialization_selects_explicit_dense_tensor},
             {"cqmom_lean_case_selects_explicit_dense_tensor", test_cqmom_lean_case_selects_explicit_dense_tensor},
             {"cqmom_prepared_case_uses_selected_analytical_moments", test_cqmom_prepared_case_uses_selected_analytical_moments},

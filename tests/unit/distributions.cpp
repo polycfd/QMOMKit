@@ -629,6 +629,14 @@ void test_independent_product_maximum_order_overflow_guard()
     assert(result.status == qmomkit::RawMomentStatus::invalid_input);
     assert(result.failed_dimension == 0);
     assert_vector_equal(result.failed_order, {std::numeric_limits<std::size_t>::max()});
+
+    // Each maximum order is valid on its own, but the full tensor of raw
+    // moments they span has more entries than std::size_t can count.
+    const qmomkit::IndependentProductDistribution product_2d{{qmomkit::NormalDistribution{0.0, 1.0}, qmomkit::NormalDistribution{0.0, 1.0}}, 1.0};
+    const qmomkit::TensorMomentResult tensor_overflow = qmomkit::compute_raw_moments(product_2d, {std::numeric_limits<std::size_t>::max() - 1, 1});
+    assert(!tensor_overflow.ok());
+    assert(tensor_overflow.status == qmomkit::RawMomentStatus::invalid_input);
+    assert(tensor_overflow.message == "The extents of the full tensor of raw moments are invalid: Index extents overflow size_t.");
 }
 
 void test_independent_product_invalid_global_number_density()

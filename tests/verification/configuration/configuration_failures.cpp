@@ -149,9 +149,9 @@ int main(const int argc, char** argv)
         // dimensions describe an invalid mathematical CQMOM hierarchy.
         {"cqmom_invalid_conditioning_order.qmom", Loader::cqmom, "conditioning_order must be a permutation"},
 
-        // Dense tensor moment input must be complete. Missing tensor entries
-        // are rejected before the CQMOM case is exposed to the caller.
-        {"cqmom_incomplete_tensor.qmom", Loader::cqmom, "moment tensor is incomplete", false},
+        // The full tensor of raw moments must be complete. Missing tensor
+        // entries are rejected before the CQMOM case is exposed to the caller.
+        {"cqmom_incomplete_tensor.qmom", Loader::cqmom, "The full tensor of raw moments is incomplete; it is missing 1 of its 4 entries.", false},
     };
 
     bool matched = false;

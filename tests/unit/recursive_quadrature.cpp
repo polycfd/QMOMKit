@@ -449,63 +449,6 @@ void test_enumerate_multi_indices_row_major()
     assert_vector_equal(indices[5], {1, 2});
 }
 
-// A view over the indexed moment data, and a copy of it, read every required
-// moment as the full tensor of raw moments holds it, for a non-identity
-// conditioning order in three dimensions.
-void test_cqmom_moment_view_matches_moment_tensor_values()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
-    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::RawMomentTensor moment_tensor{{4, 4, 4}, indexed_values({4, 4, 4})};
-    const qmomkit::CqmomMomentData moment_data = qmomkit::extract_cqmom_moments(moment_tensor, layout);
-    const qmomkit::internal::IndexedMomentSet indexed_moment_data = qmomkit::internal::create_indexed_cqmom_moment_set(moment_data);
-
-    const qmomkit::internal::CqmomMomentView moment_data_view(indexed_moment_data);
-    const qmomkit::internal::CqmomMomentView copied_moment_data_view = moment_data_view;
-
-    for (const qmomkit::MultiIndexView index : layout.required_indices)
-    {
-        const double expected = moment_tensor.values[qmomkit::flatten_multi_index(index, moment_tensor.extents)];
-        assert(moment_data_view.moment(index) == expected);
-        assert(copied_moment_data_view.moment(index) == expected);
-    }
-}
-
-void test_indexed_moment_set_preserves_order_and_uses_key_lookup()
-{
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<qmomkit::MultiIndex> indices{{1, 0}, {0, 3}, {0, 0}};
-    const std::vector<double> values{10.0, 20.0, 30.0};
-    const qmomkit::internal::IndexedMomentSet moments(extents, qmomkit::MultiIndexTable(indices), values);
-
-    assert(moments.indices().to_multi_indices() == indices);
-    assert(moments.values() == values);
-    assert(moments.size() == values.size());
-    assert(moments.contains({1, 0}));
-    assert(moments.contains({0, 3}));
-    assert(!moments.contains({2, 2}));
-    assert(!moments.contains({0}));
-    assert(!moments.contains({4, 0}));
-    assert(moments.moment({1, 0}) == 10.0);
-    assert(moments.moment({0, 3}) == 20.0);
-    assert(moments.moment({0, 0}) == 30.0);
-    assert_throws_out_of_range([&moments]() { (void)moments.moment({2, 2}); });
-    assert_throws_invalid_argument([] { (void)qmomkit::internal::IndexedMomentSet({4, 4}, qmomkit::MultiIndexTable({{1, 0}, {1, 0}}), {1.0, 2.0}); });
-}
-
-void test_cqmom_moment_view_moment_data_references_indexed_storage()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    qmomkit::CqmomMomentData moment_data = qmomkit::extract_cqmom_moments({{4, 4}, indexed_values({4, 4})}, layout);
-    const qmomkit::internal::IndexedMomentSet indexed_moment_data = qmomkit::internal::create_indexed_cqmom_moment_set(moment_data);
-    const qmomkit::internal::CqmomMomentView view(indexed_moment_data);
-
-    moment_data.values[1] = -123.0;
-    assert(view.moment({1, 0}) == 104.0);
-    assert(indexed_moment_data.moment({1, 0}) == 104.0);
-}
-
 void test_branch_local_layout_identity_wheeler_and_rhs_offsets()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -1912,9 +1855,6 @@ int main(const int argc, char** argv)
         {
             {"flat_multi_index_round_trip", test_flat_multi_index_round_trip},
             {"enumerate_multi_indices_row_major", test_enumerate_multi_indices_row_major},
-            {"cqmom_moment_view_matches_moment_tensor_values", test_cqmom_moment_view_matches_moment_tensor_values},
-            {"indexed_moment_set_preserves_order_and_uses_key_lookup", test_indexed_moment_set_preserves_order_and_uses_key_lookup},
-            {"cqmom_moment_view_moment_data_references_indexed_storage", test_cqmom_moment_view_moment_data_references_indexed_storage},
             {"branch_local_layout_identity_wheeler_and_rhs_offsets", test_branch_local_layout_identity_wheeler_and_rhs_offsets},
             {"branch_local_layout_non_identity_wheeler_and_rhs_offsets", test_branch_local_layout_non_identity_wheeler_and_rhs_offsets},
             {"branch_local_layout_unequal_node_counts_and_adaptive_child_case", test_branch_local_layout_unequal_node_counts_and_adaptive_child_case},

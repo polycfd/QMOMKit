@@ -30,103 +30,6 @@ namespace qmomkit
 namespace internal
 {
 
-IndexedMomentSet::IndexedMomentSet(std::vector<std::size_t> key_extents, MultiIndexTable indices, std::vector<double> values)
-    : key_extents_(std::move(key_extents)), indices_(std::move(indices)), values_(std::move(values))
-{
-    if (indices_.size() != values_.size())
-    {
-        throw std::invalid_argument("Indexed CQMOM moment indices and values must have the same size.");
-    }
-
-    // Each index is flattened once here. Deriving the key inside the sort and
-    // lookup comparators instead made every comparison revalidate the extents
-    // and recompute their product.
-    std::vector<std::size_t> keys(indices_.size(), 0);
-    for (std::size_t entry = 0; entry < indices_.size(); ++entry)
-    {
-        keys[entry] = flatten_multi_index(indices_[entry], key_extents_);
-    }
-
-    lookup_offsets_.resize(indices_.size());
-    std::iota(lookup_offsets_.begin(), lookup_offsets_.end(), 0);
-    std::sort(lookup_offsets_.begin(), lookup_offsets_.end(),
-              [&keys](const std::size_t lhs, const std::size_t rhs) { return keys[lhs] < keys[rhs]; });
-
-    lookup_keys_.reserve(lookup_offsets_.size());
-    for (const std::size_t offset : lookup_offsets_)
-    {
-        lookup_keys_.push_back(keys[offset]);
-    }
-
-    for (std::size_t offset = 1; offset < lookup_keys_.size(); ++offset)
-    {
-        if (lookup_keys_[offset - 1] == lookup_keys_[offset])
-        {
-            throw std::invalid_argument("Indexed CQMOM moment storage must not contain duplicate indices.");
-        }
-    }
-}
-
-const MultiIndexTable& IndexedMomentSet::indices() const noexcept
-{
-    return indices_;
-}
-
-const std::vector<double>& IndexedMomentSet::values() const noexcept
-{
-    return values_;
-}
-
-std::size_t IndexedMomentSet::size() const noexcept
-{
-    return values_.size();
-}
-
-bool IndexedMomentSet::contains(const MultiIndex& index) const
-{
-    try
-    {
-        (void)offset(index);
-    }
-    catch (const std::invalid_argument&)
-    {
-        return false;
-    }
-    catch (const std::out_of_range&)
-    {
-        return false;
-    }
-    return true;
-}
-
-std::size_t IndexedMomentSet::offset(const MultiIndexView index) const
-{
-    const std::size_t key = flatten_multi_index(index, key_extents_);
-    const auto found = std::lower_bound(lookup_keys_.begin(), lookup_keys_.end(), key);
-    if (found == lookup_keys_.end() || *found != key)
-    {
-        throw std::out_of_range("Indexed CQMOM moment storage does not contain the requested moment.");
-    }
-    return lookup_offsets_[static_cast<std::size_t>(found - lookup_keys_.begin())];
-}
-
-double IndexedMomentSet::moment(const MultiIndexView index) const
-{
-    return values_.at(offset(index));
-}
-
-CqmomMomentView::CqmomMomentView(const IndexedMomentSet& moments) : moments_(&moments) {}
-
-double CqmomMomentView::moment(const MultiIndexView index) const
-{
-    return moments_->moment(index);
-}
-
-IndexedMomentSet create_indexed_cqmom_moment_set(const CqmomMomentData& moments)
-{
-    return IndexedMomentSet(moments.layout.hierarchy.moment_extents(), moments.layout.required_indices, moments.values);
-}
-
 namespace
 {
 
@@ -605,18 +508,14 @@ struct ConditionalSliceResult
     return level != CqmomDiagnosticLevel::none;
 }
 
-[[nodiscard]] BranchMomentSlice create_ordered_root_slice(const CqmomMomentLayout& layout, const internal::CqmomMomentView& moments,
-                                                          const internal::BranchMomentLayout& root_branch_layout)
+// The root branch layout is built from the canonical CQMOM moment layout, the
+// layout both entry points require the moment data to carry, so the root slice
+// takes the moment values in their stored order.
+[[nodiscard]] BranchMomentSlice create_ordered_root_slice(const CqmomMomentData& moments, const internal::BranchMomentLayout& root_branch_layout)
 {
     BranchMomentSlice slice;
-    std::vector<double> values;
-    values.reserve(layout.required_indices.size());
-    for (const MultiIndexView phase_space_index : layout.required_indices)
-    {
-        values.push_back(moments.moment(phase_space_index));
-    }
     slice.layout = &root_branch_layout;
-    slice.values = std::move(values);
+    slice.values = moments.values;
     return slice;
 }
 
@@ -1589,7 +1488,13 @@ void RecursiveQuadrature::set_terminal_quadrature(std::vector<double> weights, s
     rectangular_storage_ = !adaptive_branch_counts_enabled_;
 }
 
-RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const RecursiveQuadratureMomentViewRequest& request)
+namespace
+{
+
+// The recursive traversal behind both entry points. They have validated the
+// moment values, and the moment data carries the canonical CQMOM moment layout
+// of `request.hierarchy`, as does any prepared metadata the request holds.
+RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_data(const RecursiveQuadratureMomentDataRequest& request)
 {
     const WheelerOptions wheeler_options = resolve_cqmom_wheeler_options(request.wheeler_options, request.adaptive_branch_counts);
     internal::performance::record_cqmom_reconstruction();
@@ -1637,7 +1542,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
         {
             const PreparedCqmomMetadata& metadata = *request.prepared_metadata;
             internal::performance::record_cqmom_prepared_metadata_use();
-            root_slice = create_ordered_root_slice(metadata.moment_layout, request.moments, *metadata.root_branch_layout);
+            root_slice = create_ordered_root_slice(request.moments, *metadata.root_branch_layout);
         }
         else
         {
@@ -1645,16 +1550,9 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
             {
                 throw std::logic_error("Normal CQMOM reconstruction requires prepared metadata.");
             }
-            std::optional<CqmomMomentLayout> generated_root_layout;
-            const CqmomMomentLayout* root_layout = request.validated_layout;
-            if (root_layout == nullptr)
-            {
-                generated_root_layout.emplace(create_cqmom_moment_layout(request.hierarchy));
-                root_layout = &*generated_root_layout;
-            }
             internal::performance::record_cqmom_dynamic_metadata_build();
-            dynamic_root_branch_layout = internal::create_ordered_root_layout(*root_layout, request.adaptive_branch_counts);
-            root_slice = create_ordered_root_slice(*root_layout, request.moments, *dynamic_root_branch_layout);
+            dynamic_root_branch_layout = internal::create_ordered_root_layout(request.moments.layout, request.adaptive_branch_counts);
+            root_slice = create_ordered_root_slice(request.moments, *dynamic_root_branch_layout);
         }
     }
     catch (const std::exception& ex)
@@ -1924,18 +1822,6 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const Re
     return result;
 }
 
-namespace
-{
-
-// Taken by value: both callers pass a temporary, so the request is constructed
-// directly into this parameter and only its layout pointer is filled in.
-RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_view(RecursiveQuadratureMomentViewRequest request,
-                                                                                  const CqmomMomentLayout& validated_layout)
-{
-    request.validated_layout = &validated_layout;
-    return compute_recursive_quadrature_from_moment_view(request);
-}
-
 } // namespace
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const RecursiveQuadratureMomentDataRequest& request)
@@ -1950,14 +1836,12 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
         return result;
     }
 
-    IndexedMomentSet indexed_moments;
     try
     {
         validate_cqmom_moment_data_matches_hierarchy(request.moments, request.hierarchy,
                                                      {"CQMOM moment data layout must match the recursive hierarchy.",
                                                       "CQMOM moment data values must match the layout size.",
                                                       "CQMOM moment data values must be finite."});
-        indexed_moments = create_indexed_cqmom_moment_set(request.moments);
     }
     catch (const std::exception& ex)
     {
@@ -1965,11 +1849,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
         return result;
     }
 
-    return compute_recursive_quadrature_from_validated_moment_view(
-        {request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options, wheeler_options, request.adaptive_branch_counts,
-         request.diagnostic_level, request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
-         request.allow_active_branch_count_growth, request.coordinate_support, request.prepared_metadata, request.require_prepared_metadata},
-        request.moments.layout);
+    return compute_recursive_quadrature_from_validated_moment_data(request);
 }
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(const RecursiveQuadratureMomentDataRequest& request)
@@ -1984,12 +1864,10 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
         return result;
     }
 
-    IndexedMomentSet indexed_moments;
     try
     {
         validate_cqmom_moment_values_match_layout(
             request.moments, {"", "CQMOM moment data values must match the layout size.", "CQMOM moment data values must be finite."});
-        indexed_moments = create_indexed_cqmom_moment_set(request.moments);
     }
     catch (const std::exception& ex)
     {
@@ -1997,11 +1875,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
         return result;
     }
 
-    return compute_recursive_quadrature_from_validated_moment_view(
-        {request.hierarchy, CqmomMomentView(indexed_moments), request.conditional_options, wheeler_options, request.adaptive_branch_counts,
-         request.diagnostic_level, request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
-         request.allow_active_branch_count_growth, request.coordinate_support, request.prepared_metadata, request.require_prepared_metadata},
-        request.moments.layout);
+    return compute_recursive_quadrature_from_validated_moment_data(request);
 }
 
 } // namespace internal

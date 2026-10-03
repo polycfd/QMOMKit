@@ -17,56 +17,6 @@
 namespace qmomkit::internal
 {
 
-/**
- * Ordered indexed storage for CQMOM moment data.
- *
- * Indices and values retain deterministic construction order. Lookup uses a
- * sorted flat-key offset table over the supplied key extents; the object is
- * still a CQMOM requirement container, not a general sparse tensor API.
- */
-class IndexedMomentSet
-{
-public:
-    IndexedMomentSet() = default;
-    IndexedMomentSet(std::vector<std::size_t> key_extents, MultiIndexTable indices, std::vector<double> values);
-
-    [[nodiscard]] const MultiIndexTable& indices() const noexcept;
-    [[nodiscard]] const std::vector<double>& values() const noexcept;
-    [[nodiscard]] std::size_t size() const noexcept;
-    [[nodiscard]] bool contains(const MultiIndex& index) const;
-    [[nodiscard]] std::size_t offset(MultiIndexView index) const;
-    [[nodiscard]] double moment(MultiIndexView index) const;
-
-private:
-    std::vector<std::size_t> key_extents_;
-    MultiIndexTable indices_;
-    std::vector<double> values_;
-    // Flat keys for `lookup_offsets_`, in the same order, so neither the sort
-    // comparator nor a lookup has to re-derive a key from its multi-index.
-    std::vector<std::size_t> lookup_offsets_;
-    std::vector<std::size_t> lookup_keys_;
-};
-
-/**
- * Non-owning view over CQMOM moments held in an `IndexedMomentSet`.
- *
- * Recursive reconstruction reads its root moments through this view. The
- * caller requests only moments the set holds, and the set must outlive the
- * view.
- */
-class CqmomMomentView
-{
-public:
-    explicit CqmomMomentView(const IndexedMomentSet& moments);
-
-    [[nodiscard]] double moment(MultiIndexView index) const;
-
-private:
-    const IndexedMomentSet* moments_ = nullptr;
-};
-
-[[nodiscard]] IndexedMomentSet create_indexed_cqmom_moment_set(const CqmomMomentData& moments);
-
 struct BranchMomentRhsColumn
 {
     // Child moment multi-index in branch-local conditioning order.
@@ -219,26 +169,6 @@ enum class RecursiveQuadratureStatus
     conditional_moment_failed
 };
 
-struct RecursiveQuadratureMomentViewRequest
-{
-    PhaseSpaceHierarchy hierarchy;
-    CqmomMomentView moments;
-    ConditionalMomentOptions conditional_options;
-    WheelerOptions wheeler_options;
-    bool adaptive_branch_counts = false;
-    CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
-    VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
-    const CqmomMomentLayout* validated_layout = nullptr;
-    std::vector<CqmomActiveBranchCount> active_branch_counts;
-    bool allow_active_branch_count_growth = false;
-    CqmomCoordinateSupport coordinate_support;
-    const PreparedCqmomMetadata* prepared_metadata = nullptr;
-    // Normal fixed case/state reconstruction requires prepared metadata.
-    // Explicit standalone reconstruction leaves this false and remains
-    // dynamically prepared.
-    bool require_prepared_metadata = false;
-};
-
 struct RecursiveQuadratureMomentDataRequest
 {
     PhaseSpaceHierarchy hierarchy;
@@ -252,6 +182,9 @@ struct RecursiveQuadratureMomentDataRequest
     bool allow_active_branch_count_growth = false;
     CqmomCoordinateSupport coordinate_support;
     const PreparedCqmomMetadata* prepared_metadata = nullptr;
+    // Normal fixed case/state reconstruction requires prepared metadata.
+    // Explicit standalone reconstruction leaves this false and remains
+    // dynamically prepared.
     bool require_prepared_metadata = false;
 };
 
@@ -298,22 +231,16 @@ struct RecursiveQuadratureResult
 };
 
 /**
- * Construct recursive CQMOM quadrature from a CQMOM moment view.
- *
- * Traversal follows `hierarchy.conditioning_order()`. Raw moments are supplied
- * in phase-space dimension order. Internally, branch-local moment slices are
- * ordered by conditioning level, so Wheeler consumes the leading axis of that
- * conditioning-order slice, not necessarily phase-space dimension 0.
- * Fixed-mode output uses rectangular phase-space-order storage. Adaptive
- * branch-count output uses terminal quadrature arrays and a ragged tree.
- */
-[[nodiscard]] RecursiveQuadratureResult compute_recursive_quadrature_from_moment_view(const RecursiveQuadratureMomentViewRequest& request);
-
-/**
  * Construct recursive CQMOM quadrature from CQMOM moment data.
  *
- * This internal path owns the indexed CqmomMomentData storage for the duration of
- * reconstruction, then delegates to the moment-view recursive algorithm.
+ * The moment data must carry the canonical CQMOM moment layout of `hierarchy`,
+ * whose indices are in phase-space dimension order; this entry point checks
+ * that. Traversal follows `hierarchy.conditioning_order()`. Internally,
+ * branch-local moment slices are ordered by conditioning level, so Wheeler
+ * consumes the leading axis of that conditioning-order slice, not necessarily
+ * phase-space dimension 0. Fixed-mode output uses rectangular
+ * phase-space-order storage. Adaptive branch-count output uses terminal
+ * quadrature arrays and a ragged tree.
  */
 [[nodiscard]] RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const RecursiveQuadratureMomentDataRequest& request);
 

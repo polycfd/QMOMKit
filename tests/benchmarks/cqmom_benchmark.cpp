@@ -63,7 +63,6 @@ struct CqmomEntryPointFixture
     CqmomFixture cqmom_fixture;
     qmomkit::CqmomMomentLayout layout;
     qmomkit::CqmomMomentData moments;
-    qmomkit::internal::IndexedMomentSet indexed_moments;
 };
 
 CqmomFixture make_conditioning_order_fixture()
@@ -175,8 +174,7 @@ CqmomEntryPointFixture make_entry_point_fixture(const std::size_t dimensions, co
     CqmomFixture fixture = make_uniform_independent_fixed_fixture(dimensions, node_count);
     qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
     qmomkit::CqmomMomentData moments = qmomkit::extract_cqmom_moments({fixture.extents, fixture.moments}, layout);
-    qmomkit::internal::IndexedMomentSet indexed_moments = qmomkit::internal::create_indexed_cqmom_moment_set(moments);
-    return {std::move(fixture), std::move(layout), std::move(moments), std::move(indexed_moments)};
+    return {std::move(fixture), std::move(layout), std::move(moments)};
 }
 
 qmomkit::CqmomCase make_cqmom_case(const CqmomFixture& fixture, const std::optional<qmomkit::CqmomDiagnosticLevel> diagnostic_level = std::nullopt)
@@ -206,19 +204,6 @@ make_recursive_request(const CqmomFixture& fixture, const qmomkit::CqmomDiagnost
             {},
             make_wheeler_options(fixture.qmom_options),
             fixture.adaptive_branch_counts,
-            diagnostic_level,
-            solver};
-}
-
-qmomkit::internal::RecursiveQuadratureMomentViewRequest make_recursive_kernel_request(const CqmomEntryPointFixture& fixture,
-                                                                                      const qmomkit::CqmomDiagnosticLevel diagnostic_level,
-                                                                                      const qmomkit::VandermondeSolver solver)
-{
-    return {fixture.cqmom_fixture.hierarchy,
-            qmomkit::internal::CqmomMomentView(fixture.indexed_moments),
-            {},
-            make_wheeler_options(fixture.cqmom_fixture.qmom_options),
-            fixture.cqmom_fixture.adaptive_branch_counts,
             diagnostic_level,
             solver};
 }
@@ -438,15 +423,20 @@ void run_cqmom_recursive_entry_point_benchmark(benchmark::State& state, const st
     }
 }
 
-void run_cqmom_kernel_entry_point_benchmark(benchmark::State& state, const std::size_t dimensions, const std::size_t node_count)
+// Without prepared metadata the trusted entry point builds the branch layout on
+// every call, as the other entry points here do, so this times the validated
+// entry point without its layout check. Cases and states reconstruct through
+// it with prepared metadata.
+void run_cqmom_trusted_entry_point_benchmark(benchmark::State& state, const std::size_t dimensions, const std::size_t node_count)
 {
     const CqmomEntryPointFixture fixture = make_entry_point_fixture(dimensions, node_count);
-    const qmomkit::internal::RecursiveQuadratureMomentViewRequest request =
-        make_recursive_kernel_request(fixture, qmomkit::CqmomDiagnosticLevel::none, qmomkit::VandermondeSolver::automatic);
-    const qmomkit::internal::RecursiveQuadratureResult setup_check = qmomkit::internal::compute_recursive_quadrature_from_moment_view(request);
+    const qmomkit::internal::RecursiveQuadratureMomentDataRequest request =
+        make_recursive_request(fixture.cqmom_fixture, qmomkit::CqmomDiagnosticLevel::none, qmomkit::VandermondeSolver::automatic);
+    const qmomkit::internal::RecursiveQuadratureResult setup_check =
+        qmomkit::internal::compute_recursive_quadrature_from_trusted_moment_data(request);
     if (!setup_check.ok())
     {
-        state.SkipWithError("kernel CQMOM entry-point fixture failed setup");
+        state.SkipWithError("trusted CQMOM entry-point fixture failed setup");
         return;
     }
     set_fixture_counters(state, fixture.cqmom_fixture, setup_check.quadrature.total_nodes());
@@ -454,7 +444,7 @@ void run_cqmom_kernel_entry_point_benchmark(benchmark::State& state, const std::
 
     for (auto _ : state)
     {
-        const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_view(request);
+        const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_trusted_moment_data(request);
         benchmark::DoNotOptimize(result.quadrature.weights().data());
         benchmark::DoNotOptimize(result.quadrature.abscissas().data());
     }
@@ -500,9 +490,9 @@ void bm_cqmom_entry_point_scaling_recursive(benchmark::State& state)
     run_cqmom_recursive_entry_point_benchmark(state, static_cast<std::size_t>(state.range(0)), static_cast<std::size_t>(state.range(1)));
 }
 
-void bm_cqmom_entry_point_scaling_kernel(benchmark::State& state)
+void bm_cqmom_entry_point_scaling_trusted(benchmark::State& state)
 {
-    run_cqmom_kernel_entry_point_benchmark(state, static_cast<std::size_t>(state.range(0)), static_cast<std::size_t>(state.range(1)));
+    run_cqmom_trusted_entry_point_benchmark(state, static_cast<std::size_t>(state.range(0)), static_cast<std::size_t>(state.range(1)));
 }
 
 void apply_entry_point_scaling_args(benchmark::Benchmark* benchmark)
@@ -530,6 +520,6 @@ BENCHMARK_CAPTURE(bm_cqmom_diagnostic_overhead, detailed, qmomkit::CqmomDiagnost
 
 BENCHMARK(bm_cqmom_entry_point_scaling_public)->Apply(apply_entry_point_scaling_args);
 BENCHMARK(bm_cqmom_entry_point_scaling_recursive)->Apply(apply_entry_point_scaling_args);
-BENCHMARK(bm_cqmom_entry_point_scaling_kernel)->Apply(apply_entry_point_scaling_args);
+BENCHMARK(bm_cqmom_entry_point_scaling_trusted)->Apply(apply_entry_point_scaling_args);
 
 } // namespace

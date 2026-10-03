@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 638 |
+| Unit logical tests | 634 |
 | Component/regression logical tests | 47 |
 | Verification logical tests | 167 |
-| **Runtime logical tests** | **852** |
+| **Runtime logical tests** | **848** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **853** |
+| **Total CTest registrations** | **849** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -524,10 +524,6 @@ CTest check; it is not 23 runtime tests.
 | --- | --- | --- | --- | --- |
 | `unit_recursive_quadrature_flat_multi_index_round_trip` | `tests/unit/recursive_quadrature.cpp` | `flat_multi_index_round_trip` | Checks that recursive CQMOM reconstruction preserves the original data through the tested round-trip conversion. | — |
 | `unit_recursive_quadrature_enumerate_multi_indices_row_major` | `tests/unit/recursive_quadrature.cpp` | `enumerate_multi_indices_row_major` | Checks that CQMOM multi-index enumeration follows row-major order for the tested extents. | — |
-| `unit_recursive_quadrature_cqmom_moment_view_dense_matches_tensor_access` | `tests/unit/recursive_quadrature.cpp` | `cqmom_moment_view_dense_matches_tensor_access` | Checks that moment view dense matches tensor access in recursive CQMOM reconstruction. | — |
-| `unit_recursive_quadrature_cqmom_moment_view_moment_data_matches_dense_view` | `tests/unit/recursive_quadrature.cpp` | `cqmom_moment_view_moment_data_matches_dense_view` | Checks that moment view moment data matches dense view in recursive CQMOM reconstruction. | — |
-| `unit_recursive_quadrature_indexed_moment_set_preserves_order_and_uses_key_lookup` | `tests/unit/recursive_quadrature.cpp` | `indexed_moment_set_preserves_order_and_uses_key_lookup` | Checks that indexed moment set preserves order and uses key lookup in recursive CQMOM reconstruction. | — |
-| `unit_recursive_quadrature_cqmom_moment_view_moment_data_references_indexed_storage` | `tests/unit/recursive_quadrature.cpp` | `cqmom_moment_view_moment_data_references_indexed_storage` | Checks that a CQMOM moment view reads the indexed values held by its moment-data storage. | — |
 | `unit_recursive_quadrature_branch_local_layout_identity_wheeler_and_rhs_offsets` | `tests/unit/recursive_quadrature.cpp` | `branch_local_layout_identity_wheeler_and_rhs_offsets` | Checks identity-order branch layouts supply Wheeler inputs and right-hand-side offsets from their intended local storage ranges. | — |
 | `unit_recursive_quadrature_branch_local_layout_non_identity_wheeler_and_rhs_offsets` | `tests/unit/recursive_quadrature.cpp` | `branch_local_layout_non_identity_wheeler_and_rhs_offsets` | Checks non-identity-order branch layouts supply Wheeler inputs and right-hand-side offsets from their intended local storage ranges. | — |
 | `unit_recursive_quadrature_branch_local_layout_unequal_node_counts_and_adaptive_child_case` | `tests/unit/recursive_quadrature.cpp` | `branch_local_layout_unequal_node_counts_and_adaptive_child_case` | Checks branch-local layouts retain the intended offsets with unequal node counts and adaptively reduced children. | — |
@@ -546,7 +542,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_recursive_quadrature_fixed_public_terminal_paths_align_with_physical_storage` | `tests/unit/recursive_quadrature.cpp` | `fixed_public_terminal_paths_align_with_physical_storage` | Checks fixed CQMOM terminal paths index the same weights and abscissas as the public physical storage. | — |
 | `unit_recursive_quadrature_recursive_bounded_support_applies_to_conditional_phase_space_dimension` | `tests/unit/recursive_quadrature.cpp` | `recursive_bounded_support_applies_to_conditional_phase_space_dimension` | Checks that bounded support applies to conditional phase-space dimension in recursive CQMOM reconstruction. | — |
 | `unit_recursive_quadrature_recursive_bounded_support_returned_node_tolerance_and_no_clipping` | `tests/unit/recursive_quadrature.cpp` | `recursive_bounded_support_returned_node_tolerance_and_no_clipping` | Checks bounded recursive reconstruction returns nodes within the configured tolerance without post-reconstruction clipping. | — |
-| `unit_recursive_quadrature_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts` | `tests/unit/recursive_quadrature.cpp` | `recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts` | Checks that rejects adaptive wheeler without adaptive branch counts in recursive CQMOM reconstruction. | — |
+| `unit_recursive_quadrature_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts` | `tests/unit/recursive_quadrature.cpp` | `recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts` | Checks that both the validated and the trusted moment-data entry points reject adaptive Wheeler without adaptive branch counts, with the same message and before any reconstruction work, and that adaptive branch counts enable it. | — |
 | `unit_recursive_quadrature_one_dimensional_hierarchy_reduces_to_stage_1_ordering` | `tests/unit/recursive_quadrature.cpp` | `one_dimensional_hierarchy_reduces_to_stage_1_ordering` | Checks that one-dimensional hierarchy reduces to stage 1 ordering in recursive CQMOM reconstruction. | — |
 | `unit_recursive_quadrature_two_dimensional_hierarchy_indexing` | `tests/unit/recursive_quadrature.cpp` | `two_dimensional_hierarchy_indexing` | Checks that recursive CQMOM reconstruction maps the tested indices to the expected storage positions. | — |
 | `unit_recursive_quadrature_three_dimensional_hierarchy_indexing` | `tests/unit/recursive_quadrature.cpp` | `three_dimensional_hierarchy_indexing` | Checks that recursive CQMOM reconstruction maps the tested indices to the expected storage positions. | — |
@@ -723,7 +719,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_cqmom_public_api_reports_conditional_moment_failure` | `tests/unit/public_api.cpp` | `cqmom_public_api_reports_conditional_moment_failure` | Checks that public API reports conditional moment failure in the public QMOMKit API. | — |
 | `unit_public_api_cqmom_public_api_exposes_adaptive_branch_counts` | `tests/unit/public_api.cpp` | `cqmom_public_api_exposes_adaptive_branch_counts` | Verifies CQMOM public API exposes adaptive branch counts. | — |
 | `unit_public_api_cqmom_adaptive_root_branch_uses_relative_rmin_only` | `tests/unit/public_api.cpp` | `cqmom_adaptive_root_branch_uses_relative_rmin_only` | Checks that adaptive root branch uses relative rmin only in the public QMOMKit API. | — |
-| `unit_public_api_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts` | `tests/unit/public_api.cpp` | `cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts` | Checks that public API rejects adaptive wheeler without adaptive branch counts in the public QMOMKit API. | — |
+| `unit_public_api_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts` | `tests/unit/public_api.cpp` | `cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts` | Checks that `compute_cqmom` on a `CqmomCase` and on a `CqmomPreparedCase`, and `CqmomCase::initial_state()`, reject adaptive Wheeler without adaptive branch counts with the same message, and that adaptive branch counts enable it. | — |
 | `unit_public_api_cqmom_diagnostic_levels_control_expensive_diagnostics` | `tests/unit/public_api.cpp` | `cqmom_diagnostic_levels_control_expensive_diagnostics` | Verifies CQMOM diagnostic levels control expensive diagnostics. | — |
 | `unit_public_api_cqmom_none_diagnostics_preserves_failure_context` | `tests/unit/public_api.cpp` | `cqmom_none_diagnostics_preserves_failure_context` | Checks that none diagnostics preserves failure context in the public QMOMKit API. | — |
 | `unit_public_api_cqmom_settings_format` | `tests/unit/public_api.cpp` | `cqmom_settings_format` | Checks that the CQMOM settings summary renders adaptive branch counts in both states, every Vandermonde solver policy, and the diagnostic level. | — |

@@ -138,17 +138,19 @@ produce topology changes across successive reconstruction steps.
 
 ## Recursive driver — Level A
 
-`compute_recursive_quadrature_from_moment_view` is the numerical backbone
-called by dense, validated lean, and trusted prepared wrappers. Inputs are raw
-global moments, hierarchy, Wheeler and conditional-solve options, support
-intervals, diagnostic policy, and optional active topology/growth permission.
-Outputs include quadrature storage, the constructed tree, status, failure
-location, and selected branch diagnostics. Configured counts, the current
-trial's requested count, and returned active counts are separate values.
+`compute_recursive_quadrature_from_validated_moment_data` is the file-local
+numerical backbone called by the validated and trusted moment-data entry points.
+Inputs are raw global moments, hierarchy, Wheeler and conditional-solve options,
+support intervals, diagnostic policy, and optional active topology/growth
+permission. Outputs include quadrature storage, the constructed tree, status,
+failure location, and selected branch diagnostics. Configured counts, the
+current trial's requested count, and returned active counts are separate values.
 
-1. Preflight validates option combinations and support. Adaptive Wheeler without
-   adaptive branches is rejected; enabled branch adaptivity resolves Wheeler to
-   adaptive operation. Invalid metadata becomes an invalid request.
+1. The entry points have already rejected invalid option combinations, including
+   adaptive Wheeler without adaptive branches, and resolved Wheeler to adaptive
+   operation when branch adaptivity is enabled. The driver validates coordinate
+   support and active branch topology; invalid support, topology, or metadata
+   becomes an invalid request.
 2. Construct or reuse the ordered root layout and gather the root slice. The root
    starts with global weight one and a coordinate vector of the hierarchy rank.
 3. The outer loop visits conditioning levels; the inner loop visits current
@@ -192,11 +194,9 @@ align with fixed weights and abscissas under non-identity order.
 
 | Functions | Responsibility and contract | Evidence |
 |---|---|---|
-| `compute_recursive_quadrature`, `compute_recursive_quadrature_from_moment_data` | Validate dense extents or canonical required data, then route to the view driver. Dense input needs the configured moment extents even for adaptive output. | Recursive/public API unit tests |
-| `compute_recursive_quadrature_from_trusted_moment_data`, `compute_recursive_quadrature_from_validated_moment_view` | Reuse established structural metadata; retain required numerical-value checks. Trusted does not mean arbitrary user data is valid. | Fixed metadata and evolution tests |
-| `IndexedMomentSet::{contains,offset,moment}` | Sorted flattened keys locate entries without changing canonical value order; duplicate keys rejected at construction; missing lookup fails (`contains` returns false for invalid/missing keys). | Layout tests |
-| `CqmomMomentView::moment`, `create_indexed_cqmom_moment_set` | Non-owning tensor/indexed read dispatch and indexed storage construction. Referent lifetime belongs to caller. | Recursive reconstruction tests |
-| `create_ordered_root_slice`, `one_dimensional_moments`, `child_layout_for_parent_node_count` | Gather root/leading values and select precomputed child metadata; no new solver policy. | Recursive layout tests |
+| `compute_recursive_quadrature_from_moment_data` | Validate canonical required moment data against the hierarchy, then route to the recursive driver. | Recursive/public API unit tests |
+| `compute_recursive_quadrature_from_trusted_moment_data` | Reuse established structural metadata; retain required numerical-value checks. Trusted does not mean arbitrary user data is valid. | Fixed metadata and evolution tests |
+| `create_ordered_root_slice`, `one_dimensional_moments`, `child_layout_for_parent_node_count` | Take the root values in their canonical stored order, gather leading values, and select precomputed child metadata; no new solver policy. | Recursive layout tests |
 | `record_failure`, `create_recursive_result`, `record_bounded_candidate_diagnostics`, `records_success_branch_diagnostics` | Keep failure location, candidate rejection, and requested diagnostic detail distinct from success acceptance. | Failure/diagnostic tests |
 | `valid_conditional_options`, `valid_diagnostic_level`, `validate_recursive_request_preflight`, `resolve_cqmom_wheeler_options`, `validate_coordinate_support`, `support_interval_for_dimension` | Resolve valid enum/options and per-coordinate bounds before numerical work. No physical meaning inferred from coordinate names. | Invalid-request and support tests |
 | `path_has_prefix`, branch-key `operator<`, `append_unique_index`, `local_branch_offset` | Deterministic key ordering, ancestor membership, first-occurrence layout deduplication, and checked offset discovery. | Topology/layout tests indirectly |

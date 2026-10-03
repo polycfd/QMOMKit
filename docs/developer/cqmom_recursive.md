@@ -151,25 +151,14 @@ CqmomCase
 accepts `CqmomMomentData` directly for callers that can produce the required
 moment set directly.
 
-Inside recursive reconstruction, the moment data is adapted at the root
-boundary to:
-
-```text
-IndexedMomentSet
-CqmomMomentView
-```
-
-`IndexedMomentSet` is internal lookup storage. It preserves deterministic
-construction order for indices and values, rejects duplicate keys, and builds a
-sorted flat-key offset table for moment lookup. It is intentionally scoped to
-CQMOM-required moment storage, not arbitrary sparse tensor manipulation.
-
-`CqmomMomentView` is an internal non-owning adapter over either a full
-`RawMomentTensor` or an `IndexedMomentSet`. Recursive code reads moments
-through the view so the traversal is independent of the owning root
-representation. The public path stores indexed moments for the duration of
-reconstruction, then delegates through this same view-based recursive
-algorithm.
+Inside recursive reconstruction, the moment values become the root
+branch-local slice as they are stored. Both moment-data entry points require
+the canonical CQMOM moment layout of the hierarchy:
+`compute_recursive_quadrature_from_moment_data` checks it, and
+`compute_recursive_quadrature_from_trusted_moment_data` relies on case and
+state construction having checked it. Prepared metadata is built from that
+same layout, so the root slice takes the values in their stored order, with no
+lookup per moment.
 
 ## Validated and reused setup paths
 
@@ -222,11 +211,11 @@ it does not copy branch-layout ownership per reconstruction or per branch.
 
 ## Recursive construction
 
-The recursive construction starts from a root CQMOM moment view whose indices
-are still phase-space-order raw moment indices. Internally, the root moment
-data is reordered into a branch-local slice whose axes follow conditioning
-order. This reordering is internal; public tensor storage and lean layout
-indices remain phase-space ordered.
+The recursive construction starts from the root CQMOM moment data, whose indices
+are still phase-space-order raw moment indices. Internally, the root moment data
+is reordered into a branch-local slice whose axes follow conditioning order.
+This reordering is internal; public tensor storage and lean layout indices
+remain phase-space ordered.
 
 At each conditioning level, the implementation:
 
@@ -653,12 +642,10 @@ public container.
 Implementation details include:
 
 - `src/internal/recursive_quadrature.hpp`
-- `compute_recursive_quadrature`
+- `compute_recursive_quadrature_from_moment_data`
 - `RecursiveQuadrature`
-- `RecursiveQuadratureRequest`
+- `RecursiveQuadratureMomentDataRequest`
 - `RecursiveQuadratureResult`
-- `IndexedMomentSet`
-- `CqmomMomentView`
 - branch-local moment slices;
 - recursive tree nodes;
 - branch-state traversal;

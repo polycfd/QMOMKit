@@ -78,10 +78,7 @@ value count and finiteness via `validate_cqmom_moment_values_match_layout`.
 hierarchy, not only the layout's self-description. Trusted callers deliberately
 reuse established layout invariants and can call the narrower value check.
 
-`validate_dense_cqmom_moment_tensor` checks rank, checked extent-product/size,
-and all finite entries. `validate_dense_cqmom_reconstruction_tensor`
-additionally loops over dimensions requiring at least twice configured node
-count per extent. `raw_moment_tensor_value_count` returns no count for zero
+`raw_moment_tensor_value_count` returns no count for zero
 extents or multiplication overflow. `multi_index_within_extents` checks rank
 and each bound; `same_cqmom_layout` compares counts/order/index enumeration.
 These checks do not test realizability.

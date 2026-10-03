@@ -128,38 +128,6 @@ inline void validate_cqmom_moment_data_matches_hierarchy(const CqmomMomentData& 
     validate_cqmom_moment_values_match_layout(moments, messages);
 }
 
-inline void validate_dense_cqmom_moment_tensor(const RawMomentTensor& moments, const PhaseSpaceHierarchy& hierarchy, const char* rank_message,
-                                               const char* value_count_message, const char* finite_values_message)
-{
-    if (moments.extents.size() != hierarchy.number_of_dimensions())
-    {
-        throw std::invalid_argument(rank_message);
-    }
-    if (moments.values.size() != product_extents(moments.extents))
-    {
-        throw std::invalid_argument(value_count_message);
-    }
-    if (!all_finite(moments.values))
-    {
-        throw std::invalid_argument(finite_values_message);
-    }
-}
-
-inline void validate_dense_cqmom_reconstruction_tensor(const RawMomentTensor& moments, const PhaseSpaceHierarchy& hierarchy, const char* rank_message,
-                                                       const char* value_count_message, const char* finite_values_message,
-                                                       const char* minimum_extents_message)
-{
-    validate_dense_cqmom_moment_tensor(moments, hierarchy, rank_message, value_count_message, finite_values_message);
-    for (std::size_t dimension = 0; dimension < hierarchy.number_of_dimensions(); ++dimension)
-    {
-        const std::optional<std::size_t> required_extent = checked_size_multiply(hierarchy.node_count(dimension), 2);
-        if (!required_extent.has_value() || moments.extents[dimension] < *required_extent)
-        {
-            throw std::invalid_argument(minimum_extents_message);
-        }
-    }
-}
-
 inline void validate_cqmom_quadrature_storage(const CqmomQuadrature& quadrature, const CqmomQuadratureStorageValidationMessages& messages)
 {
     if (quadrature.weights().empty())

@@ -24,8 +24,8 @@ namespace perf = qmomkit::internal::performance;
 struct CqmomWorkload
 {
     qmomkit::PhaseSpaceHierarchy hierarchy;
-    qmomkit::RawMomentTensor dense_moments;
-    qmomkit::CqmomMomentData lean_moments;
+    qmomkit::RawMomentTensor moment_tensor;
+    qmomkit::CqmomMomentData moments;
     qmomkit::CqmomCase cqmom_case;
     qmomkit::CqmomPreparedCase cqmom_prepared_case;
 };
@@ -46,8 +46,8 @@ struct BenchmarkSummary
     std::size_t iterations = 0;
     double total_runtime_seconds = 0.0;
     std::size_t requested_terminal_nodes = 0;
-    std::size_t dense_moments = 0;
-    std::size_t lean_moments = 0;
+    std::size_t tensor_moments = 0;
+    std::size_t required_moments = 0;
     std::size_t reconstructed_moments = 0;
     std::size_t diagnostic_node_advection_steps = 0;
     std::size_t diagnostic_node_advection_rejected_steps = 0;
@@ -236,7 +236,7 @@ public:
             std::cout << "    phase-space dimensions: " << summary.node_counts.size() << '\n';
             std::cout << "    node counts: " << join_node_counts(summary.node_counts) << '\n';
             std::cout << "    requested terminal nodes: " << summary.requested_terminal_nodes << '\n';
-            std::cout << "    dense/lean moment counts: " << summary.dense_moments << " / " << summary.lean_moments << '\n';
+            std::cout << "    tensor/required moment counts: " << summary.tensor_moments << " / " << summary.required_moments << '\n';
             if (summary.reconstructed_moments > 0)
             {
                 std::cout << "    reconstructed moments: " << summary.reconstructed_moments << '\n';
@@ -465,12 +465,12 @@ CqmomWorkload make_workload(const std::vector<std::size_t>& node_counts,
                             const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic)
 {
     qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
-    qmomkit::RawMomentTensor dense_moments = independent_product_moments(node_counts);
+    qmomkit::RawMomentTensor moment_tensor = independent_product_moments(node_counts);
     qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    qmomkit::CqmomMomentData lean_moments = qmomkit::extract_cqmom_moments(dense_moments, layout);
-    qmomkit::CqmomCase cqmom_case{lean_moments, {}, {}, false, diagnostic_level, solver};
+    qmomkit::CqmomMomentData moments = qmomkit::extract_cqmom_moments(moment_tensor, layout);
+    qmomkit::CqmomCase cqmom_case{moments, {}, {}, false, diagnostic_level, solver};
     qmomkit::CqmomPreparedCase cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(cqmom_case);
-    return {std::move(hierarchy), std::move(dense_moments), std::move(lean_moments), std::move(cqmom_case), std::move(cqmom_prepared_case)};
+    return {std::move(hierarchy), std::move(moment_tensor), std::move(moments), std::move(cqmom_case), std::move(cqmom_prepared_case)};
 }
 
 qmomkit::RawMomentTensor ragged_phase_space_evolution_moments()
@@ -520,16 +520,16 @@ qmomkit::RawMomentTensor ragged_phase_space_evolution_moments_3d()
 CqmomWorkload make_phase_space_evolution_workload(const std::vector<std::size_t>& node_counts, const bool adaptive)
 {
     qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
-    qmomkit::RawMomentTensor dense_moments = independent_product_moments(node_counts);
+    qmomkit::RawMomentTensor moment_tensor = independent_product_moments(node_counts);
     if (adaptive)
     {
         if (node_counts == nodes_2x2())
         {
-            dense_moments = ragged_phase_space_evolution_moments();
+            moment_tensor = ragged_phase_space_evolution_moments();
         }
         else if (node_counts == nodes_2x2x2())
         {
-            dense_moments = ragged_phase_space_evolution_moments_3d();
+            moment_tensor = ragged_phase_space_evolution_moments_3d();
         }
         else
         {
@@ -537,15 +537,15 @@ CqmomWorkload make_phase_space_evolution_workload(const std::vector<std::size_t>
         }
     }
     qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    qmomkit::CqmomMomentData lean_moments = qmomkit::extract_cqmom_moments(dense_moments, layout);
+    qmomkit::CqmomMomentData moments = qmomkit::extract_cqmom_moments(moment_tensor, layout);
     qmomkit::QmomOptions qmom_options;
     qmom_options.adaptive = adaptive;
     qmom_options.rmin = 1.0e-10;
     qmom_options.eabs = 1.0e-12;
     qmom_options.cutoff = 1.0e-12;
-    qmomkit::CqmomCase cqmom_case{lean_moments, {}, qmom_options, adaptive, qmomkit::CqmomDiagnosticLevel::basic};
+    qmomkit::CqmomCase cqmom_case{moments, {}, qmom_options, adaptive, qmomkit::CqmomDiagnosticLevel::basic};
     qmomkit::CqmomPreparedCase cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(cqmom_case);
-    return {std::move(hierarchy), std::move(dense_moments), std::move(lean_moments), std::move(cqmom_case), std::move(cqmom_prepared_case)};
+    return {std::move(hierarchy), std::move(moment_tensor), std::move(moments), std::move(cqmom_case), std::move(cqmom_prepared_case)};
 }
 
 std::vector<qmomkit::CqmomState> make_states(const qmomkit::CqmomPreparedCase& cqmom_prepared_case, const std::size_t state_count)
@@ -968,8 +968,8 @@ void publish_geometry_counters(benchmark::State& state, const std::vector<std::s
 {
     state.counters["dimensions"] = static_cast<double>(node_counts.size());
     state.counters["requested_terminal_nodes"] = static_cast<double>(workload.hierarchy.total_nodes());
-    state.counters["dense_moments"] = static_cast<double>(workload.dense_moments.values.size());
-    state.counters["lean_moments"] = static_cast<double>(workload.lean_moments.values.size());
+    state.counters["tensor_moments"] = static_cast<double>(workload.moment_tensor.values.size());
+    state.counters["required_moments"] = static_cast<double>(workload.moments.values.size());
 }
 
 BenchmarkSummary make_summary(const std::string& name, const std::string& workload_kind, const std::vector<std::size_t>& node_counts,
@@ -987,8 +987,8 @@ BenchmarkSummary make_summary(const std::string& name, const std::string& worklo
     summary.iterations = iterations;
     summary.total_runtime_seconds = measured_seconds;
     summary.requested_terminal_nodes = workload.hierarchy.total_nodes();
-    summary.dense_moments = workload.dense_moments.values.size();
-    summary.lean_moments = workload.lean_moments.values.size();
+    summary.tensor_moments = workload.moment_tensor.values.size();
+    summary.required_moments = workload.moments.values.size();
     summary.counters = counters;
     return summary;
 }
@@ -1273,9 +1273,9 @@ void bm_cqmom_fixed_case_preparation(benchmark::State& state, const std::vector<
     }
 
     const qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
-    const qmomkit::RawMomentTensor dense_moments = independent_product_moments(node_counts);
+    const qmomkit::RawMomentTensor moment_tensor = independent_product_moments(node_counts);
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomMomentData lean_moments = qmomkit::extract_cqmom_moments(dense_moments, layout);
+    const qmomkit::CqmomMomentData moments = qmomkit::extract_cqmom_moments(moment_tensor, layout);
     const CqmomWorkload workload = make_workload(node_counts);
     perf::CounterSession session;
     double measured_seconds = 0.0;
@@ -1286,7 +1286,7 @@ void bm_cqmom_fixed_case_preparation(benchmark::State& state, const std::vector<
         {
             perf::CounterScope scope(session);
             cqmom_prepared_case.emplace(qmomkit::internal::CqmomConstructionAccess::create_prepared_case(
-                qmomkit::CqmomCase{lean_moments, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic}));
+                qmomkit::CqmomCase{moments, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic}));
         }
         benchmark::DoNotOptimize(cqmom_prepared_case->hierarchy().number_of_dimensions());
         const auto stop = std::chrono::steady_clock::now();
@@ -1436,7 +1436,7 @@ void bm_cqmom_source_integration_workload(benchmark::State& state, const Counter
         moments.reserve(state_count);
         for (std::size_t state_index = 0; state_index < state_count; ++state_index)
         {
-            moments.push_back(workload.lean_moments);
+            moments.push_back(workload.moments);
         }
         state.ResumeTiming();
 
@@ -1578,8 +1578,7 @@ void bm_cqmom_source_callback_only(benchmark::State& state)
         for (std::size_t step = 0; step < steps_per_state; ++step)
         {
             const double time = 0.001 * static_cast<double>(step);
-            const qmomkit::CqmomSourceContext context(time, workload.hierarchy, workload.lean_moments.layout.required_indices,
-                                                      workload.lean_moments.values);
+            const qmomkit::CqmomSourceContext context(time, workload.hierarchy, workload.moments.layout.required_indices, workload.moments.values);
             for (std::size_t state_index = 0; state_index < state_count; ++state_index)
             {
                 qmomkit::CqmomMomentRate rate = source(time, context);
@@ -1611,7 +1610,7 @@ void bm_cqmom_moment_data_copy(benchmark::State& state)
         const auto start = std::chrono::steady_clock::now();
         for (std::size_t copy = 0; copy < copies_per_iteration; ++copy)
         {
-            qmomkit::CqmomMomentData moment_data = workload.lean_moments;
+            qmomkit::CqmomMomentData moment_data = workload.moments;
             benchmark::DoNotOptimize(moment_data.values.data());
         }
         const auto stop = std::chrono::steady_clock::now();
@@ -1642,7 +1641,7 @@ void bm_cqmom_ssp_source_existing_layout(benchmark::State& state)
     for (auto _ : state)
     {
         state.PauseTiming();
-        std::vector<std::vector<double>> values(state_count, workload.lean_moments.values);
+        std::vector<std::vector<double>> values(state_count, workload.moments.values);
         state.ResumeTiming();
         const auto start = std::chrono::steady_clock::now();
         perf::CounterScope scope(session);
@@ -1655,7 +1654,7 @@ void bm_cqmom_ssp_source_existing_layout(benchmark::State& state)
                     value_state, time, 0.001,
                     [&](const double rhs_time, const std::vector<double>& state_values, std::vector<double>& derivative)
                     {
-                        const qmomkit::CqmomSourceContext context(rhs_time, workload.hierarchy, workload.lean_moments.layout.required_indices,
+                        const qmomkit::CqmomSourceContext context(rhs_time, workload.hierarchy, workload.moments.layout.required_indices,
                                                                   state_values);
                         const qmomkit::CqmomMomentRate rate = source(rhs_time, context);
                         derivative.assign(rate.values.begin(), rate.values.end());
@@ -1814,7 +1813,7 @@ void bm_cqmom_node_advection_scheme(benchmark::State& state, const qmomkit::Node
         make_summary(name, "CQMOM node advection, " + node_trajectory_name(trajectory) + " trajectory", {2, 2}, workload, counters, measured_seconds,
                      static_cast<std::size_t>(state.iterations()), 1, "advection update", CounterMode::enabled_session);
     summary.node_advection_scheme = node_advection_scheme_name(scheme);
-    summary.reconstructed_moments = workload.lean_moments.values.size();
+    summary.reconstructed_moments = workload.moments.values.size();
     summary.diagnostic_node_advection_steps = diagnostic_steps;
     summary.diagnostic_node_advection_rejected_steps = diagnostic_rejected_steps;
     summary.diagnostic_node_advection_rhs_evaluations = diagnostic_rhs_evaluations;
@@ -1836,17 +1835,17 @@ void bm_cqmom_moment_reconstruction_only(benchmark::State& state)
     for (auto _ : state)
     {
         const auto start = std::chrono::steady_clock::now();
-        qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(initial.quadrature, workload.lean_moments.layout);
+        qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(initial.quadrature, workload.moments.layout);
         benchmark::DoNotOptimize(reconstructed.values.data());
         const auto stop = std::chrono::steady_clock::now();
         measured_seconds += std::chrono::duration<double>(stop - start).count();
     }
     publish_geometry_counters(state, {2, 2}, workload);
-    state.counters["reconstructed_moments"] = static_cast<double>(workload.lean_moments.values.size());
+    state.counters["reconstructed_moments"] = static_cast<double>(workload.moments.values.size());
     BenchmarkSummary summary =
         make_summary("performance_phase_space_evolution_component_moment_reconstruction_2d_2x2", "CQMOM raw-moment reconstruction", {2, 2}, workload,
                      {}, measured_seconds, static_cast<std::size_t>(state.iterations()), 1, "moment reconstruction", CounterMode::timing_only);
-    summary.reconstructed_moments = workload.lean_moments.values.size();
+    summary.reconstructed_moments = workload.moments.values.size();
     record_summary(std::move(summary));
 }
 
@@ -1997,10 +1996,10 @@ BENCHMARK_CAPTURE(bm_cqmom_fixed_case_preparation, cold_5d_2x2x2x2x2, nodes_2x2x
 BENCHMARK_CAPTURE(bm_cqmom_initial_state_prepared, fixed_2d_2x2, nodes_2x2(), "performance_cqmom_initial_state_prepared_2d_2x2")
     ->Name("performance_cqmom_initial_state_prepared_2d_2x2");
 
-BENCHMARK_CAPTURE(bm_cqmom_explicit_reconstruction_control, lean_2d_2x2, "performance_cqmom_reconstruction_explicit_lean_2d_2x2")
-    ->Name("performance_cqmom_reconstruction_explicit_lean_2d_2x2");
-BENCHMARK_CAPTURE(bm_cqmom_adaptive_reconstruction_control, normal_lean_2d_2x2, "performance_cqmom_reconstruction_adaptive_normal_lean_2d_2x2")
-    ->Name("performance_cqmom_reconstruction_adaptive_normal_lean_2d_2x2");
+BENCHMARK_CAPTURE(bm_cqmom_explicit_reconstruction_control, explicit_2d_2x2, "performance_cqmom_reconstruction_explicit_2d_2x2")
+    ->Name("performance_cqmom_reconstruction_explicit_2d_2x2");
+BENCHMARK_CAPTURE(bm_cqmom_adaptive_reconstruction_control, normal_2d_2x2, "performance_cqmom_reconstruction_adaptive_normal_2d_2x2")
+    ->Name("performance_cqmom_reconstruction_adaptive_normal_2d_2x2");
 
 BENCHMARK_CAPTURE(bm_cqmom_source_integration_workload, source_normal_2d_3x3, CounterMode::enabled_session, nodes_3x3(),
                   "performance_source_normal_2d_3x3", "CQMOM moment-source integration")

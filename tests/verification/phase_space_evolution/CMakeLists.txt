@@ -17,8 +17,7 @@ endforeach()
 foreach(case_name IN ITEMS commuting_qmom qmom_boundary_contribution qmom_phase_space_evolution_failures qmom_phase_space_evolution_inversion_failures noncommuting_qmom
                            noncommuting_cqmom commuting_cqmom_2d cqmom_boundary_contribution commuting_cqmom_state_adaptive_2d cqmom_native_source
                            cqmom_combined_native_source cqmom_native_source_failures
-                           cqmom_phase_space_evolution_failures cqmom_phase_space_evolution_inversion_failures cqmom_dense_phase_space_evolution_failures
-                           cqmom_dense_phase_space_evolution_inversion_failures cqmom_lean_phase_space_evolution_failures cqmom_lean_phase_space_evolution_inversion_failures)
+                           cqmom_phase_space_evolution_failures cqmom_phase_space_evolution_inversion_failures cqmom_case_phase_space_evolution_failures)
     if(case_name STREQUAL noncommuting_qmom)
         set(test_name verification_phase_space_evolution_noncommuting_convergence)
     elseif(case_name STREQUAL noncommuting_cqmom)
@@ -33,10 +32,8 @@ foreach(case_name IN ITEMS commuting_qmom qmom_boundary_contribution qmom_phase_
         set(configuration_case_name noncommuting_cqmom_2d)
     elseif(case_name STREQUAL cqmom_boundary_contribution)
         set(configuration_case_name commuting_cqmom_2d)
-    elseif(case_name STREQUAL cqmom_dense_phase_space_evolution_failures OR case_name STREQUAL cqmom_lean_phase_space_evolution_failures)
+    elseif(case_name STREQUAL cqmom_case_phase_space_evolution_failures)
         set(configuration_case_name cqmom_phase_space_evolution_failures)
-    elseif(case_name STREQUAL cqmom_dense_phase_space_evolution_inversion_failures OR case_name STREQUAL cqmom_lean_phase_space_evolution_inversion_failures)
-        set(configuration_case_name cqmom_phase_space_evolution_inversion_failures)
     endif()
     add_test(
         NAME ${test_name}

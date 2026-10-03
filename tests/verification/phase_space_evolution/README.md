@@ -407,35 +407,31 @@ realizable. The verifier checks that phase-space evolution reports
 diagnostics, records CQMOM diagnostics for the failed inversion, and stops
 before the second advection half-step.
 
-The same valid configuration also drives two further failure checks, which
-differ in the entry point a caller uses rather than in how moments are stored:
-
-- `verification_phase_space_evolution_cqmom_dense_phase_space_evolution_failures` advances
-  the configured `CqmomMomentData` directly;
-- `verification_phase_space_evolution_cqmom_lean_phase_space_evolution_failures` advances a
-  `CqmomState` built from the same configured case.
-
-For equivalent deterministic velocity, source, and post-source reconstruction
-failures, both entry points should report the same high-level status, failed
-stage, preserved diagnostics, and useful messages as the default `CqmomState`
-workflow. The tests do not require identical internal diagnostic details.
+The same valid configuration also drives
+`verification_phase_space_evolution_cqmom_case_phase_space_evolution_failures`.
+It advances a `CqmomState` built directly from the configured `CqmomCase`
+rather than created by a prepared case. That state has no accepted quadrature,
+so phase-space evolution performs the initial CQMOM inversion itself. For the
+same velocity-callback and post-source reconstruction failures, plus a source
+callback that returns a wrong-sized rate vector, it checks the same high-level
+status, failed stage, preserved diagnostics, and useful messages, and that the
+moments are unchanged after a failed advection. It does not require identical
+internal diagnostic details. It also checks that the case's diagnostic level,
+Vandermonde solver, and adaptive branch counts reach the CQMOM reconstructions
+during phase-space evolution.
 
 Configuration: `cqmom_phase_space_evolution_inversion_failures.qmom`
 
 This companion case verifies initial CQMOM inversion failure propagation
-through the normal `CqmomState` workflow. The configuration loads finite
-moments with `M[0,0] < 0`, so the initial recursive CQMOM reconstruction is
-not realizable. The verifier checks that phase-space evolution distinguishes this from
-advection or source failure, reports `PhaseSpaceEvolutionStage::initial_inversion`,
-preserves CQMOM diagnostics and a realizability message, does not advance
-time, and does not report later stages as completed.
-
-The companion cases,
-`verification_phase_space_evolution_cqmom_dense_phase_space_evolution_inversion_failures` and
-`verification_phase_space_evolution_cqmom_lean_phase_space_evolution_inversion_failures`, reuse the
-same invalid configured moments through the two entry points above. They document that CQMOM phase-space evolution through
-`CqmomState` rejects an initially
-unreconstructable moment state before invoking advection or source callbacks.
+through `CqmomState`. The configuration loads finite moments with
+`M[0,0] < 0`, so the initial recursive CQMOM reconstruction is not realizable.
+`CqmomPreparedCase::initial_state()` would throw for these moments, so the
+state is built directly from the configured `CqmomCase`, with no accepted
+quadrature, and the failure surfaces in phase-space evolution. The verifier
+checks that phase-space evolution distinguishes this from advection or source
+failure, reports `PhaseSpaceEvolutionStage::initial_inversion`, preserves
+CQMOM diagnostics and a realizability message, does not advance time, and does
+not report later stages as completed.
 
 ## Running
 
@@ -463,6 +459,7 @@ ctest --test-dir build -R verification_phase_space_evolution_cqmom_combined_nati
 ctest --test-dir build -R verification_phase_space_evolution_cqmom_native_source_failures --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_cqmom_phase_space_evolution_failures --output-on-failure
 ctest --test-dir build -R verification_phase_space_evolution_cqmom_phase_space_evolution_inversion_failures --output-on-failure
+ctest --test-dir build -R verification_phase_space_evolution_cqmom_case_phase_space_evolution_failures --output-on-failure
 ```
 
 Run all complete phase-space evolution integrator analytical cases:

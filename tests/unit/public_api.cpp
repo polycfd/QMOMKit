@@ -1231,14 +1231,34 @@ void test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_coun
     assert(!fixed.quadrature.adaptive_branch_counts_enabled());
     assert(fixed.quadrature.has_rectangular_storage());
 
-    const qmomkit::CqmomResult rejected = qmomkit::compute_cqmom(qmomkit::CqmomCase{
-        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, false});
+    const qmomkit::CqmomCase rejected_cqmom_case{
+        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, false};
+    const qmomkit::CqmomResult rejected = qmomkit::compute_cqmom(rejected_cqmom_case);
     assert(!rejected.ok());
     assert(rejected.status == qmomkit::CqmomStatus::invalid_input);
     assert(rejected.failed_phase_space_dimension == 0);
     assert(rejected.diagnostics.empty());
     assert(rejected.message.find("Adaptive branch-specific node counts") != std::string::npos);
     assert(rejected.message.find("adaptive_branch_counts") != std::string::npos);
+
+    // A prepared case and an initial state reconstruct through another internal
+    // entry point; both must report the same rejection.
+    const qmomkit::CqmomResult prepared_rejected = qmomkit::compute_cqmom(qmomkit::CqmomPreparedCase{rejected_cqmom_case});
+    assert(prepared_rejected.status == qmomkit::CqmomStatus::invalid_input);
+    assert(prepared_rejected.message == rejected.message);
+    assert(prepared_rejected.failed_phase_space_dimension == 0);
+    assert(prepared_rejected.diagnostics.empty());
+    bool initial_state_rejected = false;
+    try
+    {
+        static_cast<void>(rejected_cqmom_case.initial_state());
+    }
+    catch (const std::runtime_error& error)
+    {
+        initial_state_rejected = true;
+        assert(std::string(error.what()) == "CQMOM initial state quadrature reconstruction failed: " + rejected.message);
+    }
+    assert(initial_state_rejected);
 
     const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomCase{
         qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, true});

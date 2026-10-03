@@ -164,12 +164,10 @@ construction order for indices and values, rejects duplicate keys, and builds a
 sorted flat-key offset table for moment lookup. It is intentionally scoped to
 CQMOM-required moment storage, not arbitrary sparse tensor manipulation.
 
-`CqmomMomentView` is an internal non-owning adapter over either a full
-`RawMomentTensor` or an `IndexedMomentSet`. Recursive code reads moments
-through the view so the traversal is independent of the owning root
-representation. The public path stores indexed moments for the duration of
-reconstruction, then delegates through this same view-based recursive
-algorithm.
+`CqmomMomentView` is an internal non-owning view over an `IndexedMomentSet`.
+Recursive code reads its root moments through the view. Each moment-data entry
+point stores indexed moments for the duration of reconstruction, then delegates
+to the same view-based recursive algorithm.
 
 ## Validated and reused setup paths
 
@@ -653,9 +651,9 @@ public container.
 Implementation details include:
 
 - `src/internal/recursive_quadrature.hpp`
-- `compute_recursive_quadrature`
+- `compute_recursive_quadrature_from_moment_data`
 - `RecursiveQuadrature`
-- `RecursiveQuadratureRequest`
+- `RecursiveQuadratureMomentDataRequest`
 - `RecursiveQuadratureResult`
 - `IndexedMomentSet`
 - `CqmomMomentView`

@@ -115,17 +115,11 @@ double IndexedMomentSet::moment(const MultiIndexView index) const
     return values_.at(offset(index));
 }
 
-CqmomMomentView::CqmomMomentView(const RawMomentTensor& moments) : dense_moments_(&moments), source_kind_(SourceKind::dense) {}
-
-CqmomMomentView::CqmomMomentView(const IndexedMomentSet& moments) : moment_data_(&moments), source_kind_(SourceKind::moment_data) {}
+CqmomMomentView::CqmomMomentView(const IndexedMomentSet& moments) : moments_(&moments) {}
 
 double CqmomMomentView::moment(const MultiIndexView index) const
 {
-    if (source_kind_ == SourceKind::moment_data)
-    {
-        return moment_data_->moment(index);
-    }
-    return dense_moments_->values[flatten_multi_index(index, dense_moments_->extents)];
+    return moments_->moment(index);
 }
 
 IndexedMomentSet create_indexed_cqmom_moment_set(const CqmomMomentData& moments)
@@ -2008,42 +2002,6 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
          request.diagnostic_level, request.conditional_vandermonde_solver, nullptr, request.active_branch_counts,
          request.allow_active_branch_count_growth, request.coordinate_support, request.prepared_metadata, request.require_prepared_metadata},
         request.moments.layout);
-}
-
-RecursiveQuadratureResult compute_recursive_quadrature(const RecursiveQuadratureRequest& request)
-{
-    const WheelerOptions wheeler_options = resolve_cqmom_wheeler_options(request.wheeler_options, request.adaptive_branch_counts);
-    RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
-    result.quadrature.set_adaptive_branch_counts_enabled(request.adaptive_branch_counts);
-
-    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, wheeler_options, request.adaptive_branch_counts,
-                                              result))
-    {
-        return result;
-    }
-    try
-    {
-        validate_dense_cqmom_reconstruction_tensor(request.raw_moments, request.hierarchy, "Raw moment extents must match the hierarchy dimension.",
-                                                   "Raw moment data size does not match its extents.", "Raw moments must be finite.",
-                                                   "Raw moment extents must contain at least 2*N orders per dimension.");
-    }
-    catch (const std::invalid_argument& ex)
-    {
-        record_failure(result, RecursiveQuadratureStatus::invalid_input, {}, 0, ex.what());
-        return result;
-    }
-
-    return compute_recursive_quadrature_from_moment_view({request.hierarchy,
-                                                          CqmomMomentView(request.raw_moments),
-                                                          request.conditional_options,
-                                                          wheeler_options,
-                                                          request.adaptive_branch_counts,
-                                                          request.diagnostic_level,
-                                                          request.conditional_vandermonde_solver,
-                                                          nullptr,
-                                                          {},
-                                                          false,
-                                                          request.coordinate_support});
 }
 
 } // namespace internal

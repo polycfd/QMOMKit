@@ -1491,12 +1491,14 @@ void RecursiveQuadrature::set_terminal_quadrature(std::vector<double> weights, s
 namespace
 {
 
-// The recursive traversal behind both entry points. They have validated the
-// moment values, and the moment data carries the canonical CQMOM moment layout
-// of `request.hierarchy`, as does any prepared metadata the request holds.
-RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_data(const RecursiveQuadratureMomentDataRequest& request)
+// The recursive traversal behind both entry points. They have checked the
+// request's options and moment values and pass the Wheeler options resolved
+// for `request.adaptive_branch_counts`. The moment data carries the canonical
+// CQMOM moment layout of `request.hierarchy`, as does any prepared metadata the
+// request holds.
+RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_data(const RecursiveQuadratureMomentDataRequest& request,
+                                                                                  const WheelerOptions& wheeler_options)
 {
-    const WheelerOptions wheeler_options = resolve_cqmom_wheeler_options(request.wheeler_options, request.adaptive_branch_counts);
     internal::performance::record_cqmom_reconstruction();
     // Recursive CQMOM traversal:
     // 1. adapt root moments into conditioning-order branch storage;
@@ -1507,11 +1509,6 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
     result.quadrature.set_adaptive_branch_counts_enabled(request.adaptive_branch_counts);
     const std::size_t dimensions = request.hierarchy.number_of_dimensions();
 
-    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, wheeler_options, request.adaptive_branch_counts,
-                                              result))
-    {
-        return result;
-    }
     std::string coordinate_support_message;
     if (!validate_coordinate_support(request.hierarchy, request.coordinate_support, coordinate_support_message))
     {
@@ -1849,7 +1846,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
         return result;
     }
 
-    return compute_recursive_quadrature_from_validated_moment_data(request);
+    return compute_recursive_quadrature_from_validated_moment_data(request, wheeler_options);
 }
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(const RecursiveQuadratureMomentDataRequest& request)
@@ -1875,7 +1872,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
         return result;
     }
 
-    return compute_recursive_quadrature_from_validated_moment_data(request);
+    return compute_recursive_quadrature_from_validated_moment_data(request, wheeler_options);
 }
 
 } // namespace internal

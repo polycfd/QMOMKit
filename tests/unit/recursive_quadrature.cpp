@@ -973,6 +973,16 @@ void test_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts()
     assert(rejected.message.find("Adaptive branch-specific node counts") != std::string::npos);
     assert(rejected.message.find("adaptive_branch_counts") != std::string::npos);
 
+    // Cases and states reconstruct through the trusted entry point, which
+    // applies the same rule before any reconstruction work.
+    const qmomkit::internal::RecursiveQuadratureResult trusted_rejected = qmomkit::internal::compute_recursive_quadrature_from_trusted_moment_data(
+        moment_data_request(hierarchy, {extents, moments}, {}, adaptive_wheeler, false));
+    assert(trusted_rejected.status == qmomkit::internal::RecursiveQuadratureStatus::invalid_input);
+    assert(trusted_rejected.message == rejected.message);
+    assert(trusted_rejected.failed_path.empty());
+    assert(trusted_rejected.failed_conditioning_level == 0);
+    assert(trusted_rejected.diagnostics.empty());
+
     const qmomkit::internal::RecursiveQuadratureResult adaptive = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
         moment_data_request(hierarchy, {extents, moments}, {}, adaptive_wheeler, true));
     assert(adaptive.ok());

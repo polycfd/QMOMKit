@@ -490,7 +490,7 @@ evidence](initialization_and_configuration.md)
 | `compute_independent_product_marginal_moments` | [838](../../../src/distributions.cpp#L838), [848](../../../src/distributions.cpp#L848) |
 | `first_requested_index_with_order` | [858](../../../src/distributions.cpp#L858) |
 | `make_selected_raw_moment_result` | [872](../../../src/distributions.cpp#L872) |
-| `compute_raw_moments` | [916](../../../src/distributions.cpp#L916), [932](../../../src/distributions.cpp#L932), [942](../../../src/distributions.cpp#L942), [1012](../../../src/distributions.cpp#L1012), [1093](../../../src/distributions.cpp#L1093), [1200](../../../src/distributions.cpp#L1200) |
+| `compute_raw_moments` | [916](../../../src/distributions.cpp#L916), [932](../../../src/distributions.cpp#L932), [942](../../../src/distributions.cpp#L942), [1012](../../../src/distributions.cpp#L1012), [1093](../../../src/distributions.cpp#L1093), [1196](../../../src/distributions.cpp#L1196) |
 
 ### `src/internal/bjorck_pereyra.cpp`
 

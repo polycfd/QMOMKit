@@ -1,6 +1,7 @@
 #include "monte_carlo/moments.hpp"
 #include "monte_carlo/output.hpp"
 #include "monte_carlo/sampling.hpp"
+#include "qmomkit/cqmom.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
 #include "qmomkit/multi_index.hpp"
@@ -278,7 +279,9 @@ void test_generalized_moment_matches_cqmom_quadrature()
     const qmomkit::monte_carlo::TensorMomentEstimate tensor =
         qmomkit::monte_carlo::compute_ensemble_moments(ensemble, 1.0, std::vector<std::size_t>{3, 3});
     CHECK(tensor.ok());
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom({qmomkit::PhaseSpaceHierarchy({2, 2}), tensor.moments, {}, {}});
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(tensor.moments, qmomkit::create_cqmom_moment_layout(hierarchy))};
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_case);
     CHECK(cqmom.ok());
     for (std::size_t request = 0; request < orders.size(); ++request)
     {

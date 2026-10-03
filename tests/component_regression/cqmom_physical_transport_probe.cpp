@@ -302,13 +302,13 @@ void run_captured_physical_regression()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(captured.hierarchy());
     const qmomkit::CqmomMomentData moments = qmomkit::reconstruct_cqmom_moments(captured, layout);
 
-    qmomkit::CqmomCase lean_case{moments};
-    lean_case.qmom_options.adaptive = true;
-    lean_case.adaptive_branch_counts = true;
-    lean_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
-    lean_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
+    qmomkit::CqmomCase cqmom_case{moments};
+    cqmom_case.qmom_options.adaptive = true;
+    cqmom_case.adaptive_branch_counts = true;
+    cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
+    cqmom_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
 
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(lean_case);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     std::cout << "[physical captured fixture] status=" << static_cast<int>(result.status) << " message=\"" << result.message << "\"\n";
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.total_nodes() == 4);
@@ -357,7 +357,7 @@ void run_captured_physical_regression()
     report_tree_spread("[physical captured tree]", captured);
     report_tree_spread("[physical preceding tree]", captured_preceding_success_quadrature());
 
-    qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(lean_case, captured_active_branch_counts());
+    qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case, captured_active_branch_counts());
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
     const auto zero_source = [](double, const qmomkit::CqmomSourceContext& context)
@@ -402,14 +402,14 @@ int main(const int argc, char** argv)
 
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_prepared_case.hierarchy());
     const qmomkit::CqmomMomentData moments = qmomkit::reconstruct_cqmom_moments(half_step.quadrature, layout);
-    qmomkit::CqmomCase lean_case{moments};
-    lean_case.conditional_options = cqmom_prepared_case.conditional_options();
-    lean_case.qmom_options = cqmom_prepared_case.qmom_options();
-    lean_case.adaptive_branch_counts = cqmom_prepared_case.adaptive_branch_counts();
-    lean_case.diagnostic_level = cqmom_prepared_case.diagnostic_level();
-    lean_case.vandermonde_solver = cqmom_prepared_case.vandermonde_solver();
+    qmomkit::CqmomCase cqmom_case{moments};
+    cqmom_case.conditional_options = cqmom_prepared_case.conditional_options();
+    cqmom_case.qmom_options = cqmom_prepared_case.qmom_options();
+    cqmom_case.adaptive_branch_counts = cqmom_prepared_case.adaptive_branch_counts();
+    cqmom_case.diagnostic_level = cqmom_prepared_case.diagnostic_level();
+    cqmom_case.vandermonde_solver = cqmom_prepared_case.vandermonde_solver();
 
-    const qmomkit::CqmomResult reinverted = qmomkit::compute_cqmom(lean_case);
+    const qmomkit::CqmomResult reinverted = qmomkit::compute_cqmom(cqmom_case);
     std::cout << "[physical exact probe] status=" << static_cast<int>(reinverted.status) << " message=\"" << reinverted.message
               << "\" diagnostics=" << reinverted.diagnostics.size() << '\n';
     for (const qmomkit::CqmomDiagnostics& diagnostic : reinverted.diagnostics)

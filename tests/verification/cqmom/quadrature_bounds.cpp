@@ -76,13 +76,14 @@ qmomkit::RawMomentTensor raw_moments_from_terminals(const std::vector<std::size_
     return {extents, moments};
 }
 
-qmomkit::CqmomCase bounded_case(const std::vector<double>& moments, const qmomkit::AbscissaBounds interval)
+qmomkit::CqmomCase bounded_cqmom_case(const std::vector<double>& moments, const qmomkit::AbscissaBounds interval)
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2});
-    qmomkit::CqmomCase case_{qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))};
-    case_.coordinate_support = {interval};
-    case_.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
-    return case_;
+    qmomkit::CqmomCase cqmom_case{
+        qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))};
+    cqmom_case.coordinate_support = {interval};
+    cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
+    return cqmom_case;
 }
 
 void verify_accepted_nodes_inside_interval()
@@ -90,7 +91,7 @@ void verify_accepted_nodes_inside_interval()
     const std::vector<double> weights{0.4, 0.6};
     const std::vector<double> nodes{2.25, 4.5};
     const qmomkit::AbscissaBounds interval{2.0, 5.0};
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(bounded_case(raw_moments(weights, nodes), interval));
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(bounded_cqmom_case(raw_moments(weights, nodes), interval));
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.weights().size() == weights.size());
@@ -110,7 +111,7 @@ void verify_rejected_nodes_outside_interval()
     const std::vector<double> weights{0.5, 0.5};
     const std::vector<double> nodes{0.25, 1.25};
     const qmomkit::AbscissaBounds interval{0.0, 1.0};
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(bounded_case(raw_moments(weights, nodes), interval));
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(bounded_cqmom_case(raw_moments(weights, nodes), interval));
 
     QMOMKIT_VERIFY_CHECK(!result.ok());
     QMOMKIT_VERIFY_CHECK(result.status == qmomkit::CqmomStatus::qmom_failed);
@@ -139,10 +140,10 @@ void verify_coordinate_specific_bounds_in_recursive_cqmom()
     const qmomkit::RawMomentTensor expected = raw_moments_from_terminals({4, 4}, weights, abscissas);
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
-    qmomkit::CqmomCase case_{qmomkit::extract_cqmom_moments(expected, qmomkit::create_cqmom_moment_layout(hierarchy))};
-    case_.coordinate_support = {x_bounds, y_bounds};
-    case_.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+    qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(expected, qmomkit::create_cqmom_moment_layout(hierarchy))};
+    cqmom_case.coordinate_support = {x_bounds, y_bounds};
+    cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.total_nodes() == weights.size());

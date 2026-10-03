@@ -138,8 +138,8 @@ qmomkit::CqmomPreparedCase make_cqmom_prepared_case(const std::vector<std::size_
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
     const qmomkit::RawMomentTensor dense = product_moment_tensor(node_counts.size());
-    qmomkit::CqmomCase lean{qmomkit::extract_cqmom_moments(dense, qmomkit::create_cqmom_moment_layout(hierarchy))};
-    return qmomkit::CqmomPreparedCase{std::move(lean)};
+    qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(dense, qmomkit::create_cqmom_moment_layout(hierarchy))};
+    return qmomkit::CqmomPreparedCase{std::move(cqmom_case)};
 }
 
 qmomkit::PhaseSpaceVelocity make_velocity()

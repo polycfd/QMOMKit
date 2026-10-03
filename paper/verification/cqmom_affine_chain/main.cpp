@@ -225,10 +225,10 @@ RunResult run_dimension(const std::size_t dimension)
     const qmomkit::PhaseSpaceHierarchy hierarchy(std::vector<std::size_t>(dimension, nodes_per_rule));
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<double> exact_moments = exact_required_moments(layout);
-    const qmomkit::CqmomCase case_{
+    const qmomkit::CqmomCase cqmom_case{
         qmomkit::CqmomMomentData{layout, exact_moments}, {}, qmomkit::QmomOptions{}, false, qmomkit::CqmomDiagnosticLevel::basic,
         qmomkit::VandermondeSolver::automatic,           {}};
-    const qmomkit::CqmomResult reconstructed = qmomkit::compute_cqmom(case_);
+    const qmomkit::CqmomResult reconstructed = qmomkit::compute_cqmom(cqmom_case);
     if (!reconstructed.ok())
     {
         throw std::runtime_error("Affine-chain CQMOM reconstruction failed: " + reconstructed.message);

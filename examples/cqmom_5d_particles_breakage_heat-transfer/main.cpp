@@ -56,18 +56,18 @@ int main()
 
         // Replace only the initial moments; the configured hierarchy, supports and
         // reconstruction settings are kept.
-        const auto sampled_case = qmomkit::config::with_initial_moments(configured.value(), sampled->moments.moments);
-        if (!sampled_case)
+        const auto sampled_case_result = qmomkit::config::with_initial_moments(configured.value(), sampled->moments.moments);
+        if (!sampled_case_result)
         {
-            std::cerr << sampled_case.error() << '\n';
+            std::cerr << sampled_case_result.error() << '\n';
             return 1;
         }
-        qmomkit::CqmomState state = sampled_case.value().initial_state();
+        qmomkit::CqmomState state = sampled_case_result.value().initial_state();
         const qmomkit::CqmomQuadrature initial_quadrature = state.quadrature();
         // The layout lists exactly the multi-indices this hierarchy needs. Reusing
         // it as a moment request means the before/after summaries report the same
         // moment set, which is what makes them comparable.
-        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(sampled_case.value().hierarchy());
+        const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(sampled_case_result.value().hierarchy());
         const qmomkit::RawMomentRequest request{layout.required_indices.to_multi_indices()};
         const qmomkit::SelectedRawMomentResult initial_moments = qmomkit::reconstruct_raw_moments(initial_quadrature, request);
 

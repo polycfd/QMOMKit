@@ -58,22 +58,22 @@ int main()
             throw std::runtime_error("The sampled CQMOM and Monte Carlo initial moments differ.");
         }
 
-        const auto sampled_case = qmomkit::config::with_initial_moments(configured.value(), sampled->moments.moments);
-        if (!sampled_case)
+        const auto sampled_case_result = qmomkit::config::with_initial_moments(configured.value(), sampled->moments.moments);
+        if (!sampled_case_result)
         {
-            std::cerr << sampled_case.error() << '\n';
+            std::cerr << sampled_case_result.error() << '\n';
             return 1;
         }
-        const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(sampled_case.value());
+        const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(sampled_case_result.value());
         if (!initial.ok())
         {
             std::cerr << "Initial CQMOM inversion failed: " << initial.message << '\n';
             return 1;
         }
 
-        qmomkit::CqmomState state = sampled_case.value().initial_state();
+        qmomkit::CqmomState state = sampled_case_result.value().initial_state();
         qmomkit::CqmomQuadrature quadrature = initial.quadrature;
-        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(sampled_case.value().hierarchy());
+        const qmomkit::CqmomMomentLayout moment_output_layout = qmomkit::create_cqmom_moment_layout(sampled_case_result.value().hierarchy());
         const qmomkit::RawMomentRequest moment_output_request{moment_output_layout.required_indices.to_multi_indices()};
         const qmomkit::CqmomPhaseSpaceEvolutionOptions evolution_options = evolution_configured.value();
         if (evolution_options.node_options.scheme != qmomkit::NodeAdvectionScheme::rk23)

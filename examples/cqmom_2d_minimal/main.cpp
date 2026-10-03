@@ -24,14 +24,14 @@ int main()
     // of the tensor above. A caller whose moments already arrive as that subset
     // can build the case from them directly and skip the tensor entirely.
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    qmomkit::CqmomCase case_definition{qmomkit::extract_cqmom_moments(initial_moments, layout),
-                                       {},                                    // conditional-moment options
-                                       {},                                    // QMOM options
-                                       false,                                 // adaptive branch counts
-                                       qmomkit::CqmomDiagnosticLevel::none,   // diagnostics
-                                       qmomkit::VandermondeSolver::automatic, // solver policy
-                                       {}};                                   // coordinate support
-    const qmomkit::CqmomPreparedCase cqmom_prepared_case{std::move(case_definition)};
+    qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(initial_moments, layout),
+                                  {},                                    // conditional-moment options
+                                  {},                                    // QMOM options
+                                  false,                                 // adaptive branch counts
+                                  qmomkit::CqmomDiagnosticLevel::none,   // diagnostics
+                                  qmomkit::VandermondeSolver::automatic, // solver policy
+                                  {}};                                   // coordinate support
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case{std::move(cqmom_case)};
     qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
 
     // Define the callback for the phase-space advection velocity. The callback

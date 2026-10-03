@@ -293,15 +293,15 @@ void check_states_identical(const qmomkit::CqmomState& actual, const qmomkit::Cq
 
 void run_static_case(const qmomkit::case_matrix::StaticCase& case_)
 {
-    const qmomkit::CqmomCase explicit_case = qmomkit::case_matrix::lean_case_of(case_);
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(explicit_case);
+    const qmomkit::CqmomCase cqmom_case = qmomkit::case_matrix::cqmom_case_of(case_);
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     QMOMKIT_VERIFY_CHECK(result.ok());
 
     check_recovers_generating_nodes(case_, result.quadrature);
-    const qmomkit::CqmomPreparedCase cqmom_prepared_case(explicit_case);
+    const qmomkit::CqmomPreparedCase cqmom_prepared_case(cqmom_case);
     check_prepared_path_agrees(result, qmomkit::compute_cqmom(cqmom_prepared_case));
 
-    const qmomkit::CqmomState initial = explicit_case.initial_state();
+    const qmomkit::CqmomState initial = cqmom_case.initial_state();
     check_quadratures_identical(initial.quadrature(), result.quadrature);
     check_states_identical(initial, cqmom_prepared_case.initial_state());
 
@@ -316,9 +316,9 @@ void run_evolution_case(const qmomkit::case_matrix::EvolutionCase& case_)
     qmomkit::CqmomPhaseSpaceEvolutionOptions options;
     options.scheme = case_.scheme;
 
-    const qmomkit::CqmomCase explicit_case = qmomkit::case_matrix::lean_case_of(case_.reconstruction);
-    qmomkit::CqmomState state = qmomkit::CqmomPreparedCase(explicit_case).initial_state();
-    qmomkit::CqmomState case_state = explicit_case.initial_state();
+    const qmomkit::CqmomCase cqmom_case = qmomkit::case_matrix::cqmom_case_of(case_.reconstruction);
+    qmomkit::CqmomState state = qmomkit::CqmomPreparedCase(cqmom_case).initial_state();
+    qmomkit::CqmomState case_state = cqmom_case.initial_state();
     check_states_identical(case_state, state);
 
     double time = 0.0;

@@ -75,13 +75,13 @@ int main()
     const qmomkit::PhaseSpaceHierarchy cqmom_hierarchy({1, 1});
     const qmomkit::RawMomentTensor cqmom_moment_tensor{{2, 2}, {1.0, 0.0, 0.0, 0.0}};
 
-    qmomkit::CqmomCase lean_case{qmomkit::extract_cqmom_moments(cqmom_moment_tensor, qmomkit::create_cqmom_moment_layout(cqmom_hierarchy))};
-    const qmomkit::CqmomResult lean_static = qmomkit::compute_cqmom(lean_case);
+    qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(cqmom_moment_tensor, qmomkit::create_cqmom_moment_layout(cqmom_hierarchy))};
+    const qmomkit::CqmomResult lean_static = qmomkit::compute_cqmom(cqmom_case);
     if (!lean_static.ok())
     {
         return 1;
     }
-    const qmomkit::CqmomState cqmom_case_state = lean_case.initial_state();
+    const qmomkit::CqmomState cqmom_case_state = cqmom_case.initial_state();
     if (cqmom_case_state.quadrature().total_nodes() != 1)
     {
         return 1;
@@ -89,22 +89,22 @@ int main()
     // Both overloads must store exactly the replacement moments, which differ
     // from the ones the case holds.
     const qmomkit::RawMomentTensor replacement_moment_tensor{{2, 2}, {2.0, 1.0, 0.5, 0.25}};
-    const qmomkit::CqmomMomentData replacement_moments = qmomkit::extract_cqmom_moments(replacement_moment_tensor, lean_case.moments.layout);
-    const auto tensor_replaced_cqmom_case_result = qmomkit::config::with_initial_moments(lean_case, replacement_moment_tensor);
-    const auto moment_set_replaced_cqmom_case_result = qmomkit::config::with_initial_moments(lean_case, replacement_moments);
-    if (replacement_moments.values == lean_case.moments.values || !tensor_replaced_cqmom_case_result.ok() ||
+    const qmomkit::CqmomMomentData replacement_moments = qmomkit::extract_cqmom_moments(replacement_moment_tensor, cqmom_case.moments.layout);
+    const auto tensor_replaced_cqmom_case_result = qmomkit::config::with_initial_moments(cqmom_case, replacement_moment_tensor);
+    const auto moment_set_replaced_cqmom_case_result = qmomkit::config::with_initial_moments(cqmom_case, replacement_moments);
+    if (replacement_moments.values == cqmom_case.moments.values || !tensor_replaced_cqmom_case_result.ok() ||
         tensor_replaced_cqmom_case_result.value().moments.values != replacement_moments.values || !moment_set_replaced_cqmom_case_result.ok() ||
         moment_set_replaced_cqmom_case_result.value().moments.values != replacement_moments.values)
     {
         return 1;
     }
-    const qmomkit::CqmomState lean_state = qmomkit::CqmomPreparedCase{std::move(lean_case)}.initial_state();
+    const qmomkit::CqmomState lean_state = qmomkit::CqmomPreparedCase{std::move(cqmom_case)}.initial_state();
     if (lean_state.quadrature().total_nodes() != 1 || lean_state.quadrature().weights().size() != 1)
     {
         return 1;
     }
 
-    const auto base_case = qmomkit::config::parse_cqmom_prepared(R"(
+    const auto base_case_result = qmomkit::config::parse_cqmom_prepared(R"(
 [phase_space]
 node_counts = 1, 1
 
@@ -115,17 +115,17 @@ M[0,1] = 0.0
 M[1,0] = 0.0
 M[1,1] = 0.0
 )");
-    if (!base_case.ok())
+    if (!base_case_result.ok())
     {
         return 1;
     }
 
-    const auto replaced_case = qmomkit::config::with_initial_moments(base_case.value(), {{2, 2}, {1.0, 0.5, 1.0, 0.5}});
-    if (!replaced_case.ok())
+    const auto replaced_case_result = qmomkit::config::with_initial_moments(base_case_result.value(), {{2, 2}, {1.0, 0.5, 1.0, 0.5}});
+    if (!replaced_case_result.ok())
     {
         return 1;
     }
-    const qmomkit::CqmomState replaced_state = replaced_case.value().initial_state();
+    const qmomkit::CqmomState replaced_state = replaced_case_result.value().initial_state();
     if (replaced_state.moment_values().empty())
     {
         return 1;

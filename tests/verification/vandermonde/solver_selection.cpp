@@ -213,7 +213,7 @@ void verify_against_reference(const SolverCase& solver_case, const qmomkit::Cqmo
     }
 }
 
-void verify_solver_diagnostics(const SolverCase& solver_case, const qmomkit::CqmomCase& case_, VerificationResult& verification)
+void verify_solver_diagnostics(const SolverCase& solver_case, const qmomkit::CqmomCase& cqmom_case, VerificationResult& verification)
 {
     // Public CqmomResult diagnostics currently report CQMOM branch status but
     // not the Vandermonde requested/selected/algorithm fields. The recursive
@@ -221,8 +221,10 @@ void verify_solver_diagnostics(const SolverCase& solver_case, const qmomkit::Cqm
     // configuration, computation, quadrature, and moment checks above remain on
     // public user-facing APIs.
     const qmomkit::internal::RecursiveQuadratureMomentDataRequest request{
-        case_.moments.layout.hierarchy, case_.moments,          case_.conditional_options, wheeler_options_from_qmom(case_.qmom_options),
-        case_.adaptive_branch_counts,   case_.diagnostic_level, case_.vandermonde_solver};
+        cqmom_case.moments.layout.hierarchy, cqmom_case.moments,
+        cqmom_case.conditional_options,      wheeler_options_from_qmom(cqmom_case.qmom_options),
+        cqmom_case.adaptive_branch_counts,   cqmom_case.diagnostic_level,
+        cqmom_case.vandermonde_solver};
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(request);
     if (!result.ok())
     {
@@ -233,7 +235,7 @@ void verify_solver_diagnostics(const SolverCase& solver_case, const qmomkit::Cqm
     bool saw_conditional_solve = false;
     for (const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostics : result.diagnostics)
     {
-        if (diagnostics.conditioning_level + 1 >= case_.moments.layout.hierarchy.number_of_dimensions())
+        if (diagnostics.conditioning_level + 1 >= cqmom_case.moments.layout.hierarchy.number_of_dimensions())
         {
             continue;
         }
@@ -352,9 +354,9 @@ int main(const int argc, char** argv)
     bool matched = selected_solver.empty();
     VerificationResult verification;
     std::vector<qmomkit::CqmomResult> computed;
-    std::vector<qmomkit::CqmomCase> loaded_cases;
+    std::vector<qmomkit::CqmomCase> loaded_cqmom_cases;
     computed.reserve(cases.size());
-    loaded_cases.reserve(cases.size());
+    loaded_cqmom_cases.reserve(cases.size());
 
     for (const SolverCase& solver_case : cases)
     {
@@ -374,55 +376,55 @@ int main(const int argc, char** argv)
             append_failure(verification, solver_case.name + " configuration did not load the requested solver policy.");
         }
 
-        qmomkit::CqmomCase loaded_case = configured.value();
-        const qmomkit::CqmomResult result = qmomkit::compute_cqmom(loaded_case);
+        qmomkit::CqmomCase loaded_cqmom_case = configured.value();
+        const qmomkit::CqmomResult result = qmomkit::compute_cqmom(loaded_cqmom_case);
         if (!result.ok())
         {
             append_failure(verification, solver_case.name + " public CQMOM computation failed: " + result.message);
             continue;
         }
 
-        verify_against_reference(solver_case, result, loaded_case.moments, verification);
-        verify_solver_diagnostics(solver_case, loaded_case, verification);
+        verify_against_reference(solver_case, result, loaded_cqmom_case.moments, verification);
+        verify_solver_diagnostics(solver_case, loaded_cqmom_case, verification);
         computed.push_back(result);
-        loaded_cases.push_back(std::move(loaded_case));
+        loaded_cqmom_cases.push_back(std::move(loaded_cqmom_case));
     }
 
     if (computed.size() == cases.size())
     {
         const qmomkit::CqmomResult* dense_result = nullptr;
         const qmomkit::CqmomResult* bp_result = nullptr;
-        const qmomkit::CqmomCase* dense_case = nullptr;
-        const qmomkit::CqmomCase* bp_case = nullptr;
-        for (std::size_t index = 0; index < loaded_cases.size(); ++index)
+        const qmomkit::CqmomCase* dense_cqmom_case = nullptr;
+        const qmomkit::CqmomCase* bp_cqmom_case = nullptr;
+        for (std::size_t index = 0; index < loaded_cqmom_cases.size(); ++index)
         {
-            if (loaded_cases[index].vandermonde_solver == qmomkit::VandermondeSolver::dense)
+            if (loaded_cqmom_cases[index].vandermonde_solver == qmomkit::VandermondeSolver::dense)
             {
                 dense_result = &computed[index];
-                dense_case = &loaded_cases[index];
+                dense_cqmom_case = &loaded_cqmom_cases[index];
             }
-            if (loaded_cases[index].vandermonde_solver == qmomkit::VandermondeSolver::bjorck_pereyra)
+            if (loaded_cqmom_cases[index].vandermonde_solver == qmomkit::VandermondeSolver::bjorck_pereyra)
             {
                 bp_result = &computed[index];
-                bp_case = &loaded_cases[index];
+                bp_cqmom_case = &loaded_cqmom_cases[index];
             }
         }
 
-        if (dense_result == nullptr || bp_result == nullptr || dense_case == nullptr || bp_case == nullptr)
+        if (dense_result == nullptr || bp_result == nullptr || dense_cqmom_case == nullptr || bp_cqmom_case == nullptr)
         {
             append_failure(verification, "dense/Björck-Pereyra comparison could not locate both explicit solver results.");
         }
-        else if (!reports_selected_solver(*dense_result, dense_case->moments.layout.hierarchy, qmomkit::VandermondeSolver::dense))
+        else if (!reports_selected_solver(*dense_result, dense_cqmom_case->moments.layout.hierarchy, qmomkit::VandermondeSolver::dense))
         {
             append_failure(verification, "dense/Björck-Pereyra comparison did not receive the explicit dense result.");
         }
-        else if (!reports_selected_solver(*bp_result, bp_case->moments.layout.hierarchy, qmomkit::VandermondeSolver::bjorck_pereyra))
+        else if (!reports_selected_solver(*bp_result, bp_cqmom_case->moments.layout.hierarchy, qmomkit::VandermondeSolver::bjorck_pereyra))
         {
             append_failure(verification, "dense/Björck-Pereyra comparison did not receive the explicit Björck-Pereyra result.");
         }
         else
         {
-            compare_dense_and_bp(*dense_result, *bp_result, dense_case->moments.layout, verification);
+            compare_dense_and_bp(*dense_result, *bp_result, dense_cqmom_case->moments.layout, verification);
         }
     }
 

@@ -283,10 +283,10 @@ int main(const int argc, char** argv)
         print_configuration_errors(configured);
         return 1;
     }
-    const auto lean = qmomkit::config::load_cqmom(configuration_path);
-    if (!lean.ok())
+    const auto cqmom_case_result = qmomkit::config::load_cqmom(configuration_path);
+    if (!cqmom_case_result.ok())
     {
-        print_configuration_errors(lean);
+        print_configuration_errors(cqmom_case_result);
         return 1;
     }
 
@@ -314,12 +314,12 @@ int main(const int argc, char** argv)
     if (selected("cqmom_required_layout"))
     {
         matched = true;
-        verify_cqmom_required_layout_reconstruction(cqmom.quadrature, lean.value().moments.layout, verification);
+        verify_cqmom_required_layout_reconstruction(cqmom.quadrature, cqmom_case_result.value().moments.layout, verification);
     }
     if (selected("failure_paths"))
     {
         matched = true;
-        verify_cqmom_reconstruction_failures(cqmom.quadrature, lean.value().moments.layout, verification);
+        verify_cqmom_reconstruction_failures(cqmom.quadrature, cqmom_case_result.value().moments.layout, verification);
     }
     if (!matched)
     {

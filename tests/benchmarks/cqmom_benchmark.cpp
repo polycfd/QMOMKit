@@ -179,18 +179,18 @@ CqmomRepresentationFixture make_representation_fixture(const std::size_t dimensi
     return {std::move(fixture), std::move(layout), std::move(lean_moments), std::move(indexed_moments)};
 }
 
-qmomkit::CqmomCase create_case(const CqmomFixture& fixture, const std::optional<qmomkit::CqmomDiagnosticLevel> diagnostic_level = std::nullopt)
+qmomkit::CqmomCase make_cqmom_case(const CqmomFixture& fixture, const std::optional<qmomkit::CqmomDiagnosticLevel> diagnostic_level = std::nullopt)
 {
-    qmomkit::CqmomCase case_{
+    qmomkit::CqmomCase cqmom_case{
         qmomkit::extract_cqmom_moments({fixture.extents, fixture.moments}, qmomkit::create_cqmom_moment_layout(fixture.hierarchy)),
         {},
         fixture.qmom_options,
         fixture.adaptive_branch_counts};
     if (diagnostic_level.has_value())
     {
-        case_.diagnostic_level = *diagnostic_level;
+        cqmom_case.diagnostic_level = *diagnostic_level;
     }
-    return case_;
+    return cqmom_case;
 }
 
 qmomkit::WheelerOptions make_wheeler_options(const qmomkit::QmomOptions& options)
@@ -348,8 +348,8 @@ void set_branch_solve_counters(benchmark::State& state, const BranchSolveStats& 
 void run_cqmom_benchmark(benchmark::State& state, const CqmomFixture& fixture,
                          const std::optional<qmomkit::CqmomDiagnosticLevel> diagnostic_level = std::nullopt)
 {
-    const qmomkit::CqmomCase case_ = create_case(fixture, diagnostic_level);
-    const qmomkit::CqmomResult setup_check = qmomkit::compute_cqmom(case_);
+    const qmomkit::CqmomCase cqmom_case = make_cqmom_case(fixture, diagnostic_level);
+    const qmomkit::CqmomResult setup_check = qmomkit::compute_cqmom(cqmom_case);
     if (!setup_check.ok())
     {
         state.SkipWithError("deterministic CQMOM fixture failed setup");
@@ -358,7 +358,7 @@ void run_cqmom_benchmark(benchmark::State& state, const CqmomFixture& fixture,
     set_fixture_counters(state, fixture, setup_check.quadrature.total_nodes());
 
     const qmomkit::internal::RecursiveQuadratureRequest stats_request =
-        make_recursive_request(fixture, stats_diagnostic_level(case_.diagnostic_level), qmomkit::VandermondeSolver::automatic);
+        make_recursive_request(fixture, stats_diagnostic_level(cqmom_case.diagnostic_level), qmomkit::VandermondeSolver::automatic);
     const qmomkit::internal::RecursiveQuadratureResult stats_check = qmomkit::internal::compute_recursive_quadrature(stats_request);
     if (stats_check.ok())
     {
@@ -367,7 +367,7 @@ void run_cqmom_benchmark(benchmark::State& state, const CqmomFixture& fixture,
 
     for (auto _ : state)
     {
-        const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+        const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
         benchmark::DoNotOptimize(result.quadrature.weights().data());
         benchmark::DoNotOptimize(result.quadrature.abscissas().data());
     }
@@ -409,12 +409,12 @@ void run_recursive_cqmom_application_benchmark(benchmark::State& state, const Cq
 void run_cqmom_public_lean_representation_benchmark(benchmark::State& state, const std::size_t dimensions, const std::size_t node_count)
 {
     const CqmomRepresentationFixture fixture = make_representation_fixture(dimensions, node_count);
-    qmomkit::CqmomCase lean_case{fixture.lean_moments,
-                                 {},
-                                 fixture.dense_fixture.qmom_options,
-                                 fixture.dense_fixture.adaptive_branch_counts,
-                                 qmomkit::CqmomDiagnosticLevel::none};
-    const qmomkit::CqmomResult setup_check = qmomkit::compute_cqmom(lean_case);
+    qmomkit::CqmomCase cqmom_case{fixture.lean_moments,
+                                  {},
+                                  fixture.dense_fixture.qmom_options,
+                                  fixture.dense_fixture.adaptive_branch_counts,
+                                  qmomkit::CqmomDiagnosticLevel::none};
+    const qmomkit::CqmomResult setup_check = qmomkit::compute_cqmom(cqmom_case);
     if (!setup_check.ok())
     {
         state.SkipWithError("lean public CQMOM representation fixture failed setup");
@@ -425,7 +425,7 @@ void run_cqmom_public_lean_representation_benchmark(benchmark::State& state, con
 
     for (auto _ : state)
     {
-        const qmomkit::CqmomResult result = qmomkit::compute_cqmom(lean_case);
+        const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
         benchmark::DoNotOptimize(result.quadrature.weights().data());
         benchmark::DoNotOptimize(result.quadrature.abscissas().data());
     }

@@ -241,25 +241,25 @@ std::map<std::size_t, std::vector<TerminalNode>> group_by_parent(const std::vect
     return grouped;
 }
 
-void verify_configuration_fields(const ExpectedCase& expected, const qmomkit::CqmomCase& configured_case, VerificationResult& result)
+void verify_configuration_fields(const ExpectedCase& expected, const qmomkit::CqmomCase& configured_cqmom_case, VerificationResult& result)
 {
-    if (configured_case.moments.layout.hierarchy.node_counts() != std::vector<std::size_t>{2, 2})
+    if (configured_cqmom_case.moments.layout.hierarchy.node_counts() != std::vector<std::size_t>{2, 2})
     {
         append_failure(result, "Configured node_counts are not {2, 2}.");
     }
-    if (configured_case.moments.layout.hierarchy.conditioning_order() != std::vector<std::size_t>{0, 1})
+    if (configured_cqmom_case.moments.layout.hierarchy.conditioning_order() != std::vector<std::size_t>{0, 1})
     {
         append_failure(result, "Configured conditioning_order is not {0, 1}.");
     }
-    if (configured_case.moments.layout.hierarchy.moment_extents() != std::vector<std::size_t>{4, 4})
+    if (configured_cqmom_case.moments.layout.hierarchy.moment_extents() != std::vector<std::size_t>{4, 4})
     {
         append_failure(result, "Configured moment extents are not {4, 4}.");
     }
-    if (configured_case.adaptive_branch_counts != expected.adaptive)
+    if (configured_cqmom_case.adaptive_branch_counts != expected.adaptive)
     {
         append_failure(result, "Configured adaptive_branch_counts does not match the analytical case.");
     }
-    if (configured_case.qmom_options.adaptive != expected.adaptive)
+    if (configured_cqmom_case.qmom_options.adaptive != expected.adaptive)
     {
         append_failure(result, "Configured qmom.adaptive does not match the analytical case.");
     }
@@ -435,12 +435,12 @@ void verify_reconstructed_moments(const qmomkit::CqmomQuadrature& quadrature, co
     }
 }
 
-VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::CqmomCase& configured_case)
+VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::CqmomCase& configured_cqmom_case)
 {
     VerificationResult result;
-    verify_configuration_fields(expected, configured_case, result);
+    verify_configuration_fields(expected, configured_cqmom_case, result);
 
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(configured_case);
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(configured_cqmom_case);
     if (!cqmom.ok())
     {
         append_failure(result, "compute_cqmom failed: " + cqmom.message);
@@ -459,7 +459,7 @@ VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::Cqmo
     verify_diagnostics(expected, cqmom, result);
     verify_parent_and_children(expected, nodes, result);
     verify_terminal_nodes(expected, nodes, result);
-    verify_reconstructed_moments(cqmom.quadrature, configured_case.moments, result);
+    verify_reconstructed_moments(cqmom.quadrature, configured_cqmom_case.moments, result);
     return result;
 }
 

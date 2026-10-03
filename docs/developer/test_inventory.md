@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 638 |
+| Unit logical tests | 637 |
 | Component/regression logical tests | 47 |
 | Verification logical tests | 167 |
-| **Runtime logical tests** | **852** |
+| **Runtime logical tests** | **851** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **853** |
+| **Total CTest registrations** | **852** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -524,8 +524,7 @@ CTest check; it is not 23 runtime tests.
 | --- | --- | --- | --- | --- |
 | `unit_recursive_quadrature_flat_multi_index_round_trip` | `tests/unit/recursive_quadrature.cpp` | `flat_multi_index_round_trip` | Checks that recursive CQMOM reconstruction preserves the original data through the tested round-trip conversion. | — |
 | `unit_recursive_quadrature_enumerate_multi_indices_row_major` | `tests/unit/recursive_quadrature.cpp` | `enumerate_multi_indices_row_major` | Checks that CQMOM multi-index enumeration follows row-major order for the tested extents. | — |
-| `unit_recursive_quadrature_cqmom_moment_view_dense_matches_tensor_access` | `tests/unit/recursive_quadrature.cpp` | `cqmom_moment_view_dense_matches_tensor_access` | Checks that moment view dense matches tensor access in recursive CQMOM reconstruction. | — |
-| `unit_recursive_quadrature_cqmom_moment_view_moment_data_matches_dense_view` | `tests/unit/recursive_quadrature.cpp` | `cqmom_moment_view_moment_data_matches_dense_view` | Checks that moment view moment data matches dense view in recursive CQMOM reconstruction. | — |
+| `unit_recursive_quadrature_cqmom_moment_view_matches_moment_tensor_values` | `tests/unit/recursive_quadrature.cpp` | `cqmom_moment_view_matches_moment_tensor_values` | Checks that a CQMOM moment view over indexed moment data, and a copy of it, read every required moment as the full tensor of raw moments holds it, for a non-identity conditioning order. | — |
 | `unit_recursive_quadrature_indexed_moment_set_preserves_order_and_uses_key_lookup` | `tests/unit/recursive_quadrature.cpp` | `indexed_moment_set_preserves_order_and_uses_key_lookup` | Checks that indexed moment set preserves order and uses key lookup in recursive CQMOM reconstruction. | — |
 | `unit_recursive_quadrature_cqmom_moment_view_moment_data_references_indexed_storage` | `tests/unit/recursive_quadrature.cpp` | `cqmom_moment_view_moment_data_references_indexed_storage` | Checks that a CQMOM moment view reads the indexed values held by its moment-data storage. | — |
 | `unit_recursive_quadrature_branch_local_layout_identity_wheeler_and_rhs_offsets` | `tests/unit/recursive_quadrature.cpp` | `branch_local_layout_identity_wheeler_and_rhs_offsets` | Checks identity-order branch layouts supply Wheeler inputs and right-hand-side offsets from their intended local storage ranges. | — |

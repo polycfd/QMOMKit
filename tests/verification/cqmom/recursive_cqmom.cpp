@@ -43,6 +43,26 @@
 namespace
 {
 
+// These tests construct a full tensor of raw moments; reconstruction takes only
+// the moments the hierarchy requires.
+qmomkit::internal::RecursiveQuadratureMomentDataRequest moment_data_request(
+    const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moment_tensor,
+    const qmomkit::ConditionalMomentOptions& conditional_options = {}, const qmomkit::WheelerOptions& wheeler_options = {},
+    const bool adaptive_branch_counts = false, const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
+    const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic, const qmomkit::CqmomCoordinateSupport& coordinate_support = {})
+{
+    return {hierarchy,
+            qmomkit::extract_cqmom_moments(moment_tensor, qmomkit::create_cqmom_moment_layout(hierarchy)),
+            conditional_options,
+            wheeler_options,
+            adaptive_branch_counts,
+            diagnostic_level,
+            solver,
+            {},
+            false,
+            coordinate_support};
+}
+
 struct ValidationMetrics
 {
     double max_abs_moment_error = 0.0;
@@ -99,8 +119,8 @@ ValidationMetrics validate_case(const std::string& name, const qmomkit::internal
                                 const std::vector<std::size_t>& extents, const double moment_tolerance, const double node_tolerance)
 {
     const std::vector<double> raw_moments = raw_moments_from_quadrature(expected, extents);
-    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature(
-        {expected.hierarchy(), {extents, raw_moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic});
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+        moment_data_request(expected.hierarchy(), {extents, raw_moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic));
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(!result.diagnostics.empty());
     for (const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic : result.diagnostics)
@@ -161,8 +181,8 @@ ValidationMetrics validate_adaptive_case(const std::string& name, const RaggedAd
                                          const double node_tolerance)
 {
     const std::vector<double> raw_moments = raw_moments_from_terminal_quadrature(expected.abscissas, expected.weights, expected.extents);
-    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature(
-        {expected.hierarchy, {expected.extents, raw_moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic});
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
+        expected.hierarchy, {expected.extents, raw_moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic));
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.adaptive_branch_counts_enabled());
     QMOMKIT_VERIFY_CHECK(!result.quadrature.has_rectangular_storage());
@@ -251,8 +271,8 @@ ValidationMetrics validate_moment_closure_case(const std::string& name, const qm
                                                const std::vector<std::size_t>& extents, const double moment_tolerance)
 {
     const std::vector<double> raw_moments = raw_moments_from_quadrature(expected, extents);
-    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature(
-        {expected.hierarchy(), {extents, raw_moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic});
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+        moment_data_request(expected.hierarchy(), {extents, raw_moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic));
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(!result.diagnostics.empty());
     for (const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostic : result.diagnostics)
@@ -600,8 +620,9 @@ int main(const int argc, char** argv)
         matched = true;
         (void)validate_case("4d_adversarial_non_identity", adversarial_4d, {4, 6, 4, 4}, 1.0e-9, 1.0e-8);
         const std::vector<double> adversarial_moments = raw_moments_from_quadrature(adversarial_4d, {4, 6, 4, 4});
-        const qmomkit::internal::RecursiveQuadratureResult adversarial_result = qmomkit::internal::compute_recursive_quadrature(
-            {adversarial_4d.hierarchy(), {{4, 6, 4, 4}, adversarial_moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic});
+        const qmomkit::internal::RecursiveQuadratureResult adversarial_result =
+            qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
+                adversarial_4d.hierarchy(), {{4, 6, 4, 4}, adversarial_moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic));
         QMOMKIT_VERIFY_CHECK(adversarial_result.ok());
         assert_4d_adversarial_phase_order_storage(adversarial_result.quadrature);
     }

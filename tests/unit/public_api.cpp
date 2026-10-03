@@ -216,10 +216,10 @@ void assert_same_quadrature(const qmomkit::CqmomQuadrature& lhs, const qmomkit::
     }
 }
 
-qmomkit::CqmomMomentData lean_moments_from_dense(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& dense)
+qmomkit::CqmomMomentData moment_data_from_tensor(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moment_tensor)
 {
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    return qmomkit::extract_cqmom_moments(dense, layout);
+    return qmomkit::extract_cqmom_moments(moment_tensor, layout);
 }
 
 qmomkit::RawMomentTensor public_cqmom_promotion_moments()
@@ -359,8 +359,8 @@ void test_cqmom_prepared_case_and_state_assignment_preserve_independent_values()
 void test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const qmomkit::RawMomentTensor dense_moments = public_cqmom_promotion_moments();
-    qmomkit::CqmomCase cqmom_case{lean_moments_from_dense(hierarchy, dense_moments)};
+    const qmomkit::RawMomentTensor moment_tensor = public_cqmom_promotion_moments();
+    qmomkit::CqmomCase cqmom_case{moment_data_from_tensor(hierarchy, moment_tensor)};
     const qmomkit::CqmomResult expected = qmomkit::compute_cqmom(cqmom_case);
     assert(expected.ok());
 
@@ -474,16 +474,16 @@ void test_select_cqmom_moments_extracts_required_dense_values()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<std::size_t> extents{4, 4};
-    const qmomkit::RawMomentTensor dense{extents, indexed_values(extents)};
+    const qmomkit::RawMomentTensor moment_tensor{extents, indexed_values(extents)};
 
-    const qmomkit::CqmomMomentData selected = qmomkit::extract_cqmom_moments(dense, layout);
+    const qmomkit::CqmomMomentData selected = qmomkit::extract_cqmom_moments(moment_tensor, layout);
 
     assert(selected.layout.required_indices == layout.required_indices);
     assert(selected.values.size() == layout.required_indices.size());
     for (std::size_t offset = 0; offset < layout.required_indices.size(); ++offset)
     {
         const qmomkit::MultiIndexView index = layout.required_indices[offset];
-        const double expected = dense.values[qmomkit::flatten_multi_index(index, dense.extents)];
+        const double expected = moment_tensor.values[qmomkit::flatten_multi_index(index, moment_tensor.extents)];
         assert(selected.values[offset] == expected);
         assert(selected.contains_required_index(index));
         assert(selected.moment(index) == expected);
@@ -510,19 +510,19 @@ void test_select_cqmom_moments_respects_non_identity_conditioning_order()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<std::size_t> extents{4, 4, 4};
-    const qmomkit::RawMomentTensor dense{extents, indexed_values(extents)};
+    const qmomkit::RawMomentTensor moment_tensor{extents, indexed_values(extents)};
 
-    const qmomkit::CqmomMomentData selected = qmomkit::extract_cqmom_moments(dense, layout);
+    const qmomkit::CqmomMomentData selected = qmomkit::extract_cqmom_moments(moment_tensor, layout);
 
     assert(selected.values.size() == 22);
     for (std::size_t offset = 0; offset < layout.required_indices.size(); ++offset)
     {
         const qmomkit::MultiIndexView index = layout.required_indices[offset];
-        assert(selected.values[offset] == dense.values[qmomkit::flatten_multi_index(index, dense.extents)]);
+        assert(selected.values[offset] == moment_tensor.values[qmomkit::flatten_multi_index(index, moment_tensor.extents)]);
     }
-    assert(selected.moment({0, 0, 3}) == dense.values[qmomkit::flatten_multi_index({0, 0, 3}, dense.extents)]);
-    assert(selected.moment({3, 0, 1}) == dense.values[qmomkit::flatten_multi_index({3, 0, 1}, dense.extents)]);
-    assert(selected.moment({1, 3, 1}) == dense.values[qmomkit::flatten_multi_index({1, 3, 1}, dense.extents)]);
+    assert(selected.moment({0, 0, 3}) == moment_tensor.values[qmomkit::flatten_multi_index({0, 0, 3}, moment_tensor.extents)]);
+    assert(selected.moment({3, 0, 1}) == moment_tensor.values[qmomkit::flatten_multi_index({3, 0, 1}, moment_tensor.extents)]);
+    assert(selected.moment({1, 3, 1}) == moment_tensor.values[qmomkit::flatten_multi_index({1, 3, 1}, moment_tensor.extents)]);
 }
 
 void test_select_cqmom_moments_handles_unequal_node_counts()
@@ -530,14 +530,14 @@ void test_select_cqmom_moments_handles_unequal_node_counts()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3, 4});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<std::size_t> extents{4, 6, 8};
-    const qmomkit::RawMomentTensor dense{extents, indexed_values(extents)};
+    const qmomkit::RawMomentTensor moment_tensor{extents, indexed_values(extents)};
 
-    const qmomkit::CqmomMomentData selected = qmomkit::extract_cqmom_moments(dense, layout);
+    const qmomkit::CqmomMomentData selected = qmomkit::extract_cqmom_moments(moment_tensor, layout);
 
     assert(selected.values.size() == 56);
-    assert(selected.moment({3, 0, 0}) == dense.values[qmomkit::flatten_multi_index({3, 0, 0}, dense.extents)]);
-    assert(selected.moment({1, 5, 0}) == dense.values[qmomkit::flatten_multi_index({1, 5, 0}, dense.extents)]);
-    assert(selected.moment({1, 2, 7}) == dense.values[qmomkit::flatten_multi_index({1, 2, 7}, dense.extents)]);
+    assert(selected.moment({3, 0, 0}) == moment_tensor.values[qmomkit::flatten_multi_index({3, 0, 0}, moment_tensor.extents)]);
+    assert(selected.moment({1, 5, 0}) == moment_tensor.values[qmomkit::flatten_multi_index({1, 5, 0}, moment_tensor.extents)]);
+    assert(selected.moment({1, 2, 7}) == moment_tensor.values[qmomkit::flatten_multi_index({1, 2, 7}, moment_tensor.extents)]);
 }
 
 void test_select_cqmom_moments_reports_missing_dense_moment()
@@ -545,9 +545,9 @@ void test_select_cqmom_moments_reports_missing_dense_moment()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<std::size_t> extents{3, 4};
-    const qmomkit::RawMomentTensor dense{extents, indexed_values(extents)};
+    const qmomkit::RawMomentTensor moment_tensor{extents, indexed_values(extents)};
 
-    assert_throws_out_of_range([&dense, &layout]() { (void)qmomkit::extract_cqmom_moments(dense, layout); });
+    assert_throws_out_of_range([&moment_tensor, &layout]() { (void)qmomkit::extract_cqmom_moments(moment_tensor, layout); });
 }
 
 void test_create_cqmom_moment_data_converts_valid_selected_result()
@@ -631,11 +631,11 @@ void test_create_cqmom_moment_data_from_independent_product_selected_moments()
     const qmomkit::SelectedRawMomentResult selected =
         qmomkit::compute_raw_moments(product, qmomkit::RawMomentRequest{layout.required_indices.to_multi_indices()});
     const qmomkit::CqmomMomentData data = qmomkit::create_cqmom_moment_data(layout, selected);
-    const qmomkit::TensorMomentResult dense = qmomkit::compute_raw_moments(product, {3, 3});
-    const qmomkit::CqmomMomentData required_moment_data = qmomkit::extract_cqmom_moments(dense.moments, layout);
+    const qmomkit::TensorMomentResult tensor_result = qmomkit::compute_raw_moments(product, {3, 3});
+    const qmomkit::CqmomMomentData required_moment_data = qmomkit::extract_cqmom_moments(tensor_result.moments, layout);
 
     assert(selected.ok());
-    assert(dense.ok());
+    assert(tensor_result.ok());
     assert(data.layout.required_indices == layout.required_indices);
     assert(data.values.size() == required_moment_data.values.size());
     for (std::size_t index = 0; index < data.values.size(); ++index)
@@ -648,7 +648,7 @@ void test_lean_cqmom_public_api_rejects_missing_values()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const std::vector<std::size_t> extents{4, 4};
-    qmomkit::CqmomMomentData moment_data = lean_moments_from_dense(hierarchy, {extents, indexed_values(extents)});
+    qmomkit::CqmomMomentData moment_data = moment_data_from_tensor(hierarchy, {extents, indexed_values(extents)});
     moment_data.values.pop_back();
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomCase{moment_data});
@@ -662,7 +662,7 @@ void test_lean_cqmom_public_api_rejects_non_finite_values()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const std::vector<std::size_t> extents{4, 4};
-    qmomkit::CqmomMomentData moment_data = lean_moments_from_dense(hierarchy, {extents, indexed_values(extents)});
+    qmomkit::CqmomMomentData moment_data = moment_data_from_tensor(hierarchy, {extents, indexed_values(extents)});
     moment_data.values.front() = std::numeric_limits<double>::infinity();
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomCase{moment_data});
@@ -676,7 +676,7 @@ void test_lean_cqmom_public_api_rejects_invalid_options()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const std::vector<std::size_t> extents{4, 4};
-    const qmomkit::CqmomMomentData moment_data = lean_moments_from_dense(hierarchy, {extents, indexed_values(extents)});
+    const qmomkit::CqmomMomentData moment_data = moment_data_from_tensor(hierarchy, {extents, indexed_values(extents)});
     qmomkit::CqmomCase cqmom_case{moment_data};
     cqmom_case.conditional_options.singular_tolerance = 0.0;
 
@@ -691,7 +691,7 @@ void test_lean_cqmom_public_api_rejects_incompatible_layout()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2});
     const qmomkit::PhaseSpaceHierarchy incompatible_hierarchy({2, 2, 2}, {2, 0, 1});
-    const qmomkit::CqmomMomentData moment_data = lean_moments_from_dense(incompatible_hierarchy, {{4, 4, 4}, indexed_values({4, 4, 4})});
+    const qmomkit::CqmomMomentData moment_data = moment_data_from_tensor(incompatible_hierarchy, {{4, 4, 4}, indexed_values({4, 4, 4})});
     qmomkit::CqmomCase cqmom_case{moment_data};
     cqmom_case.moments.layout.hierarchy = hierarchy;
 

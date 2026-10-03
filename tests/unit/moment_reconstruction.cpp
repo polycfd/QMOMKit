@@ -115,8 +115,8 @@ std::vector<double> manufactured_terminal_moments(const std::vector<std::size_t>
     return moments;
 }
 
-void compare_cqmom_moment_data_reconstruction_to_dense(const qmomkit::PhaseSpaceHierarchy& hierarchy, const std::vector<double>& weights,
-                                                       const std::vector<std::vector<double>>& abscissas, const double tolerance)
+void compare_cqmom_moment_data_reconstruction_to_moment_tensor(const qmomkit::PhaseSpaceHierarchy& hierarchy, const std::vector<double>& weights,
+                                                               const std::vector<std::vector<double>>& abscissas, const double tolerance)
 {
     const std::vector<std::size_t> extents = hierarchy.moment_extents();
     const std::vector<double> moments = manufactured_terminal_moments(extents, weights, abscissas);
@@ -126,8 +126,8 @@ void compare_cqmom_moment_data_reconstruction_to_dense(const qmomkit::PhaseSpace
     assert(cqmom.quadrature.has_rectangular_storage());
 
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::RawMomentTensor dense_reconstructed = qmomkit::reconstruct_raw_moments(cqmom.quadrature, extents);
-    const qmomkit::CqmomMomentData required_moment_data = qmomkit::extract_cqmom_moments(dense_reconstructed, layout);
+    const qmomkit::RawMomentTensor moment_tensor_reconstructed = qmomkit::reconstruct_raw_moments(cqmom.quadrature, extents);
+    const qmomkit::CqmomMomentData required_moment_data = qmomkit::extract_cqmom_moments(moment_tensor_reconstructed, layout);
     const qmomkit::CqmomMomentData moment_data_reconstructed = qmomkit::reconstruct_cqmom_moments(cqmom.quadrature, layout);
 
     assert(moment_data_reconstructed.layout.hierarchy.node_counts() == layout.hierarchy.node_counts());
@@ -332,7 +332,7 @@ void test_cqmom_moment_data_reconstructs_2d_required_moments()
     const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
 
-    compare_cqmom_moment_data_reconstruction_to_dense(hierarchy, weights, abscissas, 1.0e-10);
+    compare_cqmom_moment_data_reconstruction_to_moment_tensor(hierarchy, weights, abscissas, 1.0e-10);
 }
 
 void test_cqmom_moment_data_reconstructs_3d_required_moments()
@@ -342,7 +342,7 @@ void test_cqmom_moment_data_reconstructs_3d_required_moments()
     const std::vector<std::vector<double>> abscissas{
         {-1.0, -1.0, -1.0, -1.0, 1.5, 1.5, 1.5, 1.5}, {-0.75, -0.75, 1.25, 1.25, -0.75, -0.75, 1.25, 1.25}, {0.2, 1.4, 0.2, 1.4, 0.2, 1.4, 0.2, 1.4}};
 
-    compare_cqmom_moment_data_reconstruction_to_dense(hierarchy, weights, abscissas, 1.0e-9);
+    compare_cqmom_moment_data_reconstruction_to_moment_tensor(hierarchy, weights, abscissas, 1.0e-9);
 }
 
 void test_cqmom_moment_data_preserves_non_identity_conditioning_order()
@@ -352,7 +352,7 @@ void test_cqmom_moment_data_preserves_non_identity_conditioning_order()
     const std::vector<std::vector<double>> abscissas{
         {-1.0, -1.0, -1.0, -1.0, 1.5, 1.5, 1.5, 1.5}, {-0.75, -0.75, 1.25, 1.25, -0.75, -0.75, 1.25, 1.25}, {0.2, 1.4, 0.2, 1.4, 0.2, 1.4, 0.2, 1.4}};
 
-    compare_cqmom_moment_data_reconstruction_to_dense(hierarchy, weights, abscissas, 1.0e-9);
+    compare_cqmom_moment_data_reconstruction_to_moment_tensor(hierarchy, weights, abscissas, 1.0e-9);
 }
 
 void test_cqmom_moment_data_reconstructs_unequal_node_counts()
@@ -361,7 +361,7 @@ void test_cqmom_moment_data_reconstructs_unequal_node_counts()
     const std::vector<double> weights{0.12, 0.28, 0.18, 0.42};
     const std::vector<std::vector<double>> abscissas{{-1.2, -1.2, 1.8, 1.8}, {0.75, 0.75, 0.75, 0.75}, {-0.4, 1.6, -0.4, 1.6}};
 
-    compare_cqmom_moment_data_reconstruction_to_dense(hierarchy, weights, abscissas, 1.0e-9);
+    compare_cqmom_moment_data_reconstruction_to_moment_tensor(hierarchy, weights, abscissas, 1.0e-9);
 }
 
 void test_cqmom_reconstructs_adaptive_terminal_moments()

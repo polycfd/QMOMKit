@@ -87,29 +87,31 @@ void test_selected_initialization_matches_dense_tensor()
     const std::vector<std::size_t> maximum_orders{1, 2, 3};
     const std::vector<qmomkit::MultiIndex> requested{{0, 0, 0}, {1, 0, 0}, {0, 2, 0}, {1, 2, 3}, {0, 1, 1}};
 
-    const qmomkit::monte_carlo::TensorSampledInitialization dense = qmomkit::monte_carlo::sample_initialization(product, maximum_orders, options);
+    const qmomkit::monte_carlo::TensorSampledInitialization tensor_initialization =
+        qmomkit::monte_carlo::sample_initialization(product, maximum_orders, options);
     const qmomkit::monte_carlo::SelectedSampledInitialization selected =
         qmomkit::monte_carlo::sample_initialization(product, qmomkit::RawMomentRequest{requested}, options);
 
-    CHECK(dense.ok());
+    CHECK(tensor_initialization.ok());
     CHECK(selected.ok());
 
     // The two overloads differ only in which moments they evaluate. Identical
     // sampling options draw the identical ensemble, so every shared index must
     // carry the same estimate; that equality is what lets a caller choose the
     // requested form purely to avoid evaluating the rest of the rectangle.
-    CHECK(selected.sampling.ensemble.size() == dense.sampling.ensemble.size());
-    CHECK(selected.sampling.seed == dense.sampling.seed);
-    CHECK(selected.sampling.number_density == dense.sampling.number_density);
+    CHECK(selected.sampling.ensemble.size() == tensor_initialization.sampling.ensemble.size());
+    CHECK(selected.sampling.seed == tensor_initialization.sampling.seed);
+    CHECK(selected.sampling.number_density == tensor_initialization.sampling.number_density);
     CHECK(selected.moments.indices == requested);
     CHECK(selected.moments.values.size() == requested.size());
     CHECK(selected.moments.standard_errors.size() == requested.size());
 
     for (std::size_t entry = 0; entry < requested.size(); ++entry)
     {
-        const std::size_t flat = qmomkit::flatten_multi_index(requested[entry], dense.moments.moments.extents);
-        check_close_relative(selected.moments.values[entry], dense.moments.moments.values[flat], 1.0e-14, "requested entry " + std::to_string(entry));
-        check_close_relative(selected.moments.standard_errors[entry], dense.moments.standard_errors[flat], 1.0e-14,
+        const std::size_t flat = qmomkit::flatten_multi_index(requested[entry], tensor_initialization.moments.moments.extents);
+        check_close_relative(selected.moments.values[entry], tensor_initialization.moments.moments.values[flat], 1.0e-14,
+                             "requested entry " + std::to_string(entry));
+        check_close_relative(selected.moments.standard_errors[entry], tensor_initialization.moments.standard_errors[flat], 1.0e-14,
                              "requested standard error " + std::to_string(entry));
     }
 }

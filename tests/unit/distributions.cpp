@@ -106,69 +106,69 @@ void test_selected_raw_moment_invalid_requests()
     assert_vector_equal(nonfinite_value.failed_order, {3});
 }
 
-void assert_selected_matches_dense(const qmomkit::DistributionSpecification& distribution, const qmomkit::RawMomentRequest& request,
-                                   const double total_weight, const std::size_t maximum_order, const double tolerance)
+void assert_selected_matches_all_orders(const qmomkit::DistributionSpecification& distribution, const qmomkit::RawMomentRequest& request,
+                                        const double total_weight, const std::size_t maximum_order, const double tolerance)
 {
-    const qmomkit::RawMomentResult dense = qmomkit::compute_raw_moments(distribution, maximum_order, total_weight);
+    const qmomkit::RawMomentResult all_orders = qmomkit::compute_raw_moments(distribution, maximum_order, total_weight);
     const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(distribution, request, total_weight);
 
-    assert(dense.ok());
+    assert(all_orders.ok());
     assert(selected.ok());
     assert(selected.indices == request.indices);
     assert(selected.values.size() == request.indices.size());
     for (std::size_t index = 0; index < request.indices.size(); ++index)
     {
         assert(request.indices[index].size() == 1);
-        assert_near(selected.values[index], dense.moments[request.indices[index][0]], tolerance);
+        assert_near(selected.values[index], all_orders.moments[request.indices[index][0]], tolerance);
     }
 }
 
 void test_selected_distribution_contiguous_orders_match_dense()
 {
     const qmomkit::RawMomentRequest request{{{0}, {1}, {2}, {3}}};
-    assert_selected_matches_dense(qmomkit::NormalDistribution{0.5, 1.25}, request, 2.0, 3, 1.0e-13);
-    assert_selected_matches_dense(qmomkit::LogNormalDistribution{0.1, 0.2}, request, 2.0, 3, 1.0e-13);
-    assert_selected_matches_dense(qmomkit::BetaDistribution{2.0, 5.0}, request, 2.0, 3, 1.0e-13);
-    assert_selected_matches_dense(qmomkit::GammaDistribution{1.5, 0.75}, request, 2.0, 3, 1.0e-13);
-    assert_selected_matches_dense(qmomkit::ChiDistribution{4.0}, request, 2.0, 3, 1.0e-13);
-    assert_selected_matches_dense(qmomkit::ChiSquaredDistribution{4.0}, request, 2.0, 3, 1.0e-13);
-    assert_selected_matches_dense(qmomkit::WeibullDistribution{1.5, 0.75}, request, 2.0, 3, 1.0e-13);
+    assert_selected_matches_all_orders(qmomkit::NormalDistribution{0.5, 1.25}, request, 2.0, 3, 1.0e-13);
+    assert_selected_matches_all_orders(qmomkit::LogNormalDistribution{0.1, 0.2}, request, 2.0, 3, 1.0e-13);
+    assert_selected_matches_all_orders(qmomkit::BetaDistribution{2.0, 5.0}, request, 2.0, 3, 1.0e-13);
+    assert_selected_matches_all_orders(qmomkit::GammaDistribution{1.5, 0.75}, request, 2.0, 3, 1.0e-13);
+    assert_selected_matches_all_orders(qmomkit::ChiDistribution{4.0}, request, 2.0, 3, 1.0e-13);
+    assert_selected_matches_all_orders(qmomkit::ChiSquaredDistribution{4.0}, request, 2.0, 3, 1.0e-13);
+    assert_selected_matches_all_orders(qmomkit::WeibullDistribution{1.5, 0.75}, request, 2.0, 3, 1.0e-13);
 }
 
 void test_selected_distribution_noncontiguous_orders_match_dense()
 {
     const qmomkit::RawMomentRequest request{{{0}, {2}, {5}}};
-    assert_selected_matches_dense(qmomkit::NormalDistribution{0.25, 0.75}, request, 1.5, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::LogNormalDistribution{-0.1, 0.15}, request, 1.5, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::BetaDistribution{3.0, 4.0}, request, 1.5, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::GammaDistribution{2.0, 0.5}, request, 1.5, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::ChiDistribution{5.0}, request, 1.5, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::ChiSquaredDistribution{5.0}, request, 1.5, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::WeibullDistribution{2.0, 0.5}, request, 1.5, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::NormalDistribution{0.25, 0.75}, request, 1.5, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::LogNormalDistribution{-0.1, 0.15}, request, 1.5, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::BetaDistribution{3.0, 4.0}, request, 1.5, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::GammaDistribution{2.0, 0.5}, request, 1.5, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::ChiDistribution{5.0}, request, 1.5, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::ChiSquaredDistribution{5.0}, request, 1.5, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::WeibullDistribution{2.0, 0.5}, request, 1.5, 5, 1.0e-12);
 }
 
 void test_selected_distribution_reordered_and_duplicate_orders_match_dense()
 {
     const qmomkit::RawMomentRequest request{{{5}, {0}, {2}, {2}, {1}}};
-    assert_selected_matches_dense(qmomkit::NormalDistribution{0.25, 0.75}, request, 1.25, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::LogNormalDistribution{-0.1, 0.15}, request, 1.25, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::BetaDistribution{3.0, 4.0}, request, 1.25, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::GammaDistribution{2.0, 0.5}, request, 1.25, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::ChiDistribution{5.0}, request, 1.25, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::ChiSquaredDistribution{5.0}, request, 1.25, 5, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::WeibullDistribution{2.0, 0.5}, request, 1.25, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::NormalDistribution{0.25, 0.75}, request, 1.25, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::LogNormalDistribution{-0.1, 0.15}, request, 1.25, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::BetaDistribution{3.0, 4.0}, request, 1.25, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::GammaDistribution{2.0, 0.5}, request, 1.25, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::ChiDistribution{5.0}, request, 1.25, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::ChiSquaredDistribution{5.0}, request, 1.25, 5, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::WeibullDistribution{2.0, 0.5}, request, 1.25, 5, 1.0e-12);
 }
 
 void test_selected_distribution_high_order_gaps_match_dense()
 {
     const qmomkit::RawMomentRequest request{{{0}, {1}, {12}}};
-    assert_selected_matches_dense(qmomkit::NormalDistribution{0.1, 0.5}, request, 1.0, 12, 1.0e-9);
-    assert_selected_matches_dense(qmomkit::LogNormalDistribution{-0.05, 0.1}, request, 1.0, 12, 1.0e-9);
-    assert_selected_matches_dense(qmomkit::BetaDistribution{2.0, 3.0}, request, 1.0, 12, 1.0e-12);
-    assert_selected_matches_dense(qmomkit::GammaDistribution{1.5, 0.25}, request, 1.0, 12, 1.0e-9);
-    assert_selected_matches_dense(qmomkit::ChiDistribution{3.0}, request, 1.0, 12, 1.0e-8);
-    assert_selected_matches_dense(qmomkit::ChiSquaredDistribution{3.0}, request, 1.0, 12, 1.0e-6);
-    assert_selected_matches_dense(qmomkit::WeibullDistribution{2.0, 0.25}, request, 1.0, 12, 1.0e-9);
+    assert_selected_matches_all_orders(qmomkit::NormalDistribution{0.1, 0.5}, request, 1.0, 12, 1.0e-9);
+    assert_selected_matches_all_orders(qmomkit::LogNormalDistribution{-0.05, 0.1}, request, 1.0, 12, 1.0e-9);
+    assert_selected_matches_all_orders(qmomkit::BetaDistribution{2.0, 3.0}, request, 1.0, 12, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::GammaDistribution{1.5, 0.25}, request, 1.0, 12, 1.0e-9);
+    assert_selected_matches_all_orders(qmomkit::ChiDistribution{3.0}, request, 1.0, 12, 1.0e-8);
+    assert_selected_matches_all_orders(qmomkit::ChiSquaredDistribution{3.0}, request, 1.0, 12, 1.0e-6);
+    assert_selected_matches_all_orders(qmomkit::WeibullDistribution{2.0, 0.25}, request, 1.0, 12, 1.0e-9);
 }
 
 void test_selected_distribution_zero_total_weight()
@@ -346,12 +346,12 @@ void test_normal_zero_mean_large_variance_does_not_spuriously_report_non_finite(
 
     const qmomkit::NormalDistribution distribution{0.0, large_standard_deviation};
 
-    const qmomkit::RawMomentResult dense = qmomkit::compute_raw_moments(distribution, 3);
-    assert(dense.ok());
-    assert_near(dense.moments[0], 1.0, 0.0);
-    assert_near(dense.moments[1], 0.0, 0.0);
-    assert_near(dense.moments[2], variance, 0.0);
-    assert_near(dense.moments[3], 0.0, 0.0);
+    const qmomkit::RawMomentResult all_orders = qmomkit::compute_raw_moments(distribution, 3);
+    assert(all_orders.ok());
+    assert_near(all_orders.moments[0], 1.0, 0.0);
+    assert_near(all_orders.moments[1], 0.0, 0.0);
+    assert_near(all_orders.moments[2], variance, 0.0);
+    assert_near(all_orders.moments[3], 0.0, 0.0);
 
     const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(distribution, qmomkit::RawMomentRequest{{{3}}});
     assert(selected.ok());
@@ -492,40 +492,40 @@ void test_mixture_accumulation_overflow_reports_index()
     assert(result.failed_component == 1);
 }
 
-void assert_selected_mixture_matches_dense(const qmomkit::DistributionMixture& mixture, const qmomkit::RawMomentRequest& request,
-                                           const std::size_t maximum_order, const double tolerance)
+void assert_selected_mixture_matches_all_orders(const qmomkit::DistributionMixture& mixture, const qmomkit::RawMomentRequest& request,
+                                                const std::size_t maximum_order, const double tolerance)
 {
-    const qmomkit::RawMomentResult dense = qmomkit::compute_raw_moments(mixture, maximum_order);
+    const qmomkit::RawMomentResult all_orders = qmomkit::compute_raw_moments(mixture, maximum_order);
     const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(mixture, request);
 
-    assert(dense.ok());
+    assert(all_orders.ok());
     assert(selected.ok());
     assert(selected.indices == request.indices);
     assert(selected.values.size() == request.indices.size());
     for (std::size_t index = 0; index < request.indices.size(); ++index)
     {
         assert(request.indices[index].size() == 1);
-        assert_near(selected.values[index], dense.moments[request.indices[index][0]], tolerance);
+        assert_near(selected.values[index], all_orders.moments[request.indices[index][0]], tolerance);
     }
 }
 
 void test_selected_one_component_mixture_matches_dense_subselection()
 {
     const qmomkit::DistributionMixture mixture{{{qmomkit::GammaDistribution{2.0, 3.0}, 4.0}}};
-    assert_selected_mixture_matches_dense(mixture, {{{0}, {2}, {4}}}, 4, 1.0e-12);
+    assert_selected_mixture_matches_all_orders(mixture, {{{0}, {2}, {4}}}, 4, 1.0e-12);
 }
 
 void test_selected_heterogeneous_mixture_matches_dense_subselection()
 {
     const qmomkit::DistributionMixture mixture{
         {{qmomkit::GammaDistribution{2.0, 3.0}, 2.0}, {qmomkit::BetaDistribution{2.0, 3.0}, 5.0}, {qmomkit::NormalDistribution{1.0, 0.5}, 1.5}}};
-    assert_selected_mixture_matches_dense(mixture, {{{0}, {1}, {3}}}, 3, 1.0e-12);
+    assert_selected_mixture_matches_all_orders(mixture, {{{0}, {1}, {3}}}, 3, 1.0e-12);
 }
 
 void test_selected_mixture_preserves_reordered_and_duplicate_requests()
 {
     const qmomkit::DistributionMixture mixture{{{qmomkit::GammaDistribution{1.5, 0.5}, 2.0}, {qmomkit::ChiSquaredDistribution{4.0}, 0.75}}};
-    assert_selected_mixture_matches_dense(mixture, {{{4}, {0}, {2}, {2}, {1}}}, 4, 1.0e-11);
+    assert_selected_mixture_matches_all_orders(mixture, {{{4}, {0}, {2}, {2}, {1}}}, 4, 1.0e-11);
 }
 
 void test_selected_mixture_zero_density_component_is_skipped()
@@ -764,33 +764,33 @@ void test_independent_product_mixture_marginal_is_normalized()
                 number_density * mixture_moments.moments[2] / mixture_moments.moments[0], 1.0e-14);
 }
 
-void assert_selected_product_matches_dense(const qmomkit::IndependentProductDistribution& product, const qmomkit::RawMomentRequest& request,
-                                           const std::vector<std::size_t>& maximum_orders, const double tolerance)
+void assert_selected_product_matches_moment_tensor(const qmomkit::IndependentProductDistribution& product, const qmomkit::RawMomentRequest& request,
+                                                   const std::vector<std::size_t>& maximum_orders, const double tolerance)
 {
-    const qmomkit::TensorMomentResult dense = qmomkit::compute_raw_moments(product, maximum_orders);
+    const qmomkit::TensorMomentResult tensor_result = qmomkit::compute_raw_moments(product, maximum_orders);
     const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(product, request);
 
-    assert(dense.ok());
+    assert(tensor_result.ok());
     assert(selected.ok());
     assert(selected.indices == request.indices);
     assert(selected.values.size() == request.indices.size());
     for (std::size_t index = 0; index < request.indices.size(); ++index)
     {
-        assert_near(selected.values[index], dense.moments.values[qmomkit::flatten_multi_index(request.indices[index], dense.moments.extents)],
-                    tolerance);
+        assert_near(selected.values[index],
+                    tensor_result.moments.values[qmomkit::flatten_multi_index(request.indices[index], tensor_result.moments.extents)], tolerance);
     }
 }
 
 void test_selected_independent_product_one_dimensional_matches_dense()
 {
     const qmomkit::IndependentProductDistribution product{{qmomkit::GammaDistribution{1.5, 2.0}}, 2.5};
-    assert_selected_product_matches_dense(product, {{{0}, {3}, {1}}}, {3}, 1.0e-12);
+    assert_selected_product_matches_moment_tensor(product, {{{0}, {3}, {1}}}, {3}, 1.0e-12);
 }
 
 void test_selected_independent_product_two_dimensional_nonrectangular_matches_dense()
 {
     const qmomkit::IndependentProductDistribution product{{qmomkit::NormalDistribution{2.0, 1.0}, qmomkit::GammaDistribution{1.0, 1.0}}, 3.0};
-    assert_selected_product_matches_dense(product, {{{0, 0}, {2, 1}, {1, 3}}}, {2, 3}, 1.0e-12);
+    assert_selected_product_matches_moment_tensor(product, {{{0, 0}, {2, 1}, {1, 3}}}, {2, 3}, 1.0e-12);
 }
 
 void test_selected_independent_product_mixture_marginal_matches_dense()
@@ -799,20 +799,20 @@ void test_selected_independent_product_mixture_marginal_matches_dense()
         {{qmomkit::LogNormalDistribution{-0.3, 0.25}, 1.5}, {qmomkit::LogNormalDistribution{0.4, 0.45}, 3.25}}};
     const qmomkit::IndependentProductDistribution product{{qmomkit::DistributionSpecification{qmomkit::NormalDistribution{-0.4, 0.7}}, mixture},
                                                           2.75};
-    assert_selected_product_matches_dense(product, {{{1, 0}, {0, 1}, {1, 1}, {0, 2}}}, {1, 2}, 1.0e-12);
+    assert_selected_product_matches_moment_tensor(product, {{{1, 0}, {0, 1}, {1, 1}, {0, 2}}}, {1, 2}, 1.0e-12);
 }
 
 void test_selected_independent_product_three_dimensional_matches_dense()
 {
     const qmomkit::IndependentProductDistribution product{
         {qmomkit::NormalDistribution{1.0, 0.5}, qmomkit::BetaDistribution{2.0, 3.0}, qmomkit::ChiSquaredDistribution{4.0}}, 1.25};
-    assert_selected_product_matches_dense(product, {{{0, 0, 0}, {2, 1, 3}, {1, 2, 0}}}, {2, 2, 3}, 1.0e-10);
+    assert_selected_product_matches_moment_tensor(product, {{{0, 0, 0}, {2, 1, 3}, {1, 2, 0}}}, {2, 2, 3}, 1.0e-10);
 }
 
 void test_selected_independent_product_preserves_reordered_and_duplicate_indices()
 {
     const qmomkit::IndependentProductDistribution product{{qmomkit::NormalDistribution{2.0, 1.0}, qmomkit::GammaDistribution{1.0, 1.0}}, 3.0};
-    assert_selected_product_matches_dense(product, {{{1, 2}, {0, 0}, {1, 2}, {0, 1}}}, {1, 2}, 1.0e-12);
+    assert_selected_product_matches_moment_tensor(product, {{{1, 2}, {0, 0}, {1, 2}, {0, 1}}}, {1, 2}, 1.0e-12);
 }
 
 void test_selected_independent_product_zero_global_density_skips_marginals()
@@ -916,12 +916,12 @@ void test_selected_independent_product_matches_cqmom_layout_subselection()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::IndependentProductDistribution product{{qmomkit::GammaDistribution{1.5, 0.5}, qmomkit::BetaDistribution{2.0, 3.0}}, 2.0};
 
-    const qmomkit::TensorMomentResult dense = qmomkit::compute_raw_moments(product, {3, 3});
-    const qmomkit::CqmomMomentData required_moment_data = qmomkit::extract_cqmom_moments(dense.moments, layout);
+    const qmomkit::TensorMomentResult tensor_result = qmomkit::compute_raw_moments(product, {3, 3});
+    const qmomkit::CqmomMomentData required_moment_data = qmomkit::extract_cqmom_moments(tensor_result.moments, layout);
     const qmomkit::SelectedRawMomentResult selected =
         qmomkit::compute_raw_moments(product, qmomkit::RawMomentRequest{layout.required_indices.to_multi_indices()});
 
-    assert(dense.ok());
+    assert(tensor_result.ok());
     assert(selected.ok());
     assert(selected.indices == layout.required_indices.to_multi_indices());
     assert(selected.values.size() == required_moment_data.values.size());

@@ -76,8 +76,8 @@ int main()
     const qmomkit::RawMomentTensor cqmom_moment_tensor{{2, 2}, {1.0, 0.0, 0.0, 0.0}};
 
     qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(cqmom_moment_tensor, qmomkit::create_cqmom_moment_layout(cqmom_hierarchy))};
-    const qmomkit::CqmomResult lean_static = qmomkit::compute_cqmom(cqmom_case);
-    if (!lean_static.ok())
+    const qmomkit::CqmomResult cqmom_result = qmomkit::compute_cqmom(cqmom_case);
+    if (!cqmom_result.ok())
     {
         return 1;
     }
@@ -98,13 +98,13 @@ int main()
     {
         return 1;
     }
-    const qmomkit::CqmomState lean_state = qmomkit::CqmomPreparedCase{std::move(cqmom_case)}.initial_state();
-    if (lean_state.quadrature().total_nodes() != 1 || lean_state.quadrature().weights().size() != 1)
+    const qmomkit::CqmomState cqmom_prepared_case_state = qmomkit::CqmomPreparedCase{std::move(cqmom_case)}.initial_state();
+    if (cqmom_prepared_case_state.quadrature().total_nodes() != 1 || cqmom_prepared_case_state.quadrature().weights().size() != 1)
     {
         return 1;
     }
 
-    const auto base_case_result = qmomkit::config::parse_cqmom_prepared(R"(
+    const auto base_cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(R"(
 [phase_space]
 node_counts = 1, 1
 
@@ -115,17 +115,18 @@ M[0,1] = 0.0
 M[1,0] = 0.0
 M[1,1] = 0.0
 )");
-    if (!base_case_result.ok())
+    if (!base_cqmom_prepared_case_result.ok())
     {
         return 1;
     }
 
-    const auto replaced_case_result = qmomkit::config::with_initial_moments(base_case_result.value(), {{2, 2}, {1.0, 0.5, 1.0, 0.5}});
-    if (!replaced_case_result.ok())
+    const auto replaced_cqmom_prepared_case_result =
+        qmomkit::config::with_initial_moments(base_cqmom_prepared_case_result.value(), {{2, 2}, {1.0, 0.5, 1.0, 0.5}});
+    if (!replaced_cqmom_prepared_case_result.ok())
     {
         return 1;
     }
-    const qmomkit::CqmomState replaced_state = replaced_case_result.value().initial_state();
+    const qmomkit::CqmomState replaced_state = replaced_cqmom_prepared_case_result.value().initial_state();
     if (replaced_state.moment_values().empty())
     {
         return 1;

@@ -694,9 +694,9 @@ sigma_log = 0.45
         expected[flat_index] = analytical_moment(qmomkit::unflatten_multi_index(flat_index, extents));
     }
 
-    const qmomkit::TensorMomentResult dense = qmomkit::compute_raw_moments(independent_product->distribution, {3, 3});
-    assert_tensor(dense, extents, expected, 1.0e-12, 1.0e-12);
-    assert_near_absolute_relative(dense.moments.values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);
+    const qmomkit::TensorMomentResult tensor_result = qmomkit::compute_raw_moments(independent_product->distribution, {3, 3});
+    assert_tensor(tensor_result, extents, expected, 1.0e-12, 1.0e-12);
+    assert_near_absolute_relative(tensor_result.moments.values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);
 
     const qmomkit::RawMomentRequest request{{{0, 0}, {1, 0}, {0, 1}, {1, 1}, {0, 2}, {2, 3}}};
     const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(independent_product->distribution, request);

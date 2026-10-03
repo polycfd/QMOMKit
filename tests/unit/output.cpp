@@ -374,24 +374,24 @@ void test_cqmom_state_generalized_moment_output()
         hierarchy, weights, abscissas, false, true,
         {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 1}), qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})});
 
-    std::vector<double> dense_values = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
-    dense_values[qmomkit::flatten_multi_index({1, 0}, extents)] += 7.0;
+    std::vector<double> tensor_values = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
+    tensor_values[qmomkit::flatten_multi_index({1, 0}, extents)] += 7.0;
     const std::vector<std::vector<double>> orders{{1.0, 1.5}, {0.5, 0.0}, {1.0, 1.5}};
     qmomkit::OutputOptions output_options;
     output_options.generalized_moment_orders = orders;
 
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    std::vector<double> lean_values;
-    lean_values.reserve(layout.required_indices.size());
+    std::vector<double> required_values;
+    required_values.reserve(layout.required_indices.size());
     for (const qmomkit::MultiIndexView index : layout.required_indices)
     {
-        lean_values.push_back(dense_values[qmomkit::flatten_multi_index(index, extents)]);
+        required_values.push_back(tensor_values[qmomkit::flatten_multi_index(index, extents)]);
     }
     const qmomkit::CqmomState state =
-        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomCase{qmomkit::CqmomMomentData{layout, lean_values}, {}, {}});
-    const std::filesystem::path lean_path = temporary_output_path("qmomkit_cqmom_state_generalized_lean");
+        qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomCase{qmomkit::CqmomMomentData{layout, required_values}, {}, {}});
+    const std::filesystem::path state_path = temporary_output_path("qmomkit_cqmom_state_generalized_lean");
     {
-        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(lean_path, state, output_options);
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(state_path, state, output_options);
         writer.write(0.25, state, quadrature);
     }
     std::string expected = "# time";
@@ -406,7 +406,7 @@ void test_cqmom_state_generalized_moment_output()
     }
     // Independently prescribed positive nodes give G[1,1.5] = 995.2 and G[0.5,0] = 3.
     expected += " " + format_scientific(995.2) + " " + format_scientific(3.0) + " " + format_scientific(995.2) + "\n";
-    assert_text_ignore_whitespaces(read_text_file(lean_path), expected);
+    assert_text_ignore_whitespaces(read_text_file(state_path), expected);
 
     const std::filesystem::path invalid_path = temporary_output_path("qmomkit_cqmom_state_generalized_invalid");
     qmomkit::OutputOptions invalid_rank_options;
@@ -424,7 +424,7 @@ void test_cqmom_state_generalized_moment_output()
             writer.write(0.0, state, negative);
         });
 
-    std::filesystem::remove(lean_path);
+    std::filesystem::remove(state_path);
     std::filesystem::remove(invalid_path);
 }
 
@@ -500,20 +500,20 @@ void test_writer_rejects_rows_from_other_factories()
     const std::vector<std::size_t> extents{4, 4};
     const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.5, -0.5, 1.5}};
-    const std::vector<double> dense_moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
+    const std::vector<double> tensor_values = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(
-        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, dense_moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, tensor_values}, qmomkit::create_cqmom_moment_layout(hierarchy))});
     assert(result.ok());
 
     const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<double> layout_values(moment_layout.required_indices.size(), 1.0);
     const qmomkit::CqmomState cqmom_state = qmomkit::internal::CqmomConstructionAccess::create_state(
-        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, dense_moments}, moment_layout), {}, {}});
+        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, tensor_values}, moment_layout), {}, {}});
     const qmomkit::QmomState qmom_state = qmomkit::QmomCase{qmomkit::MomentSet{1.0, 4.0}, 1}.initial_state();
 
     const std::string qmom_factory = "MomentWriter::for_qmom(path, moment_count[, output_options]) or MomentWriter::for_qmom(path, selected_orders)";
     const std::string qmom_state_factory = "MomentWriter::for_qmom(path, qmom_state, output_options)";
-    const std::string dense_factory = "MomentWriter::for_cqmom(path, extents, ...)";
+    const std::string moment_tensor_factory = "MomentWriter::for_cqmom(path, extents, ...)";
     const std::string moment_data_factory = "MomentWriter::for_cqmom(path, cqmom_moment_layout, ...)";
     const std::string cqmom_state_factory = "MomentWriter::for_cqmom(path, cqmom_state, output_options)";
     const std::string requested_factory = "MomentWriter::for_cqmom(path, raw_moment_request)";
@@ -533,9 +533,9 @@ void test_writer_rejects_rows_from_other_factories()
          [](qmomkit::MomentWriter& writer) { writer.write(0.0, qmomkit::MomentSet({1.0}), qmomkit::Quadrature1D{{1.0}, {1.0}}); }},
         {"write(time, QmomState, QmomResult)", qmom_state_factory,
          [&qmom_state](qmomkit::MomentWriter& writer) { writer.write(0.0, qmom_state, qmomkit::QmomResult{{1.0}, {1.0}}); }},
-        {"write(time, RawMomentTensor)", dense_factory,
+        {"write(time, RawMomentTensor)", moment_tensor_factory,
          [](qmomkit::MomentWriter& writer) { writer.write(0.0, qmomkit::RawMomentTensor{{2}, {1.0, 2.0}}); }},
-        {"write(time, RawMomentTensor, generalized_values)", dense_factory,
+        {"write(time, RawMomentTensor, generalized_values)", moment_tensor_factory,
          [](qmomkit::MomentWriter& writer) { writer.write(0.0, qmomkit::RawMomentTensor{{2}, {1.0, 2.0}}, std::vector<double>{}); }},
         {"write(time, CqmomMomentData)", moment_data_factory, [&moment_layout, &layout_values](qmomkit::MomentWriter& writer)
          { writer.write(0.0, qmomkit::CqmomMomentData{moment_layout, layout_values}); }},
@@ -571,7 +571,7 @@ void test_writer_rejects_rows_from_other_factories()
                                 [](const std::filesystem::path& path) { return qmomkit::MomentWriter::for_qmom(path, 1); });
     assert_rejects_foreign_rows("qmomkit_pairing_qmom_state", qmom_state_factory, [&qmom_state](const std::filesystem::path& path)
                                 { return qmomkit::MomentWriter::for_qmom(path, qmom_state, qmomkit::OutputOptions{}); });
-    assert_rejects_foreign_rows("qmomkit_pairing_cqmom_dense", dense_factory, [](const std::filesystem::path& path)
+    assert_rejects_foreign_rows("qmomkit_pairing_cqmom_dense", moment_tensor_factory, [](const std::filesystem::path& path)
                                 { return qmomkit::MomentWriter::for_cqmom(path, std::vector<std::size_t>{2}); });
     assert_rejects_foreign_rows("qmomkit_pairing_cqmom_moment_data", moment_data_factory, [&moment_layout](const std::filesystem::path& path)
                                 { return qmomkit::MomentWriter::for_cqmom(path, moment_layout); });
@@ -806,15 +806,15 @@ void test_writer_rejects_generalized_moments_without_values()
     }
     std::filesystem::remove(qmom_path);
 
-    const std::filesystem::path cqmom_dense_path = temporary_output_path("qmomkit_cqmom_dense_generalized_required");
+    const std::filesystem::path cqmom_moment_tensor_path = temporary_output_path("qmomkit_cqmom_dense_generalized_required");
     {
         qmomkit::MomentWriter writer =
-            qmomkit::MomentWriter::for_cqmom(cqmom_dense_path, std::vector<std::size_t>{2}, std::vector<qmomkit::MultiIndex>{{0}}, {{1.0}});
+            qmomkit::MomentWriter::for_cqmom(cqmom_moment_tensor_path, std::vector<std::size_t>{2}, std::vector<qmomkit::MultiIndex>{{0}}, {{1.0}});
         assert_throws_invalid_argument_message([&writer] { writer.write(0.0, qmomkit::RawMomentTensor{{2}, {1.0, 2.0}}); },
                                                "MomentWriter::write(time, RawMomentTensor) cannot supply the writer's generalized-moment columns; "
                                                "use write(time, RawMomentTensor, generalized_values).");
     }
-    std::filesystem::remove(cqmom_dense_path);
+    std::filesystem::remove(cqmom_moment_tensor_path);
 
     const std::filesystem::path cqmom_moment_data_path = temporary_output_path("qmomkit_cqmom_moment_data_generalized_required");
     {

@@ -137,8 +137,8 @@ qmomkit::RawMomentTensor product_moment_tensor(const std::size_t dimensions)
 qmomkit::CqmomPreparedCase make_cqmom_prepared_case(const std::vector<std::size_t>& node_counts)
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy(node_counts);
-    const qmomkit::RawMomentTensor dense = product_moment_tensor(node_counts.size());
-    qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(dense, qmomkit::create_cqmom_moment_layout(hierarchy))};
+    const qmomkit::RawMomentTensor moment_tensor = product_moment_tensor(node_counts.size());
+    qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(moment_tensor, qmomkit::create_cqmom_moment_layout(hierarchy))};
     return qmomkit::CqmomPreparedCase{std::move(cqmom_case)};
 }
 

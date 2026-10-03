@@ -26,27 +26,29 @@ void check_empty_failure(const SelectedEnsembleMomentEstimate& result)
     CHECK(!result.message.empty());
 }
 
-void check_selected_matches_dense(const Ensemble& ensemble, const double number_density, const RawMomentRequest& request,
-                                  const std::vector<std::size_t>& maximum_orders)
+void check_selected_matches_moment_tensor(const Ensemble& ensemble, const double number_density, const RawMomentRequest& request,
+                                          const std::vector<std::size_t>& maximum_orders)
 {
     const SelectedEnsembleMomentEstimate selected = qmomkit::monte_carlo::compute_requested_ensemble_moments(ensemble, number_density, request);
-    const qmomkit::monte_carlo::TensorMomentEstimate dense = qmomkit::monte_carlo::compute_ensemble_moments(ensemble, number_density, maximum_orders);
+    const qmomkit::monte_carlo::TensorMomentEstimate tensor_estimate =
+        qmomkit::monte_carlo::compute_ensemble_moments(ensemble, number_density, maximum_orders);
 
     CHECK(selected.ok());
-    CHECK(dense.ok());
+    CHECK(tensor_estimate.ok());
     CHECK(selected.indices == request.indices);
     CHECK(selected.values.size() == request.indices.size());
     CHECK(selected.standard_errors.size() == request.indices.size());
 
     for (std::size_t requested = 0; requested < request.indices.size(); ++requested)
     {
-        const std::size_t flat = qmomkit::flatten_multi_index(request.indices[requested], dense.moments.extents);
+        const std::size_t flat = qmomkit::flatten_multi_index(request.indices[requested], tensor_estimate.moments.extents);
         const double value_tolerance = 64.0 * std::numeric_limits<double>::epsilon() *
-                                       std::max({1.0, std::abs(selected.values[requested]), std::abs(dense.moments.values[flat])});
-        const double error_tolerance = 64.0 * std::numeric_limits<double>::epsilon() *
-                                       std::max({1.0, std::abs(selected.standard_errors[requested]), std::abs(dense.standard_errors[flat])});
-        CHECK_CLOSE(selected.values[requested], dense.moments.values[flat], value_tolerance);
-        CHECK_CLOSE(selected.standard_errors[requested], dense.standard_errors[flat], error_tolerance);
+                                       std::max({1.0, std::abs(selected.values[requested]), std::abs(tensor_estimate.moments.values[flat])});
+        const double error_tolerance =
+            64.0 * std::numeric_limits<double>::epsilon() *
+            std::max({1.0, std::abs(selected.standard_errors[requested]), std::abs(tensor_estimate.standard_errors[flat])});
+        CHECK_CLOSE(selected.values[requested], tensor_estimate.moments.values[flat], value_tolerance);
+        CHECK_CLOSE(selected.standard_errors[requested], tensor_estimate.standard_errors[flat], error_tolerance);
     }
 }
 
@@ -72,7 +74,7 @@ void test_selected_multidimensional_moments_match_dense()
     const Ensemble ensemble{{-2.0, 1.0}, {3.0, -4.0}};
     const RawMomentRequest request{{{2, 1}, {0, 0}, {1, 2}, {2, 1}, {1, 0}}};
 
-    check_selected_matches_dense(ensemble, 4.0, request, {2, 2});
+    check_selected_matches_moment_tensor(ensemble, 4.0, request, {2, 2});
 
     const SelectedEnsembleMomentEstimate result = qmomkit::monte_carlo::compute_requested_ensemble_moments(ensemble, 4.0, request);
     CHECK_CLOSE(result.values[1], 4.0, 0.0);

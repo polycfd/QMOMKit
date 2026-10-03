@@ -1125,7 +1125,7 @@ TensorMomentResult compute_raw_moments(const IndependentProductDistribution& dis
     }
     catch (const std::exception& exception)
     {
-        return invalid_tensor_input(std::string("Independent product tensor extents are invalid: ") + exception.what());
+        return invalid_tensor_input(std::string("The extents of the full tensor of raw moments are invalid: ") + exception.what());
     }
 
     if (distribution.number_density == 0.0)
@@ -1190,10 +1190,6 @@ TensorMomentResult compute_raw_moments(const IndependentProductDistribution& dis
         values[flat_index] = value;
     }
 
-    if (values.size() != n_tensor_values)
-    {
-        return invalid_tensor_input("Independent product tensor data size does not match its extents.");
-    }
     return TensorMomentResult{RawMomentTensor{std::move(extents), std::move(values)}, RawMomentStatus::success, "", invalid_dimension_index, {}};
 }
 

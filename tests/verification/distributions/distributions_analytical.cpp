@@ -531,9 +531,9 @@ scale = 0.75
 
     // The conditioning order is phase-space configuration rather than moment
     // data, so it is checked on the parsed case rather than on the tensor.
-    const auto configured_case = qmomkit::config::parse_cqmom(configuration_text);
-    QMOMKIT_VERIFY_CHECK(configured_case.ok());
-    QMOMKIT_VERIFY_CHECK(configured_case.value().moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
+    const auto configured_case_result = qmomkit::config::parse_cqmom(configuration_text);
+    QMOMKIT_VERIFY_CHECK(configured_case_result.ok());
+    QMOMKIT_VERIFY_CHECK(configured_case_result.value().moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
 
     assert_tensor_values(configured.value(), extents, expected, 1.0e-12, 1.0e-12);
     assert_near_absolute_relative(configured.value().values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);
@@ -694,9 +694,9 @@ sigma_log = 0.45
         expected[flat_index] = analytical_moment(qmomkit::unflatten_multi_index(flat_index, extents));
     }
 
-    const qmomkit::TensorMomentResult dense = qmomkit::compute_raw_moments(independent_product->distribution, {3, 3});
-    assert_tensor(dense, extents, expected, 1.0e-12, 1.0e-12);
-    assert_near_absolute_relative(dense.moments.values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);
+    const qmomkit::TensorMomentResult tensor_result = qmomkit::compute_raw_moments(independent_product->distribution, {3, 3});
+    assert_tensor(tensor_result, extents, expected, 1.0e-12, 1.0e-12);
+    assert_near_absolute_relative(tensor_result.moments.values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);
 
     const qmomkit::RawMomentRequest request{{{0, 0}, {1, 0}, {0, 1}, {1, 1}, {0, 2}, {2, 3}}};
     const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(independent_product->distribution, request);
@@ -1011,94 +1011,6 @@ void verify_independent_product_tensor_overflow()
 }
 
 } // namespace
-
-void run_all_distribution_analytical_tests()
-{
-    verify_standard_normal();
-    verify_shifted_scaled_normal();
-    verify_log_normal();
-    verify_beta();
-    verify_gamma();
-    verify_chi_squared();
-    verify_weibull_gamma_identity();
-    verify_chi();
-    verify_weibull();
-    verify_maximum_order_zero_and_invalid_parameters();
-    verify_configuration_distribution_initialization();
-    verify_configuration_mixture_initialization();
-    verify_configuration_independent_product_two_dimensional();
-    verify_configuration_independent_product_normal_gamma();
-    verify_configuration_independent_product_beta_log_normal_weibull();
-    verify_configuration_independent_product_dimension_sweep();
-    verify_configuration_independent_product_mixture_marginal();
-    verify_one_component_mixture_equivalence();
-    verify_bimodal_normal_mixture();
-    verify_heterogeneous_gamma_log_normal_mixture();
-    verify_three_component_multimodal_mixture();
-    verify_zero_density_mixture_component_policy();
-    verify_strongly_unequal_component_densities();
-    verify_normal_odd_moment_cancellation();
-    verify_component_order_permutation_invariance();
-    verify_large_total_density_is_not_normalized();
-    verify_mixture_accumulation_overflow();
-    verify_invalid_mixture_density();
-    verify_independent_product_one_dimensional_equivalence();
-    verify_independent_product_normal_gamma();
-    verify_independent_product_beta_log_normal_weibull();
-    verify_independent_product_signed_odd_moments();
-    verify_independent_product_zero_density();
-    verify_independent_product_tensor_overflow();
-}
-
-void run_distribution_family_analytical_tests()
-{
-    verify_standard_normal();
-    verify_shifted_scaled_normal();
-    verify_log_normal();
-    verify_beta();
-    verify_gamma();
-    verify_chi_squared();
-    verify_weibull_gamma_identity();
-    verify_chi();
-    verify_weibull();
-    verify_maximum_order_zero_and_invalid_parameters();
-}
-
-void run_mixture_analytical_tests()
-{
-    verify_one_component_mixture_equivalence();
-    verify_bimodal_normal_mixture();
-    verify_heterogeneous_gamma_log_normal_mixture();
-    verify_three_component_multimodal_mixture();
-    verify_zero_density_mixture_component_policy();
-    verify_strongly_unequal_component_densities();
-    verify_normal_odd_moment_cancellation();
-    verify_component_order_permutation_invariance();
-    verify_large_total_density_is_not_normalized();
-    verify_mixture_accumulation_overflow();
-    verify_invalid_mixture_density();
-}
-
-void run_independent_product_analytical_tests()
-{
-    verify_independent_product_one_dimensional_equivalence();
-    verify_independent_product_normal_gamma();
-    verify_independent_product_beta_log_normal_weibull();
-    verify_independent_product_signed_odd_moments();
-    verify_independent_product_zero_density();
-    verify_independent_product_tensor_overflow();
-}
-
-void run_configuration_initialization_tests()
-{
-    verify_configuration_distribution_initialization();
-    verify_configuration_mixture_initialization();
-    verify_configuration_independent_product_two_dimensional();
-    verify_configuration_independent_product_normal_gamma();
-    verify_configuration_independent_product_beta_log_normal_weibull();
-    verify_configuration_independent_product_dimension_sweep();
-    verify_configuration_independent_product_mixture_marginal();
-}
 
 int main(const int argc, char** argv)
 {

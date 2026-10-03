@@ -738,24 +738,24 @@ CqmomFallbackFixture cqmom_2d_parent_n3_to_n2_fallback_fixture()
             4};
 }
 
-qmomkit::CqmomCase make_lean_case(const CqmomEventFixture& fixture, const std::vector<double>& moments)
+qmomkit::CqmomCase make_cqmom_case(const CqmomEventFixture& fixture, const std::vector<double>& moments)
 {
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
-    qmomkit::CqmomCase lean_case{qmomkit::extract_cqmom_moments({fixture.extents, moments}, layout),
-                                 {},
-                                 fixture.qmom_options,
-                                 true,
-                                 qmomkit::CqmomDiagnosticLevel::none,
-                                 qmomkit::VandermondeSolver::automatic};
-    return lean_case;
+    qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments({fixture.extents, moments}, layout),
+                                  {},
+                                  fixture.qmom_options,
+                                  true,
+                                  qmomkit::CqmomDiagnosticLevel::none,
+                                  qmomkit::VandermondeSolver::automatic};
+    return cqmom_case;
 }
 
 qmomkit::CqmomPreparedCase make_cqmom_prepared_case(const CqmomEventFixture& fixture, const std::vector<double>& moments)
 {
-    return qmomkit::internal::CqmomConstructionAccess::create_prepared_case(make_lean_case(fixture, moments));
+    return qmomkit::internal::CqmomConstructionAccess::create_prepared_case(make_cqmom_case(fixture, moments));
 }
 
-qmomkit::CqmomCase make_lean_case(const CqmomFallbackFixture& fixture)
+qmomkit::CqmomCase make_cqmom_case(const CqmomFallbackFixture& fixture)
 {
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(fixture.hierarchy);
     return {qmomkit::extract_cqmom_moments({fixture.extents, fixture.moments}, layout),
@@ -769,7 +769,7 @@ qmomkit::CqmomCase make_lean_case(const CqmomFallbackFixture& fixture)
 qmomkit::CqmomResult compute_cqmom_fallback_fixture(const CqmomFallbackFixture& fixture,
                                                     const std::vector<qmomkit::CqmomActiveBranchCount>& active_counts)
 {
-    return qmomkit::internal::compute_cqmom_internal(make_lean_case(fixture), active_counts, false);
+    return qmomkit::internal::compute_cqmom_internal(make_cqmom_case(fixture), active_counts, false);
 }
 
 void compare_cqmom_active_counts(const std::vector<qmomkit::CqmomActiveBranchCount>& direct,
@@ -927,7 +927,7 @@ void validate_expected_cqmom_counts(const CqmomEventFixture& fixture, const qmom
 qmomkit::CqmomResult run_cqmom_event_reconstruction(const CqmomEventFixture& fixture,
                                                     const std::vector<qmomkit::CqmomActiveBranchCount>& active_counts)
 {
-    return qmomkit::internal::compute_cqmom_internal(make_lean_case(fixture, fixture.target_moments), active_counts, true);
+    return qmomkit::internal::compute_cqmom_internal(make_cqmom_case(fixture, fixture.target_moments), active_counts, true);
 }
 
 void canonicalize_cqmom_result(const CqmomEventFixture& fixture, const qmomkit::CqmomResult& result)

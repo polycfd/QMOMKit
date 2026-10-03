@@ -192,14 +192,14 @@ void verify_diagnostics(const std::string& workflow_name, const qmomkit::CqmomRe
     }
 }
 
-void verify_required_representation(const qmomkit::CqmomCase& case_, VerificationResult& verification)
+void verify_required_representation(const qmomkit::CqmomCase& cqmom_case, VerificationResult& verification)
 {
     // Expert callers choose CqmomCase when they already work with the
     // minimal recursive moment subset. This check verifies the public loader
     // provides exactly that selected representation and that the selected
     // values are sufficient to recover the same analytical product quadrature.
     const std::vector<qmomkit::MultiIndex> expected_indices = expected_required_indices();
-    const qmomkit::CqmomMomentData& moments = case_.moments;
+    const qmomkit::CqmomMomentData& moments = cqmom_case.moments;
     if (moments.layout.required_indices.to_multi_indices() != expected_indices)
     {
         append_failure(verification, "explicit lean workflow required-index order did not match the documented fixed 2x2 CQMOM layout.");
@@ -325,21 +325,21 @@ int main(const int argc, char** argv)
 
     const std::filesystem::path configuration_path = argv[1];
 
-    const auto explicit_case = qmomkit::config::load_cqmom(configuration_path);
-    if (!explicit_case.ok())
+    const auto cqmom_case_result = qmomkit::config::load_cqmom(configuration_path);
+    if (!cqmom_case_result.ok())
     {
-        print_configuration_errors(explicit_case);
+        print_configuration_errors(cqmom_case_result);
         return 1;
     }
-    const auto default_case = qmomkit::config::load_cqmom_prepared(configuration_path);
-    if (!default_case.ok())
+    const auto cqmom_prepared_case_result = qmomkit::config::load_cqmom_prepared(configuration_path);
+    if (!cqmom_prepared_case_result.ok())
     {
-        print_configuration_errors(default_case);
+        print_configuration_errors(cqmom_prepared_case_result);
         return 1;
     }
 
-    const qmomkit::CqmomResult explicit_result = qmomkit::compute_cqmom(explicit_case.value());
-    const qmomkit::CqmomResult default_workflow = qmomkit::compute_cqmom(default_case.value());
+    const qmomkit::CqmomResult explicit_result = qmomkit::compute_cqmom(cqmom_case_result.value());
+    const qmomkit::CqmomResult default_workflow = qmomkit::compute_cqmom(cqmom_prepared_case_result.value());
 
     VerificationResult verification;
     if (!explicit_result.ok())
@@ -356,26 +356,27 @@ int main(const int argc, char** argv)
         return 1;
     }
 
-    if (explicit_case.value().moments.layout.hierarchy.node_counts() != std::vector<std::size_t>({2, 2}) ||
-        explicit_case.value().moments.layout.hierarchy.conditioning_order() != std::vector<std::size_t>({0, 1}))
+    if (cqmom_case_result.value().moments.layout.hierarchy.node_counts() != std::vector<std::size_t>({2, 2}) ||
+        cqmom_case_result.value().moments.layout.hierarchy.conditioning_order() != std::vector<std::size_t>({0, 1}))
     {
         append_failure(verification, "explicit workflow did not load the expected fixed 2x2 hierarchy with conditioning_order = {0, 1}.");
     }
-    if (default_case.value().hierarchy().node_counts() != explicit_case.value().moments.layout.hierarchy.node_counts() ||
-        default_case.value().hierarchy().conditioning_order() != explicit_case.value().moments.layout.hierarchy.conditioning_order())
+    if (cqmom_prepared_case_result.value().hierarchy().node_counts() != cqmom_case_result.value().moments.layout.hierarchy.node_counts() ||
+        cqmom_prepared_case_result.value().hierarchy().conditioning_order() !=
+            cqmom_case_result.value().moments.layout.hierarchy.conditioning_order())
     {
         append_failure(verification, "default CqmomPreparedCase workflow did not preserve the explicit workflow hierarchy.");
     }
 
-    verify_required_representation(explicit_case.value(), verification);
+    verify_required_representation(cqmom_case_result.value(), verification);
     verify_diagnostics("explicit workflow", explicit_result, verification);
     verify_diagnostics("default CqmomPreparedCase workflow", default_workflow, verification);
     verify_reference_quadrature("explicit workflow", explicit_result.quadrature, verification);
     verify_reference_quadrature("default CqmomPreparedCase workflow", default_workflow.quadrature, verification);
-    verify_reconstructed_moments("explicit workflow", explicit_result.quadrature, explicit_case.value().moments, verification);
-    verify_reconstructed_moments("default CqmomPreparedCase workflow", default_workflow.quadrature, explicit_case.value().moments, verification);
+    verify_reconstructed_moments("explicit workflow", explicit_result.quadrature, cqmom_case_result.value().moments, verification);
+    verify_reconstructed_moments("default CqmomPreparedCase workflow", default_workflow.quadrature, cqmom_case_result.value().moments, verification);
     compare_workflows("default CqmomPreparedCase workflow", default_workflow.quadrature, explicit_result.quadrature,
-                      explicit_case.value().moments.layout, verification);
+                      cqmom_case_result.value().moments.layout, verification);
 
     const bool passed = verification.passed && verification.errors.node <= tolerance && verification.errors.weight <= tolerance &&
                         verification.errors.moment <= tolerance && verification.errors.workflow_node <= tolerance &&

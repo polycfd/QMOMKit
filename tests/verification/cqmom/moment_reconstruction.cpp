@@ -187,14 +187,14 @@ void verify_selected_cqmom_reconstruction(const qmomkit::CqmomQuadrature& quadra
         append_failure(verification, "selected CQMOM reconstruction did not preserve duplicate requested moments.");
     }
 
-    const qmomkit::RawMomentTensor dense = qmomkit::reconstruct_raw_moments(quadrature, {4, 4});
+    const qmomkit::RawMomentTensor moment_tensor = qmomkit::reconstruct_raw_moments(quadrature, {4, 4});
     for (std::size_t entry = 0; entry < request.indices.size(); ++entry)
     {
         const qmomkit::MultiIndex& index = request.indices[entry];
         const double analytical = analytical_cqmom_moment(index);
-        const double from_dense = dense.values[qmomkit::flatten_multi_index(index, dense.extents)];
+        const double from_tensor = moment_tensor.values[qmomkit::flatten_multi_index(index, moment_tensor.extents)];
         update_error(verification, selected.values[entry], analytical);
-        update_error(verification, selected.values[entry], from_dense);
+        update_error(verification, selected.values[entry], from_tensor);
     }
 }
 
@@ -215,14 +215,14 @@ void verify_cqmom_required_layout_reconstruction(const qmomkit::CqmomQuadrature&
         return;
     }
 
-    const qmomkit::RawMomentTensor dense = qmomkit::reconstruct_raw_moments(quadrature, layout.hierarchy.moment_extents());
+    const qmomkit::RawMomentTensor moment_tensor = qmomkit::reconstruct_raw_moments(quadrature, layout.hierarchy.moment_extents());
     for (std::size_t entry = 0; entry < layout.required_indices.size(); ++entry)
     {
         const qmomkit::MultiIndexView index = layout.required_indices[entry];
         const double analytical = analytical_cqmom_moment(index);
-        const double from_dense = dense.values[qmomkit::flatten_multi_index(index, dense.extents)];
+        const double from_tensor = moment_tensor.values[qmomkit::flatten_multi_index(index, moment_tensor.extents)];
         update_error(verification, reconstructed.values[entry], analytical);
-        update_error(verification, reconstructed.values[entry], from_dense);
+        update_error(verification, reconstructed.values[entry], from_tensor);
     }
 }
 
@@ -283,10 +283,10 @@ int main(const int argc, char** argv)
         print_configuration_errors(configured);
         return 1;
     }
-    const auto lean = qmomkit::config::load_cqmom(configuration_path);
-    if (!lean.ok())
+    const auto cqmom_case_result = qmomkit::config::load_cqmom(configuration_path);
+    if (!cqmom_case_result.ok())
     {
-        print_configuration_errors(lean);
+        print_configuration_errors(cqmom_case_result);
         return 1;
     }
 
@@ -314,12 +314,12 @@ int main(const int argc, char** argv)
     if (selected("cqmom_required_layout"))
     {
         matched = true;
-        verify_cqmom_required_layout_reconstruction(cqmom.quadrature, lean.value().moments.layout, verification);
+        verify_cqmom_required_layout_reconstruction(cqmom.quadrature, cqmom_case_result.value().moments.layout, verification);
     }
     if (selected("failure_paths"))
     {
         matched = true;
-        verify_cqmom_reconstruction_failures(cqmom.quadrature, lean.value().moments.layout, verification);
+        verify_cqmom_reconstruction_failures(cqmom.quadrature, cqmom_case_result.value().moments.layout, verification);
     }
     if (!matched)
     {

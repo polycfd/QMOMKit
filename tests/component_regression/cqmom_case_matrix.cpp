@@ -261,12 +261,14 @@ CqmomMomentSource matrix_source()
     };
 }
 
+namespace
+{
 PhaseSpaceHierarchy hierarchy_of(const StaticCase& case_)
 {
     return PhaseSpaceHierarchy(case_.node_counts, case_.conditioning_order);
 }
 
-RawMomentTensor dense_moments_of(const StaticCase& case_)
+RawMomentTensor moment_tensor_of(const StaticCase& case_)
 {
     const std::vector<std::size_t> extents = hierarchy_of(case_).moment_extents();
     std::vector<double> values(product_extents(extents), 0.0);
@@ -291,10 +293,11 @@ RawMomentTensor dense_moments_of(const StaticCase& case_)
 CqmomMomentData moments_of(const StaticCase& case_)
 {
     const CqmomMomentLayout layout = create_cqmom_moment_layout(hierarchy_of(case_));
-    return extract_cqmom_moments(dense_moments_of(case_), layout);
+    return extract_cqmom_moments(moment_tensor_of(case_), layout);
 }
+} // namespace
 
-CqmomCase lean_case_of(const StaticCase& case_)
+CqmomCase cqmom_case_of(const StaticCase& case_)
 {
     return CqmomCase{moments_of(case_),       {}, {}, case_.adaptive_branch_counts, CqmomDiagnosticLevel::basic, case_.vandermonde_solver,
                      case_.coordinate_support};

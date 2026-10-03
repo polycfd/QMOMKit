@@ -225,13 +225,13 @@ int run_feature_sensitive_case()
     qmomkit::QmomOptions scaled_options;
     scaled_options.adaptive = true;
     scaled_options.automatic_scaling = true;
-    const qmomkit::CqmomCase scaled_case{
+    const qmomkit::CqmomCase scaled_cqmom_case{
         qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, scaled_options, true};
 
     bool passed = true;
     Errors scaled_errors;
-    const qmomkit::CqmomResult scaled = qmomkit::compute_cqmom(scaled_case);
-    check_result("feature-sensitive scaled", scaled, scaled_case.moments, units, scaled_errors, passed, false);
+    const qmomkit::CqmomResult scaled = qmomkit::compute_cqmom(scaled_cqmom_case);
+    check_result("feature-sensitive scaled", scaled, scaled_cqmom_case.moments, units, scaled_errors, passed, false);
     if (scaled_errors.node > feature_sensitive_tolerance || scaled_errors.weight > feature_sensitive_tolerance ||
         scaled_errors.moment > feature_sensitive_tolerance)
     {
@@ -239,9 +239,9 @@ int run_feature_sensitive_case()
         passed = false;
     }
 
-    qmomkit::CqmomCase unscaled_case = scaled_case;
-    unscaled_case.qmom_options.automatic_scaling = false;
-    const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(unscaled_case);
+    qmomkit::CqmomCase unscaled_cqmom_case = scaled_cqmom_case;
+    unscaled_cqmom_case.qmom_options.automatic_scaling = false;
+    const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(unscaled_cqmom_case);
     const std::size_t unscaled_terminal_count = unscaled.ok() ? unscaled.quadrature.weights().size() : 0;
     if (!unscaled.ok() || unscaled_terminal_count >= expected.size())
     {
@@ -292,9 +292,9 @@ int run_configured_case(const std::filesystem::path& configuration_path, const s
         return 1;
     }
 
-    const qmomkit::CqmomCase& case_ = configured.value();
-    bool passed = case_.moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({2, 0, 1}) && case_.adaptive_branch_counts &&
-                  case_.qmom_options.adaptive && case_.qmom_options.automatic_scaling;
+    const qmomkit::CqmomCase& cqmom_case = configured.value();
+    bool passed = cqmom_case.moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({2, 0, 1}) &&
+                  cqmom_case.adaptive_branch_counts && cqmom_case.qmom_options.adaptive && cqmom_case.qmom_options.automatic_scaling;
     if (!passed)
     {
         std::cerr << "The configured automatic-scaling, adaptive, or non-identity conditioning policy was not propagated.\n";
@@ -304,18 +304,18 @@ int run_configured_case(const std::filesystem::path& configuration_path, const s
     // workflow.  Here both configured routes actually reconstruct the scaled
     // physical rule, while their case-level layouts are also compared to an
     // otherwise identical explicit automatic_scaling=false case.
-    const qmomkit::CqmomMomentLayout required_layout = qmomkit::create_cqmom_moment_layout(case_.moments.layout.hierarchy);
-    qmomkit::CqmomCase unscaled_case = case_;
-    unscaled_case.qmom_options.automatic_scaling = false;
-    if (case_.moments.layout.required_indices != required_layout.required_indices ||
-        unscaled_case.moments.layout.required_indices != case_.moments.layout.required_indices)
+    const qmomkit::CqmomMomentLayout required_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.moments.layout.hierarchy);
+    qmomkit::CqmomCase unscaled_cqmom_case = cqmom_case;
+    unscaled_cqmom_case.qmom_options.automatic_scaling = false;
+    if (cqmom_case.moments.layout.required_indices != required_layout.required_indices ||
+        unscaled_cqmom_case.moments.layout.required_indices != cqmom_case.moments.layout.required_indices)
     {
         std::cerr << "automatic scaling changed the required CQMOM moment layout.\n";
         passed = false;
     }
 
     Errors errors;
-    check_result("configured", qmomkit::compute_cqmom(case_), case_.moments, units, errors, passed);
+    check_result("configured", qmomkit::compute_cqmom(cqmom_case), cqmom_case.moments, units, errors, passed);
     passed = passed && errors.node <= tolerance && errors.weight <= tolerance && errors.moment <= tolerance;
 
     if (!passed)

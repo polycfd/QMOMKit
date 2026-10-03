@@ -407,25 +407,26 @@ VerificationResult verify_qmom_case(const CaseDefinition& definition, const std:
     return result;
 }
 
-void verify_cqmom_reconstruction(const qmomkit::CqmomCase& configured, const std::vector<double>& moments, VerificationResult& result)
+void verify_cqmom_reconstruction(const qmomkit::CqmomCase& configured_cqmom_case, const std::vector<double>& moments, VerificationResult& result)
 {
-    qmomkit::CqmomCase final_case = configured;
-    final_case.moments.values = moments;
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(final_case);
+    qmomkit::CqmomCase final_cqmom_case = configured_cqmom_case;
+    final_cqmom_case.moments.values = moments;
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(final_cqmom_case);
     if (!cqmom.ok())
     {
         append_failure(result, "Final CQMOM inversion failed: " + cqmom.message);
         return;
     }
-    if (cqmom.quadrature.hierarchy().conditioning_order() != configured.moments.layout.hierarchy.conditioning_order())
+    if (cqmom.quadrature.hierarchy().conditioning_order() != configured_cqmom_case.moments.layout.hierarchy.conditioning_order())
     {
         append_failure(result, "CQMOM conditioning order was not preserved.");
     }
-    if (cqmom.quadrature.adaptive_branch_counts_enabled() != configured.adaptive_branch_counts || !cqmom.quadrature.has_rectangular_storage())
+    if (cqmom.quadrature.adaptive_branch_counts_enabled() != configured_cqmom_case.adaptive_branch_counts ||
+        !cqmom.quadrature.has_rectangular_storage())
     {
         append_failure(result, "CQMOM fixed/adaptive storage settings were not preserved.");
     }
-    const qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(cqmom.quadrature, configured.moments.layout);
+    const qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(cqmom.quadrature, configured_cqmom_case.moments.layout);
     compare_reconstruction(reconstructed.values, moments, result.errors);
 }
 

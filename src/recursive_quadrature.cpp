@@ -1327,13 +1327,13 @@ CqmomMomentData extract_cqmom_moments(const RawMomentTensor& moment_tensor, cons
 {
     if (moment_tensor.extents.size() != layout.hierarchy.number_of_dimensions())
     {
-        throw std::invalid_argument("Dense moment tensor extents must match the CQMOM moment layout dimension.");
+        throw std::invalid_argument("The rank of the full tensor of raw moments must match the CQMOM moment layout dimension count.");
     }
 
     const std::size_t expected_values = product_extents(moment_tensor.extents);
     if (moment_tensor.values.size() != expected_values)
     {
-        throw std::invalid_argument("Dense moment tensor value count does not match its extents.");
+        throw std::invalid_argument("The value count of the full tensor of raw moments does not match its extents.");
     }
 
     std::vector<double> values;
@@ -1342,7 +1342,7 @@ CqmomMomentData extract_cqmom_moments(const RawMomentTensor& moment_tensor, cons
     {
         if (!internal::multi_index_within_extents(index, moment_tensor.extents))
         {
-            throw std::out_of_range("Dense moment tensor does not contain a required CQMOM moment.");
+            throw std::out_of_range("The full tensor of raw moments does not contain a required CQMOM moment.");
         }
         values.push_back(moment_tensor.values[flatten_multi_index(index, moment_tensor.extents)]);
     }

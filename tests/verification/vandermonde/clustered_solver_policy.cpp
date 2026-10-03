@@ -167,11 +167,11 @@ void verify_configured_moments(const qmomkit::CqmomMomentData& configured, const
     }
 }
 
-PolicyReport verify_policy(const SolverPolicy& policy, qmomkit::CqmomCase case_, const std::vector<TerminalNode>& prescribed_rule,
+PolicyReport verify_policy(const SolverPolicy& policy, qmomkit::CqmomCase cqmom_case, const std::vector<TerminalNode>& prescribed_rule,
                            const qmomkit::RawMomentTensor& prescribed_moments)
 {
-    case_.vandermonde_solver = policy.requested;
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(case_);
+    cqmom_case.vandermonde_solver = policy.requested;
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     require(result.ok(), std::string(policy.name) + " failed clustered public CQMOM reconstruction: " + result.message);
     require(result.quadrature.has_rectangular_storage(), std::string(policy.name) + " did not recover fixed rectangular storage.");
     require(result.quadrature.total_nodes() == prescribed_rule.size(), std::string(policy.name) + " recovered the wrong terminal-node count.");

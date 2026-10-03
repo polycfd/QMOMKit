@@ -406,7 +406,7 @@ void validate_prepared_metadata(const PreparedCqmomMetadata& metadata, const Cqm
     if (!prepared_cqmom_metadata_is_compatible(metadata, cqmom_case.moments.layout.hierarchy, cqmom_case.adaptive_branch_counts,
                                                &cqmom_case.moments.layout))
     {
-        throw std::invalid_argument("Prepared CQMOM metadata is incompatible with the target lean case.");
+        throw std::invalid_argument("Prepared CQMOM metadata is incompatible with the target CQMOM case.");
     }
 }
 

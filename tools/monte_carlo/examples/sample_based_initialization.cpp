@@ -511,10 +511,10 @@ int run_cqmom_case(const std::filesystem::path& configuration_path, const std::s
     // Only the CQMOM case is built from the subset the hierarchy reconstructs
     // from.
     qmomkit::RawMomentTensor qmomkit_moments = sampled->moments.moments;
-    qmomkit::CqmomCase case_definition = configured.value();
-    const qmomkit::CqmomMomentLayout layout = case_definition.moments.layout;
-    case_definition.moments = qmomkit::extract_cqmom_moments(qmomkit_moments, layout);
-    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(case_definition);
+    qmomkit::CqmomCase cqmom_case = configured.value();
+    const qmomkit::CqmomMomentLayout layout = cqmom_case.moments.layout;
+    cqmom_case.moments = qmomkit::extract_cqmom_moments(qmomkit_moments, layout);
+    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_case);
     if (!initial.ok())
     {
         std::cerr << "Initial sample-based CQMOM inversion failed: " << initial.message << '\n';

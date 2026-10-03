@@ -87,15 +87,15 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        auto sampled_case = qmomkit::config::with_initial_moments(
+        auto sampled_case_result = qmomkit::config::with_initial_moments(
             configured.value(),
             qmomkit::create_cqmom_moment_data(moment_layout, qmomkit::make_selected_raw_moment_result(required_moments, sampled->moments.values)));
-        if (!sampled_case)
+        if (!sampled_case_result)
         {
-            print_configuration_errors(sampled_case.error());
+            print_configuration_errors(sampled_case_result.error());
             return 1;
         }
-        qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(sampled_case).value();
+        qmomkit::CqmomPreparedCase cqmom_prepared_case = std::move(sampled_case_result).value();
         const ParticleModelParameters particle_parameters = particle_model_parameters();
         validate_particle_model_parameters(particle_parameters);
         const BinaryFragmentationParameters breakage_parameters = binary_fragmentation_parameters();

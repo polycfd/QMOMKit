@@ -152,14 +152,14 @@ void test_cqmom_case_preserves_phase_space_ordering()
     options.node_options = tight_node_options();
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomCase case_{qmomkit::extract_cqmom_moments(moments, layout), {}, {}};
-    const qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(case_);
+    const qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(moments, layout), {}, {}};
+    const qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case);
     const qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_phase_space(state, 0.0, 0.2, velocity, zero_source, options);
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.has_value());
     QMOMKIT_VERIFY_CHECK(result.quadrature->has_rectangular_storage());
 
-    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(case_);
+    const qmomkit::CqmomResult initial = qmomkit::compute_cqmom(cqmom_case);
     QMOMKIT_VERIFY_CHECK(initial.ok());
     const qmomkit::CqmomNodeAdvectionResult direct = qmomkit::advance_nodes(initial.quadrature, 0.0, 0.2, velocity, options.node_options);
     QMOMKIT_VERIFY_CHECK(direct.ok());

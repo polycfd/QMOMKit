@@ -269,7 +269,9 @@ verification, and public-header suite. It represents an external consumer
 workflow and requires QMOMKit to be installed before the consumer project is
 configured. Its purpose is to validate installed package discovery and exported
 CMake target behavior, not correctness or regression behavior inside the normal
-`tests/` project.
+`tests/` project. The `CI-Consumers` workflow installs QMOMKit in Debug and
+builds and runs the consumer on every push to `main` and on pull requests that
+change more than `docs/`, `examples/`, or `paper/`.
 
 This category is most important when package exports, installation rules,
 public headers, or CMake package metadata change.
@@ -336,7 +338,9 @@ registration convention as the root suite: each logical case is registered with
 CTest on its own as `monte_carlo_<subsystem>_<case>`, discovered from the
 `void test_*()` definitions in each test source, so a failure names the behavior
 rather than the file. Those registrations are not part of the root inventory,
-which covers root CTest only.
+which covers root CTest only. The `CI-Consumers` workflow builds these tests in
+Debug against the installed QMOMKit and runs them alongside the package
+consumer.
 
 Update examples only when the user-facing workflow changes. Examples are not a
 substitute for automated correctness tests.

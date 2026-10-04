@@ -80,7 +80,7 @@ int main()
     const std::vector<double> initial_moments = sampled_moments.moments.values();
     // Rebuild the case around the sampled moments, keeping the configured node
     // count and inversion options.
-    const qmomkit::QmomCase sampled_qmom_case{sampled_moments.moments, qmom_case.node_count, qmom_case.options};
+    const qmomkit::QmomCase sampled_qmom_case{sampled_moments.moments, qmom_case.node_count, qmom_case.qmom_options};
     std::optional<qmomkit::QmomState> initial_state_storage;
     try
     {

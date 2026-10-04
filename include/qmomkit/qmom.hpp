@@ -120,7 +120,7 @@ struct QmomCase
 {
     MomentSet moments;
     std::size_t node_count = 0;
-    QmomOptions options;
+    QmomOptions qmom_options;
     std::optional<AbscissaBounds> abscissa_bounds;
 
     /**

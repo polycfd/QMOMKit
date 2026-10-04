@@ -185,7 +185,7 @@ int main()
         for (std::size_t case_index = 0; case_index < fixed_node_counts.size(); ++case_index)
         {
             const std::size_t node_count = fixed_node_counts[case_index];
-            const qmomkit::QmomCase qmom_case{initial_moment_estimate.moments, node_count, configured_qmom.value().options};
+            const qmomkit::QmomCase qmom_case{initial_moment_estimate.moments, node_count, configured_qmom.value().qmom_options};
             const qmomkit::QmomResult initial_reconstruction = qmomkit::compute_qmom(qmom_case);
             if (!initial_reconstruction.ok())
             {

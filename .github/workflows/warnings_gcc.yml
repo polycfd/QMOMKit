@@ -8,7 +8,7 @@ on:
       - main
   pull_request:
     paths-ignore:
-      - 'doc/**'
+      - 'docs/**'
       - 'examples/**'
 
 # Cancels running instances when a pull request is updated by a commit
@@ -32,7 +32,7 @@ jobs:
 
       # Checks-out QMOMKit with branch of triggering commit
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       # Compiles the library and tests with GCC, turning every enabled warning
       # into an error so the build aborts on the first warning

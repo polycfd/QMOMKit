@@ -1,0 +1,65 @@
+name: CI-Consumers
+
+on:
+# Runs on every push on main branch. If a push contains multiple commits, it will be ran on the latest one.
+  push:
+    branches:
+      - main
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'examples/**'
+      - 'paper/**'
+
+# Cancels running instances when a pull request is updated by a commit
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  cancel-in-progress: ${{github.event_name == 'pull_request'}}
+
+permissions:
+  contents: read
+
+env:
+  COMPILE_JOBS: 8
+  TEST_JOBS: 8
+  INSTALL_PREFIX: ${{ github.workspace }}/install-consumers
+
+jobs:
+  build:
+    name: Build
+    runs-on: self-hosted
+
+    strategy:
+      fail-fast: false
+
+    steps:
+
+      # Checks-out QMOMKit with branch of triggering commit
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # The installed-package consumer and the Monte Carlo companion are
+      # separate CMake projects that find QMOMKit as an installed package, so
+      # the root build never compiles them. The library is installed once and
+      # both are built against that installation.
+      - name: Install QMOMKit (Debug)
+        run: |
+          cmake -S . -B build-install -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="${{ env.INSTALL_PREFIX }}"
+          cmake --build build-install -j${{ env.COMPILE_JOBS }} --target install
+
+      - name: Compile and run the installed-package consumer (Debug)
+        run: |
+          cmake -S tests/package_consumer -B build-package-consumer -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_PREFIX_PATH="${{ env.INSTALL_PREFIX }}"
+          cmake --build build-package-consumer -j${{ env.COMPILE_JOBS }}
+          ./build-package-consumer/consumer
+
+      - name: Compile the Monte Carlo companion tests (Debug)
+        run: |
+          cmake -S tools/monte_carlo -B build-monte-carlo -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON \
+            -DCMAKE_PREFIX_PATH="${{ env.INSTALL_PREFIX }}"
+          cmake --build build-monte-carlo -j${{ env.COMPILE_JOBS }}
+
+      - name: Run the Monte Carlo companion tests (Debug)
+        run: |
+          ctest --test-dir build-monte-carlo --output-on-failure -j${{ env.TEST_JOBS }}

@@ -3,9 +3,9 @@
 //
 // What is verified
 //   That moments rebuilt from a recovered quadrature match the moments it came
-//   from, for a dense QMOM rule, for a selected subset of CQMOM indices, and
-//   for the full set a hierarchy requires; and that mismatched requests are
-//   rejected rather than answered with a partially filled tensor.
+//   from, for all orders of a QMOM rule, for a selected subset of CQMOM
+//   indices, and for the full set a hierarchy requires; and that mismatched
+//   requests are rejected rather than answered with a partially filled tensor.
 //
 // How the reference is constructed
 //   Chosen, not computed. A rule of weighted points is written down, its raw
@@ -21,7 +21,7 @@
 //   that looks plausible is the dangerous outcome here.
 //
 // Reproduce
-//   ctest -R verification_.*moment_reconstruction
+//   ctest -R "^verification_cqmom_moment_reconstruction_"
 //
 // Build modes
 //   Both. Failures are reported through an exit code, not assert().
@@ -163,7 +163,7 @@ void verify_qmom_all_orders_reconstruction(VerificationResult& verification)
 void verify_selected_cqmom_reconstruction(const qmomkit::CqmomQuadrature& quadrature, VerificationResult& verification)
 {
     // Selected reconstruction exists for callers that need a sparse, ordered
-    // moment list rather than a dense tensor. This request intentionally mixes
+    // moment list rather than a full tensor. This request intentionally mixes
     // ordering, duplicates, and moment orders so the result must preserve the
     // user's request exactly.
     const qmomkit::RawMomentRequest request{{{2, 0}, {0, 0}, {1, 1}, {0, 2}, {2, 0}, {3, 1}}};
@@ -203,7 +203,7 @@ void verify_cqmom_required_layout_reconstruction(const qmomkit::CqmomQuadrature&
 {
     // reconstruct_cqmom_moments is the public way to reconstruct exactly the
     // fixed recursive CQMOM moment layout. Values must align with
-    // layout.required_indices, not with dense tensor order.
+    // layout.required_indices, not with row-major tensor order.
     const qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(quadrature, layout);
     if (reconstructed.layout.required_indices != layout.required_indices)
     {
@@ -268,7 +268,7 @@ void verify_cqmom_reconstruction_failures(const qmomkit::CqmomQuadrature& quadra
 int main(const int argc, char** argv)
 {
     // Reconstruct raw moments from independent 1D and 2D quadratures using the
-    // public dense, selected, and CQMOM-required-layout APIs. The reference
+    // public all-orders, selected, and CQMOM-required-layout APIs. The reference
     // values are evaluated analytically from the defining terminal rules.
     if (argc != 2 && argc != 3)
     {

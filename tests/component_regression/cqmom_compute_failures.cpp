@@ -31,7 +31,7 @@ std::vector<double> indexed_values(const std::vector<std::size_t>& extents)
 std::vector<double> raw_moments_from_terminals(const std::vector<std::size_t>& extents, const std::vector<double>& weights,
                                                const std::vector<std::vector<double>>& abscissas)
 {
-    // Build a realizable dense tensor directly from terminal nodes and weights
+    // Build a realizable full tensor directly from terminal nodes and weights
     // when the failure being tested is policy validation rather than moment
     // mathematics.
     std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
@@ -319,8 +319,8 @@ void verify_adaptive_policy_rejection()
 int main(const int argc, char** argv)
 {
     // Direct CQMOM compute failures distinguish invalid public requests from
-    // mathematically non-realizable moment sets, and confirm that the default
-    // and lean workflows expose the same failure meaning where applicable.
+    // mathematically non-realizable moment sets, and confirm that
+    // CqmomPreparedCase and CqmomCase report the same failure where applicable.
     std::cout << "QMOMKit direct CQMOM compute failure verification\n";
     std::cout << std::left << std::setw(34) << "case" << std::setw(22) << "expected status" << "expected reason\n";
     std::cout << std::string(82, '-') << '\n';

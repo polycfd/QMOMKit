@@ -83,7 +83,7 @@ positive zeroth moment. `normalize_marginal_moment` checks division, including
 nonzero underflow. The per-index coordinate loop checks multiplication overflow
 and nonzero-to-zero underflow, starting from global `N` exactly once.
 
-Dense generation checks maximum-order rank, constructs checked extents, then
+Full-tensor generation checks maximum-order rank, constructs checked extents, then
 loops over all row-major tensor indices. Selected generation gathers the unique
 orders needed in each coordinate (including zero for normalization), computes
 only those marginal requests, and forms each requested mixed moment in caller
@@ -96,7 +96,7 @@ bypassed on this branch.
 
 Evidence: mixture and product assertions in [distribution
 tests](../../../tests/unit/distributions.cpp) compare component sums,
-normalized marginal products, dense/selected outputs, and failure attribution.
+normalized marginal products, tensor/selected outputs, and failure attribution.
 They do not characterize many-component cancellation or extreme unequal
 marginal scales. The [minimal CQMOM
 example](../../../examples/cqmom_2d_minimal/README.md) uses independent-product
@@ -142,7 +142,7 @@ configuring another.
 `parse_explicit_tensor` validates rank/extents, checks extent-product overflow,
 allocates a supplied-entry mask, and loops over explicit moments to validate
 rank, bounds, finiteness, and complete coverage. Missing entries are errors,
-not zeros. Dense explicit moments contain all tensor entries; lean extraction
+not zeros. Explicit tensor moments contain all tensor entries; extraction
 later selects the canonical required subset.
 
 Evidence: [configuration tests](../../../tests/unit/configuration.cpp) exercise
@@ -153,9 +153,9 @@ establish realizability of the initialized moments.
 ## Mapping numerical policy — Level A/B
 
 `parse_cqmom_case_settings` resolves counts, names, conditioning permutation,
-representation, reconstruction policies, and paired support intervals. Default
-storage is lean, diagnostics none, solver automatic, and order identity when
-omitted. Adaptive branches enable the recursive adaptive workflow; a standalone
+reconstruction policies, and paired support intervals. When omitted, diagnostics
+default to none, the solver to automatic, and the conditioning order to
+identity. Adaptive branches enable the recursive adaptive workflow; a standalone
 adaptive Wheeler request without adaptive branches is rejected. Names are
 metadata and do not establish units or support.
 

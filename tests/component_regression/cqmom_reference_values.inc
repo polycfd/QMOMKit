@@ -1,11 +1,11 @@
 // Recorded CQMOM reference values.
 //
-// Generated from the case matrix in cqmom_case_matrix.cpp and compared
-// exactly by cqmom_reference_values.cpp. These values are not a specification:
-// they are what QMOMKit produced when this file was written, pinned so that a
-// refactor which is meant to change nothing can be shown to change nothing.
-// Every case is independently checked against the quadrature nodes it was
-// built from, so a wrong value here would be caught by that check.
+// Generated from the case matrix in cqmom_case_matrix.cpp and compared by
+// cqmom_reference_values.cpp to 1e-12 relative. These values are not a
+// specification: they are what QMOMKit produced when this file was written,
+// pinned so that a refactor which is meant to change nothing can be shown to
+// change nothing. Every static case is independently checked against the
+// quadrature nodes it was built from, so a wrong static value would be caught.
 //
 // Changing a value is a deliberate act and needs the same justification as any
 // other change to numerical behaviour. See README.md for how to regenerate

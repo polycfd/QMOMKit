@@ -27,8 +27,8 @@ mathematical verification still passes?"
 
 Current component regression coverage includes:
 
-- CQMOM direct compute failure/status mapping across public case
-  representations;
+- CQMOM direct compute failure/status mapping across `CqmomPreparedCase` and
+  `CqmomCase`;
 - direct moment-source update behavior and diagnostics;
 - direct node-advection behavior and diagnostics;
 - focused phase-space evolution integrator composition and phase-space ordering behavior;
@@ -39,9 +39,16 @@ Current component regression coverage includes:
 - CQMOM recorded reference values across a case matrix spanning phase-space
   dimension, conditioning order, node counts, adaptive branch counts, bounded
   coordinate support, every Vandermonde solver policy, and all three splitting
-  schemes. Each case is additionally checked against the quadrature nodes its
-  moments were computed from, so the recorded values are analytically anchored
-  rather than merely self-consistent;
+  schemes. Each static case is additionally checked against the quadrature
+  nodes its moments were computed from, so its recorded values are analytically
+  anchored rather than merely self-consistent. Evolution cases are checked
+  against their recorded values and for agreement between the states created
+  from the open and the prepared case;
+- prepared-case moment replacement: replacing a prepared case's initial
+  moments programmatically matches parsing the replacement from configuration,
+  and replacing them with `CqmomMomentData` matches replacing them with a full
+  tensor, in case settings, quadrature, diagnostics, state, and one evolution
+  step;
 - CQMOM reconstruction of two moment sets that are harder to invert than a rule
   whose nodes are far apart: one whose velocities have been changed by drag, and
   one with two velocity nodes 1.5e-6 apart.
@@ -49,17 +56,21 @@ Current component regression coverage includes:
 ## The CQMOM case matrix
 
 `cqmom_case_matrix.*` defines the case matrix `cqmom_reference_values.cpp`
-runs. That test asks *did the result change?* and compares against recorded
-values to 1e-12 relative. The budget absorbs the differing last bits another
+runs. That test asks *did the result change?*: status and node count must match
+exactly, and every weight and abscissa must agree with its recorded value to
+1e-12 relative, with a 1e-15 absolute floor. The budget absorbs the differing last bits another
 compiler produces for the same computation, measured at up to 27 representable
 values, while staying far below any change of algorithm or ordering. Pinning a
 refactor more tightly than that needs a before-and-after run with one compiler,
 where results are reproducible bit for bit.
 
-The six Vandermonde solver cases can produce identical numbers to one another,
-because the systems they solve are well conditioned. They are still six
-separate cases: each pins its own dispatch path, so silently routing one solver
-to another implementation changes that case's recorded values and no others.
+The six Vandermonde solver cases exercise each solver's path through the
+recursive reconstruction. The systems they solve are well conditioned, so the
+solvers agree to within about 1.5e-15 relative, and some pairs bit for bit. The
+1e-12 recorded comparison therefore cannot tell one solver from another: routing
+one solver to another implementation would still pass here. Which solver is
+selected and which algorithm runs is verified by the Vandermonde solver-policy
+verification under `tests/verification/vandermonde/`.
 
 ### Regenerating the recorded values
 

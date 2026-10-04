@@ -13,7 +13,7 @@ are in `qmomkit::internal`.
 
 `reconstruct_raw_moments` computes `M_alpha = sum_j W_j product_d
 x[d,j]^alpha[d]` from terminal quadrature values. The QMOM overload uses orders
-zero through a requested maximum. CQMOM overloads produce a dense tensor for
+zero through a requested maximum. CQMOM overloads produce a full tensor for
 requested extents or a selected vector of raw indices. Selected requests retain
 order and duplicates; the algorithm does not silently normalize by total
 weight.

@@ -9,12 +9,12 @@ the user-facing phase-space evolution examples under `examples/qmom_1d_breakage_
 and `examples/cqmom_2d_minimal/`.
 
 All initial QMOMKit cases are loaded from `.qmom` files through the public
-configuration API. Configuration may define the initial numerical setup and the
-operator-splitting scheme (`strang`, `advsrc`, or `srcadv`). Operator
-coefficients, exact references, timestep plans, RK23/SSP-RK3 options, and
-tolerances live in `phase_space_evolution_analytical.cpp` because the current configuration
-format does not define physics callbacks, model coefficients, timestep plans, or
-detailed integration controls.
+configuration API, and the fixtures define only the initial case. The splitting
+scheme (`strang`, `advsrc`, or `srcadv`), the RK23/SSP-RK3 options, operator
+coefficients, exact references, timestep plans, and tolerances are set in
+`phase_space_evolution_analytical.cpp`, so each case controls them explicitly.
+The configuration format does not define physics callbacks, model coefficients,
+or timestep plans.
 
 ## Commuting QMOM
 
@@ -88,14 +88,11 @@ reported as completed.
 
 Configuration: `qmom_phase_space_evolution_inversion_failures.qmom`
 
-This companion case verifies initial inversion failure propagation through the
-same public QMOM phase-space evolution workflow. The input moments are finite and loaded
-successfully, but `m0 < 0`, so the moment sequence is not realizable before
-phase-space evolution can begin. The verifier checks that phase-space evolution reports
-`PhaseSpaceEvolutionStatus::inversion_failed`, identifies
-`PhaseSpaceEvolutionStage::initial_inversion`, preserves the QMOM realizability message,
-does not advance time, and does not report source or reconstruction stages as
-completed.
+This companion case covers a QMOM moment sequence that is not realizable before
+phase-space evolution can begin. The input moments are finite and load
+successfully, but `m0 < 0`, so `QmomCase::initial_state()` throws and no
+accepted state can enter phase-space evolution. The verifier checks that it
+throws.
 
 ## Noncommuting QMOM
 
@@ -180,21 +177,23 @@ second-order Strang versus first-order Lie convergence. `advsrc` and `srcadv` ar
 required to differ at the coarse timestep.
 
 The fixed final time is `T = 1.2` with macro steps
-`0.3, 0.15, 0.075, 0.0375, 0.01875`. The reference is constructed directly
-from the listed four terminal nodes after applying the exact trajectories; it
-does not use a phase-space-evolved result. The error is the scaled infinity norm over
-all configured raw moments, `max |computed - exact| / max(1, |exact|)`, and the
-phase-space evolution moment-layout moments are checked separately. Phase-space advection RK23 tolerances
+`0.3, 0.15, 0.075, 0.0375, 0.01875`. The reference applies the exact
+trajectories to the initial CQMOM quadrature that `compute_cqmom` recovers from
+the configured moments; it does not use a phase-space-evolved result. That
+initial quadrature is not compared with the four nodes listed above, so the
+reference depends on the initial reconstruction. The error is the larger of the
+scaled infinity norms, `max |computed - exact| / max(1, |exact|)`, over the
+state's layout moments and over the reconstructed raw-moment tensor. Phase-space advection RK23 tolerances
 are `1e-12` relative and `1e-14` absolute with maximum step `0.01`, keeping
-sub-integrator error below the measured splitting error. The observed-order
-acceptance window is 0.2 around order two for Strang and order one for each Lie
-ordering.
+sub-integrator error below the measured splitting error. The penultimate and
+finest observed orders must be at least 1.8 for Strang and at least 0.8 for
+each Lie ordering.
 
 ## Commuting CQMOM 2D
 
 Configuration: `commuting_cqmom_2d.qmom`
 
-This compact optional case verifies the same complete phase-space evolution path for a
+This compact case verifies the same complete phase-space evolution path for a
 two-dimensional CQMOM state with non-identity conditioning order. The
 advection operator is diagonal:
 
@@ -242,8 +241,8 @@ conditioning order `{1,0}`. They represent the same ragged physical rule
 `(-1,-1,0.10)`, `(1,-1,0.30)`, `(0.5,2,0.60)` in units `(1,1)` and
 `(1e6,1e-6)`.
 
-One Strang macro step applies constant physical node velocities
-`(0.4,-0.25)` and the CQMOM-native source `dM_alpha/dt = 0.1 M_alpha`.
+One Strang macro step applies constant node velocities `(0.4,-0.25)` in the
+reference units, scaled by the fixture units, and the CQMOM-native source `dM_alpha/dt = 0.1 M_alpha`.
 Constant advection is exact under the selected SSP-RK3 node step; the source
 oracle is the independently evaluated SSP-RK3 polynomial
 `P(z)=1+z+z^2/2+z^3/6`. The verifier checks final ragged paths, weights,
@@ -416,9 +415,11 @@ same velocity-callback and post-source reconstruction failures, plus a source
 callback that returns a wrong-sized rate vector, it checks the same high-level
 status, failed stage, preserved diagnostics, and useful messages, and that the
 moments are unchanged after a failed advection. It does not require identical
-internal diagnostic details. It also checks that the case's diagnostic level,
-Vandermonde solver, and adaptive branch counts reach the CQMOM reconstructions
-during phase-space evolution.
+internal diagnostic details. It also checks that diagnostic-level,
+Vandermonde-solver, and adaptive-branch-count settings on the case reach the
+CQMOM reconstructions during phase-space evolution; for this probe a copy of the
+case is set to `basic` diagnostics, the dense solver, and adaptive branch
+counts.
 
 Configuration: `cqmom_phase_space_evolution_inversion_failures.qmom`
 
@@ -433,87 +434,88 @@ failure, reports `PhaseSpaceEvolutionStage::initial_inversion`, preserves
 CQMOM diagnostics and a realizability message, does not advance time, and does
 not report later stages as completed.
 
+## Boundary Contributions
+
+`qmom_boundary_contribution` reuses `commuting_qmom.qmom` with zero velocity and
+one `srcadv` step of `0.04`. A boundary callback injects mass at `0.25` with
+rate `0.08` and removes it at `1.1` with rate `-0.03`. Because the rates are
+constant, the exact moments are the initial moments plus `dt` times the rate;
+the verifier compares the state's moments and the moments reconstructed from its
+final quadrature with that reference, to `5e-11` scaled. A second run from the
+same initial state adds a constant moment source to the same boundary rates and
+compares against the corresponding sum. The case also checks that a boundary
+callback returning a wrong-sized, NaN, or infinite rate fails in the
+moment-source stage with a "boundary contribution" message, and that a rate of
+`-100` on `m_0` passes the source step but fails post-source inversion.
+
+`cqmom_boundary_contribution` reuses `commuting_cqmom_2d.qmom` with zero
+velocity and one Strang step of `0.02`. The boundary rate of each moment is the
+moment of prescribed weight rates at the nodes of the initial quadrature. The
+verifier reconstructs the full `4 x 4` tensor from the final quadrature and
+compares it, to `5e-9` scaled, with the full tensor of the initial quadrature
+plus `dt` times that rate.
+The callback also checks that its source context has the expected size,
+hierarchy, conditioning order `{1,0}`, and index order.
+
+## Linear Advection Against a Closed Form
+
+`qmom_linear_advection_manufactured.cpp` uses the velocity `u(x) = x`, for which
+every node follows `x(t) = x(0) exp(t)` and advection leaves the weights
+unchanged, so the raw moments follow `M_k(t) = M_k(0) exp(k t)`. The initial
+moments come from three chosen nodes and weights, not from a configuration file.
+
+- `verification_qmom_advection_matches_exponential_phase_evolution`: after
+  advection the positions must be within `2e-12` of `x(0) exp(0.1)`, the weights
+  must be unchanged bit for bit, and the rebuilt moments must agree to `2e-11`
+  relative.
+- `verification_qmom_phase_space_source_evolution_matches_manufactured_solution`:
+  with a source that adds `0.1` to every moment per unit time, the exact
+  solution is `M_0(t) = M_0(0) + 0.1 t` and
+  `M_k(t) = M_k(0) exp(k t) + 0.1 (exp(k t) - 1) / k` for `k >= 1`. The error
+  must fall at every refinement, and over the last two refinements the observed
+  order must exceed `1.7` for Strang and lie between `0.7` and `1.3` for the
+  two first-order orderings.
+
 ## Running
 
-Configure and build the standalone test project first:
+Configure and build the test suite from the repository root, in Debug as
+described in [Testing](../../../docs/developer/testing.md#debug-build-requirement):
 
 ```bash
-cd tests
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../install"
-cmake --build build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
+cmake --build build --parallel
 ```
 
 Run individual cases:
 
 ```bash
-ctest --test-dir build -R verification_phase_space_evolution_commuting_qmom --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_qmom_phase_space_evolution_failures --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_qmom_phase_space_evolution_inversion_failures --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_noncommuting_convergence --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_commuting_cqmom_2d --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_commuting_cqmom_state_adaptive_2d --output-on-failure
-ctest --test-dir build -R 'verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant' --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_cqmom_native_source --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_cqmom_combined_native_source --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_cqmom_native_source_failures --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_cqmom_phase_space_evolution_failures --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_cqmom_phase_space_evolution_inversion_failures --output-on-failure
-ctest --test-dir build -R verification_phase_space_evolution_cqmom_case_phase_space_evolution_failures --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_commuting_qmom$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_qmom_boundary_contribution$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_qmom_phase_space_evolution_failures$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_qmom_phase_space_evolution_inversion_failures$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_noncommuting_convergence$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_noncommuting_cqmom_convergence$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_commuting_cqmom_2d$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_boundary_contribution$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_commuting_cqmom_state_adaptive_2d$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_native_source$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_combined_native_source$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_native_source_failures$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_phase_space_evolution_failures$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_phase_space_evolution_inversion_failures$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_case_phase_space_evolution_failures$' --output-on-failure
+ctest --test-dir build -R '^verification_qmom_advection_matches_exponential_phase_evolution$' --output-on-failure
+ctest --test-dir build -R '^verification_qmom_phase_space_source_evolution_matches_manufactured_solution$' --output-on-failure
 ```
 
-Run all complete phase-space evolution integrator analytical cases:
+Run all phase-space evolution verification cases in this directory:
 
 ```bash
-ctest --test-dir build -R verification_phase_space_evolution_ --output-on-failure
+ctest --test-dir build -R '^verification_(phase_space_evolution_|qmom_advection_matches|qmom_phase_space_source)' --output-on-failure
 ```
 
-The verifier reports final exact and computed moments, maximum absolute moment
-error, scaled moment error, zeroth-moment error, final reconstruction error,
-and a refinement table with observed orders for convergence cases.
-
-## Machine-Readable Output
-
-The verifier can optionally write a whitespace-delimited text table:
-
-```bash
-mkdir -p tests/verification/phase_space_evolution/output
-
-./build/phase_space_evolution_analytical_verification \
-  tests/verification/phase_space_evolution/commuting_qmom.qmom \
-  commuting_qmom \
-  --output tests/verification/phase_space_evolution/output/commuting_qmom_refinement.txt
-
-./build/phase_space_evolution_analytical_verification \
-  tests/verification/phase_space_evolution/noncommuting_qmom.qmom \
-  noncommuting_qmom \
-  --output tests/verification/phase_space_evolution/output/noncommuting_qmom_refinement.txt
-```
-
-The output directory under `tests/verification/phase_space_evolution/output/` is ignored by
-Git. Generated files are manual-analysis artifacts, not authoritative fixtures,
-and are not committed by default.
-
-The same files can be generated into the build tree with:
-
-```bash
-cmake --build build --target generate_phase_space_evolution_verification_outputs
-```
-
-The file format uses `std::setprecision(17)` and one row per refinement:
-
-```text
-case dt step_count final_time error_norm observed_order zeroth_moment_error reconstruction_error retry_count success
-```
-
-`error_norm` is the scaled infinity norm defined above. `observed_order` is:
-
-```text
-p = log(e_h / e_{h/2}) / log(2)
-```
-
-The first refinement row has `observed_order = nan` because there is no coarser
-row in that table. `reconstruction_error` is the scaled final quadrature
-reconstruction error. The generated rows are written from the same `RunSummary`
-values used by the verifier's assertions; there is no separate hard-coded
-results table.
+The verifier is silent on success. On failure it writes a per-run error table
+(scheme, timestep, steps, final time, error norm, observed order, absolute and
+scaled moment errors, reconstruction errors, zeroth-moment error, retry count,
+and success) and the failure messages to standard error.

@@ -83,7 +83,8 @@ Representative examples include QMOM/CQMOM reconstruction, phase-space evolution
 physics callbacks, and output workflows.
 
 Verification tests live under `tests/verification/` and use the `verification`
-CTest label. Their CTest names use the `verification_<area>_<case>` prefix.
+CTest label. Their CTest names start with `verification_`, usually followed by
+the area and the case.
 Each verification area has a local README when the workflow or reference
 construction is non-trivial.
 
@@ -94,9 +95,11 @@ and Release builds and return a non-zero exit code on failure.
 
 Public-header checks verify at compile time that every public header is
 self-contained. Each `include_*.cpp` translation unit under
-`tests/public_headers/` includes one QMOMKit public header through the current
-source-tree `qmomkit` target. This detects missing direct includes and
-include-order dependencies before installation.
+`tests/public_headers/` includes its QMOMKit public header first, before any
+standard header, through the current source-tree `qmomkit` target. This detects
+missing direct includes and include-order dependencies before installation.
+Where clang-format would otherwise sort a standard header ahead of the public
+header, a comment line separates them.
 
 `tests/public_headers/main.cpp` is intentionally empty apart from `main()`. It
 only permits the compile-check translation units to be linked into a CTest
@@ -125,28 +128,42 @@ The current test layout is:
 
 ```text
 tests/
+    CMakeLists.txt
     README.md
+    test_case_dispatch.hpp
     unit/
         CMakeLists.txt
-        conditional_moments.cpp
+        abscissa_bounds.cpp
+        bjorck_pereyra.cpp
         configuration.cpp
         distributions.cpp
+        householder_qr.cpp
+        jacobi_svd.cpp
+        moment_reconstruction.cpp
         moment_source.cpp
         node_advection.cpp
         output.cpp
+        performance_instrumentation.cpp
+        phase_space_evolution.cpp
+        phase_space_evolution_batch.cpp
         public_api.cpp
-        moment_reconstruction.cpp
         realizability.cpp
         realizability_policy.cpp
         recursive_quadrature.cpp
         runge_kutta.cpp
-        phase_space_evolution.cpp
         vandermonde.cpp
         wheeler.cpp
     component_regression/
         CMakeLists.txt
         README.md
+        cqmom_case_matrix.cpp
+        cqmom_case_matrix.hpp
         cqmom_compute_failures.cpp
+        cqmom_drag_and_degenerate_moments.cpp
+        cqmom_physical_transport_probe.cpp
+        cqmom_prepared_case_moment_replacement.cpp
+        cqmom_reference_values.cpp
+        cqmom_reference_values.inc
         moment_source.cpp
         node_advection.cpp
         phase_space_evolution.cpp
@@ -158,58 +175,79 @@ tests/
         CMakeLists.txt
         README.md
         main.cpp
+    benchmarks/
+        CMakeLists.txt
+        *_benchmark.cpp
     verification/
         CMakeLists.txt
         README.md
         verification_helpers.hpp
         configuration/
+            CMakeLists.txt
             README.md
             configuration_failures.cpp
             *.qmom
         cqmom/
+            CMakeLists.txt
             README.md
-            conditional_moments.cpp
-            recursive_cqmom.cpp
-            recursive_quadrature.cpp
-            moment_reconstruction.cpp
+            adaptive_branch_growth.cpp
+            automatic_scaling.cpp
             cqmom_2d_analytical.cpp
             cqmom_high_dimensional_analytical.cpp
             cqmom_public_workflows.cpp
+            moment_reconstruction.cpp
+            quadrature_bounds.cpp
+            recursive_cqmom.cpp
+            recursive_quadrature.cpp
             *.qmom
         distributions/
+            CMakeLists.txt
             README.md
             distributions_analytical.cpp
         moment_source/
+            CMakeLists.txt
             README.md
             moment_source_analytical.cpp
             *.qmom
         node_advection/
+            CMakeLists.txt
             README.md
             node_advection_analytical.cpp
             *.qmom
         output/
+            CMakeLists.txt
             README.md
             output_workflows.cpp
-        qmom/
+        phase_space_evolution/
+            CMakeLists.txt
             README.md
+            phase_space_evolution_analytical.cpp
+            qmom_linear_advection_manufactured.cpp
+            *.qmom
+        qmom/
+            CMakeLists.txt
+            README.md
+            adaptive_qmom.cpp
             expected.hpp
+            moment_space_boundary.cpp
             qmom_analytical.cpp
             qmom_compute_failures.cpp
+            quadrature_bounds.cpp
             wheeler_analytical.cpp
             *.qmom
         realizability/
+            CMakeLists.txt
             README.md
             realizability_analytical.cpp
         runge_kutta/
+            CMakeLists.txt
             README.md
             runge_kutta_analytical.cpp
             runge_kutta_convergence.cpp
-        phase_space_evolution/
-            README.md
-            phase_space_evolution_analytical.cpp
-            *.qmom
         vandermonde/
+            CMakeLists.txt
             README.md
+            clustered_solver_policy.cpp
             solver_selection.cpp
             *.qmom
 ```

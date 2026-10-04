@@ -46,7 +46,7 @@
 //     finite steps is itself only approximate.
 //
 // Reproduce
-//   ctest -R verification_phase_space_evolution_qmom_linear_advection
+//   ctest -R "^verification_qmom_(advection_matches|phase_space_source)"
 //
 // Build modes
 //   Both. The checks use QMOMKIT_VERIFY_CHECK, which reports and exits rather

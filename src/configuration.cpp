@@ -2272,8 +2272,8 @@ ConfigurationResult<CqmomMomentData> initialize_cqmom_moments(const InitialCondi
         }
         if (const auto* independent_product = std::get_if<IndependentProductInitialization>(&specification))
         {
-            // Lean initialization requests only the recursive CQMOM moments
-            // required by the layout, avoiding unnecessary dense tensor values.
+            // Requesting only the recursive CQMOM moments required by the layout
+            // avoids computing tensor entries the case never reads.
             const RawMomentRequest request{layout.required_indices.to_multi_indices()};
             const SelectedRawMomentResult selected_moments = compute_raw_moments(independent_product->distribution, request);
             if (!selected_moments.ok())

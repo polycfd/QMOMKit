@@ -182,7 +182,7 @@ void assert_cqmom_moments_near(const qmomkit::CqmomMomentData& actual, const qmo
     }
 }
 
-// Compare CQMOM moments against an analytically computed dense tensor. Only the
+// Compare CQMOM moments against an analytically computed full tensor. Only the
 // moments the hierarchy reconstructs from are held by a case, so the expected
 // tensor is reduced the same way before comparison; entries outside that set
 // are not part of the case and are deliberately not checked here.

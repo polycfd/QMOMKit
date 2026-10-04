@@ -169,8 +169,8 @@ std::vector<StaticCase> static_cases()
         cases.push_back(std::move(case_));
     }
 
-    // Every Vandermonde solver policy. This is the dense matrix solver, which
-    // is unrelated to the dense moment storage scheme.
+    // Every Vandermonde solver policy, each selecting the linear solver for the
+    // conditional systems.
     cases.push_back(solver_case("automatic", VandermondeSolver::automatic));
     cases.push_back(solver_case("dense", VandermondeSolver::dense));
     cases.push_back(solver_case("pivoted_qr", VandermondeSolver::pivoted_qr));

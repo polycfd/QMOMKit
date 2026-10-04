@@ -1,6 +1,8 @@
+#include <qmomkit/node_advection.hpp>
+
+// Standard headers follow the public header, so they cannot supply an include it is missing.
 #include <cstddef>
 #include <functional>
-#include <qmomkit/node_advection.hpp>
 #include <type_traits>
 #include <vector>
 

@@ -76,13 +76,13 @@ using SelectedSampledInitialization = SampledInitializationResult<SelectedEnsemb
  * requested raw moments from the same finite sample ensemble.
  *
  * The request is evaluated exactly as `compute_requested_ensemble_moments`
- * does: request order and duplicate entries are preserved, and no dense moment
+ * does: request order and duplicate entries are preserved, and no full moment
  * tensor is constructed. A caller that needs only the moments a CQMOM hierarchy
  * requires therefore evaluates that set rather than the full rectangle, which
  * for higher-dimensional hierarchies is most of the estimation work.
  *
- * For identical `SamplingOptions` this draws the same ensemble as the dense
- * overload, so a requested moment equals the corresponding entry of the dense
+ * For identical `SamplingOptions` this draws the same ensemble as the tensor
+ * overload, so a requested moment equals the corresponding entry of the full
  * tensor estimated from that ensemble.
  */
 [[nodiscard]] SelectedSampledInitialization sample_initialization(const qmomkit::IndependentProductDistribution& distribution,

@@ -291,7 +291,7 @@ void test_cqmom_history_writer_follows_required_layout()
     const std::vector<std::string> row = split(lines[header + 1]);
 
     // One column per required moment, plus time. The layout decides the columns,
-    // so the writer must not fall back to a dense rectangle.
+    // so the writer must not fall back to the full tensor.
     CHECK(header_fields.size() == layout.required_indices.size() + 2);
     CHECK(row.size() == layout.required_indices.size() + 1);
     CHECK(std::stod(row[0]) == 1.0);

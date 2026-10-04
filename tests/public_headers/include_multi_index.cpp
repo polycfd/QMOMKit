@@ -1,5 +1,7 @@
-#include <cstddef>
 #include <qmomkit/multi_index.hpp>
+
+// Standard headers follow the public header, so they cannot supply an include it is missing.
+#include <cstddef>
 #include <type_traits>
 #include <vector>
 

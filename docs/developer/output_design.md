@@ -61,10 +61,9 @@ schedule calls according to its own simulation loop.
 
 `MomentWriter` writes raw moment histories. Construction opens exactly one text
 file, writes one header row, and each `write(...)` call appends one time row.
-The writer supports one-dimensional `MomentSet` output, dense
-multidimensional `RawMomentTensor` compatibility output, advanced lean
-`CqmomMomentData` output, and requested CQMOM moments reconstructed from
-`CqmomQuadrature`.
+The writer supports one-dimensional `MomentSet` output, full-tensor
+multidimensional `RawMomentTensor` output, `CqmomMomentData` output, and
+requested CQMOM moments reconstructed from `CqmomQuadrature`.
 
 `QuadratureWriter` writes quadrature histories. Construction opens exactly one
 text file and writes one header row. For one-dimensional `Quadrature1D` or
@@ -135,7 +134,7 @@ have one exponent per physical phase-space dimension. Exponents must be finite
 and non-negative. Integer-valued generalized requests remain explicit appended
 columns even when an equivalent ordinary moment is present.
 
-For dense CQMOM compatibility output, all-moment output uses the row-major
+For full-tensor CQMOM output, all-moment output uses the row-major
 `RawMomentTensor` storage convention. Multi-indices are enumerated in
 phase-space dimension order with the last index varying fastest:
 
@@ -143,13 +142,13 @@ phase-space dimension order with the last index varying fastest:
 # time M[0,0] M[0,1] M[1,0] M[1,1]
 ```
 
-Selected dense CQMOM moments use the exact `MultiIndex` order supplied to the
-writer and are read from the supplied dense tensor.
+Selected full-tensor CQMOM moments use the exact `MultiIndex` order supplied to
+the writer and are read from the supplied tensor.
 
-Advanced lean CQMOM moment output is constructed from a `CqmomMomentLayout`
+CQMOM moment-data output is constructed from a `CqmomMomentLayout`
 and writes `CqmomMomentData` rows. Columns use `layout.required_indices` order,
 and values are read directly from `CqmomMomentData::values`; the writer does
-not require dense tensor extents or `RawMomentTensor` storage.
+not require tensor extents or `RawMomentTensor` storage.
 
 Requested CQMOM moment output is constructed from a `RawMomentRequest` and
 writes rows from `CqmomQuadrature`. Each requested raw moment is reconstructed
@@ -157,7 +156,7 @@ directly from the terminal quadrature nodes:
 $$m_\alpha = \sum_j W_j \prod_r \xi_{r,j}^{\alpha_r}$$
 
 Requested output preserves request order and duplicate requested indices. It
-does not create a dense `RawMomentTensor`.
+does not create a `RawMomentTensor`.
 
 ## Moment writer factory pairing
 

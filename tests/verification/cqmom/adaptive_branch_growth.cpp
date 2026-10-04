@@ -24,7 +24,7 @@
 //   inversion error.
 //
 // Reproduce
-//   ctest -R verification_adaptive_branch_reinjection
+//   ctest -R "^verification_cqmom_adaptive_branch_growth_"
 //
 // Build modes
 //   Both. Checks go through QMOMKIT_VERIFY_*, not assert().

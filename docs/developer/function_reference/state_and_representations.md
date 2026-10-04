@@ -28,12 +28,12 @@ permutation of physical dimensions (identity when omitted). `moment_extents`
 returns twice each configured count; capacities are not active branch counts.
 `flatten_node_index` and `unflatten_node_index` use phase-space order.
 `ConditioningPath` instead stores local node indices in conditioning order.
-Path extension/prefix access describes tree ancestry, not a dense offset.
+Path extension/prefix access describes tree ancestry, not a flat offset.
 Required extents are checked before dependent storage is constructed.
 
 `CqmomMomentData` associates canonical required indices with values. Its lookup
 returns the stored raw moment at an exact required index; missing entries are
-not interpolated. Dense `RawMomentTensor` access uses extents/flat offsets;
+not interpolated. `RawMomentTensor` access uses extents/flat offsets;
 full tensor storage contains moments not needed for inversion. Extraction into
 required storage preserves raw zeroth density and the canonical enumeration
 order.

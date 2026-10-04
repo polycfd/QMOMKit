@@ -2,8 +2,9 @@
 
 This directory is a minimal external CMake project used to validate the
 installed QMOMKit package interface. It is intentionally separate from the
-normal CTest unit, verification, and public-header suites because it requires
-QMOMKit to be built and installed before the consumer project is configured.
+normal CTest unit, component regression, verification, and public-header suites
+because it requires QMOMKit to be built and installed before the consumer
+project is configured.
 
 The consumer uses only:
 
@@ -34,4 +35,8 @@ cmake --build build-package-consumer
 
 This verifies that `find_package(QMOMKit CONFIG REQUIRED)` succeeds, the
 installed `qmomkit::qmomkit` target resolves, and installed public headers
-compile through `<qmomkit/qmomkit.hpp>`.
+compile through `<qmomkit/qmomkit.hpp>`. The consumer then runs a small QMOM
+and CQMOM workflow through the installed library: QMOM reconstruction, a QMOM
+state with a moment-source step and batched phase-space evolution, a configured
+prepared CQMOM case with replaced initial moments, CQMOM reconstruction, and
+batched CQMOM advection. It returns non-zero if any of them fails.

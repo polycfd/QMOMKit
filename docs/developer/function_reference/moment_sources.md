@@ -99,7 +99,7 @@ semantics of the public quadrature evaluator. Generic source-only contexts
 without reconstruction metadata reject the request.
 
 `CqmomSourceContext::moment` similarly uses exact required-index lookup first.
-`reconstructed_stage_quadrature` constructs a lean stage case, reuses
+`reconstructed_stage_quadrature` constructs a stage `CqmomCase`, reuses
 appropriate fixed metadata/active counts, and allows the internal adaptive
 reconstruction policy where configured. The cache belongs to this context and
 therefore this RK stage; it is not a global or whole-time-step cache. Missing

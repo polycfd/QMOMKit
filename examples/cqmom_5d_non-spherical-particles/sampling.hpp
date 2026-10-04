@@ -18,7 +18,7 @@ constexpr unsigned long long initialization_seed = 12345;
 
 [[nodiscard]] std::optional<std::string> read_configuration_text(const std::filesystem::path& path);
 
-// One draw of the shared initial ensemble, with the dense moment extents the
+// One draw of the shared initial ensemble, with the tensor extents the
 // Monte Carlo moment history is reported over.
 struct SampledInitialEnsemble
 {
@@ -27,15 +27,15 @@ struct SampledInitialEnsemble
 };
 
 // Samples the independent-product marginals with the fixed example seed and
-// resolves the dense moment extents, without estimating any moments: the Monte
-// Carlo driver recomputes dense moments from the evolving ensemble at every
+// resolves the tensor extents, without estimating any moments: the Monte Carlo
+// driver recomputes the full moment tensor from the evolving ensemble at every
 // output time anyway, so estimating them once more here would be discarded work.
 [[nodiscard]] std::optional<SampledInitialEnsemble> sample_initial_ensemble(const qmomkit::config::InitialConditionSpecification& initial_condition,
                                                                             const qmomkit::PhaseSpaceHierarchy& hierarchy);
 
 // Samples the same marginals, with the same fixed seed and sample count, but
 // estimates only the requested raw moments. The CQMOM run asks for the moments
-// its hierarchy requires and never evaluates the rest of the dense rectangle.
+// its hierarchy requires and never evaluates the rest of the full tensor.
 // Sharing the seed and sample count keeps both runs on one realization, so the
 // CQMOM and Monte Carlo results remain comparable.
 [[nodiscard]] std::optional<qmomkit::monte_carlo::SelectedSampledInitialization>

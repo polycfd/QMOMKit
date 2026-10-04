@@ -390,7 +390,7 @@ const ExpectedCase* find_case(const std::string& name)
 
 qmomkit::RawMomentTensor expected_raw_moments(const ExpectedCase& expected)
 {
-    // Build the dense reference tensor directly from the manufactured terminal
+    // Build the full reference tensor directly from the manufactured terminal
     // quadrature. This keeps the expected raw moments independent of the CQMOM
     // reconstruction routine under test.
     qmomkit::RawMomentTensor moments{expected.extents, std::vector<double>(qmomkit::product_extents(expected.extents), 0.0)};
@@ -743,7 +743,7 @@ void verify_reconstructed_moments(const qmomkit::CqmomQuadrature& quadrature, co
 
 VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::CqmomCase& configured_cqmom_case)
 {
-    // Verify one high-dimensional CQMOM workflow from configured dense moments
+    // Verify one high-dimensional CQMOM workflow from configured tensor moments
     // through public compute_cqmom output. The reference is the manufactured
     // terminal quadrature plus moments assembled above, so failures point to
     // hierarchy, branch-count, terminal, or reconstruction behavior.

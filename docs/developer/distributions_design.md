@@ -309,7 +309,7 @@ IndependentProductDistribution
       -> CqmomPreparedCase
 ```
 
-The explicit dense CQMOM initialization route remains available when callers
+The explicit full-tensor CQMOM initialization route is available when callers
 intentionally use full rectangular tensor storage:
 
 ```text
@@ -352,13 +352,14 @@ moment initialization has precedence in configuration: explicit moments are
 treated as the source of truth, and distribution fields that would otherwise
 generate moments are not active in that path.
 
-Generated moments must still be sufficient for the requested reconstruction.
-For one-dimensional QMOM, an `N`-node inversion needs at least `2 * N` moments.
-For dense CQMOM compatibility, the generated tensor extents must be large
-enough for the configured phase-space hierarchy and node counts. For lean CQMOM
-initialization, sufficiency is encoded by `CqmomMomentLayout`. Those
-reconstruction requirements belong to QMOM case and CQMOM case validation and
-algorithm status handling, not to the distribution object itself.
+Generated moments must still be sufficient for the requested reconstruction. For
+one-dimensional QMOM, an `N`-node inversion needs at least `2 * N` moments. For
+a full CQMOM tensor, the generated extents must be large enough for the
+configured phase-space hierarchy and node counts. When CQMOM initialization
+generates only the required moments, sufficiency is encoded by
+`CqmomMomentLayout`. Those reconstruction requirements belong to QMOM case and
+CQMOM case validation and algorithm status handling, not to the distribution
+object itself.
 
 ## API boundary
 

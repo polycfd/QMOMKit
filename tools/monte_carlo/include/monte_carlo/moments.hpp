@@ -136,13 +136,13 @@ struct GeneralizedEnsembleMomentEstimate
  * Estimate only the requested multidimensional raw moments from equally
  * weighted samples.
  *
- * The total number density is applied using the same convention as the dense
+ * The total number density is applied using the same convention as the tensor
  * estimator:
  *
  *     M_alpha = n0 / N * sum_p product_d xi[p,d]^alpha[d]
  *
  * Request order and duplicate entries are preserved. The function evaluates
- * only the requested monomials and does not construct a dense moment tensor.
+ * only the requested monomials and does not construct the full moment tensor.
  */
 [[nodiscard]] SelectedEnsembleMomentEstimate compute_requested_ensemble_moments(const Ensemble& ensemble, double number_density,
                                                                                 const qmomkit::RawMomentRequest& request);

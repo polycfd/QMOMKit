@@ -1,10 +1,13 @@
 # One-Dimensional QMOM Analytical Verification
 
-This layer verifies the public `qmomkit::compute_qmom` API from inputs loaded
-through the public configuration API. The configuration files live in
-`tests/verification/qmom/` and contain only QMOM metadata and raw input moments.
-Expected quadrature weights and abscissas are defined independently in
-`tests/verification/qmom/expected.hpp`.
+This layer verifies one-dimensional QMOM inversion. The analytical cases run
+the public `qmomkit::compute_qmom` API on inputs loaded through the public
+configuration API. The configuration files live in `tests/verification/qmom/`
+and contain only QMOM metadata and raw input moments. Expected quadrature
+weights and abscissas are defined independently in
+`tests/verification/qmom/expected.hpp`. The other executables in this directory
+build their moments in code: the direct compute failures, the moment-space
+boundary cases, and the Wheeler, adaptive and bounded cases described below.
 
 ## Manufactured Discrete Cases
 
@@ -54,10 +57,10 @@ Gauss-Hermite nodes for `exp(-x^2)`: the standard-normal/probabilists nodes are
 larger by a factor of `sqrt(2)` after converting the weight convention. The
 verification includes `gaussian_n2.qmom` and `gaussian_n3.qmom`.
 
-Each advection case uses exactly the first `2N` raw moments, `m_0` through
-`m_(2N-1)`. For these three advection families, `m_0 = 1` because the chosen
-weight functions are normalized probability densities, not because QMOMKit
-normalizes raw moments.
+Each continuous-distribution case uses exactly the first `2N` raw moments, `m_0`
+through `m_(2N-1)`. For these three distribution families, `m_0 = 1` because the
+chosen weight functions are normalized probability densities, not because
+QMOMKit normalizes raw moments.
 
 ## Checks
 
@@ -69,7 +72,7 @@ The reusable executable `qmom_analytical_verification`:
 - sorts recovered nodes by abscissa before direct comparison;
 - compares weights and nodes against independent classical quadrature values;
 - reconstructs every configured raw moment from the recovered quadrature;
-- reports maximum absolute and relative reconstruction errors;
+- reports maximum absolute and relative errors on failure;
 - verifies all weights are positive;
 - verifies `sum(weights) = m_0` without assuming unit mass.
 
@@ -149,6 +152,36 @@ threshold depends on floating-point conditioning and is not a contract; pinning
 it would make the suite platform-sensitive without testing anything QMOMKit
 promises.
 
+## Wheeler, Adaptive, and Bounded Cases
+
+`wheeler_analytical.cpp` verifies the Wheeler inversion
+`qmomkit::compute_quadrature(...)` directly, on one-, two- and three-node rules
+chosen in advance. The recovered positions and weights must equal the chosen
+ones, reconstructing the moments from the result must return the input, and
+presenting the same points in a different input order must change neither the
+moments nor the sorted output. Tolerances are set per case, at `1e-14` for the
+small well-separated rules. CTest names: `verification_wheeler_analytical_*`.
+
+`adaptive_qmom.cpp` builds six moments from a two-node rule and requests three
+nodes from `compute_qmom` with `QmomOptions::adaptive = true`. The result must
+be exactly the two chosen nodes, with weights summing to `m_0`, and must
+reproduce all six moments, to `1e-12`. CTest name:
+`verification_adaptive_qmom_adaptive_public_qmom_reconstruction`.
+
+`quadrature_bounds.cpp` verifies `compute_qmom` with an `AbscissaBounds`
+interval:
+
+- `fixed_bounded_qmom_accepts_nodes_inside_interval`: a fixed two-node rule
+  whose nodes lie inside the interval gives exactly the unbounded result;
+- `fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping`: a node
+  outside the interval gives `QmomStatus::not_realizable`, and the returned
+  abscissa is the unclipped one;
+- `adaptive_bounded_qmom_uses_highest_admissible_count`: with adaptive
+  inversion, the same moments are accepted with the largest node count whose
+  nodes all lie inside the interval, here one node.
+
+CTest names: `verification_qmom_quadrature_bounds_*`.
+
 ## Tolerance Policy
 
 The current tolerance is `1e-12` for direct weights, abscissas, reconstructed
@@ -161,33 +194,40 @@ Wheeler inversion.
 
 ## Running
 
-Build and run all QMOM analytical cases:
+Configure and build the test suite from the repository root, in Debug as
+described in [Testing](../../../docs/developer/testing.md#debug-build-requirement):
 
 ```bash
-cd tests
-cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=Debug \
-    -DCMAKE_PREFIX_PATH="../install"
-cmake --build build
-ctest --test-dir build -R verification_qmom_analytical --output-on-failure
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
+cmake --build build --parallel
 ```
 
-Run one registered case:
+Run all QMOM analytical cases:
 
 ```bash
-ctest --test-dir build -R verification_qmom_analytical_uniform_n2 --output-on-failure
-ctest --test-dir build -R verification_qmom_analytical_exponential_n3 --output-on-failure
-ctest --test-dir build -R verification_qmom_analytical_gaussian_n3 --output-on-failure
-ctest --test-dir build -R verification_qmom_compute_failures --output-on-failure
+ctest --test-dir build -R '^verification_qmom_analytical_' --output-on-failure
 ```
 
-Run the executable manually from the `tests` directory:
+Run one registered case or family:
 
 ```bash
-./build/qmom_analytical_verification verification/qmom/uniform_n2.qmom uniform_n2
-./build/qmom_analytical_verification verification/qmom/exponential_n2.qmom exponential_n2
-./build/qmom_analytical_verification verification/qmom/gaussian_n2.qmom gaussian_n2
+ctest --test-dir build -R '^verification_qmom_analytical_uniform_n2$' --output-on-failure
+ctest --test-dir build -R '^verification_qmom_analytical_exponential_n3$' --output-on-failure
+ctest --test-dir build -R '^verification_qmom_analytical_gaussian_n3$' --output-on-failure
+ctest --test-dir build -R '^verification_qmom_compute_failure_' --output-on-failure
+ctest --test-dir build -R '^verification_qmom_moment_space_boundary_' --output-on-failure
+ctest --test-dir build -R '^verification_wheeler_analytical_' --output-on-failure
+ctest --test-dir build -R '^verification_adaptive_qmom_' --output-on-failure
+ctest --test-dir build -R '^verification_qmom_quadrature_bounds_' --output-on-failure
 ```
 
-CTest passes absolute source paths, so all cases run correctly when CTest uses
-the build directory as its working directory.
+Run the analytical executable directly from the repository root:
+
+```bash
+./build/tests/verification/qmom/qmom_analytical_verification tests/verification/qmom/uniform_n2.qmom uniform_n2
+./build/tests/verification/qmom/qmom_analytical_verification tests/verification/qmom/exponential_n2.qmom exponential_n2
+./build/tests/verification/qmom/qmom_analytical_verification tests/verification/qmom/gaussian_n2.qmom gaussian_n2
+```
+
+CTest passes absolute source paths, so the registered cases do not depend on
+the working directory.

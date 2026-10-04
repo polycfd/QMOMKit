@@ -89,8 +89,8 @@ The main parts of configuration handling are:
   sections, unknown keys, invalid values, missing required data, and
   inconsistent configuration combinations;
 - initialization: turns explicit moments or analytical distribution
-  specifications into `MomentSet`, CQMOM required moments, or explicit full
-  representation tensors;
+  specifications into `MomentSet`, CQMOM required moments, or a full tensor of
+  raw moments (`RawMomentTensor`);
 - case construction: builds `QmomCase`, `CqmomPreparedCase`, or an explicit
   `CqmomCase` from initialized moments, phase-space hierarchy, and options;
 - policy extraction: parses an optional splitting scheme, evolution options,
@@ -189,17 +189,17 @@ CqmomMomentData
 For analytical independent-product initialization, configuration requests
 exactly `CqmomMomentLayout::required_indices` from
 `create_cqmom_moment_layout(...)` and adapts the selected result to
-`CqmomMomentData`. This path does not construct a dense
+`CqmomMomentData`. This path does not construct a full
 `RawMomentTensor`; `initial.maximum_orders` has no effect on the requested
 moment layout.
 
-Analytical independent-product configuration uses explicit
-`initial.maximum_orders` when present; when omitted, the tensor extents come
-from `PhaseSpaceHierarchy::moment_extents()`. The derived extent in dimension
-`d` is `2 * node_counts[d]`, so the corresponding maximum raw order is
-`2 * node_counts[d] - 1`; explicit orders may be larger but not smaller.
-Reconstruction consumes only the `CqmomMomentLayout` required by the hierarchy
-and conditioning order.
+`initial.maximum_orders` matters only to callers that build the full tensor of
+raw moments themselves with `initialize_cqmom_moment_tensor(...)`, which
+requires it for an independent-product specification. Parsing checks the key's
+shape and representability but not whether the resulting tensor is large enough
+for `node_counts`; a tensor too small to contain a required moment is rejected
+when those moments are extracted from it. Reconstruction consumes only the
+`CqmomMomentLayout` required by the hierarchy and conditioning order.
 
 `load_cqmom(...)` returns the same configuration as an editable `CqmomCase`
 definition, for callers that change settings in code before preparing it;
@@ -261,8 +261,8 @@ A caller whose moments already arrive as the required CQMOM moment set — from
 `compute_raw_moments(...)` with the layout's `required_indices` adapted by
 `create_cqmom_moment_data(...)`, or from any other producer that evaluates
 exactly those indices — replaces the initial moments directly instead of
-materializing a dense tensor whose additional entries the case never reads. For
-a hierarchy whose dense tensor is much larger than its required set, that is the
+materializing a full tensor whose additional entries the case never reads. For
+a hierarchy whose full tensor is much larger than its required set, that is the
 difference between generating the required moments and generating the full
 rectangle.
 
@@ -338,7 +338,7 @@ settings are present in the same `.qmom` file, but they still return only
 | Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
 | --- | --- | --- | --- |
 | QMOM/CQMOM inversion settings | yes | yes | no |
-| Vandermonde and CQMOM storage settings | yes | yes | no |
+| Vandermonde and CQMOM diagnostic settings | yes | yes | no |
 | `time_integration.scheme` | yes | no | yes |
 | `time_integration.node_advection.*` | yes | no | yes |
 | `time_integration.realizability.*` | yes | no | yes |

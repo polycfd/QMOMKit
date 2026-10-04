@@ -1,5 +1,7 @@
-#include <functional>
 #include <qmomkit/runge_kutta.hpp>
+
+// Standard headers follow the public header, so they cannot supply an include it is missing.
+#include <functional>
 #include <type_traits>
 #include <vector>
 

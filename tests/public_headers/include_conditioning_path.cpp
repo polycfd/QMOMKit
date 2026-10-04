@@ -1,6 +1,8 @@
+#include <qmomkit/conditioning_path.hpp>
+
+// Standard headers follow the public header, so they cannot supply an include it is missing.
 #include <cstddef>
 #include <initializer_list>
-#include <qmomkit/conditioning_path.hpp>
 #include <type_traits>
 #include <vector>
 

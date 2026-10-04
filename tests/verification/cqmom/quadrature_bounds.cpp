@@ -22,8 +22,7 @@
 //   clipping.
 //
 // Reproduce
-//   ctest -R verification_cqmom_.*nodes_inside_interval
-//   ctest -R verification_cqmom_.*coordinate_specific_bounds
+//   ctest -R "^verification_cqmom_quadrature_bounds_"
 //
 // Build modes
 //   Both. Checks go through QMOMKIT_VERIFY_*, not assert().

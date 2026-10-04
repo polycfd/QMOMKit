@@ -75,7 +75,7 @@ initial condition are required; everything else has a default.
 | `[moments]` | Explicit raw moments | [Explicit moments](#explicit-moments) |
 | `[initial]` | Moments generated from analytical distributions | [Setting the initial condition](#setting-the-initial-condition) |
 | `[qmom]` | One-dimensional inversion options, used by QMOM and CQMOM alike | [Reconstruction settings](#reconstruction-settings) |
-| `[cqmom]` | CQMOM storage and diagnostics | [Advanced settings](#cqmom-diagnostics-and-solver-options) |
+| `[cqmom]` | CQMOM diagnostics | [Advanced settings](#cqmom-diagnostics-and-solver-options) |
 | `[vandermonde]` | Conditional solver policy | [Advanced settings](#cqmom-diagnostics-and-solver-options) |
 | `[time_integration]` | Splitting scheme, node advection, realizability | [Time-evolution settings](#time-evolution-settings) |
 | `[output]` | Output directory, selection, and cadence | [Output](#output) |
@@ -464,7 +464,7 @@ options explicitly.
 | Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
 | --- | --- | --- | --- |
 | QMOM/CQMOM inversion settings | yes | yes | no |
-| Vandermonde and CQMOM storage settings | yes | yes | no |
+| Vandermonde and CQMOM diagnostic settings | yes | yes | no |
 | `time_integration.scheme` | yes | no | yes |
 | `time_integration.node_advection.*` | yes | no | yes |
 | `time_integration.realizability.*` | yes | no | yes |
@@ -789,7 +789,7 @@ The same concepts appear either way:
 | Concept | `.qmom` file | Direct C++ setup |
 |---|---|---|
 | phase space | `[phase_space]` names, node counts, conditioning order, adaptive branch settings | construct `QmomCase` or a CQMOM case with the desired coordinate count, node counts, hierarchy, and ordering |
-| initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a dense tensor representation from application data |
+| initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a full tensor of raw moments from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
 | phase-space evolution options | `[time_integration]`, `[time_integration.node_advection]`, and optional realizability settings | set `QmomPhaseSpaceEvolutionOptions`, `CqmomPhaseSpaceEvolutionOptions`, `NodeAdvectionOptions`, source-update options, and realizability settings in C++ |
@@ -901,7 +901,7 @@ entry count matches the configured marginals. It does not check the orders
 against `node_counts`: a tensor too small to contain every moment the hierarchy
 requires is rejected when those moments are extracted from it.
 
-### Dense tensor moments
+### Full moment tensor
 
 Use explicit tensor moments when your application already has a full raw
 moment tensor from external data, validation, debugging, or interoperability:
@@ -998,11 +998,12 @@ changes the setup to a unit-number-density problem.
 
 Generate enough moments. For `N` QMOM nodes, an analytical initialization needs
 `maximum_order >= 2 * N - 1`. For normal CQMOM configuration, `node_counts` and
-`conditioning_order` define the reconstruction setup. Explicit full-tensor
-workflows may omit `initial.maximum_orders`, in which case QMOMKit derives the
-minimum extents required by the requested CQMOM node counts. If values are
-supplied, they must meet that minimum and request only additional retained
-dense raw moments.
+`conditioning_order` define the reconstruction setup. A full tensor of raw
+moments, whether given in `[moments]` or built with
+`initialize_cqmom_moment_tensor(...)` (which requires `initial.maximum_orders`
+for an independent-product specification), must contain every moment the
+hierarchy requires; a tensor that is too small is rejected when those moments
+are extracted from it.
 
 Separate distribution settings from quadrature settings. Initial distributions
 describe raw moments. `node_counts`, `conditioning_order`, and adaptive options

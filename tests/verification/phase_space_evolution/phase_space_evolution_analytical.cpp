@@ -1854,7 +1854,7 @@ qmomkit::CqmomMomentRate cqmom_boundary_contribution_callback(const qmomkit::Cqm
 
 VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configuration_path)
 {
-    // Verify dense CQMOM phase-space evolution on a two-dimensional commuting analytical
+    // Verify CQMOM phase-space evolution on a two-dimensional commuting analytical
     // problem. CQMOM source callbacks act on the phase-space evolution moment layout, so the
     // final phase_space_evolved moments and quadrature reconstruction are compared with
     // the exact tensor exponential reference on that layout.

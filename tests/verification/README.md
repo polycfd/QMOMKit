@@ -37,7 +37,7 @@ individual cases, references, and tolerance choices in more detail.
 | Area | Purpose | Main executable(s) | Reference type |
 | --- | --- | --- | --- |
 | QMOM | Verify public one-dimensional `compute_qmom(...)` success and representative direct-compute failures. | `verification_qmom_analytical_*`, `verification_qmom_compute_failure_*`, `verification_wheeler_analytical_*` | Manufactured discrete quadratures, classical Gaussian quadrature rules, public failure behavior |
-| CQMOM | Verify the default and lean public CQMOM workflows, adaptive branch counts, and high-dimensional cases. | `verification_cqmom_public_workflows`, `verification_cqmom_*` analytical cases | Analytical product quadratures, manufactured affine/branch-dependent quadratures |
+| CQMOM | Verify the default `CqmomPreparedCase` and open `CqmomCase` workflows, adaptive branch counts, and high-dimensional cases. | `verification_cqmom_public_workflows`, `verification_cqmom_*` analytical cases | Analytical product quadratures, manufactured affine/branch-dependent quadratures |
 | Recursive quadrature | Verify recursive CQMOM assembly conventions that are not exposed as standalone user workflows. | `verification_recursive_quadrature_manufactured_*`, `verification_cqmom_recursive_*` | Manufactured terminal quadratures and reconstruction identities |
 | Phase-space evolution | Verify complete phase-space evolution workflows, stage-order behavior, public diagnostics, and failure propagation. | `verification_phase_space_evolution_*` | Closed-form commuting/noncommuting evolution, manufactured phase-space evolution compositions |
 | Source terms | Verify moment-source raw-moment source updates for QMOM and CQMOM workflows. | `verification_moment_source_*` | Closed-form source ODE solutions |

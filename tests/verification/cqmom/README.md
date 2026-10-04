@@ -17,7 +17,7 @@ reconstruct_raw_moments(CqmomQuadrature, RawMomentRequest)
 reconstruct_cqmom_moments(CqmomQuadrature, CqmomMomentLayout)
 ```
 
-Selected reconstruction is intentionally not a dense tensor view. A
+Selected reconstruction is intentionally not a view into the full tensor. A
 `RawMomentRequest` is an ordered list, so returned values must preserve
 non-monotonic request order and duplicates. The verifier requests:
 
@@ -25,13 +25,13 @@ non-monotonic request order and duplicates. The verifier requests:
 {2,0}, {0,0}, {1,1}, {0,2}, {2,0}, {3,1}
 ```
 
-and checks the values against both an independent analytical product
-quadrature and the corresponding entries in a dense reconstruction. This makes
-the ordering rule explicit: the repeated `{2,0}` entry must appear twice with
-the same value, and no sorting or deduplication may occur.
+and checks the values against both an independent analytical product quadrature
+and the corresponding entries of a full-tensor reconstruction. This makes the
+ordering rule explicit: the repeated `{2,0}` entry must appear twice with the
+same value, and no sorting or deduplication may occur.
 
-The `reconstruct_cqmom_moments(...)` check uses the public lean
-`CqmomMomentLayout` from `load_cqmom(...)` and verifies values align with
+The `reconstruct_cqmom_moments(...)` check uses the `CqmomMomentLayout` of the
+case loaded with `load_cqmom(...)` and verifies values align with
 `layout.required_indices`. Failure-path checks cover an unsuccessful 1D
 quadrature, a selected CQMOM request with the wrong rank, and a CQMOM layout
 whose hierarchy does not match the quadrature. These public APIs report invalid
@@ -48,39 +48,38 @@ load_cqmom(...) -> CqmomCase -> compute_cqmom(...)
 load_cqmom_prepared(...)      -> CqmomPreparedCase     -> compute_cqmom(...)
 ```
 
-The default `CqmomPreparedCase` workflow is the normal user path because it stores the
-configured CQMOM setup and avoids exposing the moment storage it uses. The
-lean workflow is useful when callers intentionally manage only the minimal
-CQMOM moment layout required by recursive reconstruction.
+The default `CqmomPreparedCase` workflow is the normal user path: it builds the
+recursive branch structure of its hierarchy once and shares it with every
+reconstruction and state. An open `CqmomCase` suits callers that build or edit
+a case in code; its own `compute_cqmom(...)` rebuilds that structure on every
+call.
 
 Both workflows are expected to recover the same analytical terminal
 quadrature and reconstruct the same raw moments for the same mathematical
-problem. A failure indicates a public representation mismatch, lost
+problem. A failure indicates a mismatch between the two case types, lost
 configuration policy, or an unintended difference in diagnostics rather than a
 new recursive quadrature formula.
 
-The explicit lean checks also verify the expert representation itself:
+The `CqmomCase` checks also verify the moment data the loader stores:
 
 - the required multi-index order is the documented fixed 2x2 CQMOM order
   `{0,0}`, `{1,0}`, `{2,0}`, `{3,0}`, `{0,1}`, `{0,2}`, `{0,3}`, `{1,1}`,
   `{1,2}`, `{1,3}`;
 - `CqmomMomentData::values` has one value per required index;
-- the lean representation stores fewer selected moments than the dense 4x4
-  tensor;
-- every selected value matches the independent-product analytical moment.
+- the case stores fewer moments than the full 4x4 tensor;
+- every stored value matches the independent-product analytical moment.
 
-These checks document that the public lean workflow does not require a dense
-tensor at compute time: `compute_cqmom(CqmomCase)` receives the selected
-required moment representation and must produce the same mathematical
-quadrature as the default workflow.
+These checks document that `compute_cqmom(CqmomCase)` needs only the required
+moments, not the full tensor, and must produce the same quadrature as the
+default workflow.
 
 ## Public Compute Failure Contracts
 
 Direct public `compute_cqmom(...)` failure/status regression coverage lives in
 `tests/component_regression/cqmom_compute_failures.cpp`. It checks invalid
-public requests and status mapping across the default and lean public case
-objects. This verification directory keeps the analytical and public workflow
-success cases.
+public requests and status mapping across `CqmomPreparedCase` and `CqmomCase`.
+This verification directory keeps the analytical and public workflow success
+cases.
 
 The non-realizable case uses a finite two-dimensional moment tensor with
 `M[0,0] < 0`. Configuration parsing succeeds because the input is structurally
@@ -107,15 +106,16 @@ which `extract_cqmom_moments(...)` rejects by throwing before a case exists:
 and invalid public compute inputs that should be rejected before successful
 quadrature is exposed:
 
-- lean moment data with missing required values;
-- lean moment data with non-finite values;
-- lean moment data whose required-index layout does not match its hierarchy;
+- `CqmomCase` moment data with missing required values;
+- `CqmomCase` moment data with non-finite values;
+- `CqmomCase` moment data whose required-index layout does not match its
+  hierarchy;
 - adaptive Wheeler reductions requested without enabling
   `adaptive_branch_counts`.
 
 The compute failures are expected to return `CqmomStatus::invalid_input` with
-useful messages. Diagnostic wording is not required to be identical across public
-representations, but the user-facing behavior must be consistent: `ok()` is
+useful messages. Diagnostic wording is not required to be identical across the
+two case types, but the user-facing behavior must be consistent: `ok()` is
 false, status is non-success, and no invalid quadrature is reported as
 successful.
 
@@ -247,8 +247,7 @@ reconstruction because the branch structures are analytically known.
 The public workflow executable `cqmom_public_workflows_verification` reuses the
 independent-product reference. It checks successful computation, terminal node
 and weight accuracy, raw-moment reconstruction, branch diagnostics, and
-default/lean equivalence. The expert lean workflow is covered as part of
-`verification_cqmom_public_workflows`.
+agreement between the `CqmomCase` and `CqmomPreparedCase` workflows.
 
 ## Tolerance Policy
 

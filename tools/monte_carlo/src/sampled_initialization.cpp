@@ -69,7 +69,7 @@ TensorSampledInitialization sample_initialization(const qmomkit::IndependentProd
 SelectedSampledInitialization sample_initialization(const qmomkit::IndependentProductDistribution& distribution,
                                                     const qmomkit::RawMomentRequest& request, const SamplingOptions& options)
 {
-    // Sampling is the same draw as the dense overload for the same options; only
+    // Sampling is the same draw as the tensor overload for the same options; only
     // the moment estimator differs, so the two agree on any shared index.
     SamplingResult sampling = sample_independent_product(distribution, options);
     if (!sampling.ok())

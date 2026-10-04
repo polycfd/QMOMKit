@@ -2,12 +2,12 @@
 // answer.
 //
 // What is verified
-//   That the dense and lean representations of the same problem produce the
-//   same quadrature, that the lean case carries exactly the moments its
-//   hierarchy requires and no others, that the diagnostics describe the same
-//   reconstruction in both, and that rebuilt moments return the configured
-//   values. The point is that choosing a storage form is a data-transfer
-//   decision, not a numerical one.
+//   That an open CqmomCase and a CqmomPreparedCase loaded from the same
+//   configuration produce the same quadrature, that the CqmomCase carries
+//   exactly the moments its hierarchy requires and no others, that the
+//   diagnostics describe the same reconstruction in both, and that rebuilt
+//   moments return the configured values. The point is that choosing between
+//   the two case types is a matter of reuse, not of numerics.
 //
 // How the reference is constructed
 //   Chosen, not computed. A rule of weighted points is written down and its raw
@@ -18,7 +18,7 @@
 // Error metric and pass criteria
 //   Maximum absolute deviation of positions, weights and rebuilt moments from
 //   the prescribed rule, at 1.0e-12, applied separately to each workflow. The
-//   lean representation is additionally required to hold exactly the required
+//   CqmomCase moment data is additionally required to hold exactly the required
 //   index set, which is a structural check rather than a numerical one.
 //
 // Reproduce
@@ -133,9 +133,9 @@ std::vector<TerminalNode> independent_product_reference()
 std::vector<qmomkit::MultiIndex> expected_required_indices()
 {
     // A fixed 2x2 CQMOM hierarchy with conditioning_order = {0, 1} requires
-    // only the recursive moment subset below. The explicit lean workflow stores
-    // this selected representation directly instead of requiring a full 4x4
-    // dense tensor from the caller.
+    // only the recursive moment subset below. A CqmomCase stores these moments
+    // directly; the configured full 4x4 tensor is reduced to them when the case
+    // is loaded.
     return {{0, 0}, {1, 0}, {2, 0}, {3, 0}, {0, 1}, {0, 2}, {0, 3}, {1, 1}, {1, 2}, {1, 3}};
 }
 
@@ -153,8 +153,8 @@ void verify_diagnostics(const std::string& workflow_name, const qmomkit::CqmomRe
 {
     // For this fixed 2x2 workflow, diagnostics should describe one root
     // inversion and one conditional inversion for each x parent branch. A
-    // failure here usually means a public workflow did not preserve the same
-    // reconstruction policy as the dense analytical CQMOM path.
+    // failure here usually means a public workflow did not preserve the
+    // configured reconstruction policy.
     if (result.diagnostics.size() != 3)
     {
         append_failure(verification, workflow_name + " diagnostics did not contain the expected three branch records.");
@@ -194,10 +194,10 @@ void verify_diagnostics(const std::string& workflow_name, const qmomkit::CqmomRe
 
 void verify_required_representation(const qmomkit::CqmomCase& cqmom_case, VerificationResult& verification)
 {
-    // Expert callers choose CqmomCase when they already work with the
-    // minimal recursive moment subset. This check verifies the public loader
-    // provides exactly that selected representation and that the selected
-    // values are sufficient to recover the same analytical product quadrature.
+    // A CqmomCase holds the minimal recursive moment subset. This check
+    // verifies that the public loader stores exactly those required moments and
+    // that their values are sufficient to recover the same analytical product
+    // quadrature.
     const std::vector<qmomkit::MultiIndex> expected_indices = expected_required_indices();
     const qmomkit::CqmomMomentData& moments = cqmom_case.moments;
     if (moments.layout.required_indices.to_multi_indices() != expected_indices)
@@ -313,9 +313,9 @@ void compare_workflows(const std::string& workflow_name, const qmomkit::CqmomQua
 
 int main(const int argc, char** argv)
 {
-    // Verify that dense, explicit lean, and default CQMOM workflows produce
+    // Verify that the CqmomCase and default CqmomPreparedCase workflows produce
     // equivalent quadrature for the same independent product distribution. The
-    // dense tensor is convenient as configured input, while the analytical
+    // configured full tensor is convenient input, while the analytical
     // terminal rule and reconstructed moments are the actual reference.
     if (argc != 2)
     {

@@ -62,7 +62,7 @@ struct EvolutionCase
 [[nodiscard]] std::vector<EvolutionCase> evolution_cases();
 
 // The evolution callbacks are deliberately simple, deterministic and
-// dimension-generic: the point of these cases is the storage scheme and the
+// dimension-generic: the point of these cases is the reconstruction and the
 // splitting, not the physics.
 [[nodiscard]] PhaseSpaceVelocity matrix_velocity();
 [[nodiscard]] CqmomMomentSource matrix_source();

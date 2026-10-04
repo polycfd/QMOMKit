@@ -255,7 +255,7 @@ Use this for bounded-support CQMOM in a five-dimensional adaptive hierarchy. It
 combines a multimodal `u`-velocity marginal, an aspect-ratio support interval,
 adaptive branch reduction, and paired bounded/unbounded workflows that diagnose
 conditional support loss without clipping nodes. It also shows sampled
-initialization through the required CQMOM moment set rather than a dense tensor:
+initialization through the required CQMOM moment set rather than a full tensor:
 606 moments instead of 7776 for this hierarchy.
 
 Example README:

@@ -405,7 +405,7 @@ dimension order.
 
 QMOMKit may request only the moments required by the configured hierarchy, so
 CQMOM moment-source and boundary callbacks are most robust when they iterate
-over the context entries instead of assuming a dense rectangular tensor.
+over the context entries instead of assuming a full rectangular tensor.
 
 For example, in a volume-based phase space `(V,T,u,v,w)`, a diameter factor
 is proportional to `V^(1/3)`. A breakup closure for transported order `p` can

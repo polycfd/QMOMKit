@@ -20,9 +20,9 @@ QMOM/CQMOM reconstruction
 
 QMOMKit does not carry a probability-density object through the rest of the
 workflow. Distribution helpers are initialization tools: they produce raw
-moments, and the usual QMOM or CQMOM APIs consume those moments. Dense tensors
-are one explicit CQMOM representation, not the universal CQMOM initialization
-path.
+moments, and the usual QMOM or CQMOM APIs consume those moments. A full tensor
+of raw moments is one explicit CQMOM input; configured CQMOM initialization
+generates only the moments the hierarchy requires.
 
 ## Raw moment convention
 
@@ -197,8 +197,8 @@ multidimensional `.qmom` configuration file and load it with
 for the requested hierarchy. Users do not need to build or manage that required
 moment set themselves.
 
-The direct C++ example below is the explicit full-tensor compatibility path
-for applications that already manage rectangular tensor moments.
+The direct C++ example below takes the explicit full-tensor path, for
+applications that already manage rectangular tensor moments.
 
 ```cpp
 #include <qmomkit/qmomkit.hpp>
@@ -248,8 +248,8 @@ reconstructs from, and throws if the tensor is too small to contain one.
 Keep these settings separate:
 
 - Marginal order follows phase-space dimension order.
-- `maximum_orders` controls how many raw tensor moments are generated in dense
-  workflows.
+- `maximum_orders` controls how many raw tensor moments are generated for a
+  full tensor.
 - `node_counts` controls the requested CQMOM quadrature size.
 - `conditioning_order` controls the CQMOM conditioning order. It does not
   change tensor storage order or select different marginals.

@@ -126,11 +126,11 @@ only after `ok()` succeeds. `sample_initialization(...)` follows the same
 pattern and exposes both its `sampling` and `moments` results.
 
 For a multidimensional product, `sample_initialization(...)` accepts either
-`maximum_orders`, which estimates the complete dense tensor, or a
+`maximum_orders`, which estimates the full moment tensor, or a
 `qmomkit::RawMomentRequest`, which estimates only the listed multi-indices. The
 two draw the same ensemble for the same `SamplingOptions`, so they agree on
 every shared index. Prefer the request form when a CQMOM hierarchy needs far
-fewer moments than its dense tensor holds; pass
+fewer moments than its full tensor holds; pass
 `create_cqmom_moment_layout(hierarchy).required_indices` and adapt the estimate
 with `create_cqmom_moment_data(...)`.
 
@@ -299,7 +299,7 @@ calculation is wrong.
 ## Estimate selected multidimensional moments
 
 When only a requested set of multidimensional raw moments is needed, use the
-selective estimator instead of constructing a dense tensor:
+selective estimator instead of constructing a full tensor:
 
 ```cpp
 #include <monte_carlo/moments.hpp>
@@ -311,7 +311,7 @@ const qmomkit::monte_carlo::SelectedEnsembleMomentEstimate estimate =
 
 On success, `estimate.indices`, `estimate.values`, and
 `estimate.standard_errors` are aligned in the original request order, including
-duplicate indices. The estimator normalizes by total number density exactly as the dense form
+duplicate indices. The estimator normalizes by total number density exactly as the tensor estimator
 does, so the two agree on any moment both compute. Check `estimate.ok()` and
 read `estimate.message` when it fails.
 

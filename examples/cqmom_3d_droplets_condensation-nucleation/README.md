@@ -31,9 +31,9 @@ QMOMKit mechanisms.
 
 The CQMOM driver loads the normal case first, then replaces only its initial
 raw moments with the complete sampled tensor through
-`with_initial_moments(...)`. The loaded hierarchy, support, storage selection,
-and reconstruction policies are retained; a sampler is only one possible source
-of the replacement tensor.
+`with_initial_moments(...)`. The loaded hierarchy, support, and reconstruction
+policies are retained; a sampler is only one possible source of the replacement
+tensor.
 
 ## QMOMKit focus
 
@@ -334,7 +334,7 @@ $$
 QMOMKit combines this rate with the zero volumetric moment source during the
 moment-source stage and reconstructs the updated CQMOM state. The application
 iterates the provided `CqmomSourceContext` entries, so it follows the moment
-layout selected by the configured hierarchy rather than assuming a dense
+layout selected by the configured hierarchy rather than assuming a full
 tensor.
 
 ### Momentum equation

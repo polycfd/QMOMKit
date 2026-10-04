@@ -69,11 +69,11 @@ int main(int argc, char* argv[])
             return 1;
         }
         // CQMOM consumes only the moments its hierarchy requires, so the sampler
-        // is asked for exactly those indices rather than for a dense tensor
-        // whose remaining entries the case never reads. The lean replacement
-        // then seeds the case without that tensor ever being built. For the
-        // shipped configuration this is 606 moments instead of 7776; see the
-        // README for the figures that belong to that hierarchy.
+        // is asked for exactly those indices rather than for the full tensor
+        // whose remaining entries the case never reads. with_initial_moments
+        // then takes them as CqmomMomentData, so that tensor is never built.
+        // For the shipped configuration this is 606 moments instead of 7776;
+        // see the README for the figures that belong to that hierarchy.
         const qmomkit::CqmomMomentLayout moment_layout = qmomkit::create_cqmom_moment_layout(configured.value().hierarchy());
         const qmomkit::RawMomentRequest required_moments{moment_layout.required_indices.to_multi_indices()};
         const auto sampled = sample_requested_initial_moments(std::move(initial_condition).value(), required_moments);

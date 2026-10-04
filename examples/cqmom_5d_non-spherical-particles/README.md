@@ -120,10 +120,10 @@ and assigns each the constant initial statistical weight $n_0$ / sample_count.
 The CQMOM driver estimates only the raw moments its hierarchy requires from that
 *same* deterministic finite ensemble, replaces the loaded case's initial moments
 with them, and then reconstructs its initial quadrature. For this hierarchy that
-is 606 required moments rather than the 7776 entries of a dense $6^5$ tensor, so
-the sampler evaluates 606 monomials per sample instead of 7776 and no dense
-tensor is built. Because both routes estimate the same monomials over the same
-ensemble, the initial sampled moments are identical between the two
+is 606 required moments rather than the 7776 entries of the full $6^5$ tensor,
+so the sampler evaluates 606 monomials per sample instead of 7776 and the full
+tensor is never built. Because both routes estimate the same monomials over the
+same ensemble, the initial sampled moments are identical between the two
 representations.
 
 The chain is: `create_cqmom_moment_layout(...)` supplies the required indices,
@@ -132,9 +132,9 @@ exactly those from the ensemble, and
 `config::with_initial_moments(case, CqmomMomentData)` seeds the case.
 
 The MC driver draws the same ensemble but estimates no moments at
-initialization: it recomputes dense moments from the evolving ensemble at every
-output time anyway, so it only needs the ensemble and the dense extents its
-moment history is reported over.
+initialization: it recomputes the full moment tensor from the evolving ensemble
+at every output time anyway, so it only needs the ensemble and the tensor
+extents its moment history is reported over.
 
 ## CQMOM configuration and evolution
 
@@ -149,7 +149,7 @@ configuration; the C++ drivers load it and do not override these settings.
 | Branch behavior | `adaptive_branch_counts = true`; the configured counts are capacities and the accepted topology may use fewer branches |
 | Support | $\chi$ lower/upper bounds `0.0` and `1.0`; all other coordinate bounds are unset |
 | Solver/diagnostics | no solver override in the file (the case uses QMOMKit's automatic policy); `diagnostic_level = none` |
-| Sampled-moment orders | no `maximum_orders` entry. The CQMOM driver requests the hierarchy's required moment layout and ignores this setting; the MC driver falls back to hierarchy extents, giving dense orders `0` through `5` in each coordinate |
+| Sampled-moment orders | no `maximum_orders` entry. The CQMOM driver requests the hierarchy's required moment layout and ignores this setting; the MC driver falls back to hierarchy extents, giving all orders `0` through `5` in each coordinate |
 | Splitting | `strang` |
 | Node advection | adaptive `rk23`, relative tolerance `1e-6`, absolute tolerance `1e-9`, initial/max/min substeps `1e-3`, `1e-2`, `1e-9` |
 | File output | directory `output`, moments and quadrature enabled, interval `0.1` |

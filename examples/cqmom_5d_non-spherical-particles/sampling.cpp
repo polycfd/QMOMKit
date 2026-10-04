@@ -86,7 +86,7 @@ sample_requested_initial_moments(const qmomkit::config::InitialConditionSpecific
         return std::nullopt;
     }
 
-    // maximum_orders is dense metadata; the requested indices come from the
+    // maximum_orders only sizes a full tensor; the requested indices come from the
     // CQMOM hierarchy instead, so it has no effect on this path.
     return qmomkit::monte_carlo::sample_initialization(specification->distribution, request, example_sampling_options());
 }

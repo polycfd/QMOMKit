@@ -33,7 +33,7 @@ namespace
     diagnostics.step_count = result.accepted_steps;
     diagnostics.rejected_step_count = result.rejected_steps;
     diagnostics.rhs_evaluations = result.function_evaluations;
-    diagnostics.final_time = result.t;
+    diagnostics.final_time = result.final_time;
     diagnostics.last_step = result.last_step;
     diagnostics.adaptive_status = result.status;
     diagnostics.message = result.message;

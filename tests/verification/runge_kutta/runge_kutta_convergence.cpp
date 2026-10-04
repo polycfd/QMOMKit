@@ -260,7 +260,7 @@ std::vector<AdaptiveRun> verify_rk23_convergence()
         const qmomkit::AdaptiveRkResult result =
             qmomkit::integrate_embedded_rk({1.0}, 0.0, final_time, exponential_decay_rhs(), qmomkit::EmbeddedRkMethod::rk23, options);
         QMOMKIT_VERIFY_CHECK(result.status == qmomkit::AdaptiveRkStatus::success);
-        QMOMKIT_VERIFY_NEAR(result.t, final_time, 1.0e-14);
+        QMOMKIT_VERIFY_NEAR(result.final_time, final_time, 1.0e-14);
         QMOMKIT_VERIFY_CHECK(result.accepted_steps > 0);
         QMOMKIT_VERIFY_CHECK(result.function_evaluations >= 1 + 3 * result.accepted_steps);
 
@@ -311,7 +311,7 @@ std::vector<AdaptiveRun> verify_rk45_adaptive_convergence()
         const qmomkit::AdaptiveRkResult result =
             qmomkit::integrate_embedded_rk({1.0}, 0.0, final_time, exponential_decay_rhs(), qmomkit::EmbeddedRkMethod::rk45, options);
         QMOMKIT_VERIFY_CHECK(result.status == qmomkit::AdaptiveRkStatus::success);
-        QMOMKIT_VERIFY_NEAR(result.t, final_time, 1.0e-14);
+        QMOMKIT_VERIFY_NEAR(result.final_time, final_time, 1.0e-14);
         QMOMKIT_VERIFY_CHECK(result.accepted_steps > 0);
         QMOMKIT_VERIFY_CHECK(result.function_evaluations >= 1 + 6 * result.accepted_steps);
 

@@ -157,7 +157,7 @@ struct AdaptiveRkOptions
 struct AdaptiveRkResult
 {
     std::vector<double> state;
-    double t = 0.0;
+    double final_time = 0.0;
     AdaptiveRkStatus status = AdaptiveRkStatus::success;
     std::string message;
     std::size_t accepted_steps = 0;

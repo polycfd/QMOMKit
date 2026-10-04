@@ -122,7 +122,7 @@ std::vector<RkRun> run_embedded_method(const qmomkit::EmbeddedRkMethod method, c
         options.absolute_tolerance = 1.0e-15;
         const qmomkit::AdaptiveRkResult result = qmomkit::integrate_embedded_rk({1.0}, 0.0, final_time, exponential_decay_rhs(), method, options);
         if (result.status != qmomkit::AdaptiveRkStatus::success || result.state.size() != 1 || result.accepted_steps != step_count ||
-            !std::isfinite(result.state[0]) || std::abs(result.t - final_time) > 1.0e-14)
+            !std::isfinite(result.state[0]) || std::abs(result.final_time - final_time) > 1.0e-14)
         {
             throw std::runtime_error(name + " fixed-step advancement failed.");
         }

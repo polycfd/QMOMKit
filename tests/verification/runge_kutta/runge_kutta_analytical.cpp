@@ -81,7 +81,7 @@ void test_rk23_exponential_decay()
         qmomkit::integrate_embedded_rk({1.0}, 0.0, 2.0, exponential_decay_rhs(), qmomkit::EmbeddedRkMethod::rk23, options);
 
     QMOMKIT_VERIFY_CHECK(result.status == qmomkit::AdaptiveRkStatus::success);
-    assert_near(result.t, 2.0, 1.0e-14);
+    assert_near(result.final_time, 2.0, 1.0e-14);
     assert_near(result.state[0], std::exp(-2.0), 5.0e-7);
     QMOMKIT_VERIFY_CHECK(result.accepted_steps > 1);
     QMOMKIT_VERIFY_CHECK(result.function_evaluations > result.accepted_steps);
@@ -142,7 +142,7 @@ void test_rk45_vector_coupled_linear_system()
         qmomkit::integrate_embedded_rk({1.0, 0.0}, 0.0, final_time, rhs, qmomkit::EmbeddedRkMethod::rk45, options);
 
     QMOMKIT_VERIFY_CHECK(result.status == qmomkit::AdaptiveRkStatus::success);
-    assert_near(result.t, final_time, 1.0e-14);
+    assert_near(result.final_time, final_time, 1.0e-14);
     assert_near(result.state[0], std::cos(final_time), 2.0e-10);
     assert_near(result.state[1], -std::sin(final_time), 2.0e-10);
 }

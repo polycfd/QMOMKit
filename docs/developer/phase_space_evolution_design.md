@@ -958,8 +958,8 @@ source candidate moments
 Bounded recursive inversion is phase-space-coordinate based, independent of the
 conditioning level at which that coordinate is reconstructed. The accepted
 quadrature is the only authority for the returned topology and stored moments.
-This matters for lean storage because lean states carry only the phase-space
-evolution CQMOM moment layout; after a reduction or rejected growth trial,
+This matters because a `CqmomState` stores only the moments of its required
+CQMOM moment layout; after a reduction or rejected growth trial,
 retaining the source candidate values would leave high-order entries
 inconsistent with the accepted bounded quadrature.
 

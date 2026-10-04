@@ -189,7 +189,7 @@ CqmomMomentData
 For analytical independent-product initialization, configuration requests
 exactly `CqmomMomentLayout::required_indices` from
 `create_cqmom_moment_layout(...)` and adapts the selected result to
-`CqmomMomentData`. This path does not construct a dense
+`CqmomMomentData`. This path does not construct a full
 `RawMomentTensor`; `initial.maximum_orders` has no effect on the requested
 moment layout.
 
@@ -261,8 +261,8 @@ A caller whose moments already arrive as the required CQMOM moment set — from
 `compute_raw_moments(...)` with the layout's `required_indices` adapted by
 `create_cqmom_moment_data(...)`, or from any other producer that evaluates
 exactly those indices — replaces the initial moments directly instead of
-materializing a dense tensor whose additional entries the case never reads. For
-a hierarchy whose dense tensor is much larger than its required set, that is the
+materializing a full tensor whose additional entries the case never reads. For
+a hierarchy whose full tensor is much larger than its required set, that is the
 difference between generating the required moments and generating the full
 rectangle.
 
@@ -338,7 +338,7 @@ settings are present in the same `.qmom` file, but they still return only
 | Settings | Validated by case loading | Stored in case/state | Must be loaded separately |
 | --- | --- | --- | --- |
 | QMOM/CQMOM inversion settings | yes | yes | no |
-| Vandermonde and CQMOM storage settings | yes | yes | no |
+| Vandermonde and CQMOM diagnostic settings | yes | yes | no |
 | `time_integration.scheme` | yes | no | yes |
 | `time_integration.node_advection.*` | yes | no | yes |
 | `time_integration.realizability.*` | yes | no | yes |

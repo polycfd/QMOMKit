@@ -25,7 +25,7 @@ zero. The inner enumeration converts ordered indices back to phase-space order,
 retaining first occurrences and suppressing duplicates. These are
 capacity-based requirements even when adaptive reconstruction ultimately uses
 fewer nodes. `extract_cqmom_moments` gathers that set from a sufficiently large
-dense tensor; `create_cqmom_moment_data` checks values against the layout.
+full tensor; `create_cqmom_moment_data` checks values against the layout.
 Missing required moments are errors, not implicitly zero values.
 
 `create_ordered_root_layout` changes index interpretation to conditioning
@@ -69,7 +69,7 @@ Evidence: [recursive unit tests](../../../tests/unit/recursive_quadrature.cpp)
 exercise required offsets, non-identity order, unequal node counts, and reduced
 child layouts; [configuration tests](../../../tests/unit/configuration.cpp) and
 [public API tests](../../../tests/unit/public_api.cpp) inspect metadata
-ownership/reuse and dense-to-required extraction. Preparing all adaptive child
+ownership/reuse and tensor-to-required extraction. Preparing all adaptive child
 layouts costs 2^d - 1 layouts at two nodes per axis, 63 at six dimensions, and
 121 for five dimensions at three nodes; peak resident size of the five-
 dimensional adaptive example moves from 7.0 MB to 7.2 MB. Growth beyond those

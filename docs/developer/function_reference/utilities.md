@@ -14,7 +14,7 @@ and `qmomkit::QuadratureWriter`, declared in
 
 `MomentWriter::for_qmom` selects all orders or specified orders, or captures
 the moments represented by a `QmomState` together with configured generalized
-columns. `MomentWriter::for_cqmom` selects dense extents, selected indices, a
+columns. `MomentWriter::for_cqmom` selects tensor extents, selected indices, a
 required layout, a state with configured generalized columns, or a raw-moment
 request evaluated from quadrature. Labels retain selected order and duplicates.
 Constructors open/truncate the output stream, validate writer layout, and write
@@ -58,7 +58,7 @@ transaction guarantee is inferred from successful file comparisons.
 | Local helpers | Responsibility and semantics | Evidence |
 |---|---|---|
 | `qmom_label`, `cqmom_label`, `cqmom_abscissa_label` | Format order/coordinate metadata; labels do not impose physical units. | Output header tests |
-| `sequential_indices`, `flatten_selected_indices` | Build all-order selection or map checked multi-indices to dense offsets in request order. | Selected-output tests |
+| `sequential_indices`, `flatten_selected_indices` | Build all-order selection or map checked multi-indices to flat offsets in request order. | Selected-output tests |
 | `qmom_labels`, `cqmom_labels`, `all_cqmom_labels`, `qmom_quadrature_labels`, `cqmom_quadrature_labels` | Construct header fields matching the selected writer layout. | Output header/row tests |
 | Writer constructors, `write_header`, `layout_mismatch_message`, forwarding `write` overloads | Own stream/layout and adapt supported input representations. Opening and row emission may have effects before a later exception. | Output failure tests, boundary caveat above |
 

@@ -115,28 +115,28 @@ after the ensemble and number-density inputs pass validation.
 
 The implementation evaluates each requested monomial directly with work
 proportional to the number of requested indices, samples, and phase-space
-dimensions. It must not construct maximum orders, dense extents, a dense
+dimensions. It must not construct maximum orders, tensor extents, a full
 tensor, or a shared power table. Its normalization and standard-error
-convention are identical to the dense ensemble moment estimator.
+convention are identical to the tensor ensemble moment estimator.
 
 Validation is ordered so ensemble structure and sample finiteness are checked
 first, followed by requested-index rank, number density, and exponent overflow.
 Failures return the existing `EnsembleMomentStatus` values with an empty
 payload; a successful result is the only result whose values are usable as
-estimated moments. The selective API is an additive Monte Carlo-package API and
-does not alter the existing dense overloads.
+estimated moments. The selective API complements the tensor overloads and does
+not alter them.
 
 `sample_initialization(distribution, request, options)` pairs one draw with that
 same selective estimator and returns `SelectedSampledInitialization`. For
-identical `SamplingOptions` it draws the identical ensemble as the dense
+identical `SamplingOptions` it draws the identical ensemble as the tensor
 `maximum_orders` overload, so the two agree on every shared index; only the
 evaluated set differs. A failed draw yields an empty estimate with
-`EnsembleMomentStatus::invalid_input`, matching the dense and one-dimensional
+`EnsembleMomentStatus::invalid_input`, matching the tensor and one-dimensional
 initialization overloads. This is what lets a CQMOM caller request the moments
 its hierarchy requires — through `create_cqmom_moment_layout(...)` and
-`create_cqmom_moment_data(...)` — without evaluating the rest of the dense
-rectangle. A Monte Carlo reference run sharing that realization is free to
-estimate whatever it reports separately, through the dense overload or through
+`create_cqmom_moment_data(...)` — without evaluating the rest of the full
+tensor. A Monte Carlo reference run sharing that realization is free to
+estimate whatever it reports separately, through the tensor overload or through
 `sample_independent_product(...)` plus its own estimator.
 
 ## Reproducibility

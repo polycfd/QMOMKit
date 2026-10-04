@@ -214,8 +214,8 @@ it does not copy branch-layout ownership per reconstruction or per branch.
 The recursive construction starts from the root CQMOM moment data, whose indices
 are still phase-space-order raw moment indices. Internally, the root moment data
 is reordered into a branch-local slice whose axes follow conditioning order.
-This reordering is internal; public tensor storage and lean layout indices
-remain phase-space ordered.
+This reordering is internal; public tensor storage and required-moment layout
+indices remain phase-space ordered.
 
 At each conditioning level, the implementation:
 

@@ -879,8 +879,6 @@ void test_cqmom_boundary_contribution_uses_source_context_ordering()
     assert_vector_near(result.moments.values, expected, 1.0e-15);
 }
 
-} // namespace
-
 void test_cqmom_source_context_index_lookup_matches_a_scan()
 {
     // position() is backed by an ordered view of the entries rather than a
@@ -957,6 +955,8 @@ void test_cqmom_source_context_index_lookup_matches_a_scan()
     assert(!context.position(qmomkit::MultiIndex{2, 0}).has_value());
     assert(!context.value(qmomkit::MultiIndex{9, 9}).has_value());
 }
+
+} // namespace
 
 int main(const int argc, char** argv)
 {

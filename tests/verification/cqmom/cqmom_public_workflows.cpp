@@ -202,11 +202,11 @@ void verify_required_representation(const qmomkit::CqmomCase& cqmom_case, Verifi
     const qmomkit::CqmomMomentData& moments = cqmom_case.moments;
     if (moments.layout.required_indices.to_multi_indices() != expected_indices)
     {
-        append_failure(verification, "explicit lean workflow required-index order did not match the documented fixed 2x2 CQMOM layout.");
+        append_failure(verification, "CqmomCase workflow required-index order did not match the documented fixed 2x2 CQMOM layout.");
     }
     if (moments.values.size() != expected_indices.size())
     {
-        append_failure(verification, "explicit lean workflow did not provide one value per required index.");
+        append_failure(verification, "CqmomCase workflow did not provide one value per required index.");
     }
     if (moments.values.size() >= qmomkit::product_extents(moments.layout.hierarchy.moment_extents()))
     {
@@ -221,7 +221,7 @@ void verify_required_representation(const qmomkit::CqmomCase& cqmom_case, Verifi
         update_error(verification.errors.moment, moments.values[entry], expected);
         if (!moments.contains_required_index(index))
         {
-            append_failure(verification, "explicit lean workflow does not contain an expected required moment index.");
+            append_failure(verification, "CqmomCase workflow does not contain an expected required moment index.");
             continue;
         }
         update_error(verification.errors.moment, moments.moment(index), expected);

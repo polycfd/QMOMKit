@@ -148,7 +148,7 @@ void verify_nonrealizable_public_workflows()
     QMOMKIT_VERIFY_CHECK(cqmom_case_result.ok());
 
     verify_nonrealizable_result("default CqmomPreparedCase", qmomkit::compute_cqmom(cqmom_prepared_case_result.value()));
-    verify_nonrealizable_result("lean CqmomCase", qmomkit::compute_cqmom(cqmom_case_result.value()));
+    verify_nonrealizable_result("CqmomCase", qmomkit::compute_cqmom(cqmom_case_result.value()));
 }
 
 void verify_bounded_abscissa_violation_reaches_wheeler()

@@ -2476,12 +2476,12 @@ lower = -1.0
 upper = 1.0
 )";
 
-    const auto without_policy_case_result = qmomkit::config::parse_cqmom_prepared(without_policy);
-    const auto with_policy_case_result = qmomkit::config::parse_cqmom_prepared(with_policy);
-    assert(without_policy_case_result.ok());
-    assert(with_policy_case_result.ok());
-    const qmomkit::CqmomCoordinateSupport& expected = without_policy_case_result.value().coordinate_support();
-    const qmomkit::CqmomCoordinateSupport& actual = with_policy_case_result.value().coordinate_support();
+    const auto without_policy_cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(without_policy);
+    const auto with_policy_cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(with_policy);
+    assert(without_policy_cqmom_prepared_case_result.ok());
+    assert(with_policy_cqmom_prepared_case_result.ok());
+    const qmomkit::CqmomCoordinateSupport& expected = without_policy_cqmom_prepared_case_result.value().coordinate_support();
+    const qmomkit::CqmomCoordinateSupport& actual = with_policy_cqmom_prepared_case_result.value().coordinate_support();
     assert(actual.size() == expected.size());
     for (std::size_t dimension = 0; dimension < expected.size(); ++dimension)
     {

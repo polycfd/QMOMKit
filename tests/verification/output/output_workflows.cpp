@@ -378,7 +378,7 @@ int main(const int argc, char** argv)
         QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_moments.txt"));
         QMOMKIT_VERIFY_CHECK(!std::filesystem::exists(output_directory / "disabled_quadrature.txt"));
         write_qmom_outputs(enabled_options, "qmom", qmom_state, qmom_result);
-        verify_qmom_moment_output(output_directory / "qmom_moments.txt", qmomkit::MomentSet(qmom_state.moments()));
+        verify_qmom_moment_output(output_directory / "qmom_moments.txt", qmomkit::MomentSet(qmom_state.moment_values()));
         verify_qmom_quadrature_output(output_directory / "qmom_quadrature.txt", qmom_result);
     }
     else

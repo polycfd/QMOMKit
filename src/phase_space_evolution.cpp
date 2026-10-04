@@ -133,11 +133,11 @@ void validate_qmom_input(const QmomState& state, const double t, const double ti
     {
         throw std::invalid_argument("QMOM phase-space evolution maximum node count is too large to derive the required moment count.");
     }
-    if (state.moments().size() < *required_moment_count)
+    if (state.moment_values().size() < *required_moment_count)
     {
         throw std::invalid_argument("QMOM phase-space evolution state has too few moments for the configured maximum node count.");
     }
-    if (!internal::all_finite(state.moments()))
+    if (!internal::all_finite(state.moment_values()))
     {
         throw std::invalid_argument("QMOM phase-space evolution state moments must be finite.");
     }
@@ -318,7 +318,7 @@ void record_failure_diagnostics(PhaseSpaceEvolutionDiagnostics& diagnostics, con
 void validate_qmom_advection_input(const QmomState& state, const double t, const double time_step, const PhaseSpaceVelocity& velocity)
 {
     validate_time_input(t, time_step);
-    if (!internal::all_finite(state.moments()))
+    if (!internal::all_finite(state.moment_values()))
     {
         throw std::invalid_argument("QMOM phase-space evolution state moments must be finite.");
     }
@@ -341,11 +341,11 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     {
         throw std::invalid_argument("QMOM phase-space evolution maximum node count is too large to derive the required moment count.");
     }
-    if (state.moments().size() < *required_moment_count)
+    if (state.moment_values().size() < *required_moment_count)
     {
         throw std::invalid_argument("QMOM phase-space evolution state has too few moments for the configured maximum node count.");
     }
-    if (!internal::all_finite(state.moments()))
+    if (!internal::all_finite(state.moment_values()))
     {
         throw std::invalid_argument("QMOM phase-space evolution state moments must be finite.");
     }
@@ -384,26 +384,26 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     try
     {
         internal::performance::record_moment_reconstruction_call();
-        accepted_state = internal::QmomStateAccess::from_quadrature(qmom_from_quadrature(advection.quadrature), state.moments().size(),
+        accepted_state = internal::QmomStateAccess::from_quadrature(qmom_from_quadrature(advection.quadrature), state.moment_values().size(),
                                                                     state.maximum_node_count(), state.qmom_options(), state.abscissa_bounds());
         if (final_advection)
         {
-            diagnostics.final_reconstruction_diagnostics = successful_reconstruction(accepted_state.moments().size());
+            diagnostics.final_reconstruction_diagnostics = successful_reconstruction(accepted_state.moment_values().size());
         }
         else
         {
-            diagnostics.first_reconstruction_diagnostics = successful_reconstruction(accepted_state.moments().size());
+            diagnostics.first_reconstruction_diagnostics = successful_reconstruction(accepted_state.moment_values().size());
         }
     }
     catch (const std::exception& error)
     {
         if (final_advection)
         {
-            diagnostics.final_reconstruction_diagnostics = {false, state.moments().size(), error.what()};
+            diagnostics.final_reconstruction_diagnostics = {false, state.moment_values().size(), error.what()};
         }
         else
         {
-            diagnostics.first_reconstruction_diagnostics = {false, state.moments().size(), error.what()};
+            diagnostics.first_reconstruction_diagnostics = {false, state.moment_values().size(), error.what()};
         }
         failure = qmom_failure(rollback_state, PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
                                final_advection ? PhaseSpaceEvolutionStage::final_moment_reconstruction
@@ -438,9 +438,9 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     }
     const QmomMomentSourceUpdateResult source_update =
         boundary == nullptr
-            ? internal::advance_trusted_qmom_moments_with_source(state.moments(), t, time_step, source, source_options, state.active_node_count(),
-                                                                 state.qmom_options(), state.abscissa_bounds())
-            : internal::advance_trusted_qmom_moments_with_source(state.moments(), t, time_step, source, *boundary, source_options,
+            ? internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, source_options,
+                                                                 state.active_node_count(), state.qmom_options(), state.abscissa_bounds())
+            : internal::advance_trusted_qmom_moments_with_source(state.moment_values(), t, time_step, source, *boundary, source_options,
                                                                  state.active_node_count(), state.qmom_options(), state.abscissa_bounds());
     record_source_update_diagnostics(diagnostics, source_update);
     if (!source_update.ok())
@@ -463,13 +463,13 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
     try
     {
         internal::performance::record_moment_reconstruction_call();
-        accepted_state = internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moments().size(),
+        accepted_state = internal::QmomStateAccess::from_quadrature(std::move(selected_quadrature), state.moment_values().size(),
                                                                     state.maximum_node_count(), state.qmom_options(), state.abscissa_bounds());
     }
     catch (const std::exception& error)
     {
         std::string message = std::string("QMOM post-source moment reconstruction failed: ") + error.what();
-        diagnostics.final_reconstruction_diagnostics = {false, state.moments().size(), message};
+        diagnostics.final_reconstruction_diagnostics = {false, state.moment_values().size(), message};
         failure = qmom_failure(rollback_state, PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
                                PhaseSpaceEvolutionStage::post_source_inversion, diagnostics, t, std::move(message));
         return false;

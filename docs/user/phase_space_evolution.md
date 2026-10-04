@@ -627,7 +627,7 @@ int main()
         }
 
         state = result.state;
-        moments = state.moments();
+        moments = state.moment_values();
         time = result.final_time;
     }
 }
@@ -697,7 +697,7 @@ const qmomkit::QmomPhaseSpaceEvolutionResult result =
 
 ### Inspecting and writing the state
 
-`QmomState` exposes read-only `moments()`, `quadrature()`,
+`QmomState` exposes read-only `moment_values()`, `quadrature()`,
 `maximum_node_count()`, and `qmom_options()` accessors. Its
 stored moments are reconstructed from its accepted quadrature, and
 `QmomState::active_node_count()` is derived from the accepted quadrature size.

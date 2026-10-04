@@ -136,8 +136,8 @@ qmomkit::QmomMomentSource qmom_source_from_to(const std::vector<double>& initial
 void assert_qmom_state_canonical(const qmomkit::QmomState& state, const double tolerance)
 {
     const qmomkit::Quadrature1D quadrature{state.quadrature().abscissas, state.quadrature().weights, qmomkit::QuadratureStatus::success, ""};
-    const std::vector<double> reconstructed = qmomkit::reconstruct_raw_moments(quadrature, state.moments().size());
-    assert_vector_near(state.moments(), reconstructed, tolerance);
+    const std::vector<double> reconstructed = qmomkit::reconstruct_raw_moments(quadrature, state.moment_values().size());
+    assert_vector_near(state.moment_values(), reconstructed, tolerance);
 }
 
 std::vector<double> raw_moments_from_terminals(const std::vector<std::size_t>& extents, const std::vector<double>& weights,
@@ -1010,7 +1010,7 @@ void test_public_qmom_advection_stage_advances_canonical_state()
     assert(stage.state.active_node_count() == 2);
     assert_qmom_state_canonical(stage.state, 5.0e-10);
     assert_qmom_quadrature_near(stage.state.quadrature(), qmomkit::QmomResult{direct.quadrature.abscissas, direct.quadrature.weights}, 5.0e-10);
-    assert_vector_near(stage.state.moments(), qmomkit::reconstruct_raw_moments(direct.quadrature, state.moments().size()), 5.0e-10);
+    assert_vector_near(stage.state.moment_values(), qmomkit::reconstruct_raw_moments(direct.quadrature, state.moment_values().size()), 5.0e-10);
     assert(stage.diagnostics.first_advection_status == qmomkit::NodeAdvectionStatus::success);
     assert(stage.diagnostics.first_reconstruction_diagnostics.success);
 }
@@ -1026,7 +1026,7 @@ void test_public_qmom_advection_stage_failure_rolls_back()
     assert(!result.ok());
     assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::advection_failed);
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::first_advection_half_step);
-    assert_vector_near(result.state.moments(), state.moments(), 0.0);
+    assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
     assert_qmom_quadrature_near(result.state.quadrature(), state.quadrature(), 0.0);
 }
 
@@ -1061,7 +1061,7 @@ void test_qmom_bounded_state_advection_and_source_reconstruction_semantics()
     assert(!post_source.ok());
     assert(post_source.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
     assert(post_source.diagnostics.post_source_qmom_status == qmomkit::QmomStatus::not_realizable);
-    assert_vector_near(post_source.state.moments(), initial.moments(), 0.0);
+    assert_vector_near(post_source.state.moment_values(), initial.moment_values(), 0.0);
 }
 
 void test_qmom_bounded_post_source_automatic_scaling_is_unit_covariant()
@@ -1119,13 +1119,13 @@ void test_public_qmom_moment_source_stage_fixed_mode_is_strict()
     const std::vector<double> one_node_moments = raw_moments_1d({0.0}, {1.0}, 4);
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     const qmomkit::QmomPhaseSpaceEvolutionResult result =
-        qmomkit::advance_qmom_moment_source(state, 0.0, 1.0, qmom_source_from_to(state.moments(), one_node_moments), options);
+        qmomkit::advance_qmom_moment_source(state, 0.0, 1.0, qmom_source_from_to(state.moment_values(), one_node_moments), options);
 
     assert(!result.ok());
     assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::post_source_inversion);
     assert(result.diagnostics.post_source_qmom_status != qmomkit::QmomStatus::success);
-    assert_vector_near(result.state.moments(), state.moments(), 0.0);
+    assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
     assert_qmom_quadrature_near(result.state.quadrature(), state.quadrature(), 0.0);
 }
 
@@ -1147,7 +1147,7 @@ void test_public_qmom_moment_source_stage_adaptive_policy()
 
     const std::vector<double> one_node_moments = raw_moments_1d({0.5}, {1.0}, 6);
     const qmomkit::QmomPhaseSpaceEvolutionResult reduction =
-        qmomkit::advance_qmom_moment_source(two_node_state, 0.0, 1.0, qmom_source_from_to(two_node_state.moments(), one_node_moments), options);
+        qmomkit::advance_qmom_moment_source(two_node_state, 0.0, 1.0, qmom_source_from_to(two_node_state.moment_values(), one_node_moments), options);
     assert(reduction.ok());
     assert(reduction.state.active_node_count() == 1);
     assert_qmom_state_canonical(reduction.state, 1.0e-12);
@@ -1155,14 +1155,14 @@ void test_public_qmom_moment_source_stage_adaptive_policy()
     const qmomkit::QmomState one_node_state = qmom_state_from_moments(one_node_moments, 3, qmom_options);
     const std::vector<double> two_node_moments = raw_moments_1d({-0.25, 1.5}, {0.35, 0.65}, 6);
     const qmomkit::QmomPhaseSpaceEvolutionResult growth =
-        qmomkit::advance_qmom_moment_source(one_node_state, 0.0, 1.0, qmom_source_from_to(one_node_state.moments(), two_node_moments), options);
+        qmomkit::advance_qmom_moment_source(one_node_state, 0.0, 1.0, qmom_source_from_to(one_node_state.moment_values(), two_node_moments), options);
     assert(growth.ok());
     assert(growth.state.active_node_count() == 2);
     assert_qmom_state_canonical(growth.state, 1.0e-12);
 
     const std::vector<double> three_node_moments = raw_moments_1d({-1.0, 0.25, 1.5}, {0.2, 0.3, 0.5}, 6);
-    const qmomkit::QmomPhaseSpaceEvolutionResult capped_growth =
-        qmomkit::advance_qmom_moment_source(one_node_state, 0.0, 1.0, qmom_source_from_to(one_node_state.moments(), three_node_moments), options);
+    const qmomkit::QmomPhaseSpaceEvolutionResult capped_growth = qmomkit::advance_qmom_moment_source(
+        one_node_state, 0.0, 1.0, qmom_source_from_to(one_node_state.moment_values(), three_node_moments), options);
     assert(capped_growth.ok());
     assert(capped_growth.state.active_node_count() == 2);
     assert_qmom_state_canonical(capped_growth.state, 1.0e-12);
@@ -1176,7 +1176,7 @@ void test_public_qmom_moment_source_stage_failures_roll_back()
     assert(!source_failure.ok());
     assert(source_failure.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
     assert(source_failure.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::moment_source_step);
-    assert_vector_near(source_failure.state.moments(), state.moments(), 0.0);
+    assert_vector_near(source_failure.state.moment_values(), state.moment_values(), 0.0);
 
     const auto nonrealizable_source = [](double, const qmomkit::QmomSourceContext& moments)
     {
@@ -1188,7 +1188,7 @@ void test_public_qmom_moment_source_stage_failures_roll_back()
     assert(!inversion_failure.ok());
     assert(inversion_failure.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
     assert(inversion_failure.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::post_source_inversion);
-    assert_vector_near(inversion_failure.state.moments(), state.moments(), 0.0);
+    assert_vector_near(inversion_failure.state.moment_values(), state.moment_values(), 0.0);
     assert_qmom_quadrature_near(inversion_failure.state.quadrature(), state.quadrature(), 0.0);
 }
 
@@ -1414,7 +1414,7 @@ void test_configured_qmom_source_realizability_policy_matches_programmatic_adapt
     assert(final_only.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
     assert(final_only.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::rejected_by_predicate);
     assert(final_only_calls == 3);
-    assert_vector_near(final_only.state.moments(), state.moments(), 0.0);
+    assert_vector_near(final_only.state.moment_values(), state.moment_values(), 0.0);
 
     std::size_t boundary_calls = 0;
     const qmomkit::QmomMomentSource zero_source = [](double, const qmomkit::QmomSourceContext& moments)
@@ -1434,7 +1434,7 @@ void test_configured_qmom_source_realizability_policy_matches_programmatic_adapt
     assert(boundary_phase_space.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
     assert(boundary_phase_space.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::rejected_by_predicate);
     assert(boundary_calls == 3);
-    assert_vector_near(boundary_phase_space.state.moments(), state.moments(), 0.0);
+    assert_vector_near(boundary_phase_space.state.moment_values(), state.moment_values(), 0.0);
 
     qmomkit::QmomPhaseSpaceEvolutionOptions programmatic_options;
     programmatic_options.source_options.ssp_rk3_options.accept = qmomkit::make_realizability_acceptance_predicate(
@@ -1446,7 +1446,7 @@ void test_configured_qmom_source_realizability_policy_matches_programmatic_adapt
     assert(programmatic.status == final_only.status);
     assert(programmatic.diagnostics.moment_source_status == final_only.diagnostics.moment_source_status);
     assert(programmatic_calls == final_only_calls);
-    assert_vector_near(programmatic.state.moments(), final_only.state.moments(), 0.0);
+    assert_vector_near(programmatic.state.moment_values(), final_only.state.moment_values(), 0.0);
 
     std::size_t every_stage_calls = 0;
     const qmomkit::QmomPhaseSpaceEvolutionResult every_stage =
@@ -1455,7 +1455,7 @@ void test_configured_qmom_source_realizability_policy_matches_programmatic_adapt
     assert(every_stage.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
     assert(every_stage.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::rejected_by_predicate);
     assert(every_stage_calls == 1);
-    assert_vector_near(every_stage.state.moments(), state.moments(), 0.0);
+    assert_vector_near(every_stage.state.moment_values(), state.moment_values(), 0.0);
 }
 
 void test_public_qmom_moment_source_stage_boundary_matches_source_update()
@@ -1474,11 +1474,11 @@ void test_public_qmom_moment_source_stage_boundary_matches_source_update()
 
     const qmomkit::QmomPhaseSpaceEvolutionResult stage = qmomkit::advance_qmom_moment_source(state, 0.125, 0.25, source, boundary, {});
     const qmomkit::QmomMomentSourceUpdateResult direct =
-        qmomkit::advance_qmom_moments_with_source(state.moments(), 0.125, 0.25, source, boundary, {});
+        qmomkit::advance_qmom_moments_with_source(state.moment_values(), 0.125, 0.25, source, boundary, {});
 
     assert(stage.ok());
     assert(direct.ok());
-    assert_vector_near(stage.state.moments(), direct.moments, 1.0e-13);
+    assert_vector_near(stage.state.moment_values(), direct.moments, 1.0e-13);
     assert_qmom_state_canonical(stage.state, 1.0e-13);
 }
 
@@ -1489,7 +1489,7 @@ void assert_qmom_phase_space_evolution_results_match(const qmomkit::QmomPhaseSpa
     assert(expected.ok());
     assert_near(actual.final_time, expected.final_time, tolerance);
     assert(actual.state.active_node_count() == expected.state.active_node_count());
-    assert_vector_near(actual.state.moments(), expected.state.moments(), tolerance);
+    assert_vector_near(actual.state.moment_values(), expected.state.moment_values(), tolerance);
     assert_qmom_quadrature_near(actual.state.quadrature(), expected.state.quadrature(), tolerance);
 }
 
@@ -1578,7 +1578,7 @@ void test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_mac
     assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::moment_source_step);
     assert(result.diagnostics.first_advection_status == qmomkit::NodeAdvectionStatus::success);
-    assert_vector_near(result.state.moments(), state.moments(), 0.0);
+    assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
     assert_qmom_quadrature_near(result.state.quadrature(), state.quadrature(), 0.0);
 }
 
@@ -1602,7 +1602,7 @@ void test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes
     assert(srcadv.diagnostics.second_advection_status == qmomkit::NodeAdvectionStatus::velocity_failed);
     // The srcadv scheme's single advection substep is the "second" stage, not the "first".
     assert(srcadv.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::second_advection_half_step);
-    assert_vector_near(srcadv.state.moments(), state.moments(), 0.0);
+    assert_vector_near(srcadv.state.moment_values(), state.moment_values(), 0.0);
     assert_qmom_quadrature_near(srcadv.state.quadrature(), state.quadrature(), 0.0);
 
     qmomkit::QmomPhaseSpaceEvolutionOptions strang_options;
@@ -1639,7 +1639,7 @@ void test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes
     assert(strang.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::success);
     assert(strang.diagnostics.second_advection_status == qmomkit::NodeAdvectionStatus::velocity_failed);
     assert(strang.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::second_advection_half_step);
-    assert_vector_near(strang.state.moments(), state.moments(), 0.0);
+    assert_vector_near(strang.state.moment_values(), state.moment_values(), 0.0);
     assert_qmom_quadrature_near(strang.state.quadrature(), state.quadrature(), 0.0);
 }
 
@@ -2378,7 +2378,7 @@ void test_advection_only_matches_direct_operator_qmom()
     assert(phase_space_evolution.ok());
     assert(direct.ok());
     const std::vector<double> expected = qmomkit::reconstruct_raw_moments(direct.quadrature, moments.size());
-    assert_vector_near(phase_space_evolution.state.moments(), expected, 5.0e-9);
+    assert_vector_near(phase_space_evolution.state.moment_values(), expected, 5.0e-9);
     assert_qmom_state_canonical(phase_space_evolution.state, 5.0e-9);
 }
 
@@ -2402,7 +2402,7 @@ void test_source_only_matches_direct_operator_qmom()
 
     assert(phase_space_evolution.ok());
     assert(direct.ok());
-    assert_vector_near(phase_space_evolution.state.moments(), direct.moments, 1.0e-13);
+    assert_vector_near(phase_space_evolution.state.moment_values(), direct.moments, 1.0e-13);
     assert_qmom_state_canonical(phase_space_evolution.state, 1.0e-13);
 }
 
@@ -2431,7 +2431,7 @@ void test_source_plus_boundary_matches_direct_operator_qmom()
 
     assert(phase_space_evolution.ok());
     assert(direct.ok());
-    assert_vector_near(phase_space_evolution.state.moments(), direct.moments, 1.0e-13);
+    assert_vector_near(phase_space_evolution.state.moment_values(), direct.moments, 1.0e-13);
     assert_qmom_state_canonical(phase_space_evolution.state, 1.0e-13);
 }
 
@@ -3563,7 +3563,7 @@ void test_qmom_adaptive_post_source_reduction_and_growth_policy()
     const qmomkit::QmomState two_node_state = qmom_state_from_moments(raw_moments_1d({-0.75, 1.25}, {0.4, 0.6}, 6), 3, qmom_options);
     const std::vector<double> one_node_moments = raw_moments_1d({0.5}, {1.0}, 6);
     const qmomkit::QmomPhaseSpaceEvolutionResult reduction = qmomkit::advance_qmom_phase_space(
-        two_node_state, 0.0, 1.0, zero_velocity, source_from_to(two_node_state.moments(), one_node_moments), options);
+        two_node_state, 0.0, 1.0, zero_velocity, source_from_to(two_node_state.moment_values(), one_node_moments), options);
     assert(reduction.ok());
     assert(reduction.state.active_node_count() == 1);
     assert_qmom_state_canonical(reduction.state, 1.0e-12);
@@ -3571,21 +3571,21 @@ void test_qmom_adaptive_post_source_reduction_and_growth_policy()
     const qmomkit::QmomState one_node_state = qmom_state_from_moments(one_node_moments, 3, qmom_options);
     const std::vector<double> two_node_moments = raw_moments_1d({-0.25, 1.5}, {0.35, 0.65}, 6);
     const qmomkit::QmomPhaseSpaceEvolutionResult growth = qmomkit::advance_qmom_phase_space(
-        one_node_state, 0.0, 1.0, zero_velocity, source_from_to(one_node_state.moments(), two_node_moments), options);
+        one_node_state, 0.0, 1.0, zero_velocity, source_from_to(one_node_state.moment_values(), two_node_moments), options);
     assert(growth.ok());
     assert(growth.state.active_node_count() == 2);
     assert_qmom_state_canonical(growth.state, 1.0e-12);
 
     const std::vector<double> three_node_moments = raw_moments_1d({-1.0, 0.25, 1.5}, {0.2, 0.3, 0.5}, 6);
     const qmomkit::QmomPhaseSpaceEvolutionResult capped_growth = qmomkit::advance_qmom_phase_space(
-        one_node_state, 0.0, 1.0, zero_velocity, source_from_to(one_node_state.moments(), three_node_moments), options);
+        one_node_state, 0.0, 1.0, zero_velocity, source_from_to(one_node_state.moment_values(), three_node_moments), options);
     assert(capped_growth.ok());
     assert(capped_growth.state.active_node_count() == 2);
     assert_qmom_state_canonical(capped_growth.state, 1.0e-12);
 
     const std::vector<double> failed_growth_moments{1.0, 0.8, 2.8, 4.4, 0.0, 0.0};
     const qmomkit::QmomPhaseSpaceEvolutionResult failed_growth = qmomkit::advance_qmom_phase_space(
-        two_node_state, 0.0, 1.0, zero_velocity, source_from_to(two_node_state.moments(), failed_growth_moments), options);
+        two_node_state, 0.0, 1.0, zero_velocity, source_from_to(two_node_state.moment_values(), failed_growth_moments), options);
     assert(failed_growth.ok());
     assert(failed_growth.state.active_node_count() == 2);
     assert_qmom_state_canonical(failed_growth.state, 1.0e-12);
@@ -3595,7 +3595,7 @@ void test_qmom_fixed_post_source_requires_configured_count()
 {
     const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.0}, {0.4, 0.6}, 4), 2);
     const std::vector<double> one_node_moments = raw_moments_1d({0.0}, {1.0}, 4);
-    const auto source = [initial = state.moments(), one_node_moments](double, const qmomkit::QmomSourceContext& moments)
+    const auto source = [initial = state.moment_values(), one_node_moments](double, const qmomkit::QmomSourceContext& moments)
     {
         assert(moments.size() == initial.size());
         std::vector<double> rate(moments.size(), 0.0);
@@ -3617,7 +3617,7 @@ void test_qmom_fixed_post_source_requires_configured_count()
     assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::post_source_inversion);
     assert(result.diagnostics.post_source_qmom_status != qmomkit::QmomStatus::success);
-    assert_vector_near(result.state.moments(), state.moments(), 0.0);
+    assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
     assert_vector_near(result.state.quadrature().weights, state.quadrature().weights, 0.0);
     assert_vector_near(result.state.quadrature().abscissas, state.quadrature().abscissas, 0.0);
 }
@@ -3651,7 +3651,7 @@ void test_first_order_schemes_differ_for_noncommuting_qmom()
     assert(srcadv.ok());
     assert(advsrc.diagnostics.scheme == qmomkit::PhaseSpaceEvolutionScheme::advsrc);
     assert(srcadv.diagnostics.scheme == qmomkit::PhaseSpaceEvolutionScheme::srcadv);
-    assert(std::abs(advsrc.state.moments()[1] - srcadv.state.moments()[1]) > 1.0e-4);
+    assert(std::abs(advsrc.state.moment_values()[1] - srcadv.state.moment_values()[1]) > 1.0e-4);
 }
 
 void test_strang_source_uses_physical_time_interval_for_nonautonomous_source()
@@ -3674,22 +3674,22 @@ void test_strang_source_uses_physical_time_interval_for_nonautonomous_source()
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
     const qmomkit::QmomPhaseSpaceEvolutionResult source_only = qmomkit::advance_qmom_moment_source(state, 2.0, 1.0, source, options);
     assert(source_only.ok());
-    assert_near(source_only.state.moments()[0], 3.5, 1.0e-12);
+    assert_near(source_only.state.moment_values()[0], 3.5, 1.0e-12);
     qmomkit::QmomPhaseSpaceEvolutionOptions advsrc_options = options;
     advsrc_options.scheme = qmomkit::PhaseSpaceEvolutionScheme::advsrc;
     const qmomkit::QmomPhaseSpaceEvolutionResult advsrc = qmomkit::advance_qmom_phase_space(state, 2.0, 1.0, zero_velocity, source, advsrc_options);
     assert(advsrc.ok());
-    assert_near(advsrc.state.moments()[0], 3.5, 1.0e-12);
+    assert_near(advsrc.state.moment_values()[0], 3.5, 1.0e-12);
     qmomkit::QmomPhaseSpaceEvolutionOptions srcadv_options = options;
     srcadv_options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
     const qmomkit::QmomPhaseSpaceEvolutionResult srcadv = qmomkit::advance_qmom_phase_space(state, 2.0, 1.0, zero_velocity, source, srcadv_options);
     assert(srcadv.ok());
-    assert_near(srcadv.state.moments()[0], 3.5, 1.0e-12);
+    assert_near(srcadv.state.moment_values()[0], 3.5, 1.0e-12);
     callback_times.clear();
     const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_phase_space(state, 2.0, 1.0, zero_velocity, source, options);
     assert(result.ok());
     assert_vector_near(callback_times, {2.0, 3.0, 2.5}, 0.0);
-    assert_near(result.state.moments()[0], 3.5, 1.0e-12);
+    assert_near(result.state.moment_values()[0], 3.5, 1.0e-12);
 }
 
 void test_diagnostics_are_aggregated()
@@ -3747,7 +3747,7 @@ void test_qmom_phase_space_evolution_node_advection_scheme_selection()
     assert(rk.diagnostics.first_advection_diagnostics.adaptive_status == qmomkit::AdaptiveRkStatus::success);
     assert(rk.diagnostics.total_node_advection_steps > 0);
 
-    assert_vector_near(ssp.state.moments(), rk.state.moments(), 1.0e-10);
+    assert_vector_near(ssp.state.moment_values(), rk.state.moment_values(), 1.0e-10);
 
     qmomkit::QmomPhaseSpaceEvolutionOptions rk45_options = rk_options;
     rk45_options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk45;
@@ -3755,7 +3755,7 @@ void test_qmom_phase_space_evolution_node_advection_scheme_selection()
     assert(rk45.ok());
     assert(rk45.diagnostics.first_advection_diagnostics.scheme == qmomkit::NodeAdvectionScheme::rk45);
     assert(rk45.diagnostics.first_advection_diagnostics.adaptive_status == qmomkit::AdaptiveRkStatus::success);
-    assert_vector_near(rk.state.moments(), rk45.state.moments(), 1.0e-10);
+    assert_vector_near(rk.state.moment_values(), rk45.state.moment_values(), 1.0e-10);
 }
 
 void test_cqmom_state_phase_space_evolution_node_advection_scheme_selection()
@@ -3815,7 +3815,7 @@ void test_failure_propagation_from_advection_operator()
     assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::advection_failed);
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::first_advection_half_step);
     assert(result.diagnostics.first_advection_status == qmomkit::NodeAdvectionStatus::velocity_failed);
-    assert_vector_near(result.state.moments(), state.moments(), 0.0);
+    assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
 }
 
 void test_failure_propagation_from_source_operator()
@@ -3834,7 +3834,7 @@ void test_failure_propagation_from_source_operator()
     assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::moment_source_step);
     assert(result.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::source_failed);
-    assert_vector_near(result.state.moments(), state.moments(), 0.0);
+    assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
 }
 
 void test_failure_propagation_from_boundary_contribution()
@@ -3858,7 +3858,7 @@ void test_failure_propagation_from_boundary_contribution()
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::moment_source_step);
     assert(result.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::source_failed);
     assert(result.message.find("boundary contribution") != std::string::npos);
-    assert_vector_near(result.state.moments(), state.moments(), 0.0);
+    assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
 }
 
 void test_boundary_contribution_post_source_inversion_failure()
@@ -3886,7 +3886,7 @@ void test_boundary_contribution_post_source_inversion_failure()
     assert(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::post_source_inversion);
     assert(result.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::success);
     assert(result.diagnostics.post_source_qmom_status != qmomkit::QmomStatus::success);
-    assert_vector_near(result.state.moments(), state.moments(), 0.0);
+    assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
 }
 
 // The packed velocity form is an alternative spelling of the same contract, so
@@ -3950,7 +3950,7 @@ void test_packed_velocity_phase_space_step_matches_per_node_form()
 
         assert(qmom_adapted.ok());
         assert(qmom_packed.ok());
-        assert(qmom_packed.state.moments() == qmom_adapted.state.moments());
+        assert(qmom_packed.state.moment_values() == qmom_adapted.state.moment_values());
         assert(qmom_packed.state.quadrature().abscissas == qmom_adapted.state.quadrature().abscissas);
         assert(qmom_packed.diagnostics.total_node_advection_rhs_evaluations == qmom_adapted.diagnostics.total_node_advection_rhs_evaluations);
     }

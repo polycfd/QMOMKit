@@ -737,8 +737,8 @@ RunSummary validate_qmom_run(VerificationResult& verification, const std::vector
         append_failure(verification, "phase-space evolution final time does not match the requested final time.");
     }
 
-    update_errors(summary.errors, result.state.moments(), exact);
-    summary.error_norm = scaled_infinity_error(result.state.moments(), exact);
+    update_errors(summary.errors, result.state.moment_values(), exact);
+    summary.error_norm = scaled_infinity_error(result.state.moment_values(), exact);
     const qmomkit::Quadrature1D final_quadrature{result.state.quadrature().abscissas, result.state.quadrature().weights,
                                                  qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> reconstructed = qmomkit::reconstruct_raw_moments(final_quadrature, exact.size());
@@ -891,12 +891,12 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
     }
     else
     {
-        update_errors(boundary_summary.errors, boundary_result.state.moments(), boundary_exact);
+        update_errors(boundary_summary.errors, boundary_result.state.moment_values(), boundary_exact);
         const qmomkit::Quadrature1D final_quadrature{boundary_result.state.quadrature().abscissas, boundary_result.state.quadrature().weights,
                                                      qmomkit::QuadratureStatus::success, ""};
         update_reconstruction_errors(boundary_summary.errors, qmomkit::reconstruct_raw_moments(final_quadrature, boundary_exact.size()),
                                      boundary_exact);
-        boundary_summary.error_norm = scaled_infinity_error(boundary_result.state.moments(), boundary_exact);
+        boundary_summary.error_norm = scaled_infinity_error(boundary_result.state.moment_values(), boundary_exact);
         if (boundary_summary.errors.moment_scaled > 5.0e-11 || boundary_summary.errors.reconstruction_scaled > 5.0e-11)
         {
             boundary_summary.success = false;
@@ -927,12 +927,12 @@ VerificationResult run_qmom_boundary_contribution(const std::filesystem::path& c
     }
     else
     {
-        update_errors(combined_summary.errors, combined_result.state.moments(), combined_exact);
+        update_errors(combined_summary.errors, combined_result.state.moment_values(), combined_exact);
         const qmomkit::Quadrature1D final_quadrature{combined_result.state.quadrature().abscissas, combined_result.state.quadrature().weights,
                                                      qmomkit::QuadratureStatus::success, ""};
         update_reconstruction_errors(combined_summary.errors, qmomkit::reconstruct_raw_moments(final_quadrature, combined_exact.size()),
                                      combined_exact);
-        combined_summary.error_norm = scaled_infinity_error(combined_result.state.moments(), combined_exact);
+        combined_summary.error_norm = scaled_infinity_error(combined_result.state.moment_values(), combined_exact);
         if (combined_summary.errors.moment_scaled > 5.0e-11 || combined_summary.errors.reconstruction_scaled > 5.0e-11)
         {
             combined_summary.success = false;
@@ -1090,7 +1090,7 @@ VerificationResult run_noncommuting_qmom(const std::filesystem::path& configurat
                                                  static_cast<std::size_t>(std::lround(final_time / refinement_steps.front())), noncommuting_velocity,
                                                  noncommuting_source, qmom_case.qmom_options, srcadv_options);
     if (cd_coarse.result.ok() && dc_coarse.result.ok() &&
-        scaled_infinity_error(cd_coarse.result.state.moments(), dc_coarse.result.state.moments()) < 1.0e-4)
+        scaled_infinity_error(cd_coarse.result.state.moment_values(), dc_coarse.result.state.moment_values()) < 1.0e-4)
     {
         append_failure(verification, "noncommuting advsrc and srcadv schemes did not differ at finite timestep.");
     }
@@ -1129,7 +1129,7 @@ void verify_qmom_advection_failure_result(const std::string& case_name, const qm
     {
         append_failure(verification, case_name + " advanced final_time despite phase-space advection failure.");
     }
-    if (!vectors_equal(result.state.moments(), initial_moments, 0.0))
+    if (!vectors_equal(result.state.moment_values(), initial_moments, 0.0))
     {
         append_failure(verification, case_name + " returned moments changed by a failed advection substep.");
     }
@@ -1180,7 +1180,7 @@ void verify_qmom_rk23_minimum_step_acceptance_result(const qmomkit::QmomPhaseSpa
     {
         append_failure(verification, "QMOM RK23 minimum-step case did not complete the later phase-space evolution stages.");
     }
-    if (!values_are_finite(result.state.moments()))
+    if (!values_are_finite(result.state.moment_values()))
     {
         append_failure(verification, "QMOM RK23 minimum-step case returned a non-finite final moment.");
     }
@@ -1188,15 +1188,15 @@ void verify_qmom_rk23_minimum_step_acceptance_result(const qmomkit::QmomPhaseSpa
     {
         append_failure(verification, "QMOM RK23 minimum-step case returned a non-finite final quadrature value.");
     }
-    if (result.state.moments().size() != exact.size())
+    if (result.state.moment_values().size() != exact.size())
     {
         append_failure(verification, "QMOM RK23 minimum-step case returned an unexpected final moment count.");
     }
     const qmomkit::Quadrature1D final_quadrature{result.state.quadrature().abscissas, result.state.quadrature().weights,
                                                  qmomkit::QuadratureStatus::success, ""};
     const std::vector<double> reconstructed = qmomkit::reconstruct_raw_moments(final_quadrature, exact.size());
-    if (result.state.moments().size() == exact.size() &&
-        (scaled_infinity_error(result.state.moments(), exact) > 2.0e-6 || scaled_infinity_error(reconstructed, exact) > 2.0e-6))
+    if (result.state.moment_values().size() == exact.size() &&
+        (scaled_infinity_error(result.state.moment_values(), exact) > 2.0e-6 || scaled_infinity_error(reconstructed, exact) > 2.0e-6))
     {
         append_failure(verification, "QMOM RK23 minimum-step case final state exceeded the analytical advection-reference tolerance.");
     }
@@ -1293,7 +1293,7 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
     {
         const qmomkit::QmomPhaseSpaceEvolutionResult result =
             qmomkit::advance_qmom_phase_space(initial_state, 0.0, dt, failure_case.velocity, zero_qmom_source, options);
-        verify_qmom_advection_failure_result(failure_case.name, result, initial_state.moments(), failure_case.expected_message_fragment,
+        verify_qmom_advection_failure_result(failure_case.name, result, initial_state.moment_values(), failure_case.expected_message_fragment,
                                              verification);
 
         RunSummary summary;
@@ -1305,7 +1305,7 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
         summary.success = !result.ok() && result.status == qmomkit::PhaseSpaceEvolutionStatus::advection_failed &&
                           result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::first_advection_half_step &&
                           result.diagnostics.first_advection_status == qmomkit::NodeAdvectionStatus::velocity_failed &&
-                          vectors_equal(result.state.moments(), initial_state.moments(), 0.0);
+                          vectors_equal(result.state.moment_values(), initial_state.moment_values(), 0.0);
         verification.runs.push_back(summary);
     }
 
@@ -1325,10 +1325,10 @@ VerificationResult run_qmom_phase_space_evolution_failures(const std::filesystem
         });
     const qmomkit::QmomPhaseSpaceEvolutionResult rk_minimum =
         qmomkit::advance_qmom_phase_space(initial_state, 0.0, dt, stiff_velocity, zero_qmom_source, rk_minimum_options);
-    std::vector<double> rk_minimum_exact(initial_state.moments().size(), 0.0);
+    std::vector<double> rk_minimum_exact(initial_state.moment_values().size(), 0.0);
     for (std::size_t order = 0; order < rk_minimum_exact.size(); ++order)
     {
-        rk_minimum_exact[order] = initial_state.moments()[order] * std::exp(static_cast<double>(order) * dt);
+        rk_minimum_exact[order] = initial_state.moment_values()[order] * std::exp(static_cast<double>(order) * dt);
     }
     verify_qmom_rk23_minimum_step_acceptance_result(rk_minimum, rk_minimum_exact, verification);
 

@@ -150,9 +150,9 @@ int main()
 
     std::cout << '\n';
     std::cout << "Final moments:\n";
-    for (std::size_t order = 0; order < state.moments().size(); ++order)
+    for (std::size_t order = 0; order < state.moment_values().size(); ++order)
     {
-        std::cout << "M" << order << " = " << state.moments()[order] << '\n';
+        std::cout << "M" << order << " = " << state.moment_values()[order] << '\n';
     }
 
     std::cout << '\n';

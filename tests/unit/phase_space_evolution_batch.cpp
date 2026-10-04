@@ -138,7 +138,7 @@ void assert_phase_space_evolution_diagnostics_equal(const qmomkit::PhaseSpaceEvo
 
 void assert_qmom_state_equal(const qmomkit::QmomState& actual, const qmomkit::QmomState& expected)
 {
-    assert_vector_near(actual.moments(), expected.moments());
+    assert_vector_near(actual.moment_values(), expected.moment_values());
     assert(actual.active_node_count() == expected.active_node_count());
     assert(actual.quadrature().status == expected.quadrature().status);
     assert(actual.quadrature().message == expected.quadrature().message);

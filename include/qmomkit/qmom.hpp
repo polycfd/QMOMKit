@@ -67,7 +67,7 @@ public:
     QmomState& operator=(QmomState&&) noexcept = default;
     ~QmomState() = default;
 
-    [[nodiscard]] const std::vector<double>& moments() const noexcept
+    [[nodiscard]] const std::vector<double>& moment_values() const noexcept
     {
         return moments_;
     }

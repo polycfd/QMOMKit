@@ -233,11 +233,11 @@ MomentWriter MomentWriter::for_qmom(const std::filesystem::path& path, const std
 MomentWriter MomentWriter::for_qmom(const std::filesystem::path& path, const QmomState& state, const OutputOptions& output_options,
                                     const std::size_t precision)
 {
-    const std::vector<std::size_t> indices = sequential_indices(state.moments().size());
+    const std::vector<std::size_t> indices = sequential_indices(state.moment_values().size());
     validate_generalized_moment_orders(output_options.generalized_moment_orders, 1);
     std::vector<std::string> labels = qmom_labels(indices);
     append_generalized_labels(labels, output_options.generalized_moment_orders);
-    return MomentWriter(path, MomentLayout::qmom_state, {state.moments().size()}, indices, std::move(labels),
+    return MomentWriter(path, MomentLayout::qmom_state, {state.moment_values().size()}, indices, std::move(labels),
                         output_options.generalized_moment_orders, precision);
 }
 
@@ -517,7 +517,7 @@ void MomentWriter::write(const double time, const QmomState& state, const QmomRe
     {
         throw std::invalid_argument(layout_mismatch_message("write(time, QmomState, QmomResult)", MomentLayout::qmom_state, layout_));
     }
-    if (extents_.size() != 1 || state.moments().size() != extents_.front())
+    if (extents_.size() != 1 || state.moment_values().size() != extents_.front())
     {
         throw std::invalid_argument("QMOM state moment count does not match the writer columns.");
     }
@@ -527,7 +527,7 @@ void MomentWriter::write(const double time, const QmomState& state, const QmomRe
     {
         generalized_values.push_back(evaluate_generalized_moment(quadrature, orders.front()));
     }
-    write_aligned_row(time, state.moments(), generalized_values);
+    write_aligned_row(time, state.moment_values(), generalized_values);
 }
 
 void MomentWriter::write(const double time, const RawMomentTensor& moment_tensor)

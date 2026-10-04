@@ -192,7 +192,7 @@ int main()
         std::cout << node << "     " << initial_quadrature.weights[node] << "   " << initial_quadrature.abscissas[node] << '\n';
     }
 
-    qmom_1d_breakage_advection_with_mc::print_moments(std::cout, "Final moments", state.moments());
+    qmom_1d_breakage_advection_with_mc::print_moments(std::cout, "Final moments", state.moment_values());
 
     std::cout << "\nFinal quadrature at t = " << time << ":\n";
     std::cout << "node  initial_abscissa  final_abscissa\n";

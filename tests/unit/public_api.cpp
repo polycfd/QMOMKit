@@ -356,7 +356,7 @@ void test_cqmom_prepared_case_and_state_assignment_preserve_independent_values()
     assert(state.moment_values() == before_self_assignment);
 }
 
-void test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature()
+void test_cqmom_case_promotes_to_state_and_exposes_quadrature()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::RawMomentTensor moment_tensor = public_cqmom_promotion_moments();
@@ -469,7 +469,7 @@ void test_cqmom_moment_layout_unequal_node_counts()
     assert_unique_indices(layout.required_indices);
 }
 
-void test_select_cqmom_moments_extracts_required_dense_values()
+void test_extract_cqmom_moments_takes_required_tensor_values()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -505,7 +505,7 @@ void test_cqmom_moment_data_lookup_reflects_public_value_updates()
     assert(!selected.contains_required_index({0}));
 }
 
-void test_select_cqmom_moments_respects_non_identity_conditioning_order()
+void test_extract_cqmom_moments_respects_non_identity_conditioning_order()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -525,7 +525,7 @@ void test_select_cqmom_moments_respects_non_identity_conditioning_order()
     assert(selected.moment({1, 3, 1}) == moment_tensor.values[qmomkit::flatten_multi_index({1, 3, 1}, moment_tensor.extents)]);
 }
 
-void test_select_cqmom_moments_handles_unequal_node_counts()
+void test_extract_cqmom_moments_handles_unequal_node_counts()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 3, 4});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -540,7 +540,7 @@ void test_select_cqmom_moments_handles_unequal_node_counts()
     assert(selected.moment({1, 2, 7}) == moment_tensor.values[qmomkit::flatten_multi_index({1, 2, 7}, moment_tensor.extents)]);
 }
 
-void test_select_cqmom_moments_reports_missing_dense_moment()
+void test_extract_cqmom_moments_reports_missing_tensor_moment()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -644,7 +644,7 @@ void test_create_cqmom_moment_data_from_independent_product_selected_moments()
     }
 }
 
-void test_lean_cqmom_public_api_rejects_missing_values()
+void test_cqmom_case_public_api_rejects_missing_values()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const std::vector<std::size_t> extents{4, 4};
@@ -658,7 +658,7 @@ void test_lean_cqmom_public_api_rejects_missing_values()
     assert(result.message == "CQMOM moment data values must match the layout size.");
 }
 
-void test_lean_cqmom_public_api_rejects_non_finite_values()
+void test_cqmom_case_public_api_rejects_non_finite_values()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const std::vector<std::size_t> extents{4, 4};
@@ -672,7 +672,7 @@ void test_lean_cqmom_public_api_rejects_non_finite_values()
     assert(result.message == "CQMOM moment data values must be finite.");
 }
 
-void test_lean_cqmom_public_api_rejects_invalid_options()
+void test_cqmom_case_public_api_rejects_invalid_options()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const std::vector<std::size_t> extents{4, 4};
@@ -687,7 +687,7 @@ void test_lean_cqmom_public_api_rejects_invalid_options()
     assert(!result.message.empty());
 }
 
-void test_lean_cqmom_public_api_rejects_incompatible_layout()
+void test_cqmom_case_public_api_rejects_incompatible_layout()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2});
     const qmomkit::PhaseSpaceHierarchy incompatible_hierarchy({2, 2, 2}, {2, 0, 1});
@@ -1381,11 +1381,11 @@ int main(const int argc, char** argv)
             {"cqmom_moment_layout_three_dimensional_recursive_indices", test_cqmom_moment_layout_three_dimensional_recursive_indices},
             {"cqmom_moment_layout_non_identity_conditioning_order", test_cqmom_moment_layout_non_identity_conditioning_order},
             {"cqmom_moment_layout_unequal_node_counts", test_cqmom_moment_layout_unequal_node_counts},
-            {"select_cqmom_moments_extracts_required_dense_values", test_select_cqmom_moments_extracts_required_dense_values},
+            {"extract_cqmom_moments_takes_required_tensor_values", test_extract_cqmom_moments_takes_required_tensor_values},
             {"cqmom_moment_data_lookup_reflects_public_value_updates", test_cqmom_moment_data_lookup_reflects_public_value_updates},
-            {"select_cqmom_moments_respects_non_identity_conditioning_order", test_select_cqmom_moments_respects_non_identity_conditioning_order},
-            {"select_cqmom_moments_handles_unequal_node_counts", test_select_cqmom_moments_handles_unequal_node_counts},
-            {"select_cqmom_moments_reports_missing_dense_moment", test_select_cqmom_moments_reports_missing_dense_moment},
+            {"extract_cqmom_moments_respects_non_identity_conditioning_order", test_extract_cqmom_moments_respects_non_identity_conditioning_order},
+            {"extract_cqmom_moments_handles_unequal_node_counts", test_extract_cqmom_moments_handles_unequal_node_counts},
+            {"extract_cqmom_moments_reports_missing_tensor_moment", test_extract_cqmom_moments_reports_missing_tensor_moment},
             {"create_cqmom_moment_data_converts_valid_selected_result", test_create_cqmom_moment_data_converts_valid_selected_result},
             {"create_cqmom_moment_data_rejects_failed_selected_result", test_create_cqmom_moment_data_rejects_failed_selected_result},
             {"create_cqmom_moment_data_rejects_index_order_mismatch", test_create_cqmom_moment_data_rejects_index_order_mismatch},
@@ -1394,11 +1394,11 @@ int main(const int argc, char** argv)
             {"create_cqmom_moment_data_rejects_non_finite_values", test_create_cqmom_moment_data_rejects_non_finite_values},
             {"create_cqmom_moment_data_from_independent_product_selected_moments",
              test_create_cqmom_moment_data_from_independent_product_selected_moments},
-            {"cqmom_lean_case_promotes_to_state_and_exposes_quadrature", test_cqmom_lean_case_promotes_to_state_and_exposes_quadrature},
-            {"lean_cqmom_public_api_rejects_missing_values", test_lean_cqmom_public_api_rejects_missing_values},
-            {"lean_cqmom_public_api_rejects_non_finite_values", test_lean_cqmom_public_api_rejects_non_finite_values},
-            {"lean_cqmom_public_api_rejects_invalid_options", test_lean_cqmom_public_api_rejects_invalid_options},
-            {"lean_cqmom_public_api_rejects_incompatible_layout", test_lean_cqmom_public_api_rejects_incompatible_layout},
+            {"cqmom_case_promotes_to_state_and_exposes_quadrature", test_cqmom_case_promotes_to_state_and_exposes_quadrature},
+            {"cqmom_case_public_api_rejects_missing_values", test_cqmom_case_public_api_rejects_missing_values},
+            {"cqmom_case_public_api_rejects_non_finite_values", test_cqmom_case_public_api_rejects_non_finite_values},
+            {"cqmom_case_public_api_rejects_invalid_options", test_cqmom_case_public_api_rejects_invalid_options},
+            {"cqmom_case_public_api_rejects_incompatible_layout", test_cqmom_case_public_api_rejects_incompatible_layout},
             {"cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage",
              test_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before_storage},
             {"qmom_public_api_matches_wheeler", test_qmom_public_api_matches_wheeler},

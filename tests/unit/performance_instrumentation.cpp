@@ -707,7 +707,7 @@ void test_ssp_node_advection_does_not_record_source_rk_stages_when_enabled()
 #endif
 }
 
-void test_public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_enabled()
+void test_public_cqmom_case_reconstruction_reuses_validated_global_layout_when_enabled()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
@@ -987,8 +987,8 @@ int main(const int argc, char** argv)
              test_state_phase_space_evolution_source_update_skips_redundant_layout_validation_when_enabled},
             {"ssp_node_advection_does_not_record_source_rk_stages_when_enabled",
              test_ssp_node_advection_does_not_record_source_rk_stages_when_enabled},
-            {"public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_enabled",
-             test_public_lean_cqmom_reconstruction_reuses_validated_global_layout_when_enabled},
+            {"public_cqmom_case_reconstruction_reuses_validated_global_layout_when_enabled",
+             test_public_cqmom_case_reconstruction_reuses_validated_global_layout_when_enabled},
             {"trusted_cqmom_prepared_case_reconstruction_skips_global_layout_validation_when_enabled",
              test_trusted_cqmom_prepared_case_reconstruction_skips_global_layout_validation_when_enabled},
             {"fixed_and_adaptive_cqmom_metadata_counters", test_fixed_and_adaptive_cqmom_metadata_counters},

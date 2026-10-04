@@ -128,7 +128,7 @@ void print_configuration_errors(const qmomkit::config::ConfigurationResult<qmomk
     std::cerr << configured.error() << '\n';
 }
 
-void verify_qmom_dense_reconstruction(VerificationResult& verification)
+void verify_qmom_all_orders_reconstruction(VerificationResult& verification)
 {
     // Public 1D reconstruction is verified against an independent three-node
     // discrete quadrature. The failure subcase simulates a caller accidentally
@@ -137,7 +137,7 @@ void verify_qmom_dense_reconstruction(VerificationResult& verification)
     const std::vector<double> moments = qmomkit::reconstruct_raw_moments(quadrature, 6);
     if (moments.size() != 6)
     {
-        append_failure(verification, "QMOM dense reconstruction returned the wrong number of moments.");
+        append_failure(verification, "QMOM all-orders reconstruction returned the wrong number of moments.");
         return;
     }
     for (std::size_t order = 0; order < moments.size(); ++order)
@@ -301,10 +301,10 @@ int main(const int argc, char** argv)
     const auto selected = [&selected_case](const std::string& name) { return selected_case.empty() || selected_case == name; };
     bool matched = selected_case.empty();
     VerificationResult verification;
-    if (selected("qmom_dense"))
+    if (selected("qmom_all_orders"))
     {
         matched = true;
-        verify_qmom_dense_reconstruction(verification);
+        verify_qmom_all_orders_reconstruction(verification);
     }
     if (selected("cqmom_selected"))
     {

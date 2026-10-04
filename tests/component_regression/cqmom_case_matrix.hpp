@@ -45,7 +45,7 @@ struct StaticCase
     bool adaptive_branch_counts = false;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     // Empty leaves every coordinate unconstrained.
-    CqmomCoordinateSupport coordinate_support;
+    CqmomAbscissaBounds coordinate_support;
 };
 
 // A phase-space evolution case: the same reconstruction driven for a few steps

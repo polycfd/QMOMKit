@@ -108,7 +108,7 @@ enum class CqmomDiagnosticLevel
     detailed
 };
 
-using CqmomCoordinateSupport = std::vector<std::optional<AbscissaBounds>>;
+using CqmomAbscissaBounds = std::vector<std::optional<AbscissaBounds>>;
 
 [[nodiscard]] std::string format_cqmom_settings(bool adaptive_branch_counts, VandermondeSolver vandermonde_solver,
                                                 CqmomDiagnosticLevel diagnostic_level);
@@ -211,7 +211,7 @@ struct CqmomCase
     bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
-    CqmomCoordinateSupport coordinate_support;
+    CqmomAbscissaBounds abscissa_bounds;
 
     /**
      * Construct the accepted initial phase-space evolution state and
@@ -255,7 +255,7 @@ public:
     [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
-    [[nodiscard]] const CqmomCoordinateSupport& coordinate_support() const noexcept;
+    [[nodiscard]] const CqmomAbscissaBounds& abscissa_bounds() const noexcept;
     [[nodiscard]] const std::vector<CqmomActiveBranchCount>& active_branch_counts() const noexcept;
     [[nodiscard]] std::vector<MultiIndex> moment_indices() const;
     [[nodiscard]] const std::vector<double>& moment_values() const noexcept;
@@ -303,7 +303,7 @@ public:
     [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
-    [[nodiscard]] const CqmomCoordinateSupport& coordinate_support() const noexcept;
+    [[nodiscard]] const CqmomAbscissaBounds& abscissa_bounds() const noexcept;
     [[nodiscard]] CqmomState initial_state() const;
 
 private:

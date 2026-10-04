@@ -79,17 +79,17 @@ void assert_cases_match(const qmomkit::CqmomPreparedCase& actual_cqmom_prepared_
     QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.adaptive_branch_counts() == expected_cqmom_prepared_case.adaptive_branch_counts());
     QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.diagnostic_level() == expected_cqmom_prepared_case.diagnostic_level());
     QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.vandermonde_solver() == expected_cqmom_prepared_case.vandermonde_solver());
-    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.coordinate_support().size() == expected_cqmom_prepared_case.coordinate_support().size());
-    for (std::size_t dimension = 0; dimension < actual_cqmom_prepared_case.coordinate_support().size(); ++dimension)
+    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.abscissa_bounds().size() == expected_cqmom_prepared_case.abscissa_bounds().size());
+    for (std::size_t dimension = 0; dimension < actual_cqmom_prepared_case.abscissa_bounds().size(); ++dimension)
     {
-        QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.coordinate_support()[dimension].has_value() ==
-                             expected_cqmom_prepared_case.coordinate_support()[dimension].has_value());
-        if (actual_cqmom_prepared_case.coordinate_support()[dimension].has_value())
+        QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.abscissa_bounds()[dimension].has_value() ==
+                             expected_cqmom_prepared_case.abscissa_bounds()[dimension].has_value());
+        if (actual_cqmom_prepared_case.abscissa_bounds()[dimension].has_value())
         {
-            QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.coordinate_support()[dimension]->lower,
-                                expected_cqmom_prepared_case.coordinate_support()[dimension]->lower, 0.0);
-            QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.coordinate_support()[dimension]->upper,
-                                expected_cqmom_prepared_case.coordinate_support()[dimension]->upper, 0.0);
+            QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.abscissa_bounds()[dimension]->lower,
+                                expected_cqmom_prepared_case.abscissa_bounds()[dimension]->lower, 0.0);
+            QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.abscissa_bounds()[dimension]->upper,
+                                expected_cqmom_prepared_case.abscissa_bounds()[dimension]->upper, 0.0);
         }
     }
 }

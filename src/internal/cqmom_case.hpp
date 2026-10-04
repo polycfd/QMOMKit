@@ -29,8 +29,8 @@ using PreparedCqmomMetadataPtr = std::shared_ptr<const PreparedCqmomMetadata>;
 // +12 allocations per phase-space step.
 [[nodiscard]] inline CqmomCase with_moments(const CqmomCase& cqmom_case, CqmomMomentData moments)
 {
-    return CqmomCase{std::move(moments),          cqmom_case.conditional_options, cqmom_case.qmom_options,      cqmom_case.adaptive_branch_counts,
-                     cqmom_case.diagnostic_level, cqmom_case.vandermonde_solver,  cqmom_case.coordinate_support};
+    return CqmomCase{std::move(moments),          cqmom_case.conditional_options, cqmom_case.qmom_options,   cqmom_case.adaptive_branch_counts,
+                     cqmom_case.diagnostic_level, cqmom_case.vandermonde_solver,  cqmom_case.abscissa_bounds};
 }
 
 class CqmomConstructionAccess

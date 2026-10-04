@@ -1762,11 +1762,11 @@ void assert_cqmom_state_carries_case_settings(const qmomkit::CqmomState& state, 
     assert(state.adaptive_branch_counts() == cqmom_case.adaptive_branch_counts);
     assert(state.diagnostic_level() == cqmom_case.diagnostic_level);
     assert(state.vandermonde_solver() == cqmom_case.vandermonde_solver);
-    assert(state.coordinate_support().size() == cqmom_case.coordinate_support.size());
-    for (std::size_t dimension = 0; dimension < cqmom_case.coordinate_support.size(); ++dimension)
+    assert(state.abscissa_bounds().size() == cqmom_case.abscissa_bounds.size());
+    for (std::size_t dimension = 0; dimension < cqmom_case.abscissa_bounds.size(); ++dimension)
     {
-        const std::optional<qmomkit::AbscissaBounds>& actual = state.coordinate_support()[dimension];
-        const std::optional<qmomkit::AbscissaBounds>& expected = cqmom_case.coordinate_support[dimension];
+        const std::optional<qmomkit::AbscissaBounds>& actual = state.abscissa_bounds()[dimension];
+        const std::optional<qmomkit::AbscissaBounds>& expected = cqmom_case.abscissa_bounds[dimension];
         assert(actual.has_value() == expected.has_value());
         if (expected.has_value())
         {
@@ -1801,8 +1801,8 @@ void test_cqmom_case_initial_state_matches_prepared_case()
     fixed_cqmom_case.qmom_options.automatic_scaling = true;
     fixed_cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     fixed_cqmom_case.vandermonde_solver = qmomkit::VandermondeSolver::pivoted_qr;
-    fixed_cqmom_case.coordinate_support = qmomkit::CqmomCoordinateSupport(fixed_cqmom_case.moments.layout.hierarchy.number_of_dimensions());
-    fixed_cqmom_case.coordinate_support[0] = qmomkit::AbscissaBounds{-1.0e3, 1.0e3};
+    fixed_cqmom_case.abscissa_bounds = qmomkit::CqmomAbscissaBounds(fixed_cqmom_case.moments.layout.hierarchy.number_of_dimensions());
+    fixed_cqmom_case.abscissa_bounds[0] = qmomkit::AbscissaBounds{-1.0e3, 1.0e3};
     assert_cqmom_case_initial_state_matches_prepared_case(fixed_cqmom_case);
 
     assert_cqmom_case_initial_state_matches_prepared_case(
@@ -2752,11 +2752,11 @@ void test_adaptive_state_bounded_support_rejects_post_source_growth()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
     const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
-    qmomkit::CqmomCoordinateSupport support(2);
+    qmomkit::CqmomAbscissaBounds support(2);
     support[0] = qmomkit::AbscissaBounds{0.0, 1.0};
 
     qmomkit::CqmomCase cqmom_case{initial_required, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic};
-    cqmom_case.coordinate_support = support;
+    cqmom_case.abscissa_bounds = support;
     const qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(cqmom_case);
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
@@ -2770,8 +2770,8 @@ void test_adaptive_state_bounded_support_rejects_post_source_growth()
     assert(phase_space_evolved.ok());
     assert(phase_space_evolved.quadrature.has_value());
     assert(phase_space_evolved.quadrature->total_nodes() == 2);
-    assert(phase_space_evolved.state.coordinate_support().size() == 2);
-    assert(phase_space_evolved.state.coordinate_support()[0].has_value());
+    assert(phase_space_evolved.state.abscissa_bounds().size() == 2);
+    assert(phase_space_evolved.state.abscissa_bounds()[0].has_value());
     assert(active_counts_contain(phase_space_evolved.state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 2, 0, 3));
     assert(!phase_space_evolved.diagnostics.post_source_cqmom_diagnostics.empty());
     const qmomkit::CqmomDiagnostics& diagnostic = phase_space_evolved.diagnostics.post_source_cqmom_diagnostics.front();

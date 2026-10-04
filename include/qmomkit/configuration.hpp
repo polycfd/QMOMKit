@@ -168,14 +168,14 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * Create a CQMOM case definition from an already parsed initialization
  * specification.
  *
- * Coordinate support is indexed by phase-space dimension and is carried into
+ * Abscissa bounds are indexed by phase-space dimension and are carried into
  * the resulting case and any state created from it. Construct a
  * `CqmomPreparedCase` from the result for the normal CQMOM workflow.
  */
 [[nodiscard]] ConfigurationResult<CqmomCase> create_cqmom_case(const InitialConditionSpecification& initial_condition,
                                                                const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
                                                                bool adaptive_branch_counts = false, std::string source_name = "<initialization>",
-                                                               CqmomCoordinateSupport coordinate_support = {});
+                                                               CqmomAbscissaBounds abscissa_bounds = {});
 
 /**
  * Create a prepared CQMOM case with replacement initial moments, taken from a
@@ -190,7 +190,7 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * reported here as a configuration error you can inspect, whereas
  * `extract_cqmom_moments(...)` signals the same problems by throwing.
  *
- * The returned immutable case keeps the hierarchy, coordinate support,
+ * The returned immutable case keeps the hierarchy, abscissa bounds,
  * reconstruction policies, and prepared metadata of the base case, which is
  * left unchanged. Cases derived this way therefore share one recursive branch
  * structure. This operation validates tensor structure only; CQMOM
@@ -208,7 +208,7 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * hierarchy reconstructs from, so that no full tensor has to be built for
  * entries the case never reads.
  *
- * The returned immutable case keeps the hierarchy, coordinate support,
+ * The returned immutable case keeps the hierarchy, abscissa bounds,
  * reconstruction policies, and prepared metadata of the base case, which is
  * left unchanged. The supplied layout must match the required CQMOM moment
  * layout of the base hierarchy. This operation validates moment-set structure

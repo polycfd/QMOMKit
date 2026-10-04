@@ -52,7 +52,7 @@ qmomkit::internal::RecursiveQuadratureMomentDataRequest moment_data_request(
     const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moment_tensor,
     const qmomkit::ConditionalMomentOptions& conditional_options = {}, const qmomkit::WheelerOptions& wheeler_options = {},
     const bool adaptive_branch_counts = false, const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
-    const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic, const qmomkit::CqmomCoordinateSupport& coordinate_support = {})
+    const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic, const qmomkit::CqmomAbscissaBounds& coordinate_support = {})
 {
     return {hierarchy,
             qmomkit::extract_cqmom_moments(moment_tensor, qmomkit::create_cqmom_moment_layout(hierarchy)),

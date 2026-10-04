@@ -117,9 +117,9 @@ namespace
     return cqmom_case.vandermonde_solver;
 }
 
-[[nodiscard]] const CqmomCoordinateSupport& coordinate_support(const CqmomCase& cqmom_case)
+[[nodiscard]] const CqmomAbscissaBounds& coordinate_support(const CqmomCase& cqmom_case)
 {
-    return cqmom_case.coordinate_support;
+    return cqmom_case.abscissa_bounds;
 }
 
 [[nodiscard]] std::string diagnostic_level_name(const CqmomDiagnosticLevel level)
@@ -271,7 +271,7 @@ VandermondeSolver CqmomPreparedCase::vandermonde_solver() const noexcept
     return qmomkit::vandermonde_solver(data_->cqmom_case);
 }
 
-const CqmomCoordinateSupport& CqmomPreparedCase::coordinate_support() const noexcept
+const CqmomAbscissaBounds& CqmomPreparedCase::abscissa_bounds() const noexcept
 {
     return qmomkit::coordinate_support(data_->cqmom_case);
 }
@@ -368,7 +368,7 @@ VandermondeSolver CqmomState::vandermonde_solver() const noexcept
     return qmomkit::vandermonde_solver(data_->cqmom_case);
 }
 
-const CqmomCoordinateSupport& CqmomState::coordinate_support() const noexcept
+const CqmomAbscissaBounds& CqmomState::abscissa_bounds() const noexcept
 {
     return qmomkit::coordinate_support(data_->cqmom_case);
 }
@@ -673,7 +673,7 @@ CqmomResult compute_cqmom(const CqmomCase& cqmom_case)
     if (cqmom_case.qmom_options.automatic_scaling)
     {
         const std::optional<internal::CqmomScalingContext> scaling =
-            internal::make_cqmom_scaling_context(cqmom_case.moments, cqmom_case.coordinate_support);
+            internal::make_cqmom_scaling_context(cqmom_case.moments, cqmom_case.abscissa_bounds);
         if (scaling.has_value())
         {
             const internal::RecursiveQuadratureResult result =
@@ -703,7 +703,7 @@ CqmomResult compute_cqmom(const CqmomCase& cqmom_case)
                                                                  cqmom_case.vandermonde_solver,
                                                                  {},
                                                                  false,
-                                                                 cqmom_case.coordinate_support});
+                                                                 cqmom_case.abscissa_bounds});
 
     return to_cqmom_result(result, hierarchy);
 }
@@ -726,7 +726,7 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
     }
     if (cqmom_case.qmom_options.automatic_scaling)
     {
-        const std::optional<CqmomScalingContext> scaling = make_cqmom_scaling_context(cqmom_case.moments, cqmom_case.coordinate_support);
+        const std::optional<CqmomScalingContext> scaling = make_cqmom_scaling_context(cqmom_case.moments, cqmom_case.abscissa_bounds);
         if (scaling.has_value())
         {
             const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
@@ -742,7 +742,7 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
     const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
         {hierarchy, cqmom_case.moments, cqmom_case.conditional_options, to_wheeler_options(cqmom_case.qmom_options),
          cqmom_case.adaptive_branch_counts, cqmom_case.diagnostic_level, cqmom_case.vandermonde_solver, std::move(active_branch_counts),
-         allow_active_branch_count_growth, cqmom_case.coordinate_support, prepared_metadata, require_prepared_metadata});
+         allow_active_branch_count_growth, cqmom_case.abscissa_bounds, prepared_metadata, require_prepared_metadata});
 
     return to_cqmom_result(result, hierarchy);
 }

@@ -180,7 +180,7 @@ struct RecursiveQuadratureMomentDataRequest
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
     std::vector<CqmomActiveBranchCount> active_branch_counts;
     bool allow_active_branch_count_growth = false;
-    CqmomCoordinateSupport coordinate_support;
+    CqmomAbscissaBounds coordinate_support;
     const PreparedCqmomMetadata* prepared_metadata = nullptr;
     // Normal fixed case/state reconstruction requires prepared metadata.
     // Explicit standalone reconstruction leaves this false and remains

@@ -69,7 +69,7 @@ void test_selected_one_dimensional_moments()
     CHECK_CLOSE(result.standard_errors[0], result.standard_errors[3], 0.0);
 }
 
-void test_selected_multidimensional_moments_match_dense()
+void test_selected_multidimensional_moments_match_moment_tensor()
 {
     const Ensemble ensemble{{-2.0, 1.0}, {3.0, -4.0}};
     const RawMomentRequest request{{{2, 1}, {0, 0}, {1, 2}, {2, 1}, {1, 0}}};
@@ -245,7 +245,7 @@ int main(const int argc, char** argv)
         argc, argv,
         {
             {"selected_one_dimensional_moments", test_selected_one_dimensional_moments},
-            {"selected_multidimensional_moments_match_dense", test_selected_multidimensional_moments_match_dense},
+            {"selected_multidimensional_moments_match_moment_tensor", test_selected_multidimensional_moments_match_moment_tensor},
             {"selected_zero_density_and_integer_power_edges", test_selected_zero_density_and_integer_power_edges},
             {"empty_request_requires_valid_ensemble_and_density", test_empty_request_requires_valid_ensemble_and_density},
             {"selected_invalid_inputs_have_no_partial_payload", test_selected_invalid_inputs_have_no_partial_payload},

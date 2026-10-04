@@ -80,7 +80,7 @@ qmomkit::CqmomCase bounded_cqmom_case(const std::vector<double>& moments, const 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2});
     qmomkit::CqmomCase cqmom_case{
         qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))};
-    cqmom_case.coordinate_support = {interval};
+    cqmom_case.abscissa_bounds = {interval};
     cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     return cqmom_case;
 }
@@ -140,7 +140,7 @@ void verify_coordinate_specific_bounds_in_recursive_cqmom()
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
     qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(expected, qmomkit::create_cqmom_moment_layout(hierarchy))};
-    cqmom_case.coordinate_support = {x_bounds, y_bounds};
+    cqmom_case.abscissa_bounds = {x_bounds, y_bounds};
     cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 

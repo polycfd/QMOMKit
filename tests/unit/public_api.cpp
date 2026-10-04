@@ -185,7 +185,7 @@ qmomkit::CqmomCase cqmom_case_from_tensor(const qmomkit::PhaseSpaceHierarchy& hi
                                           const qmomkit::QmomOptions& qmom_options = {}, const bool adaptive_branch_counts = false,
                                           const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
                                           const qmomkit::VandermondeSolver vandermonde_solver = qmomkit::VandermondeSolver::automatic,
-                                          qmomkit::CqmomCoordinateSupport coordinate_support = {})
+                                          qmomkit::CqmomAbscissaBounds coordinate_support = {})
 {
     return {qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
             conditional_options,
@@ -1077,7 +1077,7 @@ void test_cqmom_automatic_scaling_restores_each_physical_coordinate()
     options.automatic_scaling = true;
     auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, abscissas)}, {}, options, false,
                                              qmomkit::CqmomDiagnosticLevel::detailed);
-    cqmom_case.coordinate_support = {qmomkit::AbscissaBounds{1.0e50, 6.0e50}, qmomkit::AbscissaBounds{-5.0e-50, 4.0e-50}};
+    cqmom_case.abscissa_bounds = {qmomkit::AbscissaBounds{1.0e50, 6.0e50}, qmomkit::AbscissaBounds{-5.0e-50, 4.0e-50}};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 
     const std::vector<double> reference_x{2.0, 5.0};
@@ -1116,7 +1116,7 @@ void test_cqmom_automatic_scaling_restores_each_physical_coordinate()
         {
             continue;
         }
-        const qmomkit::AbscissaBounds expected = cqmom_case.coordinate_support[diagnostics.phase_space_dimension].value();
+        const qmomkit::AbscissaBounds expected = cqmom_case.abscissa_bounds[diagnostics.phase_space_dimension].value();
         assert_relative_near(diagnostics.bounded_support_interval.lower, expected.lower, 1.0e-12);
         assert_relative_near(diagnostics.bounded_support_interval.upper, expected.upper, 1.0e-12);
     }

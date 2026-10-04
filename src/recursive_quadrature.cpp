@@ -818,7 +818,7 @@ struct BranchNodeCountLimit
     return compute_quadrature(MomentSet(std::move(moments)), node_count, wheeler_options);
 }
 
-[[nodiscard]] bool validate_coordinate_support(const PhaseSpaceHierarchy& hierarchy, const CqmomCoordinateSupport& support, std::string& message)
+[[nodiscard]] bool validate_coordinate_support(const PhaseSpaceHierarchy& hierarchy, const CqmomAbscissaBounds& support, std::string& message)
 {
     if (support.empty())
     {
@@ -845,7 +845,7 @@ struct BranchNodeCountLimit
     return true;
 }
 
-[[nodiscard]] std::optional<AbscissaBounds> support_interval_for_dimension(const CqmomCoordinateSupport& support,
+[[nodiscard]] std::optional<AbscissaBounds> support_interval_for_dimension(const CqmomAbscissaBounds& support,
                                                                            const std::size_t phase_space_dimension)
 {
     if (support.empty())

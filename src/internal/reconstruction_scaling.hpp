@@ -20,14 +20,14 @@ struct QmomScalingContext
 struct CqmomScalingContext
 {
     CqmomMomentData moments;
-    CqmomCoordinateSupport coordinate_support;
+    CqmomAbscissaBounds coordinate_support;
     std::vector<double> scales;
 };
 
 [[nodiscard]] std::optional<QmomScalingContext> make_qmom_scaling_context(const std::vector<double>& moments,
                                                                           std::optional<AbscissaBounds> abscissa_bounds);
 [[nodiscard]] std::optional<CqmomScalingContext> make_cqmom_scaling_context(const CqmomMomentData& moments,
-                                                                            const CqmomCoordinateSupport& coordinate_support);
+                                                                            const CqmomAbscissaBounds& coordinate_support);
 
 [[nodiscard]] bool restore_abscissas(std::vector<double>& abscissas, double scale);
 [[nodiscard]] bool restore_cqmom_abscissas(std::vector<std::vector<double>>& abscissas, const std::vector<double>& scales);

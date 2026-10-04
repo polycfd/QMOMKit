@@ -275,7 +275,7 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
 
     AdaptiveRkResult result;
     result.state = y;
-    result.t = t;
+    result.final_time = t;
     result.status = AdaptiveRkStatus::success;
     result.function_evaluations = function_evaluations;
 
@@ -289,7 +289,7 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
         if (result.accepted_steps >= options.max_steps)
         {
             result.state = y;
-            result.t = t;
+            result.final_time = t;
             result.status = AdaptiveRkStatus::max_steps_exceeded;
             result.message = std::string(tableau->name) + " exceeded max_steps.";
             result.function_evaluations = function_evaluations;
@@ -386,7 +386,7 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
                     // message says that rather than blaming the step size the
                     // status name refers to.
                     result.state = y;
-                    result.t = t;
+                    result.final_time = t;
                     result.status = AdaptiveRkStatus::step_size_underflow;
                     result.message = std::string(tableau->name) + " produced a non-finite state or error estimate at the minimum step.";
                     result.function_evaluations = function_evaluations;
@@ -397,7 +397,7 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     }
 
     result.state = std::move(y);
-    result.t = t;
+    result.final_time = t;
     result.status = AdaptiveRkStatus::success;
     result.function_evaluations = function_evaluations;
     return result;

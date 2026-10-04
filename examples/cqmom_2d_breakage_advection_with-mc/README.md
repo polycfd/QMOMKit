@@ -52,7 +52,7 @@ CQMOM phase-space evolution
 
 The CQMOM driver loads this numerical setup as a normal `CqmomPreparedCase`, estimates
 the complete sampled tensor, and creates an immutable replacement case with
-`with_initial_moments(...)`. The hierarchy, coordinate support, and
+`with_initial_moments(...)`. The hierarchy, abscissa bounds, and
 reconstruction policies therefore remain those declared by
 `configuration.qmom`; sampling is only one possible producer of replacement raw
 moments.

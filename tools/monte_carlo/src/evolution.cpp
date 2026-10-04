@@ -251,7 +251,7 @@ void checked_velocity(const qmomkit::PhaseSpaceVelocity& velocity, const std::si
             result.status = EnsembleEvolutionStatus::rk23_failed;
             result.failed_state_index = state_index;
             result.message = rk_result.message;
-            result.final_time = rk_result.t;
+            result.final_time = rk_result.final_time;
             return result;
         }
         if (rk_result.state.size() != dimensions || !all_finite(rk_result.state))
@@ -261,7 +261,7 @@ void checked_velocity(const qmomkit::PhaseSpaceVelocity& velocity, const std::si
             result.failed_state_index = state_index;
             result.rk23_status = qmomkit::AdaptiveRkStatus::invalid_input;
             result.message = std::move(invalid_state_message);
-            result.final_time = rk_result.t;
+            result.final_time = rk_result.final_time;
             return result;
         }
 

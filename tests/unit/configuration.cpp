@@ -211,7 +211,7 @@ void assert_cqmom_quadratures_near(const qmomkit::CqmomQuadrature& actual, const
     }
 }
 
-void assert_coordinate_support_matches_shifted_interval(const qmomkit::CqmomCoordinateSupport& support)
+void assert_coordinate_support_matches_shifted_interval(const qmomkit::CqmomAbscissaBounds& support)
 {
     assert(support.size() == 2);
     assert(!support[0].has_value());
@@ -940,13 +940,13 @@ sigma_log = 0.2
     assert(omitted_order.value().moments.layout.hierarchy.node_counts() == explicit_order.value().moments.layout.hierarchy.node_counts());
     assert(omitted_order.value().moments.layout.hierarchy.conditioning_order() ==
            explicit_order.value().moments.layout.hierarchy.conditioning_order());
-    assert(omitted_order.value().coordinate_support.size() == explicit_order.value().coordinate_support.size());
-    assert(!omitted_order.value().coordinate_support[0].has_value());
-    assert(!explicit_order.value().coordinate_support[0].has_value());
-    assert(omitted_order.value().coordinate_support[1].has_value());
-    assert(explicit_order.value().coordinate_support[1].has_value());
-    assert_near(omitted_order.value().coordinate_support[1]->lower, explicit_order.value().coordinate_support[1]->lower);
-    assert_near(omitted_order.value().coordinate_support[1]->upper, explicit_order.value().coordinate_support[1]->upper);
+    assert(omitted_order.value().abscissa_bounds.size() == explicit_order.value().abscissa_bounds.size());
+    assert(!omitted_order.value().abscissa_bounds[0].has_value());
+    assert(!explicit_order.value().abscissa_bounds[0].has_value());
+    assert(omitted_order.value().abscissa_bounds[1].has_value());
+    assert(explicit_order.value().abscissa_bounds[1].has_value());
+    assert_near(omitted_order.value().abscissa_bounds[1]->lower, explicit_order.value().abscissa_bounds[1]->lower);
+    assert_near(omitted_order.value().abscissa_bounds[1]->upper, explicit_order.value().abscissa_bounds[1]->upper);
     assert_cqmom_moments_near(omitted_order.value().moments, explicit_order.value().moments);
     assert_cqmom_moments_near_tensor(omitted_order.value().moments, expected.moments);
 }
@@ -1066,12 +1066,12 @@ diagnostic_level = basic
     assert(cqmom_case_result.ok());
 
     const qmomkit::CqmomPreparedCase cqmom_prepared_case = cqmom_prepared_case_result.value();
-    assert(cqmom_prepared_case.coordinate_support().size() == 2);
-    assert(!cqmom_prepared_case.coordinate_support()[0].has_value());
-    assert(cqmom_prepared_case.coordinate_support()[1].has_value());
-    assert_near(cqmom_prepared_case.coordinate_support()[1]->lower, 1.0);
-    assert_near(cqmom_prepared_case.coordinate_support()[1]->upper, 2.0);
-    assert(cqmom_case_result.value().coordinate_support.size() == cqmom_prepared_case.coordinate_support().size());
+    assert(cqmom_prepared_case.abscissa_bounds().size() == 2);
+    assert(!cqmom_prepared_case.abscissa_bounds()[0].has_value());
+    assert(cqmom_prepared_case.abscissa_bounds()[1].has_value());
+    assert_near(cqmom_prepared_case.abscissa_bounds()[1]->lower, 1.0);
+    assert_near(cqmom_prepared_case.abscissa_bounds()[1]->upper, 2.0);
+    assert(cqmom_case_result.value().abscissa_bounds.size() == cqmom_prepared_case.abscissa_bounds().size());
 
     const qmomkit::CqmomResult computed = qmomkit::compute_cqmom(cqmom_prepared_case);
     assert(computed.ok());
@@ -1080,10 +1080,10 @@ diagnostic_level = basic
     assert(computed.diagnostics.front().bounded_support_checked);
 
     const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
-    assert(state.coordinate_support().size() == 2);
-    assert(state.coordinate_support()[1].has_value());
-    assert_near(state.coordinate_support()[1]->lower, 1.0);
-    assert_near(state.coordinate_support()[1]->upper, 2.0);
+    assert(state.abscissa_bounds().size() == 2);
+    assert(state.abscissa_bounds()[1].has_value());
+    assert_near(state.abscissa_bounds()[1]->lower, 1.0);
+    assert_near(state.abscissa_bounds()[1]->upper, 2.0);
 }
 
 void test_cqmom_factories_preserve_coordinate_support()
@@ -1094,14 +1094,14 @@ void test_cqmom_factories_preserve_coordinate_support()
     const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1}, {1, 0});
     const auto defaulted = qmomkit::config::create_cqmom_case(initial.value(), hierarchy);
     assert(defaulted.ok());
-    assert(defaulted.value().coordinate_support.empty());
+    assert(defaulted.value().abscissa_bounds.empty());
 
-    qmomkit::CqmomCoordinateSupport support(2);
+    qmomkit::CqmomAbscissaBounds support(2);
     support[1] = qmomkit::AbscissaBounds{2.0, 5.0};
 
     const auto configured = qmomkit::config::create_cqmom_case(initial.value(), hierarchy, qmomkit::QmomOptions{}, false, "support-factory", support);
     assert(configured.ok());
-    assert_coordinate_support_matches_shifted_interval(configured.value().coordinate_support);
+    assert_coordinate_support_matches_shifted_interval(configured.value().abscissa_bounds);
 }
 
 void test_cqmom_prepared_case_rejects_invalid_coordinate_support()
@@ -1192,9 +1192,9 @@ qmomkit::RawMomentTensor cqmom_replacement_tensor(const std::vector<double>& x_v
     return {{4, 4}, raw_moments_from_terminals_2d({0.2, 0.3, 0.1, 0.4}, {x_values, {0.25, 1.5, 0.25, 1.5}})};
 }
 
-qmomkit::CqmomCoordinateSupport cqmom_replacement_support()
+qmomkit::CqmomAbscissaBounds cqmom_replacement_support()
 {
-    qmomkit::CqmomCoordinateSupport support(2);
+    qmomkit::CqmomAbscissaBounds support(2);
     support[1] = qmomkit::AbscissaBounds{0.0, 2.0};
     return support;
 }
@@ -1215,17 +1215,17 @@ void assert_cqmom_case_policies_equal(const qmomkit::CqmomPreparedCase& actual_c
     assert(actual_cqmom_prepared_case.adaptive_branch_counts() == expected_cqmom_prepared_case.adaptive_branch_counts());
     assert(actual_cqmom_prepared_case.diagnostic_level() == expected_cqmom_prepared_case.diagnostic_level());
     assert(actual_cqmom_prepared_case.vandermonde_solver() == expected_cqmom_prepared_case.vandermonde_solver());
-    assert(actual_cqmom_prepared_case.coordinate_support().size() == expected_cqmom_prepared_case.coordinate_support().size());
-    for (std::size_t dimension = 0; dimension < actual_cqmom_prepared_case.coordinate_support().size(); ++dimension)
+    assert(actual_cqmom_prepared_case.abscissa_bounds().size() == expected_cqmom_prepared_case.abscissa_bounds().size());
+    for (std::size_t dimension = 0; dimension < actual_cqmom_prepared_case.abscissa_bounds().size(); ++dimension)
     {
-        assert(actual_cqmom_prepared_case.coordinate_support()[dimension].has_value() ==
-               expected_cqmom_prepared_case.coordinate_support()[dimension].has_value());
-        if (actual_cqmom_prepared_case.coordinate_support()[dimension].has_value())
+        assert(actual_cqmom_prepared_case.abscissa_bounds()[dimension].has_value() ==
+               expected_cqmom_prepared_case.abscissa_bounds()[dimension].has_value());
+        if (actual_cqmom_prepared_case.abscissa_bounds()[dimension].has_value())
         {
-            assert_near(actual_cqmom_prepared_case.coordinate_support()[dimension]->lower,
-                        expected_cqmom_prepared_case.coordinate_support()[dimension]->lower);
-            assert_near(actual_cqmom_prepared_case.coordinate_support()[dimension]->upper,
-                        expected_cqmom_prepared_case.coordinate_support()[dimension]->upper);
+            assert_near(actual_cqmom_prepared_case.abscissa_bounds()[dimension]->lower,
+                        expected_cqmom_prepared_case.abscissa_bounds()[dimension]->lower);
+            assert_near(actual_cqmom_prepared_case.abscissa_bounds()[dimension]->upper,
+                        expected_cqmom_prepared_case.abscissa_bounds()[dimension]->upper);
         }
     }
 }
@@ -1265,10 +1265,9 @@ void test_cqmom_prepared_case_replaces_initial_moments_immutably()
 {
     const qmomkit::CqmomCase base_cqmom_case = replacement_base_cqmom_case();
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_replacement_hierarchy());
-    const qmomkit::CqmomCase reassembled_base_cqmom_case{base_cqmom_case.moments,           base_cqmom_case.conditional_options,
-                                                         base_cqmom_case.qmom_options,      base_cqmom_case.adaptive_branch_counts,
-                                                         base_cqmom_case.diagnostic_level,  base_cqmom_case.vandermonde_solver,
-                                                         base_cqmom_case.coordinate_support};
+    const qmomkit::CqmomCase reassembled_base_cqmom_case{
+        base_cqmom_case.moments,          base_cqmom_case.conditional_options, base_cqmom_case.qmom_options,   base_cqmom_case.adaptive_branch_counts,
+        base_cqmom_case.diagnostic_level, base_cqmom_case.vandermonde_solver,  base_cqmom_case.abscissa_bounds};
     const qmomkit::CqmomPreparedCase base_cqmom_prepared_case =
         qmomkit::internal::CqmomConstructionAccess::create_prepared_case(reassembled_base_cqmom_case);
     qmomkit::RawMomentTensor replacement = cqmom_replacement_tensor({1.0, 1.0, 2.0, 2.0});
@@ -1426,7 +1425,7 @@ void test_fixed_cqmom_prepared_metadata_ownership()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_replacement_hierarchy());
     const qmomkit::CqmomPreparedCase reassembled_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(
         qmomkit::CqmomCase{cqmom_case.moments, cqmom_case.conditional_options, cqmom_case.qmom_options, cqmom_case.adaptive_branch_counts,
-                           cqmom_case.diagnostic_level, cqmom_case.vandermonde_solver, cqmom_case.coordinate_support});
+                           cqmom_case.diagnostic_level, cqmom_case.vandermonde_solver, cqmom_case.abscissa_bounds});
     assert(qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(reassembled_cqmom_prepared_case) != nullptr);
     // The same case reached two ways: passed on directly, and reassembled field
     // by field. Both must prepare metadata and invert to the same quadrature.
@@ -1598,10 +1597,9 @@ void test_cqmom_prepared_case_replacement_rejects_structural_tensor_errors()
 {
     const qmomkit::CqmomCase base_cqmom_case = replacement_base_cqmom_case();
     const qmomkit::CqmomPreparedCase cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(base_cqmom_case);
-    const qmomkit::CqmomCase reassembled_base_cqmom_case{base_cqmom_case.moments,           base_cqmom_case.conditional_options,
-                                                         base_cqmom_case.qmom_options,      base_cqmom_case.adaptive_branch_counts,
-                                                         base_cqmom_case.diagnostic_level,  base_cqmom_case.vandermonde_solver,
-                                                         base_cqmom_case.coordinate_support};
+    const qmomkit::CqmomCase reassembled_base_cqmom_case{
+        base_cqmom_case.moments,          base_cqmom_case.conditional_options, base_cqmom_case.qmom_options,   base_cqmom_case.adaptive_branch_counts,
+        base_cqmom_case.diagnostic_level, base_cqmom_case.vandermonde_solver,  base_cqmom_case.abscissa_bounds};
     const qmomkit::CqmomPreparedCase reassembled_cqmom_prepared_case =
         qmomkit::internal::CqmomConstructionAccess::create_prepared_case(reassembled_base_cqmom_case);
     const std::vector<double> base_values = cqmom_prepared_case.initial_state().moment_values();
@@ -1680,14 +1678,14 @@ void assert_cqmom_case_settings_equal(const qmomkit::CqmomCase& actual_cqmom_cas
     assert(actual_cqmom_case.adaptive_branch_counts == expected_cqmom_case.adaptive_branch_counts);
     assert(actual_cqmom_case.diagnostic_level == expected_cqmom_case.diagnostic_level);
     assert(actual_cqmom_case.vandermonde_solver == expected_cqmom_case.vandermonde_solver);
-    assert(actual_cqmom_case.coordinate_support.size() == expected_cqmom_case.coordinate_support.size());
-    for (std::size_t dimension = 0; dimension < actual_cqmom_case.coordinate_support.size(); ++dimension)
+    assert(actual_cqmom_case.abscissa_bounds.size() == expected_cqmom_case.abscissa_bounds.size());
+    for (std::size_t dimension = 0; dimension < actual_cqmom_case.abscissa_bounds.size(); ++dimension)
     {
-        assert(actual_cqmom_case.coordinate_support[dimension].has_value() == expected_cqmom_case.coordinate_support[dimension].has_value());
-        if (actual_cqmom_case.coordinate_support[dimension].has_value())
+        assert(actual_cqmom_case.abscissa_bounds[dimension].has_value() == expected_cqmom_case.abscissa_bounds[dimension].has_value());
+        if (actual_cqmom_case.abscissa_bounds[dimension].has_value())
         {
-            assert(actual_cqmom_case.coordinate_support[dimension]->lower == expected_cqmom_case.coordinate_support[dimension]->lower);
-            assert(actual_cqmom_case.coordinate_support[dimension]->upper == expected_cqmom_case.coordinate_support[dimension]->upper);
+            assert(actual_cqmom_case.abscissa_bounds[dimension]->lower == expected_cqmom_case.abscissa_bounds[dimension]->lower);
+            assert(actual_cqmom_case.abscissa_bounds[dimension]->upper == expected_cqmom_case.abscissa_bounds[dimension]->upper);
         }
     }
 }
@@ -2480,8 +2478,8 @@ upper = 1.0
     const auto with_policy_cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(with_policy);
     assert(without_policy_cqmom_prepared_case_result.ok());
     assert(with_policy_cqmom_prepared_case_result.ok());
-    const qmomkit::CqmomCoordinateSupport& expected = without_policy_cqmom_prepared_case_result.value().coordinate_support();
-    const qmomkit::CqmomCoordinateSupport& actual = with_policy_cqmom_prepared_case_result.value().coordinate_support();
+    const qmomkit::CqmomAbscissaBounds& expected = without_policy_cqmom_prepared_case_result.value().abscissa_bounds();
+    const qmomkit::CqmomAbscissaBounds& actual = with_policy_cqmom_prepared_case_result.value().abscissa_bounds();
     assert(actual.size() == expected.size());
     for (std::size_t dimension = 0; dimension < expected.size(); ++dimension)
     {

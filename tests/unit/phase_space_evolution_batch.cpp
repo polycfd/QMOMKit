@@ -197,14 +197,14 @@ void assert_cqmom_state_equal(const qmomkit::CqmomState& actual, const qmomkit::
     assert(actual.adaptive_branch_counts() == expected.adaptive_branch_counts());
     assert(actual.diagnostic_level() == expected.diagnostic_level());
     assert(actual.vandermonde_solver() == expected.vandermonde_solver());
-    assert(actual.coordinate_support().size() == expected.coordinate_support().size());
-    for (std::size_t dimension = 0; dimension < actual.coordinate_support().size(); ++dimension)
+    assert(actual.abscissa_bounds().size() == expected.abscissa_bounds().size());
+    for (std::size_t dimension = 0; dimension < actual.abscissa_bounds().size(); ++dimension)
     {
-        assert(actual.coordinate_support()[dimension].has_value() == expected.coordinate_support()[dimension].has_value());
-        if (actual.coordinate_support()[dimension].has_value())
+        assert(actual.abscissa_bounds()[dimension].has_value() == expected.abscissa_bounds()[dimension].has_value());
+        if (actual.abscissa_bounds()[dimension].has_value())
         {
-            assert_near(actual.coordinate_support()[dimension]->lower, expected.coordinate_support()[dimension]->lower);
-            assert_near(actual.coordinate_support()[dimension]->upper, expected.coordinate_support()[dimension]->upper);
+            assert_near(actual.abscissa_bounds()[dimension]->lower, expected.abscissa_bounds()[dimension]->lower);
+            assert_near(actual.abscissa_bounds()[dimension]->upper, expected.abscissa_bounds()[dimension]->upper);
         }
     }
     assert(actual.moment_indices() == expected.moment_indices());

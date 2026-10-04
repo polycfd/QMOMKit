@@ -24,7 +24,7 @@ qmomkit::internal::RecursiveQuadratureMomentDataRequest moment_data_request(
     const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moment_tensor,
     const qmomkit::ConditionalMomentOptions& conditional_options = {}, const qmomkit::WheelerOptions& wheeler_options = {},
     const bool adaptive_branch_counts = false, const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
-    const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic, const qmomkit::CqmomCoordinateSupport& coordinate_support = {})
+    const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic, const qmomkit::CqmomAbscissaBounds& coordinate_support = {})
 {
     return {hierarchy,
             qmomkit::extract_cqmom_moments(moment_tensor, qmomkit::create_cqmom_moment_layout(hierarchy)),
@@ -260,10 +260,10 @@ std::vector<qmomkit::CqmomDiagnosticLevel> diagnostic_levels()
     return {qmomkit::CqmomDiagnosticLevel::none, qmomkit::CqmomDiagnosticLevel::basic, qmomkit::CqmomDiagnosticLevel::detailed};
 }
 
-qmomkit::CqmomCoordinateSupport bounded_support_for_dimension(const std::size_t dimensions, const std::size_t dimension,
-                                                              const qmomkit::AbscissaBounds interval)
+qmomkit::CqmomAbscissaBounds bounded_support_for_dimension(const std::size_t dimensions, const std::size_t dimension,
+                                                           const qmomkit::AbscissaBounds interval)
 {
-    qmomkit::CqmomCoordinateSupport support(dimensions);
+    qmomkit::CqmomAbscissaBounds support(dimensions);
     support.at(dimension) = interval;
     return support;
 }
@@ -578,7 +578,7 @@ void test_recursive_bounded_support_accepts_feasible_branch()
     const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
     const std::vector<std::vector<double>> abscissas{{0.2, 0.2, 0.8, 0.8}, {-1.0, 1.0, -1.0, 1.0}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
         hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support));
@@ -604,7 +604,7 @@ void test_recursive_shifted_bounded_support_accepts_feasible_fixed_branch()
     const std::vector<double> weights{0.4, 0.6};
     const std::vector<std::vector<double>> abscissas{{2.25, 4.5}, {0.0, 0.0}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, interval);
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 0, interval);
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
         hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support));
@@ -632,7 +632,7 @@ void test_recursive_shifted_bounded_support_rejects_fixed_and_reduces_adaptive()
     const std::vector<double> weights{0.5, 0.5};
     const std::vector<std::vector<double>> abscissas{{3.0, 7.0}, {0.0, 0.0}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, interval);
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 0, interval);
 
     const qmomkit::internal::RecursiveQuadratureResult fixed = qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
         hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support));
@@ -665,7 +665,7 @@ void test_recursive_bounded_support_rejects_fixed_infeasible_count()
     const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
     const std::vector<std::vector<double>> abscissas{{2.0, 2.0, 3.0, 3.0}, {-1.0, 1.0, -1.0, 1.0}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
         hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support));
@@ -696,7 +696,7 @@ void test_recursive_bounded_support_adaptive_falls_back_to_supported_count()
     moments[qmomkit::flatten_multi_index({4, 0}, extents)] = 10.0;
     moments[qmomkit::flatten_multi_index({5, 0}, extents)] = 10.0;
     const qmomkit::WheelerOptions wheeler_options{true, 1.0e-10, 1.0e-10, 1.0e-12};
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
         moment_data_request(hierarchy, {extents, moments}, {}, wheeler_options, true, qmomkit::CqmomDiagnosticLevel::detailed,
@@ -722,7 +722,7 @@ void test_recursive_bounded_support_adaptive_two_node_uses_span_separation()
     const std::vector<std::size_t> extents{4, 2};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature({{1.0, 1.01}, {0.0, 0.0}}, {0.5, 0.5}, extents);
     const qmomkit::WheelerOptions wheeler_options{true, 1.0e-10, 0.1, 1.0e-12};
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 2.0});
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 0, {0.0, 2.0});
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
         moment_data_request(hierarchy, {extents, moments}, {}, wheeler_options, true, qmomkit::CqmomDiagnosticLevel::detailed,
@@ -742,7 +742,7 @@ void test_recursive_bounded_support_adaptive_applies_relative_weight_check()
     const std::vector<std::size_t> extents{4, 2};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature({{0.2, 0.8}, {0.0, 0.0}}, {0.99, 0.01}, extents);
     const qmomkit::WheelerOptions wheeler_options{true, 0.1, 1.0e-10, 1.0e-12};
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
         moment_data_request(hierarchy, {extents, moments}, {}, wheeler_options, true, qmomkit::CqmomDiagnosticLevel::detailed,
@@ -773,7 +773,7 @@ void test_recursive_bounded_support_rejects_growth_and_preserves_current_count()
     const std::vector<qmomkit::CqmomActiveBranchCount> active_counts{
         {0, {}, 0, 3, 2}, {1, qmomkit::ConditioningPath({0}), 1, 1, 1}, {1, qmomkit::ConditioningPath({1}), 1, 1, 1}};
     const qmomkit::WheelerOptions wheeler_options{true, 1.0e-10, 1.0e-10, 1.0e-12};
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 0, {0.0, 1.0});
 
     const qmomkit::internal::RecursiveQuadratureResult result =
         qmomkit::internal::compute_recursive_quadrature_from_moment_data({hierarchy,
@@ -804,7 +804,7 @@ void test_recursive_bounded_support_uses_phase_space_coordinate_index()
     const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
     const std::vector<std::vector<double>> abscissas{{-1.0, 1.0, -1.0, 1.0}, {0.2, 0.2, 0.8, 0.8}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 1, {0.0, 1.0});
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 1, {0.0, 1.0});
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
         hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support));
@@ -869,7 +869,7 @@ void test_recursive_bounded_support_applies_to_conditional_phase_space_dimension
     const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
     const std::vector<std::vector<double>> abscissas{{-3.0, -3.0, 8.0, 8.0}, {2.25, 4.5, 2.5, 4.75}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(2, 1, interval);
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(2, 1, interval);
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
         hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed, qmomkit::VandermondeSolver::dense, support));
@@ -902,7 +902,7 @@ void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
     constexpr double tolerance = 1.0e-12;
     const double weight = 0.01;
     const qmomkit::PhaseSpaceHierarchy hierarchy({1});
-    const qmomkit::CqmomCoordinateSupport support = bounded_support_for_dimension(1, 0, interval);
+    const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(1, 0, interval);
 
     const auto run = [&](const double node, const double node_weight)
     {

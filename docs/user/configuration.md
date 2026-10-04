@@ -152,6 +152,10 @@ phase-space dimension, with `lower < upper`. These are generic numerical bounds:
 they are not inferred from coordinate names and carry no units or physical
 meaning.
 
+In code, these intervals are the case's abscissa bounds: `QmomCase::abscissa_bounds`
+holds the single interval, and `CqmomCase::abscissa_bounds` holds one optional
+interval per phase-space dimension.
+
 Support is indexed by phase-space dimension, not by conditioning level:
 
 ```ini

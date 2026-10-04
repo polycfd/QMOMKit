@@ -252,7 +252,7 @@ void test_embedded_rk_default_initial_step_is_used_for_both_methods()
                                            method, {});
 
         assert(result.status == qmomkit::AdaptiveRkStatus::success);
-        assert_near(result.t, initial_time + 2.0 * qmomkit::default_adaptive_initial_step, 1.0e-15);
+        assert_near(result.final_time, initial_time + 2.0 * qmomkit::default_adaptive_initial_step, 1.0e-15);
         assert_near(result.state[0], 2.0 * qmomkit::default_adaptive_initial_step, 1.0e-15);
         assert(rhs_times.size() >= 2);
         assert_near(rhs_times[0], initial_time, 0.0);
@@ -293,7 +293,7 @@ void test_embedded_rk_adaptive_controls_for_both_methods()
         assert(first_trial.status == qmomkit::AdaptiveRkStatus::success);
         assert(first_trial.accepted_steps == 1);
         assert(first_trial.rejected_steps == 0);
-        assert_near(first_trial.t, 0.2, 1.0e-15);
+        assert_near(first_trial.final_time, 0.2, 1.0e-15);
         assert_near(first_trial.state[0], 2.6, 1.0e-15);
 
         qmomkit::AdaptiveRkOptions rejected;
@@ -308,7 +308,7 @@ void test_embedded_rk_adaptive_controls_for_both_methods()
         assert(recovered.rejected_steps > 1);
         const std::size_t stage_count = qmomkit::internal::embedded_rk_tableau(method).stage_count;
         assert(recovered.function_evaluations == stage_count + (recovered.accepted_steps + recovered.rejected_steps - 1) * (stage_count - 1));
-        assert_near(recovered.t, 1.0, 1.0e-14);
+        assert_near(recovered.final_time, 1.0, 1.0e-14);
 
         qmomkit::AdaptiveRkOptions clamped;
         clamped.initial_step = 1.0;
@@ -318,7 +318,7 @@ void test_embedded_rk_adaptive_controls_for_both_methods()
             method, clamped);
         assert(maximum_step.status == qmomkit::AdaptiveRkStatus::success);
         assert(maximum_step.accepted_steps == 4);
-        assert_near(maximum_step.t, 1.0, 1.0e-15);
+        assert_near(maximum_step.final_time, 1.0, 1.0e-15);
 
         qmomkit::AdaptiveRkOptions nonfinite_error;
         nonfinite_error.initial_step = 2.0;
@@ -363,7 +363,7 @@ void test_embedded_rk_public_backward_integration()
             method, options);
 
         assert(result.status == qmomkit::AdaptiveRkStatus::success);
-        assert_near(result.t, 1.0, 0.0);
+        assert_near(result.final_time, 1.0, 0.0);
         assert_near(result.state[0], 1.0, 1.0e-15);
         assert(rhs_times.size() >= 2);
         assert(rhs_times[1] < rhs_times[0]);
@@ -750,7 +750,7 @@ void test_rk23_zero_rhs_has_no_timestep_pathology()
         qmomkit::integrate_embedded_rk({0.0, 2.0, -3.0}, 0.0, 1.0, rhs, qmomkit::EmbeddedRkMethod::rk23, options);
 
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
-    assert_near(result.t, 1.0, 1.0e-14);
+    assert_near(result.final_time, 1.0, 1.0e-14);
     assert_vector_near(result.state, {0.0, 2.0, -3.0}, 1.0e-15);
     assert(result.rejected_steps == 0);
 }
@@ -905,7 +905,7 @@ void test_rk23_initial_request_below_minimum_uses_minimum_step()
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 1);
     assert(result.rejected_steps == 0);
-    assert_near(result.t, 0.05, 1.0e-15);
+    assert_near(result.final_time, 0.05, 1.0e-15);
     assert_near(result.last_step, 0.05, 1.0e-15);
     assert_near(result.state[0], 1.05, 1.0e-15);
 }
@@ -925,7 +925,7 @@ void test_rk23_accepts_finite_update_at_minimum_step()
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 1);
     assert(result.rejected_steps == 0);
-    assert_near(result.t, 1.0e-3, 1.0e-18);
+    assert_near(result.final_time, 1.0e-3, 1.0e-18);
     assert_near(result.last_step, 1.0e-3, 1.0e-18);
     assert_near(result.state[0], 8.0 / 3.0, 1.0e-14);
 }
@@ -951,7 +951,7 @@ void test_rk23_rejected_request_clamps_to_minimum_step()
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 2);
     assert(result.rejected_steps > 0);
-    assert_near(result.t, 0.04, 1.0e-15);
+    assert_near(result.final_time, 0.04, 1.0e-15);
     assert_near(result.last_step, 0.02, 1.0e-15);
 }
 
@@ -970,7 +970,7 @@ void test_rk23_accepts_final_remainder_below_minimum_step()
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 2);
     assert(result.rejected_steps == 0);
-    assert_near(result.t, 1.5e-3, 1.0e-18);
+    assert_near(result.final_time, 1.5e-3, 1.0e-18);
     assert_near(result.last_step, 5.0e-4, 1.0e-18);
     assert_near(result.state[0], (8.0 / 3.0) * (79.0 / 48.0), 1.0e-14);
 }
@@ -990,7 +990,7 @@ void test_rk23_accepts_complete_interval_below_minimum_step()
     assert(result.status == qmomkit::AdaptiveRkStatus::success);
     assert(result.accepted_steps == 1);
     assert(result.rejected_steps == 0);
-    assert_near(result.t, 5.0e-4, 1.0e-18);
+    assert_near(result.final_time, 5.0e-4, 1.0e-18);
     assert_near(result.last_step, 5.0e-4, 1.0e-18);
     assert_near(result.state[0], 79.0 / 48.0, 1.0e-14);
 }
@@ -1008,8 +1008,8 @@ void test_rk23_reports_maximum_step_count_failure()
     assert(result.status == qmomkit::AdaptiveRkStatus::max_steps_exceeded);
     assert(!result.message.empty());
     assert(result.accepted_steps == 1);
-    assert(result.t > 0.0);
-    assert(result.t < 1.0);
+    assert(result.final_time > 0.0);
+    assert(result.final_time < 1.0);
     assert(std::isfinite(result.state[0]));
 }
 

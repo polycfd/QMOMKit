@@ -118,7 +118,7 @@ std::optional<QmomScalingContext> make_qmom_scaling_context(const std::vector<do
     return context;
 }
 
-std::optional<CqmomScalingContext> make_cqmom_scaling_context(const CqmomMomentData& moments, const CqmomCoordinateSupport& coordinate_support)
+std::optional<CqmomScalingContext> make_cqmom_scaling_context(const CqmomMomentData& moments, const CqmomAbscissaBounds& coordinate_support)
 {
     const std::size_t dimensions = moments.layout.hierarchy.number_of_dimensions();
     if (moments.values.size() != moments.layout.required_indices.size())

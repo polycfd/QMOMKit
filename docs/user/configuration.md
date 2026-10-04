@@ -1000,9 +1000,10 @@ Generate enough moments. For `N` QMOM nodes, an analytical initialization needs
 `maximum_order >= 2 * N - 1`. For normal CQMOM configuration, `node_counts` and
 `conditioning_order` define the reconstruction setup. A full tensor of raw
 moments, whether given in `[moments]` or built with
-`initialize_cqmom_moment_tensor(...)` (which requires `initial.maximum_orders`),
-must contain every moment the hierarchy requires; a tensor that is too small is
-rejected when those moments are extracted from it.
+`initialize_cqmom_moment_tensor(...)` (which requires `initial.maximum_orders`
+for an independent-product specification), must contain every moment the
+hierarchy requires; a tensor that is too small is rejected when those moments
+are extracted from it.
 
 Separate distribution settings from quadrature settings. Initial distributions
 describe raw moments. `node_counts`, `conditioning_order`, and adaptive options

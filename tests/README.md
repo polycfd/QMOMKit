@@ -97,9 +97,9 @@ Public-header checks verify at compile time that every public header is
 self-contained. Each `include_*.cpp` translation unit under
 `tests/public_headers/` includes its QMOMKit public header first, before any
 standard header, through the current source-tree `qmomkit` target. This detects
-missing direct includes and include-order dependencies before installation. A
-comment line separates the public header from any standard headers that follow,
-because clang-format would otherwise regroup them ahead of it.
+missing direct includes and include-order dependencies before installation.
+Where clang-format would otherwise sort a standard header ahead of the public
+header, a comment line separates them.
 
 `tests/public_headers/main.cpp` is intentionally empty apart from `main()`. It
 only permits the compile-check translation units to be linked into a CTest

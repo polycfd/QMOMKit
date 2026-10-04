@@ -3,10 +3,8 @@ foreach(case_name IN ITEMS automatic dense pivoted_qr svd moore_penrose bjorck_p
     qmomkit_register_test_case(vandermonde_solver_selection_verification "verification_vandermonde_solver_${case_name}" verification
         "${CMAKE_CURRENT_LIST_DIR};${case_name}")
 endforeach()
-# Without a policy argument the executable runs every policy and then compares
-# the dense and Björck-Pereyra results with each other.
 qmomkit_register_test_case(vandermonde_solver_selection_verification verification_vandermonde_solver_dense_matches_bjorck_pereyra verification
-    "${CMAKE_CURRENT_LIST_DIR}")
+    "${CMAKE_CURRENT_LIST_DIR};dense_matches_bjorck_pereyra")
 
 qmomkit_add_test_executable(clustered_solver_policy_verification clustered_solver_policy.cpp)
 foreach(case_name IN ITEMS automatic dense pivoted_qr svd moore_penrose bjorck_pereyra)

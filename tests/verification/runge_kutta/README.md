@@ -56,12 +56,11 @@ order and the order of the single-step embedded error estimate must lie within
 Nothing is printed on success. On failure the reason and the full refinement
 table go to standard error.
 
-Run with:
+Build the test suite as described in
+[Testing](../../../docs/developer/testing.md#debug-build-requirement), then run
+with:
 
 ```bash
 ctest --test-dir build -R '^verification_runge_kutta_analytical_' --output-on-failure
 ctest --test-dir build -R '^verification_(ssp_rk3|rk23_adaptive|rk23_fixed_step|rk45_adaptive|rk45_fixed_step)_convergence$' --output-on-failure
 ```
-
-Build the test suite first as described in
-[Testing](../../../docs/developer/testing.md#debug-build-requirement).

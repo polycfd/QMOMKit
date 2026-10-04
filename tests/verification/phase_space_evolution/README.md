@@ -441,14 +441,19 @@ one `srcadv` step of `0.04`. A boundary callback injects mass at `0.25` with
 rate `0.08` and removes it at `1.1` with rate `-0.03`. Because the rates are
 constant, the exact moments are the initial moments plus `dt` times the rate;
 the verifier compares the state's moments and the moments reconstructed from its
-final quadrature with that reference. A second run from the same initial state
-adds a constant moment source to the same boundary rates and compares against
-the corresponding sum.
+final quadrature with that reference, to `5e-11` scaled. A second run from the
+same initial state adds a constant moment source to the same boundary rates and
+compares against the corresponding sum. The case also checks that a boundary
+callback returning a wrong-sized, NaN, or infinite rate fails in the
+moment-source stage with a "boundary contribution" message, and that a rate of
+`-100` on `m_0` passes the source step but fails post-source inversion.
 
 `cqmom_boundary_contribution` reuses `commuting_cqmom_2d.qmom` with zero
-velocity and one Strang step of `0.02`. The boundary rate of each stored moment
-is the moment of prescribed weight rates at the nodes of the initial quadrature,
-so the exact moments are again the initial moments plus `dt` times that rate.
+velocity and one Strang step of `0.02`. The boundary rate of each moment is the
+moment of prescribed weight rates at the nodes of the initial quadrature. The
+verifier reconstructs the full `4 x 4` tensor from the final quadrature and
+compares it, to `5e-9` scaled, with the full tensor of the initial quadrature
+plus `dt` times that rate.
 The callback also checks that its source context has the expected size,
 hierarchy, conditioning order `{1,0}`, and index order.
 

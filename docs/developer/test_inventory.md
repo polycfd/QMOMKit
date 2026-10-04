@@ -17,10 +17,10 @@ Each runtime logical test is registered exactly once with CTest.
 | --- | ---: |
 | Unit logical tests | 634 |
 | Component/regression logical tests | 47 |
-| Verification logical tests | 167 |
-| **Runtime logical tests** | **848** |
+| Verification logical tests | 168 |
+| **Runtime logical tests** | **849** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **849** |
+| **Total CTest registrations** | **850** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -226,11 +226,11 @@ renamed test rather than a deleted one.
 | `verification_cqmom_recursive_non_uniform_fixed_counts` | `tests/verification/cqmom/recursive_cqmom.cpp` | `non_uniform_fixed_counts` | Verifies that recursive CQMOM reconstructs the prescribed non uniform fixed counts manufactured quadrature. | — |
 | `verification_cqmom_recursive_4d_adversarial_non_identity` | `tests/verification/cqmom/recursive_cqmom.cpp` | `4d_adversarial_non_identity` | Verifies that recursive CQMOM reconstructs the prescribed 4d adversarial non identity manufactured quadrature. | — |
 | `verification_cqmom_recursive_4d_adversarial_adaptive_non_identity` | `tests/verification/cqmom/recursive_cqmom.cpp` | `4d_adversarial_adaptive_non_identity` | Verifies that recursive CQMOM reconstructs the prescribed 4d adversarial adaptive non identity manufactured quadrature. | — |
-| `verification_cqmom_recursive_dimension_sweep_D2` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D2` | Verifies that recursive CQMOM reconstructs the prescribed dimension sweep D2 manufactured quadrature. | — |
-| `verification_cqmom_recursive_dimension_sweep_D3` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D3` | Verifies that recursive CQMOM reconstructs the prescribed dimension sweep D3 manufactured quadrature. | — |
-| `verification_cqmom_recursive_dimension_sweep_D4` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D4` | Verifies that recursive CQMOM reconstructs the prescribed dimension sweep D4 manufactured quadrature. | — |
-| `verification_cqmom_recursive_dimension_sweep_D5` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D5` | Verifies that recursive CQMOM reconstructs the prescribed dimension sweep D5 manufactured quadrature. | — |
-| `verification_cqmom_recursive_dimension_sweep_D6` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D6` | Verifies that recursive CQMOM reconstructs the prescribed dimension sweep D6 manufactured quadrature. | — |
+| `verification_cqmom_recursive_dimension_sweep_D2` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D2` | Checks that the quadrature recursive CQMOM recovers for the dimension sweep D2 manufactured case reproduces its moments to `1e-12`; nodes are not compared. | — |
+| `verification_cqmom_recursive_dimension_sweep_D3` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D3` | Checks that the quadrature recursive CQMOM recovers for the dimension sweep D3 manufactured case reproduces its moments to `1e-12`; nodes are not compared. | — |
+| `verification_cqmom_recursive_dimension_sweep_D4` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D4` | Checks that the quadrature recursive CQMOM recovers for the dimension sweep D4 manufactured case reproduces its moments to `1e-12`; nodes are not compared. | — |
+| `verification_cqmom_recursive_dimension_sweep_D5` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D5` | Checks that the quadrature recursive CQMOM recovers for the dimension sweep D5 manufactured case reproduces its moments to `1e-12`; nodes are not compared. | — |
+| `verification_cqmom_recursive_dimension_sweep_D6` | `tests/verification/cqmom/recursive_cqmom.cpp` | `dimension_sweep_D6` | Checks that the quadrature recursive CQMOM recovers for the dimension sweep D6 manufactured case reproduces its moments to `1e-12`; nodes are not compared. | — |
 
 ### CQMOM / conditional moments
 
@@ -335,7 +335,7 @@ renamed test rather than a deleted one.
 | `verification_vandermonde_solver_svd` | `tests/verification/vandermonde/solver_selection.cpp` | `svd` (fixture directory: `tests/verification/vandermonde`) | Verifies that the SVD Vandermonde policy reconstructs the prescribed analytical conditional quadrature. | Shared analytical fixture |
 | `verification_vandermonde_solver_moore_penrose` | `tests/verification/vandermonde/solver_selection.cpp` | `moore_penrose` (fixture directory: `tests/verification/vandermonde`) | Verifies that the Moore-Penrose Vandermonde policy reconstructs the prescribed analytical conditional quadrature. | Shared analytical fixture |
 | `verification_vandermonde_solver_bjorck_pereyra` | `tests/verification/vandermonde/solver_selection.cpp` | `bjorck_pereyra` (fixture directory: `tests/verification/vandermonde`) | Verifies that the bjorck pereyra Vandermonde policy reconstructs the prescribed analytical conditional quadrature. | Shared analytical fixture |
-| `verification_vandermonde_solver_dense_matches_bjorck_pereyra` | `tests/verification/vandermonde/solver_selection.cpp` | no selector (fixture directory: `tests/verification/vandermonde`) | Runs every Vandermonde policy in one invocation, then checks that the dense and Björck-Pereyra results agree in terminal paths, nodes, weights, and reconstructed moments to `1e-12`. | Shared analytical fixture |
+| `verification_vandermonde_solver_dense_matches_bjorck_pereyra` | `tests/verification/vandermonde/solver_selection.cpp` | `dense_matches_bjorck_pereyra` (fixture directory: `tests/verification/vandermonde`) | Loads the dense and Björck-Pereyra policies and checks that their results agree in terminal paths, nodes, weights, and reconstructed moments to `1e-12`. | Shared analytical fixture |
 
 ### Vandermonde / clustered solver policy
 

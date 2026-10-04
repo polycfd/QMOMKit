@@ -7,7 +7,8 @@ directory through `qmomkit::config::load_cqmom` and
 regenerate configured raw moments. The recursive-inversion, bounded and
 branch-growth studies described under
 [Recursive Inversion Studies](#recursive-inversion-studies) build their moments
-in code instead.
+in code instead, as do the feature-sensitive automatic-scaling case and the
+one-dimensional all-orders reconstruction check.
 
 ## Raw Moment Reconstruction
 
@@ -318,11 +319,14 @@ reference does not depend on the library's reconstruction.
   one-dimensional case reduces to plain Wheeler. Rebuilt moments are compared
   with per-case tolerances from `1e-10` to `1e-7`, and branch node counts and
   diagnostic record counts must match exactly.
-- `recursive_cqmom.cpp` (`verification_cqmom_recursive_*`): adaptive
-  reconstructions return the prescribed ragged structure, with the right node
-  count on each branch, the right terminal paths, and the right local and
-  global weights, and reproduce their moments. Structure is compared exactly;
-  values use per-case tolerances.
+- `recursive_cqmom.cpp` (`verification_cqmom_recursive_*`): six fixed cases,
+  from one to four dimensions with identity and non-identity conditioning
+  orders and non-uniform node counts, must recover the prescribed weights and
+  positions; the five dimension sweeps `dimension_sweep_D2` to `D6` must
+  reproduce the moments they were given, without a node comparison; and one
+  adaptive 4D case must return the prescribed ragged structure, with the right
+  node count on each branch, terminal paths, and local and global weights.
+  Values use per-case tolerances, `1e-12` for the sweeps.
 - `quadrature_bounds.cpp` (`verification_cqmom_quadrature_bounds_*`): a branch
   whose positions lie inside a coordinate's bounds is accepted unchanged, one
   with a position outside is rejected rather than clipped, and a bound applies

@@ -35,16 +35,18 @@
 //   order is the base-2 logarithm of the ratio of errors between successive
 //   halvings of the time step.
 //
-//   Commuting cases are held to 1.0e-14 to 1.0e-12: the splitting is exact
-//   here, so the only error is the time integrator's, and a looser bound would
-//   hide a genuine splitting defect.
+//   Commuting cases are held to 2.0e-6 to 8.0e-6: the splitting is exact
+//   here, so the remaining error is the time integrators', dominated by the
+//   SSP-RK3 moment-source step, and a looser bound would hide a splitting
+//   defect.
 //
 //   Non-commuting cases are held to 8.0e-4 for Strang and 3.0e-2 for the
 //   first-order orderings, because at a fixed step those schemes really are
 //   that far from the exact answer; the meaningful statement is the rate at
 //   which the gap closes. The observed order must exceed 1.85 for Strang and
 //   0.85 for the first-order orderings on the finest pair, five to eight
-//   percent below the nominal 2 and 1. A separate convergence summary requires
+//   percent below the nominal 2 and 1; the CQMOM case requires at least 1.8
+//   and 0.8 on its two finest pairs. A separate convergence summary requires
 //   an order above 2.4 where a higher-order combination is expected.
 //
 //   Failure cases require a specific non-success status and leave the state
@@ -64,7 +66,6 @@
 #include <cmath>
 #include <cstddef>
 #include <filesystem>
-#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>

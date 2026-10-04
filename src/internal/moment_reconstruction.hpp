@@ -7,7 +7,7 @@
 namespace qmomkit::internal
 {
 
-// Reconstruct moments for QMOMKit-owned CqmomState phase-space evolution. The
+// Reconstruct moments for QMOMKit-owned CqmomState construction and evolution. The
 // supplied layout is assumed to be the already validated fixed layout for the
 // quadrature hierarchy; the implementation still checks quadrature storage and
 // generated finite values.

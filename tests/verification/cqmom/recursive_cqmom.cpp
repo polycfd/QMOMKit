@@ -1,26 +1,26 @@
-// Ragged adaptive CQMOM, where different branches end up with different
-// numbers of nodes.
+// Recursive CQMOM reconstruction against quadratures written down in advance.
 //
 // What is verified
-//   That an adaptive reconstruction returns the prescribed ragged structure -
-//   the right number of nodes on each branch, in the right terminal paths, with
-//   the right local and global weights - and reproduces the moments it was
-//   given. Ragged output is the case rectangular storage cannot represent, so
-//   it is where the adaptive path is genuinely exercised.
+//   Fixed cases, from one to four dimensions with identity and non-identity
+//   conditioning orders and non-uniform node counts: the recursion recovers the
+//   prescribed weights and positions. Dimension sweeps D2 to D6: the recovered
+//   quadrature reproduces the moments it was given. One adaptive 4D case: the
+//   reconstruction returns the prescribed ragged structure, with the right
+//   node count on each branch, terminal paths, and local and global weights.
 //
 // How the reference is constructed
-//   Chosen, not computed. Each case writes down the intended ragged quadrature
+//   Chosen, not computed. Each case writes down the intended quadrature
 //   and evaluates its raw moments with a local helper that sums weight times
 //   position to the required power. The helper is defined in this file and does
 //   not call the library's reconstruction, so the reference is independent of
 //   the path being tested.
 //
 // Error metric and pass criteria
-//   Maximum absolute and relative moment error, and maximum absolute error on
-//   weights and positions, each against a per-case tolerance passed in by the
-//   caller. Structure is compared exactly: a branch returning the right numbers
-//   with the wrong node count is a failure, because the node count is the
-//   property these cases exist to pin.
+//   Maximum absolute and relative moment error, and, outside the dimension
+//   sweeps, maximum absolute error on weights and positions, each against a
+//   per-case tolerance. In the adaptive case the structure is compared exactly:
+//   the right numbers with the wrong node count on a branch is a failure,
+//   because the node count is what that case exists to pin.
 //
 // Reproduce
 //   ctest -R "^verification_cqmom_recursive_"

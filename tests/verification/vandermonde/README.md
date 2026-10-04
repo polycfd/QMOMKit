@@ -72,9 +72,11 @@ The verifier:
   quadrature;
 - checks that diagnostics report the requested solver policy, selected policy,
   and algorithm actually used;
-- compares dense and Björck-Pereyra results as an additional consistency check;
-  this runs when the executable is given no policy argument and is registered as
-  `verification_vandermonde_solver_dense_matches_bjorck_pereyra`.
+- compares dense and Björck-Pereyra results as an additional consistency check.
+  This is its own case, selected by `dense_matches_bjorck_pereyra` and
+  registered as `verification_vandermonde_solver_dense_matches_bjorck_pereyra`;
+  it loads only those two policies, and the per-policy checks above stay with
+  the per-policy cases.
 
 Dense/Björck-Pereyra comparison is not the only reference. Every solver policy
 is also checked against the independent analytical quadrature and reconstructed

@@ -332,7 +332,8 @@ int main(const int argc, char** argv)
     // policy, so any numerical difference or diagnostic mismatch is meaningful.
     if (argc != 2 && argc != 3)
     {
-        std::cerr << "Usage: vandermonde_solver_selection_verification <verification/vandermonde directory> [solver]\n";
+        std::cerr
+            << "Usage: vandermonde_solver_selection_verification <verification/vandermonde directory> [solver | dense_matches_bjorck_pereyra]\n";
         return 2;
     }
 
@@ -350,8 +351,14 @@ int main(const int argc, char** argv)
                                         {"bjorck_pereyra", case_directory / "bjorck_pereyra.qmom", qmomkit::VandermondeSolver::bjorck_pereyra,
                                          qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra}};
 
-    const std::string selected_solver = argc == 3 ? argv[2] : "";
-    bool matched = selected_solver.empty();
+    // A solver selector runs that policy's checks against the reference. The
+    // comparison selector loads only the dense and Bjorck-Pereyra policies and
+    // compares their results with each other. Without a selector, everything
+    // runs.
+    const std::string selected_case = argc == 3 ? argv[2] : "";
+    const bool every_case = selected_case.empty();
+    const bool comparison_case = selected_case == "dense_matches_bjorck_pereyra";
+    bool matched = every_case || comparison_case;
     VerificationResult verification;
     std::vector<qmomkit::CqmomResult> computed;
     std::vector<qmomkit::CqmomCase> loaded_cqmom_cases;
@@ -360,7 +367,8 @@ int main(const int argc, char** argv)
 
     for (const SolverCase& solver_case : cases)
     {
-        if (!selected_solver.empty() && selected_solver != solver_case.name)
+        const bool compared_solver = solver_case.name == "dense" || solver_case.name == "bjorck_pereyra";
+        if (!every_case && selected_case != solver_case.name && !(comparison_case && compared_solver))
         {
             continue;
         }
@@ -384,13 +392,16 @@ int main(const int argc, char** argv)
             continue;
         }
 
-        verify_against_reference(solver_case, result, loaded_cqmom_case.moments, verification);
-        verify_solver_diagnostics(solver_case, loaded_cqmom_case, verification);
+        if (!comparison_case)
+        {
+            verify_against_reference(solver_case, result, loaded_cqmom_case.moments, verification);
+            verify_solver_diagnostics(solver_case, loaded_cqmom_case, verification);
+        }
         computed.push_back(result);
         loaded_cqmom_cases.push_back(std::move(loaded_cqmom_case));
     }
 
-    if (computed.size() == cases.size())
+    if (every_case || comparison_case)
     {
         const qmomkit::CqmomResult* dense_result = nullptr;
         const qmomkit::CqmomResult* bp_result = nullptr;
@@ -430,7 +441,7 @@ int main(const int argc, char** argv)
 
     if (!matched)
     {
-        std::cerr << "Unknown Vandermonde solver case '" << selected_solver << "'.\n";
+        std::cerr << "Unknown Vandermonde solver case '" << selected_case << "'.\n";
         return 2;
     }
 

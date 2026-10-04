@@ -1975,7 +1975,7 @@ void test_public_cqmom_moment_source_stage_growth_is_limited_to_one_node()
     assert_cqmom_state_moments_match_quadrature(stage.state, *stage.quadrature, 5.0e-10);
 }
 
-void test_cqmom_moment_source_stage_canonicalizes_adaptive_reduction()
+void test_public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction()
 {
     constexpr std::size_t configured_node_count = 3;
     const qmomkit::PhaseSpaceHierarchy hierarchy({configured_node_count});
@@ -4144,7 +4144,8 @@ int main(const int argc, char** argv)
             {"public_cqmom_advection_stage_preserves_topology", test_public_cqmom_advection_stage_preserves_topology},
             {"public_cqmom_moment_source_stage_adaptive_policy", test_public_cqmom_moment_source_stage_adaptive_policy},
             {"public_cqmom_moment_source_stage_growth_is_limited_to_one_node", test_public_cqmom_moment_source_stage_growth_is_limited_to_one_node},
-            {"cqmom_moment_source_stage_canonicalizes_adaptive_reduction", test_cqmom_moment_source_stage_canonicalizes_adaptive_reduction},
+            {"public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction",
+             test_public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction},
             {"public_cqmom_stage_composition_matches_phase_space_evolution", test_public_cqmom_stage_composition_matches_phase_space_evolution},
             {"cqmom_phase_space_evolution_success_materializes_an_independent_final_quadrature",
              test_cqmom_phase_space_evolution_success_materializes_an_independent_final_quadrature},

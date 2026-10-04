@@ -13,7 +13,7 @@ can be used by numerical algorithms.
 
 Each fixture is a small real `.qmom` file. The verification executable loads
 the files with `load_qmom(...)` or `load_cqmom_prepared(...)`, checks that loading
-fails, checks that no case value is returned, and verifies that structured
-errors include useful codes, filename/line information, and human-readable
-message fragments. The goal is the user-facing configuration contract, not the
+fails, checks that no case value is returned, and verifies that the error
+message names the configuration file and contains the expected message
+fragment. The goal is the user-facing configuration contract, not the
 parser's private implementation details.

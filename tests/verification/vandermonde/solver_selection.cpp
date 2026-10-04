@@ -21,7 +21,7 @@
 //   problem is wrong rather than merely unlucky.
 //
 // Reproduce
-//   ctest -R verification_vandermonde
+//   ctest -R "^verification_vandermonde_solver_"
 //
 // Build modes
 //   Both. Failures are reported through explicit comparisons and an exit code,
@@ -215,8 +215,8 @@ void verify_against_reference(const SolverCase& solver_case, const qmomkit::Cqmo
 
 void verify_solver_diagnostics(const SolverCase& solver_case, const qmomkit::CqmomCase& cqmom_case, VerificationResult& verification)
 {
-    // Public CqmomResult diagnostics currently report CQMOM branch status but
-    // not the Vandermonde requested/selected/algorithm fields. The recursive
+    // Public CqmomResult diagnostics report the requested and selected
+    // Vandermonde solver but not the algorithm actually used. The recursive
     // diagnostics are inspected here only for that diagnostic contract. The
     // configuration, computation, quadrature, and moment checks above remain on
     // public user-facing APIs.

@@ -21,7 +21,7 @@
 //   that looks plausible is the dangerous outcome here.
 //
 // Reproduce
-//   ctest -R verification_.*moment_reconstruction
+//   ctest -R "^verification_cqmom_moment_reconstruction_"
 //
 // Build modes
 //   Both. Failures are reported through an exit code, not assert().

@@ -51,7 +51,7 @@
 //   enough that a genuine inversion error cannot hide beneath it.
 //
 // Reproduce
-//   ctest -R "verification_cqmom_(independent_product|deterministic_affine|branch_dependent)"
+//   ctest -R "^verification_cqmom_(independent_product|deterministic_affine|branch_dependent)$"
 //   or run the executable directly with a .qmom path and the matching case
 //   identifier.
 //

@@ -19,7 +19,7 @@
 //   third node would have to carry zero or negative weight.
 //
 // Reproduce
-//   ctest -R verification_adaptive_public_qmom_reconstruction
+//   ctest -R "^verification_adaptive_qmom_"
 //
 // Build modes
 //   Both. Checks go through QMOMKIT_VERIFY_*, not assert().

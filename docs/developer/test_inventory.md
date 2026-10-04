@@ -335,6 +335,7 @@ renamed test rather than a deleted one.
 | `verification_vandermonde_solver_svd` | `tests/verification/vandermonde/solver_selection.cpp` | `svd` (fixture directory: `tests/verification/vandermonde`) | Verifies that the SVD Vandermonde policy reconstructs the prescribed analytical conditional quadrature. | Shared analytical fixture |
 | `verification_vandermonde_solver_moore_penrose` | `tests/verification/vandermonde/solver_selection.cpp` | `moore_penrose` (fixture directory: `tests/verification/vandermonde`) | Verifies that the Moore-Penrose Vandermonde policy reconstructs the prescribed analytical conditional quadrature. | Shared analytical fixture |
 | `verification_vandermonde_solver_bjorck_pereyra` | `tests/verification/vandermonde/solver_selection.cpp` | `bjorck_pereyra` (fixture directory: `tests/verification/vandermonde`) | Verifies that the bjorck pereyra Vandermonde policy reconstructs the prescribed analytical conditional quadrature. | Shared analytical fixture |
+| `verification_vandermonde_solver_dense_matches_bjorck_pereyra` | `tests/verification/vandermonde/solver_selection.cpp` | no selector (fixture directory: `tests/verification/vandermonde`) | Runs every Vandermonde policy in one invocation, then checks that the dense and Björck-Pereyra results agree in terminal paths, nodes, weights, and reconstructed moments to `1e-12`. | Shared analytical fixture |
 
 ### Vandermonde / clustered solver policy
 

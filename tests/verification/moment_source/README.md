@@ -6,16 +6,15 @@ a caller-supplied source term. The verification workflow then separately checks
 final QMOM/CQMOM inversion and raw-moment reconstruction so the evolved moments
 are tested as reconstructable moment states. Initial moment states and
 QMOM/CQMOM reconstruction settings are loaded from `.qmom` files. Source
-coefficients and SSP-RK3 step plans live in the verifier because the current
-configuration format does not define source-model parameters or SSP-RK3
-time-integration options.
+coefficients and SSP-RK3 step plans are set in the verifier: the configuration
+format does not define source-model parameters or moment-source step plans.
 
-These are source-operator tests only. They do not include advection node
-advection or full phase-space evolution composition.
+These are source-operator tests only. They do not include node advection or
+full phase-space evolution composition.
 
 `moment_source_analytical.cpp` is the canonical verification driver for this
 area. It uses named `.qmom` configurations, closed-form source solutions, and
-reported error metrics.
+error metrics reported on failure.
 
 Direct source-update and diagnostic regression checks live under
 `tests/component_regression/moment_source.cpp`.
@@ -69,7 +68,7 @@ The target weights are:
 0.25, 0.20, 0.20, 0.35
 ```
 
-For every nonzero multi-index `alpha`,
+For every nonzero multi-index `alpha` in the configured CQMOM moment set,
 
 ```text
 dM_alpha/dt = -0.45 (M_alpha - M_alpha*)
@@ -144,32 +143,31 @@ reconstruction absolute/relative error <= 2e-8
 zeroth-moment conservation error <= 2e-8
 ```
 
-The moment tolerance reflects fixed-step SSP-RK3 truncation error against
-advection exact exponentials. It was selected after keeping the time steps
+The moment tolerance reflects fixed-step SSP-RK3 truncation error against the
+exact exponentials. It was selected after keeping the time steps
 small enough that the analytical discrepancy is several orders below the
 source magnitudes.
 
 ## Running
 
-Configure and build the standalone test project first:
+Configure and build the test suite from the repository root, in Debug as
+described in [Testing](../../../docs/developer/testing.md#debug-build-requirement):
 
 ```bash
-cd tests
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../install"
-cmake --build build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
+cmake --build build --parallel
 ```
 
 Run all source verification cases:
 
 ```bash
-ctest --test-dir build -R verification_moment_source_ --output-on-failure
+ctest --test-dir build -R '^verification_moment_source_' --output-on-failure
 ```
 
 Run individual cases:
 
 ```bash
-ctest --test-dir build -R verification_moment_source_order_dependent_relaxation --output-on-failure
-ctest --test-dir build -R verification_moment_source_common_rate_relaxation --output-on-failure
-ctest --test-dir build -R verification_moment_source_linear_coupled --output-on-failure
+ctest --test-dir build -R '^verification_moment_source_order_dependent_relaxation$' --output-on-failure
+ctest --test-dir build -R '^verification_moment_source_common_rate_relaxation$' --output-on-failure
+ctest --test-dir build -R '^verification_moment_source_linear_coupled$' --output-on-failure
 ```

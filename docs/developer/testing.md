@@ -234,7 +234,11 @@ density.
 
 Public-header tests are compile-time interface checks. Each translation unit in
 `tests/public_headers/` includes one current public header from
-`include/qmomkit/` through the source-tree `qmomkit` target.
+`include/qmomkit/` through the source-tree `qmomkit` target. That header comes
+first, before any standard header the translation unit also needs, so a standard
+include missing from the header cannot be supplied by the test. Because the
+repository's clang-format configuration regroups includes, a comment line
+separates the public header from the standard headers that follow it.
 
 These tests protect the public API boundary by verifying that headers are
 self-contained and do not depend on accidental include order. The linked CTest

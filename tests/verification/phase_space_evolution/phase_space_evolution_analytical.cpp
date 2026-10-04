@@ -161,7 +161,6 @@ struct RunSummary
     ErrorMetrics errors;
     std::size_t retry_count = 0;
     bool success = false;
-    bool output_row = false;
 };
 
 struct VerificationResult
@@ -837,7 +836,6 @@ VerificationResult run_commuting_qmom(const std::filesystem::path& configuration
         const std::size_t steps = static_cast<std::size_t>(std::lround(0.24 / dt));
         RunSummary summary = validate_qmom_run(verification, initial, qmom_case.node_count, t0, dt, steps, commuting_velocity, commuting_source,
                                                options, qmom_case.options, commuting_exact(initial, 0.24), 8.0e-6, 8.0e-6);
-        summary.output_row = true;
         if (previous_error > 0.0 && summary.error_norm > 0.0)
         {
             summary.observed_order = std::log(previous_error / summary.error_norm) / std::log(2.0);
@@ -1052,7 +1050,6 @@ VerificationResult run_noncommuting_qmom(const std::filesystem::path& configurat
             const double tolerance = (scheme == qmomkit::PhaseSpaceEvolutionScheme::strang) ? 8.0e-4 : 3.0e-2;
             RunSummary summary = validate_qmom_run(verification, initial, qmom_case.node_count, t0, dt, steps, noncommuting_velocity,
                                                    noncommuting_source, options, qmom_case.options, exact, tolerance, tolerance);
-            summary.output_row = true;
             if (previous_error > 0.0 && summary.error_norm > 0.0)
             {
                 summary.observed_order = std::log(previous_error / summary.error_norm) / std::log(2.0);
@@ -1904,7 +1901,6 @@ VerificationResult run_commuting_cqmom_2d(const std::filesystem::path& configura
     summary.final_time = time;
     summary.retry_count = retry_count;
     summary.success = result.ok() && diagnostics_successful;
-    summary.output_row = true;
     const std::vector<double> exact = cqmom_exact_values(configured_cqmom_case.moments, elapsed);
     update_errors(summary.errors, result.moments.values, exact);
     summary.error_norm = scaled_infinity_error(result.moments.values, exact);
@@ -1997,7 +1993,6 @@ VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configura
             summary.dt = dt;
             summary.steps = steps;
             summary.final_time = time;
-            summary.output_row = true;
             if (!run_success || !result.has_value())
             {
                 summary.success = false;
@@ -2138,7 +2133,6 @@ VerificationResult run_cqmom_boundary_contribution(const std::filesystem::path& 
     summary.final_time = result.final_time;
     summary.retry_count = result.diagnostics.moment_source_retries;
     summary.success = result.ok() && audit.passed && audit.invocation_count > 0 && cqmom_diagnostics_are_successful(result.diagnostics);
-    summary.output_row = true;
     if (result.quadrature.has_value())
     {
         const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result.quadrature, extents);
@@ -2249,7 +2243,6 @@ VerificationResult run_cqmom_combined_native_source(const std::filesystem::path&
                       cqmom_diagnostics_are_successful(result.diagnostics) && result.diagnostics.total_node_advection_steps > 0 &&
                       result.diagnostics.moment_source_diagnostics.ssp_rk3_status == qmomkit::SspRk3Status::success &&
                       std::abs(result.diagnostics.moment_source_diagnostics.time_step_used - dt) <= 1.0e-14;
-    summary.output_row = true;
     const std::vector<double> exact = cqmom_combined_native_source_exact_values(initial_moments, dt);
     if (result.quadrature.has_value())
     {
@@ -2352,7 +2345,6 @@ VerificationResult run_cqmom_native_source(const std::filesystem::path& configur
     summary.final_time = result.final_time;
     summary.retry_count = result.diagnostics.moment_source_retries;
     summary.success = result.ok() && audit.passed && audit.invocation_count > 0 && audit.checked_initial_context_values && diagnostics_successful;
-    summary.output_row = true;
     const std::vector<double> exact = cqmom_native_source_exact_values(initial_moments, dt);
     if (result.quadrature.has_value())
     {
@@ -3273,7 +3265,6 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
     summary.final_time = time;
     summary.retry_count = retry_count;
     summary.success = result.has_value() && result->ok() && diagnostics_successful;
-    summary.output_row = true;
     const std::vector<double> exact = cqmom_advection_exact_values(initial_moments, elapsed);
     if (result->quadrature.has_value())
     {
@@ -3395,7 +3386,6 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     summary.final_time = result.final_time;
     summary.retry_count = result.diagnostics.moment_source_retries;
     summary.success = result.ok() && cqmom_diagnostics_are_successful(result.diagnostics) && callback_coordinates_physical && callback_visits != 0;
-    summary.output_row = true;
     if (!summary.success)
     {
         append_failure(verification, "automatic-scaling CQMOM evolution did not complete all physical reconstruction stages.");
@@ -3508,7 +3498,7 @@ int run_cqmom_automatic_scaling_is_unit_invariant()
 
 void print_usage()
 {
-    std::cerr << "Usage: phase_space_evolution_analytical_verification <configuration.qmom> <case_identifier> [--output <path>] | "
+    std::cerr << "Usage: phase_space_evolution_analytical_verification <configuration.qmom> <case_identifier> | "
                  "cqmom_automatic_scaling_is_unit_invariant\n";
 }
 

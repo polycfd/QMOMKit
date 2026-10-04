@@ -23,7 +23,7 @@
 //   property these cases exist to pin.
 //
 // Reproduce
-//   ctest -R verification_recursive_cqmom
+//   ctest -R "^verification_cqmom_recursive_"
 //
 // Build modes
 //   Both. Failures are reported through an exit code, not assert().

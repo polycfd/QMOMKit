@@ -50,15 +50,3 @@ add_test(
     COMMAND phase_space_evolution_analytical_verification cqmom_automatic_scaling_is_unit_invariant
 )
 set_tests_properties(verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
-
-add_custom_target(
-    generate_phase_space_evolution_verification_outputs
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/phase_space_evolution_verification_outputs
-    COMMAND
-        phase_space_evolution_analytical_verification ${CMAKE_CURRENT_LIST_DIR}/commuting_qmom.qmom commuting_qmom --output
-        ${CMAKE_CURRENT_BINARY_DIR}/phase_space_evolution_verification_outputs/commuting_qmom_refinement.txt
-    COMMAND
-        phase_space_evolution_analytical_verification ${CMAKE_CURRENT_LIST_DIR}/noncommuting_qmom.qmom noncommuting_qmom --output
-        ${CMAKE_CURRENT_BINARY_DIR}/phase_space_evolution_verification_outputs/noncommuting_qmom_refinement.txt
-    DEPENDS phase_space_evolution_analytical_verification
-)

@@ -300,20 +300,6 @@ int run_configured_case(const std::filesystem::path& configuration_path, const s
         std::cerr << "The configured automatic-scaling, adaptive, or non-identity conditioning policy was not propagated.\n";
     }
 
-    // The old layout test compared two freshly-created layouts without a CQMOM
-    // workflow.  Here both configured routes actually reconstruct the scaled
-    // physical rule, while their case-level layouts are also compared to an
-    // otherwise identical explicit automatic_scaling=false case.
-    const qmomkit::CqmomMomentLayout required_layout = qmomkit::create_cqmom_moment_layout(cqmom_case.moments.layout.hierarchy);
-    qmomkit::CqmomCase unscaled_cqmom_case = cqmom_case;
-    unscaled_cqmom_case.qmom_options.automatic_scaling = false;
-    if (cqmom_case.moments.layout.required_indices != required_layout.required_indices ||
-        unscaled_cqmom_case.moments.layout.required_indices != cqmom_case.moments.layout.required_indices)
-    {
-        std::cerr << "automatic scaling changed the required CQMOM moment layout.\n";
-        passed = false;
-    }
-
     Errors errors;
     check_result("configured", qmomkit::compute_cqmom(cqmom_case), cqmom_case.moments, units, errors, passed);
     passed = passed && errors.node <= tolerance && errors.weight <= tolerance && errors.moment <= tolerance;

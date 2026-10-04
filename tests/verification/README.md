@@ -36,25 +36,25 @@ individual cases, references, and tolerance choices in more detail.
 
 | Area | Purpose | Main executable(s) | Reference type |
 | --- | --- | --- | --- |
-| QMOM | Verify public one-dimensional `compute_qmom(...)` success and representative direct-compute failures. | `verification_qmom_analytical_*`, `verification_qmom_compute_failure_*`, `verification_wheeler_analytical_*` | Manufactured discrete quadratures, classical Gaussian quadrature rules, public failure behavior |
+| QMOM | Verify public one-dimensional `compute_qmom(...)` success and representative direct-compute failures. | `verification_qmom_analytical_*`, `verification_qmom_compute_failure_*`, `verification_wheeler_analytical_*`, `verification_adaptive_qmom_*`, `verification_qmom_moment_space_boundary_*`, `verification_qmom_quadrature_bounds_*` | Manufactured discrete quadratures, classical Gaussian quadrature rules, public failure behavior |
 | CQMOM | Verify the default `CqmomPreparedCase` and open `CqmomCase` workflows, adaptive branch counts, and high-dimensional cases. | `verification_cqmom_public_workflows`, `verification_cqmom_*` analytical cases | Analytical product quadratures, manufactured affine/branch-dependent quadratures |
 | Recursive quadrature | Verify recursive CQMOM assembly conventions that are not exposed as standalone user workflows. | `verification_recursive_quadrature_manufactured_*`, `verification_cqmom_recursive_*` | Manufactured terminal quadratures and reconstruction identities |
-| Phase-space evolution | Verify complete phase-space evolution workflows, stage-order behavior, public diagnostics, and failure propagation. | `verification_phase_space_evolution_*` | Closed-form commuting/noncommuting evolution, manufactured phase-space evolution compositions |
+| Phase-space evolution | Verify complete phase-space evolution workflows, stage-order behavior, public diagnostics, and failure propagation. | `verification_phase_space_evolution_*`<br>`verification_qmom_advection_matches_exponential_phase_evolution`<br>`verification_qmom_phase_space_source_evolution_matches_manufactured_solution` | Closed-form commuting/noncommuting evolution, manufactured phase-space evolution compositions |
 | Source terms | Verify moment-source raw-moment source updates for QMOM and CQMOM workflows. | `verification_moment_source_*` | Closed-form source ODE solutions |
 | Node advection | Verify advection quadrature-node advection for QMOM and CQMOM workflows. | `verification_node_advection_*` | Closed-form node trajectories |
-| Realizability | Verify support-aware truncated-moment classification and diagnostics. | `verification_realizability_analytical` | Analytical Hamburger, Stieltjes, and Hausdorff moment examples |
+| Realizability | Verify support-aware truncated-moment classification and diagnostics. | `verification_realizability_analytical_*` | Analytical Hamburger, Stieltjes, and Hausdorff moment examples |
 | Distributions | Verify analytical distribution families, mixtures, independent products, and configuration-driven initialization, including configured mixture-marginal workflows. | `verification_distributions_analytical_*` | Closed-form distribution moments, mixture sums, independent-product tensors |
-| Runge-Kutta | Verify standalone ODE utilities used by phase-space evolution and source components. | `verification_runge_kutta_analytical`<br>`verification_ssp_rk3_convergence`<br>`verification_rk23_fixed_step_convergence`<br>`verification_rk45_fixed_step_convergence`<br>`verification_rk23_adaptive_convergence`<br>`verification_rk45_adaptive_convergence` | Closed-form ODE solutions. Formal convergence order is measured only with the step size forced; the adaptive cases measure controller behaviour instead, since the controller chooses the steps and no step size exists to refine |
+| Runge-Kutta | Verify standalone ODE utilities used by phase-space evolution and source components. | `verification_runge_kutta_analytical_*`<br>`verification_ssp_rk3_convergence`<br>`verification_rk23_fixed_step_convergence`<br>`verification_rk45_fixed_step_convergence`<br>`verification_rk23_adaptive_convergence`<br>`verification_rk45_adaptive_convergence` | Closed-form ODE solutions. Formal convergence order is measured only with the step size forced; the adaptive cases measure controller behaviour instead, since the controller chooses the steps and no step size exists to refine |
 | Output | Verify public text output workflows for moments and quadratures. | `verification_output_writer_qmom`, `verification_output_writer_cqmom` | Computed public results compared with analytical QMOM/CQMOM references |
-| Configuration | Verify representative user-facing configuration failure paths. | `configuration_failures_verification` | Invalid `.qmom` fixtures with expected failure messages and source/line diagnostics |
+| Configuration | Verify representative user-facing configuration failure paths. | `verification_configuration_*` | Invalid `.qmom` fixtures with expected failure messages and source/line diagnostics |
 | Vandermonde solver policy | Verify user-facing CQMOM Vandermonde solver selection on ordinary and clustered conditional systems. | `verification_vandermonde_solver_*`<br>`verification_vandermonde_clustered_*` | Analytical product rule plus independently prescribed branch-dependent clustered CQMOM quadrature |
 
 ## Test Styles
 
 Canonical verification cases are the preferred executable documentation. They
 normally use named `.qmom` configurations or explicitly named analytical cases,
-print the measured errors, and compare against closed-form or manufactured
-references. New workflow coverage should be added in this style.
+compare against closed-form or manufactured references, and report the measured
+errors only on failure. New workflow coverage should be added in this style.
 
 Component regression checks cover older or narrower component behavior that is
 still useful but is not the primary documentation path for a feature. They live

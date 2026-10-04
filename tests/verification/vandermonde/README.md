@@ -30,6 +30,7 @@ the product formula, independently of the solver implementation.
 - `dense`
 - `pivoted_qr`
 - `svd`
+- `moore_penrose`
 - `bjorck_pereyra`
 
 The algorithm actually used is the numerical path selected after policy
@@ -38,6 +39,7 @@ resolution:
 - `dense`
 - `pivoted_qr`
 - `svd`
+- `moore_penrose`
 - `bjorck_pereyra`
 
 For this well-conditioned case, `automatic` is expected to resolve to
@@ -45,12 +47,14 @@ For this well-conditioned case, `automatic` is expected to resolve to
 `pivoted_qr` is an explicit policy only and is expected
 to solve the weighted conditional Vandermonde system directly. `svd` is also an
 explicit policy only and is expected to solve the weighted conditional
-Vandermonde system directly.
+Vandermonde system directly. `moore_penrose` is likewise explicit only; its
+fixture sets `rcond = 1.0e-14`.
 
 The public CQMOM result exposes branch success diagnostics, the requested
 Vandermonde solver, and the selected solver after policy resolution. The
 internal `VandermondeAlgorithm` field identifies
-the backend actually used (`dense`, `pivoted_qr`, `svd`, or `bjorck_pereyra`);
+the backend actually used (`dense`, `pivoted_qr`, `svd`, `moore_penrose`, or
+`bjorck_pereyra`);
 that algorithm-used field is not exposed as the same public CQMOM diagnostic
 field. This verifier loads public `.qmom` files, verifies public CQMOM results,
 and inspects internal recursive diagnostics for algorithm-used checks.
@@ -64,10 +68,13 @@ The verifier:
 - computes public CQMOM results successfully;
 - compares terminal nodes and weights against the independent analytical
   quadrature;
-- reconstructs every configured raw moment from the computed quadrature;
+- reconstructs the configured required CQMOM moments from the computed
+  quadrature;
 - checks that diagnostics report the requested solver policy, selected policy,
   and algorithm actually used;
-- compares dense and Björck-Pereyra results as an additional consistency check.
+- compares dense and Björck-Pereyra results as an additional consistency check;
+  this runs when the executable is given no policy argument and is registered as
+  `verification_vandermonde_solver_dense_matches_bjorck_pereyra`.
 
 Dense/Björck-Pereyra comparison is not the only reference. Every solver policy
 is also checked against the independent analytical quadrature and reconstructed
@@ -111,6 +118,10 @@ weights, and all mixed moments. `automatic` resolves to `bjorck_pereyra`. The
 public diagnostics verify requested and selected policy; the internal backend
 is intentionally not treated as a public contract.
 
+The case also requires the condition estimate reported by the conditional
+solve to lie between `1e5` and `1e6`, which is what makes the system clustered
+enough to be a meaningful test.
+
 The node tolerance is `5e-4`, about ten times the observed maximum error
 on the selected system and below one tenth of the parent spacing. The weight
 tolerance is `2e-5`, and every moment uses an absolute-plus-relative tolerance
@@ -128,23 +139,23 @@ analytical reference, solver selection, or reconstruction path changed.
 
 ## Running
 
-Configure and build the standalone test project first:
+Configure and build the test suite from the repository root, in Debug as
+described in [Testing](../../../docs/developer/testing.md#debug-build-requirement):
 
 ```bash
-cd tests
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../install"
-cmake --build build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
+cmake --build build --parallel
 ```
 
-Run the Vandermonde solver-selection verification:
+Run the Vandermonde solver-selection verification, one test per policy plus
+the dense/Björck-Pereyra comparison:
 
 ```bash
-ctest --test-dir build -R verification_vandermonde_solver_selection --output-on-failure
+ctest --test-dir build -R '^verification_vandermonde_solver_' --output-on-failure
 ```
 
 Run the clustered solver-policy verification:
 
 ```bash
-ctest --test-dir build -R verification_vandermonde_solver_policy_clustered --output-on-failure
+ctest --test-dir build -R '^verification_vandermonde_clustered_' --output-on-failure
 ```

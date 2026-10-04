@@ -2,12 +2,13 @@
 
 These verification cases exercise the public phase-space advection operator:
 configuration loading, QMOM/CQMOM inversion, `qmomkit::advance_nodes(...)`,
-and raw-moment reconstruction. Initial moment states are loaded from `.qmom`
-files. Configuration files provide reproducible case setup and may define
-supported numerical scheme choices such as operator-splitting scheme and
-the node-advection scheme. The ODE coefficients, velocity callbacks, timestep
-plan, and detailed RK23 tolerance settings live in the verifier because those
-are application runtime choices rather than case-definition fields.
+and raw-moment reconstruction. Initial moment states and reconstruction
+settings are loaded from `.qmom` files. The node-advection scheme (RK23), its
+adaptive controls, the ODE coefficients, the velocity callbacks, and the
+timestep plan are set in the verifier, so each case controls them explicitly.
+The configuration format can carry the node-advection scheme and adaptive
+controls in `[time_integration.node_advection]`, but these cases do not use
+it.
 
 The advection operator advances abscissas only. Quadrature weights represent
 the amount of mass carried by each node, so they are invariant under these
@@ -15,7 +16,7 @@ deterministic phase-space trajectories.
 
 `node_advection_analytical.cpp` is the canonical verification driver for this
 area. It uses named `.qmom` configurations, closed-form node trajectories, and
-reported error metrics.
+error metrics reported on failure.
 
 Direct overload and diagnostic regression checks live under
 `tests/component_regression/node_advection.cpp`.
@@ -87,7 +88,8 @@ xi(t0 + tau) = (xi(t0) + 0.7 / -0.4) exp(-0.4 tau) - 0.7 / -0.4
 
 The equilibrium lies inside the initial node range. The verifier runs one step
 from `t=0.4` with `dt=0.2`, and six outer steps from `t=0.4` with `dt=0.15`.
-Moments are reconstructed from the exact evolved nodes.
+Moments reconstructed from the advanced quadrature are compared with moments
+computed from the exact evolved nodes.
 
 ## Two-Dimensional Linear System
 
@@ -126,10 +128,8 @@ and all configured raw moments including cross moments.
 
 ## Numerical Settings
 
-The standard RK23 tolerance and step-size settings are supplied by the
-verifier. `.qmom` files may select the node-advection scheme, but these
-verification cases keep the detailed adaptive embedded-RK controls in code together
-with the velocity callback and timestep plan. The settings are:
+The standard RK23 tolerance and step-size settings are set in the verifier,
+together with the velocity callback and timestep plan. The settings are:
 
 ```text
 relative_tolerance = 1e-10
@@ -142,32 +142,32 @@ The linear-growth convergence sanity check uses a loose run with
 the standard tolerances.
 
 The pass tolerance is `5e-8` for node positions, weight changes, and
-unit-floored relative moment errors. Absolute moment errors are also reported;
-near-zero moments are governed by absolute error through the unit denominator
-floor in the relative metric.
+unit-floored relative moment errors, and the absolute moment error must not
+exceed `1e-5`. Near-zero moments are governed by absolute error through the unit
+denominator floor in the relative metric. The node error also includes the gap
+between the integrator's final time and `t + dt`.
 
 ## Running
 
-Configure and build the standalone test project first:
+Configure and build the test suite from the repository root, in Debug as
+described in [Testing](../../../docs/developer/testing.md#debug-build-requirement):
 
 ```bash
-cd tests
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../install"
-cmake --build build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
+cmake --build build --parallel
 ```
 
 Run all node-advection analytical cases:
 
 ```bash
-ctest --test-dir build -R verification_node_advection_ --output-on-failure
+ctest --test-dir build -R '^verification_node_advection_' --output-on-failure
 ```
 
 Run individual cases:
 
 ```bash
-ctest --test-dir build -R verification_node_advection_constant_velocity --output-on-failure
-ctest --test-dir build -R verification_node_advection_linear_growth --output-on-failure
-ctest --test-dir build -R verification_node_advection_affine --output-on-failure
-ctest --test-dir build -R verification_node_advection_linear_system_2d --output-on-failure
+ctest --test-dir build -R '^verification_node_advection_constant_velocity$' --output-on-failure
+ctest --test-dir build -R '^verification_node_advection_linear_growth$' --output-on-failure
+ctest --test-dir build -R '^verification_node_advection_affine$' --output-on-failure
+ctest --test-dir build -R '^verification_node_advection_linear_system_2d$' --output-on-failure
 ```

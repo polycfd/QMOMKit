@@ -3,8 +3,11 @@
 These cases verify the public CQMOM path from configuration loading through
 `qmomkit::compute_cqmom(...)`. Inputs are loaded from `.qmom` files in this
 directory through `qmomkit::config::load_cqmom` and
-`qmomkit::config::load_cqmom_prepared`; the executables do not overwrite or regenerate
-configured raw moments.
+`qmomkit::config::load_cqmom_prepared`; the executables do not overwrite or
+regenerate configured raw moments. The recursive-inversion, bounded and
+branch-growth studies described under
+[Recursive Inversion Studies](#recursive-inversion-studies) build their moments
+in code instead.
 
 ## Raw Moment Reconstruction
 
@@ -213,7 +216,7 @@ W_global = w_x * w_y|x
 ```
 
 Fixed results use rectangular phase-space-order storage. Adaptive branch-count
-results expose terminal arrays and `ConditioningPath` values in deterministic
+results expose terminal arrays and a `ConditioningPathTable` in deterministic
 traversal order; abscissas are still stored by phase-space dimension.
 
 ## Adaptive Controls
@@ -238,8 +241,9 @@ The reusable executable `cqmom_2d_analytical_verification`:
 - compares terminal/global weights and phase-space coordinates;
 - checks branch-specific terminal paths and requested/actual diagnostics;
 - verifies all terminal weights are positive and total weight equals `M[0,0]`;
-- reconstructs the complete configured raw-moment tensor with
-  `qmomkit::reconstruct_raw_moments(...)`.
+- reconstructs the configured required CQMOM moments with
+  `qmomkit::reconstruct_cqmom_moments(...)` and compares them using the
+  unit-floored relative error.
 
 Direct quadrature and path checks are required in addition to moment
 reconstruction because the branch structures are analytically known.
@@ -258,47 +262,82 @@ ratios.
 
 Some high-order moments in these cases are hundreds to thousands in magnitude.
 An absolute reconstruction error near `1e-11` can therefore correspond to a
-unit-floored relative error near machine precision, about `1e-15`. The
-verification reports both values so scale-dependent roundoff is visible without
+unit-floored relative error near machine precision, about `1e-15`. On failure
+the verification reports both values so scale-dependent roundoff is visible without
 weakening near-zero checks. Do not loosen tolerances without first identifying
 whether the discrepancy comes from the configuration, analytical reference,
 conditioning solve, Wheeler inversion, or raw-moment reconstruction.
 
 ## Running
 
-Configure and build the standalone test project first:
+Configure and build the test suite from the repository root, in Debug as
+described in [Testing](../../../docs/developer/testing.md#debug-build-requirement):
 
 ```bash
-cd tests
-cmake -S . -B build \
-    -DCMAKE_PREFIX_PATH="../install"
-cmake --build build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DQMOMKIT_BUILD_TESTS=ON
+cmake --build build --parallel
 ```
 
-Run all three CQMOM analytical cases:
+Run the three two-dimensional analytical cases:
 
 ```bash
-ctest --test-dir build -R verification_cqmom_ --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_(independent_product|deterministic_affine|branch_dependent)$' --output-on-failure
 ```
 
 Run individual cases:
 
 ```bash
-ctest --test-dir build -R verification_cqmom_public_workflows --output-on-failure
-ctest --test-dir build -R verification_cqmom_moment_reconstruction_selected --output-on-failure
-ctest --test-dir build -R verification_cqmom_independent_product --output-on-failure
-ctest --test-dir build -R verification_cqmom_deterministic_affine --output-on-failure
-ctest --test-dir build -R verification_cqmom_branch_dependent --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_public_workflows$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_moment_reconstruction_cqmom_selected$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_independent_product$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_deterministic_affine$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_branch_dependent$' --output-on-failure
 ```
 
-Run manually from the standalone test project after building `tests/build`:
+Run the executables directly from the repository root after building:
 
 ```bash
-./build/cqmom_public_workflows_verification verification/cqmom/independent_product.qmom
-./build/moment_reconstruction_verification verification/cqmom/independent_product.qmom
-./build/cqmom_2d_analytical_verification verification/cqmom/independent_product.qmom independent_product
-./build/cqmom_2d_analytical_verification verification/cqmom/deterministic_affine.qmom deterministic_affine
-./build/cqmom_2d_analytical_verification verification/cqmom/branch_dependent.qmom branch_dependent
+./build/tests/verification/cqmom/cqmom_public_workflows_verification tests/verification/cqmom/independent_product.qmom
+./build/tests/verification/cqmom/moment_reconstruction_verification tests/verification/cqmom/independent_product.qmom
+./build/tests/verification/cqmom/cqmom_2d_analytical_verification tests/verification/cqmom/independent_product.qmom independent_product
+./build/tests/verification/cqmom/cqmom_2d_analytical_verification tests/verification/cqmom/deterministic_affine.qmom deterministic_affine
+./build/tests/verification/cqmom/cqmom_2d_analytical_verification tests/verification/cqmom/branch_dependent.qmom branch_dependent
+```
+
+## Recursive Inversion Studies
+
+Four more executables in this directory verify the recursive inversion on
+quadratures written down in advance. They build their moments in code with a
+local helper that sums weight times position to the required power, so the
+reference does not depend on the library's reconstruction.
+
+- `recursive_quadrature.cpp` (`verification_recursive_quadrature_manufactured_*`):
+  the recursion recovers the prescribed quadrature in one to three dimensions,
+  for identity and non-identity conditioning orders, non-uniform node counts,
+  and adaptive branches that return fewer nodes than requested. The
+  one-dimensional case reduces to plain Wheeler. Rebuilt moments are compared
+  with per-case tolerances from `1e-10` to `1e-7`, and branch node counts and
+  diagnostic record counts must match exactly.
+- `recursive_cqmom.cpp` (`verification_cqmom_recursive_*`): adaptive
+  reconstructions return the prescribed ragged structure, with the right node
+  count on each branch, the right terminal paths, and the right local and
+  global weights, and reproduce their moments. Structure is compared exactly;
+  values use per-case tolerances.
+- `quadrature_bounds.cpp` (`verification_cqmom_quadrature_bounds_*`): a branch
+  whose positions lie inside a coordinate's bounds is accepted unchanged, one
+  with a position outside is rejected rather than clipped, and a bound applies
+  to its phase-space coordinate whatever its conditioning level. Accepted values
+  agree to `1e-12`.
+- `adaptive_branch_growth.cpp` (`verification_cqmom_adaptive_branch_growth_*`):
+  during a moment-source step, a branch that starts with one conditional node
+  grows to two when the moments move to a state that needs two. Terminal paths
+  and per-branch node counts must match the target exactly, the diagnostics
+  must record the growth, and values agree to `5e-11`.
+
+Run them, from the same build as above, with:
+
+```bash
+ctest --test-dir build -R '^verification_(recursive_quadrature_manufactured_|cqmom_(recursive_|quadrature_bounds_|adaptive_branch_growth_))' --output-on-failure
 ```
 
 # Higher-Dimensional CQMOM Analytical Verification
@@ -404,8 +443,8 @@ The high-dimensional executable:
 - loads every input from the corresponding `.qmom`;
 - verifies configured node counts, conditioning order, `qmom.adaptive`,
   `adaptive_branch_counts`, and extents;
-- checks configured moments against independently generated analytical raw
-  moments without modifying the request;
+- checks the configured required moments against independently generated
+  analytical raw moments without modifying the request;
 - calls public `qmomkit::compute_cqmom(...)`;
 - compares terminal coordinates, global weights, local branch weights, branch
   counts, and paths where adaptive paths are uniquely defined;
@@ -413,8 +452,9 @@ The high-dimensional executable:
   branches for each phase-space dimension;
 - verifies affine relations directly;
 - verifies positive weights and `sum(W) = M[0,...,0]`;
-- reconstructs every configured raw moment using
-  `qmomkit::reconstruct_raw_moments(...)`.
+- reconstructs the full tensor of the configured extents with
+  `qmomkit::reconstruct_raw_moments(...)` and compares it with the analytical
+  tensor.
 
 Adaptive cases compare exact `ConditioningPath` values. Fixed independent
 cases compare unordered physical terminal quadrature sets by nearest
@@ -451,13 +491,12 @@ Mhat_a0,a1,a2 = M'_a0,a1,a2 / (s0^a0 s1^a1 s2^a2)
 when read back in canonical units, irrespective of the recursive order. The
 verifier loads the configured case, confirms the configured
 automatic-scaling/adaptive policy, reconstructs it, and checks paths, active
-branch counts, global weights, physical coordinates, and all 64 raw moments
-against the terminal-rule oracle.  It also compares the required-index layout
-with an otherwise identical case whose scaling option is off, confirming that
-enabling scaling does not change the layout.  This is scaling-enabled
-interaction and covariance evidence: it covers adaptive topology, non-identity
-conditioning, configuration propagation, physical-unit restoration, and
-required-layout invariance. It does not claim scaling is necessary for the
+branch counts, global weights, and physical coordinates against the
+terminal-rule oracle, and the 22 required CQMOM moments against the configured
+moments, which are summed independently from the terminal rule. This is
+scaling-enabled interaction and covariance evidence: it covers adaptive
+topology, non-identity conditioning, configuration propagation, and
+physical-unit restoration. It does not claim scaling is necessary for the
 `(1e6,1e-6,1e3)` representation.
 
 The tolerance is `2e-10` for unit-floored relative node and moment errors and
@@ -473,10 +512,10 @@ physical factors create mixed moments from approximately `1e-24` to `1e36`;
 automatic scaling computes each coordinate scale from its marginal second
 moment and returns the normalized problem to O(1) coordinates.
 
-With scaling on, the verifier requires the exact ragged five-terminal topology,
-paths, physical nodes, weights, and all raw moments to agree with the oracle
-to `1e-10` (unit-floored relative errors for nodes and
-moments, absolute error for weights). With scaling off, the same physical
+With scaling on, the verifier requires the five terminals, their paths,
+physical nodes, weights, and the required CQMOM moments to agree with the oracle
+to `1e-10` (unit-floored relative errors for nodes and moments, absolute error
+for weights). The per-branch active counts are not checked in this case. With scaling off, the same physical
 moment tensor must lose the prescribed topology. The test only requires a
 meaningful topology loss, rather than a platform-specific incorrect node value.
 The selected factors are comfortably beyond the nearby `(1e6,1e-6,1e3)`
@@ -486,21 +525,21 @@ outcome in the design probe.
 
 ## High-Dimensional Running
 
-Run all high-dimensional cases:
+Run all high-dimensional cases from the same build:
 
 ```bash
-ctest --test-dir build -R 'verification_cqmom_(affine_chain_5d|independent_product_[3456]d|mixed_affine_independent_4d)' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_(affine_chain_5d|independent_product_[3456]d|mixed_affine_independent_4d)$' --output-on-failure
 ```
 
 Run individual cases:
 
 ```bash
-ctest --test-dir build -R verification_cqmom_affine_chain_5d --output-on-failure
-ctest --test-dir build -R verification_cqmom_independent_product_3d --output-on-failure
-ctest --test-dir build -R verification_cqmom_independent_product_4d --output-on-failure
-ctest --test-dir build -R verification_cqmom_independent_product_5d --output-on-failure
-ctest --test-dir build -R verification_cqmom_independent_product_6d --output-on-failure
-ctest --test-dir build -R verification_cqmom_mixed_affine_independent_4d --output-on-failure
-ctest --test-dir build -R 'verification_cqmom_automatic_scaling_' --output-on-failure
-ctest --test-dir build -R verification_cqmom_automatic_scaling_feature_sensitive --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_affine_chain_5d$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_independent_product_3d$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_independent_product_4d$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_independent_product_5d$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_independent_product_6d$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_mixed_affine_independent_4d$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_automatic_scaling_' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_automatic_scaling_feature_sensitive$' --output-on-failure
 ```

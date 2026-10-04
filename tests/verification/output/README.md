@@ -21,6 +21,8 @@ The case documents and verifies:
 - moment values and quadrature values match the computed public result or an
   independent analytical product quadrature;
 - CQMOM requested moment output preserves requested multi-index order;
+- CQMOM state moment output, written from a `CqmomState`, labels its columns in
+  `CqmomState::moment_indices()` order and writes the state's moment values;
 - CQMOM quadrature output writes one row per active terminal node, including the
   local terminal index, recursive path, weight, and phase-space coordinates.
 

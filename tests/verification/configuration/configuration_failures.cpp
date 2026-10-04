@@ -27,6 +27,7 @@
 #include "../verification_helpers.hpp"
 #include "qmomkit/configuration.hpp"
 
+#include <cctype>
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
@@ -61,9 +62,25 @@ template <class T> bool has_source_name(const qmomkit::config::ConfigurationResu
     return result.error().find(path.string()) != std::string::npos;
 }
 
-template <class T> bool has_reported_line(const qmomkit::config::ConfigurationResult<T>& result)
+template <class T> bool has_reported_line(const qmomkit::config::ConfigurationResult<T>& result, const std::filesystem::path& path)
 {
-    return result.error().find(':') != std::string::npos;
+    // A located error reads "<file>:<line>: <message>"; without a line it reads
+    // "<file>: <message>". Require the file name, a colon, at least one digit,
+    // and a second colon, so the line number itself must be present.
+    const std::string message = result.error();
+    const std::string location_prefix = path.string() + ':';
+    const std::size_t prefix_position = message.find(location_prefix);
+    if (prefix_position == std::string::npos)
+    {
+        return false;
+    }
+    const std::size_t digits_begin = prefix_position + location_prefix.size();
+    std::size_t digits_end = digits_begin;
+    while (digits_end < message.size() && std::isdigit(static_cast<unsigned char>(message[digits_end])) != 0)
+    {
+        ++digits_end;
+    }
+    return digits_end > digits_begin && digits_end < message.size() && message[digits_end] == ':';
 }
 
 template <class T>
@@ -84,7 +101,7 @@ void verify_failed_load(const qmomkit::config::ConfigurationResult<T>& result, c
     QMOMKIT_VERIFY_CHECK(has_source_name(result, path));
     if (expected.line_required)
     {
-        QMOMKIT_VERIFY_CHECK(has_reported_line(result));
+        QMOMKIT_VERIFY_CHECK(has_reported_line(result, path));
     }
 }
 

@@ -195,7 +195,7 @@ QmomEventFixture qmom_reduce_fixture(const std::size_t maximum_node_count, const
     {
         weight /= weight_sum;
     }
-    return make_qmom_event_fixture(retained.initial_state.moments(), raw_moments_from_1d_quadrature(abscissas, weights, 2 * maximum_node_count),
+    return make_qmom_event_fixture(retained.initial_state.moment_values(), raw_moments_from_1d_quadrature(abscissas, weights, 2 * maximum_node_count),
                                    maximum_node_count, active_after);
 }
 
@@ -288,7 +288,7 @@ void validate_qmom_fixture(const QmomEventFixture& fixture)
 
 qmomkit::QmomMomentSource qmom_source_to_target(const QmomEventFixture& fixture)
 {
-    const std::vector<double> initial = fixture.initial_state.moments();
+    const std::vector<double> initial = fixture.initial_state.moment_values();
     const std::vector<double> target = fixture.target_moments;
     return [initial, target](double, const qmomkit::QmomSourceContext& context)
     {
@@ -318,7 +318,7 @@ void validate_qmom_step_fixture(const QmomEventFixture& fixture)
     {
         throw std::runtime_error("QMOM full-step fixture did not produce the expected accepted event.");
     }
-    (void)canonical_moments_from_qmom_result(result.state.quadrature(), result.state.moments().size());
+    (void)canonical_moments_from_qmom_result(result.state.quadrature(), result.state.moment_values().size());
 }
 
 void set_qmom_counters(benchmark::State& state, const QmomEventFixture& fixture)
@@ -446,7 +446,7 @@ void run_qmom_full_step(benchmark::State& state, const QmomEventFixture& fixture
         state.ResumeTiming();
         const qmomkit::QmomPhaseSpaceEvolutionResult result =
             qmomkit::advance_qmom_phase_space(iteration_state, 0.0, 1.0, zero_velocity, source, options);
-        benchmark::DoNotOptimize(result.state.moments().data());
+        benchmark::DoNotOptimize(result.state.moment_values().data());
         benchmark::DoNotOptimize(result.state.quadrature().weights.data());
     }
 }

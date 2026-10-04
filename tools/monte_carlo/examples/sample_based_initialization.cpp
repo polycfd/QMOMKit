@@ -402,7 +402,7 @@ int run_qmom_case(const std::filesystem::path& configuration_path, const std::st
     // The deterministic path starts from moments estimated from the same
     // finite realization used by the Monte Carlo path.
     std::vector<double> qmomkit_moments = sampled->moments.moments.values();
-    qmomkit::QmomResult qmom = qmomkit::compute_qmom(sampled->moments.moments, configured.value().node_count, configured.value().options);
+    qmomkit::QmomResult qmom = qmomkit::compute_qmom(sampled->moments.moments, configured.value().node_count, configured.value().qmom_options);
     if (!qmom.ok())
     {
         std::cerr << "Initial sample-based QMOM inversion failed: " << qmom.message << '\n';

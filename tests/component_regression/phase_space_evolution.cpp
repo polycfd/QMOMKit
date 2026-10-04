@@ -91,7 +91,7 @@ void test_zero_advection_and_zero_source_preserve_qmom()
         [](double, const qmomkit::QmomSourceContext& context) { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; }, options);
 
     QMOMKIT_VERIFY_CHECK(result.ok());
-    assert_vector_near(result.state.moments(), moments, 1.0e-12);
+    assert_vector_near(result.state.moment_values(), moments, 1.0e-12);
     QMOMKIT_VERIFY_CHECK(result.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::none);
     QMOMKIT_VERIFY_CHECK(result.diagnostics.first_reconstruction_diagnostics.success);
     QMOMKIT_VERIFY_CHECK(result.diagnostics.final_reconstruction_diagnostics.success);
@@ -131,8 +131,8 @@ void test_combined_advection_and_source_qmom_analytical()
         1.0 + source_rate * dt + 0.5 * source_rate * source_rate * dt * dt + source_rate * source_rate * source_rate * dt * dt * dt / 6.0;
     const double final_weight = source_factor * initial_weight;
     const double final_x = initial_x + shift_rate * dt;
-    assert_near(result.state.moments()[0], final_weight, 1.0e-13);
-    assert_near(result.state.moments()[1], final_weight * final_x, 1.0e-13);
+    assert_near(result.state.moment_values()[0], final_weight, 1.0e-13);
+    assert_near(result.state.moment_values()[1], final_weight * final_x, 1.0e-13);
 }
 
 void test_cqmom_case_preserves_phase_space_ordering()

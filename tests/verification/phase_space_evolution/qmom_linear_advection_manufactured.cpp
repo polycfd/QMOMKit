@@ -193,7 +193,7 @@ std::vector<double> advance(const double time_step, const qmomkit::PhaseSpaceEvo
         QMOMKIT_VERIFY_CHECK(result.diagnostics.moment_source_diagnostics.accepted);
         state = result.state;
     }
-    return state.moments();
+    return state.moment_values();
 }
 
 void verify_phase_space_source_evolution()

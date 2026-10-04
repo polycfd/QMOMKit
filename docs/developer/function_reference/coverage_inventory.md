@@ -228,7 +228,7 @@ evidence](state_and_representations.md)
 | Function or overload family | Definition lines |
 |---|---|
 | `QmomResult::ok` | [40](../../../include/qmomkit/qmom.hpp#L40) |
-| `QmomState::moments` | [70](../../../include/qmomkit/qmom.hpp#L70) |
+| `QmomState::moment_values` | [70](../../../include/qmomkit/qmom.hpp#L70) |
 | `QmomState::quadrature` | [75](../../../include/qmomkit/qmom.hpp#L75) |
 | `QmomState::active_node_count` | [80](../../../include/qmomkit/qmom.hpp#L80) |
 | `QmomState::maximum_node_count` | [85](../../../include/qmomkit/qmom.hpp#L85) |

@@ -229,7 +229,8 @@ SplitRun run_split_case(const qmomkit::PhaseSpaceEvolutionScheme scheme, const s
         const qmomkit::QmomPhaseSpaceEvolutionResult result =
             qmomkit::advance_qmom_phase_space(state, time, step_size, noncommuting_velocity(), noncommuting_source(), options);
         if (!result.ok() || result.state.active_node_count() != 2 ||
-            !std::all_of(result.state.moments().begin(), result.state.moments().end(), [](const double value) { return std::isfinite(value); }))
+            !std::all_of(result.state.moment_values().begin(), result.state.moment_values().end(),
+                         [](const double value) { return std::isfinite(value); }))
         {
             throw std::runtime_error(std::string("Phase-space evolution failed for split mode ") + split_mode_name(scheme) + ".");
         }
@@ -245,7 +246,7 @@ SplitRun run_split_case(const qmomkit::PhaseSpaceEvolutionScheme scheme, const s
     SplitRun run{split_mode_name(scheme), level, step_size};
     for (std::size_t moment = 0; moment < exact.size(); ++moment)
     {
-        const double absolute = std::abs(state.moments()[moment] - exact[moment]);
+        const double absolute = std::abs(state.moment_values()[moment] - exact[moment]);
         run.maximum_scaled_moment_error = std::max(run.maximum_scaled_moment_error, absolute / std::max(1.0, std::abs(exact[moment])));
     }
     verify_finite(run.maximum_scaled_moment_error, "Maximum scaled moment error");

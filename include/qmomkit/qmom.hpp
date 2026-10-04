@@ -67,7 +67,7 @@ public:
     QmomState& operator=(QmomState&&) noexcept = default;
     ~QmomState() = default;
 
-    [[nodiscard]] const std::vector<double>& moments() const noexcept
+    [[nodiscard]] const std::vector<double>& moment_values() const noexcept
     {
         return moments_;
     }
@@ -120,7 +120,7 @@ struct QmomCase
 {
     MomentSet moments;
     std::size_t node_count = 0;
-    QmomOptions options;
+    QmomOptions qmom_options;
     std::optional<AbscissaBounds> abscissa_bounds;
 
     /**

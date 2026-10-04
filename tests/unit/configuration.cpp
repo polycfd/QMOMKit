@@ -275,8 +275,8 @@ void test_valid_qmom_matches_programmatic_case()
     const qmomkit::QmomCase direct_qmom_case{qmomkit::MomentSet({1.0, 0.5, 0.5, 0.5}), 2, {}};
     assert(configured.value().node_count == direct_qmom_case.node_count);
     assert(configured.value().moments.values() == direct_qmom_case.moments.values());
-    assert(!configured.value().options.adaptive);
-    assert(!configured.value().options.automatic_scaling);
+    assert(!configured.value().qmom_options.adaptive);
+    assert(!configured.value().qmom_options.automatic_scaling);
 
     const auto configured_result = qmomkit::compute_qmom(configured.value());
     const auto direct_result = qmomkit::compute_qmom(direct_qmom_case);
@@ -287,7 +287,7 @@ void test_valid_qmom_matches_programmatic_case()
 
     const auto adaptive = qmomkit::config::parse_qmom("[phase_space]\nnode_counts=1\n[qmom]\nadaptive=true\n[moments]\nvalues=1,0\n");
     assert(adaptive.ok());
-    assert(adaptive.value().options.adaptive);
+    assert(adaptive.value().qmom_options.adaptive);
 
     const std::size_t impossible_node_count = std::numeric_limits<std::size_t>::max() / 2 + 1;
     const auto impossible =
@@ -553,7 +553,7 @@ automatic_scaling = true
 values = 1.0, 0.0
 )");
     assert(qmom.ok());
-    assert(qmom.value().options.automatic_scaling);
+    assert(qmom.value().qmom_options.automatic_scaling);
 
     const auto cqmom = qmomkit::config::parse_cqmom(R"(
 [phase_space]
@@ -591,7 +591,7 @@ values = 1.0, 0.0
     const auto evolution = qmomkit::config::parse_qmom_phase_space_evolution_options(scaled_case);
     assert(qmom_case_result.ok());
     assert(evolution.ok());
-    assert(qmom_case_result.value().options.automatic_scaling);
+    assert(qmom_case_result.value().qmom_options.automatic_scaling);
     assert(qmom_case_result.value().initial_state().qmom_options().automatic_scaling);
 
     // Explicit false and an omitted key retain the documented default.
@@ -2660,7 +2660,7 @@ accept_boundary = false
     const auto qmom_case_result = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(runtime));
     assert(qmom_case_result.ok());
     assert(qmom_case_result.value().node_count == 1);
-    assert(!qmom_case_result.value().options.adaptive);
+    assert(!qmom_case_result.value().qmom_options.adaptive);
 
     const auto cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(cqmom_case_text_with_runtime(runtime));
     assert(cqmom_prepared_case_result.ok());

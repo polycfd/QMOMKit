@@ -170,7 +170,7 @@ QmomResult compute_qmom(const MomentSet& moments, const std::size_t node_count, 
 
 QmomResult compute_qmom(const QmomCase& qmom_case)
 {
-    return compute_qmom(qmom_case.moments, qmom_case.node_count, qmom_case.options, qmom_case.abscissa_bounds);
+    return compute_qmom(qmom_case.moments, qmom_case.node_count, qmom_case.qmom_options, qmom_case.abscissa_bounds);
 }
 
 QmomState::QmomState(std::vector<double> moments, QmomResult quadrature, const std::size_t maximum_node_count, QmomOptions qmom_options,
@@ -187,7 +187,7 @@ QmomState QmomCase::initial_state() const
     {
         throw std::runtime_error("QMOM initial state reconstruction failed: " + quadrature.message);
     }
-    return internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size(), node_count, options, abscissa_bounds);
+    return internal::QmomStateAccess::from_quadrature(std::move(quadrature), moments.size(), node_count, qmom_options, abscissa_bounds);
 }
 
 struct CqmomPreparedCase::Data

@@ -40,7 +40,7 @@ The inputs and outputs are:
 After reconstruction, a QMOM workflow may inspect the quadrature, evaluate
 derived quantities, write output, or optionally evolve the distribution. QMOM
 phase-space evolution advances an accepted `QmomState` from `QmomCase::initial_state()`
-with `advance_qmom_phase_space(...)`. `QmomState` exposes read-only `moments()`,
+with `advance_qmom_phase_space(...)`. `QmomState` exposes read-only `moment_values()`,
 `quadrature()`, `maximum_node_count()`, and `qmom_options()` accessors. Its
 moments and quadrature always agree with each other, and it keeps the
 reconstruction settings of the case it came from. You can copy and move an

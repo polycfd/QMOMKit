@@ -80,7 +80,7 @@ int main()
     const std::vector<double> initial_moments = sampled_moments.moments.values();
     // Rebuild the case around the sampled moments, keeping the configured node
     // count and inversion options.
-    const qmomkit::QmomCase sampled_qmom_case{sampled_moments.moments, qmom_case.node_count, qmom_case.options};
+    const qmomkit::QmomCase sampled_qmom_case{sampled_moments.moments, qmom_case.node_count, qmom_case.qmom_options};
     std::optional<qmomkit::QmomState> initial_state_storage;
     try
     {
@@ -192,7 +192,7 @@ int main()
         std::cout << node << "     " << initial_quadrature.weights[node] << "   " << initial_quadrature.abscissas[node] << '\n';
     }
 
-    qmom_1d_breakage_advection_with_mc::print_moments(std::cout, "Final moments", state.moments());
+    qmom_1d_breakage_advection_with_mc::print_moments(std::cout, "Final moments", state.moment_values());
 
     std::cout << "\nFinal quadrature at t = " << time << ":\n";
     std::cout << "node  initial_abscissa  final_abscissa\n";

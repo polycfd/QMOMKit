@@ -389,7 +389,7 @@ void test_cqmom_state_generalized_moment_output()
     }
     const qmomkit::CqmomState state =
         qmomkit::internal::CqmomConstructionAccess::create_state(qmomkit::CqmomCase{qmomkit::CqmomMomentData{layout, required_values}, {}, {}});
-    const std::filesystem::path state_path = temporary_output_path("qmomkit_cqmom_state_generalized_lean");
+    const std::filesystem::path state_path = temporary_output_path("qmomkit_cqmom_state_generalized");
     {
         qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_cqmom(state_path, state, output_options);
         writer.write(0.25, state, quadrature);
@@ -571,7 +571,7 @@ void test_writer_rejects_rows_from_other_factories()
                                 [](const std::filesystem::path& path) { return qmomkit::MomentWriter::for_qmom(path, 1); });
     assert_rejects_foreign_rows("qmomkit_pairing_qmom_state", qmom_state_factory, [&qmom_state](const std::filesystem::path& path)
                                 { return qmomkit::MomentWriter::for_qmom(path, qmom_state, qmomkit::OutputOptions{}); });
-    assert_rejects_foreign_rows("qmomkit_pairing_cqmom_dense", moment_tensor_factory, [](const std::filesystem::path& path)
+    assert_rejects_foreign_rows("qmomkit_pairing_cqmom_moment_tensor", moment_tensor_factory, [](const std::filesystem::path& path)
                                 { return qmomkit::MomentWriter::for_cqmom(path, std::vector<std::size_t>{2}); });
     assert_rejects_foreign_rows("qmomkit_pairing_cqmom_moment_data", moment_data_factory, [&moment_layout](const std::filesystem::path& path)
                                 { return qmomkit::MomentWriter::for_cqmom(path, moment_layout); });
@@ -806,7 +806,7 @@ void test_writer_rejects_generalized_moments_without_values()
     }
     std::filesystem::remove(qmom_path);
 
-    const std::filesystem::path cqmom_moment_tensor_path = temporary_output_path("qmomkit_cqmom_dense_generalized_required");
+    const std::filesystem::path cqmom_moment_tensor_path = temporary_output_path("qmomkit_cqmom_moment_tensor_generalized_required");
     {
         qmomkit::MomentWriter writer =
             qmomkit::MomentWriter::for_cqmom(cqmom_moment_tensor_path, std::vector<std::size_t>{2}, std::vector<qmomkit::MultiIndex>{{0}}, {{1.0}});

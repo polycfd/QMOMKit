@@ -734,7 +734,7 @@ sigma_log = 0.45
     assert_tensor_near(initialized.value(), expected.moments);
 }
 
-void test_lean_cqmom_initialization_matches_example_flow()
+void test_cqmom_initialization_matches_example_flow()
 {
     const auto initial = qmomkit::config::parse_cqmom_initial_condition(R"(
 [phase_space]
@@ -774,7 +774,7 @@ standard_deviation = 1.25
     assert(result.ok());
 }
 
-void test_lean_cqmom_initialization_omits_maximum_orders()
+void test_cqmom_initialization_omits_maximum_orders()
 {
     const std::string text = R"(
 [phase_space]
@@ -951,7 +951,7 @@ sigma_log = 0.2
     assert_cqmom_moments_near_tensor(omitted_order.value().moments, expected.moments);
 }
 
-void test_lean_cqmom_initialization_selects_explicit_dense_tensor()
+void test_cqmom_initialization_selects_explicit_moment_tensor()
 {
     const auto initial = qmomkit::config::parse_cqmom_initial_condition(cqmom_text, "cqmom-test");
     assert(initial.ok());
@@ -965,7 +965,7 @@ void test_lean_cqmom_initialization_selects_explicit_dense_tensor()
     assert_cqmom_moments_near(initialized.value(), expected);
 }
 
-void test_cqmom_lean_case_selects_explicit_dense_tensor()
+void test_cqmom_case_selects_explicit_moment_tensor()
 {
     const auto cqmom_case_result = qmomkit::config::parse_cqmom(cqmom_text, "cqmom-test");
     assert(cqmom_case_result.ok());
@@ -1030,7 +1030,7 @@ standard_deviation = 1.25
     assert_cqmom_quadratures_near(cqmom_prepared_case_compute.quadrature, cqmom_case_compute.quadrature);
 }
 
-void test_cqmom_prepared_case_accepts_explicit_dense_tensor()
+void test_cqmom_prepared_case_accepts_explicit_moment_tensor()
 {
     const auto cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(cqmom_text, "cqmom-test");
     const auto cqmom_case_result = qmomkit::config::parse_cqmom(cqmom_text, "cqmom-test");
@@ -1261,7 +1261,7 @@ qmomkit::CqmomCase replacement_cqmom_case_with_hierarchy(const qmomkit::PhaseSpa
     return cqmom_case;
 }
 
-void test_cqmom_prepared_case_replaces_lean_initial_moments_immutably()
+void test_cqmom_prepared_case_replaces_initial_moments_immutably()
 {
     const qmomkit::CqmomCase base_cqmom_case = replacement_base_cqmom_case();
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(cqmom_replacement_hierarchy());
@@ -1302,7 +1302,7 @@ void test_cqmom_prepared_case_replaces_lean_initial_moments_immutably()
            qmomkit::internal::CqmomConstructionAccess::case_prepared_metadata(base_cqmom_prepared_case).get());
 }
 
-void test_cqmom_prepared_case_replaces_lean_initial_moments_from_moment_data()
+void test_cqmom_prepared_case_replaces_initial_moments_from_moment_data()
 {
     const qmomkit::CqmomCase base_cqmom_case = replacement_base_cqmom_case();
     const qmomkit::CqmomPreparedCase base_cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(base_cqmom_case);
@@ -1325,8 +1325,9 @@ void test_cqmom_prepared_case_replaces_lean_initial_moments_from_moment_data()
     const qmomkit::CqmomState replaced_state = replaced_cqmom_prepared_case.initial_state();
     assert(replaced_state.moment_indices() == layout.required_indices.to_multi_indices());
 
-    // The lean-native replacement must be indistinguishable from supplying the
-    // same moments as a dense tensor: same quadrature, same canonical state.
+    // Replacing the moments from moment data must be indistinguishable from
+    // supplying the same moments as a full tensor of raw moments: same
+    // quadrature, same canonical state.
     const auto tensor_transformed = qmomkit::config::with_initial_moments(base_cqmom_prepared_case, replacement_tensor);
     assert(tensor_transformed.ok());
     const qmomkit::CqmomResult moment_data_result = qmomkit::compute_cqmom(replaced_cqmom_prepared_case);
@@ -2475,12 +2476,12 @@ lower = -1.0
 upper = 1.0
 )";
 
-    const auto without_policy_case_result = qmomkit::config::parse_cqmom_prepared(without_policy);
-    const auto with_policy_case_result = qmomkit::config::parse_cqmom_prepared(with_policy);
-    assert(without_policy_case_result.ok());
-    assert(with_policy_case_result.ok());
-    const qmomkit::CqmomCoordinateSupport& expected = without_policy_case_result.value().coordinate_support();
-    const qmomkit::CqmomCoordinateSupport& actual = with_policy_case_result.value().coordinate_support();
+    const auto without_policy_cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(without_policy);
+    const auto with_policy_cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(with_policy);
+    assert(without_policy_cqmom_prepared_case_result.ok());
+    assert(with_policy_cqmom_prepared_case_result.ok());
+    const qmomkit::CqmomCoordinateSupport& expected = without_policy_cqmom_prepared_case_result.value().coordinate_support();
+    const qmomkit::CqmomCoordinateSupport& actual = with_policy_cqmom_prepared_case_result.value().coordinate_support();
     assert(actual.size() == expected.size());
     for (std::size_t dimension = 0; dimension < expected.size(); ++dimension)
     {
@@ -4146,22 +4147,21 @@ int main(const int argc, char** argv)
             {"qmom_automatic_scaling_is_owned_by_case_and_state", test_qmom_automatic_scaling_is_owned_by_case_and_state},
             {"cqmom_independent_product_initialization_matches_direct_api", test_cqmom_independent_product_initialization_matches_direct_api},
             {"cqmom_independent_product_mixture_marginal_initialization", test_cqmom_independent_product_mixture_marginal_initialization},
-            {"lean_cqmom_initialization_matches_example_flow", test_lean_cqmom_initialization_matches_example_flow},
-            {"lean_cqmom_initialization_omits_maximum_orders", test_lean_cqmom_initialization_omits_maximum_orders},
+            {"cqmom_initialization_matches_example_flow", test_cqmom_initialization_matches_example_flow},
+            {"cqmom_initialization_omits_maximum_orders", test_cqmom_initialization_omits_maximum_orders},
             {"cqmom_initialization_ignores_maximum_orders", test_cqmom_initialization_ignores_maximum_orders},
             {"cqmom_moment_tensor_initialization_requires_maximum_orders", test_cqmom_moment_tensor_initialization_requires_maximum_orders},
             {"cqmom_moment_initialization_rejects_one_dimensional_moments", test_cqmom_moment_initialization_rejects_one_dimensional_moments},
-            {"lean_cqmom_initialization_selects_explicit_dense_tensor", test_lean_cqmom_initialization_selects_explicit_dense_tensor},
-            {"cqmom_lean_case_selects_explicit_dense_tensor", test_cqmom_lean_case_selects_explicit_dense_tensor},
+            {"cqmom_initialization_selects_explicit_moment_tensor", test_cqmom_initialization_selects_explicit_moment_tensor},
+            {"cqmom_case_selects_explicit_moment_tensor", test_cqmom_case_selects_explicit_moment_tensor},
             {"cqmom_prepared_case_uses_selected_analytical_moments", test_cqmom_prepared_case_uses_selected_analytical_moments},
-            {"cqmom_prepared_case_accepts_explicit_dense_tensor", test_cqmom_prepared_case_accepts_explicit_dense_tensor},
+            {"cqmom_prepared_case_accepts_explicit_moment_tensor", test_cqmom_prepared_case_accepts_explicit_moment_tensor},
             {"cqmom_prepared_case_parses_coordinate_support", test_cqmom_prepared_case_parses_coordinate_support},
             {"cqmom_factories_preserve_coordinate_support", test_cqmom_factories_preserve_coordinate_support},
             {"cqmom_prepared_case_rejects_invalid_coordinate_support", test_cqmom_prepared_case_rejects_invalid_coordinate_support},
             {"cqmom_prepared_case_initial_state_preserves_case_settings", test_cqmom_prepared_case_initial_state_preserves_case_settings},
-            {"cqmom_prepared_case_replaces_lean_initial_moments_immutably", test_cqmom_prepared_case_replaces_lean_initial_moments_immutably},
-            {"cqmom_prepared_case_replaces_lean_initial_moments_from_moment_data",
-             test_cqmom_prepared_case_replaces_lean_initial_moments_from_moment_data},
+            {"cqmom_prepared_case_replaces_initial_moments_immutably", test_cqmom_prepared_case_replaces_initial_moments_immutably},
+            {"cqmom_prepared_case_replaces_initial_moments_from_moment_data", test_cqmom_prepared_case_replaces_initial_moments_from_moment_data},
             {"cqmom_prepared_case_moment_data_replacement_rejects_invalid_input",
              test_cqmom_prepared_case_moment_data_replacement_rejects_invalid_input},
             {"cqmom_prepared_case_moment_data_replacement_defers_realizability",

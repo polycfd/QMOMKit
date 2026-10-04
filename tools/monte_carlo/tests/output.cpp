@@ -271,9 +271,9 @@ void test_selected_tensor_history_writer_emits_requested_columns_only()
     std::filesystem::remove(path);
 }
 
-void test_lean_cqmom_history_writer_follows_required_layout()
+void test_cqmom_history_writer_follows_required_layout()
 {
-    const std::filesystem::path path = scratch_path("history_lean");
+    const std::filesystem::path path = scratch_path("history_layout");
     const qmomkit::PhaseSpaceHierarchy hierarchy({1, 1});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData moments{layout, std::vector<double>(layout.required_indices.size(), 1.5)};
@@ -352,7 +352,7 @@ int main(const int argc, char** argv)
             {"tensor_moment_text_uses_phase_space_multi_index_columns", test_tensor_moment_text_uses_phase_space_multi_index_columns},
             {"one_dimensional_history_writer_round_trips_values", test_one_dimensional_history_writer_round_trips_values},
             {"selected_tensor_history_writer_emits_requested_columns_only", test_selected_tensor_history_writer_emits_requested_columns_only},
-            {"lean_cqmom_history_writer_follows_required_layout", test_lean_cqmom_history_writer_follows_required_layout},
+            {"cqmom_history_writer_follows_required_layout", test_cqmom_history_writer_follows_required_layout},
             {"generalized_columns_are_appended_when_requested", test_generalized_columns_are_appended_when_requested},
         });
 }

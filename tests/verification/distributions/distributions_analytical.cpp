@@ -531,9 +531,9 @@ scale = 0.75
 
     // The conditioning order is phase-space configuration rather than moment
     // data, so it is checked on the parsed case rather than on the tensor.
-    const auto configured_case_result = qmomkit::config::parse_cqmom(configuration_text);
-    QMOMKIT_VERIFY_CHECK(configured_case_result.ok());
-    QMOMKIT_VERIFY_CHECK(configured_case_result.value().moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
+    const auto configured_cqmom_case_result = qmomkit::config::parse_cqmom(configuration_text);
+    QMOMKIT_VERIFY_CHECK(configured_cqmom_case_result.ok());
+    QMOMKIT_VERIFY_CHECK(configured_cqmom_case_result.value().moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({1, 0}));
 
     assert_tensor_values(configured.value(), extents, expected, 1.0e-12, 1.0e-12);
     assert_near_absolute_relative(configured.value().values[qmomkit::flatten_multi_index({0, 0}, extents)], number_density, 0.0, 0.0);

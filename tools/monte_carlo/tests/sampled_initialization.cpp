@@ -79,7 +79,7 @@ void check_close_relative(const double actual, const double expected, const doub
     CHECK_CLOSE_CONTEXT(actual, expected, 0.0, relative_tolerance, context);
 }
 
-void test_selected_initialization_matches_dense_tensor()
+void test_selected_initialization_matches_moment_tensor()
 {
     const qmomkit::IndependentProductDistribution product{
         {qmomkit::GammaDistribution{2.0, 0.5}, qmomkit::NormalDistribution{0.25, 0.75}, qmomkit::BetaDistribution{2.0, 5.0}}, 4.0};
@@ -199,7 +199,7 @@ int main(const int argc, char** argv)
             {"one_dimensional_distribution_density", test_one_dimensional_distribution_density},
             {"mixture_absolute_density", test_mixture_absolute_density},
             {"multidimensional_tensor_layout", test_multidimensional_tensor_layout},
-            {"selected_initialization_matches_dense_tensor", test_selected_initialization_matches_dense_tensor},
+            {"selected_initialization_matches_moment_tensor", test_selected_initialization_matches_moment_tensor},
             {"selected_initialization_error_propagation", test_selected_initialization_error_propagation},
             {"reproducibility", test_reproducibility},
             {"statistical_sanity_improves_with_sample_count", test_statistical_sanity_improves_with_sample_count},

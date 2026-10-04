@@ -121,7 +121,7 @@ reconstruction](cqmom_reconstruction.md).
 Evidence: [evolution tests](../../../tests/unit/phase_space_evolution.cpp)
 include `test_public_cqmom_advection_stage_preserves_topology`,
 `test_public_cqmom_moment_source_stage_growth_is_limited_to_one_node`,
-and `test_lean_cqmom_moment_source_stage_canonicalizes_adaptive_reduction`.
+and `test_public_cqmom_moment_source_stage_canonicalizes_adaptive_reduction`.
 Ancestor-collapse/growth tests check transition identity. These finite examples
 do not characterize topology chatter or accuracy across many
 collapse/reappearance cycles.

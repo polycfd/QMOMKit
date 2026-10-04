@@ -2911,15 +2911,15 @@ VerificationResult run_cqmom_phase_space_evolution_inversion_failures(const std:
         return verification;
     }
 
-    const auto configured_state_case_result = qmomkit::config::load_cqmom(configuration_path);
-    if (!configured_state_case_result.ok())
+    const auto configured_cqmom_case_result = qmomkit::config::load_cqmom(configuration_path);
+    if (!configured_cqmom_case_result.ok())
     {
-        print_configuration_errors(configured_state_case_result);
+        print_configuration_errors(configured_cqmom_case_result);
         append_failure(verification, "unable to load CQMOM phase-space evolution inversion-failure configuration as a CqmomCase.");
         return verification;
     }
 
-    qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(configured_state_case_result.value());
+    qmomkit::CqmomState state = qmomkit::internal::CqmomConstructionAccess::create_state(configured_cqmom_case_result.value());
     qmomkit::CqmomPhaseSpaceEvolutionOptions options = cqmom_state_options();
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
     const qmomkit::PhaseSpaceVelocity zero_velocity =

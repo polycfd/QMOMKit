@@ -14,7 +14,7 @@ qmomkit_register_test_case(cqmom_automatic_scaling_verification verification_cqm
 qmomkit_register_test_case(cqmom_automatic_scaling_verification verification_cqmom_automatic_scaling_feature_sensitive verification feature-sensitive)
 
 qmomkit_add_test_executable(moment_reconstruction_verification moment_reconstruction.cpp)
-foreach(case_name IN ITEMS qmom_dense cqmom_selected cqmom_required_layout failure_paths)
+foreach(case_name IN ITEMS qmom_all_orders cqmom_selected cqmom_required_layout failure_paths)
     qmomkit_register_test_case(moment_reconstruction_verification "verification_cqmom_moment_reconstruction_${case_name}" verification
         "${CMAKE_CURRENT_LIST_DIR}/independent_product.qmom;${case_name}")
 endforeach()

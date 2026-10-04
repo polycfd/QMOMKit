@@ -123,7 +123,7 @@ void assert_selected_matches_all_orders(const qmomkit::DistributionSpecification
     }
 }
 
-void test_selected_distribution_contiguous_orders_match_dense()
+void test_selected_distribution_contiguous_orders_match_all_orders()
 {
     const qmomkit::RawMomentRequest request{{{0}, {1}, {2}, {3}}};
     assert_selected_matches_all_orders(qmomkit::NormalDistribution{0.5, 1.25}, request, 2.0, 3, 1.0e-13);
@@ -135,7 +135,7 @@ void test_selected_distribution_contiguous_orders_match_dense()
     assert_selected_matches_all_orders(qmomkit::WeibullDistribution{1.5, 0.75}, request, 2.0, 3, 1.0e-13);
 }
 
-void test_selected_distribution_noncontiguous_orders_match_dense()
+void test_selected_distribution_noncontiguous_orders_match_all_orders()
 {
     const qmomkit::RawMomentRequest request{{{0}, {2}, {5}}};
     assert_selected_matches_all_orders(qmomkit::NormalDistribution{0.25, 0.75}, request, 1.5, 5, 1.0e-12);
@@ -147,7 +147,7 @@ void test_selected_distribution_noncontiguous_orders_match_dense()
     assert_selected_matches_all_orders(qmomkit::WeibullDistribution{2.0, 0.5}, request, 1.5, 5, 1.0e-12);
 }
 
-void test_selected_distribution_reordered_and_duplicate_orders_match_dense()
+void test_selected_distribution_reordered_and_duplicate_orders_match_all_orders()
 {
     const qmomkit::RawMomentRequest request{{{5}, {0}, {2}, {2}, {1}}};
     assert_selected_matches_all_orders(qmomkit::NormalDistribution{0.25, 0.75}, request, 1.25, 5, 1.0e-12);
@@ -159,7 +159,7 @@ void test_selected_distribution_reordered_and_duplicate_orders_match_dense()
     assert_selected_matches_all_orders(qmomkit::WeibullDistribution{2.0, 0.5}, request, 1.25, 5, 1.0e-12);
 }
 
-void test_selected_distribution_high_order_gaps_match_dense()
+void test_selected_distribution_high_order_gaps_match_all_orders()
 {
     const qmomkit::RawMomentRequest request{{{0}, {1}, {12}}};
     assert_selected_matches_all_orders(qmomkit::NormalDistribution{0.1, 0.5}, request, 1.0, 12, 1.0e-9);
@@ -509,13 +509,13 @@ void assert_selected_mixture_matches_all_orders(const qmomkit::DistributionMixtu
     }
 }
 
-void test_selected_one_component_mixture_matches_dense_subselection()
+void test_selected_one_component_mixture_matches_all_orders()
 {
     const qmomkit::DistributionMixture mixture{{{qmomkit::GammaDistribution{2.0, 3.0}, 4.0}}};
     assert_selected_mixture_matches_all_orders(mixture, {{{0}, {2}, {4}}}, 4, 1.0e-12);
 }
 
-void test_selected_heterogeneous_mixture_matches_dense_subselection()
+void test_selected_heterogeneous_mixture_matches_all_orders()
 {
     const qmomkit::DistributionMixture mixture{
         {{qmomkit::GammaDistribution{2.0, 3.0}, 2.0}, {qmomkit::BetaDistribution{2.0, 3.0}, 5.0}, {qmomkit::NormalDistribution{1.0, 0.5}, 1.5}}};
@@ -781,19 +781,19 @@ void assert_selected_product_matches_moment_tensor(const qmomkit::IndependentPro
     }
 }
 
-void test_selected_independent_product_one_dimensional_matches_dense()
+void test_selected_independent_product_one_dimensional_matches_moment_tensor()
 {
     const qmomkit::IndependentProductDistribution product{{qmomkit::GammaDistribution{1.5, 2.0}}, 2.5};
     assert_selected_product_matches_moment_tensor(product, {{{0}, {3}, {1}}}, {3}, 1.0e-12);
 }
 
-void test_selected_independent_product_two_dimensional_nonrectangular_matches_dense()
+void test_selected_independent_product_two_dimensional_nonrectangular_matches_moment_tensor()
 {
     const qmomkit::IndependentProductDistribution product{{qmomkit::NormalDistribution{2.0, 1.0}, qmomkit::GammaDistribution{1.0, 1.0}}, 3.0};
     assert_selected_product_matches_moment_tensor(product, {{{0, 0}, {2, 1}, {1, 3}}}, {2, 3}, 1.0e-12);
 }
 
-void test_selected_independent_product_mixture_marginal_matches_dense()
+void test_selected_independent_product_mixture_marginal_matches_moment_tensor()
 {
     const qmomkit::DistributionMixture mixture{
         {{qmomkit::LogNormalDistribution{-0.3, 0.25}, 1.5}, {qmomkit::LogNormalDistribution{0.4, 0.45}, 3.25}}};
@@ -802,7 +802,7 @@ void test_selected_independent_product_mixture_marginal_matches_dense()
     assert_selected_product_matches_moment_tensor(product, {{{1, 0}, {0, 1}, {1, 1}, {0, 2}}}, {1, 2}, 1.0e-12);
 }
 
-void test_selected_independent_product_three_dimensional_matches_dense()
+void test_selected_independent_product_three_dimensional_matches_moment_tensor()
 {
     const qmomkit::IndependentProductDistribution product{
         {qmomkit::NormalDistribution{1.0, 0.5}, qmomkit::BetaDistribution{2.0, 3.0}, qmomkit::ChiSquaredDistribution{4.0}}, 1.25};
@@ -944,11 +944,11 @@ int main(const int argc, char** argv)
             {"selected_raw_moment_result_preserves_duplicate_indices", test_selected_raw_moment_result_preserves_duplicate_indices},
             {"selected_raw_moment_empty_request_is_valid", test_selected_raw_moment_empty_request_is_valid},
             {"selected_raw_moment_invalid_requests", test_selected_raw_moment_invalid_requests},
-            {"selected_distribution_contiguous_orders_match_dense", test_selected_distribution_contiguous_orders_match_dense},
-            {"selected_distribution_noncontiguous_orders_match_dense", test_selected_distribution_noncontiguous_orders_match_dense},
-            {"selected_distribution_reordered_and_duplicate_orders_match_dense",
-             test_selected_distribution_reordered_and_duplicate_orders_match_dense},
-            {"selected_distribution_high_order_gaps_match_dense", test_selected_distribution_high_order_gaps_match_dense},
+            {"selected_distribution_contiguous_orders_match_all_orders", test_selected_distribution_contiguous_orders_match_all_orders},
+            {"selected_distribution_noncontiguous_orders_match_all_orders", test_selected_distribution_noncontiguous_orders_match_all_orders},
+            {"selected_distribution_reordered_and_duplicate_orders_match_all_orders",
+             test_selected_distribution_reordered_and_duplicate_orders_match_all_orders},
+            {"selected_distribution_high_order_gaps_match_all_orders", test_selected_distribution_high_order_gaps_match_all_orders},
             {"selected_distribution_zero_total_weight", test_selected_distribution_zero_total_weight},
             {"selected_distribution_invalid_request_rank", test_selected_distribution_invalid_request_rank},
             {"selected_distribution_overflow_and_underflow_failures", test_selected_distribution_overflow_and_underflow_failures},
@@ -972,8 +972,8 @@ int main(const int argc, char** argv)
             {"positive_component_failure_reports_index", test_positive_component_failure_reports_index},
             {"surrounded_positive_component_failure_reports_index", test_surrounded_positive_component_failure_reports_index},
             {"mixture_accumulation_overflow_reports_index", test_mixture_accumulation_overflow_reports_index},
-            {"selected_one_component_mixture_matches_dense_subselection", test_selected_one_component_mixture_matches_dense_subselection},
-            {"selected_heterogeneous_mixture_matches_dense_subselection", test_selected_heterogeneous_mixture_matches_dense_subselection},
+            {"selected_one_component_mixture_matches_all_orders", test_selected_one_component_mixture_matches_all_orders},
+            {"selected_heterogeneous_mixture_matches_all_orders", test_selected_heterogeneous_mixture_matches_all_orders},
             {"selected_mixture_preserves_reordered_and_duplicate_requests", test_selected_mixture_preserves_reordered_and_duplicate_requests},
             {"selected_mixture_zero_density_component_is_skipped", test_selected_mixture_zero_density_component_is_skipped},
             {"selected_mixture_empty_request_is_valid_for_valid_mixture", test_selected_mixture_empty_request_is_valid_for_valid_mixture},
@@ -993,11 +993,14 @@ int main(const int argc, char** argv)
             {"independent_product_tensor_size_overflow", test_independent_product_tensor_size_overflow},
             {"independent_product_row_major_flattening_spots", test_independent_product_row_major_flattening_spots},
             {"independent_product_mixture_marginal_is_normalized", test_independent_product_mixture_marginal_is_normalized},
-            {"selected_independent_product_one_dimensional_matches_dense", test_selected_independent_product_one_dimensional_matches_dense},
-            {"selected_independent_product_two_dimensional_nonrectangular_matches_dense",
-             test_selected_independent_product_two_dimensional_nonrectangular_matches_dense},
-            {"selected_independent_product_mixture_marginal_matches_dense", test_selected_independent_product_mixture_marginal_matches_dense},
-            {"selected_independent_product_three_dimensional_matches_dense", test_selected_independent_product_three_dimensional_matches_dense},
+            {"selected_independent_product_one_dimensional_matches_moment_tensor",
+             test_selected_independent_product_one_dimensional_matches_moment_tensor},
+            {"selected_independent_product_two_dimensional_nonrectangular_matches_moment_tensor",
+             test_selected_independent_product_two_dimensional_nonrectangular_matches_moment_tensor},
+            {"selected_independent_product_mixture_marginal_matches_moment_tensor",
+             test_selected_independent_product_mixture_marginal_matches_moment_tensor},
+            {"selected_independent_product_three_dimensional_matches_moment_tensor",
+             test_selected_independent_product_three_dimensional_matches_moment_tensor},
             {"selected_independent_product_preserves_reordered_and_duplicate_indices",
              test_selected_independent_product_preserves_reordered_and_duplicate_indices},
             {"selected_independent_product_zero_global_density_skips_marginals",

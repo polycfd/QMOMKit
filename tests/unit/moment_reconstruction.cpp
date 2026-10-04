@@ -295,7 +295,7 @@ void test_cqmom_selected_reconstruction_preserves_duplicate_requests()
     assert_vector_near(reconstructed.values, {moments[4], moments[4], moments[0]}, 1.0e-10);
 }
 
-void test_cqmom_dense_reconstruction_rejects_rank_mismatch()
+void test_cqmom_moment_tensor_reconstruction_rejects_rank_mismatch()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const std::vector<std::size_t> extents{4, 4};
@@ -513,7 +513,7 @@ int main(const int argc, char** argv)
              test_cqmom_generalized_moment_rejects_negative_abscissa_for_fractional_exponent},
             {"cqmom_reconstructs_selected_requested_moments", test_cqmom_reconstructs_selected_requested_moments},
             {"cqmom_selected_reconstruction_preserves_duplicate_requests", test_cqmom_selected_reconstruction_preserves_duplicate_requests},
-            {"cqmom_dense_reconstruction_rejects_rank_mismatch", test_cqmom_dense_reconstruction_rejects_rank_mismatch},
+            {"cqmom_moment_tensor_reconstruction_rejects_rank_mismatch", test_cqmom_moment_tensor_reconstruction_rejects_rank_mismatch},
             {"cqmom_selected_reconstruction_rejects_rank_mismatch", test_cqmom_selected_reconstruction_rejects_rank_mismatch},
             {"cqmom_moment_data_reconstructs_2d_required_moments", test_cqmom_moment_data_reconstructs_2d_required_moments},
             {"cqmom_moment_data_reconstructs_3d_required_moments", test_cqmom_moment_data_reconstructs_3d_required_moments},

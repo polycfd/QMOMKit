@@ -120,7 +120,7 @@ TestCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomMomentDa
         advance_cqmom_phase_space(state, t, time_step, velocity, source, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
     const CqmomState& result_state = result.ok() ? result.state : state;
     return TestCqmomPhaseSpaceEvolutionResult{CqmomMomentData{layout, result_state.moment_values()},
-                                              result.quadrature,
+                                              result.ok() ? std::optional<CqmomQuadrature>{result.state.quadrature()} : result.diagnostic_quadrature,
                                               result.status,
                                               result.diagnostics,
                                               result.final_time,
@@ -2007,10 +2007,10 @@ VerificationResult run_noncommuting_cqmom(const std::filesystem::path& configura
             const qmomkit::CqmomMomentData exact_required = qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{extents, exact}, layout);
             update_errors(summary.errors, state.moment_values(), exact_required.values);
             bool quadrature_successful = false;
-            if (result->quadrature.has_value())
+            if (result->ok())
             {
                 quadrature_successful = true;
-                const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result->quadrature, extents);
+                const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(result->state.quadrature(), extents);
                 update_errors(summary.errors, reconstructed.values, exact);
                 update_reconstruction_errors(summary.errors, reconstructed.values, exact);
                 summary.error_norm =
@@ -2134,9 +2134,9 @@ VerificationResult run_cqmom_boundary_contribution(const std::filesystem::path& 
     summary.final_time = result.final_time;
     summary.retry_count = result.diagnostics.moment_source_retries;
     summary.success = result.ok() && audit.passed && audit.invocation_count > 0 && cqmom_diagnostics_are_successful(result.diagnostics);
-    if (result.quadrature.has_value())
+    if (result.ok())
     {
-        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result.quadrature, extents);
+        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(result.state.quadrature(), extents);
         update_errors(summary.errors, reconstructed.values, exact);
         update_reconstruction_errors(summary.errors, reconstructed.values, exact);
         summary.error_norm = scaled_infinity_error(reconstructed.values, exact);
@@ -2245,9 +2245,9 @@ VerificationResult run_cqmom_combined_native_source(const std::filesystem::path&
                       result.diagnostics.moment_source_diagnostics.ssp_rk3_status == qmomkit::SspRk3Status::success &&
                       std::abs(result.diagnostics.moment_source_diagnostics.time_step_used - dt) <= 1.0e-14;
     const std::vector<double> exact = cqmom_combined_native_source_exact_values(initial_moments, dt);
-    if (result.quadrature.has_value())
+    if (result.ok())
     {
-        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result.quadrature, extents);
+        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(result.state.quadrature(), extents);
         update_errors(summary.errors, reconstructed.values, exact);
         update_reconstruction_errors(summary.errors, reconstructed.values, exact);
         summary.error_norm = scaled_infinity_error(reconstructed.values, exact);
@@ -2347,9 +2347,9 @@ VerificationResult run_cqmom_native_source(const std::filesystem::path& configur
     summary.retry_count = result.diagnostics.moment_source_retries;
     summary.success = result.ok() && audit.passed && audit.invocation_count > 0 && audit.checked_initial_context_values && diagnostics_successful;
     const std::vector<double> exact = cqmom_native_source_exact_values(initial_moments, dt);
-    if (result.quadrature.has_value())
+    if (result.ok())
     {
-        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result.quadrature, extents);
+        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(result.state.quadrature(), extents);
         update_errors(summary.errors, reconstructed.values, exact);
         update_reconstruction_errors(summary.errors, reconstructed.values, exact);
         summary.error_norm = scaled_infinity_error(reconstructed.values, exact);
@@ -2473,21 +2473,21 @@ void verify_cqmom_rk23_minimum_step_acceptance_result(const qmomkit::CqmomPhaseS
     {
         append_failure(verification, "CQMOM RK23 minimum-step case returned invalid active branch counts.");
     }
-    if (!result.quadrature.has_value())
+    if (!result.ok())
     {
         append_failure(verification, "CQMOM RK23 minimum-step case did not retain final quadrature.");
     }
     else
     {
-        if (!cqmom_quadrature_values_are_finite(*result.quadrature))
+        if (!cqmom_quadrature_values_are_finite(result.state.quadrature()))
         {
             append_failure(verification, "CQMOM RK23 minimum-step case returned a non-finite final terminal node or weight.");
         }
-        if (!cqmom_quadrature_topology_is_consistent(*result.quadrature))
+        if (!cqmom_quadrature_topology_is_consistent(result.state.quadrature()))
         {
             append_failure(verification, "CQMOM RK23 minimum-step case returned inconsistent final quadrature topology.");
         }
-        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result.quadrature, exact.extents);
+        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(result.state.quadrature(), exact.extents);
         if (scaled_infinity_error(reconstructed.values, exact.values) > 3.0e-6)
         {
             append_failure(verification, "CQMOM RK23 minimum-step case final quadrature exceeded the analytical advection-reference tolerance.");
@@ -3267,24 +3267,24 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
     summary.retry_count = retry_count;
     summary.success = result.has_value() && result->ok() && diagnostics_successful;
     const std::vector<double> exact = cqmom_advection_exact_values(initial_moments, elapsed);
-    if (result->quadrature.has_value())
+    if (result->ok())
     {
-        if (!result->quadrature->adaptive_branch_counts_enabled() || result->quadrature->has_rectangular_storage())
+        if (!result->state.quadrature().adaptive_branch_counts_enabled() || result->state.quadrature().has_rectangular_storage())
         {
             summary.success = false;
             append_failure(verification, "final adaptive CQMOM state quadrature did not preserve ragged adaptive storage.");
         }
-        if (result->quadrature->total_nodes() > cqmom_prepared_case.hierarchy().total_nodes())
+        if (result->state.quadrature().total_nodes() > cqmom_prepared_case.hierarchy().total_nodes())
         {
             summary.success = false;
             append_failure(verification, "final adaptive CQMOM state quadrature exceeded configured maximum node capacity.");
         }
-        if (result->quadrature->terminal_paths().size() != result->quadrature->weights().size())
+        if (result->state.quadrature().terminal_paths().size() != result->state.quadrature().weights().size())
         {
             summary.success = false;
             append_failure(verification, "final adaptive CQMOM state quadrature did not provide one terminal path per node.");
         }
-        const qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(*result->quadrature, layout);
+        const qmomkit::CqmomMomentData reconstructed = qmomkit::reconstruct_cqmom_moments(result->state.quadrature(), layout);
         update_errors(summary.errors, reconstructed.values, exact);
         update_reconstruction_errors(summary.errors, reconstructed.values, exact);
         summary.error_norm = scaled_infinity_error(reconstructed.values, exact);
@@ -3391,7 +3391,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     {
         append_failure(verification, "automatic-scaling CQMOM evolution did not complete all physical reconstruction stages.");
     }
-    if (!result.quadrature.has_value())
+    if (!result.ok())
     {
         append_failure(verification, "automatic-scaling CQMOM evolution did not retain a final quadrature.");
         summary.success = false;
@@ -3399,7 +3399,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
         return verification;
     }
 
-    const qmomkit::CqmomQuadrature& quadrature = *result.quadrature;
+    const qmomkit::CqmomQuadrature& quadrature = result.state.quadrature();
     if (quadrature.has_rectangular_storage() || !quadrature.adaptive_branch_counts_enabled() || quadrature.total_nodes() != initial_weights.size())
     {
         append_failure(verification, "automatic-scaling CQMOM evolution did not preserve the expected ragged topology.");

@@ -150,7 +150,12 @@ struct QmomPhaseSpaceEvolutionResult
 struct CqmomPhaseSpaceEvolutionResult
 {
     CqmomState state;
-    std::optional<CqmomQuadrature> quadrature;
+    // Empty on success, where the accepted quadrature is `state.quadrature()`.
+    // On failure it holds, when available, the quadrature the failing stage
+    // produced or started from: the failed inversion candidate, the advected
+    // quadrature whose moments could not be reconstructed, or the stage input.
+    // It is diagnostic only and is not the returned state's quadrature.
+    std::optional<CqmomQuadrature> diagnostic_quadrature;
     PhaseSpaceEvolutionStatus status = PhaseSpaceEvolutionStatus::success;
     PhaseSpaceEvolutionDiagnostics diagnostics;
     // Time of the returned state: `t + time_step` on success. On failure the

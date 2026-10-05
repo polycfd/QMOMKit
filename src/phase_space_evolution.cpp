@@ -876,10 +876,9 @@ struct CqmomPhaseSpaceEvolutionWorkingState
         throw std::logic_error("Successful CQMOM phase-space evolution state has no accepted quadrature cache.");
     }
 
-    CqmomQuadrature public_quadrature = *accepted_quadrature;
     finalize_diagnostics(outcome.diagnostics);
-    return CqmomPhaseSpaceEvolutionResult{std::move(outcome.state),       std::move(public_quadrature), PhaseSpaceEvolutionStatus::success,
-                                          std::move(outcome.diagnostics), outcome.final_time,           ""};
+    return CqmomPhaseSpaceEvolutionResult{std::move(outcome.state),       std::nullopt,       PhaseSpaceEvolutionStatus::success,
+                                          std::move(outcome.diagnostics), outcome.final_time, ""};
 }
 
 [[nodiscard]] CqmomState cqmom_state_from_accepted_quadrature(const CqmomCase& base_cqmom_case, CqmomMomentData moments,

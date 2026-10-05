@@ -131,7 +131,7 @@ int main()
             const double current_step = std::min(time_step, final_time - time);
             const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
                 qmomkit::advance_cqmom_phase_space(state, time, current_step, particle_velocity(), source, evolution_options);
-            if (!phase_space_evolved.ok() || !phase_space_evolved.quadrature.has_value())
+            if (!phase_space_evolved.ok())
             {
                 std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
                 return 1;
@@ -142,7 +142,7 @@ int main()
                 return 1;
             }
             state = phase_space_evolved.state;
-            quadrature = *phase_space_evolved.quadrature;
+            quadrature = phase_space_evolved.state.quadrature();
 
             qmomkit::monte_carlo::EnsembleEvolutionResult first_advection =
                 qmomkit::monte_carlo::evolve_ensemble(ensemble, particle_velocity(), time, time + 0.5 * current_step, mc_advection_options);

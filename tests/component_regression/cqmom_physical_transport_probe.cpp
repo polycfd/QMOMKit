@@ -369,15 +369,15 @@ void run_captured_physical_regression()
     const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
         qmomkit::advance_cqmom_phase_space(state, 23.022499999999706, 0.0025, zero_velocity, zero_source, options);
     QMOMKIT_VERIFY_CHECK(phase_space_evolved.ok());
-    QMOMKIT_VERIFY_CHECK(phase_space_evolved.quadrature.has_value());
-    QMOMKIT_VERIFY_CHECK(phase_space_evolved.quadrature->total_nodes() == 4);
+    QMOMKIT_VERIFY_CHECK(!phase_space_evolved.diagnostic_quadrature.has_value());
+    QMOMKIT_VERIFY_CHECK(phase_space_evolved.state.quadrature().total_nodes() == 4);
     QMOMKIT_VERIFY_CHECK(active_count_present(phase_space_evolved.state.active_branch_counts(), expected_path, 1));
 
     const qmomkit::CqmomPhaseSpaceEvolutionResult second =
         qmomkit::advance_cqmom_phase_space(phase_space_evolved.state, phase_space_evolved.final_time, 0.0025, zero_velocity, zero_source, options);
     QMOMKIT_VERIFY_CHECK(second.ok());
-    QMOMKIT_VERIFY_CHECK(second.quadrature.has_value());
-    QMOMKIT_VERIFY_CHECK(second.quadrature->terminal_paths() == phase_space_evolved.quadrature->terminal_paths());
+    QMOMKIT_VERIFY_CHECK(!second.diagnostic_quadrature.has_value());
+    QMOMKIT_VERIFY_CHECK(second.state.quadrature().terminal_paths() == phase_space_evolved.state.quadrature().terminal_paths());
     QMOMKIT_VERIFY_CHECK(active_count_present(second.state.active_branch_counts(), expected_path, 1));
 }
 

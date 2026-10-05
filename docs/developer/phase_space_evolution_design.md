@@ -654,9 +654,9 @@ quadrature cache for the next CQMOM stage. A stage starting from a fresh
 before applying the requested operation. A stage starting from a previously
 accepted CQMOM phase-space evolution state reuses the cached accepted
 quadrature rather than reinverting its stored moments. The cache is an
-implementation detail: public callers pass `CqmomState` objects between stages
-and inspect the `CqmomPhaseSpaceEvolutionResult::quadrature` value when they
-need the accepted or diagnostic quadrature.
+implementation detail: public callers pass `CqmomState` objects between stages,
+read the accepted quadrature from the returned state, and read
+`CqmomPhaseSpaceEvolutionResult::diagnostic_quadrature` only after a failure.
 
 ### Strang splitting
 

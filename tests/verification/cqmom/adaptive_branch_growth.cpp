@@ -140,25 +140,25 @@ void verify_adaptive_branch_reinjection()
 
     const qmomkit::CqmomPhaseSpaceEvolutionResult result = qmomkit::advance_cqmom_moment_source(initial_state, 0.0, 1.0, source);
     QMOMKIT_VERIFY_CHECK(result.ok());
-    QMOMKIT_VERIFY_CHECK(result.quadrature.has_value());
-    QMOMKIT_VERIFY_CHECK(result.quadrature->total_nodes() == 3);
+    QMOMKIT_VERIFY_CHECK(!result.diagnostic_quadrature.has_value());
+    QMOMKIT_VERIFY_CHECK(result.state.quadrature().total_nodes() == 3);
     const std::vector<qmomkit::ConditioningPath> expected_paths{qmomkit::ConditioningPath{{0, 0}}, qmomkit::ConditioningPath{{1, 0}},
                                                                 qmomkit::ConditioningPath{{1, 1}}};
-    QMOMKIT_VERIFY_CHECK(result.quadrature->terminal_paths().to_conditioning_paths() == expected_paths);
+    QMOMKIT_VERIFY_CHECK(result.state.quadrature().terminal_paths().to_conditioning_paths() == expected_paths);
     QMOMKIT_VERIFY_CHECK(has_active_count(result.state.active_branch_counts(), 0, {}, 2));
     QMOMKIT_VERIFY_CHECK(has_active_count(result.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 1));
     QMOMKIT_VERIFY_CHECK(has_active_count(result.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 2));
     QMOMKIT_VERIFY_CHECK(has_growth_transition(result.diagnostics.cqmom_node_count_transitions));
 
-    const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(*result.quadrature, expected.extents);
+    const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(result.state.quadrature(), expected.extents);
     QMOMKIT_VERIFY_CHECK(reconstructed.values.size() == expected.values.size());
     for (std::size_t flat = 0; flat < expected.values.size(); ++flat)
     {
         QMOMKIT_VERIFY_NEAR(reconstructed.values[flat], expected.values[flat], tolerance);
     }
 
-    const std::vector<double>& weights = result.quadrature->weights();
-    const std::vector<std::vector<double>>& abscissas = result.quadrature->abscissas();
+    const std::vector<double>& weights = result.state.quadrature().weights();
+    const std::vector<std::vector<double>>& abscissas = result.state.quadrature().abscissas();
     QMOMKIT_VERIFY_NEAR(weights[0], 0.2, tolerance);
     QMOMKIT_VERIFY_NEAR(weights[1], 0.3, tolerance);
     QMOMKIT_VERIFY_NEAR(weights[2], 0.5, tolerance);

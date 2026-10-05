@@ -20,6 +20,16 @@ public mathematical condition that failed, such as negative `m0`, a Hankel
 matrix failure, a Stieltjes shifted-matrix failure, or a Hausdorff localizing
 matrix failure.
 
+Further cases follow from two standard facts: `n` points inside the support
+are strictly realizable up to order `2n - 1` and on the boundary from order
+`2n` on, and a point at an end of the support puts the sequence on the
+boundary once the localizing matrix for that end is larger than the number of
+the other points. They are checked on every support, on the intervals `[-1, 2]` and
+`[2, 5]` as well as `[0, 1]`, and for points shifted to centres 2 and 10, which
+must keep their classification. On an interval, a variance above the
+Bhatia-Davis bound `(b - mean)(mean - a)` must be rejected and one below it
+accepted.
+
 Boundary and near-boundary cases verify tolerance behavior. The zero measure
 is reported as boundary-realizable with a `zero_measure` diagnostic. Small
 positive and negative variance perturbations under a loose absolute tolerance

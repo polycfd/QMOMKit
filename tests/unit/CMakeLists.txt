@@ -6,6 +6,7 @@ set(unit_test_sources
     bjorck_pereyra.cpp
     householder_qr.cpp
     jacobi_svd.cpp
+    linear_algebra.cpp
     vandermonde.cpp
     public_api.cpp
     configuration.cpp

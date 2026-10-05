@@ -209,8 +209,10 @@ not a cyclic sweep of all pairs.
 Finally sort diagonal values ascending and permute eigenvector columns with
 them. Square, symmetric, finite matrices and sensible options are upstream
 assumptions; no residual or convergence flag is returned. The two callers use
-different temporary scaling and iteration budgets. Wheeler and realizability
-tests exercise eigenpairs for selected inputs; the kernel does not expose an
+different temporary scaling and iteration budgets. `tests/unit/linear_algebra.cpp`
+checks the kernel directly against closed-form 2 x 2 and Gauss-Legendre
+eigenpairs, with residual and orthogonality bounds; Wheeler and realizability
+tests exercise it through their callers. The kernel does not expose an
 independent convergence result.
 
 ## B/C — supporting helpers

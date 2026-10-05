@@ -423,7 +423,14 @@ output or policy settings.
 
 Configuration validation should not silently reinterpret invalid input. A new
 key or section must either be documented, parsed, validated, and tested, or be
-reported as unknown.
+reported as unknown. Indexed sections are read through their canonical index,
+`0` rather than `00`, and every section and key under an indexed prefix such as
+`initial.mixture.component.` must belong to an indexed section the selected
+initialization reads; anything else is reported as unknown. Realizability
+settings are formulation-specific: QMOM parsers read only the unnumbered policy
+and CQMOM parsers only the per-coordinate policies, and each reports the other.
+Numbers are parsed as plain decimal in the classic locale, independently of
+the host application's locale.
 
 Explicit moment initialization is the intentional precedence rule. When
 explicit moments are provided, they are the source of truth for the initialized

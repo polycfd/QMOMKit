@@ -5,11 +5,14 @@
 #include "internal/cqmom_validation.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <locale>
 #include <map>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -32,12 +35,38 @@ struct ParsedFile
     std::map<std::string, Entry> sections;
     std::map<std::string, std::vector<std::size_t>> section_lines;
     std::vector<ConfigurationError> errors;
+    // Indexed sections such as "initial.mixture.component.0" that an
+    // initialization parser read. Any other section or key under an indexed
+    // prefix is unknown.
+    std::set<std::string> consumed_indexed_sections;
 };
 
 constexpr std::string_view mixture_component_section_prefix = "initial.mixture.component.";
 constexpr std::string_view independent_product_dimension_section_prefix = "initial.dimension.";
 constexpr std::string_view realizability_section = "time_integration.realizability";
 constexpr std::string_view realizability_key_prefix = "time_integration.realizability.";
+
+// The realizability settings a parser accepts. QMOM reads the unnumbered
+// "[time_integration.realizability]" policy and CQMOM the per-coordinate
+// "[time_integration.realizability.N]" policies; each rejects the other's, which
+// would otherwise be accepted and have no effect. Parsers that read neither,
+// such as the splitting-scheme parser, accept both.
+enum class RealizabilitySettings
+{
+    qmom,
+    cqmom,
+    any
+};
+
+bool accepts_unnumbered_realizability(const RealizabilitySettings settings)
+{
+    return settings != RealizabilitySettings::cqmom;
+}
+
+bool accepts_coordinate_realizability(const RealizabilitySettings settings)
+{
+    return settings != RealizabilitySettings::qmom;
+}
 constexpr std::string_view phase_space_evolution_scheme_key = "time_integration.scheme";
 constexpr std::string_view node_advection_section = "time_integration.node_advection";
 constexpr std::string_view node_advection_key_prefix = "time_integration.node_advection.";
@@ -81,13 +110,22 @@ bool parse_size(const std::string& text, std::size_t& value)
     return result.ec == std::errc() && result.ptr == last;
 }
 
+// An index in a section or key name is accepted only in the canonical decimal
+// form that std::to_string writes, "1" rather than "01": indexed sections are
+// looked up by that form, so any other spelling would name a section that
+// nothing reads.
+bool parse_index(const std::string& text, std::size_t& index)
+{
+    return parse_size(text, index) && std::to_string(index) == text;
+}
+
 bool parse_coordinate_realizability_section(const std::string& section, std::size_t& coordinate)
 {
     if (section.rfind(std::string(realizability_key_prefix), 0) != 0)
     {
         return false;
     }
-    return parse_size(section.substr(realizability_key_prefix.size()), coordinate);
+    return parse_index(section.substr(realizability_key_prefix.size()), coordinate);
 }
 
 bool is_coordinate_realizability_key(const std::string& key)
@@ -102,7 +140,7 @@ bool is_coordinate_realizability_key(const std::string& key)
         return false;
     }
     std::size_t coordinate = 0;
-    return parse_size(key.substr(realizability_key_prefix.size(), coordinate_end - realizability_key_prefix.size()), coordinate);
+    return parse_index(key.substr(realizability_key_prefix.size(), coordinate_end - realizability_key_prefix.size()), coordinate);
 }
 
 bool is_configured_coordinate_realizability_key(const ParsedFile& parsed, const std::string& key)
@@ -115,18 +153,74 @@ bool is_configured_coordinate_realizability_key(const ParsedFile& parsed, const 
     return parsed.sections.find(key.substr(0, coordinate_end)) != parsed.sections.end();
 }
 
-bool parse_double(const std::string& text, double& value)
+// Configuration numbers are plain decimal: an optional sign, digits with an
+// optional fraction, and an optional exponent. Checking this form first keeps
+// the accepted syntax the same on every standard library.
+bool is_decimal_number(const std::string& text)
 {
-    try
+    const auto is_digit = [](const char character) { return std::isdigit(static_cast<unsigned char>(character)) != 0; };
+    std::size_t position = 0;
+    if (position < text.size() && (text[position] == '+' || text[position] == '-'))
     {
-        std::size_t consumed = 0;
-        value = std::stod(text, &consumed);
-        return consumed == text.size() && std::isfinite(value);
+        ++position;
     }
-    catch (const std::exception&)
+    std::size_t mantissa_digits = 0;
+    while (position < text.size() && is_digit(text[position]))
+    {
+        ++position;
+        ++mantissa_digits;
+    }
+    if (position < text.size() && text[position] == '.')
+    {
+        ++position;
+        while (position < text.size() && is_digit(text[position]))
+        {
+            ++position;
+            ++mantissa_digits;
+        }
+    }
+    if (mantissa_digits == 0)
     {
         return false;
     }
+    if (position < text.size() && (text[position] == 'e' || text[position] == 'E'))
+    {
+        ++position;
+        if (position < text.size() && (text[position] == '+' || text[position] == '-'))
+        {
+            ++position;
+        }
+        std::size_t exponent_digits = 0;
+        while (position < text.size() && is_digit(text[position]))
+        {
+            ++position;
+            ++exponent_digits;
+        }
+        if (exponent_digits == 0)
+        {
+            return false;
+        }
+    }
+    return position == text.size();
+}
+
+// Parsed in the classic "C" locale, so the locale of a host application, which
+// may use a decimal comma, cannot change how a configuration file is read.
+// Values that overflow or fall below the normal range are rejected.
+bool parse_double(const std::string& text, double& value)
+{
+    if (!is_decimal_number(text))
+    {
+        return false;
+    }
+    std::istringstream stream(text);
+    stream.imbue(std::locale::classic());
+    stream >> value;
+    if (stream.fail() || stream.peek() != std::char_traits<char>::eof() || !std::isfinite(value))
+    {
+        return false;
+    }
+    return value == 0.0 || std::abs(value) >= std::numeric_limits<double>::min();
 }
 
 bool parse_size_list(const Entry& entry, std::vector<std::size_t>& values)
@@ -238,7 +332,7 @@ bool is_mixture_component_section(const std::string& section, const std::string&
         return false;
     }
     std::size_t component = 0;
-    return parse_size(section.substr(prefix.size()), component);
+    return parse_index(section.substr(prefix.size()), component);
 }
 
 bool is_independent_product_dimension_section(const std::string& section)
@@ -248,7 +342,7 @@ bool is_independent_product_dimension_section(const std::string& section)
         return false;
     }
     std::size_t dimension = 0;
-    return parse_size(section.substr(independent_product_dimension_section_prefix.size()), dimension);
+    return parse_index(section.substr(independent_product_dimension_section_prefix.size()), dimension);
 }
 
 ParsedFile parse_file(const std::string_view text, const std::string& source_name)
@@ -318,6 +412,12 @@ ParsedFile parse_file(const std::string_view text, const std::string& source_nam
             }
             continue;
         }
+        if (section == "moments" && key.rfind("M[", 0) == 0)
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, line_number,
+                      "Invalid moment index '" + key + "': indices must be comma-separated non-negative integers.");
+            continue;
+        }
 
         const std::string qualified_key = section.empty() ? key : section + "." + key;
         if (!parsed.scalars.emplace(qualified_key, Entry{value, line_number}).second)
@@ -350,12 +450,13 @@ const Entry* find_entry(const ParsedFile& parsed, const std::string& key)
 }
 
 void reject_unknown_keys(ParsedFile& parsed, const std::vector<std::string>& allowed, const std::vector<std::string>& allowed_prefixes,
-                         const std::string& source_name)
+                         const RealizabilitySettings realizability, const std::string& source_name)
 {
     for (const auto& item : parsed.scalars)
     {
         bool allowed_key = std::find(allowed.begin(), allowed.end(), item.first) != allowed.end();
-        allowed_key = allowed_key || is_configured_coordinate_realizability_key(parsed, item.first);
+        allowed_key =
+            allowed_key || (accepts_coordinate_realizability(realizability) && is_configured_coordinate_realizability_key(parsed, item.first));
         for (const std::string& prefix : allowed_prefixes)
         {
             allowed_key = allowed_key || item.first.rfind(prefix, 0) == 0;
@@ -368,13 +469,14 @@ void reject_unknown_keys(ParsedFile& parsed, const std::vector<std::string>& all
 }
 
 void reject_unknown_sections(ParsedFile& parsed, const std::vector<std::string>& allowed, const std::vector<std::string>& allowed_prefixes,
-                             const std::string& source_name)
+                             const RealizabilitySettings realizability, const std::string& source_name)
 {
     for (const auto& item : parsed.sections)
     {
         bool allowed_section = std::find(allowed.begin(), allowed.end(), item.first) != allowed.end();
         std::size_t coordinate = 0;
-        allowed_section = allowed_section || parse_coordinate_realizability_section(item.first, coordinate);
+        allowed_section =
+            allowed_section || (accepts_coordinate_realizability(realizability) && parse_coordinate_realizability_section(item.first, coordinate));
         for (const std::string& prefix : allowed_prefixes)
         {
             allowed_section = allowed_section || item.first.rfind(prefix, 0) == 0;
@@ -764,7 +866,7 @@ std::vector<std::string> qmom_allowed_keys()
             "initial.degrees_of_freedom"};
 }
 
-void append_time_integration_allowed_keys(std::vector<std::string>& allowed)
+void append_time_integration_allowed_keys(std::vector<std::string>& allowed, const RealizabilitySettings realizability)
 {
     allowed.push_back(std::string(phase_space_evolution_scheme_key));
     allowed.push_back(std::string(node_advection_scheme_key));
@@ -774,6 +876,10 @@ void append_time_integration_allowed_keys(std::vector<std::string>& allowed)
     allowed.push_back(std::string(adaptive_max_step_key));
     allowed.push_back(std::string(adaptive_min_step_key));
     allowed.push_back(std::string(adaptive_max_steps_key));
+    if (!accepts_unnumbered_realizability(realizability))
+    {
+        return;
+    }
     allowed.push_back("time_integration.realizability.check_mode");
     allowed.push_back("time_integration.realizability.accept_boundary");
     allowed.push_back("time_integration.realizability.support");
@@ -792,29 +898,34 @@ void append_output_allowed_keys(std::vector<std::string>& allowed)
     allowed.push_back("output.generalized_moments");
 }
 
-std::vector<std::string> with_runtime_allowed_keys(std::vector<std::string> allowed)
+std::vector<std::string> with_runtime_allowed_keys(std::vector<std::string> allowed, const RealizabilitySettings realizability)
 {
-    append_time_integration_allowed_keys(allowed);
+    append_time_integration_allowed_keys(allowed, realizability);
     append_output_allowed_keys(allowed);
     return allowed;
 }
 
-std::vector<std::string> time_integration_sections()
+std::vector<std::string> time_integration_sections(const RealizabilitySettings realizability)
 {
-    return {"time_integration", "time_integration.realizability", "time_integration.node_advection", "time_integration.node_advection.adaptive"};
+    std::vector<std::string> sections{"time_integration", "time_integration.node_advection", "time_integration.node_advection.adaptive"};
+    if (accepts_unnumbered_realizability(realizability))
+    {
+        sections.emplace_back(realizability_section);
+    }
+    return sections;
 }
 
 void reject_unknown_qmom_sections(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
 {
     std::vector<std::string> allowed = {"phase_space", "moments", "qmom", "initial", "output"};
-    const std::vector<std::string> time_sections = time_integration_sections();
+    const std::vector<std::string> time_sections = time_integration_sections(RealizabilitySettings::qmom);
     allowed.insert(allowed.end(), time_sections.begin(), time_sections.end());
     if (explicit_moments)
     {
-        reject_unknown_sections(parsed, allowed, {"initial."}, source_name);
+        reject_unknown_sections(parsed, allowed, {"initial."}, RealizabilitySettings::qmom, source_name);
         return;
     }
-    reject_unknown_sections(parsed, allowed, {std::string(mixture_component_section_prefix)}, source_name);
+    reject_unknown_sections(parsed, allowed, {std::string(mixture_component_section_prefix)}, RealizabilitySettings::qmom, source_name);
 }
 
 void reject_unknown_qmom_keys(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
@@ -824,11 +935,13 @@ void reject_unknown_qmom_keys(ParsedFile& parsed, const bool explicit_moments, c
         reject_unknown_keys(
             parsed,
             with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.automatic_scaling",
-                                       "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive", "moments.values"}),
-            {"initial."}, source_name);
+                                       "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive", "moments.values"},
+                                      RealizabilitySettings::qmom),
+            {"initial."}, RealizabilitySettings::qmom, source_name);
         return;
     }
-    reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_allowed_keys()), {std::string(mixture_component_section_prefix)}, source_name);
+    reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_allowed_keys(), RealizabilitySettings::qmom),
+                        {std::string(mixture_component_section_prefix)}, RealizabilitySettings::qmom, source_name);
 }
 
 // Rejects a re-declared indexed section (e.g. "initial.dimension.N" or
@@ -841,6 +954,35 @@ void reject_duplicate_indexed_section(ParsedFile& parsed, const std::string& sec
     if (lines != parsed.section_lines.end() && lines->second.size() > 1)
     {
         add_error(parsed, ConfigurationErrorCode::duplicate_entry, source_name, lines->second[1], "Duplicate section '" + section + "'.");
+    }
+}
+
+// Reports every section and key under an indexed prefix, such as
+// "initial.mixture.component.", that does not belong to an indexed section the
+// initialization actually read: a section for another initialization type, an
+// index without a section of its own, or an index that is not canonical. A key
+// belongs to the section that is its direct parent, so
+// "initial.dimension.0.mixture.component.7.mean" needs component 7 itself.
+void reject_unconsumed_indexed_entries(ParsedFile& parsed, const std::string& indexed_prefix, const std::string& source_name)
+{
+    for (const auto& item : parsed.sections)
+    {
+        if (item.first.rfind(indexed_prefix, 0) == 0 && parsed.consumed_indexed_sections.count(item.first) == 0)
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
+        }
+    }
+    for (const auto& item : parsed.scalars)
+    {
+        if (item.first.rfind(indexed_prefix, 0) != 0)
+        {
+            continue;
+        }
+        const std::string parent = item.first.substr(0, item.first.rfind('.'));
+        if (parsed.consumed_indexed_sections.count(parent) == 0)
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
+        }
     }
 }
 
@@ -881,6 +1023,7 @@ std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::
         }
 
         const std::string prefix = component_section_prefix + std::to_string(item.first);
+        parsed.consumed_indexed_sections.insert(prefix);
         for (const auto& scalar : parsed.scalars)
         {
             if (scalar.first.rfind(prefix + ".", 0) == 0 && !component_key_allowed(scalar.first, prefix))
@@ -930,7 +1073,8 @@ std::vector<std::string> cqmom_explicit_allowed_keys()
     return with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.conditioning_order",
                                       "phase_space.adaptive_branch_counts", "phase_space.automatic_scaling", "phase_space.support_lower",
                                       "phase_space.support_upper", "qmom.adaptive", "cqmom.diagnostic_level", "vandermonde.solver",
-                                      "vandermonde.rcond", "moments.extents"});
+                                      "vandermonde.rcond", "moments.extents"},
+                                     RealizabilitySettings::cqmom);
 }
 
 std::vector<std::string> cqmom_initial_allowed_keys()
@@ -945,24 +1089,25 @@ std::vector<std::string> cqmom_initial_allowed_keys()
 void reject_unknown_cqmom_sections(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
 {
     std::vector<std::string> allowed = {"phase_space", "moments", "qmom", "cqmom", "vandermonde", "initial", "output"};
-    const std::vector<std::string> time_sections = time_integration_sections();
+    const std::vector<std::string> time_sections = time_integration_sections(RealizabilitySettings::cqmom);
     allowed.insert(allowed.end(), time_sections.begin(), time_sections.end());
     if (explicit_moments)
     {
-        reject_unknown_sections(parsed, allowed, {"initial."}, source_name);
+        reject_unknown_sections(parsed, allowed, {"initial."}, RealizabilitySettings::cqmom, source_name);
         return;
     }
-    reject_unknown_sections(parsed, allowed, {std::string(independent_product_dimension_section_prefix)}, source_name);
+    reject_unknown_sections(parsed, allowed, {std::string(independent_product_dimension_section_prefix)}, RealizabilitySettings::cqmom, source_name);
 }
 
 void reject_unknown_cqmom_keys(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
 {
     if (explicit_moments)
     {
-        reject_unknown_keys(parsed, cqmom_explicit_allowed_keys(), {"initial."}, source_name);
+        reject_unknown_keys(parsed, cqmom_explicit_allowed_keys(), {"initial."}, RealizabilitySettings::cqmom, source_name);
         return;
     }
-    reject_unknown_keys(parsed, cqmom_initial_allowed_keys(), {std::string(independent_product_dimension_section_prefix)}, source_name);
+    reject_unknown_keys(parsed, cqmom_initial_allowed_keys(), {std::string(independent_product_dimension_section_prefix)},
+                        RealizabilitySettings::cqmom, source_name);
 }
 
 std::optional<IndependentProductDistribution> parse_independent_product(ParsedFile& parsed, const std::string& source_name)
@@ -1009,6 +1154,7 @@ std::optional<IndependentProductDistribution> parse_independent_product(ParsedFi
         }
 
         const std::string prefix = std::string(independent_product_dimension_section_prefix) + std::to_string(item.first);
+        parsed.consumed_indexed_sections.insert(prefix);
         for (const auto& scalar : parsed.scalars)
         {
             if (scalar.first.rfind(prefix + ".", 0) == 0 && !marginal_key_allowed(scalar.first, prefix))
@@ -1092,7 +1238,7 @@ std::optional<RawMomentTensor> parse_explicit_tensor(ParsedFile& parsed, const s
         if (item.first.size() != extents.size())
         {
             add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, item.second.line,
-                      "Moment index rank does not match the number of phase-space dimensions.");
+                      "Moment index rank does not match the number of entries in moments.extents.");
             continue;
         }
         bool in_range = true;
@@ -1598,7 +1744,19 @@ std::vector<std::optional<RealizabilityPolicy>> parse_coordinate_realizability_p
         {
             if (policies.size() < *required_size)
             {
-                policies.resize(*required_size);
+                // The policy vector is indexed by coordinate, so an index far
+                // beyond any phase-space rank would need an impossible allocation.
+                try
+                {
+                    policies.resize(*required_size);
+                }
+                catch (const std::exception&)
+                {
+                    const auto section = parsed.sections.find(item.second);
+                    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, section == parsed.sections.end() ? 0 : section->second.line,
+                              "Coordinate realizability policy index is too large.");
+                    continue;
+                }
             }
             policies[item.first] = *policy;
         }
@@ -1722,11 +1880,15 @@ void validate_optional_node_advection_options(ParsedFile& parsed, const std::str
     static_cast<void>(parse_node_advection_options_from_parsed(parsed, source_name));
 }
 
-void validate_optional_realizability_policy(ParsedFile& parsed, const std::string& source_name)
+void validate_optional_realizability_policy(ParsedFile& parsed, const RealizabilitySettings realizability, const std::string& source_name)
 {
-    if (has_unnumbered_realizability_section(parsed))
+    if (accepts_unnumbered_realizability(realizability) && has_unnumbered_realizability_section(parsed))
     {
         static_cast<void>(parse_realizability_policy_from_parsed(parsed, std::string(realizability_section), source_name));
+    }
+    if (!accepts_coordinate_realizability(realizability))
+    {
+        return;
     }
     for (const auto& item : coordinate_realizability_sections(parsed))
     {
@@ -1748,20 +1910,23 @@ void validate_cqmom_coordinate_realizability_ranks(ParsedFile& parsed, const std
     }
 }
 
-void reject_unknown_phase_space_evolution_sections(ParsedFile& parsed, const std::string& source_name)
+void reject_unknown_phase_space_evolution_sections(ParsedFile& parsed, const RealizabilitySettings realizability, const std::string& source_name)
 {
     for (const auto& item : parsed.sections)
     {
         std::size_t coordinate = 0;
-        if (item.first.rfind("time_integration.", 0) == 0 && item.first != realizability_section && item.first != node_advection_section &&
-            item.first != adaptive_section && !parse_coordinate_realizability_section(item.first, coordinate))
+        const bool accepted_realizability_section =
+            (accepts_unnumbered_realizability(realizability) && item.first == realizability_section) ||
+            (accepts_coordinate_realizability(realizability) && parse_coordinate_realizability_section(item.first, coordinate));
+        if (item.first.rfind("time_integration.", 0) == 0 && !accepted_realizability_section && item.first != node_advection_section &&
+            item.first != adaptive_section)
         {
             add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
         }
     }
 }
 
-void reject_unknown_phase_space_evolution_keys(ParsedFile& parsed, const std::string& source_name)
+void reject_unknown_phase_space_evolution_keys(ParsedFile& parsed, const RealizabilitySettings realizability, const std::string& source_name)
 {
     for (const auto& item : parsed.scalars)
     {
@@ -1769,10 +1934,12 @@ void reject_unknown_phase_space_evolution_keys(ParsedFile& parsed, const std::st
         {
             continue;
         }
-        if (item.first == std::string(phase_space_evolution_scheme_key) ||
-            (is_realizability_key(item.first) &&
-             (!is_coordinate_realizability_key(item.first) || is_configured_coordinate_realizability_key(parsed, item.first))) ||
-            is_node_advection_key(item.first))
+        const bool accepted_realizability_key =
+            is_realizability_key(item.first) &&
+            (is_coordinate_realizability_key(item.first)
+                 ? accepts_coordinate_realizability(realizability) && is_configured_coordinate_realizability_key(parsed, item.first)
+                 : accepts_unnumbered_realizability(realizability));
+        if (item.first == std::string(phase_space_evolution_scheme_key) || accepted_realizability_key || is_node_advection_key(item.first))
         {
             continue;
         }
@@ -1844,7 +2011,8 @@ std::optional<CqmomAbscissaBounds> parse_coordinate_support(ParsedFile& parsed, 
     }
     if (lower_values.size() != dimensions || upper_values.size() != dimensions)
     {
-        add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, lower_entry->line,
+        add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name,
+                  lower_values.size() != dimensions ? lower_entry->line : upper_entry->line,
                   "phase_space.support_lower and phase_space.support_upper must contain one entry per phase-space dimension.");
         return std::nullopt;
     }
@@ -1880,7 +2048,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
     validate_optional_phase_space_evolution_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
-    validate_optional_realizability_policy(parsed, source_name);
+    validate_optional_realizability_policy(parsed, RealizabilitySettings::cqmom, source_name);
     std::optional<CqmomDiagnosticLevel> diagnostic_level = parse_cqmom_diagnostic_level(parsed, source_name);
     std::optional<VandermondeSolver> vandermonde_solver = parse_vandermonde_solver(parsed, source_name);
     std::optional<double> moore_penrose_rcond = parse_vandermonde_rcond(parsed, source_name);
@@ -1988,6 +2156,106 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
     }
 }
 
+// Parses and validates the output settings. A file without output settings
+// yields the defaults and no errors.
+OutputOptions parse_output_options_from_parsed(ParsedFile& parsed, const std::string& source_name)
+{
+    OutputOptions options;
+    if (!has_output_section(parsed))
+    {
+        return options;
+    }
+
+    static const std::vector<std::string> allowed = {"output.directory", "output.write_moments", "output.write_quadrature", "output.interval",
+                                                     "output.generalized_moments"};
+    for (const auto& item : parsed.scalars)
+    {
+        if (!is_output_key(item.first))
+        {
+            continue;
+        }
+        if (std::find(allowed.begin(), allowed.end(), item.first) == allowed.end())
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
+        }
+    }
+    for (const auto& item : parsed.sections)
+    {
+        if (item.first.rfind("output.", 0) == 0)
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
+        }
+    }
+
+    const Entry* directory = find_entry(parsed, "output.directory");
+    if (directory != nullptr)
+    {
+        const std::string cleaned_directory = trim(directory->value);
+        if (cleaned_directory.empty())
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, directory->line, "output.directory must be non-empty.");
+        }
+        else
+        {
+            options.directory = cleaned_directory;
+        }
+    }
+
+    parse_optional_bool(parsed, "output.write_moments", source_name, options.write_moments);
+    parse_optional_bool(parsed, "output.write_quadrature", source_name, options.write_quadrature);
+
+    const Entry* interval = find_entry(parsed, "output.interval");
+    if (interval != nullptr)
+    {
+        double value = 0.0;
+        if (!parse_double(interval->value, value))
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, interval->line,
+                      "output.interval must be a finite positive number.");
+        }
+        else if (value <= 0.0)
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, interval->line, "output.interval must be positive.");
+        }
+        else
+        {
+            options.interval = value;
+        }
+    }
+
+    const Entry* generalized_moments = find_entry(parsed, "output.generalized_moments");
+    if (generalized_moments != nullptr && generalized_moments->value.back() == '|')
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, generalized_moments->line,
+                  "output.generalized_moments must contain non-negative finite comma-separated exponent vectors separated by '|'.");
+    }
+    else if (generalized_moments != nullptr)
+    {
+        std::istringstream requests(generalized_moments->value);
+        std::string request;
+        while (std::getline(requests, request, '|'))
+        {
+            Entry request_entry{trim(request), generalized_moments->line};
+            std::vector<double> orders;
+            if (!parse_double_list(request_entry, orders) ||
+                std::any_of(orders.begin(), orders.end(), [](const double order) { return order < 0.0; }))
+            {
+                add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, generalized_moments->line,
+                          "output.generalized_moments must contain non-negative finite comma-separated exponent vectors separated by '|'.");
+                break;
+            }
+            options.generalized_moment_orders.push_back(std::move(orders));
+        }
+        if (options.generalized_moment_orders.empty())
+        {
+            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, generalized_moments->line,
+                      "output.generalized_moments must contain at least one exponent vector.");
+        }
+    }
+
+    return options;
+}
+
 ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition_from_parsed(ParsedFile parsed, std::string source_name)
 {
     const bool explicit_moments = has_explicit_qmom_moments(parsed);
@@ -1995,8 +2263,9 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition_
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
     validate_optional_phase_space_evolution_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
-    validate_optional_realizability_policy(parsed, source_name);
+    validate_optional_realizability_policy(parsed, RealizabilitySettings::qmom, source_name);
     validate_format_version(parsed, source_name);
+    static_cast<void>(parse_output_options_from_parsed(parsed, source_name));
     validate_optional_qmom_phase_space(parsed, source_name);
     if (!parsed.moments.empty())
     {
@@ -2021,7 +2290,7 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition_
             InitialConditionSpecification{ExplicitMomentInitialization{MomentSet(std::move(moments))}}};
     }
 
-    const Entry* type_entry = require_entry(parsed, "initial.type", source_name);
+    const Entry* type_entry = find_entry(parsed, "initial.type");
     if (type_entry == nullptr)
     {
         add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, 0,
@@ -2057,6 +2326,7 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition_
                       "Mixture component sections are only valid when '[initial] type = mixture'.");
         }
         std::optional<DistributionSpecification> distribution = parse_distribution(parsed, source_name);
+        reject_unconsumed_indexed_entries(parsed, std::string(mixture_component_section_prefix), source_name);
         double number_density = 1.0;
         parse_optional_double(parsed, "initial.number_density", source_name, number_density);
         if (!std::isfinite(number_density) || number_density < 0.0)
@@ -2076,6 +2346,7 @@ ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition_
     }
 
     std::optional<DistributionMixture> mixture = parse_mixture(parsed, source_name);
+    reject_unconsumed_indexed_entries(parsed, std::string(mixture_component_section_prefix), source_name);
     if (!parsed.errors.empty() || !mixture.has_value())
     {
         return failure_result<InitialConditionSpecification>(std::move(parsed));
@@ -2090,10 +2361,11 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
     reject_unknown_cqmom_keys(parsed, explicit_moments, source_name);
     validate_optional_phase_space_evolution_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
-    validate_optional_realizability_policy(parsed, source_name);
+    validate_optional_realizability_policy(parsed, RealizabilitySettings::cqmom, source_name);
     validate_optional_cqmom_diagnostic_level(parsed, source_name);
     validate_optional_vandermonde_solver(parsed, source_name);
     validate_format_version(parsed, source_name);
+    static_cast<void>(parse_output_options_from_parsed(parsed, source_name));
     validate_optional_cqmom_phase_space(parsed, source_name);
 
     if (explicit_moments)
@@ -2106,7 +2378,7 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
         return ConfigurationResult<InitialConditionSpecification>{InitialConditionSpecification{ExplicitTensorInitialization{*tensor}}};
     }
 
-    const Entry* type_entry = require_entry(parsed, "initial.type", source_name);
+    const Entry* type_entry = find_entry(parsed, "initial.type");
     if (type_entry == nullptr)
     {
         add_error(parsed, ConfigurationErrorCode::missing_entry, source_name, 0,
@@ -2178,6 +2450,15 @@ ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition
     }
 
     std::optional<IndependentProductDistribution> distribution = parse_independent_product(parsed, source_name);
+    reject_unconsumed_indexed_entries(parsed, std::string(independent_product_dimension_section_prefix), source_name);
+    const Entry* phase_space_node_counts = find_entry(parsed, "phase_space.node_counts");
+    std::vector<std::size_t> declared_node_counts;
+    if (distribution.has_value() && phase_space_node_counts != nullptr && parse_size_list(*phase_space_node_counts, declared_node_counts) &&
+        distribution->marginals.size() != declared_node_counts.size())
+    {
+        add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, phase_space_node_counts->line,
+                  "Independent product initialization must define one '[initial.dimension.N]' section per phase-space dimension.");
+    }
     if (distribution.has_value() && maximum_orders.has_value() && distribution->marginals.size() != maximum_orders->size())
     {
         add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name,
@@ -2210,14 +2491,23 @@ ConfigurationResult<MomentSet> initialize_qmom_moments(const InitialConditionSpe
     }
 
     RawMomentResult moments;
-    if (const auto* distribution = std::get_if<DistributionInitialization>(&specification))
+    try
     {
-        moments = compute_raw_moments(distribution->distribution, distribution->maximum_order, distribution->number_density);
+        if (const auto* distribution = std::get_if<DistributionInitialization>(&specification))
+        {
+            moments = compute_raw_moments(distribution->distribution, distribution->maximum_order, distribution->number_density);
+        }
+        else
+        {
+            const auto& mixture = std::get<MixtureInitialization>(specification);
+            moments = compute_raw_moments(mixture.mixture, mixture.maximum_order);
+        }
     }
-    else
+    catch (const std::exception& error)
     {
-        const auto& mixture = std::get<MixtureInitialization>(specification);
-        moments = compute_raw_moments(mixture.mixture, mixture.maximum_order);
+        // A maximum order far beyond any node count can exhaust memory.
+        return failure_result<MomentSet>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
+                                          std::string("Analytical initialization moment generation failed: ") + error.what()});
     }
     if (!moments.ok())
     {
@@ -2244,7 +2534,17 @@ ConfigurationResult<RawMomentTensor> initialize_cqmom_moment_tensor(const Initia
             return failure_result<RawMomentTensor>({ConfigurationErrorCode::missing_entry, std::move(source_name), 0,
                                                     "initial.maximum_orders is required to initialize the full tensor of raw moments."});
         }
-        TensorMomentResult moments = compute_raw_moments(independent_product->distribution, *independent_product->maximum_orders);
+        TensorMomentResult moments;
+        try
+        {
+            moments = compute_raw_moments(independent_product->distribution, *independent_product->maximum_orders);
+        }
+        catch (const std::exception& error)
+        {
+            // Maximum orders far beyond any node count can exhaust memory.
+            return failure_result<RawMomentTensor>({ConfigurationErrorCode::invalid_configuration, std::move(source_name), 0,
+                                                    std::string("Independent product initialization moment generation failed: ") + error.what()});
+        }
         if (!moments.ok())
         {
             std::string message = "Independent product initialization moment generation failed: " + moments.message;
@@ -2457,7 +2757,7 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     reject_unknown_qmom_keys(parsed, explicit_moments, source_name);
     validate_optional_phase_space_evolution_scheme(parsed, source_name);
     validate_optional_node_advection_options(parsed, source_name);
-    validate_optional_realizability_policy(parsed, source_name);
+    validate_optional_realizability_policy(parsed, RealizabilitySettings::qmom, source_name);
     validate_format_version(parsed, source_name);
     std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
     const std::optional<bool> automatic_scaling = parse_automatic_scaling_from_parsed(parsed, source_name);
@@ -2579,6 +2879,15 @@ ConfigurationResult<RealizabilityPolicy> parse_realizability_policy(const std::s
         }
     }
 
+    // Per-coordinate settings belong to CQMOM; this parser reads the QMOM policy only.
+    for (const auto& item : parsed.scalars)
+    {
+        if (is_coordinate_realizability_key(item.first))
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
+        }
+    }
+
     const std::optional<RealizabilityPolicy> policy = parse_realizability_policy_from_parsed(parsed, std::string(realizability_section), source_name);
     if (!parsed.errors.empty() || !policy.has_value())
     {
@@ -2596,8 +2905,8 @@ ConfigurationResult<std::vector<std::optional<RealizabilityPolicy>>> parse_coord
         return failure_result<std::vector<std::optional<RealizabilityPolicy>>>(std::move(parsed));
     }
 
-    reject_unknown_phase_space_evolution_sections(parsed, source_name);
-    reject_unknown_phase_space_evolution_keys(parsed, source_name);
+    reject_unknown_phase_space_evolution_sections(parsed, RealizabilitySettings::cqmom, source_name);
+    reject_unknown_phase_space_evolution_keys(parsed, RealizabilitySettings::cqmom, source_name);
     std::vector<std::optional<RealizabilityPolicy>> policies = parse_coordinate_realizability_policies_from_parsed(parsed, source_name);
 
     if (!parsed.errors.empty())
@@ -2615,8 +2924,8 @@ ConfigurationResult<PhaseSpaceEvolutionScheme> parse_phase_space_evolution_schem
         return failure_result<PhaseSpaceEvolutionScheme>(std::move(parsed));
     }
 
-    reject_unknown_phase_space_evolution_sections(parsed, source_name);
-    reject_unknown_phase_space_evolution_keys(parsed, source_name);
+    reject_unknown_phase_space_evolution_sections(parsed, RealizabilitySettings::any, source_name);
+    reject_unknown_phase_space_evolution_keys(parsed, RealizabilitySettings::any, source_name);
     const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
 
     if (!parsed.errors.empty() || !scheme.has_value())
@@ -2634,8 +2943,8 @@ ConfigurationResult<NodeAdvectionOptions> parse_node_advection_options(const std
         return failure_result<NodeAdvectionOptions>(std::move(parsed));
     }
 
-    reject_unknown_phase_space_evolution_sections(parsed, source_name);
-    reject_unknown_phase_space_evolution_keys(parsed, source_name);
+    reject_unknown_phase_space_evolution_sections(parsed, RealizabilitySettings::any, source_name);
+    reject_unknown_phase_space_evolution_keys(parsed, RealizabilitySettings::any, source_name);
     const std::optional<NodeAdvectionOptions> options = parse_node_advection_options_from_parsed(parsed, source_name);
 
     if (!parsed.errors.empty() || !options.has_value())
@@ -2653,8 +2962,8 @@ ConfigurationResult<QmomPhaseSpaceEvolutionOptions> parse_qmom_phase_space_evolu
         return failure_result<QmomPhaseSpaceEvolutionOptions>(std::move(parsed));
     }
 
-    reject_unknown_phase_space_evolution_sections(parsed, source_name);
-    reject_unknown_phase_space_evolution_keys(parsed, source_name);
+    reject_unknown_phase_space_evolution_sections(parsed, RealizabilitySettings::qmom, source_name);
+    reject_unknown_phase_space_evolution_keys(parsed, RealizabilitySettings::qmom, source_name);
     reject_unknown_qmom_option_keys(parsed, source_name);
     const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
@@ -2683,8 +2992,8 @@ ConfigurationResult<CqmomPhaseSpaceEvolutionOptions> parse_cqmom_phase_space_evo
         return failure_result<CqmomPhaseSpaceEvolutionOptions>(std::move(parsed));
     }
 
-    reject_unknown_phase_space_evolution_sections(parsed, source_name);
-    reject_unknown_phase_space_evolution_keys(parsed, source_name);
+    reject_unknown_phase_space_evolution_sections(parsed, RealizabilitySettings::cqmom, source_name);
+    reject_unknown_phase_space_evolution_keys(parsed, RealizabilitySettings::cqmom, source_name);
     const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
     std::vector<std::optional<RealizabilityPolicy>> coordinate_policies = parse_coordinate_realizability_policies_from_parsed(parsed, source_name);
@@ -2708,94 +3017,7 @@ ConfigurationResult<OutputOptions> parse_output_options(const std::string_view t
     {
         return failure_result<OutputOptions>(std::move(parsed));
     }
-    if (!has_output_section(parsed))
-    {
-        return ConfigurationResult<OutputOptions>{OutputOptions{}};
-    }
-
-    static const std::vector<std::string> allowed = {"output.directory", "output.write_moments", "output.write_quadrature", "output.interval",
-                                                     "output.generalized_moments"};
-    for (const auto& item : parsed.scalars)
-    {
-        if (!is_output_key(item.first))
-        {
-            continue;
-        }
-        if (std::find(allowed.begin(), allowed.end(), item.first) == allowed.end())
-        {
-            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown key '" + item.first + "'.");
-        }
-    }
-    for (const auto& item : parsed.sections)
-    {
-        if (item.first.rfind("output.", 0) == 0)
-        {
-            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, item.second.line, "Unknown section '" + item.first + "'.");
-        }
-    }
-
-    OutputOptions options;
-    const Entry* directory = find_entry(parsed, "output.directory");
-    if (directory != nullptr)
-    {
-        const std::string cleaned_directory = trim(directory->value);
-        if (cleaned_directory.empty())
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, directory->line, "output.directory must be non-empty.");
-        }
-        else
-        {
-            options.directory = cleaned_directory;
-        }
-    }
-
-    parse_optional_bool(parsed, "output.write_moments", source_name, options.write_moments);
-    parse_optional_bool(parsed, "output.write_quadrature", source_name, options.write_quadrature);
-
-    const Entry* interval = find_entry(parsed, "output.interval");
-    if (interval != nullptr)
-    {
-        double value = 0.0;
-        if (!parse_double(interval->value, value))
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, interval->line,
-                      "output.interval must be a finite positive number.");
-        }
-        else if (value <= 0.0)
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, interval->line, "output.interval must be positive.");
-        }
-        else
-        {
-            options.interval = value;
-        }
-    }
-
-    const Entry* generalized_moments = find_entry(parsed, "output.generalized_moments");
-    if (generalized_moments != nullptr)
-    {
-        std::istringstream requests(generalized_moments->value);
-        std::string request;
-        while (std::getline(requests, request, '|'))
-        {
-            Entry request_entry{trim(request), generalized_moments->line};
-            std::vector<double> orders;
-            if (!parse_double_list(request_entry, orders) ||
-                std::any_of(orders.begin(), orders.end(), [](const double order) { return order < 0.0; }))
-            {
-                add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, generalized_moments->line,
-                          "output.generalized_moments must contain non-negative finite comma-separated exponent vectors separated by '|'.");
-                break;
-            }
-            options.generalized_moment_orders.push_back(std::move(orders));
-        }
-        if (options.generalized_moment_orders.empty())
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, generalized_moments->line,
-                      "output.generalized_moments must contain at least one exponent vector.");
-        }
-    }
-
+    OutputOptions options = parse_output_options_from_parsed(parsed, source_name);
     if (!parsed.errors.empty())
     {
         return failure_result<OutputOptions>(std::move(parsed));

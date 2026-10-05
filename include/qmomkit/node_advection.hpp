@@ -87,6 +87,9 @@ struct NodeAdvectionDiagnostics
     double final_time = 0.0;
     double last_step = 0.0;
     std::optional<double> estimated_error;
+    // The status of the RK23 or RK45 integration. Empty for SSP-RK3, and empty
+    // when the integration did not complete because the velocity callback
+    // threw; `rhs_evaluations` then counts the evaluations made before that.
     std::optional<AdaptiveRkStatus> adaptive_status;
     std::string message;
 };

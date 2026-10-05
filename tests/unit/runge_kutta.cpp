@@ -777,6 +777,44 @@ void test_rk23_invalid_options_fail_before_loop()
     }
 }
 
+// An empty interval needs no step, but invalid step options are still invalid:
+// they are reported whether or not the interval is empty.
+void test_invalid_step_options_are_rejected_for_an_empty_interval()
+{
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        qmomkit::AdaptiveRkOptions negative_initial_step;
+        negative_initial_step.initial_step = -1.0;
+        const qmomkit::AdaptiveRkResult initial_step_result =
+            qmomkit::integrate_embedded_rk({1.0}, 0.5, 0.5, exponential_decay_rhs(), method, negative_initial_step);
+        assert(initial_step_result.status == qmomkit::AdaptiveRkStatus::invalid_input);
+        assert(initial_step_result.final_time == 0.5);
+
+        qmomkit::AdaptiveRkOptions non_finite_min_step;
+        non_finite_min_step.min_step = std::numeric_limits<double>::quiet_NaN();
+        assert(qmomkit::integrate_embedded_rk({1.0}, 0.5, 0.5, exponential_decay_rhs(), method, non_finite_min_step).status ==
+               qmomkit::AdaptiveRkStatus::invalid_input);
+
+        qmomkit::AdaptiveRkOptions negative_max_step;
+        negative_max_step.max_step = -1.0;
+        assert(qmomkit::integrate_embedded_rk({1.0}, 0.5, 0.5, exponential_decay_rhs(), method, negative_max_step).status ==
+               qmomkit::AdaptiveRkStatus::invalid_input);
+
+        qmomkit::AdaptiveRkOptions min_step_above_max_step;
+        min_step_above_max_step.min_step = 0.5;
+        min_step_above_max_step.max_step = 0.1;
+        assert(qmomkit::integrate_embedded_rk({1.0}, 0.5, 0.5, exponential_decay_rhs(), method, min_step_above_max_step).status ==
+               qmomkit::AdaptiveRkStatus::invalid_input);
+
+        // Valid options over an empty interval return the input state unchanged.
+        const qmomkit::AdaptiveRkResult empty = qmomkit::integrate_embedded_rk({1.0}, 0.5, 0.5, exponential_decay_rhs(), method, {});
+        assert(empty.status == qmomkit::AdaptiveRkStatus::success);
+        assert(empty.state == std::vector<double>{1.0});
+        assert(empty.final_time == 0.5);
+        assert(empty.function_evaluations == 0);
+    }
+}
+
 void test_rk23_rejects_min_step_exceeding_max_step()
 {
     for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
@@ -1076,6 +1114,7 @@ int main(const int argc, char** argv)
             {"rk23_rejects_overly_large_initial_step", test_rk23_rejects_overly_large_initial_step},
             {"rk23_zero_rhs_has_no_timestep_pathology", test_rk23_zero_rhs_has_no_timestep_pathology},
             {"rk23_invalid_options_fail_before_loop", test_rk23_invalid_options_fail_before_loop},
+            {"invalid_step_options_are_rejected_for_an_empty_interval", test_invalid_step_options_are_rejected_for_an_empty_interval},
             {"rk23_rejects_min_step_exceeding_max_step", test_rk23_rejects_min_step_exceeding_max_step},
             {"rk23_rejects_nonfinite_trial_state", test_rk23_rejects_nonfinite_trial_state},
             {"rhs_that_resizes_the_derivative_buffer_is_rejected", test_rhs_that_resizes_the_derivative_buffer_is_rejected},

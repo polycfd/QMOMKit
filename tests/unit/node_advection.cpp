@@ -8,6 +8,7 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -689,6 +690,46 @@ void test_rk23_failure_diagnostics_are_reported()
     assert(result.quadrature.weights == quadrature.weights);
 }
 
+// A velocity callback that throws stops the integration before the integrator
+// returns, so there is no adaptive status to report. The evaluations made
+// before the failure are still known and reported, on both scheme families.
+void test_throwing_velocity_reports_its_evaluations_without_an_adaptive_status()
+{
+    qmomkit::Quadrature1D quadrature;
+    quadrature.abscissas = {1.0, 2.0};
+    quadrature.weights = {0.5, 0.5};
+
+    for (const qmomkit::NodeAdvectionScheme scheme :
+         {qmomkit::NodeAdvectionScheme::rk23, qmomkit::NodeAdvectionScheme::rk45, qmomkit::NodeAdvectionScheme::ssp_rk3})
+    {
+        std::size_t calls = 0;
+        const qmomkit::PhaseSpaceVelocity failing_velocity =
+            [&calls](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t)
+        {
+            ++calls;
+            if (calls == 3)
+            {
+                throw std::runtime_error("velocity failure on the third evaluation");
+            }
+            for (std::size_t i = 0; i < coordinates.size(); ++i)
+            {
+                velocities[i] = -coordinates[i];
+            }
+        };
+        qmomkit::NodeAdvectionOptions options;
+        options.scheme = scheme;
+
+        const qmomkit::QmomNodeAdvectionResult result = qmomkit::advance_nodes(quadrature, 0.25, 0.5, failing_velocity, options);
+
+        assert(result.status == qmomkit::NodeAdvectionStatus::velocity_failed);
+        assert(result.diagnostics.scheme == scheme);
+        assert(!result.diagnostics.adaptive_status.has_value());
+        assert(result.diagnostics.rhs_evaluations == 3);
+        assert(result.diagnostics.final_time == 0.25);
+        assert(result.quadrature.abscissas == quadrature.abscissas);
+    }
+}
+
 void test_configured_adaptive_options_reach_node_advection()
 {
     const auto configured = qmomkit::config::parse_node_advection_options(R"(
@@ -780,6 +821,8 @@ int main(const int argc, char** argv)
             {"reentrant_velocity_callback_keeps_its_coordinate_argument", test_reentrant_velocity_callback_keeps_its_coordinate_argument},
             {"partially_filled_velocity_is_reported_in_debug_builds", test_partially_filled_velocity_is_reported_in_debug_builds},
             {"rk23_failure_diagnostics_are_reported", test_rk23_failure_diagnostics_are_reported},
+            {"throwing_velocity_reports_its_evaluations_without_an_adaptive_status",
+             test_throwing_velocity_reports_its_evaluations_without_an_adaptive_status},
             {"configured_adaptive_options_reach_node_advection", test_configured_adaptive_options_reach_node_advection},
             {"node_advection_options_formatting_reports_semantic_settings", test_node_advection_options_formatting_reports_semantic_settings},
         });

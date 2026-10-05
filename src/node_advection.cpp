@@ -166,18 +166,26 @@ struct IntegratedNodes
                                                           const std::size_t dimensions, const std::vector<double>& initial_state)
 {
     AdaptiveRkResult rk_result;
+    std::size_t rhs_evaluations = 0;
     try
     {
         rk_result = integrate_embedded_rk(
             initial_state, t, t + time_step,
-            [&velocity, dimensions](const double rhs_time, const std::vector<double>& state, std::vector<double>& derivative)
-            { node_rhs_from_velocity(velocity, dimensions, rhs_time, state, derivative); }, method, options.adaptive_options);
+            [&velocity, dimensions, &rhs_evaluations](const double rhs_time, const std::vector<double>& state, std::vector<double>& derivative)
+            {
+                ++rhs_evaluations;
+                node_rhs_from_velocity(velocity, dimensions, rhs_time, state, derivative);
+            },
+            method, options.adaptive_options);
     }
     catch (const std::exception& error)
     {
+        // The integrator did not return, so it produced no status of its own:
+        // `adaptive_status` stays empty. The velocity evaluations made before
+        // the failure are still known.
         NodeAdvectionDiagnostics diagnostics;
         diagnostics.scheme = scheme;
-        diagnostics.adaptive_status = AdaptiveRkStatus::invalid_input;
+        diagnostics.rhs_evaluations = rhs_evaluations;
         diagnostics.final_time = t;
         diagnostics.message = error.what();
         return IntegratedNodes{abscissas, NodeAdvectionStatus::velocity_failed, diagnostics, error.what()};
@@ -210,12 +218,12 @@ struct IntegratedNodes
         return IntegratedNodes{abscissas, NodeAdvectionStatus::success, diagnostics, ""};
     }
 
+    std::size_t rhs_evaluations = 0;
     try
     {
         // This is the SSP-RK3 trajectory formula only. It deliberately avoids
         // the source-update wrapper, including source predicates, retries, and
         // source-specific performance counters.
-        std::size_t rhs_evaluations = 0;
         // One derivative buffer serves all three stages, as in the source-side
         // SSP-RK3: each stage's derivative is consumed into the next stage state
         // before the following stage overwrites it.
@@ -262,6 +270,7 @@ struct IntegratedNodes
     }
     catch (const std::exception& error)
     {
+        diagnostics.rhs_evaluations = rhs_evaluations;
         diagnostics.message = error.what();
         return IntegratedNodes{abscissas, NodeAdvectionStatus::velocity_failed, diagnostics, error.what()};
     }

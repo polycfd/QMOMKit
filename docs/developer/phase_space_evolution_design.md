@@ -760,7 +760,9 @@ Phase-space evolution diagnostics record:
 
 Failure handling is fail-fast. A failed standalone phase-space advection or
 moment-source stage returns its stage input state. A failed complete
-operator-split macro step returns the original macro-step input state. An
+operator-split macro step returns the original macro-step input state. In both
+cases `final_time` is the time of the returned state, which is the input time
+`t`; on success it is `t + time_step`. An
 intermediate or failed-stage quadrature may be retained only as diagnostic
 information and is not an accepted phase-space evolution state.
 

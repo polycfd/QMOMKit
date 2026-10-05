@@ -23,8 +23,17 @@ static_assert(std::is_same_v<decltype(&qmomkit::CqmomSourceContext::indices), Cq
 static_assert(std::is_same_v<decltype(&qmomkit::CqmomSourceContext::index), CqmomIndexAt>);
 static_assert(std::is_same_v<decltype(&qmomkit::CqmomSourceContext::moment), CqmomMomentAt>);
 
-// The context refers to the caller's table; binding a temporary must not compile.
+// The contexts refer to the caller's inputs; binding a temporary to any of them
+// must not compile.
 static_assert(std::is_constructible_v<qmomkit::CqmomSourceContext, double, const qmomkit::PhaseSpaceHierarchy&, const qmomkit::MultiIndexTable&,
                                       const std::vector<double>&>);
+static_assert(!std::is_constructible_v<qmomkit::CqmomSourceContext, double, qmomkit::PhaseSpaceHierarchy&&, const qmomkit::MultiIndexTable&,
+                                       const std::vector<double>&>);
 static_assert(!std::is_constructible_v<qmomkit::CqmomSourceContext, double, const qmomkit::PhaseSpaceHierarchy&, qmomkit::MultiIndexTable&&,
                                        const std::vector<double>&>);
+static_assert(!std::is_constructible_v<qmomkit::CqmomSourceContext, double, const qmomkit::PhaseSpaceHierarchy&, const qmomkit::MultiIndexTable&,
+                                       std::vector<double>&&>);
+static_assert(
+    !std::is_constructible_v<qmomkit::CqmomSourceContext, double, qmomkit::PhaseSpaceHierarchy&&, qmomkit::MultiIndexTable&&, std::vector<double>&&>);
+static_assert(std::is_constructible_v<qmomkit::QmomSourceContext, double, const std::vector<double>&>);
+static_assert(!std::is_constructible_v<qmomkit::QmomSourceContext, double, std::vector<double>&&>);

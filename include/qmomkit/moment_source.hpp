@@ -32,6 +32,12 @@ class QmomSourceContext
 public:
     QmomSourceContext(double time, const std::vector<double>& values);
 
+    /**
+     * The context refers to the caller's values rather than copying them, so a
+     * temporary would dangle. Binding one is rejected at compile time.
+     */
+    QmomSourceContext(double time, std::vector<double>&& values) = delete;
+
     [[nodiscard]] double time() const noexcept;
     [[nodiscard]] std::size_t moment_count() const noexcept;
     [[nodiscard]] std::size_t size() const noexcept;
@@ -115,10 +121,13 @@ public:
     CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices, const std::vector<double>& values);
 
     /**
-     * The context refers to the caller's index table rather than copying it, so
-     * a temporary would dangle. Binding one is rejected at compile time.
+     * The context refers to the caller's hierarchy, index table and values
+     * rather than copying them, so a temporary in any of them would dangle.
+     * Binding one is rejected at compile time.
      */
+    CqmomSourceContext(double time, PhaseSpaceHierarchy&& hierarchy, const MultiIndexTable& indices, const std::vector<double>& values) = delete;
     CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, MultiIndexTable&& indices, const std::vector<double>& values) = delete;
+    CqmomSourceContext(double time, const PhaseSpaceHierarchy& hierarchy, const MultiIndexTable& indices, std::vector<double>&& values) = delete;
 
     [[nodiscard]] double time() const noexcept;
     [[nodiscard]] std::size_t moment_count() const noexcept;

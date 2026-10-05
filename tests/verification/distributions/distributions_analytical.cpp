@@ -413,7 +413,7 @@ void verify_gamma_large_shape()
 
 void verify_beta_large_parameters()
 {
-    for (const std::pair<double, double> parameters : {std::pair<double, double>{20.0, 30.0}, {12.5, 37.5}, {2.0, 48.0}})
+    for (const std::pair<double, double>& parameters : {std::pair<double, double>{20.0, 30.0}, {12.5, 37.5}, {2.0, 48.0}})
     {
         assert_moments_relative(
             qmomkit::BetaDistribution{parameters.first, parameters.second}, 0.8, 10,

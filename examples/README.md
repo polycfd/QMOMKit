@@ -43,6 +43,12 @@ optional branches, and prerequisites in more detail.
   staging through the public advection and moment-source stage APIs; use after
   the library-managed workflow.
 
+## CQMOM evolution
+
+- `cqmom_2d_batch_host_data/`: many CQMOM states advanced with one
+  batch-index-aware call per step, with callbacks reading time-varying host
+  data indexed like the state vector.
+
 ## CQMOM numerical controls
 
 - `cqmom_2d_adaptive_node_counts/`: adaptive conditional branch reduction,

@@ -151,11 +151,11 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
                                                                             const PhaseSpaceHierarchy& hierarchy,
                                                                             std::string source_name = "<initialization>");
 
-/** Parse current QMOM initialization into explicit or generated moments. */
+/** Parse QMOM initialization into explicit or generated moments. */
 [[nodiscard]] ConfigurationResult<InitialConditionSpecification> parse_qmom_initial_condition(std::string_view text,
                                                                                               std::string source_name = "<string>");
 
-/** Parse current CQMOM initialization into explicit or generated moments. */
+/** Parse CQMOM initialization into explicit or generated moments. */
 [[nodiscard]] ConfigurationResult<InitialConditionSpecification> parse_cqmom_initial_condition(std::string_view text,
                                                                                                std::string source_name = "<string>");
 
@@ -239,7 +239,7 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  */
 [[nodiscard]] ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_cqmom_case, CqmomMomentData explicit_moments);
 
-/** Parse a current QMOM configuration string. */
+/** Parse a QMOM configuration string. */
 [[nodiscard]] ConfigurationResult<QmomCase> parse_qmom(std::string_view text, std::string source_name = "<string>");
 
 /** Parse a CQMOM configuration string into a CQMOM case definition. */

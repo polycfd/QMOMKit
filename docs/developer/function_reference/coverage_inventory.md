@@ -89,24 +89,24 @@ contracts, and evidence](state_and_representations.md)
 
 | Function or overload family | Definition lines |
 |---|---|
-| `ConditioningPathView::ConditioningPathView` | [60](../../../include/qmomkit/conditioning_path.hpp#L60) |
-| `ConditioningPathView::empty` | [65](../../../include/qmomkit/conditioning_path.hpp#L65) |
-| `ConditioningPathView::size` | [69](../../../include/qmomkit/conditioning_path.hpp#L69) |
-| `ConditioningPathView::begin` | [75](../../../include/qmomkit/conditioning_path.hpp#L75) |
-| `ConditioningPathView::end` | [79](../../../include/qmomkit/conditioning_path.hpp#L79) |
-| `ConditioningPathView::data` | [83](../../../include/qmomkit/conditioning_path.hpp#L83) |
-| `ConditioningPathView::to_conditioning_path` | [89](../../../include/qmomkit/conditioning_path.hpp#L89) |
-| `ConditioningPathTable::const_iterator::operator*` | [132](../../../include/qmomkit/conditioning_path.hpp#L132) |
-| `ConditioningPathTable::const_iterator::operator++` | [136](../../../include/qmomkit/conditioning_path.hpp#L136), [141](../../../include/qmomkit/conditioning_path.hpp#L141) |
-| `ConditioningPathTable::const_iterator::operator==` | [147](../../../include/qmomkit/conditioning_path.hpp#L147) |
-| `ConditioningPathTable::const_iterator::operator!=` | [151](../../../include/qmomkit/conditioning_path.hpp#L151) |
-| `ConditioningPathTable::size` | [172](../../../include/qmomkit/conditioning_path.hpp#L172) |
-| `ConditioningPathTable::levels` | [177](../../../include/qmomkit/conditioning_path.hpp#L177) |
-| `ConditioningPathTable::empty` | [181](../../../include/qmomkit/conditioning_path.hpp#L181) |
-| `ConditioningPathTable::operator[]` | [185](../../../include/qmomkit/conditioning_path.hpp#L185) |
-| `ConditioningPathTable::begin` | [191](../../../include/qmomkit/conditioning_path.hpp#L191) |
-| `ConditioningPathTable::end` | [195](../../../include/qmomkit/conditioning_path.hpp#L195) |
-| `ConditioningPathTable::node_indices` | [201](../../../include/qmomkit/conditioning_path.hpp#L201) |
+| `ConditioningPathView::ConditioningPathView` | [70](../../../include/qmomkit/conditioning_path.hpp#L70) |
+| `ConditioningPathView::empty` | [75](../../../include/qmomkit/conditioning_path.hpp#L75) |
+| `ConditioningPathView::size` | [79](../../../include/qmomkit/conditioning_path.hpp#L79) |
+| `ConditioningPathView::begin` | [86](../../../include/qmomkit/conditioning_path.hpp#L86) |
+| `ConditioningPathView::end` | [90](../../../include/qmomkit/conditioning_path.hpp#L90) |
+| `ConditioningPathView::data` | [94](../../../include/qmomkit/conditioning_path.hpp#L94) |
+| `ConditioningPathView::to_conditioning_path` | [100](../../../include/qmomkit/conditioning_path.hpp#L100) |
+| `ConditioningPathTable::const_iterator::operator*` | [143](../../../include/qmomkit/conditioning_path.hpp#L143) |
+| `ConditioningPathTable::const_iterator::operator++` | [147](../../../include/qmomkit/conditioning_path.hpp#L147), [152](../../../include/qmomkit/conditioning_path.hpp#L152) |
+| `ConditioningPathTable::const_iterator::operator==` | [158](../../../include/qmomkit/conditioning_path.hpp#L158) |
+| `ConditioningPathTable::const_iterator::operator!=` | [162](../../../include/qmomkit/conditioning_path.hpp#L162) |
+| `ConditioningPathTable::size` | [183](../../../include/qmomkit/conditioning_path.hpp#L183) |
+| `ConditioningPathTable::levels` | [188](../../../include/qmomkit/conditioning_path.hpp#L188) |
+| `ConditioningPathTable::empty` | [192](../../../include/qmomkit/conditioning_path.hpp#L192) |
+| `ConditioningPathTable::operator[]` | [196](../../../include/qmomkit/conditioning_path.hpp#L196) |
+| `ConditioningPathTable::begin` | [202](../../../include/qmomkit/conditioning_path.hpp#L202) |
+| `ConditioningPathTable::end` | [206](../../../include/qmomkit/conditioning_path.hpp#L206) |
+| `ConditioningPathTable::node_indices` | [212](../../../include/qmomkit/conditioning_path.hpp#L212) |
 
 ### `include/qmomkit/configuration.hpp`
 
@@ -137,7 +137,7 @@ and evidence](state_and_representations.md)
 | `CqmomQuadrature::adaptive_branch_counts_enabled` | [64](../../../include/qmomkit/cqmom.hpp#L64) |
 | `CqmomQuadrature::has_rectangular_storage` | [68](../../../include/qmomkit/cqmom.hpp#L68) |
 | `CqmomQuadrature::terminal_paths` | [72](../../../include/qmomkit/cqmom.hpp#L72) |
-| `CqmomResult::ok` | [328](../../../include/qmomkit/cqmom.hpp#L328) |
+| `CqmomResult::ok` | [331](../../../include/qmomkit/cqmom.hpp#L331) |
 | `CqmomQuadrature::hierarchy` | [44](../../../include/qmomkit/cqmom.hpp#L44) |
 
 ### `include/qmomkit/distributions.hpp`
@@ -262,7 +262,7 @@ contracts, and evidence](time_integration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
-| `SspRk3Result::ok` | [84](../../../include/qmomkit/runge_kutta.hpp#L84) |
+| `SspRk3Result::ok` | [87](../../../include/qmomkit/runge_kutta.hpp#L87) |
 
 ### `src/conditioning_path.cpp`
 

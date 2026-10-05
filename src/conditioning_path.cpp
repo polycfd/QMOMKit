@@ -88,8 +88,8 @@ std::string ConditioningPath::to_string() const
 
 std::string ConditioningPath::describe(const PhaseSpaceHierarchy& hierarchy) const
 {
-    // Discards the computed index; called only for its out_of_range check that this path
-    // is consistent with hierarchy (matching depth and in-bounds node indices at each level).
+    // Discards the computed index; called only for its checks that this path is
+    // no deeper than the hierarchy and that its node indices are within it.
     (void)phase_space_node_index(hierarchy);
 
     std::ostringstream stream;

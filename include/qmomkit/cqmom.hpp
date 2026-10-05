@@ -323,6 +323,9 @@ struct CqmomResult
     CqmomStatus status = CqmomStatus::success;
     std::string message;
     std::vector<CqmomDiagnostics> diagnostics;
+    // The phase-space dimension whose conditioning level failed. It identifies
+    // a failure during the reconstruction and has no meaning on success or when
+    // the input was rejected before the reconstruction started.
     std::size_t failed_phase_space_dimension = 0;
 
     [[nodiscard]] bool ok() const noexcept

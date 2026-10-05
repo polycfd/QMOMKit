@@ -15,6 +15,10 @@
 //     log-normal   E[X^k] = exp(k*mu + k^2*sigma^2/2)
 //     beta         E[X^k] = product over j < k of (alpha + j)/(alpha + beta + j)
 //     Weibull      E[X^k] = scale^k * Gamma(1 + k/shape)
+//     chi-squared  E[X^k] = product over j < k of (nu + 2j)
+//     chi          E[X^k] = 2^(k/2) Gamma((nu + k)/2) / Gamma(nu/2), with the
+//                  gamma values at integers and half-integers built from
+//                  Gamma(1) = 1 and Gamma(1/2) = sqrt(pi) by Gamma(x+1) = x Gamma(x)
 //     gamma, normal, exponential   the corresponding standard expressions
 //
 //   Moments are scaled by the configured total number density, since QMOMKit
@@ -30,6 +34,16 @@
 //   families whose expressions involve the gamma function, where the reference
 //   itself carries the error of the standard library's tgamma rather than being
 //   exact in floating point.
+//
+//   The chi, chi-squared, large-parameter gamma and beta cases, and the
+//   selected-order cases, compare purely relatively, since their moments span
+//   from below 1e-4 to above 1e15. Their references are products of a few
+//   rational factors and so are accurate to a few rounding errors. The library
+//   evaluates these families as differences of log-gamma values, which loses
+//   about epsilon * |ln Gamma| of relative accuracy: measured errors stay below
+//   3e-15 for chi and chi-squared and below 4e-14 for gamma and beta with
+//   parameters up to fifty. The tolerances, 1e-13 and 1e-12, leave a margin of
+//   about thirty over those errors.
 //
 // Reproduce
 //   ctest -R verification_distributions
@@ -49,6 +63,7 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -177,6 +192,73 @@ double gamma_raw_moment(const double shape, const double scale, const std::size_
     return value;
 }
 
+// Gamma(m / 2) for a positive integer m, from Gamma(1) = 1 and
+// Gamma(1/2) = sqrt(pi) by the recurrence Gamma(x + 1) = x Gamma(x).
+double gamma_of_half_integer(const std::size_t m)
+{
+    double value = m % 2 == 0 ? 1.0 : std::sqrt(std::acos(-1.0));
+    for (std::size_t twice_x = m % 2 == 0 ? 2 : 1; twice_x < m; twice_x += 2)
+    {
+        value *= 0.5 * static_cast<double>(twice_x);
+    }
+    return value;
+}
+
+double chi_raw_moment(const std::size_t degrees_of_freedom, const std::size_t order)
+{
+    return std::pow(2.0, 0.5 * static_cast<double>(order)) * gamma_of_half_integer(degrees_of_freedom + order) /
+           gamma_of_half_integer(degrees_of_freedom);
+}
+
+double chi_squared_raw_moment(const double degrees_of_freedom, const std::size_t order)
+{
+    double value = 1.0;
+    for (std::size_t j = 0; j < order; ++j)
+    {
+        value *= degrees_of_freedom + 2.0 * static_cast<double>(j);
+    }
+    return value;
+}
+
+// Pure relative comparison, for moments that span many decades and fall below
+// one.
+void assert_relative(const double actual, const double expected, const double tolerance)
+{
+    QMOMKIT_VERIFY_NEAR(actual, expected, tolerance * std::abs(expected));
+}
+
+template <class Distribution, class Reference>
+void assert_moments_relative(const Distribution& distribution, const double total_weight, const std::size_t maximum_order, const Reference& reference,
+                             const double tolerance)
+{
+    const qmomkit::RawMomentResult result = qmomkit::compute_raw_moments(distribution, maximum_order, total_weight);
+    QMOMKIT_VERIFY_CHECK(result.ok());
+    QMOMKIT_VERIFY_CHECK(result.moments.size() == maximum_order + 1);
+    for (std::size_t order = 0; order <= maximum_order; ++order)
+    {
+        assert_relative(result.moments[order], total_weight * reference(order), tolerance);
+    }
+}
+
+// The selected-order path, with the orders requested out of sequence.
+template <class Distribution, class Reference>
+void assert_selected_moments_relative(const Distribution& distribution, const double total_weight, const Reference& reference, const double tolerance)
+{
+    const std::vector<std::size_t> orders{10, 0, 3, 7};
+    qmomkit::RawMomentRequest request;
+    for (const std::size_t order : orders)
+    {
+        request.indices.push_back(qmomkit::MultiIndex{order});
+    }
+    const qmomkit::SelectedRawMomentResult result = qmomkit::compute_raw_moments(distribution, request, total_weight);
+    QMOMKIT_VERIFY_CHECK(result.ok());
+    QMOMKIT_VERIFY_CHECK(result.values.size() == orders.size());
+    for (std::size_t index = 0; index < orders.size(); ++index)
+    {
+        assert_relative(result.values[index], total_weight * reference(orders[index]), tolerance);
+    }
+}
+
 double weibull_raw_moment(const double shape, const double scale, const std::size_t order)
 {
     const double k = static_cast<double>(order);
@@ -295,6 +377,60 @@ void verify_chi()
                                        total_weight * 15.0};
 
     assert_moments(qmomkit::compute_raw_moments(qmomkit::ChiDistribution{3.0}, 4, total_weight), expected, 1.0e-13);
+}
+
+void verify_chi_squared_closed_form()
+{
+    for (const double degrees_of_freedom : {1.0, 4.0, 5.0, 12.0})
+    {
+        assert_moments_relative(
+            qmomkit::ChiSquaredDistribution{degrees_of_freedom}, 1.7, 10,
+            [degrees_of_freedom](const std::size_t order) { return chi_squared_raw_moment(degrees_of_freedom, order); }, 1.0e-13);
+    }
+}
+
+// Even degrees of freedom give integer gamma arguments at even orders and
+// half-integer ones at odd orders; odd degrees of freedom the reverse.
+void verify_chi_closed_form()
+{
+    for (const std::size_t degrees_of_freedom : {1, 2, 4, 5, 9})
+    {
+        assert_moments_relative(
+            qmomkit::ChiDistribution{static_cast<double>(degrees_of_freedom)}, 2.25, 10,
+            [degrees_of_freedom](const std::size_t order) { return chi_raw_moment(degrees_of_freedom, order); }, 1.0e-13);
+    }
+}
+
+void verify_gamma_large_shape()
+{
+    for (const double shape : {10.0, 25.5, 50.0})
+    {
+        assert_moments_relative(
+            qmomkit::GammaDistribution{shape, 0.5}, 3.0, 10, [shape](const std::size_t order) { return gamma_raw_moment(shape, 0.5, order); },
+            1.0e-12);
+    }
+}
+
+void verify_beta_large_parameters()
+{
+    for (const std::pair<double, double>& parameters : {std::pair<double, double>{20.0, 30.0}, {12.5, 37.5}, {2.0, 48.0}})
+    {
+        assert_moments_relative(
+            qmomkit::BetaDistribution{parameters.first, parameters.second}, 0.8, 10,
+            [parameters](const std::size_t order) { return beta_raw_moment(parameters.first, parameters.second, order); }, 1.0e-12);
+    }
+}
+
+void verify_selected_orders_closed_form()
+{
+    assert_selected_moments_relative(
+        qmomkit::ChiSquaredDistribution{5.0}, 1.7, [](const std::size_t order) { return chi_squared_raw_moment(5.0, order); }, 1.0e-13);
+    assert_selected_moments_relative(qmomkit::ChiDistribution{4.0}, 2.25, [](const std::size_t order) { return chi_raw_moment(4, order); }, 1.0e-13);
+    assert_selected_moments_relative(qmomkit::ChiDistribution{5.0}, 2.25, [](const std::size_t order) { return chi_raw_moment(5, order); }, 1.0e-13);
+    assert_selected_moments_relative(
+        qmomkit::GammaDistribution{25.5, 0.5}, 3.0, [](const std::size_t order) { return gamma_raw_moment(25.5, 0.5, order); }, 1.0e-12);
+    assert_selected_moments_relative(
+        qmomkit::BetaDistribution{20.0, 30.0}, 0.8, [](const std::size_t order) { return beta_raw_moment(20.0, 30.0, order); }, 1.0e-12);
 }
 
 void verify_weibull()
@@ -1025,6 +1161,11 @@ int main(const int argc, char** argv)
             {"chi_squared", verify_chi_squared},
             {"weibull_gamma_identity", verify_weibull_gamma_identity},
             {"chi", verify_chi},
+            {"chi_closed_form", verify_chi_closed_form},
+            {"chi_squared_closed_form", verify_chi_squared_closed_form},
+            {"gamma_large_shape", verify_gamma_large_shape},
+            {"beta_large_parameters", verify_beta_large_parameters},
+            {"selected_orders_closed_form", verify_selected_orders_closed_form},
             {"weibull", verify_weibull},
             {"maximum_order_zero_and_invalid_parameters", verify_maximum_order_zero_and_invalid_parameters},
             {"configuration_distribution_initialization", verify_configuration_distribution_initialization},

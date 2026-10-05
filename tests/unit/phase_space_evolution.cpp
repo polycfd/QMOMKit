@@ -1458,6 +1458,64 @@ void test_configured_qmom_source_realizability_policy_matches_programmatic_adapt
     assert_vector_near(every_stage.state.moment_values(), state.moment_values(), 0.0);
 }
 
+// A source that translates the distribution by velocity v,
+// dm_k/dt = k v m_{k-1}, keeps every moment sequence realizable on the real
+// line, so a configured policy can reject it only through its support. For
+// four moments the generator of this linear system is nilpotent, A^4 = 0, so
+// its exact propagator is the cubic Taylor polynomial that SSP-RK3 applies,
+// and an accepted state holds the exactly translated moments.
+void test_configured_qmom_source_realizability_policy_enforces_its_support()
+{
+    const std::vector<double> points{0.5, 1.5};
+    const std::vector<double> weights{0.5, 0.5};
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d(points, weights, 4), 2);
+    const auto translation = [](const double velocity)
+    {
+        return [velocity](double, const qmomkit::QmomSourceContext& moments)
+        {
+            std::vector<double> rate(moments.size(), 0.0);
+            for (std::size_t order = 1; order < moments.size(); ++order)
+            {
+                rate[order] = static_cast<double>(order) * velocity * moments.moment(order - 1);
+            }
+            return qmomkit::QmomMomentRate{std::move(rate)};
+        };
+    };
+    const auto parse_options = [](const std::string& support)
+    {
+        const auto parsed =
+            qmomkit::config::parse_qmom_phase_space_evolution_options("[time_integration.realizability]\ncheck_mode = final_only\n" + support);
+        assert(parsed.ok());
+        return parsed.value();
+    };
+    const auto translated_moments = [&points, &weights](const double shift)
+    { return raw_moments_1d({points[0] + shift, points[1] + shift}, weights, 4); };
+    const auto assert_rejected = [&state](const qmomkit::QmomPhaseSpaceEvolutionResult& result)
+    {
+        assert(!result.ok());
+        assert(result.status == qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed);
+        assert(result.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::rejected_by_predicate);
+        assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
+    };
+
+    // Moving by -2 places both points below zero.
+    const qmomkit::QmomPhaseSpaceEvolutionOptions real_line = parse_options("support = real_line\n");
+    const qmomkit::QmomPhaseSpaceEvolutionOptions nonnegative = parse_options("support = nonnegative\n");
+    const qmomkit::QmomPhaseSpaceEvolutionResult left_on_real_line =
+        qmomkit::advance_qmom_moment_source(state, 0.0, 0.2, translation(-10.0), real_line);
+    assert(left_on_real_line.ok());
+    assert_vector_near(left_on_real_line.state.moment_values(), translated_moments(-2.0), 1.0e-12);
+    assert_rejected(qmomkit::advance_qmom_moment_source(state, 0.0, 0.2, translation(-10.0), nonnegative));
+
+    // On [0, 2], moving by 0.2 stays inside and moving by 2 leaves it.
+    const qmomkit::QmomPhaseSpaceEvolutionOptions interval = parse_options("support = bounded_interval\nlower = 0.0\nupper = 2.0\n");
+    const qmomkit::QmomPhaseSpaceEvolutionResult inside = qmomkit::advance_qmom_moment_source(state, 0.0, 0.2, translation(1.0), interval);
+    assert(inside.ok());
+    assert_vector_near(inside.state.moment_values(), translated_moments(0.2), 1.0e-12);
+    assert_rejected(qmomkit::advance_qmom_moment_source(state, 0.0, 0.2, translation(10.0), interval));
+    assert(qmomkit::advance_qmom_moment_source(state, 0.0, 0.2, translation(10.0), real_line).ok());
+}
+
 void test_public_qmom_moment_source_stage_boundary_matches_source_update()
 {
     const qmomkit::QmomState state = qmom_state_from_moments({1.0, 2.0}, 1);
@@ -4336,6 +4394,8 @@ int main(const int argc, char** argv)
             {"qmom_source_context_generalized_moment_uses_current_rk_stage", test_qmom_source_context_generalized_moment_uses_current_rk_stage},
             {"configured_qmom_source_realizability_policy_matches_programmatic_adapter",
              test_configured_qmom_source_realizability_policy_matches_programmatic_adapter},
+            {"configured_qmom_source_realizability_policy_enforces_its_support",
+             test_configured_qmom_source_realizability_policy_enforces_its_support},
             {"public_qmom_moment_source_stage_boundary_matches_source_update", test_public_qmom_moment_source_stage_boundary_matches_source_update},
             {"public_qmom_stage_composition_matches_strang_phase_space_evolution",
              test_public_qmom_stage_composition_matches_strang_phase_space_evolution},

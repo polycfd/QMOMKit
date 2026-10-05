@@ -5,9 +5,11 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -119,7 +121,10 @@ void assert_selected_matches_all_orders(const qmomkit::DistributionSpecification
     for (std::size_t index = 0; index < request.indices.size(); ++index)
     {
         assert(request.indices[index].size() == 1);
-        assert_near(selected.values[index], all_orders.moments[request.indices[index][0]], tolerance);
+        // Relative, because high-order moments reach 1e13 and more, where an
+        // absolute bound would demand bit equality between the two paths.
+        const double expected = all_orders.moments[request.indices[index][0]];
+        assert(std::abs(selected.values[index] - expected) <= tolerance * std::abs(expected));
     }
 }
 
@@ -162,13 +167,13 @@ void test_selected_distribution_reordered_and_duplicate_orders_match_all_orders(
 void test_selected_distribution_high_order_gaps_match_all_orders()
 {
     const qmomkit::RawMomentRequest request{{{0}, {1}, {12}}};
-    assert_selected_matches_all_orders(qmomkit::NormalDistribution{0.1, 0.5}, request, 1.0, 12, 1.0e-9);
-    assert_selected_matches_all_orders(qmomkit::LogNormalDistribution{-0.05, 0.1}, request, 1.0, 12, 1.0e-9);
+    assert_selected_matches_all_orders(qmomkit::NormalDistribution{0.1, 0.5}, request, 1.0, 12, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::LogNormalDistribution{-0.05, 0.1}, request, 1.0, 12, 1.0e-12);
     assert_selected_matches_all_orders(qmomkit::BetaDistribution{2.0, 3.0}, request, 1.0, 12, 1.0e-12);
-    assert_selected_matches_all_orders(qmomkit::GammaDistribution{1.5, 0.25}, request, 1.0, 12, 1.0e-9);
-    assert_selected_matches_all_orders(qmomkit::ChiDistribution{3.0}, request, 1.0, 12, 1.0e-8);
-    assert_selected_matches_all_orders(qmomkit::ChiSquaredDistribution{3.0}, request, 1.0, 12, 1.0e-6);
-    assert_selected_matches_all_orders(qmomkit::WeibullDistribution{2.0, 0.25}, request, 1.0, 12, 1.0e-9);
+    assert_selected_matches_all_orders(qmomkit::GammaDistribution{1.5, 0.25}, request, 1.0, 12, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::ChiDistribution{3.0}, request, 1.0, 12, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::ChiSquaredDistribution{3.0}, request, 1.0, 12, 1.0e-12);
+    assert_selected_matches_all_orders(qmomkit::WeibullDistribution{2.0, 0.25}, request, 1.0, 12, 1.0e-12);
 }
 
 void test_selected_distribution_zero_total_weight()
@@ -303,20 +308,57 @@ void test_invalid_distribution_parameters()
            qmomkit::RawMomentStatus::invalid_input);
 }
 
+// Distributions paired with the first order whose ln E[X^k] exceeds
+// ln(DBL_MAX) ~ 709.8. The neighbouring orders lie at least ln 2 from that
+// bound, so rounding cannot move it:
+//   gamma(1, DBL_MAX / 2)  E[X^k] = k! (DBL_MAX / 2)^k                        k = 2
+//   chi(3)                 E[X^k] = 2^(k/2) Gamma((3 + k) / 2) / Gamma(3/2)   k = 300
+//   chi-squared(2)         E[X^k] = 2^k k!                                    k = 151
+//   Weibull(0.1, 2)        E[X^k] = 2^k Gamma(1 + 10 k)                       k = 17
+std::vector<std::pair<qmomkit::DistributionSpecification, std::size_t>> overflowing_distributions()
+{
+    return {
+        {qmomkit::GammaDistribution{1.0, std::numeric_limits<double>::max() / 2.0}, 2},
+        {qmomkit::ChiDistribution{3.0}, 300},
+        {qmomkit::ChiSquaredDistribution{2.0}, 151},
+        {qmomkit::WeibullDistribution{0.1, 2.0}, 17},
+    };
+}
+
 void test_overflow_status()
 {
     const qmomkit::RawMomentResult log_normal = qmomkit::compute_raw_moments(qmomkit::LogNormalDistribution{100.0, 10.0}, 20);
 
     assert(!log_normal.ok());
     assert(log_normal.status == qmomkit::RawMomentStatus::overflow);
-    assert(log_normal.failed_order > 0);
+    // ln E[X^k] = 100 k + 50 k^2 first exceeds ln(DBL_MAX) ~ 709.8 at k = 3.
+    assert(log_normal.failed_order == 3);
     assert(!log_normal.message.empty());
 
-    const double large_scale = std::numeric_limits<double>::max() / 2.0;
-    assert(qmomkit::compute_raw_moments(qmomkit::GammaDistribution{1.0, large_scale}, 2).status == qmomkit::RawMomentStatus::overflow);
-    assert(qmomkit::compute_raw_moments(qmomkit::ChiDistribution{3.0}, 2048).status == qmomkit::RawMomentStatus::overflow);
-    assert(qmomkit::compute_raw_moments(qmomkit::ChiSquaredDistribution{2.0}, 1024).status == qmomkit::RawMomentStatus::overflow);
-    assert(qmomkit::compute_raw_moments(qmomkit::WeibullDistribution{0.1, 2.0}, 100).status == qmomkit::RawMomentStatus::overflow);
+    for (const auto& [distribution, failed_order] : overflowing_distributions())
+    {
+        const qmomkit::RawMomentResult result = qmomkit::compute_raw_moments(distribution, 2 * failed_order);
+        assert(result.status == qmomkit::RawMomentStatus::overflow);
+        assert(result.failed_order == failed_order);
+        assert(qmomkit::compute_raw_moments(distribution, failed_order - 1).ok());
+    }
+}
+
+// The selected-order path reports the same first overflowing order, and the
+// order just below it is still representable.
+void test_selected_overflow_reports_the_failed_order()
+{
+    for (const auto& [distribution, failed_order] : overflowing_distributions())
+    {
+        const qmomkit::SelectedRawMomentResult overflowing =
+            qmomkit::compute_raw_moments(distribution, qmomkit::RawMomentRequest{{{0}, {failed_order}}});
+        assert(overflowing.status == qmomkit::RawMomentStatus::overflow);
+        assert_vector_equal(overflowing.failed_order, {failed_order});
+
+        const qmomkit::SelectedRawMomentResult representable =
+            qmomkit::compute_raw_moments(distribution, qmomkit::RawMomentRequest{{{0}, {failed_order - 1}}});
+        assert(representable.ok());
+    }
 }
 
 void test_underflow_status()
@@ -1050,6 +1092,7 @@ int main(const int argc, char** argv)
             {"invalid_total_weight", test_invalid_total_weight},
             {"invalid_distribution_parameters", test_invalid_distribution_parameters},
             {"overflow_status", test_overflow_status},
+            {"selected_overflow_reports_the_failed_order", test_selected_overflow_reports_the_failed_order},
             {"overflowing_variance_fails_only_the_orders_that_use_it", test_overflowing_variance_fails_only_the_orders_that_use_it},
             {"normal_moments_that_underflow_are_reported", test_normal_moments_that_underflow_are_reported},
             {"underflow_status", test_underflow_status},

@@ -15,6 +15,17 @@
 //   verdict and the order at which it should be reached are both known before
 //   the check runs.
 //
+//   The remaining cases rest on two standard facts. A measure of n points
+//   inside the support is strictly realizable up to order 2n - 1 and lies on
+//   the boundary from order 2n on, where the (n + 1) x (n + 1) Hankel matrix
+//   becomes singular. A point at an end of the support contributes nothing to
+//   the localizing matrix for that end, so the sequence is on the boundary once
+//   that matrix is larger than the number of the other points; a single point
+//   at an end is on the boundary from order one. And on an interval [a, b]
+//   every distribution satisfies the
+//   Bhatia-Davis bound variance <= (b - mean)(mean - a), so a larger variance
+//   is not realizable.
+//
 // Error metric and pass criteria
 //   Verdict and reported order must match exactly. The reported pivot must
 //   exceed the tolerance actually used for a strictly realizable sequence, and
@@ -102,6 +113,18 @@ bool contains_text(const std::string& text, const std::string& fragment)
     for (std::size_t order = 0; order <= maximum_order; ++order)
     {
         moments[order] = 1.0 / static_cast<double>(order + 1);
+    }
+    return MomentSet(std::move(moments));
+}
+
+// Moments of the uniform distribution on [lower, upper], with unit mass.
+[[nodiscard]] MomentSet uniform_moments(const double lower, const double upper, const std::size_t maximum_order)
+{
+    std::vector<double> moments(maximum_order + 1, 0.0);
+    for (std::size_t order = 0; order <= maximum_order; ++order)
+    {
+        const double k = static_cast<double>(order);
+        moments[order] = (std::pow(upper, k + 1.0) - std::pow(lower, k + 1.0)) / ((k + 1.0) * (upper - lower));
     }
     return MomentSet(std::move(moments));
 }
@@ -312,6 +335,88 @@ void verify_hausdorff()
     expect_status(MomentSet{1.0, 0.25, 0.125, 0.0625}, unit, RealizabilityStatus::boundary, "odd order boundary");
 }
 
+void verify_hausdorff_on_other_intervals()
+{
+    // The [0,1] cases above, on an interval containing zero and on one away
+    // from it. The variance cases sit 0.25 above and below the Bhatia-Davis
+    // bound for a mean at the centre.
+    for (const BoundedInterval interval : {BoundedInterval{-1.0, 2.0}, BoundedInterval{2.0, 5.0}})
+    {
+        const double a = interval.lower;
+        const double b = interval.upper;
+        const double centre = 0.5 * (a + b);
+        const double largest_variance = (b - centre) * (centre - a);
+
+        expect_status(uniform_moments(a, b, 4), interval, RealizabilityStatus::strictly_realizable, "uniform order 4");
+        expect_status(uniform_moments(a, b, 5), interval, RealizabilityStatus::strictly_realizable, "uniform order 5");
+        expect_status(discrete_moments({1.5}, {centre}, 1), interval, RealizabilityStatus::strictly_realizable, "interior atom order 1");
+        expect_status(discrete_moments({1.5}, {centre}, 2), interval, RealizabilityStatus::boundary, "interior atom order 2");
+        expect_status(discrete_moments({0.3, 0.7}, {a + 0.5, b - 1.0}, 3), interval, RealizabilityStatus::strictly_realizable,
+                      "two interior atoms order 3");
+        expect_status(discrete_moments({0.3, 0.7}, {a + 0.5, b - 1.0}, 4), interval, RealizabilityStatus::boundary, "two interior atoms order 4");
+        expect_status(discrete_moments({1.0}, {a}, 3), interval, RealizabilityStatus::boundary, "lower end atom");
+        expect_status(discrete_moments({1.0}, {b}, 3), interval, RealizabilityStatus::boundary, "upper end atom");
+        expect_status(MomentSet{1.0, b + 0.2}, interval, RealizabilityStatus::not_realizable, "mean above the interval");
+        expect_status(MomentSet{1.0, a - 0.2}, interval, RealizabilityStatus::not_realizable, "mean below the interval");
+        expect_status(MomentSet{1.0, centre, centre * centre + largest_variance - 0.25}, interval, RealizabilityStatus::strictly_realizable,
+                      "variance below the Bhatia-Davis bound");
+        expect_status(MomentSet{1.0, centre, centre * centre + largest_variance + 0.25}, interval, RealizabilityStatus::not_realizable,
+                      "variance above the Bhatia-Davis bound");
+    }
+}
+
+void verify_even_order_boundaries()
+{
+    // n interior points: strictly realizable at order 2n - 1, boundary at 2n.
+    expect_status(discrete_moments({0.4, 0.6}, {-0.75, 1.25}, 3), MomentSupport::real_line, RealizabilityStatus::strictly_realizable,
+                  "two points order 3");
+    expect_status(discrete_moments({0.4, 0.6}, {-0.75, 1.25}, 4), MomentSupport::real_line, RealizabilityStatus::boundary, "two points order 4");
+    expect_status(discrete_moments({0.25, 0.5, 0.25}, {-1.0, 0.5, 2.0}, 5), MomentSupport::real_line, RealizabilityStatus::strictly_realizable,
+                  "three points order 5");
+    expect_status(discrete_moments({0.25, 0.5, 0.25}, {-1.0, 0.5, 2.0}, 6), MomentSupport::real_line, RealizabilityStatus::boundary,
+                  "three points order 6");
+    expect_status(discrete_moments({0.4, 0.6}, {0.5, 2.0}, 3), MomentSupport::nonnegative, RealizabilityStatus::strictly_realizable,
+                  "two positive points order 3");
+    expect_status(discrete_moments({0.4, 0.6}, {0.5, 2.0}, 4), MomentSupport::nonnegative, RealizabilityStatus::boundary,
+                  "two positive points order 4");
+    expect_status(discrete_moments({0.4, 0.6}, {0.25, 0.75}, 4), BoundedInterval{0.0, 1.0}, RealizabilityStatus::boundary,
+                  "two interior points order 4");
+
+    // The localizing matrix x H does not see the point at zero, so it has rank
+    // one here and is singular from order 3, where it is 2 x 2.
+    expect_status(discrete_moments({0.4, 0.6}, {0.0, 2.0}, 3), MomentSupport::nonnegative, RealizabilityStatus::boundary, "zero point order 3");
+    expect_status(discrete_moments({0.4, 0.6}, {0.0, 2.0}, 4), MomentSupport::nonnegative, RealizabilityStatus::boundary, "zero point order 4");
+}
+
+void verify_moderate_shift_preserves_classification()
+{
+    // Realizability does not depend on where the distribution sits, so the
+    // same points moved by c must keep their classification. From a centre of
+    // about 30 on, the raw-moment Hankel matrices are too ill-conditioned for
+    // the classification to hold, so larger centres are not checked here.
+    for (const double c : {2.0, 10.0})
+    {
+        const std::vector<double> three_points{c - 1.0, c, c + 1.0};
+        const std::vector<double> two_points{c - 1.0, c + 1.0};
+        for (const MomentSupport support : {MomentSupport::real_line, MomentSupport::nonnegative})
+        {
+            expect_status(discrete_moments({0.25, 0.5, 0.25}, three_points, 5), support, RealizabilityStatus::strictly_realizable,
+                          "shifted three points order 5");
+            expect_status(discrete_moments({0.25, 0.5, 0.25}, three_points, 6), support, RealizabilityStatus::boundary,
+                          "shifted three points order 6");
+            expect_status(discrete_moments({0.5, 0.5}, two_points, 3), support, RealizabilityStatus::strictly_realizable,
+                          "shifted two points order 3");
+            expect_status(discrete_moments({0.5, 0.5}, two_points, 4), support, RealizabilityStatus::boundary, "shifted two points order 4");
+        }
+
+        const BoundedInterval interval{c - 2.0, c + 2.0};
+        expect_status(uniform_moments(c - 2.0, c + 2.0, 5), interval, RealizabilityStatus::strictly_realizable, "shifted uniform order 5");
+        expect_status(discrete_moments({0.5, 0.5}, two_points, 3), interval, RealizabilityStatus::strictly_realizable,
+                      "shifted two interior points order 3");
+        expect_status(discrete_moments({0.5, 0.5}, two_points, 4), interval, RealizabilityStatus::boundary, "shifted two interior points order 4");
+    }
+}
+
 void verify_near_boundary_and_scaling()
 {
     // Near-boundary cases make tolerance semantics explicit. Relative tolerance
@@ -380,6 +485,9 @@ int main(const int argc, char** argv)
                                                  {"hamburger", verify_hamburger},
                                                  {"stieltjes", verify_stieltjes},
                                                  {"hausdorff", verify_hausdorff},
+                                                 {"hausdorff_on_other_intervals", verify_hausdorff_on_other_intervals},
+                                                 {"even_order_boundaries", verify_even_order_boundaries},
+                                                 {"moderate_shift_preserves_classification", verify_moderate_shift_preserves_classification},
                                                  {"near_boundary_and_scaling", verify_near_boundary_and_scaling},
                                              });
 }

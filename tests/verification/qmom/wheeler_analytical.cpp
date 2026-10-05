@@ -2,7 +2,9 @@
 //
 // What is verified
 //   That compute_quadrature returns exactly the positions and weights the
-//   moments were built from, for one, two and three nodes; that reconstructing
+//   moments were built from, for one to six and for eight nodes; that
+//   multiplying every weight by a common factor leaves the positions unchanged
+//   and scales the weights by that factor; that reconstructing
 //   the moments from the result returns the input; and that presenting the
 //   same points in a different input order changes neither the moments nor the
 //   sorted output.
@@ -20,6 +22,15 @@
 //   per case, at 1.0e-14 for the small well-separated cases; the values are
 //   order one, so this is a few units in the last place of a double.
 //
+//   From four nodes on, positions are compared relative to the largest
+//   |position| and weights relative to the total weight. The map from 2n
+//   moments to n points is increasingly ill-conditioned as n grows, so the
+//   rounding of the constructed input moments alone limits the attainable
+//   accuracy: measured deviations are about 1e-15 for four nodes, 2e-14 for
+//   six and 1.4e-12 for eight. The tolerances, 1e-12 up to six nodes and
+//   1e-10 for eight, leave a margin of about fifty or more over those
+//   deviations while still rejecting any misplaced point or weight.
+//
 // Reproduce
 //   ctest -R verification_wheeler_analytical
 //
@@ -31,6 +42,7 @@
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <vector>
@@ -153,6 +165,64 @@ void test_input_node_order_does_not_change_moments_or_sorted_output()
     assert_vector_near(shuffled.weights, ordered.weights, 1.0e-14);
 }
 
+// Compares a recovered quadrature with the chosen points: positions relative to
+// the largest |position|, weights relative to the total weight.
+void assert_recovers_points(const std::vector<double>& abscissas, const std::vector<double>& weights, const double tolerance)
+{
+    const std::size_t n = abscissas.size();
+    const qmomkit::MomentSet moments(construct_moments(abscissas, weights, 2 * n));
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, n);
+
+    QMOMKIT_VERIFY_CHECK(quadrature.ok());
+    QMOMKIT_VERIFY_CHECK(quadrature.abscissas.size() == n);
+    assert_sorted_ascending(quadrature.abscissas);
+    double position_scale = 0.0;
+    double total_weight = 0.0;
+    for (std::size_t node = 0; node < n; ++node)
+    {
+        position_scale = std::max(position_scale, std::abs(abscissas[node]));
+        total_weight += weights[node];
+    }
+    for (std::size_t node = 0; node < n; ++node)
+    {
+        assert_near(quadrature.abscissas[node], abscissas[node], tolerance * position_scale);
+        assert_near(quadrature.weights[node], weights[node], tolerance * total_weight);
+    }
+}
+
+void test_four_node_reference()
+{
+    assert_recovers_points({-1.5, -0.5, 0.75, 2.0}, {0.1, 0.4, 0.3, 0.2}, 1.0e-12);
+}
+
+void test_five_node_reference()
+{
+    assert_recovers_points({-2.0, -1.0, 0.0, 1.5, 3.0}, {0.05, 0.2, 0.35, 0.25, 0.15}, 1.0e-12);
+}
+
+void test_six_node_reference()
+{
+    assert_recovers_points({-2.5, -1.5, -0.5, 0.5, 1.5, 2.5}, {0.08, 0.17, 0.25, 0.22, 0.18, 0.1}, 1.0e-12);
+    assert_recovers_points({-0.9, -0.6, -0.2, 0.1, 0.5, 0.8}, {0.08, 0.17, 0.25, 0.22, 0.18, 0.1}, 1.0e-12);
+}
+
+// The same eight points with total weight 1 and with total weight 2500: the
+// positions do not depend on the number density, and the weights scale with
+// it.
+void test_eight_node_reference_at_two_number_densities()
+{
+    const std::vector<double> abscissas{-0.95, -0.7, -0.4, -0.1, 0.15, 0.45, 0.7, 0.9};
+    const std::vector<double> weights{0.06, 0.1, 0.14, 0.2, 0.18, 0.14, 0.11, 0.07};
+    assert_recovers_points(abscissas, weights, 1.0e-10);
+
+    std::vector<double> scaled_weights = weights;
+    for (double& weight : scaled_weights)
+    {
+        weight *= 2500.0;
+    }
+    assert_recovers_points(abscissas, scaled_weights, 1.0e-10);
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -164,6 +234,10 @@ int main(const int argc, char** argv)
             {"one_node_constructed_moment_reconstruction", test_one_node_constructed_moment_reconstruction},
             {"two_node_reference", test_two_node_reference},
             {"three_node_reference", test_three_node_reference},
+            {"four_node_reference", test_four_node_reference},
+            {"five_node_reference", test_five_node_reference},
+            {"six_node_reference", test_six_node_reference},
+            {"eight_node_reference_at_two_number_densities", test_eight_node_reference_at_two_number_densities},
             {"input_node_order_does_not_change_moments_or_sorted_output", test_input_node_order_does_not_change_moments_or_sorted_output},
         });
 }

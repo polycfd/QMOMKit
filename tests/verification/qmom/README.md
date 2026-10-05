@@ -155,12 +155,18 @@ promises.
 ## Wheeler, Adaptive, and Bounded Cases
 
 `wheeler_analytical.cpp` verifies the Wheeler inversion
-`qmomkit::compute_quadrature(...)` directly, on one-, two- and three-node rules
-chosen in advance. The recovered positions and weights must equal the chosen
-ones, reconstructing the moments from the result must return the input, and
-presenting the same points in a different input order must change neither the
-moments nor the sorted output. Tolerances are set per case, at `1e-14` for the
-small well-separated rules. CTest names: `verification_wheeler_analytical_*`.
+`qmomkit::compute_quadrature(...)` directly, on rules of one to six and of
+eight nodes chosen in advance. The recovered positions and weights must equal
+the chosen ones, reconstructing the moments from the result must return the
+input, and presenting the same points in a different input order must change
+neither the moments nor the sorted output. The eight-node rule is also inverted
+at total weight 2500, where the positions must not change and the weights must
+scale with it. Tolerances are set per case, at `1e-14` for the small
+well-separated rules. From four nodes on they are relative, `1e-12` up to six
+nodes and `1e-10` for eight: the map from moments to points becomes
+increasingly ill-conditioned, and the rounding of the constructed moments alone
+limits the attainable accuracy to about `1e-15` at four nodes and `1e-12` at
+eight. CTest names: `verification_wheeler_analytical_*`.
 
 `adaptive_qmom.cpp` builds six moments from a two-node rule and requests three
 nodes from `compute_qmom` with `QmomOptions::adaptive = true`. The result must

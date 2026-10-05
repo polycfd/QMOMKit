@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 650 |
+| Unit logical tests | 657 |
 | Component/regression logical tests | 47 |
-| Verification logical tests | 168 |
-| **Runtime logical tests** | **865** |
+| Verification logical tests | 180 |
+| **Runtime logical tests** | **884** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **866** |
+| **Total CTest registrations** | **885** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -145,6 +145,10 @@ renamed test rather than a deleted one.
 | `verification_wheeler_analytical_two_node_reference` | `tests/verification/qmom/wheeler_analytical.cpp` | `two_node_reference` | Verifies the two node reference numerical property of analytical Wheeler reconstruction against its reference. | — |
 | `verification_wheeler_analytical_three_node_reference` | `tests/verification/qmom/wheeler_analytical.cpp` | `three_node_reference` | Verifies the three node reference numerical property of analytical Wheeler reconstruction against its reference. | — |
 | `verification_wheeler_analytical_input_node_order_does_not_change_moments_or_sorted_output` | `tests/verification/qmom/wheeler_analytical.cpp` | `input_node_order_does_not_change_moments_or_sorted_output` | Verifies the input node order does not change moments or sorted output numerical property of analytical Wheeler reconstruction against its reference. | — |
+| `verification_wheeler_analytical_four_node_reference` | `tests/verification/qmom/wheeler_analytical.cpp` | `four_node_reference` | Verifies that Wheeler inversion recovers four chosen points and weights from their first eight moments. | — |
+| `verification_wheeler_analytical_five_node_reference` | `tests/verification/qmom/wheeler_analytical.cpp` | `five_node_reference` | Verifies that Wheeler inversion recovers five chosen points and weights from their first ten moments. | — |
+| `verification_wheeler_analytical_six_node_reference` | `tests/verification/qmom/wheeler_analytical.cpp` | `six_node_reference` | Verifies that Wheeler inversion recovers six chosen points and weights, on a wide and on a narrow spacing. | — |
+| `verification_wheeler_analytical_eight_node_reference_at_two_number_densities` | `tests/verification/qmom/wheeler_analytical.cpp` | `eight_node_reference_at_two_number_densities` | Verifies that Wheeler inversion recovers eight chosen points at total weights 1 and 2500, with unchanged positions and proportional weights. | — |
 
 ### QMOM / adaptive Qmom
 
@@ -286,6 +290,11 @@ renamed test rather than a deleted one.
 | `verification_distributions_analytical_chi_squared` | `tests/verification/distributions/distributions_analytical.cpp` | `chi_squared` | Verifies analytical distribution moments and documented failure behavior for chi squared. | — |
 | `verification_distributions_analytical_weibull_gamma_identity` | `tests/verification/distributions/distributions_analytical.cpp` | `weibull_gamma_identity` | Verifies analytical distribution moments and documented failure behavior for weibull gamma identity. | — |
 | `verification_distributions_analytical_chi` | `tests/verification/distributions/distributions_analytical.cpp` | `chi` | Verifies analytical distribution moments and documented failure behavior for chi. | — |
+| `verification_distributions_analytical_chi_squared_closed_form` | `tests/verification/distributions/distributions_analytical.cpp` | `chi_squared_closed_form` | Verifies chi-squared moments to order 10 against the product of (nu + 2j), for odd and even degrees of freedom. | — |
+| `verification_distributions_analytical_chi_closed_form` | `tests/verification/distributions/distributions_analytical.cpp` | `chi_closed_form` | Verifies chi moments to order 10 against 2^(k/2) Gamma((nu + k)/2) / Gamma(nu/2), for odd and even degrees of freedom. | — |
+| `verification_distributions_analytical_gamma_large_shape` | `tests/verification/distributions/distributions_analytical.cpp` | `gamma_large_shape` | Verifies gamma moments to order 10 against the rising-factorial product for shapes up to 50. | — |
+| `verification_distributions_analytical_beta_large_parameters` | `tests/verification/distributions/distributions_analytical.cpp` | `beta_large_parameters` | Verifies beta moments to order 10 against the closed-form product for alpha + beta = 50. | — |
+| `verification_distributions_analytical_selected_orders_closed_form` | `tests/verification/distributions/distributions_analytical.cpp` | `selected_orders_closed_form` | Verifies selected-order chi, chi-squared, gamma and beta moments, requested out of order, against their closed forms. | — |
 | `verification_distributions_analytical_weibull` | `tests/verification/distributions/distributions_analytical.cpp` | `weibull` | Verifies analytical distribution moments and documented failure behavior for weibull. | — |
 | `verification_distributions_analytical_maximum_order_zero_and_invalid_parameters` | `tests/verification/distributions/distributions_analytical.cpp` | `maximum_order_zero_and_invalid_parameters` | Verifies analytical distribution moments and documented failure behavior for maximum order zero and invalid parameters. | — |
 | `verification_distributions_analytical_configuration_distribution_initialization` | `tests/verification/distributions/distributions_analytical.cpp` | `configuration_distribution_initialization` | Verifies analytical distribution moments and documented failure behavior for configuration distribution initialization. | — |
@@ -324,6 +333,9 @@ renamed test rather than a deleted one.
 | `verification_realizability_analytical_hamburger` | `tests/verification/realizability/realizability_analytical.cpp` | `hamburger` | Verifies the expected support-aware realizability classification and diagnostics for hamburger. | — |
 | `verification_realizability_analytical_stieltjes` | `tests/verification/realizability/realizability_analytical.cpp` | `stieltjes` | Verifies the expected support-aware realizability classification and diagnostics for stieltjes. | — |
 | `verification_realizability_analytical_hausdorff` | `tests/verification/realizability/realizability_analytical.cpp` | `hausdorff` | Verifies the expected support-aware realizability classification and diagnostics for hausdorff. | — |
+| `verification_realizability_analytical_hausdorff_on_other_intervals` | `tests/verification/realizability/realizability_analytical.cpp` | `hausdorff_on_other_intervals` | Verifies interior, end-point, mean and Bhatia-Davis variance classifications on [-1, 2] and [2, 5]. | — |
+| `verification_realizability_analytical_even_order_boundaries` | `tests/verification/realizability/realizability_analytical.cpp` | `even_order_boundaries` | Verifies that n interior points are strictly realizable at order 2n - 1 and on the boundary at order 2n, on each support. | — |
+| `verification_realizability_analytical_moderate_shift_preserves_classification` | `tests/verification/realizability/realizability_analytical.cpp` | `moderate_shift_preserves_classification` | Verifies that points shifted to centres 2 and 10 keep their classification on each support. | — |
 | `verification_realizability_analytical_near_boundary_and_scaling` | `tests/verification/realizability/realizability_analytical.cpp` | `near_boundary_and_scaling` | Verifies the expected support-aware realizability classification and diagnostics for near boundary and scaling. | — |
 
 ### Vandermonde / solver selection
@@ -650,6 +662,11 @@ CTest check; it is not 23 runtime tests.
 | `unit_jacobi_svd_zero_column_rhs_and_reuse_immutability` | `tests/unit/jacobi_svd.cpp` | `zero_column_rhs_and_reuse_immutability` | Checks that Jacobi SVD accepts zero right-hand-side columns and preserves a reusable factorization. | — |
 | `unit_jacobi_svd_success_requires_finite_solution` | `tests/unit/jacobi_svd.cpp` | `success_requires_finite_solution` | Verifies success requires finite solution. | — |
 | `unit_jacobi_svd_dense_matrix_rejects_overflowing_storage_dimensions` | `tests/unit/jacobi_svd.cpp` | `dense_matrix_rejects_overflowing_storage_dimensions` | Checks that the Jacobi-SVD solver detects the tested arithmetic overflow instead of reporting success. | — |
+| `unit_linear_algebra_two_by_two_matrices_match_the_closed_form` | `tests/unit/linear_algebra.cpp` | `two_by_two_matrices_match_the_closed_form` | Checks symmetric 2 x 2 eigenvalues against the closed form, with eigenvector residual and orthogonality. | — |
+| `unit_linear_algebra_diagonal_matrix_is_returned_sorted_and_exact` | `tests/unit/linear_algebra.cpp` | `diagonal_matrix_is_returned_sorted_and_exact` | Checks that a diagonal matrix yields its sorted diagonal and the matching unit eigenvectors exactly. | — |
+| `unit_linear_algebra_repeated_eigenvalue_gives_an_orthonormal_basis` | `tests/unit/linear_algebra.cpp` | `repeated_eigenvalue_gives_an_orthonormal_basis` | Checks the eigenvalues 1, 1, 4 of I + J and an orthonormal eigenvector basis for the repeated eigenvalue. | — |
+| `unit_linear_algebra_gauss_legendre_nodes_and_weights_match_the_closed_form` | `tests/unit/linear_algebra.cpp` | `gauss_legendre_nodes_and_weights_match_the_closed_form` | Checks Gauss-Legendre nodes and weights for two to five nodes from the Legendre Jacobi matrix against their closed forms. | — |
+| `unit_linear_algebra_gauss_legendre_rules_integrate_polynomials_exactly` | `tests/unit/linear_algebra.cpp` | `gauss_legendre_rules_integrate_polynomials_exactly` | Checks that Gauss-Legendre rules from the eigen solver integrate polynomials to degree 2n - 1 exactly, for up to sixteen nodes. | — |
 
 ### Vandermonde solvers
 
@@ -875,6 +892,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_distributions_invalid_total_weight` | `tests/unit/distributions.cpp` | `invalid_total_weight` | Verifies invalid total weight. | — |
 | `unit_distributions_invalid_distribution_parameters` | `tests/unit/distributions.cpp` | `invalid_distribution_parameters` | Verifies invalid distribution parameters. | — |
 | `unit_distributions_overflow_status` | `tests/unit/distributions.cpp` | `overflow_status` | Checks that distribution moment generation detects the tested arithmetic overflow instead of reporting success. | — |
+| `unit_distributions_selected_overflow_reports_the_failed_order` | `tests/unit/distributions.cpp` | `selected_overflow_reports_the_failed_order` | Checks that selected-order requests report the first overflowing order and accept the order just below it. | — |
 | `unit_distributions_overflowing_variance_fails_only_the_orders_that_use_it` | `tests/unit/distributions.cpp` | `overflowing_variance_fails_only_the_orders_that_use_it` | Checks that an overflowing normal or log-normal variance fails only requests that reach the orders using it, after the zero-weight return. | — |
 | `unit_distributions_normal_moments_that_underflow_are_reported` | `tests/unit/distributions.cpp` | `normal_moments_that_underflow_are_reported` | Checks that nonzero normal moments that underflow to zero, in the recurrence or the weighting, are reported as underflow, while exact zero odd moments and moments whose variance alone underflows next to a nonzero mean are not. | — |
 | `unit_distributions_underflow_status` | `tests/unit/distributions.cpp` | `underflow_status` | Verifies underflow status. | — |
@@ -1062,6 +1080,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_public_qmom_moment_source_stage_failures_roll_back` | `tests/unit/phase_space_evolution.cpp` | `public_qmom_moment_source_stage_failures_roll_back` | Verifies public QMOM moment source stage failures roll back. | — |
 | `unit_phase_space_evolution_qmom_source_context_uses_current_rk_stage_and_caches_quadrature` | `tests/unit/phase_space_evolution.cpp` | `qmom_source_context_uses_current_rk_stage_and_caches_quadrature` | Checks that source context uses current rk stage and caches quadrature in phase-space evolution. | — |
 | `unit_phase_space_evolution_configured_qmom_source_realizability_policy_matches_programmatic_adapter` | `tests/unit/phase_space_evolution.cpp` | `configured_qmom_source_realizability_policy_matches_programmatic_adapter` | Checks that configured QMOM source realizability policy matches programmatic adapter in phase-space evolution. | — |
+| `unit_phase_space_evolution_configured_qmom_source_realizability_policy_enforces_its_support` | `tests/unit/phase_space_evolution.cpp` | `configured_qmom_source_realizability_policy_enforces_its_support` | Checks that configured nonnegative and bounded-interval policies reject a translated source state that the real-line policy accepts. | — |
 | `unit_phase_space_evolution_public_qmom_moment_source_stage_boundary_matches_source_update` | `tests/unit/phase_space_evolution.cpp` | `public_qmom_moment_source_stage_boundary_matches_source_update` | Checks that QMOM moment source stage boundary matches source update in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_qmom_stage_composition_matches_strang_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | `public_qmom_stage_composition_matches_strang_phase_space_evolution` | Checks that QMOM stage composition matches strang phase-space evolution in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_qmom_stage_composition_matches_lie_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | `public_qmom_stage_composition_matches_lie_phase_space_evolution` | Checks that QMOM stage composition matches lie phase-space evolution in phase-space evolution. | — |

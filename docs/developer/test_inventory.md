@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 634 |
+| Unit logical tests | 636 |
 | Component/regression logical tests | 47 |
 | Verification logical tests | 168 |
-| **Runtime logical tests** | **849** |
+| **Runtime logical tests** | **851** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **850** |
+| **Total CTest registrations** | **852** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -72,6 +72,7 @@ renamed test rather than a deleted one.
 | `unit_phase_space_evolution_packed_velocity_advection_entry_points_match_and_reject_empty_callback` | `tests/unit/phase_space_evolution.cpp` | `packed_velocity_advection_entry_points_match_and_reject_empty_callback` | Checks that the advection-only entry points share one velocity adaptation, including the missing-callback contract. | — |
 | `unit_phase_space_evolution_packed_velocity_phase_space_step_matches_per_node_form` | `tests/unit/phase_space_evolution.cpp` | `packed_velocity_phase_space_step_matches_per_node_form` | Checks that a full phase-space step agrees exactly between the packed velocity form and the per-node form. | — |
 | `unit_phase_space_evolution_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes` | `tests/unit/phase_space_evolution.cpp` | `qmom_macro_rollbacks_preserve_the_original_state_after_later_successes` | Checks that a rolled-back QMOM step leaves the original state intact and does not disturb subsequent successful steps. | — |
+| `unit_phase_space_evolution_qmom_failed_steps_report_the_time_of_the_returned_state` | `tests/unit/phase_space_evolution.cpp` | `qmom_failed_steps_report_the_time_of_the_returned_state` | Checks that a failed QMOM macro step or stage reports the input time as `final_time`, for every scheme and for advection, reconstruction, source, and inversion failures, and that a successful step reports the end of the step. | — |
 
 ### CQMOM case moment replacement
 
@@ -1066,6 +1067,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_public_cqmom_stage_failures_roll_back` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_stage_failures_roll_back` | Verifies public CQMOM stage failures roll back. | — |
 | `unit_phase_space_evolution_cqmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input` | `tests/unit/phase_space_evolution.cpp` | `cqmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input` | Verifies CQMOM phase space evolution failure after first stage rolls back to macro input. | — |
 | `unit_phase_space_evolution_cqmom_macro_rollbacks_preserve_the_original_state_after_later_successes` | `tests/unit/phase_space_evolution.cpp` | `cqmom_macro_rollbacks_preserve_the_original_state_after_later_successes` | Verifies CQMOM macro rollbacks preserve the original state after later successes. | — |
+| `unit_phase_space_evolution_cqmom_failed_steps_report_the_time_of_the_returned_state` | `tests/unit/phase_space_evolution.cpp` | `cqmom_failed_steps_report_the_time_of_the_returned_state` | Checks that a failed CQMOM macro step or stage reports the input time as `final_time`, for every scheme and for advection, reconstruction, source, and inversion failures, and that a successful step reports the end of the step. | — |
 | `unit_phase_space_evolution_cqmom_macro_success_preserves_input_and_final_value_semantics` | `tests/unit/phase_space_evolution.cpp` | `cqmom_macro_success_preserves_input_and_final_value_semantics` | Checks that macro success preserves input and final value semantics in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution` | Checks that CQMOM boundary moment source stage matches phase-space evolution in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_cqmom_stage_irrelevant_options_are_ignored` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_stage_irrelevant_options_are_ignored` | Verifies public CQMOM stage irrelevant options are ignored. | — |

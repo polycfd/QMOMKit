@@ -884,6 +884,10 @@ accepted phase-space evolution step. On failure, `result.message` and `result.di
 indicate whether the inversion, node advection, moment-source update, or
 moment reconstruction failed.
 
+`result.final_time` is always the time of `result.state`. On success it is
+`time + time_step`. On failure the returned state is the input state, so
+`result.final_time` is the input `time`, whichever stage failed.
+
 ## Configuration workflow
 
 Configuration files can select initialization, quadrature settings, phase-space

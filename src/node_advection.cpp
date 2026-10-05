@@ -223,6 +223,11 @@ struct IntegratedNodes
         const auto rhs = [&velocity, dimensions, &rhs_evaluations, &derivative](const double rhs_time, const std::vector<double>& state)
         {
             ++rhs_evaluations;
+            // Zeroed before every stage, as `rhs_checked` does on the embedded
+            // path: a callback that violates the fill-every-entry contract then
+            // degrades to a zero derivative rather than silently reusing the
+            // previous stage's values.
+            std::fill(derivative.begin(), derivative.end(), 0.0);
             node_rhs_from_velocity(velocity, dimensions, rhs_time, state, derivative);
         };
 

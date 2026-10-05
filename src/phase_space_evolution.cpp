@@ -408,7 +408,7 @@ void validate_qmom_moment_source_input(const QmomState& state, const double t, c
         failure = qmom_failure(rollback_state, PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
                                final_advection ? PhaseSpaceEvolutionStage::final_moment_reconstruction
                                                : PhaseSpaceEvolutionStage::first_moment_reconstruction,
-                               diagnostics, t + time_step, error.what());
+                               diagnostics, t, error.what());
         return false;
     }
     return true;
@@ -661,6 +661,9 @@ static QmomPhaseSpaceEvolutionResult advance_qmom_phase_space_impl(const QmomSta
 
     if (!execute_phase_space_evolution_sequence(options.scheme, t, time_step, apply_advection, apply_source))
     {
+        // A failed stage reports its own start time, but the macro step returns
+        // its input state, so the reported time is that state's time.
+        failure->final_time = t;
         return std::move(*failure);
     }
 
@@ -981,7 +984,7 @@ struct CqmomPhaseSpaceEvolutionWorkingState
         return cqmom_state_failure(rollback_state, advection.quadrature, PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
                                    final_advection ? PhaseSpaceEvolutionStage::final_moment_reconstruction
                                                    : PhaseSpaceEvolutionStage::first_moment_reconstruction,
-                                   diagnostics, t + time_step, error.what());
+                                   diagnostics, t, error.what());
     }
 }
 
@@ -1115,6 +1118,9 @@ CqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space_state_impl(const CqmomS
 
     if (!execute_phase_space_evolution_sequence(options.scheme, t, time_step, apply_advection, apply_source))
     {
+        // A failed stage reports its own start time, but the macro step returns
+        // its input state, so the reported time is that state's time.
+        failure->final_time = t;
         return materialize_cqmom_phase_space_evolution_result(std::move(*failure));
     }
 

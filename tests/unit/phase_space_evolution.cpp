@@ -1643,6 +1643,103 @@ void test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes
     assert_qmom_quadrature_near(strang.state.quadrature(), state.quadrature(), 0.0);
 }
 
+// A failed step returns its input state, so final_time must be the input time
+// whichever stage failed. The injected failures include stages whose own time
+// differs from t: the second Strang half-step starts at t + dt/2, and moment
+// reconstruction follows advection to the end of the advected interval.
+void test_qmom_failed_steps_report_the_time_of_the_returned_state()
+{
+    constexpr double t0 = 1.0;
+    constexpr double dt = 0.2;
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.25}, {0.4, 0.6}, 4), 2);
+
+    const qmomkit::PhaseSpaceVelocity zero_velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
+    // Fails only after t0 + dt/2, so in a Strang step only the second half-step fails.
+    const qmomkit::PhaseSpaceVelocity late_failing_velocity = qmomkit::make_phase_space_velocity(
+        [](const double time, const std::vector<double>& xi)
+        {
+            if (time > t0 + 0.6 * dt)
+            {
+                throw std::runtime_error("late advection failure");
+            }
+            return std::vector<double>(xi.size(), 0.2);
+        });
+    // Moves the nodes so far that their raw moments overflow, so the moment
+    // reconstruction after the first advection stage fails.
+    const qmomkit::PhaseSpaceVelocity overflowing_velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 1.0e300); });
+    const qmomkit::QmomMomentSource zero_source = [](double, const qmomkit::QmomSourceContext& moments)
+    { return qmomkit::QmomMomentRate{std::vector<double>(moments.size(), 0.0)}; };
+    const qmomkit::QmomMomentSource non_finite_source = [](double, const qmomkit::QmomSourceContext& moments)
+    {
+        std::vector<double> rates(moments.size(), 0.0);
+        rates.front() = std::numeric_limits<double>::quiet_NaN();
+        return qmomkit::QmomMomentRate{std::move(rates)};
+    };
+    // Drives m0 negative over the step, so the post-source inversion fails.
+    const qmomkit::QmomMomentSource negative_mass_source = [](double, const qmomkit::QmomSourceContext& moments)
+    {
+        std::vector<double> rates(moments.size(), 0.0);
+        rates.front() = -100.0;
+        return qmomkit::QmomMomentRate{std::move(rates)};
+    };
+
+    struct FailureCase
+    {
+        qmomkit::PhaseSpaceVelocity velocity;
+        qmomkit::QmomMomentSource source;
+        qmomkit::PhaseSpaceEvolutionStatus status;
+        qmomkit::PhaseSpaceEvolutionStage strang_stage;
+    };
+    const std::vector<FailureCase> failure_cases{{late_failing_velocity, zero_source, qmomkit::PhaseSpaceEvolutionStatus::advection_failed,
+                                                  qmomkit::PhaseSpaceEvolutionStage::second_advection_half_step},
+                                                 {overflowing_velocity, zero_source, qmomkit::PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
+                                                  qmomkit::PhaseSpaceEvolutionStage::first_moment_reconstruction},
+                                                 {zero_velocity, non_finite_source, qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed,
+                                                  qmomkit::PhaseSpaceEvolutionStage::moment_source_step},
+                                                 {zero_velocity, negative_mass_source, qmomkit::PhaseSpaceEvolutionStatus::inversion_failed,
+                                                  qmomkit::PhaseSpaceEvolutionStage::post_source_inversion}};
+
+    qmomkit::QmomPhaseSpaceEvolutionOptions options;
+    options.node_options = tight_node_options();
+    for (const qmomkit::PhaseSpaceEvolutionScheme scheme :
+         {qmomkit::PhaseSpaceEvolutionScheme::strang, qmomkit::PhaseSpaceEvolutionScheme::advsrc, qmomkit::PhaseSpaceEvolutionScheme::srcadv})
+    {
+        options.scheme = scheme;
+        for (const FailureCase& failure_case : failure_cases)
+        {
+            const qmomkit::QmomPhaseSpaceEvolutionResult result =
+                qmomkit::advance_qmom_phase_space(state, t0, dt, failure_case.velocity, failure_case.source, options);
+            assert(!result.ok());
+            assert(result.status == failure_case.status);
+            if (scheme == qmomkit::PhaseSpaceEvolutionScheme::strang)
+            {
+                assert(result.diagnostics.failed_stage == failure_case.strang_stage);
+            }
+            assert(result.final_time == t0);
+            assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
+        }
+    }
+
+    // A standalone stage also returns its input state on failure.
+    const qmomkit::QmomPhaseSpaceEvolutionResult advection = qmomkit::advance_qmom_advection(state, t0, dt, overflowing_velocity, options);
+    assert(advection.status == qmomkit::PhaseSpaceEvolutionStatus::moment_reconstruction_failed);
+    assert(advection.final_time == t0);
+    assert_vector_near(advection.state.moment_values(), state.moment_values(), 0.0);
+
+    const qmomkit::QmomPhaseSpaceEvolutionResult source = qmomkit::advance_qmom_moment_source(state, t0, dt, negative_mass_source, options);
+    assert(source.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
+    assert(source.final_time == t0);
+    assert_vector_near(source.state.moment_values(), state.moment_values(), 0.0);
+
+    // A successful step reports the end of the step.
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
+    const qmomkit::QmomPhaseSpaceEvolutionResult success = qmomkit::advance_qmom_phase_space(state, t0, dt, zero_velocity, zero_source, options);
+    assert(success.ok());
+    assert(success.final_time == t0 + dt);
+}
+
 void test_cqmom_initial_state_stores_accepted_quadrature()
 {
     assert_cqmom_initial_state_stores_accepted_quadrature(fixed_cqmom_prepared_case(), 5.0e-10);
@@ -2272,6 +2369,107 @@ void test_cqmom_macro_rollbacks_preserve_the_original_state_after_later_successe
         assert(strang.diagnostics.failed_stage == qmomkit::PhaseSpaceEvolutionStage::second_advection_half_step);
         assert_cqmom_states_equal(strang.state, state);
     }
+}
+
+// The CQMOM counterpart of test_qmom_failed_steps_report_the_time_of_the_returned_state.
+void test_cqmom_failed_steps_report_the_time_of_the_returned_state()
+{
+    constexpr double t0 = 1.0;
+    constexpr double dt = 0.2;
+    const qmomkit::CqmomState state = fixed_cqmom_prepared_case().initial_state();
+
+    const qmomkit::PhaseSpaceVelocity zero_velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
+    // Fails only after t0 + dt/2, so in a Strang step only the second half-step fails.
+    const qmomkit::PhaseSpaceVelocity late_failing_velocity = qmomkit::make_phase_space_velocity(
+        [](const double time, const std::vector<double>& xi)
+        {
+            if (time > t0 + 0.6 * dt)
+            {
+                throw std::runtime_error("late advection failure");
+            }
+            return std::vector<double>(xi.size(), 0.2);
+        });
+    // Moves the nodes so far that their raw moments overflow, so the moment
+    // reconstruction after the first advection stage fails.
+    const qmomkit::PhaseSpaceVelocity overflowing_velocity =
+        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 1.0e300); });
+    const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+    const qmomkit::CqmomMomentSource non_finite_source = [](double, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rates(context.size(), 0.0);
+        rates.front() = std::numeric_limits<double>::quiet_NaN();
+        return qmomkit::CqmomMomentRate{std::move(rates)};
+    };
+    // Drives M[0,0] negative over the step, so the post-source inversion fails.
+    const qmomkit::CqmomMomentSource negative_mass_source = [](double, const qmomkit::CqmomSourceContext& context)
+    {
+        std::vector<double> rates(context.size(), 0.0);
+        for (std::size_t index = 0; index < context.size(); ++index)
+        {
+            const qmomkit::MultiIndexView order = context.index(index);
+            if (order[0] == 0 && order[1] == 0)
+            {
+                rates[index] = -100.0;
+            }
+        }
+        return qmomkit::CqmomMomentRate{std::move(rates)};
+    };
+
+    struct FailureCase
+    {
+        qmomkit::PhaseSpaceVelocity velocity;
+        qmomkit::CqmomMomentSource source;
+        qmomkit::PhaseSpaceEvolutionStatus status;
+        qmomkit::PhaseSpaceEvolutionStage strang_stage;
+    };
+    const std::vector<FailureCase> failure_cases{{late_failing_velocity, zero_source, qmomkit::PhaseSpaceEvolutionStatus::advection_failed,
+                                                  qmomkit::PhaseSpaceEvolutionStage::second_advection_half_step},
+                                                 {overflowing_velocity, zero_source, qmomkit::PhaseSpaceEvolutionStatus::moment_reconstruction_failed,
+                                                  qmomkit::PhaseSpaceEvolutionStage::first_moment_reconstruction},
+                                                 {zero_velocity, non_finite_source, qmomkit::PhaseSpaceEvolutionStatus::moment_source_failed,
+                                                  qmomkit::PhaseSpaceEvolutionStage::moment_source_step},
+                                                 {zero_velocity, negative_mass_source, qmomkit::PhaseSpaceEvolutionStatus::inversion_failed,
+                                                  qmomkit::PhaseSpaceEvolutionStage::post_source_inversion}};
+
+    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+    options.node_options = tight_node_options();
+    for (const qmomkit::PhaseSpaceEvolutionScheme scheme :
+         {qmomkit::PhaseSpaceEvolutionScheme::strang, qmomkit::PhaseSpaceEvolutionScheme::advsrc, qmomkit::PhaseSpaceEvolutionScheme::srcadv})
+    {
+        options.scheme = scheme;
+        for (const FailureCase& failure_case : failure_cases)
+        {
+            const qmomkit::CqmomPhaseSpaceEvolutionResult result =
+                qmomkit::advance_cqmom_phase_space(state, t0, dt, failure_case.velocity, failure_case.source, options);
+            assert(!result.ok());
+            assert(result.status == failure_case.status);
+            if (scheme == qmomkit::PhaseSpaceEvolutionScheme::strang)
+            {
+                assert(result.diagnostics.failed_stage == failure_case.strang_stage);
+            }
+            assert(result.final_time == t0);
+            assert_vector_near(result.state.moment_values(), state.moment_values(), 0.0);
+        }
+    }
+
+    // A standalone stage also returns its input state on failure.
+    const qmomkit::CqmomPhaseSpaceEvolutionResult advection = qmomkit::advance_cqmom_advection(state, t0, dt, overflowing_velocity, options);
+    assert(advection.status == qmomkit::PhaseSpaceEvolutionStatus::moment_reconstruction_failed);
+    assert(advection.final_time == t0);
+    assert_vector_near(advection.state.moment_values(), state.moment_values(), 0.0);
+
+    const qmomkit::CqmomPhaseSpaceEvolutionResult source = qmomkit::advance_cqmom_moment_source(state, t0, dt, negative_mass_source, options);
+    assert(source.status == qmomkit::PhaseSpaceEvolutionStatus::inversion_failed);
+    assert(source.final_time == t0);
+    assert_vector_near(source.state.moment_values(), state.moment_values(), 0.0);
+
+    // A successful step reports the end of the step.
+    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::strang;
+    const qmomkit::CqmomPhaseSpaceEvolutionResult success = qmomkit::advance_cqmom_phase_space(state, t0, dt, zero_velocity, zero_source, options);
+    assert(success.ok());
+    assert(success.final_time == t0 + dt);
 }
 
 void test_cqmom_macro_success_preserves_input_and_final_value_semantics()
@@ -4136,6 +4334,7 @@ int main(const int argc, char** argv)
              test_qmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input},
             {"qmom_macro_rollbacks_preserve_the_original_state_after_later_successes",
              test_qmom_macro_rollbacks_preserve_the_original_state_after_later_successes},
+            {"qmom_failed_steps_report_the_time_of_the_returned_state", test_qmom_failed_steps_report_the_time_of_the_returned_state},
             {"cqmom_initial_state_stores_accepted_quadrature", test_cqmom_initial_state_stores_accepted_quadrature},
             {"cqmom_initial_state_canonicalizes_adaptively_reduced_moments", test_cqmom_initial_state_canonicalizes_adaptively_reduced_moments},
             {"cqmom_case_initial_state_matches_prepared_case", test_cqmom_case_initial_state_matches_prepared_case},
@@ -4156,6 +4355,7 @@ int main(const int argc, char** argv)
              test_cqmom_phase_space_evolution_failure_after_first_stage_rolls_back_to_macro_input},
             {"cqmom_macro_rollbacks_preserve_the_original_state_after_later_successes",
              test_cqmom_macro_rollbacks_preserve_the_original_state_after_later_successes},
+            {"cqmom_failed_steps_report_the_time_of_the_returned_state", test_cqmom_failed_steps_report_the_time_of_the_returned_state},
             {"cqmom_macro_success_preserves_input_and_final_value_semantics", test_cqmom_macro_success_preserves_input_and_final_value_semantics},
             {"public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution",
              test_public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution},

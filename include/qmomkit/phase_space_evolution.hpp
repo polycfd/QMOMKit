@@ -136,6 +136,8 @@ struct QmomPhaseSpaceEvolutionResult
     QmomState state;
     PhaseSpaceEvolutionStatus status = PhaseSpaceEvolutionStatus::success;
     PhaseSpaceEvolutionDiagnostics diagnostics;
+    // Time of the returned state: `t + time_step` on success. On failure the
+    // returned state is the input state, so this is the input time `t`.
     double final_time = 0.0;
     std::string message;
 
@@ -151,6 +153,8 @@ struct CqmomPhaseSpaceEvolutionResult
     std::optional<CqmomQuadrature> quadrature;
     PhaseSpaceEvolutionStatus status = PhaseSpaceEvolutionStatus::success;
     PhaseSpaceEvolutionDiagnostics diagnostics;
+    // Time of the returned state: `t + time_step` on success. On failure the
+    // returned state is the input state, so this is the input time `t`.
     double final_time = 0.0;
     std::string message;
 

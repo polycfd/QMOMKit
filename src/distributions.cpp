@@ -192,6 +192,12 @@ struct MomentValueResult
 [[nodiscard]] MomentValueResult evaluate_log_normal_moment(const LogNormalDistribution& distribution, const double variance,
                                                            const double total_weight, const std::size_t order)
 {
+    // The variance enters every positive order, so an overflowing variance is
+    // reported at the first such order that is actually requested.
+    if (order > 0 && !std::isfinite(variance))
+    {
+        return moment_value_failure(RawMomentStatus::overflow, "Underlying log-normal variance overflows double precision.", order);
+    }
     const double k = static_cast<double>(order);
     return evaluate_log_expectation(k * distribution.normal_mean + 0.5 * k * k * variance, total_weight, order);
 }
@@ -322,6 +328,12 @@ struct NormalExpectationsResult
     {
         expectations[1] = distribution.mean;
     }
+    // The variance enters from order 2 on, so it can only make a requested
+    // moment unrepresentable when such an order is requested.
+    if (maximum_order < 2)
+    {
+        return NormalExpectationsResult{std::move(expectations), RawMomentStatus::success, "", 0};
+    }
     const double variance = distribution.standard_deviation * distribution.standard_deviation;
     if (!std::isfinite(variance))
     {
@@ -340,6 +352,12 @@ struct NormalExpectationsResult
         if (!std::isfinite(expectations[order]))
         {
             return NormalExpectationsResult{{}, finite_failure_status(expectations[order]), "Normal raw moment is not finite.", order};
+        }
+        // Even-order moments are strictly positive, and odd-order moments are
+        // nonzero whenever the mean is, so an exact zero here is an underflow.
+        if (expectations[order] == 0.0 && (order % 2 == 0 || distribution.mean != 0.0))
+        {
+            return NormalExpectationsResult{{}, RawMomentStatus::underflow, "Normal raw moment underflows double precision.", order};
         }
     }
 
@@ -375,6 +393,10 @@ struct NormalExpectationsResult
         {
             return selected_failure_at_order(finite_failure_status(moment), "Weighted normal raw moment is not finite.", order);
         }
+        if (moment == 0.0 && expectations.expectations[order] != 0.0)
+        {
+            return selected_failure_at_order(RawMomentStatus::underflow, "Weighted normal raw moment underflows double precision.", order);
+        }
         values.push_back(moment);
     }
     return finish_selected_orders(request, std::move(values));
@@ -390,10 +412,6 @@ struct NormalExpectationsResult
     }
 
     const double variance = distribution.normal_standard_deviation * distribution.normal_standard_deviation;
-    if (!std::isfinite(variance))
-    {
-        return selected_failure_at_order(RawMomentStatus::overflow, "Underlying log-normal variance overflows double precision.", 1);
-    }
     if (total_weight == 0.0)
     {
         return zero_selected_moments(request);
@@ -576,6 +594,10 @@ struct NormalExpectationsResult
         {
             return failure_at_order(finite_failure_status(moments[order]), "Weighted normal raw moment is not finite.", order);
         }
+        if (moments[order] == 0.0 && expectations.expectations[order] != 0.0)
+        {
+            return failure_at_order(RawMomentStatus::underflow, "Weighted normal raw moment underflows double precision.", order);
+        }
     }
     return finish_moments(std::move(moments));
 }
@@ -589,11 +611,6 @@ struct NormalExpectationsResult
     }
 
     const double variance = distribution.normal_standard_deviation * distribution.normal_standard_deviation;
-    if (!std::isfinite(variance))
-    {
-        return failure_at_order(RawMomentStatus::overflow, "Underlying log-normal variance overflows double precision.", 1);
-    }
-
     return compute_from_log_moments(maximum_order, total_weight,
                                     [&](const std::size_t order) { return evaluate_log_normal_moment(distribution, variance, total_weight, order); });
 }

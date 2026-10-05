@@ -270,11 +270,16 @@ Stable numerical rules include:
   with the requested valid extents and does not evaluate marginal parameters;
 - positive-support moments are checked before exponentiation where logarithmic
   formulas are used;
-- exactly positive moments that underflow to zero are reported as `underflow`;
+- moments whose exact value is nonzero but that underflow to zero are reported
+  as `underflow`; exact zeros, such as the odd moments of a zero-mean normal,
+  are not;
 - infinite results are reported as `overflow`;
 - other non-finite intermediate or final values are reported as `non_finite`;
-- `failed_order`, `failed_component`, `failed_dimension`, and `failed_order`
-  diagnostics identify the location of failures when available.
+- a parameter that is unrepresentable only from some order on, such as a
+  normal or log-normal variance that overflows, fails only requests that reach
+  that order;
+- `failed_order`, `failed_component`, and `failed_dimension` diagnostics
+  identify the location of failures when available.
 
 Distribution generation validates parameters and numerical representability. It
 does not perform support-aware realizability analysis, run QMOM or CQMOM

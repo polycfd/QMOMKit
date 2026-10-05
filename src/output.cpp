@@ -398,18 +398,24 @@ void MomentWriter::write_row(const double time, const std::vector<double>& value
     {
         throw std::invalid_argument("Moment output time must be finite.");
     }
-    if (!internal::all_finite(values))
-    {
-        throw std::invalid_argument("Moment output values must be finite.");
-    }
-
-    output_ << std::scientific << std::setprecision(precision_) << std::setw(column_width_) << time;
+    // Every written entry is checked before anything is written, so a rejected
+    // row leaves the file unchanged. Only the selected entries are written, so
+    // only they have to be finite.
     for (const std::size_t flat_index : flat_indices_)
     {
         if (flat_index >= values.size())
         {
             throw std::out_of_range("Selected moment output index is outside the supplied moments.");
         }
+        if (!std::isfinite(values[flat_index]))
+        {
+            throw std::invalid_argument("Moment output values must be finite.");
+        }
+    }
+
+    output_ << std::scientific << std::setprecision(precision_) << std::setw(column_width_) << time;
+    for (const std::size_t flat_index : flat_indices_)
+    {
         output_ << ' ' << std::setprecision(precision_) << std::setw(column_width_) << values[flat_index];
     }
     output_ << '\n';
@@ -678,22 +684,22 @@ void QuadratureWriter::write_header()
     write_column_header(output_, column_width_, labels_, "quadrature output");
 }
 
-void QuadratureWriter::write_row(const double time, const std::vector<double>& values)
+void QuadratureWriter::write_row(const double time, const std::vector<std::size_t>& indices, const std::vector<double>& values)
 {
-    if (!std::isfinite(time))
-    {
-        throw std::invalid_argument("Quadrature output time must be finite.");
-    }
-    if (!internal::all_finite(values))
-    {
-        throw std::invalid_argument("Quadrature output values must be finite.");
-    }
-    if (values.size() != labels_.size())
+    // The callers validate the time and the values of the whole time block
+    // before its first row, so a rejected block leaves the file unchanged.
+    if (indices.size() + values.size() != labels_.size())
     {
         throw std::invalid_argument("Quadrature output row does not match the writer column count.");
     }
 
     output_ << std::scientific << std::setprecision(precision_) << std::setw(column_width_) << time;
+    // Node and path indices are written as integers, so they stay exact at any
+    // precision.
+    for (const std::size_t index : indices)
+    {
+        output_ << ' ' << std::setw(column_width_) << index;
+    }
     for (const double value : values)
     {
         output_ << ' ' << std::setprecision(precision_) << std::setw(column_width_) << value;
@@ -723,15 +729,23 @@ void QuadratureWriter::write_qmom_row(const double time, const std::vector<doubl
     {
         throw std::invalid_argument("QMOM quadrature output active node count exceeds the writer maximum.");
     }
+    if (!std::isfinite(time))
+    {
+        throw std::invalid_argument("Quadrature output time must be finite.");
+    }
+    if (!internal::all_finite(weights) || !internal::all_finite(abscissas))
+    {
+        throw std::invalid_argument("Quadrature output values must be finite.");
+    }
 
+    std::vector<std::size_t> indices(1);
+    std::vector<double> values(2);
     for (std::size_t node = 0; node < weights.size(); ++node)
     {
-        std::vector<double> values;
-        values.reserve(3);
-        values.push_back(static_cast<double>(node));
-        values.push_back(weights[node]);
-        values.push_back(abscissas[node]);
-        write_row(time, values);
+        indices[0] = node;
+        values[0] = weights[node];
+        values[1] = abscissas[node];
+        write_row(time, indices, values);
     }
 }
 
@@ -750,6 +764,10 @@ void QuadratureWriter::write(const double time, const CqmomQuadrature& quadratur
     if (layout_ != QuadratureLayout::cqmom)
     {
         throw std::invalid_argument("CQMOM quadrature output cannot be written with a QMOM quadrature writer.");
+    }
+    if (!std::isfinite(time))
+    {
+        throw std::invalid_argument("Quadrature output time must be finite.");
     }
     if (quadrature.number_of_dimensions() != dimension_count_)
     {
@@ -788,6 +806,8 @@ void QuadratureWriter::write(const double time, const CqmomQuadrature& quadratur
         }
     }
 
+    // Every terminal path is checked before the first row is written, so a
+    // rejected time block leaves the file unchanged.
     for (std::size_t node = 0; node < node_count; ++node)
     {
         const ConditioningPathView path = quadrature.terminal_paths()[node];
@@ -798,20 +818,24 @@ void QuadratureWriter::write(const double time, const CqmomQuadrature& quadratur
         // Discards the computed index; called only for its out_of_range check that every
         // conditioning-path node index is within the hierarchy's bounds at each level.
         (void)recursive_path_to_node_index(quadrature.hierarchy(), path);
+    }
 
-        std::vector<double> values;
-        values.reserve(2 * dimension_count_ + 2);
-        values.push_back(static_cast<double>(node));
+    std::vector<std::size_t> indices(dimension_count_ + 1);
+    std::vector<double> values(dimension_count_ + 1);
+    for (std::size_t node = 0; node < node_count; ++node)
+    {
+        const ConditioningPathView path = quadrature.terminal_paths()[node];
+        indices[0] = node;
         for (std::size_t level = 0; level < dimension_count_; ++level)
         {
-            values.push_back(static_cast<double>(path.node_index_at_level(level)));
+            indices[level + 1] = path.node_index_at_level(level);
         }
-        values.push_back(quadrature.weights()[node]);
+        values[0] = quadrature.weights()[node];
         for (std::size_t dimension = 0; dimension < dimension_count_; ++dimension)
         {
-            values.push_back(quadrature.abscissas()[dimension][node]);
+            values[dimension + 1] = quadrature.abscissas()[dimension][node];
         }
-        write_row(time, values);
+        write_row(time, indices, values);
     }
 }
 

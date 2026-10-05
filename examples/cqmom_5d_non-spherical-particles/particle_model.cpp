@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <stdexcept>
-#include <string>
 #include <vector>
 
 namespace cqmom_5d_non_spherical_particles
@@ -10,40 +9,6 @@ namespace cqmom_5d_non_spherical_particles
 namespace
 {
 constexpr double spherical_limit_tolerance = 0.001;
-
-[[nodiscard]] bool is_positive_finite(const double value)
-{
-    return std::isfinite(value) && value > 0.0;
-}
-
-[[nodiscard]] bool is_nonnegative_finite(const double value)
-{
-    return std::isfinite(value) && value >= 0.0;
-}
-
-void require_positive_finite(const double value, const char* name)
-{
-    if (!is_positive_finite(value))
-    {
-        throw std::invalid_argument(std::string("Particle model parameter '") + name + "' must be supplied as a positive finite value.");
-    }
-}
-
-void require_nonnegative_finite(const double value, const char* name)
-{
-    if (!is_nonnegative_finite(value))
-    {
-        throw std::invalid_argument(std::string("Particle model parameter '") + name + "' must be supplied as a non-negative finite value.");
-    }
-}
-
-void require_finite(const double value, const char* name)
-{
-    if (!std::isfinite(value))
-    {
-        throw std::invalid_argument(std::string("Particle model parameter '") + name + "' must be supplied as a finite value.");
-    }
-}
 
 [[nodiscard]] double oblate_spheroid_shape_factor(const double aspect_ratio, const double reynolds_number)
 {
@@ -74,25 +39,13 @@ ParticleModelParameters particle_model_parameters()
     return parameters;
 }
 
-void validate_particle_model_parameters(const ParticleModelParameters& parameters)
+qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters, const CarrierFlowSamples& carrier_flow)
 {
-    require_positive_finite(parameters.fluid_density, "rho_f / fluid_density");
-    require_positive_finite(parameters.fluid_dynamic_viscosity, "mu_f / fluid_dynamic_viscosity");
-    require_positive_finite(parameters.particle_density, "rho_p / particle_density");
-    require_nonnegative_finite(parameters.gravity, "g / gravity");
-    require_finite(parameters.fluid_velocity_amplitude_x, "U_AMPLITUDE / fluid_velocity_amplitude_x");
-    require_finite(parameters.fluid_velocity_amplitude_y, "V_AMPLITUDE / fluid_velocity_amplitude_y");
-    require_finite(parameters.fluid_velocity_amplitude_z, "W_AMPLITUDE / fluid_velocity_amplitude_z");
-    require_finite(parameters.oscillation_angular_frequency, "OMEGA / oscillation_angular_frequency");
-    require_nonnegative_finite(parameters.attrition_rate, "ATTRITION_RATE_CONST / attrition_rate");
-    require_positive_finite(parameters.aspect_ratio_relaxation_time, "TAU_RELAX / aspect_ratio_relaxation_time");
-}
-
-qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters)
-{
-    validate_particle_model_parameters(parameters);
-
-    return [parameters](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
+    // Capturing the reference parameter by reference refers to the driver's
+    // samples, not to the parameter, so the capture stays valid after this
+    // function returns.
+    return [parameters, &carrier_flow](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities,
+                                       const std::size_t dimensions)
     {
         if (dimensions != 5)
         {
@@ -100,13 +53,13 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
                                         "as (d, chi, u, v, w).");
         }
 
-        // The fluid state depends only on time, so it is evaluated once for the
-        // whole node set rather than once per node.
-        const double fluid_velocity_x = parameters.fluid_velocity_amplitude_x * std::cos(parameters.oscillation_angular_frequency * time);
-
-        const double fluid_velocity_y = parameters.fluid_velocity_amplitude_y * std::sin(parameters.oscillation_angular_frequency * time);
-
-        const double fluid_velocity_z = parameters.fluid_velocity_amplitude_z * std::cos(parameters.oscillation_angular_frequency * time);
+        // The carrier flow is host data rather than part of the particle model. It
+        // is reconstructed once for the whole node set, at the stage time QMOMKit
+        // supplies, from the two host levels the driver published.
+        const BackgroundFluidVelocity fluid = carrier_flow_at(carrier_flow, time);
+        const double fluid_velocity_x = fluid.u;
+        const double fluid_velocity_y = fluid.v;
+        const double fluid_velocity_z = fluid.w;
 
         for (std::size_t node = 0; node < coordinates.size() / dimensions; ++node)
         {

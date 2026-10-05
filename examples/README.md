@@ -43,6 +43,12 @@ optional branches, and prerequisites in more detail.
   staging through the public advection and moment-source stage APIs; use after
   the library-managed workflow.
 
+## CQMOM evolution
+
+- `cqmom_2d_batch_host_data/`: many CQMOM states advanced with one
+  batch-index-aware call per step, with callbacks reading time-varying host
+  data indexed like the state vector.
+
 ## CQMOM numerical controls
 
 - `cqmom_2d_adaptive_node_counts/`: adaptive conditional branch reduction,
@@ -76,9 +82,9 @@ tests or exact solutions.
   close a moment-space breakup source with daughter-temperature redistribution
   and a direct MC companion.
 - `cqmom_5d_non-spherical-particles/`: 5D recursive CQMOM with bounded
-  aspect-ratio support, adaptive branches, a multimodal velocity marginal, and
-  a paired bounded/unbounded reconstruction diagnostic plus a direct MC
-  companion.
+  aspect-ratio support, adaptive branches, a multimodal velocity marginal, a
+  paired bounded/unbounded reconstruction diagnostic, and a host-data pattern
+  for time-varying callback inputs, plus a direct MC companion.
 
 ## Package dependencies
 

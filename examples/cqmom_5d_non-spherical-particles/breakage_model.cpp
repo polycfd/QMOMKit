@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -17,40 +16,6 @@ constexpr std::size_t dimension_count = 5;
 // Equal-volume binary fragmentation gives
 // d_daughter / d_parent = 2^(-1/3).
 constexpr double daughter_diameter_factor = 0.79370052598409973737585281963615413019574666394993;
-
-[[nodiscard]] bool is_nonnegative_finite(const double value)
-{
-    return std::isfinite(value) && value >= 0.0;
-}
-
-[[nodiscard]] bool is_positive_finite(const double value)
-{
-    return std::isfinite(value) && value > 0.0;
-}
-
-void require_nonnegative_finite(const double value, const char* name)
-{
-    if (!is_nonnegative_finite(value))
-    {
-        throw std::invalid_argument(std::string("Binary fragmentation parameter '") + name + "' must be supplied as a non-negative finite value.");
-    }
-}
-
-void require_positive_finite(const double value, const char* name)
-{
-    if (!is_positive_finite(value))
-    {
-        throw std::invalid_argument(std::string("Binary fragmentation parameter '") + name + "' must be supplied as a positive finite value.");
-    }
-}
-
-void require_finite(const double value, const char* name)
-{
-    if (!std::isfinite(value))
-    {
-        throw std::invalid_argument(std::string("Binary fragmentation parameter '") + name + "' must be supplied as a finite value.");
-    }
-}
 
 void require_sample(const qmomkit::monte_carlo::Sample& sample)
 {
@@ -166,19 +131,8 @@ BinaryFragmentationParameters binary_fragmentation_parameters()
     return {};
 }
 
-void validate_binary_fragmentation_parameters(const BinaryFragmentationParameters& parameters)
-{
-    require_nonnegative_finite(parameters.fragmentation_rate_constant, "fragmentation_rate_constant");
-    require_finite(parameters.fragmentation_power, "fragmentation_power");
-    require_nonnegative_finite(parameters.minimum_fragmentation_diameter, "minimum_fragmentation_diameter");
-    require_positive_finite(parameters.shape_relaxation_factor, "shape_relaxation_factor");
-    require_nonnegative_finite(parameters.recoil_velocity_standard_deviation, "recoil_velocity_standard_deviation");
-}
-
 qmomkit::CqmomMomentSource binary_breakage_source(const BinaryFragmentationParameters& parameters)
 {
-    validate_binary_fragmentation_parameters(parameters);
-
     return [parameters](double, const qmomkit::CqmomSourceContext& moments)
     {
         std::vector<double> source(moments.size(), 0.0);
@@ -218,12 +172,6 @@ qmomkit::CqmomMomentSource binary_breakage_source(const BinaryFragmentationParam
 void apply_binary_breakage(qmomkit::monte_carlo::Ensemble& ensemble, const double step_size, std::mt19937_64& generator,
                            const BinaryFragmentationParameters& parameters)
 {
-    validate_binary_fragmentation_parameters(parameters);
-    if (!is_nonnegative_finite(step_size))
-    {
-        throw std::invalid_argument("The MC binary breakage stage requires a non-negative finite step size.");
-    }
-
     qmomkit::monte_carlo::Ensemble survivors;
     survivors.reserve(ensemble.size());
     std::vector<std::pair<qmomkit::monte_carlo::Sample, double>> pending;

@@ -1,0 +1,39 @@
+# Two-dimensional CQMOM case in (d, u). Every location the host owns starts
+# from this case; the locations differ only through the host data the callbacks
+# read, not through this file.
+
+# The number of coordinates decides the method: one uses QMOM, several CQMOM.
+# Coordinate names are labels only; QMOMKit reads no physics from them.
+[phase_space]
+names = d, u
+# Quadrature nodes per coordinate. An n-node rule needs the moments m0..m(2n-1),
+# so raising this asks for more information from the initial condition.
+node_counts = 2, 2
+# The order in which CQMOM conditions the dimensions. It does not reorder
+# coordinates, moments, or output columns.
+conditioning_order = 0, 1
+
+[initial]
+# Marginals are normalised individually, then combined and scaled once by the
+# number_density below.
+type = independent_product
+number_density = 1.0
+
+[initial.dimension.0]
+family = normal
+mean = 2.0
+standard_deviation = 0.5
+
+[initial.dimension.1]
+family = normal
+mean = 0.0
+standard_deviation = 0.5
+
+# Output is driver-controlled: QMOMKit writes nothing unless the example wires
+# these settings into its writers. The driver writes one file per location.
+[output]
+directory = output
+write_moments = true
+write_quadrature = true
+# Simulated-time interval between writes, not a step count.
+interval = 0.1

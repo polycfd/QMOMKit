@@ -1031,6 +1031,10 @@ Batch wrappers do not provide threading, MPI, scheduling, or spatial
 organization. Calling scalar APIs inside an application-managed parallel loop
 remains fully supported.
 
+[`examples/cqmom_2d_batch_host_data/`](../../examples/cqmom_2d_batch_host_data/README.md)
+is a complete program using `advance_cqmom_phase_space_batch_with_index(...)`
+with time-varying host data indexed like the state vector.
+
 ## Practical guidance
 
 Coordinate order links each callback to the configured model. A

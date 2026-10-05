@@ -161,6 +161,18 @@ adaptive or physics-specialist CQMOM examples.
 Example README:
 [`examples/cqmom_2d_minimal/README.md`](../../examples/cqmom_2d_minimal/README.md)
 
+### `cqmom_2d_batch_host_data`
+
+Use this after `cqmom_2d_minimal` to advance many CQMOM states together with
+`advance_cqmom_phase_space_batch_with_index(...)`. The host packages its local
+data in arrays indexed like its state vector, so the velocity and moment-source
+callbacks read the entry of the location they are evaluated for through
+`batch_index`. The carrier flow varies in time and is reconstructed at the
+stage times from the two most recent host levels.
+
+Example README:
+[`examples/cqmom_2d_batch_host_data/README.md`](../../examples/cqmom_2d_batch_host_data/README.md)
+
 ## Stage 6: CQMOM numerical controls
 
 Prerequisite: understand the hierarchy and evolution workflow in Stage 5. These
@@ -256,7 +268,11 @@ combines a multimodal `u`-velocity marginal, an aspect-ratio support interval,
 adaptive branch reduction, and paired bounded/unbounded workflows that diagnose
 conditional support loss without clipping nodes. It also shows sampled
 initialization through the required CQMOM moment set rather than a full tensor:
-606 moments instead of 7776 for this hierarchy.
+606 moments instead of 7776 for this hierarchy. It further shows how a host
+passes local, time-varying field data to a callback without a global, by owning
+the carrier flow in the driver and handing the callback a reference to its two
+most recent levels, which the callback reconstructs at the stage time it is
+given.
 
 Example README:
 [`examples/cqmom_5d_non-spherical-particles/README.md`](../../examples/cqmom_5d_non-spherical-particles/README.md)

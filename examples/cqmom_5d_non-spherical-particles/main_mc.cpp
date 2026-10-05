@@ -1,4 +1,5 @@
 #include "breakage_model.hpp"
+#include "fluid_field.hpp"
 #include "monte_carlo/evolution.hpp"
 #include "monte_carlo/output.hpp"
 #include "particle_model.hpp"
@@ -93,10 +94,16 @@ int main(int argc, char* argv[])
         const std::vector<std::size_t> moment_extents = sampled->moment_extents;
 
         const ParticleModelParameters particle_parameters = particle_model_parameters();
-        validate_particle_model_parameters(particle_parameters);
         const BinaryFragmentationParameters breakage_parameters = binary_fragmentation_parameters();
-        validate_binary_fragmentation_parameters(breakage_parameters);
-        const qmomkit::PhaseSpaceVelocity velocity = particle_phase_space_velocity(particle_parameters);
+
+        // carrier_samples is the host-side carrier flow, owned here by the driver
+        // and handed to the callback below by reference. The time loop publishes a
+        // new host level once per outer step at the same instants as the CQMOM
+        // driver, so both runs reconstruct the same carrier flow.
+        CarrierFlowSamples carrier_samples;
+        carrier_samples.current = carrier_flow_velocity(initial_time);
+        carrier_samples.sample_time = initial_time;
+        const qmomkit::PhaseSpaceVelocity velocity = particle_phase_space_velocity(particle_parameters, carrier_samples);
         std::mt19937_64 breakage_generator(breakage_seed);
 
         qmomkit::RawMomentTensor final_moments = compute_ensemble_moments(ensemble, particle_weight, moment_extents);
@@ -119,6 +126,13 @@ int main(int argc, char* argv[])
         {
             const double step = std::min(time_step, final_time - time);
             const double half_step = 0.5 * step;
+            if (time > initial_time)
+            {
+                carrier_samples.previous = carrier_samples.current;
+                carrier_samples.current = carrier_flow_velocity(time);
+                carrier_samples.sample_interval = time - carrier_samples.sample_time;
+                carrier_samples.sample_time = time;
+            }
 
             qmomkit::monte_carlo::EnsembleEvolutionResult first_advection =
                 qmomkit::monte_carlo::evolve_ensemble(ensemble, velocity, time, time + half_step, advection_options);
@@ -161,7 +175,7 @@ int main(int argc, char* argv[])
             final_moments = compute_ensemble_moments(ensemble, particle_weight, moment_extents);
         }
         print_monte_carlo_result_summary(initial_moments, final_moments, terminal_moment_indices, output_options.directory, ensemble.size(),
-                                         initialization_sample_count, initialization_seed, time_step, final_time, output_options.write_moments);
+                                         output_options.write_moments);
     }
     catch (const std::exception& error)
     {

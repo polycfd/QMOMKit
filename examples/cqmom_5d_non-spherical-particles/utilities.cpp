@@ -47,20 +47,6 @@ void print_moment_entry(const qmomkit::MultiIndex& order, const double value)
     std::cout << " = " << value << '\n';
 }
 
-void print_path(const qmomkit::ConditioningPathView path)
-{
-    std::cout << '[';
-    for (std::size_t level = 0; level < path.size(); ++level)
-    {
-        if (level > 0)
-        {
-            std::cout << ',';
-        }
-        std::cout << path.node_index_at_level(level);
-    }
-    std::cout << ']';
-}
-
 void print_selected_moments(const char* label, const qmomkit::SelectedRawMomentResult& moments)
 {
     std::cout << label << '\n';
@@ -98,31 +84,6 @@ void print_moment_tensor(const qmomkit::RawMomentTensor& moments, const std::vec
     }
 }
 
-void print_quadrature(const qmomkit::CqmomQuadrature& quadrature)
-{
-    std::cout << "node  path            weight          d               chi             u               v               w\n";
-    if (quadrature.number_of_dimensions() != 5)
-    {
-        throw std::runtime_error("The final quadrature is not ordered as a 5D non-spherical particle state.");
-    }
-    for (std::size_t node = 0; node < quadrature.weights().size(); ++node)
-    {
-        std::cout << node << "     ";
-        print_path(quadrature.terminal_paths()[node]);
-        std::cout << "   " << quadrature.weights()[node] << "   " << quadrature.abscissas()[0][node] << "   " << quadrature.abscissas()[1][node]
-                  << "   " << quadrature.abscissas()[2][node] << "   " << quadrature.abscissas()[3][node] << "   " << quadrature.abscissas()[4][node]
-                  << '\n';
-    }
-}
-
-void print_run_metadata(const std::size_t sample_count, const unsigned long long initialization_seed, const double time_step, const double final_time)
-{
-    std::cout << "sample_count = " << sample_count << '\n';
-    std::cout << "initialization_seed = " << initialization_seed << '\n';
-    std::cout << "time_step = " << time_step << '\n';
-    std::cout << "final_time = " << final_time << '\n';
-}
-
 } // namespace
 
 std::vector<qmomkit::MultiIndex> select_terminal_moment_indices(const qmomkit::MultiIndexTable& required_indices)
@@ -156,23 +117,13 @@ void ensure_output_directory(const std::filesystem::path& path)
 }
 
 void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moments, const qmomkit::SelectedRawMomentResult& final_moments,
-                          const qmomkit::CqmomQuadrature& final_quadrature, const std::filesystem::path& output_directory,
-                          const std::size_t sample_count, const unsigned long long initialization_seed, const double time_step,
-                          const double final_time, const bool wrote_moments, const bool wrote_quadrature)
+                          const std::filesystem::path& output_directory, const bool wrote_moments, const bool wrote_quadrature)
 {
     std::cout << std::setprecision(12);
-    std::cout << "5D CQMOM non-spherical particle example\n";
-    std::cout << "phase-space ordering: (d, chi, u, v, w)\n";
-    print_run_metadata(sample_count, initialization_seed, time_step, final_time);
-
-    std::cout << '\n';
     print_selected_moments("Initial moments:", initial_moments);
 
     std::cout << '\n';
     print_selected_moments("Final moments:", final_moments);
-
-    std::cout << "\nFinal quadrature:\n";
-    print_quadrature(final_quadrature);
 
     if (wrote_moments || wrote_quadrature)
     {
@@ -196,16 +147,10 @@ void print_result_summary(const qmomkit::SelectedRawMomentResult& initial_moment
 
 void print_monte_carlo_result_summary(const qmomkit::RawMomentTensor& initial_moments, const qmomkit::RawMomentTensor& final_moments,
                                       const std::vector<qmomkit::MultiIndex>& terminal_moment_indices, const std::filesystem::path& output_directory,
-                                      const std::size_t final_particle_count, const std::size_t sample_count,
-                                      const unsigned long long initialization_seed, const double time_step, const double final_time,
-                                      const bool wrote_moments)
+                                      const std::size_t final_particle_count, const bool wrote_moments)
 {
     std::cout << std::setprecision(12);
-    std::cout << "5D Monte Carlo non-spherical particle reference\n";
-    std::cout << "phase-space ordering: (d, chi, u, v, w)\n";
-    print_run_metadata(sample_count, initialization_seed, time_step, final_time);
-
-    std::cout << "\nInitial moments:\n";
+    std::cout << "Initial moments:\n";
     print_moment_tensor(initial_moments, terminal_moment_indices);
 
     std::cout << "\nFinal moments:\n";

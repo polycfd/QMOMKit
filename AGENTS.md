@@ -13,6 +13,18 @@ analysis codes. It does not own meshes, cells, spatial discretizations, MPI
 communication, physical boundary conditions, particle models, or
 application-specific source terms.
 
+QMOMKit is serial by design. Anything that pertains to the host application is
+the host's responsibility, not QMOMKit's. This includes parallelism and
+scheduling, the time loop and the choice of the outer time step, deciding what
+to do when a QMOMKit call returns a failure status (for example, repeating the
+host time step with a smaller outer time step), mapping batch positions to cells
+or other host identifiers, and coupling to host fields. Step-size control inside
+a single QMOMKit call, namely adaptive node-advection substeps and moment-source
+retries after a rejected candidate, belongs to QMOMKit and is configured through
+its options. QMOMKit returns each result with its status; what to do with it is
+the host's decision. Do not add host-side machinery to QMOMKit, and do not
+describe its absence as a limitation of QMOMKit.
+
 Prefer the simplest implementation that satisfies the mathematical,
 performance, and API requirements. Do not introduce additional abstractions,
 namespaces, directory layers, configuration mechanisms, or dependencies

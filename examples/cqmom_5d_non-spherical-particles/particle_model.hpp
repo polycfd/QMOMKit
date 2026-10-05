@@ -22,12 +22,15 @@ struct ParticleModelParameters
 [[nodiscard]] ParticleModelParameters particle_model_parameters();
 
 // Returns the phase-space velocity for states ordered as (d, chi, u, v, w),
-// capturing the parameters by value and the carrier-flow samples by pointer.
-// The pointer must not be null, which is checked here, and the samples must
-// outlive the returned callback. The callback reads them on every invocation,
-// so the driver can publish new host levels between steps without rebuilding
-// the callback.
+// capturing the parameters by value and the carrier-flow samples by reference.
+// The samples must outlive the returned callback. The callback reads them on
+// every invocation, so the driver can publish new host levels between steps
+// without rebuilding the callback.
 [[nodiscard]] qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters,
-                                                                        const CarrierFlowSamples* carrier_flow);
+                                                                        const CarrierFlowSamples& carrier_flow);
+
+// The callback keeps a reference to the samples, so a temporary would dangle.
+// Binding one is rejected at compile time.
+qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters, CarrierFlowSamples&& carrier_flow) = delete;
 
 } // namespace cqmom_5d_non_spherical_particles

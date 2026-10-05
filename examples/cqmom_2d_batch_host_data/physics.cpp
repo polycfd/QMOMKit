@@ -11,6 +11,9 @@ namespace cqmom_2d_batch_host_data
 
 qmomkit::BatchPhaseSpaceVelocity advection_velocity(const LocalHostData& host_data)
 {
+    // Capturing the reference parameter by reference refers to the host's data,
+    // not to the parameter, so the capture stays valid after this function
+    // returns. The same holds for the moment source below.
     return [&host_data](const std::size_t location, const double time, const std::vector<double>& coordinates, std::vector<double>& velocities,
                         const std::size_t dimensions)
     {

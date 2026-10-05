@@ -53,7 +53,8 @@ return [&host_data](std::size_t location, double time, const std::vector<double>
 
 The callbacks capture `host_data` by reference and read its current contents on
 every invocation. The host therefore publishes new data between steps without
-rebuilding the callbacks, and `host_data` must outlive them.
+rebuilding the callbacks, and `host_data` must outlive them; passing a temporary
+is rejected at compile time.
 
 ## The time loop
 

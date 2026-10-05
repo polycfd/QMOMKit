@@ -97,13 +97,13 @@ int main(int argc, char* argv[])
         const BinaryFragmentationParameters breakage_parameters = binary_fragmentation_parameters();
 
         // carrier_samples is the host-side carrier flow, owned here by the driver
-        // and handed to the callback below by pointer. The time loop publishes a
+        // and handed to the callback below by reference. The time loop publishes a
         // new host level once per outer step at the same instants as the CQMOM
         // driver, so both runs reconstruct the same carrier flow.
         CarrierFlowSamples carrier_samples;
         carrier_samples.current = carrier_flow_velocity(initial_time);
         carrier_samples.sample_time = initial_time;
-        const qmomkit::PhaseSpaceVelocity velocity = particle_phase_space_velocity(particle_parameters, &carrier_samples);
+        const qmomkit::PhaseSpaceVelocity velocity = particle_phase_space_velocity(particle_parameters, carrier_samples);
         std::mt19937_64 breakage_generator(breakage_seed);
 
         qmomkit::RawMomentTensor final_moments = compute_ensemble_moments(ensemble, particle_weight, moment_extents);

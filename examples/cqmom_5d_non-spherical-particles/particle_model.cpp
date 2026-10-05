@@ -39,15 +39,13 @@ ParticleModelParameters particle_model_parameters()
     return parameters;
 }
 
-qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters, const CarrierFlowSamples* const carrier_flow)
+qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters, const CarrierFlowSamples& carrier_flow)
 {
-    if (carrier_flow == nullptr)
-    {
-        throw std::invalid_argument("The non-spherical particle model requires the driver's carrier-flow samples.");
-    }
-
-    return [parameters, carrier_flow](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities,
-                                      const std::size_t dimensions)
+    // Capturing the reference parameter by reference refers to the driver's
+    // samples, not to the parameter, so the capture stays valid after this
+    // function returns.
+    return [parameters, &carrier_flow](const double time, const std::vector<double>& coordinates, std::vector<double>& velocities,
+                                       const std::size_t dimensions)
     {
         if (dimensions != 5)
         {
@@ -58,7 +56,7 @@ qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelPar
         // The carrier flow is host data rather than part of the particle model. It
         // is reconstructed once for the whole node set, at the stage time QMOMKit
         // supplies, from the two host levels the driver published.
-        const BackgroundFluidVelocity fluid = carrier_flow_at(*carrier_flow, time);
+        const BackgroundFluidVelocity fluid = carrier_flow_at(carrier_flow, time);
         const double fluid_velocity_x = fluid.u;
         const double fluid_velocity_y = fluid.v;
         const double fluid_velocity_z = fluid.w;

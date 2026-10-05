@@ -89,14 +89,14 @@ A coupled host owns fields that QMOMKit knows nothing about, and the callback
 must read their current local values without those fields becoming globals.
 This example demonstrates the pattern with the carrier flow.
 
-The driver owns the host data and hands the callback a pointer to it. What it
-hands over is not one value but the two most recent host levels:
+The driver owns the host data and hands the callback a reference to it. What
+it hands over is not one value but the two most recent host levels:
 
 ```cpp
 CarrierFlowSamples carrier_samples;
 carrier_samples.current = carrier_flow_velocity(initial_time);
 carrier_samples.sample_time = initial_time;
-const qmomkit::PhaseSpaceVelocity velocity = particle_phase_space_velocity(particle_parameters, &carrier_samples);
+const qmomkit::PhaseSpaceVelocity velocity = particle_phase_space_velocity(particle_parameters, carrier_samples);
 
 while (/* time loop */)
 {
@@ -107,17 +107,18 @@ while (/* time loop */)
         carrier_samples.sample_interval = time - carrier_samples.sample_time;
         carrier_samples.sample_time = time;
     }
-    // advance; the callback reads carrier_samples through the pointer
+    // advance; the callback reads carrier_samples through its reference
 }
 ```
 
-The callback captures the pointer once and dereferences it on every
+The callback captures the reference once and reads through it on every
 invocation, so the driver publishes new data rather than rebuilding the
-callback. A struct carries several host quantities through a single pointer; a
-host coupling a concentration field and a fluid velocity at cell `i` would keep
-`concentration[i]` and `fluid_uvel[i]`, and their previous levels, in the same
-struct. The pointed-to object must outlive the callback, which is why it is
-declared before the callback is built and in the same scope.
+callback. A struct carries several host quantities through a single reference;
+a host coupling a concentration field and a fluid velocity at cell `i` would
+keep `concentration[i]` and `fluid_uvel[i]`, and their previous levels, in the
+same struct. The referenced object must outlive the callback, which is why it is
+declared before the callback is built and in the same scope. Passing a temporary
+instead is rejected at compile time.
 
 ### Why two levels rather than one
 

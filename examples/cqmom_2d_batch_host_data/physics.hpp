@@ -8,17 +8,20 @@ namespace cqmom_2d_batch_host_data
 
 // Both callbacks capture the host data by reference and read it on every
 // invocation, so the host publishes new levels between steps without
-// rebuilding the callbacks. The host data must outlive them.
+// rebuilding the callbacks. The host data must outlive them, so binding a
+// temporary is rejected at compile time.
 
 // Phase-space velocity for states ordered as (d, u). The diameter relaxes
 // toward 1 and the particle velocity toward the local carrier-flow velocity:
 //
 //     dd/dt = 1 - d,    du/dt = u_f(x_i, t) - u.
 [[nodiscard]] qmomkit::BatchPhaseSpaceVelocity advection_velocity(const LocalHostData& host_data);
+qmomkit::BatchPhaseSpaceVelocity advection_velocity(LocalHostData&& host_data) = delete;
 
 // Binary fragmentation d -> d/2 at the local fragmentation rate lambda_i,
 // leaving u unchanged: dM_jk/dt = lambda_i (2^(1-j) - 1) M_jk.
 [[nodiscard]] qmomkit::BatchCqmomMomentSource binary_fragmentation_source(const LocalHostData& host_data);
+qmomkit::BatchCqmomMomentSource binary_fragmentation_source(LocalHostData&& host_data) = delete;
 
 // Exact solutions of this model at one location, which the console summary
 // prints next to the computed values.

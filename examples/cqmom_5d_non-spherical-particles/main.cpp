@@ -101,7 +101,7 @@ int main(int argc, char* argv[])
         const BinaryFragmentationParameters breakage_parameters = binary_fragmentation_parameters();
 
         // carrier_samples is the host-side carrier flow, owned here by the driver.
-        // The callback built just below receives a pointer to it, which is how a
+        // The callback built just below keeps a reference to it, which is how a
         // host passes local, time-varying field data to a callback without a
         // global. It must outlive that callback. Only the newest level is known
         // at this point, so the first step runs without a reconstruction.
@@ -110,7 +110,7 @@ int main(int argc, char* argv[])
         carrier_samples.sample_time = initial_time;
 
         // Definition of the callbacks
-        const qmomkit::PhaseSpaceVelocity velocity = particle_phase_space_velocity(particle_parameters, &carrier_samples);
+        const qmomkit::PhaseSpaceVelocity velocity = particle_phase_space_velocity(particle_parameters, carrier_samples);
         const qmomkit::CqmomMomentSource source = binary_breakage_source(breakage_parameters);
 
         const qmomkit::OutputOptions output_options = std::move(output_configured).value();

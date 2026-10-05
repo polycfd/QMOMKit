@@ -256,7 +256,10 @@ combines a multimodal `u`-velocity marginal, an aspect-ratio support interval,
 adaptive branch reduction, and paired bounded/unbounded workflows that diagnose
 conditional support loss without clipping nodes. It also shows sampled
 initialization through the required CQMOM moment set rather than a full tensor:
-606 moments instead of 7776 for this hierarchy.
+606 moments instead of 7776 for this hierarchy. It further shows how a host
+passes local, time-varying field data to a callback without a global, by owning
+the carrier flow in the driver and handing the callback a pointer to its two most
+recent levels, which the callback reconstructs at the stage time it is given.
 
 Example README:
 [`examples/cqmom_5d_non-spherical-particles/README.md`](../../examples/cqmom_5d_non-spherical-particles/README.md)

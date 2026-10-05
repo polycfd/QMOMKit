@@ -21,8 +21,6 @@ struct BinaryFragmentationParameters
 
 [[nodiscard]] BinaryFragmentationParameters binary_fragmentation_parameters();
 
-void validate_binary_fragmentation_parameters(const BinaryFragmentationParameters& parameters);
-
 // Builds the CQMOM moment source for binary fragmentation from the example
 // parameters. Terminal nodes are supplied by the source context.
 [[nodiscard]] qmomkit::CqmomMomentSource binary_breakage_source(const BinaryFragmentationParameters& parameters);

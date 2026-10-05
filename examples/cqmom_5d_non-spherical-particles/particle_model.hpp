@@ -1,5 +1,6 @@
 #pragma once
 
+#include "fluid_field.hpp"
 #include "qmomkit/node_advection.hpp"
 
 namespace cqmom_5d_non_spherical_particles
@@ -11,10 +12,6 @@ struct ParticleModelParameters
     double fluid_dynamic_viscosity = 1.8e-5;
     double particle_density = 2000.0;
     double gravity = 9.81;
-    double fluid_velocity_amplitude_x = 2.0;
-    double fluid_velocity_amplitude_y = 2.0;
-    double fluid_velocity_amplitude_z = 0.0;
-    double oscillation_angular_frequency = 1.0;
     double attrition_rate = 1.0e-6;
     double minimum_attrition_diameter = 0.0;
     double attrition_transition_diameter = 1.0e-5;
@@ -24,10 +21,13 @@ struct ParticleModelParameters
 
 [[nodiscard]] ParticleModelParameters particle_model_parameters();
 
-void validate_particle_model_parameters(const ParticleModelParameters& parameters);
-
-// Returns the phase-space velocity for states ordered as
-// (d, chi, u, v, w), capturing the validated parameters by value.
-[[nodiscard]] qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters);
+// Returns the phase-space velocity for states ordered as (d, chi, u, v, w),
+// capturing the parameters by value and the carrier-flow samples by pointer.
+// The pointer must not be null, which is checked here, and the samples must
+// outlive the returned callback. The callback reads them on every invocation,
+// so the driver can publish new host levels between steps without rebuilding
+// the callback.
+[[nodiscard]] qmomkit::PhaseSpaceVelocity particle_phase_space_velocity(const ParticleModelParameters& parameters,
+                                                                        const CarrierFlowSamples* carrier_flow);
 
 } // namespace cqmom_5d_non_spherical_particles

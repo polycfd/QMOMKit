@@ -1,5 +1,5 @@
 # Five-dimensional CQMOM case in (d, chi, u, v, w): diameter, aspect ratio
-# and the three velocity components. Three nodes per dimension give
+# and the three velocity components. Three nodes per dimension give a ceiling of
 # 3^5 = 243 terminal nodes, so the packed velocity callback matters here.
 
 # The number of coordinates decides the method: one uses QMOM, several CQMOM.

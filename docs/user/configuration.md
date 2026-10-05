@@ -88,6 +88,13 @@ instead of a silently missing setting:
 configuration.qmom:4: Unknown key 'phase_space.node_countz'.
 ```
 
+This includes indexed sections and keys that nothing reads, such as a mixture
+component under `type = distribution` or a component index without a section
+of its own. Indices in section names are written without leading zeros:
+`[initial.mixture.component.0]`, not `[initial.mixture.component.00]`. Numbers
+are written in plain decimal notation, such as `2`, `-0.5`, or `1.0e-6`, and are
+read the same way whatever locale the host application uses.
+
 A configuration file stops at the numerical setup. Physics callbacks, model
 coefficients, meshes, boundary conditions, units, and the timestep loop are
 application code — see [Callbacks](callbacks.md).
@@ -684,6 +691,10 @@ upper = 1.0
 check_mode = every_stage
 support = real_line
 ```
+
+A QMOM configuration reports a numbered `[time_integration.realizability.N]`
+section, and a CQMOM configuration reports the unnumbered one, because neither
+would have an effect there.
 
 Support is not inferred from a distribution family or a phase-space name.
 For CQMOM, each configured coordinate setting applies only to the corresponding

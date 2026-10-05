@@ -592,9 +592,9 @@ void test_qmom_quadrature_output()
         writer.write(0.0, qmomkit::QmomResult{{-1.0, 2.0}, {0.25, 0.75}});
     }
 
-    const std::string expected = "# time node_index weight x0\n" + format_scientific(0.0) + " " + format_scientific(0.0) + " " +
-                                 format_scientific(0.25) + " " + format_scientific(-1.0) + "\n" + format_scientific(0.0) + " " +
-                                 format_scientific(1.0) + " " + format_scientific(0.75) + " " + format_scientific(2.0) + "\n";
+    const std::string expected = "# time node_index weight x0\n" + format_scientific(0.0) + " 0 " + format_scientific(0.25) + " " +
+                                 format_scientific(-1.0) + "\n" + format_scientific(0.0) + " 1 " + format_scientific(0.75) + " " +
+                                 format_scientific(2.0) + "\n";
     assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
@@ -607,9 +607,9 @@ void test_quadrature_1d_output()
         writer.write(0.125, qmomkit::Quadrature1D{{-0.75, 1.25}, {0.4, 0.6}});
     }
 
-    const std::string expected = "# time node_index weight x0\n" + format_scientific(0.125) + " " + format_scientific(0.0) + " " +
-                                 format_scientific(0.4) + " " + format_scientific(-0.75) + "\n" + format_scientific(0.125) + " " +
-                                 format_scientific(1.0) + " " + format_scientific(0.6) + " " + format_scientific(1.25) + "\n";
+    const std::string expected = "# time node_index weight x0\n" + format_scientific(0.125) + " 0 " + format_scientific(0.4) + " " +
+                                 format_scientific(-0.75) + "\n" + format_scientific(0.125) + " 1 " + format_scientific(0.6) + " " +
+                                 format_scientific(1.25) + "\n";
     assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
@@ -626,13 +626,11 @@ void test_qmom_adaptive_quadrature_output_accepts_changing_node_counts()
     }
 
     const std::string expected =
-        "# time node_index weight x0\n" + format_scientific(0.0) + " " + format_scientific(0.0) + " " + format_scientific(0.5) + " " +
-        format_scientific(-1.0) + "\n" + format_scientific(0.0) + " " + format_scientific(1.0) + " " + format_scientific(0.5) + " " +
-        format_scientific(1.0) + "\n" + format_scientific(0.05) + " " + format_scientific(0.0) + " " + format_scientific(1.0) + " " +
-        format_scientific(0.0) + "\n" + format_scientific(0.15) + " " + format_scientific(0.0) + " " + format_scientific(0.5) + " " +
-        format_scientific(-0.8944271909999159) + "\n" + format_scientific(0.15) + " " + format_scientific(1.0) + " " + format_scientific(0.5) + " " +
-        format_scientific(0.8944271909999159) + "\n" + format_scientific(0.25) + " " + format_scientific(0.0) + " " + format_scientific(1.0) + " " +
-        format_scientific(0.0) + "\n";
+        "# time node_index weight x0\n" + format_scientific(0.0) + " 0 " + format_scientific(0.5) + " " + format_scientific(-1.0) + "\n" +
+        format_scientific(0.0) + " 1 " + format_scientific(0.5) + " " + format_scientific(1.0) + "\n" + format_scientific(0.05) + " 0 " +
+        format_scientific(1.0) + " " + format_scientific(0.0) + "\n" + format_scientific(0.15) + " 0 " + format_scientific(0.5) + " " +
+        format_scientific(-0.8944271909999159) + "\n" + format_scientific(0.15) + " 1 " + format_scientific(0.5) + " " +
+        format_scientific(0.8944271909999159) + "\n" + format_scientific(0.25) + " 0 " + format_scientific(1.0) + " " + format_scientific(0.0) + "\n";
     assert_text_ignore_whitespaces(read_text_file(path), expected);
     std::filesystem::remove(path);
 }
@@ -665,10 +663,10 @@ void test_cqmom_quadrature_output()
     std::string expected = "# time node_index path_0 path_1 weight x0 x1\n";
     for (std::size_t node = 0; node < result.quadrature.total_nodes(); ++node)
     {
-        expected += format_scientific(0.5) + " " + format_scientific(static_cast<double>(node));
+        expected += format_scientific(0.5) + " " + std::to_string(node);
         for (std::size_t level = 0; level < result.quadrature.number_of_dimensions(); ++level)
         {
-            expected += " " + format_scientific(static_cast<double>(result.quadrature.terminal_paths()[node].node_index_at_level(level)));
+            expected += " " + std::to_string(result.quadrature.terminal_paths()[node].node_index_at_level(level));
         }
         expected += " " + format_scientific(result.quadrature.weights()[node]);
         for (std::size_t dimension = 0; dimension < result.quadrature.number_of_dimensions(); ++dimension)
@@ -712,17 +710,17 @@ void test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts()
     std::string expected = "# time node_index path_0 path_1 weight x0 x1\n";
     for (std::size_t node = 0; node < fixed.quadrature.total_nodes(); ++node)
     {
-        expected += format_scientific(0.0) + " " + format_scientific(static_cast<double>(node)) + " " +
-                    format_scientific(static_cast<double>(fixed.quadrature.terminal_paths()[node].node_index_at_level(0))) + " " +
-                    format_scientific(static_cast<double>(fixed.quadrature.terminal_paths()[node].node_index_at_level(1))) + " " +
+        expected += format_scientific(0.0) + " " + std::to_string(node) + " " +
+                    std::to_string(fixed.quadrature.terminal_paths()[node].node_index_at_level(0)) + " " +
+                    std::to_string(fixed.quadrature.terminal_paths()[node].node_index_at_level(1)) + " " +
                     format_scientific(fixed.quadrature.weights()[node]) + " " + format_scientific(fixed.quadrature.abscissas()[0][node]) + " " +
                     format_scientific(fixed.quadrature.abscissas()[1][node]) + "\n";
     }
     for (std::size_t node = 0; node < adaptive.quadrature.total_nodes(); ++node)
     {
-        expected += format_scientific(0.5) + " " + format_scientific(static_cast<double>(node)) + " " +
-                    format_scientific(static_cast<double>(adaptive.quadrature.terminal_paths()[node].node_index_at_level(0))) + " " +
-                    format_scientific(static_cast<double>(adaptive.quadrature.terminal_paths()[node].node_index_at_level(1))) + " " +
+        expected += format_scientific(0.5) + " " + std::to_string(node) + " " +
+                    std::to_string(adaptive.quadrature.terminal_paths()[node].node_index_at_level(0)) + " " +
+                    std::to_string(adaptive.quadrature.terminal_paths()[node].node_index_at_level(1)) + " " +
                     format_scientific(adaptive.quadrature.weights()[node]) + " " + format_scientific(adaptive.quadrature.abscissas()[0][node]) + " " +
                     format_scientific(adaptive.quadrature.abscissas()[1][node]) + "\n";
     }
@@ -945,6 +943,140 @@ void test_cqmom_quadrature_writer_rejects_malformed_terminal_storage()
     std::filesystem::remove(path);
 }
 
+// A rejected row or time block leaves the file exactly as it was, because every
+// check runs before the first character of the row or block is written. Each
+// case writes the same valid content to a reference file, adds the rejected
+// write to the tested file, and requires both files to be identical.
+void test_rejected_rows_leave_the_file_unchanged()
+{
+    const auto assert_rejected_write_leaves_file_unchanged =
+        [](const std::string& name, const std::function<void(const std::filesystem::path&, bool)>& write)
+    {
+        const std::filesystem::path reference_path = temporary_output_path(name + "_reference");
+        const std::filesystem::path tested_path = temporary_output_path(name + "_tested");
+        write(reference_path, false);
+        write(tested_path, true);
+        assert(read_text_file(tested_path) == read_text_file(reference_path));
+        std::filesystem::remove(reference_path);
+        std::filesystem::remove(tested_path);
+    };
+
+    // A selected moment order outside the supplied moments.
+    assert_rejected_write_leaves_file_unchanged("qmomkit_rejected_selected_moment_row",
+                                                [](const std::filesystem::path& path, const bool add_rejected_row)
+                                                {
+                                                    qmomkit::MomentWriter writer =
+                                                        qmomkit::MomentWriter::for_qmom(path, std::vector<std::size_t>{0, 5});
+                                                    writer.write(0.0, qmomkit::MomentSet(std::vector<double>(6, 1.0)));
+                                                    if (add_rejected_row)
+                                                    {
+                                                        bool rejected = false;
+                                                        try
+                                                        {
+                                                            writer.write(1.0, qmomkit::MomentSet({1.0, 2.0, 3.0}));
+                                                        }
+                                                        catch (const std::out_of_range&)
+                                                        {
+                                                            rejected = true;
+                                                        }
+                                                        assert(rejected);
+                                                    }
+                                                });
+
+    // A non-finite abscissa in the last node of a QMOM time block.
+    assert_rejected_write_leaves_file_unchanged(
+        "qmomkit_rejected_qmom_quadrature_block",
+        [](const std::filesystem::path& path, const bool add_rejected_block)
+        {
+            qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, 3);
+            writer.write(0.0, qmomkit::Quadrature1D{{-1.0, 1.0}, {0.5, 0.5}});
+            if (add_rejected_block)
+            {
+                assert_throws_invalid_argument_message(
+                    [&writer] { writer.write(1.0, qmomkit::Quadrature1D{{0.0, 1.0, std::numeric_limits<double>::infinity()}, {0.2, 0.3, 0.5}}); },
+                    "Quadrature output values must be finite.");
+            }
+        });
+
+    // A CQMOM terminal path that lies outside the hierarchy only for the last
+    // node. A wrong path depth cannot occur for just one node, because a
+    // conditioning-path table holds paths of one depth.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<double> weights{0.5, 0.5};
+    const std::vector<std::vector<double>> abscissas{{-1.0, 1.0}, {2.0, 3.0}};
+    const qmomkit::CqmomQuadrature out_of_range_path = qmomkit::internal::CqmomConstructionAccess::create_quadrature(
+        hierarchy, weights, abscissas, true, false, {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 5})});
+    const qmomkit::CqmomQuadrature valid = qmomkit::internal::CqmomConstructionAccess::create_quadrature(
+        hierarchy, weights, abscissas, true, false, {qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({1, 0})});
+    assert_rejected_write_leaves_file_unchanged("qmomkit_rejected_cqmom_quadrature_block",
+                                                [&](const std::filesystem::path& path, const bool add_rejected_block)
+                                                {
+                                                    qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_cqmom(path, 2);
+                                                    writer.write(0.0, valid);
+                                                    if (add_rejected_block)
+                                                    {
+                                                        bool rejected = false;
+                                                        try
+                                                        {
+                                                            writer.write(1.0, out_of_range_path);
+                                                        }
+                                                        catch (const std::out_of_range&)
+                                                        {
+                                                            rejected = true;
+                                                        }
+                                                        assert(rejected);
+                                                    }
+                                                });
+}
+
+// A selected-moment writer writes only its selected columns, so only they have
+// to be finite.
+void test_selected_moment_rows_ignore_unselected_values()
+{
+    const std::filesystem::path path = temporary_output_path("qmomkit_selected_moment_row_ignores_unselected_values");
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(path, std::vector<std::size_t>{0});
+        writer.write(0.25, qmomkit::MomentSet({2.0, std::numeric_limits<double>::quiet_NaN()}));
+    }
+    assert_text_ignore_whitespaces(read_text_file(path), "# time M[0]\n" + format_scientific(0.25) + " " + format_scientific(2.0) + "\n");
+    std::filesystem::remove(path);
+}
+
+// Node and path indices are integers and are written as integers, so they stay
+// exact at any output precision.
+void test_quadrature_indices_stay_exact_at_low_precision()
+{
+    constexpr std::size_t node_count = 12;
+    qmomkit::Quadrature1D quadrature;
+    for (std::size_t node = 0; node < node_count; ++node)
+    {
+        quadrature.abscissas.push_back(static_cast<double>(node));
+        quadrature.weights.push_back(1.0 / static_cast<double>(node_count));
+    }
+
+    const std::filesystem::path path = temporary_output_path("qmomkit_quadrature_indices_at_low_precision");
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(path, node_count, 0);
+        writer.write(0.0, quadrature);
+    }
+
+    std::istringstream rows(read_text_file(path));
+    std::string row;
+    std::getline(rows, row);
+    std::size_t node = 0;
+    while (std::getline(rows, row))
+    {
+        std::istringstream columns(row);
+        std::string time;
+        std::string node_index;
+        columns >> time >> node_index;
+        assert(node_index == std::to_string(node));
+        ++node;
+    }
+    assert(node == node_count);
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -975,6 +1107,9 @@ int main(const int argc, char** argv)
             {"factories_reject_empty_selections", test_factories_reject_empty_selections},
             {"writer_rejects_generalized_moments_without_values", test_writer_rejects_generalized_moments_without_values},
             {"moment_writer_rejects_nonfinite_values", test_moment_writer_rejects_nonfinite_values},
+            {"rejected_rows_leave_the_file_unchanged", test_rejected_rows_leave_the_file_unchanged},
+            {"selected_moment_rows_ignore_unselected_values", test_selected_moment_rows_ignore_unselected_values},
+            {"quadrature_indices_stay_exact_at_low_precision", test_quadrature_indices_stay_exact_at_low_precision},
             {"column_padding_uses_centered_labels_and_widths", test_column_padding_uses_centered_labels_and_widths},
         });
 }

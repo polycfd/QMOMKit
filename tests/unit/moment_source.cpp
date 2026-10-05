@@ -399,9 +399,10 @@ void test_cqmom_source_context_validates_indices_and_values()
     const qmomkit::CqmomMomentData initial = create_moment_data();
 
     bool rejected_mismatched_values = false;
+    const std::vector<double> mismatched_values{1.0};
     try
     {
-        static_cast<void>(qmomkit::CqmomSourceContext{0.0, initial.layout.hierarchy, initial.layout.required_indices, {1.0}});
+        static_cast<void>(qmomkit::CqmomSourceContext{0.0, initial.layout.hierarchy, initial.layout.required_indices, mismatched_values});
     }
     catch (const std::invalid_argument& error)
     {

@@ -81,7 +81,10 @@ finite time values, finite output values, matching moment counts, matching
 tensor extents, QMOM active node counts within the configured maximum, matching
 CQMOM dimension counts, and aligned CQMOM terminal weights, paths, and
 abscissas. Invalid rows are reported through exceptions rather than silently
-truncated or reshaped.
+truncated or reshaped. All checks for a moment row, or for the complete time
+block of a quadrature write, run before its first character is written, so a
+rejected write leaves the file unchanged. A selected-moment writer checks only
+the entries it writes.
 
 ## Moment history output
 
@@ -98,8 +101,10 @@ columns are moment values:
 # time M[0] M[1] M[2] ...
 ```
 
-Numeric values are written with `std::setprecision(precision)`. Every writer
-factory takes that precision as a trailing parameter defaulting to `17`, which
+Numeric values are written with `std::setprecision(precision)`; the integer
+`node_index` and `path_k` columns of quadrature output are written as integers,
+so they stay exact at any precision. Every writer factory takes that precision
+as a trailing parameter defaulting to `17`, which
 round-trips a `double` exactly and so preserves reproducible output for ordinary
 validation workflows. A driver that values readability over exact round-tripping
 may pass a smaller value; the column width follows the precision, so the table

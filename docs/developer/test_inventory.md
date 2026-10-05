@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 636 |
+| Unit logical tests | 650 |
 | Component/regression logical tests | 47 |
 | Verification logical tests | 168 |
-| **Runtime logical tests** | **851** |
+| **Runtime logical tests** | **865** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **852** |
+| **Total CTest registrations** | **866** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -427,6 +427,9 @@ renamed test rather than a deleted one.
 | `unit_output_column_padding_uses_centered_labels_and_widths` | `tests/unit/output.cpp` | `column_padding_uses_centered_labels_and_widths` | Checks the byte-for-byte column width and centered-label padding rule used by the output writers. | — |
 | `unit_output_factories_reject_empty_selections` | `tests/unit/output.cpp` | `factories_reject_empty_selections` | Checks that writer factories reject an empty column or moment selection instead of producing an empty table. | — |
 | `unit_output_moment_writer_rejects_nonfinite_values` | `tests/unit/output.cpp` | `moment_writer_rejects_nonfinite_values` | Checks that `MomentWriter` rejects non-finite values rather than writing them to a history file. | — |
+| `unit_output_rejected_rows_leave_the_file_unchanged` | `tests/unit/output.cpp` | `rejected_rows_leave_the_file_unchanged` | Checks that a rejected selected-moment row and rejected QMOM and CQMOM quadrature time blocks leave the output file byte-identical. | — |
+| `unit_output_selected_moment_rows_ignore_unselected_values` | `tests/unit/output.cpp` | `selected_moment_rows_ignore_unselected_values` | Checks that a selected-moment writer accepts a row whose unselected values are not finite and writes only the selected ones. | — |
+| `unit_output_quadrature_indices_stay_exact_at_low_precision` | `tests/unit/output.cpp` | `quadrature_indices_stay_exact_at_low_precision` | Checks that quadrature node indices are written as exact integers at output precision zero. | — |
 | `unit_output_writer_rejects_generalized_moments_without_values` | `tests/unit/output.cpp` | `writer_rejects_generalized_moments_without_values` | Checks that a writer configured for generalized moment columns rejects a call that supplies no generalized values. | — |
 | `unit_output_writer_rejects_rows_from_other_factories` | `tests/unit/output.cpp` | `writer_rejects_rows_from_other_factories` | Checks that each `MomentWriter` factory accepts only its own `write(...)` overloads and names the required factory in the rejection message. | — |
 
@@ -513,6 +516,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_runge_kutta_rk23_rejects_overly_large_initial_step` | `tests/unit/runge_kutta.cpp` | `rk23_rejects_overly_large_initial_step` | Checks that adaptive RK23 rejects an oversized initial step and still reaches the analytical decay solution. | — |
 | `unit_runge_kutta_rk23_zero_rhs_has_no_timestep_pathology` | `tests/unit/runge_kutta.cpp` | `rk23_zero_rhs_has_no_timestep_pathology` | Checks that adaptive RK23 reaches the endpoint without rejected steps for a zero RHS. | — |
 | `unit_runge_kutta_rk23_invalid_options_fail_before_loop` | `tests/unit/runge_kutta.cpp` | `rk23_invalid_options_fail_before_loop` | Checks that invalid adaptive-RK options fail before either RK23 or RK45 begins integration. | — |
+| `unit_runge_kutta_invalid_step_options_are_rejected_for_an_empty_interval` | `tests/unit/runge_kutta.cpp` | `invalid_step_options_are_rejected_for_an_empty_interval` | Checks that invalid embedded Runge-Kutta step options, including an explicit min_step above an explicit max_step, are rejected even when the integration interval is empty, and that valid options return the input state. | — |
 | `unit_runge_kutta_rk23_rejects_nonfinite_trial_state` | `tests/unit/runge_kutta.cpp` | `rk23_rejects_nonfinite_trial_state` | Checks that RK23 rejects non-finite trial states and preserves a finite reported state. | — |
 | `unit_runge_kutta_rk23_initial_request_below_minimum_uses_minimum_step` | `tests/unit/runge_kutta.cpp` | `rk23_initial_request_below_minimum_uses_minimum_step` | Checks that RK23 raises an undersized initial request to the configured minimum timestep. | — |
 | `unit_runge_kutta_rk23_accepts_finite_update_at_minimum_step` | `tests/unit/runge_kutta.cpp` | `rk23_accepts_finite_update_at_minimum_step` | Checks that RK23 accepts a finite update at the minimum timestep despite a tight error tolerance. | — |
@@ -817,6 +821,13 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_configuration_format_infers_formulation_from_phase_space` | `tests/unit/configuration.cpp` | `configuration_format_infers_formulation_from_phase_space` | Verifies configuration format infers formulation from phase space. | — |
 | `unit_configuration_configuration_rejects_unsupported_or_ambiguous_format_fields` | `tests/unit/configuration.cpp` | `configuration_rejects_unsupported_or_ambiguous_format_fields` | Checks that configuration rejects unsupported or ambiguous format fields in configuration loading. | — |
 | `unit_configuration_file_loading_and_file_failure` | `tests/unit/configuration.cpp` | `file_loading_and_file_failure` | Verifies file loading and file failure. | — |
+| `unit_configuration_indexed_sections_require_canonical_indices` | `tests/unit/configuration.cpp` | `indexed_sections_require_canonical_indices` | Checks that mixture, product-dimension, and coordinate-realizability sections with non-canonical indices are reported as unknown. | — |
+| `unit_configuration_indexed_entries_that_nothing_reads_are_reported` | `tests/unit/configuration.cpp` | `indexed_entries_that_nothing_reads_are_reported` | Checks that indexed sections and keys that the selected initialization does not read are reported as unknown. | — |
+| `unit_configuration_case_loaders_validate_output_settings` | `tests/unit/configuration.cpp` | `case_loaders_validate_output_settings` | Checks that QMOM and CQMOM case loaders validate output settings, including a trailing generalized-moment separator. | — |
+| `unit_configuration_realizability_settings_match_the_formulation` | `tests/unit/configuration.cpp` | `realizability_settings_match_the_formulation` | Checks that QMOM parsers reject per-coordinate realizability settings and CQMOM parsers reject the unnumbered policy, while formulation-neutral parsers accept both. | — |
+| `unit_configuration_oversized_requests_are_reported_not_thrown` | `tests/unit/configuration.cpp` | `oversized_requests_are_reported_not_thrown` | Checks that maximum orders, node counts, and coordinate indices too large to allocate are reported as configuration errors. | — |
+| `unit_configuration_numbers_are_read_independently_of_the_locale` | `tests/unit/configuration.cpp` | `numbers_are_read_independently_of_the_locale` | Checks that configuration numbers are plain decimal and read the same under a decimal-comma locale, where one is installed. | — |
+| `unit_configuration_errors_name_the_offending_entry` | `tests/unit/configuration.cpp` | `errors_name_the_offending_entry` | Checks that configuration errors name the offending entry and line for missing initialization, support counts, moment indices, tensor rank, and marginal counts. | — |
 
 ### Output
 
@@ -864,6 +875,8 @@ CTest check; it is not 23 runtime tests.
 | `unit_distributions_invalid_total_weight` | `tests/unit/distributions.cpp` | `invalid_total_weight` | Verifies invalid total weight. | — |
 | `unit_distributions_invalid_distribution_parameters` | `tests/unit/distributions.cpp` | `invalid_distribution_parameters` | Verifies invalid distribution parameters. | — |
 | `unit_distributions_overflow_status` | `tests/unit/distributions.cpp` | `overflow_status` | Checks that distribution moment generation detects the tested arithmetic overflow instead of reporting success. | — |
+| `unit_distributions_overflowing_variance_fails_only_the_orders_that_use_it` | `tests/unit/distributions.cpp` | `overflowing_variance_fails_only_the_orders_that_use_it` | Checks that an overflowing normal or log-normal variance fails only requests that reach the orders using it, after the zero-weight return. | — |
+| `unit_distributions_normal_moments_that_underflow_are_reported` | `tests/unit/distributions.cpp` | `normal_moments_that_underflow_are_reported` | Checks that nonzero normal moments that underflow to zero, in the recurrence or the weighting, are reported as underflow, while exact zero odd moments and moments whose variance alone underflows next to a nonzero mean are not. | — |
 | `unit_distributions_underflow_status` | `tests/unit/distributions.cpp` | `underflow_status` | Verifies underflow status. | — |
 | `unit_distributions_empty_mixture_is_invalid` | `tests/unit/distributions.cpp` | `empty_mixture_is_invalid` | Checks that empty mixture is invalid in distribution moment generation. | — |
 | `unit_distributions_mixture_maximum_order_zero` | `tests/unit/distributions.cpp` | `mixture_maximum_order_zero` | Verifies mixture maximum order zero. | — |
@@ -956,6 +969,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_node_advection_wrong_size_velocity_diagnostic_reports_expected_and_returned_size` | `tests/unit/node_advection.cpp` | `wrong_size_velocity_diagnostic_reports_expected_and_returned_size` | Checks that wrong size velocity diagnostic reports expected and returned size in node advection. | — |
 | `unit_node_advection_non_finite_velocity_diagnostic_reports_callback_context` | `tests/unit/node_advection.cpp` | `non_finite_velocity_diagnostic_reports_callback_context` | Checks that node advection detects the tested non-finite value and returns the documented failure. | — |
 | `unit_node_advection_rk23_failure_diagnostics_are_reported` | `tests/unit/node_advection.cpp` | `rk23_failure_diagnostics_are_reported` | Verifies RK23 failure diagnostics are reported. | — |
+| `unit_node_advection_throwing_velocity_reports_its_evaluations_without_an_adaptive_status` | `tests/unit/node_advection.cpp` | `throwing_velocity_reports_its_evaluations_without_an_adaptive_status` | Checks that a velocity callback that throws leaves the adaptive status empty and reports the evaluations made before the failure, for RK23, RK45, and SSP-RK3. | — |
 | `unit_node_advection_configured_adaptive_options_reach_node_advection` | `tests/unit/node_advection.cpp` | `configured_adaptive_options_reach_node_advection` | Verifies configured adaptive options reach node advection. | — |
 | `unit_node_advection_node_advection_options_formatting_reports_semantic_settings` | `tests/unit/node_advection.cpp` | `node_advection_options_formatting_reports_semantic_settings` | Checks that node advection options formatting reports semantic settings in node advection. | — |
 

@@ -239,14 +239,22 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     {
         return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta input.");
     }
-    if (t0 == t_bound)
-    {
-        return AdaptiveRkResult{initial_state, t0, AdaptiveRkStatus::success, "", 0, 0, 0, 0.0};
-    }
+    // Validated before the empty-interval return below, so invalid options are
+    // reported whether or not the interval is empty.
     if ((!std::isfinite(options.initial_step) || options.initial_step <= 0.0) || !std::isfinite(options.max_step) || options.max_step < 0.0 ||
         !std::isfinite(options.min_step) || options.min_step < 0.0)
     {
         return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta step-size option.");
+    }
+    // Only explicit values can be compared here; a default max_step is derived
+    // from the interval and is compared with min_step below.
+    if (options.max_step > 0.0 && options.min_step > options.max_step)
+    {
+        return invalid_embedded_rk_result(initial_state, t0, "Embedded Runge-Kutta min_step must not exceed max_step.");
+    }
+    if (t0 == t_bound)
+    {
+        return AdaptiveRkResult{initial_state, t0, AdaptiveRkStatus::success, "", 0, 0, 0, 0.0};
     }
 
     const double direction = sign(t_bound - t0);

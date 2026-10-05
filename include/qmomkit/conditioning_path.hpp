@@ -31,6 +31,16 @@ public:
     [[nodiscard]] std::size_t node_index_at_level(std::size_t conditioning_level) const;
 
     [[nodiscard]] ConditioningPath with_child(std::size_t child_node_index) const;
+
+    /**
+     * Phase-space node index selected by this path.
+     *
+     * A partial path, such as the `parent_path` of a diagnostic, selects nodes
+     * only for the dimensions of its conditioning levels; the entries of the
+     * remaining dimensions are 0 and do not identify a node. Throws
+     * std::invalid_argument for a path deeper than the hierarchy and
+     * std::out_of_range for a node index outside the hierarchy.
+     */
     [[nodiscard]] MultiIndex phase_space_node_index(const PhaseSpaceHierarchy& hierarchy) const;
     [[nodiscard]] std::string to_string() const;
     [[nodiscard]] std::string describe(const PhaseSpaceHierarchy& hierarchy) const;
@@ -71,6 +81,7 @@ public:
         return levels_;
     }
     [[nodiscard]] std::size_t node_index_at_level(std::size_t conditioning_level) const;
+    // As `ConditioningPath::phase_space_node_index`, including partial paths.
     [[nodiscard]] MultiIndex phase_space_node_index(const PhaseSpaceHierarchy& hierarchy) const;
     [[nodiscard]] const std::size_t* begin() const noexcept
     {

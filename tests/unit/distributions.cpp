@@ -364,6 +364,98 @@ void test_normal_zero_mean_large_variance_does_not_spuriously_report_non_finite(
     assert(genuine_overflow.status == qmomkit::RawMomentStatus::overflow);
 }
 
+// The variance enters the normal moments from order 2 and the log-normal
+// moments from order 1, so a variance that overflows must fail only requests
+// that reach those orders.
+void test_overflowing_variance_fails_only_the_orders_that_use_it()
+{
+    const qmomkit::NormalDistribution wide_normal{1.0, 1.0e200};
+    const qmomkit::RawMomentResult normal_first_order = qmomkit::compute_raw_moments(wide_normal, 1);
+    assert(normal_first_order.ok());
+    assert_near(normal_first_order.moments[0], 1.0, 0.0);
+    assert_near(normal_first_order.moments[1], 1.0, 0.0);
+    assert(qmomkit::compute_raw_moments(wide_normal, 0).ok());
+    const qmomkit::SelectedRawMomentResult normal_selected = qmomkit::compute_raw_moments(wide_normal, qmomkit::RawMomentRequest{{{1}, {0}}});
+    assert(normal_selected.ok());
+    assert_near(normal_selected.values[0], 1.0, 0.0);
+    assert_near(normal_selected.values[1], 1.0, 0.0);
+    const qmomkit::RawMomentResult normal_second_order = qmomkit::compute_raw_moments(wide_normal, 2);
+    assert(normal_second_order.status == qmomkit::RawMomentStatus::overflow);
+    assert(normal_second_order.failed_order == 2);
+
+    const qmomkit::LogNormalDistribution wide_log_normal{0.0, 1.0e200};
+    const qmomkit::RawMomentResult log_normal_zeroth_order = qmomkit::compute_raw_moments(wide_log_normal, 0);
+    assert(log_normal_zeroth_order.ok());
+    assert_near(log_normal_zeroth_order.moments[0], 1.0, 0.0);
+    // Zero total weight returns zeros without evaluating any moment.
+    const qmomkit::RawMomentResult log_normal_zero_weight = qmomkit::compute_raw_moments(wide_log_normal, 3, 0.0);
+    assert(log_normal_zero_weight.ok());
+    for (const double moment : log_normal_zero_weight.moments.values())
+    {
+        assert(moment == 0.0);
+    }
+    const qmomkit::SelectedRawMomentResult log_normal_selected_zero_weight =
+        qmomkit::compute_raw_moments(wide_log_normal, qmomkit::RawMomentRequest{{{0}, {3}}}, 0.0);
+    assert(log_normal_selected_zero_weight.ok());
+    assert_near(log_normal_selected_zero_weight.values[0], 0.0, 0.0);
+    assert_near(log_normal_selected_zero_weight.values[1], 0.0, 0.0);
+    const qmomkit::RawMomentResult log_normal_first_order = qmomkit::compute_raw_moments(wide_log_normal, 2);
+    assert(log_normal_first_order.status == qmomkit::RawMomentStatus::overflow);
+    assert(log_normal_first_order.failed_order == 1);
+    const qmomkit::SelectedRawMomentResult log_normal_selected = qmomkit::compute_raw_moments(wide_log_normal, qmomkit::RawMomentRequest{{{0}, {2}}});
+    assert(log_normal_selected.status == qmomkit::RawMomentStatus::overflow);
+    assert_vector_equal(log_normal_selected.failed_order, {2});
+}
+
+// Even-order normal moments are strictly positive, and odd-order moments are
+// nonzero whenever the mean is, so such a moment that rounds to zero is an
+// underflow, not an exact zero.
+void test_normal_moments_that_underflow_are_reported()
+{
+    // The variance underflows, so with a zero mean every even moment rounds to zero.
+    const qmomkit::NormalDistribution narrow{0.0, 1.0e-200};
+    const qmomkit::RawMomentResult narrow_moments = qmomkit::compute_raw_moments(narrow, 4);
+    assert(narrow_moments.status == qmomkit::RawMomentStatus::underflow);
+    assert(narrow_moments.failed_order == 2);
+    const qmomkit::SelectedRawMomentResult narrow_selected = qmomkit::compute_raw_moments(narrow, qmomkit::RawMomentRequest{{{2}}});
+    assert(narrow_selected.status == qmomkit::RawMomentStatus::underflow);
+    assert_vector_equal(narrow_selected.failed_order, {2});
+    // The odd moments of a zero-mean normal are exactly zero, not an underflow.
+    const qmomkit::RawMomentResult narrow_first_order = qmomkit::compute_raw_moments(narrow, 1);
+    assert(narrow_first_order.ok());
+    assert(narrow_first_order.moments[1] == 0.0);
+    // With a nonzero mean the same variance is negligible next to the mean, so
+    // every moment is representable and exactly the power of the mean.
+    const qmomkit::RawMomentResult offset_narrow = qmomkit::compute_raw_moments(qmomkit::NormalDistribution{1.0, 1.0e-200}, 4);
+    assert(offset_narrow.ok());
+    for (const double moment : offset_narrow.moments.values())
+    {
+        assert(moment == 1.0);
+    }
+
+    // An even-order moment underflows in the recurrence.
+    const qmomkit::RawMomentResult even_order = qmomkit::compute_raw_moments(qmomkit::NormalDistribution{0.0, 1.0e-100}, 4);
+    assert(even_order.status == qmomkit::RawMomentStatus::underflow);
+    assert(even_order.failed_order == 4);
+
+    // An odd-order moment of a nonzero-mean normal underflows in the recurrence.
+    const qmomkit::RawMomentResult odd_order = qmomkit::compute_raw_moments(qmomkit::NormalDistribution{1.0e-160, 1.0e-160}, 3);
+    assert(odd_order.status == qmomkit::RawMomentStatus::underflow);
+    assert(odd_order.failed_order == 3);
+
+    // The weighting underflows.
+    const qmomkit::RawMomentResult weighted = qmomkit::compute_raw_moments(qmomkit::NormalDistribution{0.0, 1.0e-100}, 2, 1.0e-300);
+    assert(weighted.status == qmomkit::RawMomentStatus::underflow);
+    assert(weighted.failed_order == 2);
+    const qmomkit::SelectedRawMomentResult weighted_selected =
+        qmomkit::compute_raw_moments(qmomkit::NormalDistribution{0.0, 1.0e-100}, qmomkit::RawMomentRequest{{{2}}}, 1.0e-300);
+    assert(weighted_selected.status == qmomkit::RawMomentStatus::underflow);
+    assert_vector_equal(weighted_selected.failed_order, {2});
+    const qmomkit::RawMomentResult weighted_mean = qmomkit::compute_raw_moments(qmomkit::NormalDistribution{1.0e-200, 1.0}, 1, 1.0e-200);
+    assert(weighted_mean.status == qmomkit::RawMomentStatus::underflow);
+    assert(weighted_mean.failed_order == 1);
+}
+
 void test_empty_mixture_is_invalid()
 {
     const qmomkit::RawMomentResult result = qmomkit::compute_raw_moments(qmomkit::DistributionMixture{}, 2);
@@ -958,6 +1050,8 @@ int main(const int argc, char** argv)
             {"invalid_total_weight", test_invalid_total_weight},
             {"invalid_distribution_parameters", test_invalid_distribution_parameters},
             {"overflow_status", test_overflow_status},
+            {"overflowing_variance_fails_only_the_orders_that_use_it", test_overflowing_variance_fails_only_the_orders_that_use_it},
+            {"normal_moments_that_underflow_are_reported", test_normal_moments_that_underflow_are_reported},
             {"underflow_status", test_underflow_status},
             {"normal_zero_mean_large_variance_does_not_spuriously_report_non_finite",
              test_normal_zero_mean_large_variance_does_not_spuriously_report_non_finite},

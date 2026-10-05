@@ -217,7 +217,7 @@ private:
                      std::vector<std::string> labels, const std::size_t precision);
 
     void write_header();
-    void write_row(double time, const std::vector<double>& values);
+    void write_row(double time, const std::vector<std::size_t>& indices, const std::vector<double>& values);
     void write_qmom_row(double time, const std::vector<double>& weights, const std::vector<double>& abscissas);
 
     std::ofstream output_;

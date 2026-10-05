@@ -16,11 +16,11 @@ namespace qmomkit
  * with dy/dt. That buffer is supplied with the same size as the state and every
  * entry must be written.
  *
- * The callback must not resize the buffer; the integrator sizes it and reports
- * a size mismatch as an integration failure. A partially filled buffer is a
- * contract violation that debug builds report as such, and that release builds
- * cannot detect. No physical meaning is assigned to any component by the
- * library.
+ * The callback must not resize the buffer; the integrator sizes it and throws
+ * std::invalid_argument if the callback changes its size. A partially filled
+ * buffer is a contract violation that debug builds report as such, and that
+ * release builds cannot detect. No physical meaning is assigned to any
+ * component by the library.
  *
  * Filling a supplied buffer rather than returning one keeps the stage
  * evaluations of an integration free of heap allocation, which matters because
@@ -51,10 +51,13 @@ enum class SspRk3Status
  *
  * If accept is supplied, each candidate step is tested after the full SSP-RK3
  * update. Rejected candidates are discarded, the timestep is halved, and the
- * step is retried from the original state. If stage_accept is supplied, it is
- * called for stage-1, stage-2, and final candidate states during each attempt.
- * The predicates are entirely generic: they must not encode CQMOM-specific
- * behavior inside the solver.
+ * step is retried from the original state, at most `max_retries` times and not
+ * below `min_time_step`. With the default `max_retries = 0` a rejection is
+ * returned as `rejected_by_predicate` without a retry. An accepted step covers
+ * `time_step_used`, which is shorter than the requested step after a retry. If
+ * stage_accept is supplied, it is called for stage-1, stage-2, and final
+ * candidate states during each attempt. The predicates are entirely generic:
+ * they must not encode CQMOM-specific behavior inside the solver.
  */
 struct SspRk3Options
 {
@@ -129,8 +132,8 @@ inline constexpr double default_adaptive_initial_step = 1.0e-6;
  *
  * Scalar tolerances are applied componentwise with
  * scale_i = atol + max(|y_i|, |y_high_i|) * rtol. `initial_step` defaults to
- * 1.0e-6 s for phase-space advection and may be overridden. QMOMKit does
- * not estimate it from derivatives or tolerances.
+ * `default_adaptive_initial_step`, in the units of the time argument, and may
+ * be overridden. QMOMKit does not estimate it from derivatives or tolerances.
  *
  * `max_step <= 0.0` requests an automatically derived maximum step (the
  * integration interval length). `min_step <= 0.0` requests an automatically

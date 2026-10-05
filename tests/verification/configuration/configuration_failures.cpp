@@ -143,7 +143,7 @@ int main(const int argc, char** argv)
 
         // A QMOM case needs either explicit moments or an analytical
         // initialization. Without one, no meaningful case can be created.
-        {"qmom_missing_moments.qmom", Loader::qmom, "Missing required key 'initial.type'", false},
+        {"qmom_missing_moments.qmom", Loader::qmom, "QMOM configuration requires either '[moments] values'", false},
 
         // Syntax is valid here, but the requested two-node inversion does not
         // have the required four raw moments. This should fail at case creation

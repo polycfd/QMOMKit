@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <clocale>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -2367,6 +2368,8 @@ lower = 0.0
     assert(!malformed.ok());
     assert(has_failure(malformed));
 
+    // Per-coordinate policies are the CQMOM setting; a QMOM case reads the
+    // unnumbered policy instead and reports a numbered one.
     const auto qmom_case_result = qmomkit::config::parse_qmom(R"(
 [phase_space]
 node_counts = 1
@@ -2378,7 +2381,8 @@ values = 1.0, 0.0
 check_mode = final_only
 support = real_line
 )");
-    assert(qmom_case_result.ok());
+    assert(!qmom_case_result.ok());
+    assert(has_message_fragment(qmom_case_result, "Unknown section 'time_integration.realizability.0'"));
 
     // Before the checked addition, SIZE_MAX + 1 wrapped to zero before an
     // unchecked policies[SIZE_MAX] access. The bounded regression verifies
@@ -2660,7 +2664,16 @@ accept_boundary = false
     assert(qmom_case_result.value().node_count == 1);
     assert(!qmom_case_result.value().qmom_options.adaptive);
 
-    const auto cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(cqmom_case_text_with_runtime(runtime));
+    // The unnumbered policy is the QMOM setting; a CQMOM case reads the
+    // per-coordinate policies instead and reports the unnumbered one.
+    const auto cqmom_with_qmom_policy = qmomkit::config::parse_cqmom_prepared(cqmom_case_text_with_runtime(runtime));
+    assert(!cqmom_with_qmom_policy.ok());
+    assert(has_message_fragment(cqmom_with_qmom_policy, "Unknown section 'time_integration.realizability'"));
+
+    std::string coordinate_runtime = runtime;
+    const std::string unnumbered_header = "[time_integration.realizability]";
+    coordinate_runtime.replace(coordinate_runtime.find(unnumbered_header), unnumbered_header.size(), "[time_integration.realizability.0]");
+    const auto cqmom_prepared_case_result = qmomkit::config::parse_cqmom_prepared(cqmom_case_text_with_runtime(coordinate_runtime));
     assert(cqmom_prepared_case_result.ok());
     assert(cqmom_prepared_case_result.value().diagnostic_level() == qmomkit::CqmomDiagnosticLevel::none);
 
@@ -4125,6 +4138,289 @@ check_mode = final_only
     std::filesystem::remove(filename);
 }
 
+const char* const qmom_mixture_head = R"(
+[phase_space]
+node_counts = 1
+
+[initial]
+type = mixture
+
+[initial.mixture.component.0]
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+number_density = 1.0
+)";
+
+const char* const cqmom_product_head = R"(
+[phase_space]
+node_counts = 1, 1
+
+[initial]
+type = independent_product
+number_density = 1.0
+
+[initial.dimension.0]
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+
+[initial.dimension.1]
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+)";
+
+// Indexed sections are looked up by their canonical index, so "00" names a
+// section that nothing reads. It is reported instead of silently ignored.
+void test_indexed_sections_require_canonical_indices()
+{
+    const auto mixture = qmomkit::config::parse_qmom(std::string(qmom_mixture_head) +
+                                                     "\n[initial.mixture.component.00]\nfamily = normal\nmean = 5.0\nstandard_deviation = 1.0\n"
+                                                     "number_density = 100.0\n");
+    assert(!mixture.ok());
+    assert(has_message_fragment(mixture, "Unknown section 'initial.mixture.component.00'"));
+
+    const auto product = qmomkit::config::parse_cqmom_prepared(std::string(cqmom_product_head) +
+                                                               "\n[initial.dimension.00]\nfamily = normal\nmean = 0.0\nstandard_deviation = 1.0\n");
+    assert(!product.ok());
+    assert(has_message_fragment(product, "Unknown section 'initial.dimension.00'"));
+
+    const auto realizability = qmomkit::config::parse_coordinate_realizability_policies(
+        "[time_integration.realizability.0]\ncheck_mode = final_only\nsupport = real_line\n"
+        "[time_integration.realizability.00]\ncheck_mode = every_stage\nsupport = real_line\n");
+    assert(!realizability.ok());
+    assert(has_message_fragment(realizability, "Unknown section 'time_integration.realizability.00'"));
+}
+
+// Every section and key under an indexed prefix must belong to an indexed
+// section the initialization reads; anything else is reported.
+void test_indexed_entries_that_nothing_reads_are_reported()
+{
+    const auto garbage_component = qmomkit::config::parse_qmom(std::string(qmom_mixture_head) + "\n[initial.mixture.component.x]\nbogus = 3\n");
+    assert(has_message_fragment(garbage_component, "Unknown section 'initial.mixture.component.x'"));
+
+    const auto component_without_section =
+        qmomkit::config::parse_qmom(std::string(qmom_mixture_head) + "\n[initial]\nmixture.component.1.bogus = 1\n");
+    assert(has_message_fragment(component_without_section, "Unknown key 'initial.mixture.component.1.bogus'"));
+
+    const auto component_for_distribution = qmomkit::config::parse_qmom(R"(
+[phase_space]
+node_counts = 1
+
+[initial]
+type = distribution
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+
+[initial.mixture.component.x]
+family = normal
+)");
+    assert(has_message_fragment(component_for_distribution, "Unknown section 'initial.mixture.component.x'"));
+
+    const auto garbage_dimension = qmomkit::config::parse_cqmom_prepared(std::string(cqmom_product_head) + "\n[initial.dimension.x]\nmean = 1.0\n");
+    assert(has_message_fragment(garbage_dimension, "Unknown section 'initial.dimension.x'"));
+
+    const auto garbage_marginal_component = qmomkit::config::parse_cqmom_prepared(R"(
+[phase_space]
+node_counts = 1, 1
+
+[initial]
+type = independent_product
+number_density = 1.0
+
+[initial.dimension.0]
+type = mixture
+
+[initial.dimension.0.mixture.component.0]
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+number_density = 1.0
+
+[initial.dimension.0.mixture.component.x]
+whatever = 1
+
+[initial.dimension.1]
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+)");
+    assert(has_message_fragment(garbage_marginal_component, "Unknown section 'initial.dimension.0.mixture.component.x'"));
+
+    // The well-formed files above still load without the extra entries.
+    assert(qmomkit::config::parse_qmom(qmom_mixture_head).ok());
+    assert(qmomkit::config::parse_cqmom_prepared(cqmom_product_head).ok());
+}
+
+// A case loader validates the output settings of the file it reads, as the
+// standalone output parser does.
+void test_case_loaders_validate_output_settings()
+{
+    const std::string invalid_interval = "\n[output]\ninterval = -1\n";
+    const auto qmom_case = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(invalid_interval));
+    assert(has_message_fragment(qmom_case, "output.interval must be positive."));
+    const auto cqmom_case = qmomkit::config::parse_cqmom_prepared(cqmom_case_text_with_runtime(invalid_interval));
+    assert(has_message_fragment(cqmom_case, "output.interval must be positive."));
+    const auto output = qmomkit::config::parse_output_options(invalid_interval);
+    assert(has_message_fragment(output, "output.interval must be positive."));
+
+    // A trailing '|' is an empty exponent vector, as a trailing ',' is an empty list entry.
+    const std::string trailing_separator = "\n[output]\ngeneralized_moments = 0.5 |\n";
+    assert(has_message_fragment(qmomkit::config::parse_output_options(trailing_separator), "output.generalized_moments"));
+    assert(has_message_fragment(qmomkit::config::parse_qmom(qmom_case_text_with_runtime(trailing_separator)), "output.generalized_moments"));
+
+    assert(qmomkit::config::parse_qmom(qmom_case_text_with_runtime("\n[output]\ninterval = 0.5\ngeneralized_moments = 0.5 | 1.5\n")).ok());
+}
+
+// QMOM reads the unnumbered realizability policy and CQMOM the per-coordinate
+// policies. Each parser reports the other formulation's settings, which would
+// otherwise be accepted and have no effect.
+void test_realizability_settings_match_the_formulation()
+{
+    const std::string unnumbered = "[time_integration.realizability]\ncheck_mode = final_only\nsupport = real_line\n";
+    const std::string numbered = "[time_integration.realizability.0]\ncheck_mode = final_only\nsupport = real_line\n";
+
+    assert(qmomkit::config::parse_qmom_phase_space_evolution_options(unnumbered).ok());
+    assert(has_message_fragment(qmomkit::config::parse_qmom_phase_space_evolution_options(numbered),
+                                "Unknown section 'time_integration.realizability.0'"));
+    assert(qmomkit::config::parse_cqmom_phase_space_evolution_options(numbered).ok());
+    assert(has_message_fragment(qmomkit::config::parse_cqmom_phase_space_evolution_options(unnumbered),
+                                "Unknown section 'time_integration.realizability'"));
+    assert(has_message_fragment(qmomkit::config::parse_coordinate_realizability_policies(unnumbered),
+                                "Unknown section 'time_integration.realizability'"));
+
+    // A per-coordinate key written inside the unnumbered QMOM section.
+    const auto policy = qmomkit::config::parse_realizability_policy("[time_integration.realizability]\ncheck_mode = final_only\nsupport = real_line\n"
+                                                                    "0.check_mode = every_stage\n");
+    assert(has_message_fragment(policy, "Unknown key 'time_integration.realizability.0.check_mode'"));
+
+    // Parsers that read neither setting accept both.
+    assert(qmomkit::config::parse_phase_space_evolution_scheme(unnumbered + numbered).ok());
+    assert(qmomkit::config::parse_node_advection_options(unnumbered + numbered).ok());
+}
+
+// Requests far beyond any node count cannot be allocated. They are reported
+// as configuration errors instead of escaping as exceptions.
+void test_oversized_requests_are_reported_not_thrown()
+{
+    const auto maximum_order = qmomkit::config::parse_qmom(R"(
+[phase_space]
+node_counts = 1
+
+[initial]
+type = distribution
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+maximum_order = 1000000000000000
+)");
+    assert(has_message_fragment(maximum_order, "moment generation failed"));
+
+    const auto node_count = qmomkit::config::parse_qmom(R"(
+[phase_space]
+node_counts = 1000000000000000
+
+[initial]
+type = distribution
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+)");
+    assert(has_message_fragment(node_count, "moment generation failed"));
+
+    const auto coordinate_index = qmomkit::config::parse_coordinate_realizability_policies(
+        "[time_integration.realizability.100000000000000000]\ncheck_mode = final_only\nsupport = real_line\n");
+    assert(has_message_fragment(coordinate_index, "Coordinate realizability policy index is too large."));
+}
+
+// Numbers are plain decimal and are read in the classic "C" locale, so a host
+// application's locale cannot change how a configuration file is read. The
+// locale part runs where a decimal-comma locale is installed.
+void test_numbers_are_read_independently_of_the_locale()
+{
+    const std::string text = "[phase_space]\nnode_counts = 1\n[moments]\nvalues = 1.5, 0.25\n";
+
+    const std::string previous_locale = std::setlocale(LC_NUMERIC, nullptr);
+    for (const char* const name : {"de_DE.UTF-8", "de_DE.utf8", "fr_FR.UTF-8", "fr_FR.utf8"})
+    {
+        if (std::setlocale(LC_NUMERIC, name) != nullptr && std::string(std::localeconv()->decimal_point) == ",")
+        {
+            const auto qmom_case = qmomkit::config::parse_qmom(text);
+            assert(qmom_case.ok());
+            assert(qmom_case.value().moments[0] == 1.5);
+            assert(qmom_case.value().moments[1] == 0.25);
+            break;
+        }
+    }
+    std::setlocale(LC_NUMERIC, previous_locale.c_str());
+
+    const auto qmom_case = qmomkit::config::parse_qmom(text);
+    assert(qmom_case.ok());
+    assert(qmom_case.value().moments[0] == 1.5);
+    assert(qmomkit::config::parse_qmom("[phase_space]\nnode_counts = 1\n[moments]\nvalues = +1.0, -2.5e-1\n").ok());
+    for (const char* const value : {"0x1p0", "1.5.0", "1.5e", "inf", "1e400"})
+    {
+        const auto rejected = qmomkit::config::parse_qmom("[phase_space]\nnode_counts = 1\n[moments]\nvalues = 1.0, " + std::string(value) + "\n");
+        assert(has_message_fragment(rejected, "QMOM moments must be a comma-separated list of finite numbers."));
+    }
+}
+
+// Each error names the entry that is actually wrong, on its own line.
+void test_errors_name_the_offending_entry()
+{
+    const auto missing_initialization = qmomkit::config::parse_qmom("[phase_space]\nnode_counts = 1\n");
+    assert(has_message_fragment(missing_initialization, "QMOM configuration requires either '[moments] values'"));
+
+    const std::string upper_count_text = cqmom_case_text_with_runtime("") + "[phase_space]\nsupport_lower = 0.0, 0.0\nsupport_upper = 1.0\n";
+    const std::size_t upper_line =
+        static_cast<std::size_t>(std::count(upper_count_text.begin(), upper_count_text.begin() + upper_count_text.find("support_upper"), '\n')) + 1;
+    const auto upper_count = qmomkit::config::parse_cqmom_prepared(upper_count_text);
+    assert(has_message_fragment(upper_count, ":" + std::to_string(upper_line) +
+                                                 ": phase_space.support_lower and phase_space.support_upper must contain one entry"));
+
+    const auto huge_moment_index = qmomkit::config::parse_cqmom_prepared(R"(
+[phase_space]
+node_counts = 1, 1
+
+[moments]
+extents = 2, 2
+M[99999999999999999999,0] = 1.0
+)");
+    assert(has_message_fragment(huge_moment_index, "Invalid moment index 'M[99999999999999999999,0]'"));
+
+    const auto tensor_rank = qmomkit::config::parse_cqmom_prepared(R"(
+[phase_space]
+node_counts = 1, 1
+
+[moments]
+extents = 2, 2, 2
+M[0,0] = 1.0
+)");
+    assert(has_message_fragment(tensor_rank, "does not match the number of entries in moments.extents."));
+
+    const auto marginal_count = qmomkit::config::parse_cqmom_prepared(R"(
+[phase_space]
+node_counts = 1, 1, 1
+
+[initial]
+type = independent_product
+number_density = 1.0
+
+[initial.dimension.0]
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+
+[initial.dimension.1]
+family = normal
+mean = 0.0
+standard_deviation = 1.0
+)");
+    assert(has_message_fragment(marginal_count, ":3: Independent product initialization must define one '[initial.dimension.N]' section"));
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -4227,5 +4523,12 @@ int main(const int argc, char** argv)
             {"configuration_format_infers_formulation_from_phase_space", test_configuration_format_infers_formulation_from_phase_space},
             {"configuration_rejects_unsupported_or_ambiguous_format_fields", test_configuration_rejects_unsupported_or_ambiguous_format_fields},
             {"file_loading_and_file_failure", test_file_loading_and_file_failure},
+            {"indexed_sections_require_canonical_indices", test_indexed_sections_require_canonical_indices},
+            {"indexed_entries_that_nothing_reads_are_reported", test_indexed_entries_that_nothing_reads_are_reported},
+            {"case_loaders_validate_output_settings", test_case_loaders_validate_output_settings},
+            {"realizability_settings_match_the_formulation", test_realizability_settings_match_the_formulation},
+            {"oversized_requests_are_reported_not_thrown", test_oversized_requests_are_reported_not_thrown},
+            {"numbers_are_read_independently_of_the_locale", test_numbers_are_read_independently_of_the_locale},
+            {"errors_name_the_offending_entry", test_errors_name_the_offending_entry},
         });
 }

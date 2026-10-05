@@ -190,9 +190,9 @@ void test_parsed_and_programmatic_replacement_match()
         qmomkit::advance_cqmom_phase_space(parsed_state, 0.0, 0.1, zero_velocity, zero_source, options);
     QMOMKIT_VERIFY_CHECK(replaced_phase_space_evolution.ok());
     QMOMKIT_VERIFY_CHECK(parsed_phase_space_evolution.ok());
-    QMOMKIT_VERIFY_CHECK(replaced_phase_space_evolution.quadrature.has_value());
-    QMOMKIT_VERIFY_CHECK(parsed_phase_space_evolution.quadrature.has_value());
-    assert_quadratures_match(*replaced_phase_space_evolution.quadrature, *parsed_phase_space_evolution.quadrature);
+    QMOMKIT_VERIFY_CHECK(!replaced_phase_space_evolution.diagnostic_quadrature.has_value());
+    QMOMKIT_VERIFY_CHECK(!parsed_phase_space_evolution.diagnostic_quadrature.has_value());
+    assert_quadratures_match(replaced_phase_space_evolution.state.quadrature(), parsed_phase_space_evolution.state.quadrature());
     assert_states_match(replaced_phase_space_evolution.state, parsed_phase_space_evolution.state);
 }
 

@@ -216,10 +216,14 @@ void assert_cqmom_result_equal(const qmomkit::CqmomPhaseSpaceEvolutionResult& ac
 {
     assert_cqmom_state_equal(actual.state, expected.state);
     assert(actual.status == expected.status);
-    assert(actual.quadrature.has_value() == expected.quadrature.has_value());
-    if (actual.quadrature.has_value())
+    assert(actual.diagnostic_quadrature.has_value() == expected.diagnostic_quadrature.has_value());
+    if (actual.diagnostic_quadrature.has_value())
     {
-        assert_cqmom_quadrature_equal(*actual.quadrature, *expected.quadrature);
+        assert_cqmom_quadrature_equal(*actual.diagnostic_quadrature, *expected.diagnostic_quadrature);
+    }
+    if (actual.ok())
+    {
+        assert_cqmom_quadrature_equal(actual.state.quadrature(), expected.state.quadrature());
     }
     assert_near(actual.final_time, expected.final_time);
     assert(actual.message == expected.message);

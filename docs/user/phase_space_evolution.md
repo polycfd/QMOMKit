@@ -833,8 +833,10 @@ then apply the same recursive fixed or adaptive reconstruction policy used by
 `advance_cqmom_phase_space(...)`. Moment-source stages ignore node-advection
 options, phase-space advection stages ignore moment-source integration options,
 and standalone stage helpers do not use the splitting scheme option. On
-failure, the returned state is the stage input state; the returned quadrature,
-when present, is diagnostic unless `result.ok()` is true.
+success, the accepted quadrature is `result.state.quadrature()` and
+`result.diagnostic_quadrature` is empty. On failure, the returned state is the
+stage input state, and `result.diagnostic_quadrature`, when present, holds the
+quadrature the failing stage produced or started from, for diagnosis only.
 
 Here `compute_cqmom(...)` computes the initial quadrature, while
 `CqmomPreparedCase::initial_state()` creates the runtime state that phase-space

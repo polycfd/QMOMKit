@@ -999,12 +999,12 @@ void validate_cqmom_step_fixture(const CqmomEventFixture& fixture)
     options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
     const qmomkit::CqmomPhaseSpaceEvolutionResult result =
         qmomkit::advance_cqmom_phase_space(initial_state, 0.0, 1.0, zero_velocity, cqmom_source_to_target(initial_state, target), options);
-    if (!result.ok() || !result.quadrature.has_value())
+    if (!result.ok())
     {
         throw std::runtime_error("CQMOM full-step fixture did not produce an accepted phase-space evolution step.");
     }
-    validate_expected_cqmom_counts(fixture, *result.quadrature);
-    validate_cqmom_state_canonical(result.state, *result.quadrature);
+    validate_expected_cqmom_counts(fixture, result.state.quadrature());
+    validate_cqmom_state_canonical(result.state, result.state.quadrature());
 }
 
 void set_cqmom_counters(benchmark::State& state, const CqmomEventFixture& fixture, const std::size_t active_branch_count_before)
@@ -1073,10 +1073,7 @@ void run_cqmom_full_step(benchmark::State& state, const CqmomEventFixture& fixtu
         const qmomkit::CqmomPhaseSpaceEvolutionResult result =
             qmomkit::advance_cqmom_phase_space(iteration_state, 0.0, 1.0, zero_velocity, source, options);
         benchmark::DoNotOptimize(result.state.moment_values().data());
-        if (result.quadrature.has_value())
-        {
-            benchmark::DoNotOptimize(result.quadrature->weights().data());
-        }
+        benchmark::DoNotOptimize(result.state.quadrature().weights().data());
     }
 }
 

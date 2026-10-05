@@ -130,13 +130,8 @@ int main()
                 std::cerr << "CQMOM phase-space evolution failed: " << phase_space_evolved.message << '\n';
                 return 1;
             }
-            if (!phase_space_evolved.quadrature.has_value())
-            {
-                std::cerr << "CQMOM phase-space evolution did not return a quadrature.\n";
-                return 1;
-            }
             state = phase_space_evolved.state;
-            quadrature = *phase_space_evolved.quadrature;
+            quadrature = phase_space_evolved.state.quadrature();
             if (std::abs(phase_space_evolved.final_time - (time + current_step)) > 1.0e-12 * std::max(1.0, std::abs(time + current_step)))
             {
                 std::cerr << "CQMOM phase-space evolution did not reach the prescribed step endpoint.\n";

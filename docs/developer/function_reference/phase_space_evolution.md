@@ -131,13 +131,14 @@ collapse/reappearance cycles.
 `advance_qmom_phase_space_impl` and `advance_cqmom_phase_space_state_impl`
 compose stages against a macro-step rollback state. Public standalone
 advection/source calls instead roll back to their own stage input. A failure
-may include a partial quadrature and a failed-stage time for diagnosis while
-the returned state is the original state. Do not interpret that diagnostic time
-as proof the returned state has advanced there.
+may include a diagnostic quadrature from the failing stage while the returned
+state is the original state, and `final_time` is always the returned state's
+time.
 
-`materialize_cqmom_phase_space_evolution_result` obtains the accepted
-quadrature from a successful state's cache; absence is an internal logic error.
-Failure can materialize a diagnostic quadrature separately. Messages are
+`materialize_cqmom_phase_space_evolution_result` checks that a successful
+state carries its accepted quadrature cache; absence is an internal logic
+error. Only a failure fills `diagnostic_quadrature`: on success it stays empty,
+because the accepted quadrature is the returned state's own. Messages are
 passed to the result as their sources wrote them. `qmom_from_quadrature`,
 `qmom_failure`, `cqmom_state_failure`, and `cqmom_success` package already
 decided results. Diagnostic record/finalization helpers preserve per-stage

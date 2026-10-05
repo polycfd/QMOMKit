@@ -284,7 +284,7 @@ int main(const int argc, char** argv)
             const double step = std::min(time_step, final_time - time);
             const qmomkit::CqmomPhaseSpaceEvolutionResult advanced =
                 qmomkit::advance_cqmom_phase_space(state, time, step, advection_velocity, reinjection_source, evolution_options);
-            if (!advanced.ok() || !advanced.quadrature.has_value() || !finite_quadrature(*advanced.quadrature) ||
+            if (!advanced.ok() || !finite_quadrature(advanced.state.quadrature()) ||
                 !std::all_of(advanced.state.moment_values().begin(), advanced.state.moment_values().end(),
                              [](const double value) { return std::isfinite(value); }))
             {
@@ -293,7 +293,7 @@ int main(const int argc, char** argv)
             }
 
             state = advanced.state;
-            quadrature = *advanced.quadrature;
+            quadrature = advanced.state.quadrature();
             time = advanced.final_time;
             const Sample current =
                 make_sample(time, quadrature, state.active_branch_counts(), configured_size_node_count, configured_velocity_node_count);

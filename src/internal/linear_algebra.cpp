@@ -165,6 +165,32 @@ double condition_estimate(const DenseMatrix& matrix, const double singular_toler
 namespace
 {
 
+// The exponent shift that places the largest entry in [1, 2); zero for a zero
+// matrix or one with a non-finite entry, which is then left unscaled.
+[[nodiscard]] int power_of_two_shift(const DenseMatrix& matrix)
+{
+    double largest = 0.0;
+    for (std::size_t row = 0; row < matrix.rows(); ++row)
+    {
+        for (std::size_t col = 0; col < matrix.cols(); ++col)
+        {
+            const double value = std::abs(matrix(row, col));
+            if (!std::isfinite(value))
+            {
+                return 0;
+            }
+            largest = std::max(largest, value);
+        }
+    }
+    if (largest == 0.0)
+    {
+        return 0;
+    }
+    int exponent = 0;
+    static_cast<void>(std::frexp(largest, &exponent));
+    return 1 - exponent;
+}
+
 void rotate(DenseMatrix& matrix, DenseMatrix& eigenvectors, const std::size_t p, const std::size_t q)
 {
     if (matrix(p, q) == 0.0)
@@ -219,12 +245,28 @@ EigenDecomposition symmetric_jacobi_eigen(DenseMatrix matrix, const JacobiOption
         eigenvectors(i, i) = 1.0;
     }
 
-    for (std::size_t sweep = 0; sweep < options.max_sweeps; ++sweep)
+    // Scaling by a power of two is exact, except for entries so far below the
+    // largest that they leave the normal range, which lie far below the
+    // tolerance. Every rotation parameter is a ratio of entries, so the
+    // rotations are those of the unscaled matrix while the tolerance becomes
+    // relative to its largest entry.
+    const int shift = power_of_two_shift(matrix);
+    for (std::size_t row = 0; row < n; ++row)
+    {
+        for (std::size_t col = 0; col < n; ++col)
+        {
+            matrix(row, col) = std::ldexp(matrix(row, col), shift);
+        }
+    }
+
+    const std::size_t max_rotations = options.max_rotations > 0 ? options.max_rotations : 10 * n * n;
+    bool converged = false;
+    for (std::size_t rotation = 0;; ++rotation)
     {
         // Convergence is tested by the largest off-diagonal magnitude found
         // below. A separate off-diagonal norm check would be redundant: the
-        // norm bounds that maximum from above, so it can only stop the sweep
-        // where the maximum already does.
+        // norm bounds that maximum from above, so it can only stop the
+        // iteration where the maximum already does.
         std::size_t p = 0;
         std::size_t q = 0;
         double max_value = 0.0;
@@ -244,6 +286,11 @@ EigenDecomposition symmetric_jacobi_eigen(DenseMatrix matrix, const JacobiOption
 
         if (max_value <= options.tolerance)
         {
+            converged = true;
+            break;
+        }
+        if (rotation == max_rotations)
+        {
             break;
         }
         rotate(matrix, eigenvectors, p, q);
@@ -257,13 +304,14 @@ EigenDecomposition symmetric_jacobi_eigen(DenseMatrix matrix, const JacobiOption
     for (std::size_t sorted_col = 0; sorted_col < n; ++sorted_col)
     {
         const std::size_t original_col = order[sorted_col];
-        result.eigenvalues[sorted_col] = matrix(original_col, original_col);
+        result.eigenvalues[sorted_col] = std::ldexp(matrix(original_col, original_col), -shift);
         for (std::size_t row = 0; row < n; ++row)
         {
             result.eigenvectors(row, sorted_col) = eigenvectors(row, original_col);
         }
     }
 
+    result.converged = converged;
     return result;
 }
 

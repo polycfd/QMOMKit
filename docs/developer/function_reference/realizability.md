@@ -77,7 +77,7 @@ and atomic boundary measures and the incompatible even-order sequence remain
 covered. Conditioned matrices, cancellation in localizers, interval
 translation/width, and truncation parity remain numerical sensitivities.
 
-## A — `analyze_matrix` and local `symmetric_jacobi_eigen`
+## A — `analyze_matrix`
 
 `analyze_matrix` first scans all entries for finiteness and the maximum
 absolute entry. A second nested loop computes the infinity norm relative to
@@ -85,13 +85,12 @@ that maximum, avoiding an overflowing raw row sum in the relative-tolerance
 calculation. The effective user threshold is either absolute `tolerance` or
 `tolerance*entry_scale*normalized_infinity_norm`.
 
-The local eigen wrapper divides a temporary matrix by its entry scale before
-calling the shared symmetric Jacobi kernel (`1e-14`, at most `80*max(n,1)`
-rotations), then restores eigenvalue magnitudes. Positive scalar scaling leaves
-the intended eigenvectors unchanged. There is no convergence status returned by
-that kernel. The classification branches, in order, are:
+The matrix is diagonalized by the [shared symmetric Jacobi
+kernel](conditional_systems.md#shared-symmetric-eigenkernel) with its default
+options, which scales the matrix itself, so the result does not depend on the
+moment magnitude. The classification branches, in order, are:
 
-1. non-finite eigenvalues → indeterminate;
+1. an unconverged decomposition or non-finite eigenvalues → indeterminate;
 2. minimum eigenvalue below minus the user threshold → not PSD;
 3. absolute minimum eigenvalue within
    `1000*epsilon*entry_scale*normalized_infinity_norm` → PSD boundary;

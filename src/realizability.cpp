@@ -86,39 +86,6 @@ struct ClassificationState
     return scale;
 }
 
-[[nodiscard]] EigenDecomposition symmetric_jacobi_eigen(DenseMatrix matrix, const double matrix_scale)
-{
-    const std::size_t n = matrix.rows();
-    constexpr std::size_t max_sweeps_per_node = 80;
-    constexpr double diagonalization_tolerance = 1.0e-14;
-    const std::size_t max_sweeps = max_sweeps_per_node * std::max<std::size_t>(n, 1);
-
-    if (matrix_scale == 0.0 || !std::isfinite(matrix_scale))
-    {
-        return internal::symmetric_jacobi_eigen(std::move(matrix), {diagonalization_tolerance, max_sweeps});
-    }
-
-    // The Jacobi convergence tolerance is absolute. Scale this temporary
-    // matrix so its convergence test is independent of the physical moment
-    // magnitude, then restore the original eigenvalue scale for all
-    // realizability comparisons. Positive scalar scaling leaves eigenvectors
-    // unchanged.
-    for (std::size_t row = 0; row < matrix.rows(); ++row)
-    {
-        for (std::size_t col = 0; col < matrix.cols(); ++col)
-        {
-            matrix(row, col) /= matrix_scale;
-        }
-    }
-
-    EigenDecomposition eigensystem = internal::symmetric_jacobi_eigen(std::move(matrix), {diagonalization_tolerance, max_sweeps});
-    for (double& eigenvalue : eigensystem.eigenvalues)
-    {
-        eigenvalue *= matrix_scale;
-    }
-    return eigensystem;
-}
-
 [[nodiscard]] MatrixAnalysis analyze_matrix(std::string name, const std::size_t order, const DenseMatrix& matrix, const RealizabilityOptions& options)
 {
     MatrixAnalysis analysis{std::move(name), order};
@@ -152,7 +119,7 @@ struct ClassificationState
     }
 
     analysis.tolerance = options.relative_tolerance ? options.tolerance * normalization_scale * normalized_infinity_norm : options.tolerance;
-    analysis.eigensystem = symmetric_jacobi_eigen(matrix, normalization_scale);
+    analysis.eigensystem = internal::symmetric_jacobi_eigen(matrix, {});
     analysis.minimum_eigenvalue = analysis.eigensystem.eigenvalues.empty() ? 0.0 : analysis.eigensystem.eigenvalues.front();
 
     // Positive semidefinite matrices indicate realizability on the boundary.
@@ -160,7 +127,7 @@ struct ClassificationState
     // band are reported as indeterminate.
     const double diagonalization_roundoff = 1000.0 * std::numeric_limits<double>::epsilon() * normalization_scale * normalized_infinity_norm;
 
-    if (!internal::all_finite(analysis.eigensystem.eigenvalues))
+    if (!analysis.eigensystem.converged || !internal::all_finite(analysis.eigensystem.eigenvalues))
     {
         analysis.status = MatrixStatus::numerically_indeterminate;
     }

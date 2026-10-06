@@ -31,10 +31,11 @@ DenseMatrix make_matrix(const std::vector<std::vector<double>>& rows)
     return matrix;
 }
 
-// The options the Wheeler inversion passes to the eigen solver.
+// The default options, which the Wheeler inversion and the realizability
+// check use.
 EigenDecomposition eigen(const DenseMatrix& matrix)
 {
-    return qmomkit::internal::symmetric_jacobi_eigen(matrix, {1.0e-14, 50 * std::max<std::size_t>(matrix.rows(), 1)});
+    return qmomkit::internal::symmetric_jacobi_eigen(matrix, {});
 }
 
 // Jacobi matrix of the Legendre polynomials: zero diagonal and off-diagonal
@@ -118,6 +119,7 @@ void assert_valid_decomposition(const DenseMatrix& matrix, const EigenDecomposit
 {
     const std::size_t n = matrix.rows();
     const double tolerance = 16.0 * static_cast<double>(n) * epsilon;
+    assert(decomposition.converged);
     assert(decomposition.eigenvalues.size() == n);
     assert(decomposition.eigenvectors.rows() == n);
     assert(decomposition.eigenvectors.cols() == n);
@@ -193,50 +195,130 @@ void test_repeated_eigenvalue_gives_an_orthonormal_basis()
     assert_valid_decomposition(matrix, decomposition);
 }
 
+struct GaussLegendreRule
+{
+    std::vector<double> nodes;
+    std::vector<double> weights;
+};
+
 // Gauss-Legendre nodes for two to five nodes are the roots of P_n, which have
-// closed forms up to P_5, and the weights are 2 / ((1 - x^2) P_n'(x)^2). Both
-// must be recovered from the Jacobi matrix of the Legendre polynomials.
-void test_gauss_legendre_nodes_and_weights_match_the_closed_form()
+// closed forms up to P_5, and the weights are 2 / ((1 - x^2) P_n'(x)^2).
+std::vector<GaussLegendreRule> closed_form_gauss_legendre_rules()
 {
     const double s65 = std::sqrt(6.0 / 5.0);
     const double s107 = std::sqrt(10.0 / 7.0);
     const double s30 = std::sqrt(30.0);
     const double s70 = std::sqrt(70.0);
-    const std::vector<std::vector<double>> nodes{{-1.0 / std::sqrt(3.0), 1.0 / std::sqrt(3.0)},
-                                                 {-std::sqrt(0.6), 0.0, std::sqrt(0.6)},
-                                                 {-std::sqrt(3.0 / 7.0 + 2.0 / 7.0 * s65), -std::sqrt(3.0 / 7.0 - 2.0 / 7.0 * s65),
-                                                  std::sqrt(3.0 / 7.0 - 2.0 / 7.0 * s65), std::sqrt(3.0 / 7.0 + 2.0 / 7.0 * s65)},
-                                                 {-std::sqrt(5.0 + 2.0 * s107) / 3.0, -std::sqrt(5.0 - 2.0 * s107) / 3.0, 0.0,
-                                                  std::sqrt(5.0 - 2.0 * s107) / 3.0, std::sqrt(5.0 + 2.0 * s107) / 3.0}};
-    const std::vector<std::vector<double>> weights{
-        {1.0, 1.0},
-        {5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0},
-        {(18.0 - s30) / 36.0, (18.0 + s30) / 36.0, (18.0 + s30) / 36.0, (18.0 - s30) / 36.0},
-        {(322.0 - 13.0 * s70) / 900.0, (322.0 + 13.0 * s70) / 900.0, 128.0 / 225.0, (322.0 + 13.0 * s70) / 900.0, (322.0 - 13.0 * s70) / 900.0}};
+    return {
+        {{-1.0 / std::sqrt(3.0), 1.0 / std::sqrt(3.0)}, {1.0, 1.0}},
+        {{-std::sqrt(0.6), 0.0, std::sqrt(0.6)}, {5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0}},
+        {{-std::sqrt(3.0 / 7.0 + 2.0 / 7.0 * s65), -std::sqrt(3.0 / 7.0 - 2.0 / 7.0 * s65), std::sqrt(3.0 / 7.0 - 2.0 / 7.0 * s65),
+          std::sqrt(3.0 / 7.0 + 2.0 / 7.0 * s65)},
+         {(18.0 - s30) / 36.0, (18.0 + s30) / 36.0, (18.0 + s30) / 36.0, (18.0 - s30) / 36.0}},
+        {{-std::sqrt(5.0 + 2.0 * s107) / 3.0, -std::sqrt(5.0 - 2.0 * s107) / 3.0, 0.0, std::sqrt(5.0 - 2.0 * s107) / 3.0,
+          std::sqrt(5.0 + 2.0 * s107) / 3.0},
+         {(322.0 - 13.0 * s70) / 900.0, (322.0 + 13.0 * s70) / 900.0, 128.0 / 225.0, (322.0 + 13.0 * s70) / 900.0, (322.0 - 13.0 * s70) / 900.0}}};
+}
 
-    for (std::size_t index = 0; index < nodes.size(); ++index)
+// The rules must be recovered from the Jacobi matrix of the Legendre
+// polynomials.
+void test_gauss_legendre_nodes_and_weights_match_the_closed_form()
+{
+    for (const GaussLegendreRule& rule : closed_form_gauss_legendre_rules())
     {
-        const std::size_t n = nodes[index].size();
+        const std::size_t n = rule.nodes.size();
         const DenseMatrix matrix = legendre_jacobi_matrix(n);
         const EigenDecomposition decomposition = eigen(matrix);
         const std::vector<double> computed_weights = legendre_weights(decomposition);
 
         for (std::size_t node = 0; node < n; ++node)
         {
-            assert_near(decomposition.eigenvalues[node], nodes[index][node], 1.0e-14);
-            assert_near(computed_weights[node], weights[index][node], 1.0e-14);
+            assert_near(decomposition.eigenvalues[node], rule.nodes[node], 1.0e-14);
+            assert_near(computed_weights[node], rule.weights[node], 1.0e-14);
         }
         assert_valid_decomposition(matrix, decomposition);
     }
 }
 
+DenseMatrix scaled(const DenseMatrix& matrix, const double factor)
+{
+    DenseMatrix result = matrix;
+    for (std::size_t row = 0; row < matrix.rows(); ++row)
+    {
+        for (std::size_t col = 0; col < matrix.cols(); ++col)
+        {
+            result(row, col) = matrix(row, col) * factor;
+        }
+    }
+    return result;
+}
+
+// The solver scales every matrix by a power of two before it rotates, which is
+// exact, so a matrix multiplied by a power of two goes through the same
+// rotations: its eigenvalues are exactly the scaled ones and its eigenvectors
+// are identical.
+void test_power_of_two_scaling_gives_exactly_scaled_results()
+{
+    const DenseMatrix matrix = legendre_jacobi_matrix(8);
+    const EigenDecomposition reference = eigen(matrix);
+    for (const int exponent : {-600, -60, 60, 600})
+    {
+        const EigenDecomposition decomposition = eigen(scaled(matrix, std::ldexp(1.0, exponent)));
+        assert(decomposition.converged);
+        for (std::size_t col = 0; col < 8; ++col)
+        {
+            assert(decomposition.eigenvalues[col] == std::ldexp(reference.eigenvalues[col], exponent));
+            for (std::size_t row = 0; row < 8; ++row)
+            {
+                assert(decomposition.eigenvectors(row, col) == reference.eigenvectors(row, col));
+            }
+        }
+    }
+}
+
+// The convergence test is relative to the largest entry, so matrices far
+// smaller or larger than one are diagonalized as accurately as at unit scale.
+// Scaling by a power of ten rounds the entries, which moves the nodes by a few
+// rounding errors.
+void test_small_and_large_matrices_are_diagonalized_accurately()
+{
+    for (const double scale : {1.0e-20, 1.0e-8, 1.0e8, 1.0e20})
+    {
+        for (const GaussLegendreRule& rule : closed_form_gauss_legendre_rules())
+        {
+            const std::size_t n = rule.nodes.size();
+            const DenseMatrix matrix = scaled(legendre_jacobi_matrix(n), scale);
+            const EigenDecomposition decomposition = eigen(matrix);
+            const std::vector<double> computed_weights = legendre_weights(decomposition);
+
+            for (std::size_t node = 0; node < n; ++node)
+            {
+                assert_near(decomposition.eigenvalues[node] / scale, rule.nodes[node], 1.0e-14);
+                assert_near(computed_weights[node], rule.weights[node], 1.0e-14);
+            }
+            assert_valid_decomposition(matrix, decomposition);
+        }
+    }
+}
+
+// A rotation budget smaller than classical Jacobi needs is reported instead of
+// returning the partly diagonalized matrix as a result.
+void test_exhausted_rotation_budget_is_reported()
+{
+    const DenseMatrix matrix = legendre_jacobi_matrix(16);
+    assert(!qmomkit::internal::symmetric_jacobi_eigen(matrix, {std::numeric_limits<double>::epsilon(), 10}).converged);
+    assert(qmomkit::internal::symmetric_jacobi_eigen(matrix, {}).converged);
+}
+
 // An n-node Gauss-Legendre rule integrates every polynomial of degree up to
 // 2n - 1 exactly: sum_i w_i x_i^k = 2 / (k + 1) for even k and 0 for odd k.
 // This checks the nodes and the first eigenvector row together, for up to
-// sixteen nodes, against that exact integral.
+// forty nodes, against that exact integral. Classical Jacobi needs about
+// 2 n^2 rotations, so the forty-node rule also checks that the default
+// rotation budget grows fast enough with n.
 void test_gauss_legendre_rules_integrate_polynomials_exactly()
 {
-    for (std::size_t n = 2; n <= 16; ++n)
+    for (std::size_t n = 2; n <= 40; ++n)
     {
         const DenseMatrix matrix = legendre_jacobi_matrix(n);
         const EigenDecomposition decomposition = eigen(matrix);
@@ -275,5 +357,8 @@ int main(const int argc, char** argv)
             {"repeated_eigenvalue_gives_an_orthonormal_basis", test_repeated_eigenvalue_gives_an_orthonormal_basis},
             {"gauss_legendre_nodes_and_weights_match_the_closed_form", test_gauss_legendre_nodes_and_weights_match_the_closed_form},
             {"gauss_legendre_rules_integrate_polynomials_exactly", test_gauss_legendre_rules_integrate_polynomials_exactly},
+            {"power_of_two_scaling_gives_exactly_scaled_results", test_power_of_two_scaling_gives_exactly_scaled_results},
+            {"small_and_large_matrices_are_diagonalized_accurately", test_small_and_large_matrices_are_diagonalized_accurately},
+            {"exhausted_rotation_budget_is_reported", test_exhausted_rotation_budget_is_reported},
         });
 }

@@ -643,8 +643,9 @@ contracts, and evidence](conditional_systems.md)
 | `make_identity` | [124](../../../src/internal/linear_algebra.cpp#L124) |
 | `residual_norm` | [134](../../../src/internal/linear_algebra.cpp#L134) |
 | `condition_estimate` | [154](../../../src/internal/linear_algebra.cpp#L154) |
-| `rotate` | [168](../../../src/internal/linear_algebra.cpp#L168) |
-| `symmetric_jacobi_eigen` | [213](../../../src/internal/linear_algebra.cpp#L213) |
+| `power_of_two_shift` | [170](../../../src/internal/linear_algebra.cpp#L170) |
+| `rotate` | [194](../../../src/internal/linear_algebra.cpp#L194) |
+| `symmetric_jacobi_eigen` | [239](../../../src/internal/linear_algebra.cpp#L239) |
 | `matrix_all_finite` | [16](../../../src/internal/linear_algebra.cpp#L16) |
 
 ### `src/internal/linear_algebra.hpp`
@@ -654,11 +655,11 @@ contracts, and evidence](conditional_systems.md)
 
 | Function or overload family | Definition lines |
 |---|---|
-| `DenseMatrix::DenseMatrix` | [18](../../../src/internal/linear_algebra.hpp#L18) |
-| `DenseMatrix::rows` | [20](../../../src/internal/linear_algebra.hpp#L20) |
-| `DenseMatrix::cols` | [25](../../../src/internal/linear_algebra.hpp#L25) |
-| `DenseMatrix::operator()` | [30](../../../src/internal/linear_algebra.hpp#L30), [39](../../../src/internal/linear_algebra.hpp#L39) |
-| `DenseMatrix::storage_size` | [49](../../../src/internal/linear_algebra.hpp#L49) |
+| `DenseMatrix::DenseMatrix` | [19](../../../src/internal/linear_algebra.hpp#L19) |
+| `DenseMatrix::rows` | [21](../../../src/internal/linear_algebra.hpp#L21) |
+| `DenseMatrix::cols` | [26](../../../src/internal/linear_algebra.hpp#L26) |
+| `DenseMatrix::operator()` | [31](../../../src/internal/linear_algebra.hpp#L31), [40](../../../src/internal/linear_algebra.hpp#L40) |
+| `DenseMatrix::storage_size` | [50](../../../src/internal/linear_algebra.hpp#L50) |
 
 ### `src/internal/numeric_utils.hpp`
 
@@ -1096,25 +1097,24 @@ evidence](realizability.md)
 | `support_name` | [59](../../../src/realizability.cpp#L59) |
 | `make_result` | [73](../../../src/realizability.cpp#L73) |
 | `vector_scale` | [79](../../../src/realizability.cpp#L79) |
-| `symmetric_jacobi_eigen` | [89](../../../src/realizability.cpp#L89) |
-| `analyze_matrix` | [122](../../../src/realizability.cpp#L122) |
-| `update_limiting_matrix` | [187](../../../src/realizability.cpp#L187) |
-| `incorporate_matrix` | [201](../../../src/realizability.cpp#L201) |
-| `hankel_matrix` | [229](../../../src/realizability.cpp#L229) |
-| `interval_quadratic_localizing_matrix` | [244](../../../src/realizability.cpp#L244) |
-| `interval_linear_localizing_matrix` | [261](../../../src/realizability.cpp#L261) |
-| `extension_column` | [279](../../../src/realizability.cpp#L279) |
-| `projection_on_eigenvector` | [289](../../../src/realizability.cpp#L289) |
-| `check_range_consistency` | [299](../../../src/realizability.cpp#L299) |
-| `incorporate_range_consistency` | [327](../../../src/realizability.cpp#L327) |
-| `finish_classification` | [358](../../../src/realizability.cpp#L358) |
-| `validate_common_inputs` | [374](../../../src/realizability.cpp#L374) |
-| `check_hamburger` | [409](../../../src/realizability.cpp#L409) |
-| `check_stieltjes` | [454](../../../src/realizability.cpp#L454) |
-| `check_hausdorff` | [511](../../../src/realizability.cpp#L511) |
-| `with_support_context` | [566](../../../src/realizability.cpp#L566) |
-| `check_realizability` | [577](../../../src/realizability.cpp#L577), [600](../../../src/realizability.cpp#L600) |
-| `numerical_rank` | [352](../../../src/realizability.cpp#L352) |
+| `analyze_matrix` | [89](../../../src/realizability.cpp#L89) |
+| `update_limiting_matrix` | [154](../../../src/realizability.cpp#L154) |
+| `incorporate_matrix` | [168](../../../src/realizability.cpp#L168) |
+| `hankel_matrix` | [196](../../../src/realizability.cpp#L196) |
+| `interval_quadratic_localizing_matrix` | [211](../../../src/realizability.cpp#L211) |
+| `interval_linear_localizing_matrix` | [228](../../../src/realizability.cpp#L228) |
+| `extension_column` | [246](../../../src/realizability.cpp#L246) |
+| `projection_on_eigenvector` | [256](../../../src/realizability.cpp#L256) |
+| `check_range_consistency` | [266](../../../src/realizability.cpp#L266) |
+| `incorporate_range_consistency` | [294](../../../src/realizability.cpp#L294) |
+| `finish_classification` | [325](../../../src/realizability.cpp#L325) |
+| `validate_common_inputs` | [341](../../../src/realizability.cpp#L341) |
+| `check_hamburger` | [376](../../../src/realizability.cpp#L376) |
+| `check_stieltjes` | [421](../../../src/realizability.cpp#L421) |
+| `check_hausdorff` | [478](../../../src/realizability.cpp#L478) |
+| `with_support_context` | [533](../../../src/realizability.cpp#L533) |
+| `check_realizability` | [544](../../../src/realizability.cpp#L544), [567](../../../src/realizability.cpp#L567) |
+| `numerical_rank` | [319](../../../src/realizability.cpp#L319) |
 
 ### `src/reconstruction_scaling.cpp`
 
@@ -1261,16 +1261,15 @@ evidence](qmom_reconstruction.md)
 | `negative_mass_result` | [55](../../../src/wheeler.cpp#L55) |
 | `compute_recurrence` | [63](../../../src/wheeler.cpp#L63) |
 | `make_jacobi_matrix` | [93](../../../src/wheeler.cpp#L93) |
-| `symmetric_jacobi_eigen` | [120](../../../src/wheeler.cpp#L120) |
-| `recurrence_is_finite` | [123](../../../src/wheeler.cpp#L123) |
-| `has_negative_recurrence_b` | [128](../../../src/wheeler.cpp#L128) |
-| `adaptive_sigma_tolerance` | [133](../../../src/wheeler.cpp#L133) |
-| `compute_weights` | [144](../../../src/wheeler.cpp#L144) |
-| `adaptive_accepts` | [156](../../../src/wheeler.cpp#L156) |
-| `required_moments_are_finite` | [209](../../../src/wheeler.cpp#L209) |
-| `attempt_quadrature_count` | [221](../../../src/wheeler.cpp#L221) |
-| `compute_quadrature` | [309](../../../src/wheeler.cpp#L309) |
-| `select_bounded_quadrature` | [382](../../../src/wheeler.cpp#L382) |
+| `recurrence_is_finite` | [114](../../../src/wheeler.cpp#L114) |
+| `has_negative_recurrence_b` | [119](../../../src/wheeler.cpp#L119) |
+| `adaptive_sigma_tolerance` | [124](../../../src/wheeler.cpp#L124) |
+| `compute_weights` | [135](../../../src/wheeler.cpp#L135) |
+| `adaptive_accepts` | [147](../../../src/wheeler.cpp#L147) |
+| `required_moments_are_finite` | [200](../../../src/wheeler.cpp#L200) |
+| `attempt_quadrature_count` | [212](../../../src/wheeler.cpp#L212) |
+| `compute_quadrature` | [304](../../../src/wheeler.cpp#L304) |
+| `select_bounded_quadrature` | [377](../../../src/wheeler.cpp#L377) |
 
 ## Declaration-only headers and aliases
 

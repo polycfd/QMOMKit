@@ -166,7 +166,11 @@ well-separated rules. From four nodes on they are relative, `1e-12` up to six
 nodes and `1e-10` for eight: the map from moments to points becomes
 increasingly ill-conditioned, and the rounding of the constructed moments alone
 limits the attainable accuracy to about `1e-15` at four nodes and `1e-12` at
-eight. CTest names: `verification_wheeler_analytical_*`.
+eight. The same three points multiplied by any power of ten from `1e-20` to
+`1e20` are recovered to `1e-12` relative to their scale, and four droplet
+diameters between 20 and 200 micrometres, given in metres, to `2e-12`: the
+inversion does not depend on the unit of the coordinate. CTest names:
+`verification_wheeler_analytical_*`.
 
 `adaptive_qmom.cpp` builds six moments from a two-node rule and requests three
 nodes from `compute_qmom` with `QmomOptions::adaptive = true`. The result must

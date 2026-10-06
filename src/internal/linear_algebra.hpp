@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -72,12 +73,23 @@ struct EigenDecomposition
 {
     std::vector<double> eigenvalues;
     DenseMatrix eigenvectors;
+    // False when the rotation budget ran out before every off-diagonal entry
+    // met the tolerance; the eigenpairs are then only approximate.
+    bool converged = true;
 };
 
+// The solver first scales the matrix by the power of two that places its
+// largest entry in [1, 2), so `tolerance` bounds the off-diagonal entries
+// relative to the largest entry and the result does not depend on the
+// matrix's overall magnitude. The default stops at machine precision, which
+// the quadratic convergence of the final rotations reaches at almost no extra
+// cost. `max_rotations` limits the number of single pair rotations; zero
+// selects 10 n^2, five times what classical Jacobi was measured to need
+// (under 2 n^2 for tridiagonal Jacobi and dense Hankel matrices).
 struct JacobiOptions
 {
-    double tolerance = 1.0e-14;
-    std::size_t max_sweeps = 0;
+    double tolerance = std::numeric_limits<double>::epsilon();
+    std::size_t max_rotations = 0;
 };
 
 [[nodiscard]] double matrix_infinity_norm(const DenseMatrix& matrix);

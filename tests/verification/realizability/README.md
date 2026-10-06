@@ -24,17 +24,24 @@ Further cases follow from two standard facts: `n` points inside the support
 are strictly realizable up to order `2n - 1` and on the boundary from order
 `2n` on, and a point at an end of the support puts the sequence on the
 boundary once the localizing matrix for that end is larger than the number of
-the other points. They are checked on every support, on the intervals `[-1, 2]` and
-`[2, 5]` as well as `[0, 1]`, and for points shifted to centres 2 and 10, which
-must keep their classification. On an interval, a variance above the
-Bhatia-Davis bound `(b - mean)(mean - a)` must be rejected and one below it
+the other points. They are checked on every support and on the intervals
+`[-1, 2]` and `[2, 5]` as well as `[0, 1]`. On an interval, a variance above
+the Bhatia-Davis bound `(b - mean)(mean - a)` must be rejected and one below it
 accepted.
 
+Realizability is invariant under an affine change of coordinate, so strictly
+realizable, boundary and non-realizable sequences built from a location `c`
+and a spread `s` must keep their classification for every `s` from `1e-9` to
+`1e9` and every `c` up to the number of spreads that double-precision input
+resolves for that order. Beyond that, up to `1e8` spreads, the classification
+may only give way to `boundary` or `numerically_indeterminate`, never to the
+opposite verdict.
+
 Boundary and near-boundary cases verify tolerance behavior. The zero measure
-is reported as boundary-realizable with a `zero_measure` diagnostic. Small
-positive and negative variance perturbations under a loose absolute tolerance
-are checked to ensure classifications and diagnostic fields change
-consistently.
+is reported as boundary-realizable with a `zero_measure` diagnostic. Under a
+loose relative tolerance, perturbing the fourth moment of two points at `-1`
+and `1` by `1e-10` is indeterminate and by `1e-6` decided in either direction,
+while a variance of `1e-10` is decided at its own scale.
 
 Run with:
 

@@ -1094,27 +1094,37 @@ evidence](realizability.md)
 |---|---|
 | `RealizabilityResult::realizable` | [19](../../../src/realizability.cpp#L19) |
 | `RealizabilityResult::on_boundary` | [24](../../../src/realizability.cpp#L24) |
-| `support_name` | [59](../../../src/realizability.cpp#L59) |
-| `make_result` | [73](../../../src/realizability.cpp#L73) |
-| `vector_scale` | [79](../../../src/realizability.cpp#L79) |
-| `analyze_matrix` | [89](../../../src/realizability.cpp#L89) |
-| `update_limiting_matrix` | [154](../../../src/realizability.cpp#L154) |
-| `incorporate_matrix` | [168](../../../src/realizability.cpp#L168) |
-| `hankel_matrix` | [196](../../../src/realizability.cpp#L196) |
-| `interval_quadratic_localizing_matrix` | [211](../../../src/realizability.cpp#L211) |
-| `interval_linear_localizing_matrix` | [228](../../../src/realizability.cpp#L228) |
-| `extension_column` | [246](../../../src/realizability.cpp#L246) |
-| `projection_on_eigenvector` | [256](../../../src/realizability.cpp#L256) |
-| `check_range_consistency` | [266](../../../src/realizability.cpp#L266) |
-| `incorporate_range_consistency` | [294](../../../src/realizability.cpp#L294) |
-| `finish_classification` | [325](../../../src/realizability.cpp#L325) |
-| `validate_common_inputs` | [341](../../../src/realizability.cpp#L341) |
-| `check_hamburger` | [376](../../../src/realizability.cpp#L376) |
-| `check_stieltjes` | [421](../../../src/realizability.cpp#L421) |
-| `check_hausdorff` | [478](../../../src/realizability.cpp#L478) |
-| `with_support_context` | [533](../../../src/realizability.cpp#L533) |
-| `check_realizability` | [544](../../../src/realizability.cpp#L544), [567](../../../src/realizability.cpp#L567) |
-| `numerical_rank` | [319](../../../src/realizability.cpp#L319) |
+| `support_name` | [82](../../../src/realizability.cpp#L82) |
+| `make_result` | [96](../../../src/realizability.cpp#L96) |
+| `vector_scale` | [102](../../../src/realizability.cpp#L102) |
+| `classify_eigenvalue` | [124](../../../src/realizability.cpp#L124) |
+| `hankel_matrix` | [141](../../../src/realizability.cpp#L141) |
+| `hankel_uncertainty` | [159](../../../src/realizability.cpp#L159) |
+| `analyze_matrix` | [172](../../../src/realizability.cpp#L172) |
+| `update_limiting_matrix` | [258](../../../src/realizability.cpp#L258) |
+| `incorporate_matrix` | [272](../../../src/realizability.cpp#L272) |
+| `lower_localizing_sequence` | [301](../../../src/realizability.cpp#L301) |
+| `upper_localizing_sequence` | [314](../../../src/realizability.cpp#L314) |
+| `interval_localizing_sequence` | [329](../../../src/realizability.cpp#L329) |
+| `extension_column` | [343](../../../src/realizability.cpp#L343) |
+| `euclidean_norm` | [354](../../../src/realizability.cpp#L354) |
+| `projection_on_eigenvector` | [364](../../../src/realizability.cpp#L364) |
+| `kernel_projection_tolerance` | [380](../../../src/realizability.cpp#L380) |
+| `check_range_consistency` | [399](../../../src/realizability.cpp#L399) |
+| `incorporate_range_consistency` | [425](../../../src/realizability.cpp#L425) |
+| `numerical_rank` | [450](../../../src/realizability.cpp#L450) |
+| `rank_as_given` | [459](../../../src/realizability.cpp#L459) |
+| `finish_classification` | [465](../../../src/realizability.cpp#L465) |
+| `validate_common_inputs` | [481](../../../src/realizability.cpp#L481) |
+| `check_hamburger` | [516](../../../src/realizability.cpp#L516) |
+| `check_stieltjes` | [567](../../../src/realizability.cpp#L567) |
+| `check_hausdorff` | [623](../../../src/realizability.cpp#L623) |
+| `TestedMoments::bound` | [694](../../../src/realizability.cpp#L694) |
+| `raw_moments` | [700](../../../src/realizability.cpp#L700) |
+| `standardized_moments` | [708](../../../src/realizability.cpp#L708) |
+| `tested_moments` | [783](../../../src/realizability.cpp#L783) |
+| `with_support_context` | [788](../../../src/realizability.cpp#L788) |
+| `check_realizability` | [799](../../../src/realizability.cpp#L799), [828](../../../src/realizability.cpp#L828) |
 
 ### `src/reconstruction_scaling.cpp`
 

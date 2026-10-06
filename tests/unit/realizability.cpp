@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <qmomkit/realizability.hpp>
 #include <qmomkit/realizability_policy.hpp>
 #include <qmomkit/runge_kutta.hpp>
+#include <utility>
 #include <vector>
 
 namespace
@@ -82,16 +84,27 @@ void test_status_helpers()
     assert(boundary.realizable());
     assert(boundary.on_boundary());
 
+    // Two points at -1 and 1 put H_2 exactly on the boundary at order 4; moving
+    // m_4 by 1e-10 moves its zero eigenvalue by less than the loose tolerance,
+    // so neither direction can be decided.
     RealizabilityOptions loose;
     loose.tolerance = 1.0e-8;
-    const auto indeterminate = qmomkit::check_realizability(MomentSet{1.0, 0.0, -1.0e-10}, MomentSupport::real_line, loose);
+    const auto indeterminate = qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0, 0.0, 1.0 - 1.0e-10}, MomentSupport::real_line, loose);
     assert(indeterminate.status == RealizabilityStatus::numerically_indeterminate);
     assert(!indeterminate.realizable());
     assert(!indeterminate.on_boundary());
 
-    const auto small_positive = qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0e-10}, MomentSupport::real_line, loose);
+    const auto small_positive = qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0, 0.0, 1.0 + 1.0e-10}, MomentSupport::real_line, loose);
     assert(small_positive.status == RealizabilityStatus::numerically_indeterminate);
     assert(!small_positive.on_boundary());
+
+    // The relative tolerance applies to the standardized moments, so a tiny
+    // variance is decided at its own scale: negative is not realizable, and
+    // positive is a narrow but strictly realizable distribution.
+    assert(qmomkit::check_realizability(MomentSet{1.0, 0.0, -1.0e-10}, MomentSupport::real_line, loose).status ==
+           RealizabilityStatus::not_realizable);
+    assert(qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0e-10}, MomentSupport::real_line, loose).status ==
+           RealizabilityStatus::strictly_realizable);
 }
 
 void test_even_order_hamburger_singular_kernel_consistency()
@@ -110,6 +123,59 @@ void test_even_order_hamburger_singular_kernel_consistency()
     policy.accept_boundary = true;
     assert(
         !qmomkit::accepts_realizability_policy(policy, inconsistent.values(), [](const std::vector<double>& values) { return MomentSet(values); }));
+}
+
+void test_every_eigenvalue_is_classified()
+{
+    // Two points at -1e-5 and 1e-5 give H_2 with eigenvalues of about 1, 1e-10
+    // and 0. Under an absolute tolerance of 1e-8 the eigenvalue 1e-10 is
+    // neither zero nor positive, so the sequence is indeterminate although the
+    // smallest eigenvalue alone would make it boundary.
+    const MomentSet moments{1.0, 0.0, 1.0e-10, 0.0, 1.0e-20, 0.0};
+    RealizabilityOptions absolute;
+    absolute.tolerance = 1.0e-8;
+    absolute.relative_tolerance = false;
+    const auto result = qmomkit::check_realizability(moments, MomentSupport::real_line, absolute);
+    assert(result.status == RealizabilityStatus::numerically_indeterminate);
+    assert(result.failed_matrix == "H_2");
+
+    // Standardized, the same points sit at -1 and 1, and every eigenvalue is
+    // decided.
+    assert(qmomkit::check_realizability(moments, MomentSupport::real_line).status == RealizabilityStatus::boundary);
+}
+
+// Raw moments of the normal distribution with mean c and unit variance, from
+// m_k = c m_(k-1) + (k - 1) m_(k-2); exact for an integer mean while they
+// stay below 2^53.
+[[nodiscard]] MomentSet normal_moments(const double mean, const std::size_t maximum_order)
+{
+    std::vector<double> moments{1.0, mean};
+    for (std::size_t order = 2; order <= maximum_order; ++order)
+    {
+        moments.push_back(mean * moments[order - 1] + static_cast<double>(order - 1) * moments[order - 2]);
+    }
+    return MomentSet(std::move(moments));
+}
+
+void test_flat_extension_within_data_uncertainty_is_indeterminate()
+{
+    // At a mean of 250 standard deviations the rounding of the raw input
+    // moments makes the smallest eigenvalues of H_2 and H_3 zero within the
+    // data uncertainty, although both matrices are positive definite as given.
+    // The rank mismatch therefore does not decide.
+    const auto result = qmomkit::check_realizability(normal_moments(250.0, 6), MomentSupport::real_line);
+    assert(result.status == RealizabilityStatus::numerically_indeterminate);
+    assert(result.failed_matrix == "H_3_flat_extension");
+    assert(result.minimum_pivot > 0.0);
+}
+
+void test_lost_information_is_indeterminate()
+{
+    // At a mean of 10^6 standard deviations the order-6 central moments carry
+    // no reliable digit.
+    const auto result = qmomkit::check_realizability(normal_moments(1.0e6, 6), MomentSupport::real_line);
+    assert(result.status == RealizabilityStatus::numerically_indeterminate);
+    assert(result.failed_matrix == "H_3");
 }
 
 void test_ssp_rk3_predicate_can_be_explicitly_wrapped()
@@ -139,6 +205,9 @@ int main(const int argc, char** argv)
             {"matrix_diagnostics", test_matrix_diagnostics},
             {"status_helpers", test_status_helpers},
             {"even_order_hamburger_singular_kernel_consistency", test_even_order_hamburger_singular_kernel_consistency},
+            {"every_eigenvalue_is_classified", test_every_eigenvalue_is_classified},
+            {"flat_extension_within_data_uncertainty_is_indeterminate", test_flat_extension_within_data_uncertainty_is_indeterminate},
+            {"lost_information_is_indeterminate", test_lost_information_is_indeterminate},
             {"ssp_rk3_predicate_can_be_explicitly_wrapped", test_ssp_rk3_predicate_can_be_explicitly_wrapped},
         });
 }

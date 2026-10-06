@@ -126,7 +126,9 @@ void test_numerically_indeterminate_is_rejected()
     policy.support = qmomkit::MomentSupport::real_line;
     policy.options.tolerance = 1.0e-8;
 
-    assert(!qmomkit::accepts_realizability_policy(policy, {1.0, 0.0, 1.0e-10}, identity_moments));
+    // Two points at -1 and 1 with m_4 moved by 1e-10: H_2 is within the
+    // tolerance of singular, so the classification is indeterminate.
+    assert(!qmomkit::accepts_realizability_policy(policy, {1.0, 0.0, 1.0, 0.0, 1.0 + 1.0e-10}, identity_moments));
 }
 
 void test_converter_failures_propagate()

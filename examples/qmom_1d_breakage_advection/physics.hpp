@@ -12,7 +12,8 @@ namespace qmom_1d_breakage_advection
 [[nodiscard]] qmomkit::PhaseSpaceVelocity advection_velocity();
 
 /**
- * User-editable moment source for binary fragmentation d -> d/2.
+ * User-editable moment source for size-dependent binary fragmentation
+ * d -> d/2, written over the nodes of the source-stage quadrature.
  */
 [[nodiscard]] qmomkit::QmomMomentSource binary_fragmentation_source();
 

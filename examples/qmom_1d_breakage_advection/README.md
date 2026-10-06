@@ -4,7 +4,7 @@
 
 This tutorial-style example initializes and evolves a one-dimensional QMOM
 representation for a particle-size distribution with advection node motion
-and a moment-source fragmentation source. The initial state is specified in
+and a size-dependent fragmentation source written over the quadrature nodes. The initial state is specified in
 [configuration.qmom](./configuration.qmom). The phase-space coordinate is $\xi=d$, where $d$ is
 particle diameter and $n(d)$ is the number density. The raw, unnormalized
 moments are
@@ -42,18 +42,38 @@ evolution step. The underlying advection stage advances quadrature nodes, and
 weights are unchanged during that stage.
 
 The moment-source is also defined in [physics.cpp](./physics.cpp). It is a
-simple binary fragmentation model,
+binary fragmentation model,
 
 $$d \to \frac{d}{2},$$
 
-with constant rate $\lambda=0.5$. For raw moments, the source callback
-returns
+in which one particle of diameter $d$ becomes two of diameter $d/2$, at a rate
+that grows with size,
 
-$$\frac{\mathrm{d}M_k}{\mathrm{d}t}= \lambda\left(2^{1-k}-1\right)M_k.$$
+$$a(d) = a_\mathrm{ref}\left(\frac{d}{d_\mathrm{ref}}\right)^{p},
+\qquad a_\mathrm{ref} = 0.5,\quad d_\mathrm{ref} = 1,\quad p = \tfrac{3}{2}.$$
 
-The example passes this callback to `qmomkit::advance_qmom_phase_space(...)`,
-which manages the moment-source update as part of the configured
-phase-space evolution step.
+The raw moments then change as
+
+$$\frac{\mathrm{d}M_k}{\mathrm{d}t}
+= \left(2^{1-k}-1\right)\int a(d)\,d^k\,n(d)\,\mathrm{d}d
+= \left(2^{1-k}-1\right)\frac{a_\mathrm{ref}}{d_\mathrm{ref}^{\,p}}\,M_{k+3/2}.$$
+
+The right-hand side needs moments of order $k + 3/2$, which are not among the
+transported moments $M_0$ through $M_5$. The source callback closes it with the
+quadrature: it evaluates the integral over the nodes of the quadrature that
+QMOMKit builds from the current moments, through `context.for_each_node(...)`:
+
+$$\frac{\mathrm{d}M_k}{\mathrm{d}t} \approx \left(2^{1-k}-1\right)
+\sum_i w_i\,a(d_i)\,d_i^k.$$
+
+QMOMKit reconstructs that quadrature at every Runge-Kutta stage of the
+moment-source update, so the node values follow the moments as they change. The
+example passes this callback to `qmomkit::advance_qmom_phase_space(...)`, which
+manages the moment-source update as part of the configured phase-space
+evolution step. With $p = 0$ the rate is constant and the source reduces to
+$\mathrm{d}M_k/\mathrm{d}t = a_\mathrm{ref}\left(2^{1-k}-1\right)M_k$, the
+model used by
+[`qmom_1d_breakage_advection_with-mc`](../qmom_1d_breakage_advection_with-mc/README.md).
 
 The time loop in [main.cpp](./main.cpp) calls
 `qmomkit::advance_qmom_phase_space(...)` for each configured phase-space
@@ -70,8 +90,9 @@ QMOM reconstruction
 Advection half-step
 ```
 
-This keeps the distinction visible: phase-space advection acts on quadrature
-nodes, while the fragmentation source acts on raw moments.
+This keeps the distinction visible: phase-space advection moves the quadrature
+nodes, while the fragmentation source changes the raw moments, using the nodes
+of each stage quadrature only to evaluate its rates.
 
 These two callbacks are choices made by this breakage model. A different
 QMOMKit workflow may use only phase-space advection, only moment-source
@@ -138,7 +159,13 @@ whitespace-delimited text tables with commented headers.
 ## What to expect
 
 The fragmentation source increases $M_0$, so the represented number density
-grows. At the same time, advection moves node diameters toward `d = 1`.
-Consequently, the higher raw moments and the final quadrature show the combined
-effect of population multiplication and diameter relaxation rather than either
-mechanism in isolation.
+grows. Because large particles break faster, the large mode near $d = 3$
+initially fragments about five times as fast as the small mode near $d = 1$.
+Fragmentation and advection both shrink the large particles, so the growth of
+$M_0$ slows over time: it gains about 0.14 in the first 0.1 time units and
+about 0.09 in the last. By $t = 1$, $M_0$ has grown from 1 to about 2.04,
+compared with about 1.65 at the constant rate $a_\mathrm{ref}$, while $M_5$
+has fallen from about 127 to about 2.8, and the third node carries the least
+weight. The final quadrature shows the combined effect of population
+multiplication and diameter relaxation rather than either mechanism in
+isolation.

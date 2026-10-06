@@ -1,5 +1,7 @@
 #include "qmomkit/distributions.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -11,8 +13,6 @@ namespace qmomkit
 {
 namespace
 {
-
-constexpr double log_two = 0.69314718055994530942;
 
 [[nodiscard]] bool is_positive_finite(const double value)
 {
@@ -202,33 +202,142 @@ struct MomentValueResult
     return evaluate_log_expectation(k * distribution.normal_mean + 0.5 * k * k * variance, total_weight, order);
 }
 
-[[nodiscard]] MomentValueResult evaluate_beta_moment(const BetaDistribution& distribution, const double base, const double total_weight,
-                                                     const std::size_t order)
+// A positive product held as mantissa * 2^exponent and renormalized after
+// every factor, so that a long product of large or small factors cannot
+// overflow or underflow before its final value is known. Each factor adds one
+// rounding to its own evaluation, so a moment that is a product of k simple
+// factors is accurate to a few times k units in the last place, however large
+// the distribution parameters are.
+class ScaledProduct
 {
-    const double k = static_cast<double>(order);
-    return evaluate_log_expectation(std::lgamma(distribution.alpha + k) - std::lgamma(distribution.alpha + distribution.beta + k) + base,
-                                    total_weight, order);
+public:
+    explicit ScaledProduct(const double initial)
+    {
+        int exponent = 0;
+        mantissa_ = std::frexp(initial, &exponent);
+        exponent_ = exponent;
+    }
+
+    void multiply(const double factor)
+    {
+        int factor_exponent = 0;
+        const double factor_mantissa = std::frexp(factor, &factor_exponent);
+        int product_exponent = 0;
+        mantissa_ = std::frexp(mantissa_ * factor_mantissa, &product_exponent);
+        exponent_ += static_cast<long long>(factor_exponent) + product_exponent;
+    }
+
+    // Subnormal values are returned as they are; only a value outside the
+    // range of a double fails.
+    [[nodiscard]] MomentValueResult value(const std::size_t order) const
+    {
+        // The mantissa is below one, so the value is finite exactly when the
+        // exponent does not exceed max_exponent.
+        if (mantissa_ != 0.0 && exponent_ > std::numeric_limits<double>::max_exponent)
+        {
+            return moment_value_failure(RawMomentStatus::overflow, "Raw moment overflows double precision.", order);
+        }
+        constexpr long long lowest_exponent = std::numeric_limits<double>::min_exponent - std::numeric_limits<double>::digits - 1;
+        const double value = std::ldexp(mantissa_, static_cast<int>(std::max(exponent_, lowest_exponent)));
+        if (value == 0.0)
+        {
+            return moment_value_failure(RawMomentStatus::underflow, "Positive raw moment underflows double precision.", order);
+        }
+        return MomentValueResult{value, RawMomentStatus::success, "", 0};
+    }
+
+private:
+    double mantissa_ = 0.0;
+    long long exponent_ = 0;
+};
+
+// The factor that takes each family from E[X^(k-1)] to E[X^k]:
+//   beta         E[X^k] = prod over i < k of (alpha + i) / (alpha + beta + i)
+//   gamma        E[X^k] = prod over i < k of scale (shape + i)
+//   chi-squared  E[X^k] = prod over i < k of (nu + 2i)
+void multiply_beta_step(ScaledProduct& product, const BetaDistribution& distribution, const std::size_t order)
+{
+    const double i = static_cast<double>(order - 1);
+    product.multiply((distribution.alpha + i) / (distribution.alpha + distribution.beta + i));
 }
 
-[[nodiscard]] MomentValueResult evaluate_gamma_moment(const GammaDistribution& distribution, const double log_scale, const double log_gamma_shape,
-                                                      const double total_weight, const std::size_t order)
+void multiply_gamma_step(ScaledProduct& product, const GammaDistribution& distribution, const std::size_t order)
 {
-    const double k = static_cast<double>(order);
-    return evaluate_log_expectation(k * log_scale + std::lgamma(distribution.shape + k) - log_gamma_shape, total_weight, order);
+    product.multiply(distribution.shape + static_cast<double>(order - 1));
+    product.multiply(distribution.scale);
 }
 
-[[nodiscard]] MomentValueResult evaluate_chi_moment(const double half_nu, const double log_gamma_half_nu, const double total_weight,
+void multiply_chi_squared_step(ScaledProduct& product, const ChiSquaredDistribution& distribution, const std::size_t order)
+{
+    product.multiply(distribution.degrees_of_freedom + 2.0 * static_cast<double>(order - 1));
+}
+
+// total_weight * E[X^order] for a family whose moments are products of one
+// factor per order.
+template <typename Step>
+[[nodiscard]] MomentValueResult evaluate_product_moment(const double total_weight, const std::size_t order, const Step& multiply_step)
+{
+    ScaledProduct product(total_weight);
+    for (std::size_t current = 1; current <= order; ++current)
+    {
+        multiply_step(product, current);
+    }
+    return product.value(order);
+}
+
+// Gamma(x + 1/2) / Gamma(x) for x > 0. Subtracting the expansions of
+// ln Gamma(x + h) at h = 1/2 and h = 0 (DLMF 5.11.8), with
+// B_m(1/2) = -(1 - 2^(1-m)) B_m (DLMF 24.4.27), gives
+//   ln(r(x) / sqrt(x)) ~ sum over odd n of (2^-n - 2) B_(n+1) / (n (n+1) x^n),
+// whose coefficients are -1/8, 1/192, -1/640, ... From x = 10 on, the eight
+// terms below leave a truncation error under 1e-17. Smaller x are first raised
+// to that range by r(x) = r(x + 1) x / (x + 1/2).
+[[nodiscard]] double half_step_gamma_ratio(double x)
+{
+    double factor = 1.0;
+    while (x < 10.0)
+    {
+        factor *= x / (x + 0.5);
+        x += 1.0;
+    }
+    constexpr std::array<double, 8> coefficients{-1.0 / 8.0,      1.0 / 192.0,      -1.0 / 640.0,       17.0 / 14336.0,
+                                                 -31.0 / 18432.0, 691.0 / 180224.0, -5461.0 / 425984.0, 929569.0 / 15728640.0};
+    const double inverse_square = 1.0 / (x * x);
+    double series = 0.0;
+    for (auto coefficient = coefficients.rbegin(); coefficient != coefficients.rend(); ++coefficient)
+    {
+        series = series * inverse_square + *coefficient;
+    }
+    return factor * std::sqrt(x) * std::exp(series / x);
+}
+
+// E[X^k] = 2^(k/2) Gamma((nu + k)/2) / Gamma(nu/2) satisfies
+// E[X^k] = E[X^(k-2)] (nu + k - 2), so even orders are products from
+// E[X^0] = 1 and odd orders from E[X^1] = sqrt(2) Gamma(nu/2 + 1/2) / Gamma(nu/2).
+[[nodiscard]] double chi_first_moment(const ChiDistribution& distribution)
+{
+    constexpr double square_root_two = 1.41421356237309504880;
+    return square_root_two * half_step_gamma_ratio(0.5 * distribution.degrees_of_freedom);
+}
+
+void multiply_chi_step(ScaledProduct& product, const ChiDistribution& distribution, const std::size_t order)
+{
+    product.multiply(distribution.degrees_of_freedom + static_cast<double>(order - 2));
+}
+
+[[nodiscard]] MomentValueResult evaluate_chi_moment(const ChiDistribution& distribution, const double first_moment, const double total_weight,
                                                     const std::size_t order)
 {
-    const double k = static_cast<double>(order);
-    return evaluate_log_expectation(0.5 * k * log_two + std::lgamma(half_nu + 0.5 * k) - log_gamma_half_nu, total_weight, order);
-}
-
-[[nodiscard]] MomentValueResult evaluate_chi_squared_moment(const double half_nu, const double log_gamma_half_nu, const double total_weight,
-                                                            const std::size_t order)
-{
-    const double k = static_cast<double>(order);
-    return evaluate_log_expectation(k * log_two + std::lgamma(half_nu + k) - log_gamma_half_nu, total_weight, order);
+    ScaledProduct product(total_weight);
+    if (order % 2 == 1)
+    {
+        product.multiply(first_moment);
+    }
+    for (std::size_t current = order % 2 + 2; current <= order; current += 2)
+    {
+        multiply_chi_step(product, distribution, current);
+    }
+    return product.value(order);
 }
 
 [[nodiscard]] MomentValueResult evaluate_weibull_moment(const WeibullDistribution& distribution, const double log_scale, const double total_weight,
@@ -236,6 +345,32 @@ struct MomentValueResult
 {
     const double k = static_cast<double>(order);
     return evaluate_log_expectation(k * log_scale + std::lgamma(1.0 + k / distribution.shape), total_weight, order);
+}
+
+// Each moment is the previous one times the family's step factor, which is
+// the same arithmetic evaluate_product_moment performs for a single order.
+template <typename Step>
+[[nodiscard]] RawMomentResult compute_from_products(const std::size_t maximum_order, const double total_weight, const Step& multiply_step)
+{
+    if (total_weight == 0.0)
+    {
+        return finish_moments(std::vector<double>(maximum_order + 1, 0.0));
+    }
+
+    std::vector<double> moments(maximum_order + 1, 0.0);
+    moments[0] = total_weight;
+    ScaledProduct product(total_weight);
+    for (std::size_t order = 1; order <= maximum_order; ++order)
+    {
+        multiply_step(product, order);
+        const MomentValueResult moment = product.value(order);
+        if (!moment.ok())
+        {
+            return failure_at_order(moment.status, moment.message, moment.failed_order);
+        }
+        moments[order] = moment.value;
+    }
+    return finish_moments(std::move(moments));
 }
 
 template <typename MomentEvaluator>
@@ -443,12 +578,12 @@ struct NormalExpectationsResult
         return zero_selected_moments(request);
     }
 
-    const double base = std::lgamma(distribution.alpha + distribution.beta) - std::lgamma(distribution.alpha);
     std::vector<double> values;
     values.reserve(orders.size());
     for (const std::size_t order : orders)
     {
-        const MomentValueResult moment = evaluate_beta_moment(distribution, base, total_weight, order);
+        const MomentValueResult moment = evaluate_product_moment(total_weight, order, [&distribution](ScaledProduct& product, const std::size_t step)
+                                                                 { multiply_beta_step(product, distribution, step); });
         if (!moment.ok())
         {
             return selected_failure_from_moment(moment);
@@ -470,13 +605,12 @@ struct NormalExpectationsResult
         return zero_selected_moments(request);
     }
 
-    const double log_scale = std::log(distribution.scale);
-    const double log_gamma_shape = std::lgamma(distribution.shape);
     std::vector<double> values;
     values.reserve(orders.size());
     for (const std::size_t order : orders)
     {
-        const MomentValueResult moment = evaluate_gamma_moment(distribution, log_scale, log_gamma_shape, total_weight, order);
+        const MomentValueResult moment = evaluate_product_moment(total_weight, order, [&distribution](ScaledProduct& product, const std::size_t step)
+                                                                 { multiply_gamma_step(product, distribution, step); });
         if (!moment.ok())
         {
             return selected_failure_from_moment(moment);
@@ -498,13 +632,12 @@ struct NormalExpectationsResult
         return zero_selected_moments(request);
     }
 
-    const double half_nu = 0.5 * distribution.degrees_of_freedom;
-    const double log_gamma_half_nu = std::lgamma(half_nu);
+    const double first_moment = chi_first_moment(distribution);
     std::vector<double> values;
     values.reserve(orders.size());
     for (const std::size_t order : orders)
     {
-        const MomentValueResult moment = evaluate_chi_moment(half_nu, log_gamma_half_nu, total_weight, order);
+        const MomentValueResult moment = evaluate_chi_moment(distribution, first_moment, total_weight, order);
         if (!moment.ok())
         {
             return selected_failure_from_moment(moment);
@@ -526,13 +659,12 @@ struct NormalExpectationsResult
         return zero_selected_moments(request);
     }
 
-    const double half_nu = 0.5 * distribution.degrees_of_freedom;
-    const double log_gamma_half_nu = std::lgamma(half_nu);
     std::vector<double> values;
     values.reserve(orders.size());
     for (const std::size_t order : orders)
     {
-        const MomentValueResult moment = evaluate_chi_squared_moment(half_nu, log_gamma_half_nu, total_weight, order);
+        const MomentValueResult moment = evaluate_product_moment(total_weight, order, [&distribution](ScaledProduct& product, const std::size_t step)
+                                                                 { multiply_chi_squared_step(product, distribution, step); });
         if (!moment.ok())
         {
             return selected_failure_from_moment(moment);
@@ -622,9 +754,8 @@ struct NormalExpectationsResult
         return invalid_input("Beta distribution requires positive finite alpha and beta.");
     }
 
-    const double base = std::lgamma(distribution.alpha + distribution.beta) - std::lgamma(distribution.alpha);
-    return compute_from_log_moments(maximum_order, total_weight,
-                                    [&](const std::size_t order) { return evaluate_beta_moment(distribution, base, total_weight, order); });
+    return compute_from_products(maximum_order, total_weight, [&distribution](ScaledProduct& product, const std::size_t order)
+                                 { multiply_beta_step(product, distribution, order); });
 }
 
 [[nodiscard]] RawMomentResult compute_gamma(const GammaDistribution& distribution, const std::size_t maximum_order, const double total_weight)
@@ -634,10 +765,8 @@ struct NormalExpectationsResult
         return invalid_input("Gamma distribution requires positive finite shape and scale.");
     }
 
-    const double log_scale = std::log(distribution.scale);
-    const double log_gamma_shape = std::lgamma(distribution.shape);
-    return compute_from_log_moments(maximum_order, total_weight, [&](const std::size_t order)
-                                    { return evaluate_gamma_moment(distribution, log_scale, log_gamma_shape, total_weight, order); });
+    return compute_from_products(maximum_order, total_weight, [&distribution](ScaledProduct& product, const std::size_t order)
+                                 { multiply_gamma_step(product, distribution, order); });
 }
 
 [[nodiscard]] RawMomentResult compute_chi(const ChiDistribution& distribution, const std::size_t maximum_order, const double total_weight)
@@ -647,10 +776,33 @@ struct NormalExpectationsResult
         return invalid_input("Chi distribution requires positive finite degrees of freedom.");
     }
 
-    const double half_nu = 0.5 * distribution.degrees_of_freedom;
-    const double log_gamma_half_nu = std::lgamma(half_nu);
-    return compute_from_log_moments(maximum_order, total_weight,
-                                    [&](const std::size_t order) { return evaluate_chi_moment(half_nu, log_gamma_half_nu, total_weight, order); });
+    if (total_weight == 0.0)
+    {
+        return finish_moments(std::vector<double>(maximum_order + 1, 0.0));
+    }
+
+    // Even and odd orders form separate chains, E[X^k] = E[X^(k-2)] (nu + k - 2),
+    // each the same arithmetic evaluate_chi_moment performs for a single order.
+    std::vector<double> moments(maximum_order + 1, 0.0);
+    moments[0] = total_weight;
+    ScaledProduct even(total_weight);
+    ScaledProduct odd(total_weight);
+    odd.multiply(chi_first_moment(distribution));
+    for (std::size_t order = 1; order <= maximum_order; ++order)
+    {
+        ScaledProduct& chain = order % 2 == 0 ? even : odd;
+        if (order >= 2)
+        {
+            multiply_chi_step(chain, distribution, order);
+        }
+        const MomentValueResult moment = chain.value(order);
+        if (!moment.ok())
+        {
+            return failure_at_order(moment.status, moment.message, moment.failed_order);
+        }
+        moments[order] = moment.value;
+    }
+    return finish_moments(std::move(moments));
 }
 
 [[nodiscard]] RawMomentResult compute_chi_squared(const ChiSquaredDistribution& distribution, const std::size_t maximum_order,
@@ -661,10 +813,8 @@ struct NormalExpectationsResult
         return invalid_input("Chi-squared distribution requires positive finite degrees of freedom.");
     }
 
-    const double half_nu = 0.5 * distribution.degrees_of_freedom;
-    const double log_gamma_half_nu = std::lgamma(half_nu);
-    return compute_from_log_moments(maximum_order, total_weight, [&](const std::size_t order)
-                                    { return evaluate_chi_squared_moment(half_nu, log_gamma_half_nu, total_weight, order); });
+    return compute_from_products(maximum_order, total_weight, [&distribution](ScaledProduct& product, const std::size_t order)
+                                 { multiply_chi_squared_step(product, distribution, order); });
 }
 
 [[nodiscard]] RawMomentResult compute_weibull(const WeibullDistribution& distribution, const std::size_t maximum_order, const double total_weight)

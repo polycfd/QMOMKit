@@ -12,7 +12,11 @@ The cases exercise:
   including chi and chi-squared against their closed forms for odd and even
   degrees of freedom, and gamma and beta with parameters up to fifty, to order
   ten;
-- selected-order requests, out of sequence, against the same closed forms;
+- gamma, chi-squared, beta and even chi moments for parameters up to `1e8`,
+  against the same products multiplied out in error-free double-double
+  arithmetic, and odd chi moments against values computed with mpmath;
+- selected-order requests, out of sequence, against the same references;
+- inversion of the moments of narrow gamma distributions, up to shape `1e7`;
 - total number density scaling, including non-unit weights;
 - invalid-parameter and overflow reporting for raw-moment generation;
 - one-dimensional mixtures with absolute component weights;
@@ -31,10 +35,11 @@ analytical references.
 
 Tolerances are near roundoff for low-order closed-form moments and relaxed only
 where floating-point products, powers, or gamma-function evaluations amplify
-roundoff. The chi, chi-squared, large-parameter and selected-order cases compare
-relatively, at `1e-13` for chi and chi-squared and `1e-12` for gamma and beta,
-because log-gamma differences lose about `epsilon * |ln Gamma|` of relative
-accuracy as the parameters grow. These tolerances should remain tied to the analytical formula and
+roundoff. The gamma, beta, chi and chi-squared moments are products of one
+simple factor per order, accurate to a few rounding errors whatever the
+parameters, so their cases compare relatively: at `4e-15` against closed-form
+products, and at `4 (k + 1) epsilon` for order `k` against the error-free
+references. These tolerances should remain tied to the analytical formula and
 moment scale, not to the behavior of a previous implementation.
 
 The CTest registrations are:

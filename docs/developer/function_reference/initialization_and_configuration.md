@@ -29,25 +29,39 @@ largest requested order, then gather requested entries. An intermediate
 unit-density moment may overflow even when subsequent small-density
 multiplication would make the exact raw moment representable.
 
-The other six families use `evaluate_log_expectation` and the local
-`evaluate_*_moment` functions. Their evident mathematical expressions are:
+Lognormal and Weibull use `evaluate_log_expectation` with the local
+`evaluate_*_moment` functions:
 
 | Family | Log of unit-density order-`k` moment |
 |---|---|
 | Lognormal | `k*mu + k*k*sigma*sigma/2` for normal log-coordinate parameters |
-| Beta | `lgamma(alpha+k)-lgamma(alpha+beta+k)+lgamma(alpha+beta)-lgamma(alpha)` |
-| Gamma | `k*log(scale)+lgamma(shape+k)-lgamma(shape)` |
-| Chi | `k*log(2)/2+lgamma(nu/2+k/2)-lgamma(nu/2)` |
-| Chi-squared | `k*log(2)+lgamma(nu/2+k)-lgamma(nu/2)` |
 | Weibull | `k*log(scale)+lgamma(1+k/shape)` |
 
 The shared evaluator adds `log(N)`, compares with the logs of maximum finite
 double and minimum denormal, then exponentiates and checks the result. Order
 zero returns `N` directly. `compute_from_log_moments` loops over positive
-orders until completion or the first failure. Selected variants evaluate
-requested orders directly and retain their order/duplicates. This avoids
-forming unused very high moments for those families; it does not eliminate
-cancellation inside differences of large `lgamma` values.
+orders until completion or the first failure.
+
+Beta, gamma, chi-squared and chi build each moment as a product of one factor
+per order in a local `ScaledProduct`, which starts from `N` and keeps the
+running product as a mantissa and a binary exponent:
+
+| Family | Factor from order `k-1` to `k` |
+|---|---|
+| Beta | `(alpha+k-1)/(alpha+beta+k-1)` (`multiply_beta_step`) |
+| Gamma | `shape+k-1`, then `scale` (`multiply_gamma_step`) |
+| Chi-squared | `nu+2(k-1)` (`multiply_chi_squared_step`) |
+| Chi | `nu+k-2` from order `k-2` (`multiply_chi_step`); order one is `sqrt(2)*half_step_gamma_ratio(nu/2)` (`chi_first_moment`) |
+
+`ScaledProduct::value` reports overflow when the exponent exceeds the double
+range and underflow when the value rounds to zero, so both are decided exactly.
+`compute_from_products` extends one product order by order; the chi
+maximum-order path keeps separate even and odd products. Selected variants
+evaluate each requested order with `evaluate_product_moment` or
+`evaluate_chi_moment`, multiplying the same factors in the same order, and
+retain their order and duplicates. `half_step_gamma_ratio` evaluates
+`Gamma(x+1/2)/Gamma(x)` from an eight-term asymptotic expansion from `x = 10`
+on and raises smaller `x` by the recurrence `r(x) = r(x+1) x/(x+1/2)`.
 
 Checked preconditions include finite nonnegative density, positive finite
 shape/ scale/standard-deviation parameters where required, and capacity-safe
@@ -59,8 +73,10 @@ identical underflow-detection paths.
 
 Evidence: [distribution unit tests](../../../tests/unit/distributions.cpp) use
 analytical moments, density scaling, selected/full parity, invalid parameters,
-and overflow/underflow assertions. These cases do not establish a uniform
-envelope in shape, order, density, or `lgamma` cancellation.
+and overflow/underflow assertions. [Distribution verification](../../../tests/verification/distributions/distributions_analytical.cpp)
+compares the product families with error-free references for parameters up to
+`1e8` and odd chi moments with high-precision values; these cases cover orders
+up to ten and do not establish a uniform envelope in order or density.
 
 ## Mixtures and independent products — Level A
 

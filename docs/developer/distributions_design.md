@@ -134,10 +134,57 @@ The current family conventions are:
 - Chi-squared: positive finite degrees of freedom.
 - Weibull: positive finite shape and scale.
 
-Normal moments are generated through a raw-moment recurrence. Positive-support
-families and beta moments use logarithmic formulas with `std::lgamma` where
-needed, so large gamma or beta-function values are not formed directly before
-scaling.
+Normal moments are generated through a raw-moment recurrence. Log-normal
+moments, $\mathrm{E}[X^k] = \exp(k\mu + k^2\sigma^2/2)$, and Weibull moments
+with scale $\lambda$ and shape $c$, $\mathrm{E}[X^k] = \lambda^k\,\Gamma(1 + k/c)$,
+are single closed-form expressions evaluated in logarithmic form; the Weibull
+moment uses one `std::lgamma` call per order.
+
+Gamma (shape $a$, scale $\theta$), beta ($\alpha$, $\beta$), chi-squared and chi
+($\nu$ degrees of freedom) moments are products of one simple factor per order
+rather than ratios of gamma functions:
+
+$$
+\begin{aligned}
+\text{gamma:} \quad & \mathrm{E}[X^k] = \prod_{i=0}^{k-1} \theta\,(a + i), \\
+\text{beta:} \quad & \mathrm{E}[X^k] = \prod_{i=0}^{k-1} \frac{\alpha + i}{\alpha + \beta + i}, \\
+\text{chi-squared:} \quad & \mathrm{E}[X^k] = \prod_{i=0}^{k-1} (\nu + 2i), \\
+\text{chi:} \quad & \mathrm{E}[X^k] = (\nu + k - 2)\,\mathrm{E}[X^{k-2}], \qquad
+  \mathrm{E}[X^0] = 1, \qquad
+  \mathrm{E}[X^1] = \sqrt{2}\,\frac{\Gamma\!\left(\frac{\nu}{2} + \frac{1}{2}\right)}{\Gamma\!\left(\frac{\nu}{2}\right)}.
+\end{aligned}
+$$
+
+The product, including the total weight, is held as a mantissa and a binary
+exponent and renormalized after every factor, so no intermediate value can
+overflow or underflow, and overflow or underflow of the moment itself is
+decided exactly. Each factor adds a few rounding errors, so a moment of order
+$k$ is accurate to a few times $k$ units in the last place however large the
+parameters are. A difference of log-gamma values would instead lose about
+$\epsilon\,|\ln\Gamma(a)|$ of relative accuracy, about $10^{-9}$ at parameters
+near $10^6$, enough to make the moments of a gamma distribution with shape
+$10^5$ fail three-node QMOM inversion. The maximum-order and selected-order
+paths multiply the same factors in the same order, so they return identical
+values.
+
+The odd chi moments need $r(x) = \Gamma(x + \frac{1}{2}) / \Gamma(x)$ at
+$x = \nu/2$, which has no finite product form. From $x = 10$ on it is evaluated
+from the asymptotic expansion
+
+$$
+\ln\frac{r(x)}{\sqrt{x}} \sim \sum_{n\ \mathrm{odd}} \frac{(2^{-n} - 2)\,B_{n+1}}{n(n+1)\,x^n}
+= -\frac{1}{8x} + \frac{1}{192\,x^3} - \frac{1}{640\,x^5} + \cdots,
+$$
+
+where $B_m$ are the Bernoulli numbers. It follows from subtracting the
+expansions of $\ln\Gamma(x + h)$ at $h = \frac{1}{2}$ and $h = 0$ (DLMF 5.11.8)
+and using $B_m(\frac{1}{2}) = -(1 - 2^{1-m})\,B_m$ (DLMF 24.4.27). Eight terms
+leave a truncation error below $10^{-17}$. Smaller $x$ are first raised into
+that range by the exact recurrence
+
+$$
+r(x) = r(x + 1)\,\frac{x}{x + \frac{1}{2}}.
+$$
 
 This page does not serve as a user catalog. The stable developer contract is
 that each family maps typed parameters to raw analytical moments, validates
@@ -269,7 +316,8 @@ Stable numerical rules include:
 - zero global number density for an independent product returns a zero tensor
   with the requested valid extents and does not evaluate marginal parameters;
 - positive-support moments are checked before exponentiation where logarithmic
-  formulas are used;
+  formulas are used, and product-form moments are checked against the double
+  range from their exact binary exponent;
 - moments whose exact value is nonzero but that underflow to zero are reported
   as `underflow`; exact zeros, such as the odd moments of a zero-mean normal,
   are not;
@@ -391,7 +439,7 @@ Public distribution concepts include:
 Implementation details include:
 
 - family-specific moment kernels;
-- recurrence and logarithmic evaluation helpers;
+- recurrence, product and logarithmic evaluation helpers;
 - compensated summation machinery;
 - checked tensor-product assembly;
 - internal failure-construction helpers.

@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 657 |
+| Unit logical tests | 658 |
 | Component/regression logical tests | 47 |
-| Verification logical tests | 180 |
-| **Runtime logical tests** | **884** |
+| Verification logical tests | 183 |
+| **Runtime logical tests** | **888** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **885** |
+| **Total CTest registrations** | **889** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -295,6 +295,9 @@ renamed test rather than a deleted one.
 | `verification_distributions_analytical_gamma_large_shape` | `tests/verification/distributions/distributions_analytical.cpp` | `gamma_large_shape` | Verifies gamma moments to order 10 against the rising-factorial product for shapes up to 50. | — |
 | `verification_distributions_analytical_beta_large_parameters` | `tests/verification/distributions/distributions_analytical.cpp` | `beta_large_parameters` | Verifies beta moments to order 10 against the closed-form product for alpha + beta = 50. | — |
 | `verification_distributions_analytical_selected_orders_closed_form` | `tests/verification/distributions/distributions_analytical.cpp` | `selected_orders_closed_form` | Verifies selected-order chi, chi-squared, gamma and beta moments, requested out of order, against their closed forms. | — |
+| `verification_distributions_analytical_large_parameter_moments_against_exact_products` | `tests/verification/distributions/distributions_analytical.cpp` | `large_parameter_moments_against_exact_products` | Verifies gamma, chi-squared, beta and even chi moments for parameters up to 1e8 against products multiplied out in error-free double-double arithmetic. | — |
+| `verification_distributions_analytical_chi_odd_orders_against_high_precision_values` | `tests/verification/distributions/distributions_analytical.cpp` | `chi_odd_orders_against_high_precision_values` | Verifies odd chi moments, on both moment paths and for non-integer degrees of freedom, against E[X] computed with mpmath at 40 digits. | — |
+| `verification_distributions_analytical_narrow_gamma_moments_invert` | `tests/verification/distributions/distributions_analytical.cpp` | `narrow_gamma_moments_invert` | Verifies that the moments of gamma distributions with shapes up to 1e7 invert at two and three nodes, and at shape 1e4 at four nodes, and are reproduced by the result. | — |
 | `verification_distributions_analytical_weibull` | `tests/verification/distributions/distributions_analytical.cpp` | `weibull` | Verifies analytical distribution moments and documented failure behavior for weibull. | — |
 | `verification_distributions_analytical_maximum_order_zero_and_invalid_parameters` | `tests/verification/distributions/distributions_analytical.cpp` | `maximum_order_zero_and_invalid_parameters` | Verifies analytical distribution moments and documented failure behavior for maximum order zero and invalid parameters. | — |
 | `verification_distributions_analytical_configuration_distribution_initialization` | `tests/verification/distributions/distributions_analytical.cpp` | `configuration_distribution_initialization` | Verifies analytical distribution moments and documented failure behavior for configuration distribution initialization. | — |
@@ -893,6 +896,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_distributions_invalid_distribution_parameters` | `tests/unit/distributions.cpp` | `invalid_distribution_parameters` | Verifies invalid distribution parameters. | — |
 | `unit_distributions_overflow_status` | `tests/unit/distributions.cpp` | `overflow_status` | Checks that distribution moment generation detects the tested arithmetic overflow instead of reporting success. | — |
 | `unit_distributions_selected_overflow_reports_the_failed_order` | `tests/unit/distributions.cpp` | `selected_overflow_reports_the_failed_order` | Checks that selected-order requests report the first overflowing order and accept the order just below it. | — |
+| `unit_distributions_product_moments_use_the_whole_double_range` | `tests/unit/distributions.cpp` | `product_moments_use_the_whole_double_range` | Checks that a moment just below the largest double and a subnormal moment are returned, and that moments just beyond either end of the range report overflow and underflow. | — |
 | `unit_distributions_overflowing_variance_fails_only_the_orders_that_use_it` | `tests/unit/distributions.cpp` | `overflowing_variance_fails_only_the_orders_that_use_it` | Checks that an overflowing normal or log-normal variance fails only requests that reach the orders using it, after the zero-weight return. | — |
 | `unit_distributions_normal_moments_that_underflow_are_reported` | `tests/unit/distributions.cpp` | `normal_moments_that_underflow_are_reported` | Checks that nonzero normal moments that underflow to zero, in the recurrence or the weighting, are reported as underflow, while exact zero odd moments and moments whose variance alone underflows next to a nonzero mean are not. | — |
 | `unit_distributions_underflow_status` | `tests/unit/distributions.cpp` | `underflow_status` | Verifies underflow status. | — |

@@ -461,42 +461,50 @@ evidence](initialization_and_configuration.md)
 | `normalize_marginal_moment` | [140](../../../src/distributions.cpp#L140) |
 | `evaluate_log_expectation` | [160](../../../src/distributions.cpp#L160) |
 | `evaluate_log_normal_moment` | [192](../../../src/distributions.cpp#L192) |
-| `evaluate_beta_moment` | [205](../../../src/distributions.cpp#L205) |
-| `evaluate_gamma_moment` | [213](../../../src/distributions.cpp#L213) |
-| `evaluate_chi_moment` | [220](../../../src/distributions.cpp#L220) |
-| `evaluate_chi_squared_moment` | [227](../../../src/distributions.cpp#L227) |
-| `evaluate_weibull_moment` | [234](../../../src/distributions.cpp#L234) |
-| `compute_from_log_moments` | [242](../../../src/distributions.cpp#L242) |
-| `check_selected_common_inputs` | [263](../../../src/distributions.cpp#L263) |
-| `finish_selected_orders` | [295](../../../src/distributions.cpp#L295) |
-| `zero_selected_moments` | [300](../../../src/distributions.cpp#L300) |
-| `selected_failure_from_moment` | [305](../../../src/distributions.cpp#L305) |
-| `NormalExpectationsResult::ok` | [317](../../../src/distributions.cpp#L317) |
-| `normal_expectations` | [323](../../../src/distributions.cpp#L323) |
-| `compute_normal_selected` | [367](../../../src/distributions.cpp#L367) |
-| `compute_log_normal_selected` | [405](../../../src/distributions.cpp#L405) |
-| `compute_beta_selected` | [434](../../../src/distributions.cpp#L434) |
-| `compute_gamma_selected` | [461](../../../src/distributions.cpp#L461) |
-| `compute_chi_selected` | [489](../../../src/distributions.cpp#L489) |
-| `compute_chi_squared_selected` | [517](../../../src/distributions.cpp#L517) |
-| `compute_weibull_selected` | [545](../../../src/distributions.cpp#L545) |
-| `compute_normal` | [572](../../../src/distributions.cpp#L572) |
-| `compute_log_normal` | [605](../../../src/distributions.cpp#L605) |
-| `compute_beta` | [618](../../../src/distributions.cpp#L618) |
-| `compute_gamma` | [630](../../../src/distributions.cpp#L630) |
-| `compute_chi` | [643](../../../src/distributions.cpp#L643) |
-| `compute_chi_squared` | [656](../../../src/distributions.cpp#L656) |
-| `compute_weibull` | [670](../../../src/distributions.cpp#L670) |
-| `RawMomentVisitor::operator()` | [687](../../../src/distributions.cpp#L687), [692](../../../src/distributions.cpp#L692), [697](../../../src/distributions.cpp#L697), [702](../../../src/distributions.cpp#L702), [707](../../../src/distributions.cpp#L707), [712](../../../src/distributions.cpp#L712), [717](../../../src/distributions.cpp#L717) |
-| `SelectedRawMomentVisitor::operator()` | [730](../../../src/distributions.cpp#L730), [735](../../../src/distributions.cpp#L735), [740](../../../src/distributions.cpp#L740), [745](../../../src/distributions.cpp#L745), [750](../../../src/distributions.cpp#L750), [755](../../../src/distributions.cpp#L755), [760](../../../src/distributions.cpp#L760) |
-| `add_compensated` | [766](../../../src/distributions.cpp#L766) |
-| `add_selected_compensated` | [797](../../../src/distributions.cpp#L797) |
-| `contains_order` | [831](../../../src/distributions.cpp#L831) |
-| `order_position` | [843](../../../src/distributions.cpp#L843) |
-| `compute_independent_product_marginal_moments` | [855](../../../src/distributions.cpp#L855), [865](../../../src/distributions.cpp#L865) |
-| `first_requested_index_with_order` | [875](../../../src/distributions.cpp#L875) |
-| `make_selected_raw_moment_result` | [889](../../../src/distributions.cpp#L889) |
-| `compute_raw_moments` | [933](../../../src/distributions.cpp#L933), [949](../../../src/distributions.cpp#L949), [959](../../../src/distributions.cpp#L959), [1029](../../../src/distributions.cpp#L1029), [1110](../../../src/distributions.cpp#L1110), [1213](../../../src/distributions.cpp#L1213) |
+| `ScaledProduct::ScaledProduct` | [214](../../../src/distributions.cpp#L214) |
+| `ScaledProduct::multiply` | [221](../../../src/distributions.cpp#L221) |
+| `ScaledProduct::value` | [232](../../../src/distributions.cpp#L232) |
+| `multiply_beta_step` | [258](../../../src/distributions.cpp#L258) |
+| `multiply_gamma_step` | [264](../../../src/distributions.cpp#L264) |
+| `multiply_chi_squared_step` | [270](../../../src/distributions.cpp#L270) |
+| `evaluate_product_moment` | [278](../../../src/distributions.cpp#L278) |
+| `half_step_gamma_ratio` | [295](../../../src/distributions.cpp#L295) |
+| `chi_first_moment` | [317](../../../src/distributions.cpp#L317) |
+| `multiply_chi_step` | [323](../../../src/distributions.cpp#L323) |
+| `evaluate_chi_moment` | [328](../../../src/distributions.cpp#L328) |
+| `evaluate_weibull_moment` | [343](../../../src/distributions.cpp#L343) |
+| `compute_from_products` | [353](../../../src/distributions.cpp#L353) |
+| `compute_from_log_moments` | [377](../../../src/distributions.cpp#L377) |
+| `check_selected_common_inputs` | [398](../../../src/distributions.cpp#L398) |
+| `finish_selected_orders` | [430](../../../src/distributions.cpp#L430) |
+| `zero_selected_moments` | [435](../../../src/distributions.cpp#L435) |
+| `selected_failure_from_moment` | [440](../../../src/distributions.cpp#L440) |
+| `NormalExpectationsResult::ok` | [452](../../../src/distributions.cpp#L452) |
+| `normal_expectations` | [458](../../../src/distributions.cpp#L458) |
+| `compute_normal_selected` | [502](../../../src/distributions.cpp#L502) |
+| `compute_log_normal_selected` | [540](../../../src/distributions.cpp#L540) |
+| `compute_beta_selected` | [569](../../../src/distributions.cpp#L569) |
+| `compute_gamma_selected` | [596](../../../src/distributions.cpp#L596) |
+| `compute_chi_selected` | [623](../../../src/distributions.cpp#L623) |
+| `compute_chi_squared_selected` | [650](../../../src/distributions.cpp#L650) |
+| `compute_weibull_selected` | [677](../../../src/distributions.cpp#L677) |
+| `compute_normal` | [704](../../../src/distributions.cpp#L704) |
+| `compute_log_normal` | [737](../../../src/distributions.cpp#L737) |
+| `compute_beta` | [750](../../../src/distributions.cpp#L750) |
+| `compute_gamma` | [761](../../../src/distributions.cpp#L761) |
+| `compute_chi` | [772](../../../src/distributions.cpp#L772) |
+| `compute_chi_squared` | [808](../../../src/distributions.cpp#L808) |
+| `compute_weibull` | [820](../../../src/distributions.cpp#L820) |
+| `RawMomentVisitor::operator()` | [837](../../../src/distributions.cpp#L837), [842](../../../src/distributions.cpp#L842), [847](../../../src/distributions.cpp#L847), [852](../../../src/distributions.cpp#L852), [857](../../../src/distributions.cpp#L857), [862](../../../src/distributions.cpp#L862), [867](../../../src/distributions.cpp#L867) |
+| `SelectedRawMomentVisitor::operator()` | [880](../../../src/distributions.cpp#L880), [885](../../../src/distributions.cpp#L885), [890](../../../src/distributions.cpp#L890), [895](../../../src/distributions.cpp#L895), [900](../../../src/distributions.cpp#L900), [905](../../../src/distributions.cpp#L905), [910](../../../src/distributions.cpp#L910) |
+| `add_compensated` | [916](../../../src/distributions.cpp#L916) |
+| `add_selected_compensated` | [947](../../../src/distributions.cpp#L947) |
+| `contains_order` | [981](../../../src/distributions.cpp#L981) |
+| `order_position` | [993](../../../src/distributions.cpp#L993) |
+| `compute_independent_product_marginal_moments` | [1005](../../../src/distributions.cpp#L1005), [1015](../../../src/distributions.cpp#L1015) |
+| `first_requested_index_with_order` | [1025](../../../src/distributions.cpp#L1025) |
+| `make_selected_raw_moment_result` | [1039](../../../src/distributions.cpp#L1039) |
+| `compute_raw_moments` | [1083](../../../src/distributions.cpp#L1083), [1099](../../../src/distributions.cpp#L1099), [1109](../../../src/distributions.cpp#L1109), [1179](../../../src/distributions.cpp#L1179), [1260](../../../src/distributions.cpp#L1260), [1363](../../../src/distributions.cpp#L1363) |
 
 ### `src/internal/bjorck_pereyra.cpp`
 

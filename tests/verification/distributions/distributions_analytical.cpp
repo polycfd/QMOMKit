@@ -35,15 +35,23 @@
 //   itself carries the error of the standard library's tgamma rather than being
 //   exact in floating point.
 //
-//   The chi, chi-squared, large-parameter gamma and beta cases, and the
-//   selected-order cases, compare purely relatively, since their moments span
-//   from below 1e-4 to above 1e15. Their references are products of a few
-//   rational factors and so are accurate to a few rounding errors. The library
-//   evaluates these families as differences of log-gamma values, which loses
-//   about epsilon * |ln Gamma| of relative accuracy: measured errors stay below
-//   3e-15 for chi and chi-squared and below 4e-14 for gamma and beta with
-//   parameters up to fifty. The tolerances, 1e-13 and 1e-12, leave a margin of
-//   about thirty over those errors.
+//   The chi, chi-squared, gamma and beta cases with closed-form products, and
+//   the selected-order cases, compare purely relatively, since their moments
+//   span from below 1e-4 to above 1e15. The library forms these moments as
+//   products of one simple factor per order, so they are accurate to a few
+//   rounding errors whatever the parameters. Against the closed-form products,
+//   themselves accurate to a few rounding errors, measured errors stay below
+//   5e-16; the tolerance of 4e-15 leaves a margin of about eight.
+//
+//   For parameters up to 1e8 the references are the same products multiplied
+//   out in error-free double-double arithmetic, accurate to about 1e-30, and a
+//   moment of order k must lie within 4 (k + 1) epsilon; measured errors stay
+//   below 2.2 epsilon. Odd chi moments are compared with values of E[X]
+//   computed with mpmath at 40 digits, as recorded with that case.
+//
+//   Narrow gamma distributions must also invert: their moments are inverted
+//   with Wheeler's algorithm and must be reproduced by the result to 1e-13,
+//   where measured errors stay below 2e-15.
 //
 // Reproduce
 //   ctest -R verification_distributions
@@ -55,6 +63,7 @@
 #include "qmomkit/configuration.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/moment_reconstruction.hpp"
+#include "qmomkit/wheeler.hpp"
 #include "test_case_dispatch.hpp"
 
 #include <algorithm>
@@ -218,6 +227,47 @@ double chi_squared_raw_moment(const double degrees_of_freedom, const std::size_t
         value *= degrees_of_freedom + 2.0 * static_cast<double>(j);
     }
     return value;
+}
+
+// A product kept as the unevaluated sum hi + lo of two doubles. Each factor is
+// multiplied in error-free arithmetic, since the exact product of two doubles
+// is p + fma(hi, x, -p), so a product of a few dozen factors stays accurate to
+// about 1e-30, far below the rounding of a double result.
+struct ExactProduct
+{
+    double hi = 1.0;
+    double lo = 0.0;
+
+    void multiply(const double factor)
+    {
+        const double product = hi * factor;
+        const double error = std::fma(hi, factor, -product);
+        const double low = lo * factor + error;
+        hi = product + low;
+        lo = low - (hi - product);
+    }
+
+    [[nodiscard]] double value() const
+    {
+        return hi + lo;
+    }
+};
+
+// numerator / denominator for two exact products, with one correction step.
+double exact_quotient(const ExactProduct& numerator, const ExactProduct& denominator)
+{
+    const double quotient = numerator.hi / denominator.hi;
+    const double product = quotient * denominator.hi;
+    const double product_error = std::fma(quotient, denominator.hi, -product);
+    const double remainder = ((numerator.hi - product) - product_error) + numerator.lo - quotient * denominator.lo;
+    return quotient + remainder / denominator.hi;
+}
+
+// The library forms a moment of order k as a product of k simple factors, each
+// adding a few rounding errors.
+double product_tolerance(const std::size_t order)
+{
+    return 4.0 * static_cast<double>(order + 1) * std::numeric_limits<double>::epsilon();
 }
 
 // Pure relative comparison, for moments that span many decades and fall below
@@ -385,7 +435,7 @@ void verify_chi_squared_closed_form()
     {
         assert_moments_relative(
             qmomkit::ChiSquaredDistribution{degrees_of_freedom}, 1.7, 10,
-            [degrees_of_freedom](const std::size_t order) { return chi_squared_raw_moment(degrees_of_freedom, order); }, 1.0e-13);
+            [degrees_of_freedom](const std::size_t order) { return chi_squared_raw_moment(degrees_of_freedom, order); }, 4.0e-15);
     }
 }
 
@@ -397,7 +447,7 @@ void verify_chi_closed_form()
     {
         assert_moments_relative(
             qmomkit::ChiDistribution{static_cast<double>(degrees_of_freedom)}, 2.25, 10,
-            [degrees_of_freedom](const std::size_t order) { return chi_raw_moment(degrees_of_freedom, order); }, 1.0e-13);
+            [degrees_of_freedom](const std::size_t order) { return chi_raw_moment(degrees_of_freedom, order); }, 4.0e-15);
     }
 }
 
@@ -407,7 +457,7 @@ void verify_gamma_large_shape()
     {
         assert_moments_relative(
             qmomkit::GammaDistribution{shape, 0.5}, 3.0, 10, [shape](const std::size_t order) { return gamma_raw_moment(shape, 0.5, order); },
-            1.0e-12);
+            4.0e-15);
     }
 }
 
@@ -417,20 +467,159 @@ void verify_beta_large_parameters()
     {
         assert_moments_relative(
             qmomkit::BetaDistribution{parameters.first, parameters.second}, 0.8, 10,
-            [parameters](const std::size_t order) { return beta_raw_moment(parameters.first, parameters.second, order); }, 1.0e-12);
+            [parameters](const std::size_t order) { return beta_raw_moment(parameters.first, parameters.second, order); }, 4.0e-15);
     }
 }
 
 void verify_selected_orders_closed_form()
 {
     assert_selected_moments_relative(
-        qmomkit::ChiSquaredDistribution{5.0}, 1.7, [](const std::size_t order) { return chi_squared_raw_moment(5.0, order); }, 1.0e-13);
-    assert_selected_moments_relative(qmomkit::ChiDistribution{4.0}, 2.25, [](const std::size_t order) { return chi_raw_moment(4, order); }, 1.0e-13);
-    assert_selected_moments_relative(qmomkit::ChiDistribution{5.0}, 2.25, [](const std::size_t order) { return chi_raw_moment(5, order); }, 1.0e-13);
+        qmomkit::ChiSquaredDistribution{5.0}, 1.7, [](const std::size_t order) { return chi_squared_raw_moment(5.0, order); }, 4.0e-15);
+    assert_selected_moments_relative(qmomkit::ChiDistribution{4.0}, 2.25, [](const std::size_t order) { return chi_raw_moment(4, order); }, 4.0e-15);
+    assert_selected_moments_relative(qmomkit::ChiDistribution{5.0}, 2.25, [](const std::size_t order) { return chi_raw_moment(5, order); }, 4.0e-15);
     assert_selected_moments_relative(
-        qmomkit::GammaDistribution{25.5, 0.5}, 3.0, [](const std::size_t order) { return gamma_raw_moment(25.5, 0.5, order); }, 1.0e-12);
+        qmomkit::GammaDistribution{25.5, 0.5}, 3.0, [](const std::size_t order) { return gamma_raw_moment(25.5, 0.5, order); }, 4.0e-15);
     assert_selected_moments_relative(
-        qmomkit::BetaDistribution{20.0, 30.0}, 0.8, [](const std::size_t order) { return beta_raw_moment(20.0, 30.0, order); }, 1.0e-12);
+        qmomkit::BetaDistribution{20.0, 30.0}, 0.8, [](const std::size_t order) { return beta_raw_moment(20.0, 30.0, order); }, 4.0e-15);
+}
+
+// Large parameters, where differences of log-gamma values would lose most of
+// their digits. The references are the moments of exactly the double
+// parameters the library receives, multiplied out in error-free arithmetic.
+void verify_large_parameter_moments_against_exact_products()
+{
+    constexpr double total_weight = 2.5;
+    for (const double shape : {1.0e3, 1.0e5, 1.0e8})
+    {
+        const double scale = 1.0 / shape;
+        const qmomkit::RawMomentResult result = qmomkit::compute_raw_moments(qmomkit::GammaDistribution{shape, scale}, 10, total_weight);
+        QMOMKIT_VERIFY_CHECK(result.ok());
+        ExactProduct reference;
+        reference.multiply(total_weight);
+        for (std::size_t order = 1; order <= 10; ++order)
+        {
+            reference.multiply(shape + static_cast<double>(order - 1));
+            reference.multiply(scale);
+            assert_relative(result.moments[order], reference.value(), product_tolerance(order));
+        }
+    }
+
+    for (const double degrees_of_freedom : {1.0e4, 1.0e6})
+    {
+        const qmomkit::RawMomentResult result = qmomkit::compute_raw_moments(qmomkit::ChiSquaredDistribution{degrees_of_freedom}, 10, total_weight);
+        QMOMKIT_VERIFY_CHECK(result.ok());
+        ExactProduct reference;
+        reference.multiply(total_weight);
+        for (std::size_t order = 1; order <= 10; ++order)
+        {
+            reference.multiply(degrees_of_freedom + 2.0 * static_cast<double>(order - 1));
+            assert_relative(result.moments[order], reference.value(), product_tolerance(order));
+        }
+    }
+
+    for (const std::pair<double, double>& parameters : {std::pair<double, double>{3.0e3, 7.0e3}, {3.0e5, 7.0e5}})
+    {
+        const qmomkit::RawMomentResult result =
+            qmomkit::compute_raw_moments(qmomkit::BetaDistribution{parameters.first, parameters.second}, 10, total_weight);
+        QMOMKIT_VERIFY_CHECK(result.ok());
+        ExactProduct numerator;
+        numerator.multiply(total_weight);
+        ExactProduct denominator;
+        for (std::size_t order = 1; order <= 10; ++order)
+        {
+            numerator.multiply(parameters.first + static_cast<double>(order - 1));
+            denominator.multiply(parameters.first + parameters.second + static_cast<double>(order - 1));
+            assert_relative(result.moments[order], exact_quotient(numerator, denominator), product_tolerance(order));
+        }
+    }
+
+    // Even chi moments: E[X^(2j)] = prod over i < j of (nu + 2i).
+    for (const double degrees_of_freedom : {1.0e4, 1000001.0})
+    {
+        const qmomkit::RawMomentResult result = qmomkit::compute_raw_moments(qmomkit::ChiDistribution{degrees_of_freedom}, 10, total_weight);
+        QMOMKIT_VERIFY_CHECK(result.ok());
+        ExactProduct reference;
+        reference.multiply(total_weight);
+        for (std::size_t order = 2; order <= 10; order += 2)
+        {
+            reference.multiply(degrees_of_freedom + static_cast<double>(order - 2));
+            assert_relative(result.moments[order], reference.value(), product_tolerance(order));
+        }
+    }
+}
+
+// Odd chi moments need E[X] = sqrt(2) Gamma((nu + 1)/2) / Gamma(nu/2), which
+// has no finite product form for general nu. The reference values are the
+// doubles nearest to it, computed with mpmath at 40 digits:
+//   python3 -c "from mpmath import mp, mpf, gamma, sqrt; mp.dps = 40;
+//               nu = mpf('3.3'); print(repr(float(sqrt(2) * gamma((nu + 1) / 2) / gamma(nu / 2))))"
+// The higher odd orders follow exactly from E[X^k] = E[X^(k-2)] (nu + k - 2).
+void verify_chi_odd_orders_against_high_precision_values()
+{
+    const std::vector<std::pair<double, double>> first_moments{{0.7, 0.6179099646614185},
+                                                               {3.3, 1.6858334189146345},
+                                                               {19.5, 4.359652366400788},
+                                                               {1234.5, 35.12833758230752},
+                                                               {1000001.0, 1000.0002500000312}};
+    const std::vector<std::size_t> selected_orders{9, 1, 5};
+    for (const auto& [degrees_of_freedom, first_moment] : first_moments)
+    {
+        const qmomkit::ChiDistribution distribution{degrees_of_freedom};
+        const qmomkit::RawMomentResult result = qmomkit::compute_raw_moments(distribution, 9);
+        QMOMKIT_VERIFY_CHECK(result.ok());
+        std::vector<double> references(10, 0.0);
+        ExactProduct reference;
+        reference.multiply(first_moment);
+        for (std::size_t order = 1; order <= 9; order += 2)
+        {
+            if (order >= 3)
+            {
+                reference.multiply(degrees_of_freedom + static_cast<double>(order - 2));
+            }
+            references[order] = reference.value();
+            assert_relative(result.moments[order], references[order], product_tolerance(order));
+        }
+
+        qmomkit::RawMomentRequest request;
+        for (const std::size_t order : selected_orders)
+        {
+            request.indices.push_back(qmomkit::MultiIndex{order});
+        }
+        const qmomkit::SelectedRawMomentResult selected = qmomkit::compute_raw_moments(distribution, request);
+        QMOMKIT_VERIFY_CHECK(selected.ok());
+        for (std::size_t index = 0; index < selected_orders.size(); ++index)
+        {
+            assert_relative(selected.values[index], references[selected_orders[index]], product_tolerance(selected_orders[index]));
+        }
+    }
+}
+
+// The narrower a distribution, the more digits of its raw moments the
+// inversion needs. With moments accurate to a few units in the last place, a
+// gamma distribution of shape up to 1e7 inverts at two and three nodes, and of
+// shape 1e4 at four. Four nodes at shapes from 1e5 on already fail for a tenth
+// to a half of all moment sets perturbed by one unit in the last place, so
+// they lie beyond what double precision resolves reliably.
+void verify_narrow_gamma_moments_invert()
+{
+    const std::vector<std::pair<double, std::size_t>> cases{{1.0e5, 2}, {1.0e5, 3}, {1.0e6, 2}, {1.0e6, 3}, {1.0e7, 2}, {1.0e7, 3}, {1.0e4, 4}};
+    for (const auto& [shape, node_count] : cases)
+    {
+        const qmomkit::RawMomentResult moments = qmomkit::compute_raw_moments(qmomkit::GammaDistribution{shape, 1.0 / shape}, 2 * node_count - 1);
+        QMOMKIT_VERIFY_CHECK(moments.ok());
+        const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments.moments, node_count);
+        QMOMKIT_VERIFY_CHECK(quadrature.ok());
+        QMOMKIT_VERIFY_CHECK(quadrature.weights.size() == node_count);
+        for (std::size_t order = 0; order < moments.moments.size(); ++order)
+        {
+            double reconstructed = 0.0;
+            for (std::size_t node = 0; node < node_count; ++node)
+            {
+                reconstructed += quadrature.weights[node] * std::pow(quadrature.abscissas[node], static_cast<double>(order));
+            }
+            assert_relative(reconstructed, moments.moments[order], 1.0e-13);
+        }
+    }
 }
 
 void verify_weibull()
@@ -1166,6 +1355,9 @@ int main(const int argc, char** argv)
             {"gamma_large_shape", verify_gamma_large_shape},
             {"beta_large_parameters", verify_beta_large_parameters},
             {"selected_orders_closed_form", verify_selected_orders_closed_form},
+            {"large_parameter_moments_against_exact_products", verify_large_parameter_moments_against_exact_products},
+            {"chi_odd_orders_against_high_precision_values", verify_chi_odd_orders_against_high_precision_values},
+            {"narrow_gamma_moments_invert", verify_narrow_gamma_moments_invert},
             {"weibull", verify_weibull},
             {"maximum_order_zero_and_invalid_parameters", verify_maximum_order_zero_and_invalid_parameters},
             {"configuration_distribution_initialization", verify_configuration_distribution_initialization},

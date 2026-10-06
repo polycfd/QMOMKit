@@ -361,6 +361,28 @@ void test_selected_overflow_reports_the_failed_order()
     }
 }
 
+// A moment overflows exactly when it exceeds the largest double and underflows
+// exactly when it rounds to zero; a subnormal moment is returned as it is. For
+// gamma(1, theta) the first moment is total_weight * theta, which the product
+// forms with a single rounding.
+void test_product_moments_use_the_whole_double_range()
+{
+    const double half_maximum = std::numeric_limits<double>::max() / 2.0;
+    const qmomkit::RawMomentResult near_maximum = qmomkit::compute_raw_moments(qmomkit::GammaDistribution{1.0, half_maximum}, 1, 1.9);
+    assert(near_maximum.ok());
+    assert(near_maximum.moments[1] == 1.9 * half_maximum);
+    const qmomkit::RawMomentResult above_maximum = qmomkit::compute_raw_moments(qmomkit::GammaDistribution{1.0, half_maximum}, 1, 2.1);
+    assert(above_maximum.status == qmomkit::RawMomentStatus::overflow);
+    assert(above_maximum.failed_order == 1);
+
+    const qmomkit::RawMomentResult subnormal = qmomkit::compute_raw_moments(qmomkit::GammaDistribution{1.0, 1.0e-300}, 1, 1.0e-10);
+    assert(subnormal.ok());
+    assert(subnormal.moments[1] > 0.0 && subnormal.moments[1] < std::numeric_limits<double>::min());
+    const qmomkit::RawMomentResult below_minimum = qmomkit::compute_raw_moments(qmomkit::GammaDistribution{1.0, 1.0e-300}, 1, 1.0e-30);
+    assert(below_minimum.status == qmomkit::RawMomentStatus::underflow);
+    assert(below_minimum.failed_order == 1);
+}
+
 void test_underflow_status()
 {
     const qmomkit::RawMomentResult log_normal = qmomkit::compute_raw_moments(qmomkit::LogNormalDistribution{-1000.0, 0.1}, 1);
@@ -1093,6 +1115,7 @@ int main(const int argc, char** argv)
             {"invalid_distribution_parameters", test_invalid_distribution_parameters},
             {"overflow_status", test_overflow_status},
             {"selected_overflow_reports_the_failed_order", test_selected_overflow_reports_the_failed_order},
+            {"product_moments_use_the_whole_double_range", test_product_moments_use_the_whole_double_range},
             {"overflowing_variance_fails_only_the_orders_that_use_it", test_overflowing_variance_fails_only_the_orders_that_use_it},
             {"normal_moments_that_underflow_are_reported", test_normal_moments_that_underflow_are_reported},
             {"underflow_status", test_underflow_status},

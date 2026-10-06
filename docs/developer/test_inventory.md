@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 658 |
+| Unit logical tests | 661 |
 | Component/regression logical tests | 47 |
-| Verification logical tests | 183 |
-| **Runtime logical tests** | **888** |
+| Verification logical tests | 185 |
+| **Runtime logical tests** | **893** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **889** |
+| **Total CTest registrations** | **894** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -149,6 +149,8 @@ renamed test rather than a deleted one.
 | `verification_wheeler_analytical_five_node_reference` | `tests/verification/qmom/wheeler_analytical.cpp` | `five_node_reference` | Verifies that Wheeler inversion recovers five chosen points and weights from their first ten moments. | — |
 | `verification_wheeler_analytical_six_node_reference` | `tests/verification/qmom/wheeler_analytical.cpp` | `six_node_reference` | Verifies that Wheeler inversion recovers six chosen points and weights, on a wide and on a narrow spacing. | — |
 | `verification_wheeler_analytical_eight_node_reference_at_two_number_densities` | `tests/verification/qmom/wheeler_analytical.cpp` | `eight_node_reference_at_two_number_densities` | Verifies that Wheeler inversion recovers eight chosen points at total weights 1 and 2500, with unchanged positions and proportional weights. | — |
+| `verification_wheeler_analytical_points_at_any_scale_are_recovered` | `tests/verification/qmom/wheeler_analytical.cpp` | `points_at_any_scale_are_recovered` | Verifies that three chosen points multiplied by any power of ten from 1e-20 to 1e20 are recovered with the same relative accuracy. | — |
+| `verification_wheeler_analytical_droplet_diameters_in_metres_are_recovered` | `tests/verification/qmom/wheeler_analytical.cpp` | `droplet_diameters_in_metres_are_recovered` | Verifies that four droplet diameters between 20 and 200 micrometres, given in metres, are recovered. | — |
 
 ### QMOM / adaptive Qmom
 
@@ -669,7 +671,10 @@ CTest check; it is not 23 runtime tests.
 | `unit_linear_algebra_diagonal_matrix_is_returned_sorted_and_exact` | `tests/unit/linear_algebra.cpp` | `diagonal_matrix_is_returned_sorted_and_exact` | Checks that a diagonal matrix yields its sorted diagonal and the matching unit eigenvectors exactly. | — |
 | `unit_linear_algebra_repeated_eigenvalue_gives_an_orthonormal_basis` | `tests/unit/linear_algebra.cpp` | `repeated_eigenvalue_gives_an_orthonormal_basis` | Checks the eigenvalues 1, 1, 4 of I + J and an orthonormal eigenvector basis for the repeated eigenvalue. | — |
 | `unit_linear_algebra_gauss_legendre_nodes_and_weights_match_the_closed_form` | `tests/unit/linear_algebra.cpp` | `gauss_legendre_nodes_and_weights_match_the_closed_form` | Checks Gauss-Legendre nodes and weights for two to five nodes from the Legendre Jacobi matrix against their closed forms. | — |
-| `unit_linear_algebra_gauss_legendre_rules_integrate_polynomials_exactly` | `tests/unit/linear_algebra.cpp` | `gauss_legendre_rules_integrate_polynomials_exactly` | Checks that Gauss-Legendre rules from the eigen solver integrate polynomials to degree 2n - 1 exactly, for up to sixteen nodes. | — |
+| `unit_linear_algebra_gauss_legendre_rules_integrate_polynomials_exactly` | `tests/unit/linear_algebra.cpp` | `gauss_legendre_rules_integrate_polynomials_exactly` | Checks that Gauss-Legendre rules from the eigen solver integrate polynomials to degree 2n - 1 exactly, and converge, for up to forty nodes. | — |
+| `unit_linear_algebra_power_of_two_scaling_gives_exactly_scaled_results` | `tests/unit/linear_algebra.cpp` | `power_of_two_scaling_gives_exactly_scaled_results` | Checks that a matrix scaled by 2^-600 to 2^600 gives exactly scaled eigenvalues and identical eigenvectors. | — |
+| `unit_linear_algebra_small_and_large_matrices_are_diagonalized_accurately` | `tests/unit/linear_algebra.cpp` | `small_and_large_matrices_are_diagonalized_accurately` | Checks the closed-form Gauss-Legendre nodes and weights from Jacobi matrices scaled by 1e-20 to 1e20. | — |
+| `unit_linear_algebra_exhausted_rotation_budget_is_reported` | `tests/unit/linear_algebra.cpp` | `exhausted_rotation_budget_is_reported` | Checks that an exhausted rotation budget is reported as unconverged and that the default budget converges. | — |
 
 ### Vandermonde solvers
 

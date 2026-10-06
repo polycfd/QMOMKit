@@ -95,7 +95,9 @@ Example README:
 
 Use this after the minimal workflow when the model needs both node motion and a
 raw-moment source. It is the readable normal example for library-managed Strang
-splitting: advection acts on nodes and binary fragmentation acts on moments.
+splitting: advection moves the nodes, and a binary fragmentation source whose
+rate grows with particle size is written over the nodes of each stage quadrature
+with `QmomSourceContext::for_each_node(...)`.
 
 Example README:
 [`examples/qmom_1d_breakage_advection/README.md`](../../examples/qmom_1d_breakage_advection/README.md)
@@ -130,7 +132,8 @@ representations.
 
 Use this to compare sampled initialization and normal QMOM evolution with a
 direct particle companion. It is the natural MC branch from
-`qmom_1d_breakage_advection`.
+`qmom_1d_breakage_advection`, with a constant fragmentation rate in place of the
+size-dependent one.
 
 Example README:
 [`examples/qmom_1d_breakage_advection_with-mc/README.md`](../../examples/qmom_1d_breakage_advection_with-mc/README.md)

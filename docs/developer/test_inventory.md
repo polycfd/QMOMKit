@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 664 |
+| Unit logical tests | 667 |
 | Component/regression logical tests | 47 |
-| Verification logical tests | 186 |
-| **Runtime logical tests** | **897** |
+| Verification logical tests | 187 |
+| **Runtime logical tests** | **901** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **898** |
+| **Total CTest registrations** | **902** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -418,6 +418,7 @@ renamed test rather than a deleted one.
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
 | `verification_qmom_phase_space_source_evolution_matches_manufactured_solution` | `tests/verification/phase_space_evolution/qmom_linear_advection_manufactured.cpp` | `phase_space_source` / `verify_phase_space_source_evolution` | Verifies native QMOM phase-space evolution against an independent noncommuting manufactured source/advection solution, including second-order Strang and first-order Lie convergence. | Fixed three-node QMOM; orders 0 through 5; T=0.1; dt={0.02, 0.01, 0.005, 0.0025}; linear velocity and constant positive source. |
+| `verification_qmom_node_source_matches_exact_translation` | `tests/verification/phase_space_evolution/qmom_linear_advection_manufactured.cpp` | `node_source` / `verify_node_source_translation` | Verifies that a growth source written only through the QMOM node visitor reproduces the exact translation of two weighted points. | Fixed two-node QMOM; orders 0 through 3; G=0.75; T=0.1 in ten source steps. |
 | `verification_qmom_advection_matches_exponential_phase_evolution` | `tests/verification/phase_space_evolution/qmom_linear_advection_manufactured.cpp` | `direct_advection` / `verify_direct_phase_space_advection` | Verifies public direct QMOM phase-space advection against `chi_alpha(t)=chi_alpha(0) exp(t)` and `M_k(t)=M_k(0) exp(k t)`, independently checking nodes, invariant weights, and reconstructed raw moments. | Fixed three-node quadrature; orders 0 through 10; T=0.1; fixed-step SSP-RK3 with dt=2.5e-4; fixed QMOM without automatic scaling or bounds. |
 | `verification_phase_space_evolution_commuting_qmom` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | `commuting_qmom` (configuration: `commuting_qmom.qmom`) | Verifies the documented phase-space evolution result for the commuting QMOM case against its analytical or manufactured reference. | Configuration case `commuting_qmom.qmom` |
 | `verification_phase_space_evolution_qmom_boundary_contribution` | `tests/verification/phase_space_evolution/phase_space_evolution_analytical.cpp` | `qmom_boundary_contribution` (configuration: `commuting_qmom.qmom`) | Verifies the documented phase-space evolution result for the QMOM boundary contribution case against its analytical or manufactured reference. | Configuration case `commuting_qmom.qmom` |
@@ -1023,6 +1024,8 @@ CTest check; it is not 23 runtime tests.
 | `unit_moment_source_cqmom_source_context_validates_indices_and_values` | `tests/unit/moment_source.cpp` | `cqmom_source_context_validates_indices_and_values` | Verifies CQMOM source context validates indices and values. | — |
 | `unit_moment_source_cqmom_source_context_terminal_nodes_require_reconstruction_metadata` | `tests/unit/moment_source.cpp` | `cqmom_source_context_terminal_nodes_require_reconstruction_metadata` | Verifies CQMOM source context terminal nodes require reconstruction metadata. | — |
 | `unit_moment_source_cqmom_source_context_generalized_moments_require_reconstruction_metadata` | `tests/unit/moment_source.cpp` | `cqmom_source_context_generalized_moments_require_reconstruction_metadata` | Verifies CQMOM source context generalized moments require reconstruction metadata. | — |
+| `unit_moment_source_qmom_source_context_nodes_require_reconstruction_metadata` | `tests/unit/moment_source.cpp` | `qmom_source_context_nodes_require_reconstruction_metadata` | Checks that a QMOM source context without reconstruction metadata rejects node visits. | — |
+| `unit_moment_source_qmom_source_context_node_visitor_requires_callback` | `tests/unit/moment_source.cpp` | `qmom_source_context_node_visitor_requires_callback` | Checks that the QMOM node visitor rejects an empty callback. | — |
 | `unit_moment_source_cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial` | `tests/unit/moment_source.cpp` | `cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial` | Checks that moment data linear source matches SSP-RK3 polynomial in moment-source integration. | — |
 | `unit_moment_source_cqmom_moment_data_rate_size_mismatch_fails` | `tests/unit/moment_source.cpp` | `cqmom_moment_data_rate_size_mismatch_fails` | Verifies CQMOM moment data rate size mismatch fails. | — |
 | `unit_moment_source_cqmom_moment_data_non_finite_source_fails` | `tests/unit/moment_source.cpp` | `cqmom_moment_data_non_finite_source_fails` | Checks that moment-source integration detects the tested non-finite value and returns the documented failure. | — |
@@ -1147,6 +1150,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_qmom_boundary_context_matches_source_context` | `tests/unit/phase_space_evolution.cpp` | `qmom_boundary_context_matches_source_context` | Checks that the QMOM boundary callback receives the same source context as the source callback, including derived generalized moments. | — |
 | `unit_phase_space_evolution_qmom_source_context_generalized_moment_semantics` | `tests/unit/phase_space_evolution.cpp` | `qmom_source_context_generalized_moment_semantics` | Verifies QMOM source-context generalized-moment semantics and validation. | — |
 | `unit_phase_space_evolution_qmom_source_context_generalized_moment_uses_current_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `qmom_source_context_generalized_moment_uses_current_rk_stage` | Verifies QMOM source-context generalized moments use the current RK stage quadrature. | — |
+| `unit_phase_space_evolution_qmom_source_context_visits_nodes_from_each_rk_stage` | `tests/unit/phase_space_evolution.cpp` | `qmom_source_context_visits_nodes_from_each_rk_stage` | Checks that the QMOM node visitor sees each SSP-RK3 stage quadrature, matches the generalized moments, and shares one reconstruction per stage. | — |
 | `unit_phase_space_evolution_cqmom_source_context_generalized_moments_use_stage_quadrature` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_generalized_moments_use_stage_quadrature` | Verifies CQMOM source context generalized moments use stage quadrature. | — |
 | `unit_phase_space_evolution_cqmom_source_context_generalized_moment_validation` | `tests/unit/phase_space_evolution.cpp` | `cqmom_source_context_generalized_moment_validation` | Verifies CQMOM source context generalized moment validation. | — |
 | `unit_phase_space_evolution_state_cqmom_phase_space_evolution_preserves_vandermonde_solver_policy` | `tests/unit/phase_space_evolution.cpp` | `state_cqmom_phase_space_evolution_preserves_vandermonde_solver_policy` | Checks that state CQMOM phase-space evolution preserves vandermonde solver policy in phase-space evolution. | — |

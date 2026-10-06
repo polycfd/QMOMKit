@@ -98,6 +98,13 @@ integer, zero-order, fractional-power, negative-abscissa domain, and overflow
 semantics of the public quadrature evaluator. Generic source-only contexts
 without reconstruction metadata reject the request.
 
+`QmomSourceContext::for_each_node` rejects an empty callback, then passes each
+weight and abscissa of that same cached current-stage quadrature to the
+visitor, in quadrature order. Contexts without reconstruction metadata reject it
+with the `std::out_of_range` that `generalized_moment` also throws. The weights
+are the quadrature's absolute weights, so they carry the total number density,
+and an adaptive reconstruction passes only its active nodes.
+
 `CqmomSourceContext::moment` similarly uses exact required-index lookup first.
 `reconstructed_stage_quadrature` constructs a stage `CqmomCase`, reuses
 appropriate fixed metadata/active counts, and allows the internal adaptive
@@ -125,12 +132,15 @@ tests](../../../tests/unit/phase_space_evolution.cpp) include
 `test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature`,
 `test_qmom_source_context_generalized_moment_semantics`,
 `test_qmom_source_context_generalized_moment_uses_current_rk_stage`,
+`test_qmom_source_context_visits_nodes_from_each_rk_stage`,
 `test_cqmom_source_context_reconstructs_untracked_moments_from_each_rk_stage`,
 and `test_cqmom_source_context_generalized_moments_use_stage_quadrature`.
 [Source unit tests](../../../tests/unit/moment_source.cpp) exercise standalone
-metadata absence and indexed access. These distinguish stage-local closure from
-reusing the pre-step quadrature; they do not measure closure error for
-arbitrary physical kernels.
+metadata absence, a missing node-visitor callback, and indexed access.
+`verification_qmom_node_source_matches_exact_translation` checks a growth
+source written only through the node visitor against the exact translation of
+the moments. These distinguish stage-local closure from reusing the pre-step
+quadrature; they do not measure closure error for arbitrary physical kernels.
 
 ## Adding boundary contributions — Level A/B
 

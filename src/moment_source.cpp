@@ -631,11 +631,25 @@ double QmomSourceContext::generalized_moment(const double order) const
     return evaluate_generalized_moment(reconstructed_stage_quadrature(), order);
 }
 
+void QmomSourceContext::for_each_node(const std::function<void(double, double)>& callback) const
+{
+    if (!callback)
+    {
+        throw std::invalid_argument("QMOM node visitor callback must be provided.");
+    }
+
+    const QmomResult& quadrature = reconstructed_stage_quadrature();
+    for (std::size_t node = 0; node < quadrature.weights.size(); ++node)
+    {
+        callback(quadrature.weights[node], quadrature.abscissas[node]);
+    }
+}
+
 const QmomResult& QmomSourceContext::reconstructed_stage_quadrature() const
 {
     if (reconstruction_options_ == nullptr)
     {
-        throw std::out_of_range("Requested QMOM source generalized moment is not available without reconstruction metadata.");
+        throw std::out_of_range("QMOM source-stage quadrature is unavailable for this context.");
     }
     if (!reconstructed_stage_quadrature_.has_value())
     {

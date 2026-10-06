@@ -38,7 +38,8 @@ optional branches, and prerequisites in more detail.
 - `qmom_1d_aerosol_evaporation/`: configuration-driven six-node, node-advection
   workflow without a moment source.
 - `qmom_1d_breakage_advection/`: normal library-managed QMOM evolution with
-  node advection, a fragmentation source, and configured Strang splitting.
+  node advection, a size-dependent fragmentation source written over the
+  quadrature nodes, and configured Strang splitting.
 - `qmom_1d_explicit_strang_splitting/`: advanced application-owned Strang
   staging through the public advection and moment-source stage APIs; use after
   the library-managed workflow.

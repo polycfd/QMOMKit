@@ -61,8 +61,9 @@ int main()
     const qmomkit::QmomResult initial_quadrature = state.quadrature();
 
     // The physics is supplied as two callbacks defined in physics.cpp: a velocity
-    // that moves the quadrature abscissas, and a source that changes the moments
-    // directly. QMOMKit composes them; it never interprets the coordinates.
+    // that moves the quadrature abscissas, and a source that returns moment rates,
+    // here summed over the nodes of the source-stage quadrature. QMOMKit composes
+    // them; it never interprets the coordinates.
     const qmomkit::PhaseSpaceVelocity velocity = qmom_1d_breakage_advection::advection_velocity();
     const qmomkit::QmomMomentSource source = qmom_1d_breakage_advection::binary_fragmentation_source();
     qmomkit::QmomPhaseSpaceEvolutionOptions phase_space_evolution_options = std::move(phase_space_evolution_configured).value();

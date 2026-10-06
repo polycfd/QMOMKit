@@ -475,6 +475,14 @@ moments come from three chosen nodes and weights, not from a configuration file.
   must fall at every refinement, and over the last two refinements the observed
   order must exceed `1.7` for Strang and lie between `0.7` and `1.3` for the
   two first-order orderings.
+- `verification_qmom_node_source_matches_exact_translation`: a source written
+  only through `QmomSourceContext::for_each_node` grows every node at the
+  constant rate `G = 0.75`, so `dM_k/dt = sum_i w_i k G x_i^(k-1)` and the
+  exact solution translates the two chosen nodes by `G t`. With two nodes and
+  `M_0` to `M_3`, each stage quadrature reproduces the moments the rate needs,
+  and SSP-RK3 integrates this nilpotent linear system exactly, so after ten
+  source steps the moments must agree to `1e-13` relative and the nodes and
+  weights to `1e-12`; the observed errors are below `1e-15`.
 
 ## Running
 
@@ -507,12 +515,13 @@ ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_phase_space
 ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_case_phase_space_evolution_failures$' --output-on-failure
 ctest --test-dir build -R '^verification_qmom_advection_matches_exponential_phase_evolution$' --output-on-failure
 ctest --test-dir build -R '^verification_qmom_phase_space_source_evolution_matches_manufactured_solution$' --output-on-failure
+ctest --test-dir build -R '^verification_qmom_node_source_matches_exact_translation$' --output-on-failure
 ```
 
 Run all phase-space evolution verification cases in this directory:
 
 ```bash
-ctest --test-dir build -R '^verification_(phase_space_evolution_|qmom_advection_matches|qmom_phase_space_source)' --output-on-failure
+ctest --test-dir build -R '^verification_(phase_space_evolution_|qmom_advection_matches|qmom_phase_space_source|qmom_node_source)' --output-on-failure
 ```
 
 The verifier is silent on success. On failure it writes a per-run error table

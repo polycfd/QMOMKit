@@ -6,7 +6,9 @@ This tutorial-style example is the Monte Carlo sampled-initialization companion
 to `examples/qmom_1d_breakage_advection/`.
 
 Both examples use the same configured bimodal distribution,
-$0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)$. This directory contains two workflows
+$0.5\,\mathcal{N}(1, 0.1^2) + 0.5\,\mathcal{N}(3, 0.2^2)$. This example uses a
+constant fragmentation rate, the special case $p = 0$ of the size-dependent rate
+in `examples/qmom_1d_breakage_advection/`. This directory contains two workflows
 that start from the same finite sampled ensemble. The Monte Carlo companion
 tool is used in both of its main roles here: as a sample realization tool and
 as a direct sampled-ensemble reference path.

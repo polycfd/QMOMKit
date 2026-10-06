@@ -11,7 +11,11 @@ namespace qmom_1d_breakage_advection
 namespace
 {
 
-constexpr double fragmentation_rate = 0.5;
+// Fragmentation rate a(d) = a_ref * (d / d_ref)^p: larger particles break
+// more often.
+constexpr double reference_fragmentation_rate = 0.5;
+constexpr double reference_diameter = 1.0;
+constexpr double rate_exponent = 1.5;
 
 } // namespace
 
@@ -37,12 +41,21 @@ qmomkit::QmomMomentSource binary_fragmentation_source()
     return [](double, const qmomkit::QmomSourceContext& context)
     {
         std::vector<double> source(context.size(), 0.0);
-        for (std::size_t order = 0; order < context.size(); ++order)
-        {
-            // Binary fragmentation d -> d/2 gives dM_k/dt = lambda * (2^(1-k) - 1) * M_k.
-            const double daughter_factor = std::pow(2.0, 1.0 - static_cast<double>(order));
-            source[order] = fragmentation_rate * (daughter_factor - 1.0) * context.value(order);
-        }
+        // Binary fragmentation d -> d/2 at the rate a(d) replaces one particle
+        // of diameter d by two of diameter d/2, so a node of weight w adds
+        // a(d) * w * (2^(1-k) - 1) * d^k to dM_k/dt. The exact rate involves
+        // the moment of order k + p, which is not transported; summing over
+        // the nodes of the current stage quadrature closes it.
+        context.for_each_node(
+            [&source](const double weight, const double diameter)
+            {
+                const double rate = reference_fragmentation_rate * std::pow(diameter / reference_diameter, rate_exponent);
+                for (std::size_t order = 0; order < source.size(); ++order)
+                {
+                    const double daughter_factor = std::pow(2.0, 1.0 - static_cast<double>(order));
+                    source[order] += rate * weight * (daughter_factor - 1.0) * std::pow(diameter, static_cast<double>(order));
+                }
+            });
         return qmomkit::QmomMomentRate{std::move(source)};
     };
 }

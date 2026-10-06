@@ -324,10 +324,40 @@ the current Runge-Kutta stage rather than the accepted state. Use:
 - `context.generalized_moment(order)` for a real, non-negative order, evaluated
   from that same quadrature. It obeys the same rules as
   `evaluate_generalized_moment(...)`, and it is a query only: asking for it does
-  not add that order to the moments you evolve.
+  not add that order to the moments you evolve;
+- `context.for_each_node(...)` to visit the weight and abscissa of each node of
+  that same quadrature, when a rate is easier to write over nodes than over
+  moments. The weights carry the total number density, and an adaptive
+  reconstruction may have fewer nodes than configured.
 
-Requests for an order you do not transport need a quadrature, so they work only
-when you evolve a `QmomState`. The generic vector-based
+The quadrature is built at most once per stage, however many of these requests
+a callback makes. A node visitor suits rates that depend on the abscissa in a
+way the transported moments cannot express, such as size-dependent growth. With
+a growth rate $G(x) = 0.1\sqrt{x}$, each node contributes
+$w_i\,k\,x_i^{k-1} G(x_i)$ to $\mathrm{d}M_k/\mathrm{d}t$:
+
+```cpp
+const qmomkit::QmomMomentSource growth =
+    [](double, const qmomkit::QmomSourceContext& context)
+{
+    qmomkit::QmomMomentRate rate{std::vector<double>(context.size(), 0.0)};
+    context.for_each_node(
+        [&rate](double weight, double abscissa)
+        {
+            const double growth_rate = 0.1 * std::sqrt(abscissa);
+            double power = 1.0; // abscissa^(order - 1)
+            for (std::size_t order = 1; order < rate.values.size(); ++order)
+            {
+                rate.values[order] += weight * static_cast<double>(order) * power * growth_rate;
+                power *= abscissa;
+            }
+        });
+    return rate;
+};
+```
+
+Requests for an order you do not transport, and node visits, need a quadrature,
+so they work only when you evolve a `QmomState`. The generic vector-based
 `advance_qmom_moments_with_source(...)` shown below has no reconstruction settings to
 work from and rejects them.
 

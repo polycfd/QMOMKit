@@ -52,6 +52,16 @@ public:
      * present; generic source-only contexts reject the request.
      */
     [[nodiscard]] double generalized_moment(double order) const;
+    /**
+     * Visit the nodes of the current source-stage quadrature. The callback
+     * receives one weight and one abscissa per node, in the order of that
+     * quadrature; an adaptive reconstruction may have fewer nodes than
+     * configured. The quadrature is reconstructed at most once per stage and
+     * shared with `generalized_moment(...)` and untracked `moment(...)`
+     * requests. As for those, contexts without source-stage reconstruction
+     * metadata reject this operation.
+     */
+    void for_each_node(const std::function<void(double weight, double abscissa)>& callback) const;
 
 private:
     friend class internal::QmomSourceContextAccess;

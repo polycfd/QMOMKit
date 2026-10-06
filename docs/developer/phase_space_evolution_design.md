@@ -213,9 +213,11 @@ populated from an accepted quadrature from another stage. Generic source-only
 operations without QMOM reconstruction metadata reject untracked requests.
 `context.generalized_moment(order)` evaluates a finite, non-negative scalar
 order from that same context-local stage quadrature through the shared
-generalized-moment evaluator. QMOMKit validates the source result through the
-generic ODE solver path, but it does not know what individual moment components
-mean.
+generalized-moment evaluator, and `context.for_each_node(...)` visits the weight
+and abscissa of each of its nodes for quadrature-level source closures. Both
+share the one reconstruction of the stage. QMOMKit validates the source result
+through the generic ODE solver path, but it does not know what individual moment
+components mean.
 
 Phase-space boundary exchange uses a separate public concept:
 

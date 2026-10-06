@@ -8,6 +8,8 @@
 //   phase_space_source - that combining advection with a source term converges
 //     to the exact solution as the time step shrinks, at the order each
 //     splitting scheme is supposed to achieve.
+//   node_source - that a source written only through the node visitor of the
+//     source context reproduces the exact solution it describes.
 //
 // How the reference is constructed
 //   The velocity is chosen as u(x) = x, which is the case that can be solved
@@ -29,6 +31,13 @@
 //   chosen positions and weights, so the initial state is exact as well and
 //   nothing here is taken from a previous QMOMKit run.
 //
+//   The node source grows every node at the constant rate G, so
+//   dM_k/dt = sum_i w_i k G x_i^(k-1) = k G M_(k-1), and the exact moments are
+//   those of the two chosen positions translated by G t. With two nodes and
+//   M_0 to M_3, each stage quadrature reproduces M_0 to M_3, so the visited
+//   rate is exactly k G M_(k-1), and SSP-RK3 integrates this nilpotent linear
+//   system exactly: every step is exact up to roundoff.
+//
 // Error metric
 //   Maximum moment error relative to max(|expected|, 1). The observed order of
 //   convergence is the base-2 logarithm of the ratio of errors between
@@ -44,9 +53,13 @@
 //     order for a single advection-then-source or source-then-advection pass.
 //     They are stated as ranges because an observed order measured from two
 //     finite steps is itself only approximate.
+//   node_source - after ten steps, moments within 1.0e-13 relative and
+//     positions and weights within 1.0e-12 of the translated points. The
+//     step is exact, so these bounds only leave room for roundoff, observed
+//     below 1.0e-15.
 //
 // Reproduce
-//   ctest -R "^verification_qmom_(advection_matches|phase_space_source)"
+//   ctest -R "^verification_qmom_(advection_matches|phase_space_source|node_source)"
 //
 // Build modes
 //   Both. The checks use QMOMKIT_VERIFY_CHECK, which reports and exits rather
@@ -224,6 +237,60 @@ void verify_phase_space_source_evolution()
     }
 }
 
+// A constant growth rate written through the node visitor: every node moves at
+// dx/dt = growth_rate, so dM_k/dt = sum_i w_i k growth_rate x_i^(k-1) and the
+// moments translate by growth_rate * t.
+void verify_node_source_translation()
+{
+    constexpr std::array<double, 2> nodes{0.5, 2.0};
+    constexpr std::array<double, 2> weights{0.4, 0.6};
+    constexpr double growth_rate = 0.75;
+    constexpr std::size_t steps = 10;
+    constexpr double time_step = final_time / steps;
+    const auto moments_of = [&](const double shift)
+    {
+        std::vector<double> moments(2 * nodes.size(), 0.0);
+        for (std::size_t order = 0; order < moments.size(); ++order)
+        {
+            for (std::size_t node = 0; node < nodes.size(); ++node)
+            {
+                moments[order] += weights[node] * power(nodes[node] + shift, order);
+            }
+        }
+        return moments;
+    };
+
+    const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& context)
+    {
+        std::vector<double> rate(context.size(), 0.0);
+        context.for_each_node(
+            [&rate](const double weight, const double abscissa)
+            {
+                for (std::size_t order = 1; order < rate.size(); ++order)
+                {
+                    rate[order] += weight * static_cast<double>(order) * growth_rate * power(abscissa, order - 1);
+                }
+            });
+        return qmomkit::QmomMomentRate{std::move(rate)};
+    };
+
+    qmomkit::QmomState state = qmomkit::QmomCase{qmomkit::MomentSet(moments_of(0.0)), nodes.size(), qmom_options()}.initial_state();
+    for (std::size_t step = 0; step < steps; ++step)
+    {
+        const qmomkit::QmomPhaseSpaceEvolutionResult result = qmomkit::advance_qmom_moment_source(state, step * time_step, time_step, source);
+        QMOMKIT_VERIFY_CHECK(result.ok());
+        state = result.state;
+    }
+
+    const double shift = growth_rate * final_time;
+    QMOMKIT_VERIFY_CHECK(error(state.moment_values(), moments_of(shift)) < 1.0e-13);
+    for (std::size_t node = 0; node < nodes.size(); ++node)
+    {
+        QMOMKIT_VERIFY_CHECK(std::abs(state.quadrature().abscissas[node] - (nodes[node] + shift)) < 1.0e-12);
+        QMOMKIT_VERIFY_CHECK(std::abs(state.quadrature().weights[node] - weights[node]) < 1.0e-12);
+    }
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -239,6 +306,10 @@ int main(const int argc, char** argv)
     else if (std::string(argv[1]) == "phase_space_source")
     {
         verify_phase_space_source_evolution();
+    }
+    else if (std::string(argv[1]) == "node_source")
+    {
+        verify_node_source_translation();
     }
     else
     {

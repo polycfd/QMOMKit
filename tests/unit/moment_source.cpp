@@ -482,6 +482,40 @@ void test_cqmom_source_context_generalized_moments_require_reconstruction_metada
     assert(rejected);
 }
 
+void test_qmom_source_context_nodes_require_reconstruction_metadata()
+{
+    const std::vector<double> values{1.0, 0.0, 1.0, 0.0};
+    const qmomkit::QmomSourceContext context{0.0, values};
+    bool rejected = false;
+    try
+    {
+        context.for_each_node([](const double, const double) {});
+    }
+    catch (const std::out_of_range& error)
+    {
+        rejected = true;
+        assert(std::string(error.what()).find("source-stage quadrature") != std::string::npos);
+    }
+    assert(rejected);
+}
+
+void test_qmom_source_context_node_visitor_requires_callback()
+{
+    const std::vector<double> values{1.0, 0.0, 1.0, 0.0};
+    const qmomkit::QmomSourceContext context{0.0, values};
+    bool rejected = false;
+    try
+    {
+        context.for_each_node({});
+    }
+    catch (const std::invalid_argument& error)
+    {
+        rejected = true;
+        assert(std::string(error.what()).find("callback") != std::string::npos);
+    }
+    assert(rejected);
+}
+
 void test_cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial()
 {
     const qmomkit::CqmomMomentData initial = create_moment_data();
@@ -982,6 +1016,8 @@ int main(const int argc, char** argv)
              test_cqmom_source_context_terminal_nodes_require_reconstruction_metadata},
             {"cqmom_source_context_generalized_moments_require_reconstruction_metadata",
              test_cqmom_source_context_generalized_moments_require_reconstruction_metadata},
+            {"qmom_source_context_nodes_require_reconstruction_metadata", test_qmom_source_context_nodes_require_reconstruction_metadata},
+            {"qmom_source_context_node_visitor_requires_callback", test_qmom_source_context_node_visitor_requires_callback},
             {"cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial", test_cqmom_moment_data_linear_source_matches_ssp_rk3_polynomial},
             {"cqmom_moment_data_rate_size_mismatch_fails", test_cqmom_moment_data_rate_size_mismatch_fails},
             {"cqmom_moment_data_non_finite_source_fails", test_cqmom_moment_data_non_finite_source_fails},

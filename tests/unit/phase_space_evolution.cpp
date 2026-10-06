@@ -1377,6 +1377,74 @@ void test_qmom_source_context_generalized_moment_uses_current_rk_stage()
     assert(observed_generalized_moments[2] != observed_generalized_moments[0]);
 }
 
+// The node visitor sees the quadrature of each SSP-RK3 stage. It shares that
+// quadrature with generalized_moment(...), so a stage is reconstructed once
+// however many derived requests the source makes.
+void test_qmom_source_context_visits_nodes_from_each_rk_stage()
+{
+    const std::vector<double> abscissas{1.0, 4.0};
+    const std::vector<double> weights{0.25, 0.75};
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d(abscissas, weights, 4), 2);
+    constexpr double coefficient = 0.5;
+    constexpr double time_step = 0.2;
+    std::vector<double> observed_densities;
+    const qmomkit::QmomMomentSource source = [&](double, const qmomkit::QmomSourceContext& context)
+    {
+        std::vector<double> node_weights;
+        std::vector<double> node_abscissas;
+        context.for_each_node(
+            [&node_weights, &node_abscissas](const double weight, const double abscissa)
+            {
+                node_weights.push_back(weight);
+                node_abscissas.push_back(abscissa);
+            });
+
+        // The source scales every raw moment equally, so each stage quadrature
+        // keeps the abscissas and scales the weights by the stage density.
+        const double density = context.value(0);
+        assert(node_weights.size() == abscissas.size());
+        double half_order_moment = 0.0;
+        for (std::size_t node = 0; node < node_weights.size(); ++node)
+        {
+            assert_near(node_abscissas[node], abscissas[node], 2.0e-12);
+            assert_near(node_weights[node], weights[node] * density, 2.0e-12);
+            half_order_moment += node_weights[node] * std::sqrt(node_abscissas[node]);
+        }
+        assert_near(context.generalized_moment(0.5), half_order_moment, 1.0e-14);
+
+        std::size_t second_visit_nodes = 0;
+        context.for_each_node([&second_visit_nodes](double, double) { ++second_visit_nodes; });
+        assert(second_visit_nodes == node_weights.size());
+
+        observed_densities.push_back(density);
+        std::vector<double> rate(context.size(), 0.0);
+        for (std::size_t order = 0; order < rate.size(); ++order)
+        {
+            rate[order] = coefficient * context.value(order);
+        }
+        return qmomkit::QmomMomentRate{std::move(rate)};
+    };
+
+    qmomkit::internal::performance::CounterSession session;
+    std::optional<qmomkit::QmomPhaseSpaceEvolutionResult> result;
+    {
+        qmomkit::internal::performance::CounterScope scope(session);
+        result.emplace(qmomkit::advance_qmom_moment_source(state, 0.0, time_step, source));
+    }
+
+    assert(result->ok());
+    assert(observed_densities.size() == 3);
+    assert_near(observed_densities[0], 1.0, 1.0e-15);
+    assert_near(observed_densities[1], 1.1, 1.0e-15);
+    assert_near(observed_densities[2], 1.0525, 1.0e-15);
+#if defined(QMOMKIT_ENABLE_PERFORMANCE_INSTRUMENTATION)
+    // One reconstruction per stage and one for the final state.
+    assert(session.snapshot().reconstruction.qmom_reconstructions == 4);
+#else
+    assert(session.snapshot().reconstruction.qmom_reconstructions == 0);
+#endif
+}
+
 void test_configured_qmom_source_realizability_policy_matches_programmatic_adapter()
 {
     const qmomkit::QmomState state = qmom_state_from_moments({1.0, 0.0, 1.0, 0.0}, 2);
@@ -4392,6 +4460,7 @@ int main(const int argc, char** argv)
             {"qmom_boundary_context_matches_source_context", test_qmom_boundary_context_matches_source_context},
             {"qmom_source_context_generalized_moment_semantics", test_qmom_source_context_generalized_moment_semantics},
             {"qmom_source_context_generalized_moment_uses_current_rk_stage", test_qmom_source_context_generalized_moment_uses_current_rk_stage},
+            {"qmom_source_context_visits_nodes_from_each_rk_stage", test_qmom_source_context_visits_nodes_from_each_rk_stage},
             {"configured_qmom_source_realizability_policy_matches_programmatic_adapter",
              test_configured_qmom_source_realizability_policy_matches_programmatic_adapter},
             {"configured_qmom_source_realizability_policy_enforces_its_support",

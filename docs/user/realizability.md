@@ -89,16 +89,45 @@ The most useful statuses for users are:
   requested support;
 - `invalid_input`: the request itself is invalid, such as empty moments,
   non-finite values, or an invalid bounded interval;
-- `numerically_indeterminate`: the sequence is too close to the numerical
-  tolerance to classify confidently.
+- `numerically_indeterminate`: the classification depends on digits that the
+  input moments do not carry, or on an eigenvalue within the tolerance.
 
 `result.realizable()` is true for `strictly_realizable` and `boundary`.
 `result.on_boundary()` is true only for boundary states.
 
-With `relative_tolerance = true`, the numerical realizability criteria scale
-with the magnitude of the moment matrices, so positive number-density scaling
-does not by itself change the classification within floating-point limits. With
-`relative_tolerance = false`, `tolerance` is an absolute threshold.
+## Tolerance and input precision
+
+With `relative_tolerance = true`, the default, the check internally tests the
+moments of the standardized coordinate $(x - \mu)/\sigma$, where
+$\mu = m_1/m_0$ is the mean and $\sigma$ about the standard deviation, scaled
+by the total number density; the moments you pass are not changed. Realizability does not change under this change of coordinate, so the
+classification depends neither on where the distribution sits, nor on the unit
+of its coordinate, nor on the total number density. `tolerance` is relative to
+the standardized moment matrices, and `minimum_pivot` and `tolerance_used`
+refer to them.
+
+The check also treats each input moment as known only to its last digit.
+For a distribution far from the origin, the raw moments are dominated by
+powers of the mean, and their last digits limit how well the standardized
+moments are known. An eigenvalue that is zero within this precision counts as
+zero, so the sequence is reported as `boundary`; a sequence whose standardized
+moments carry no reliable digit is reported as `numerically_indeterminate`.
+Moving a sequence away from the origin can thus turn a strictly realizable or
+non-realizable classification into `boundary` or `numerically_indeterminate`,
+but never into the opposite one.
+
+The resolution therefore depends on how far the mean lies from the origin, in
+standard deviations, and on the highest moment order. In double precision,
+strictly realizable and non-realizable sequences are resolved up to roughly
+$10^7$ standard deviations at order 2, $10^3$ at order 4, $10^2$ at order 6
+and 10 to 30 at order 8. Beyond that, expect `boundary` or
+`numerically_indeterminate`. If moments are needed far from the origin, a
+coordinate measured from a nearby reference point avoids this loss.
+
+With `relative_tolerance = false`, the raw moment matrices are tested and
+`tolerance` is an absolute threshold for their eigenvalues. This mode does not
+standardize the coordinate, so its classification changes with the location,
+the unit and the number density.
 
 ## Support constraints
 

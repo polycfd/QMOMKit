@@ -15,6 +15,7 @@ configuration mapping of runtime policies, see
 - [Supported Moment Domains](#supported-moment-domains)
 - [Mathematical Criteria](#mathematical-criteria)
 - [Realizability Checks](#realizability-checks)
+- [Numerical Classification](#numerical-classification)
 - [Runtime Checks In Phase-Space Evolution](#runtime-checks-in-phase-space-evolution)
 - [Interaction With QMOM And CQMOM](#interaction-with-qmom-and-cqmom)
 - [Failure Handling](#failure-handling)
@@ -144,17 +145,19 @@ The result classifies the sequence with `RealizabilityStatus`:
 - `boundary`: accepted on the boundary of moment space;
 - `not_realizable`: rejected for the selected support;
 - `invalid_input`: the request itself is invalid;
-- `numerically_indeterminate`: the sequence is too close to the numerical
-  tolerance to classify confidently.
+- `numerically_indeterminate`: the classification depends on an eigenvalue
+  within the tolerance or on digits the input moments do not carry.
 
 `RealizabilityResult::realizable()` is true for `strictly_realizable` and
 `boundary`. `RealizabilityResult::on_boundary()` is true only for `boundary`.
 
 Diagnostics include the highest checked order, the limiting or failed matrix
 name and order, a minimum pivot/eigenvalue-like diagnostic, the tolerance used,
-and a human-readable message. Callers should treat the status as authoritative
-and use the diagnostics for reporting, debugging, or adaptive failure handling.
-Diagnostics are not a request to continue with invalid moments.
+and a human-readable message; with relative tolerance, the pivot and the
+tolerance refer to the standardized matrices. Callers should treat the status
+as authoritative and use the diagnostics for reporting, debugging, or adaptive
+failure handling. Diagnostics are not a request to continue with invalid
+moments.
 
 Invalid input means the request itself is malformed or unsupported, such as an
 empty moment sequence, non-finite moment values, non-positive or non-finite
@@ -167,14 +170,109 @@ include negative `m_0`, zero total number density with nonzero higher moments,
 or moment sequences that fail the support-specific realizability conditions.
 The all-zero sequence is treated as a boundary-realizable zero measure.
 
-`RealizabilityOptions` controls numerical tolerance. With relative tolerance
-enabled, the effective threshold, roundoff allowance, and numerical matrix
-analysis scale with the checked matrix magnitude. Positive number-density
-scaling therefore does not by itself change the classification within
-floating-point limits. With relative tolerance disabled, `tolerance` is an
-absolute threshold. Near the boundary, the implementation may report
-`numerically_indeterminate` rather than accepting or rejecting with false
-precision.
+`RealizabilityOptions` controls numerical tolerance; the next section
+describes how it enters the classification.
+
+## Numerical classification
+
+### Standardized coordinate
+
+Realizability on a support is invariant under an affine change of coordinate
+$y = (x - c)/s$ with $s > 0$, which maps the support to
+$\left[(a - c)/s, (b - c)/s\right]$. The moment and localizing matrices of
+$y$ are congruent to those of $x$, so by Sylvester's law of inertia the signs
+of their eigenvalues, and hence the classification, are unchanged. With
+`relative_tolerance = true`, the check therefore tests the standardized
+moments
+
+$$\nu_k = \frac{1}{2^{e_0}\, s^k} \sum_{j=0}^{k} \binom{k}{j} (-c)^{k-j} m_j,
+\qquad c = \frac{m_1}{m_0},$$
+
+where $2^{e_0}$ is the power of two of $m_0$ and $s$ is a power of two near the
+spread: $\left(|\mu_k|/m_0\right)^{1/k}$ for the first even central moment
+$\mu_k$ that is resolved, otherwise $|c|$, or one if $c = 0$, so that a point
+mass is not stretched. The powers of two make the scalings exact. The relative
+tolerance then applies to the standardized matrices, and the classification
+depends neither on the location of the distribution, nor on the unit of its
+coordinate, nor on $m_0$. With `relative_tolerance = false`,
+the raw moments are tested and `tolerance` is an absolute eigenvalue
+threshold; this mode is not invariant.
+
+### Input precision
+
+Each input moment is taken as exact to its last digit, a relative error of
+$\varepsilon$. Evaluating the centring sum in double precision adds its own
+rounding. With round to nearest, every operation returns the exact result times
+$1 + \delta$ with $|\delta| \le \mathbf{u} = \varepsilon/2$, so a value that
+passes through $p$ roundings is off by a factor that differs from one by at
+most $(1 + \mathbf{u})^p - 1 \le p\mathbf{u}/(1 - p\mathbf{u})$. The power
+$(-c)^i$ takes $i - 1$ roundings for $i \ge 1$ and none for $i = 0$, the term
+$\binom{k}{j}(-c)^{k-j} m_j$ two more (the binomial coefficients are exact
+integers), and the running sum at most $k$ more, so no term passes through
+more than $2k + 1$ roundings. The evaluated sum therefore differs from the
+exact one by at most $(2k+1)\mathbf{u}/(1 - (2k+1)\mathbf{u})$, less than
+$(k + 1)\varepsilon$, times the sum of the absolute terms; a fused
+multiply-add only removes roundings. Together, the uncertainty of the standardized moment $\nu_k$ is
+
+$$u_k = \frac{(k + 2)\,\varepsilon}{2^{e_0}\, s^k} \sum_{j=0}^{k} \binom{k}{j}
+|c|^{k-j} |m_j|.$$
+
+The Frobenius norm $\delta$ of the Hankel matrix of these uncertainties bounds
+how far they can move any eigenvalue of a tested matrix. Localizing sequences
+carry the uncertainties of the moments they combine. The rounding of building
+them, and of the transformed support bounds, is relative to the terms involved
+and lies within the roundoff allowance of the eigen solve. For a distribution
+far from the origin, $u_k$ grows like $\varepsilon (|c|/\sigma)^k$ relative to
+the standardized moments, which sets the resolution limit stated in the user
+documentation.
+
+### Eigenvalue partition
+
+Every eigenvalue $\lambda$ of a tested matrix $A$ is classified with the
+threshold $\tau = \tau_{\mathrm{user}} + \delta$ and the zero band
+$\zeta = 1000\,\varepsilon \lVert A \rVert + \delta$:
+
+| Class | Condition |
+|---|---|
+| negative | $\lambda < -\tau$ |
+| zero | $|\lambda| \le \zeta$ |
+| ambiguous | otherwise, $\lambda < \tau$ |
+| positive | $\lambda \ge \tau$ |
+
+A matrix with a negative eigenvalue is not positive semidefinite; otherwise
+one with an ambiguous eigenvalue is `numerically_indeterminate`; otherwise one
+with a zero eigenvalue is singular, which makes the sequence `boundary`;
+otherwise it is positive definite. A matrix whose uncertainty $\delta$ reaches
+the information scale of its sequence carries no reliable digit and is
+`numerically_indeterminate`. That scale is the standardized mass $\nu_0$ for
+the moments, and $\nu_0$ times the size of the coefficients of the localizing
+polynomial for a localizing sequence: $(1 + |a|)\,\nu_0$ for $x - a$ and
+$b - x$, and $(1 + |a + b| + |ab|)\,\nu_0$ for $(x - a)(b - x)$, with the
+bounds in the standardized coordinate.
+
+The same partition defines the numerical rank and the kernel used by the
+singular-matrix tests. A kernel projection of the next column is compared
+against a threshold that includes the uncertainty of the column and the
+rotation of the kernel vectors, which by the Davis-Kahan theorem is at most
+$\delta$ over the gap between the zero and the positive eigenvalues, bounded
+below by the smallest positive eigenvalue minus $\zeta$.
+The flat-extension test compares ranks, which have no such margin, so a rank
+mismatch rejects the sequence only if the matrix is singular and the mismatch
+persists with only the eigen-solve roundoff counted as zero; otherwise the
+sequence is consistent with a flat and a non-flat extension within its
+precision and is `numerically_indeterminate`.
+
+### Evidence
+
+`shift_and_scale_preserve_classification` in
+`tests/verification/realizability/realizability_analytical.cpp` checks
+strictly realizable, boundary and non-realizable sequences on every support for
+spreads from $10^{-9}$ to $10^9$ and locations up to the shift each resolves,
+and `resolution_limit_never_reverses_classification` checks that beyond it, up
+to $10^8$ spreads, a classification only gives way to `boundary` or
+`numerically_indeterminate`. The unit tests in `tests/unit/realizability.cpp`
+cover the partition of every eigenvalue, the flat-extension test within the
+data uncertainty and the loss of every reliable digit.
 
 ## Runtime checks in phase-space evolution
 
@@ -246,8 +344,9 @@ Failure handling rules are:
 
 - `invalid_input` means the check request is malformed or unsupported;
 - `not_realizable` means the moments are incompatible with the selected support;
-- `numerically_indeterminate` means the sequence is too close to the configured
-  tolerance boundary and should not be accepted by runtime checks;
+- `numerically_indeterminate` means the classification depends on an eigenvalue
+  within the tolerance or on digits the input does not carry, and the sequence
+  should not be accepted by runtime checks;
 - `boundary` is mathematically accepted but may require an explicit acceptance
   setting;
 - `strictly_realizable` is accepted by the check.

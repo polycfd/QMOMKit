@@ -46,8 +46,31 @@ struct MatrixAnalysis
     std::size_t order = 0;
     MatrixStatus status = MatrixStatus::not_positive_semidefinite;
     double minimum_eigenvalue = 0.0;
+    // The threshold an eigenvalue must exceed in magnitude to count as
+    // positive or negative: the user tolerance plus the data uncertainty.
     double tolerance = 0.0;
+    // Eigenvalues within this band of zero count as zero: the roundoff of the
+    // eigen solve plus the data uncertainty.
+    double zero_band = 0.0;
+    // Bound on how far the data uncertainty can move an eigenvalue.
+    double uncertainty = 0.0;
+    // Eigenvalues within this band are zero for the data as given.
+    double roundoff = 0.0;
     EigenDecomposition eigensystem{std::vector<double>{}, DenseMatrix(0, 0)};
+};
+
+// A moment-like sequence with a bound on the absolute uncertainty of each
+// entry. Raw moments under an absolute tolerance carry no uncertainty;
+// standardized moments carry the propagated rounding of the raw input moments.
+// Uncertainty that reaches the information scale leaves a matrix of the
+// sequence without a single reliable digit: for standardized moments, it is
+// their mass; for a localizing sequence, that mass times the size of the
+// coefficients of the localizing polynomial.
+struct MomentSequence
+{
+    std::vector<double> values;
+    std::vector<double> uncertainties;
+    double information_scale = std::numeric_limits<double>::infinity();
 };
 
 struct ClassificationState
@@ -86,9 +109,71 @@ struct ClassificationState
     return scale;
 }
 
-[[nodiscard]] MatrixAnalysis analyze_matrix(std::string name, const std::size_t order, const DenseMatrix& matrix, const RealizabilityOptions& options)
+enum class EigenvalueClass
+{
+    negative,
+    zero,
+    ambiguous,
+    positive
+};
+
+// One partition serves the definiteness decision, the rank and the kernel:
+// an eigenvalue beyond minus the tolerance is negative, one within the zero
+// band is zero, one at or above the tolerance is positive, and any other is
+// ambiguous.
+[[nodiscard]] EigenvalueClass classify_eigenvalue(const MatrixAnalysis& analysis, const double eigenvalue)
+{
+    if (eigenvalue < -analysis.tolerance)
+    {
+        return EigenvalueClass::negative;
+    }
+    if (std::abs(eigenvalue) <= analysis.zero_band)
+    {
+        return EigenvalueClass::zero;
+    }
+    if (eigenvalue < analysis.tolerance)
+    {
+        return EigenvalueClass::ambiguous;
+    }
+    return EigenvalueClass::positive;
+}
+
+[[nodiscard]] DenseMatrix hankel_matrix(const MomentSequence& sequence, const std::size_t order)
+{
+    // Hankel moment matrices encode nonnegativity of squared polynomials on
+    // the support; Hankel matrices of localizing sequences enforce the
+    // support bounds.
+    DenseMatrix matrix(order + 1, order + 1);
+    for (std::size_t row = 0; row <= order; ++row)
+    {
+        for (std::size_t col = 0; col <= order; ++col)
+        {
+            matrix(row, col) = sequence.values[row + col];
+        }
+    }
+    return matrix;
+}
+
+// The Frobenius norm of the entry uncertainties, which bounds how far they
+// can move any eigenvalue of the Hankel matrix.
+[[nodiscard]] double hankel_uncertainty(const MomentSequence& sequence, const std::size_t order)
+{
+    double sum = 0.0;
+    for (std::size_t row = 0; row <= order; ++row)
+    {
+        for (std::size_t col = 0; col <= order; ++col)
+        {
+            sum += sequence.uncertainties[row + col] * sequence.uncertainties[row + col];
+        }
+    }
+    return std::sqrt(sum);
+}
+
+[[nodiscard]] MatrixAnalysis analyze_matrix(std::string name, const std::size_t order, const MomentSequence& sequence,
+                                            const RealizabilityOptions& options)
 {
     MatrixAnalysis analysis{std::move(name), order};
+    const DenseMatrix matrix = hankel_matrix(sequence, order);
     double normalization_scale = 0.0;
     for (std::size_t row = 0; row < matrix.rows(); ++row)
     {
@@ -118,36 +203,55 @@ struct ClassificationState
         }
     }
 
-    analysis.tolerance = options.relative_tolerance ? options.tolerance * normalization_scale * normalized_infinity_norm : options.tolerance;
+    const double user_tolerance = options.relative_tolerance ? options.tolerance * normalization_scale * normalized_infinity_norm : options.tolerance;
+    const double diagonalization_roundoff = 1000.0 * std::numeric_limits<double>::epsilon() * normalization_scale * normalized_infinity_norm;
+    analysis.uncertainty = hankel_uncertainty(sequence, order);
+    analysis.roundoff = diagonalization_roundoff;
+    analysis.tolerance = user_tolerance + analysis.uncertainty;
+    analysis.zero_band = diagonalization_roundoff + analysis.uncertainty;
     analysis.eigensystem = internal::symmetric_jacobi_eigen(matrix, {});
     analysis.minimum_eigenvalue = analysis.eigensystem.eigenvalues.empty() ? 0.0 : analysis.eigensystem.eigenvalues.front();
 
-    // Positive semidefinite matrices indicate realizability on the boundary.
-    // Eigenvalues within the user tolerance but outside the tighter roundoff
-    // band are reported as indeterminate.
-    const double diagonalization_roundoff = 1000.0 * std::numeric_limits<double>::epsilon() * normalization_scale * normalized_infinity_norm;
+    if (!analysis.eigensystem.converged || !internal::all_finite(analysis.eigensystem.eigenvalues) || !std::isfinite(analysis.uncertainty) ||
+        analysis.uncertainty >= sequence.information_scale)
+    {
+        analysis.status = MatrixStatus::numerically_indeterminate;
+        return analysis;
+    }
 
-    if (!analysis.eigensystem.converged || !internal::all_finite(analysis.eigensystem.eigenvalues))
+    // Any negative eigenvalue decides; otherwise any ambiguous one leaves the
+    // matrix indeterminate; otherwise any zero one makes it singular.
+    bool has_zero = false;
+    bool has_ambiguous = false;
+    for (const double eigenvalue : analysis.eigensystem.eigenvalues)
+    {
+        switch (classify_eigenvalue(analysis, eigenvalue))
+        {
+        case EigenvalueClass::negative:
+            analysis.status = MatrixStatus::not_positive_semidefinite;
+            return analysis;
+        case EigenvalueClass::zero:
+            has_zero = true;
+            break;
+        case EigenvalueClass::ambiguous:
+            has_ambiguous = true;
+            break;
+        case EigenvalueClass::positive:
+            break;
+        }
+    }
+    if (has_ambiguous)
     {
         analysis.status = MatrixStatus::numerically_indeterminate;
     }
-    else if (analysis.minimum_eigenvalue < -analysis.tolerance)
-    {
-        analysis.status = MatrixStatus::not_positive_semidefinite;
-    }
-    else if (std::abs(analysis.minimum_eigenvalue) <= diagonalization_roundoff)
+    else if (has_zero)
     {
         analysis.status = MatrixStatus::positive_semidefinite;
-    }
-    else if (analysis.minimum_eigenvalue < analysis.tolerance)
-    {
-        analysis.status = MatrixStatus::numerically_indeterminate;
     }
     else
     {
         analysis.status = MatrixStatus::positive_definite;
     }
-
     return analysis;
 }
 
@@ -179,10 +283,10 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
 
     if (analysis.status == MatrixStatus::numerically_indeterminate)
     {
-        state.result =
-            make_result(RealizabilityStatus::numerically_indeterminate, checked_order, analysis.name, analysis.order, analysis.minimum_eigenvalue,
-                        analysis.tolerance,
-                        "Realizability is numerically indeterminate: " + analysis.name + " has an eigenvalue within the numerical tolerance.");
+        state.result = make_result(RealizabilityStatus::numerically_indeterminate, checked_order, analysis.name, analysis.order,
+                                   analysis.minimum_eigenvalue, analysis.tolerance,
+                                   "Realizability is numerically indeterminate: " + analysis.name +
+                                       " has an eigenvalue within the numerical tolerance, or the input moments carry too few digits to decide.");
         return false;
     }
 
@@ -193,64 +297,68 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return true;
 }
 
-[[nodiscard]] DenseMatrix hankel_matrix(const MomentSet& moments, const std::size_t order, const std::size_t shift)
+// Localizing sequence of (x - lower): entry k is m_(k+1) - lower m_k.
+[[nodiscard]] MomentSequence lower_localizing_sequence(const MomentSequence& moments, const double lower)
 {
-    // Hankel moment matrices encode nonnegativity of squared polynomials on
-    // the support; shifted variants enforce support-specific constraints.
-    DenseMatrix matrix(order + 1, order + 1);
-    for (std::size_t row = 0; row <= order; ++row)
+    MomentSequence sequence;
+    sequence.information_scale = (1.0 + std::abs(lower)) * moments.information_scale;
+    for (std::size_t index = 0; index + 1 < moments.values.size(); ++index)
     {
-        for (std::size_t col = 0; col <= order; ++col)
-        {
-            matrix(row, col) = moments[row + col + shift];
-        }
+        sequence.values.push_back(moments.values[index + 1] - lower * moments.values[index]);
+        sequence.uncertainties.push_back(moments.uncertainties[index + 1] + std::abs(lower) * moments.uncertainties[index]);
     }
-    return matrix;
+    return sequence;
 }
 
-[[nodiscard]] DenseMatrix interval_quadratic_localizing_matrix(const MomentSet& moments, const BoundedInterval interval, const std::size_t order)
+// Localizing sequence of (upper - x): entry k is upper m_k - m_(k+1).
+[[nodiscard]] MomentSequence upper_localizing_sequence(const MomentSequence& moments, const double upper)
 {
-    // Localizes by (x - lower)(upper - x), enforcing support inside the bounded
-    // interval for even-order Hausdorff checks.
-    DenseMatrix matrix(order + 1, order + 1);
-    for (std::size_t row = 0; row <= order; ++row)
+    MomentSequence sequence;
+    sequence.information_scale = (1.0 + std::abs(upper)) * moments.information_scale;
+    for (std::size_t index = 0; index + 1 < moments.values.size(); ++index)
     {
-        for (std::size_t col = 0; col <= order; ++col)
-        {
-            const std::size_t index = row + col;
-            matrix(row, col) =
-                (interval.lower + interval.upper) * moments[index + 1] - interval.lower * interval.upper * moments[index] - moments[index + 2];
-        }
+        sequence.values.push_back(upper * moments.values[index] - moments.values[index + 1]);
+        sequence.uncertainties.push_back(std::abs(upper) * moments.uncertainties[index] + moments.uncertainties[index + 1]);
     }
-    return matrix;
+    return sequence;
 }
 
-[[nodiscard]] DenseMatrix interval_linear_localizing_matrix(const MomentSet& moments, const BoundedInterval interval, const std::size_t order,
-                                                            const bool lower_bound)
+// Localizing sequence of (x - lower)(upper - x), enforcing support inside the
+// bounded interval for even-order Hausdorff checks: entry k is
+// (lower + upper) m_(k+1) - lower upper m_k - m_(k+2).
+[[nodiscard]] MomentSequence interval_localizing_sequence(const MomentSequence& moments, const double lower, const double upper)
 {
-    // Linear localizing matrices encode nonnegativity of x - lower and
-    // upper - x for odd-order bounded-interval checks.
-    DenseMatrix matrix(order + 1, order + 1);
-    for (std::size_t row = 0; row <= order; ++row)
+    MomentSequence sequence;
+    sequence.information_scale = (1.0 + std::abs(lower + upper) + std::abs(lower * upper)) * moments.information_scale;
+    for (std::size_t index = 0; index + 2 < moments.values.size(); ++index)
     {
-        for (std::size_t col = 0; col <= order; ++col)
-        {
-            const std::size_t index = row + col;
-            matrix(row, col) =
-                lower_bound ? moments[index + 1] - interval.lower * moments[index] : interval.upper * moments[index] - moments[index + 1];
-        }
+        sequence.values.push_back((lower + upper) * moments.values[index + 1] - lower * upper * moments.values[index] - moments.values[index + 2]);
+        sequence.uncertainties.push_back(std::abs(lower + upper) * moments.uncertainties[index + 1] +
+                                         std::abs(lower * upper) * moments.uncertainties[index] + moments.uncertainties[index + 2]);
     }
-    return matrix;
+    return sequence;
 }
 
-[[nodiscard]] std::vector<double> extension_column(const MomentSet& moments, const std::size_t matrix_order, const std::size_t shift)
+// The column that extends the Hankel matrix of the given order by one.
+[[nodiscard]] MomentSequence extension_column(const MomentSequence& sequence, const std::size_t matrix_order)
 {
-    std::vector<double> values(matrix_order + 1, 0.0);
+    MomentSequence column;
     for (std::size_t row = 0; row <= matrix_order; ++row)
     {
-        values[row] = moments[row + matrix_order + 1 + shift];
+        column.values.push_back(sequence.values[row + matrix_order + 1]);
+        column.uncertainties.push_back(sequence.uncertainties[row + matrix_order + 1]);
     }
-    return values;
+    return column;
+}
+
+[[nodiscard]] double euclidean_norm(const std::vector<double>& values)
+{
+    double sum = 0.0;
+    for (const double value : values)
+    {
+        sum += value * value;
+    }
+    return std::sqrt(sum);
 }
 
 [[nodiscard]] double projection_on_eigenvector(const DenseMatrix& eigenvectors, const std::size_t column, const std::vector<double>& vector)
@@ -263,19 +371,42 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return projection;
 }
 
-[[nodiscard]] RealizabilityStatus check_range_consistency(const MatrixAnalysis& analysis, const std::vector<double>& vector,
-                                                          const RealizabilityOptions& options, double& maximum_kernel_projection)
+// The threshold for a kernel projection of the extension column. Beyond the
+// tolerance, it covers the data uncertainty: that of the column itself, and
+// the rotation of the kernel vectors, which the data uncertainty can turn by
+// up to its size over the gap between the zero and the positive eigenvalues
+// (Davis-Kahan); zero eigenvalues lie within the zero band, so the smallest
+// positive eigenvalue minus the band bounds that gap from below.
+[[nodiscard]] double kernel_projection_tolerance(const MatrixAnalysis& analysis, const MomentSequence& column, const RealizabilityOptions& options)
+{
+    const double tolerance =
+        options.relative_tolerance ? std::max(analysis.tolerance, options.tolerance * vector_scale(column.values)) : options.tolerance;
+    double smallest_positive = std::numeric_limits<double>::infinity();
+    for (const double eigenvalue : analysis.eigensystem.eigenvalues)
+    {
+        if (classify_eigenvalue(analysis, eigenvalue) == EigenvalueClass::positive)
+        {
+            smallest_positive = std::min(smallest_positive, eigenvalue);
+        }
+    }
+    const double kernel_rotation = std::isfinite(smallest_positive) ? analysis.uncertainty / (smallest_positive - analysis.zero_band) : 0.0;
+    const double uncertainty = euclidean_norm(column.uncertainties) + euclidean_norm(column.values) * kernel_rotation;
+    // The factor ten keeps the uncertainty below the tenth of the tolerance
+    // under which a projection counts as consistent.
+    return std::max(tolerance, 10.0 * uncertainty);
+}
+
+[[nodiscard]] RealizabilityStatus check_range_consistency(const MatrixAnalysis& analysis, const MomentSequence& column, const double tolerance,
+                                                          double& maximum_kernel_projection)
 {
     // For a singular moment/localizing matrix, the next extension column must
     // lie in its range. Projection onto nullspace eigenvectors detects failure.
     maximum_kernel_projection = 0.0;
-    const double tolerance = options.relative_tolerance ? std::max(analysis.tolerance, options.tolerance * vector_scale(vector)) : options.tolerance;
-
     for (std::size_t col = 0; col < analysis.eigensystem.eigenvalues.size(); ++col)
     {
-        if (analysis.eigensystem.eigenvalues[col] <= analysis.tolerance)
+        if (classify_eigenvalue(analysis, analysis.eigensystem.eigenvalues[col]) == EigenvalueClass::zero)
         {
-            const double projection = std::abs(projection_on_eigenvector(analysis.eigensystem.eigenvectors, col, vector));
+            const double projection = std::abs(projection_on_eigenvector(analysis.eigensystem.eigenvectors, col, column.values));
             maximum_kernel_projection = std::max(maximum_kernel_projection, projection);
         }
     }
@@ -291,7 +422,7 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return RealizabilityStatus::boundary;
 }
 
-[[nodiscard]] bool incorporate_range_consistency(ClassificationState& state, const MatrixAnalysis& analysis, const std::vector<double>& vector,
+[[nodiscard]] bool incorporate_range_consistency(ClassificationState& state, const MatrixAnalysis& analysis, const MomentSequence& column,
                                                  const std::string& name, const std::size_t checked_order, const RealizabilityOptions& options)
 {
     if (analysis.status == MatrixStatus::positive_definite)
@@ -299,15 +430,15 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
         return true;
     }
 
+    const double tolerance = kernel_projection_tolerance(analysis, column, options);
     double maximum_kernel_projection = 0.0;
-    const RealizabilityStatus status = check_range_consistency(analysis, vector, options, maximum_kernel_projection);
+    const RealizabilityStatus status = check_range_consistency(analysis, column, tolerance, maximum_kernel_projection);
     state.boundary = true;
     if (status == RealizabilityStatus::boundary)
     {
         return true;
     }
 
-    const double tolerance = options.relative_tolerance ? std::max(analysis.tolerance, options.tolerance * vector_scale(vector)) : options.tolerance;
     state.result =
         make_result(status, checked_order, name, analysis.order, maximum_kernel_projection, tolerance,
                     status == RealizabilityStatus::not_realizable
@@ -319,7 +450,16 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
 [[nodiscard]] std::size_t numerical_rank(const MatrixAnalysis& analysis)
 {
     return static_cast<std::size_t>(std::count_if(analysis.eigensystem.eigenvalues.begin(), analysis.eigensystem.eigenvalues.end(),
-                                                  [&analysis](const double eigenvalue) { return eigenvalue > analysis.tolerance; }));
+                                                  [&analysis](const double eigenvalue)
+                                                  { return classify_eigenvalue(analysis, eigenvalue) == EigenvalueClass::positive; }));
+}
+
+// The rank of the matrix of the data as given, with only the roundoff of the
+// eigen solve counted as zero.
+[[nodiscard]] std::size_t rank_as_given(const MatrixAnalysis& analysis)
+{
+    return static_cast<std::size_t>(std::count_if(analysis.eigensystem.eigenvalues.begin(), analysis.eigensystem.eigenvalues.end(),
+                                                  [&analysis](const double eigenvalue) { return std::abs(eigenvalue) > analysis.roundoff; }));
 }
 
 [[nodiscard]] RealizabilityResult finish_classification(ClassificationState state, const std::size_t checked_order, const MomentSupport support)
@@ -373,18 +513,17 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return RealizabilityResult{RealizabilityStatus::strictly_realizable, moments.size() - 1, 0, "", 0.0, options.tolerance, ""};
 }
 
-[[nodiscard]] RealizabilityResult check_hamburger(const MomentSet& moments, const RealizabilityOptions& options)
+[[nodiscard]] RealizabilityResult check_hamburger(const MomentSequence& moments, const RealizabilityOptions& options)
 {
     // Hamburger realizability on the real line is governed by PSD Hankel moment
     // matrices. A singular even truncation must be a flat extension of its
     // preceding moment matrix; odd truncations require next-column range validity.
-    const std::size_t checked_order = moments.size() - 1;
+    const std::size_t checked_order = moments.values.size() - 1;
     const std::size_t hankel_order = checked_order / 2;
     ClassificationState state;
     state.result.checked_order = checked_order;
 
-    MatrixAnalysis moment_matrix =
-        analyze_matrix("H_" + std::to_string(hankel_order), hankel_order, hankel_matrix(moments, hankel_order, 0), options);
+    MatrixAnalysis moment_matrix = analyze_matrix("H_" + std::to_string(hankel_order), hankel_order, moments, options);
     if (!incorporate_matrix(state, moment_matrix, checked_order))
     {
         return state.result;
@@ -392,44 +531,50 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
 
     if (checked_order % 2 == 1)
     {
-        const std::vector<double> next_column = extension_column(moments, hankel_order, 0);
-        if (!incorporate_range_consistency(state, moment_matrix, next_column, "H_" + std::to_string(hankel_order) + "_next_column", checked_order,
-                                           options))
+        if (!incorporate_range_consistency(state, moment_matrix, extension_column(moments, hankel_order),
+                                           "H_" + std::to_string(hankel_order) + "_next_column", checked_order, options))
         {
             return state.result;
         }
     }
     else if (hankel_order > 0 && moment_matrix.status == MatrixStatus::positive_semidefinite)
     {
-        const MatrixAnalysis preceding_matrix =
-            analyze_matrix("H_" + std::to_string(hankel_order - 1), hankel_order - 1, hankel_matrix(moments, hankel_order - 1, 0), options);
+        const MatrixAnalysis preceding_matrix = analyze_matrix("H_" + std::to_string(hankel_order - 1), hankel_order - 1, moments, options);
         if (!incorporate_matrix(state, preceding_matrix, checked_order))
         {
             return state.result;
         }
+        // Unlike a kernel projection, a rank has no margin against the data
+        // uncertainty. A mismatch decides only if it also holds for the data
+        // as given; one that rests on zeros within the data uncertainty is
+        // consistent with a flat extension and with a non-flat one.
         if (numerical_rank(moment_matrix) != numerical_rank(preceding_matrix))
         {
-            return make_result(RealizabilityStatus::not_realizable, checked_order, "H_" + std::to_string(hankel_order) + "_flat_extension",
-                               hankel_order, moment_matrix.minimum_eigenvalue, moment_matrix.tolerance,
-                               "Moment sequence is not realizable: singular Hamburger moment matrix is not a flat extension.");
+            const std::size_t rank = rank_as_given(moment_matrix);
+            const bool decided = rank <= hankel_order && rank != rank_as_given(preceding_matrix);
+            return make_result(decided ? RealizabilityStatus::not_realizable : RealizabilityStatus::numerically_indeterminate, checked_order,
+                               "H_" + std::to_string(hankel_order) + "_flat_extension", hankel_order, moment_matrix.minimum_eigenvalue,
+                               moment_matrix.tolerance,
+                               decided ? "Moment sequence is not realizable: singular Hamburger moment matrix is not a flat extension."
+                                       : "Realizability is numerically indeterminate: the flat extension of the Hamburger moment matrix is "
+                                         "decided only within the data uncertainty.");
         }
     }
 
     return finish_classification(std::move(state), checked_order, MomentSupport::real_line);
 }
 
-[[nodiscard]] RealizabilityResult check_stieltjes(const MomentSet& moments, const RealizabilityOptions& options)
+[[nodiscard]] RealizabilityResult check_stieltjes(const MomentSequence& moments, const double lower, const RealizabilityOptions& options)
 {
-    // Stieltjes realizability adds nonnegative-support constraints through
-    // shifted Hankel matrices; the tested matrix family depends on parity.
-    const std::size_t checked_order = moments.size() - 1;
+    // Stieltjes realizability on [lower, infinity) adds the localizing matrix
+    // of (x - lower); the tested matrix family depends on parity.
+    const std::size_t checked_order = moments.values.size() - 1;
     ClassificationState state;
     state.result.checked_order = checked_order;
 
     if (checked_order == 0)
     {
-        const DenseMatrix h0 = hankel_matrix(moments, 0, 0);
-        const MatrixAnalysis h_analysis = analyze_matrix("H_0", 0, h0, options);
+        const MatrixAnalysis h_analysis = analyze_matrix("H_0", 0, moments, options);
         if (!incorporate_matrix(state, h_analysis, checked_order))
         {
             return state.result;
@@ -438,35 +583,35 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     }
 
     const std::size_t order = checked_order / 2;
-    MatrixAnalysis moment_matrix = analyze_matrix("H_" + std::to_string(order), order, hankel_matrix(moments, order, 0), options);
+    MatrixAnalysis moment_matrix = analyze_matrix("H_" + std::to_string(order), order, moments, options);
     if (!incorporate_matrix(state, moment_matrix, checked_order))
     {
         return state.result;
     }
 
+    const MomentSequence localized = lower_localizing_sequence(moments, lower);
     if (checked_order % 2 == 1)
     {
-        MatrixAnalysis shifted_matrix = analyze_matrix("S_" + std::to_string(order), order, hankel_matrix(moments, order, 1), options);
+        MatrixAnalysis shifted_matrix = analyze_matrix("S_" + std::to_string(order), order, localized, options);
         if (!incorporate_matrix(state, shifted_matrix, checked_order))
         {
             return state.result;
         }
-        const std::vector<double> next_column = extension_column(moments, order, 0);
-        if (!incorporate_range_consistency(state, moment_matrix, next_column, "H_" + std::to_string(order) + "_next_column", checked_order, options))
+        if (!incorporate_range_consistency(state, moment_matrix, extension_column(moments, order), "H_" + std::to_string(order) + "_next_column",
+                                           checked_order, options))
         {
             return state.result;
         }
     }
     else if (order > 0)
     {
-        MatrixAnalysis shifted_matrix = analyze_matrix("S_" + std::to_string(order - 1), order - 1, hankel_matrix(moments, order - 1, 1), options);
+        MatrixAnalysis shifted_matrix = analyze_matrix("S_" + std::to_string(order - 1), order - 1, localized, options);
         if (!incorporate_matrix(state, shifted_matrix, checked_order))
         {
             return state.result;
         }
-        const std::vector<double> next_shifted_column = extension_column(moments, order - 1, 1);
-        if (!incorporate_range_consistency(state, shifted_matrix, next_shifted_column, "S_" + std::to_string(order - 1) + "_next_column",
-                                           checked_order, options))
+        if (!incorporate_range_consistency(state, shifted_matrix, extension_column(localized, order - 1),
+                                           "S_" + std::to_string(order - 1) + "_next_column", checked_order, options))
         {
             return state.result;
         }
@@ -475,17 +620,18 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return finish_classification(std::move(state), checked_order, MomentSupport::nonnegative);
 }
 
-[[nodiscard]] RealizabilityResult check_hausdorff(const MomentSet& moments, const BoundedInterval interval, const RealizabilityOptions& options)
+[[nodiscard]] RealizabilityResult check_hausdorff(const MomentSequence& moments, const double lower, const double upper,
+                                                  const RealizabilityOptions& options)
 {
     // Hausdorff realizability on [lower, upper] alternates between endpoint
     // localizing matrices for odd order and moment/interval matrices for even.
-    const std::size_t checked_order = moments.size() - 1;
+    const std::size_t checked_order = moments.values.size() - 1;
     ClassificationState state;
     state.result.checked_order = checked_order;
 
     if (checked_order == 0)
     {
-        const MatrixAnalysis h_analysis = analyze_matrix("H_0", 0, hankel_matrix(moments, 0, 0), options);
+        const MatrixAnalysis h_analysis = analyze_matrix("H_0", 0, moments, options);
         if (!incorporate_matrix(state, h_analysis, checked_order))
         {
             return state.result;
@@ -496,14 +642,12 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     const std::size_t order = checked_order / 2;
     if (checked_order % 2 == 1)
     {
-        MatrixAnalysis lower_matrix =
-            analyze_matrix("L_lower_" + std::to_string(order), order, interval_linear_localizing_matrix(moments, interval, order, true), options);
+        MatrixAnalysis lower_matrix = analyze_matrix("L_lower_" + std::to_string(order), order, lower_localizing_sequence(moments, lower), options);
         if (!incorporate_matrix(state, lower_matrix, checked_order))
         {
             return state.result;
         }
-        MatrixAnalysis upper_matrix =
-            analyze_matrix("L_upper_" + std::to_string(order), order, interval_linear_localizing_matrix(moments, interval, order, false), options);
+        MatrixAnalysis upper_matrix = analyze_matrix("L_upper_" + std::to_string(order), order, upper_localizing_sequence(moments, upper), options);
         if (!incorporate_matrix(state, upper_matrix, checked_order))
         {
             return state.result;
@@ -511,15 +655,15 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     }
     else
     {
-        MatrixAnalysis moment_matrix = analyze_matrix("H_" + std::to_string(order), order, hankel_matrix(moments, order, 0), options);
+        MatrixAnalysis moment_matrix = analyze_matrix("H_" + std::to_string(order), order, moments, options);
         if (!incorporate_matrix(state, moment_matrix, checked_order))
         {
             return state.result;
         }
         if (order > 0)
         {
-            MatrixAnalysis interval_matrix = analyze_matrix("L_interval_" + std::to_string(order - 1), order - 1,
-                                                            interval_quadratic_localizing_matrix(moments, interval, order - 1), options);
+            MatrixAnalysis interval_matrix =
+                analyze_matrix("L_interval_" + std::to_string(order - 1), order - 1, interval_localizing_sequence(moments, lower, upper), options);
             if (!incorporate_matrix(state, interval_matrix, checked_order))
             {
                 return state.result;
@@ -528,6 +672,117 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     }
 
     return finish_classification(std::move(state), checked_order, MomentSupport::bounded_interval);
+}
+
+// The moments a relative-tolerance check tests: those of y = (x - c) / s,
+// with c = m1 / m0 and s the power of two just above the spread, divided by
+// the power of two just above m0. Realizability is invariant under this
+// affine change of coordinate, and the moment matrices change by a
+// congruence, which keeps the signs of their eigenvalues; the tolerance,
+// relative to the standardized matrices, then no longer depends on where the
+// distribution sits or in which unit it is given.
+struct TestedMoments
+{
+    MomentSequence moments;
+    double centre = 0.0;
+    int scale_exponent = 0;
+    bool standardized = false;
+
+    // A support bound in the tested coordinate. Its rounding, like that of
+    // building the localizing sequences, is relative to the terms involved
+    // and lies within the roundoff allowance of the eigen solve.
+    [[nodiscard]] double bound(const double value) const
+    {
+        return standardized ? std::ldexp(value - centre, -scale_exponent) : value;
+    }
+};
+
+[[nodiscard]] TestedMoments raw_moments(const MomentSet& moments)
+{
+    TestedMoments tested;
+    tested.moments.values = moments.values();
+    tested.moments.uncertainties.assign(moments.size(), 0.0);
+    return tested;
+}
+
+[[nodiscard]] TestedMoments standardized_moments(const MomentSet& moments)
+{
+    const std::size_t count = moments.size();
+    const double mass = moments[0];
+    TestedMoments tested;
+    tested.standardized = true;
+    tested.centre = count > 1 ? moments[1] / mass : 0.0;
+
+    // Dividing by the power of two of m0 first is exact and keeps the centring
+    // sums finite for moments near the overflow limit.
+    int mass_exponent = 0;
+    static_cast<void>(std::frexp(mass, &mass_exponent));
+    std::vector<double> scaled(count);
+    for (std::size_t k = 0; k < count; ++k)
+    {
+        scaled[k] = std::ldexp(moments[k], -mass_exponent);
+    }
+
+    // mu_k = sum over j of C(k, j) (-c)^(k-j) m_j. Each term passes through
+    // at most 2k + 1 roundings here, each a factor 1 + delta with |delta| <=
+    // epsilon / 2, which costs less than (k + 1) epsilon of the sum of the
+    // absolute terms; the input moments, taken as exact to their last digit,
+    // add one epsilon. Where the terms cancel, this limits the resolution.
+    std::vector<double> central(count, 0.0);
+    std::vector<double> central_uncertainty(count, 0.0);
+    std::vector<double> binomial_row(count, 0.0);
+    std::vector<double> centre_powers(count, 1.0);
+    binomial_row[0] = 1.0;
+    for (std::size_t k = 0; k < count; ++k)
+    {
+        if (k > 0)
+        {
+            for (std::size_t j = k; j > 0; --j)
+            {
+                binomial_row[j] += binomial_row[j - 1];
+            }
+            centre_powers[k] = centre_powers[k - 1] * -tested.centre;
+        }
+        double magnitude = 0.0;
+        for (std::size_t j = 0; j <= k; ++j)
+        {
+            const double term = binomial_row[j] * centre_powers[k - j] * scaled[j];
+            central[k] += term;
+            magnitude += std::abs(term);
+        }
+        central_uncertainty[k] = static_cast<double>(k + 2) * std::numeric_limits<double>::epsilon() * magnitude;
+    }
+
+    // Scale by the spread, taken from the first even central moment that is
+    // resolved, of either sign; without one, by the distance from the origin,
+    // so that a point mass is not stretched.
+    double spread = tested.centre != 0.0 ? std::abs(tested.centre) : 1.0;
+    for (std::size_t k = 2; k < count; k += 2)
+    {
+        if (std::abs(central[k]) > 2.0 * central_uncertainty[k])
+        {
+            spread = std::pow(std::abs(central[k]) / scaled[0], 1.0 / static_cast<double>(k));
+            break;
+        }
+    }
+    static_cast<void>(std::frexp(spread, &tested.scale_exponent));
+
+    tested.moments.values.resize(count);
+    tested.moments.uncertainties.resize(count);
+    for (std::size_t k = 0; k < count; ++k)
+    {
+        const long long shift = -static_cast<long long>(tested.scale_exponent) * static_cast<long long>(k);
+        const int clamped = static_cast<int>(std::clamp(shift, -100000LL, 100000LL));
+        tested.moments.values[k] = std::ldexp(central[k], clamped);
+        tested.moments.uncertainties[k] = std::ldexp(central_uncertainty[k], clamped);
+    }
+    tested.moments.information_scale = tested.moments.values[0];
+    return tested;
+}
+
+[[nodiscard]] TestedMoments tested_moments(const MomentSet& moments, const RealizabilityOptions& options)
+{
+    return options.relative_tolerance ? standardized_moments(moments) : raw_moments(moments);
 }
 
 [[nodiscard]] RealizabilityResult with_support_context(RealizabilityResult result, const MomentSupport support)
@@ -552,9 +807,15 @@ RealizabilityResult check_realizability(const MomentSet& moments, const MomentSu
     switch (support)
     {
     case MomentSupport::real_line:
-        return with_support_context(check_hamburger(moments, options), support);
+    {
+        const TestedMoments tested = tested_moments(moments, options);
+        return with_support_context(check_hamburger(tested.moments, options), support);
+    }
     case MomentSupport::nonnegative:
-        return with_support_context(check_stieltjes(moments, options), support);
+    {
+        const TestedMoments tested = tested_moments(moments, options);
+        return with_support_context(check_stieltjes(tested.moments, tested.bound(0.0), options), support);
+    }
     case MomentSupport::bounded_interval:
         return make_result(RealizabilityStatus::invalid_input, moments.empty() ? 0 : moments.size() - 1, "bounded_interval", 0, 0.0,
                            options.tolerance, "Bounded-interval realizability requires explicit interval bounds; use the BoundedInterval overload.");
@@ -577,7 +838,9 @@ RealizabilityResult check_realizability(const MomentSet& moments, const BoundedI
         return with_support_context(std::move(validation), MomentSupport::bounded_interval);
     }
 
-    return with_support_context(check_hausdorff(moments, interval, options), MomentSupport::bounded_interval);
+    const TestedMoments tested = tested_moments(moments, options);
+    return with_support_context(check_hausdorff(tested.moments, tested.bound(interval.lower), tested.bound(interval.upper), options),
+                                MomentSupport::bounded_interval);
 }
 
 } // namespace qmomkit

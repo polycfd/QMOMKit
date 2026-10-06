@@ -26,7 +26,8 @@ classification. This validation precedence is visible in source; the
 zero-measure/missing-interval combination has no targeted test identified in
 the relevant realizability tests.
 
-Positive-mass valid inputs dispatch to `check_hamburger`, `check_stieltjes`, or
+Positive-mass valid inputs are first passed through `tested_moments` (see
+below) and then dispatch to `check_hamburger`, `check_stieltjes`, or
 `check_hausdorff`. Their status is a classification, not an exception-based
 numerical failure interface. Allocation/index exceptions are not generally
 caught by the public wrapper. The all-finite requirement is for the whole
@@ -38,27 +39,54 @@ Evidence:
 verification in
 [`realizability_analytical.cpp`](../../../tests/verification/realizability/realizability_analytical.cpp).
 
-## A — matrix builders and support dispatch
+## A — standardization: `tested_moments`, `standardized_moments`, `raw_moments`
 
-The matrix entries explain the mathematical object being tested:
+`tested_moments` returns `standardized_moments` in relative-tolerance mode and
+`raw_moments` otherwise. Both produce a `TestedMoments` value: a
+`MomentSequence` of values with an absolute uncertainty per entry and an
+information scale, and the centre and power-of-two scale of the coordinate
+change. `raw_moments` keeps the moments and assigns zero uncertainty and an
+infinite information scale; `standardized_moments` sets the information scale
+to the standardized mass.
+
+`standardized_moments` divides every moment by the power of two of `m0`,
+centres at `c = m1/m0` with the binomial sum, and scales the order-`k` entry by
+`2^(-k e)`, where `2^e` is the power of two above the spread. The spread comes
+from the first even central moment that exceeds twice its uncertainty,
+otherwise from `|c|`, or is one. Each entry's uncertainty is `(k+2)*epsilon`
+times the sum of the absolute binomial terms: one `epsilon` for the input,
+taken as exact to its last digit, and less than `(k+1)*epsilon` for the at
+most `2k+1` roundings of each term in evaluating the sum. Dividing by the mass
+first keeps the binomial sums finite for moments near the overflow limit.
+`TestedMoments::bound` maps a support bound into the tested coordinate.
+
+The congruence argument for invariance and the resulting formulas are in the
+[design page](../realizability.md#numerical-classification).
+
+## A — sequence builders and support dispatch
 
 | Function | Loop/index meaning and responsibility |
 |---|---|
-| `hankel_matrix` | Row/column loops assign `m[row+col+shift]` to an `(order+1)` square matrix; shift zero tests squared polynomials, shift one adds an `x` factor |
-| `interval_quadratic_localizing_matrix` | Assigns `(a+b)m[k+1]-ab*m[k]-m[k+2]`, `k=row+col`, for the polynomial `(x-a)(b-x)` |
-| `interval_linear_localizing_matrix` | Selects `m[k+1]-a*m[k]` or `b*m[k]-m[k+1]` for the lower/upper endpoint polynomial |
-| `extension_column` | Row loop gathers `m[row+matrix_order+1+shift]`, the next column requiring range consistency |
+| `hankel_matrix` | Row/column loops assign `seq[row+col]` to an `(order+1)` square matrix |
+| `hankel_uncertainty` | Frobenius norm of the Hankel matrix of entry uncertainties; bounds the eigenvalue shift they can cause |
+| `lower_localizing_sequence` | Entry `k` is `m[k+1]-a*m[k]`, the localizer of `x-a`; its uncertainty combines those of the two moments, and its information scale is `(1+|a|)` times that of the moments |
+| `upper_localizing_sequence` | Entry `k` is `b*m[k]-m[k+1]`, the localizer of `b-x`; information scale `(1+|b|)` times that of the moments |
+| `interval_localizing_sequence` | Entry `k` is `(a+b)m[k+1]-ab*m[k]-m[k+2]`, the localizer of `(x-a)(b-x)`; information scale `(1+|a+b|+|ab|)` times that of the moments |
+| `extension_column` | Gathers `seq[row+matrix_order+1]` and its uncertainties, the next column requiring range consistency |
 
 The builders assume the dispatcher's parity/order calculations make all
-required indices available; `MomentSet::operator[]` would throw on an invalid
-index. They do not scale coordinates or guard every arithmetic operation;
-non-finite constructed matrices are detected by `analyze_matrix`.
+required indices available. Non-finite constructed matrices are detected by
+`analyze_matrix`.
 
 `check_hamburger` analyzes `H_floor(N/2)`. Odd `N` checks its next extension
 column against the matrix range. For a numerically singular even `H_n`, it also
 analyzes `H_(n-1)` and requires equal numerical ranks: the singular truncated
 matrix must be a flat extension. This rejects PSD-but-incompatible data such as
-`[1,0,0,0,1]` without changing the positive-definite or odd-order paths.
+`[1,0,0,0,1]` without changing the positive-definite or odd-order paths. A
+rank has no margin against the data uncertainty, so a mismatch rejects only if
+`H_n` is singular and the ranks still differ under `rank_as_given`, which
+counts only the eigen-solve roundoff as zero; otherwise the result is
+indeterminate.
 
 `check_stieltjes` treats order zero separately; otherwise it analyzes `H_k`.
 Odd `N=2k+1` also analyzes shifted `S_k` and checks the ordinary Hankel next
@@ -73,58 +101,68 @@ conditions; their names should not replace independent mathematical validation.
 `verify_hamburger`, `verify_stieltjes`, and `verify_hausdorff` in the
 analytical verification file use Gaussian/discrete, gamma/log-normal/discrete,
 and beta/uniform/endpoint cases, respectively. Singular next-column failures
-and atomic boundary measures and the incompatible even-order sequence remain
-covered. Conditioned matrices, cancellation in localizers, interval
-translation/width, and truncation parity remain numerical sensitivities.
+and boundary measures of a few points and the incompatible even-order sequence
+remain covered. `verify_shift_and_scale_preserve_classification` and
+`verify_resolution_limit_never_reverses_classification` sweep location and
+spread on every support.
 
-## A — `analyze_matrix`
+## A — `analyze_matrix` and `classify_eigenvalue`
 
-`analyze_matrix` first scans all entries for finiteness and the maximum
-absolute entry. A second nested loop computes the infinity norm relative to
-that maximum, avoiding an overflowing raw row sum in the relative-tolerance
-calculation. The effective user threshold is either absolute `tolerance` or
-`tolerance*entry_scale*normalized_infinity_norm`.
+`analyze_matrix` builds the Hankel matrix of a sequence, scans all entries for
+finiteness and the maximum absolute entry, and computes the infinity norm
+relative to that maximum, avoiding an overflowing raw row sum. The user
+threshold is either absolute `tolerance` or
+`tolerance*entry_scale*normalized_infinity_norm`; the roundoff allowance is
+`1000*epsilon*entry_scale*normalized_infinity_norm`. The matrix tolerance adds
+the data uncertainty `delta` from `hankel_uncertainty` to the user threshold,
+and the zero band adds it to the roundoff allowance.
 
 The matrix is diagonalized by the [shared symmetric Jacobi
 kernel](conditional_systems.md#shared-symmetric-eigenkernel) with its default
-options, which scales the matrix itself, so the result does not depend on the
-moment magnitude. The classification branches, in order, are:
+options, which scales the matrix itself. An unconverged decomposition,
+non-finite eigenvalues or uncertainty, or an uncertainty that reaches the
+information scale of the sequence make the matrix indeterminate. Otherwise
+`classify_eigenvalue` assigns every eigenvalue to one class: negative below
+minus the tolerance, zero within the zero band, positive at or above the
+tolerance, ambiguous otherwise. Any negative eigenvalue makes the matrix not
+PSD; otherwise any ambiguous one makes it indeterminate; otherwise any zero one
+makes it a PSD boundary matrix; otherwise it is positive definite.
 
-1. an unconverged decomposition or non-finite eigenvalues → indeterminate;
-2. minimum eigenvalue below minus the user threshold → not PSD;
-3. absolute minimum eigenvalue within
-   `1000*epsilon*entry_scale*normalized_infinity_norm` → PSD boundary;
-4. minimum eigenvalue below the user threshold → indeterminate;
-5. otherwise → positive definite.
-
-Step four includes **small positive** eigenvalues. Its diagnostic therefore
+The ambiguous class includes **small positive** eigenvalues, so its diagnostic
 says that an eigenvalue is within the numerical tolerance, without assigning a
-sign. The roundoff allowance and user threshold are separate quantities, not
-interchangeable acceptance tolerances. Matrix scaling, eigen gaps, and
-relative/absolute mode affect this classification.
+sign; the same message names the input precision, which covers the matrices
+whose uncertainty reaches the information scale. `numerical_rank` counts the positive class, and the range checks use the
+zero class as the kernel, so the definiteness decision, the rank and the kernel
+share one partition. `test_every_eigenvalue_is_classified` covers an
+ambiguous eigenvalue that is not the smallest;
 `verify_near_boundary_and_scaling` checks both signs near zero, low-density
-non-diagonal matrices, and an overflowing raw row sum; it does not characterize
-arbitrary rank or dimension.
+non-diagonal matrices, and an overflowing raw row sum.
 
 ## A — `check_range_consistency`, `incorporate_range_consistency`
 
-For a matrix not classified positive definite, the extension must have small
-projection onto every eigenvector whose eigenvalue is `<= analysis.tolerance`.
+For a matrix not classified positive definite, the extension column must have
+small projection onto every eigenvector of the zero class.
 `projection_on_eigenvector` sums a column dot product; the outer loop retains
-the maximum absolute projection. The threshold is absolute tolerance or the
-maximum of matrix tolerance and `options.tolerance*vector_scale(extension)`.
+the maximum absolute projection. `kernel_projection_tolerance` sets the
+threshold: absolute tolerance, or the maximum of the matrix tolerance and
+`options.tolerance*vector_scale(extension)`, raised to ten times the data
+uncertainty of the projection, which is the column's own uncertainty plus its
+norm times the kernel rotation. The rotation is a Davis-Kahan bound, `delta`
+over the gap between the zero and positive classes, with the gap estimated
+from below as the smallest positive eigenvalue minus the zero band.
 
 Projection above that threshold rejects the sequence; above `0.1*threshold`
 reports indeterminate; otherwise the extension is accepted as boundary. The
-factor `0.1` creates an uncertainty band. Its purpose is apparent from the
-branch, but a quantitative justification for its exact width was not
-identified. This is not a least-squares correction: no input moment is changed.
-The dispatcher checks matrix status first, so unsuccessful matrix analyses do
-not reach the normal range path.
+factor `0.1` creates an uncertainty band, and the factor ten keeps the data
+uncertainty below it. A quantitative justification for the exact width of the
+band was not identified. This is not a least-squares correction: no input
+moment is changed. The dispatcher checks matrix status first, so unsuccessful
+matrix analyses do not reach the normal range path.
 
 Evidence: singular ordinary/shifted extension examples in the realizability
-analytical verification. The `0.1` projection band is a fixed implementation
-policy, not a quantitative accuracy bound.
+analytical verification, and the shifted next-column cases of
+`verify_shift_and_scale_preserve_classification`. The `0.1` projection band is
+a fixed implementation policy, not a quantitative accuracy bound.
 
 ## A/B — policy adapters
 
@@ -156,5 +194,6 @@ mode selection, status acceptance, and composition.
 | `incorporate_matrix` | Converts matrix classification to early failure or sets a persistent boundary flag | Support-family verification |
 | `finish_classification` | Chooses boundary if any accepted matrix/range check was singular; otherwise strict | Same verification |
 | `make_result`, `with_support_context`, `support_name` | Populate diagnostics and append support text when absent | Diagnostic verification helpers |
-| `vector_scale`, `projection_on_eigenvector` | Maximum absolute extension entry and ordinary dot product used by range checks | Indirect singular-range coverage |
+| `vector_scale`, `projection_on_eigenvector`, `euclidean_norm` | Maximum absolute extension entry, ordinary dot product and Euclidean norm used by range checks | Indirect singular-range coverage |
+| `numerical_rank`, `rank_as_given` | Count of the positive class, and count of eigenvalues beyond the eigen-solve roundoff, compared by the flat-extension test | `test_flat_extension_within_data_uncertainty_is_indeterminate`, even-order kernel test |
 | `RealizabilityResult::realizable`, `on_boundary` | Exact status predicates; no fresh numerical check | `test_status_helpers` |

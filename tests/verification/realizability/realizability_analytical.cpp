@@ -26,6 +26,13 @@
 //   Bhatia-Davis bound variance <= (b - mean)(mean - a), so a larger variance
 //   is not realizable.
 //
+//   Realizability is invariant under an affine change of coordinate, so a
+//   sequence built from a location c and a spread s has the classification of
+//   the one at c = 0 and s = 1. Double-precision input resolves it only up to
+//   a shift c / s that falls with the order; each case requires its verdict up
+//   to a shift at least three times below the first one, on a grid of 0 to
+//   1e8, at which any spread from 1e-9 to 1e9 gave a different answer.
+//
 // Error metric and pass criteria
 //   Verdict and reported order must match exactly. The reported pivot must
 //   exceed the tolerance actually used for a strictly realizable sequence, and
@@ -33,7 +40,8 @@
 //   decision from a coin flip near the boundary. Numerical comparisons use
 //   1.0e-8, looser than the inversion studies because these sequences are
 //   deliberately placed near the boundary where the determinants are small
-//   differences of larger numbers.
+//   differences of larger numbers. Beyond its resolved shift, a case may only
+//   be boundary or numerically indeterminate instead of its own verdict.
 //
 // Reproduce
 //   ctest -R verification_realizability
@@ -45,6 +53,7 @@
 #include "test_case_dispatch.hpp"
 
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <qmomkit/distributions.hpp>
@@ -388,51 +397,182 @@ void verify_even_order_boundaries()
     expect_status(discrete_moments({0.4, 0.6}, {0.0, 2.0}, 4), MomentSupport::nonnegative, RealizabilityStatus::boundary, "zero point order 4");
 }
 
-void verify_moderate_shift_preserves_classification()
+// Raw moments of the normal distribution with the given mean and standard
+// deviation, from m_k = mean m_(k-1) + (k - 1) deviation^2 m_(k-2).
+[[nodiscard]] MomentSet normal_moments(const double mean, const double deviation, const std::size_t maximum_order)
 {
-    // Realizability does not depend on where the distribution sits, so the
-    // same points moved by c must keep their classification. From a centre of
-    // about 30 on, the raw-moment Hankel matrices are too ill-conditioned for
-    // the classification to hold, so larger centres are not checked here.
-    for (const double c : {2.0, 10.0})
+    std::vector<double> moments{1.0, mean};
+    for (std::size_t order = 2; order <= maximum_order; ++order)
     {
-        const std::vector<double> three_points{c - 1.0, c, c + 1.0};
-        const std::vector<double> two_points{c - 1.0, c + 1.0};
-        for (const MomentSupport support : {MomentSupport::real_line, MomentSupport::nonnegative})
-        {
-            expect_status(discrete_moments({0.25, 0.5, 0.25}, three_points, 5), support, RealizabilityStatus::strictly_realizable,
-                          "shifted three points order 5");
-            expect_status(discrete_moments({0.25, 0.5, 0.25}, three_points, 6), support, RealizabilityStatus::boundary,
-                          "shifted three points order 6");
-            expect_status(discrete_moments({0.5, 0.5}, two_points, 3), support, RealizabilityStatus::strictly_realizable,
-                          "shifted two points order 3");
-            expect_status(discrete_moments({0.5, 0.5}, two_points, 4), support, RealizabilityStatus::boundary, "shifted two points order 4");
-        }
+        moments.push_back(mean * moments[order - 1] + static_cast<double>(order - 1) * deviation * deviation * moments[order - 2]);
+    }
+    return MomentSet(std::move(moments));
+}
 
-        const BoundedInterval interval{c - 2.0, c + 2.0};
-        expect_status(uniform_moments(c - 2.0, c + 2.0, 5), interval, RealizabilityStatus::strictly_realizable, "shifted uniform order 5");
-        expect_status(discrete_moments({0.5, 0.5}, two_points, 3), interval, RealizabilityStatus::strictly_realizable,
-                      "shifted two interior points order 3");
-        expect_status(discrete_moments({0.5, 0.5}, two_points, 4), interval, RealizabilityStatus::boundary, "shifted two interior points order 4");
+// Adds offset * spread^k to m_k, a fixed change of the standardized moment.
+[[nodiscard]] MomentSet with_offset(const MomentSet& moments, const std::size_t order, const double offset, const double spread)
+{
+    std::vector<double> values = moments.values();
+    values[order] += offset * std::pow(spread, static_cast<double>(order));
+    return MomentSet(std::move(values));
+}
+
+// A sequence built from a location c and a spread s, whose classification
+// does not depend on either. `resolved_shift` is the largest c / s at which
+// double-precision input still resolves it; `positive_shift` marks sequences
+// whose points must stay to the right of the origin.
+struct InvarianceCase
+{
+    std::string name;
+    std::function<qmomkit::RealizabilityResult(double, double)> check;
+    RealizabilityStatus expected = RealizabilityStatus::strictly_realizable;
+    double resolved_shift = 0.0;
+    bool positive_shift = false;
+};
+
+[[nodiscard]] std::vector<InvarianceCase> invariance_cases()
+{
+    const auto real_line = [](const MomentSet& moments) { return qmomkit::check_realizability(moments, MomentSupport::real_line); };
+    const auto nonnegative = [](const MomentSet& moments) { return qmomkit::check_realizability(moments, MomentSupport::nonnegative); };
+    const auto three_points = [](const double c, const double s, const std::size_t order)
+    { return discrete_moments({0.25, 0.5, 0.25}, {c - s, c, c + s}, order); };
+    const auto two_points = [](const double c, const double s, const std::size_t order)
+    { return discrete_moments({0.5, 0.5}, {c - s, c + s}, order); };
+    const auto four_points = [](const double c, const double s, const std::size_t order)
+    { return discrete_moments({0.1, 0.4, 0.4, 0.1}, {c - 1.5 * s, c - 0.5 * s, c + 0.5 * s, c + 1.5 * s}, order); };
+    constexpr auto strict = RealizabilityStatus::strictly_realizable;
+    constexpr auto boundary = RealizabilityStatus::boundary;
+    constexpr auto not_realizable = RealizabilityStatus::not_realizable;
+
+    return {
+        {"real line, three points, order 5", [=](double c, double s) { return real_line(three_points(c, s, 5)); }, strict, 1.0e3},
+        {"real line, three points, order 6", [=](double c, double s) { return real_line(three_points(c, s, 6)); }, boundary, 1.0e2},
+        {"real line, normal, order 6", [=](double c, double s) { return real_line(normal_moments(c, s, 6)); }, strict, 1.0e2},
+        {"real line, normal, order 8", [=](double c, double s) { return real_line(normal_moments(c, s, 8)); }, strict, 1.0e1},
+        {"real line, four points, order 8", [=](double c, double s) { return real_line(four_points(c, s, 8)); }, boundary, 1.0e1},
+        {"real line, two points, order 4", [=](double c, double s) { return real_line(two_points(c, s, 4)); }, boundary, 1.0e3},
+        // The next column lies in the range of the singular H_2.
+        {"real line, two points, order 5", [=](double c, double s) { return real_line(two_points(c, s, 5)); }, boundary, 1.0e3},
+        {"real line, variance s^2", [=](double c, double s) { return real_line(MomentSet{1.0, c, c * c + s * s}); }, strict, 1.0e3},
+        {"real line, variance -s^2", [=](double c, double s) { return real_line(MomentSet{1.0, c, c * c - s * s}); }, not_realizable, 1.0e3},
+        // H_2 has a negative eigenvalue.
+        {"real line, two points, m4 lowered", [=](double c, double s) { return real_line(with_offset(two_points(c, s, 4), 4, -0.5, s)); },
+         not_realizable, 1.0e3},
+        {"real line, three points, m6 lowered", [=](double c, double s) { return real_line(with_offset(three_points(c, s, 6), 6, -0.1, s)); },
+         not_realizable, 1.0e1},
+        // The next column leaves the range of the singular H_2.
+        {"real line, two points, m5 raised", [=](double c, double s) { return real_line(with_offset(two_points(c, s, 5), 5, 0.5, s)); },
+         not_realizable, 1.0e2},
+        // H_2 is positive semidefinite but not a flat extension of H_1.
+        {"real line, one point, m4 raised", [=](double c, double s) { return real_line(with_offset(discrete_moments({1.0}, {c}, 4), 4, 0.5, s)); },
+         not_realizable, 1.0e1},
+        {"real line, two points, m6 raised", [=](double c, double s) { return real_line(with_offset(two_points(c, s, 6), 6, 0.5, s)); },
+         not_realizable, 2.0},
+        {"nonnegative, two points, order 3", [=](double c, double s) { return nonnegative(two_points(c, s, 3)); }, strict, 1.0e3, true},
+        {"nonnegative, three points, order 5", [=](double c, double s) { return nonnegative(three_points(c, s, 5)); }, strict, 1.0e3, true},
+        {"nonnegative, three points, order 6", [=](double c, double s) { return nonnegative(three_points(c, s, 6)); }, boundary, 1.0e2, true},
+        {"interval, three points, order 5", [=](double c, double s)
+         { return qmomkit::check_realizability(three_points(c, s, 5), BoundedInterval{c - 2.0 * s, c + 2.0 * s}); }, strict, 1.0e2},
+        {"interval, three points, order 6", [=](double c, double s)
+         { return qmomkit::check_realizability(three_points(c, s, 6), BoundedInterval{c - 2.0 * s, c + 2.0 * s}); }, boundary, 1.0e2},
+        {"interval, points at both ends, order 3",
+         [=](double c, double s) { return qmomkit::check_realizability(two_points(c, s, 3), BoundedInterval{c - s, c + s}); }, boundary, 1.0e3},
+        {"interval, points outside, order 2", [=](double c, double s)
+         { return qmomkit::check_realizability(two_points(c, s, 2), BoundedInterval{c - 0.5 * s, c + 0.5 * s}); }, not_realizable, 1.0e3},
+    };
+}
+
+constexpr double invariance_spreads[] = {1.0e-9, 1.0e-3, 1.0, 1.0e3, 1.0e9};
+
+void verify_shift_and_scale_preserve_classification()
+{
+    // Realizability does not depend on where the distribution sits or on the
+    // unit of its coordinate, and the relative tolerance applies to the
+    // standardized moments, so every classification must hold for any spread
+    // and for a location of up to the resolved shift in units of the spread.
+    for (const InvarianceCase& test_case : invariance_cases())
+    {
+        for (const double shift : {0.0, 2.0, 10.0, 1.0e2, 1.0e3})
+        {
+            if (shift > test_case.resolved_shift || (test_case.positive_shift && shift == 0.0))
+            {
+                continue;
+            }
+            for (const double spread : invariance_spreads)
+            {
+                const auto result = test_case.check(shift * spread, spread);
+                if (result.status != test_case.expected)
+                {
+                    std::cerr << test_case.name << " at shift " << shift << " and spread " << spread << '\n';
+                }
+                QMOMKIT_VERIFY_CHECK(result.status == test_case.expected);
+            }
+        }
+    }
+}
+
+void verify_resolution_limit_never_reverses_classification()
+{
+    // Beyond the resolved shift, the rounding of the raw input moments hides
+    // the standardized moments, and the check may answer boundary or
+    // numerically indeterminate instead, but never the opposite verdict: a
+    // realizable sequence is never rejected, and a non-realizable one or a
+    // boundary one is never strictly realizable. At 10^8 spreads the variance
+    // is below the rounding of m_2, so the input moments are those of a single
+    // point.
+    for (const InvarianceCase& test_case : invariance_cases())
+    {
+        for (const double shift : {0.0, 2.0, 10.0, 30.0, 1.0e2, 3.0e2, 1.0e3, 3.0e3, 1.0e4, 1.0e5, 1.0e6, 1.0e8})
+        {
+            if (test_case.positive_shift && shift == 0.0)
+            {
+                continue;
+            }
+            for (const double spread : invariance_spreads)
+            {
+                const RealizabilityStatus status = test_case.check(shift * spread, spread).status;
+                const bool undecided = status == RealizabilityStatus::boundary || status == RealizabilityStatus::numerically_indeterminate;
+                if (status != test_case.expected && !undecided)
+                {
+                    std::cerr << test_case.name << " at shift " << shift << " and spread " << spread << '\n';
+                }
+                QMOMKIT_VERIFY_CHECK(status == test_case.expected || undecided);
+            }
+        }
     }
 }
 
 void verify_near_boundary_and_scaling()
 {
-    // Near-boundary cases make tolerance semantics explicit. Relative tolerance
-    // and its roundoff allowance scale with the tested matrix, so positive
-    // number-density scaling preserves a strict classification.
+    // Near-boundary cases make tolerance semantics explicit. The relative
+    // tolerance applies to the standardized moment matrices. Two points at -1
+    // and 1 put H_2 exactly on the boundary at order 4; moving m_4 by 1e-10
+    // keeps its zero eigenvalue within the loose tolerance, and by 1e-6 moves
+    // it decisively to either side.
     RealizabilityOptions loose;
     loose.tolerance = 1.0e-8;
-    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0, 0.0, -1.0e-10}, MomentSupport::real_line, loose).status ==
+    const auto two_points = [](const double fourth_moment) { return MomentSet{1.0, 0.0, 1.0, 0.0, fourth_moment}; };
+    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(two_points(1.0), MomentSupport::real_line, loose).status == RealizabilityStatus::boundary);
+    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(two_points(1.0 - 1.0e-10), MomentSupport::real_line, loose).status ==
                          RealizabilityStatus::numerically_indeterminate);
-    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0e-10}, MomentSupport::real_line, loose).status ==
+    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(two_points(1.0 + 1.0e-10), MomentSupport::real_line, loose).status ==
                          RealizabilityStatus::numerically_indeterminate);
-    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0, 0.0, -1.0e-6}, MomentSupport::real_line, loose).status ==
+    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(two_points(1.0 - 1.0e-6), MomentSupport::real_line, loose).status ==
                          RealizabilityStatus::not_realizable);
-    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0e-6}, MomentSupport::real_line, loose).status ==
+    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(two_points(1.0 + 1.0e-6), MomentSupport::real_line, loose).status ==
                          RealizabilityStatus::strictly_realizable);
 
+    // A variance of 1e-10 or 1e-6 is decided at its own scale: negative is not
+    // realizable, positive is strictly realizable.
+    for (const double variance : {1.0e-10, 1.0e-6})
+    {
+        QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0, 0.0, -variance}, MomentSupport::real_line, loose).status ==
+                             RealizabilityStatus::not_realizable);
+        QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0, 0.0, variance}, MomentSupport::real_line, loose).status ==
+                             RealizabilityStatus::strictly_realizable);
+    }
+
+    // Positive number-density scaling preserves a strict classification.
     const MomentSet strict = standard_normal_moments(4);
     for (const double scale : {1.0, 1.0e-14, 1.0e-50, 1.0e-100, 1.0e-200, 1.0e50})
     {
@@ -477,17 +617,19 @@ void verify_near_boundary_and_scaling()
 
 int main(const int argc, char** argv)
 {
-    return qmomkit::test::dispatch_test_case(argc, argv,
-                                             {
-                                                 {"diagnostic_success_cases", verify_diagnostic_success_cases},
-                                                 {"diagnostic_failure_cases", verify_diagnostic_failure_cases},
-                                                 {"boundary_diagnostics", verify_boundary_diagnostics},
-                                                 {"hamburger", verify_hamburger},
-                                                 {"stieltjes", verify_stieltjes},
-                                                 {"hausdorff", verify_hausdorff},
-                                                 {"hausdorff_on_other_intervals", verify_hausdorff_on_other_intervals},
-                                                 {"even_order_boundaries", verify_even_order_boundaries},
-                                                 {"moderate_shift_preserves_classification", verify_moderate_shift_preserves_classification},
-                                                 {"near_boundary_and_scaling", verify_near_boundary_and_scaling},
-                                             });
+    return qmomkit::test::dispatch_test_case(
+        argc, argv,
+        {
+            {"diagnostic_success_cases", verify_diagnostic_success_cases},
+            {"diagnostic_failure_cases", verify_diagnostic_failure_cases},
+            {"boundary_diagnostics", verify_boundary_diagnostics},
+            {"hamburger", verify_hamburger},
+            {"stieltjes", verify_stieltjes},
+            {"hausdorff", verify_hausdorff},
+            {"hausdorff_on_other_intervals", verify_hausdorff_on_other_intervals},
+            {"even_order_boundaries", verify_even_order_boundaries},
+            {"shift_and_scale_preserve_classification", verify_shift_and_scale_preserve_classification},
+            {"resolution_limit_never_reverses_classification", verify_resolution_limit_never_reverses_classification},
+            {"near_boundary_and_scaling", verify_near_boundary_and_scaling},
+        });
 }

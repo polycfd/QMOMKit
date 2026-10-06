@@ -70,16 +70,17 @@ coefficients.
 
 `make_jacobi_matrix` places `a` on the diagonal and `sqrt(b[i])` on both
 adjacent diagonals, for the current candidate prefix. Its caller checks
-negative `b` before entry. Local `symmetric_jacobi_eigen` requests the [shared
-eigenkernel](conditional_systems.md#shared-symmetric-eigenkernel) with absolute
-`tolerance=1e-14` and at most `50*max(n,1)` rotations (the kernel calls these
-iterations sweeps). `compute_weights` loops over eigenvector columns and forms
+negative `b` before entry. The [shared
+eigenkernel](conditional_systems.md#shared-symmetric-eigenkernel) diagonalizes
+it with its default options; an unconverged decomposition returns
+`not_realizable` with the message "Jacobi matrix eigen solve did not
+converge.". `compute_weights` loops over eigenvector columns and forms
 `m0*v(0,i)^2`. Node sorting and corresponding eigenvector permutation belong to
 the shared kernel. Exact arithmetic explains the intended mass sum; the source
 has no final mass or full moment-residual acceptance check.
 
 Candidate sensitivities are cancellation in sigma recurrence, tiny diagonal
-ratios, raw moment dynamic range, and finite but unconverged eigen output.
+ratios and raw moment dynamic range.
 `test_adaptive_exact_degenerate_sequence_reduces_before_finite_check` and the
 large-abscissa/roundoff variants in `tests/unit/wheeler.cpp` specifically cover
 reduction before rejecting non-finite higher recurrence data. The analytical

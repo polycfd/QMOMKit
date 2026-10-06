@@ -174,8 +174,8 @@ with explicit large/non-finite-zeta branches; both working and right-vector
 columns rotate.
 
 A sweep with no rotations establishes convergence. The limit defaults to
-`max(32,8*cols)` sweeps; exhausting it reports `no_convergence`. This differs
-from the symmetric eigenkernel, which has no convergence status.
+`max(32,8*cols)` sweeps; exhausting it reports `no_convergence`, as the
+symmetric eigenkernel reports an exhausted rotation budget.
 `completed_factorization` uses stable column norms for singular values,
 normalizes left vectors, restores scale with `ldexp`, and calls
 `sort_singular_triplets` for stable descending ordering. Rank uses a prefix
@@ -199,21 +199,28 @@ than agreement with a previous solver, but do not constitute an envelope.
 ## Shared symmetric eigenkernel
 
 **A:** `symmetric_jacobi_eigen` and local `rotate` in
-`src/internal/linear_algebra.cpp` serve Wheeler and realizability. Start with
-identity eigenvectors; each iteration scans the upper triangle for the largest
+`src/internal/linear_algebra.cpp` serve Wheeler and realizability, both with
+the default `JacobiOptions`. `power_of_two_shift` first finds the power of two
+that places the largest entry in [1, 2), and the matrix is scaled by it. That
+scaling is exact, apart from entries so far below the largest that they leave
+the normal range, and every rotation parameter is a ratio of entries, so the
+rotations are those of the unscaled matrix while the tolerance, machine epsilon
+by default, becomes relative to the largest entry. Starting from identity
+eigenvectors, each iteration scans the upper triangle for the largest
 off-diagonal entry and rotates that pair, updating symmetric matrix entries and
-eigenvector columns. Stop when the largest entry is below tolerance or
-`max_sweeps` iterations are exhausted. Each “sweep” performs one pair rotation,
-not a cyclic sweep of all pairs.
+eigenvector columns. Iteration stops when the largest entry is within the
+tolerance, which sets `converged`, or when `max_rotations` single rotations
+are exhausted; zero selects `10 n^2`, five times the under `2 n^2` measured for
+tridiagonal Jacobi and dense Hankel matrices.
 
-Finally sort diagonal values ascending and permute eigenvector columns with
-them. Square, symmetric, finite matrices and sensible options are upstream
-assumptions; no residual or convergence flag is returned. The two callers use
-different temporary scaling and iteration budgets. `tests/unit/linear_algebra.cpp`
-checks the kernel directly against closed-form 2 x 2 and Gauss-Legendre
-eigenpairs, with residual and orthogonality bounds; Wheeler and realizability
-tests exercise it through their callers. The kernel does not expose an
-independent convergence result.
+Finally sort diagonal values ascending, undo the scaling of the eigenvalues,
+and permute eigenvector columns with them. Square, symmetric, finite matrices
+are upstream assumptions; a non-finite entry leaves the matrix unscaled.
+`tests/unit/linear_algebra.cpp` checks the kernel directly against closed-form
+2 x 2 and Gauss-Legendre eigenpairs at scales from `1e-20` to `1e20`, exact
+results under power-of-two scaling, polynomial exactness up to forty nodes, and
+a reported exhausted budget; Wheeler and realizability tests exercise it
+through their callers.
 
 ## B/C — supporting helpers
 

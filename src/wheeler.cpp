@@ -111,15 +111,6 @@ struct WheelerAttemptResult
     return jacobi;
 }
 
-[[nodiscard]] EigenDecomposition symmetric_jacobi_eigen(DenseMatrix matrix)
-{
-    const std::size_t n = matrix.rows();
-    constexpr std::size_t max_sweeps_per_node = 50;
-    constexpr double tolerance = 1.0e-14;
-    const std::size_t max_sweeps = max_sweeps_per_node * std::max<std::size_t>(n, 1);
-    return internal::symmetric_jacobi_eigen(std::move(matrix), {tolerance, max_sweeps});
-}
-
 [[nodiscard]] bool recurrence_is_finite(const RecurrenceCoefficients& coefficients)
 {
     return internal::all_finite(coefficients.a) && internal::all_finite(coefficients.b);
@@ -276,7 +267,11 @@ struct WheelerAttemptResult
 
     for (std::size_t n1 = n; n1 > 1; --n1)
     {
-        EigenDecomposition eigen = symmetric_jacobi_eigen(make_jacobi_matrix(coefficients.a, coefficients.b, n1));
+        EigenDecomposition eigen = internal::symmetric_jacobi_eigen(make_jacobi_matrix(coefficients.a, coefficients.b, n1), {});
+        if (!eigen.converged)
+        {
+            return {one_node_result(moments, QuadratureStatus::not_realizable, "Jacobi matrix eigen solve did not converge."), false};
+        }
         std::vector<double> weights = compute_weights(moments[0], eigen.eigenvectors);
 
         if (!internal::all_finite(eigen.eigenvalues) || !internal::all_finite(weights))

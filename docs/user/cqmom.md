@@ -398,7 +398,10 @@ which phase-space dimension or conditioning step was not accepted.
 Native CQMOM moments remain integer-order polynomial raw moments with
 phase-space-order multi-indices. QMOMKit reconstructs those moments from
 terminal quadrature when output, validation, or phase-space evolution handoff
-needs raw moment values.
+needs raw moment values. Each coordinate power $x_{d,j}^{\alpha_d}$ must lie
+within the range of a double, as described for
+[QMOM](qmom.md#moment-reconstruction-from-quadrature); keep coordinates in
+units near unity.
 
 After checking that a CQMOM quadrature result is valid, callers may also
 evaluate generalized moments with finite real exponent vectors as derived

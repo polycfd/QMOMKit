@@ -122,6 +122,19 @@ for reconstruction handoff, phase-space evolution, output, or validation
 workflows. These moments use orders such as $m_0$, $m_1$, and $m_2$, or
 integer-valued multidimensional raw-moment indices.
 
+Each contribution $w_i\,x_i^k$ is evaluated with the power $x_i^k$ formed
+first, so that power must itself lie within the range of a double, about
+$10^{\pm 308}$. A power that overflows makes the reconstruction fail with
+`std::overflow_error`, and a power that underflows contributes zero, even
+where $w_i\,x_i^k$ would be representable. This arises only for coordinates
+far from unity at high orders, for example droplet volumes of about
+$10^{-18}\,\mathrm{m}^3$ from order 18 on. Moment sets like that span hundreds
+of decades and are poorly suited to inversion in any case, so express such a
+coordinate in units that keep it near unity, for example cubic micrometres
+instead of cubic metres. Automatic reconstruction scaling does not change this:
+it applies to the inversion, while moments are always reconstructed in the
+configured coordinates.
+
 After checking that a quadrature result is valid, callers may also evaluate
 generalized moments with arbitrary finite real exponents as derived
 quantities:

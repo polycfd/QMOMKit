@@ -4,7 +4,9 @@
 //   That compute_quadrature returns exactly the positions and weights the
 //   moments were built from, for one to six and for eight nodes; that
 //   multiplying every weight by a common factor leaves the positions unchanged
-//   and scales the weights by that factor; that reconstructing
+//   and scales the weights by that factor; that the same points multiplied by
+//   any power of ten from 1e-20 to 1e20, or given in metres, are recovered as
+//   accurately as at unit scale; that reconstructing
 //   the moments from the result returns the input; and that presenting the
 //   same points in a different input order changes neither the moments nor the
 //   sorted output.
@@ -30,6 +32,12 @@
 //   six and 1.4e-12 for eight. The tolerances, 1e-12 up to six nodes and
 //   1e-10 for eight, leave a margin of about fifty or more over those
 //   deviations while still rejecting any misplaced point or weight.
+//
+//   The scaled points use the same relative metric. Three points at any scale
+//   from 1e-20 to 1e20 are recovered to within 5.2e-14, against a tolerance of
+//   1e-12; four droplet diameters between 20 and 200 micrometres, given in
+//   metres, to within 2.9e-13, against 2e-12, since the spread of a factor ten
+//   makes that rule less well conditioned.
 //
 // Reproduce
 //   ctest -R verification_wheeler_analytical
@@ -223,6 +231,24 @@ void test_eight_node_reference_at_two_number_densities()
     assert_recovers_points(abscissas, scaled_weights, 1.0e-10);
 }
 
+// The inversion must not depend on the unit of the coordinate: the same points
+// multiplied by any power of ten are recovered with the same relative accuracy.
+void test_points_at_any_scale_are_recovered()
+{
+    for (int exponent = -20; exponent <= 20; exponent += 4)
+    {
+        const double scale = std::pow(10.0, exponent);
+        assert_recovers_points({scale, 2.0 * scale, 4.0 * scale}, {0.2, 0.5, 0.3}, 1.0e-12);
+    }
+}
+
+// Droplet diameters between 20 and 200 micrometres, in metres, as an
+// application without automatic scaling provides them.
+void test_droplet_diameters_in_metres_are_recovered()
+{
+    assert_recovers_points({20.0e-6, 50.0e-6, 100.0e-6, 200.0e-6}, {0.1, 0.4, 0.35, 0.15}, 2.0e-12);
+}
+
 } // namespace
 
 int main(const int argc, char** argv)
@@ -238,6 +264,8 @@ int main(const int argc, char** argv)
             {"five_node_reference", test_five_node_reference},
             {"six_node_reference", test_six_node_reference},
             {"eight_node_reference_at_two_number_densities", test_eight_node_reference_at_two_number_densities},
+            {"points_at_any_scale_are_recovered", test_points_at_any_scale_are_recovered},
+            {"droplet_diameters_in_metres_are_recovered", test_droplet_diameters_in_metres_are_recovered},
             {"input_node_order_does_not_change_moments_or_sorted_output", test_input_node_order_does_not_change_moments_or_sorted_output},
         });
 }

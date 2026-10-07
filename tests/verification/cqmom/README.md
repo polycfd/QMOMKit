@@ -7,7 +7,7 @@ directory through `qmomkit::config::load_cqmom` and
 regenerate configured raw moments. The recursive-inversion, bounded and
 branch-growth studies described under
 [Recursive Inversion Studies](#recursive-inversion-studies) build their moments
-in code instead, as do the feature-sensitive automatic-scaling case and the
+in code instead, as do the disparate-units automatic-scaling case and the
 one-dimensional all-orders reconstruction check.
 
 ## Raw Moment Reconstruction
@@ -507,7 +507,7 @@ The tolerance is `2e-10` for unit-floored relative node and moment errors and
 absolute weights. It leaves cross-platform margin for nested adaptive
 inversions; observed errors are near machine precision.
 
-`verification_cqmom_automatic_scaling_feature_sensitive` uses the same
+`verification_cqmom_automatic_scaling_disparate_units` uses the same
 independently prescribed five-terminal rule through the direct public CQMOM
 route, but represents its coordinates in units `(1e8,1e-8,1e4)`. The
 complete `4 x 4 x 4` raw tensor is explicitly summed from those physical
@@ -543,5 +543,5 @@ ctest --test-dir build -R '^verification_cqmom_independent_product_5d$' --output
 ctest --test-dir build -R '^verification_cqmom_independent_product_6d$' --output-on-failure
 ctest --test-dir build -R '^verification_cqmom_mixed_affine_independent_4d$' --output-on-failure
 ctest --test-dir build -R '^verification_cqmom_automatic_scaling_' --output-on-failure
-ctest --test-dir build -R '^verification_cqmom_automatic_scaling_feature_sensitive$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_automatic_scaling_disparate_units$' --output-on-failure
 ```

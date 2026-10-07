@@ -472,8 +472,11 @@ $$
 Before this division, the adapter rejects weights satisfying
 
 $$
-|w_i| \le \tau_{\mathrm{sing}}\max(1,\max_j |w_j|).
+|w_i| \le \tau_{\mathrm{sing}}\max_j |w_j|.
 $$
+
+The test is relative to the largest weight, so it does not depend on the
+number density that the weights carry.
 
 ### Diagnostics and performance counters
 

@@ -242,7 +242,9 @@ VandermondeSolveResult solve_conditional_vandermonde_system(const std::vector<do
 
     if (bjorck_pereyra.success)
     {
-        double weight_scale = 1.0;
+        // A weight counts as zero relative to the largest weight, so the test
+        // does not depend on the number density the weights carry.
+        double weight_scale = 0.0;
         for (const double weight : weights)
         {
             weight_scale = std::max(weight_scale, std::abs(weight));

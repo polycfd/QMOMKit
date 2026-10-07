@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 672 |
+| Unit logical tests | 674 |
 | Component/regression logical tests | 47 |
 | Verification logical tests | 188 |
-| **Runtime logical tests** | **907** |
+| **Runtime logical tests** | **909** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **908** |
+| **Total CTest registrations** | **910** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -249,7 +249,7 @@ renamed test rather than a deleted one.
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
 | `verification_cqmom_automatic_scaling_unit_invariance` | `tests/verification/cqmom/automatic_scaling.cpp` | `unit-invariance` | Verifies terminal paths, normalized physical coordinates, weights, active branch counts, and reconstructed raw moments for reference and rescaled representations of a configured CQMOM case. | — |
-| `verification_cqmom_automatic_scaling_feature_sensitive` | `tests/verification/cqmom/automatic_scaling.cpp` | `feature-sensitive` | Verifies that the prescribed five-terminal rule and raw moments are recovered for disparate units, both with automatic scaling and without it. | — |
+| `verification_cqmom_automatic_scaling_disparate_units` | `tests/verification/cqmom/automatic_scaling.cpp` | `disparate-units` | Verifies that the prescribed five-terminal rule and raw moments are recovered for disparate units, both with automatic scaling and without it. | — |
 
 ### CQMOM / moment reconstruction
 
@@ -596,6 +596,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_recursive_quadrature_recursive_dense_and_bp_equivalence_adaptive` | `tests/unit/recursive_quadrature.cpp` | `recursive_dense_and_bp_equivalence_adaptive` | Checks that the compared recursive CQMOM reconstruction paths produce equivalent results for the tested input. | — |
 | `unit_recursive_quadrature_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch` | `tests/unit/recursive_quadrature.cpp` | `recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch` | Checks that adaptive reduces roundoff deterministic mixed affine branch in recursive CQMOM reconstruction. | — |
 | `unit_recursive_quadrature_recursive_adaptive_reduces_roundoff_branch_with_bounded_support` | `tests/unit/recursive_quadrature.cpp` | `recursive_adaptive_reduces_roundoff_branch_with_bounded_support` | Checks that a conditional branch that is a single point still reduces when bounded supports route its inversion through the bounded selection. | — |
+| `unit_recursive_quadrature_recursive_reconstruction_does_not_depend_on_number_density` | `tests/unit/recursive_quadrature.cpp` | `recursive_reconstruction_does_not_depend_on_number_density` | Checks that four weighted points give the same nodes, and weights scaled by the number density, at number densities 1 and 1e-16, in fixed and adaptive mode. | — |
 | `unit_recursive_quadrature_public_cqmom_bp_success_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `public_cqmom_bp_success_independent_of_diagnostic_level` | Checks that the public CQMOM reconstruction accepts an identical quadrature at every diagnostic level for the Björck–Pereyra policy on a three-dimensional non-identity conditioning order. | — |
 | `unit_recursive_quadrature_recursive_bp_failure_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `recursive_bp_failure_independent_of_diagnostic_level` | Checks recursive Björck–Pereyra failure status and failing branch are independent of diagnostic level. | — |
 | `unit_recursive_quadrature_conditioning_path_table_grows_iterates_and_compares` | `tests/unit/recursive_quadrature.cpp` | `conditioning_path_table_grows_iterates_and_compares` | Checks that `ConditioningPathTable` grows, iterates, and compares equal by contents. | — |
@@ -711,6 +712,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_vandermonde_nonuniform_weights` | `tests/unit/vandermonde.cpp` | `nonuniform_weights` | Verifies nonuniform weights. | — |
 | `unit_vandermonde_small_weight_failure` | `tests/unit/vandermonde.cpp` | `small_weight_failure` | Verifies small weight failure. | — |
 | `unit_vandermonde_zero_weight_failure` | `tests/unit/vandermonde.cpp` | `zero_weight_failure` | Verifies zero weight failure. | — |
+| `unit_vandermonde_weight_singularity_is_relative_to_largest_weight` | `tests/unit/vandermonde.cpp` | `weight_singularity_is_relative_to_largest_weight` | Checks that uniformly tiny weights solve exactly while a weight tiny relative to the others is rejected as singular. | — |
 | `unit_vandermonde_wrapper_pivoted_qr_reports_rank_deficiency` | `tests/unit/vandermonde.cpp` | `wrapper_pivoted_qr_reports_rank_deficiency` | Checks that wrapper pivoted QR reports rank deficiency in Vandermonde solver selection. | — |
 | `unit_vandermonde_wrapper_svd_reports_rank_deficiency` | `tests/unit/vandermonde.cpp` | `wrapper_svd_reports_rank_deficiency` | Checks that wrapper SVD reports rank deficiency in Vandermonde solver selection. | — |
 | `unit_vandermonde_wrapper_pivoted_qr_residual_rejection_fails` | `tests/unit/vandermonde.cpp` | `wrapper_pivoted_qr_residual_rejection_fails` | Verifies wrapper pivoted QR residual rejection fails. | — |

@@ -45,7 +45,7 @@ namespace
 {
 
 constexpr double tolerance = 2.0e-10;
-constexpr double feature_sensitive_tolerance = 1.0e-10;
+constexpr double disparate_units_tolerance = 1.0e-10;
 
 struct Terminal
 {
@@ -208,7 +208,7 @@ void check_result(const std::string& route, const qmomkit::CqmomResult& result, 
     }
 }
 
-int run_feature_sensitive_case()
+int run_disparate_units_case()
 {
     // The same prescribed ragged terminal rule as the covariance interaction
     // case is represented in deliberately disparate physical units. The
@@ -229,9 +229,9 @@ int run_feature_sensitive_case()
     bool passed = true;
     Errors scaled_errors;
     const qmomkit::CqmomResult scaled = qmomkit::compute_cqmom(scaled_cqmom_case);
-    check_result("feature-sensitive scaled", scaled, scaled_cqmom_case.moments, units, scaled_errors, passed, false);
-    if (scaled_errors.node > feature_sensitive_tolerance || scaled_errors.weight > feature_sensitive_tolerance ||
-        scaled_errors.moment > feature_sensitive_tolerance)
+    check_result("disparate-units scaled", scaled, scaled_cqmom_case.moments, units, scaled_errors, passed, false);
+    if (scaled_errors.node > disparate_units_tolerance || scaled_errors.weight > disparate_units_tolerance ||
+        scaled_errors.moment > disparate_units_tolerance)
     {
         std::cerr << "automatic scaling did not recover the independently prescribed physical rule.\n";
         passed = false;
@@ -243,9 +243,9 @@ int run_feature_sensitive_case()
     unscaled_cqmom_case.qmom_options.automatic_scaling = false;
     Errors unscaled_errors;
     const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(unscaled_cqmom_case);
-    check_result("feature-sensitive unscaled", unscaled, unscaled_cqmom_case.moments, units, unscaled_errors, passed, false);
-    if (unscaled_errors.node > feature_sensitive_tolerance || unscaled_errors.weight > feature_sensitive_tolerance ||
-        unscaled_errors.moment > feature_sensitive_tolerance)
+    check_result("disparate-units unscaled", unscaled, unscaled_cqmom_case.moments, units, unscaled_errors, passed, false);
+    if (unscaled_errors.node > disparate_units_tolerance || unscaled_errors.weight > disparate_units_tolerance ||
+        unscaled_errors.moment > disparate_units_tolerance)
     {
         std::cerr << "the unscaled representation did not recover the independently prescribed physical rule.\n";
         passed = false;
@@ -256,9 +256,9 @@ int run_feature_sensitive_case()
     if (!passed)
     {
         std::cerr << std::scientific << std::setprecision(4)
-                  << "feature_sensitive units=(1e8,1e-8,1e4) scaled_terminals=" << (scaled.ok() ? scaled.quadrature.weights().size() : 0)
+                  << "disparate_units units=(1e8,1e-8,1e4) scaled_terminals=" << (scaled.ok() ? scaled.quadrature.weights().size() : 0)
                   << " scaled_node_error=" << scaled_errors.node << " scaled_weight_error=" << scaled_errors.weight
-                  << " scaled_moment_error=" << scaled_errors.moment << " scaled_tolerance=" << feature_sensitive_tolerance
+                  << " scaled_moment_error=" << scaled_errors.moment << " scaled_tolerance=" << disparate_units_tolerance
                   << " unscaled_terminals=" << (unscaled.ok() ? unscaled.quadrature.weights().size() : 0)
                   << " unscaled_node_error=" << unscaled_errors.node << " unscaled_weight_error=" << unscaled_errors.weight
                   << " unscaled_moment_error=" << unscaled_errors.moment << '\n';
@@ -308,9 +308,9 @@ int run_configured_case(const std::filesystem::path& configuration_path, const s
 
 int main(const int argc, char** argv)
 {
-    if (argc == 2 && std::string(argv[1]) == "feature-sensitive")
+    if (argc == 2 && std::string(argv[1]) == "disparate-units")
     {
-        return run_feature_sensitive_case();
+        return run_disparate_units_case();
     }
     if (argc == 2 && std::string(argv[1]) == "unit-invariance")
     {
@@ -323,6 +323,6 @@ int main(const int argc, char** argv)
     {
         return run_configured_case(argv[1], argv[2]);
     }
-    std::cerr << "Usage: automatic_scaling <configuration.qmom> <reference|rescaled> | unit-invariance | feature-sensitive\n";
+    std::cerr << "Usage: automatic_scaling <configuration.qmom> <reference|rescaled> | unit-invariance | disparate-units\n";
     return 2;
 }

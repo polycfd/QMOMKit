@@ -118,7 +118,8 @@ def plot_adaptive(rows: list[dict[str, str]], output: Path) -> None:
     branch_0 = [int(row["active_nodes"]) for row in rows]
     # branch_1 = [int(row["branch_1_active_nodes"]) for row in rows]
     mass_error = [abs(value - mass[0]) for value in mass]
-    exact_mean = [mean[0] * math.exp(-5.0 * time) for time in times]
+    # Relaxation toward the equilibrium velocity 0.5 at rate 5, as in the study.
+    exact_mean = [0.5 + (mean[0] - 0.5) * math.exp(-5.0 * time) for time in times]
     mean_error = [abs(value - reference) for value, reference in zip(mean, exact_mean)]
 
     figure, axes = plt.subplots(1, 2, figsize=(6, 2), sharex=True)

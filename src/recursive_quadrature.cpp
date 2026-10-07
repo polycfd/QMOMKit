@@ -632,8 +632,7 @@ void record_failure(internal::RecursiveQuadratureResult& result, const internal:
 }
 
 [[nodiscard]] bool validate_recursive_request_preflight(const ConditionalMomentOptions& conditional_options,
-                                                        const CqmomDiagnosticLevel diagnostic_level, const WheelerOptions& wheeler_options,
-                                                        const bool adaptive_branch_counts, internal::RecursiveQuadratureResult& result)
+                                                        const CqmomDiagnosticLevel diagnostic_level, internal::RecursiveQuadratureResult& result)
 {
     if (!valid_conditional_options(conditional_options))
     {
@@ -645,22 +644,15 @@ void record_failure(internal::RecursiveQuadratureResult& result, const internal:
         record_failure(result, internal::RecursiveQuadratureStatus::invalid_input, {}, 0, "CQMOM diagnostic level is invalid.");
         return false;
     }
-    if (wheeler_options.adaptive && !adaptive_branch_counts)
-    {
-        record_failure(result, internal::RecursiveQuadratureStatus::invalid_input, {}, 0,
-                       "Adaptive branch-specific node counts are not supported by recursive "
-                       "fixed-hierarchy quadrature unless adaptive_branch_counts is enabled.");
-        return false;
-    }
     return true;
 }
 
+// In CQMOM, adaptive branch counts and adaptive Wheeler go together: every
+// marginal and conditional inversion is adaptive exactly when the branch
+// counts are, whatever the QMOM options say.
 [[nodiscard]] WheelerOptions resolve_cqmom_wheeler_options(WheelerOptions options, const bool adaptive_branch_counts)
 {
-    if (adaptive_branch_counts)
-    {
-        options.adaptive = true;
-    }
+    options.adaptive = adaptive_branch_counts;
     return options;
 }
 
@@ -1837,8 +1829,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
     RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
     result.quadrature.set_adaptive_branch_counts_enabled(request.adaptive_branch_counts);
 
-    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, wheeler_options, request.adaptive_branch_counts,
-                                              result))
+    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, result))
     {
         return result;
     }
@@ -1865,8 +1856,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
     RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
     result.quadrature.set_adaptive_branch_counts_enabled(request.adaptive_branch_counts);
 
-    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, wheeler_options, request.adaptive_branch_counts,
-                                              result))
+    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, result))
     {
         return result;
     }

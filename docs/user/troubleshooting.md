@@ -95,18 +95,12 @@ needs. The clearest case is a population concentrated at a single point: its
 moments are consistent, but they support only one node, and asking for three
 fails.
 
-**Enable adaptive mode.** It reconstructs with as many nodes as the moments
-actually support instead of failing:
-
-```ini
-[qmom]
-adaptive = true
-```
-
-The same case that fails at three fixed nodes then succeeds with one. For CQMOM,
-set `adaptive_branch_counts = true` in `[phase_space]`, which lets individual
-branches reduce independently. This is the single most useful setting when a
-case fails intermittently or only in some branches.
+**Use adaptive mode,** the default. It reconstructs with as many nodes as the
+moments actually support instead of failing, so this message only appears when
+the case asks for a fixed count, with `[qmom] adaptive = false` or, for CQMOM,
+`adaptive_branch_counts = false` in `[phase_space]`. Removing that setting lets
+the same case that fails at three fixed nodes succeed with one, and lets
+individual CQMOM branches reduce independently.
 
 ### `Moment sequence has m0 < cutoff.`
 

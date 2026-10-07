@@ -42,7 +42,7 @@ int main()
     const qmomkit::QmomMomentSource source = [](double, const qmomkit::QmomSourceContext& state)
     { return qmomkit::QmomMomentRate{std::vector<double>(state.size(), 0.0)}; };
     const qmomkit::QmomState qmom_state = qmomkit::QmomCase{moments, 2, {}}.initial_state();
-    if (qmom_state.maximum_node_count() != 2 || qmom_state.active_node_count() != 2 || qmom_state.qmom_options().adaptive)
+    if (qmom_state.maximum_node_count() != 2 || qmom_state.active_node_count() != 2 || !qmom_state.qmom_options().adaptive)
     {
         return 1;
     }

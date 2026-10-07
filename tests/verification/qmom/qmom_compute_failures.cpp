@@ -55,7 +55,9 @@ void verify_failure_case(const FailureCase& failure_case)
     // impossible moment sets: invalid request shape, negative total mass, and
     // violated positivity. The expected behavior is a clear non-success status
     // and message, with no successful quadrature implied by diagnostic data.
-    const qmomkit::QmomResult result = qmomkit::compute_qmom(failure_case.moments, failure_case.node_count);
+    // The requests are fixed-count: adaptive inversion would recover a reduced
+    // rule from the negative variance instead of reporting it.
+    const qmomkit::QmomResult result = qmomkit::compute_qmom(failure_case.moments, failure_case.node_count, qmomkit::QmomOptions{false});
 
     QMOMKIT_VERIFY_CHECK(!result.ok());
     QMOMKIT_VERIFY_CHECK(result.status == failure_case.expected_status);

@@ -80,6 +80,7 @@ qmomkit::CqmomCase bounded_cqmom_case(const std::vector<double>& moments, const 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2});
     qmomkit::CqmomCase cqmom_case{
         qmomkit::extract_cqmom_moments(qmomkit::RawMomentTensor{{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))};
+    cqmom_case.adaptive_branch_counts = false;
     cqmom_case.abscissa_bounds = {interval};
     cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     return cqmom_case;

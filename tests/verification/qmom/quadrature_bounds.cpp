@@ -59,8 +59,8 @@ void verify_fixed_bounded_qmom_accepts_nodes_inside_interval()
     const qmomkit::MomentSet moments(raw_moments(weights, nodes));
     const qmomkit::AbscissaBounds bounds{2.0, 5.0};
 
-    const qmomkit::QmomResult bounded = qmomkit::compute_qmom(moments, 2, {}, bounds);
-    const qmomkit::QmomResult unbounded = qmomkit::compute_qmom(moments, 2);
+    const qmomkit::QmomResult bounded = qmomkit::compute_qmom(moments, 2, qmomkit::QmomOptions{false}, bounds);
+    const qmomkit::QmomResult unbounded = qmomkit::compute_qmom(moments, 2, qmomkit::QmomOptions{false});
 
     QMOMKIT_VERIFY_CHECK(bounded.ok());
     QMOMKIT_VERIFY_CHECK(unbounded.ok());
@@ -73,7 +73,7 @@ void verify_fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping()
     const std::vector<double> weights{0.5, 0.5};
     const std::vector<double> nodes{0.25, 1.25};
     const qmomkit::QmomResult result =
-        qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments(weights, nodes)), 2, {}, qmomkit::AbscissaBounds{0.0, 1.0});
+        qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments(weights, nodes)), 2, qmomkit::QmomOptions{false}, qmomkit::AbscissaBounds{0.0, 1.0});
 
     QMOMKIT_VERIFY_CHECK(!result.ok());
     QMOMKIT_VERIFY_CHECK(result.status == qmomkit::QmomStatus::not_realizable);

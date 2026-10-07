@@ -829,12 +829,13 @@ void test_fixed_public_terminal_paths_align_with_physical_storage()
     const std::vector<qmomkit::ConditioningPath> identity_paths{qmomkit::ConditioningPath({0, 0}), qmomkit::ConditioningPath({0, 1}),
                                                                 qmomkit::ConditioningPath({1, 0}), qmomkit::ConditioningPath({1, 1})};
     const qmomkit::PhaseSpaceHierarchy identity_hierarchy({2, 2});
-    const qmomkit::CqmomResult identity = qmomkit::compute_cqmom(
-        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(identity_hierarchy))});
+    const qmomkit::CqmomResult identity = qmomkit::compute_cqmom(qmomkit::CqmomCase{
+        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(identity_hierarchy)), {}, {}, false});
     assert(identity.ok());
     assert(identity.quadrature.terminal_paths().to_conditioning_paths() == identity_paths);
 
-    const qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))};
+    const qmomkit::CqmomCase cqmom_case{
+        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, {}, false};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     assert(result.ok());
     assert(result.quadrature.has_rectangular_storage());
@@ -948,7 +949,7 @@ void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
     assert(upper_rejected.message.find("returned nodes outside") != std::string::npos);
 }
 
-void test_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts()
+void test_recursive_branch_counts_decide_wheeler_adaptivity()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const std::vector<std::size_t> extents{4, 4};
@@ -956,35 +957,59 @@ void test_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0, 1.0}, {-2.0, 2.0, -2.0, 2.0}};
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
     const qmomkit::WheelerOptions adaptive_wheeler{true, 1.0e-10, 1.0e-10, 1.0e-12};
+    const qmomkit::WheelerOptions fixed_wheeler{false, 1.0e-10, 1.0e-10, 1.0e-12};
 
-    const qmomkit::internal::RecursiveQuadratureResult fixed =
-        qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(hierarchy, {extents, moments}, {}, {}, false));
+    // Fixed branch counts make every Wheeler inversion fixed, whatever the
+    // Wheeler options say, through both entry points.
+    const qmomkit::internal::RecursiveQuadratureResult fixed = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+        moment_data_request(hierarchy, {extents, moments}, {}, fixed_wheeler, false));
     assert(fixed.ok());
     assert(!fixed.quadrature.adaptive_branch_counts_enabled());
     assert(fixed.quadrature.has_rectangular_storage());
+    for (const qmomkit::internal::RecursiveQuadratureResult& forced :
+         {qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+              moment_data_request(hierarchy, {extents, moments}, {}, adaptive_wheeler, false)),
+          qmomkit::internal::compute_recursive_quadrature_from_trusted_moment_data(
+              moment_data_request(hierarchy, {extents, moments}, {}, adaptive_wheeler, false))})
+    {
+        assert(forced.ok());
+        assert(!forced.quadrature.adaptive_branch_counts_enabled());
+        assert(forced.quadrature.has_rectangular_storage());
+        assert(forced.quadrature.weights() == fixed.quadrature.weights());
+        assert(forced.quadrature.abscissas() == fixed.quadrature.abscissas());
+    }
 
-    const qmomkit::internal::RecursiveQuadratureResult rejected = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, adaptive_wheeler, false));
-    assert(!rejected.ok());
-    assert(rejected.status == qmomkit::internal::RecursiveQuadratureStatus::invalid_input);
-    assert(rejected.failed_path.empty());
-    assert(rejected.failed_conditioning_level == 0);
-    assert(rejected.diagnostics.empty());
-    assert(rejected.message.find("Adaptive branch-specific node counts") != std::string::npos);
-    assert(rejected.message.find("adaptive_branch_counts") != std::string::npos);
+    // A root node lighter than rmin relative to the other: adaptive Wheeler
+    // would drop it and break the fixed hierarchy, so only fixed inversions
+    // keep the four-node rule.
+    const std::vector<double> light_root_moments = raw_moments_from_terminal_quadrature(abscissas, {0.5, 0.5, 5.0e-12, 5.0e-12}, extents);
+    for (const qmomkit::internal::RecursiveQuadratureResult& light_root :
+         {qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+              moment_data_request(hierarchy, {extents, light_root_moments}, {}, adaptive_wheeler, false)),
+          qmomkit::internal::compute_recursive_quadrature_from_trusted_moment_data(
+              moment_data_request(hierarchy, {extents, light_root_moments}, {}, adaptive_wheeler, false))})
+    {
+        assert(light_root.ok());
+        assert(light_root.quadrature.total_nodes() == 4);
+    }
 
-    // Cases and states reconstruct through the trusted entry point, which
-    // applies the same rule before any reconstruction work.
-    const qmomkit::internal::RecursiveQuadratureResult trusted_rejected = qmomkit::internal::compute_recursive_quadrature_from_trusted_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, adaptive_wheeler, false));
-    assert(trusted_rejected.status == qmomkit::internal::RecursiveQuadratureStatus::invalid_input);
-    assert(trusted_rejected.message == rejected.message);
-    assert(trusted_rejected.failed_path.empty());
-    assert(trusted_rejected.failed_conditioning_level == 0);
-    assert(trusted_rejected.diagnostics.empty());
+    // A marginal that has collapsed to one point needs adaptive Wheeler, so
+    // fixed branch counts fail on it even with adaptive Wheeler options, and
+    // adaptive branch counts reduce it even with fixed ones.
+    const std::vector<double> marginal_collapsed_moments = raw_moments_from_terminal_quadrature({{0.0, 0.0}, {-1.0, 1.0}}, {0.5, 0.5}, extents);
+    const qmomkit::internal::RecursiveQuadratureResult collapsed_fixed = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+        moment_data_request(hierarchy, {extents, marginal_collapsed_moments}, {}, adaptive_wheeler, false));
+    assert(!collapsed_fixed.ok());
+    assert(collapsed_fixed.status == qmomkit::internal::RecursiveQuadratureStatus::wheeler_failed);
+    const qmomkit::internal::RecursiveQuadratureResult collapsed_adaptive = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+        moment_data_request(hierarchy, {extents, marginal_collapsed_moments}, {}, fixed_wheeler, true));
+    assert(collapsed_adaptive.ok());
+    assert(collapsed_adaptive.quadrature.total_nodes() == 2);
 
-    const qmomkit::internal::RecursiveQuadratureResult adaptive = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, adaptive_wheeler, true));
+    // Adaptive branch counts make every inversion adaptive, whatever the
+    // Wheeler options say.
+    const qmomkit::internal::RecursiveQuadratureResult adaptive =
+        qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(hierarchy, {extents, moments}, {}, fixed_wheeler, true));
     assert(adaptive.ok());
     assert(adaptive.quadrature.adaptive_branch_counts_enabled());
     assert(!adaptive.quadrature.has_rectangular_storage());
@@ -992,23 +1017,16 @@ void test_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts()
 
     const std::vector<double> branch_specific_moments =
         raw_moments_from_terminal_quadrature({{-1.0, 1.0, 1.0}, {0.0, -0.5, 0.5}}, {0.2, 0.3, 0.5}, extents);
-    const qmomkit::internal::RecursiveQuadratureResult implicit_conditional_adaptive =
-        qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-            moment_data_request(hierarchy, {extents, branch_specific_moments}, {}, {}, true));
-    assert(implicit_conditional_adaptive.ok());
-    assert(implicit_conditional_adaptive.quadrature.total_nodes() == 3);
-
-    const std::vector<double> marginal_collapsed_moments = raw_moments_from_terminal_quadrature({{0.0, 0.0}, {-1.0, 1.0}}, {0.5, 0.5}, extents);
-    const qmomkit::internal::RecursiveQuadratureResult implicit_marginal_adaptive = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, marginal_collapsed_moments}, {}, {}, true));
-    assert(implicit_marginal_adaptive.ok());
-    assert(implicit_marginal_adaptive.quadrature.total_nodes() == 2);
+    const qmomkit::internal::RecursiveQuadratureResult conditional_adaptive = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+        moment_data_request(hierarchy, {extents, branch_specific_moments}, {}, fixed_wheeler, true));
+    assert(conditional_adaptive.ok());
+    assert(conditional_adaptive.quadrature.total_nodes() == 3);
 
     const qmomkit::PhaseSpaceHierarchy swapped_hierarchy({2, 2}, {1, 0});
     const std::vector<double> swapped_branch_moments =
         raw_moments_from_terminal_quadrature({{-1.0, 1.0, 1.0}, {-1.0, -1.0, 1.0}}, {0.2, 0.3, 0.5}, extents);
     const qmomkit::internal::RecursiveQuadratureResult swapped = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(swapped_hierarchy, {extents, swapped_branch_moments}, {}, {}, true));
+        moment_data_request(swapped_hierarchy, {extents, swapped_branch_moments}, {}, fixed_wheeler, true));
     assert(swapped.ok());
     assert(swapped.quadrature.total_nodes() == 3);
 }
@@ -1963,8 +1981,7 @@ int main(const int argc, char** argv)
              test_recursive_bounded_support_applies_to_conditional_phase_space_dimension},
             {"recursive_bounded_support_returned_node_tolerance_and_no_clipping",
              test_recursive_bounded_support_returned_node_tolerance_and_no_clipping},
-            {"recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts",
-             test_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts},
+            {"recursive_branch_counts_decide_wheeler_adaptivity", test_recursive_branch_counts_decide_wheeler_adaptivity},
             {"one_dimensional_hierarchy_reduces_to_stage_1_ordering", test_one_dimensional_hierarchy_reduces_to_stage_1_ordering},
             {"two_dimensional_hierarchy_indexing", test_two_dimensional_hierarchy_indexing},
             {"three_dimensional_hierarchy_indexing", test_three_dimensional_hierarchy_indexing},

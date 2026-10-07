@@ -16,11 +16,11 @@ Each runtime logical test is registered exactly once with CTest.
 | Registration class | Count |
 | --- | ---: |
 | Unit logical tests | 674 |
-| Component/regression logical tests | 47 |
+| Component/regression logical tests | 46 |
 | Verification logical tests | 188 |
-| **Runtime logical tests** | **909** |
+| **Runtime logical tests** | **908** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **910** |
+| **Total CTest registrations** | **909** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -93,7 +93,6 @@ renamed test rather than a deleted one.
 | `component_regression_cqmom_compute_moment_data_missing_required_value` | `tests/component_regression/cqmom_compute_failures.cpp` | `moment_data_missing_required_value` | Checks that CQMOM reconstruction rejects moment data lacking a required moment. | — |
 | `component_regression_cqmom_compute_moment_data_nonfinite_value` | `tests/component_regression/cqmom_compute_failures.cpp` | `moment_data_nonfinite_value` | Checks that CQMOM reconstruction rejects moment data with a non-finite value. | — |
 | `component_regression_cqmom_compute_moment_data_incompatible_layout` | `tests/component_regression/cqmom_compute_failures.cpp` | `moment_data_incompatible_layout` | Checks that CQMOM reconstruction rejects moment data whose layout is incompatible with its hierarchy. | — |
-| `component_regression_cqmom_compute_adaptive_policy` | `tests/component_regression/cqmom_compute_failures.cpp` | `adaptive_policy` | Checks that CQMOM rejects adaptive Wheeler options when adaptive branch counts are disabled. | — |
 
 ### CQMOM reconstruction after drag and with two nearly coincident nodes
 
@@ -573,7 +572,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_recursive_quadrature_fixed_public_terminal_paths_align_with_physical_storage` | `tests/unit/recursive_quadrature.cpp` | `fixed_public_terminal_paths_align_with_physical_storage` | Checks fixed CQMOM terminal paths index the same weights and abscissas as the public physical storage. | — |
 | `unit_recursive_quadrature_recursive_bounded_support_applies_to_conditional_phase_space_dimension` | `tests/unit/recursive_quadrature.cpp` | `recursive_bounded_support_applies_to_conditional_phase_space_dimension` | Checks that bounded support applies to conditional phase-space dimension in recursive CQMOM reconstruction. | — |
 | `unit_recursive_quadrature_recursive_bounded_support_returned_node_tolerance_and_no_clipping` | `tests/unit/recursive_quadrature.cpp` | `recursive_bounded_support_returned_node_tolerance_and_no_clipping` | Checks bounded recursive reconstruction returns nodes within the configured tolerance without post-reconstruction clipping. | — |
-| `unit_recursive_quadrature_recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts` | `tests/unit/recursive_quadrature.cpp` | `recursive_rejects_adaptive_wheeler_without_adaptive_branch_counts` | Checks that both the validated and the trusted moment-data entry points reject adaptive Wheeler without adaptive branch counts, with the same message and before any reconstruction work, and that adaptive branch counts enable it. | — |
+| `unit_recursive_quadrature_recursive_branch_counts_decide_wheeler_adaptivity` | `tests/unit/recursive_quadrature.cpp` | `recursive_branch_counts_decide_wheeler_adaptivity` | Checks that both moment-data entry points make every inversion fixed for fixed branch counts and adaptive for adaptive ones, whatever the Wheeler options say: with adaptive options, fixed branch counts give the fixed rule, keep a root node lighter than `rmin`, and fail on a collapsed marginal; with fixed options, adaptive branch counts reduce it. | — |
 | `unit_recursive_quadrature_one_dimensional_hierarchy_reduces_to_stage_1_ordering` | `tests/unit/recursive_quadrature.cpp` | `one_dimensional_hierarchy_reduces_to_stage_1_ordering` | Checks that one-dimensional hierarchy reduces to stage 1 ordering in recursive CQMOM reconstruction. | — |
 | `unit_recursive_quadrature_two_dimensional_hierarchy_indexing` | `tests/unit/recursive_quadrature.cpp` | `two_dimensional_hierarchy_indexing` | Checks that recursive CQMOM reconstruction maps the tested indices to the expected storage positions. | — |
 | `unit_recursive_quadrature_three_dimensional_hierarchy_indexing` | `tests/unit/recursive_quadrature.cpp` | `three_dimensional_hierarchy_indexing` | Checks that recursive CQMOM reconstruction maps the tested indices to the expected storage positions. | — |
@@ -761,7 +760,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_cqmom_public_api_reports_conditional_moment_failure` | `tests/unit/public_api.cpp` | `cqmom_public_api_reports_conditional_moment_failure` | Checks that public API reports conditional moment failure in the public QMOMKit API. | — |
 | `unit_public_api_cqmom_public_api_exposes_adaptive_branch_counts` | `tests/unit/public_api.cpp` | `cqmom_public_api_exposes_adaptive_branch_counts` | Verifies CQMOM public API exposes adaptive branch counts. | — |
 | `unit_public_api_cqmom_adaptive_root_branch_uses_relative_rmin_only` | `tests/unit/public_api.cpp` | `cqmom_adaptive_root_branch_uses_relative_rmin_only` | Checks that adaptive root branch uses relative rmin only in the public QMOMKit API. | — |
-| `unit_public_api_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts` | `tests/unit/public_api.cpp` | `cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts` | Checks that `compute_cqmom` on a `CqmomCase` and on a `CqmomPreparedCase`, and `CqmomCase::initial_state()`, reject adaptive Wheeler without adaptive branch counts with the same message, and that adaptive branch counts enable it. | — |
+| `unit_public_api_cqmom_branch_counts_decide_qmom_adaptivity` | `tests/unit/public_api.cpp` | `cqmom_branch_counts_decide_qmom_adaptivity` | Checks that `compute_cqmom` on a `CqmomCase` and on a `CqmomPreparedCase`, and `CqmomCase::initial_state()`, give the fixed rectangular rule for fixed branch counts with adaptive QMOM options, keeping a root node lighter than `rmin`, and that the branch-count setting alone decides whether a collapsed marginal fails or reduces. | — |
 | `unit_public_api_cqmom_diagnostic_levels_control_expensive_diagnostics` | `tests/unit/public_api.cpp` | `cqmom_diagnostic_levels_control_expensive_diagnostics` | Verifies CQMOM diagnostic levels control expensive diagnostics. | — |
 | `unit_public_api_cqmom_none_diagnostics_preserves_failure_context` | `tests/unit/public_api.cpp` | `cqmom_none_diagnostics_preserves_failure_context` | Checks that none diagnostics preserves failure context in the public QMOMKit API. | — |
 | `unit_public_api_cqmom_settings_format` | `tests/unit/public_api.cpp` | `cqmom_settings_format` | Checks that the CQMOM settings summary renders adaptive branch counts in both states, every Vandermonde solver policy, and the diagnostic level. | — |
@@ -814,7 +813,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_cqmom_case_replacement_defers_realizability` | `tests/unit/configuration.cpp` | `cqmom_case_replacement_defers_realizability` | Checks that the open-case replacement accepts well-formed but non-realizable moments from a tensor or moment data, leaving `compute_cqmom` and `initial_state()` to report the failure. | — |
 | `unit_configuration_cqmom_prepared_case_file_loading` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_file_loading` | Verifies prepared CQMOM case file loading. | — |
 | `unit_configuration_cqmom_independent_product_zero_density_skips_marginal_validation` | `tests/unit/configuration.cpp` | `cqmom_independent_product_zero_density_skips_marginal_validation` | Verifies CQMOM independent product zero density skips marginal validation. | — |
-| `unit_configuration_cqmom_adaptive_options_validate_compatibility` | `tests/unit/configuration.cpp` | `cqmom_adaptive_options_validate_compatibility` | Verifies CQMOM adaptive options validate compatibility. | — |
+| `unit_configuration_cqmom_adaptive_options_parse_with_adaptive_defaults` | `tests/unit/configuration.cpp` | `cqmom_adaptive_options_parse_with_adaptive_defaults` | Checks that every combination of `qmom.adaptive` and `adaptive_branch_counts` parses as written and that both default to true when omitted. | — |
 | `unit_configuration_cqmom_prepared_case_parsing_validates_coordinate_realizability_rank` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_parsing_validates_coordinate_realizability_rank` | Verifies prepared CQMOM case parsing validates the coordinate realizability rank. | — |
 | `unit_configuration_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom` | `tests/unit/configuration.cpp` | `adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom` | Verifies adaptive CQMOM forces adaptive wheeler without changing standalone QMOM. | — |
 | `unit_configuration_cqmom_diagnostic_level_parses_values` | `tests/unit/configuration.cpp` | `cqmom_diagnostic_level_parses_values` | Checks that diagnostic level parses values in configuration loading. | — |

@@ -1982,22 +1982,18 @@ void assert_cqmom_adaptive_options(const bool adaptive, const bool adaptive_bran
     assert(configured.value().adaptive_branch_counts == adaptive_branch_counts);
 }
 
-void test_cqmom_adaptive_options_validate_compatibility()
+void test_cqmom_adaptive_options_parse_with_adaptive_defaults()
 {
+    // Every combination parses as written; in CQMOM, adaptive_branch_counts
+    // alone decides whether the inversions are adaptive.
     assert_cqmom_adaptive_options(false, false);
     assert_cqmom_adaptive_options(false, true);
+    assert_cqmom_adaptive_options(true, false);
     assert_cqmom_adaptive_options(true, true);
 
-    const auto incompatible = qmomkit::config::parse_cqmom(cqmom_adaptive_option_text(true, false));
-    assert(!incompatible.ok());
-    assert(has_failure(incompatible));
-    assert(has_message_fragment(incompatible, "qmom.adaptive = true is incompatible with fixed-count CQMOM"));
-    assert(has_message_fragment(incompatible, "phase_space.adaptive_branch_counts = true"));
-
-    const auto omitted_qmom_adaptive = qmomkit::config::parse_cqmom(R"(
+    const auto omitted = qmomkit::config::parse_cqmom(R"(
 [phase_space]
 node_counts = 1, 1
-adaptive_branch_counts = true
 
 [moments]
 extents = 2, 2
@@ -2006,9 +2002,9 @@ M[0,1] = 2.0
 M[1,0] = 3.0
 M[1,1] = 6.0
 )");
-    assert(omitted_qmom_adaptive.ok());
-    assert(!omitted_qmom_adaptive.value().qmom_options.adaptive);
-    assert(omitted_qmom_adaptive.value().adaptive_branch_counts);
+    assert(omitted.ok());
+    assert(omitted.value().qmom_options.adaptive);
+    assert(omitted.value().adaptive_branch_counts);
 }
 
 void test_cqmom_prepared_case_parsing_validates_coordinate_realizability_rank()
@@ -2662,7 +2658,7 @@ accept_boundary = false
     const auto qmom_case_result = qmomkit::config::parse_qmom(qmom_case_text_with_runtime(runtime));
     assert(qmom_case_result.ok());
     assert(qmom_case_result.value().node_count == 1);
-    assert(!qmom_case_result.value().qmom_options.adaptive);
+    assert(qmom_case_result.value().qmom_options.adaptive);
 
     // The unnumbered policy is the QMOM setting; a CQMOM case reads the
     // per-coordinate policies instead and reports the unnumbered one.
@@ -4473,7 +4469,7 @@ int main(const int argc, char** argv)
             {"cqmom_prepared_case_file_loading", test_cqmom_prepared_case_file_loading},
             {"cqmom_independent_product_zero_density_skips_marginal_validation",
              test_cqmom_independent_product_zero_density_skips_marginal_validation},
-            {"cqmom_adaptive_options_validate_compatibility", test_cqmom_adaptive_options_validate_compatibility},
+            {"cqmom_adaptive_options_parse_with_adaptive_defaults", test_cqmom_adaptive_options_parse_with_adaptive_defaults},
             {"cqmom_prepared_case_parsing_validates_coordinate_realizability_rank",
              test_cqmom_prepared_case_parsing_validates_coordinate_realizability_rank},
             {"adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom",

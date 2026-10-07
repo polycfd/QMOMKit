@@ -208,7 +208,7 @@ struct CqmomCase
     CqmomMomentData moments;
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
-    bool adaptive_branch_counts = false;
+    bool adaptive_branch_counts = true;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     CqmomAbscissaBounds abscissa_bounds;
@@ -342,10 +342,10 @@ struct CqmomResult
  * again; reconstructing from a `CqmomPreparedCase` does neither. The
  * required-moment layout must match the hierarchy stored in
  * `cqmom_case.moments.layout`; a layout that does not is reported as a failed
- * result. Adaptive branch-specific node counts are enabled explicitly with
- * `CqmomCase::adaptive_branch_counts` and automatically enable adaptive Wheeler
- * for all marginal and conditional inversions. Standalone QMOM remains
- * independently configurable.
+ * result. `CqmomCase::adaptive_branch_counts`, on by default, decides both
+ * whether branch node counts adapt and whether every marginal and conditional
+ * Wheeler inversion is adaptive; `qmom_options.adaptive` has no effect in
+ * CQMOM. Set it to false for the fixed hierarchy and its rectangular layout.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomCase& cqmom_case);
 

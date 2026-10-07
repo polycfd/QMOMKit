@@ -390,8 +390,10 @@ void test_adaptive_requested_three_node_high_rank_sigma_recovers_two_nodes()
 void test_nonadaptive_singular_sequence_reports_failure()
 {
     const qmomkit::MomentSet moments{1.0, 1.0, 1.0, 1.0};
+    qmomkit::WheelerOptions options;
+    options.adaptive = false;
 
-    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2);
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
 
     assert(!quadrature.ok());
     assert(quadrature.status == qmomkit::QuadratureStatus::not_realizable);
@@ -404,9 +406,12 @@ void test_fixed_count_negative_variance_remains_strict_failure()
 {
     const qmomkit::MomentSet moments{1.0, 0.0, -1.0, 0.0};
 
+    qmomkit::WheelerOptions options;
+    options.adaptive = false;
+
     // Without adaptive mode, a negative two-node variance numerator remains a
     // not-realizable failure even though diagnostic one-node data is available.
-    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2);
+    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
 
     assert(!quadrature.ok());
     assert(quadrature.status == qmomkit::QuadratureStatus::not_realizable);

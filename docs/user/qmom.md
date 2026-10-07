@@ -162,19 +162,21 @@ exponents require non-negative abscissas.
 
 ## Options and diagnostics
 
-The simplest call uses default numerical options. This is the right starting
-point when the requested number of nodes is fixed by the model:
+The simplest call uses the default numerical options, which reduce the node
+count adaptively: near degenerate moment states, or where a node's weight falls
+below the minimum weight ratio `rmin` relative to the largest, the result has
+fewer nodes than requested.
 
 ```cpp
 const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, node_count);
 ```
 
-For applications that can accept a lower-order rule near difficult moment
-states, adaptive node reduction can be enabled with `QmomOptions`:
+When the model needs exactly the requested number of nodes, request a fixed
+count; the reconstruction then returns every node or fails:
 
 ```cpp
 qmomkit::QmomOptions options;
-options.adaptive = true;
+options.adaptive = false;
 
 const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, node_count, options);
 ```

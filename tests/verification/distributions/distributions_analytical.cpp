@@ -599,15 +599,18 @@ void verify_chi_odd_orders_against_high_precision_values()
 // gamma distribution of shape up to 1e7 inverts at two and three nodes, and of
 // shape 1e4 at four. Four nodes at shapes from 1e5 on already fail for a tenth
 // to a half of all moment sets perturbed by one unit in the last place, so
-// they lie beyond what double precision resolves reliably.
+// they lie beyond what double precision resolves reliably. The inversions are
+// fixed-count, so they must return every requested node.
 void verify_narrow_gamma_moments_invert()
 {
     const std::vector<std::pair<double, std::size_t>> cases{{1.0e5, 2}, {1.0e5, 3}, {1.0e6, 2}, {1.0e6, 3}, {1.0e7, 2}, {1.0e7, 3}, {1.0e4, 4}};
+    qmomkit::WheelerOptions fixed_options;
+    fixed_options.adaptive = false;
     for (const auto& [shape, node_count] : cases)
     {
         const qmomkit::RawMomentResult moments = qmomkit::compute_raw_moments(qmomkit::GammaDistribution{shape, 1.0 / shape}, 2 * node_count - 1);
         QMOMKIT_VERIFY_CHECK(moments.ok());
-        const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments.moments, node_count);
+        const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments.moments, node_count, fixed_options);
         QMOMKIT_VERIFY_CHECK(quadrature.ok());
         QMOMKIT_VERIFY_CHECK(quadrature.weights.size() == node_count);
         for (std::size_t order = 0; order < moments.moments.size(); ++order)

@@ -26,6 +26,7 @@ const char* fixed_cqmom_case_text = R"(
 [phase_space]
 names = x, y
 node_counts = 2, 2
+adaptive_branch_counts = false
 
 [moments]
 extents = 4, 4
@@ -1115,7 +1116,7 @@ void test_qmom_bounded_post_source_automatic_scaling_is_unit_covariant()
 
 void test_public_qmom_moment_source_stage_fixed_mode_is_strict()
 {
-    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.0}, {0.4, 0.6}, 4), 2);
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.0}, {0.4, 0.6}, 4), 2, qmomkit::QmomOptions{false});
     const std::vector<double> one_node_moments = raw_moments_1d({0.0}, {1.0}, 4);
     qmomkit::QmomPhaseSpaceEvolutionOptions options;
     const qmomkit::QmomPhaseSpaceEvolutionResult result =
@@ -1447,7 +1448,7 @@ void test_qmom_source_context_visits_nodes_from_each_rk_stage()
 
 void test_configured_qmom_source_realizability_policy_matches_programmatic_adapter()
 {
-    const qmomkit::QmomState state = qmom_state_from_moments({1.0, 0.0, 1.0, 0.0}, 2);
+    const qmomkit::QmomState state = qmom_state_from_moments({1.0, 0.0, 1.0, 0.0}, 2, qmomkit::QmomOptions{false});
     const auto source_with_negative_second_moment = [](std::size_t& calls)
     {
         return [&calls](double, const qmomkit::QmomSourceContext& moments)
@@ -3927,7 +3928,7 @@ void test_qmom_adaptive_post_source_reduction_and_growth_policy()
 
 void test_qmom_fixed_post_source_requires_configured_count()
 {
-    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.0}, {0.4, 0.6}, 4), 2);
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.0}, {0.4, 0.6}, 4), 2, qmomkit::QmomOptions{false});
     const std::vector<double> one_node_moments = raw_moments_1d({0.0}, {1.0}, 4);
     const auto source = [initial = state.moment_values(), one_node_moments](double, const qmomkit::QmomSourceContext& moments)
     {

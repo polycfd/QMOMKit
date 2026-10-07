@@ -120,7 +120,7 @@ encounter nearly duplicate nodes, tiny weights, or degenerate recurrence data.
 
 Adaptive behavior is controlled by `QmomOptions` or `WheelerOptions`:
 
-- `adaptive`: enables adaptive node reduction.
+- `adaptive`: enables adaptive node reduction; on by default.
 - `rmin`: minimum accepted ratio between the smallest and largest weight.
 - `eabs`: dimensionless minimum accepted relative node separation.
 - `cutoff`: small positive threshold for near-zero mass.
@@ -180,9 +180,9 @@ two-node candidate whose abscissas both equal zero is degenerate and does not
 pass the separation criterion.
 
 Adaptive Wheeler is a one-dimensional inversion policy. In recursive CQMOM,
-enabling branch-specific adaptive node counts automatically uses adaptive
-Wheeler for each marginal and conditional inversion. Standalone QMOM remains
-independently controlled by its own adaptive option.
+`adaptive_branch_counts` decides it for every marginal and conditional
+inversion, and the `adaptive` option has no effect there. Standalone QMOM is
+controlled by its own `adaptive` option.
 
 ## Numerical assumptions and failure handling
 

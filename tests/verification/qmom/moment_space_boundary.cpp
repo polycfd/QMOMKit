@@ -49,6 +49,8 @@ namespace
 {
 
 constexpr double tolerance = 1.0e-12;
+// Fixed-count requests, which deliver the requested node count or fail.
+const qmomkit::QmomOptions fixed_options{false};
 
 std::vector<double> raw_moments(const std::vector<double>& weights, const std::vector<double>& abscissas, const std::size_t count)
 {
@@ -118,14 +120,14 @@ void verify_coalescing_nodes_preserve_supplied_moments()
     // Anchor: a separation this large is comfortably interior, so the requested
     // count must be delivered in full. The sweep below makes no such claim.
     const std::vector<double> interior = coalescing_moments(1.0e-2);
-    const qmomkit::QmomResult anchored = qmomkit::compute_qmom(qmomkit::MomentSet(interior), 3, {});
+    const qmomkit::QmomResult anchored = qmomkit::compute_qmom(qmomkit::MomentSet(interior), 3, fixed_options);
     QMOMKIT_VERIFY_CHECK(anchored.weights.size() == 3);
     check_accepted_rule_invariants(anchored, interior, 3);
 
     for (const double separation : {1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5, 1.0e-6, 1.0e-7, 1.0e-8})
     {
         const std::vector<double> moments = coalescing_moments(separation);
-        const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 3, {});
+        const qmomkit::QmomResult result = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 3, fixed_options);
         if (result.ok())
         {
             check_accepted_rule_invariants(result, moments, 3);
@@ -191,7 +193,7 @@ void verify_boundary_crossing_matches_realizability()
     {
         std::vector<double> inside = boundary;
         inside[4] += offset;
-        const qmomkit::QmomResult accepted = qmomkit::compute_qmom(qmomkit::MomentSet(inside), 3, {});
+        const qmomkit::QmomResult accepted = qmomkit::compute_qmom(qmomkit::MomentSet(inside), 3, fixed_options);
         check_accepted_rule_invariants(accepted, inside, 3);
         QMOMKIT_VERIFY_CHECK(accepted.weights.size() == 3);
 
@@ -201,7 +203,7 @@ void verify_boundary_crossing_matches_realizability()
 
         std::vector<double> outside = boundary;
         outside[4] -= offset;
-        const qmomkit::QmomResult rejected = qmomkit::compute_qmom(qmomkit::MomentSet(outside), 3, {});
+        const qmomkit::QmomResult rejected = qmomkit::compute_qmom(qmomkit::MomentSet(outside), 3, fixed_options);
         QMOMKIT_VERIFY_CHECK(!rejected.ok());
         QMOMKIT_VERIFY_CHECK(rejected.status == qmomkit::QmomStatus::not_realizable);
 
@@ -219,7 +221,7 @@ void verify_fixed_count_does_not_reduce_on_the_boundary()
     // The sequence is realizable, but only by two atoms. A fixed three-node
     // request cannot be satisfied and must say so rather than quietly returning
     // the two-node rule: fixed-count reconstruction does not silently reduce.
-    const qmomkit::QmomResult fixed = qmomkit::compute_qmom(qmomkit::MomentSet(boundary), 3, {});
+    const qmomkit::QmomResult fixed = qmomkit::compute_qmom(qmomkit::MomentSet(boundary), 3, fixed_options);
     QMOMKIT_VERIFY_CHECK(!fixed.ok());
     QMOMKIT_VERIFY_CHECK(fixed.status == qmomkit::QmomStatus::not_realizable);
     QMOMKIT_VERIFY_CHECK(!fixed.message.empty());

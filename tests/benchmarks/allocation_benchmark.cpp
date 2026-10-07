@@ -281,7 +281,8 @@ void bm_allocations_cqmom_reconstruction(benchmark::State& state, const std::vec
 void bm_allocations_qmom_reconstruction(benchmark::State& state)
 {
     const qmomkit::MomentSet moments({1.0, 2.0, 14.0 / 3.0, 12.0, 98.0 / 3.0, 92.0});
-    const qmomkit::QmomResult setup_check = qmomkit::compute_qmom(moments, 3);
+    const qmomkit::QmomOptions options{false};
+    const qmomkit::QmomResult setup_check = qmomkit::compute_qmom(moments, 3, options);
     if (!setup_check.ok())
     {
         state.SkipWithError("deterministic QMOM reconstruction fixture is not realizable");
@@ -292,7 +293,7 @@ void bm_allocations_qmom_reconstruction(benchmark::State& state)
     for (auto _ : state)
     {
         const AllocationScope scope;
-        const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, 3);
+        const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, 3, options);
         benchmark::DoNotOptimize(result.weights.data());
     }
     report_allocation_counters(state);

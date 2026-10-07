@@ -174,7 +174,7 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  */
 [[nodiscard]] ConfigurationResult<CqmomCase> create_cqmom_case(const InitialConditionSpecification& initial_condition,
                                                                const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
-                                                               bool adaptive_branch_counts = false, std::string source_name = "<initialization>",
+                                                               bool adaptive_branch_counts = true, std::string source_name = "<initialization>",
                                                                CqmomAbscissaBounds abscissa_bounds = {});
 
 /**

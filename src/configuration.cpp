@@ -1373,7 +1373,7 @@ struct ParsedCqmomCaseSettings
 {
     PhaseSpaceHierarchy hierarchy;
     QmomOptions qmom_options;
-    bool adaptive_branch_counts = false;
+    bool adaptive_branch_counts = true;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     double moore_penrose_rcond = 1.0e-14;
@@ -2109,7 +2109,7 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
     }
     std::optional<CqmomAbscissaBounds> coordinate_support = parse_coordinate_support(parsed, source_name, node_counts.size());
 
-    bool adaptive_branch_counts = false;
+    bool adaptive_branch_counts = true;
     const auto adaptive_branch_counts_entry = parsed.scalars.find("phase_space.adaptive_branch_counts");
     if (adaptive_branch_counts_entry != parsed.scalars.end())
     {
@@ -2117,18 +2117,15 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
         {
             adaptive_branch_counts = true;
         }
-        else if (adaptive_branch_counts_entry->second.value != "false")
+        else if (adaptive_branch_counts_entry->second.value == "false")
+        {
+            adaptive_branch_counts = false;
+        }
+        else
         {
             add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, adaptive_branch_counts_entry->second.line,
                       "adaptive_branch_counts must be true or false.");
         }
-    }
-    if (qmom_options.has_value() && qmom_options->adaptive && !adaptive_branch_counts)
-    {
-        const Entry* adaptive_entry = find_entry(parsed, "qmom.adaptive");
-        add_error(
-            parsed, ConfigurationErrorCode::invalid_configuration, source_name, adaptive_entry == nullptr ? 0 : adaptive_entry->line,
-            "qmom.adaptive = true is incompatible with fixed-count CQMOM; set phase_space.adaptive_branch_counts = true or qmom.adaptive = false.");
     }
     if (!node_counts.empty())
     {

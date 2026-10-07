@@ -393,11 +393,11 @@ terminal node.
 Adaptive recursive CQMOM separates standalone QMOM controls from CQMOM branch
 controls:
 
-- `adaptive_branch_counts` is the CQMOM reconstruction policy that controls
-  whether recursive CQMOM accepts branch-local node counts smaller than the
-  configured hierarchy;
-- when `adaptive_branch_counts` is enabled, recursive CQMOM automatically uses
-  adaptive Wheeler for every marginal and conditional inversion. Conditional
+- `adaptive_branch_counts`, on by default, is the CQMOM reconstruction policy
+  that controls whether recursive CQMOM accepts branch-local node counts smaller
+  than the configured hierarchy;
+- every marginal and conditional inversion uses adaptive Wheeler exactly when
+  `adaptive_branch_counts` is enabled, whatever the Wheeler options say. Conditional
   moments carry the rounding of the solve that produced them, relative to the
   scale of their coordinate, so their inversions pass that scale,
   `sqrt(m2 / m0)` of the coordinate's marginal, to Wheeler's degeneracy test;
@@ -408,9 +408,8 @@ The adaptive branch-count policy is available through the normal
 `CqmomCase` workflow.
 
 When adaptive branch counts are disabled, recursive CQMOM expects fixed
-rectangular output storage. In that mode, adaptive Wheeler is rejected because
-a branch with fewer nodes than requested would not match the rectangular node
-hierarchy.
+rectangular output storage, so every inversion is fixed: a branch with fewer
+nodes than requested would not match the rectangular node hierarchy.
 
 When adaptive branch counts are enabled:
 

@@ -20,10 +20,13 @@ enum class QmomStatus
 
 /**
  * Numerical controls for one-dimensional QMOM quadrature construction.
+ *
+ * Adaptive node reduction is on by default; set `adaptive = false` to require
+ * the requested node count.
  */
 struct QmomOptions
 {
-    bool adaptive = false;
+    bool adaptive = true;
     double rmin = 1.0e-10;
     double eabs = 1.0e-10;
     double cutoff = 1.0e-30;

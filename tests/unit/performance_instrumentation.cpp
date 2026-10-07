@@ -297,7 +297,8 @@ void test_adaptive_cqmom_phase_space_evolution_records_active_count_work_when_en
 
     const qmomkit::PhaseSpaceHierarchy fixed_hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout fixed_layout = qmomkit::create_cqmom_moment_layout(fixed_hierarchy);
-    const qmomkit::CqmomCase fixed_cqmom_case{qmomkit::extract_cqmom_moments(independent_product_moment_tensor(fixed_hierarchy), fixed_layout)};
+    const qmomkit::CqmomCase fixed_cqmom_case{
+        qmomkit::extract_cqmom_moments(independent_product_moment_tensor(fixed_hierarchy), fixed_layout), {}, {}, false};
     const qmomkit::CqmomState fixed_state = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(fixed_cqmom_case).initial_state();
     const qmomkit::CqmomState fixed_cache_miss_state = qmomkit::internal::CqmomConstructionAccess::create_state(
         fixed_cqmom_case, qmomkit::internal::CqmomConstructionAccess::state_prepared_metadata(fixed_state));
@@ -712,7 +713,7 @@ void test_public_cqmom_case_reconstruction_reuses_validated_global_layout_when_e
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData moments = independent_product_moments(layout);
-    const qmomkit::CqmomCase cqmom_case{moments};
+    const qmomkit::CqmomCase cqmom_case{moments, {}, {}, false};
 
     qmomkit::internal::performance::CounterSession session;
     std::optional<qmomkit::CqmomResult> result;
@@ -809,7 +810,7 @@ void test_fixed_and_adaptive_cqmom_metadata_counters()
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData moments = independent_product_moments(layout);
-    const qmomkit::CqmomCase fixed_cqmom_case{moments};
+    const qmomkit::CqmomCase fixed_cqmom_case{moments, {}, {}, false};
 
     qmomkit::internal::performance::CounterSession fixed_session;
     {
@@ -852,7 +853,7 @@ void test_every_fixed_state_factory_prepares_and_reconstructs_without_dynamic_me
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomCase cqmom_case{independent_product_moments(layout)};
+    const qmomkit::CqmomCase cqmom_case{independent_product_moments(layout), {}, {}, false};
     const qmomkit::CqmomState initial_state = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(cqmom_case).initial_state();
     const qmomkit::CqmomQuadrature initial_quadrature = *qmomkit::internal::CqmomConstructionAccess::state_accepted_quadrature(initial_state);
     const qmomkit::CqmomMomentSource zero_source = [](double, const qmomkit::CqmomSourceContext& context)

@@ -1562,8 +1562,10 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
 
     // The root inverts the marginal moments of the first coordinate, which are
     // data. Every later level inverts conditional moments, whose rounding is
-    // relative to the scale of their coordinate.
-    const std::vector<double> coordinate_scales = cqmom_coordinate_scales(request.moments);
+    // relative to the scale of their coordinate. Only adaptive reduction uses
+    // the scales.
+    const std::vector<double> coordinate_scales =
+        wheeler_options.adaptive ? cqmom_coordinate_scales(request.moments) : std::vector<double>(dimensions, 0.0);
 
     std::vector<BranchState> current_branches;
     RecursiveQuadrature::TreeNode root_node;

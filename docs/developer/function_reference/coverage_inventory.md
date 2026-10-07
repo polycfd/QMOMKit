@@ -1230,8 +1230,8 @@ and evidence](cqmom_reconstruction.md)
 | `RecursiveQuadrature::add_tree_node` | [1455](../../../src/recursive_quadrature.cpp#L1455) |
 | `RecursiveQuadrature::set_terminal_quadrature` | [1467](../../../src/recursive_quadrature.cpp#L1467) |
 | `compute_recursive_quadrature_from_validated_moment_data` | [1501](../../../src/recursive_quadrature.cpp#L1501) |
-| `compute_recursive_quadrature_from_moment_data` | [1832](../../../src/recursive_quadrature.cpp#L1832) |
-| `compute_recursive_quadrature_from_trusted_moment_data` | [1860](../../../src/recursive_quadrature.cpp#L1860) |
+| `compute_recursive_quadrature_from_moment_data` | [1834](../../../src/recursive_quadrature.cpp#L1834) |
+| `compute_recursive_quadrature_from_trusted_moment_data` | [1862](../../../src/recursive_quadrature.cpp#L1862) |
 | `operator==` | [943](../../../src/recursive_quadrature.cpp#L943), [953](../../../src/recursive_quadrature.cpp#L953), [958](../../../src/recursive_quadrature.cpp#L958), [1064](../../../src/recursive_quadrature.cpp#L1064) |
 | `operator!=` | [948](../../../src/recursive_quadrature.cpp#L948), [963](../../../src/recursive_quadrature.cpp#L963), [968](../../../src/recursive_quadrature.cpp#L968), [1069](../../../src/recursive_quadrature.cpp#L1069) |
 | `MultiIndexTable::MultiIndexTable` | [973](../../../src/recursive_quadrature.cpp#L973), [989](../../../src/recursive_quadrature.cpp#L989) |

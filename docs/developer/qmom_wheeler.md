@@ -130,7 +130,7 @@ the Wheeler recurrence data for degeneracy, may reduce the active node count,
 then attempts candidate quadratures from the active count down to one node.
 
 The recurrence is degenerate at count $k$ when $\sigma_{k,k}$, which equals
-$m_0 \prod_{i<k} b_i$, is zero within its own rounding. Adaptive Wheeler bounds
+$m_0 \prod_{i=1}^{k-1} b_i$, is zero within its own rounding. Adaptive Wheeler bounds
 that rounding by running the $\sigma$ recurrence again with every term in
 absolute value,
 $M_{k,l} = M_{k-1,l+1} + |a_{k-2}|\,M_{k-1,l} + |b_{k-2}|\,M_{k-2,l}$ from

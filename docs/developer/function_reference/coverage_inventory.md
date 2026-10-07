@@ -1114,18 +1114,18 @@ evidence](realizability.md)
 | `check_range_consistency` | [399](../../../src/realizability.cpp#L399) |
 | `incorporate_range_consistency` | [425](../../../src/realizability.cpp#L425) |
 | `numerical_rank` | [450](../../../src/realizability.cpp#L450) |
-| `rank_as_given` | [459](../../../src/realizability.cpp#L459) |
-| `finish_classification` | [465](../../../src/realizability.cpp#L465) |
-| `validate_common_inputs` | [481](../../../src/realizability.cpp#L481) |
-| `check_hamburger` | [516](../../../src/realizability.cpp#L516) |
-| `check_stieltjes` | [567](../../../src/realizability.cpp#L567) |
-| `check_hausdorff` | [623](../../../src/realizability.cpp#L623) |
-| `TestedMoments::bound` | [694](../../../src/realizability.cpp#L694) |
-| `raw_moments` | [700](../../../src/realizability.cpp#L700) |
-| `standardized_moments` | [708](../../../src/realizability.cpp#L708) |
-| `tested_moments` | [783](../../../src/realizability.cpp#L783) |
-| `with_support_context` | [788](../../../src/realizability.cpp#L788) |
-| `check_realizability` | [799](../../../src/realizability.cpp#L799), [828](../../../src/realizability.cpp#L828) |
+| `singular_as_given` | [460](../../../src/realizability.cpp#L460) |
+| `finish_classification` | [466](../../../src/realizability.cpp#L466) |
+| `validate_common_inputs` | [482](../../../src/realizability.cpp#L482) |
+| `check_hamburger` | [517](../../../src/realizability.cpp#L517) |
+| `check_stieltjes` | [571](../../../src/realizability.cpp#L571) |
+| `check_hausdorff` | [627](../../../src/realizability.cpp#L627) |
+| `TestedMoments::bound` | [698](../../../src/realizability.cpp#L698) |
+| `raw_moments` | [704](../../../src/realizability.cpp#L704) |
+| `standardized_moments` | [712](../../../src/realizability.cpp#L712) |
+| `tested_moments` | [787](../../../src/realizability.cpp#L787) |
+| `with_support_context` | [792](../../../src/realizability.cpp#L792) |
+| `check_realizability` | [803](../../../src/realizability.cpp#L803), [832](../../../src/realizability.cpp#L832) |
 
 ### `src/reconstruction_scaling.cpp`
 

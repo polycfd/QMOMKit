@@ -454,12 +454,13 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
                                                   { return classify_eigenvalue(analysis, eigenvalue) == EigenvalueClass::positive; }));
 }
 
-// The rank of the matrix of the data as given, with only the roundoff of the
-// eigen solve counted as zero.
-[[nodiscard]] std::size_t rank_as_given(const MatrixAnalysis& analysis)
+// Whether every zero eigenvalue of the matrix is zero for the data as given,
+// within the roundoff of the eigen solve, rather than only within the data
+// uncertainty.
+[[nodiscard]] bool singular_as_given(const MatrixAnalysis& analysis)
 {
-    return static_cast<std::size_t>(std::count_if(analysis.eigensystem.eigenvalues.begin(), analysis.eigensystem.eigenvalues.end(),
-                                                  [&analysis](const double eigenvalue) { return std::abs(eigenvalue) > analysis.roundoff; }));
+    return std::all_of(analysis.eigensystem.eigenvalues.begin(), analysis.eigensystem.eigenvalues.end(), [&analysis](const double eigenvalue)
+                       { return classify_eigenvalue(analysis, eigenvalue) != EigenvalueClass::zero || std::abs(eigenvalue) <= analysis.roundoff; });
 }
 
 [[nodiscard]] RealizabilityResult finish_classification(ClassificationState state, const std::size_t checked_order, const MomentSupport support)
@@ -544,14 +545,17 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
         {
             return state.result;
         }
-        // Unlike a kernel projection, a rank has no margin against the data
-        // uncertainty. A mismatch decides only if it also holds for the data
-        // as given; one that rests on zeros within the data uncertainty is
-        // consistent with a flat extension and with a non-flat one.
-        if (numerical_rank(moment_matrix) != numerical_rank(preceding_matrix))
+        // H_n is a flat extension if it has no more nonzero eigenvalues than
+        // H_(n-1). The zero band of H_n is the wider one, since H_(n-1) is its
+        // principal submatrix, so H_n can count fewer nonzero eigenvalues than
+        // H_(n-1); it then only resolves them less finely, and the extension
+        // is flat within its precision. More nonzero eigenvalues decide that
+        // the extension is not flat only if the zeros of H_(n-1) hold for the
+        // data as given. If they rest on the data uncertainty, H_(n-1) may as
+        // well be positive definite, and the sequence realizable whatever H_n.
+        if (numerical_rank(moment_matrix) > numerical_rank(preceding_matrix))
         {
-            const std::size_t rank = rank_as_given(moment_matrix);
-            const bool decided = rank <= hankel_order && rank != rank_as_given(preceding_matrix);
+            const bool decided = singular_as_given(preceding_matrix);
             return make_result(decided ? RealizabilityStatus::not_realizable : RealizabilityStatus::numerically_indeterminate, checked_order,
                                "H_" + std::to_string(hankel_order) + "_flat_extension", hankel_order, moment_matrix.minimum_eigenvalue,
                                moment_matrix.tolerance,

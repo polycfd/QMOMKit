@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 667 |
+| Unit logical tests | 668 |
 | Component/regression logical tests | 47 |
-| Verification logical tests | 187 |
-| **Runtime logical tests** | **901** |
+| Verification logical tests | 188 |
+| **Runtime logical tests** | **903** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **902** |
+| **Total CTest registrations** | **904** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -342,6 +342,7 @@ renamed test rather than a deleted one.
 | `verification_realizability_analytical_even_order_boundaries` | `tests/verification/realizability/realizability_analytical.cpp` | `even_order_boundaries` | Verifies that n interior points are strictly realizable at order 2n - 1 and on the boundary at order 2n, on each support. | — |
 | `verification_realizability_analytical_shift_and_scale_preserve_classification` | `tests/verification/realizability/realizability_analytical.cpp` | `shift_and_scale_preserve_classification` | Verifies that strictly realizable, boundary and non-realizable sequences on each support keep their classification for spreads from 1e-9 to 1e9 and locations up to the shift that double-precision input resolves. | — |
 | `verification_realizability_analytical_resolution_limit_never_reverses_classification` | `tests/verification/realizability/realizability_analytical.cpp` | `resolution_limit_never_reverses_classification` | Verifies that beyond the resolved shift, up to 1e8 spreads, a classification only gives way to boundary or numerically indeterminate and is never reversed. | — |
+| `verification_realizability_analytical_exact_point_sequences_are_never_rejected` | `tests/verification/realizability/realizability_analytical.cpp` | `exact_point_sequences_are_never_rejected` | Verifies that sequences of up to four weighted points with moments exact in double precision are never rejected, and never called strictly realizable on the boundary. | 50,000 seeded samples; points on a 1/4 lattice below 16 in magnitude; orders 2 to 8. |
 | `verification_realizability_analytical_near_boundary_and_scaling` | `tests/verification/realizability/realizability_analytical.cpp` | `near_boundary_and_scaling` | Verifies the expected support-aware realizability classification and diagnostics for near boundary and scaling. | — |
 
 ### Vandermonde / solver selection
@@ -964,7 +965,8 @@ CTest check; it is not 23 runtime tests.
 | `unit_realizability_status_helpers` | `tests/unit/realizability.cpp` | `status_helpers` | Checks that realizability status helpers distinguish successful and non-success classifications. | — |
 | `unit_realizability_even_order_hamburger_singular_kernel_consistency` | `tests/unit/realizability.cpp` | `even_order_hamburger_singular_kernel_consistency` | Checks that an even-order singular Hamburger sequence satisfies the required kernel-consistency condition. | — |
 | `unit_realizability_every_eigenvalue_is_classified` | `tests/unit/realizability.cpp` | `every_eigenvalue_is_classified` | Checks that an ambiguous eigenvalue other than the smallest makes the classification numerically indeterminate. | — |
-| `unit_realizability_flat_extension_within_data_uncertainty_is_indeterminate` | `tests/unit/realizability.cpp` | `flat_extension_within_data_uncertainty_is_indeterminate` | Checks that a flat-extension rank mismatch resting on zeros within the data uncertainty is numerically indeterminate rather than not realizable. | — |
+| `unit_realizability_flat_extension_within_precision_is_boundary` | `tests/unit/realizability.cpp` | `flat_extension_within_precision_is_boundary` | Checks that realizable even-order sequences whose H_n resolves its eigenvalues less finely than H_(n-1) are not rejected, in any unit of the coordinate. | — |
+| `unit_realizability_flat_extension_within_data_uncertainty_is_indeterminate` | `tests/unit/realizability.cpp` | `flat_extension_within_data_uncertainty_is_indeterminate` | Checks that a flat-extension rank mismatch is numerically indeterminate when the zero of H_(n-1) holds only within the data uncertainty. | — |
 | `unit_realizability_lost_information_is_indeterminate` | `tests/unit/realizability.cpp` | `lost_information_is_indeterminate` | Checks that a sequence whose standardized moments carry no reliable digit is numerically indeterminate. | — |
 | `unit_realizability_ssp_rk3_predicate_can_be_explicitly_wrapped` | `tests/unit/realizability.cpp` | `ssp_rk3_predicate_can_be_explicitly_wrapped` | Checks that a realizability predicate can be wrapped explicitly for SSP-RK3 stage acceptance. | — |
 

@@ -157,16 +157,58 @@ void test_every_eigenvalue_is_classified()
     return MomentSet(std::move(moments));
 }
 
+// Raw moments of weighted points, with the powers formed by multiplication.
+[[nodiscard]] MomentSet point_moments(const std::vector<double>& points, const std::vector<double>& weights, const std::size_t maximum_order)
+{
+    std::vector<double> moments(maximum_order + 1, 0.0);
+    for (std::size_t point = 0; point < points.size(); ++point)
+    {
+        double power = weights[point];
+        for (std::size_t order = 0; order <= maximum_order; ++order)
+        {
+            moments[order] += power;
+            power *= points[point];
+        }
+    }
+    return MomentSet(std::move(moments));
+}
+
+void test_flat_extension_within_precision_is_boundary()
+{
+    // Three points at 12, 12.75 and 13 have moments that are exact in double
+    // precision. At order 8, H_3 and H_4 both have rank 3, so the sequence is a
+    // flat extension on the boundary. The standardized H_4 counts fewer
+    // eigenvalues outside its zero band than H_3, because its band is wider;
+    // that is the coarser resolution of the larger matrix, not a lost rank.
+    const auto three_points = qmomkit::check_realizability(point_moments({12.0, 12.75, 13.0}, {1.0, 0.5, 3.0}, 8), MomentSupport::real_line);
+    assert(three_points.status == RealizabilityStatus::boundary);
+
+    // The moments m_k = k! s^k of an exponential distribution are realizable at
+    // order 16 in any unit of its coordinate.
+    for (const double scale : {1.0, 1000.0})
+    {
+        std::vector<double> moments{1.0};
+        for (std::size_t order = 1; order <= 16; ++order)
+        {
+            moments.push_back(static_cast<double>(order) * scale * moments.back());
+        }
+        assert(qmomkit::check_realizability(MomentSet(moments), MomentSupport::real_line).realizable());
+    }
+}
+
 void test_flat_extension_within_data_uncertainty_is_indeterminate()
 {
-    // At a mean of 250 standard deviations the rounding of the raw input
-    // moments makes the smallest eigenvalues of H_2 and H_3 zero within the
-    // data uncertainty, although both matrices are positive definite as given.
-    // The rank mismatch therefore does not decide.
-    const auto result = qmomkit::check_realizability(normal_moments(250.0, 6), MomentSupport::real_line);
+    // Two points make H_2 singular, and raising m_6 adds a positive eigenvalue
+    // to H_3, so the extension is not flat. The points 39.6 and 40.9 are not
+    // representable in binary, though, and the rounding of the raw moments
+    // leaves the zero eigenvalue of H_2 at about 1e-9, far above the roundoff
+    // of the eigen solve: zero only within the data uncertainty, so H_2 may as
+    // well be positive definite, and the mismatch does not decide.
+    std::vector<double> values = point_moments({39.6, 40.9}, {0.5, 0.5}, 6).values();
+    values[6] += 0.5;
+    const auto result = qmomkit::check_realizability(MomentSet(values), MomentSupport::real_line);
     assert(result.status == RealizabilityStatus::numerically_indeterminate);
     assert(result.failed_matrix == "H_3_flat_extension");
-    assert(result.minimum_pivot > 0.0);
 }
 
 void test_lost_information_is_indeterminate()
@@ -206,6 +248,7 @@ int main(const int argc, char** argv)
             {"status_helpers", test_status_helpers},
             {"even_order_hamburger_singular_kernel_consistency", test_even_order_hamburger_singular_kernel_consistency},
             {"every_eigenvalue_is_classified", test_every_eigenvalue_is_classified},
+            {"flat_extension_within_precision_is_boundary", test_flat_extension_within_precision_is_boundary},
             {"flat_extension_within_data_uncertainty_is_indeterminate", test_flat_extension_within_data_uncertainty_is_indeterminate},
             {"lost_information_is_indeterminate", test_lost_information_is_indeterminate},
             {"ssp_rk3_predicate_can_be_explicitly_wrapped", test_ssp_rk3_predicate_can_be_explicitly_wrapped},

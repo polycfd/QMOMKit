@@ -33,6 +33,11 @@
 //   to a shift at least three times below the first one, on a grid of 0 to
 //   1e8, at which any spread from 1e-9 to 1e9 gave a different answer.
 //
+//   Weighted points on a lattice of 1/4 below 16 in magnitude, with weights
+//   that are multiples of 1/8, have raw moments up to order 8 that are exact
+//   in double precision, so such sequences are realizable as given, and on the
+//   boundary from order 2k on for k points.
+//
 // Error metric and pass criteria
 //   Verdict and reported order must match exactly. The reported pivot must
 //   exceed the tolerance actually used for a strictly realizable sequence, and
@@ -41,7 +46,9 @@
 //   1.0e-8, looser than the inversion studies because these sequences are
 //   deliberately placed near the boundary where the determinants are small
 //   differences of larger numbers. Beyond its resolved shift, a case may only
-//   be boundary or numerically indeterminate instead of its own verdict.
+//   be boundary or numerically indeterminate instead of its own verdict. An
+//   exact point sequence may never be rejected, nor called strictly realizable
+//   on the boundary.
 //
 // Reproduce
 //   ctest -R verification_realizability
@@ -52,7 +59,9 @@
 #include "../verification_helpers.hpp"
 #include "test_case_dispatch.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <iostream>
 #include <limits>
@@ -542,6 +551,63 @@ void verify_resolution_limit_never_reverses_classification()
     }
 }
 
+void verify_exact_point_sequences_are_never_rejected()
+{
+    // Up to four points at multiples of 1/4 below 16 in magnitude, with weights
+    // that are multiples of 1/8, have raw moments up to order 8 that are exact
+    // in double precision: each term is an integer below 2^51 times a power of
+    // two, and so is the sum of up to four terms. Every such sequence is
+    // realizable, so no verdict may reject it. From order 2k on, k points are
+    // on the boundary and may not be called strictly realizable either. The
+    // points cluster within 3/4 of a centre anywhere in that range, so many
+    // sequences lie tens of spreads from the origin.
+    std::uint64_t state = 0x2545F4914F6CDD1DULL;
+    const auto next = [&state](const std::uint64_t range)
+    {
+        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+        return (state >> 33U) % range;
+    };
+    std::size_t boundary_sequences = 0;
+    for (std::size_t sample = 0; sample < 50000; ++sample)
+    {
+        const std::size_t point_count = 1 + next(4);
+        std::vector<double> points;
+        std::vector<double> weights;
+        const double centre = static_cast<double>(next(121)) - 60.0;
+        while (points.size() < point_count)
+        {
+            const double point = (centre + static_cast<double>(next(7)) - 3.0) / 4.0;
+            if (std::find(points.begin(), points.end(), point) == points.end())
+            {
+                points.push_back(point);
+                weights.push_back(static_cast<double>(1 + next(8)) / 8.0);
+            }
+        }
+        const std::size_t maximum_order = 2 + next(7);
+        std::vector<double> moments(maximum_order + 1, 0.0);
+        for (std::size_t point = 0; point < points.size(); ++point)
+        {
+            double term = weights[point];
+            for (std::size_t order = 0; order <= maximum_order; ++order)
+            {
+                moments[order] += term;
+                term *= points[point];
+            }
+        }
+
+        const RealizabilityStatus status = qmomkit::check_realizability(MomentSet(moments), MomentSupport::real_line).status;
+        const bool on_boundary = maximum_order >= 2 * point_count;
+        boundary_sequences += on_boundary ? 1 : 0;
+        if (status == RealizabilityStatus::not_realizable || (on_boundary && status == RealizabilityStatus::strictly_realizable))
+        {
+            std::cerr << point_count << " points, order " << maximum_order << ", sample " << sample << '\n';
+        }
+        QMOMKIT_VERIFY_CHECK(status != RealizabilityStatus::not_realizable);
+        QMOMKIT_VERIFY_CHECK(!on_boundary || status != RealizabilityStatus::strictly_realizable);
+    }
+    QMOMKIT_VERIFY_CHECK(boundary_sequences > 20000);
+}
+
 void verify_near_boundary_and_scaling()
 {
     // Near-boundary cases make tolerance semantics explicit. The relative
@@ -630,6 +696,7 @@ int main(const int argc, char** argv)
             {"even_order_boundaries", verify_even_order_boundaries},
             {"shift_and_scale_preserve_classification", verify_shift_and_scale_preserve_classification},
             {"resolution_limit_never_reverses_classification", verify_resolution_limit_never_reverses_classification},
+            {"exact_point_sequences_are_never_rejected", verify_exact_point_sequences_are_never_rejected},
             {"near_boundary_and_scaling", verify_near_boundary_and_scaling},
         });
 }

@@ -37,6 +37,12 @@ resolves for that order. Beyond that, up to `1e8` spreads, the classification
 may only give way to `boundary` or `numerically_indeterminate`, never to the
 opposite verdict.
 
+Sequences of up to four weighted points, with points on a lattice of `1/4` below
+`16` in magnitude and weights that are multiples of `1/8`, have raw moments up
+to order `8` that are exact in double precision. 50,000 seeded samples, many of
+them tens of spreads from the origin, must never be rejected, and those on the
+boundary must never be called strictly realizable.
+
 Boundary and near-boundary cases verify tolerance behavior. The zero measure
 is reported as boundary-realizable with a `zero_measure` diagnostic. Under a
 loose relative tolerance, perturbing the fourth moment of two points at `-1`

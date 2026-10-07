@@ -83,9 +83,10 @@ column against the matrix range. For a numerically singular even `H_n`, it also
 analyzes `H_(n-1)` and requires equal numerical ranks: the singular truncated
 matrix must be a flat extension. This rejects PSD-but-incompatible data such as
 `[1,0,0,0,1]` without changing the positive-definite or odd-order paths. A
-rank has no margin against the data uncertainty, so a mismatch rejects only if
-`H_n` is singular and the ranks still differ under `rank_as_given`, which
-counts only the eigen-solve roundoff as zero; otherwise the result is
+rank of `H_n` no higher than that of `H_(n-1)` counts as flat: the wider zero
+band of `H_n` can only make its rank come out lower. A higher rank rejects the
+sequence only if `singular_as_given(H_(n-1))` holds, that is, every zero of
+`H_(n-1)` lies within the eigen-solve roundoff; otherwise the result is
 indeterminate.
 
 `check_stieltjes` treats order zero separately; otherwise it analyzes `H_k`.
@@ -195,5 +196,5 @@ mode selection, status acceptance, and composition.
 | `finish_classification` | Chooses boundary if any accepted matrix/range check was singular; otherwise strict | Same verification |
 | `make_result`, `with_support_context`, `support_name` | Populate diagnostics and append support text when absent | Diagnostic verification helpers |
 | `vector_scale`, `projection_on_eigenvector`, `euclidean_norm` | Maximum absolute extension entry, ordinary dot product and Euclidean norm used by range checks | Indirect singular-range coverage |
-| `numerical_rank`, `rank_as_given` | Count of the positive class, and count of eigenvalues beyond the eigen-solve roundoff, compared by the flat-extension test | `test_flat_extension_within_data_uncertainty_is_indeterminate`, even-order kernel test |
+| `numerical_rank`, `singular_as_given` | Count of the positive class, compared by the flat-extension test, and whether every zero eigenvalue lies within the eigen-solve roundoff | `test_flat_extension_within_precision_is_boundary`, `test_flat_extension_within_data_uncertainty_is_indeterminate`, even-order kernel test |
 | `RealizabilityResult::realizable`, `on_boundary` | Exact status predicates; no fresh numerical check | `test_status_helpers` |

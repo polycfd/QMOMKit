@@ -256,11 +256,17 @@ against a threshold that includes the uncertainty of the column and the
 rotation of the kernel vectors, which by the Davis-Kahan theorem is at most
 $\delta$ over the gap between the zero and the positive eigenvalues, bounded
 below by the smallest positive eigenvalue minus $\zeta$.
-The flat-extension test compares ranks, which have no such margin, so a rank
-mismatch rejects the sequence only if the matrix is singular and the mismatch
-persists with only the eigen-solve roundoff counted as zero; otherwise the
-sequence is consistent with a flat and a non-flat extension within its
-precision and is `numerically_indeterminate`.
+The flat-extension test compares the numerical ranks of $H_n$ and its
+principal submatrix $H_{n-1}$, whose eigenvalues interlace those of $H_n$. In
+exact arithmetic $H_n$ is flat when the ranks agree and has one more otherwise.
+The zero band of $H_n$ is the wider of the two, so its rank can also come out
+lower than that of $H_{n-1}$: it then resolves the same eigenvalues less
+finely, and the extension counts as flat within its precision. A higher rank
+of $H_n$ rejects the sequence only if every zero of $H_{n-1}$ lies within the
+eigen-solve roundoff, so that $H_{n-1}$ is singular for the data as given. If a
+zero of $H_{n-1}$ holds only within the data uncertainty, $H_{n-1}$ may as well
+be positive definite, which makes the sequence realizable whatever $H_n$, and
+the result is `numerically_indeterminate`.
 
 ### Evidence
 
@@ -270,9 +276,13 @@ strictly realizable, boundary and non-realizable sequences on every support for
 spreads from $10^{-9}$ to $10^9$ and locations up to the shift each resolves,
 and `resolution_limit_never_reverses_classification` checks that beyond it, up
 to $10^8$ spreads, a classification only gives way to `boundary` or
-`numerically_indeterminate`. The unit tests in `tests/unit/realizability.cpp`
-cover the partition of every eigenvalue, the flat-extension test within the
-data uncertainty and the loss of every reliable digit.
+`numerically_indeterminate`. `exact_point_sequences_are_never_rejected` checks
+50,000 sequences of up to four weighted points whose moments are exact in
+double precision, many of them tens of spreads from the origin: none may be
+rejected, and none on the boundary may be called strictly realizable. The unit
+tests in `tests/unit/realizability.cpp` cover the partition of every
+eigenvalue, the flat-extension test within the precision and within the data
+uncertainty, and the loss of every reliable digit.
 
 ## Runtime checks in phase-space evolution
 

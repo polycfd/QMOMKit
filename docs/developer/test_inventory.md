@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 668 |
+| Unit logical tests | 669 |
 | Component/regression logical tests | 47 |
 | Verification logical tests | 188 |
-| **Runtime logical tests** | **903** |
+| **Runtime logical tests** | **904** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **904** |
+| **Total CTest registrations** | **905** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -539,6 +539,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_runge_kutta_invalid_step_options_are_rejected_for_an_empty_interval` | `tests/unit/runge_kutta.cpp` | `invalid_step_options_are_rejected_for_an_empty_interval` | Checks that invalid embedded Runge-Kutta step options, including an explicit min_step above an explicit max_step, are rejected even when the integration interval is empty, and that valid options return the input state. | — |
 | `unit_runge_kutta_rk23_rejects_nonfinite_trial_state` | `tests/unit/runge_kutta.cpp` | `rk23_rejects_nonfinite_trial_state` | Checks that RK23 rejects non-finite trial states and preserves a finite reported state. | — |
 | `unit_runge_kutta_rk23_initial_request_below_minimum_uses_minimum_step` | `tests/unit/runge_kutta.cpp` | `rk23_initial_request_below_minimum_uses_minimum_step` | Checks that RK23 raises an undersized initial request to the configured minimum timestep. | — |
+| `unit_runge_kutta_embedded_rk_min_step_below_time_resolution_terminates` | `tests/unit/runge_kutta.cpp` | `embedded_rk_min_step_below_time_resolution_terminates` | Checks that rk23 and rk45 return, and make progress, when an explicit min_step lies below the spacing of the double at the current time. | — |
 | `unit_runge_kutta_rk23_accepts_finite_update_at_minimum_step` | `tests/unit/runge_kutta.cpp` | `rk23_accepts_finite_update_at_minimum_step` | Checks that RK23 accepts a finite update at the minimum timestep despite a tight error tolerance. | — |
 | `unit_runge_kutta_rk23_rejected_request_clamps_to_minimum_step` | `tests/unit/runge_kutta.cpp` | `rk23_rejected_request_clamps_to_minimum_step` | Checks that RK23 clamps a rejected request to the minimum timestep and reaches the endpoint. | — |
 | `unit_runge_kutta_rk23_accepts_final_remainder_below_minimum_step` | `tests/unit/runge_kutta.cpp` | `rk23_accepts_final_remainder_below_minimum_step` | Checks that RK23 accepts the final endpoint remainder even when it is smaller than the minimum timestep. | — |

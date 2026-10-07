@@ -137,8 +137,10 @@ inline constexpr double default_adaptive_initial_step = 1.0e-6;
  *
  * `max_step <= 0.0` requests an automatically derived maximum step (the
  * integration interval length). `min_step <= 0.0` requests an automatically
- * derived, always-tiny minimum step. An explicit `min_step` must not exceed
- * the effective maximum step, or the request is rejected as invalid input.
+ * derived, always-tiny minimum step of ten spacings of the double at the
+ * current time; an explicit `min_step` below that is raised to it. An explicit
+ * `min_step` must not exceed the effective maximum step, or the request is
+ * rejected as invalid input.
  *
  * When the error controller would require a step below the effective minimum,
  * a finite step at that minimum is accepted rather than failing. The step floor

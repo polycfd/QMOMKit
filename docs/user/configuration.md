@@ -557,7 +557,9 @@ initial-step estimator: QMOMKit does not derive `initial_step` from the state,
 derivatives, or tolerances. Explicit tolerances and step sizes must be positive finite
 numbers, and an explicit `min_step` must not exceed the effective `max_step` —
 whether `max_step` is explicitly configured or automatically derived from the
-integration interval. `min_step` takes precedence over the tolerances: when the
+integration interval. An explicit `min_step` smaller than the automatic minimum,
+ten spacings of the double at the current time (about `2e-15` times the time),
+is raised to it. `min_step` takes precedence over the tolerances: when the
 error controller would ask for a smaller step, a finite step at the floor is
 accepted instead, so a successful run does not by itself certify that every step
 met the requested tolerance. `max_steps` must be a positive integer. The higher-order member advances an

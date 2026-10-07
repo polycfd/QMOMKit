@@ -62,14 +62,13 @@ void require_same_size(const std::vector<double>& lhs, const std::vector<double>
     return std::abs(interval);
 }
 
+// The automatic minimum is ten spacings of the double at t. An explicit
+// min_step is never smaller: a shorter step can round to no step at all, or
+// back to the step just rejected, and the controller would never finish.
 [[nodiscard]] double minimum_step(const double t, const double direction, const AdaptiveRkOptions& options)
 {
-    if (options.min_step > 0.0)
-    {
-        return options.min_step;
-    }
     const double toward_infinity = direction > 0.0 ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity();
-    return 10.0 * std::abs(std::nextafter(t, toward_infinity) - t);
+    return std::max(options.min_step, 10.0 * std::abs(std::nextafter(t, toward_infinity) - t));
 }
 
 struct SspRk3Attempt

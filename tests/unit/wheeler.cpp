@@ -1,3 +1,4 @@
+#include "internal/bounded_quadrature.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
@@ -259,15 +260,80 @@ void test_adaptive_exact_large_abscissa_degenerate_sequence_reduces()
 
 void test_adaptive_roundoff_positive_degenerate_sequence_reduces()
 {
+    // Conditional moments of a single point at zero, on a coordinate of unit
+    // scale, with the rounding of the solve that produced them: the variance
+    // 2.2e-15 is rounding relative to that scale. As data, the same moments
+    // describe a genuine spread of about 5e-8 and keep two nodes.
     const qmomkit::MomentSet moments{1.0000000000000007, -5.4825828376551026e-16, 2.193033135062041e-15, 0.0};
     qmomkit::WheelerOptions options;
     options.adaptive = true;
 
-    const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments, 2, options);
+    assert(qmomkit::compute_quadrature(moments, 2, options).weights.size() == 2);
+    const qmomkit::Quadrature1D quadrature = qmomkit::internal::compute_conditional_quadrature(moments, 2, options, 1.0);
 
     assert(quadrature.ok());
     assert_vector_near(quadrature.abscissas, {-5.4825828376550987e-16}, 1.0e-14);
     assert_vector_near(quadrature.weights, {1.0000000000000007}, 1.0e-14);
+}
+
+void test_adaptive_node_count_does_not_depend_on_units_or_number_density()
+{
+    // sigma(k, k) and the roundoff bound it is compared with both scale as m0
+    // times the coordinate to the power 2(k - 1), so neither the unit of the
+    // coordinate nor the number density may change the adaptive node count.
+    // The conditioning of the cluster limits the nodes to about 1e-5, in fixed
+    // mode as well, far below their separation of 0.03.
+    const std::vector<double> reference_points{0.95, 0.98, 1.01, 1.04};
+    const std::vector<double> reference_weights{0.2, 0.3, 0.3, 0.2};
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+    for (const double unit : {1.0e-9, 1.0e-6, 1.0, 1.0e4, 1.0e9})
+    {
+        for (const double number_density : {1.0e-14, 1.0, 1.0e10})
+        {
+            std::vector<double> points = reference_points;
+            std::vector<double> weights = reference_weights;
+            for (std::size_t node = 0; node < points.size(); ++node)
+            {
+                points[node] *= unit;
+                weights[node] *= number_density;
+            }
+            const qmomkit::Quadrature1D quadrature = qmomkit::compute_quadrature(moments_from_nodes(points, weights), 4, options);
+            assert(quadrature.ok());
+            assert(quadrature.weights.size() == 4);
+            for (std::size_t node = 0; node < points.size(); ++node)
+            {
+                assert_near(quadrature.abscissas[node] / unit, reference_points[node], 1.0e-4);
+            }
+        }
+    }
+}
+
+void test_adaptive_degenerate_sequences_reduce_at_any_unit_and_location()
+{
+    // Two points requested as four nodes, and one point requested as three,
+    // must reduce to the points they are, in any unit and wherever they sit:
+    // the rounding of their moments stays within the bound, which grows with
+    // the cancellation far from the origin.
+    qmomkit::WheelerOptions options;
+    options.adaptive = true;
+    for (const double unit : {1.0e-6, 1.0, 1.0e4})
+    {
+        for (const double location : {0.0, 10.0, 100.0})
+        {
+            const std::vector<double> two_points{unit * (location - 0.5), unit * (location + 0.5)};
+            const qmomkit::Quadrature1D two =
+                qmomkit::compute_quadrature(qmomkit::MomentSet(reconstruct_moments(qmomkit::Quadrature1D{two_points, {0.4, 0.6}}, 8)), 4, options);
+            assert(two.ok());
+            assert(two.weights.size() == 2);
+
+            const std::vector<double> one_point{unit * (location + 0.3)};
+            const qmomkit::Quadrature1D one =
+                qmomkit::compute_quadrature(qmomkit::MomentSet(reconstruct_moments(qmomkit::Quadrature1D{one_point, {1.0}}, 6)), 3, options);
+            assert(one.ok());
+            assert(one.weights.size() == 1);
+        }
+    }
 }
 
 void test_adaptive_relative_weight_threshold_rejection_falls_back_to_one_node()
@@ -469,6 +535,8 @@ int main(const int argc, char** argv)
             {"adaptive_exact_degenerate_sequence_reduces_before_finite_check", test_adaptive_exact_degenerate_sequence_reduces_before_finite_check},
             {"adaptive_exact_large_abscissa_degenerate_sequence_reduces", test_adaptive_exact_large_abscissa_degenerate_sequence_reduces},
             {"adaptive_roundoff_positive_degenerate_sequence_reduces", test_adaptive_roundoff_positive_degenerate_sequence_reduces},
+            {"adaptive_node_count_does_not_depend_on_units_or_number_density", test_adaptive_node_count_does_not_depend_on_units_or_number_density},
+            {"adaptive_degenerate_sequences_reduce_at_any_unit_and_location", test_adaptive_degenerate_sequences_reduce_at_any_unit_and_location},
             {"adaptive_relative_weight_threshold_rejection_falls_back_to_one_node",
              test_adaptive_relative_weight_threshold_rejection_falls_back_to_one_node},
             {"adaptive_requested_two_node_negative_variance_recovers_one_node", test_adaptive_requested_two_node_negative_variance_recovers_one_node},

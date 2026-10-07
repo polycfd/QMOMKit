@@ -519,13 +519,11 @@ moment and returns the normalized problem to O(1) coordinates.
 With scaling on, the verifier requires the five terminals, their paths,
 physical nodes, weights, and the required CQMOM moments to agree with the oracle
 to `1e-10` (unit-floored relative errors for nodes and moments, absolute error
-for weights). The per-branch active counts are not checked in this case. With scaling off, the same physical
-moment tensor must lose the prescribed topology. The test only requires a
-meaningful topology loss, rather than a platform-specific incorrect node value.
-The selected factors are comfortably beyond the nearby `(1e6,1e-6,1e3)`
-interaction case, which reconstructs without scaling, while retaining finite
-ordinary floating-point moments and a well-separated five-versus-three-terminal
-outcome in the design probe.
+for weights). The per-branch active counts are not checked in this case. With
+scaling off, the same physical moment tensor must recover the same rule to the
+same tolerances: adaptive node reduction compares each recurrence entry with a
+roundoff bound in the same units, so it does not depend on the units of the
+coordinates.
 
 ## High-Dimensional Running
 

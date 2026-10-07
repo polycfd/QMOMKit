@@ -118,14 +118,10 @@ std::optional<QmomScalingContext> make_qmom_scaling_context(const std::vector<do
     return context;
 }
 
-std::optional<CqmomScalingContext> make_cqmom_scaling_context(const CqmomMomentData& moments, const CqmomAbscissaBounds& coordinate_support)
+std::vector<double> cqmom_coordinate_scales(const CqmomMomentData& moments)
 {
     const std::size_t dimensions = moments.layout.hierarchy.number_of_dimensions();
-    if (moments.values.size() != moments.layout.required_indices.size())
-    {
-        return std::nullopt;
-    }
-    CqmomScalingContext context{moments, coordinate_support, std::vector<double>(dimensions, 1.0)};
+    std::vector<double> scales(dimensions, 1.0);
     const MultiIndex zero(dimensions, 0);
     const double m0 = moments.contains_required_index(zero) ? moments.moment(zero) : 0.0;
 
@@ -137,8 +133,19 @@ std::optional<CqmomScalingContext> make_cqmom_scaling_context(const CqmomMomentD
         second[dimension] = 2;
         const double m1 = moments.contains_required_index(first) ? moments.moment(first) : 0.0;
         const double m2 = moments.contains_required_index(second) ? moments.moment(second) : 0.0;
-        context.scales[dimension] = automatic_scale(m0, m1, m2);
+        scales[dimension] = automatic_scale(m0, m1, m2);
     }
+    return scales;
+}
+
+std::optional<CqmomScalingContext> make_cqmom_scaling_context(const CqmomMomentData& moments, const CqmomAbscissaBounds& coordinate_support)
+{
+    if (moments.values.size() != moments.layout.required_indices.size())
+    {
+        return std::nullopt;
+    }
+    const std::size_t dimensions = moments.layout.hierarchy.number_of_dimensions();
+    CqmomScalingContext context{moments, coordinate_support, cqmom_coordinate_scales(moments)};
 
     for (std::size_t entry = 0; entry < context.moments.values.size(); ++entry)
     {

@@ -213,10 +213,8 @@ int run_feature_sensitive_case()
     // The same prescribed ragged terminal rule as the covariance interaction
     // case is represented in deliberately disparate physical units. The
     // factors create mixed raw moments from approximately 1e-24 to 1e36 while
-    // the normalized terminal rule and its moments remain O(1). The neighboring
-    // probe at (1e6, 1e-6, 1e3) reconstructs without scaling; this stronger,
-    // but still finite and non-singular, representation establishes that the
-    // automatic-scaling path changes the outcome.
+    // the normalized terminal rule and its moments remain O(1). Both the
+    // automatic-scaling path and the unscaled path must recover the rule.
     const std::vector<double> units{1.0e8, 1.0e-8, 1.0e4};
     const std::vector<Terminal> expected = physical_reference(units);
     const qmomkit::RawMomentTensor moments = moments_from_terminals(expected, {4, 4, 4});
@@ -239,24 +237,18 @@ int run_feature_sensitive_case()
         passed = false;
     }
 
+    // Adaptive reduction does not depend on the units, so the same physical
+    // tensor must reconstruct the prescribed rule without scaling as well.
     qmomkit::CqmomCase unscaled_cqmom_case = scaled_cqmom_case;
     unscaled_cqmom_case.qmom_options.automatic_scaling = false;
+    Errors unscaled_errors;
     const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(unscaled_cqmom_case);
-    const std::size_t unscaled_terminal_count = unscaled.ok() ? unscaled.quadrature.weights().size() : 0;
-    if (!unscaled.ok() || unscaled_terminal_count >= expected.size())
+    check_result("feature-sensitive unscaled", unscaled, unscaled_cqmom_case.moments, units, unscaled_errors, passed, false);
+    if (unscaled_errors.node > feature_sensitive_tolerance || unscaled_errors.weight > feature_sensitive_tolerance ||
+        unscaled_errors.moment > feature_sensitive_tolerance)
     {
-        std::cerr << "The deliberately difficult unscaled representation did not lose the prescribed five-terminal topology.\n";
+        std::cerr << "the unscaled representation did not recover the independently prescribed physical rule.\n";
         passed = false;
-    }
-
-    double unscaled_moment_error = 0.0;
-    if (unscaled.ok())
-    {
-        const qmomkit::RawMomentTensor reconstructed = qmomkit::reconstruct_raw_moments(unscaled.quadrature, moments.extents);
-        for (std::size_t index = 0; index < moments.values.size(); ++index)
-        {
-            unscaled_moment_error = std::max(unscaled_moment_error, relative_error(reconstructed.values[index], moments.values[index]));
-        }
     }
 
     // Silent on success. These numbers exist to diagnose a failure, and CTest
@@ -267,7 +259,9 @@ int run_feature_sensitive_case()
                   << "feature_sensitive units=(1e8,1e-8,1e4) scaled_terminals=" << (scaled.ok() ? scaled.quadrature.weights().size() : 0)
                   << " scaled_node_error=" << scaled_errors.node << " scaled_weight_error=" << scaled_errors.weight
                   << " scaled_moment_error=" << scaled_errors.moment << " scaled_tolerance=" << feature_sensitive_tolerance
-                  << " unscaled_terminals=" << unscaled_terminal_count << " unscaled_moment_error=" << unscaled_moment_error << '\n';
+                  << " unscaled_terminals=" << (unscaled.ok() ? unscaled.quadrature.weights().size() : 0)
+                  << " unscaled_node_error=" << unscaled_errors.node << " unscaled_weight_error=" << unscaled_errors.weight
+                  << " unscaled_moment_error=" << unscaled_errors.moment << '\n';
     }
     return passed ? 0 : 1;
 }

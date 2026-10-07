@@ -6,6 +6,7 @@
 #include "internal/linear_algebra.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
+#include "internal/reconstruction_scaling.hpp"
 #include "internal/vandermonde.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/moment_set.hpp"
@@ -813,9 +814,10 @@ struct BranchNodeCountLimit
     return {active->second.active_node_count, active->second.active_node_count};
 }
 
-[[nodiscard]] Quadrature1D compute_branch_quadrature(std::vector<double> moments, const std::size_t node_count, const WheelerOptions& wheeler_options)
+[[nodiscard]] Quadrature1D compute_branch_quadrature(std::vector<double> moments, const std::size_t node_count, const WheelerOptions& wheeler_options,
+                                                     const double coordinate_scale)
 {
-    return compute_quadrature(MomentSet(std::move(moments)), node_count, wheeler_options);
+    return internal::compute_conditional_quadrature(MomentSet(std::move(moments)), node_count, wheeler_options, coordinate_scale);
 }
 
 [[nodiscard]] bool validate_coordinate_support(const PhaseSpaceHierarchy& hierarchy, const CqmomAbscissaBounds& support, std::string& message)
@@ -1558,6 +1560,11 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
         return result;
     }
 
+    // The root inverts the marginal moments of the first coordinate, which are
+    // data. Every later level inverts conditional moments, whose rounding is
+    // relative to the scale of their coordinate.
+    const std::vector<double> coordinate_scales = cqmom_coordinate_scales(request.moments);
+
     std::vector<BranchState> current_branches;
     RecursiveQuadrature::TreeNode root_node;
     root_node.id = 0;
@@ -1578,6 +1585,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
     {
         const std::size_t phase_space_dimension = request.hierarchy.conditioning_order()[level];
         const std::size_t configured_node_count = request.hierarchy.node_count(phase_space_dimension);
+        const double coordinate_scale = level == 0 ? 0.0 : coordinate_scales[phase_space_dimension];
         std::vector<BranchState> next_branches;
         if (level + 1 < dimensions)
         {
@@ -1639,7 +1647,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                     node_count_limit.active_node_count.value_or(node_count_limit.ceiling), configured_node_count, node_count_limit.active_node_count,
                     request.adaptive_branch_counts, request.allow_active_branch_count_growth};
                 internal::BoundedQuadratureSelection bounded_selection =
-                    internal::select_bounded_quadrature(moment_sequence, bounded_request, *support_interval, wheeler_options);
+                    internal::select_bounded_quadrature(moment_sequence, bounded_request, *support_interval, wheeler_options, coordinate_scale);
                 quadrature = std::move(bounded_selection.quadrature);
                 selected_node_count_ceiling = bounded_selection.selected_node_count_ceiling;
                 support_driven_reduction = bounded_selection.reduced;
@@ -1652,13 +1660,13 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                                                     wheeler_options.adaptive && node_count_limit.active_node_count.has_value() &&
                                                     *node_count_limit.active_node_count < configured_node_count;
                 quadrature = branch_growth_possible
-                                 ? compute_branch_quadrature(moment_sequence, node_count_limit.ceiling, wheeler_options)
-                                 : compute_branch_quadrature(std::move(moment_sequence), node_count_limit.ceiling, wheeler_options);
+                                 ? compute_branch_quadrature(moment_sequence, node_count_limit.ceiling, wheeler_options, coordinate_scale)
+                                 : compute_branch_quadrature(std::move(moment_sequence), node_count_limit.ceiling, wheeler_options, coordinate_scale);
                 if (branch_growth_trial_allowed(request.allow_active_branch_count_growth, request.adaptive_branch_counts, wheeler_options,
                                                 node_count_limit, configured_node_count, quadrature))
                 {
                     const std::size_t growth_ceiling = *node_count_limit.active_node_count + 1;
-                    Quadrature1D growth = compute_branch_quadrature(std::move(moment_sequence), growth_ceiling, wheeler_options);
+                    Quadrature1D growth = compute_branch_quadrature(std::move(moment_sequence), growth_ceiling, wheeler_options, coordinate_scale);
                     if (growth.ok() && growth.weights.size() == growth_ceiling)
                     {
                         quadrature = std::move(growth);

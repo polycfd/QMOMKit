@@ -948,6 +948,42 @@ void test_rk23_initial_request_below_minimum_uses_minimum_step()
     assert_near(result.state[0], 1.05, 1.0e-15);
 }
 
+// At t = 1e6 the spacing of the double is about 1e-10, so an explicit
+// min_step of 1e-12 or 1e-20 is a fraction of it. Such a step can round to no
+// step at all, or back to the one just rejected, so the minimum step must not
+// fall below the automatic one there.
+void test_embedded_rk_min_step_below_time_resolution_terminates()
+{
+    constexpr double t0 = 1.0e6;
+    for (const qmomkit::EmbeddedRkMethod method : {qmomkit::EmbeddedRkMethod::rk23, qmomkit::EmbeddedRkMethod::rk45})
+    {
+        // dx/dt = -0.5/x drives x from 0.5 to zero at t0 + 0.25, where no step
+        // meets the tolerance; the integration must still return.
+        std::size_t evaluations = 0;
+        const qmomkit::OdeRhs singular = [&evaluations](double, const std::vector<double>& y, std::vector<double>& derivative)
+        {
+            if (++evaluations > 100000)
+            {
+                throw std::runtime_error("The integration did not terminate.");
+            }
+            derivative[0] = -0.5 / y[0];
+        };
+        qmomkit::AdaptiveRkOptions options;
+        options.min_step = 1.0e-12;
+        options.max_steps = 1000;
+        const qmomkit::AdaptiveRkResult stalled = qmomkit::integrate_embedded_rk({0.5}, t0, t0 + 1.0, singular, method, options);
+        assert(stalled.status != qmomkit::AdaptiveRkStatus::success);
+
+        // A smooth problem started at a step far below the spacing must make
+        // progress rather than accept steps of zero length.
+        options.min_step = 1.0e-20;
+        options.initial_step = 1.0e-20;
+        const qmomkit::AdaptiveRkResult smooth = qmomkit::integrate_embedded_rk({1.0}, t0, t0 + 1.0, exponential_decay_rhs(), method, options);
+        assert(smooth.status == qmomkit::AdaptiveRkStatus::success);
+        assert(smooth.final_time == t0 + 1.0);
+    }
+}
+
 void test_rk23_accepts_finite_update_at_minimum_step()
 {
     const qmomkit::OdeRhs rhs = [](double, const std::vector<double>& y, std::vector<double>& derivative) { derivative[0] = 1000.0 * y[0]; };
@@ -1121,6 +1157,7 @@ int main(const int argc, char** argv)
             {"rhs_that_leaves_a_component_unwritten_is_rejected_in_debug_builds",
              test_rhs_that_leaves_a_component_unwritten_is_rejected_in_debug_builds},
             {"rk23_initial_request_below_minimum_uses_minimum_step", test_rk23_initial_request_below_minimum_uses_minimum_step},
+            {"embedded_rk_min_step_below_time_resolution_terminates", test_embedded_rk_min_step_below_time_resolution_terminates},
             {"rk23_accepts_finite_update_at_minimum_step", test_rk23_accepts_finite_update_at_minimum_step},
             {"rk23_rejected_request_clamps_to_minimum_step", test_rk23_rejected_request_clamps_to_minimum_step},
             {"rk23_accepts_final_remainder_below_minimum_step", test_rk23_accepts_final_remainder_below_minimum_step},

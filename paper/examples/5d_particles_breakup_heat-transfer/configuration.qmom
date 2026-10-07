@@ -5,6 +5,9 @@ conditioning_order = 0, 1, 2, 3, 4
 adaptive_branch_counts = false
 automatic_scaling = true
 
+[qmom]
+adaptive = false
+
 [time_integration]
 scheme = strang
 

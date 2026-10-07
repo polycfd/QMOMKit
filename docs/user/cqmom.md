@@ -362,9 +362,9 @@ are reproducible and callback coordinate order stays easy to audit.
 CQMOM reconstruction is adaptive by default. A branch may use fewer nodes than
 its phase-space dimension requests where the supplied moments support only a
 lower-order rule, for example near degenerate or boundary-like states.
-`adaptive_branch_counts` alone decides this: it makes every marginal and
-conditional inversion adaptive or fixed, and `QmomOptions::adaptive` has no
-effect in CQMOM.
+`adaptive_branch_counts` and `QmomOptions::adaptive` must agree: adaptive branch
+counts need adaptive inversions, and a fixed hierarchy needs fixed ones. A case
+where they differ is rejected as invalid input.
 
 Adaptive results expose terminal weights, terminal abscissas, and terminal
 conditioning paths, and their storage is ragged even when no branch reduces.
@@ -378,9 +378,13 @@ multi-index. Request it in configuration with:
 ```ini
 [phase_space]
 adaptive_branch_counts = false
+
+[qmom]
+adaptive = false
 ```
 
-or by setting `CqmomCase::adaptive_branch_counts = false`.
+or by setting both `CqmomCase::adaptive_branch_counts` and
+`CqmomCase::qmom_options.adaptive` to false.
 
 Both modes are supported in reconstruction and in the normal configured
 `CqmomState` phase-space evolution workflow. `CqmomState` keeps the required

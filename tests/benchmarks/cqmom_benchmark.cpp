@@ -71,7 +71,7 @@ CqmomFixture make_conditioning_order_fixture()
     const std::vector<std::size_t> extents{4, 4};
     const std::vector<double> weights{0.08, 0.12, 0.56, 0.24};
     const std::vector<std::vector<double>> abscissas{{-2.0, 1.0, -0.5, 2.25}, {-1.5, -1.5, 1.0, 1.0}};
-    return {hierarchy, extents, raw_moments_from_terminal_quadrature(abscissas, weights, extents), {}, false};
+    return {hierarchy, extents, raw_moments_from_terminal_quadrature(abscissas, weights, extents), qmomkit::QmomOptions{false}, false};
 }
 
 CqmomFixture make_adaptive_ragged_fixture()
@@ -161,7 +161,7 @@ CqmomFixture make_independent_fixed_fixture(const std::vector<std::size_t>& node
         moments[flat] = value;
     }
 
-    return {hierarchy, extents, std::move(moments), {}, false};
+    return {hierarchy, extents, std::move(moments), qmomkit::QmomOptions{false}, false};
 }
 
 CqmomFixture make_uniform_independent_fixed_fixture(const std::size_t dimensions, const std::size_t node_count)

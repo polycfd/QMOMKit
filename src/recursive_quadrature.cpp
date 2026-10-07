@@ -632,7 +632,8 @@ void record_failure(internal::RecursiveQuadratureResult& result, const internal:
 }
 
 [[nodiscard]] bool validate_recursive_request_preflight(const ConditionalMomentOptions& conditional_options,
-                                                        const CqmomDiagnosticLevel diagnostic_level, internal::RecursiveQuadratureResult& result)
+                                                        const CqmomDiagnosticLevel diagnostic_level, const WheelerOptions& wheeler_options,
+                                                        const bool adaptive_branch_counts, internal::RecursiveQuadratureResult& result)
 {
     if (!valid_conditional_options(conditional_options))
     {
@@ -644,16 +645,16 @@ void record_failure(internal::RecursiveQuadratureResult& result, const internal:
         record_failure(result, internal::RecursiveQuadratureStatus::invalid_input, {}, 0, "CQMOM diagnostic level is invalid.");
         return false;
     }
+    // Adaptive branch counts and adaptive Wheeler go together: a fixed
+    // hierarchy cannot hold a branch that Wheeler reduced, and adaptive branch
+    // counts have nothing to adapt with fixed inversions.
+    if (wheeler_options.adaptive != adaptive_branch_counts)
+    {
+        record_failure(result, internal::RecursiveQuadratureStatus::invalid_input, {}, 0,
+                       "CQMOM requires the QMOM adaptive option and adaptive_branch_counts to agree.");
+        return false;
+    }
     return true;
-}
-
-// In CQMOM, adaptive branch counts and adaptive Wheeler go together: every
-// marginal and conditional inversion is adaptive exactly when the branch
-// counts are, whatever the QMOM options say.
-[[nodiscard]] WheelerOptions resolve_cqmom_wheeler_options(WheelerOptions options, const bool adaptive_branch_counts)
-{
-    options.adaptive = adaptive_branch_counts;
-    return options;
 }
 
 struct ActiveBranchKey
@@ -1825,11 +1826,12 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const RecursiveQuadratureMomentDataRequest& request)
 {
-    const WheelerOptions wheeler_options = resolve_cqmom_wheeler_options(request.wheeler_options, request.adaptive_branch_counts);
+    const WheelerOptions& wheeler_options = request.wheeler_options;
     RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
     result.quadrature.set_adaptive_branch_counts_enabled(request.adaptive_branch_counts);
 
-    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, result))
+    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, wheeler_options, request.adaptive_branch_counts,
+                                              result))
     {
         return result;
     }
@@ -1852,11 +1854,12 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(const RecursiveQuadratureMomentDataRequest& request)
 {
-    const WheelerOptions wheeler_options = resolve_cqmom_wheeler_options(request.wheeler_options, request.adaptive_branch_counts);
+    const WheelerOptions& wheeler_options = request.wheeler_options;
     RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
     result.quadrature.set_adaptive_branch_counts_enabled(request.adaptive_branch_counts);
 
-    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, result))
+    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, wheeler_options, request.adaptive_branch_counts,
+                                              result))
     {
         return result;
     }

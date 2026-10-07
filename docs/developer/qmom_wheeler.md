@@ -179,10 +179,9 @@ magnitude. Thus `eabs` is dimensionless for every multi-node candidate. A
 two-node candidate whose abscissas both equal zero is degenerate and does not
 pass the separation criterion.
 
-Adaptive Wheeler is a one-dimensional inversion policy. In recursive CQMOM,
-`adaptive_branch_counts` decides it for every marginal and conditional
-inversion, and the `adaptive` option has no effect there. Standalone QMOM is
-controlled by its own `adaptive` option.
+Adaptive Wheeler is a one-dimensional inversion policy. In recursive CQMOM, the
+`adaptive` option sets it for every marginal and conditional inversion and must
+agree with `adaptive_branch_counts`; a request where they differ is rejected.
 
 ## Numerical assumptions and failure handling
 

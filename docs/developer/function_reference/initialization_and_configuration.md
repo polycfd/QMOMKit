@@ -171,10 +171,9 @@ establish realizability of the initialized moments.
 `parse_cqmom_case_settings` resolves counts, names, conditioning permutation,
 reconstruction policies, and paired support intervals. When omitted, diagnostics
 default to none, the solver to automatic, the conditioning order to identity,
-and adaptive branch counts to enabled. Adaptive branch counts alone decide
-whether the recursive inversions are adaptive; `qmom.adaptive` is kept as
-parsed but does not affect CQMOM. Names are metadata and do not establish units
-or support.
+and adaptive branch counts to enabled. Adaptive branch counts must agree with
+`qmom.adaptive`, and a file where they differ is rejected. Names are metadata
+and do not establish units or support.
 
 `parse_qmom_options_from_parsed` maps `qmom.adaptive`; other Wheeler thresholds
 are API options, not arbitrary accepted `.qmom` keys.

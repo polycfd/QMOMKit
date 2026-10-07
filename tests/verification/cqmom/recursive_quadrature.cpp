@@ -54,10 +54,13 @@ qmomkit::internal::RecursiveQuadratureMomentDataRequest moment_data_request(
     const bool adaptive_branch_counts = false, const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
     const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic, const qmomkit::CqmomAbscissaBounds& coordinate_support = {})
 {
+    // CQMOM requires Wheeler adaptivity to agree with the branch-count flag.
+    qmomkit::WheelerOptions agreeing_wheeler_options = wheeler_options;
+    agreeing_wheeler_options.adaptive = adaptive_branch_counts;
     return {hierarchy,
             qmomkit::extract_cqmom_moments(moment_tensor, qmomkit::create_cqmom_moment_layout(hierarchy)),
             conditional_options,
-            wheeler_options,
+            agreeing_wheeler_options,
             adaptive_branch_counts,
             diagnostic_level,
             solver,

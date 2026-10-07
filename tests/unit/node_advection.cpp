@@ -103,7 +103,7 @@ qmomkit::CqmomResult make_fixed_two_dimensional_cqmom()
         qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, raw_moments_from_terminals(extents, weights, abscissas)},
                                                           qmomkit::create_cqmom_moment_layout(hierarchy)),
                            {},
-                           {},
+                           qmomkit::QmomOptions{false},
                            false});
 }
 

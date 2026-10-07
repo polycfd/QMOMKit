@@ -2,6 +2,10 @@
 names = R, U
 node_counts = 2, 2
 conditioning_order = 0, 1
+adaptive_branch_counts = false
+
+[qmom]
+adaptive = false
 
 [initial]
 type = independent_product

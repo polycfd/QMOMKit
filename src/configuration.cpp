@@ -2127,6 +2127,16 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
                       "adaptive_branch_counts must be true or false.");
         }
     }
+    if (qmom_options.has_value() && qmom_options->adaptive != adaptive_branch_counts)
+    {
+        const Entry* entry = find_entry(parsed, "qmom.adaptive");
+        if (entry == nullptr)
+        {
+            entry = find_entry(parsed, "phase_space.adaptive_branch_counts");
+        }
+        add_error(parsed, ConfigurationErrorCode::invalid_configuration, source_name, entry == nullptr ? 0 : entry->line,
+                  "qmom.adaptive and phase_space.adaptive_branch_counts must agree for CQMOM; set both to true or both to false.");
+    }
     if (!node_counts.empty())
     {
         validate_cqmom_coordinate_realizability_ranks(parsed, source_name, node_counts.size());

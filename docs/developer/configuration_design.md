@@ -224,10 +224,10 @@ rejects a tensor too small for the requested node counts.
 Recursive CQMOM success is still checked later by `compute_cqmom(...)`.
 
 `phase_space.adaptive_branch_counts`, `true` when omitted, controls whether
-CQMOM may accept branch-dependent quadrature counts, and with them whether every
-CQMOM marginal and conditional inversion uses adaptive Wheeler. `[qmom] adaptive`,
-also `true` when omitted, is parsed as written but has no effect on CQMOM; it is
-the one-dimensional QMOM control.
+CQMOM may accept branch-dependent quadrature counts. `[qmom] adaptive`, also
+`true` when omitted, controls whether the inversions are adaptive; in a CQMOM
+configuration the two must agree, and configuration validation rejects a file
+where they differ.
 
 The optional `[cqmom] diagnostic_level = detailed|basic|none` setting maps to
 the CQMOM diagnostic policy stored in the loaded case. If omitted,

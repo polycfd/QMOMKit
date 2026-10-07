@@ -115,6 +115,8 @@ TestCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomMomentDa
                          options.adaptive_branch_counts,
                          options.diagnostic_level,
                          options.vandermonde_solver};
+    // CQMOM requires the QMOM adaptive option to agree with the branch-count flag.
+    cqmom_case.qmom_options.adaptive = cqmom_case.adaptive_branch_counts;
     CqmomState state = internal::CqmomConstructionAccess::create_state(cqmom_case);
     const CqmomPhaseSpaceEvolutionResult result =
         advance_cqmom_phase_space(state, t, time_step, velocity, source, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
@@ -1545,7 +1547,7 @@ qmomkit::CqmomMomentSource make_cqmom_noncommuting_source(const double time_step
             const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(context.hierarchy());
             const qmomkit::CqmomCase current_cqmom_case{qmomkit::CqmomMomentData{layout, context.values()},
                                                         {},
-                                                        {},
+                                                        qmomkit::QmomOptions{false},
                                                         false,
                                                         qmomkit::CqmomDiagnosticLevel::none,
                                                         qmomkit::VandermondeSolver::automatic};

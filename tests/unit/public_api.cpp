@@ -187,9 +187,12 @@ qmomkit::CqmomCase cqmom_case_from_tensor(const qmomkit::PhaseSpaceHierarchy& hi
                                           const qmomkit::VandermondeSolver vandermonde_solver = qmomkit::VandermondeSolver::automatic,
                                           qmomkit::CqmomAbscissaBounds coordinate_support = {})
 {
+    // CQMOM requires the QMOM adaptive option to agree with the branch-count flag.
+    qmomkit::QmomOptions agreeing_qmom_options = qmom_options;
+    agreeing_qmom_options.adaptive = adaptive_branch_counts;
     return {qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
             conditional_options,
-            qmom_options,
+            agreeing_qmom_options,
             adaptive_branch_counts,
             diagnostic_level,
             vandermonde_solver,
@@ -978,8 +981,8 @@ void test_one_dimensional_cqmom_agrees_with_qmom()
     const qmomkit::QmomResult qmom = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2);
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2});
-    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(
-        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, {}, false});
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(qmomkit::CqmomCase{
+        qmomkit::extract_cqmom_moments({{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, qmomkit::QmomOptions{false}, false});
 
     assert(qmom.ok());
     assert(cqmom.ok());
@@ -1216,60 +1219,49 @@ void test_cqmom_adaptive_root_branch_uses_relative_rmin_only()
     assert(saw_unreduced_root);
 }
 
-void test_cqmom_branch_counts_decide_qmom_adaptivity()
+void test_cqmom_rejects_disagreeing_qmom_and_branch_counts()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<std::size_t> extents{4, 4};
     const std::vector<double> weights{0.1, 0.2, 0.3, 0.4};
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0, 1.0}, {-2.0, 2.0, -2.0, 2.0}};
-    const qmomkit::CqmomMomentData moments =
-        qmomkit::extract_cqmom_moments({extents, raw_moments_from_terminals(extents, weights, abscissas)}, layout);
-    const qmomkit::QmomOptions adaptive_qmom{true, 1.0e-10, 1.0e-10, 1.0e-12};
-    const qmomkit::QmomOptions fixed_qmom{false, 1.0e-10, 1.0e-10, 1.0e-12};
+    const qmomkit::CqmomMomentData moments = qmomkit::extract_cqmom_moments({extents, raw_moments_from_terminals(extents, weights, abscissas)},
+                                                                            qmomkit::create_cqmom_moment_layout(hierarchy));
+    const std::string message = "CQMOM requires the QMOM adaptive option and adaptive_branch_counts to agree.";
 
-    // Fixed branch counts make the reconstruction fixed even with adaptive QMOM
-    // options, for a case, a prepared case and an initial state alike.
-    const qmomkit::CqmomResult fixed = qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, fixed_qmom, false});
+    // A case, a prepared case and an initial state all reject either
+    // disagreement.
+    for (const auto& [adaptive_qmom, adaptive_branch_counts] : {std::pair{true, false}, std::pair{false, true}})
+    {
+        const qmomkit::CqmomCase cqmom_case{moments, {}, qmomkit::QmomOptions{adaptive_qmom}, adaptive_branch_counts};
+        for (const qmomkit::CqmomResult& rejected :
+             {qmomkit::compute_cqmom(cqmom_case), qmomkit::compute_cqmom(qmomkit::CqmomPreparedCase{cqmom_case})})
+        {
+            assert(!rejected.ok());
+            assert(rejected.status == qmomkit::CqmomStatus::invalid_input);
+            assert(rejected.failed_phase_space_dimension == 0);
+            assert(rejected.diagnostics.empty());
+            assert(rejected.message == message);
+        }
+        bool initial_state_rejected = false;
+        try
+        {
+            static_cast<void>(cqmom_case.initial_state());
+        }
+        catch (const std::runtime_error& error)
+        {
+            initial_state_rejected = true;
+            assert(std::string(error.what()) == "CQMOM initial state quadrature reconstruction failed: " + message);
+        }
+        assert(initial_state_rejected);
+    }
+
+    const qmomkit::CqmomResult fixed = qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, qmomkit::QmomOptions{false}, false});
     assert(fixed.ok());
-    assert(!fixed.quadrature.adaptive_branch_counts_enabled());
     assert(fixed.quadrature.has_rectangular_storage());
 
-    const qmomkit::CqmomCase forced_cqmom_case{moments, {}, adaptive_qmom, false};
-    for (const qmomkit::CqmomResult& forced :
-         {qmomkit::compute_cqmom(forced_cqmom_case), qmomkit::compute_cqmom(qmomkit::CqmomPreparedCase{forced_cqmom_case})})
-    {
-        assert(forced.ok());
-        assert(!forced.quadrature.adaptive_branch_counts_enabled());
-        assert(forced.quadrature.has_rectangular_storage());
-        assert(forced.quadrature.weights() == fixed.quadrature.weights());
-        assert(forced.quadrature.abscissas() == fixed.quadrature.abscissas());
-    }
-    const qmomkit::CqmomState forced_state = forced_cqmom_case.initial_state();
-    assert(forced_state.quadrature().has_rectangular_storage());
-    assert(forced_state.quadrature().weights() == fixed.quadrature.weights());
-
-    // A root node lighter than rmin relative to the other: adaptive inversion
-    // would drop it, so only the fixed inversions keep the four-node rule.
-    const qmomkit::CqmomMomentData light_root =
-        qmomkit::extract_cqmom_moments({extents, raw_moments_from_terminals(extents, {0.5, 0.5, 5.0e-12, 5.0e-12}, abscissas)}, layout);
-    const qmomkit::CqmomResult light_root_result = qmomkit::compute_cqmom(qmomkit::CqmomCase{light_root, {}, adaptive_qmom, false});
-    assert(light_root_result.ok());
-    assert(light_root_result.quadrature.total_nodes() == 4);
-
-    // A collapsed marginal needs adaptive inversion: fixed branch counts fail
-    // on it despite adaptive QMOM options, adaptive ones reduce it despite
-    // fixed QMOM options.
-    const qmomkit::CqmomMomentData collapsed =
-        qmomkit::extract_cqmom_moments({extents, raw_moments_from_terminals(extents, {0.5, 0.5}, {{0.0, 0.0}, {-1.0, 1.0}})}, layout);
-    assert(!qmomkit::compute_cqmom(qmomkit::CqmomCase{collapsed, {}, adaptive_qmom, false}).ok());
-    const qmomkit::CqmomResult collapsed_adaptive = qmomkit::compute_cqmom(qmomkit::CqmomCase{collapsed, {}, fixed_qmom, true});
-    assert(collapsed_adaptive.ok());
-    assert(collapsed_adaptive.quadrature.total_nodes() == 2);
-
-    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, fixed_qmom, true});
+    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, qmomkit::QmomOptions{true}, true});
     assert(adaptive.ok());
-    assert(adaptive.quadrature.adaptive_branch_counts_enabled());
     assert(!adaptive.quadrature.has_rectangular_storage());
     assert(adaptive.quadrature.total_nodes() == weights.size());
 }
@@ -1424,7 +1416,7 @@ int main(const int argc, char** argv)
             {"cqmom_public_api_reports_conditional_moment_failure", test_cqmom_public_api_reports_conditional_moment_failure},
             {"cqmom_public_api_exposes_adaptive_branch_counts", test_cqmom_public_api_exposes_adaptive_branch_counts},
             {"cqmom_adaptive_root_branch_uses_relative_rmin_only", test_cqmom_adaptive_root_branch_uses_relative_rmin_only},
-            {"cqmom_branch_counts_decide_qmom_adaptivity", test_cqmom_branch_counts_decide_qmom_adaptivity},
+            {"cqmom_rejects_disagreeing_qmom_and_branch_counts", test_cqmom_rejects_disagreeing_qmom_and_branch_counts},
             {"cqmom_diagnostic_levels_control_expensive_diagnostics", test_cqmom_diagnostic_levels_control_expensive_diagnostics},
             {"cqmom_none_diagnostics_preserves_failure_context", test_cqmom_none_diagnostics_preserves_failure_context},
             {"cqmom_settings_format", test_cqmom_settings_format},

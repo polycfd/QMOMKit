@@ -299,7 +299,10 @@ CqmomMomentData moments_of(const StaticCase& case_)
 
 CqmomCase cqmom_case_of(const StaticCase& case_)
 {
-    return CqmomCase{moments_of(case_),       {}, {}, case_.adaptive_branch_counts, CqmomDiagnosticLevel::basic, case_.vandermonde_solver,
+    // CQMOM requires the QMOM adaptive option to agree with the branch-count flag.
+    QmomOptions qmom_options;
+    qmom_options.adaptive = case_.adaptive_branch_counts;
+    return CqmomCase{moments_of(case_),       {}, qmom_options, case_.adaptive_branch_counts, CqmomDiagnosticLevel::basic, case_.vandermonde_solver,
                      case_.coordinate_support};
 }
 

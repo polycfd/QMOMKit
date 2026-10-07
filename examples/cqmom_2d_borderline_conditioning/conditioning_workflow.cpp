@@ -286,8 +286,8 @@ RunRecord run_reconstruction(const double delta, const std::vector<std::size_t>&
     // tensor is reduced to the moments the hierarchy actually reconstructs from.
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(moments, layout),
-                                        {}, // conditional-moment options
-                                        {}, // QMOM options
+                                        {},                                           // conditional-moment options
+                                        qmomkit::QmomOptions{adaptive_branch_counts}, // QMOM options, agreeing with the branch counts
                                         adaptive_branch_counts,
                                         qmomkit::CqmomDiagnosticLevel::detailed,
                                         choice.solver,

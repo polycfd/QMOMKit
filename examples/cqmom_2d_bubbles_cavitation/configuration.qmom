@@ -11,6 +11,12 @@ node_counts = 2, 2
 # The order in which CQMOM conditions the dimensions. It does not reorder
 # coordinates, moments, or output columns.
 conditioning_order = 0, 1
+# Fixed branch counts: every branch keeps two nodes. CQMOM needs the QMOM
+# setting below to agree.
+adaptive_branch_counts = false
+
+[qmom]
+adaptive = false
 
 [initial]
 # Marginals are normalised individually, then combined and scaled once by the

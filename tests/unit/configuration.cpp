@@ -145,8 +145,8 @@ std::vector<double> raw_moments_from_terminals_2d(const std::vector<double>& wei
     return moments;
 }
 
-std::string cqmom_adaptive_branch_count_text_with_fixed_qmom(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas,
-                                                             const std::vector<std::size_t>& conditioning_order)
+std::string cqmom_adaptive_branch_count_text(const std::vector<double>& weights, const std::vector<std::vector<double>>& abscissas,
+                                             const std::vector<std::size_t>& conditioning_order, const bool adaptive_qmom)
 {
     const std::vector<double> moments = raw_moments_from_terminals_2d(weights, abscissas);
     std::ostringstream text;
@@ -156,7 +156,7 @@ std::string cqmom_adaptive_branch_count_text_with_fixed_qmom(const std::vector<d
          << "conditioning_order = " << conditioning_order[0] << ", " << conditioning_order[1] << "\n"
          << "adaptive_branch_counts = true\n\n"
          << "[qmom]\n"
-         << "adaptive = false\n\n"
+         << "adaptive = " << (adaptive_qmom ? "true" : "false") << "\n\n"
          << "[cqmom]\n"
          << "diagnostic_level = basic\n\n"
          << "[moments]\n"
@@ -1244,7 +1244,7 @@ qmomkit::CqmomCase replacement_base_cqmom_case()
     const qmomkit::PhaseSpaceHierarchy hierarchy = cqmom_replacement_hierarchy();
     return {qmomkit::extract_cqmom_moments(cqmom_replacement_tensor({0.75, 0.75, 1.5, 1.5}), qmomkit::create_cqmom_moment_layout(hierarchy)),
             {1.0e-12, 1.0e9},
-            {false, 1.0e-9, 1.0e-11, 1.0e-28},
+            {true, 1.0e-9, 1.0e-11, 1.0e-28},
             true,
             qmomkit::CqmomDiagnosticLevel::basic,
             qmomkit::VandermondeSolver::dense,
@@ -1982,29 +1982,38 @@ void assert_cqmom_adaptive_options(const bool adaptive, const bool adaptive_bran
     assert(configured.value().adaptive_branch_counts == adaptive_branch_counts);
 }
 
-void test_cqmom_adaptive_options_parse_with_adaptive_defaults()
+void test_cqmom_adaptive_options_must_agree()
 {
-    // Every combination parses as written; in CQMOM, adaptive_branch_counts
-    // alone decides whether the inversions are adaptive.
     assert_cqmom_adaptive_options(false, false);
-    assert_cqmom_adaptive_options(false, true);
-    assert_cqmom_adaptive_options(true, false);
     assert_cqmom_adaptive_options(true, true);
 
-    const auto omitted = qmomkit::config::parse_cqmom(R"(
-[phase_space]
-node_counts = 1, 1
+    for (const auto& [adaptive, adaptive_branch_counts] : {std::pair{true, false}, std::pair{false, true}})
+    {
+        const auto disagreeing = qmomkit::config::parse_cqmom(cqmom_adaptive_option_text(adaptive, adaptive_branch_counts));
+        assert(!disagreeing.ok());
+        assert(has_failure(disagreeing));
+        assert(has_message_fragment(disagreeing, "qmom.adaptive and phase_space.adaptive_branch_counts must agree for CQMOM"));
+    }
 
+    // Both default to true; fixed branch counts alone therefore disagree with
+    // the default QMOM setting.
+    const std::string moments = R"(
 [moments]
 extents = 2, 2
 M[0,0] = 1.0
 M[0,1] = 2.0
 M[1,0] = 3.0
 M[1,1] = 6.0
-)");
+)";
+    const auto omitted = qmomkit::config::parse_cqmom("[phase_space]\nnode_counts = 1, 1\n" + moments);
     assert(omitted.ok());
     assert(omitted.value().qmom_options.adaptive);
     assert(omitted.value().adaptive_branch_counts);
+
+    const auto fixed_branch_counts_only =
+        qmomkit::config::parse_cqmom("[phase_space]\nnode_counts = 1, 1\nadaptive_branch_counts = false\n" + moments);
+    assert(!fixed_branch_counts_only.ok());
+    assert(has_message_fragment(fixed_branch_counts_only, "must agree for CQMOM"));
 }
 
 void test_cqmom_prepared_case_parsing_validates_coordinate_realizability_rank()
@@ -2029,12 +2038,18 @@ support = nonnegative
     assert(has_message_fragment(invalid, "phase-space rank 2"));
 }
 
-void test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom()
+void test_adaptive_cqmom_requires_adaptive_qmom()
 {
+    const std::vector<double> conditional_weights{0.2, 0.3, 0.5};
+    const std::vector<std::vector<double>> conditional_abscissas{{-1.0, 1.0, 1.0}, {0.0, -0.5, 0.5}};
+    const auto fixed_qmom = qmomkit::config::parse_cqmom(cqmom_adaptive_branch_count_text(conditional_weights, conditional_abscissas, {0, 1}, false));
+    assert(!fixed_qmom.ok());
+    assert(has_message_fragment(fixed_qmom, "qmom.adaptive and phase_space.adaptive_branch_counts must agree for CQMOM"));
+
     const auto conditional_reduction =
-        qmomkit::config::parse_cqmom(cqmom_adaptive_branch_count_text_with_fixed_qmom({0.2, 0.3, 0.5}, {{-1.0, 1.0, 1.0}, {0.0, -0.5, 0.5}}, {0, 1}));
+        qmomkit::config::parse_cqmom(cqmom_adaptive_branch_count_text(conditional_weights, conditional_abscissas, {0, 1}, true));
     assert(conditional_reduction.ok());
-    assert(!conditional_reduction.value().qmom_options.adaptive);
+    assert(conditional_reduction.value().qmom_options.adaptive);
     assert(conditional_reduction.value().adaptive_branch_counts);
 
     const qmomkit::CqmomResult conditional = qmomkit::compute_cqmom(conditional_reduction.value());
@@ -2045,21 +2060,14 @@ void test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmo
                        { return item.conditioning_level == 1 && item.actual_node_count < item.requested_node_count; }));
 
     const auto marginal_reduction =
-        qmomkit::config::parse_cqmom(cqmom_adaptive_branch_count_text_with_fixed_qmom({0.5, 0.5}, {{0.0, 0.0}, {-1.0, 1.0}}, {0, 1}));
+        qmomkit::config::parse_cqmom(cqmom_adaptive_branch_count_text({0.5, 0.5}, {{0.0, 0.0}, {-1.0, 1.0}}, {0, 1}, true));
     assert(marginal_reduction.ok());
-    assert(!marginal_reduction.value().qmom_options.adaptive);
 
     const qmomkit::CqmomResult marginal = qmomkit::compute_cqmom(marginal_reduction.value());
     assert(marginal.ok());
     assert(marginal.quadrature.total_nodes() == 2);
     assert(std::any_of(marginal.diagnostics.begin(), marginal.diagnostics.end(), [](const qmomkit::CqmomDiagnostics& item)
                        { return item.conditioning_level == 0 && item.actual_node_count < item.requested_node_count; }));
-
-    const qmomkit::QmomResult fixed_qmom = qmomkit::compute_qmom(qmomkit::MomentSet({1.0, 0.0, 0.0, 0.0}), 2, qmomkit::QmomOptions{false});
-    const qmomkit::QmomResult adaptive_qmom = qmomkit::compute_qmom(qmomkit::MomentSet({1.0, 0.0, 0.0, 0.0}), 2, qmomkit::QmomOptions{true});
-    assert(!fixed_qmom.ok());
-    assert(adaptive_qmom.ok());
-    assert(adaptive_qmom.weights.size() == 1);
 }
 
 std::string cqmom_diagnostic_level_text(const std::string& diagnostic_level)
@@ -4469,11 +4477,10 @@ int main(const int argc, char** argv)
             {"cqmom_prepared_case_file_loading", test_cqmom_prepared_case_file_loading},
             {"cqmom_independent_product_zero_density_skips_marginal_validation",
              test_cqmom_independent_product_zero_density_skips_marginal_validation},
-            {"cqmom_adaptive_options_parse_with_adaptive_defaults", test_cqmom_adaptive_options_parse_with_adaptive_defaults},
+            {"cqmom_adaptive_options_must_agree", test_cqmom_adaptive_options_must_agree},
             {"cqmom_prepared_case_parsing_validates_coordinate_realizability_rank",
              test_cqmom_prepared_case_parsing_validates_coordinate_realizability_rank},
-            {"adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom",
-             test_adaptive_cqmom_forces_adaptive_wheeler_without_changing_standalone_qmom},
+            {"adaptive_cqmom_requires_adaptive_qmom", test_adaptive_cqmom_requires_adaptive_qmom},
             {"cqmom_diagnostic_level_parses_values", test_cqmom_diagnostic_level_parses_values},
             {"cqmom_vandermonde_solver_parses_values", test_cqmom_vandermonde_solver_parses_values},
             {"cqmom_vandermonde_rcond_parses_and_validates_for_all_solvers", test_cqmom_vandermonde_rcond_parses_and_validates_for_all_solvers},

@@ -342,10 +342,11 @@ struct CqmomResult
  * again; reconstructing from a `CqmomPreparedCase` does neither. The
  * required-moment layout must match the hierarchy stored in
  * `cqmom_case.moments.layout`; a layout that does not is reported as a failed
- * result. `CqmomCase::adaptive_branch_counts`, on by default, decides both
- * whether branch node counts adapt and whether every marginal and conditional
- * Wheeler inversion is adaptive; `qmom_options.adaptive` has no effect in
- * CQMOM. Set it to false for the fixed hierarchy and its rectangular layout.
+ * result. `CqmomCase::adaptive_branch_counts`, on by default, decides whether
+ * branch node counts adapt, and must agree with `qmom_options.adaptive`, which
+ * decides whether the marginal and conditional Wheeler inversions are
+ * adaptive; a case where they differ is rejected as invalid input. Set both to
+ * false for the fixed hierarchy and its rectangular layout.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomCase& cqmom_case);
 

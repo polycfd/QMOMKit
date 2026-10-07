@@ -16,6 +16,10 @@ conditioning_order = 0, 1, 2, 3
 # moments cannot support that is a failure rather than a reduction.
 adaptive_branch_counts = false
 
+# CQMOM needs the QMOM setting to agree with adaptive_branch_counts.
+[qmom]
+adaptive = false
+
 [time_integration]
 # Second-order splitting: half advection, full source, half advection.
 scheme = strang

@@ -468,7 +468,7 @@ CqmomWorkload make_workload(const std::vector<std::size_t>& node_counts,
     qmomkit::RawMomentTensor moment_tensor = independent_product_moments(node_counts);
     qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     qmomkit::CqmomMomentData moments = qmomkit::extract_cqmom_moments(moment_tensor, layout);
-    qmomkit::CqmomCase cqmom_case{moments, {}, {}, false, diagnostic_level, solver};
+    qmomkit::CqmomCase cqmom_case{moments, {}, qmomkit::QmomOptions{false}, false, diagnostic_level, solver};
     qmomkit::CqmomPreparedCase cqmom_prepared_case = qmomkit::internal::CqmomConstructionAccess::create_prepared_case(cqmom_case);
     return {std::move(hierarchy), std::move(moment_tensor), std::move(moments), std::move(cqmom_case), std::move(cqmom_prepared_case)};
 }
@@ -1286,7 +1286,7 @@ void bm_cqmom_fixed_case_preparation(benchmark::State& state, const std::vector<
         {
             perf::CounterScope scope(session);
             cqmom_prepared_case.emplace(qmomkit::internal::CqmomConstructionAccess::create_prepared_case(
-                qmomkit::CqmomCase{moments, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic}));
+                qmomkit::CqmomCase{moments, {}, qmomkit::QmomOptions{false}, false, qmomkit::CqmomDiagnosticLevel::basic}));
         }
         benchmark::DoNotOptimize(cqmom_prepared_case->hierarchy().number_of_dimensions());
         const auto stop = std::chrono::steady_clock::now();

@@ -111,7 +111,7 @@ a name such as `d`, `u`, or `T`.
 names = size, velocity
 node_counts = 2, 2
 conditioning_order = 0, 1
-adaptive_branch_counts = false
+adaptive_branch_counts = true
 ```
 
 The keys are:
@@ -124,7 +124,8 @@ The keys are:
   are conditioned in their natural order `0, 1, 2, ...`.
 - `adaptive_branch_counts` allows individual CQMOM branches to use fewer nodes
   than requested when their local moments cannot support more. It is `true` by
-  default; `false` gives the fixed hierarchy.
+  default; `false` gives the fixed hierarchy and requires `[qmom] adaptive =
+  false` as well.
 
 This section is what ties the file to your model: every callback coordinate
 vector, output column, and moment multi-index follows the phase-space dimension
@@ -374,7 +375,6 @@ marginal. Different dimensions may use different families:
 names = size, velocity
 node_counts = 2, 2
 conditioning_order = 0, 1
-adaptive_branch_counts = false
 
 [initial]
 type = independent_product
@@ -429,26 +429,27 @@ do not resolve them or a node fails the minimum weight ratio or node
 separation. Adaptive CQMOM always uses a ragged quadrature layout, addressed by
 terminal paths.
 
-A fixed reconstruction returns every requested node or fails. For CQMOM, request
-it with:
-
-```ini
-[phase_space]
-node_counts = 2, 2
-adaptive_branch_counts = false
-```
-
-This also gives the rectangular layout that node multi-indices address. In
-CQMOM, `adaptive_branch_counts` alone decides whether the marginal and
-conditional inversions are adaptive; `[qmom] adaptive` has no effect there.
-
-For one-dimensional QMOM, the optional `[qmom]` section requests a fixed node
-count:
+A fixed reconstruction returns every requested node or fails. For
+one-dimensional QMOM, request it with:
 
 ```ini
 [qmom]
 adaptive = false
 ```
+
+For CQMOM, the branch counts and the inversions must both be fixed:
+
+```ini
+[phase_space]
+node_counts = 2, 2
+adaptive_branch_counts = false
+
+[qmom]
+adaptive = false
+```
+
+This also gives the rectangular layout that node multi-indices address. A
+CQMOM file whose two settings disagree is rejected when it is loaded.
 
 Diagnostic level and solver policy are covered under
 [advanced settings](#advanced-settings).

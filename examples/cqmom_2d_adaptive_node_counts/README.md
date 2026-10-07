@@ -57,16 +57,21 @@ $$
 \end{aligned}
 $$
 
-with $a=5$ and $u_{\mathrm{eq}}=0$ by default. Therefore the size distribution
-remains fixed, while the velocity variance decays as:
+with $a=5$ and $u_{\mathrm{eq}}=0.5$ by default. Therefore the size distribution
+remains fixed, while the velocities collapse onto $u_{\mathrm{eq}}$ and their
+variance decays as:
 
 $$
 \operatorname{Var}[u](t)
 = \operatorname{Var}[u](0)\exp(-2at).
 $$
 
-As the velocity variance approaches zero, adaptive Wheeler reduces active
-velocity branches toward one node.
+As the velocity variance approaches zero relative to $u_{\mathrm{eq}}^2$,
+adaptive Wheeler reduces active velocity branches toward one node. The nonzero
+equilibrium matters: relaxation toward $u_{\mathrm{eq}}=0$ would only shrink the
+velocity distribution without changing its shape, and adaptive reduction does
+not depend on the unit of the coordinate, so the branches would keep their
+nodes.
 
 The moment-source is active only over a fixed pulse interval. For each
 parent state $(d,u)$, it applies the deliberately simple numerical validation

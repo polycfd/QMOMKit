@@ -13,13 +13,14 @@ qmomkit::PhaseSpaceVelocity advection_velocity()
     return [](double, const std::vector<double>& coordinates, std::vector<double>& velocities, const std::size_t dimensions)
     {
         constexpr double relaxation_rate = 500.0;
+        constexpr double equilibrium_velocity = 0.5;
         if (dimensions != 1)
         {
             throw std::invalid_argument("The explicit Strang example expects one phase-space coordinate.");
         }
         for (std::size_t node = 0; node < coordinates.size(); ++node)
         {
-            velocities[node] = -relaxation_rate * coordinates[node];
+            velocities[node] = -relaxation_rate * (coordinates[node] - equilibrium_velocity);
         }
     };
 }

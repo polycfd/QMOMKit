@@ -12,7 +12,7 @@ namespace cqmom_2d_adaptive_node_counts
 struct VarianceInjectionParameters
 {
     double relaxation_rate = 5.0;
-    double equilibrium_velocity = 0.0;
+    double equilibrium_velocity = 0.5;
     double pulse_start = 4.0;
     double pulse_end = 4.05;
     double source_rate = 20.0;

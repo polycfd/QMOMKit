@@ -7,7 +7,7 @@ directory through `qmomkit::config::load_cqmom` and
 regenerate configured raw moments. The recursive-inversion, bounded and
 branch-growth studies described under
 [Recursive Inversion Studies](#recursive-inversion-studies) build their moments
-in code instead, as do the feature-sensitive automatic-scaling case and the
+in code instead, as do the disparate-units automatic-scaling case and the
 one-dimensional all-orders reconstruction check.
 
 ## Raw Moment Reconstruction
@@ -507,7 +507,7 @@ The tolerance is `2e-10` for unit-floored relative node and moment errors and
 absolute weights. It leaves cross-platform margin for nested adaptive
 inversions; observed errors are near machine precision.
 
-`verification_cqmom_automatic_scaling_feature_sensitive` uses the same
+`verification_cqmom_automatic_scaling_disparate_units` uses the same
 independently prescribed five-terminal rule through the direct public CQMOM
 route, but represents its coordinates in units `(1e8,1e-8,1e4)`. The
 complete `4 x 4 x 4` raw tensor is explicitly summed from those physical
@@ -519,13 +519,11 @@ moment and returns the normalized problem to O(1) coordinates.
 With scaling on, the verifier requires the five terminals, their paths,
 physical nodes, weights, and the required CQMOM moments to agree with the oracle
 to `1e-10` (unit-floored relative errors for nodes and moments, absolute error
-for weights). The per-branch active counts are not checked in this case. With scaling off, the same physical
-moment tensor must lose the prescribed topology. The test only requires a
-meaningful topology loss, rather than a platform-specific incorrect node value.
-The selected factors are comfortably beyond the nearby `(1e6,1e-6,1e3)`
-interaction case, which reconstructs without scaling, while retaining finite
-ordinary floating-point moments and a well-separated five-versus-three-terminal
-outcome in the design probe.
+for weights). The per-branch active counts are not checked in this case. With
+scaling off, the same physical moment tensor must recover the same rule to the
+same tolerances: adaptive node reduction compares each recurrence entry with a
+roundoff bound in the same units, so it does not depend on the units of the
+coordinates.
 
 ## High-Dimensional Running
 
@@ -545,5 +543,5 @@ ctest --test-dir build -R '^verification_cqmom_independent_product_5d$' --output
 ctest --test-dir build -R '^verification_cqmom_independent_product_6d$' --output-on-failure
 ctest --test-dir build -R '^verification_cqmom_mixed_affine_independent_4d$' --output-on-failure
 ctest --test-dir build -R '^verification_cqmom_automatic_scaling_' --output-on-failure
-ctest --test-dir build -R '^verification_cqmom_automatic_scaling_feature_sensitive$' --output-on-failure
+ctest --test-dir build -R '^verification_cqmom_automatic_scaling_disparate_units$' --output-on-failure
 ```

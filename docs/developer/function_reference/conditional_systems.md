@@ -40,7 +40,7 @@ different stages of that decision.
   zeroed. Invalid `rcond` and SVD nonconvergence fail. Optional residual
   validation applies as for QR and SVD.
 - **BP:** reject empty/mismatched/non-finite inputs or nonpositive tolerance.
-  Require every `abs(w)>singular_tolerance*max(1,max(abs(w)))`. Solve the
+  Require every `abs(w)>singular_tolerance*max(abs(w))`. Solve the
   unweighted transposed system `V^T*Y=R`, then divide every solution row by its
   corresponding weight. Reject non-finite recovered `C`. Negative finite
   weights are not excluded by this algebraic adapter; quadrature callers supply

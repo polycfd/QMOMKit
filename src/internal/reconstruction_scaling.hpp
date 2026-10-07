@@ -26,6 +26,9 @@ struct CqmomScalingContext
 
 [[nodiscard]] std::optional<QmomScalingContext> make_qmom_scaling_context(const std::vector<double>& moments,
                                                                           std::optional<AbscissaBounds> abscissa_bounds);
+// The scale of each phase-space coordinate, from the marginal moments of the
+// whole distribution: sqrt(m2 / m0), else |m1| / m0, else one.
+[[nodiscard]] std::vector<double> cqmom_coordinate_scales(const CqmomMomentData& moments);
 [[nodiscard]] std::optional<CqmomScalingContext> make_cqmom_scaling_context(const CqmomMomentData& moments,
                                                                             const CqmomAbscissaBounds& coordinate_support);
 

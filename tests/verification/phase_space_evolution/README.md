@@ -255,9 +255,9 @@ The `2e-9` scaled tolerance covers reconstruction and source-stage roundoff;
 the observed normalized errors are near machine precision. This is
 scaling-enabled evolution interaction evidence: it verifies physical semantics
 through evolution, not that scaling is numerically necessary for this
-particular representation. The separate CQMOM feature-sensitive scaling
-verification establishes that necessity on a deliberately difficult raw-moment
-representation.
+particular representation. The separate CQMOM disparate-units scaling
+verification checks a deliberately difficult raw-moment representation with
+and without scaling.
 
 ## CQMOM-Native Source Callback
 

@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 669 |
+| Unit logical tests | 674 |
 | Component/regression logical tests | 47 |
 | Verification logical tests | 188 |
-| **Runtime logical tests** | **904** |
+| **Runtime logical tests** | **909** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **905** |
+| **Total CTest registrations** | **910** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -249,7 +249,7 @@ renamed test rather than a deleted one.
 | CTest name | Source | Selector/function | Verifies | Internal cases |
 | --- | --- | --- | --- | --- |
 | `verification_cqmom_automatic_scaling_unit_invariance` | `tests/verification/cqmom/automatic_scaling.cpp` | `unit-invariance` | Verifies terminal paths, normalized physical coordinates, weights, active branch counts, and reconstructed raw moments for reference and rescaled representations of a configured CQMOM case. | — |
-| `verification_cqmom_automatic_scaling_feature_sensitive` | `tests/verification/cqmom/automatic_scaling.cpp` | `feature-sensitive` | Verifies that automatic scaling recovers the prescribed five-terminal rule and raw moments for disparate units, whereas the corresponding unscaled reconstruction fails or loses terminals. | — |
+| `verification_cqmom_automatic_scaling_disparate_units` | `tests/verification/cqmom/automatic_scaling.cpp` | `disparate-units` | Verifies that the prescribed five-terminal rule and raw moments are recovered for disparate units, both with automatic scaling and without it. | — |
 
 ### CQMOM / moment reconstruction
 
@@ -492,7 +492,9 @@ CTest check; it is not 23 runtime tests.
 | `unit_wheeler_scaled_abscissas_transform_quadrature` | `tests/unit/wheeler.cpp` | `scaled_abscissas_transform_quadrature` | Checks that Wheeler reconstruction recovers the prescribed three-node abscissas, weights, and raw moments at the tested abscissa scale. | — |
 | `unit_wheeler_adaptive_exact_degenerate_sequence_reduces_before_finite_check` | `tests/unit/wheeler.cpp` | `adaptive_exact_degenerate_sequence_reduces_before_finite_check` | Checks that adaptive Wheeler reconstruction reduces an exactly degenerate sequence to one node before finite-value validation. | — |
 | `unit_wheeler_adaptive_exact_large_abscissa_degenerate_sequence_reduces` | `tests/unit/wheeler.cpp` | `adaptive_exact_large_abscissa_degenerate_sequence_reduces` | Checks that adaptive Wheeler reconstruction reduces an exactly degenerate sequence at a large abscissa to one node. | — |
-| `unit_wheeler_adaptive_roundoff_positive_degenerate_sequence_reduces` | `tests/unit/wheeler.cpp` | `adaptive_roundoff_positive_degenerate_sequence_reduces` | Checks that adaptive Wheeler reconstruction reduces a roundoff-perturbed degenerate sequence to one finite node. | — |
+| `unit_wheeler_adaptive_roundoff_positive_degenerate_sequence_reduces` | `tests/unit/wheeler.cpp` | `adaptive_roundoff_positive_degenerate_sequence_reduces` | Checks that conditional moments of a single point, with rounding relative to their coordinate scale, reduce to one node, while the same moments as data keep two. | — |
+| `unit_wheeler_adaptive_node_count_does_not_depend_on_units_or_number_density` | `tests/unit/wheeler.cpp` | `adaptive_node_count_does_not_depend_on_units_or_number_density` | Checks that adaptive Wheeler keeps all nodes of four points for coordinate units from 1e-9 to 1e9 and number densities from 1e-14 to 1e10. | — |
+| `unit_wheeler_adaptive_degenerate_sequences_reduce_at_any_unit_and_location` | `tests/unit/wheeler.cpp` | `adaptive_degenerate_sequences_reduce_at_any_unit_and_location` | Checks that one and two points requested as more nodes reduce exactly, in any unit and up to 100 spreads from the origin. | — |
 | `unit_wheeler_adaptive_relative_weight_threshold_rejection_falls_back_to_one_node` | `tests/unit/wheeler.cpp` | `adaptive_relative_weight_threshold_rejection_falls_back_to_one_node` | Checks that adaptive Wheeler reconstruction reduces a two-node rule to one node when a weight fails the relative threshold. | — |
 | `unit_wheeler_adaptive_requested_two_node_negative_variance_recovers_one_node` | `tests/unit/wheeler.cpp` | `adaptive_requested_two_node_negative_variance_recovers_one_node` | Checks that adaptive Wheeler reconstruction falls back to a finite one-node rule when the requested two-node variance is negative. | — |
 | `unit_wheeler_adaptive_requested_three_node_high_rank_sigma_recovers_two_nodes` | `tests/unit/wheeler.cpp` | `adaptive_requested_three_node_high_rank_sigma_recovers_two_nodes` | Checks that adaptive Wheeler reconstruction falls back to a two-node rule when the requested three-node sigma condition fails. | — |
@@ -593,6 +595,8 @@ CTest check; it is not 23 runtime tests.
 | `unit_recursive_quadrature_recursive_automatic_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `recursive_automatic_independent_of_diagnostic_level` | Checks successful recursive automatic-solver reconstruction has identical numerics at none, basic, and detailed diagnostic levels. | — |
 | `unit_recursive_quadrature_recursive_dense_and_bp_equivalence_adaptive` | `tests/unit/recursive_quadrature.cpp` | `recursive_dense_and_bp_equivalence_adaptive` | Checks that the compared recursive CQMOM reconstruction paths produce equivalent results for the tested input. | — |
 | `unit_recursive_quadrature_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch` | `tests/unit/recursive_quadrature.cpp` | `recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch` | Checks that adaptive reduces roundoff deterministic mixed affine branch in recursive CQMOM reconstruction. | — |
+| `unit_recursive_quadrature_recursive_adaptive_reduces_roundoff_branch_with_bounded_support` | `tests/unit/recursive_quadrature.cpp` | `recursive_adaptive_reduces_roundoff_branch_with_bounded_support` | Checks that a conditional branch that is a single point still reduces when bounded supports route its inversion through the bounded selection. | — |
+| `unit_recursive_quadrature_recursive_reconstruction_does_not_depend_on_number_density` | `tests/unit/recursive_quadrature.cpp` | `recursive_reconstruction_does_not_depend_on_number_density` | Checks that four weighted points give the same nodes, and weights scaled by the number density, at number densities 1 and 1e-16, in fixed and adaptive mode. | — |
 | `unit_recursive_quadrature_public_cqmom_bp_success_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `public_cqmom_bp_success_independent_of_diagnostic_level` | Checks that the public CQMOM reconstruction accepts an identical quadrature at every diagnostic level for the Björck–Pereyra policy on a three-dimensional non-identity conditioning order. | — |
 | `unit_recursive_quadrature_recursive_bp_failure_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `recursive_bp_failure_independent_of_diagnostic_level` | Checks recursive Björck–Pereyra failure status and failing branch are independent of diagnostic level. | — |
 | `unit_recursive_quadrature_conditioning_path_table_grows_iterates_and_compares` | `tests/unit/recursive_quadrature.cpp` | `conditioning_path_table_grows_iterates_and_compares` | Checks that `ConditioningPathTable` grows, iterates, and compares equal by contents. | — |
@@ -708,6 +712,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_vandermonde_nonuniform_weights` | `tests/unit/vandermonde.cpp` | `nonuniform_weights` | Verifies nonuniform weights. | — |
 | `unit_vandermonde_small_weight_failure` | `tests/unit/vandermonde.cpp` | `small_weight_failure` | Verifies small weight failure. | — |
 | `unit_vandermonde_zero_weight_failure` | `tests/unit/vandermonde.cpp` | `zero_weight_failure` | Verifies zero weight failure. | — |
+| `unit_vandermonde_weight_singularity_is_relative_to_largest_weight` | `tests/unit/vandermonde.cpp` | `weight_singularity_is_relative_to_largest_weight` | Checks that uniformly tiny weights solve exactly while a weight tiny relative to the others is rejected as singular. | — |
 | `unit_vandermonde_wrapper_pivoted_qr_reports_rank_deficiency` | `tests/unit/vandermonde.cpp` | `wrapper_pivoted_qr_reports_rank_deficiency` | Checks that wrapper pivoted QR reports rank deficiency in Vandermonde solver selection. | — |
 | `unit_vandermonde_wrapper_svd_reports_rank_deficiency` | `tests/unit/vandermonde.cpp` | `wrapper_svd_reports_rank_deficiency` | Checks that wrapper SVD reports rank deficiency in Vandermonde solver selection. | — |
 | `unit_vandermonde_wrapper_pivoted_qr_residual_rejection_fails` | `tests/unit/vandermonde.cpp` | `wrapper_pivoted_qr_residual_rejection_fails` | Verifies wrapper pivoted QR residual rejection fails. | — |
@@ -1093,7 +1098,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_public_qmom_advection_stage_advances_canonical_state` | `tests/unit/phase_space_evolution.cpp` | `public_qmom_advection_stage_advances_canonical_state` | Verifies public QMOM advection stage advances canonical state. | — |
 | `unit_phase_space_evolution_public_qmom_advection_stage_failure_rolls_back` | `tests/unit/phase_space_evolution.cpp` | `public_qmom_advection_stage_failure_rolls_back` | Verifies public QMOM advection stage failure rolls back. | — |
 | `unit_phase_space_evolution_qmom_bounded_state_advection_and_source_reconstruction_semantics` | `tests/unit/phase_space_evolution.cpp` | `qmom_bounded_state_advection_and_source_reconstruction_semantics` | Verifies QMOM bounded state advection and source reconstruction semantics. | — |
-| `unit_phase_space_evolution_qmom_bounded_post_source_automatic_scaling_is_unit_covariant` | `tests/unit/phase_space_evolution.cpp` | `qmom_bounded_post_source_automatic_scaling_is_unit_covariant` | Checks that bounded post source automatic scaling is unit covariant in phase-space evolution. | — |
+| `unit_phase_space_evolution_qmom_bounded_post_source_automatic_scaling_is_unit_covariant` | `tests/unit/phase_space_evolution.cpp` | `qmom_bounded_post_source_automatic_scaling_is_unit_covariant` | Checks that bounded post-source reconstruction is unit covariant with automatic scaling and keeps both nodes without it. | — |
 | `unit_phase_space_evolution_public_qmom_moment_source_stage_fixed_mode_is_strict` | `tests/unit/phase_space_evolution.cpp` | `public_qmom_moment_source_stage_fixed_mode_is_strict` | Checks that QMOM moment source stage fixed mode is strict in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_qmom_moment_source_stage_adaptive_policy` | `tests/unit/phase_space_evolution.cpp` | `public_qmom_moment_source_stage_adaptive_policy` | Verifies public QMOM moment source stage adaptive policy. | — |
 | `unit_phase_space_evolution_public_qmom_moment_source_stage_failures_roll_back` | `tests/unit/phase_space_evolution.cpp` | `public_qmom_moment_source_stage_failures_roll_back` | Verifies public QMOM moment source stage failures roll back. | — |

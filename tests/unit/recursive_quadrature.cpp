@@ -1670,6 +1670,79 @@ void test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch(
     assert(found_branch);
 }
 
+void test_recursive_adaptive_reduces_roundoff_branch_with_bounded_support()
+{
+    // The same rule with non-binding bounds on every coordinate, so that the
+    // bounded selection inverts the conditional moments. The branch whose
+    // conditional distribution is a single point must still reduce despite
+    // the rounding the conditional solve leaves in its moments.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2, 2}, {0, 2, 1, 3});
+    const std::vector<std::size_t> extents{4, 4, 4, 4};
+    const std::vector<double> weights{0.45 * 0.3, 0.45 * 0.7, 0.55 * 0.3, 0.55 * 0.7};
+    const std::vector<std::vector<double>> abscissas{{-0.5, -0.5, 1.0, 1.0}, {0.0, 0.0, 3.0, 3.0}, {-1.0, 2.0, -1.0, 2.0}, {-0.5, 1.0, -3.5, -2.0}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+    const qmomkit::WheelerOptions wheeler_options{true, 1.0e-10, 1.0e-10, 1.0e-30};
+    const qmomkit::CqmomAbscissaBounds support(4, qmomkit::AbscissaBounds{-10.0, 10.0});
+
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
+        moment_data_request(hierarchy, {extents, moments}, {}, wheeler_options, true, qmomkit::CqmomDiagnosticLevel::detailed,
+                            qmomkit::VandermondeSolver::automatic, support));
+    assert(result.ok());
+
+    bool found_branch = false;
+    for (const qmomkit::internal::RecursiveQuadratureBranchDiagnostics& diagnostics : result.diagnostics)
+    {
+        if (diagnostics.conditioning_level == 2 && diagnostics.path == qmomkit::ConditioningPath({0, 0}))
+        {
+            found_branch = true;
+            assert(diagnostics.bounded_support_checked);
+            assert(diagnostics.actual_node_count == 1);
+        }
+    }
+    assert(found_branch);
+}
+
+void test_recursive_reconstruction_does_not_depend_on_number_density()
+{
+    // The same four weighted points at unit number density and at 1e-16: the
+    // nodes must agree and the weights must scale with the number density, in
+    // fixed and in adaptive mode. The branch-local weighted Vandermonde solve
+    // sees parent weights of 5e-17 at the lower density.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5, 1.0, 0.0, 3.0}};
+    const std::vector<double> weights{0.2, 0.3, 0.1, 0.4};
+    constexpr double number_density = 1.0e-16;
+    std::vector<double> dilute_weights = weights;
+    for (double& weight : dilute_weights)
+    {
+        weight *= number_density;
+    }
+
+    for (const bool adaptive : {false, true})
+    {
+        const qmomkit::WheelerOptions wheeler_options{adaptive, 1.0e-10, 1.0e-10, 1.0e-30};
+        const qmomkit::internal::RecursiveQuadratureResult reference =
+            qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
+                hierarchy, {extents, raw_moments_from_terminal_quadrature(abscissas, weights, extents)}, {}, wheeler_options, adaptive));
+        const qmomkit::internal::RecursiveQuadratureResult dilute =
+            qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
+                hierarchy, {extents, raw_moments_from_terminal_quadrature(abscissas, dilute_weights, extents)}, {}, wheeler_options, adaptive));
+        assert(reference.ok());
+        assert(dilute.ok());
+        assert(dilute.quadrature.weights().size() == weights.size());
+        assert(dilute.quadrature.terminal_paths() == reference.quadrature.terminal_paths());
+        for (std::size_t node = 0; node < weights.size(); ++node)
+        {
+            assert_near(dilute.quadrature.weights()[node] / number_density, reference.quadrature.weights()[node], 1.0e-12);
+            for (std::size_t dimension = 0; dimension < abscissas.size(); ++dimension)
+            {
+                assert_near(dilute.quadrature.abscissas()[dimension][node], reference.quadrature.abscissas()[dimension][node], 1.0e-12);
+            }
+        }
+    }
+}
+
 void test_recursive_bp_failure_independent_of_diagnostic_level()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -1919,6 +1992,8 @@ int main(const int argc, char** argv)
             {"recursive_dense_and_bp_equivalence_adaptive", test_recursive_dense_and_bp_equivalence_adaptive},
             {"recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch",
              test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch},
+            {"recursive_adaptive_reduces_roundoff_branch_with_bounded_support", test_recursive_adaptive_reduces_roundoff_branch_with_bounded_support},
+            {"recursive_reconstruction_does_not_depend_on_number_density", test_recursive_reconstruction_does_not_depend_on_number_density},
             {"recursive_bp_failure_independent_of_diagnostic_level", test_recursive_bp_failure_independent_of_diagnostic_level},
             {"public_cqmom_bp_success_independent_of_diagnostic_level", test_public_cqmom_bp_success_independent_of_diagnostic_level},
             {"multi_index_table_round_trips_and_views_rows", test_multi_index_table_round_trips_and_views_rows},

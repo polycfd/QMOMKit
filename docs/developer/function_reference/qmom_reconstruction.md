@@ -9,8 +9,9 @@ Public `qmomkit::compute_qmom` is declared in
 `compute_quadrature`, or the shared bounded-candidate selector.
 `compute_quadrature` is declared in
 [`wheeler.hpp`](../../../include/qmomkit/wheeler.hpp); its numerical helpers
-are local to [`wheeler.cpp`](../../../src/wheeler.cpp). CQMOM calls this same
-inversion for each branch. Source evolution uses a separate
+are local to [`wheeler.cpp`](../../../src/wheeler.cpp). CQMOM calls the same
+inversion for each branch through `internal::compute_conditional_quadrature`,
+which passes the scale of the coordinate for conditional levels. Source evolution uses a separate
 [current-count/growth selection](phase_space_evolution.md), not a new Wheeler
 method. See [Wheeler design](../qmom_wheeler.md) for recurrence/eigenpair
 correspondence.
@@ -87,11 +88,14 @@ reduction before rejecting non-finite higher recurrence data. The analytical
 Wheeler verification establishes selected exact rules, not eigen convergence at
 every requested order.
 
-## A — `attempt_quadrature_count`, `adaptive_sigma_tolerance`, `adaptive_accepts`
+## A — `attempt_quadrature_count`, `adaptive_sigma_tolerances`, `adaptive_accepts`
 
 The attempt owns three distinct loops. First, adaptive sigma inspection
-descends from the candidate ceiling to degree two. The threshold is
-`max(cutoff,100*epsilon*max(1,abs(required moments)))`. A sigma below the
+descends from the candidate ceiling to degree two. The threshold for
+`sigma(k,k)` is `100*epsilon*max(M(k,k), m0*s^(2(k-1)))`: `M` runs the sigma
+recurrence again with every term in absolute value, a bound on its rounding in
+the same units, and `s` is the coordinate scale passed for conditional moments
+(zero for data). A sigma below the
 negative threshold marks an attempt for outer retry. An absolute sigma within
 threshold sets a lower count, with an immediate successful one-node return at
 count one. The recurrence is recomputed at the surviving count and must be
@@ -124,8 +128,9 @@ empty/singleton vectors are not valid inputs to this local helper.
 
 Targeted tests in `tests/unit/wheeler.cpp` exercise offset versus symmetric
 pairs, three-node span, small weight, duplicates, sigma retry, and threshold
-one-node fallback. Density scaling interacts with both the absolute mass gate
-and the sigma floors.
+one-node fallback, and the independence of the node count from the unit and
+the number density. Number density affects only the absolute `m0 < cutoff`
+gate.
 
 ## Numerical limits
 

@@ -123,12 +123,25 @@ Adaptive behavior is controlled by `QmomOptions` or `WheelerOptions`:
 - `adaptive`: enables adaptive node reduction.
 - `rmin`: minimum accepted ratio between the smallest and largest weight.
 - `eabs`: dimensionless minimum accepted relative node separation.
-- `cutoff`: small positive threshold for near-zero mass and adaptive
-  recurrence checks.
+- `cutoff`: small positive threshold for near-zero mass.
 
 The adaptive algorithm starts from the requested maximum node count. It checks
 the Wheeler recurrence data for degeneracy, may reduce the active node count,
 then attempts candidate quadratures from the active count down to one node.
+
+The recurrence is degenerate at count $k$ when $\sigma_{k,k}$, which equals
+$m_0 \prod_{i=1}^{k-1} b_i$, is zero within its own rounding. Adaptive Wheeler bounds
+that rounding by running the $\sigma$ recurrence again with every term in
+absolute value,
+$M_{k,l} = M_{k-1,l+1} + |a_{k-2}|\,M_{k-1,l} + |b_{k-2}|\,M_{k-2,l}$ from
+$M_{1,l} = |m_{l-1}|$, and treats $\sigma_{k,k}$ as zero when
+$|\sigma_{k,k}| \le 100\,\varepsilon\,M_{k,k}$. Both sides scale as $m_0$
+times the coordinate to the power $2(k-1)$, so the node count depends neither
+on the unit of the coordinate nor on the number density, and the bound grows
+with the cancellation of a distribution far from the origin. In recursive
+CQMOM, conditional moments come from a solve whose rounding is relative to the
+scale $s$ of their coordinate, $\sqrt{m_2/m_0}$ of its marginal, rather than to
+their own magnitudes; for them the bound has the floor $m_0\,s^{2(k-1)}$.
 A multi-node adaptive rule is accepted only when both the `rmin` weight-ratio
 and the `eabs` node-separation criteria above pass. If no multi-node candidate
 passes them, the current implementation can still return a successful reduced

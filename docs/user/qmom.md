@@ -179,6 +179,10 @@ options.adaptive = true;
 const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, node_count, options);
 ```
 
+Adaptive reduction compares the recurrence with a bound on its own rounding,
+so the number of nodes it keeps depends neither on the unit of the coordinate
+nor on the number density, with or without automatic scaling.
+
 ### Optional abscissa bounds
 
 `AbscissaBounds` optionally requires returned QMOM nodes to lie in a closed

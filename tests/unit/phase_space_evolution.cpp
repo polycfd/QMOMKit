@@ -1107,9 +1107,9 @@ void test_qmom_bounded_post_source_automatic_scaling_is_unit_covariant()
         const qmomkit::QmomPhaseSpaceEvolutionResult unscaled =
             qmomkit::advance_qmom_moment_source(unscaled_state, 0.0, 1.0, zero_source, unscaled_options);
         assert(unscaled.ok());
-        // Without scaling the tiny-unit representation loses the second node,
-        // whereas the large-unit representation is already well-conditioned.
-        assert(unscaled.state.active_node_count() == (factor < 1.0 ? 1 : 2));
+        // Adaptive reduction does not depend on the unit, so the representation
+        // keeps both nodes without scaling as well.
+        assert(unscaled.state.active_node_count() == 2);
     }
 }
 

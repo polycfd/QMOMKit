@@ -657,6 +657,23 @@ void test_zero_weight_failure()
     assert_singular_failure({-1.0, 2.0}, {1.0, 0.0}, make_solution({{1.0}, {2.0}}), singular_message);
 }
 
+void test_weight_singularity_is_relative_to_largest_weight()
+{
+    // The weights carry the number density, so only their ratio decides
+    // whether one of them is zero: uniformly tiny weights solve, and a weight
+    // tiny relative to the others is still rejected.
+    const std::vector<double> abscissas{-1.0, 2.0};
+    const std::vector<double> weights{0.4e-20, 0.6e-20};
+    const qmomkit::internal::DenseMatrix expected_solution = make_solution({{1.0}, {2.0}});
+    const qmomkit::internal::VandermondeSolveOptions options{qmomkit::VandermondeSolver::automatic, singular_tolerance, false, 1.0e-10};
+    const qmomkit::internal::VandermondeSolveResult result = qmomkit::internal::solve_conditional_vandermonde_system(
+        abscissas, weights, make_rhs(abscissas, weights, expected_solution), options, singular_message);
+    assert(result.success);
+    assert_matrix_near(result.solution, expected_solution, 1.0e-14);
+
+    assert_singular_failure(abscissas, {1.0e-20, 1.0e-36}, make_solution({{1.0}, {2.0}}), singular_message);
+}
+
 void assert_pivoted_qr_failure(const std::vector<double>& abscissas, const std::vector<double>& weights, const qmomkit::internal::DenseMatrix& rhs,
                                const bool validate_residual, const double residual_tolerance)
 {
@@ -838,6 +855,7 @@ int main(const int argc, char** argv)
             {"nonuniform_weights", test_nonuniform_weights},
             {"small_weight_failure", test_small_weight_failure},
             {"zero_weight_failure", test_zero_weight_failure},
+            {"weight_singularity_is_relative_to_largest_weight", test_weight_singularity_is_relative_to_largest_weight},
             {"wrapper_pivoted_qr_reports_rank_deficiency", test_wrapper_pivoted_qr_reports_rank_deficiency},
             {"wrapper_svd_reports_rank_deficiency", test_wrapper_svd_reports_rank_deficiency},
             {"wrapper_pivoted_qr_residual_rejection_fails", test_wrapper_pivoted_qr_residual_rejection_fails},

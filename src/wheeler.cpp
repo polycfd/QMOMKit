@@ -121,15 +121,41 @@ struct WheelerAttemptResult
     return *std::min_element(b.begin(), b.end()) < 0.0;
 }
 
-[[nodiscard]] double adaptive_sigma_tolerance(const MomentSet& moments, const WheelerOptions& options, const std::size_t moment_count)
+// The tolerance below which adaptive Wheeler treats sigma(k, k) as zero, for
+// each k: a running bound on its roundoff, the sigma recurrence summed in
+// absolute values. sigma(k, k) and the bound both scale as m0 times the
+// coordinate to the power 2(k - 1), so the test depends neither on the unit of
+// the coordinate nor on m0, and the bound grows with the cancellation of a
+// distribution far from the origin. Conditional moments are not data: the
+// solve that produced them leaves rounding relative to the scale of their
+// coordinate, not to their own magnitudes, so a positive coordinate_scale s
+// adds the floor m0 s^(2(k - 1)).
+[[nodiscard]] std::vector<double> adaptive_sigma_tolerances(const MomentSet& moments, const RecurrenceCoefficients& coefficients, const std::size_t n,
+                                                            const double coordinate_scale)
 {
     constexpr double roundoff_multiplier = 100.0;
-    double moment_scale = 1.0;
-    for (std::size_t order = 0; order < moment_count; ++order)
+    DenseMatrix magnitude(2 * n + 1, 2 * n + 1);
+    for (std::size_t i = 1; i <= 2 * n; ++i)
     {
-        moment_scale = std::max(moment_scale, std::abs(moments[order]));
+        magnitude(1, i) = std::abs(moments[i - 1]);
     }
-    return std::max(options.cutoff, roundoff_multiplier * std::numeric_limits<double>::epsilon() * moment_scale);
+    for (std::size_t k = 2; k <= n; ++k)
+    {
+        for (std::size_t l = k; l <= 2 * n - k + 1; ++l)
+        {
+            magnitude(k, l) = magnitude(k - 1, l + 1) + std::abs(coefficients.a[k - 2]) * magnitude(k - 1, l) +
+                              std::abs(coefficients.b[k - 2]) * magnitude(k - 2, l);
+        }
+    }
+
+    std::vector<double> tolerances(n + 1, 0.0);
+    double noise_floor = std::abs(moments[0]);
+    for (std::size_t k = 1; k <= n; ++k)
+    {
+        tolerances[k] = roundoff_multiplier * std::numeric_limits<double>::epsilon() * std::max(magnitude(k, k), noise_floor);
+        noise_floor *= coordinate_scale * coordinate_scale;
+    }
+    return tolerances;
 }
 
 [[nodiscard]] std::vector<double> compute_weights(const double zeroth_moment, const DenseMatrix& eigenvectors)
@@ -209,16 +235,18 @@ struct WheelerAttemptResult
     return true;
 }
 
-[[nodiscard]] WheelerAttemptResult attempt_quadrature_count(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options)
+[[nodiscard]] WheelerAttemptResult attempt_quadrature_count(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options,
+                                                            const double coordinate_scale)
 {
     std::size_t n = max_nodes;
     RecurrenceCoefficients coefficients = compute_recurrence(moments, n);
 
     if (options.adaptive)
     {
-        const double sigma_tolerance = adaptive_sigma_tolerance(moments, options, 2 * max_nodes);
+        const std::vector<double> sigma_tolerances = adaptive_sigma_tolerances(moments, coefficients, max_nodes, coordinate_scale);
         for (std::size_t k = max_nodes; k > 1; --k)
         {
+            const double sigma_tolerance = sigma_tolerances[k];
             if (coefficients.sigma(k, k) < -sigma_tolerance)
             {
                 std::ostringstream message;
@@ -299,9 +327,8 @@ struct WheelerAttemptResult
     return {one_node_result(moments, QuadratureStatus::success, ""), false};
 }
 
-} // namespace
-
-Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options)
+[[nodiscard]] Quadrature1D compute_quadrature_at_scale(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options,
+                                                       const double coordinate_scale)
 {
     internal::performance::record_wheeler_call();
     // Wheeler inversion path:
@@ -349,7 +376,7 @@ Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_
     {
         for (std::size_t candidate_count = max_nodes; candidate_count > 1; --candidate_count)
         {
-            const WheelerAttemptResult attempt = attempt_quadrature_count(moments, candidate_count, options);
+            const WheelerAttemptResult attempt = attempt_quadrature_count(moments, candidate_count, options, coordinate_scale);
             if (attempt.quadrature.ok())
             {
                 if (candidate_count < max_nodes && attempt.quadrature.weights.size() == candidate_count)
@@ -368,14 +395,28 @@ Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_
         return one_node_result(moments, QuadratureStatus::success, "");
     }
 
-    return attempt_quadrature_count(moments, max_nodes, options).quadrature;
+    return attempt_quadrature_count(moments, max_nodes, options, coordinate_scale).quadrature;
+}
+
+} // namespace
+
+Quadrature1D compute_quadrature(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options)
+{
+    return compute_quadrature_at_scale(moments, max_nodes, options, 0.0);
 }
 
 namespace internal
 {
 
+Quadrature1D compute_conditional_quadrature(const MomentSet& moments, const std::size_t max_nodes, const WheelerOptions& options,
+                                            const double coordinate_scale)
+{
+    return compute_quadrature_at_scale(moments, max_nodes, options, coordinate_scale);
+}
+
 BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& moment_sequence, const BoundedQuadratureSelectionRequest& request,
-                                                     const AbscissaBounds interval, const WheelerOptions& wheeler_options)
+                                                     const AbscissaBounds interval, const WheelerOptions& wheeler_options,
+                                                     const double coordinate_scale)
 {
     // Both selection branches below assume at least one requested node. The
     // adaptive branch counts candidates down to one, so a zero initial count
@@ -411,9 +452,9 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         }
 
         candidate.inversion_attempted = true;
-        candidate.quadrature = compute_quadrature(
+        candidate.quadrature = compute_quadrature_at_scale(
             MomentSet(std::vector<double>(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(*required_moment_count))),
-            node_count, wheeler_options);
+            node_count, wheeler_options, coordinate_scale);
         if (!candidate.quadrature.ok())
         {
             candidate.message = "Bounded-support Wheeler inversion failed: " + candidate.quadrature.message;

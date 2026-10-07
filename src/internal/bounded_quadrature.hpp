@@ -48,8 +48,22 @@ struct BoundedQuadratureSelection
     std::size_t accepted_fallback_node_count = 0;
 };
 
+/**
+ * Wheeler inversion of conditional moments, which a solve produced from other
+ * moments. Their rounding is relative to `coordinate_scale`, the scale of
+ * their coordinate, rather than to their own magnitudes, and adaptive node
+ * reduction allows for it. A zero scale treats the moments as data, as the
+ * public `compute_quadrature(...)` does.
+ */
+[[nodiscard]] Quadrature1D compute_conditional_quadrature(const MomentSet& moments, std::size_t max_nodes, const WheelerOptions& options,
+                                                          double coordinate_scale);
+
+/**
+ * `coordinate_scale` is passed to every Wheeler inversion of the selection;
+ * see `compute_conditional_quadrature(...)`.
+ */
 [[nodiscard]] BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& moment_sequence,
                                                                    const BoundedQuadratureSelectionRequest& request, AbscissaBounds interval,
-                                                                   const WheelerOptions& wheeler_options);
+                                                                   const WheelerOptions& wheeler_options, double coordinate_scale = 0.0);
 
 } // namespace qmomkit::internal

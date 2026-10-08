@@ -12,12 +12,14 @@ node_counts = 2, 2, 2, 2, 2
 # Identity order here: the dimensions are conditioned as listed. Changing it
 # changes only the order of the conditional inversions.
 conditioning_order = 0, 1, 2, 3, 4
-# Fixed branch counts: every branch keeps two nodes.
-adaptive_branch_counts = false
 # Volume (~5e-13 m^3) and temperature (~3.5e2 K) differ by roughly fifteen
 # orders of magnitude, which is exactly the case local scaling exists for.
 # Raw moments, callbacks and output remain in physical units.
 automatic_scaling = true
+
+# Fixed node counts: every branch keeps two nodes.
+[qmom]
+adaptive = false
 
 [time_integration]
 # Second-order splitting: half advection, full source, half advection.

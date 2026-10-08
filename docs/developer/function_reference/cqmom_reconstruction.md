@@ -146,11 +146,9 @@ permission. Outputs include quadrature storage, the constructed tree, status,
 failure location, and selected branch diagnostics. Configured counts, the
 current trial's requested count, and returned active counts are separate values.
 
-1. The entry points have already rejected invalid option combinations, including
-   adaptive Wheeler without adaptive branches, and resolved Wheeler to adaptive
-   operation when branch adaptivity is enabled. The driver validates coordinate
-   support and active branch topology; invalid support, topology, or metadata
-   becomes an invalid request.
+1. The entry points have already rejected invalid options. The driver
+   validates coordinate support and active branch topology; invalid support,
+   topology, or metadata becomes an invalid request.
 2. Construct or reuse the ordered root layout and gather the root slice. The root
    starts with global weight one and a coordinate vector of the hierarchy rank.
 3. The outer loop visits conditioning levels; the inner loop visits current
@@ -198,7 +196,7 @@ align with fixed weights and abscissas under non-identity order.
 | `compute_recursive_quadrature_from_trusted_moment_data` | Reuse established structural metadata; retain required numerical-value checks. Trusted does not mean arbitrary user data is valid. | Fixed metadata and evolution tests |
 | `create_ordered_root_slice`, `one_dimensional_moments`, `child_layout_for_parent_node_count` | Take the root values in their canonical stored order, gather leading values, and select precomputed child metadata; no new solver policy. | Recursive layout tests |
 | `record_failure`, `create_recursive_result`, `record_bounded_candidate_diagnostics`, `records_success_branch_diagnostics` | Keep failure location, candidate rejection, and requested diagnostic detail distinct from success acceptance. | Failure/diagnostic tests |
-| `valid_conditional_options`, `valid_diagnostic_level`, `validate_recursive_request_preflight`, `resolve_cqmom_wheeler_options`, `validate_coordinate_support`, `support_interval_for_dimension` | Resolve valid enum/options and per-coordinate bounds before numerical work. No physical meaning inferred from coordinate names. | Invalid-request and support tests |
+| `valid_conditional_options`, `valid_diagnostic_level`, `validate_recursive_request_preflight`, `validate_coordinate_support`, `support_interval_for_dimension` | Resolve valid enum/options and per-coordinate bounds before numerical work. No physical meaning inferred from coordinate names. | Invalid-request and support tests |
 | `path_has_prefix`, branch-key `operator<`, `append_unique_index`, `local_branch_offset` | Deterministic key ordering, ancestor membership, first-occurrence layout deduplication, and checked offset discovery. | Topology/layout tests indirectly |
 
 Index arithmetic, hierarchy methods, and tree mutation are covered in

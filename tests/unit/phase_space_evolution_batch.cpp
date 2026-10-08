@@ -194,7 +194,7 @@ void assert_cqmom_state_equal(const qmomkit::CqmomState& actual, const qmomkit::
     assert_near(actual.qmom_options().cutoff, expected.qmom_options().cutoff);
     assert_near(actual.conditional_options().singular_tolerance, expected.conditional_options().singular_tolerance);
     assert_near(actual.conditional_options().conditioning_warning_threshold, expected.conditional_options().conditioning_warning_threshold);
-    assert(actual.adaptive_branch_counts() == expected.adaptive_branch_counts());
+    assert(actual.qmom_options().adaptive == expected.qmom_options().adaptive);
     assert(actual.diagnostic_level() == expected.diagnostic_level());
     assert(actual.vandermonde_solver() == expected.vandermonde_solver());
     assert(actual.abscissa_bounds().size() == expected.abscissa_bounds().size());
@@ -285,7 +285,6 @@ std::vector<qmomkit::CqmomState> cqmom_states()
 {
     return {cqmom_state(1.0, -0.5, 0.25, "", ""),
             cqmom_state(1.5, 0.2, -0.4,
-                        "adaptive_branch_counts = true\n"
                         "support_lower = none, -1.0\n"
                         "support_upper = none, 1.0\n",
                         "[qmom]\n"

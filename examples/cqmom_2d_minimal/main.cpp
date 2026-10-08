@@ -26,8 +26,7 @@ int main()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(initial_moments, layout),
                                   {},                                    // conditional-moment options
-                                  {},                                    // QMOM options
-                                  false,                                 // adaptive branch counts
+                                  qmomkit::QmomOptions{false},           // QMOM options: fixed node counts
                                   qmomkit::CqmomDiagnosticLevel::none,   // diagnostics
                                   qmomkit::VandermondeSolver::automatic, // solver policy
                                   {}};                                   // coordinate support

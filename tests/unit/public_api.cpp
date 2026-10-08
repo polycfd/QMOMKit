@@ -179,10 +179,12 @@ std::vector<double> raw_moments_from_terminals(const std::vector<std::size_t>& e
 // Build a case from a raw moment tensor by selecting the moments its hierarchy
 // reconstructs from. The tests below state their moments as tensors because
 // that is how their analytical references are computed; the parameters mirror
-// the case fields so that each call reads as the case it builds.
+// the case fields so that each call reads as the case it builds. Unlike the
+// case, the helper is fixed unless the QMOM options ask for adaptive
+// reconstruction.
 qmomkit::CqmomCase cqmom_case_from_tensor(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moments,
                                           const qmomkit::ConditionalMomentOptions& conditional_options = {},
-                                          const qmomkit::QmomOptions& qmom_options = {}, const bool adaptive_branch_counts = false,
+                                          const qmomkit::QmomOptions& qmom_options = qmomkit::QmomOptions{false},
                                           const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
                                           const qmomkit::VandermondeSolver vandermonde_solver = qmomkit::VandermondeSolver::automatic,
                                           qmomkit::CqmomAbscissaBounds coordinate_support = {})
@@ -190,7 +192,6 @@ qmomkit::CqmomCase cqmom_case_from_tensor(const qmomkit::PhaseSpaceHierarchy& hi
     return {qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
             conditional_options,
             qmom_options,
-            adaptive_branch_counts,
             diagnostic_level,
             vandermonde_solver,
             std::move(coordinate_support)};
@@ -978,8 +979,8 @@ void test_one_dimensional_cqmom_agrees_with_qmom()
     const qmomkit::QmomResult qmom = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2);
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2});
-    const qmomkit::CqmomResult cqmom =
-        qmomkit::compute_cqmom(qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy))});
+    const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(qmomkit::CqmomCase{
+        qmomkit::extract_cqmom_moments({{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, qmomkit::QmomOptions{false}});
 
     assert(qmom.ok());
     assert(cqmom.ok());
@@ -1017,7 +1018,8 @@ void test_cqmom_public_api_two_dimensional_manufactured_case()
     }
 
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
-    const auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed);
+    const auto cqmom_case =
+        cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, qmomkit::QmomOptions{false}, qmomkit::CqmomDiagnosticLevel::detailed);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 
     assert(result.ok());
@@ -1073,9 +1075,9 @@ void test_cqmom_automatic_scaling_restores_each_physical_coordinate()
         }
     }
 
-    qmomkit::QmomOptions options;
+    qmomkit::QmomOptions options{false};
     options.automatic_scaling = true;
-    auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, abscissas)}, {}, options, false,
+    auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, abscissas)}, {}, options,
                                              qmomkit::CqmomDiagnosticLevel::detailed);
     cqmom_case.abscissa_bounds = {qmomkit::AbscissaBounds{1.0e50, 6.0e50}, qmomkit::AbscissaBounds{-5.0e-50, 4.0e-50}};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
@@ -1093,7 +1095,7 @@ void test_cqmom_automatic_scaling_restores_each_physical_coordinate()
         }
     }
     const auto reference_cqmom_case =
-        cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, reference_abscissas)}, {}, options, false,
+        cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, reference_abscissas)}, {}, options,
                                qmomkit::CqmomDiagnosticLevel::detailed);
     const qmomkit::CqmomResult reference = qmomkit::compute_cqmom(reference_cqmom_case);
 
@@ -1130,8 +1132,8 @@ void test_cqmom_public_api_reports_conditional_moment_failure()
     const std::vector<std::vector<double>> abscissas{{-1.0, 1.0}, {2.0, -1.0}};
     qmomkit::ConditionalMomentOptions conditional_options;
     conditional_options.singular_tolerance = 1.0;
-    const auto cqmom_case =
-        cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, conditional_options, {});
+    const auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, conditional_options,
+                                                   qmomkit::QmomOptions{false});
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 
@@ -1162,7 +1164,7 @@ void test_cqmom_public_api_exposes_adaptive_branch_counts()
     const std::vector<double> moments = raw_moments_from_terminals(extents, weights, abscissas);
 
     const auto cqmom_case =
-        cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic);
+        cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, qmomkit::CqmomDiagnosticLevel::basic);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 
     assert(result.ok());
@@ -1195,7 +1197,7 @@ void test_cqmom_adaptive_root_branch_uses_relative_rmin_only()
     const std::vector<std::vector<double>> abscissas{{10.0, 10.0, 20.0, 20.0}, {-1.0, 1.0, -1.0, 1.0}};
     const qmomkit::QmomOptions qmom_options{true, 0.1, 1.0e-10, 1.0e-30};
     const auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, {}, qmom_options,
-                                                   true, qmomkit::CqmomDiagnosticLevel::basic);
+                                                   qmomkit::CqmomDiagnosticLevel::basic);
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 
@@ -1216,58 +1218,6 @@ void test_cqmom_adaptive_root_branch_uses_relative_rmin_only()
     assert(saw_unreduced_root);
 }
 
-void test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> weights{0.1, 0.2, 0.3, 0.4};
-    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0, 1.0}, {-2.0, 2.0, -2.0, 2.0}};
-    const std::vector<double> moments = raw_moments_from_terminals(extents, weights, abscissas);
-    const qmomkit::QmomOptions adaptive_qmom{true, 1.0e-10, 1.0e-10, 1.0e-12};
-
-    const qmomkit::CqmomResult fixed = qmomkit::compute_cqmom(
-        qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, {}, false});
-    assert(fixed.ok());
-    assert(!fixed.quadrature.adaptive_branch_counts_enabled());
-    assert(fixed.quadrature.has_rectangular_storage());
-
-    const qmomkit::CqmomCase rejected_cqmom_case{
-        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, false};
-    const qmomkit::CqmomResult rejected = qmomkit::compute_cqmom(rejected_cqmom_case);
-    assert(!rejected.ok());
-    assert(rejected.status == qmomkit::CqmomStatus::invalid_input);
-    assert(rejected.failed_phase_space_dimension == 0);
-    assert(rejected.diagnostics.empty());
-    assert(rejected.message.find("Adaptive branch-specific node counts") != std::string::npos);
-    assert(rejected.message.find("adaptive_branch_counts") != std::string::npos);
-
-    // A prepared case and an initial state reconstruct through another internal
-    // entry point; both must report the same rejection.
-    const qmomkit::CqmomResult prepared_rejected = qmomkit::compute_cqmom(qmomkit::CqmomPreparedCase{rejected_cqmom_case});
-    assert(prepared_rejected.status == qmomkit::CqmomStatus::invalid_input);
-    assert(prepared_rejected.message == rejected.message);
-    assert(prepared_rejected.failed_phase_space_dimension == 0);
-    assert(prepared_rejected.diagnostics.empty());
-    bool initial_state_rejected = false;
-    try
-    {
-        static_cast<void>(rejected_cqmom_case.initial_state());
-    }
-    catch (const std::runtime_error& error)
-    {
-        initial_state_rejected = true;
-        assert(std::string(error.what()) == "CQMOM initial state quadrature reconstruction failed: " + rejected.message);
-    }
-    assert(initial_state_rejected);
-
-    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomCase{
-        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, true});
-    assert(adaptive.ok());
-    assert(adaptive.quadrature.adaptive_branch_counts_enabled());
-    assert(!adaptive.quadrature.has_rectangular_storage());
-    assert(adaptive.quadrature.total_nodes() == weights.size());
-}
-
 void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -1276,7 +1226,7 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.5, 1.5}, {0.25, 2.0, 0.25, 2.0}};
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
 
-    auto default_cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, {});
+    auto default_cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, qmomkit::QmomOptions{false});
     assert(default_cqmom_case.diagnostic_level == qmomkit::CqmomDiagnosticLevel::none);
 
     qmomkit::internal::performance::CounterSession default_session;
@@ -1324,7 +1274,7 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
 void test_cqmom_none_diagnostics_preserves_failure_context()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    auto silent_cqmom_case = cqmom_case_from_tensor(hierarchy, {{4, 4}, std::vector<double>(16, 0.0)}, {}, {});
+    auto silent_cqmom_case = cqmom_case_from_tensor(hierarchy, {{4, 4}, std::vector<double>(16, 0.0)}, {}, qmomkit::QmomOptions{false});
     silent_cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::none;
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(silent_cqmom_case);
@@ -1340,13 +1290,13 @@ void test_cqmom_none_diagnostics_preserves_failure_context()
 void test_cqmom_settings_format()
 {
     const std::string formatted = qmomkit::format_cqmom_settings(true, qmomkit::VandermondeSolver::dense, qmomkit::CqmomDiagnosticLevel::detailed);
-    assert(formatted.find("adaptive branch counts = enabled") != std::string::npos);
+    assert(formatted.find("adaptive = enabled") != std::string::npos);
     assert(formatted.find("Vandermonde solver = dense") != std::string::npos);
     assert(formatted.find("diagnostic level = detailed") != std::string::npos);
 
     const std::string pivoted_qr =
         qmomkit::format_cqmom_settings(false, qmomkit::VandermondeSolver::pivoted_qr, qmomkit::CqmomDiagnosticLevel::basic);
-    assert(pivoted_qr.find("adaptive branch counts = disabled") != std::string::npos);
+    assert(pivoted_qr.find("adaptive = disabled") != std::string::npos);
     assert(pivoted_qr.find("Vandermonde solver = pivoted_qr") != std::string::npos);
     assert(pivoted_qr.find("diagnostic level = basic") != std::string::npos);
 
@@ -1418,8 +1368,6 @@ int main(const int argc, char** argv)
             {"cqmom_public_api_reports_conditional_moment_failure", test_cqmom_public_api_reports_conditional_moment_failure},
             {"cqmom_public_api_exposes_adaptive_branch_counts", test_cqmom_public_api_exposes_adaptive_branch_counts},
             {"cqmom_adaptive_root_branch_uses_relative_rmin_only", test_cqmom_adaptive_root_branch_uses_relative_rmin_only},
-            {"cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts",
-             test_cqmom_public_api_rejects_adaptive_wheeler_without_adaptive_branch_counts},
             {"cqmom_diagnostic_levels_control_expensive_diagnostics", test_cqmom_diagnostic_levels_control_expensive_diagnostics},
             {"cqmom_none_diagnostics_preserves_failure_context", test_cqmom_none_diagnostics_preserves_failure_context},
             {"cqmom_settings_format", test_cqmom_settings_format},

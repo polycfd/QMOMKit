@@ -242,7 +242,7 @@ configuration; the C++ drivers load it and do not override these settings.
 | Phase-space names/order | `d, chi, u, v, w` |
 | Node counts | `3, 3, 3, 3, 3`; up to three conditional nodes per level and at most 243 terminal nodes |
 | Conditioning order | `0, 1, 2, 3, 4`, reconstructing in the displayed coordinate order |
-| Branch behavior | `adaptive_branch_counts = true`; the configured counts are capacities and the accepted topology may use fewer branches |
+| Branch behavior | `qmom.adaptive = true`; the configured counts are capacities and the accepted topology may use fewer branches |
 | Support | $\chi$ lower/upper bounds `0.0` and `1.0`; all other coordinate bounds are unset |
 | Solver/diagnostics | no solver override in the file (the case uses QMOMKit's automatic policy); `diagnostic_level = none` |
 | Sampled-moment orders | no `maximum_orders` entry. The CQMOM driver requests the hierarchy's required moment layout and ignores this setting; the MC driver falls back to hierarchy extents, giving all orders `0` through `5` in each coordinate |

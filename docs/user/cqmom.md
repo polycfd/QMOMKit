@@ -304,8 +304,8 @@ retain a larger rectangular initial raw-moment tensor. They do not change the
 hierarchy, reconstruction order, or branch counts. Sample-based initialization
 can use the larger tensor extent when evaluating raw moments from samples.
 
-For fixed rectangular quadratures, you can also access a node by its
-phase-space-order multi-index:
+For fixed quadratures (`qmom.adaptive = false`), you can also access a node by
+its phase-space-order multi-index:
 
 ```cpp
 const qmomkit::MultiIndex node_index{0, 1};
@@ -359,35 +359,32 @@ are reproducible and callback coordinate order stays easy to audit.
 
 ## Fixed and adaptive quadrature
 
-The default CQMOM setup uses a fixed branch quadrature. This is the easiest
-mode to reason about: each branch must produce the requested number of nodes
-for its phase-space dimension, and fixed results support rectangular node
-access by multi-index.
-
-Adaptive branch quadrature is available when a workflow can tolerate fewer
-active nodes on branches where the supplied moments support only a lower-order
-rule. This can be useful near degenerate or boundary-like states where a fixed
-node count may be too ambitious. Enable it explicitly in configuration with
-adaptive branch counts:
-
-```ini
-[phase_space]
-adaptive_branch_counts = true
-```
-
-Adaptive CQMOM branch counts imply adaptive Wheeler internally for all
-marginal and conditional inversions. The standalone QMOM adaptive option
-remains independent.
+CQMOM reconstruction is adaptive by default. A branch may use fewer nodes than
+its phase-space dimension requests where the supplied moments support only a
+lower-order rule, for example near degenerate or boundary-like states.
+`QmomOptions::adaptive` decides this for the whole reconstruction: every
+marginal and conditional inversion and every branch node count adapt together.
 
 Adaptive results expose terminal weights, terminal abscissas, and terminal
-conditioning paths. When adaptive branch counts are enabled, prefer iterating
-over `weights()` and `abscissas()` instead of assuming rectangular multi-index
-storage.
+conditioning paths, and their storage is ragged even when no branch reduces.
+Iterate over `weights()` and `abscissas()` instead of addressing nodes by a
+rectangular multi-index.
 
-Adaptive branch counts are supported in both reconstruction and the normal
-configured `CqmomState` phase-space evolution workflow. `CqmomState` keeps the
-required moment representation for the configured hierarchy, while each
-reconstructed quadrature may contain adaptive active node counts.
+A fixed branch quadrature requires every branch to produce the requested number
+of nodes, or the reconstruction fails, and supports rectangular node access by
+multi-index. Request it in configuration with:
+
+```ini
+[qmom]
+adaptive = false
+```
+
+or by setting `CqmomCase::qmom_options.adaptive` to false.
+
+Both modes are supported in reconstruction and in the normal configured
+`CqmomState` phase-space evolution workflow. `CqmomState` keeps the required
+moment representation for the configured hierarchy, while each reconstructed
+quadrature may contain adaptive active node counts.
 
 As with QMOM, always check `result.ok()` before using the quadrature. If CQMOM
 fails, inspect `result.status`, `result.message`, and diagnostics to determine

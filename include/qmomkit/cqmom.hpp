@@ -110,8 +110,7 @@ enum class CqmomDiagnosticLevel
 
 using CqmomAbscissaBounds = std::vector<std::optional<AbscissaBounds>>;
 
-[[nodiscard]] std::string format_cqmom_settings(bool adaptive_branch_counts, VandermondeSolver vandermonde_solver,
-                                                CqmomDiagnosticLevel diagnostic_level);
+[[nodiscard]] std::string format_cqmom_settings(bool adaptive, VandermondeSolver vandermonde_solver, CqmomDiagnosticLevel diagnostic_level);
 
 struct CqmomDiagnostics
 {
@@ -202,13 +201,17 @@ struct CqmomMomentData
  * `moments.layout` supplies the hierarchy, conditioning order, and required
  * phase-space-order raw moment indices. `moments.values` stores one value per
  * layout index, so no full rectangular raw moment tensor is needed.
+ *
+ * `qmom_options.adaptive` decides whether the reconstruction is adaptive: every
+ * marginal and conditional inversion and every branch node count adapt
+ * together, and the quadrature uses ragged storage. With it false, every
+ * branch keeps its configured node count and the storage is rectangular.
  */
 struct CqmomCase
 {
     CqmomMomentData moments;
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
-    bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     CqmomAbscissaBounds abscissa_bounds;
@@ -252,7 +255,6 @@ public:
     [[nodiscard]] const CqmomQuadrature& quadrature() const;
     [[nodiscard]] const QmomOptions& qmom_options() const noexcept;
     [[nodiscard]] const ConditionalMomentOptions& conditional_options() const noexcept;
-    [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
     [[nodiscard]] const CqmomAbscissaBounds& abscissa_bounds() const noexcept;
@@ -275,8 +277,8 @@ private:
  * The normal CQMOM case: initial moments and reconstruction settings together
  * with the prepared recursive branch structure.
  *
- * The branch structure follows from the phase-space hierarchy and the
- * adaptive-branch setting alone. A prepared case builds it once, and every
+ * The branch structure follows from the phase-space hierarchy and
+ * `qmom_options.adaptive` alone. A prepared case builds it once, and every
  * reconstruction, every state created with `initial_state()`, and every case
  * derived with `config::with_initial_moments(...)` shares it instead of
  * building it again. That reuse is the only difference from `CqmomCase`, and
@@ -300,7 +302,6 @@ public:
     [[nodiscard]] const PhaseSpaceHierarchy& hierarchy() const noexcept;
     [[nodiscard]] const QmomOptions& qmom_options() const noexcept;
     [[nodiscard]] const ConditionalMomentOptions& conditional_options() const noexcept;
-    [[nodiscard]] bool adaptive_branch_counts() const noexcept;
     [[nodiscard]] CqmomDiagnosticLevel diagnostic_level() const noexcept;
     [[nodiscard]] VandermondeSolver vandermonde_solver() const noexcept;
     [[nodiscard]] const CqmomAbscissaBounds& abscissa_bounds() const noexcept;
@@ -342,10 +343,9 @@ struct CqmomResult
  * again; reconstructing from a `CqmomPreparedCase` does neither. The
  * required-moment layout must match the hierarchy stored in
  * `cqmom_case.moments.layout`; a layout that does not is reported as a failed
- * result. Adaptive branch-specific node counts are enabled explicitly with
- * `CqmomCase::adaptive_branch_counts` and automatically enable adaptive Wheeler
- * for all marginal and conditional inversions. Standalone QMOM remains
- * independently configurable.
+ * result. `cqmom_case.qmom_options.adaptive`, on by default, decides whether
+ * branch node counts and inversions adapt; set it to false for the fixed
+ * hierarchy and its rectangular layout.
  */
 [[nodiscard]] CqmomResult compute_cqmom(const CqmomCase& cqmom_case);
 

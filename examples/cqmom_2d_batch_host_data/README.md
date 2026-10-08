@@ -129,7 +129,7 @@ $$
 The eight locations sit at $x_i = i/8$, and $\lambda_i$ rises linearly from
 0.25 at $x_0$ to 0.6875 at $x_7$. Every location starts from the configured
 independent product, $d \sim \mathcal{N}(2, 0.5^2)$ and
-$u \sim \mathcal{N}(0, 0.5^2)$ with number density 1, on a fixed
+$u \sim \mathcal{N}(0, 0.5^2)$ with number density 1, on a
 $2 \times 2$ hierarchy with conditioning order $(d, u)$.
 
 ## Expected behavior

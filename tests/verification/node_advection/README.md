@@ -96,8 +96,8 @@ computed from the exact evolved nodes.
 Configuration: `linear_system_2d.qmom`
 
 The initial state is a 2D CQMOM moment tensor with
-`conditioning_order = {1,0}`, `qmom.adaptive = true`, and
-`adaptive_branch_counts = true`. The exact initial terminal quadrature is
+`conditioning_order = {1,0}` and `qmom.adaptive = true`. The exact initial
+terminal quadrature is
 ragged:
 
 ```text

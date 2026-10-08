@@ -24,7 +24,7 @@ using CqmomMomentInitializer = qmomkit::config::ConfigurationResult<qmomkit::Cqm
 
 using CqmomCaseFactory = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase> (*)(const qmomkit::config::InitialConditionSpecification&,
                                                                                       const qmomkit::PhaseSpaceHierarchy&,
-                                                                                      const qmomkit::QmomOptions&, bool, std::string,
+                                                                                      const qmomkit::QmomOptions&, std::string,
                                                                                       qmomkit::CqmomAbscissaBounds);
 
 using CqmomCaseParser = qmomkit::config::ConfigurationResult<qmomkit::CqmomCase> (*)(std::string_view, std::string);

@@ -377,9 +377,10 @@ records.
 
 `CqmomPhaseSpaceEvolutionOptions` owns the stage policies:
 node-advection/embedded-RK controls, moment-source SSP-RK3 controls, and stage
-sequencing. Conditional moment controls, standalone QMOM controls, CQMOM
-Wheeler controls, adaptive branch-count enablement, CQMOM diagnostic level, and
-Vandermonde solver selection are case-owned policies stored in `CqmomState`.
+sequencing. Conditional moment controls, QMOM controls (including
+`adaptive`, which decides whether branch node counts adapt), CQMOM diagnostic
+level, and Vandermonde solver selection are case-owned policies stored in
+`CqmomState`.
 A state must pass these policies through to the recursive CQMOM,
 node-advection, moment-reconstruction, and source-update algorithms; accepting a configured case policy and replacing it with `false`,
 `detailed`, `automatic`, or another aggregate default is a bug.

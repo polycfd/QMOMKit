@@ -390,29 +390,28 @@ terminal node.
 
 ## Adaptive recursive CQMOM
 
-Adaptive recursive CQMOM separates standalone QMOM controls from CQMOM branch
-controls:
+A single option, `QmomOptions::adaptive` (on by default), decides whether
+recursive CQMOM is adaptive. The recursive request carries it as the Wheeler
+`adaptive` option, and it decides two things together:
 
-- `adaptive_branch_counts` is the CQMOM reconstruction policy that controls
-  whether recursive CQMOM accepts branch-local node counts smaller than the
-  configured hierarchy;
-- when `adaptive_branch_counts` is enabled, recursive CQMOM automatically uses
-  adaptive Wheeler for every marginal and conditional inversion. Conditional
+- every marginal and conditional inversion uses adaptive Wheeler. Conditional
   moments carry the rounding of the solve that produced them, relative to the
   scale of their coordinate, so their inversions pass that scale,
   `sqrt(m2 / m0)` of the coordinate's marginal, to Wheeler's degeneracy test;
-  see [qmom_wheeler.md](qmom_wheeler.md#adaptive-wheeler).
+  see [qmom_wheeler.md](qmom_wheeler.md#adaptive-wheeler);
+- recursive CQMOM accepts branch-local node counts smaller than the configured
+  hierarchy, with ragged storage. Internally this is the branch-count flag of
+  the prepared metadata and of the result, which is always set from the option.
 
-The adaptive branch-count policy is available through the normal
+Adaptive reconstruction is available through the normal
 `CqmomPreparedCase`/`CqmomState` workflow and through the explicit
 `CqmomCase` workflow.
 
-When adaptive branch counts are disabled, recursive CQMOM expects fixed
-rectangular output storage. In that mode, adaptive Wheeler is rejected because
-a branch with fewer nodes than requested would not match the rectangular node
-hierarchy.
+When the option is off, recursive CQMOM expects fixed rectangular output
+storage, and every inversion is fixed: a branch with fewer nodes than requested
+would not match the rectangular node hierarchy.
 
-When adaptive branch counts are enabled:
+When the option is on:
 
 - `node_counts[dimension]` is the requested maximum for that dimension;
 - a successful branch-local Wheeler result may have fewer nodes than the
@@ -421,8 +420,8 @@ When adaptive branch counts are enabled:
 - terminal output uses ragged terminal arrays and conditioning paths;
 - diagnostics record requested and actual node counts per branch.
 
-Adaptive reduction is not a failure when adaptive branch counts are enabled
-and Wheeler returns success. A branch whose actual node count is smaller than
+Adaptive reduction is not a failure in adaptive CQMOM when Wheeler returns
+success. A branch whose actual node count is smaller than
 the requested count records `adaptive_node_count_reduced = true` in the
     diagnostic output.
 
@@ -474,8 +473,7 @@ The CQMOM implementation of QMOMKit assumes:
 - node counts are positive and owned by phase-space dimensions;
 - all raw moments and numerical options are finite;
 - a raw moment tensor the required moments are selected from has extents of at least
-  `2 * node_counts[dimension]` orders, even when adaptive branch counts are
-  enabled;
+  `2 * node_counts[dimension]` orders, even in adaptive CQMOM;
 - branch-local one-dimensional slices follow the same raw moment convention
   expected by Wheeler;
 - weighted Vandermonde systems must be nonsingular under the configured
@@ -626,9 +624,9 @@ CQMOM phase-space evolution. This workflow does not expose how the moments are
 stored.
 
 `CqmomCase` bundles the required CQMOM moment data, the conditional-moment
-and QMOM/Wheeler options, and the adaptive branch-count and diagnostic
-controls. It mirrors `QmomCase` and is the case definition from which a
-`CqmomPreparedCase` is built, for callers that build or edit a case in code,
+and QMOM/Wheeler options, and the diagnostic and solver controls. It mirrors
+`QmomCase` and is the case definition from which a `CqmomPreparedCase` is
+built, for callers that build or edit a case in code,
 including those that select the required moments from a full tensor with
 `extract_cqmom_moments(...)`. Reconstructing it or creating a state from it
 directly rebuilds the branch structure on every call.

@@ -12,14 +12,16 @@ node_counts = 3, 3, 3, 3, 3
 # Identity order here: the dimensions are conditioned as listed. Changing it
 # changes only the order of the conditional inversions.
 conditioning_order = 0, 1, 2, 3, 4
-# Branch node counts become ceilings rather than fixed sizes.
-adaptive_branch_counts = true
 # The aspect ratio is physically confined to [0, 1], so it is declared as a
 # bounded support: a reconstruction placing a node outside the interval is
 # rejected rather than clipped. `none` leaves a coordinate unconstrained.
 # Entries are in phase-space order, not conditioning order.
 support_lower = none, 0.0, none, none, none
 support_upper = none, 1.0, none, none, none
+
+# Branch node counts become ceilings rather than fixed sizes.
+[qmom]
+adaptive = true
 
 # Reconstruction diagnostics are off by default; raise this to `basic` or
 # `detailed` when a branch failure needs explaining.

@@ -26,7 +26,9 @@ void bm_wheeler_three_node(benchmark::State& state)
 {
     const std::vector<double> moments = raw_moments_from_1d_quadrature({0.15, 0.35, 0.50}, {-1.25, 0.25, 2.0}, 6);
     const qmomkit::MomentSet moment_set(moments);
-    const qmomkit::Quadrature1D setup_check = qmomkit::compute_quadrature(moment_set, 3);
+    qmomkit::WheelerOptions options;
+    options.adaptive = false;
+    const qmomkit::Quadrature1D setup_check = qmomkit::compute_quadrature(moment_set, 3, options);
     if (!setup_check.ok())
     {
         state.SkipWithError("deterministic Wheeler fixture is not realizable");
@@ -35,7 +37,7 @@ void bm_wheeler_three_node(benchmark::State& state)
 
     for (auto _ : state)
     {
-        const qmomkit::Quadrature1D result = qmomkit::compute_quadrature(moment_set, 3);
+        const qmomkit::Quadrature1D result = qmomkit::compute_quadrature(moment_set, 3, options);
         benchmark::DoNotOptimize(result.weights.data());
         benchmark::DoNotOptimize(result.abscissas.data());
     }

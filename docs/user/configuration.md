@@ -111,7 +111,6 @@ a name such as `d`, `u`, or `T`.
 names = size, velocity
 node_counts = 2, 2
 conditioning_order = 0, 1
-adaptive_branch_counts = false
 ```
 
 The keys are:
@@ -122,8 +121,6 @@ The keys are:
 - `conditioning_order` sets the order in which CQMOM conditions the dimensions.
   It does not reorder coordinates, moments, or output; if omitted, dimensions
   are conditioned in their natural order `0, 1, 2, ...`.
-- `adaptive_branch_counts` allows individual CQMOM branches to use fewer nodes
-  than requested when their local moments cannot support more.
 
 This section is what ties the file to your model: every callback coordinate
 vector, output column, and moment multi-index follows the phase-space dimension
@@ -373,7 +370,6 @@ marginal. Different dimensions may use different families:
 names = size, velocity
 node_counts = 2, 2
 conditioning_order = 0, 1
-adaptive_branch_counts = false
 
 [initial]
 type = independent_product
@@ -422,46 +418,23 @@ To retain more initial moments than the reconstruction needs, see
 
 ## Reconstruction settings
 
-The default setup is fixed: every branch uses exactly the requested node counts
-and the quadrature layout is rectangular. That is usually the clearest starting
-point, and it needs no configuration at all.
+Reconstruction is adaptive by default. QMOM may return fewer nodes than
+requested, and a CQMOM branch fewer than its hierarchy allows, where the moments
+do not resolve them or a node fails the minimum weight ratio or node
+separation. Adaptive CQMOM always uses a ragged quadrature layout, addressed by
+terminal paths.
 
-The default CQMOM setup is fixed, which gives a rectangular quadrature layout
-and is usually the clearest starting point:
+A fixed reconstruction returns every requested node or fails. Request it with:
 
 ```ini
-adaptive_branch_counts = false
-
 [qmom]
 adaptive = false
 ```
 
-Adaptive branch quadrature is requested explicitly when a workflow can accept
-branch-local node reduction:
+The setting covers QMOM and CQMOM alike: in CQMOM, every branch then keeps its
+configured node count, in the rectangular layout that node multi-indices
+address.
 
-```ini
-[phase_space]
-node_counts = 2, 2
-conditioning_order = 0, 1
-adaptive_branch_counts = true
-```
-
-Enabling adaptive CQMOM branch counts automatically enables adaptive Wheeler
-for all marginal and conditional inversions. In a CQMOM configuration,
-`[qmom] adaptive = true` therefore requires
-`phase_space.adaptive_branch_counts = true`; it is rejected for fixed-count
-CQMOM. The `[qmom] adaptive` setting remains valid for standalone
-one-dimensional QMOM.
-
-The optional `[qmom]` section carries the one-dimensional inversion settings
-shared by QMOM and CQMOM:
-
-```ini
-[qmom]
-adaptive = true
-```
-
-For ordinary fixed-node QMOM, omit the section or set `adaptive = false`.
 Diagnostic level and solver policy are covered under
 [advanced settings](#advanced-settings).
 ## Time-evolution settings
@@ -805,7 +778,7 @@ The same concepts appear either way:
 |---|---|---|
 | Concept | `.qmom` file | Direct C++ setup |
 |---|---|---|
-| phase space | `[phase_space]` names, node counts, conditioning order, adaptive branch settings | construct `QmomCase` or a CQMOM case with the desired coordinate count, node counts, hierarchy, and ordering |
+| phase space | `[phase_space]` names, node counts, conditioning order | construct `QmomCase` or a CQMOM case with the desired coordinate count, node counts, hierarchy, and ordering |
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a full tensor of raw moments from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |
@@ -826,10 +799,7 @@ options:
 
 int main()
 {
-    qmomkit::QmomOptions qmom_options;
-    qmom_options.adaptive = false;
-
-    const qmomkit::QmomCase qmom_case{qmomkit::MomentSet({1.0, 0.8, 2.8, 4.4}), 2, qmom_options};
+    const qmomkit::QmomCase qmom_case{qmomkit::MomentSet({1.0, 0.8, 2.8, 4.4}), 2};
 
     const qmomkit::QmomResult qmom = qmomkit::compute_qmom(qmom_case);
     if (!qmom.ok())
@@ -869,13 +839,7 @@ int main()
             1.121875, 0.493625, 0.475675, 0.622865,
         }};
 
-    qmomkit::QmomOptions qmom_options;
-    qmom_options.adaptive = false;
-
-    const qmomkit::CqmomCase cqmom_case{
-        qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
-        {},
-        qmom_options};
+    const qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy))};
 
     const qmomkit::CqmomPreparedCase cqmom_prepared_case{cqmom_case};
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(cqmom_prepared_case);

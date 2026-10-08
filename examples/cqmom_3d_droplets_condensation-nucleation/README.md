@@ -452,8 +452,10 @@ The numerical CQMOM hierarchy is selected in `configuration.qmom`:
 names = r, w, T
 node_counts = 3, 3, 3
 conditioning_order = 0, 2, 1
-adaptive_branch_counts = true
 automatic_scaling = true
+
+[qmom]
+adaptive = true
 
 [time_integration]
 scheme = strang
@@ -475,7 +477,7 @@ terminal CQMOM nodes. The phase-space coordinate order remains $(r,w,T)$,
 while `conditioning_order = 0, 2, 1` reconstructs $r$, then $T$, then $w$.
 The CQMOM conditioning order is independent of the phase-space coordinate
 order. With
-`adaptive_branch_counts = true`, these configured node counts are maximum
+`qmom.adaptive = true`, these configured node counts are maximum
 branch capacities and the accepted runtime topology may contain fewer active
 terminal nodes.
 

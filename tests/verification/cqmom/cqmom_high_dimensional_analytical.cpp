@@ -99,8 +99,7 @@ struct ExpectedCase
     std::vector<std::size_t> node_counts;
     std::vector<std::size_t> conditioning_order;
     std::vector<std::size_t> extents;
-    bool adaptive_wheeler = false;
-    bool adaptive_branch_counts = false;
+    bool adaptive = false;
     std::vector<TerminalPoint> terminals;
     std::vector<AffineRelation> affine_relations;
 };
@@ -343,7 +342,6 @@ ExpectedCase affine_chain_5d()
             {0, 1, 2, 3, 4},
             {4, 4, 4, 4, 4},
             true,
-            true,
             affine_chain_terminals(),
             {{1, {{0, 2.0}}, 1.0}, {2, {{1, -0.5}}, 0.75}, {3, {{2, 1.25}}, -0.2}, {4, {{3, -0.8}}, 0.5}}};
 }
@@ -357,7 +355,6 @@ ExpectedCase independent_product_case(const std::size_t dimensions)
             order,
             std::vector<std::size_t>(dimensions, 4),
             false,
-            false,
             independent_product_terminals(dimensions, order),
             {}};
 }
@@ -368,7 +365,6 @@ ExpectedCase mixed_affine_independent_4d()
             {2, 2, 2, 2},
             {0, 2, 1, 3},
             {4, 4, 4, 4},
-            true,
             true,
             mixed_terminals(),
             {{1, {{0, 2.0}}, 1.0}, {3, {{1, -1.0}, {2, 0.5}}, 0.0}}};
@@ -427,13 +423,9 @@ void verify_configuration(const ExpectedCase& expected, const qmomkit::CqmomCase
     {
         append_failure(result, "Configured extents do not match expected case.");
     }
-    if (configured_cqmom_case.qmom_options.adaptive != expected.adaptive_wheeler)
+    if (configured_cqmom_case.qmom_options.adaptive != expected.adaptive)
     {
         append_failure(result, "Configured qmom.adaptive does not match expected case.");
-    }
-    if (configured_cqmom_case.adaptive_branch_counts != expected.adaptive_branch_counts)
-    {
-        append_failure(result, "Configured adaptive_branch_counts does not match expected case.");
     }
 
     const qmomkit::CqmomMomentData analytical = qmomkit::extract_cqmom_moments(expected_raw_moments(expected), configured_cqmom_case.moments.layout);
@@ -496,9 +488,9 @@ void verify_diagnostics(const ExpectedCase& expected, const qmomkit::CqmomResult
         {
             append_failure(result, "Diagnostic requested_node_count does not match configured hierarchy.");
         }
-        if (diagnostics.adaptive_branch_counts_enabled != expected.adaptive_branch_counts)
+        if (diagnostics.adaptive_branch_counts_enabled != expected.adaptive)
         {
-            append_failure(result, "Diagnostic adaptive_branch_counts flag does not match expected case.");
+            append_failure(result, "Diagnostic adaptive flag does not match expected case.");
         }
         const std::string key = std::to_string(diagnostics.conditioning_level) + ":" + path_key(diagnostics.parent_path);
         const auto found = expected_counts.find(key);
@@ -512,7 +504,7 @@ void verify_diagnostics(const ExpectedCase& expected, const qmomkit::CqmomResult
         {
             append_failure(result, "Diagnostic actual_node_count does not match expected branch count.");
         }
-        const bool expected_reduced = expected.adaptive_branch_counts && found->second < diagnostics.requested_node_count;
+        const bool expected_reduced = expected.adaptive && found->second < diagnostics.requested_node_count;
         if (diagnostics.adaptive_node_count_reduced != expected_reduced)
         {
             append_failure(result, "Diagnostic adaptive reduction flag is inconsistent.");
@@ -532,8 +524,8 @@ void verify_terminals(const ExpectedCase& expected, std::vector<RecoveredTermina
     // Adaptive cases compare by conditioning path because reduced branches have
     // meaningful public paths; fixed rectangular cases match by coordinates so
     // equivalent tensor-product ordering differences do not hide correctness.
-    std::vector<TerminalPoint> analytical = expected.adaptive_branch_counts ? sort_expected_by_path(expected.terminals) : expected.terminals;
-    recovered = expected.adaptive_branch_counts ? sort_recovered_by_path(std::move(recovered)) : std::move(recovered);
+    std::vector<TerminalPoint> analytical = expected.adaptive ? sort_expected_by_path(expected.terminals) : expected.terminals;
+    recovered = expected.adaptive ? sort_recovered_by_path(std::move(recovered)) : std::move(recovered);
     if (recovered.size() != analytical.size())
     {
         append_failure(result, "Recovered terminal count does not match expected terminal count.");
@@ -546,7 +538,7 @@ void verify_terminals(const ExpectedCase& expected, std::vector<RecoveredTermina
     for (std::size_t terminal = 0; terminal < analytical.size(); ++terminal)
     {
         std::size_t recovered_index = terminal;
-        if (!expected.adaptive_branch_counts)
+        if (!expected.adaptive)
         {
             double best_error = std::numeric_limits<double>::infinity();
             for (std::size_t candidate = 0; candidate < recovered.size(); ++candidate)
@@ -570,7 +562,7 @@ void verify_terminals(const ExpectedCase& expected, std::vector<RecoveredTermina
             matched[recovered_index] = true;
         }
 
-        if (expected.adaptive_branch_counts && recovered[recovered_index].path != analytical[terminal].path)
+        if (expected.adaptive && recovered[recovered_index].path != analytical[terminal].path)
         {
             append_failure(result, "Recovered terminal path does not match analytical path.");
         }
@@ -756,13 +748,13 @@ VerificationResult verify_case(const ExpectedCase& expected, const qmomkit::Cqmo
         append_failure(result, "compute_cqmom failed: " + cqmom.message);
         return result;
     }
-    if (cqmom.quadrature.has_rectangular_storage() == expected.adaptive_branch_counts)
+    if (cqmom.quadrature.has_rectangular_storage() == expected.adaptive)
     {
         append_failure(result, "Quadrature storage mode does not match fixed/adaptive expectation.");
     }
-    if (cqmom.quadrature.adaptive_branch_counts_enabled() != expected.adaptive_branch_counts)
+    if (cqmom.quadrature.adaptive_branch_counts_enabled() != expected.adaptive)
     {
-        append_failure(result, "Quadrature adaptive_branch_counts flag does not match expected case.");
+        append_failure(result, "Quadrature adaptive flag does not match expected case.");
     }
 
     const std::vector<RecoveredTerminal> terminals = recovered_terminals(cqmom.quadrature);

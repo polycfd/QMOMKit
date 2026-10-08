@@ -3,6 +3,9 @@ names = R, U
 node_counts = 2, 2
 conditioning_order = 0, 1
 
+[qmom]
+adaptive = false
+
 [initial]
 type = independent_product
 number_density = 1.0

@@ -226,7 +226,7 @@ RunResult run_dimension(const std::size_t dimension)
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const std::vector<double> exact_moments = exact_required_moments(layout);
     const qmomkit::CqmomCase cqmom_case{
-        qmomkit::CqmomMomentData{layout, exact_moments}, {}, qmomkit::QmomOptions{}, false, qmomkit::CqmomDiagnosticLevel::basic,
+        qmomkit::CqmomMomentData{layout, exact_moments}, {}, qmomkit::QmomOptions{false}, qmomkit::CqmomDiagnosticLevel::basic,
         qmomkit::VandermondeSolver::automatic,           {}};
     const qmomkit::CqmomResult reconstructed = qmomkit::compute_cqmom(cqmom_case);
     if (!reconstructed.ok())

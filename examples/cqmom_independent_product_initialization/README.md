@@ -14,7 +14,7 @@ configuration
 ```
 
 The shipped configuration is two-dimensional and orders its phase space as
-`(size, velocity)`. It requests a fixed $2 \times 2$ CQMOM hierarchy with
+`(size, velocity)`. It requests a $2 \times 2$ CQMOM hierarchy with
 `conditioning_order = 0, 1`: two size nodes and two conditional velocity
 nodes. The initial number density is `2.5`, with a gamma distribution in
 `size` (shape `3.0`, scale `0.2`) and a normal distribution in `velocity`
@@ -60,6 +60,6 @@ QMOMKit's multidimensional representation.
 
 ## What to expect
 
-The shipped fixed `2 x 2` hierarchy produces four terminal CQMOM nodes. Their
+The shipped `2 x 2` hierarchy produces four terminal CQMOM nodes. Their
 global weights sum to the configured total number density `2.5`, while their
 coordinates represent the independent `size` and `velocity` initialization.

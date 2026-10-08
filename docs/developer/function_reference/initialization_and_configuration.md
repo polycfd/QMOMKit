@@ -170,10 +170,12 @@ establish realizability of the initialized moments.
 
 `parse_cqmom_case_settings` resolves counts, names, conditioning permutation,
 reconstruction policies, and paired support intervals. When omitted, diagnostics
-default to none, the solver to automatic, and the conditioning order to
-identity. Adaptive branches enable the recursive adaptive workflow; a standalone
-adaptive Wheeler request without adaptive branches is rejected. Names are
-metadata and do not establish units or support.
+default to none, the solver to automatic, the conditioning order to identity,
+and `qmom.adaptive`, which decides whether the reconstruction is adaptive, to
+true. Names are metadata and do not establish units or support.
+`reject_unknown_cqmom_keys`, shared by the case and initial-condition parsers,
+rejects a file still using `phase_space.adaptive_branch_counts` with a message
+naming `[qmom] adaptive`.
 
 `parse_qmom_options_from_parsed` maps `qmom.adaptive`; other Wheeler thresholds
 are API options, not arbitrary accepted `.qmom` keys.

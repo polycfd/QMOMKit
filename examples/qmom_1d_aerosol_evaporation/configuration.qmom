@@ -9,6 +9,11 @@ names = d
 # so raising this asks for more information from the initial condition.
 node_counts = 6
 
+# Keep all six nodes. Adaptive inversion, the default, would drop the node of
+# the coarse-mode tail, whose weight is about 1e-13 of the largest.
+[qmom]
+adaptive = false
+
 [initial]
 # Component densities are absolute, not fractions: m0 is their sum.
 type = mixture

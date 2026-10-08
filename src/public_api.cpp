@@ -102,11 +102,6 @@ namespace
     return cqmom_case.conditional_options;
 }
 
-[[nodiscard]] bool adaptive_branch_counts(const CqmomCase& cqmom_case)
-{
-    return cqmom_case.adaptive_branch_counts;
-}
-
 [[nodiscard]] CqmomDiagnosticLevel diagnostic_level(const CqmomCase& cqmom_case)
 {
     return cqmom_case.diagnostic_level;
@@ -204,12 +199,11 @@ struct CqmomState::Data
     std::optional<CqmomQuadrature> accepted_quadrature;
 };
 
-std::string format_cqmom_settings(const bool adaptive_branch_counts, const VandermondeSolver vandermonde_solver,
-                                  const CqmomDiagnosticLevel diagnostic_level)
+std::string format_cqmom_settings(const bool adaptive, const VandermondeSolver vandermonde_solver, const CqmomDiagnosticLevel diagnostic_level)
 {
     std::ostringstream output;
     output << "CQMOM settings:\n"
-           << "  adaptive branch counts = " << (adaptive_branch_counts ? "enabled" : "disabled") << '\n'
+           << "  adaptive = " << (adaptive ? "enabled" : "disabled") << '\n'
            << "  Vandermonde solver = " << vandermonde_solver_name(vandermonde_solver) << '\n'
            << "  diagnostic level = " << diagnostic_level_name(diagnostic_level) << '\n';
     return output.str();
@@ -256,11 +250,6 @@ const ConditionalMomentOptions& CqmomPreparedCase::conditional_options() const n
     return qmomkit::conditional_options(data_->cqmom_case);
 }
 
-bool CqmomPreparedCase::adaptive_branch_counts() const noexcept
-{
-    return qmomkit::adaptive_branch_counts(data_->cqmom_case);
-}
-
 CqmomDiagnosticLevel CqmomPreparedCase::diagnostic_level() const noexcept
 {
     return qmomkit::diagnostic_level(data_->cqmom_case);
@@ -302,7 +291,7 @@ CqmomState CqmomCase::initial_state() const
 {
     // The branch structure is built directly rather than through a
     // CqmomPreparedCase, which would first copy this case.
-    return initial_cqmom_state(*this, internal::create_prepared_cqmom_metadata(moments.layout, adaptive_branch_counts));
+    return initial_cqmom_state(*this, internal::create_prepared_cqmom_metadata(moments.layout, qmom_options.adaptive));
 }
 
 CqmomState CqmomPreparedCase::initial_state() const
@@ -353,11 +342,6 @@ const ConditionalMomentOptions& CqmomState::conditional_options() const noexcept
     return qmomkit::conditional_options(data_->cqmom_case);
 }
 
-bool CqmomState::adaptive_branch_counts() const noexcept
-{
-    return qmomkit::adaptive_branch_counts(data_->cqmom_case);
-}
-
 CqmomDiagnosticLevel CqmomState::diagnostic_level() const noexcept
 {
     return qmomkit::diagnostic_level(data_->cqmom_case);
@@ -403,7 +387,7 @@ namespace
 {
 void validate_prepared_metadata(const PreparedCqmomMetadata& metadata, const CqmomCase& cqmom_case)
 {
-    if (!prepared_cqmom_metadata_is_compatible(metadata, cqmom_case.moments.layout.hierarchy, cqmom_case.adaptive_branch_counts,
+    if (!prepared_cqmom_metadata_is_compatible(metadata, cqmom_case.moments.layout.hierarchy, cqmom_case.qmom_options.adaptive,
                                                &cqmom_case.moments.layout))
     {
         throw std::invalid_argument("Prepared CQMOM metadata is incompatible with the target CQMOM case.");
@@ -417,7 +401,7 @@ void validate_prepared_metadata(const PreparedCqmomMetadata& metadata, const Cqm
         validate_prepared_metadata(*prepared_metadata, cqmom_case);
         return prepared_metadata;
     }
-    return create_prepared_cqmom_metadata(cqmom_case.moments.layout, cqmom_case.adaptive_branch_counts);
+    return create_prepared_cqmom_metadata(cqmom_case.moments.layout, cqmom_case.qmom_options.adaptive);
 }
 } // namespace
 
@@ -653,9 +637,9 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
                        failed_phase_space_dimension(result, hierarchy)};
 }
 
-[[nodiscard]] CqmomResult invalid_cqmom_hierarchy_result(const PhaseSpaceHierarchy& hierarchy, const bool adaptive_branch_counts)
+[[nodiscard]] CqmomResult invalid_cqmom_hierarchy_result(const PhaseSpaceHierarchy& hierarchy, const bool adaptive)
 {
-    return CqmomResult{internal::CqmomConstructionAccess::create_quadrature(hierarchy, {}, {}, adaptive_branch_counts, !adaptive_branch_counts, {}),
+    return CqmomResult{internal::CqmomConstructionAccess::create_quadrature(hierarchy, {}, {}, adaptive, !adaptive, {}),
                        CqmomStatus::invalid_input,
                        "CQMOM node count is too large to derive the required moment extent.",
                        {},
@@ -668,7 +652,7 @@ CqmomResult compute_cqmom(const CqmomCase& cqmom_case)
     const PhaseSpaceHierarchy& hierarchy = cqmom_case.moments.layout.hierarchy;
     if (!internal::cqmom_required_moment_extents_representable(hierarchy))
     {
-        return invalid_cqmom_hierarchy_result(hierarchy, cqmom_case.adaptive_branch_counts);
+        return invalid_cqmom_hierarchy_result(hierarchy, cqmom_case.qmom_options.adaptive);
     }
     if (cqmom_case.qmom_options.automatic_scaling)
     {
@@ -681,7 +665,6 @@ CqmomResult compute_cqmom(const CqmomCase& cqmom_case)
                                                                          scaling->moments,
                                                                          cqmom_case.conditional_options,
                                                                          to_wheeler_options(cqmom_case.qmom_options),
-                                                                         cqmom_case.adaptive_branch_counts,
                                                                          cqmom_case.diagnostic_level,
                                                                          cqmom_case.vandermonde_solver,
                                                                          {},
@@ -698,7 +681,6 @@ CqmomResult compute_cqmom(const CqmomCase& cqmom_case)
                                                                  cqmom_case.moments,
                                                                  cqmom_case.conditional_options,
                                                                  to_wheeler_options(cqmom_case.qmom_options),
-                                                                 cqmom_case.adaptive_branch_counts,
                                                                  cqmom_case.diagnostic_level,
                                                                  cqmom_case.vandermonde_solver,
                                                                  {},
@@ -718,9 +700,9 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
     const PhaseSpaceHierarchy& hierarchy = cqmom_case.moments.layout.hierarchy;
     if (!cqmom_required_moment_extents_representable(hierarchy))
     {
-        return invalid_cqmom_hierarchy_result(hierarchy, cqmom_case.adaptive_branch_counts);
+        return invalid_cqmom_hierarchy_result(hierarchy, cqmom_case.qmom_options.adaptive);
     }
-    if (require_prepared_metadata && !cqmom_case.adaptive_branch_counts && prepared_metadata == nullptr)
+    if (require_prepared_metadata && !cqmom_case.qmom_options.adaptive && prepared_metadata == nullptr)
     {
         throw std::logic_error("Fixed normal CQMOM reconstruction requires prepared metadata.");
     }
@@ -731,8 +713,8 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
         {
             const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
                 {hierarchy, scaling->moments, cqmom_case.conditional_options, to_wheeler_options(cqmom_case.qmom_options),
-                 cqmom_case.adaptive_branch_counts, cqmom_case.diagnostic_level, cqmom_case.vandermonde_solver, active_branch_counts,
-                 allow_active_branch_count_growth, scaling->coordinate_support, prepared_metadata, require_prepared_metadata});
+                 cqmom_case.diagnostic_level, cqmom_case.vandermonde_solver, active_branch_counts, allow_active_branch_count_growth,
+                 scaling->coordinate_support, prepared_metadata, require_prepared_metadata});
             if (can_restore_cqmom_result(result, scaling->scales))
             {
                 return to_cqmom_result(result, hierarchy, &scaling->scales);
@@ -740,9 +722,9 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
         }
     }
     const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
-        {hierarchy, cqmom_case.moments, cqmom_case.conditional_options, to_wheeler_options(cqmom_case.qmom_options),
-         cqmom_case.adaptive_branch_counts, cqmom_case.diagnostic_level, cqmom_case.vandermonde_solver, std::move(active_branch_counts),
-         allow_active_branch_count_growth, cqmom_case.abscissa_bounds, prepared_metadata, require_prepared_metadata});
+        {hierarchy, cqmom_case.moments, cqmom_case.conditional_options, to_wheeler_options(cqmom_case.qmom_options), cqmom_case.diagnostic_level,
+         cqmom_case.vandermonde_solver, std::move(active_branch_counts), allow_active_branch_count_growth, cqmom_case.abscissa_bounds,
+         prepared_metadata, require_prepared_metadata});
 
     return to_cqmom_result(result, hierarchy);
 }

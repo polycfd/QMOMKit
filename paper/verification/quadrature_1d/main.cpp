@@ -317,8 +317,9 @@ RunResult run_case(const Family family, const std::size_t node_count)
         input_moments.push_back(static_cast<double>(moment));
     }
 
-    // Native QMOMKit inversion and raw-moment reconstruction begin here.
-    const qmomkit::QmomResult reconstructed = qmomkit::compute_qmom(qmomkit::MomentSet{input_moments}, node_count, {});
+    // Native QMOMKit inversion and raw-moment reconstruction begin here. The
+    // inversion is fixed-count: the study compares every requested node.
+    const qmomkit::QmomResult reconstructed = qmomkit::compute_qmom(qmomkit::MomentSet{input_moments}, node_count, qmomkit::QmomOptions{false});
     RunResult result;
     result.family = family_name(family);
     result.node_count = node_count;

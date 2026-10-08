@@ -113,9 +113,7 @@ quadrature is exposed:
 - `CqmomCase` moment data with missing required values;
 - `CqmomCase` moment data with non-finite values;
 - `CqmomCase` moment data whose required-index layout does not match its
-  hierarchy;
-- adaptive Wheeler reductions requested without enabling
-  `adaptive_branch_counts`.
+  hierarchy.
 
 The compute failures are expected to return `CqmomStatus::invalid_input` with
 useful messages. Diagnostic wording is not required to be identical across the
@@ -146,8 +144,7 @@ M[i,j] = m_x[i] * m_y[j]
 ```
 
 with fixed `node_counts = {2, 2}`, `conditioning_order = {0, 1}`,
-`qmom.adaptive = false`, `adaptive_branch_counts = false`, and
-`extents = {4, 4}`. Every parent branch must recover the same conditional
+`qmom.adaptive = false`, and `extents = {4, 4}`. Every parent branch must recover the same conditional
 `y` rule. Terminal/global weights are products `w_x * w_y`.
 
 ## Case B: Deterministic Affine Correlation
@@ -168,10 +165,9 @@ x = 3 -> y = 7
 
 Each branch has exactly one conditional node with local conditional weight
 `1`. The configured hierarchy still requests two `y` nodes, but
-`adaptive_branch_counts = true`, so CQMOM automatically uses adaptive Wheeler
-and reduces each conditional branch from two requested nodes to one actual
-node. This reduction is expected success, not failure. The fixture also stores
-`qmom.adaptive = true`, but standalone QMOM remains independently configurable.
+`qmom.adaptive = true` makes CQMOM adaptive, so each conditional branch reduces
+from two requested nodes to one actual node. This reduction is expected
+success, not failure.
 
 ## Case C: Branch-Dependent Conditional Rules
 
@@ -222,20 +218,19 @@ traversal order; abscissas are still stored by phase-space dimension.
 
 ## Adaptive Controls
 
-`qmom.adaptive` controls standalone one-dimensional QMOM. For CQMOM,
-`adaptive_branch_counts` controls whether recursive CQMOM accepts branch-local
-node counts smaller than the configured maximum hierarchy. When adaptive branch
-counts are enabled, recursive CQMOM automatically uses adaptive Wheeler for each
-marginal and conditional inversion. Recursive CQMOM still rejects adaptive
-Wheeler reductions in fixed rectangular mode.
+`qmom.adaptive` decides whether a reconstruction is adaptive, for QMOM and for
+CQMOM alike. Adaptive recursive CQMOM accepts branch-local node counts smaller
+than the configured maximum hierarchy and uses adaptive Wheeler for each
+marginal and conditional inversion; with `qmom.adaptive = false`, every branch
+keeps its configured node count in fixed rectangular storage.
 
 ## Checks
 
 The reusable executable `cqmom_2d_analytical_verification`:
 
 - loads every input from the corresponding `.qmom`;
-- verifies configured node counts, conditioning order, `qmom.adaptive`,
-  `adaptive_branch_counts`, and extents;
+- verifies configured node counts, conditioning order, `qmom.adaptive`, and
+  extents;
 - calls public `qmomkit::compute_cqmom(...)`;
 - compares parent nodes and parent weights;
 - compares local conditional nodes and weights;
@@ -372,13 +367,10 @@ xi_4 = 1.25 xi_3 - 0.2
 xi_5 = -0.8 xi_4 + 0.5
 ```
 
-It uses `conditioning_order = {0,1,2,3,4}` and
-`adaptive_branch_counts = true`. The first level has two nodes; CQMOM
-automatically uses adaptive Wheeler, so every later branch reduces to one
-deterministic child with local weight `1`. The terminal weights remain
-`{0.4, 0.6}` and the terminal coordinates are stored in phase-space dimension
-order. The fixture also records `qmom.adaptive = true`; that option controls
-standalone QMOM behavior independently.
+It uses `conditioning_order = {0,1,2,3,4}` and `qmom.adaptive = true`. The
+first level has two nodes; every later branch reduces to one deterministic child
+with local weight `1`. The terminal weights remain `{0.4, 0.6}` and the
+terminal coordinates are stored in phase-space dimension order.
 
 This case validates recursion depth and repeated adaptive reduction. Its
 configured tensor has `4^5 = 1024` moments and two terminal points.
@@ -398,8 +390,7 @@ dim 5: nodes { 1.0, 2.25}, weights {0.80, 0.20}
 ```
 
 For each dimension count, terminal weights are products of the selected
-one-dimensional weights. Fixed branch counts are used:
-`qmom.adaptive = false` and `adaptive_branch_counts = false`.
+one-dimensional weights. Fixed node counts are used: `qmom.adaptive = false`.
 
 The non-identity conditioning orders are:
 
@@ -427,14 +418,12 @@ xi_3 = {-1.0, 2.0}, weights = {0.30, 0.70}
 xi_4 = -xi_2 + 0.5 xi_3
 ```
 
-with `conditioning_order = {0,2,1,3}` and
-`adaptive_branch_counts = true`. CQMOM automatically uses adaptive Wheeler for
-the marginal and conditional inversions. The exact terminal quadrature has four
+with `conditioning_order = {0,2,1,3}` and `qmom.adaptive = true`, so the
+marginal and conditional inversions are adaptive. The exact terminal quadrature has four
 points: each `xi_1` branch paired with each independent `xi_3` node. The first
 two levels have two children, and the affine descendants reduce to one child
 per parent path. Local weights are `{w_xi1, w_xi3, 1, 1}` along a complete
-path; accumulated terminal weights are `w_xi1 * w_xi3`. The fixture also
-records `qmom.adaptive = true`; that option remains a standalone QMOM setting.
+path; accumulated terminal weights are `w_xi1 * w_xi3`.
 
 This case validates coupled conditional reconstruction with a non-identity
 conditioning order and a ragged adaptive tree. It has `4^4 = 256` configured
@@ -445,8 +434,8 @@ moments and four terminal points.
 The high-dimensional executable:
 
 - loads every input from the corresponding `.qmom`;
-- verifies configured node counts, conditioning order, `qmom.adaptive`,
-  `adaptive_branch_counts`, and extents;
+- verifies configured node counts, conditioning order, `qmom.adaptive`, and
+  extents;
 - checks the configured required moments against independently generated
   analytical raw moments without modifying the request;
 - calls public `qmomkit::compute_cqmom(...)`;

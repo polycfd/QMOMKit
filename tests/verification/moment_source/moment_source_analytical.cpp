@@ -421,7 +421,7 @@ void verify_cqmom_reconstruction(const qmomkit::CqmomCase& configured_cqmom_case
     {
         append_failure(result, "CQMOM conditioning order was not preserved.");
     }
-    if (cqmom.quadrature.adaptive_branch_counts_enabled() != configured_cqmom_case.adaptive_branch_counts ||
+    if (cqmom.quadrature.adaptive_branch_counts_enabled() != configured_cqmom_case.qmom_options.adaptive ||
         !cqmom.quadrature.has_rectangular_storage())
     {
         append_failure(result, "CQMOM fixed/adaptive storage settings were not preserved.");
@@ -440,7 +440,7 @@ VerificationResult verify_cqmom_case(const CaseDefinition& definition, const std
         return result;
     }
     if (configured.value().moments.layout.hierarchy.conditioning_order() != std::vector<std::size_t>{1, 0} ||
-        configured.value().qmom_options.adaptive || configured.value().adaptive_branch_counts)
+        configured.value().qmom_options.adaptive || configured.value().qmom_options.adaptive)
     {
         append_failure(result, "CQMOM configuration did not preserve the expected non-identity fixed settings.");
     }

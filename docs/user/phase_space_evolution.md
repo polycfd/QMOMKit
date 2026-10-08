@@ -899,7 +899,7 @@ retry from the last accepted one.
 The two option groups divide cleanly, which is worth knowing when deciding
 where a setting belongs. `CqmomPhaseSpaceEvolutionOptions` holds only what a
 step does: node advection, moment-source integration, and the splitting scheme.
-How the quadrature is reconstructed — Wheeler options, adaptive branch counts,
+How the quadrature is reconstructed — QMOM options including adaptivity,
 diagnostic level, solver choice — belongs to `CqmomPreparedCase`, and
 `CqmomState` carries it forward from step to step along with the adaptive node
 counts it has settled on.

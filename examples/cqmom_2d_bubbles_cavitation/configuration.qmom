@@ -12,6 +12,10 @@ node_counts = 2, 2
 # coordinates, moments, or output columns.
 conditioning_order = 0, 1
 
+# Fixed node counts: every branch keeps two nodes.
+[qmom]
+adaptive = false
+
 [initial]
 # Marginals are normalised individually, then combined and scaled once by the
 # number_density below.

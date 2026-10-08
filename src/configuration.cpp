@@ -1101,6 +1101,14 @@ void reject_unknown_cqmom_sections(ParsedFile& parsed, const bool explicit_momen
 
 void reject_unknown_cqmom_keys(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
 {
+    // `[qmom] adaptive` decides both the inversions and the branch counts. The
+    // former key stays recognised so that a file using it gets this message
+    // rather than a bare unknown-key error.
+    if (const Entry* removed = find_entry(parsed, "phase_space.adaptive_branch_counts"); removed != nullptr)
+    {
+        add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, removed->line,
+                  "phase_space.adaptive_branch_counts was removed; use [qmom] adaptive.");
+    }
     if (explicit_moments)
     {
         reject_unknown_keys(parsed, cqmom_explicit_allowed_keys(), {"initial."}, RealizabilitySettings::cqmom, source_name);
@@ -1373,7 +1381,6 @@ struct ParsedCqmomCaseSettings
 {
     PhaseSpaceHierarchy hierarchy;
     QmomOptions qmom_options;
-    bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     double moore_penrose_rcond = 1.0e-14;
@@ -2109,27 +2116,6 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
     }
     std::optional<CqmomAbscissaBounds> coordinate_support = parse_coordinate_support(parsed, source_name, node_counts.size());
 
-    bool adaptive_branch_counts = false;
-    const auto adaptive_branch_counts_entry = parsed.scalars.find("phase_space.adaptive_branch_counts");
-    if (adaptive_branch_counts_entry != parsed.scalars.end())
-    {
-        if (adaptive_branch_counts_entry->second.value == "true")
-        {
-            adaptive_branch_counts = true;
-        }
-        else if (adaptive_branch_counts_entry->second.value != "false")
-        {
-            add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, adaptive_branch_counts_entry->second.line,
-                      "adaptive_branch_counts must be true or false.");
-        }
-    }
-    if (qmom_options.has_value() && qmom_options->adaptive && !adaptive_branch_counts)
-    {
-        const Entry* adaptive_entry = find_entry(parsed, "qmom.adaptive");
-        add_error(
-            parsed, ConfigurationErrorCode::invalid_configuration, source_name, adaptive_entry == nullptr ? 0 : adaptive_entry->line,
-            "qmom.adaptive = true is incompatible with fixed-count CQMOM; set phase_space.adaptive_branch_counts = true or qmom.adaptive = false.");
-    }
     if (!node_counts.empty())
     {
         validate_cqmom_coordinate_realizability_ranks(parsed, source_name, node_counts.size());
@@ -2143,7 +2129,6 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
     {
         ParsedCqmomCaseSettings settings{PhaseSpaceHierarchy{std::move(node_counts), std::move(conditioning_order)},
                                          qmom_options.value_or(QmomOptions{}),
-                                         adaptive_branch_counts,
                                          diagnostic_level.value_or(CqmomDiagnosticLevel::none),
                                          vandermonde_solver.value_or(VandermondeSolver::automatic),
                                          moore_penrose_rcond.value_or(1.0e-14),
@@ -2647,21 +2632,15 @@ ConfigurationResult<QmomCase> create_qmom_case(const InitialConditionSpecificati
 }
 
 ConfigurationResult<CqmomCase> create_cqmom_case(const InitialConditionSpecification& initial_condition, const PhaseSpaceHierarchy& hierarchy,
-                                                 const QmomOptions& qmom_options, const bool adaptive_branch_counts, std::string source_name,
-                                                 CqmomAbscissaBounds coordinate_support)
+                                                 const QmomOptions& qmom_options, std::string source_name, CqmomAbscissaBounds coordinate_support)
 {
     ConfigurationResult<CqmomMomentData> initialized = initialize_cqmom_moments(initial_condition, hierarchy, std::move(source_name));
     if (!initialized)
     {
         return ConfigurationResult<CqmomCase>::failure(initialized.error());
     }
-    return ConfigurationResult<CqmomCase>{CqmomCase{std::move(initialized).value(),
-                                                    {},
-                                                    qmom_options,
-                                                    adaptive_branch_counts,
-                                                    CqmomDiagnosticLevel::none,
-                                                    VandermondeSolver::automatic,
-                                                    std::move(coordinate_support)}};
+    return ConfigurationResult<CqmomCase>{CqmomCase{
+        std::move(initialized).value(), {}, qmom_options, CqmomDiagnosticLevel::none, VandermondeSolver::automatic, std::move(coordinate_support)}};
 }
 
 ConfigurationResult<CqmomCase> with_initial_moments(const CqmomCase& base_cqmom_case, RawMomentTensor explicit_moments)
@@ -2818,8 +2797,8 @@ ConfigurationResult<CqmomCase> parse_cqmom(const std::string_view text, std::str
         return ConfigurationResult<CqmomCase>::failure(initial_condition.error());
     }
     ConfigurationResult<CqmomCase> cqmom_case_result =
-        create_cqmom_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
-                          settings.value().adaptive_branch_counts, std::move(source_name), settings.value().coordinate_support);
+        create_cqmom_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options, std::move(source_name),
+                          settings.value().coordinate_support);
     if (cqmom_case_result)
     {
         cqmom_case_result.value().diagnostic_level = settings.value().diagnostic_level;
@@ -2844,9 +2823,8 @@ ConfigurationResult<CqmomPreparedCase> parse_cqmom_prepared(const std::string_vi
         return ConfigurationResult<CqmomPreparedCase>::failure(initial_condition.error());
     }
 
-    ConfigurationResult<CqmomCase> cqmom_case_result =
-        create_cqmom_case(initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options,
-                          settings.value().adaptive_branch_counts, source_name, settings.value().coordinate_support);
+    ConfigurationResult<CqmomCase> cqmom_case_result = create_cqmom_case(
+        initial_condition.value(), settings.value().hierarchy, settings.value().qmom_options, source_name, settings.value().coordinate_support);
     if (!cqmom_case_result)
     {
         return ConfigurationResult<CqmomPreparedCase>::failure(cqmom_case_result.error());

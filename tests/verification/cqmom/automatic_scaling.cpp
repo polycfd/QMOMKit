@@ -224,7 +224,7 @@ int run_disparate_units_case()
     scaled_options.adaptive = true;
     scaled_options.automatic_scaling = true;
     const qmomkit::CqmomCase scaled_cqmom_case{
-        qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, scaled_options, true};
+        qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, scaled_options};
 
     bool passed = true;
     Errors scaled_errors;
@@ -288,7 +288,7 @@ int run_configured_case(const std::filesystem::path& configuration_path, const s
 
     const qmomkit::CqmomCase& cqmom_case = configured.value();
     bool passed = cqmom_case.moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({2, 0, 1}) &&
-                  cqmom_case.adaptive_branch_counts && cqmom_case.qmom_options.adaptive && cqmom_case.qmom_options.automatic_scaling;
+                  cqmom_case.qmom_options.adaptive && cqmom_case.qmom_options.adaptive && cqmom_case.qmom_options.automatic_scaling;
     if (!passed)
     {
         std::cerr << "The configured automatic-scaling, adaptive, or non-identity conditioning policy was not propagated.\n";

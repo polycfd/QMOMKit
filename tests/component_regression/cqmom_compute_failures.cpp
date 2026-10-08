@@ -1,7 +1,6 @@
 #include "../verification/verification_helpers.hpp"
 #include "qmomkit/qmomkit.hpp"
 
-#include <cmath>
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
@@ -28,31 +27,6 @@ std::vector<double> indexed_values(const std::vector<std::size_t>& extents)
     return values;
 }
 
-std::vector<double> raw_moments_from_terminals(const std::vector<std::size_t>& extents, const std::vector<double>& weights,
-                                               const std::vector<std::vector<double>>& abscissas)
-{
-    // Build a realizable full tensor directly from terminal nodes and weights
-    // when the failure being tested is policy validation rather than moment
-    // mathematics.
-    std::vector<double> moments(qmomkit::product_extents(extents), 0.0);
-    for (std::size_t flat_moment = 0; flat_moment < moments.size(); ++flat_moment)
-    {
-        const qmomkit::MultiIndex moment_index = qmomkit::unflatten_multi_index(flat_moment, extents);
-        double moment = 0.0;
-        for (std::size_t node = 0; node < weights.size(); ++node)
-        {
-            double contribution = weights[node];
-            for (std::size_t dimension = 0; dimension < moment_index.size(); ++dimension)
-            {
-                contribution *= std::pow(abscissas[dimension][node], static_cast<double>(moment_index[dimension]));
-            }
-            moment += contribution;
-        }
-        moments[flat_moment] = moment;
-    }
-    return moments;
-}
-
 std::string nonrealizable_cqmom_configuration()
 {
     // Configuration-level non-realizability: all public CQMOM workflows parse
@@ -62,7 +36,6 @@ std::string nonrealizable_cqmom_configuration()
 names = x, y
 node_counts = 2, 2
 conditioning_order = 0, 1
-adaptive_branch_counts = false
 
 [qmom]
 adaptive = false
@@ -98,7 +71,6 @@ std::string bounded_abscissa_violation_configuration()
 names = x, y
 node_counts = 2, 1
 conditioning_order = 0, 1
-adaptive_branch_counts = false
 support_lower = 0.0, none
 support_upper = 1.0, none
 
@@ -288,32 +260,6 @@ void verify_moment_data_invalid_inputs(const std::string& selected_case = {})
     }
 }
 
-void verify_adaptive_policy_rejection()
-{
-    // Adaptive Wheeler can reduce the root node count. When adaptive branch
-    // counts are disabled, that reduction would make a fixed rectangular CQMOM
-    // hierarchy ambiguous, so the public API rejects the policy combination
-    // before running a reconstruction.
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> weights{0.1, 0.2, 0.3, 0.4};
-    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0, 1.0}, {-2.0, 2.0, -2.0, 2.0}};
-    const std::vector<double> moments = raw_moments_from_terminals(extents, weights, abscissas);
-    const qmomkit::QmomOptions adaptive_qmom{true, 1.0e-10, 1.0e-10, 1.0e-12};
-
-    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(qmomkit::CqmomCase{
-        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, false});
-
-    QMOMKIT_VERIFY_CHECK(!result.ok());
-    QMOMKIT_VERIFY_CHECK(result.status == qmomkit::CqmomStatus::invalid_input);
-    QMOMKIT_VERIFY_CHECK(result.failed_phase_space_dimension == 0);
-    QMOMKIT_VERIFY_CHECK(result.diagnostics.empty());
-    QMOMKIT_VERIFY_CHECK(contains_text(result.message, "adaptive_branch_counts"));
-
-    std::cout << std::left << std::setw(34) << "adaptive policy mismatch" << std::setw(22) << "invalid_input"
-              << "adaptive_branch_counts\n";
-}
-
 } // namespace
 
 int main(const int argc, char** argv)
@@ -337,7 +283,6 @@ int main(const int argc, char** argv)
         verify_bounded_abscissa_violation_reaches_wheeler();
         verify_extraction_rejects_structural_mistakes();
         verify_moment_data_invalid_inputs();
-        verify_adaptive_policy_rejection();
     }
     else if (selected_case == "nonrealizable_public_workflow")
         verify_nonrealizable_public_workflows();
@@ -347,8 +292,6 @@ int main(const int argc, char** argv)
         verify_extraction_rejects_structural_mistakes(selected_case);
     else if (selected_case.rfind("moment_data_", 0) == 0)
         verify_moment_data_invalid_inputs(selected_case);
-    else if (selected_case == "adaptive_policy")
-        verify_adaptive_policy_rejection();
     else
     {
         std::cerr << "Unknown CQMOM failure case '" << selected_case << "'.\n";

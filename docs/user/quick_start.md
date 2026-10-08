@@ -162,8 +162,8 @@ callbacks used later for phase-space evolution. See
 relate to direct C++ setup.
 
 The quadrature result exposes weights and abscissas by terminal node. For fixed
-rectangular quadratures, you can also access a node by its phase-space-order
-multi-index:
+quadratures (`qmom.adaptive = false`), you can also access a node by its
+phase-space-order multi-index:
 
 ```cpp
 const qmomkit::MultiIndex node_index{0, 1};

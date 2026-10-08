@@ -119,10 +119,8 @@ The default CQMOM hierarchy is `node_counts = 2, 2`, meaning:
 - two conditional quadrature nodes in `u`;
 - four terminal CQMOM nodes.
 
-The CQMOM driver also supports adaptive branch counts through the same
-`CqmomState` phase-space evolution workflow. With adaptive branch counts
-enabled, these node counts are maximums and output may contain fewer active
-terminal nodes.
+The configuration keeps the default adaptive reconstruction, so these node
+counts are maximums and output may contain fewer active terminal nodes.
 
 The sampled moment tensor contains $M_{i,j}$ for $i=0,\ldots,3$ and
 $j=0,\ldots,3$.

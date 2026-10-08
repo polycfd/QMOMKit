@@ -2,7 +2,6 @@
 names = r, w, T
 node_counts = 3, 3, 3
 conditioning_order = 0, 2, 1
-adaptive_branch_counts = true
 automatic_scaling = true
 
 [time_integration.node_advection]

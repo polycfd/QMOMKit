@@ -15,7 +15,7 @@ namespace qmomkit
  */
 struct WheelerOptions
 {
-    bool adaptive = false;
+    bool adaptive = true;
     double rmin = 1.0e-10;
     double eabs = 1.0e-10;
     double cutoff = 1.0e-30;

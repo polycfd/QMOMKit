@@ -269,10 +269,10 @@ void validate_successful_quadrature(const qmomkit::CqmomResult& result)
 
 // One reconstruction of the prescribed population, with everything that varies
 // across the sweep passed in: the node separation, the conditioning order, the
-// solver, and whether adaptive branch counts are allowed. Everything the run
+// solver, and whether the reconstruction is adaptive. Everything the run
 // reports is read back from the CQMOM result and its diagnostics.
-RunRecord run_reconstruction(const double delta, const std::vector<std::size_t>& conditioning_order, const SolverChoice& choice,
-                             const bool adaptive_branch_counts, const std::string& mode)
+RunRecord run_reconstruction(const double delta, const std::vector<std::size_t>& conditioning_order, const SolverChoice& choice, const bool adaptive,
+                             const std::string& mode)
 {
     // The moments are built analytically from four exact quadrature nodes, so
     // the only thing degrading as delta shrinks is the conditioning of the
@@ -286,9 +286,8 @@ RunRecord run_reconstruction(const double delta, const std::vector<std::size_t>&
     // tensor is reduced to the moments the hierarchy actually reconstructs from.
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(moments, layout),
-                                        {}, // conditional-moment options
-                                        {}, // QMOM options
-                                        adaptive_branch_counts,
+                                        {},                             // conditional-moment options
+                                        qmomkit::QmomOptions{adaptive}, // QMOM options: adaptive or fixed node counts
                                         qmomkit::CqmomDiagnosticLevel::detailed,
                                         choice.solver,
                                         {}}; // coordinate support

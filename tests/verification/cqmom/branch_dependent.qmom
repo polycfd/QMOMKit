@@ -2,7 +2,6 @@
 names = x, y
 node_counts = 2, 2
 conditioning_order = 0, 1
-adaptive_branch_counts = true
 
 [qmom]
 adaptive = true

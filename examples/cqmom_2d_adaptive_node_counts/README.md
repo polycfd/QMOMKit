@@ -30,13 +30,15 @@ The key setup is:
 names = d, u
 node_counts = 2, 2
 conditioning_order = 0, 1
-adaptive_branch_counts = true
+
+[qmom]
+adaptive = true
 ```
 
 `load_cqmom_prepared(...)` uses the configured independent-product distribution to
 compute the required analytical raw moments. `node_counts = 2, 2` requests two
-size nodes and two velocity nodes; with adaptive branch counts enabled, those
-counts are maximums.
+size nodes and two velocity nodes; with adaptive reconstruction, those counts
+are maximums.
 
 Post-source reconstruction automatically tests controlled branch-local growth
 back toward the configured maximum. Growth is validated per velocity branch and

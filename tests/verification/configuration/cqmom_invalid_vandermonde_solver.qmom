@@ -1,7 +1,9 @@
 [phase_space]
 node_counts = 1, 1
 conditioning_order = 0, 1
-adaptive_branch_counts = false
+
+[qmom]
+adaptive = false
 
 [vandermonde]
 solver = structured

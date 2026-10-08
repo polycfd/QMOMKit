@@ -275,7 +275,6 @@ void test_valid_qmom_matches_programmatic_case()
     assert(configured.value().node_count == direct_qmom_case.node_count);
     assert(configured.value().moments.values() == direct_qmom_case.moments.values());
     assert(!configured.value().qmom_options.adaptive);
-    assert(!configured.value().qmom_options.automatic_scaling);
 
     const auto configured_result = qmomkit::compute_qmom(configured.value());
     const auto direct_result = qmomkit::compute_qmom(direct_qmom_case);
@@ -527,7 +526,6 @@ void test_valid_cqmom_matches_programmatic_case()
         assert_near(configured.value().moments.values[index], direct_cqmom_case.moments.values[index]);
     }
     assert(configured.value().qmom_options.adaptive);
-    assert(!configured.value().qmom_options.automatic_scaling);
 
     const auto configured_result = qmomkit::compute_cqmom(configured.value());
     const auto direct_result = qmomkit::compute_cqmom(direct_cqmom_case);
@@ -538,69 +536,6 @@ void test_valid_cqmom_matches_programmatic_case()
     {
         assert_near(configured_result.quadrature.abscissas()[dimension][0], direct_result.quadrature.abscissas()[dimension][0]);
     }
-}
-
-void test_phase_space_automatic_scaling_parses_for_qmom_and_cqmom()
-{
-    const auto qmom = qmomkit::config::parse_qmom(R"(
-[phase_space]
-node_counts = 1
-automatic_scaling = true
-
-[moments]
-values = 1.0, 0.0
-)");
-    assert(qmom.ok());
-    assert(qmom.value().qmom_options.automatic_scaling);
-
-    const auto cqmom = qmomkit::config::parse_cqmom(R"(
-[phase_space]
-node_counts = 1, 1
-automatic_scaling = true
-
-[moments]
-extents = 2, 2
-M[0,0] = 1.0
-M[0,1] = 0.0
-M[1,0] = 0.0
-M[1,1] = 0.0
-)");
-    assert(cqmom.ok());
-    assert(cqmom.value().qmom_options.automatic_scaling);
-
-    const auto invalid = qmomkit::config::parse_qmom("[phase_space]\nnode_counts = 1\nautomatic_scaling = yes\n[moments]\nvalues = 1.0, 0.0\n");
-    assert(!invalid.ok());
-    assert(has_message_fragment(invalid, "automatic_scaling must be true or false"));
-}
-
-void test_qmom_automatic_scaling_is_owned_by_case_and_state()
-{
-    // One .qmom file defines the reconstruction policy for both initial
-    // inversion and subsequent QMOM post-source reconstructions.
-    const std::string scaled_case = R"(
-[phase_space]
-node_counts = 1
-automatic_scaling = true
-
-[moments]
-values = 1.0, 0.0
-)";
-    const auto qmom_case_result = qmomkit::config::parse_qmom(scaled_case);
-    const auto evolution = qmomkit::config::parse_qmom_phase_space_evolution_options(scaled_case);
-    assert(qmom_case_result.ok());
-    assert(evolution.ok());
-    assert(qmom_case_result.value().qmom_options.automatic_scaling);
-    assert(qmom_case_result.value().initial_state().qmom_options().automatic_scaling);
-
-    // Explicit false and an omitted key retain the documented default.
-    const auto explicitly_unscaled =
-        qmomkit::config::parse_qmom_phase_space_evolution_options("[phase_space]\nnode_counts = 1\nautomatic_scaling = false\n");
-    const auto omitted = qmomkit::config::parse_qmom_phase_space_evolution_options("[phase_space]\nnode_counts = 1\n");
-    assert(explicitly_unscaled.ok());
-    assert(omitted.ok());
-    assert(!explicitly_unscaled.value().realizability_policy.interval.has_value());
-    assert(!omitted.value().realizability_policy.interval.has_value());
-    assert(evolution.value().scheme == qmomkit::PhaseSpaceEvolutionScheme::strang);
 }
 
 void test_cqmom_independent_product_initialization_matches_direct_api()
@@ -1657,7 +1592,6 @@ void assert_cqmom_case_settings_equal(const qmomkit::CqmomCase& actual_cqmom_cas
     assert(actual_cqmom_case.qmom_options.rmin == expected_cqmom_case.qmom_options.rmin);
     assert(actual_cqmom_case.qmom_options.eabs == expected_cqmom_case.qmom_options.eabs);
     assert(actual_cqmom_case.qmom_options.cutoff == expected_cqmom_case.qmom_options.cutoff);
-    assert(actual_cqmom_case.qmom_options.automatic_scaling == expected_cqmom_case.qmom_options.automatic_scaling);
     assert(actual_cqmom_case.conditional_options.singular_tolerance == expected_cqmom_case.conditional_options.singular_tolerance);
     assert(actual_cqmom_case.conditional_options.conditioning_warning_threshold ==
            expected_cqmom_case.conditional_options.conditioning_warning_threshold);
@@ -1706,7 +1640,6 @@ qmomkit::CqmomCase fully_configured_replacement_base_cqmom_case()
 {
     qmomkit::CqmomCase base_cqmom_case = replacement_base_cqmom_case();
     base_cqmom_case.qmom_options.adaptive = true;
-    base_cqmom_case.qmom_options.automatic_scaling = true;
     base_cqmom_case.conditional_options.moore_penrose_rcond = 1.0e-13;
     return base_cqmom_case;
 }
@@ -4393,8 +4326,6 @@ int main(const int argc, char** argv)
             {"mixture_zero_density_component_is_skipped", test_mixture_zero_density_component_is_skipped},
             {"cqmom_rejects_the_removed_moment_storage_key", test_cqmom_rejects_the_removed_moment_storage_key},
             {"valid_cqmom_matches_programmatic_case", test_valid_cqmom_matches_programmatic_case},
-            {"phase_space_automatic_scaling_parses_for_qmom_and_cqmom", test_phase_space_automatic_scaling_parses_for_qmom_and_cqmom},
-            {"qmom_automatic_scaling_is_owned_by_case_and_state", test_qmom_automatic_scaling_is_owned_by_case_and_state},
             {"cqmom_independent_product_initialization_matches_direct_api", test_cqmom_independent_product_initialization_matches_direct_api},
             {"cqmom_independent_product_mixture_marginal_initialization", test_cqmom_independent_product_mixture_marginal_initialization},
             {"cqmom_initialization_matches_example_flow", test_cqmom_initialization_matches_example_flow},

@@ -3299,7 +3299,7 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
     return verification;
 }
 
-VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::filesystem::path& configuration_path, const std::vector<double>& units)
+VerificationResult run_unit_invariance_cqmom_state_adaptive_2d(const std::filesystem::path& configuration_path, const std::vector<double>& units)
 {
     // This manufactured CQMOM state is the ragged rule
     // (-1,-1,0.10), (1,-1,0.30), (0.5,2,0.60), conditioned as (xi1,xi0).
@@ -3313,15 +3313,14 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     if (!configured.ok())
     {
         print_configuration_errors(configured);
-        append_failure(verification, "unable to load automatic-scaling CQMOM evolution configuration.");
+        append_failure(verification, "unable to load unit-invariance CQMOM evolution configuration.");
         return verification;
     }
 
     const qmomkit::CqmomPreparedCase& cqmom_prepared_case = configured.value();
-    if (!cqmom_prepared_case.qmom_options().automatic_scaling || !cqmom_prepared_case.qmom_options().adaptive ||
-        cqmom_prepared_case.hierarchy().conditioning_order() != std::vector<std::size_t>({1, 0}))
+    if (!cqmom_prepared_case.qmom_options().adaptive || cqmom_prepared_case.hierarchy().conditioning_order() != std::vector<std::size_t>({1, 0}))
     {
-        append_failure(verification, "automatic-scaling evolution configuration did not retain its adaptive non-identity CQMOM policy.");
+        append_failure(verification, "unit-invariance evolution configuration did not retain its adaptive non-identity CQMOM policy.");
         return verification;
     }
 
@@ -3380,11 +3379,11 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     summary.success = result.ok() && cqmom_diagnostics_are_successful(result.diagnostics) && callback_coordinates_physical && callback_visits != 0;
     if (!summary.success)
     {
-        append_failure(verification, "automatic-scaling CQMOM evolution did not complete all physical reconstruction stages.");
+        append_failure(verification, "unit-invariance CQMOM evolution did not complete all physical reconstruction stages.");
     }
     if (!result.ok())
     {
-        append_failure(verification, "automatic-scaling CQMOM evolution did not retain a final quadrature.");
+        append_failure(verification, "unit-invariance CQMOM evolution did not retain a final quadrature.");
         summary.success = false;
         verification.runs.push_back(summary);
         return verification;
@@ -3393,7 +3392,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     const qmomkit::CqmomQuadrature& quadrature = result.state.quadrature();
     if (quadrature.has_rectangular_storage() || !quadrature.adaptive_branch_counts_enabled() || quadrature.total_nodes() != initial_weights.size())
     {
-        append_failure(verification, "automatic-scaling CQMOM evolution did not preserve the expected ragged topology.");
+        append_failure(verification, "unit-invariance CQMOM evolution did not preserve the expected ragged topology.");
         summary.success = false;
     }
     std::vector<std::size_t> actual_paths;
@@ -3404,7 +3403,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     std::sort(actual_paths.begin(), actual_paths.end());
     if (actual_paths != std::vector<std::size_t>({0, 1, 2}))
     {
-        append_failure(verification, "automatic-scaling CQMOM evolution changed terminal conditioning paths.");
+        append_failure(verification, "unit-invariance CQMOM evolution changed terminal conditioning paths.");
         summary.success = false;
     }
 
@@ -3441,7 +3440,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
     summary.error_norm = scaled_infinity_error(reconstructed.values, analytical);
     if (summary.errors.moment_scaled > 2.0e-9 || summary.errors.reconstruction_scaled > 2.0e-9)
     {
-        append_failure(verification, "automatic-scaling CQMOM evolution exceeded the manufactured physical tolerance.");
+        append_failure(verification, "unit-invariance CQMOM evolution exceeded the manufactured physical tolerance.");
         summary.success = false;
     }
     verification.runs.push_back(summary);
@@ -3464,18 +3463,18 @@ void report_failure(const std::string& case_name, const VerificationResult& resu
     }
 }
 
-int run_cqmom_automatic_scaling_is_unit_invariant()
+int run_cqmom_state_is_unit_invariant()
 {
     const std::filesystem::path case_directory = std::filesystem::path(__FILE__).parent_path();
     const VerificationResult reference =
-        run_automatic_scaling_cqmom_state_adaptive_2d(case_directory / "automatic_scaling_cqmom_state_adaptive_reference.qmom", {1.0, 1.0});
+        run_unit_invariance_cqmom_state_adaptive_2d(case_directory / "unit_invariance_cqmom_state_adaptive_reference.qmom", {1.0, 1.0});
     const VerificationResult rescaled =
-        run_automatic_scaling_cqmom_state_adaptive_2d(case_directory / "automatic_scaling_cqmom_state_adaptive_rescaled.qmom", {1.0e6, 1.0e-6});
+        run_unit_invariance_cqmom_state_adaptive_2d(case_directory / "unit_invariance_cqmom_state_adaptive_rescaled.qmom", {1.0e6, 1.0e-6});
 
     if (!reference.passed || !rescaled.passed)
     {
-        report_failure("automatic_scaling_cqmom_state_adaptive_reference", reference);
-        report_failure("automatic_scaling_cqmom_state_adaptive_rescaled", rescaled);
+        report_failure("unit_invariance_cqmom_state_adaptive_reference", reference);
+        report_failure("unit_invariance_cqmom_state_adaptive_rescaled", rescaled);
     }
     if (!reference.passed)
     {
@@ -3491,16 +3490,16 @@ int run_cqmom_automatic_scaling_is_unit_invariant()
 void print_usage()
 {
     std::cerr << "Usage: phase_space_evolution_analytical_verification <configuration.qmom> <case_identifier> | "
-                 "cqmom_automatic_scaling_is_unit_invariant\n";
+                 "cqmom_state_is_unit_invariant\n";
 }
 
 } // namespace
 
 int main(int argc, char** argv)
 {
-    if (argc == 2 && std::string(argv[1]) == "cqmom_automatic_scaling_is_unit_invariant")
+    if (argc == 2 && std::string(argv[1]) == "cqmom_state_is_unit_invariant")
     {
-        return run_cqmom_automatic_scaling_is_unit_invariant();
+        return run_cqmom_state_is_unit_invariant();
     }
     if (argc != 3)
     {

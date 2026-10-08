@@ -243,7 +243,7 @@ void test_points_at_any_scale_are_recovered()
 }
 
 // Droplet diameters between 20 and 200 micrometres, in metres, as an
-// application without automatic scaling provides them.
+// application provides them.
 void test_droplet_diameters_in_metres_are_recovered()
 {
     assert_recovers_points({20.0e-6, 50.0e-6, 100.0e-6, 200.0e-6}, {0.1, 0.4, 0.35, 0.15}, 2.0e-12);

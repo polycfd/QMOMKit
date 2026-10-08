@@ -2,7 +2,6 @@
 names = V, T, u, v, w
 node_counts = 2, 2, 2, 2, 2
 conditioning_order = 0, 1, 2, 3, 4
-automatic_scaling = true
 
 [qmom]
 adaptive = false

@@ -184,29 +184,6 @@ mode it fails with diagnostics. These bounds constrain quadrature abscissas
 only — they are not moment realizability settings, which are covered under
 [runtime realizability](#runtime-realizability-settings).
 
-### Automatic reconstruction scaling
-
-Set `automatic_scaling = true` in `[phase_space]` to normalize coordinates
-locally for a QMOM or CQMOM reconstruction:
-
-```ini
-[phase_space]
-node_counts = 2
-automatic_scaling = true
-```
-
-The default is `false`. Scaling is reconstruction-local: raw moments, source
-callbacks, phase-space states, configured bounds, returned nodes, and bounded
-support diagnostics remain in physical coordinates. QMOMKit selects one
-positive scale per physical coordinate from the current raw moments, preferring
-the RMS scale `sqrt(M[2e_d] / M[0])`, then the magnitude of the mean, and
-finally one. For CQMOM, scales are selected once from the complete required
-moment set before recursive conditioning.
-
-Configured bounds are mapped to the normalized reconstruction only internally.
-The bounded-reconstruction margin is relative to the bounds, so it gives the
-same decision in normalized and physical coordinates. If a safe transformation
-cannot be formed, QMOMKit follows the ordinary unscaled reconstruction path.
 ## Setting the initial condition
 
 A case needs initial raw moments. There are three ways to obtain them, and the

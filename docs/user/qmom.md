@@ -53,19 +53,6 @@ For $N$ nodes, provide at least $2N$ moments: $m_0, m_1, ..., m_{2N-1}$
 Returned abscissas are sorted in ascending order. Weights are stored in the
 same order, so `weights[i]` belongs to `abscissas[i]`.
 
-## Automatic reconstruction scaling
-
-For moment sets whose coordinate magnitude makes raw-moment powers poorly
-scaled, set `QmomOptions::automatic_scaling = true`. QMOMKit chooses a
-positive scale from the current `m0`, `m1`, and `m2`, reconstructs in the
-scaled coordinate, and returns nodes in the original physical coordinate.
-Weights and the unnormalized `m0` convention are unchanged. The default is
-`false`.
-
-In a `.qmom` case, use `automatic_scaling = true` in `[phase_space]`, not in
-`[qmom]`. Physical support bounds are returned and diagnosed in their configured
-coordinates.
-
 Choose `node_count` according to the resolution your closure or downstream
 model needs. More nodes require more moments and can represent richer
 one-dimensional structure; fewer nodes are cheaper and may be more robust when
@@ -131,9 +118,7 @@ far from unity at high orders, for example droplet volumes of about
 $10^{-18}\,\mathrm{m}^3$ from order 18 on. Moment sets like that span hundreds
 of decades and are poorly suited to inversion in any case, so express such a
 coordinate in units that keep it near unity, for example cubic micrometres
-instead of cubic metres. Automatic reconstruction scaling does not change this:
-it applies to the inversion, while moments are always reconstructed in the
-configured coordinates.
+instead of cubic metres.
 
 After checking that a quadrature result is valid, callers may also evaluate
 generalized moments with arbitrary finite real exponents as derived
@@ -183,7 +168,7 @@ const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, node_count, op
 
 Adaptive reduction compares the recurrence with a bound on its own rounding,
 so the number of nodes it keeps depends neither on the unit of the coordinate
-nor on the number density, with or without automatic scaling.
+nor on the number density.
 
 ### Optional abscissa bounds
 

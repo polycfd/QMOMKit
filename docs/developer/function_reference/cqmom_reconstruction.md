@@ -194,8 +194,7 @@ linear solve, conditional moments enter another nonlinear inversion, and
 terminal weights multiply along paths. Conditioning order changes these
 intermediate problems even for an unchanged global moment set. Small weights,
 clustered nodes, near-degenerate marginals, and extreme coordinate scales
-therefore deserve joint experiments. Automatic scaling is global per physical
-coordinate, not per branch.
+therefore deserve joint experiments.
 
 Evidence: [recursive tests](../../../tests/unit/recursive_quadrature.cpp)
 inspect failure diagnostics, partial branches, support tolerances, and policy

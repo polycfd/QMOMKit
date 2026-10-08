@@ -1,11 +1,10 @@
-// CQMOM with automatic scaling enabled, on a problem whose coordinates span
-// very different magnitudes.
+// CQMOM on a problem whose coordinates span very different magnitudes.
 //
 // What is verified
-//   That switching automatic scaling on does not change the answer: the
-//   quadrature recovered from a rescaled problem, once mapped back, must match
-//   the one recovered from the canonical problem, and both must reproduce the
-//   moments they were given.
+//   That the unit of a coordinate does not change the answer: the quadrature
+//   recovered from a rescaled problem, once mapped back, must match the one
+//   recovered from the canonical problem, and both must reproduce the moments
+//   they were given.
 //
 // How the reference is constructed
 //   Chosen, not computed. A canonical rule of weighted points is written down
@@ -16,13 +15,12 @@
 //
 // Error metric and pass criteria
 //   Maximum absolute deviation of positions, weights and moments from the
-//   prescribed rules, at 2.0e-10, with 1.0e-10 where the comparison is
-//   sensitive to the scaling step. These sit above the 1.0e-12 used by the
-//   unscaled studies because scaling multiplies and divides the data by the
-//   chosen factors, and each pass costs a little accuracy.
+//   prescribed rules, at 2.0e-10, and 1.0e-10 for the disparate-units case.
+//   Both leave cross-platform margin for nested adaptive inversions; the
+//   observed errors are below 1.0e-15.
 //
 // Reproduce
-//   ctest -R verification_cqmom_.*scaling
+//   ctest -R 'verification_cqmom_(unit_invariance|disparate_units)'
 //
 // Build modes
 //   Both. Failures are reported through explicit comparisons and an exit code,
@@ -213,41 +211,24 @@ int run_disparate_units_case()
     // The same prescribed ragged terminal rule as the covariance interaction
     // case is represented in deliberately disparate physical units. The
     // factors create mixed raw moments from approximately 1e-24 to 1e36 while
-    // the normalized terminal rule and its moments remain O(1). Both the
-    // automatic-scaling path and the unscaled path must recover the rule.
+    // the normalized terminal rule and its moments remain O(1). Adaptive
+    // reduction does not depend on the units, so the rule must be recovered.
     const std::vector<double> units{1.0e8, 1.0e-8, 1.0e4};
     const std::vector<Terminal> expected = physical_reference(units);
     const qmomkit::RawMomentTensor moments = moments_from_terminals(expected, {4, 4, 4});
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
 
-    qmomkit::QmomOptions scaled_options;
-    scaled_options.adaptive = true;
-    scaled_options.automatic_scaling = true;
-    const qmomkit::CqmomCase scaled_cqmom_case{
-        qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, scaled_options};
+    qmomkit::QmomOptions options;
+    options.adaptive = true;
+    const qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, options};
 
     bool passed = true;
-    Errors scaled_errors;
-    const qmomkit::CqmomResult scaled = qmomkit::compute_cqmom(scaled_cqmom_case);
-    check_result("disparate-units scaled", scaled, scaled_cqmom_case.moments, units, scaled_errors, passed, false);
-    if (scaled_errors.node > disparate_units_tolerance || scaled_errors.weight > disparate_units_tolerance ||
-        scaled_errors.moment > disparate_units_tolerance)
+    Errors errors;
+    const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
+    check_result("disparate-units", result, cqmom_case.moments, units, errors, passed, false);
+    if (errors.node > disparate_units_tolerance || errors.weight > disparate_units_tolerance || errors.moment > disparate_units_tolerance)
     {
-        std::cerr << "automatic scaling did not recover the independently prescribed physical rule.\n";
-        passed = false;
-    }
-
-    // Adaptive reduction does not depend on the units, so the same physical
-    // tensor must reconstruct the prescribed rule without scaling as well.
-    qmomkit::CqmomCase unscaled_cqmom_case = scaled_cqmom_case;
-    unscaled_cqmom_case.qmom_options.automatic_scaling = false;
-    Errors unscaled_errors;
-    const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(unscaled_cqmom_case);
-    check_result("disparate-units unscaled", unscaled, unscaled_cqmom_case.moments, units, unscaled_errors, passed, false);
-    if (unscaled_errors.node > disparate_units_tolerance || unscaled_errors.weight > disparate_units_tolerance ||
-        unscaled_errors.moment > disparate_units_tolerance)
-    {
-        std::cerr << "the unscaled representation did not recover the independently prescribed physical rule.\n";
+        std::cerr << "CQMOM did not recover the independently prescribed physical rule.\n";
         passed = false;
     }
 
@@ -256,12 +237,9 @@ int run_disparate_units_case()
     if (!passed)
     {
         std::cerr << std::scientific << std::setprecision(4)
-                  << "disparate_units units=(1e8,1e-8,1e4) scaled_terminals=" << (scaled.ok() ? scaled.quadrature.weights().size() : 0)
-                  << " scaled_node_error=" << scaled_errors.node << " scaled_weight_error=" << scaled_errors.weight
-                  << " scaled_moment_error=" << scaled_errors.moment << " scaled_tolerance=" << disparate_units_tolerance
-                  << " unscaled_terminals=" << (unscaled.ok() ? unscaled.quadrature.weights().size() : 0)
-                  << " unscaled_node_error=" << unscaled_errors.node << " unscaled_weight_error=" << unscaled_errors.weight
-                  << " unscaled_moment_error=" << unscaled_errors.moment << '\n';
+                  << "disparate_units units=(1e8,1e-8,1e4) terminals=" << (result.ok() ? result.quadrature.weights().size() : 0)
+                  << " node_error=" << errors.node << " weight_error=" << errors.weight << " moment_error=" << errors.moment
+                  << " tolerance=" << disparate_units_tolerance << '\n';
     }
     return passed ? 0 : 1;
 }
@@ -287,11 +265,10 @@ int run_configured_case(const std::filesystem::path& configuration_path, const s
     }
 
     const qmomkit::CqmomCase& cqmom_case = configured.value();
-    bool passed = cqmom_case.moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({2, 0, 1}) &&
-                  cqmom_case.qmom_options.adaptive && cqmom_case.qmom_options.adaptive && cqmom_case.qmom_options.automatic_scaling;
+    bool passed = cqmom_case.moments.layout.hierarchy.conditioning_order() == std::vector<std::size_t>({2, 0, 1}) && cqmom_case.qmom_options.adaptive;
     if (!passed)
     {
-        std::cerr << "The configured automatic-scaling, adaptive, or non-identity conditioning policy was not propagated.\n";
+        std::cerr << "The configured adaptive or non-identity conditioning policy was not propagated.\n";
     }
 
     Errors errors;
@@ -315,14 +292,14 @@ int main(const int argc, char** argv)
     if (argc == 2 && std::string(argv[1]) == "unit-invariance")
     {
         const std::filesystem::path case_directory = std::filesystem::path(__FILE__).parent_path();
-        const int reference = run_configured_case(case_directory / "automatic_scaling_reference_3d.qmom", "reference");
-        const int rescaled = run_configured_case(case_directory / "automatic_scaling_rescaled_3d.qmom", "rescaled");
+        const int reference = run_configured_case(case_directory / "unit_invariance_reference_3d.qmom", "reference");
+        const int rescaled = run_configured_case(case_directory / "unit_invariance_rescaled_3d.qmom", "rescaled");
         return reference == 0 && rescaled == 0 ? 0 : 1;
     }
     if (argc == 3)
     {
         return run_configured_case(argv[1], argv[2]);
     }
-    std::cerr << "Usage: automatic_scaling <configuration.qmom> <reference|rescaled> | unit-invariance | disparate-units\n";
+    std::cerr << "Usage: unit_invariance <configuration.qmom> <reference|rescaled> | unit-invariance | disparate-units\n";
     return 2;
 }

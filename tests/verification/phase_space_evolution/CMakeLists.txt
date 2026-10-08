@@ -48,7 +48,7 @@ foreach(case_name IN ITEMS commuting_qmom qmom_boundary_contribution qmom_phase_
 endforeach()
 
 add_test(
-    NAME verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant
-    COMMAND phase_space_evolution_analytical_verification cqmom_automatic_scaling_is_unit_invariant
+    NAME verification_phase_space_evolution_cqmom_state_is_unit_invariant
+    COMMAND phase_space_evolution_analytical_verification cqmom_state_is_unit_invariant
 )
-set_tests_properties(verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})
+set_tests_properties(verification_phase_space_evolution_cqmom_state_is_unit_invariant PROPERTIES LABELS verification TIMEOUT ${QMOMKIT_TEST_TIMEOUT_SECONDS})

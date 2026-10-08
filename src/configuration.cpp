@@ -846,7 +846,6 @@ std::vector<std::string> qmom_allowed_keys()
     return {"format_version",
             "phase_space.names",
             "phase_space.node_counts",
-            "phase_space.automatic_scaling",
             "phase_space.support_lower",
             "phase_space.support_upper",
             "qmom.adaptive",
@@ -932,12 +931,11 @@ void reject_unknown_qmom_keys(ParsedFile& parsed, const bool explicit_moments, c
 {
     if (explicit_moments)
     {
-        reject_unknown_keys(
-            parsed,
-            with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.automatic_scaling",
-                                       "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive", "moments.values"},
-                                      RealizabilitySettings::qmom),
-            {"initial."}, RealizabilitySettings::qmom, source_name);
+        reject_unknown_keys(parsed,
+                            with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.support_lower",
+                                                       "phase_space.support_upper", "qmom.adaptive", "moments.values"},
+                                                      RealizabilitySettings::qmom),
+                            {"initial."}, RealizabilitySettings::qmom, source_name);
         return;
     }
     reject_unknown_keys(parsed, with_runtime_allowed_keys(qmom_allowed_keys(), RealizabilitySettings::qmom),
@@ -1071,9 +1069,8 @@ bool has_mixture_component_sections(const ParsedFile& parsed, const std::string&
 std::vector<std::string> cqmom_explicit_allowed_keys()
 {
     return with_runtime_allowed_keys({"format_version", "phase_space.names", "phase_space.node_counts", "phase_space.conditioning_order",
-                                      "phase_space.adaptive_branch_counts", "phase_space.automatic_scaling", "phase_space.support_lower",
-                                      "phase_space.support_upper", "qmom.adaptive", "cqmom.diagnostic_level", "vandermonde.solver",
-                                      "vandermonde.rcond", "moments.extents"},
+                                      "phase_space.adaptive_branch_counts", "phase_space.support_lower", "phase_space.support_upper", "qmom.adaptive",
+                                      "cqmom.diagnostic_level", "vandermonde.solver", "vandermonde.rcond", "moments.extents"},
                                      RealizabilitySettings::cqmom);
 }
 
@@ -1472,25 +1469,6 @@ std::optional<QmomOptions> parse_qmom_options_from_parsed(ParsedFile& parsed, co
         return std::nullopt;
     }
     return options;
-}
-
-std::optional<bool> parse_automatic_scaling_from_parsed(ParsedFile& parsed, const std::string& source_name)
-{
-    const auto entry = parsed.scalars.find("phase_space.automatic_scaling");
-    if (entry == parsed.scalars.end())
-    {
-        return false;
-    }
-    if (entry->second.value == "true")
-    {
-        return true;
-    }
-    if (entry->second.value == "false")
-    {
-        return false;
-    }
-    add_error(parsed, ConfigurationErrorCode::invalid_value, source_name, entry->second.line, "phase_space.automatic_scaling must be true or false.");
-    return std::nullopt;
 }
 
 void reject_unknown_qmom_option_keys(ParsedFile& parsed, const std::string& source_name)
@@ -2060,11 +2038,6 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
     std::optional<VandermondeSolver> vandermonde_solver = parse_vandermonde_solver(parsed, source_name);
     std::optional<double> moore_penrose_rcond = parse_vandermonde_rcond(parsed, source_name);
     std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
-    const std::optional<bool> automatic_scaling = parse_automatic_scaling_from_parsed(parsed, source_name);
-    if (qmom_options.has_value() && automatic_scaling.has_value())
-    {
-        qmom_options->automatic_scaling = *automatic_scaling;
-    }
     validate_format_version(parsed, source_name);
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
 
@@ -2739,11 +2712,6 @@ ConfigurationResult<QmomCase> parse_qmom(const std::string_view text, std::strin
     validate_optional_realizability_policy(parsed, RealizabilitySettings::qmom, source_name);
     validate_format_version(parsed, source_name);
     std::optional<QmomOptions> qmom_options = parse_qmom_options_from_parsed(parsed, source_name);
-    const std::optional<bool> automatic_scaling = parse_automatic_scaling_from_parsed(parsed, source_name);
-    if (qmom_options.has_value() && automatic_scaling.has_value())
-    {
-        qmom_options->automatic_scaling = *automatic_scaling;
-    }
     const Entry* node_counts_entry = require_entry(parsed, "phase_space.node_counts", source_name);
     if (!parsed.moments.empty())
     {
@@ -2946,7 +2914,6 @@ ConfigurationResult<QmomPhaseSpaceEvolutionOptions> parse_qmom_phase_space_evolu
     const std::optional<PhaseSpaceEvolutionScheme> scheme = parse_phase_space_evolution_scheme_from_parsed(parsed, source_name);
     const std::optional<NodeAdvectionOptions> node_options = parse_node_advection_options_from_parsed(parsed, source_name);
     (void)parse_qmom_options_from_parsed(parsed, source_name);
-    (void)parse_automatic_scaling_from_parsed(parsed, source_name);
     const std::optional<RealizabilityPolicy> realizability_policy =
         parse_realizability_policy_from_parsed(parsed, std::string(realizability_section), source_name);
 

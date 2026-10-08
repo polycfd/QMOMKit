@@ -30,7 +30,6 @@ struct QmomOptions
     double rmin = 1.0e-10;
     double eabs = 1.0e-10;
     double cutoff = 1.0e-30;
-    bool automatic_scaling = false;
 };
 
 struct QmomResult

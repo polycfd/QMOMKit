@@ -87,16 +87,6 @@ At the user level, this means:
 The result is a set of weighted multidimensional nodes. Each terminal node has
 one global weight and one abscissa per phase-space dimension.
 
-## Automatic reconstruction scaling
-
-Set `QmomOptions::automatic_scaling = true` on the shared CQMOM/QMOM options,
-or set `automatic_scaling = true` in the configuration `[phase_space]`
-section. The default is `false`. CQMOM selects one scale for each physical
-coordinate from the complete current required moment set, transforms the
-recursive problem, then returns nodes and bounded-support diagnostics in
-physical coordinates. Raw moments, weights, callbacks, states, and configured
-coordinate supports keep their physical meaning.
-
 `CqmomPreparedCase` is the immutable setup produced by the normal configuration
 loader or by promoting a `CqmomCase`. Normal CQMOM phase-space evolution
 creates `CqmomState` from `CqmomPreparedCase` and advances it with

@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -910,6 +911,40 @@ void test_node_separation_is_relative_to_node_magnitude()
     }
 }
 
+void test_residual_acceptance_does_not_depend_on_number_density()
+{
+    // Scaling the weights by a power of two scales the solution, the residual
+    // and its bound exactly, so the residual decision must not change: a
+    // tolerance above roundoff accepts and one far below it rejects at every
+    // number density.
+    const std::vector<double> abscissas{-0.75, -0.1, 0.4, 0.9};
+    const std::vector<double> unit_weights{0.25, 0.5, -0.75, 1.25};
+    const qmomkit::internal::DenseMatrix solution = make_patterned_solution(4, 8);
+    for (const double number_density : {1.0, std::ldexp(1.0, -70)})
+    {
+        std::vector<double> weights = unit_weights;
+        for (double& weight : weights)
+        {
+            weight *= number_density;
+        }
+        for (const qmomkit::VandermondeSolver solver :
+             {qmomkit::VandermondeSolver::pivoted_qr, qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::moore_penrose})
+        {
+            for (const auto& [residual_tolerance, accepted] : {std::pair{1.0e-10, true}, std::pair{1.0e-25, false}})
+            {
+                const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance, true, residual_tolerance};
+                const qmomkit::internal::VandermondeSolveResult result = qmomkit::internal::solve_conditional_vandermonde_system(
+                    abscissas, weights, make_rhs(abscissas, weights, solution), options, singular_message);
+                assert(result.success == accepted);
+                if (!accepted)
+                {
+                    assert(result.message == singular_message);
+                }
+            }
+        }
+    }
+}
+
 void test_dense_elimination_does_not_depend_on_matrix_scale()
 {
     // Scaling a whole matrix changes neither whether it is singular nor its
@@ -985,6 +1020,7 @@ int main(const int argc, char** argv)
             {"dense_success_requires_finite_solution", test_dense_success_requires_finite_solution},
             {"solvers_do_not_depend_on_number_density_or_unit", test_solvers_do_not_depend_on_number_density_or_unit},
             {"node_separation_is_relative_to_node_magnitude", test_node_separation_is_relative_to_node_magnitude},
+            {"residual_acceptance_does_not_depend_on_number_density", test_residual_acceptance_does_not_depend_on_number_density},
             {"dense_elimination_does_not_depend_on_matrix_scale", test_dense_elimination_does_not_depend_on_matrix_scale},
         });
 }

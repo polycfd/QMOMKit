@@ -111,9 +111,9 @@ namespace
     return residual <= tolerance * scale;
 }
 
-// The checks the Bjorck-Pereyra and dense paths share before solving. A weight
-// counts as zero relative to the largest weight, so the test does not depend on
-// the number density the weights carry.
+// The checks every solver path applies before solving. A weight counts as zero
+// relative to the largest weight, so the test does not depend on the number
+// density the weights carry.
 [[nodiscard]] std::optional<LinearSolveResult> weighted_vandermonde_input_failure(const std::vector<double>& nodes,
                                                                                   const std::vector<double>& weights, const DenseMatrix& rhs,
                                                                                   const double singular_tolerance,

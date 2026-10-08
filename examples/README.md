@@ -54,9 +54,6 @@ optional branches, and prerequisites in more detail.
 
 - `cqmom_2d_adaptive_node_counts/`: adaptive conditional branch reduction,
   persistence, and controlled recovery during phase-space evolution.
-- `cqmom_2d_borderline_conditioning/`: static reconstruction sweep for
-  conditioning order, Vandermonde solver policy, failed-stage interpretation,
-  and lower-node adaptive reconstruction.
 
 ## Monte Carlo companion / reference workflows
 

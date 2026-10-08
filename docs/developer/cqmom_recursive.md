@@ -435,39 +435,6 @@ relations, near-boundary moment sequences, and high-dimensional cases where
 some branches are effectively lower order than the configured maximum
 hierarchy.
 
-### Borderline conditioning example
-
-The
-[`cqmom_2d_borderline_conditioning`](../../examples/cqmom_2d_borderline_conditioning/README.md)
-example demonstrates that changing conditioning order can relocate rather than
-remove a weak inversion. Its fixed-count rows expose whether the weak branch
-appears as a conditional-moment failure or later as a Wheeler/QMOM failure. Its
-adaptive reference rows demonstrate that adaptive Wheeler reduction occurs
-before the conditional Vandermonde solve and is separate from QR or SVD solver
-selection.
-
-The compact `output/report.md` makes the outcomes easy to compare:
-weak parent conditional systems, later Wheeler failures, and successful
-lower-node reconstructions. The complete
-`output/diagnostics.txt` file remains available when residuals,
-condition-estimate values, moment errors, or individual solver rows require
-closer inspection.
-
-The four direct solver columns show whether a failure depends on the linear
-solver. A common Dense/BP/QR/SVD failure means that the represented two-node
-system has lost numerical independence; changing solver backends cannot
-recover missing information.
-
-The report distinguishes the relative singular value (independence), the
-2-norm condition number (sensitivity), moment error (reconstruction accuracy),
-and residual (linear-system consistency). These metrics should not be
-interpreted as interchangeable.
-
-When interpreting the example, read the reported failure location together with
-requested and active node counts, solver details, residuals, and condition
-estimates. For the related linear-algebra workflow and limitations, see related
-[internal linear algebra](linear_algebra.md#borderline-conditioning-example).
-
 ## Numerical assumptions and failure handling
 
 The CQMOM implementation of QMOMKit assumes:

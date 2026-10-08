@@ -515,9 +515,9 @@ contracts, and evidence](conditional_systems.md)
 |---|---|
 | `matrix_all_finite` | [16](../../../src/internal/bjorck_pereyra.cpp#L16) |
 | `failure_result` | [31](../../../src/internal/bjorck_pereyra.cpp#L31) |
-| `node_scale` | [36](../../../src/internal/bjorck_pereyra.cpp#L36) |
-| `denominator_is_singular` | [41](../../../src/internal/bjorck_pereyra.cpp#L41) |
-| `solve_bjorck_pereyra` | [48](../../../src/internal/bjorck_pereyra.cpp#L48) |
+| `node_scale` | [38](../../../src/internal/bjorck_pereyra.cpp#L38) |
+| `denominator_is_singular` | [43](../../../src/internal/bjorck_pereyra.cpp#L43) |
+| `solve_bjorck_pereyra` | [50](../../../src/internal/bjorck_pereyra.cpp#L50) |
 
 ### `src/internal/cqmom_case.hpp`
 
@@ -627,12 +627,12 @@ contracts, and evidence](conditional_systems.md)
 |---|---|
 | `matrix_infinity_norm` | [33](../../../src/internal/linear_algebra.cpp#L33) |
 | `solve_dense` | [48](../../../src/internal/linear_algebra.cpp#L48) |
-| `make_identity` | [124](../../../src/internal/linear_algebra.cpp#L124) |
-| `residual_norm` | [134](../../../src/internal/linear_algebra.cpp#L134) |
-| `condition_estimate` | [154](../../../src/internal/linear_algebra.cpp#L154) |
-| `power_of_two_shift` | [170](../../../src/internal/linear_algebra.cpp#L170) |
-| `rotate` | [194](../../../src/internal/linear_algebra.cpp#L194) |
-| `symmetric_jacobi_eigen` | [239](../../../src/internal/linear_algebra.cpp#L239) |
+| `make_identity` | [126](../../../src/internal/linear_algebra.cpp#L126) |
+| `residual_norm` | [136](../../../src/internal/linear_algebra.cpp#L136) |
+| `condition_estimate` | [156](../../../src/internal/linear_algebra.cpp#L156) |
+| `power_of_two_shift` | [172](../../../src/internal/linear_algebra.cpp#L172) |
+| `rotate` | [196](../../../src/internal/linear_algebra.cpp#L196) |
+| `symmetric_jacobi_eigen` | [241](../../../src/internal/linear_algebra.cpp#L241) |
 | `matrix_all_finite` | [16](../../../src/internal/linear_algebra.cpp#L16) |
 
 ### `src/internal/linear_algebra.hpp`
@@ -751,16 +751,18 @@ and evidence](conditional_systems.md)
 
 | Function or overload family | Definition lines |
 |---|---|
-| `matrix_all_finite` | [19](../../../src/internal/vandermonde.cpp#L19) |
-| `failure_result` | [34](../../../src/internal/vandermonde.cpp#L34) |
-| `select_automatic_solver` | [39](../../../src/internal/vandermonde.cpp#L39) |
-| `resolve_solver` | [44](../../../src/internal/vandermonde.cpp#L44) |
-| `vandermonde_result` | [60](../../../src/internal/vandermonde.cpp#L60) |
-| `qr_linear_solve_result` | [67](../../../src/internal/vandermonde.cpp#L67) |
-| `svd_linear_solve_result` | [84](../../../src/internal/vandermonde.cpp#L84) |
-| `residual_is_accepted` | [101](../../../src/internal/vandermonde.cpp#L101) |
-| `make_conditional_vandermonde_matrix` | [114](../../../src/internal/vandermonde.cpp#L114) |
-| `solve_conditional_vandermonde_system` | [128](../../../src/internal/vandermonde.cpp#L128) |
+| `matrix_all_finite` | [20](../../../src/internal/vandermonde.cpp#L20) |
+| `failure_result` | [35](../../../src/internal/vandermonde.cpp#L35) |
+| `select_automatic_solver` | [40](../../../src/internal/vandermonde.cpp#L40) |
+| `resolve_solver` | [45](../../../src/internal/vandermonde.cpp#L45) |
+| `vandermonde_result` | [61](../../../src/internal/vandermonde.cpp#L61) |
+| `qr_linear_solve_result` | [68](../../../src/internal/vandermonde.cpp#L68) |
+| `svd_linear_solve_result` | [85](../../../src/internal/vandermonde.cpp#L85) |
+| `residual_is_accepted` | [102](../../../src/internal/vandermonde.cpp#L102) |
+| `weighted_vandermonde_input_failure` | [116](../../../src/internal/vandermonde.cpp#L116) |
+| `solve_scaled_dense_vandermonde` | [161](../../../src/internal/vandermonde.cpp#L161) |
+| `make_conditional_vandermonde_matrix` | [216](../../../src/internal/vandermonde.cpp#L216) |
+| `solve_conditional_vandermonde_system` | [230](../../../src/internal/vandermonde.cpp#L230) |
 
 ### `src/moment_reconstruction.cpp`
 

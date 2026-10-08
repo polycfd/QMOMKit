@@ -182,10 +182,12 @@ node-separation denominator is treated as singular when
 $$
 |x_i-x_j|
 \le
-\tau_{\mathrm{sing}}\max(1,|x_i|,|x_j|).
+\tau_{\mathrm{sing}}\max(|x_i|,|x_j|).
 $$
 
-The kernel reports this as a transposed Vandermonde singular failure. It does
+The threshold is relative to the nodes themselves, so the decision does not
+depend on the unit of the coordinate. The kernel reports this as a transposed
+Vandermonde singular failure. It does
 not perform weighted residual validation.
 
 ### Current QMOMKit role
@@ -246,18 +248,23 @@ over rows `k..n-1`. The solve fails when the selected pivot satisfies
 $$
 \max_{i \ge k} |a_{ik}|
 \le
-\tau_{\mathrm{sing}}\max(1,\|A\|_\infty),
+\tau_{\mathrm{sing}}\|A\|_\infty,
 $$
 
 where the infinity norm is computed from the original matrix passed into the
-solve. Failure returns the caller-provided singular message and no accepted
-solution.
+solve, so scaling the whole matrix does not change the decision. Failure
+returns the caller-provided singular message and no accepted solution.
 
 ### Current QMOMKit role
 
-The dense solver is used by the explicit `dense` policy. The public
-one-level conditional-moment utility also solves its weighted system directly
-with the dense solver.
+The dense solver is used by the explicit `dense` Vandermonde policy and by the
+condition estimate of detailed CQMOM diagnostics. The `dense` policy does not
+solve the weighted matrix as given: like Björck–Pereyra, it checks the weights
+relative to the largest weight and solves the unweighted Vandermonde system of
+the nodes divided by a power of two above the largest |node|, then divides by
+the weights. Its singularity decision therefore depends on neither the number
+density nor the unit of the coordinate. The condition estimate inverts the
+weighted matrix itself.
 
 ### Limitations and non-goals
 

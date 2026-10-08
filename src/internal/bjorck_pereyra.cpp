@@ -33,9 +33,11 @@ namespace
     return LinearSolveResult{DenseMatrix(rows, cols), false, message};
 }
 
+// Two nodes count as coincident relative to their own magnitude, so the test
+// does not depend on the unit of the coordinate.
 [[nodiscard]] double node_scale(const double lhs, const double rhs)
 {
-    return std::max({1.0, std::abs(lhs), std::abs(rhs)});
+    return std::max(std::abs(lhs), std::abs(rhs));
 }
 
 [[nodiscard]] bool denominator_is_singular(const double denominator, const double lhs, const double rhs, const double singular_tolerance)

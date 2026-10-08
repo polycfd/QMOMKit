@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 673 |
+| Unit logical tests | 676 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **909** |
+| **Runtime logical tests** | **912** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **910** |
+| **Total CTest registrations** | **913** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -722,6 +722,9 @@ CTest check; it is not 23 runtime tests.
 | `unit_vandermonde_invalid_inputs_fail` | `tests/unit/vandermonde.cpp` | `invalid_inputs_fail` | Checks that Vandermonde solver selection rejects the specified invalid input before producing result data. | — |
 | `unit_vandermonde_invalid_inputs_preserve_policy_diagnostics_and_counters` | `tests/unit/vandermonde.cpp` | `invalid_inputs_preserve_policy_diagnostics_and_counters` | Checks that Vandermonde solver selection rejects the specified invalid input before producing result data. | — |
 | `unit_vandermonde_dense_success_requires_finite_solution` | `tests/unit/vandermonde.cpp` | `dense_success_requires_finite_solution` | Verifies dense success requires finite solution. | — |
+| `unit_vandermonde_dense_and_bp_do_not_depend_on_number_density_or_unit` | `tests/unit/vandermonde.cpp` | `dense_and_bp_do_not_depend_on_number_density_or_unit` | Checks that the dense and Björck–Pereyra solvers solve one well-conditioned weighted system to its exact solution at coordinate scales 1e-8 to 1e8 and number densities 1e-16 to 1e8. | — |
+| `unit_vandermonde_node_separation_is_relative_to_node_magnitude` | `tests/unit/vandermonde.cpp` | `node_separation_is_relative_to_node_magnitude` | Checks that both solvers accept distinct nodes of magnitude 1e-20 and reject nodes that agree to fifteen digits, so node separation is judged relative to the nodes. | — |
+| `unit_vandermonde_dense_elimination_does_not_depend_on_matrix_scale` | `tests/unit/vandermonde.cpp` | `dense_elimination_does_not_depend_on_matrix_scale` | Checks that scaling a whole matrix by 1e-20 or 1e20 changes neither whether dense elimination finds it singular nor its condition estimate. | — |
 
 ### Public API
 

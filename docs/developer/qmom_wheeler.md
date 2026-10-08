@@ -154,11 +154,15 @@ guarantee that the originally requested node count was retained.
 `AbscissaBounds` adds an optional acceptance condition around ordinary Wheeler
 inversion. It is not a bounded Wheeler variant and does not change recurrence,
 Jacobi, or eigensolver mathematics. A fixed candidate succeeds only when its
-returned nodes lie in the configured interval within the shared `1e-12`
-abscissa-bound tolerance. Adaptive bounded reconstruction evaluates explicit
-candidate counts from the requested count down to one and accepts the highest
-admissible exact-count candidate. An out-of-interval node is never clipped or
-projected.
+returned nodes lie in the configured interval within a tolerance of
+`1e-12 * max(|lower|, |upper|)`, the same for QMOM and CQMOM. A node on a bound
+comes back off it by the rounding of the moments, amplified by the inversion,
+which scales with the nodes; a tolerance relative to the bounds therefore gives
+the same decision in any unit. Adaptive bounded reconstruction evaluates
+explicit candidate counts from the requested count down to one and accepts the
+highest admissible exact-count candidate. Like unbounded inversion, it needs
+`2n` moments for the requested count `n` and rejects a shorter sequence as
+invalid input. An out-of-interval node is never clipped or projected.
 
 The same internal one-dimensional selection is used by direct QMOM and by
 recursive CQMOM branches. `AbscissaBounds` remains separate from

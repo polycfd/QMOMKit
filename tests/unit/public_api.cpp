@@ -792,44 +792,45 @@ void test_qmom_rejects_zero_node_count()
     }
 }
 
-void test_qmom_bounded_adaptive_descends_from_supported_node_count()
+void test_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds()
 {
-    // Adaptive bounded selection descends to the largest node count the moment
-    // sequence supports. It must start at that count rather than rejecting one
-    // candidate per requested count, because a requested count far above the
-    // available moments would otherwise need a practically unbounded number of
-    // attempts. This test completing is the assertion for termination; the
-    // comparisons assert that skipping those counts selects the same rule.
+    // An n-node rule needs 2n moments, with or without bounds and in fixed or
+    // adaptive mode: four moments support two nodes and nothing more. Bounds do
+    // not turn a request the moments cannot support into a smaller rule, and do
+    // not change how it is rejected. The largest counts would overflow 2n; they
+    // are rejected without any attempt.
     const qmomkit::MomentSet moments{1.0, 0.8, 2.8, 4.4};
     const qmomkit::AbscissaBounds bounds{-10.0, 10.0};
-    qmomkit::QmomOptions options;
-    options.adaptive = true;
-
-    const qmomkit::QmomResult supported = qmomkit::compute_qmom(moments, 2, options, bounds);
-    assert(supported.ok());
-    assert(supported.weights.size() == 2);
-
-    // 3 is small enough that the unclamped descent also reaches two nodes, so it
-    // pins the selection; the larger counts are the ones that used to diverge.
-    for (const std::size_t requested :
-         {std::size_t{3}, std::size_t{64}, std::numeric_limits<std::size_t>::max() / 2 + 1, std::numeric_limits<std::size_t>::max()})
+    for (const bool adaptive : {false, true})
     {
-        const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, requested, options, bounds);
-        assert(result.ok());
-        assert(result.weights.size() == supported.weights.size());
-        for (std::size_t node = 0; node < supported.weights.size(); ++node)
+        for (const bool automatic_scaling : {false, true})
         {
-            assert_near(result.abscissas[node], supported.abscissas[node], 1.0e-13);
-            assert_near(result.weights[node], supported.weights[node], 1.0e-13);
+            qmomkit::QmomOptions options;
+            options.adaptive = adaptive;
+            options.automatic_scaling = automatic_scaling;
+
+            const qmomkit::QmomResult supported = qmomkit::compute_qmom(moments, 2, options, bounds);
+            assert(supported.ok());
+            assert(supported.weights.size() == 2);
+
+            for (const std::size_t requested :
+                 {std::size_t{3}, std::size_t{64}, std::numeric_limits<std::size_t>::max() / 2 + 1, std::numeric_limits<std::size_t>::max()})
+            {
+                const qmomkit::QmomResult unbounded = qmomkit::compute_qmom(moments, requested, options);
+                const qmomkit::QmomResult bounded = qmomkit::compute_qmom(moments, requested, options, bounds);
+                for (const qmomkit::QmomResult* const result : {&unbounded, &bounded})
+                {
+                    assert(!result->ok());
+                    assert(result->status == qmomkit::QmomStatus::invalid_input);
+                    assert(result->weights.empty());
+                }
+                const bool overflows = requested > std::numeric_limits<std::size_t>::max() / 2;
+                assert(bounded.message == unbounded.message);
+                assert(bounded.message ==
+                       (overflows ? "max_nodes is too large to derive the required moment count." : "Moment sequence has fewer than 2*n entries."));
+            }
         }
     }
-
-    // A sequence too short for even one node keeps reporting the evaluator's
-    // failure instead of ending the descent without an attempt.
-    const qmomkit::QmomResult undersized = qmomkit::compute_qmom(qmomkit::MomentSet{1.0}, 4, options, bounds);
-    assert(!undersized.ok());
-    assert(undersized.status == qmomkit::QmomStatus::invalid_input);
-    assert(!undersized.message.empty());
 }
 
 void test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds()
@@ -1354,7 +1355,7 @@ int main(const int argc, char** argv)
             {"qmom_public_api_matches_wheeler", test_qmom_public_api_matches_wheeler},
             {"qmom_rejects_node_count_with_unrepresentable_moment_requirement", test_qmom_rejects_node_count_with_unrepresentable_moment_requirement},
             {"qmom_rejects_zero_node_count", test_qmom_rejects_zero_node_count},
-            {"qmom_bounded_adaptive_descends_from_supported_node_count", test_qmom_bounded_adaptive_descends_from_supported_node_count},
+            {"qmom_rejects_fewer_than_2n_moments_with_or_without_bounds", test_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds},
             {"qmom_automatic_scaling_restores_physical_abscissas_and_bounds", test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds},
             {"qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments",
              test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments},

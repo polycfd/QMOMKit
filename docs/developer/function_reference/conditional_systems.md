@@ -27,8 +27,13 @@ falls through to dense; the configuration parser rejects unknown textual
 values. Returned requested solver, selected solver, and algorithm identify
 different stages of that decision.
 
-- **Dense:** check matching dimensions, build `A`, call `solve_dense` with
-  `singular_tolerance`. The adapter does not apply residual acceptance.
+- **Dense:** apply the same input and weight checks as BP below. Factor
+  `A = S*V*D` with `D = diag(w)`, `S = diag(s^p)` and `V` the unweighted
+  Vandermonde matrix of `x/s`, where `s` is the power of two above the largest
+  `abs(x)`; solve `V*Y = S^-1*R` with `solve_dense` and `singular_tolerance`,
+  then take `C = D^-1*Y`. Both scalings are exact, and the first row of `V` is
+  all ones, so the singularity decision depends on neither the number density
+  nor the unit. The adapter does not apply residual acceptance.
 - **Pivoted QR / SVD:** check dimensions, build `A`, solve using each kernel's
   default rank controls. `singular_tolerance` is not passed as their rank
   tolerance. Rank deficiency maps to failure, not a lower-rank conditional rule.
@@ -95,7 +100,8 @@ previous row, and installs it in the current row. Changing these iteration
 directions would change which already transformed values are consumed.
 
 Each denominator must exceed
-`singular_tolerance*max(1,abs(lhs_node),abs(rhs_node))` in magnitude. Repeated
+`singular_tolerance*max(abs(lhs_node),abs(rhs_node))` in magnitude, a threshold
+relative to the nodes that does not depend on the unit. Repeated
 or insufficiently separated nodes fail immediately; there is no sorting or
 merging. A final finite-matrix check rejects arithmetic overflow. Success
 returns `Y` in the original node order. Tests in
@@ -109,8 +115,8 @@ amplification and subtractive cancellation remain numerical sensitivities.
 Defined in [`linear_algebra.cpp`](../../../src/internal/linear_algebra.cpp),
 declared in [`linear_algebra.hpp`](../../../src/internal/linear_algebra.hpp).
 `solve_dense` performs partial row pivoting: each pivot column scans remaining
-rows for largest absolute entry, rejects a pivot `<=
-tolerance*max(1,||A||inf)`, swaps full matrix and RHS rows, and eliminates the
+rows for largest absolute entry, rejects a pivot `<= tolerance*||A||inf`,
+swaps full matrix and RHS rows, and eliminates the
 lower rows across all RHS columns. Reverse row traversal performs triangular
 back substitution.
 
@@ -234,4 +240,4 @@ through their callers.
 | SVD rank, ordering and metadata guards | `numerical_rank_from_singular_values`, `singular_values_are_nonnegative_descending`, `full_rank_singular_values_are_safe`, `valid_svd_status`, `rank_metadata_is_consistent`, `factorization_metadata_is_consistent`, `diagnostic_rank_from_metadata` validate reusable solve inputs | SVD malformed metadata tests |
 | `qr_linear_solve_result`, `svd_linear_solve_result`, `vandermonde_result` | Convert kernel status/payload to adapter result; rank failure stays failure | Forced-policy tests |
 | `failure_result`, `qr_failure_result`, `factorization_failure_result`, `solve_failure_result`, `invalid_result`, `valid_options` | Construct status-specific empty/zero diagnostic payloads and validate relevant options | Relevant failure tests; no assertion of valid numerical payload on failure |
-| BP `node_scale`, `denominator_is_singular` | Relative node-difference threshold with absolute floor one | Repeated/clustered-node tests |
+| BP `node_scale`, `denominator_is_singular` | Node-difference threshold relative to the larger node magnitude | Repeated/clustered-node and unit-scaling tests |

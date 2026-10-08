@@ -3,6 +3,7 @@
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -905,7 +906,8 @@ void test_recursive_bounded_support_applies_to_conditional_phase_space_dimension
 void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
 {
     const qmomkit::AbscissaBounds interval{2.0, 5.0};
-    constexpr double tolerance = 1.0e-12;
+    // The acceptance margin is relative to the larger bound magnitude.
+    const double tolerance = 1.0e-12 * std::max(std::abs(interval.lower), std::abs(interval.upper));
     const double weight = 0.01;
     const qmomkit::PhaseSpaceHierarchy hierarchy({1});
     const qmomkit::CqmomAbscissaBounds support = bounded_support_for_dimension(1, 0, interval);

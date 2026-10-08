@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 673 |
+| Unit logical tests | 676 |
 | Component/regression logical tests | 46 |
-| Verification logical tests | 188 |
-| **Runtime logical tests** | **907** |
+| Verification logical tests | 190 |
+| **Runtime logical tests** | **912** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **908** |
+| **Total CTest registrations** | **913** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -164,6 +164,7 @@ renamed test rather than a deleted one.
 | `verification_qmom_quadrature_bounds_fixed_bounded_qmom_accepts_nodes_inside_interval` | `tests/verification/qmom/quadrature_bounds.cpp` | `fixed_bounded_qmom_accepts_nodes_inside_interval` | Verifies that bounded QMOM reconstruction accepts nodes within the configured interval. | — |
 | `verification_qmom_quadrature_bounds_fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping` | `tests/verification/qmom/quadrature_bounds.cpp` | `fixed_bounded_qmom_rejects_nodes_outside_interval_without_clipping` | Verifies that bounded QMOM reconstruction rejects out-of-bound nodes rather than clipping them. | — |
 | `verification_qmom_quadrature_bounds_adaptive_bounded_qmom_uses_highest_admissible_count` | `tests/verification/qmom/quadrature_bounds.cpp` | `adaptive_bounded_qmom_uses_highest_admissible_count` | Verifies that adaptive bounded QMOM selects the highest admissible quadrature order. | — |
+| `verification_qmom_quadrature_bounds_bounded_qmom_acceptance_does_not_depend_on_the_unit` | `tests/verification/qmom/quadrature_bounds.cpp` | `bounded_qmom_acceptance_does_not_depend_on_the_unit` | Verifies that bounded QMOM gives the same accept/reject decision at coordinate scales 1e-6, 1 and 1e6: a position half the relative margin beyond a bound is accepted, twice the margin is rejected, and rules with a position on a bound are accepted. | — |
 | `verification_qmom_moment_space_boundary_coalescing_nodes_preserve_supplied_moments` | `tests/verification/qmom/moment_space_boundary.cpp` | `coalescing_nodes_preserve_supplied_moments` | Verifies that every accepted fixed-count rule over a node-coalescence sweep reproduces the moments its node count represents, with non-negative weights summing to m_0 and sorted abscissas, and that a rejection reports non-realizability. | — |
 | `verification_qmom_moment_space_boundary_adaptive_reduction_preserves_represented_moments` | `tests/verification/qmom/moment_space_boundary.cpp` | `adaptive_reduction_preserves_represented_moments` | Verifies that adaptive inversion accepts every point of the same node-coalescence sweep, including where fixed-count inversion rejects. | — |
 | `verification_qmom_moment_space_boundary_accepted_reduction_respects_weight_ratio` | `tests/verification/qmom/moment_space_boundary.cpp` | `accepted_reduction_respects_weight_ratio` | Verifies that every accepted multi-node rule satisfies the documented adaptive acceptance criterion min(w)/max(w) > rmin as a middle weight collapses. | — |
@@ -177,6 +178,7 @@ renamed test rather than a deleted one.
 | `verification_qmom_compute_failure_negative_zeroth_moment` | `tests/verification/qmom/qmom_compute_failures.cpp` | `negative zeroth moment` | Verifies that the public QMOM workflow rejects a non-realizable QMOM sequence with negative zeroth moment. | — |
 | `verification_qmom_compute_failure_negative_variance` | `tests/verification/qmom/qmom_compute_failures.cpp` | `negative variance` | Verifies that the public QMOM workflow rejects a non-realizable QMOM sequence with negative variance. | — |
 | `verification_qmom_compute_failure_insufficient_moments` | `tests/verification/qmom/qmom_compute_failures.cpp` | `insufficient moments` | Verifies that the public QMOM workflow rejects a QMOM request with too few raw moments. | — |
+| `verification_qmom_compute_failure_insufficient_moments_bounded_adaptive` | `tests/verification/qmom/qmom_compute_failures.cpp` | `insufficient moments bounded adaptive` | Verifies that bounded adaptive QMOM rejects a request with too few raw moments instead of returning the smaller rule they support. | — |
 | `verification_qmom_compute_failure_zero_node_count` | `tests/verification/qmom/qmom_compute_failures.cpp` | `zero node count` | Verifies that the public QMOM workflow rejects a QMOM request for zero nodes. | — |
 
 ### QMOM
@@ -571,7 +573,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_recursive_quadrature_recursive_bounded_support_uses_phase_space_coordinate_index` | `tests/unit/recursive_quadrature.cpp` | `recursive_bounded_support_uses_phase_space_coordinate_index` | Checks that bounded support uses phase-space coordinate index in recursive CQMOM reconstruction. | — |
 | `unit_recursive_quadrature_fixed_public_terminal_paths_align_with_physical_storage` | `tests/unit/recursive_quadrature.cpp` | `fixed_public_terminal_paths_align_with_physical_storage` | Checks fixed CQMOM terminal paths index the same weights and abscissas as the public physical storage. | — |
 | `unit_recursive_quadrature_recursive_bounded_support_applies_to_conditional_phase_space_dimension` | `tests/unit/recursive_quadrature.cpp` | `recursive_bounded_support_applies_to_conditional_phase_space_dimension` | Checks that bounded support applies to conditional phase-space dimension in recursive CQMOM reconstruction. | — |
-| `unit_recursive_quadrature_recursive_bounded_support_returned_node_tolerance_and_no_clipping` | `tests/unit/recursive_quadrature.cpp` | `recursive_bounded_support_returned_node_tolerance_and_no_clipping` | Checks bounded recursive reconstruction returns nodes within the configured tolerance without post-reconstruction clipping. | — |
+| `unit_recursive_quadrature_recursive_bounded_support_returned_node_tolerance_and_no_clipping` | `tests/unit/recursive_quadrature.cpp` | `recursive_bounded_support_returned_node_tolerance_and_no_clipping` | Checks bounded recursive reconstruction accepts nodes within the margin of `1e-12` times the larger bound magnitude, rejects them beyond it, and never clips them. | — |
 | `unit_recursive_quadrature_one_dimensional_hierarchy_reduces_to_stage_1_ordering` | `tests/unit/recursive_quadrature.cpp` | `one_dimensional_hierarchy_reduces_to_stage_1_ordering` | Checks that one-dimensional hierarchy reduces to stage 1 ordering in recursive CQMOM reconstruction. | — |
 | `unit_recursive_quadrature_two_dimensional_hierarchy_indexing` | `tests/unit/recursive_quadrature.cpp` | `two_dimensional_hierarchy_indexing` | Checks that recursive CQMOM reconstruction maps the tested indices to the expected storage positions. | — |
 | `unit_recursive_quadrature_three_dimensional_hierarchy_indexing` | `tests/unit/recursive_quadrature.cpp` | `three_dimensional_hierarchy_indexing` | Checks that recursive CQMOM reconstruction maps the tested indices to the expected storage positions. | — |
@@ -720,6 +722,9 @@ CTest check; it is not 23 runtime tests.
 | `unit_vandermonde_invalid_inputs_fail` | `tests/unit/vandermonde.cpp` | `invalid_inputs_fail` | Checks that Vandermonde solver selection rejects the specified invalid input before producing result data. | — |
 | `unit_vandermonde_invalid_inputs_preserve_policy_diagnostics_and_counters` | `tests/unit/vandermonde.cpp` | `invalid_inputs_preserve_policy_diagnostics_and_counters` | Checks that Vandermonde solver selection rejects the specified invalid input before producing result data. | — |
 | `unit_vandermonde_dense_success_requires_finite_solution` | `tests/unit/vandermonde.cpp` | `dense_success_requires_finite_solution` | Verifies dense success requires finite solution. | — |
+| `unit_vandermonde_dense_and_bp_do_not_depend_on_number_density_or_unit` | `tests/unit/vandermonde.cpp` | `dense_and_bp_do_not_depend_on_number_density_or_unit` | Checks that the dense and Björck–Pereyra solvers solve one well-conditioned weighted system to its exact solution at coordinate scales 1e-8 to 1e8 and number densities 1e-16 to 1e8. | — |
+| `unit_vandermonde_node_separation_is_relative_to_node_magnitude` | `tests/unit/vandermonde.cpp` | `node_separation_is_relative_to_node_magnitude` | Checks that both solvers accept distinct nodes of magnitude 1e-20 and reject nodes that agree to fifteen digits, so node separation is judged relative to the nodes. | — |
+| `unit_vandermonde_dense_elimination_does_not_depend_on_matrix_scale` | `tests/unit/vandermonde.cpp` | `dense_elimination_does_not_depend_on_matrix_scale` | Checks that scaling a whole matrix by 1e-20 or 1e20 changes neither whether dense elimination finds it singular nor its condition estimate. | — |
 
 ### Public API
 
@@ -750,7 +755,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_qmom_public_api_matches_wheeler` | `tests/unit/public_api.cpp` | `qmom_public_api_matches_wheeler` | Checks that public API matches wheeler in the public QMOMKit API. | — |
 | `unit_public_api_qmom_rejects_node_count_with_unrepresentable_moment_requirement` | `tests/unit/public_api.cpp` | `qmom_rejects_node_count_with_unrepresentable_moment_requirement` | Checks that rejects node count with unrepresentable moment requirement in the public QMOMKit API. | — |
 | `unit_public_api_qmom_rejects_zero_node_count` | `tests/unit/public_api.cpp` | `qmom_rejects_zero_node_count` | Checks that a zero node count is rejected as invalid input for every combination of adaptive inversion, automatic scaling, and bounded support, and that no such result reports success with an empty quadrature. | — |
-| `unit_public_api_qmom_bounded_adaptive_descends_from_supported_node_count` | `tests/unit/public_api.cpp` | `qmom_bounded_adaptive_descends_from_supported_node_count` | Checks that adaptive bounded selection starts its descent at the largest node count the moment sequence supports, so that a requested count far above the available moments terminates and selects the same rule, and that a sequence too short for one node still fails. | — |
+| `unit_public_api_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds` | `tests/unit/public_api.cpp` | `qmom_rejects_fewer_than_2n_moments_with_or_without_bounds` | Checks that QMOM rejects fewer than `2n` moments as invalid input, with the same message with and without abscissa bounds, in fixed and adaptive mode and with and without automatic scaling, including requested counts whose `2n` would overflow. | — |
 | `unit_public_api_qmom_automatic_scaling_restores_physical_abscissas_and_bounds` | `tests/unit/public_api.cpp` | `qmom_automatic_scaling_restores_physical_abscissas_and_bounds` | Checks that automatic scaling restores physical abscissas and bounds in the public QMOMKit API. | — |
 | `unit_public_api_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments` | `tests/unit/public_api.cpp` | `qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments` | Checks that automatic scaling is covariant and uses existing scale moments in the public QMOMKit API. | — |
 | `unit_public_api_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction` | `tests/unit/public_api.cpp` | `qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction` | Checks that automatic scaling rejects nonzero underflow before reconstruction in the public QMOMKit API. | — |

@@ -50,7 +50,9 @@ LinearSolveResult solve_dense(DenseMatrix matrix, DenseMatrix rhs, const double 
     performance::record_dense_linear_solve();
     const std::size_t n = matrix.rows();
     const std::size_t rhs_cols = rhs.cols();
-    const double scale = std::max(1.0, matrix_infinity_norm(matrix));
+    // Pivots are compared with the matrix itself, so scaling the whole matrix,
+    // for example by the number density it carries, does not change the result.
+    const double scale = matrix_infinity_norm(matrix);
 
     for (std::size_t pivot_col = 0; pivot_col < n; ++pivot_col)
     {

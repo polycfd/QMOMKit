@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 685 |
+| Unit logical tests | 686 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **921** |
+| **Runtime logical tests** | **922** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **922** |
+| **Total CTest registrations** | **923** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -790,6 +790,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_all_supported_distribution_families_parse` | `tests/unit/configuration.cpp` | `all_supported_distribution_families_parse` | Verifies all supported distribution families parse. | — |
 | `unit_configuration_qmom_mixture_initialization_matches_direct_api` | `tests/unit/configuration.cpp` | `qmom_mixture_initialization_matches_direct_api` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
 | `unit_configuration_mixture_zero_density_component_is_skipped` | `tests/unit/configuration.cpp` | `mixture_zero_density_component_is_skipped` | Checks that mixture zero density component is skipped in configuration loading. | — |
+| `unit_configuration_mixture_level_distribution_keys_are_reported` | `tests/unit/configuration.cpp` | `mixture_level_distribution_keys_are_reported` | Checks that a top-level `initial.number_density` or `initial.mean` with `type = mixture` is reported by `parse_qmom` and `parse_qmom_initial_condition`, that a CQMOM mixture marginal reports its own `family`, and that both mixtures parse without those keys. | — |
 | `unit_configuration_cqmom_rejects_the_removed_moment_storage_key` | `tests/unit/configuration.cpp` | `cqmom_rejects_the_removed_moment_storage_key` | Checks that a configuration carrying the removed `cqmom.moment_storage` key is rejected by every CQMOM loader, and that the same configuration without it still loads. | — |
 | `unit_configuration_valid_cqmom_matches_programmatic_case` | `tests/unit/configuration.cpp` | `valid_cqmom_matches_programmatic_case` | Checks that valid CQMOM matches programmatic case in configuration loading. | — |
 | `unit_configuration_cqmom_independent_product_initialization_matches_direct_api` | `tests/unit/configuration.cpp` | `cqmom_independent_product_initialization_matches_direct_api` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |

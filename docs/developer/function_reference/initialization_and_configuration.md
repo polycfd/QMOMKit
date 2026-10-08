@@ -153,7 +153,8 @@ errors are still errors. Without explicit data, `parse_distribution`,
 `parse_mixture`, and `parse_independent_product` build typed specs. Numbered
 mixture components and product dimensions must be contiguous from zero.
 Family-specific allowed-key checks prevent parameters for one family silently
-configuring another.
+configuring another, and `parse_mixture` reports the distribution and
+`number_density` keys at a mixture's own level, which its components replace.
 
 `parse_explicit_tensor` validates rank/extents, checks extent-product overflow,
 and loops over explicit moments to validate rank, bounds, and finiteness,

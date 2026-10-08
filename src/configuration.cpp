@@ -987,6 +987,18 @@ void reject_unconsumed_indexed_entries(ParsedFile& parsed, const std::string& in
 std::optional<DistributionMixture> parse_mixture(ParsedFile& parsed, const std::string& source_name,
                                                  const std::string& initialization_prefix = "initial")
 {
+    // A mixture takes each distribution and number density from its component
+    // sections, so the same keys at the mixture's own level would be ignored.
+    for (const auto& scalar : parsed.scalars)
+    {
+        if (component_key_allowed(scalar.first, initialization_prefix))
+        {
+            add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, scalar.second.line,
+                      "Key '" + scalar.first +
+                          "' has no effect with 'type = mixture'; each mixture component sets its own distribution and number_density.");
+        }
+    }
+
     const std::string component_section_prefix = mixture_component_prefix(initialization_prefix);
     std::map<std::size_t, Entry> component_sections;
     for (const auto& item : parsed.sections)

@@ -332,6 +332,10 @@ m_0 = sum_r number_density_r
 Component sections must be contiguous starting at
 `[initial.mixture.component.0]`. Each component `number_density` must be
 finite and non-negative, and at least one component must have positive density.
+Since the components set every distribution and number density, `family`,
+`number_density` and the distribution parameters are reported as errors
+directly under `[initial]` when `type = mixture`, and likewise directly under
+an `[initial.dimension.N]` mixture marginal.
 
 ### Independent marginals for CQMOM
 

@@ -490,6 +490,56 @@ scale = 2.0
     assert_near(configured.value().moments[3], 144.0);
 }
 
+// A mixture takes each distribution and number density from its components,
+// so the same keys at the mixture's own level would have no effect. They are
+// reported for a QMOM mixture and for a CQMOM mixture marginal.
+void test_mixture_level_distribution_keys_are_reported()
+{
+    const std::string components = R"(
+[initial.mixture.component.0]
+family = gamma
+number_density = 1.5
+shape = 2.0
+scale = 0.4
+)";
+    for (const std::string& key : {std::string("number_density = 10.0"), std::string("mean = 3.0")})
+    {
+        const std::string text = "[phase_space]\nnode_counts = 1\n[initial]\ntype = mixture\n" + key + "\n" + components;
+        const std::string message = "Key 'initial." + key.substr(0, key.find(' ')) + "' has no effect with 'type = mixture'";
+        assert(has_message_fragment(qmomkit::config::parse_qmom(text), message));
+        assert(has_message_fragment(qmomkit::config::parse_qmom_initial_condition(text), message));
+    }
+    assert(qmomkit::config::parse_qmom("[phase_space]\nnode_counts = 1\n[initial]\ntype = mixture\n" + components).ok());
+
+    const std::string cqmom_text = R"(
+[phase_space]
+node_counts = 1, 1
+
+[initial]
+type = independent_product
+number_density = 2.75
+
+[initial.dimension.0]
+family = normal
+mean = -0.4
+standard_deviation = 0.7
+
+[initial.dimension.1]
+type = mixture
+
+[initial.dimension.1.mixture.component.0]
+family = lognormal
+number_density = 1.5
+mu_log = -0.3
+sigma_log = 0.25
+)";
+    assert(qmomkit::config::parse_cqmom_initial_condition(cqmom_text).ok());
+    std::string with_family = cqmom_text;
+    with_family.insert(with_family.find("type = mixture\n") + std::string("type = mixture\n").size(), "family = normal\n");
+    assert(has_message_fragment(qmomkit::config::parse_cqmom_initial_condition(with_family),
+                                "Key 'initial.dimension.1.family' has no effect with 'type = mixture'"));
+}
+
 // cqmom.moment_storage selected between two moment representations. Only one
 // remains, so the key is no longer recognized and is rejected like any other
 // unknown key, through every CQMOM loader.
@@ -4367,6 +4417,7 @@ int main(const int argc, char** argv)
             {"all_supported_distribution_families_parse", test_all_supported_distribution_families_parse},
             {"qmom_mixture_initialization_matches_direct_api", test_qmom_mixture_initialization_matches_direct_api},
             {"mixture_zero_density_component_is_skipped", test_mixture_zero_density_component_is_skipped},
+            {"mixture_level_distribution_keys_are_reported", test_mixture_level_distribution_keys_are_reported},
             {"cqmom_rejects_the_removed_moment_storage_key", test_cqmom_rejects_the_removed_moment_storage_key},
             {"valid_cqmom_matches_programmatic_case", test_valid_cqmom_matches_programmatic_case},
             {"cqmom_independent_product_initialization_matches_direct_api", test_cqmom_independent_product_initialization_matches_direct_api},

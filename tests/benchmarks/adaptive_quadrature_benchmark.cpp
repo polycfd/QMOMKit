@@ -1,4 +1,4 @@
-#include "internal/cqmom_active_counts.hpp"
+#include "../cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "qmomkit/qmomkit.hpp"
 
@@ -849,8 +849,8 @@ void validate_cqmom_fallback_fixture(const CqmomFallbackFixture& fixture)
         throw std::runtime_error("CQMOM direct/fallback fixture returned an unexpected terminal-node count.");
     }
     compare_cqmom_quadratures(direct.quadrature, fallback.quadrature);
-    compare_cqmom_active_counts(qmomkit::internal::active_branch_counts_from_quadrature(direct.quadrature),
-                                qmomkit::internal::active_branch_counts_from_quadrature(fallback.quadrature));
+    compare_cqmom_active_counts(qmomkit::test::active_branch_counts_from_quadrature(direct.quadrature),
+                                qmomkit::test::active_branch_counts_from_quadrature(fallback.quadrature));
     compare_cqmom_reconstructed_moments(fixture, direct.quadrature, fallback.quadrature);
 }
 
@@ -910,7 +910,7 @@ void validate_expected_cqmom_counts(const CqmomEventFixture& fixture, const qmom
     {
         throw std::runtime_error("CQMOM fixture produced an unexpected terminal-node count.");
     }
-    const std::vector<qmomkit::CqmomActiveBranchCount> after_counts = qmomkit::internal::active_branch_counts_from_quadrature(quadrature);
+    const std::vector<qmomkit::CqmomActiveBranchCount> after_counts = qmomkit::test::active_branch_counts_from_quadrature(quadrature);
     for (const CqmomExpectedBranchCount& expected : fixture.expected_after_counts)
     {
         const std::optional<qmomkit::CqmomActiveBranchCount> count =

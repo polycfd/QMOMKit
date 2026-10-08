@@ -1,6 +1,5 @@
 #include "internal/recursive_quadrature.hpp"
 
-#include "internal/cqmom_active_counts.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 

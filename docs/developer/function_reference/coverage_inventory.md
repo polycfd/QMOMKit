@@ -519,19 +519,6 @@ contracts, and evidence](conditional_systems.md)
 | `denominator_is_singular` | [41](../../../src/internal/bjorck_pereyra.cpp#L41) |
 | `solve_bjorck_pereyra` | [48](../../../src/internal/bjorck_pereyra.cpp#L48) |
 
-### `src/internal/cqmom_active_counts.hpp`
-
-[Source](../../../src/internal/cqmom_active_counts.hpp) · [Responsibilities,
-contracts, and evidence](state_and_representations.md)
-
-| Function or overload family | Definition lines |
-|---|---|
-| `parent_path_at_level` | [14](../../../src/internal/cqmom_active_counts.hpp#L14) |
-| `find_active_branch_accumulator` | [33](../../../src/internal/cqmom_active_counts.hpp#L33) |
-| `contains_node_index` | [49](../../../src/internal/cqmom_active_counts.hpp#L49) |
-| `validate_contiguous_child_indices` | [54](../../../src/internal/cqmom_active_counts.hpp#L54) |
-| `active_branch_counts_from_quadrature` | [67](../../../src/internal/cqmom_active_counts.hpp#L67) |
-
 ### `src/internal/cqmom_case.hpp`
 
 [Source](../../../src/internal/cqmom_case.hpp) · [Responsibilities,

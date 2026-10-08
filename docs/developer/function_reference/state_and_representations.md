@@ -67,33 +67,24 @@ rectangular storage and throw for ragged storage. Iterate terminal arrays for
 an adaptive result. Neither the container nor a nonempty array alone proves
 that the producing reconstruction succeeded.
 
-## Deriving active counts from paths — Level A
+## Active branch counts — Level A
 
 States take their active branch counts from the reconstruction that accepted
-their quadrature (see [CQMOM reconstruction](cqmom_reconstruction.md)). The
-same counts can be derived independently from the terminal paths, which the
-tests and benchmarks use to check the recorded counts.
+their quadrature (see [CQMOM reconstruction](cqmom_reconstruction.md)). Each
+record describes one reachable branch by level, parent path, and physical
+dimension, with its configured and accepted node counts; it describes topology,
+not inferred numerical rank. A fixed quadrature has no records.
 
-Internal `active_branch_counts_from_quadrature`, defined in
-[cqmom_active_counts.hpp](../../../src/internal/cqmom_active_counts.hpp),
-returns an empty constraint vector for fixed quadratures. For adaptive
-quadratures it checks dimension and terminal-path count, then loops over every
-terminal path and conditioning level. Each encountered child index is
-accumulated once under its branch key `(level,parent path,physical dimension)`.
-`parent_path_at_level` constructs that prefix; `find_active_branch_accumulator`
-and `contains_node_index` perform linear searches preserving first-encounter
-order.
-
-`validate_contiguous_child_indices` sorts each branch's unique child indices
-and requires `0,1,...,n-1`; the resulting count is therefore more than an
-unchecked maximum-index-plus-one. Out-of-capacity, incomplete, or noncontiguous
-paths throw. The resulting records describe reachable topology, not inferred
-numerical rank. They do not check path/value alignment; fixed mode bypasses
-this derivation. Evidence: topology and malformed-path cases in [phase-space
-tests](../../../tests/unit/phase_space_evolution.cpp) and [recursive
-tests](../../../tests/unit/recursive_quadrature.cpp). Large ragged hierarchies
-could make the linear accumulator searches material; no scaling measurement was
-performed.
+The test helper `qmomkit::test::active_branch_counts_from_quadrature`, in
+[tests/cqmom_active_counts.hpp](../../../tests/cqmom_active_counts.hpp),
+derives the same records independently from the terminal paths: it gathers
+each branch's child indices in first-encounter order and requires them to be
+`0,1,...,n-1` within the configured capacity. Tests and benchmarks compare its
+result with the counts a state holds. Evidence: [phase-space
+tests](../../../tests/unit/phase_space_evolution.cpp) check every accepted
+state this way, and [recursive
+tests](../../../tests/unit/recursive_quadrature.cpp) check the recorded counts
+and their order directly.
 
 ## Case and accepted state — Levels A/B
 

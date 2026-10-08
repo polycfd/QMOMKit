@@ -1,14 +1,16 @@
 #pragma once
 
-#include "performance.hpp"
 #include "qmomkit/cqmom.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <stdexcept>
-#include <string>
 #include <vector>
 
-namespace qmomkit::internal
+// Active branch counts derived from the terminal paths of a CQMOM quadrature.
+// The library records these counts while it reconstructs; tests and benchmarks
+// derive them independently with this helper to check the recorded counts.
+namespace qmomkit::test
 {
 
 [[nodiscard]] inline ConditioningPath parent_path_at_level(const ConditioningPathView terminal_path, const std::size_t conditioning_level)
@@ -120,8 +122,7 @@ inline void validate_contiguous_child_indices(const ActiveBranchAccumulator& acc
         counts.push_back({accumulator.conditioning_level, accumulator.parent_path, accumulator.phase_space_dimension,
                           accumulator.configured_node_count, accumulator.child_node_indices.size()});
     }
-    performance::record_active_count_derivation();
     return counts;
 }
 
-} // namespace qmomkit::internal
+} // namespace qmomkit::test

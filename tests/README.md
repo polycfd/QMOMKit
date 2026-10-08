@@ -131,6 +131,7 @@ tests/
     CMakeLists.txt
     README.md
     test_case_dispatch.hpp
+    cqmom_active_counts.hpp
     unit/
         CMakeLists.txt
         abscissa_bounds.cpp

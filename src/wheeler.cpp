@@ -431,10 +431,10 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         rejected.quadrature.message = "Bounded-support quadrature requires a positive node count.";
         return rejected;
     }
-    // No candidate count exceeds the larger of the two requested counts, so one
-    // check covers every candidate. Too few moments are rejected exactly as the
-    // unbounded Wheeler path rejects them, not answered with the rule the
-    // available moments happen to support.
+    // No candidate count exceeds the larger of the initial and configured
+    // counts, so one check covers every candidate. Too few moments are rejected
+    // exactly as the unbounded Wheeler path rejects them, not answered with the
+    // rule the available moments happen to support.
     const std::optional<std::size_t> required_moment_count =
         internal::checked_size_multiply(2, std::max(request.initial_node_count, request.configured_node_count));
     if (!required_moment_count.has_value() || moment_sequence.size() < *required_moment_count)

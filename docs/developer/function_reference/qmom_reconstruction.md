@@ -158,8 +158,8 @@ bounds, then inverts exactly the `2n`-moment prefix for its count. Success
 requires an exact returned count and all nodes in `[lower-t,upper+t]` with
 `t = 1e-12*max(|lower|,|upper|)`, a margin relative to the bounds so that the
 decision does not depend on the unit. It does not clip nodes or invoke
-`check_realizability`. Adaptive Wheeler weight/separation
-checks still apply because the supplied Wheeler options retain adaptivity.
+`check_realizability`. Adaptive Wheeler weight/separation checks still apply
+because the supplied Wheeler options retain adaptivity.
 
 Fixed selection evaluates the configured count once. Adaptive selection
 descends to one, keeping the first rejected candidate for reduction

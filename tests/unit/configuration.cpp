@@ -1964,10 +1964,15 @@ void test_cqmom_adaptive_option_controls_the_reconstruction()
     assert(fixed_result.ok());
     assert(fixed_result.quadrature.has_rectangular_storage());
 
-    // The former branch-count key names its replacement.
-    const auto removed = qmomkit::config::parse_cqmom(cqmom_option_text("adaptive_branch_counts = false\n", "[qmom]\nadaptive = false\n"));
+    // The former branch-count key names its replacement, also when only the
+    // initial condition is parsed.
+    const std::string removed_text = cqmom_option_text("adaptive_branch_counts = false\n", "[qmom]\nadaptive = false\n");
+    const auto removed = qmomkit::config::parse_cqmom(removed_text);
     assert(!removed.ok());
     assert(has_message_fragment(removed, "phase_space.adaptive_branch_counts was removed; use [qmom] adaptive."));
+    const auto removed_initial = qmomkit::config::parse_cqmom_initial_condition(removed_text);
+    assert(!removed_initial.ok());
+    assert(has_message_fragment(removed_initial, "phase_space.adaptive_branch_counts was removed; use [qmom] adaptive."));
 }
 
 void test_cqmom_prepared_case_parsing_validates_coordinate_realizability_rank()

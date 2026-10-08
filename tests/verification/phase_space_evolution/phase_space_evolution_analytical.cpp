@@ -3319,7 +3319,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
 
     const qmomkit::CqmomPreparedCase& cqmom_prepared_case = configured.value();
     if (!cqmom_prepared_case.qmom_options().automatic_scaling || !cqmom_prepared_case.qmom_options().adaptive ||
-        !cqmom_prepared_case.qmom_options().adaptive || cqmom_prepared_case.hierarchy().conditioning_order() != std::vector<std::size_t>({1, 0}))
+        cqmom_prepared_case.hierarchy().conditioning_order() != std::vector<std::size_t>({1, 0}))
     {
         append_failure(verification, "automatic-scaling evolution configuration did not retain its adaptive non-identity CQMOM policy.");
         return verification;

@@ -146,11 +146,9 @@ permission. Outputs include quadrature storage, the constructed tree, status,
 failure location, and selected branch diagnostics. Configured counts, the
 current trial's requested count, and returned active counts are separate values.
 
-1. The entry points have already rejected invalid option combinations, including
-   adaptive Wheeler without adaptive branches, and resolved Wheeler to adaptive
-   operation when branch adaptivity is enabled. The driver validates coordinate
-   support and active branch topology; invalid support, topology, or metadata
-   becomes an invalid request.
+1. The entry points have already rejected invalid options. The driver
+   validates coordinate support and active branch topology; invalid support,
+   topology, or metadata becomes an invalid request.
 2. Construct or reuse the ordered root layout and gather the root slice. The root
    starts with global weight one and a coordinate vector of the hierarchy rank.
 3. The outer loop visits conditioning levels; the inner loop visits current

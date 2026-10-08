@@ -172,9 +172,10 @@ establish realizability of the initialized moments.
 reconstruction policies, and paired support intervals. When omitted, diagnostics
 default to none, the solver to automatic, the conditioning order to identity,
 and `qmom.adaptive`, which decides whether the reconstruction is adaptive, to
-true. A file still using `phase_space.adaptive_branch_counts` is rejected with a
-message naming `[qmom] adaptive`. Names are metadata and do not establish units
-or support.
+true. Names are metadata and do not establish units or support.
+`reject_unknown_cqmom_keys`, shared by the case and initial-condition parsers,
+rejects a file still using `phase_space.adaptive_branch_counts` with a message
+naming `[qmom] adaptive`.
 
 `parse_qmom_options_from_parsed` maps `qmom.adaptive`; other Wheeler thresholds
 are API options, not arbitrary accepted `.qmom` keys.

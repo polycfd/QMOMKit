@@ -47,22 +47,20 @@ namespace
 {
 
 // These tests construct a full tensor of raw moments; reconstruction takes only
-// the moments the hierarchy requires.
+// the moments the hierarchy requires. The request is fixed unless the Wheeler
+// options ask for adaptive reconstruction.
 qmomkit::internal::RecursiveQuadratureMomentDataRequest
 moment_data_request(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moment_tensor,
-                    const qmomkit::ConditionalMomentOptions& conditional_options = {}, const qmomkit::WheelerOptions& wheeler_options = {},
-                    const bool adaptive = false, const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
+                    const qmomkit::ConditionalMomentOptions& conditional_options = {},
+                    const qmomkit::WheelerOptions& wheeler_options = qmomkit::WheelerOptions{false},
+                    const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
                     const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic,
                     const qmomkit::CqmomAbscissaBounds& coordinate_support = {})
 {
-    // The adaptive flag decides the whole reconstruction, branch node counts
-    // included.
-    qmomkit::WheelerOptions adaptive_wheeler_options = wheeler_options;
-    adaptive_wheeler_options.adaptive = adaptive;
     return {hierarchy,
             qmomkit::extract_cqmom_moments(moment_tensor, qmomkit::create_cqmom_moment_layout(hierarchy)),
             conditional_options,
-            adaptive_wheeler_options,
+            wheeler_options,
             diagnostic_level,
             solver,
             {},
@@ -287,7 +285,7 @@ void test_recursive_1d_reduces_to_wheeler()
 
     const qmomkit::Quadrature1D wheeler = qmomkit::compute_quadrature(qmomkit::MomentSet(moments), 2);
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {{4}, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic));
+        moment_data_request(hierarchy, {{4}, moments}, {}, qmomkit::WheelerOptions{false}, qmomkit::CqmomDiagnosticLevel::basic));
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.diagnostics.size() == 1);
@@ -322,7 +320,7 @@ void test_recursive_2d_identity_conditioning_order()
     const std::vector<std::size_t> extents{4, 4};
     const std::vector<double> moments = raw_moments_from_quadrature(expected, extents);
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic));
+        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{false}, qmomkit::CqmomDiagnosticLevel::basic));
 
     assert_raw_moments_reconstructed(result, moments, extents, 1.0e-10);
     QMOMKIT_VERIFY_CHECK(result.diagnostics.size() == 3);
@@ -352,7 +350,7 @@ void test_recursive_2d_reversed_conditioning_order()
     const std::vector<std::size_t> extents{4, 4};
     const std::vector<double> moments = raw_moments_from_quadrature(expected, extents);
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic));
+        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{false}, qmomkit::CqmomDiagnosticLevel::basic));
 
     assert_raw_moments_reconstructed(result, moments, extents, 1.0e-10);
     QMOMKIT_VERIFY_CHECK(result.diagnostics[0].phase_space_dimension == 1);
@@ -389,7 +387,7 @@ void test_recursive_3d_non_identity_conditioning_order()
     const std::vector<std::size_t> extents{4, 6, 4};
     const std::vector<double> moments = raw_moments_from_quadrature(expected, extents);
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic));
+        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{false}, qmomkit::CqmomDiagnosticLevel::basic));
 
     assert_quadrature_matches(result.quadrature, expected, 1.0e-8);
     assert_raw_moments_reconstructed(result, moments, extents, 1.0e-7);
@@ -418,7 +416,7 @@ void test_recursive_non_uniform_fixed_node_counts()
     const std::vector<std::size_t> extents{4, 6};
     const std::vector<double> moments = raw_moments_from_quadrature(expected, extents);
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::basic));
+        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{false}, qmomkit::CqmomDiagnosticLevel::basic));
 
     assert_raw_moments_reconstructed(result, moments, extents, 1.0e-8);
     QMOMKIT_VERIFY_CHECK(result.quadrature.total_nodes() == 6);
@@ -433,7 +431,7 @@ void test_recursive_adaptive_2d_branch_specific_reduction()
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic));
+        moment_data_request(hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, qmomkit::CqmomDiagnosticLevel::basic));
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.adaptive_branch_counts_enabled());
@@ -472,7 +470,7 @@ void test_recursive_adaptive_3d_branch_specific_reduction()
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic));
+        moment_data_request(hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, qmomkit::CqmomDiagnosticLevel::basic));
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.total_nodes() == 4);
@@ -508,7 +506,7 @@ void test_recursive_adaptive_non_identity_conditioning_order()
     const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
 
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(
-        moment_data_request(hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic));
+        moment_data_request(hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, qmomkit::CqmomDiagnosticLevel::basic));
 
     QMOMKIT_VERIFY_CHECK(result.ok());
     QMOMKIT_VERIFY_CHECK(result.quadrature.total_nodes() == 3);
@@ -542,7 +540,7 @@ void test_recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_ord
     // Each size root keeps one velocity child after the negative-variance retry.
     const qmomkit::internal::RecursiveQuadratureResult conditional =
         qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
-            qmomkit::PhaseSpaceHierarchy({2, 2}, {0, 1}), {extents, moments}, {}, wheeler_options, true, qmomkit::CqmomDiagnosticLevel::basic));
+            qmomkit::PhaseSpaceHierarchy({2, 2}, {0, 1}), {extents, moments}, {}, wheeler_options, qmomkit::CqmomDiagnosticLevel::basic));
     QMOMKIT_VERIFY_CHECK(conditional.ok());
     QMOMKIT_VERIFY_CHECK(conditional.quadrature.total_nodes() == 2);
     assert_ragged_tree_consistent(conditional.quadrature);
@@ -565,7 +563,7 @@ void test_recursive_adaptive_velocity_collapse_reduces_for_both_conditioning_ord
     // quadrature reduces to one node, and that root retains two size children.
     const qmomkit::internal::RecursiveQuadratureResult marginal =
         qmomkit::internal::compute_recursive_quadrature_from_moment_data(moment_data_request(
-            qmomkit::PhaseSpaceHierarchy({2, 2}, {1, 0}), {extents, moments}, {}, wheeler_options, true, qmomkit::CqmomDiagnosticLevel::basic));
+            qmomkit::PhaseSpaceHierarchy({2, 2}, {1, 0}), {extents, moments}, {}, wheeler_options, qmomkit::CqmomDiagnosticLevel::basic));
     QMOMKIT_VERIFY_CHECK(marginal.ok());
     QMOMKIT_VERIFY_CHECK(marginal.quadrature.total_nodes() == 2);
     assert_ragged_tree_consistent(marginal.quadrature);

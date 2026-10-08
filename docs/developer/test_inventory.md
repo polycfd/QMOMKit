@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 672 |
+| Unit logical tests | 671 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 188 |
-| **Runtime logical tests** | **906** |
+| **Runtime logical tests** | **905** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **907** |
+| **Total CTest registrations** | **906** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -761,7 +761,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_cqmom_adaptive_root_branch_uses_relative_rmin_only` | `tests/unit/public_api.cpp` | `cqmom_adaptive_root_branch_uses_relative_rmin_only` | Checks that adaptive root branch uses relative rmin only in the public QMOMKit API. | — |
 | `unit_public_api_cqmom_diagnostic_levels_control_expensive_diagnostics` | `tests/unit/public_api.cpp` | `cqmom_diagnostic_levels_control_expensive_diagnostics` | Verifies CQMOM diagnostic levels control expensive diagnostics. | — |
 | `unit_public_api_cqmom_none_diagnostics_preserves_failure_context` | `tests/unit/public_api.cpp` | `cqmom_none_diagnostics_preserves_failure_context` | Checks that none diagnostics preserves failure context in the public QMOMKit API. | — |
-| `unit_public_api_cqmom_settings_format` | `tests/unit/public_api.cpp` | `cqmom_settings_format` | Checks that the CQMOM settings summary renders adaptive branch counts in both states, every Vandermonde solver policy, and the diagnostic level. | — |
+| `unit_public_api_cqmom_settings_format` | `tests/unit/public_api.cpp` | `cqmom_settings_format` | Checks that the CQMOM settings summary renders the adaptive setting in both states, every Vandermonde solver policy, and the diagnostic level. | — |
 | `unit_public_api_cqmom_diagnostics_default_bounded_support_placeholder` | `tests/unit/public_api.cpp` | `cqmom_diagnostics_default_bounded_support_placeholder` | Verifies CQMOM diagnostics default bounded support placeholder. | — |
 | `unit_public_api_cqmom_prepared_case_and_state_assignment_preserve_independent_values` | `tests/unit/public_api.cpp` | `cqmom_prepared_case_and_state_assignment_preserve_independent_values` | Checks that copy and move assignment of `CqmomPreparedCase` and `CqmomState` replace the target, leave the source and earlier copies independent, and keep sharing the prepared metadata. | — |
 | `unit_public_api_cqmom_case_promotes_to_state_and_exposes_quadrature` | `tests/unit/public_api.cpp` | `cqmom_case_promotes_to_state_and_exposes_quadrature` | Checks that an explicit `CqmomCase` promotes to a `CqmomState` and exposes its accepted quadrature. | — |
@@ -811,7 +811,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_cqmom_case_replacement_defers_realizability` | `tests/unit/configuration.cpp` | `cqmom_case_replacement_defers_realizability` | Checks that the open-case replacement accepts well-formed but non-realizable moments from a tensor or moment data, leaving `compute_cqmom` and `initial_state()` to report the failure. | — |
 | `unit_configuration_cqmom_prepared_case_file_loading` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_file_loading` | Verifies prepared CQMOM case file loading. | — |
 | `unit_configuration_cqmom_independent_product_zero_density_skips_marginal_validation` | `tests/unit/configuration.cpp` | `cqmom_independent_product_zero_density_skips_marginal_validation` | Verifies CQMOM independent product zero density skips marginal validation. | — |
-| `unit_configuration_cqmom_adaptive_option_controls_the_reconstruction` | `tests/unit/configuration.cpp` | `cqmom_adaptive_option_controls_the_reconstruction` | Checks that `qmom.adaptive` defaults to true in a CQMOM configuration, that `false` gives a fixed rectangular reconstruction, and that the removed `phase_space.adaptive_branch_counts` key is rejected with a message naming `[qmom] adaptive`. | — |
+| `unit_configuration_cqmom_adaptive_option_controls_the_reconstruction` | `tests/unit/configuration.cpp` | `cqmom_adaptive_option_controls_the_reconstruction` | Checks that `qmom.adaptive` defaults to true in a CQMOM configuration, that `false` gives a fixed rectangular reconstruction, and that the removed `phase_space.adaptive_branch_counts` key is rejected with a message naming `[qmom] adaptive`, by the case parser and by `parse_cqmom_initial_condition`. | — |
 | `unit_configuration_cqmom_prepared_case_parsing_validates_coordinate_realizability_rank` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_parsing_validates_coordinate_realizability_rank` | Verifies prepared CQMOM case parsing validates the coordinate realizability rank. | — |
 | `unit_configuration_adaptive_cqmom_reduces_conditional_and_marginal_branches` | `tests/unit/configuration.cpp` | `adaptive_cqmom_reduces_conditional_and_marginal_branches` | Checks that a configured adaptive CQMOM case reduces a conditional and a marginal branch to the nodes its moments support. | — |
 | `unit_configuration_cqmom_diagnostic_level_parses_values` | `tests/unit/configuration.cpp` | `cqmom_diagnostic_level_parses_values` | Checks that diagnostic level parses values in configuration loading. | — |
@@ -1133,8 +1133,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_adaptive_state_source_phase_space_evolution_changes_active_counts` | `tests/unit/phase_space_evolution.cpp` | `adaptive_state_source_phase_space_evolution_changes_active_counts` | Verifies adaptive state source phase space evolution changes active counts. | — |
 | `unit_phase_space_evolution_adaptive_state_preserves_branch_counts_across_steps` | `tests/unit/phase_space_evolution.cpp` | `adaptive_state_preserves_branch_counts_across_steps` | Checks that adaptive state preserves branch counts across steps in phase-space evolution. | — |
 | `unit_phase_space_evolution_adaptive_state_preserved_source_can_reduce_active_counts` | `tests/unit/phase_space_evolution.cpp` | `adaptive_state_preserved_source_can_reduce_active_counts` | Verifies adaptive state preserved source can reduce active counts. | — |
-| `unit_phase_space_evolution_adaptive_state_source_policy_allows_growth_to_configured_maximum` | `tests/unit/phase_space_evolution.cpp` | `adaptive_state_source_policy_allows_growth_to_configured_maximum` | Verifies adaptive state source policy allows growth to configured maximum. | — |
-| `unit_phase_space_evolution_adaptive_state_source_growth_preserves_qmom_options` | `tests/unit/phase_space_evolution.cpp` | `adaptive_state_source_growth_preserves_qmom_options` | Checks that an adaptive CQMOM state grows a branch during source evolution, records the transition, and keeps its QMOM options. | — |
+| `unit_phase_space_evolution_adaptive_state_source_policy_allows_growth_to_configured_maximum` | `tests/unit/phase_space_evolution.cpp` | `adaptive_state_source_policy_allows_growth_to_configured_maximum` | Checks that an adaptive CQMOM state grows a branch toward its configured maximum during source evolution, with ragged storage, matching active counts, the branch diagnostics, and the recorded transition. | — |
 | `unit_phase_space_evolution_adaptive_state_source_growth_canonicalizes_between_steps` | `tests/unit/phase_space_evolution.cpp` | `adaptive_state_source_growth_canonicalizes_between_steps` | Checks source-driven adaptive CQMOM growth canonicalizes state between steps. | — |
 | `unit_phase_space_evolution_adaptive_state_failed_growth_trial_keeps_current_count` | `tests/unit/phase_space_evolution.cpp` | `adaptive_state_failed_growth_trial_keeps_current_count` | Verifies adaptive state failed growth trial keeps current count. | — |
 | `unit_phase_space_evolution_adaptive_state_bounded_support_rejects_post_source_growth` | `tests/unit/phase_space_evolution.cpp` | `adaptive_state_bounded_support_rejects_post_source_growth` | Checks that adaptive state bounded support rejects post source growth in phase-space evolution. | — |

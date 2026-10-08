@@ -179,21 +179,19 @@ std::vector<double> raw_moments_from_terminals(const std::vector<std::size_t>& e
 // Build a case from a raw moment tensor by selecting the moments its hierarchy
 // reconstructs from. The tests below state their moments as tensors because
 // that is how their analytical references are computed; the parameters mirror
-// the case fields so that each call reads as the case it builds.
+// the case fields so that each call reads as the case it builds. Unlike the
+// case, the helper is fixed unless the QMOM options ask for adaptive
+// reconstruction.
 qmomkit::CqmomCase cqmom_case_from_tensor(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moments,
                                           const qmomkit::ConditionalMomentOptions& conditional_options = {},
-                                          const qmomkit::QmomOptions& qmom_options = {}, const bool adaptive = false,
+                                          const qmomkit::QmomOptions& qmom_options = qmomkit::QmomOptions{false},
                                           const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
                                           const qmomkit::VandermondeSolver vandermonde_solver = qmomkit::VandermondeSolver::automatic,
                                           qmomkit::CqmomAbscissaBounds coordinate_support = {})
 {
-    // The adaptive flag decides the whole reconstruction, branch node counts
-    // included.
-    qmomkit::QmomOptions adaptive_qmom_options = qmom_options;
-    adaptive_qmom_options.adaptive = adaptive;
     return {qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
             conditional_options,
-            adaptive_qmom_options,
+            qmom_options,
             diagnostic_level,
             vandermonde_solver,
             std::move(coordinate_support)};
@@ -1020,7 +1018,8 @@ void test_cqmom_public_api_two_dimensional_manufactured_case()
     }
 
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
-    const auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, {}, false, qmomkit::CqmomDiagnosticLevel::detailed);
+    const auto cqmom_case =
+        cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, qmomkit::QmomOptions{false}, qmomkit::CqmomDiagnosticLevel::detailed);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 
     assert(result.ok());
@@ -1076,9 +1075,9 @@ void test_cqmom_automatic_scaling_restores_each_physical_coordinate()
         }
     }
 
-    qmomkit::QmomOptions options;
+    qmomkit::QmomOptions options{false};
     options.automatic_scaling = true;
-    auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, abscissas)}, {}, options, false,
+    auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, abscissas)}, {}, options,
                                              qmomkit::CqmomDiagnosticLevel::detailed);
     cqmom_case.abscissa_bounds = {qmomkit::AbscissaBounds{1.0e50, 6.0e50}, qmomkit::AbscissaBounds{-5.0e-50, 4.0e-50}};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
@@ -1096,7 +1095,7 @@ void test_cqmom_automatic_scaling_restores_each_physical_coordinate()
         }
     }
     const auto reference_cqmom_case =
-        cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, reference_abscissas)}, {}, options, false,
+        cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, reference_abscissas)}, {}, options,
                                qmomkit::CqmomDiagnosticLevel::detailed);
     const qmomkit::CqmomResult reference = qmomkit::compute_cqmom(reference_cqmom_case);
 
@@ -1133,8 +1132,8 @@ void test_cqmom_public_api_reports_conditional_moment_failure()
     const std::vector<std::vector<double>> abscissas{{-1.0, 1.0}, {2.0, -1.0}};
     qmomkit::ConditionalMomentOptions conditional_options;
     conditional_options.singular_tolerance = 1.0;
-    const auto cqmom_case =
-        cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, conditional_options, {});
+    const auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, conditional_options,
+                                                   qmomkit::QmomOptions{false});
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 
@@ -1165,7 +1164,7 @@ void test_cqmom_public_api_exposes_adaptive_branch_counts()
     const std::vector<double> moments = raw_moments_from_terminals(extents, weights, abscissas);
 
     const auto cqmom_case =
-        cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, true, qmomkit::CqmomDiagnosticLevel::basic);
+        cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, {true, 1.0e-10, 1.0e-10, 1.0e-12}, qmomkit::CqmomDiagnosticLevel::basic);
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 
     assert(result.ok());
@@ -1198,7 +1197,7 @@ void test_cqmom_adaptive_root_branch_uses_relative_rmin_only()
     const std::vector<std::vector<double>> abscissas{{10.0, 10.0, 20.0, 20.0}, {-1.0, 1.0, -1.0, 1.0}};
     const qmomkit::QmomOptions qmom_options{true, 0.1, 1.0e-10, 1.0e-30};
     const auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, {}, qmom_options,
-                                                   true, qmomkit::CqmomDiagnosticLevel::basic);
+                                                   qmomkit::CqmomDiagnosticLevel::basic);
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
 
@@ -1227,7 +1226,7 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.5, 1.5}, {0.25, 2.0, 0.25, 2.0}};
     const std::vector<double> moments = raw_moments_from_grid(hierarchy, extents, weights, abscissas);
 
-    auto default_cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, {});
+    auto default_cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, moments}, {}, qmomkit::QmomOptions{false});
     assert(default_cqmom_case.diagnostic_level == qmomkit::CqmomDiagnosticLevel::none);
 
     qmomkit::internal::performance::CounterSession default_session;
@@ -1275,7 +1274,7 @@ void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
 void test_cqmom_none_diagnostics_preserves_failure_context()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    auto silent_cqmom_case = cqmom_case_from_tensor(hierarchy, {{4, 4}, std::vector<double>(16, 0.0)}, {}, {});
+    auto silent_cqmom_case = cqmom_case_from_tensor(hierarchy, {{4, 4}, std::vector<double>(16, 0.0)}, {}, qmomkit::QmomOptions{false});
     silent_cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::none;
 
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(silent_cqmom_case);

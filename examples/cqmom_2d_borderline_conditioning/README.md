@@ -195,8 +195,9 @@ $$
 
 fixed-count rows.
 
-Two separate adaptive references use $\delta=0$ with adaptive reconstruction. Adaptive reduction occurs during Wheeler inversion, before the
-conditional Vandermonde solve. It is not triggered by QR or SVD. The adaptive
+Two separate adaptive references use $\delta=0$ with adaptive reconstruction.
+Adaptive reduction occurs during Wheeler inversion, before the conditional
+Vandermonde solve. It is not triggered by QR or SVD. The adaptive
 rows represent lower-order quadratures and are not solver alternatives for the
 fixed two-node formulation. Together, the example produces 66 total rows.
 

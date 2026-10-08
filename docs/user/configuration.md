@@ -778,7 +778,7 @@ The same concepts appear either way:
 |---|---|---|
 | Concept | `.qmom` file | Direct C++ setup |
 |---|---|---|
-| phase space | `[phase_space]` names, node counts, conditioning order, adaptive branch settings | construct `QmomCase` or a CQMOM case with the desired coordinate count, node counts, hierarchy, and ordering |
+| phase space | `[phase_space]` names, node counts, conditioning order | construct `QmomCase` or a CQMOM case with the desired coordinate count, node counts, hierarchy, and ordering |
 | initial moments | `[moments]` explicit values | provide `MomentSet`, CQMOM moment data, or a full tensor of raw moments from application data |
 | analytical initialization | `[initial]` distribution, mixture, or independent product sections | call distribution moment-generation utilities, then pass the generated moments into the case setup |
 | numerical settings | `[qmom]`, `[cqmom]`, and `[vandermonde]` sections | set the corresponding QMOM, CQMOM, adaptive, diagnostic, and solver options in C++ |

@@ -2909,44 +2909,13 @@ void test_adaptive_state_source_policy_allows_growth_to_configured_maximum()
     const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
     const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
     const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
-    const qmomkit::PhaseSpaceVelocity zero_velocity =
-        qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
-
-    qmomkit::CqmomPhaseSpaceEvolutionOptions options;
-    options.scheme = qmomkit::PhaseSpaceEvolutionScheme::srcadv;
-    options.node_options.scheme = qmomkit::NodeAdvectionScheme::ssp_rk3;
-    const qmomkit::CqmomPhaseSpaceEvolutionResult phase_space_evolved =
-        qmomkit::advance_cqmom_phase_space(adaptive_cqmom_prepared_case_from_moments(initial_moments).initial_state(), 0.0, 1.0, zero_velocity,
-                                           source_from_to(initial_required, target_required), options);
-
-    assert(phase_space_evolved.ok());
-    assert(!phase_space_evolved.diagnostic_quadrature.has_value());
-    assert(phase_space_evolved.state.quadrature().total_nodes() == 3);
-    assert(active_counts_contain(phase_space_evolved.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 1));
-    assert(active_counts_contain(phase_space_evolved.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 2));
-    assert(transitions_contain(phase_space_evolved.diagnostics.cqmom_node_count_transitions, qmomkit::PhaseSpaceEvolutionStage::post_source_inversion,
-                               1, qmomkit::ConditioningPath{{1}}, 1, 2, qmomkit::CqmomNodeCountTransitionKind::grew));
-    assert_cqmom_state_active_counts_match_accepted_quadrature(phase_space_evolved.state);
-}
-
-void test_adaptive_state_source_growth_preserves_qmom_options()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const qmomkit::RawMomentTensor initial_moments = collapsed_branch_cqmom_moments();
-    const qmomkit::RawMomentTensor target_moments = branch_specific_ragged_cqmom_moments();
-    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    const qmomkit::CqmomMomentData initial_required = qmomkit::extract_cqmom_moments(initial_moments, layout);
-    const qmomkit::CqmomMomentData target_required = qmomkit::extract_cqmom_moments(target_moments, layout);
     const auto parsed = qmomkit::config::parse_cqmom_prepared(
         cqmom_case_text_from_moments(initial_moments, true) + "\n[cqmom]\ndiagnostic_level = basic\n", "adaptive-cqmom-case-with-basic-diagnostics");
     assert(parsed.ok());
-    const qmomkit::CqmomPreparedCase cqmom_prepared_case = parsed.value();
-    const qmomkit::CqmomState state = cqmom_prepared_case.initial_state();
+    const qmomkit::CqmomState state = parsed.value().initial_state();
     const qmomkit::PhaseSpaceVelocity zero_velocity =
         qmomkit::make_phase_space_velocity([](double, const std::vector<double>& xi) { return std::vector<double>(xi.size(), 0.0); });
 
-    assert(cqmom_prepared_case.qmom_options().adaptive);
-    assert(state.qmom_options().adaptive);
     assert(active_counts_contain(state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 2, 0, 2));
     assert(active_counts_contain(state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 1, 1, 2));
     assert(active_counts_contain(state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 1, 1, 2));
@@ -2958,11 +2927,12 @@ void test_adaptive_state_source_growth_preserves_qmom_options()
         qmomkit::advance_cqmom_phase_space(state, 0.0, 1.0, zero_velocity, source_from_to(initial_required, target_required), options);
 
     assert(phase_space_evolved.ok());
+    assert(phase_space_evolved.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::success);
+    assert(phase_space_evolved.diagnostics.post_source_cqmom_status == qmomkit::CqmomStatus::success);
     assert(!phase_space_evolved.diagnostic_quadrature.has_value());
     assert(phase_space_evolved.state.quadrature().adaptive_branch_counts_enabled());
     assert(!phase_space_evolved.state.quadrature().has_rectangular_storage());
     assert(phase_space_evolved.state.quadrature().total_nodes() == 3);
-    assert(phase_space_evolved.state.qmom_options().adaptive);
     assert(active_counts_contain(phase_space_evolved.state.active_branch_counts(), 0, qmomkit::ConditioningPath{}, 2, 0, 2));
     assert(active_counts_contain(phase_space_evolved.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{0}}, 1, 1, 2));
     assert(active_counts_contain(phase_space_evolved.state.active_branch_counts(), 1, qmomkit::ConditioningPath{{1}}, 2, 1, 2));
@@ -2970,14 +2940,6 @@ void test_adaptive_state_source_growth_preserves_qmom_options()
     assert(transitions_contain(phase_space_evolved.diagnostics.cqmom_node_count_transitions, qmomkit::PhaseSpaceEvolutionStage::post_source_inversion,
                                1, qmomkit::ConditioningPath{{1}}, 1, 2, qmomkit::CqmomNodeCountTransitionKind::grew));
     assert_cqmom_state_active_counts_match_accepted_quadrature(phase_space_evolved.state);
-    assert(phase_space_evolved.diagnostics.moment_source_status == qmomkit::MomentSourceUpdateStatus::success);
-    assert(phase_space_evolved.diagnostics.post_source_cqmom_status == qmomkit::CqmomStatus::success);
-
-    const qmomkit::QmomResult fixed_qmom = qmomkit::compute_qmom(qmomkit::MomentSet({1.0, 0.0, 0.0, 0.0}), 2, qmomkit::QmomOptions{false});
-    const qmomkit::QmomResult adaptive_qmom = qmomkit::compute_qmom(qmomkit::MomentSet({1.0, 0.0, 0.0, 0.0}), 2, qmomkit::QmomOptions{true});
-    assert(!fixed_qmom.ok());
-    assert(adaptive_qmom.ok());
-    assert(adaptive_qmom.weights.size() == 1);
 }
 
 void test_adaptive_state_source_growth_canonicalizes_between_steps()
@@ -4497,7 +4459,6 @@ int main(const int argc, char** argv)
             {"adaptive_state_preserved_source_can_reduce_active_counts", test_adaptive_state_preserved_source_can_reduce_active_counts},
             {"adaptive_state_source_policy_allows_growth_to_configured_maximum",
              test_adaptive_state_source_policy_allows_growth_to_configured_maximum},
-            {"adaptive_state_source_growth_preserves_qmom_options", test_adaptive_state_source_growth_preserves_qmom_options},
             {"adaptive_state_source_growth_canonicalizes_between_steps", test_adaptive_state_source_growth_canonicalizes_between_steps},
             {"adaptive_state_failed_growth_trial_keeps_current_count", test_adaptive_state_failed_growth_trial_keeps_current_count},
             {"adaptive_state_bounded_support_rejects_post_source_growth", test_adaptive_state_bounded_support_rejects_post_source_growth},

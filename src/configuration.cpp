@@ -1101,6 +1101,14 @@ void reject_unknown_cqmom_sections(ParsedFile& parsed, const bool explicit_momen
 
 void reject_unknown_cqmom_keys(ParsedFile& parsed, const bool explicit_moments, const std::string& source_name)
 {
+    // `[qmom] adaptive` decides both the inversions and the branch counts. The
+    // former key stays recognised so that a file using it gets this message
+    // rather than a bare unknown-key error.
+    if (const Entry* removed = find_entry(parsed, "phase_space.adaptive_branch_counts"); removed != nullptr)
+    {
+        add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, removed->line,
+                  "phase_space.adaptive_branch_counts was removed; use [qmom] adaptive.");
+    }
     if (explicit_moments)
     {
         reject_unknown_keys(parsed, cqmom_explicit_allowed_keys(), {"initial."}, RealizabilitySettings::cqmom, source_name);
@@ -2108,14 +2116,6 @@ ConfigurationResult<ParsedCqmomCaseSettings> parse_cqmom_case_settings(ParsedFil
     }
     std::optional<CqmomAbscissaBounds> coordinate_support = parse_coordinate_support(parsed, source_name, node_counts.size());
 
-    // The setting moved to [qmom] adaptive, which now decides both the
-    // inversions and the branch counts. The key stays recognised so that old
-    // files get this message rather than a bare unknown-key error.
-    if (const Entry* removed = find_entry(parsed, "phase_space.adaptive_branch_counts"); removed != nullptr)
-    {
-        add_error(parsed, ConfigurationErrorCode::unknown_entry, source_name, removed->line,
-                  "phase_space.adaptive_branch_counts was removed; use [qmom] adaptive.");
-    }
     if (!node_counts.empty())
     {
         validate_cqmom_coordinate_realizability_ranks(parsed, source_name, node_counts.size());

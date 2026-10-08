@@ -624,9 +624,9 @@ CQMOM phase-space evolution. This workflow does not expose how the moments are
 stored.
 
 `CqmomCase` bundles the required CQMOM moment data, the conditional-moment
-and QMOM/Wheeler options, and the adaptive branch-count and diagnostic
-controls. It mirrors `QmomCase` and is the case definition from which a
-`CqmomPreparedCase` is built, for callers that build or edit a case in code,
+and QMOM/Wheeler options, and the diagnostic and solver controls. It mirrors
+`QmomCase` and is the case definition from which a `CqmomPreparedCase` is
+built, for callers that build or edit a case in code,
 including those that select the required moments from a full tensor with
 `extract_cqmom_moments(...)`. Reconstructing it or creating a state from it
 directly rebuilds the branch structure on every call.

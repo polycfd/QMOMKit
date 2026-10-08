@@ -799,10 +799,11 @@ created by an invalidated parent topology start from configured maximum counts
 and adapt downward.
 
 After every successful inversion during CQMOM phase-space evolution through
-`CqmomState`, the returned state is refreshed with the active counts extracted
-from the returned quadrature. Structured phase-space evolution diagnostics
-record branch path, configured maximum count, active count before and after the
-stage, and whether a rank reduction or growth occurred.
+`CqmomState`, the returned state is refreshed with the active counts of the
+returned quadrature, which the reconstruction records as it accepts each
+branch. Structured phase-space evolution diagnostics record branch path,
+configured maximum count, active count before and after the stage, and whether
+a rank reduction or growth occurred.
 
 Node advection preserves weights and moves an already accepted quadrature.
 The moment reconstruction after node advection is a deterministic summation
@@ -949,7 +950,7 @@ post-source moments are therefore the
 moments implied by the accepted quadrature, not independently retained source
 variables. In adaptive mode, reduction or growth can replace source-candidate
 higher-order information with the closure represented by the accepted
-quadrature; the returned active branch counts are derived from that same
+quadrature; the returned active branch counts are those of that same
 quadrature.
 
 With coordinate support configured, the post-source invariant is:

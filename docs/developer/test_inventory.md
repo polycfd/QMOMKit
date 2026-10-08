@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 671 |
+| Unit logical tests | 673 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 188 |
-| **Runtime logical tests** | **905** |
+| **Runtime logical tests** | **907** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **906** |
+| **Total CTest registrations** | **908** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -594,6 +594,8 @@ CTest check; it is not 23 runtime tests.
 | `unit_recursive_quadrature_recursive_dense_and_bp_equivalence_adaptive` | `tests/unit/recursive_quadrature.cpp` | `recursive_dense_and_bp_equivalence_adaptive` | Checks that the compared recursive CQMOM reconstruction paths produce equivalent results for the tested input. | — |
 | `unit_recursive_quadrature_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch` | `tests/unit/recursive_quadrature.cpp` | `recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch` | Checks that adaptive reduces roundoff deterministic mixed affine branch in recursive CQMOM reconstruction. | — |
 | `unit_recursive_quadrature_recursive_adaptive_reduces_roundoff_branch_with_bounded_support` | `tests/unit/recursive_quadrature.cpp` | `recursive_adaptive_reduces_roundoff_branch_with_bounded_support` | Checks that a conditional branch that is a single point still reduces when bounded supports route its inversion through the bounded selection. | — |
+| `unit_recursive_quadrature_recursive_adaptive_records_active_counts_in_parent_path_order` | `tests/unit/recursive_quadrature.cpp` | `recursive_adaptive_records_active_counts_in_parent_path_order` | Checks that an adaptive 3D reconstruction asked to record active branch counts lists each accepted branch with its count in parent-path order, including a reduced branch, and that unrequested or fixed reconstructions record none. | — |
+| `unit_recursive_quadrature_recursive_adaptive_validates_supplied_active_counts` | `tests/unit/recursive_quadrature.cpp` | `recursive_adaptive_validates_supplied_active_counts` | Checks that supplied active branch counts in reverse order constrain a 3D adaptive reconstruction exactly like the recorded ones, and that stale, missing, orphaned, duplicate, and over-capacity records are rejected with the matching message. | — |
 | `unit_recursive_quadrature_recursive_reconstruction_does_not_depend_on_number_density` | `tests/unit/recursive_quadrature.cpp` | `recursive_reconstruction_does_not_depend_on_number_density` | Checks that four weighted points give the same nodes, and weights scaled by the number density, at number densities 1 and 1e-16, in fixed and adaptive mode. | — |
 | `unit_recursive_quadrature_public_cqmom_bp_success_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `public_cqmom_bp_success_independent_of_diagnostic_level` | Checks that the public CQMOM reconstruction accepts an identical quadrature at every diagnostic level for the Björck–Pereyra policy on a three-dimensional non-identity conditioning order. | — |
 | `unit_recursive_quadrature_recursive_bp_failure_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `recursive_bp_failure_independent_of_diagnostic_level` | Checks recursive Björck–Pereyra failure status and failing branch are independent of diagnostic level. | — |

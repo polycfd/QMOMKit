@@ -376,18 +376,18 @@ struct WheelerAttemptResult
     {
         for (std::size_t candidate_count = max_nodes; candidate_count > 1; --candidate_count)
         {
-            const WheelerAttemptResult attempt = attempt_quadrature_count(moments, candidate_count, options, coordinate_scale);
+            WheelerAttemptResult attempt = attempt_quadrature_count(moments, candidate_count, options, coordinate_scale);
             if (attempt.quadrature.ok())
             {
                 if (candidate_count < max_nodes && attempt.quadrature.weights.size() == candidate_count)
                 {
                     internal::performance::record_wheeler_adaptive_reduction();
                 }
-                return attempt.quadrature;
+                return std::move(attempt.quadrature);
             }
             if (!attempt.negative_sigma_diagonal)
             {
-                return attempt.quadrature;
+                return std::move(attempt.quadrature);
             }
         }
 

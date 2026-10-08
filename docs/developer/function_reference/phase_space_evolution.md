@@ -103,13 +103,15 @@ needed.
 
 After source integration, reconstruct with previous active counts and
 configured adaptive growth permission. Failure is an inversion failure,
-distinct from a callback/predicate failure. On success, derive active counts
-and rebuild the stored moments from the accepted quadrature at the required
-indices. `cqmom_state_from_accepted_quadrature` retains policies, hierarchy,
-and
-compatible prepared metadata while replacing evolving values/cache.
+distinct from a callback/predicate failure. On success, take the active counts
+the reconstruction recorded and rebuild the stored moments from the accepted
+quadrature at the required indices. `cqmom_state_from_accepted_quadrature`
+retains policies, hierarchy, and compatible prepared metadata while replacing
+evolving values/cache.
 
-`record_cqmom_node_count_transitions` compares before/after branch maps keyed
+`record_cqmom_node_count_transitions` first checks whether the before and after
+counts are equal entry by entry; then no branch changed and nothing is recorded,
+which is the usual step. Otherwise it compares before/after branch maps keyed
 by level, conditioning parent path, and physical dimension. Its loops match
 records, identify changed ancestors, and classify growth, reduction, creation,
 or removal. When a strict ancestor changed, descendants are removed/created

@@ -1,5 +1,5 @@
 #include "../verification/verification_helpers.hpp"
-#include "internal/cqmom_active_counts.hpp"
+#include "cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "qmomkit/qmomkit.hpp"
 
@@ -319,7 +319,7 @@ void run_captured_physical_regression()
 
     const qmomkit::ConditioningPath expected_path{{0, 0}};
     const std::vector<qmomkit::CqmomActiveBranchCount> reconstructed_active_counts =
-        qmomkit::internal::active_branch_counts_from_quadrature(result.quadrature);
+        qmomkit::test::active_branch_counts_from_quadrature(result.quadrature);
     for (const qmomkit::ConditioningPath& path : captured_terminal_parent_paths())
     {
         QMOMKIT_VERIFY_CHECK(active_count_present(reconstructed_active_counts, path, 1));

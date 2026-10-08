@@ -130,6 +130,7 @@ The current test layout is:
 tests/
     CMakeLists.txt
     README.md
+    cqmom_active_counts.hpp
     test_case_dispatch.hpp
     unit/
         CMakeLists.txt

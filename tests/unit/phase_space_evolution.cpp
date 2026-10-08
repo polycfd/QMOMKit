@@ -1,4 +1,4 @@
-#include "internal/cqmom_active_counts.hpp"
+#include "cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/performance.hpp"
 #include "internal/recursive_quadrature.hpp"
@@ -638,7 +638,7 @@ void assert_cqmom_state_active_counts_match_accepted_quadrature(const qmomkit::C
 {
     const std::optional<qmomkit::CqmomQuadrature>& accepted = qmomkit::internal::CqmomConstructionAccess::state_accepted_quadrature(state);
     assert(accepted.has_value());
-    assert(active_counts_equal(state.active_branch_counts(), qmomkit::internal::active_branch_counts_from_quadrature(*accepted)));
+    assert(active_counts_equal(state.active_branch_counts(), qmomkit::test::active_branch_counts_from_quadrature(*accepted)));
 }
 
 // A case promoted to state must carry exactly the quadrature that reconstructing

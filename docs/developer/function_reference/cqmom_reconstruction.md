@@ -101,15 +101,25 @@ accurate.
 
 ## Active topology and branch limits — Level A
 
-`validate_active_branch_topology` checks the optional prior active-count
-records: level, parent-path length, physical dimension, configured maximum,
-positive active count bounded by capacity, and unique branch keys. A
-breadth-first traversal requires every reachable branch to have exactly one
-record and rejects stale or unreachable records. An empty/unconstrained request
-has a distinct meaning from a partially populated topology.
+The optional prior active-count records are used sorted by parent path, the
+order in which a reconstruction records them; records in another order are
+sorted into a copy first. In that order every branch follows its parent, so
+`validate_active_branch_counts` checks them in one pass without building a
+lookup structure: level, parent-path length, physical dimension, configured
+maximum, and positive active count bounded by capacity for each record; unique
+parent paths between neighbours; and, keeping the latest record of each level,
+that every record's parent precedes it with a child slot for it. The number of
+such reachable records must equal the number of reachable branches, so every
+reachable branch has exactly one record and stale or unreachable records are
+rejected. This runs on every constrained reconstruction, so a state whose
+active-count metadata is malformed fails its next inversion. An
+empty/unconstrained request has a distinct meaning from a partially populated
+topology.
 
-`recursive_branch_node_count_limit` returns the previous active count for an
-unchanged, constrained branch, or configured capacity if no limit applies.
+`recursive_branch_node_count_limit` finds a branch's record by binary search on
+its parent path, which names the branch because its length is the conditioning
+level. It returns the previous active count for an unchanged, constrained
+branch, or configured capacity if no limit applies.
 `branch_limit_invalidated` checks whether a changed ancestor path prefixes the
 branch. Ancestor changes invalidate descendant constraints, since those
 children belong to a newly reconstructed conditional distribution. They are not
@@ -125,7 +135,9 @@ with the same distinction between current count and growth ceiling. Bounds
 apply to reconstructed nodes; they do not clip nodes or establish support of
 the underlying distribution.
 
-Evidence: [phase-space unit
+Evidence: [recursive unit tests](../../../tests/unit/recursive_quadrature.cpp)
+check that supplied counts in any order are accepted and that stale, missing,
+duplicate, and over-capacity records are rejected; [phase-space unit
 tests](../../../tests/unit/phase_space_evolution.cpp), including
 `test_adaptive_state_parent_growth_creates_unconstrained_descendants`,
 `test_adaptive_state_failed_growth_trial_keeps_current_count`, and
@@ -143,12 +155,13 @@ numerical backbone called by the validated and trusted moment-data entry points.
 Inputs are raw global moments, hierarchy, Wheeler and conditional-solve options,
 support intervals, diagnostic policy, and optional active topology/growth
 permission. Outputs include quadrature storage, the constructed tree, status,
-failure location, and selected branch diagnostics. Configured counts, the
-current trial's requested count, and returned active counts are separate values.
+failure location, selected branch diagnostics and, when the request asks for
+them in adaptive mode, the active branch counts. Configured counts, the current
+trial's requested count, and returned active counts are separate values.
 
 1. The entry points have already rejected invalid options. The driver
-   validates coordinate support and active branch topology; invalid support,
-   topology, or metadata becomes an invalid request.
+   validates coordinate support and any supplied active branch counts; invalid
+   support, topology, or metadata becomes an invalid request.
 2. Construct or reuse the ordered root layout and gather the root slice. The root
    starts with global weight one and a coordinate vector of the hierarchy rank.
 3. The outer loop visits conditioning levels; the inner loop visits current
@@ -163,6 +176,12 @@ current trial's requested count, and returned active counts are separate values.
    ragged terminal list. Fixed storage is indexed using the phase-space rectangular
    multi-index. Termination follows the finite hierarchy rank and each accepted
    finite node list; there is no convergence loop over CQMOM levels.
+6. When the request records active branch counts, each accepted adaptive branch
+   adds its level, parent path, dimension, configured count, and accepted node
+   count. The traversal visits branches level by level; on success the counts
+   are sorted by parent path, which lists each branch before its descendants,
+   the order in which the terminal paths visit them. A `CqmomState` takes its
+   counts from here.
 
 Failure leaves partial tree/storage as diagnostic data. Public result
 conversion maps status and failed dimension; consumers must check success
@@ -197,7 +216,7 @@ align with fixed weights and abscissas under non-identity order.
 | `create_ordered_root_slice`, `one_dimensional_moments`, `child_layout_for_parent_node_count` | Take the root values in their canonical stored order, gather leading values, and select precomputed child metadata; no new solver policy. | Recursive layout tests |
 | `record_failure`, `create_recursive_result`, `record_bounded_candidate_diagnostics`, `records_success_branch_diagnostics` | Keep failure location, candidate rejection, and requested diagnostic detail distinct from success acceptance. | Failure/diagnostic tests |
 | `valid_conditional_options`, `valid_diagnostic_level`, `validate_recursive_request_preflight`, `validate_coordinate_support`, `support_interval_for_dimension` | Resolve valid enum/options and per-coordinate bounds before numerical work. No physical meaning inferred from coordinate names. | Invalid-request and support tests |
-| `path_has_prefix`, branch-key `operator<`, `append_unique_index`, `local_branch_offset` | Deterministic key ordering, ancestor membership, first-occurrence layout deduplication, and checked offset discovery. | Topology/layout tests indirectly |
+| `path_has_prefix`, `parent_path_less`, `append_unique_index`, `local_branch_offset` | Deterministic record ordering, ancestor membership, first-occurrence layout deduplication, and checked offset discovery. | Topology/layout tests indirectly |
 
 Index arithmetic, hierarchy methods, and tree mutation are covered in
 [state and representations](state_and_representations.md); remaining exact

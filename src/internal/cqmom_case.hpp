@@ -60,9 +60,12 @@ public:
 // cases and states always receive a compatible eagerly prepared owner: callers
 // either propagate one from the same lineage or start a new lineage. Adaptive
 // states carry no fixed prepared owner. Internal reconstruction rechecks
-// evolving numerical values only.
+// evolving numerical values only. A successful reconstruction stores its active
+// branch counts in `accepted_active_branch_counts` when that is given; they
+// are empty for a fixed case.
 [[nodiscard]] CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<CqmomActiveBranchCount> active_branch_counts = {},
                                                  bool allow_active_branch_count_growth = false,
-                                                 const PreparedCqmomMetadata* prepared_metadata = nullptr, bool require_prepared_metadata = false);
+                                                 const PreparedCqmomMetadata* prepared_metadata = nullptr, bool require_prepared_metadata = false,
+                                                 std::vector<CqmomActiveBranchCount>* accepted_active_branch_counts = nullptr);
 
 } // namespace qmomkit::internal

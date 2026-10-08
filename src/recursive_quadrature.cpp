@@ -17,7 +17,6 @@
 #include <exception>
 #include <iterator>
 #include <limits>
-#include <map>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -619,7 +618,8 @@ struct ConditionalSliceResult
 
 [[nodiscard]] internal::RecursiveQuadratureResult create_recursive_result(const PhaseSpaceHierarchy& hierarchy)
 {
-    return internal::RecursiveQuadratureResult{internal::RecursiveQuadrature(hierarchy), internal::RecursiveQuadratureStatus::success, "", {}, {}, 0};
+    return internal::RecursiveQuadratureResult{
+        internal::RecursiveQuadrature(hierarchy), internal::RecursiveQuadratureStatus::success, "", {}, {}, 0, {}};
 }
 
 void record_failure(internal::RecursiveQuadratureResult& result, const internal::RecursiveQuadratureStatus status, const ConditioningPath& path,
@@ -646,32 +646,6 @@ void record_failure(internal::RecursiveQuadratureResult& result, const internal:
     }
     return true;
 }
-
-struct ActiveBranchKey
-{
-    std::size_t conditioning_level = 0;
-    ConditioningPath parent_path;
-    std::size_t phase_space_dimension = 0;
-};
-
-[[nodiscard]] bool operator<(const ActiveBranchKey& lhs, const ActiveBranchKey& rhs) noexcept
-{
-    if (lhs.conditioning_level != rhs.conditioning_level)
-    {
-        return lhs.conditioning_level < rhs.conditioning_level;
-    }
-    if (lhs.parent_path != rhs.parent_path)
-    {
-        return lhs.parent_path < rhs.parent_path;
-    }
-    return lhs.phase_space_dimension < rhs.phase_space_dimension;
-}
-
-struct ActiveBranchTopology
-{
-    bool constrained = false;
-    std::map<ActiveBranchKey, CqmomActiveBranchCount> counts;
-};
 
 struct BranchNodeCountLimit
 {
@@ -707,17 +681,19 @@ struct BranchNodeCountLimit
     return false;
 }
 
-[[nodiscard]] ActiveBranchTopology validate_active_branch_topology(const PhaseSpaceHierarchy& hierarchy, const bool adaptive_branch_counts,
-                                                                   const std::vector<CqmomActiveBranchCount>& active_branch_counts)
+[[nodiscard]] bool parent_path_less(const CqmomActiveBranchCount& lhs, const CqmomActiveBranchCount& rhs) noexcept
 {
-    ActiveBranchTopology topology;
-    if (!adaptive_branch_counts || active_branch_counts.empty())
-    {
-        return topology;
-    }
-    internal::performance::record_active_count_validation();
-    topology.constrained = true;
+    return lhs.parent_path < rhs.parent_path;
+}
 
+// Checks that `active_branch_counts`, sorted by parent path, hold exactly one
+// record for every branch of the topology they describe, each within the
+// configured capacity. In that order every branch follows its parent, and the
+// latest record one level up is its parent if the parent has a record at all,
+// so a single pass decides which records are reachable.
+void validate_active_branch_counts(const PhaseSpaceHierarchy& hierarchy, const std::vector<CqmomActiveBranchCount>& active_branch_counts)
+{
+    internal::performance::record_active_count_validation();
     const std::size_t dimensions = hierarchy.number_of_dimensions();
     for (const CqmomActiveBranchCount& count : active_branch_counts)
     {
@@ -743,58 +719,72 @@ struct BranchNodeCountLimit
         {
             throw std::invalid_argument("CQMOM active branch count metadata is outside the configured node-count capacity.");
         }
-        const ActiveBranchKey key{count.conditioning_level, count.parent_path, count.phase_space_dimension};
-        if (!topology.counts.emplace(key, count).second)
+    }
+    for (std::size_t index = 1; index < active_branch_counts.size(); ++index)
+    {
+        if (active_branch_counts[index].parent_path == active_branch_counts[index - 1].parent_path)
         {
             throw std::invalid_argument("CQMOM active branch count metadata contains duplicate entries for a branch.");
         }
     }
 
-    std::size_t reachable_entries = 0;
-    std::vector<ConditioningPath> parents{ConditioningPath{}};
-    for (std::size_t level = 0; level < dimensions; ++level)
+    // The latest record seen at each level, and whether it is reachable.
+    std::vector<const CqmomActiveBranchCount*> latest(dimensions, nullptr);
+    std::vector<bool> latest_reachable(dimensions, false);
+    std::size_t reachable_records = 0;
+    std::size_t reachable_branches = 1;
+    for (const CqmomActiveBranchCount& count : active_branch_counts)
     {
-        const std::size_t phase_space_dimension = hierarchy.conditioning_order()[level];
-        std::vector<ConditioningPath> children;
-        for (const ConditioningPath& parent : parents)
+        const std::size_t level = count.conditioning_level;
+        bool reachable = level == 0;
+        if (level > 0 && latest[level - 1] != nullptr && latest_reachable[level - 1])
         {
-            const ActiveBranchKey key{level, parent, phase_space_dimension};
-            const auto count = topology.counts.find(key);
-            if (count == topology.counts.end())
+            const ConditioningPath& parent_path = latest[level - 1]->parent_path;
+            reachable = count.parent_path.node_index_at_level(level - 1) < latest[level - 1]->active_node_count;
+            for (std::size_t ancestor = 0; reachable && ancestor + 1 < level; ++ancestor)
             {
-                throw std::invalid_argument("CQMOM active branch count metadata is missing a reachable branch.");
-            }
-            ++reachable_entries;
-            for (std::size_t child = 0; child < count->second.active_node_count; ++child)
-            {
-                children.push_back(parent.with_child(child));
+                reachable = count.parent_path.node_index_at_level(ancestor) == parent_path.node_index_at_level(ancestor);
             }
         }
-        parents = std::move(children);
+        latest[level] = &count;
+        latest_reachable[level] = reachable;
+        if (reachable)
+        {
+            ++reachable_records;
+            if (level + 1 < dimensions)
+            {
+                reachable_branches += count.active_node_count;
+            }
+        }
     }
-    if (reachable_entries != topology.counts.size())
-    {
-        throw std::invalid_argument("CQMOM active branch count metadata contains unreachable or stale branches.");
-    }
-    return topology;
-}
-
-[[nodiscard]] BranchNodeCountLimit recursive_branch_node_count_limit(const ActiveBranchTopology& topology, const std::size_t conditioning_level,
-                                                                     const ConditioningPath& parent_path, const std::size_t phase_space_dimension,
-                                                                     const std::size_t configured_node_count,
-                                                                     const std::vector<ConditioningPath>& invalidated_prefixes)
-{
-    if (!topology.constrained || branch_limit_invalidated(parent_path, invalidated_prefixes))
-    {
-        return {configured_node_count, std::nullopt};
-    }
-    const auto active = topology.counts.find(ActiveBranchKey{conditioning_level, parent_path, phase_space_dimension});
-    if (active == topology.counts.end())
+    if (reachable_records < reachable_branches)
     {
         throw std::invalid_argument("CQMOM active branch count metadata is missing a reachable branch.");
     }
-    (void)configured_node_count;
-    return {active->second.active_node_count, active->second.active_node_count};
+    if (reachable_records != active_branch_counts.size())
+    {
+        throw std::invalid_argument("CQMOM active branch count metadata contains unreachable or stale branches.");
+    }
+}
+
+// `active_counts` is null for an unconstrained reconstruction and otherwise
+// sorted by parent path. A parent path names one branch, since its length is
+// the conditioning level.
+[[nodiscard]] BranchNodeCountLimit recursive_branch_node_count_limit(const std::vector<CqmomActiveBranchCount>* const active_counts,
+                                                                     const ConditioningPath& parent_path, const std::size_t configured_node_count,
+                                                                     const std::vector<ConditioningPath>& invalidated_prefixes)
+{
+    if (active_counts == nullptr || branch_limit_invalidated(parent_path, invalidated_prefixes))
+    {
+        return {configured_node_count, std::nullopt};
+    }
+    const auto active = std::lower_bound(active_counts->begin(), active_counts->end(), parent_path,
+                                         [](const CqmomActiveBranchCount& count, const ConditioningPath& path) { return count.parent_path < path; });
+    if (active == active_counts->end() || active->parent_path != parent_path)
+    {
+        throw std::invalid_argument("CQMOM active branch count metadata is missing a reachable branch.");
+    }
+    return {active->active_node_count, active->active_node_count};
 }
 
 [[nodiscard]] Quadrature1D compute_branch_quadrature(std::vector<double> moments, const std::size_t node_count, const WheelerOptions& wheeler_options,
@@ -1498,15 +1488,28 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
         record_failure(result, RecursiveQuadratureStatus::invalid_input, {}, 0, coordinate_support_message);
         return result;
     }
-    ActiveBranchTopology active_topology;
-    try
+    // Branches are looked up by parent path, so counts in another order are
+    // sorted into a copy. Counts a reconstruction recorded are already sorted.
+    const std::vector<CqmomActiveBranchCount>* active_counts = nullptr;
+    std::vector<CqmomActiveBranchCount> sorted_active_counts;
+    if (wheeler_options.adaptive && !request.active_branch_counts.empty())
     {
-        active_topology = validate_active_branch_topology(request.hierarchy, wheeler_options.adaptive, request.active_branch_counts);
-    }
-    catch (const std::exception& ex)
-    {
-        record_failure(result, RecursiveQuadratureStatus::invalid_input, {}, 0, ex.what());
-        return result;
+        active_counts = &request.active_branch_counts;
+        if (!std::is_sorted(active_counts->begin(), active_counts->end(), parent_path_less))
+        {
+            sorted_active_counts = request.active_branch_counts;
+            std::sort(sorted_active_counts.begin(), sorted_active_counts.end(), parent_path_less);
+            active_counts = &sorted_active_counts;
+        }
+        try
+        {
+            validate_active_branch_counts(request.hierarchy, *active_counts);
+        }
+        catch (const std::exception& ex)
+        {
+            record_failure(result, RecursiveQuadratureStatus::invalid_input, {}, 0, ex.what());
+            return result;
+        }
     }
     BranchMomentSlice root_slice;
     std::shared_ptr<const BranchMomentLayout> dynamic_root_branch_layout;
@@ -1581,8 +1584,8 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
             BranchNodeCountLimit node_count_limit{configured_node_count, std::nullopt};
             try
             {
-                node_count_limit = recursive_branch_node_count_limit(active_topology, level, branch.path, phase_space_dimension,
-                                                                     configured_node_count, invalidated_active_count_prefixes);
+                node_count_limit =
+                    recursive_branch_node_count_limit(active_counts, branch.path, configured_node_count, invalidated_active_count_prefixes);
             }
             catch (const std::exception& ex)
             {
@@ -1669,7 +1672,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                 record_failure(result, RecursiveQuadratureStatus::wheeler_failed, branch.path, level, quadrature.message);
                 return result;
             }
-            if (active_topology.constrained && !branch_limit_invalidated(branch.path, invalidated_active_count_prefixes) &&
+            if (active_counts != nullptr && !branch_limit_invalidated(branch.path, invalidated_active_count_prefixes) &&
                 node_count_limit.active_node_count.has_value() && quadrature.weights.size() != *node_count_limit.active_node_count)
             {
                 for (std::size_t child = 0; child < quadrature.weights.size(); ++child)
@@ -1712,6 +1715,10 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
             {
                 branch_diagnostics.message = "Recursive branch level constructed.";
                 publish_branch_diagnostics(branch_diagnostics);
+            }
+            if (wheeler_options.adaptive && request.record_active_branch_counts)
+            {
+                result.active_branch_counts.push_back({level, branch.path, phase_space_dimension, configured_node_count, quadrature.weights.size()});
             }
 
             for (std::size_t node = 0; node < quadrature.weights.size(); ++node)
@@ -1803,6 +1810,10 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
             record_failure(result, RecursiveQuadratureStatus::invalid_input, {}, dimensions == 0 ? 0 : dimensions - 1, ex.what());
             return result;
         }
+        // The traversal visits the branches level by level. Lexicographic
+        // parent-path order lists every branch before its descendants, as the
+        // terminal paths do.
+        std::sort(result.active_branch_counts.begin(), result.active_branch_counts.end(), parent_path_less);
     }
 
     result.status = RecursiveQuadratureStatus::success;

@@ -157,7 +157,9 @@ const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, node_count);
 ```
 
 When the model needs exactly the requested number of nodes, request a fixed
-count; the reconstruction then returns every node or fails:
+count; the reconstruction then returns every node or fails. It fails with
+`not_realizable` when the moments, within their rounding, support fewer nodes
+than requested:
 
 ```cpp
 qmomkit::QmomOptions options;

@@ -6,6 +6,8 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <string>
+#include <tuple>
 #include <vector>
 
 namespace
@@ -488,6 +490,41 @@ void test_nonfinite_moment_reports_invalid_input()
     assert(quadrature.weights.empty());
 }
 
+void test_fixed_count_refuses_sequences_supporting_fewer_nodes()
+{
+    // Moments of a rule with fewer weighted points than requested lie on the
+    // boundary, where a recurrence entry is zero up to roundoff. A fixed count
+    // must refuse them whatever sign that roundoff takes, which changes with
+    // the unit and the number density, and name the count the moments support.
+    qmomkit::WheelerOptions fixed;
+    fixed.adaptive = false;
+    for (const double unit : {1.0e-6, 0.37, 1.0, 3.0, 1.0e6})
+    {
+        for (const double number_density : {1.0e-12, 1.0, 1.0e12})
+        {
+            const qmomkit::Quadrature1D dirac{{0.4 * unit}, {number_density}};
+            const qmomkit::Quadrature1D two_points{{-0.75 * unit, 1.25 * unit}, {0.4 * number_density, 0.6 * number_density}};
+            for (const auto& [rule, requested, message] :
+                 {std::tuple{dirac, std::size_t{2}, "supports at most 1 node:"}, std::tuple{two_points, std::size_t{3}, "supports at most 2 nodes:"},
+                  std::tuple{two_points, std::size_t{4}, "supports at most 2 nodes:"}})
+            {
+                const qmomkit::Quadrature1D result =
+                    qmomkit::compute_quadrature(qmomkit::MomentSet(reconstruct_moments(rule, 2 * requested)), requested, fixed);
+                assert(result.status == qmomkit::QuadratureStatus::not_realizable);
+                assert(result.message.find(message) != std::string::npos);
+            }
+
+            // A rule with as many points as requested is still recovered.
+            const std::vector<double> abscissas{-0.75 * unit, 0.25 * unit, 1.25 * unit};
+            const std::vector<double> weights{0.3 * number_density, 0.3 * number_density, 0.4 * number_density};
+            const qmomkit::Quadrature1D recovered = qmomkit::compute_quadrature(moments_from_nodes(abscissas, weights), 3, fixed);
+            assert(recovered.ok());
+            assert_vector_near_relative(recovered.abscissas, abscissas, 1.0e-12);
+            assert_vector_near_relative(recovered.weights, weights, 1.0e-12);
+        }
+    }
+}
+
 void test_invalid_wheeler_options_fail_before_inversion()
 {
     qmomkit::WheelerOptions options;
@@ -555,6 +592,7 @@ int main(const int argc, char** argv)
             {"invalid_input_requires_two_moments_per_node", test_invalid_input_requires_two_moments_per_node},
             {"zero_requested_nodes_reports_invalid_input", test_zero_requested_nodes_reports_invalid_input},
             {"nonfinite_moment_reports_invalid_input", test_nonfinite_moment_reports_invalid_input},
+            {"fixed_count_refuses_sequences_supporting_fewer_nodes", test_fixed_count_refuses_sequences_supporting_fewer_nodes},
             {"invalid_wheeler_options_fail_before_inversion", test_invalid_wheeler_options_fail_before_inversion},
         });
 }

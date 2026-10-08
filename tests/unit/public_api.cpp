@@ -881,6 +881,26 @@ void test_qmom_is_unit_covariant()
     }
 }
 
+void test_fixed_cqmom_refuses_point_mass_branch_in_every_unit()
+{
+    // The second x-branch is a point mass in y, so its conditional moments
+    // support one y-node, not the two a fixed count requires. The refusal must
+    // not depend on the sign roundoff gives the degenerate recurrence entry,
+    // which changes with the unit of y.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
+    const std::vector<std::size_t> extents{4, 4};
+    const std::vector<double> weights{0.2, 0.3, 0.25, 0.25};
+    for (const double unit : {1.0e-6, 1.0e-3, 0.37, 1.0, 3.0, 1.0e3, 1.0e6})
+    {
+        const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 2.0, 2.0}, {-0.5 * unit, 0.8 * unit, 0.3 * unit, 0.3 * unit}};
+        const qmomkit::CqmomResult result = qmomkit::compute_cqmom(
+            cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_terminals(extents, weights, abscissas)}, {}, qmomkit::QmomOptions{false}));
+        assert(!result.ok());
+        assert(result.status == qmomkit::CqmomStatus::qmom_failed);
+        assert(result.failed_phase_space_dimension == 1);
+    }
+}
+
 void test_one_dimensional_cqmom_agrees_with_qmom()
 {
     const std::vector<double> moments = raw_moments_1d({-1.0, 2.0}, {0.4, 0.6}, 4);
@@ -1267,6 +1287,7 @@ int main(const int argc, char** argv)
             {"one_dimensional_cqmom_agrees_with_qmom", test_one_dimensional_cqmom_agrees_with_qmom},
             {"cqmom_public_api_two_dimensional_manufactured_case", test_cqmom_public_api_two_dimensional_manufactured_case},
             {"cqmom_recovers_coordinates_of_disparate_magnitude", test_cqmom_recovers_coordinates_of_disparate_magnitude},
+            {"fixed_cqmom_refuses_point_mass_branch_in_every_unit", test_fixed_cqmom_refuses_point_mass_branch_in_every_unit},
             {"cqmom_public_api_reports_conditional_moment_failure", test_cqmom_public_api_reports_conditional_moment_failure},
             {"cqmom_public_api_exposes_adaptive_branch_counts", test_cqmom_public_api_exposes_adaptive_branch_counts},
             {"cqmom_adaptive_root_branch_uses_relative_rmin_only", test_cqmom_adaptive_root_branch_uses_relative_rmin_only},

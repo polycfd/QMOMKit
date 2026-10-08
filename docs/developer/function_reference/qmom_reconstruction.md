@@ -88,7 +88,7 @@ reduction before rejecting non-finite higher recurrence data. The analytical
 Wheeler verification establishes selected exact rules, not eigen convergence at
 every requested order.
 
-## A — `attempt_quadrature_count`, `adaptive_sigma_tolerances`, `adaptive_accepts`
+## A — `attempt_quadrature_count`, `sigma_tolerances`, `adaptive_accepts`
 
 The attempt owns three distinct loops. First, adaptive sigma inspection
 descends from the candidate ceiling to degree two. The threshold for
@@ -99,11 +99,17 @@ the same units, and `s` is the coordinate scale passed for conditional moments
 negative threshold marks an attempt for outer retry. An absolute sigma within
 threshold sets a lower count, with an immediate successful one-node return at
 count one. The recurrence is recomputed at the surviving count and must be
-finite with nonnegative `b`.
+finite with nonnegative `b`. Fixed mode applies the same thresholds in
+ascending order and does not reduce: the first `sigma(k,k)` within its finite
+threshold returns `not_realizable`, naming the `k-1` nodes the moments
+support, so a sequence on the boundary is refused whatever sign its roundoff
+takes. A recurrence that overflows instead is reported as non-finite. Fixed
+CQMOM passes no coordinate scale, so the threshold has no floor there.
 
 Second, candidate Jacobi matrices descend from that surviving count to two,
 using prefixes of the already computed recurrence. Non-finite eigenvalues or
-weights fail immediately. Fixed mode accepts the first finite result. Adaptive
+weights fail immediately. Fixed mode accepts the first finite result of a
+count that passed the threshold check. Adaptive
 mode calls `adaptive_accepts`; exhaustion returns a successful one-node
 payload. The one-node fallthrough does not increment the adaptive-reduction
 counter on all paths; counters measure the implemented recording sites, not a

@@ -16,7 +16,8 @@ The cases exercise:
   against the same products multiplied out in error-free double-double
   arithmetic, and odd chi moments against values computed with mpmath;
 - selected-order requests, out of sequence, against the same references;
-- inversion of the moments of narrow gamma distributions, up to shape `1e7`;
+- inversion of the moments of narrow gamma distributions, up to shape `1e7`,
+  and refusal of fixed counts the moments no longer determine;
 - total number density scaling, including non-unit weights;
 - invalid-parameter and overflow reporting for raw-moment generation;
 - one-dimensional mixtures with absolute component weights;

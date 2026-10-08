@@ -1653,20 +1653,25 @@ void test_recursive_adaptive_reduces_roundoff_branch_with_bounded_support()
     assert(found_branch);
 }
 
-void test_recursive_adaptive_records_active_counts_in_parent_path_order()
+// An adaptive request for a 3D rule of six weighted points whose second branch
+// holds a single y point, so that branch reduces to one node.
+qmomkit::internal::RecursiveQuadratureMomentDataRequest single_point_branch_3d_request()
 {
-    // A 3D rule whose second branch holds a single y point. The traversal
-    // visits branches level by level, but the recorded counts list each branch
-    // before its descendants, the order in which the terminal paths visit them.
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2});
     const std::vector<std::size_t> extents{4, 4, 4};
     const std::vector<double> weights{0.4 * 0.5 * 0.3, 0.4 * 0.5 * 0.7, 0.4 * 0.5 * 0.3, 0.4 * 0.5 * 0.7, 0.6 * 0.3, 0.6 * 0.7};
     const std::vector<std::vector<double>> abscissas{
         {-1.0, -1.0, -1.0, -1.0, 1.0, 1.0}, {-1.0, -1.0, 1.0, 1.0, 0.0, 0.0}, {-0.5, 0.5, -0.5, 0.5, -0.5, 0.5}};
-    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+    return moment_data_request(hierarchy, {extents, raw_moments_from_terminal_quadrature(abscissas, weights, extents)}, {},
+                               qmomkit::WheelerOptions{true, 1.0e-10, 1.0e-10, 1.0e-12});
+}
 
-    qmomkit::internal::RecursiveQuadratureMomentDataRequest request =
-        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{true, 1.0e-10, 1.0e-10, 1.0e-12});
+void test_recursive_adaptive_records_active_counts_in_parent_path_order()
+{
+    // The traversal visits branches level by level, but the recorded counts
+    // list each branch before its descendants, the order in which the terminal
+    // paths visit them.
+    qmomkit::internal::RecursiveQuadratureMomentDataRequest request = single_point_branch_3d_request();
     const qmomkit::internal::RecursiveQuadratureResult unrecorded = qmomkit::internal::compute_recursive_quadrature_from_moment_data(request);
     assert(unrecorded.ok());
     assert(unrecorded.active_branch_counts.empty());
@@ -1674,7 +1679,7 @@ void test_recursive_adaptive_records_active_counts_in_parent_path_order()
     request.record_active_branch_counts = true;
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(request);
     assert(result.ok());
-    assert(result.quadrature.total_nodes() == weights.size());
+    assert(result.quadrature.total_nodes() == 6);
     const std::vector<qmomkit::CqmomActiveBranchCount> expected{
         {0, qmomkit::ConditioningPath{}, 0, 2, 2},       {1, qmomkit::ConditioningPath({0}), 1, 2, 2},
         {2, qmomkit::ConditioningPath({0, 0}), 2, 2, 2}, {2, qmomkit::ConditioningPath({0, 1}), 2, 2, 2},
@@ -1693,8 +1698,9 @@ void test_recursive_adaptive_records_active_counts_in_parent_path_order()
     const std::vector<double> product_weights{0.06, 0.14, 0.06, 0.14, 0.09, 0.21, 0.09, 0.21};
     const std::vector<std::vector<double>> product_abscissas{
         {-1.0, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0}, {-1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0}, {-0.5, 0.5, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5}};
+    const std::vector<std::size_t> extents{4, 4, 4};
     qmomkit::internal::RecursiveQuadratureMomentDataRequest fixed_request =
-        moment_data_request(hierarchy, {extents, raw_moments_from_terminal_quadrature(product_abscissas, product_weights, extents)});
+        moment_data_request(request.hierarchy, {extents, raw_moments_from_terminal_quadrature(product_abscissas, product_weights, extents)});
     fixed_request.record_active_branch_counts = true;
     const qmomkit::internal::RecursiveQuadratureResult fixed = qmomkit::internal::compute_recursive_quadrature_from_moment_data(fixed_request);
     assert(fixed.ok());
@@ -1703,17 +1709,10 @@ void test_recursive_adaptive_records_active_counts_in_parent_path_order()
 
 void test_recursive_adaptive_validates_supplied_active_counts()
 {
-    // The 3D rule of the test above, constrained by the active counts its own
-    // reconstruction records. Counts in any order describe the same topology;
-    // counts that do not describe one record per reachable branch are rejected.
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2});
-    const std::vector<std::size_t> extents{4, 4, 4};
-    const std::vector<double> weights{0.4 * 0.5 * 0.3, 0.4 * 0.5 * 0.7, 0.4 * 0.5 * 0.3, 0.4 * 0.5 * 0.7, 0.6 * 0.3, 0.6 * 0.7};
-    const std::vector<std::vector<double>> abscissas{
-        {-1.0, -1.0, -1.0, -1.0, 1.0, 1.0}, {-1.0, -1.0, 1.0, 1.0, 0.0, 0.0}, {-0.5, 0.5, -0.5, 0.5, -0.5, 0.5}};
-    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-    qmomkit::internal::RecursiveQuadratureMomentDataRequest request =
-        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{true, 1.0e-10, 1.0e-10, 1.0e-12});
+    // The rule constrained by the active counts its own reconstruction
+    // records. Counts in any order describe the same topology; counts that do
+    // not describe one record per reachable branch are rejected.
+    qmomkit::internal::RecursiveQuadratureMomentDataRequest request = single_point_branch_3d_request();
     request.record_active_branch_counts = true;
     const qmomkit::internal::RecursiveQuadratureResult recorded = qmomkit::internal::compute_recursive_quadrature_from_moment_data(request);
     assert(recorded.ok());

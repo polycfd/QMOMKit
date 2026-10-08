@@ -181,7 +181,7 @@ trial's requested count, and returned active counts are separate values.
    count. The traversal visits branches level by level; on success the counts
    are sorted by parent path, which lists each branch before its descendants,
    the order in which the terminal paths visit them. A `CqmomState` takes its
-   counts from here instead of re-deriving them from the terminal paths.
+   counts from here.
 
 Failure leaves partial tree/storage as diagnostic data. Public result
 conversion maps status and failed dimension; consumers must check success

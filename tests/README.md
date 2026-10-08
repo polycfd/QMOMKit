@@ -130,8 +130,8 @@ The current test layout is:
 tests/
     CMakeLists.txt
     README.md
-    test_case_dispatch.hpp
     cqmom_active_counts.hpp
+    test_case_dispatch.hpp
     unit/
         CMakeLists.txt
         abscissa_bounds.cpp

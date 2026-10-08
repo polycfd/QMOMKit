@@ -287,18 +287,23 @@ $$V[i, p] = x_i^p$$
 then the conditional matrix is:
 $$A = V^T \mathrm{diag}(w)$$
 
-The dense, pivoted-QR, SVD, and Moore-Penrose pathways build `A` and solve
-`A*C = M`
-directly. The Björck-Pereyra pathway is split into two internal layers: a
-structure-specific kernel solves the unweighted transposed Vandermonde system
+No pathway solves `A*C = M` with the weighted matrix as given. The
+Björck-Pereyra pathway is split into two internal layers: a structure-specific
+kernel solves the unweighted transposed Vandermonde system
 $$V^T Y = M$$
 
 and the conditional Vandermonde adapter recovers the conditional moments by
 dividing each solution row by the corresponding parent weight:
 $$C[i, q] = Y[i, q] / w_i$$
 
-The adapter owns the conditional-system validation, weight transformation,
-solver selection, QR/SVD/Moore-Penrose residual acceptance, and diagnostics.
+The dense, pivoted-QR, SVD, and Moore-Penrose pathways do the same with the
+nodes divided by the power of two above the largest |node| and the moment rows
+scaled to match, so that their singularity, rank, and truncation decisions
+depend on neither the number density nor the unit of the parent coordinate.
+
+The adapter owns the conditional-system validation, weight and scale
+separation, solver selection, QR/SVD/Moore-Penrose residual acceptance, and
+diagnostics.
 The Björck-Pereyra kernel owns only the internal unweighted transposed
 Vandermonde solve and its node-separation checks. Numerical kernel details,
 tolerance definitions, and the complete solver-selection table are documented
@@ -307,11 +312,11 @@ in [linear_algebra.md](linear_algebra.md).
 QMOMKit calls the numerical policy that solves this conditional system the
 Vandermonde solver. The user-facing solver choices are:
 
-- Dense solver: a generic dense linear solve of the weighted system.
-- Pivoted-QR solver: an explicit direct solve of the weighted system.
-- SVD solver: an explicit direct solve of the weighted system.
+- Dense solver: a generic dense linear solve of the scaled system.
+- Pivoted-QR solver: an explicit direct solve of the scaled system.
+- SVD solver: an explicit direct solve of the scaled system.
 - Moore-Penrose solver: an explicitly requested truncated SVD minimum-norm
-  solve with `sigma > rcond * sigma_max` retained.
+  solve of the scaled system with `sigma > rcond * sigma_max` retained.
 - Björck-Pereyra Vandermonde solver: the unweighted BP transform plus
   adapter-owned weight recovery.
 - Automatic solver: the default; it resolves to Björck-Pereyra.

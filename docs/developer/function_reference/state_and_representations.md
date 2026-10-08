@@ -142,12 +142,11 @@ invariance.
 ## Public dispatch and conversion — Level B
 
 `compute_qmom` overloads resolve case/options/bounds and map Wheeler status;
-[QMOM reconstruction](qmom_reconstruction.md) explains scaling and selection.
+[QMOM reconstruction](qmom_reconstruction.md) explains node-count and bounded selection.
 `compute_cqmom` validates a public `CqmomCase` or dispatches an opaque case
 to `compute_cqmom_internal`. Prepared cases and states, fixed or adaptive,
 supply their prepared metadata; a `CqmomCase` builds its branch layout on each
-call. Scaling wraps the
-internal reconstruction with reversible coordinate transformations.
+call.
 
 `to_qmom_status`, `to_cqmom_status`, `to_cqmom_diagnostics`, `to_cqmom_result`,
 and `failed_phase_space_dimension` translate internal status/location and

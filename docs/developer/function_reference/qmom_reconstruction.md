@@ -1,4 +1,4 @@
-# QMOM reconstruction and coordinate scaling
+# QMOM reconstruction and coordinate scales
 
 ## Ownership and call context
 
@@ -136,8 +136,9 @@ gate.
 
 Raw moments become poorly conditioned under large coordinate translations.
 Reconstruction does not center the distribution, so it cannot recover shape
-information already lost to cancellation in translated raw moments. Near-coincident support is likewise limited by finite precision in
-the recurrence and Hankel information. `cutoff` is the absolute low-population
+information already lost to cancellation in translated raw moments.
+Near-coincident support is likewise limited by finite precision in the
+recurrence and Hankel information. `cutoff` is the absolute low-population
 gate; `rmin` is a relative quadrature-weight criterion. These controls serve
 different purposes and neither is a general realizability certificate.
 
@@ -198,9 +199,11 @@ candidate falls through to the next. Recursive CQMOM uses these scales only in
 adaptive mode, as the floor of Wheeler's degeneracy bound for conditional
 levels (see [Wheeler design](../qmom_wheeler.md)); no moment is transformed.
 
-Evidence: the adaptive unit-invariance cases in
-[`cqmom/unit_invariance.cpp`](../../../tests/verification/cqmom/unit_invariance.cpp),
-which recover prescribed ragged rules from tensors in rescaled units.
+Evidence: `test_coordinate_scales_fall_back_from_rms_to_mean_to_one` in
+[`tests/unit/recursive_quadrature.cpp`](../../../tests/unit/recursive_quadrature.cpp)
+checks the selection order, and the adaptive unit-invariance cases in
+[`cqmom/unit_invariance.cpp`](../../../tests/verification/cqmom/unit_invariance.cpp)
+recover prescribed ragged rules from tensors in rescaled units.
 
 ## B/C — entry and payload helpers
 
@@ -210,7 +213,7 @@ which recover prescribed ragged rules from tensors in rescaled units.
 | `to_wheeler_options`, `to_qmom_status` | Preserve exposed thresholds/adaptivity and map enum values | Definitions in `src/public_api.cpp` |
 | `one_node_result`, `negative_mass_result` | Status-bearing diagnostic or accepted payloads as distinguished above | Negative mass/variance tests in `tests/unit/wheeler.cpp` |
 | `recurrence_is_finite`, `has_negative_recurrence_b`, `required_moments_are_finite` | Numerical guards; the latter checks a prefix, not every stored moment | Same Wheeler tests |
-| `finite_positive`, `convert_to_double` | Coordinate-scale selection and representability guards, including nonzero underflow | Adaptive CQMOM unit-invariance verification |
+| `finite_positive`, `convert_to_double` | Coordinate-scale selection and representability guards, including nonzero underflow | Coordinate-scale unit test; adaptive CQMOM unit-invariance verification |
 
 The elementary `MomentSet` methods, defined in their own `src/moment_set.cpp`
 translation unit, are covered in

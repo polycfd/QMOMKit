@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 673 |
+| Unit logical tests | 674 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **909** |
+| **Runtime logical tests** | **910** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **910** |
+| **Total CTest registrations** | **911** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -590,6 +590,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_recursive_quadrature_recursive_dense_and_svd_equivalence_fixed` | `tests/unit/recursive_quadrature.cpp` | `recursive_dense_and_svd_equivalence_fixed` | Checks that the compared recursive CQMOM reconstruction paths produce equivalent results for the tested input. | — |
 | `unit_recursive_quadrature_recursive_dense_and_moore_penrose_equivalence_fixed` | `tests/unit/recursive_quadrature.cpp` | `recursive_dense_and_moore_penrose_equivalence_fixed` | Checks that the explicit Moore-Penrose CQMOM policy matches dense reconstruction on the tested full-rank case. | — |
 | `unit_recursive_quadrature_recursive_moore_penrose_rcond_changes_conditional_reconstruction` | `tests/unit/recursive_quadrature.cpp` | `recursive_moore_penrose_rcond_changes_conditional_reconstruction` | Checks that Moore-Penrose cutoff changes propagate into recursive conditional reconstruction. | — |
+| `unit_recursive_quadrature_coordinate_scales_fall_back_from_rms_to_mean_to_one` | `tests/unit/recursive_quadrature.cpp` | `coordinate_scales_fall_back_from_rms_to_mean_to_one` | Checks that each coordinate scale used by adaptive CQMOM is the RMS `sqrt(m2/m0)` when the second moment is required, and otherwise `abs(m1)/m0`, or one for a zero mean. | — |
 | `unit_recursive_quadrature_recursive_bp_success_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `recursive_bp_success_independent_of_diagnostic_level` | Checks successful recursive Björck–Pereyra reconstruction has identical numerics at none, basic, and detailed diagnostic levels. | — |
 | `unit_recursive_quadrature_recursive_automatic_uses_plain_bp_for_small_branches` | `tests/unit/recursive_quadrature.cpp` | `recursive_automatic_uses_plain_bp_for_small_branches` | Checks that automatic uses plain bp for small branches in recursive CQMOM reconstruction. | — |
 | `unit_recursive_quadrature_recursive_automatic_independent_of_diagnostic_level` | `tests/unit/recursive_quadrature.cpp` | `recursive_automatic_independent_of_diagnostic_level` | Checks successful recursive automatic-solver reconstruction has identical numerics at none, basic, and detailed diagnostic levels. | — |
@@ -758,7 +759,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_qmom_rejects_zero_node_count` | `tests/unit/public_api.cpp` | `qmom_rejects_zero_node_count` | Checks that a zero node count is rejected as invalid input for every combination of adaptive inversion and bounded support, and that no such result reports success with an empty quadrature. | — |
 | `unit_public_api_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds` | `tests/unit/public_api.cpp` | `qmom_rejects_fewer_than_2n_moments_with_or_without_bounds` | Checks that QMOM rejects fewer than `2n` moments as invalid input, with the same message with and without abscissa bounds, in fixed and adaptive mode, including requested counts whose `2n` would overflow. | — |
 | `unit_public_api_qmom_recovers_bounded_rule_of_large_magnitude` | `tests/unit/public_api.cpp` | `qmom_recovers_bounded_rule_of_large_magnitude` | Checks that bounded QMOM recovers a two-node rule with abscissas of order 1e50. | — |
-| `unit_public_api_qmom_is_unit_covariant` | `tests/unit/public_api.cpp` | `qmom_is_unit_covariant` | Checks that fixed and adaptive QMOM rules scale with the unit of the coordinate from 1e-9 to 1e6. | — |
+| `unit_public_api_qmom_is_unit_covariant` | `tests/unit/public_api.cpp` | `qmom_is_unit_covariant` | Checks that a fixed two-node QMOM rule scales with the unit of the coordinate from 1e-9 to 1e6, and that an adaptive rule reduced to one node does so at 1e-9 and 1e6. | — |
 | `unit_public_api_one_dimensional_cqmom_agrees_with_qmom` | `tests/unit/public_api.cpp` | `one_dimensional_cqmom_agrees_with_qmom` | Verifies one dimensional CQMOM agrees with QMOM. | — |
 | `unit_public_api_cqmom_public_api_two_dimensional_manufactured_case` | `tests/unit/public_api.cpp` | `cqmom_public_api_two_dimensional_manufactured_case` | Verifies CQMOM public API two dimensional manufactured case. | — |
 | `unit_public_api_cqmom_recovers_coordinates_of_disparate_magnitude` | `tests/unit/public_api.cpp` | `cqmom_recovers_coordinates_of_disparate_magnitude` | Checks that bounded CQMOM recovers a 2D rule with coordinates of order 1e50 and 1e-50 and that it matches the rule in unit coordinates. | — |

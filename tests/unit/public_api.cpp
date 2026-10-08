@@ -845,7 +845,7 @@ void test_qmom_is_unit_covariant()
 {
     const std::vector<double> reference_abscissas{-0.5, 1.75};
     const std::vector<double> weights{0.25, 0.75};
-    const qmomkit::QmomOptions options;
+    const qmomkit::QmomOptions options{false};
     const qmomkit::QmomResult reference = qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d(reference_abscissas, weights, 4)), 2, options);
     assert(reference.ok());
 
@@ -870,6 +870,7 @@ void test_qmom_is_unit_covariant()
     adaptive_options.adaptive = true;
     const qmomkit::QmomResult adaptive_reference = qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d({0.25}, {1.0}, 4)), 2, adaptive_options);
     assert(adaptive_reference.ok());
+    assert(adaptive_reference.weights.size() == 1);
     for (const double factor : std::vector<double>{1.0e-9, 1.0e6})
     {
         const qmomkit::QmomResult adaptive_result =

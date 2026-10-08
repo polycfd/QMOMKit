@@ -71,7 +71,7 @@ initial condition are required; everything else has a default.
 
 | Section | Purpose | Covered in |
 | --- | --- | --- |
-| `[phase_space]` | Coordinates, node counts, conditioning order, supports, scaling | [Describing the phase space](#describing-the-phase-space) |
+| `[phase_space]` | Coordinates, node counts, conditioning order, supports | [Describing the phase space](#describing-the-phase-space) |
 | `[moments]` | Explicit raw moments | [Explicit moments](#explicit-moments) |
 | `[initial]` | Moments generated from analytical distributions | [Setting the initial condition](#setting-the-initial-condition) |
 | `[qmom]` | One-dimensional inversion options, used by QMOM and CQMOM alike | [Reconstruction settings](#reconstruction-settings) |

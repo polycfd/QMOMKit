@@ -235,11 +235,10 @@ with the source term omitted.
 ## Unit Invariance Through Adaptive CQMOM Evolution
 
 The `unit_invariance_cqmom_state_adaptive_{reference,rescaled}.qmom`
-fixtures use the normal configured public workflow with
-adaptive `{2,2}` capacity and non-identity
-conditioning order `{1,0}`. They represent the same ragged physical rule
-`(-1,-1,0.10)`, `(1,-1,0.30)`, `(0.5,2,0.60)` in units `(1,1)` and
-`(1e6,1e-6)`.
+fixtures use the normal configured public workflow with adaptive `{2,2}`
+capacity and non-identity conditioning order `{1,0}`. They represent the same
+ragged physical rule `(-1,-1,0.10)`, `(1,-1,0.30)`, `(0.5,2,0.60)` in units
+`(1,1)` and `(1e6,1e-6)`.
 
 One Strang macro step applies constant node velocities `(0.4,-0.25)` in the
 reference units, scaled by the fixture units, and the CQMOM-native source `dM_alpha/dt = 0.1 M_alpha`.

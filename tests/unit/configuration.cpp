@@ -1930,6 +1930,49 @@ support = nonnegative
     assert(has_message_fragment(invalid, "phase-space rank 2"));
 }
 
+void test_huge_declared_extents_are_reported_as_incomplete()
+{
+    // The declared extents fix the size of the tensor, but only the supplied
+    // entries can fill it. Extents far beyond them are an incomplete tensor and
+    // are reported as one, not allocated: a 1e8 x 1e8 tensor would need 80 PB.
+    for (const auto& [extents, missing] : {std::pair{std::string("100000000, 100000000"), std::string("9999999999999999 of its 10000000000000000")},
+                                           std::pair{std::string("2, 1000000000000000"), std::string("1999999999999999 of its 2000000000000000")}})
+    {
+        const std::string text = "[phase_space]\nnode_counts = 1, 1\n[moments]\nextents = " + extents + "\nM[0,0] = 1.0\n";
+        const auto open_case = qmomkit::config::parse_cqmom(text);
+        const auto prepared_case = qmomkit::config::parse_cqmom_prepared(text);
+        assert(!open_case.ok());
+        assert(!prepared_case.ok());
+        assert(has_message_fragment(open_case, "The full tensor of raw moments is incomplete; it is missing " + missing + " entries."));
+        assert(has_message_fragment(prepared_case, "is incomplete"));
+    }
+}
+
+void test_declared_rank_bounds_coordinate_realizability_indices()
+{
+    // Options read from a file that declares its phase space reject a
+    // coordinate index beyond the rank, as the case loaders do, without sizing
+    // the policy vector by the index. An index of 1e11 would otherwise ask for
+    // about 6 TB.
+    const std::string policy = "]\ncheck_mode = final_only\nsupport = nonnegative\n";
+    for (const std::string index : {"2", "100000000000"})
+    {
+        const std::string text = "[phase_space]\nnode_counts = 2, 2\n[time_integration.realizability." + index + policy;
+        const auto evolution_options = qmomkit::config::parse_cqmom_phase_space_evolution_options(text);
+        const auto policies = qmomkit::config::parse_coordinate_realizability_policies(text);
+        assert(!evolution_options.ok());
+        assert(!policies.ok());
+        assert(has_message_fragment(evolution_options, "coordinate index " + index + " is outside the configured phase-space rank 2"));
+        assert(has_message_fragment(policies, "coordinate index " + index + " is outside the configured phase-space rank 2"));
+    }
+
+    const auto within_rank =
+        qmomkit::config::parse_cqmom_phase_space_evolution_options("[phase_space]\nnode_counts = 2, 2\n[time_integration.realizability.1" + policy);
+    assert(within_rank.ok());
+    assert(within_rank.value().source_options.coordinate_realizability_policies.size() == 2);
+    assert(within_rank.value().source_options.coordinate_realizability_policies[1].has_value());
+}
+
 void test_adaptive_cqmom_reduces_conditional_and_marginal_branches()
 {
     const std::vector<double> conditional_weights{0.2, 0.3, 0.5};
@@ -4361,6 +4404,8 @@ int main(const int argc, char** argv)
             {"cqmom_independent_product_zero_density_skips_marginal_validation",
              test_cqmom_independent_product_zero_density_skips_marginal_validation},
             {"cqmom_adaptive_option_controls_the_reconstruction", test_cqmom_adaptive_option_controls_the_reconstruction},
+            {"huge_declared_extents_are_reported_as_incomplete", test_huge_declared_extents_are_reported_as_incomplete},
+            {"declared_rank_bounds_coordinate_realizability_indices", test_declared_rank_bounds_coordinate_realizability_indices},
             {"cqmom_prepared_case_parsing_validates_coordinate_realizability_rank",
              test_cqmom_prepared_case_parsing_validates_coordinate_realizability_rank},
             {"adaptive_cqmom_reduces_conditional_and_marginal_branches", test_adaptive_cqmom_reduces_conditional_and_marginal_branches},

@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 682 |
+| Unit logical tests | 684 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **918** |
+| **Runtime logical tests** | **920** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **919** |
+| **Total CTest registrations** | **921** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -823,6 +823,8 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_cqmom_prepared_case_file_loading` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_file_loading` | Verifies prepared CQMOM case file loading. | — |
 | `unit_configuration_cqmom_independent_product_zero_density_skips_marginal_validation` | `tests/unit/configuration.cpp` | `cqmom_independent_product_zero_density_skips_marginal_validation` | Verifies CQMOM independent product zero density skips marginal validation. | — |
 | `unit_configuration_cqmom_adaptive_option_controls_the_reconstruction` | `tests/unit/configuration.cpp` | `cqmom_adaptive_option_controls_the_reconstruction` | Checks that `qmom.adaptive` defaults to true in a CQMOM configuration, that `false` gives a fixed rectangular reconstruction, and that the removed `phase_space.adaptive_branch_counts` key is rejected with a message naming `[qmom] adaptive`, by the case parser and by `parse_cqmom_initial_condition`. | — |
+| `unit_configuration_huge_declared_extents_are_reported_as_incomplete` | `tests/unit/configuration.cpp` | `huge_declared_extents_are_reported_as_incomplete` | Checks that a full tensor whose declared extents far exceed its supplied entries (1e8 × 1e8 and 2 × 1e15) is reported by the open and prepared CQMOM parsers as an incomplete tensor with the exact missing count, without being allocated. | — |
+| `unit_configuration_declared_rank_bounds_coordinate_realizability_indices` | `tests/unit/configuration.cpp` | `declared_rank_bounds_coordinate_realizability_indices` | Checks that `parse_cqmom_phase_space_evolution_options` and `parse_coordinate_realizability_policies` reject a coordinate index at or far beyond the rank declared by `phase_space.node_counts` (2 and 1e11) with the rank message, and accept an index within it. | — |
 | `unit_configuration_cqmom_prepared_case_parsing_validates_coordinate_realizability_rank` | `tests/unit/configuration.cpp` | `cqmom_prepared_case_parsing_validates_coordinate_realizability_rank` | Verifies prepared CQMOM case parsing validates the coordinate realizability rank. | — |
 | `unit_configuration_adaptive_cqmom_reduces_conditional_and_marginal_branches` | `tests/unit/configuration.cpp` | `adaptive_cqmom_reduces_conditional_and_marginal_branches` | Checks that a configured adaptive CQMOM case reduces a conditional and a marginal branch to the nodes its moments support. | — |
 | `unit_configuration_cqmom_diagnostic_level_parses_values` | `tests/unit/configuration.cpp` | `cqmom_diagnostic_level_parses_values` | Checks that diagnostic level parses values in configuration loading. | — |

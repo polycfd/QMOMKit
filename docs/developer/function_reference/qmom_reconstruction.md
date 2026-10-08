@@ -155,8 +155,9 @@ shorter sequence is invalid input with the same message as the unbounded
 Wheeler path; the selector does not answer it with the smaller rule the
 available moments support. The local `evaluate` lambda checks finite ordered
 bounds, then inverts exactly the `2n`-moment prefix for its count. Success
-requires an exact returned count and all nodes in
-`[lower-1e-12,upper+1e-12]`. It does not clip nodes or invoke
+requires an exact returned count and all nodes in `[lower-t,upper+t]` with
+`t = 1e-12*max(|lower|,|upper|)`, a margin relative to the bounds so that the
+decision does not depend on the unit. It does not clip nodes or invoke
 `check_realizability`. Adaptive Wheeler weight/separation
 checks still apply because the supplied Wheeler options retain adaptivity.
 
@@ -182,9 +183,9 @@ weight/separation rejection, and rejected growth; public verification under
 [`qmom/quadrature_bounds.cpp`](../../../tests/verification/qmom/quadrature_bounds.cpp)
 and
 [`cqmom/quadrature_bounds.cpp`](../../../tests/verification/cqmom/quadrature_bounds.cpp).
-Bounds are acceptance conditions in the coordinates actually inverted, so
-scaling changes the physical width corresponding to the absolute `1e-12`
-margin.
+Bounds are acceptance conditions in the coordinates actually inverted. The
+margin is relative to the bounds, so automatic scaling maps it with them and
+gives the same decision up to the rounding of the transformation.
 
 ## A — scaling preparation and restoration
 

@@ -175,7 +175,8 @@ Here the second coordinate is constrained to `[2, 5]` wherever it is
 reconstructed, even though it is the root coordinate in the conditioning order.
 
 QMOMKit accepts a reconstructed candidate only when its abscissas lie inside the
-configured interval; nodes are never clipped or projected onto it. The bounds
+configured interval, up to a margin of `1e-12` times the larger bound magnitude
+that absorbs rounding; nodes are never clipped or projected onto it. The bounds
 travel with the case and its evolving state, so they apply to the initial
 reconstruction and every later one. In adaptive mode a candidate with
 out-of-interval nodes retries at lower node counts down to one; in fixed-count
@@ -203,9 +204,9 @@ finally one. For CQMOM, scales are selected once from the complete required
 moment set before recursive conditioning.
 
 Configured bounds are mapped to the normalized reconstruction only internally.
-The bounded-reconstruction tolerance therefore applies in normalized
-coordinates. If a safe transformation cannot be formed, QMOMKit follows the
-ordinary unscaled reconstruction path.
+The bounded-reconstruction margin is relative to the bounds, so it gives the
+same decision in normalized and physical coordinates. If a safe transformation
+cannot be formed, QMOMKit follows the ordinary unscaled reconstruction path.
 ## Setting the initial condition
 
 A case needs initial raw moments. There are three ways to obtain them, and the

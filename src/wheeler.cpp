@@ -431,19 +431,26 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         rejected.quadrature.message = "Bounded-support quadrature requires a positive node count.";
         return rejected;
     }
+    // No candidate count exceeds the larger of the two requested counts, so one
+    // check covers every candidate. Too few moments are rejected exactly as the
+    // unbounded Wheeler path rejects them, not answered with the rule the
+    // available moments happen to support.
+    const std::optional<std::size_t> required_moment_count =
+        internal::checked_size_multiply(2, std::max(request.initial_node_count, request.configured_node_count));
+    if (!required_moment_count.has_value() || moment_sequence.size() < *required_moment_count)
+    {
+        BoundedQuadratureSelection rejected;
+        rejected.quadrature.status = QuadratureStatus::invalid_input;
+        rejected.quadrature.message = required_moment_count.has_value() ? "Moment sequence has fewer than 2*n entries."
+                                                                        : "max_nodes is too large to derive the required moment count.";
+        return rejected;
+    }
 
     const auto evaluate = [&](const std::size_t node_count, std::string attempt_type)
     {
         BoundedQuadratureCandidate candidate;
         candidate.node_count = node_count;
         candidate.attempt_type = std::move(attempt_type);
-        const std::optional<std::size_t> required_moment_count = internal::checked_size_multiply(2, node_count);
-        if (!required_moment_count.has_value() || moment_sequence.size() < *required_moment_count)
-        {
-            candidate.quadrature.status = QuadratureStatus::invalid_input;
-            candidate.message = "Bounded-support candidate does not have enough moments.";
-            return candidate;
-        }
         if (!std::isfinite(interval.lower) || !std::isfinite(interval.upper) || !(interval.lower < interval.upper))
         {
             candidate.quadrature.status = QuadratureStatus::invalid_input;
@@ -453,7 +460,7 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
 
         candidate.inversion_attempted = true;
         candidate.quadrature = compute_quadrature_at_scale(
-            MomentSet(std::vector<double>(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(*required_moment_count))),
+            MomentSet(std::vector<double>(moment_sequence.begin(), moment_sequence.begin() + static_cast<std::ptrdiff_t>(2 * node_count))),
             node_count, wheeler_options, coordinate_scale);
         if (!candidate.quadrature.ok())
         {
@@ -503,19 +510,8 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
     }
 
     const std::size_t first_count = request.initial_node_count;
-    // A candidate needs 2*n moments, so every count above half the sequence
-    // length is rejected without an inversion. Descending through them one at a
-    // time costs one attempt per count and never reaches a viable rule any
-    // sooner, which for a requested count far above the available moments is an
-    // unbounded loop rather than a diagnosis. Begin at the largest count the
-    // sequence can feed instead; the descent then selects exactly the rule it
-    // would have selected. At least one candidate is always evaluated, so a
-    // sequence too short even for one node still reports the evaluator's
-    // failure rather than ending the descent with no attempt at all.
-    const std::size_t supported_count = moment_sequence.size() / 2;
-    const std::size_t start_count = std::min(first_count, std::max<std::size_t>(supported_count, 1));
     std::optional<BoundedQuadratureCandidate> rejected_candidate;
-    for (std::size_t candidate_count = start_count; candidate_count >= 1; --candidate_count)
+    for (std::size_t candidate_count = first_count; candidate_count >= 1; --candidate_count)
     {
         const char* attempt_type =
             candidate_count == first_count ? (request.previous_active_node_count.has_value() ? "current" : "configured") : "fallback";
@@ -523,10 +519,7 @@ BoundedQuadratureSelection select_bounded_quadrature(const std::vector<double>& 
         if (candidate.accepted)
         {
             const bool reduced = candidate_count < first_count;
-            // Reduction is measured against the requested count, so a clamped
-            // start can be both reduced and accepted on its first attempt, with
-            // no rejected candidate to describe.
-            selection.diagnostic_candidate = reduced && rejected_candidate.has_value() ? *rejected_candidate : candidate;
+            selection.diagnostic_candidate = reduced ? *rejected_candidate : candidate;
             selection.quadrature = std::move(candidate.quadrature);
             selection.selected_node_count_ceiling = candidate_count;
             selection.reduced = reduced;

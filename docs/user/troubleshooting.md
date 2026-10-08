@@ -57,8 +57,9 @@ down where to look:
 
 ### `Moment sequence has fewer than 2*n entries.`
 
-An `n`-node quadrature needs at least `2n` raw moments. Supply more moments, or
-request fewer nodes. When moments are generated from a distribution, raise
+An `n`-node quadrature needs at least `2n` raw moments, with or without
+abscissa bounds and in fixed or adaptive mode. Supply more moments, or request
+fewer nodes. When moments are generated from a distribution, raise
 `maximum_order` to at least `2 * node_count - 1`.
 
 ### `Moment sequence has negative recurrence b = ...`

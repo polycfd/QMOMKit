@@ -157,7 +157,9 @@ Jacobi, or eigensolver mathematics. A fixed candidate succeeds only when its
 returned nodes lie in the configured interval within the shared `1e-12`
 abscissa-bound tolerance. Adaptive bounded reconstruction evaluates explicit
 candidate counts from the requested count down to one and accepts the highest
-admissible exact-count candidate. An out-of-interval node is never clipped or
+admissible exact-count candidate. Like unbounded inversion, it needs `2n`
+moments for the requested count `n` and rejects a shorter sequence as invalid
+input. An out-of-interval node is never clipped or
 projected.
 
 The same internal one-dimensional selection is used by direct QMOM and by

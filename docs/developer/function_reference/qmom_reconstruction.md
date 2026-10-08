@@ -149,30 +149,30 @@ Defined in `src/wheeler.cpp`, declared in
 shared selector accepts nodes against `AbscissaBounds`. It is called by
 ordinary QMOM, recursive CQMOM, and QMOM post-source selection.
 
-The local `evaluate` lambda checks candidate count, available prefix, finite
-ordered bounds, then inverts exactly that prefix. Success requires an exact
-returned count and all nodes in `[lower-1e-12,upper+1e-12]`. It does not clip
-nodes or invoke `check_realizability`. Adaptive Wheeler weight/separation
+Before any candidate, the selector requires at least `2n` moments for the larger
+of the initial and configured counts, which bounds every candidate count. A
+shorter sequence is invalid input with the same message as the unbounded
+Wheeler path; the selector does not answer it with the smaller rule the
+available moments support. The local `evaluate` lambda checks finite ordered
+bounds, then inverts exactly the `2n`-moment prefix for its count. Success
+requires an exact returned count and all nodes in
+`[lower-1e-12,upper+1e-12]`. It does not clip nodes or invoke
+`check_realizability`. Adaptive Wheeler weight/separation
 checks still apply because the supplied Wheeler options retain adaptivity.
 
 Fixed selection evaluates the configured count once. Adaptive selection
 descends to one, keeping the first rejected candidate for reduction
 diagnostics. The first exact-count admissible rule wins. The descent starts at
-the initial active/configured ceiling, or at the largest count the moment
-sequence can feed when that ceiling is higher, since every count above half the
-sequence length is rejected without an inversion; clamping selects the same
-rule in a number of attempts bounded by the available moments rather than by
-the requested count. At least one candidate is always evaluated, so a sequence
-too short even for one node still reports the evaluator's failure. A clamped
-start can therefore be reduced relative to the request and still be accepted on
-its first attempt, with no rejected candidate to report. A permitted growth trial requires previous active metadata, adaptive
-policies, no current count loss, and spare configured capacity; it evaluates
-active+1 once. Rejected growth preserves the accepted current rule. Diagnostics
-may describe a rejected candidate while returned quadrature describes the
-accepted fallback; these must not be conflated. Both branches require a positive
-initial and configured count; the selector rejects anything else as invalid
-input before evaluating a candidate, so the adaptive descent never returns a
-default-constructed selection whose quadrature would still read as successful.
+the initial active/configured ceiling, so a reduced rule always follows at least
+one rejected candidate. A permitted growth trial requires previous active
+metadata, adaptive policies, no current count loss, and spare configured
+capacity; it evaluates active+1 once. Rejected growth preserves the accepted
+current rule. Diagnostics may describe a rejected candidate while returned
+quadrature describes the accepted fallback; these must not be conflated. Both
+branches require a positive initial and configured count; the selector rejects
+anything else as invalid input before evaluating a candidate, so the adaptive
+descent never returns a default-constructed selection whose quadrature would
+still read as successful.
 
 Evidence: bounded tests in
 [`tests/unit/recursive_quadrature.cpp`](../../../tests/unit/recursive_quadrature.cpp),

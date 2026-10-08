@@ -17,10 +17,10 @@ Each runtime logical test is registered exactly once with CTest.
 | --- | ---: |
 | Unit logical tests | 673 |
 | Component/regression logical tests | 46 |
-| Verification logical tests | 188 |
-| **Runtime logical tests** | **907** |
+| Verification logical tests | 189 |
+| **Runtime logical tests** | **908** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **908** |
+| **Total CTest registrations** | **909** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -177,6 +177,7 @@ renamed test rather than a deleted one.
 | `verification_qmom_compute_failure_negative_zeroth_moment` | `tests/verification/qmom/qmom_compute_failures.cpp` | `negative zeroth moment` | Verifies that the public QMOM workflow rejects a non-realizable QMOM sequence with negative zeroth moment. | — |
 | `verification_qmom_compute_failure_negative_variance` | `tests/verification/qmom/qmom_compute_failures.cpp` | `negative variance` | Verifies that the public QMOM workflow rejects a non-realizable QMOM sequence with negative variance. | — |
 | `verification_qmom_compute_failure_insufficient_moments` | `tests/verification/qmom/qmom_compute_failures.cpp` | `insufficient moments` | Verifies that the public QMOM workflow rejects a QMOM request with too few raw moments. | — |
+| `verification_qmom_compute_failure_insufficient_moments_bounded_adaptive` | `tests/verification/qmom/qmom_compute_failures.cpp` | `insufficient moments bounded adaptive` | Verifies that bounded adaptive QMOM rejects a request with too few raw moments instead of returning the smaller rule they support. | — |
 | `verification_qmom_compute_failure_zero_node_count` | `tests/verification/qmom/qmom_compute_failures.cpp` | `zero node count` | Verifies that the public QMOM workflow rejects a QMOM request for zero nodes. | — |
 
 ### QMOM
@@ -750,7 +751,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_qmom_public_api_matches_wheeler` | `tests/unit/public_api.cpp` | `qmom_public_api_matches_wheeler` | Checks that public API matches wheeler in the public QMOMKit API. | — |
 | `unit_public_api_qmom_rejects_node_count_with_unrepresentable_moment_requirement` | `tests/unit/public_api.cpp` | `qmom_rejects_node_count_with_unrepresentable_moment_requirement` | Checks that rejects node count with unrepresentable moment requirement in the public QMOMKit API. | — |
 | `unit_public_api_qmom_rejects_zero_node_count` | `tests/unit/public_api.cpp` | `qmom_rejects_zero_node_count` | Checks that a zero node count is rejected as invalid input for every combination of adaptive inversion, automatic scaling, and bounded support, and that no such result reports success with an empty quadrature. | — |
-| `unit_public_api_qmom_bounded_adaptive_descends_from_supported_node_count` | `tests/unit/public_api.cpp` | `qmom_bounded_adaptive_descends_from_supported_node_count` | Checks that adaptive bounded selection starts its descent at the largest node count the moment sequence supports, so that a requested count far above the available moments terminates and selects the same rule, and that a sequence too short for one node still fails. | — |
+| `unit_public_api_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds` | `tests/unit/public_api.cpp` | `qmom_rejects_fewer_than_2n_moments_with_or_without_bounds` | Checks that QMOM rejects fewer than `2n` moments as invalid input, with the same message with and without abscissa bounds, in fixed and adaptive mode and with and without automatic scaling, including requested counts whose `2n` would overflow. | — |
 | `unit_public_api_qmom_automatic_scaling_restores_physical_abscissas_and_bounds` | `tests/unit/public_api.cpp` | `qmom_automatic_scaling_restores_physical_abscissas_and_bounds` | Checks that automatic scaling restores physical abscissas and bounds in the public QMOMKit API. | — |
 | `unit_public_api_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments` | `tests/unit/public_api.cpp` | `qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments` | Checks that automatic scaling is covariant and uses existing scale moments in the public QMOMKit API. | — |
 | `unit_public_api_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction` | `tests/unit/public_api.cpp` | `qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction` | Checks that automatic scaling rejects nonzero underflow before reconstruction in the public QMOMKit API. | — |

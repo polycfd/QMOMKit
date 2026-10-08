@@ -585,11 +585,10 @@ to_cqmom_diagnostics(const std::vector<internal::RecursiveQuadratureBranchDiagno
 
 [[nodiscard]] CqmomResult to_cqmom_result(const internal::RecursiveQuadratureResult& result, const PhaseSpaceHierarchy& hierarchy)
 {
-    std::vector<std::vector<double>> abscissas = result.quadrature.abscissas();
-    return CqmomResult{internal::CqmomConstructionAccess::create_quadrature(result.quadrature.hierarchy(), result.quadrature.weights(),
-                                                                            std::move(abscissas), result.quadrature.adaptive_branch_counts_enabled(),
-                                                                            result.quadrature.has_rectangular_storage(),
-                                                                            terminal_paths_for_public_quadrature(result.quadrature)),
+    return CqmomResult{internal::CqmomConstructionAccess::create_quadrature(
+                           result.quadrature.hierarchy(), result.quadrature.weights(), result.quadrature.abscissas(),
+                           result.quadrature.adaptive_branch_counts_enabled(), result.quadrature.has_rectangular_storage(),
+                           terminal_paths_for_public_quadrature(result.quadrature)),
                        to_cqmom_status(result.status), result.message, to_cqmom_diagnostics(result.diagnostics),
                        failed_phase_space_dimension(result, hierarchy)};
 }

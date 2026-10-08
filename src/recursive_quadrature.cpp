@@ -2,11 +2,11 @@
 
 #include "internal/bounded_quadrature.hpp"
 #include "internal/checked_size.hpp"
+#include "internal/coordinate_scales.hpp"
 #include "internal/cqmom_validation.hpp"
 #include "internal/linear_algebra.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
-#include "internal/reconstruction_scaling.hpp"
 #include "internal/vandermonde.hpp"
 #include "qmomkit/distributions.hpp"
 #include "qmomkit/moment_set.hpp"

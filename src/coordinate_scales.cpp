@@ -1,4 +1,4 @@
-#include "internal/reconstruction_scaling.hpp"
+#include "internal/coordinate_scales.hpp"
 
 #include <cmath>
 #include <cstddef>

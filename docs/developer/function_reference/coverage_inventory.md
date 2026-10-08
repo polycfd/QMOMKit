@@ -435,6 +435,18 @@ evidence](initialization_and_configuration.md)
 | `load_cqmom_phase_space_evolution_options` | [3024](../../../src/configuration.cpp#L3024) |
 | `parse_vandermonde_rcond` | [1811](../../../src/configuration.cpp#L1811) |
 
+### `src/coordinate_scales.cpp`
+
+[Source](../../../src/coordinate_scales.cpp) · [Responsibilities,
+contracts, and evidence](qmom_reconstruction.md)
+
+| Function or overload family | Definition lines |
+|---|---|
+| `finite_positive` | [11](../../../src/coordinate_scales.cpp#L11) |
+| `convert_to_double` | [16](../../../src/coordinate_scales.cpp#L16) |
+| `coordinate_scale` | [27](../../../src/coordinate_scales.cpp#L27) |
+| `cqmom_coordinate_scales` | [52](../../../src/coordinate_scales.cpp#L52) |
+
 ### `src/distributions.cpp`
 
 [Source](../../../src/distributions.cpp) · [Responsibilities, contracts, and
@@ -1068,9 +1080,9 @@ evidence](state_and_representations.md)
 | `terminal_paths_for_public_quadrature` | [554](../../../src/public_api.cpp#L554) |
 | `failed_phase_space_dimension` | [576](../../../src/public_api.cpp#L576) |
 | `to_cqmom_result` | [586](../../../src/public_api.cpp#L586) |
-| `compute_cqmom` | [607](../../../src/public_api.cpp#L607), [670](../../../src/public_api.cpp#L670) |
-| `compute_cqmom_internal` | [631](../../../src/public_api.cpp#L631) |
-| `invalid_cqmom_hierarchy_result` | [612](../../../src/public_api.cpp#L612) |
+| `compute_cqmom` | [606](../../../src/public_api.cpp#L606), [669](../../../src/public_api.cpp#L669) |
+| `compute_cqmom_internal` | [630](../../../src/public_api.cpp#L630) |
+| `invalid_cqmom_hierarchy_result` | [611](../../../src/public_api.cpp#L611) |
 
 ### `src/realizability.cpp`
 
@@ -1112,18 +1124,6 @@ evidence](realizability.md)
 | `tested_moments` | [787](../../../src/realizability.cpp#L787) |
 | `with_support_context` | [792](../../../src/realizability.cpp#L792) |
 | `check_realizability` | [803](../../../src/realizability.cpp#L803), [832](../../../src/realizability.cpp#L832) |
-
-### `src/reconstruction_scaling.cpp`
-
-[Source](../../../src/reconstruction_scaling.cpp) · [Responsibilities,
-contracts, and evidence](qmom_reconstruction.md)
-
-| Function or overload family | Definition lines |
-|---|---|
-| `finite_positive` | [11](../../../src/reconstruction_scaling.cpp#L11) |
-| `convert_to_double` | [16](../../../src/reconstruction_scaling.cpp#L16) |
-| `coordinate_scale` | [27](../../../src/reconstruction_scaling.cpp#L27) |
-| `cqmom_coordinate_scales` | [52](../../../src/reconstruction_scaling.cpp#L52) |
 
 ### `src/recursive_quadrature.cpp`
 
@@ -1283,11 +1283,11 @@ initialization is covered with the owning representation or options contract.
 | [include/qmomkit/wheeler.hpp](../../../include/qmomkit/wheeler.hpp) | [qmom reconstruction](qmom_reconstruction.md) |
 | [src/internal/bjorck_pereyra.hpp](../../../src/internal/bjorck_pereyra.hpp) | [conditional systems](conditional_systems.md) |
 | [src/internal/bounded_quadrature.hpp](../../../src/internal/bounded_quadrature.hpp) | [qmom reconstruction](qmom_reconstruction.md) |
+| [src/internal/coordinate_scales.hpp](../../../src/internal/coordinate_scales.hpp) | [qmom reconstruction](qmom_reconstruction.md) |
 | [src/internal/cqmom_case.hpp](../../../src/internal/cqmom_case.hpp) | [state and representations](state_and_representations.md) |
 | [src/internal/embedded_runge_kutta.hpp](../../../src/internal/embedded_runge_kutta.hpp) | [time integration](time_integration.md) |
 | [src/internal/householder_qr.hpp](../../../src/internal/householder_qr.hpp) | [conditional systems](conditional_systems.md) |
 | [src/internal/jacobi_svd.hpp](../../../src/internal/jacobi_svd.hpp) | [conditional systems](conditional_systems.md) |
 | [src/internal/moment_reconstruction.hpp](../../../src/internal/moment_reconstruction.hpp) | [moment evaluation](moment_evaluation.md) |
 | [src/internal/moment_source.hpp](../../../src/internal/moment_source.hpp) | [moment sources](moment_sources.md) |
-| [src/internal/reconstruction_scaling.hpp](../../../src/internal/reconstruction_scaling.hpp) | [qmom reconstruction](qmom_reconstruction.md) |
 | [src/internal/vandermonde.hpp](../../../src/internal/vandermonde.hpp) | [conditional systems](conditional_systems.md) |

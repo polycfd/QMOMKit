@@ -187,9 +187,9 @@ Bounds are acceptance conditions in the configured coordinates.
 
 ## A — coordinate scales
 
-[`reconstruction_scaling.cpp`](../../../src/reconstruction_scaling.cpp)
+[`coordinate_scales.cpp`](../../../src/coordinate_scales.cpp)
 defines `cqmom_coordinate_scales`, declared in
-[`reconstruction_scaling.hpp`](../../../src/internal/reconstruction_scaling.hpp).
+[`coordinate_scales.hpp`](../../../src/internal/coordinate_scales.hpp).
 It returns one positive scale per phase-space coordinate from the marginal
 moments of the whole distribution. Local `coordinate_scale` prefers
 `sqrt(m2)/sqrt(m0)` for positive usable values, then `abs(m1)/m0`, then `1`;

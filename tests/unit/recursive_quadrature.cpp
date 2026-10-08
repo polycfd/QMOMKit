@@ -1,6 +1,6 @@
 #include "internal/recursive_quadrature.hpp"
 
-#include "internal/reconstruction_scaling.hpp"
+#include "internal/coordinate_scales.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 

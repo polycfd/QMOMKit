@@ -16,8 +16,8 @@ M_{p,q,r,s,t}=\int V^pT^qu^rv^sw^t f(V,T,u,v,w)\,\mathrm{d}V\,\mathrm{d}T\,\math
 $$
 
 Thus $M_{0,0,0,0,0}$ is number density and $M_{1,0,0,0,0}$ is total particle
-volume. The configuration uses two fixed CQMOM nodes in every dimension,
-conditioning order $(0,1,2,3,4)$, and automatic reconstruction scaling.
+volume. The configuration uses two fixed CQMOM nodes in every dimension
+and conditioning order $(0,1,2,3,4)$.
 
 ## Initialization and continuous evolution
 

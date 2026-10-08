@@ -192,7 +192,6 @@ tests/
             CMakeLists.txt
             README.md
             adaptive_branch_growth.cpp
-            automatic_scaling.cpp
             cqmom_2d_analytical.cpp
             cqmom_high_dimensional_analytical.cpp
             cqmom_public_workflows.cpp
@@ -200,6 +199,7 @@ tests/
             quadrature_bounds.cpp
             recursive_cqmom.cpp
             recursive_quadrature.cpp
+            unit_invariance.cpp
             *.qmom
         distributions/
             CMakeLists.txt

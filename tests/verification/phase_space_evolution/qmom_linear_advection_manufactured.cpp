@@ -111,7 +111,6 @@ qmomkit::QmomOptions qmom_options()
 {
     qmomkit::QmomOptions options;
     options.adaptive = false;
-    options.automatic_scaling = false;
     return options;
 }
 

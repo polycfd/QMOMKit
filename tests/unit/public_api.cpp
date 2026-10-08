@@ -1,6 +1,5 @@
 #include "internal/cqmom_case.hpp"
 #include "internal/performance.hpp"
-#include "internal/reconstruction_scaling.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
@@ -732,7 +731,7 @@ void test_cqmom_public_api_rejects_unrepresentable_required_moment_extent_before
 
 void test_qmom_public_api_matches_wheeler()
 {
-    // Public-wrapper consistency: the unscaled public result must preserve the underlying Wheeler result; analytical Wheeler correctness is verified
+    // Public-wrapper consistency: the public result must preserve the underlying Wheeler result; analytical Wheeler correctness is verified
     // separately.
     const std::vector<double> moments = raw_moments_1d({-0.5, 1.75}, {0.25, 0.75}, 4);
 
@@ -779,16 +778,12 @@ void test_qmom_rejects_zero_node_count()
 
     for (const bool adaptive : {false, true})
     {
-        for (const bool automatic_scaling : {false, true})
-        {
-            qmomkit::QmomOptions options;
-            options.adaptive = adaptive;
-            options.automatic_scaling = automatic_scaling;
+        qmomkit::QmomOptions options;
+        options.adaptive = adaptive;
 
-            assert_rejected(qmomkit::compute_qmom(moments, 0, options));
-            assert_rejected(qmomkit::compute_qmom(moments, 0, options, bounds));
-            assert_rejected(qmomkit::compute_qmom(qmomkit::QmomCase{moments, 0, options, bounds}));
-        }
+        assert_rejected(qmomkit::compute_qmom(moments, 0, options));
+        assert_rejected(qmomkit::compute_qmom(moments, 0, options, bounds));
+        assert_rejected(qmomkit::compute_qmom(qmomkit::QmomCase{moments, 0, options, bounds}));
     }
 }
 
@@ -803,45 +798,39 @@ void test_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds()
     const qmomkit::AbscissaBounds bounds{-10.0, 10.0};
     for (const bool adaptive : {false, true})
     {
-        for (const bool automatic_scaling : {false, true})
+        qmomkit::QmomOptions options;
+        options.adaptive = adaptive;
+
+        const qmomkit::QmomResult supported = qmomkit::compute_qmom(moments, 2, options, bounds);
+        assert(supported.ok());
+        assert(supported.weights.size() == 2);
+
+        for (const std::size_t requested :
+             {std::size_t{3}, std::size_t{64}, std::numeric_limits<std::size_t>::max() / 2 + 1, std::numeric_limits<std::size_t>::max()})
         {
-            qmomkit::QmomOptions options;
-            options.adaptive = adaptive;
-            options.automatic_scaling = automatic_scaling;
-
-            const qmomkit::QmomResult supported = qmomkit::compute_qmom(moments, 2, options, bounds);
-            assert(supported.ok());
-            assert(supported.weights.size() == 2);
-
-            for (const std::size_t requested :
-                 {std::size_t{3}, std::size_t{64}, std::numeric_limits<std::size_t>::max() / 2 + 1, std::numeric_limits<std::size_t>::max()})
+            const qmomkit::QmomResult unbounded = qmomkit::compute_qmom(moments, requested, options);
+            const qmomkit::QmomResult bounded = qmomkit::compute_qmom(moments, requested, options, bounds);
+            for (const qmomkit::QmomResult* const result : {&unbounded, &bounded})
             {
-                const qmomkit::QmomResult unbounded = qmomkit::compute_qmom(moments, requested, options);
-                const qmomkit::QmomResult bounded = qmomkit::compute_qmom(moments, requested, options, bounds);
-                for (const qmomkit::QmomResult* const result : {&unbounded, &bounded})
-                {
-                    assert(!result->ok());
-                    assert(result->status == qmomkit::QmomStatus::invalid_input);
-                    assert(result->weights.empty());
-                }
-                const bool overflows = requested > std::numeric_limits<std::size_t>::max() / 2;
-                assert(bounded.message == unbounded.message);
-                assert(bounded.message ==
-                       (overflows ? "max_nodes is too large to derive the required moment count." : "Moment sequence has fewer than 2*n entries."));
+                assert(!result->ok());
+                assert(result->status == qmomkit::QmomStatus::invalid_input);
+                assert(result->weights.empty());
             }
+            const bool overflows = requested > std::numeric_limits<std::size_t>::max() / 2;
+            assert(bounded.message == unbounded.message);
+            assert(bounded.message ==
+                   (overflows ? "max_nodes is too large to derive the required moment count." : "Moment sequence has fewer than 2*n entries."));
         }
     }
 }
 
-void test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds()
+void test_qmom_recovers_bounded_rule_of_large_magnitude()
 {
     const std::vector<double> abscissas{2.0e50, 5.0e50};
     const std::vector<double> weights{0.25, 0.75};
     const qmomkit::MomentSet moments(raw_moments_1d(abscissas, weights, 4));
-    qmomkit::QmomOptions options;
-    options.automatic_scaling = true;
 
-    const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, 2, options, qmomkit::AbscissaBounds{1.0e50, 6.0e50});
+    const qmomkit::QmomResult result = qmomkit::compute_qmom(moments, 2, {}, qmomkit::AbscissaBounds{1.0e50, 6.0e50});
 
     assert(result.ok());
     assert(result.abscissas.size() == abscissas.size());
@@ -852,12 +841,11 @@ void test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds()
     }
 }
 
-void test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments()
+void test_qmom_is_unit_covariant()
 {
     const std::vector<double> reference_abscissas{-0.5, 1.75};
     const std::vector<double> weights{0.25, 0.75};
-    qmomkit::QmomOptions options;
-    options.automatic_scaling = true;
+    const qmomkit::QmomOptions options{false};
     const qmomkit::QmomResult reference = qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d(reference_abscissas, weights, 4)), 2, options);
     assert(reference.ok());
 
@@ -878,20 +866,11 @@ void test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments()
         }
     }
 
-    const qmomkit::QmomResult mean_fallback = qmomkit::compute_qmom(qmomkit::MomentSet({2.0, 6.0}), 1, options);
-    assert(mean_fallback.ok());
-    assert_near(mean_fallback.weights.front(), 2.0, 1.0e-13);
-    assert_near(mean_fallback.abscissas.front(), 3.0, 1.0e-13);
-
-    const qmomkit::QmomResult identity_fallback = qmomkit::compute_qmom(qmomkit::MomentSet({2.0, 0.0}), 1, options);
-    assert(identity_fallback.ok());
-    assert_near(identity_fallback.weights.front(), 2.0, 1.0e-13);
-    assert_near(identity_fallback.abscissas.front(), 0.0, 1.0e-13);
-
     qmomkit::QmomOptions adaptive_options = options;
     adaptive_options.adaptive = true;
     const qmomkit::QmomResult adaptive_reference = qmomkit::compute_qmom(qmomkit::MomentSet(raw_moments_1d({0.25}, {1.0}, 4)), 2, adaptive_options);
     assert(adaptive_reference.ok());
+    assert(adaptive_reference.weights.size() == 1);
     for (const double factor : std::vector<double>{1.0e-9, 1.0e6})
     {
         const qmomkit::QmomResult adaptive_result =
@@ -899,78 +878,6 @@ void test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments()
         assert(adaptive_result.ok());
         assert(adaptive_result.weights.size() == adaptive_reference.weights.size());
         assert_near(adaptive_result.abscissas.front() / factor, adaptive_reference.abscissas.front(), 1.0e-12);
-    }
-}
-
-void test_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction()
-{
-    const double denormal = std::numeric_limits<double>::denorm_min();
-    const std::vector<double> moments{denormal, 1.0, 1.0, denormal};
-    const auto scaling = qmomkit::internal::make_qmom_scaling_context(moments, std::nullopt);
-    assert(!scaling.has_value());
-
-    qmomkit::QmomOptions options;
-    options.automatic_scaling = true;
-    const qmomkit::QmomResult scaled = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2, options);
-    options.automatic_scaling = false;
-    const qmomkit::QmomResult unscaled = qmomkit::compute_qmom(qmomkit::MomentSet(moments), 2, options);
-    assert(scaled.status == unscaled.status);
-    assert(scaled.message == unscaled.message);
-    assert(scaled.abscissas == unscaled.abscissas);
-    assert(scaled.weights == unscaled.weights);
-}
-
-void test_cqmom_automatic_scaling_falls_back_atomically_when_preparation_is_unsafe()
-{
-    // Finite normal second moments produce 1e-100 coordinate scales. The
-    // finite normal mixed M[1,1] then overflows when divided by both scales,
-    // so preparation must be rejected before recursive CQMOM sees transformed
-    // data. This is not a successful physical quadrature oracle; the contract
-    // is that the scaled request returns the untouched unscaled failure result,
-    // including physical diagnostics and empty quadrature.
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
-    const qmomkit::CqmomMomentLayout layout = qmomkit::create_cqmom_moment_layout(hierarchy);
-    qmomkit::CqmomMomentData moments{layout, std::vector<double>(layout.required_indices.size(), 1.0)};
-    const auto set_required = [&moments](const qmomkit::MultiIndex& index, const double value)
-    {
-        const auto found = std::find(moments.layout.required_indices.begin(), moments.layout.required_indices.end(), index);
-        assert(found != moments.layout.required_indices.end());
-        moments.values[static_cast<std::size_t>(std::distance(moments.layout.required_indices.begin(), found))] = value;
-    };
-    set_required({0, 0}, 1.0);
-    set_required({2, 0}, 1.0e-200);
-    set_required({0, 2}, 1.0e-200);
-    set_required({1, 1}, 1.0e200);
-
-    const auto scaling = qmomkit::internal::make_cqmom_scaling_context(moments, {});
-    assert(!scaling.has_value());
-
-    qmomkit::QmomOptions options;
-    options.automatic_scaling = true;
-    const qmomkit::CqmomResult scaled = qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, options});
-    options.automatic_scaling = false;
-    const qmomkit::CqmomResult unscaled = qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, options});
-
-    assert(scaled.status == unscaled.status);
-    assert(scaled.message == unscaled.message);
-    assert(scaled.failed_phase_space_dimension == unscaled.failed_phase_space_dimension);
-    assert(scaled.quadrature.weights() == unscaled.quadrature.weights());
-    assert(scaled.quadrature.abscissas() == unscaled.quadrature.abscissas());
-    assert(scaled.diagnostics.size() == unscaled.diagnostics.size());
-    for (std::size_t diagnostic = 0; diagnostic < scaled.diagnostics.size(); ++diagnostic)
-    {
-        const qmomkit::CqmomDiagnostics& scaled_diagnostic = scaled.diagnostics[diagnostic];
-        const qmomkit::CqmomDiagnostics& unscaled_diagnostic = unscaled.diagnostics[diagnostic];
-        assert(scaled_diagnostic.conditioning_level == unscaled_diagnostic.conditioning_level);
-        assert(scaled_diagnostic.parent_path == unscaled_diagnostic.parent_path);
-        assert(scaled_diagnostic.phase_space_dimension == unscaled_diagnostic.phase_space_dimension);
-        assert(scaled_diagnostic.requested_node_count == unscaled_diagnostic.requested_node_count);
-        assert(scaled_diagnostic.actual_node_count == unscaled_diagnostic.actual_node_count);
-        assert(scaled_diagnostic.qmom_status == unscaled_diagnostic.qmom_status);
-        assert(scaled_diagnostic.conditional_moment_status == unscaled_diagnostic.conditional_moment_status);
-        assert(scaled_diagnostic.message == unscaled_diagnostic.message);
-        assert(scaled_diagnostic.bounded_returned_nodes == unscaled_diagnostic.bounded_returned_nodes);
-        assert(scaled_diagnostic.bounded_returned_weights == unscaled_diagnostic.bounded_returned_weights);
     }
 }
 
@@ -1055,7 +962,7 @@ void test_cqmom_public_api_two_dimensional_manufactured_case()
     assert_near(last_node[1], y[1], 1.0e-12);
 }
 
-void test_cqmom_automatic_scaling_restores_each_physical_coordinate()
+void test_cqmom_recovers_coordinates_of_disparate_magnitude()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2}, {1, 0});
     const std::vector<std::size_t> extents{4, 4};
@@ -1076,8 +983,7 @@ void test_cqmom_automatic_scaling_restores_each_physical_coordinate()
         }
     }
 
-    qmomkit::QmomOptions options{false};
-    options.automatic_scaling = true;
+    const qmomkit::QmomOptions options{false};
     auto cqmom_case = cqmom_case_from_tensor(hierarchy, {extents, raw_moments_from_grid(hierarchy, extents, weights, abscissas)}, {}, options,
                                              qmomkit::CqmomDiagnosticLevel::detailed);
     cqmom_case.abscissa_bounds = {qmomkit::AbscissaBounds{1.0e50, 6.0e50}, qmomkit::AbscissaBounds{-5.0e-50, 4.0e-50}};
@@ -1356,16 +1262,11 @@ int main(const int argc, char** argv)
             {"qmom_rejects_node_count_with_unrepresentable_moment_requirement", test_qmom_rejects_node_count_with_unrepresentable_moment_requirement},
             {"qmom_rejects_zero_node_count", test_qmom_rejects_zero_node_count},
             {"qmom_rejects_fewer_than_2n_moments_with_or_without_bounds", test_qmom_rejects_fewer_than_2n_moments_with_or_without_bounds},
-            {"qmom_automatic_scaling_restores_physical_abscissas_and_bounds", test_qmom_automatic_scaling_restores_physical_abscissas_and_bounds},
-            {"qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments",
-             test_qmom_automatic_scaling_is_covariant_and_uses_existing_scale_moments},
-            {"qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction",
-             test_qmom_automatic_scaling_rejects_nonzero_underflow_before_reconstruction},
-            {"cqmom_automatic_scaling_falls_back_atomically_when_preparation_is_unsafe",
-             test_cqmom_automatic_scaling_falls_back_atomically_when_preparation_is_unsafe},
+            {"qmom_recovers_bounded_rule_of_large_magnitude", test_qmom_recovers_bounded_rule_of_large_magnitude},
+            {"qmom_is_unit_covariant", test_qmom_is_unit_covariant},
             {"one_dimensional_cqmom_agrees_with_qmom", test_one_dimensional_cqmom_agrees_with_qmom},
             {"cqmom_public_api_two_dimensional_manufactured_case", test_cqmom_public_api_two_dimensional_manufactured_case},
-            {"cqmom_automatic_scaling_restores_each_physical_coordinate", test_cqmom_automatic_scaling_restores_each_physical_coordinate},
+            {"cqmom_recovers_coordinates_of_disparate_magnitude", test_cqmom_recovers_coordinates_of_disparate_magnitude},
             {"cqmom_public_api_reports_conditional_moment_failure", test_cqmom_public_api_reports_conditional_moment_failure},
             {"cqmom_public_api_exposes_adaptive_branch_counts", test_cqmom_public_api_exposes_adaptive_branch_counts},
             {"cqmom_adaptive_root_branch_uses_relative_rmin_only", test_cqmom_adaptive_root_branch_uses_relative_rmin_only},

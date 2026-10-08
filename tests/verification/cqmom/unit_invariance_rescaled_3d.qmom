@@ -2,7 +2,6 @@
 names = xi0, xi1, xi2
 node_counts = 2, 2, 2
 conditioning_order = 2, 0, 1
-automatic_scaling = true
 
 [qmom]
 adaptive = true

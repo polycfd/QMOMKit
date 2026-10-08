@@ -232,14 +232,13 @@ nodes; active counts cannot grow in this stage. The verifier checks that the
 reconstructed full moments follow the advection analytical reference above
 with the source term omitted.
 
-## Automatic Scaling Through Adaptive CQMOM Evolution
+## Unit Invariance Through Adaptive CQMOM Evolution
 
-The `automatic_scaling_cqmom_state_adaptive_{reference,rescaled}.qmom`
-fixtures use the normal configured public workflow with
-`automatic_scaling = true`, adaptive `{2,2}` capacity, and non-identity
-conditioning order `{1,0}`. They represent the same ragged physical rule
-`(-1,-1,0.10)`, `(1,-1,0.30)`, `(0.5,2,0.60)` in units `(1,1)` and
-`(1e6,1e-6)`.
+The `unit_invariance_cqmom_state_adaptive_{reference,rescaled}.qmom`
+fixtures use the normal configured public workflow with adaptive `{2,2}`
+capacity and non-identity conditioning order `{1,0}`. They represent the same
+ragged physical rule `(-1,-1,0.10)`, `(1,-1,0.30)`, `(0.5,2,0.60)` in units
+`(1,1)` and `(1e6,1e-6)`.
 
 One Strang macro step applies constant node velocities `(0.4,-0.25)` in the
 reference units, scaled by the fixture units, and the CQMOM-native source `dM_alpha/dt = 0.1 M_alpha`.
@@ -249,15 +248,12 @@ oracle is the independently evaluated SSP-RK3 polynomial
 coordinates, and all `4 x 4` reconstructed moments against that manufactured
 rule. Its source callback uses only `CqmomSourceContext::for_each_terminal_node`
 and verifies that source-stage coordinates are in the configured physical
-units after the first advection half-step, not normalized internal units.
+units after the first advection half-step.
 
 The `2e-9` scaled tolerance covers reconstruction and source-stage roundoff;
-the observed normalized errors are near machine precision. This is
-scaling-enabled evolution interaction evidence: it verifies physical semantics
-through evolution, not that scaling is numerically necessary for this
-particular representation. The separate CQMOM disparate-units scaling
-verification checks a deliberately difficult raw-moment representation with
-and without scaling.
+the observed normalized errors are near machine precision. The separate CQMOM
+disparate-units verification checks a deliberately difficult raw-moment
+representation.
 
 ## CQMOM-Native Source Callback
 
@@ -506,7 +502,7 @@ ctest --test-dir build -R '^verification_phase_space_evolution_noncommuting_cqmo
 ctest --test-dir build -R '^verification_phase_space_evolution_commuting_cqmom_2d$' --output-on-failure
 ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_boundary_contribution$' --output-on-failure
 ctest --test-dir build -R '^verification_phase_space_evolution_commuting_cqmom_state_adaptive_2d$' --output-on-failure
-ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_automatic_scaling_is_unit_invariant$' --output-on-failure
+ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_state_is_unit_invariant$' --output-on-failure
 ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_native_source$' --output-on-failure
 ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_combined_native_source$' --output-on-failure
 ctest --test-dir build -R '^verification_phase_space_evolution_cqmom_native_source_failures$' --output-on-failure

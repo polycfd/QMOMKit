@@ -1053,18 +1053,16 @@ void test_qmom_bounded_state_advection_and_source_reconstruction_semantics()
     assert_vector_near(post_source.state.moment_values(), initial.moment_values(), 0.0);
 }
 
-void test_qmom_bounded_post_source_automatic_scaling_is_unit_covariant()
+void test_qmom_bounded_post_source_is_unit_covariant()
 {
     // The rule must be sufficiently separated that its double-precision raw
     // moments retain a two-node oracle at the asserted 1e-10 tolerance.  A
-    // 1e-4 relative separation makes the moment inversion ill-conditioned
-    // before automatic scaling is applied; scaling changes units, not that
-    // intrinsic conditioning.
+    // 1e-4 relative separation makes the moment inversion ill-conditioned in
+    // every unit.
     const std::vector<double> reference_nodes{1.0, 1.05};
     const std::vector<double> weights{0.5, 0.5};
     qmomkit::QmomOptions qmom_options;
     qmom_options.adaptive = true;
-    qmom_options.automatic_scaling = true;
 
     for (const double factor : std::vector<double>{1.0e-9, 1.0e6})
     {
@@ -1078,27 +1076,16 @@ void test_qmom_bounded_post_source_automatic_scaling_is_unit_covariant()
         const qmomkit::QmomMomentSource zero_source = [](double, const qmomkit::QmomSourceContext& context)
         { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
 
-        qmomkit::QmomPhaseSpaceEvolutionOptions scaled_options;
-        const qmomkit::QmomPhaseSpaceEvolutionResult scaled = qmomkit::advance_qmom_moment_source(state, 0.0, 1.0, zero_source, scaled_options);
-        assert(scaled.ok());
-        assert(scaled.state.active_node_count() == 2);
+        const qmomkit::QmomPhaseSpaceEvolutionResult result =
+            qmomkit::advance_qmom_moment_source(state, 0.0, 1.0, zero_source, qmomkit::QmomPhaseSpaceEvolutionOptions{});
+        assert(result.ok());
+        // Adaptive reduction does not depend on the unit, so both nodes are kept.
+        assert(result.state.active_node_count() == 2);
         for (std::size_t node = 0; node < reference_nodes.size(); ++node)
         {
-            assert_near(scaled.state.quadrature().weights[node], weights[node], 1.0e-10);
-            assert_near(scaled.state.quadrature().abscissas[node] / factor, reference_nodes[node], 1.0e-8);
+            assert_near(result.state.quadrature().weights[node], weights[node], 1.0e-10);
+            assert_near(result.state.quadrature().abscissas[node] / factor, reference_nodes[node], 1.0e-8);
         }
-
-        qmomkit::QmomOptions unscaled_qmom_options = qmom_options;
-        unscaled_qmom_options.automatic_scaling = false;
-        const qmomkit::QmomState unscaled_state =
-            qmom_state_from_moments(raw_moments_1d(physical_nodes, weights, 4), 2, unscaled_qmom_options, bounds);
-        qmomkit::QmomPhaseSpaceEvolutionOptions unscaled_options = scaled_options;
-        const qmomkit::QmomPhaseSpaceEvolutionResult unscaled =
-            qmomkit::advance_qmom_moment_source(unscaled_state, 0.0, 1.0, zero_source, unscaled_options);
-        assert(unscaled.ok());
-        // Adaptive reduction does not depend on the unit, so the representation
-        // keeps both nodes without scaling as well.
-        assert(unscaled.state.active_node_count() == 2);
     }
 }
 
@@ -1184,8 +1171,7 @@ void test_public_qmom_moment_source_stage_failures_roll_back()
 void test_qmom_source_context_uses_current_rk_stage_and_caches_quadrature()
 {
     const std::vector<double> initial_moments = raw_moments_1d({-0.5, 1.25}, {0.4, 0.6}, 4);
-    qmomkit::QmomOptions qmom_options;
-    qmom_options.automatic_scaling = true;
+    const qmomkit::QmomOptions qmom_options;
     const qmomkit::QmomState state = qmom_state_from_moments(initial_moments, 2, qmom_options);
     const qmomkit::QmomResult initial_quadrature = qmomkit::compute_qmom(qmomkit::MomentSet(initial_moments), 2, qmom_options);
     assert(initial_quadrature.ok());
@@ -1963,7 +1949,6 @@ void assert_cqmom_state_carries_case_settings(const qmomkit::CqmomState& state, 
     assert(state.qmom_options().rmin == cqmom_case.qmom_options.rmin);
     assert(state.qmom_options().eabs == cqmom_case.qmom_options.eabs);
     assert(state.qmom_options().cutoff == cqmom_case.qmom_options.cutoff);
-    assert(state.qmom_options().automatic_scaling == cqmom_case.qmom_options.automatic_scaling);
     assert(state.conditional_options().singular_tolerance == cqmom_case.conditional_options.singular_tolerance);
     assert(state.conditional_options().conditioning_warning_threshold == cqmom_case.conditional_options.conditioning_warning_threshold);
     assert(state.conditional_options().moore_penrose_rcond == cqmom_case.conditional_options.moore_penrose_rcond);
@@ -2006,7 +1991,6 @@ void test_cqmom_case_initial_state_matches_prepared_case()
     fixed_cqmom_case.qmom_options.rmin = 1.0e-11;
     fixed_cqmom_case.qmom_options.eabs = 1.0e-11;
     fixed_cqmom_case.qmom_options.cutoff = 1.0e-31;
-    fixed_cqmom_case.qmom_options.automatic_scaling = true;
     fixed_cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     fixed_cqmom_case.vandermonde_solver = qmomkit::VandermondeSolver::pivoted_qr;
     fixed_cqmom_case.abscissa_bounds = qmomkit::CqmomAbscissaBounds(fixed_cqmom_case.moments.layout.hierarchy.number_of_dimensions());
@@ -4401,7 +4385,7 @@ int main(const int argc, char** argv)
             {"public_qmom_advection_stage_failure_rolls_back", test_public_qmom_advection_stage_failure_rolls_back},
             {"qmom_bounded_state_advection_and_source_reconstruction_semantics",
              test_qmom_bounded_state_advection_and_source_reconstruction_semantics},
-            {"qmom_bounded_post_source_automatic_scaling_is_unit_covariant", test_qmom_bounded_post_source_automatic_scaling_is_unit_covariant},
+            {"qmom_bounded_post_source_is_unit_covariant", test_qmom_bounded_post_source_is_unit_covariant},
             {"public_qmom_moment_source_stage_fixed_mode_is_strict", test_public_qmom_moment_source_stage_fixed_mode_is_strict},
             {"public_qmom_moment_source_stage_adaptive_policy", test_public_qmom_moment_source_stage_adaptive_policy},
             {"public_qmom_moment_source_stage_failures_roll_back", test_public_qmom_moment_source_stage_failures_roll_back},

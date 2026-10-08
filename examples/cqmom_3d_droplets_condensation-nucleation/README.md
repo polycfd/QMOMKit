@@ -53,10 +53,9 @@ The same positional order is used by [configuration.qmom](configuration.qmom),
 samples, the phase-space velocity callback, CQMOM moment exponents, quadrature
 abscissas, and output files.
 
-The radius coordinate and its moments use SI metres. The configuration enables
-QMOMKit's native automatic reconstruction scaling, so reconstruction remains
-well conditioned without example-local phase-space rescaling. The physical
-callback therefore receives the SI radius directly.
+The radius coordinate and its moments use SI metres. Reconstruction does not
+depend on the units of the coordinates, so no example-local phase-space
+rescaling is needed and the physical callback receives the SI radius directly.
 
 For a number density function $n(r,w,T)$, the raw unnormalized moments are
 
@@ -452,7 +451,6 @@ The numerical CQMOM hierarchy is selected in `configuration.qmom`:
 names = r, w, T
 node_counts = 3, 3, 3
 conditioning_order = 0, 2, 1
-automatic_scaling = true
 
 [qmom]
 adaptive = true

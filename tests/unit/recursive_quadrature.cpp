@@ -1,5 +1,6 @@
 #include "internal/recursive_quadrature.hpp"
 
+#include "internal/coordinate_scales.hpp"
 #include "qmomkit/qmomkit.hpp"
 #include "test_case_dispatch.hpp"
 
@@ -1477,6 +1478,31 @@ void test_recursive_moore_penrose_rcond_changes_conditional_reconstruction()
     assert(high.diagnostics.front().conditional_vandermonde_requested_solver == qmomkit::VandermondeSolver::moore_penrose);
 }
 
+void test_coordinate_scales_fall_back_from_rms_to_mean_to_one()
+{
+    // With two nodes per coordinate the second marginal moments are required,
+    // so each scale is the RMS sqrt(m2 / m0) of its coordinate.
+    const qmomkit::PhaseSpaceHierarchy two_nodes({2, 2});
+    const std::vector<std::size_t> two_node_extents{4, 4};
+    const std::vector<double> rms_scales = qmomkit::internal::cqmom_coordinate_scales(qmomkit::extract_cqmom_moments(
+        {two_node_extents, raw_moments_from_terminal_quadrature({{1.0, 3.0}, {-2.0, 2.0}}, {0.5, 0.5}, two_node_extents)},
+        qmomkit::create_cqmom_moment_layout(two_nodes)));
+    assert(rms_scales.size() == 2);
+    assert_near(rms_scales[0], std::sqrt(5.0), 1.0e-15);
+    assert_near(rms_scales[1], 2.0, 1.0e-15);
+
+    // One node per coordinate requires no second moment, so the scale falls
+    // back to |m1| / m0, and to one where the mean is zero.
+    const qmomkit::PhaseSpaceHierarchy one_node({1, 1});
+    const std::vector<std::size_t> one_node_extents{2, 2};
+    const std::vector<double> fallback_scales = qmomkit::internal::cqmom_coordinate_scales(
+        qmomkit::extract_cqmom_moments({one_node_extents, raw_moments_from_terminal_quadrature({{-3.0}, {0.0}}, {2.0}, one_node_extents)},
+                                       qmomkit::create_cqmom_moment_layout(one_node)));
+    assert(fallback_scales.size() == 2);
+    assert_near(fallback_scales[0], 3.0, 1.0e-15);
+    assert(fallback_scales[1] == 1.0);
+}
+
 void test_recursive_bp_success_independent_of_diagnostic_level()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2}, {2, 0, 1});
@@ -2052,6 +2078,7 @@ int main(const int argc, char** argv)
             {"recursive_dense_and_moore_penrose_equivalence_fixed", test_recursive_dense_and_moore_penrose_equivalence_fixed},
             {"recursive_moore_penrose_rcond_changes_conditional_reconstruction",
              test_recursive_moore_penrose_rcond_changes_conditional_reconstruction},
+            {"coordinate_scales_fall_back_from_rms_to_mean_to_one", test_coordinate_scales_fall_back_from_rms_to_mean_to_one},
             {"recursive_bp_success_independent_of_diagnostic_level", test_recursive_bp_success_independent_of_diagnostic_level},
             {"recursive_automatic_uses_plain_bp_for_small_branches", test_recursive_automatic_uses_plain_bp_for_small_branches},
             {"recursive_automatic_independent_of_diagnostic_level", test_recursive_automatic_independent_of_diagnostic_level},

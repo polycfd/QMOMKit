@@ -1,7 +1,6 @@
 # Three-dimensional CQMOM case in (r, w, T): droplet radius, fall velocity
-# and temperature. Two settings here are worth noticing before changing
-# anything: the conditioning order is not the identity, and automatic
-# scaling is on because the coordinates differ by orders of magnitude.
+# and temperature. One setting here is worth noticing before changing
+# anything: the conditioning order is not the identity.
 
 # The number of coordinates decides the method: one uses QMOM, several CQMOM.
 # Coordinate names are labels only; QMOMKit reads no physics from them.
@@ -14,10 +13,6 @@ node_counts = 3, 3, 3
 # velocity. This changes only the order of the conditional inversions, never
 # the meaning or the output order of the coordinates.
 conditioning_order = 0, 2, 1
-# The coordinates span about six orders of magnitude (r ~ 1e-4 m, w ~ 1 m/s,
-# T ~ 3e2 K). Scaling normalises each one locally for the inversion; raw
-# moments, callbacks and output stay in physical units.
-automatic_scaling = true
 
 # Branch node counts become ceilings; a branch whose local moments cannot
 # support three nodes will use fewer.

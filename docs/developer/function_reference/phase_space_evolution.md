@@ -58,8 +58,8 @@ then calls local `select_post_source_qmom`:
   reduced result without an immediate growth attempt.
 - If current count survives unchanged below capacity, try exactly one more node.
   Failed/reduced growth preserves the prior successful candidate.
-- Bounded selection and automatic scaling wrap the same acceptance responsibilities;
-  neither node clipping nor silent tolerance relaxation is performed.
+- Bounded selection wraps the same acceptance responsibilities; neither node
+  clipping nor silent tolerance relaxation is performed.
 
 The accepted post-source quadrature becomes authoritative: all stored moments
 are reconstructed from it through `QmomStateAccess`. In adaptive reduction,

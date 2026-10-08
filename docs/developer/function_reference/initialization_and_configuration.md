@@ -178,10 +178,8 @@ rejects a file still using `phase_space.adaptive_branch_counts` with a message
 naming `[qmom] adaptive`.
 
 `parse_qmom_options_from_parsed` maps `qmom.adaptive`; other Wheeler thresholds
-are API options, not arbitrary accepted `.qmom` keys.
-`parse_automatic_scaling_from_parsed` separately maps
-`phase_space.automatic_scaling`. Case parsers and
-`parse_qmom_phase_space_evolution_options` validates the shared configuration,
+are API options, not arbitrary accepted `.qmom` keys. Case parsers and
+`parse_qmom_phase_space_evolution_options` validate the shared configuration,
 but only the case parser places reconstruction policy into the `QmomCase`.
 `QmomCase::initial_state()` transfers that policy and the configured maximum to
 the evolving `QmomState`; phase-space evolution options contain only per-call
@@ -208,9 +206,7 @@ options; they never install physics callbacks or own a simulation loop.
 Evidence: configuration unit tests inspect defaults, explicit overrides, enum
 rejection, support pairing, and coordinate policy rank. The
 [QMOM advection example](../../../examples/qmom_1d_breakage_advection/main.cpp)
-loads case and evolution options separately. The configuration unit regression
-covers true, false, and omitted
-automatic-scaling values across the QMOM evolution loader.
+loads case and evolution options separately.
 
 ## Initialization, construction, and replacement — Levels A/B
 

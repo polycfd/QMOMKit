@@ -1,12 +1,12 @@
-# QMOM reconstruction and coordinate scaling
+# QMOM reconstruction and coordinate scales
 
 ## Ownership and call context
 
 Public `qmomkit::compute_qmom` is declared in
 [`qmom.hpp`](../../../include/qmomkit/qmom.hpp) and defined in
 [`public_api.cpp`](../../../src/public_api.cpp). It dispatches to local
-`compute_qmom_with_automatic_scaling` → `compute_qmom_unscaled` → public
-`compute_quadrature`, or the shared bounded-candidate selector.
+`compute_qmom_from_moments` → public `compute_quadrature`, or the shared
+bounded-candidate selector.
 `compute_quadrature` is declared in
 [`wheeler.hpp`](../../../include/qmomkit/wheeler.hpp); its numerical helpers
 are local to [`wheeler.cpp`](../../../src/wheeler.cpp). CQMOM calls the same
@@ -135,10 +135,10 @@ gate.
 ## Numerical limits
 
 Raw moments become poorly conditioned under large coordinate translations.
-Automatic scaling rescales coordinates but does not center the distribution, so
-it cannot recover shape information already lost to cancellation in translated
-raw moments. Near-coincident support is likewise limited by finite precision in
-the recurrence and Hankel information. `cutoff` is the absolute low-population
+Reconstruction does not center the distribution, so it cannot recover shape
+information already lost to cancellation in translated raw moments.
+Near-coincident support is likewise limited by finite precision in the
+recurrence and Hankel information. `cutoff` is the absolute low-population
 gate; `rmin` is a relative quadrature-weight criterion. These controls serve
 different purposes and neither is a general realizability certificate.
 
@@ -183,55 +183,37 @@ weight/separation rejection, and rejected growth; public verification under
 [`qmom/quadrature_bounds.cpp`](../../../tests/verification/qmom/quadrature_bounds.cpp)
 and
 [`cqmom/quadrature_bounds.cpp`](../../../tests/verification/cqmom/quadrature_bounds.cpp).
-Bounds are acceptance conditions in the coordinates actually inverted. The
-margin is relative to the bounds, so automatic scaling maps it with them and
-gives the same decision up to the rounding of the transformation.
+Bounds are acceptance conditions in the configured coordinates.
 
-## A — scaling preparation and restoration
+## A — coordinate scales
 
-[`reconstruction_scaling.cpp`](../../../src/reconstruction_scaling.cpp)
-implements private declarations in
-[`reconstruction_scaling.hpp`](../../../src/internal/reconstruction_scaling.hpp).
-`make_qmom_scaling_context` and `make_cqmom_scaling_context` prepare temporary
-coordinate changes; they do not divide all moments by mass.
+[`coordinate_scales.cpp`](../../../src/coordinate_scales.cpp)
+defines `cqmom_coordinate_scales`, declared in
+[`coordinate_scales.hpp`](../../../src/internal/coordinate_scales.hpp).
+It returns one positive scale per phase-space coordinate from the marginal
+moments of the whole distribution. Local `coordinate_scale` prefers
+`sqrt(m2)/sqrt(m0)` for positive usable values, then `abs(m1)/m0`, then `1`;
+missing moments supply zero to this selection. `convert_to_double` rejects
+non-finite, out-of-double-range, and nonzero-to-zero values, so an unusable
+candidate falls through to the next. Recursive CQMOM uses these scales only in
+adaptive mode, as the floor of Wheeler's degeneracy bound for conditional
+levels (see [Wheeler design](../qmom_wheeler.md)); no moment is transformed.
 
-Local `automatic_scale` prefers `sqrt(m2)/sqrt(m0)` for positive usable values,
-then `abs(m1)/m0`, then `1`. CQMOM chooses one scale per **global coordinate
-marginal**, not a separate scale for every conditional branch. Missing selected
-scale moments supply zero to this selection. `scale_value` loops over integer
-order dividing in `long double`; `scale_mixed_value` nests coordinate and power
-loops to divide by the product of coordinate scales. Order zero is unchanged.
-`scale_bounds` applies the same coordinate transformation. `convert_to_double`
-rejects non-finite/out-of-double-range values and nonzero values becoming zero.
-Failure produces `nullopt` for the complete preparation.
-
-`restore_abscissas`, `restore_cqmom_abscissas`, and `restore_bounds` multiply
-in extended precision and use the same representability checks. Restoration may
-partially change its temporary argument before returning false. Public wrappers
-then discard that temporary result and repeat unscaled reconstruction.
-`can_restore_cqmom_result` checks copies of all terminal coordinates and
-retained bounded diagnostics before public conversion. The fallback is for
-unsafe transformation/restoration; a safely restored **failed numerical
-inversion** is returned as failure, not retried unscaled merely to obtain
-success.
-
-Tests in [`tests/unit/public_api.cpp`](../../../tests/unit/public_api.cpp)
-check physical restoration, available scale moments, covariance, and
-unsafe-preparation fallback.
-[`cqmom/automatic_scaling.cpp`](../../../tests/verification/cqmom/automatic_scaling.cpp)
-uses prescribed ragged rules and rescaled tensors, including a case where
-enabling scaling changes recovery. This does not establish shift invariance or
-robustness for arbitrary marginal scales or long-double implementations.
+Evidence: `test_coordinate_scales_fall_back_from_rms_to_mean_to_one` in
+[`tests/unit/recursive_quadrature.cpp`](../../../tests/unit/recursive_quadrature.cpp)
+checks the selection order, and the adaptive unit-invariance cases in
+[`cqmom/unit_invariance.cpp`](../../../tests/verification/cqmom/unit_invariance.cpp)
+recover prescribed ragged rules from tensors in rescaled units.
 
 ## B/C — entry and payload helpers
 
 | Functions | Purpose and important semantics | Evidence |
 |---|---|---|
-| `compute_qmom` overloads; `compute_qmom_unscaled`; `compute_qmom_with_automatic_scaling` | Case unpacking, optional transform, bounded/unbounded dispatch; output status maps without reclassifying realizability | `tests/unit/public_api.cpp` |
-| `to_wheeler_options`, `to_qmom_status` | Preserve exposed thresholds/adaptivity and map enum values; automatic scaling belongs outside Wheeler | Definitions in `src/public_api.cpp` |
+| `compute_qmom` overloads; `compute_qmom_from_moments` | Case unpacking, bounded/unbounded dispatch; output status maps without reclassifying realizability | `tests/unit/public_api.cpp` |
+| `to_wheeler_options`, `to_qmom_status` | Preserve exposed thresholds/adaptivity and map enum values | Definitions in `src/public_api.cpp` |
 | `one_node_result`, `negative_mass_result` | Status-bearing diagnostic or accepted payloads as distinguished above | Negative mass/variance tests in `tests/unit/wheeler.cpp` |
 | `recurrence_is_finite`, `has_negative_recurrence_b`, `required_moments_are_finite` | Numerical guards; the latter checks a prefix, not every stored moment | Same Wheeler tests |
-| `finite_positive`, `convert_to_double` | Transform selection and representability guards, including nonzero underflow | Scaling tests in `tests/unit/public_api.cpp` |
+| `finite_positive`, `convert_to_double` | Coordinate-scale selection and representability guards, including nonzero underflow | Coordinate-scale unit test; adaptive CQMOM unit-invariance verification |
 
 The elementary `MomentSet` methods, defined in their own `src/moment_set.cpp`
 translation unit, are covered in

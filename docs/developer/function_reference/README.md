@@ -15,7 +15,7 @@ universal numerical guarantees from bounded test cases.
 
 | Reference | Responsibility |
 |---|---|
-| [QMOM reconstruction and scaling](qmom_reconstruction.md) | Raw sequence → recurrence → eigenproblem → accepted node count; bounds and coordinate scaling |
+| [QMOM reconstruction and coordinate scales](qmom_reconstruction.md) | Raw sequence → recurrence → eigenproblem → accepted node count; bounds and coordinate scales |
 | [Realizability](realizability.md) | Support-specific matrix classification, range checks, acceptance predicates |
 | [Conditional systems and linear algebra](conditional_systems.md) | Weighted Vandermonde equations, BP, dense elimination, QR, SVD, eigenkernel |
 | [Recursive CQMOM](cqmom_reconstruction.md) | Required layouts, conditional slices, branch traversal, active-count constraints |

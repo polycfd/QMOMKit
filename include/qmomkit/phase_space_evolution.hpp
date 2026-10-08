@@ -338,7 +338,7 @@ using BatchCqmomMomentBoundaryContribution = std::function<CqmomMomentRate(std::
  * first-order moment-source-then-advection Lie splitting:
  * moment-source(dt) -> advection(dt).
  *
- * In adaptive branch-count mode, `CqmomState` carries current branch-specific
+ * In adaptive CQMOM, `CqmomState` carries current branch-specific
  * active counts separately from the hierarchy's configured maximum counts.
  * Phase-space advection stages preserve the active topology, while accepted moment-source stages
  * may grow active branches one node at a time toward the configured maximum.

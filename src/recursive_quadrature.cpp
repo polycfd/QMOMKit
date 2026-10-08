@@ -632,8 +632,7 @@ void record_failure(internal::RecursiveQuadratureResult& result, const internal:
 }
 
 [[nodiscard]] bool validate_recursive_request_preflight(const ConditionalMomentOptions& conditional_options,
-                                                        const CqmomDiagnosticLevel diagnostic_level, const WheelerOptions& wheeler_options,
-                                                        const bool adaptive_branch_counts, internal::RecursiveQuadratureResult& result)
+                                                        const CqmomDiagnosticLevel diagnostic_level, internal::RecursiveQuadratureResult& result)
 {
     if (!valid_conditional_options(conditional_options))
     {
@@ -643,15 +642,6 @@ void record_failure(internal::RecursiveQuadratureResult& result, const internal:
     if (!valid_diagnostic_level(diagnostic_level))
     {
         record_failure(result, internal::RecursiveQuadratureStatus::invalid_input, {}, 0, "CQMOM diagnostic level is invalid.");
-        return false;
-    }
-    // Adaptive branch counts and adaptive Wheeler go together: a fixed
-    // hierarchy cannot hold a branch that Wheeler reduced, and adaptive branch
-    // counts have nothing to adapt with fixed inversions.
-    if (wheeler_options.adaptive != adaptive_branch_counts)
-    {
-        record_failure(result, internal::RecursiveQuadratureStatus::invalid_input, {}, 0,
-                       "CQMOM requires the QMOM adaptive option and adaptive_branch_counts to agree.");
         return false;
     }
     return true;
@@ -868,16 +858,15 @@ void record_bounded_candidate_diagnostics(internal::RecursiveQuadratureBranchDia
     }
 }
 
-[[nodiscard]] bool branch_growth_trial_allowed(bool allow_active_branch_count_growth, bool adaptive_branch_counts,
-                                               const WheelerOptions& wheeler_options, const BranchNodeCountLimit& limit,
-                                               std::size_t configured_node_count, const Quadrature1D& current);
+[[nodiscard]] bool branch_growth_trial_allowed(bool allow_active_branch_count_growth, const WheelerOptions& wheeler_options,
+                                               const BranchNodeCountLimit& limit, std::size_t configured_node_count, const Quadrature1D& current);
 
-[[nodiscard]] bool branch_growth_trial_allowed(const bool allow_active_branch_count_growth, const bool adaptive_branch_counts,
-                                               const WheelerOptions& wheeler_options, const BranchNodeCountLimit& limit,
-                                               const std::size_t configured_node_count, const Quadrature1D& current)
+[[nodiscard]] bool branch_growth_trial_allowed(const bool allow_active_branch_count_growth, const WheelerOptions& wheeler_options,
+                                               const BranchNodeCountLimit& limit, const std::size_t configured_node_count,
+                                               const Quadrature1D& current)
 {
-    return allow_active_branch_count_growth && adaptive_branch_counts && wheeler_options.adaptive && limit.active_node_count.has_value() &&
-           current.ok() && current.weights.size() == *limit.active_node_count && *limit.active_node_count < configured_node_count;
+    return allow_active_branch_count_growth && wheeler_options.adaptive && limit.active_node_count.has_value() && current.ok() &&
+           current.weights.size() == *limit.active_node_count && *limit.active_node_count < configured_node_count;
 }
 
 } // namespace
@@ -1487,13 +1476,12 @@ namespace
 {
 
 // The recursive traversal behind both entry points. They have checked the
-// request's options and moment values and pass the Wheeler options resolved
-// for `request.adaptive_branch_counts`. The moment data carries the canonical
+// request's options and moment values. The moment data carries the canonical
 // CQMOM moment layout of `request.hierarchy`, as does any prepared metadata the
 // request holds.
-RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_data(const RecursiveQuadratureMomentDataRequest& request,
-                                                                                  const WheelerOptions& wheeler_options)
+RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_data(const RecursiveQuadratureMomentDataRequest& request)
 {
+    const WheelerOptions& wheeler_options = request.wheeler_options;
     internal::performance::record_cqmom_reconstruction();
     // Recursive CQMOM traversal:
     // 1. adapt root moments into conditioning-order branch storage;
@@ -1501,7 +1489,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
     // 3. reconstruct child conditional moments for the remaining axes;
     // 4. multiply local weights along each path to assemble terminal nodes.
     RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
-    result.quadrature.set_adaptive_branch_counts_enabled(request.adaptive_branch_counts);
+    result.quadrature.set_adaptive_branch_counts_enabled(wheeler_options.adaptive);
     const std::size_t dimensions = request.hierarchy.number_of_dimensions();
 
     std::string coordinate_support_message;
@@ -1513,7 +1501,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
     ActiveBranchTopology active_topology;
     try
     {
-        active_topology = validate_active_branch_topology(request.hierarchy, request.adaptive_branch_counts, request.active_branch_counts);
+        active_topology = validate_active_branch_topology(request.hierarchy, wheeler_options.adaptive, request.active_branch_counts);
     }
     catch (const std::exception& ex)
     {
@@ -1529,7 +1517,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
         // Wheeler realizes at run time. Compatibility requires the flags to
         // match, so an adaptive request never picks up a fixed tree.
         const bool use_prepared_metadata =
-            request.prepared_metadata != nullptr && request.prepared_metadata->adaptive_branch_counts == request.adaptive_branch_counts;
+            request.prepared_metadata != nullptr && request.prepared_metadata->adaptive_branch_counts == wheeler_options.adaptive;
         if (use_prepared_metadata)
         {
             const PreparedCqmomMetadata& metadata = *request.prepared_metadata;
@@ -1543,7 +1531,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                 throw std::logic_error("Normal CQMOM reconstruction requires prepared metadata.");
             }
             internal::performance::record_cqmom_dynamic_metadata_build();
-            dynamic_root_branch_layout = internal::create_ordered_root_layout(request.moments.layout, request.adaptive_branch_counts);
+            dynamic_root_branch_layout = internal::create_ordered_root_layout(request.moments.layout, wheeler_options.adaptive);
             root_slice = create_ordered_root_slice(request.moments, *dynamic_root_branch_layout);
         }
     }
@@ -1605,7 +1593,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
             branch_diagnostics.conditioning_level = level;
             branch_diagnostics.phase_space_dimension = phase_space_dimension;
             branch_diagnostics.requested_node_count = node_count_limit.ceiling;
-            branch_diagnostics.adaptive_branch_counts_enabled = request.adaptive_branch_counts;
+            branch_diagnostics.adaptive_branch_counts_enabled = wheeler_options.adaptive;
             // Copying the branch path allocates, and at diagnostic level `none`
             // a successful branch publishes no record at all, so the copy would
             // be built and discarded once per branch per reconstruction. The
@@ -1640,7 +1628,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
             {
                 const internal::BoundedQuadratureSelectionRequest bounded_request{
                     node_count_limit.active_node_count.value_or(node_count_limit.ceiling), configured_node_count, node_count_limit.active_node_count,
-                    request.adaptive_branch_counts, request.allow_active_branch_count_growth};
+                    wheeler_options.adaptive, request.allow_active_branch_count_growth};
                 internal::BoundedQuadratureSelection bounded_selection =
                     internal::select_bounded_quadrature(moment_sequence, bounded_request, *support_interval, wheeler_options, coordinate_scale);
                 quadrature = std::move(bounded_selection.quadrature);
@@ -1651,14 +1639,14 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
             }
             else
             {
-                const bool branch_growth_possible = request.allow_active_branch_count_growth && request.adaptive_branch_counts &&
-                                                    wheeler_options.adaptive && node_count_limit.active_node_count.has_value() &&
+                const bool branch_growth_possible = request.allow_active_branch_count_growth && wheeler_options.adaptive &&
+                                                    node_count_limit.active_node_count.has_value() &&
                                                     *node_count_limit.active_node_count < configured_node_count;
                 quadrature = branch_growth_possible
                                  ? compute_branch_quadrature(moment_sequence, node_count_limit.ceiling, wheeler_options, coordinate_scale)
                                  : compute_branch_quadrature(std::move(moment_sequence), node_count_limit.ceiling, wheeler_options, coordinate_scale);
-                if (branch_growth_trial_allowed(request.allow_active_branch_count_growth, request.adaptive_branch_counts, wheeler_options,
-                                                node_count_limit, configured_node_count, quadrature))
+                if (branch_growth_trial_allowed(request.allow_active_branch_count_growth, wheeler_options, node_count_limit, configured_node_count,
+                                                quadrature))
                 {
                     const std::size_t growth_ceiling = *node_count_limit.active_node_count + 1;
                     Quadrature1D growth = compute_branch_quadrature(std::move(moment_sequence), growth_ceiling, wheeler_options, coordinate_scale);
@@ -1691,7 +1679,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
             }
             if (quadrature.weights.empty() || quadrature.weights.size() != quadrature.abscissas.size() ||
                 quadrature.weights.size() > selected_node_count_ceiling ||
-                (!request.adaptive_branch_counts && quadrature.weights.size() != selected_node_count_ceiling))
+                (!wheeler_options.adaptive && quadrature.weights.size() != selected_node_count_ceiling))
             {
                 branch_diagnostics.wheeler_status = quadrature.status;
                 branch_diagnostics.message = "Wheeler inversion returned an unexpected node count.";
@@ -1760,7 +1748,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                     terminal_paths.push_back(child.path);
                     terminal_node_ids.push_back(child.tree_node_id);
 
-                    if (!request.adaptive_branch_counts)
+                    if (!wheeler_options.adaptive)
                     {
                         // Fixed-node hierarchies also populate rectangular
                         // storage indexed directly by the full node multi-index.
@@ -1803,7 +1791,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
         current_branches = std::move(next_branches);
     }
 
-    if (request.adaptive_branch_counts)
+    if (wheeler_options.adaptive)
     {
         try
         {
@@ -1826,12 +1814,10 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const RecursiveQuadratureMomentDataRequest& request)
 {
-    const WheelerOptions& wheeler_options = request.wheeler_options;
     RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
-    result.quadrature.set_adaptive_branch_counts_enabled(request.adaptive_branch_counts);
+    result.quadrature.set_adaptive_branch_counts_enabled(request.wheeler_options.adaptive);
 
-    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, wheeler_options, request.adaptive_branch_counts,
-                                              result))
+    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, result))
     {
         return result;
     }
@@ -1849,17 +1835,15 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_moment_data(const Re
         return result;
     }
 
-    return compute_recursive_quadrature_from_validated_moment_data(request, wheeler_options);
+    return compute_recursive_quadrature_from_validated_moment_data(request);
 }
 
 RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(const RecursiveQuadratureMomentDataRequest& request)
 {
-    const WheelerOptions& wheeler_options = request.wheeler_options;
     RecursiveQuadratureResult result = create_recursive_result(request.hierarchy);
-    result.quadrature.set_adaptive_branch_counts_enabled(request.adaptive_branch_counts);
+    result.quadrature.set_adaptive_branch_counts_enabled(request.wheeler_options.adaptive);
 
-    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, wheeler_options, request.adaptive_branch_counts,
-                                              result))
+    if (!validate_recursive_request_preflight(request.conditional_options, request.diagnostic_level, result))
     {
         return result;
     }
@@ -1875,7 +1859,7 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_trusted_moment_data(
         return result;
     }
 
-    return compute_recursive_quadrature_from_validated_moment_data(request, wheeler_options);
+    return compute_recursive_quadrature_from_validated_moment_data(request);
 }
 
 } // namespace internal

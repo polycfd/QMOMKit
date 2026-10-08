@@ -2,7 +2,6 @@
 names = xi1, xi2, xi3, xi4
 node_counts = 2, 2, 2, 2
 conditioning_order = 0, 2, 1, 3
-adaptive_branch_counts = true
 
 [qmom]
 adaptive = true

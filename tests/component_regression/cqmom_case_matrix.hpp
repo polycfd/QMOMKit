@@ -42,7 +42,7 @@ struct StaticCase
     std::vector<std::size_t> node_counts;
     std::vector<std::size_t> conditioning_order;
     std::vector<QuadratureNode> nodes;
-    bool adaptive_branch_counts = false;
+    bool adaptive = false;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
     // Empty leaves every coordinate unconstrained.
     CqmomAbscissaBounds coordinate_support;

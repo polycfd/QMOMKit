@@ -182,18 +182,18 @@ std::vector<double> raw_moments_from_terminals(const std::vector<std::size_t>& e
 // the case fields so that each call reads as the case it builds.
 qmomkit::CqmomCase cqmom_case_from_tensor(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moments,
                                           const qmomkit::ConditionalMomentOptions& conditional_options = {},
-                                          const qmomkit::QmomOptions& qmom_options = {}, const bool adaptive_branch_counts = false,
+                                          const qmomkit::QmomOptions& qmom_options = {}, const bool adaptive = false,
                                           const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
                                           const qmomkit::VandermondeSolver vandermonde_solver = qmomkit::VandermondeSolver::automatic,
                                           qmomkit::CqmomAbscissaBounds coordinate_support = {})
 {
-    // CQMOM requires the QMOM adaptive option to agree with the branch-count flag.
-    qmomkit::QmomOptions agreeing_qmom_options = qmom_options;
-    agreeing_qmom_options.adaptive = adaptive_branch_counts;
+    // The adaptive flag decides the whole reconstruction, branch node counts
+    // included.
+    qmomkit::QmomOptions adaptive_qmom_options = qmom_options;
+    adaptive_qmom_options.adaptive = adaptive;
     return {qmomkit::extract_cqmom_moments(moments, qmomkit::create_cqmom_moment_layout(hierarchy)),
             conditional_options,
-            agreeing_qmom_options,
-            adaptive_branch_counts,
+            adaptive_qmom_options,
             diagnostic_level,
             vandermonde_solver,
             std::move(coordinate_support)};
@@ -982,7 +982,7 @@ void test_one_dimensional_cqmom_agrees_with_qmom()
 
     const qmomkit::PhaseSpaceHierarchy hierarchy({2});
     const qmomkit::CqmomResult cqmom = qmomkit::compute_cqmom(qmomkit::CqmomCase{
-        qmomkit::extract_cqmom_moments({{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, qmomkit::QmomOptions{false}, false});
+        qmomkit::extract_cqmom_moments({{4}, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, qmomkit::QmomOptions{false}});
 
     assert(qmom.ok());
     assert(cqmom.ok());
@@ -1219,53 +1219,6 @@ void test_cqmom_adaptive_root_branch_uses_relative_rmin_only()
     assert(saw_unreduced_root);
 }
 
-void test_cqmom_rejects_disagreeing_qmom_and_branch_counts()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> weights{0.1, 0.2, 0.3, 0.4};
-    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0, 1.0}, {-2.0, 2.0, -2.0, 2.0}};
-    const qmomkit::CqmomMomentData moments = qmomkit::extract_cqmom_moments({extents, raw_moments_from_terminals(extents, weights, abscissas)},
-                                                                            qmomkit::create_cqmom_moment_layout(hierarchy));
-    const std::string message = "CQMOM requires the QMOM adaptive option and adaptive_branch_counts to agree.";
-
-    // A case, a prepared case and an initial state all reject either
-    // disagreement.
-    for (const auto& [adaptive_qmom, adaptive_branch_counts] : {std::pair{true, false}, std::pair{false, true}})
-    {
-        const qmomkit::CqmomCase cqmom_case{moments, {}, qmomkit::QmomOptions{adaptive_qmom}, adaptive_branch_counts};
-        for (const qmomkit::CqmomResult& rejected :
-             {qmomkit::compute_cqmom(cqmom_case), qmomkit::compute_cqmom(qmomkit::CqmomPreparedCase{cqmom_case})})
-        {
-            assert(!rejected.ok());
-            assert(rejected.status == qmomkit::CqmomStatus::invalid_input);
-            assert(rejected.failed_phase_space_dimension == 0);
-            assert(rejected.diagnostics.empty());
-            assert(rejected.message == message);
-        }
-        bool initial_state_rejected = false;
-        try
-        {
-            static_cast<void>(cqmom_case.initial_state());
-        }
-        catch (const std::runtime_error& error)
-        {
-            initial_state_rejected = true;
-            assert(std::string(error.what()) == "CQMOM initial state quadrature reconstruction failed: " + message);
-        }
-        assert(initial_state_rejected);
-    }
-
-    const qmomkit::CqmomResult fixed = qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, qmomkit::QmomOptions{false}, false});
-    assert(fixed.ok());
-    assert(fixed.quadrature.has_rectangular_storage());
-
-    const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomCase{moments, {}, qmomkit::QmomOptions{true}, true});
-    assert(adaptive.ok());
-    assert(!adaptive.quadrature.has_rectangular_storage());
-    assert(adaptive.quadrature.total_nodes() == weights.size());
-}
-
 void test_cqmom_diagnostic_levels_control_expensive_diagnostics()
 {
     const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
@@ -1338,13 +1291,13 @@ void test_cqmom_none_diagnostics_preserves_failure_context()
 void test_cqmom_settings_format()
 {
     const std::string formatted = qmomkit::format_cqmom_settings(true, qmomkit::VandermondeSolver::dense, qmomkit::CqmomDiagnosticLevel::detailed);
-    assert(formatted.find("adaptive branch counts = enabled") != std::string::npos);
+    assert(formatted.find("adaptive = enabled") != std::string::npos);
     assert(formatted.find("Vandermonde solver = dense") != std::string::npos);
     assert(formatted.find("diagnostic level = detailed") != std::string::npos);
 
     const std::string pivoted_qr =
         qmomkit::format_cqmom_settings(false, qmomkit::VandermondeSolver::pivoted_qr, qmomkit::CqmomDiagnosticLevel::basic);
-    assert(pivoted_qr.find("adaptive branch counts = disabled") != std::string::npos);
+    assert(pivoted_qr.find("adaptive = disabled") != std::string::npos);
     assert(pivoted_qr.find("Vandermonde solver = pivoted_qr") != std::string::npos);
     assert(pivoted_qr.find("diagnostic level = basic") != std::string::npos);
 
@@ -1416,7 +1369,6 @@ int main(const int argc, char** argv)
             {"cqmom_public_api_reports_conditional_moment_failure", test_cqmom_public_api_reports_conditional_moment_failure},
             {"cqmom_public_api_exposes_adaptive_branch_counts", test_cqmom_public_api_exposes_adaptive_branch_counts},
             {"cqmom_adaptive_root_branch_uses_relative_rmin_only", test_cqmom_adaptive_root_branch_uses_relative_rmin_only},
-            {"cqmom_rejects_disagreeing_qmom_and_branch_counts", test_cqmom_rejects_disagreeing_qmom_and_branch_counts},
             {"cqmom_diagnostic_levels_control_expensive_diagnostics", test_cqmom_diagnostic_levels_control_expensive_diagnostics},
             {"cqmom_none_diagnostics_preserves_failure_context", test_cqmom_none_diagnostics_preserves_failure_context},
             {"cqmom_settings_format", test_cqmom_settings_format},

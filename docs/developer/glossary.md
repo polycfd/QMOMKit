@@ -8,7 +8,7 @@ conventions, and extension rules.
 
 | Category | Symbol | Description | More information |
 |---|---|---|---|
-| Concept | adaptive branch counts | CQMOM policy that lets branch-local inversions return fewer nodes when the local moments support a lower-order rule. Developers encounter it when fixed rectangular storage gives way to ragged terminal quadrature. | [cqmom_recursive.md](cqmom_recursive.md) |
+| Concept | adaptive branch counts | Behaviour of adaptive CQMOM (`QmomOptions::adaptive`) that lets branch-local inversions return fewer nodes when the local moments support a lower-order rule. Developers encounter it when fixed rectangular storage gives way to ragged terminal quadrature. | [cqmom_recursive.md](cqmom_recursive.md) |
 | Concept | CQMOM | Multidimensional conditional quadrature reconstruction. It is the method behind QMOMKit's phase-space hierarchy, conditioning order, and terminal quadrature workflows. | [cqmom_recursive.md](cqmom_recursive.md) |
 | Concept | generalized moment | Moment-like quantity evaluated from an existing quadrature with arbitrary finite real exponents. It is derived post-processing, not a native QMOM/CQMOM reconstruction, phase-space evolution, or realizability moment. | [numerical_conventions.md](numerical_conventions.md) |
 | Concept | `QmomMomentBoundaryContribution` | Optional callback concept for additive raw-moment rates from phase-space boundary exchange. It appears in phase-space evolution code where source rates and boundary exchange are composed. | [phase_space_evolution_design.md](phase_space_evolution_design.md) |

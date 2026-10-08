@@ -30,7 +30,7 @@ This glossary explains common scientific terms used in the QMOMKit user guide.
 
 | Term | Explanation | More information |
 |---|---|---|
-| adaptive branch counts | A CQMOM option that allows individual branches to use fewer active nodes when the local moments only support a lower-order rule. Adaptive results should be read as terminal nodes rather than assumed to be rectangular. | [Multidimensional CQMOM](cqmom.md) |
+| adaptive branch counts | In adaptive CQMOM (`qmom.adaptive = true`, the default), individual branches use fewer active nodes when the local moments only support a lower-order rule. Adaptive results should be read as terminal nodes rather than assumed to be rectangular. | [Multidimensional CQMOM](cqmom.md) |
 | conditional moment | A moment used by CQMOM to reconstruct later dimensions after earlier conditioning nodes have been selected. It lets a multidimensional reconstruction proceed one conditioned dimension at a time. | [Multidimensional CQMOM](cqmom.md) |
 | conditioning order | The numerical order in which CQMOM processes phase-space dimensions. It does not rename coordinates or change tensor, callback, or output order. | [Multidimensional CQMOM](cqmom.md) |
 | CQMOM | The Conditional Quadrature Method of Moments for multidimensional phase spaces. Use it when the represented population depends on several ordered coordinates. | [Multidimensional CQMOM](cqmom.md) |

@@ -42,9 +42,9 @@ std::size_t validate_case(const qmomkit::CqmomPreparedCase& cqmom_prepared_case)
 {
     const qmomkit::PhaseSpaceHierarchy& hierarchy = cqmom_prepared_case.hierarchy();
     if (hierarchy.number_of_dimensions() != 2 || hierarchy.conditioning_order() != std::vector<std::size_t>{0, 1} ||
-        !cqmom_prepared_case.adaptive_branch_counts())
+        !cqmom_prepared_case.qmom_options().adaptive)
     {
-        throw std::runtime_error("The adaptive paper case requires a 2D (d,u) hierarchy, conditioning order {0,1}, and adaptive branch counts.");
+        throw std::runtime_error("The adaptive paper case requires a 2D (d,u) hierarchy, conditioning order {0,1}, and adaptive reconstruction.");
     }
     return hierarchy.node_count(velocity_dimension);
 }

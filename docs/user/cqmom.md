@@ -304,8 +304,8 @@ retain a larger rectangular initial raw-moment tensor. They do not change the
 hierarchy, reconstruction order, or branch counts. Sample-based initialization
 can use the larger tensor extent when evaluating raw moments from samples.
 
-For fixed quadratures (`adaptive_branch_counts = false`), you can also access a
-node by its phase-space-order multi-index:
+For fixed quadratures (`qmom.adaptive = false`), you can also access a node by
+its phase-space-order multi-index:
 
 ```cpp
 const qmomkit::MultiIndex node_index{0, 1};
@@ -362,9 +362,8 @@ are reproducible and callback coordinate order stays easy to audit.
 CQMOM reconstruction is adaptive by default. A branch may use fewer nodes than
 its phase-space dimension requests where the supplied moments support only a
 lower-order rule, for example near degenerate or boundary-like states.
-`adaptive_branch_counts` and `QmomOptions::adaptive` must agree: adaptive branch
-counts need adaptive inversions, and a fixed hierarchy needs fixed ones. A case
-where they differ is rejected as invalid input.
+`QmomOptions::adaptive` decides this for the whole reconstruction: every
+marginal and conditional inversion and every branch node count adapt together.
 
 Adaptive results expose terminal weights, terminal abscissas, and terminal
 conditioning paths, and their storage is ragged even when no branch reduces.
@@ -376,15 +375,11 @@ of nodes, or the reconstruction fails, and supports rectangular node access by
 multi-index. Request it in configuration with:
 
 ```ini
-[phase_space]
-adaptive_branch_counts = false
-
 [qmom]
 adaptive = false
 ```
 
-or by setting both `CqmomCase::adaptive_branch_counts` and
-`CqmomCase::qmom_options.adaptive` to false.
+or by setting `CqmomCase::qmom_options.adaptive` to false.
 
 Both modes are supported in reconstruction and in the normal configured
 `CqmomState` phase-space evolution workflow. `CqmomState` keeps the required

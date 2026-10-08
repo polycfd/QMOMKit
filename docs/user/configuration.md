@@ -111,7 +111,6 @@ a name such as `d`, `u`, or `T`.
 names = size, velocity
 node_counts = 2, 2
 conditioning_order = 0, 1
-adaptive_branch_counts = true
 ```
 
 The keys are:
@@ -122,10 +121,6 @@ The keys are:
 - `conditioning_order` sets the order in which CQMOM conditions the dimensions.
   It does not reorder coordinates, moments, or output; if omitted, dimensions
   are conditioned in their natural order `0, 1, 2, ...`.
-- `adaptive_branch_counts` allows individual CQMOM branches to use fewer nodes
-  than requested when their local moments cannot support more. It is `true` by
-  default; `false` gives the fixed hierarchy and requires `[qmom] adaptive =
-  false` as well.
 
 This section is what ties the file to your model: every callback coordinate
 vector, output column, and moment multi-index follows the phase-space dimension
@@ -429,27 +424,16 @@ do not resolve them or a node fails the minimum weight ratio or node
 separation. Adaptive CQMOM always uses a ragged quadrature layout, addressed by
 terminal paths.
 
-A fixed reconstruction returns every requested node or fails. For
-one-dimensional QMOM, request it with:
+A fixed reconstruction returns every requested node or fails. Request it with:
 
 ```ini
 [qmom]
 adaptive = false
 ```
 
-For CQMOM, the branch counts and the inversions must both be fixed:
-
-```ini
-[phase_space]
-node_counts = 2, 2
-adaptive_branch_counts = false
-
-[qmom]
-adaptive = false
-```
-
-This also gives the rectangular layout that node multi-indices address. A
-CQMOM file whose two settings disagree is rejected when it is loaded.
+The setting covers QMOM and CQMOM alike: in CQMOM, every branch then keeps its
+configured node count, in the rectangular layout that node multi-indices
+address.
 
 Diagnostic level and solver policy are covered under
 [advanced settings](#advanced-settings).

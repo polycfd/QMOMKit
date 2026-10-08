@@ -696,7 +696,7 @@ void test_cqmom_adaptive_quadrature_output_accepts_changing_node_counts()
     const std::vector<double> adaptive_moments = raw_moments_from_terminals(extents, adaptive_weights, adaptive_abscissas);
     const qmomkit::QmomOptions adaptive_qmom{true, 1.0e-10, 1.0e-10, 1.0e-12};
     const qmomkit::CqmomResult adaptive = qmomkit::compute_cqmom(qmomkit::CqmomCase{
-        qmomkit::extract_cqmom_moments({extents, adaptive_moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom, true});
+        qmomkit::extract_cqmom_moments({extents, adaptive_moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, adaptive_qmom});
     assert(adaptive.ok());
     assert(adaptive.quadrature.total_nodes() == 3);
 

@@ -909,7 +909,7 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     const internal::PreparedCqmomMetadata* prepared_metadata = internal::CqmomConstructionAccess::state_prepared_metadata(state).get();
     CqmomResult initial_quadrature =
         internal::compute_cqmom_internal(internal::CqmomConstructionAccess::state_definition(state), working_state.reconstructed_active_branch_counts,
-                                         false, prepared_metadata, !state.adaptive_branch_counts());
+                                         false, prepared_metadata, !state.qmom_options().adaptive);
     diagnostics.initial_cqmom_status = initial_quadrature.status;
     diagnostics.initial_cqmom_diagnostics = initial_quadrature.diagnostics;
     if (!initial_quadrature.ok())
@@ -1020,8 +1020,8 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     internal::performance::record_post_source_inversion();
     CqmomCase post_source_cqmom_case = internal::with_moments(cqmom_case, std::move(source_update.moments));
     CqmomResult post_source_quadrature =
-        internal::compute_cqmom_internal(post_source_cqmom_case, *working_state.active_branch_counts, cqmom_case.adaptive_branch_counts,
-                                         prepared_metadata.get(), !cqmom_case.adaptive_branch_counts);
+        internal::compute_cqmom_internal(post_source_cqmom_case, *working_state.active_branch_counts, cqmom_case.qmom_options.adaptive,
+                                         prepared_metadata.get(), !cqmom_case.qmom_options.adaptive);
     diagnostics.post_source_cqmom_status = post_source_quadrature.status;
     diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
     if (!post_source_quadrature.ok())

@@ -180,8 +180,8 @@ two-node candidate whose abscissas both equal zero is degenerate and does not
 pass the separation criterion.
 
 Adaptive Wheeler is a one-dimensional inversion policy. In recursive CQMOM, the
-`adaptive` option sets it for every marginal and conditional inversion and must
-agree with `adaptive_branch_counts`; a request where they differ is rejected.
+`adaptive` option sets it for every marginal and conditional inversion and also
+decides whether branch node counts adapt.
 
 ## Numerical assumptions and failure handling
 

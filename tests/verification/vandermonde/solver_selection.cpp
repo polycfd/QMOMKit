@@ -223,8 +223,7 @@ void verify_solver_diagnostics(const SolverCase& solver_case, const qmomkit::Cqm
     const qmomkit::internal::RecursiveQuadratureMomentDataRequest request{
         cqmom_case.moments.layout.hierarchy, cqmom_case.moments,
         cqmom_case.conditional_options,      wheeler_options_from_qmom(cqmom_case.qmom_options),
-        cqmom_case.adaptive_branch_counts,   cqmom_case.diagnostic_level,
-        cqmom_case.vandermonde_solver};
+        cqmom_case.diagnostic_level,         cqmom_case.vandermonde_solver};
     const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(request);
     if (!result.ok())
     {

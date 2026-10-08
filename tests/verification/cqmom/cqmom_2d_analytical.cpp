@@ -255,10 +255,6 @@ void verify_configuration_fields(const ExpectedCase& expected, const qmomkit::Cq
     {
         append_failure(result, "Configured moment extents are not {4, 4}.");
     }
-    if (configured_cqmom_case.adaptive_branch_counts != expected.adaptive)
-    {
-        append_failure(result, "Configured adaptive_branch_counts does not match the analytical case.");
-    }
     if (configured_cqmom_case.qmom_options.adaptive != expected.adaptive)
     {
         append_failure(result, "Configured qmom.adaptive does not match the analytical case.");

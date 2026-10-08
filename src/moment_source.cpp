@@ -850,12 +850,11 @@ const CqmomQuadrature& CqmomSourceContext::reconstructed_stage_quadrature() cons
         const CqmomCase stage_cqmom_case{CqmomMomentData{reconstruction_cqmom_case_->moments.layout, *values_},
                                          reconstruction_cqmom_case_->conditional_options,
                                          reconstruction_cqmom_case_->qmom_options,
-                                         reconstruction_cqmom_case_->adaptive_branch_counts,
                                          reconstruction_cqmom_case_->diagnostic_level,
                                          reconstruction_cqmom_case_->vandermonde_solver,
                                          reconstruction_cqmom_case_->abscissa_bounds};
-        CqmomResult quadrature = internal::compute_cqmom_internal(stage_cqmom_case, *active_branch_counts_, stage_cqmom_case.adaptive_branch_counts,
-                                                                  prepared_metadata_, !stage_cqmom_case.adaptive_branch_counts);
+        CqmomResult quadrature = internal::compute_cqmom_internal(stage_cqmom_case, *active_branch_counts_, stage_cqmom_case.qmom_options.adaptive,
+                                                                  prepared_metadata_, !stage_cqmom_case.qmom_options.adaptive);
         if (!quadrature.ok())
         {
             throw std::runtime_error("CQMOM source-stage quadrature reconstruction failed: " + quadrature.message);

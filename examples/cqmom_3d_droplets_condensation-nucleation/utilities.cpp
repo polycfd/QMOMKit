@@ -125,7 +125,7 @@ void print_cqmom_run_configuration(const qmomkit::CqmomPreparedCase& cqmom_prepa
     print_index_vector(cqmom_prepared_case.hierarchy().node_counts());
     std::cout << '\n';
     std::cout << "phase-space evolution: Strang-split advection and boundary nucleation\n";
-    std::cout << qmomkit::format_cqmom_settings(cqmom_prepared_case.adaptive_branch_counts(), cqmom_prepared_case.vandermonde_solver(),
+    std::cout << qmomkit::format_cqmom_settings(cqmom_prepared_case.qmom_options().adaptive, cqmom_prepared_case.vandermonde_solver(),
                                                 cqmom_prepared_case.diagnostic_level());
     std::cout << qmomkit::format_node_advection_options(phase_space_evolution_options.node_options);
 }

@@ -20,20 +20,21 @@ namespace
 
 // These tests construct a full tensor of raw moments; reconstruction takes only
 // the moments the hierarchy requires.
-qmomkit::internal::RecursiveQuadratureMomentDataRequest moment_data_request(
-    const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moment_tensor,
-    const qmomkit::ConditionalMomentOptions& conditional_options = {}, const qmomkit::WheelerOptions& wheeler_options = {},
-    const bool adaptive_branch_counts = false, const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
-    const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic, const qmomkit::CqmomAbscissaBounds& coordinate_support = {})
+qmomkit::internal::RecursiveQuadratureMomentDataRequest
+moment_data_request(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moment_tensor,
+                    const qmomkit::ConditionalMomentOptions& conditional_options = {}, const qmomkit::WheelerOptions& wheeler_options = {},
+                    const bool adaptive = false, const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
+                    const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic,
+                    const qmomkit::CqmomAbscissaBounds& coordinate_support = {})
 {
-    // CQMOM requires Wheeler adaptivity to agree with the branch-count flag.
-    qmomkit::WheelerOptions agreeing_wheeler_options = wheeler_options;
-    agreeing_wheeler_options.adaptive = adaptive_branch_counts;
+    // The adaptive flag decides the whole reconstruction, branch node counts
+    // included.
+    qmomkit::WheelerOptions adaptive_wheeler_options = wheeler_options;
+    adaptive_wheeler_options.adaptive = adaptive;
     return {hierarchy,
             qmomkit::extract_cqmom_moments(moment_tensor, qmomkit::create_cqmom_moment_layout(hierarchy)),
             conditional_options,
-            agreeing_wheeler_options,
-            adaptive_branch_counts,
+            adaptive_wheeler_options,
             diagnostic_level,
             solver,
             {},
@@ -783,7 +784,6 @@ void test_recursive_bounded_support_rejects_growth_and_preserves_current_count()
                                                                           moment_data,
                                                                           {},
                                                                           wheeler_options,
-                                                                          true,
                                                                           qmomkit::CqmomDiagnosticLevel::detailed,
                                                                           qmomkit::VandermondeSolver::dense,
                                                                           active_counts,
@@ -835,13 +835,12 @@ void test_fixed_public_terminal_paths_align_with_physical_storage()
     const qmomkit::CqmomResult identity = qmomkit::compute_cqmom(
         qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(identity_hierarchy)),
                            {},
-                           qmomkit::QmomOptions{false},
-                           false});
+                           qmomkit::QmomOptions{false}});
     assert(identity.ok());
     assert(identity.quadrature.terminal_paths().to_conditioning_paths() == identity_paths);
 
     const qmomkit::CqmomCase cqmom_case{
-        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, qmomkit::QmomOptions{false}, false};
+        qmomkit::extract_cqmom_moments({extents, moments}, qmomkit::create_cqmom_moment_layout(hierarchy)), {}, qmomkit::QmomOptions{false}};
     const qmomkit::CqmomResult result = qmomkit::compute_cqmom(cqmom_case);
     assert(result.ok());
     assert(result.quadrature.has_rectangular_storage());
@@ -953,52 +952,6 @@ void test_recursive_bounded_support_returned_node_tolerance_and_no_clipping()
     assert(upper_rejected.diagnostics.front().bounded_returned_nodes.size() == 1);
     assert(lower_rejected.message.find("returned nodes outside") != std::string::npos);
     assert(upper_rejected.message.find("returned nodes outside") != std::string::npos);
-}
-
-void test_recursive_rejects_disagreeing_wheeler_and_branch_counts()
-{
-    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2});
-    const std::vector<std::size_t> extents{4, 4};
-    const std::vector<double> weights{0.1, 0.2, 0.3, 0.4};
-    const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, 1.0, 1.0}, {-2.0, 2.0, -2.0, 2.0}};
-    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
-    const auto request = [&](const bool adaptive_wheeler, const bool adaptive_branch_counts)
-    {
-        qmomkit::internal::RecursiveQuadratureMomentDataRequest result =
-            moment_data_request(hierarchy, {extents, moments}, {}, {}, adaptive_branch_counts);
-        result.wheeler_options.adaptive = adaptive_wheeler;
-        return result;
-    };
-
-    // Both entry points reject either disagreement before any reconstruction
-    // work.
-    for (const auto& [adaptive_wheeler, adaptive_branch_counts] : {std::pair{true, false}, std::pair{false, true}})
-    {
-        for (const qmomkit::internal::RecursiveQuadratureResult& rejected :
-             {qmomkit::internal::compute_recursive_quadrature_from_moment_data(request(adaptive_wheeler, adaptive_branch_counts)),
-              qmomkit::internal::compute_recursive_quadrature_from_trusted_moment_data(request(adaptive_wheeler, adaptive_branch_counts))})
-        {
-            assert(!rejected.ok());
-            assert(rejected.status == qmomkit::internal::RecursiveQuadratureStatus::invalid_input);
-            assert(rejected.failed_path.empty());
-            assert(rejected.failed_conditioning_level == 0);
-            assert(rejected.diagnostics.empty());
-            assert(rejected.message == "CQMOM requires the QMOM adaptive option and adaptive_branch_counts to agree.");
-        }
-    }
-
-    const qmomkit::internal::RecursiveQuadratureResult fixed =
-        qmomkit::internal::compute_recursive_quadrature_from_moment_data(request(false, false));
-    assert(fixed.ok());
-    assert(!fixed.quadrature.adaptive_branch_counts_enabled());
-    assert(fixed.quadrature.has_rectangular_storage());
-
-    const qmomkit::internal::RecursiveQuadratureResult adaptive =
-        qmomkit::internal::compute_recursive_quadrature_from_moment_data(request(true, true));
-    assert(adaptive.ok());
-    assert(adaptive.quadrature.adaptive_branch_counts_enabled());
-    assert(!adaptive.quadrature.has_rectangular_storage());
-    assert(adaptive.quadrature.total_nodes() == weights.size());
 }
 
 void test_one_dimensional_hierarchy_reduces_to_stage_1_ordering()
@@ -1785,7 +1738,7 @@ void test_public_cqmom_bp_success_independent_of_diagnostic_level()
     for (const qmomkit::CqmomDiagnosticLevel level : diagnostic_levels())
     {
         results.push_back(qmomkit::compute_cqmom(
-            qmomkit::CqmomCase{required_moments, {}, qmomkit::QmomOptions{false}, false, level, qmomkit::VandermondeSolver::bjorck_pereyra}));
+            qmomkit::CqmomCase{required_moments, {}, qmomkit::QmomOptions{false}, level, qmomkit::VandermondeSolver::bjorck_pereyra}));
     }
 
     assert(results.front().ok());
@@ -1951,7 +1904,6 @@ int main(const int argc, char** argv)
              test_recursive_bounded_support_applies_to_conditional_phase_space_dimension},
             {"recursive_bounded_support_returned_node_tolerance_and_no_clipping",
              test_recursive_bounded_support_returned_node_tolerance_and_no_clipping},
-            {"recursive_rejects_disagreeing_wheeler_and_branch_counts", test_recursive_rejects_disagreeing_wheeler_and_branch_counts},
             {"one_dimensional_hierarchy_reduces_to_stage_1_ordering", test_one_dimensional_hierarchy_reduces_to_stage_1_ordering},
             {"two_dimensional_hierarchy_indexing", test_two_dimensional_hierarchy_indexing},
             {"three_dimensional_hierarchy_indexing", test_three_dimensional_hierarchy_indexing},

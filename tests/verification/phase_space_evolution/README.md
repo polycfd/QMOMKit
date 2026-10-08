@@ -223,8 +223,8 @@ callback through the recommended configured CQMOM workflow: `load_cqmom_prepared
 `CqmomPreparedCase::initial_state()`, and `advance_cqmom_phase_space(CqmomState, ...)`.
 The hierarchy has
 `node_counts = 2, 2`, which is the maximum branch capacity. With
-`adaptive_branch_counts = true`, CQMOM automatically uses adaptive Wheeler for
-marginal and conditional inversions. Reconstruction determines the active
+`qmom.adaptive = true`, the marginal and conditional inversions are adaptive.
+Reconstruction determines the active
 branch counts and may return ragged terminal storage with fewer than four
 terminal nodes. Phase-space advection advances the existing ragged quadrature,
 preserves terminal paths, and reconstructs moments by summation from the moved

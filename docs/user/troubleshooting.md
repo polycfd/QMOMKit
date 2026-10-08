@@ -97,27 +97,20 @@ fails.
 
 **Use adaptive mode,** the default. It reconstructs with as many nodes as the
 moments actually support instead of failing, so this message only appears when
-the case asks for a fixed count, with `[qmom] adaptive = false` and, for CQMOM,
-`adaptive_branch_counts = false` in `[phase_space]`. Removing those settings
-lets the same case that fails at three fixed nodes succeed with one, and lets
-individual CQMOM branches reduce independently.
+the case asks for a fixed count with `[qmom] adaptive = false`. Removing that
+setting lets the same case that fails at three fixed nodes succeed with one, and
+lets individual CQMOM branches reduce independently.
 
-### `qmom.adaptive and phase_space.adaptive_branch_counts must agree for CQMOM`
+### `phase_space.adaptive_branch_counts was removed; use [qmom] adaptive.`
 
-A CQMOM case is either fixed or adaptive throughout: adaptive branch counts need
-adaptive inversions, and a fixed hierarchy needs fixed ones. Both settings
-default to `true`, so a fixed CQMOM case sets both to `false`:
+`[qmom] adaptive` decides whether a CQMOM reconstruction is adaptive, branch
+node counts included. Replace the key with that setting; a fixed CQMOM case
+uses:
 
 ```ini
-[phase_space]
-adaptive_branch_counts = false
-
 [qmom]
 adaptive = false
 ```
-
-The same rule applies to a `CqmomCase` built in code, which is rejected with
-`CQMOM requires the QMOM adaptive option and adaptive_branch_counts to agree.`
 
 ### `Moment sequence has m0 < cutoff.`
 

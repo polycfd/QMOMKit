@@ -36,7 +36,6 @@ std::string nonrealizable_cqmom_configuration()
 names = x, y
 node_counts = 2, 2
 conditioning_order = 0, 1
-adaptive_branch_counts = false
 
 [qmom]
 adaptive = false
@@ -72,7 +71,6 @@ std::string bounded_abscissa_violation_configuration()
 names = x, y
 node_counts = 2, 1
 conditioning_order = 0, 1
-adaptive_branch_counts = false
 support_lower = 0.0, none
 support_upper = 1.0, none
 

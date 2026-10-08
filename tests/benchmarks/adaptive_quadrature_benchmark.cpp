@@ -744,7 +744,6 @@ qmomkit::CqmomCase make_cqmom_case(const CqmomEventFixture& fixture, const std::
     qmomkit::CqmomCase cqmom_case{qmomkit::extract_cqmom_moments({fixture.extents, moments}, layout),
                                   {},
                                   fixture.qmom_options,
-                                  true,
                                   qmomkit::CqmomDiagnosticLevel::none,
                                   qmomkit::VandermondeSolver::automatic};
     return cqmom_case;
@@ -761,7 +760,6 @@ qmomkit::CqmomCase make_cqmom_case(const CqmomFallbackFixture& fixture)
     return {qmomkit::extract_cqmom_moments({fixture.extents, fixture.moments}, layout),
             {},
             adaptive_qmom_options(),
-            true,
             qmomkit::CqmomDiagnosticLevel::none,
             qmomkit::VandermondeSolver::automatic};
 }

@@ -95,7 +95,6 @@ qmomkit::CqmomPreparedCase exact_cqmom_prepared_case()
 names = d, chi, u
 node_counts = 2, 2, 2
 conditioning_order = 0, 1, 2
-adaptive_branch_counts = true
 
 [cqmom]
 diagnostic_level = detailed
@@ -304,7 +303,6 @@ void run_captured_physical_regression()
 
     qmomkit::CqmomCase cqmom_case{moments};
     cqmom_case.qmom_options.adaptive = true;
-    cqmom_case.adaptive_branch_counts = true;
     cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::detailed;
     cqmom_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
 
@@ -405,7 +403,7 @@ int main(const int argc, char** argv)
     qmomkit::CqmomCase cqmom_case{moments};
     cqmom_case.conditional_options = cqmom_prepared_case.conditional_options();
     cqmom_case.qmom_options = cqmom_prepared_case.qmom_options();
-    cqmom_case.adaptive_branch_counts = cqmom_prepared_case.adaptive_branch_counts();
+    cqmom_case.qmom_options.adaptive = cqmom_prepared_case.qmom_options().adaptive;
     cqmom_case.diagnostic_level = cqmom_prepared_case.diagnostic_level();
     cqmom_case.vandermonde_solver = cqmom_prepared_case.vandermonde_solver();
 

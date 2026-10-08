@@ -40,7 +40,6 @@ struct CqmomFixture
     std::vector<std::size_t> extents;
     std::vector<double> moments;
     qmomkit::QmomOptions qmom_options;
-    bool adaptive_branch_counts = false;
 };
 
 struct BranchSolveStats
@@ -71,7 +70,7 @@ CqmomFixture make_conditioning_order_fixture()
     const std::vector<std::size_t> extents{4, 4};
     const std::vector<double> weights{0.08, 0.12, 0.56, 0.24};
     const std::vector<std::vector<double>> abscissas{{-2.0, 1.0, -0.5, 2.25}, {-1.5, -1.5, 1.0, 1.0}};
-    return {hierarchy, extents, raw_moments_from_terminal_quadrature(abscissas, weights, extents), qmomkit::QmomOptions{false}, false};
+    return {hierarchy, extents, raw_moments_from_terminal_quadrature(abscissas, weights, extents), qmomkit::QmomOptions{false}};
 }
 
 CqmomFixture make_adaptive_ragged_fixture()
@@ -80,7 +79,7 @@ CqmomFixture make_adaptive_ragged_fixture()
     const std::vector<std::size_t> extents{4, 4, 4};
     const std::vector<double> weights{0.05, 0.05, 0.30, 0.60};
     const std::vector<std::vector<double>> abscissas{{-1.0, -1.0, -1.0, 1.0}, {-2.0, -2.0, 2.0, 3.0}, {-1.0, 1.0, 0.0, 2.0}};
-    return {hierarchy, extents, raw_moments_from_terminal_quadrature(abscissas, weights, extents), {true, 1.0e-10, 1.0e-10, 1.0e-12}, true};
+    return {hierarchy, extents, raw_moments_from_terminal_quadrature(abscissas, weights, extents), {true, 1.0e-10, 1.0e-10, 1.0e-12}};
 }
 
 std::vector<double> make_separated_nodes(const std::size_t node_count, const std::size_t dimension)
@@ -161,7 +160,7 @@ CqmomFixture make_independent_fixed_fixture(const std::vector<std::size_t>& node
         moments[flat] = value;
     }
 
-    return {hierarchy, extents, std::move(moments), qmomkit::QmomOptions{false}, false};
+    return {hierarchy, extents, std::move(moments), qmomkit::QmomOptions{false}};
 }
 
 CqmomFixture make_uniform_independent_fixed_fixture(const std::size_t dimensions, const std::size_t node_count)
@@ -182,8 +181,7 @@ qmomkit::CqmomCase make_cqmom_case(const CqmomFixture& fixture, const std::optio
     qmomkit::CqmomCase cqmom_case{
         qmomkit::extract_cqmom_moments({fixture.extents, fixture.moments}, qmomkit::create_cqmom_moment_layout(fixture.hierarchy)),
         {},
-        fixture.qmom_options,
-        fixture.adaptive_branch_counts};
+        fixture.qmom_options};
     if (diagnostic_level.has_value())
     {
         cqmom_case.diagnostic_level = *diagnostic_level;
@@ -203,7 +201,6 @@ make_recursive_request(const CqmomFixture& fixture, const qmomkit::CqmomDiagnost
             qmomkit::extract_cqmom_moments({fixture.extents, fixture.moments}, qmomkit::create_cqmom_moment_layout(fixture.hierarchy)),
             {},
             make_wheeler_options(fixture.qmom_options),
-            fixture.adaptive_branch_counts,
             diagnostic_level,
             solver};
 }
@@ -382,8 +379,7 @@ void run_recursive_cqmom_application_benchmark(benchmark::State& state, const Cq
 void run_cqmom_public_entry_point_benchmark(benchmark::State& state, const std::size_t dimensions, const std::size_t node_count)
 {
     const CqmomEntryPointFixture fixture = make_entry_point_fixture(dimensions, node_count);
-    qmomkit::CqmomCase cqmom_case{
-        fixture.moments, {}, fixture.cqmom_fixture.qmom_options, fixture.cqmom_fixture.adaptive_branch_counts, qmomkit::CqmomDiagnosticLevel::none};
+    qmomkit::CqmomCase cqmom_case{fixture.moments, {}, fixture.cqmom_fixture.qmom_options, qmomkit::CqmomDiagnosticLevel::none};
     const qmomkit::CqmomResult setup_check = qmomkit::compute_cqmom(cqmom_case);
     if (!setup_check.ok())
     {

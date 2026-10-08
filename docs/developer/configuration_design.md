@@ -164,7 +164,6 @@ For multidimensional CQMOM, configuration maps to:
 ```text
 PhaseSpaceHierarchy
 QmomOptions
-adaptive_branch_counts
 CqmomDiagnosticLevel
 VandermondeSolver
 CqmomPreparedCase
@@ -223,11 +222,12 @@ index range and completeness, and selecting the required moments from it
 rejects a tensor too small for the requested node counts.
 Recursive CQMOM success is still checked later by `compute_cqmom(...)`.
 
-`phase_space.adaptive_branch_counts`, `true` when omitted, controls whether
-CQMOM may accept branch-dependent quadrature counts. `[qmom] adaptive`, also
-`true` when omitted, controls whether the inversions are adaptive; in a CQMOM
-configuration the two must agree, and configuration validation rejects a file
-where they differ.
+`[qmom] adaptive`, `true` when omitted, decides whether a CQMOM reconstruction
+is adaptive: whether its inversions are adaptive and whether it accepts
+branch-dependent quadrature counts. The former key
+`phase_space.adaptive_branch_counts` is still recognised so that a file using it
+is rejected with a message naming `[qmom] adaptive` instead of a bare
+unknown-key error.
 
 The optional `[cqmom] diagnostic_level = detailed|basic|none` setting maps to
 the CQMOM diagnostic policy stored in the loaded case. If omitted,

@@ -169,14 +169,12 @@ using InitialConditionSpecification = std::variant<ExplicitMomentInitialization,
  * specification.
  *
  * Abscissa bounds are indexed by phase-space dimension and are carried into
- * the resulting case and any state created from it. `qmom_options.adaptive`
- * and `adaptive_branch_counts` must agree, or reconstruction rejects the case.
- * Construct a `CqmomPreparedCase` from the result for the normal CQMOM
- * workflow.
+ * the resulting case and any state created from it. Construct a
+ * `CqmomPreparedCase` from the result for the normal CQMOM workflow.
  */
 [[nodiscard]] ConfigurationResult<CqmomCase> create_cqmom_case(const InitialConditionSpecification& initial_condition,
                                                                const PhaseSpaceHierarchy& hierarchy, const QmomOptions& qmom_options = {},
-                                                               bool adaptive_branch_counts = true, std::string source_name = "<initialization>",
+                                                               std::string source_name = "<initialization>",
                                                                CqmomAbscissaBounds abscissa_bounds = {});
 
 /**

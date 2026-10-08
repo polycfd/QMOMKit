@@ -174,8 +174,9 @@ struct RecursiveQuadratureMomentDataRequest
     PhaseSpaceHierarchy hierarchy;
     CqmomMomentData moments;
     ConditionalMomentOptions conditional_options;
+    // `wheeler_options.adaptive` also decides whether branch node counts may
+    // adapt: adaptive CQMOM is adaptive throughout.
     WheelerOptions wheeler_options;
-    bool adaptive_branch_counts = true;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver conditional_vandermonde_solver = VandermondeSolver::automatic;
     std::vector<CqmomActiveBranchCount> active_branch_counts;

@@ -81,7 +81,6 @@ struct TestCqmomPhaseSpaceEvolutionOptions : CqmomPhaseSpaceEvolutionOptions
 {
     ConditionalMomentOptions conditional_options;
     QmomOptions qmom_options;
-    bool adaptive_branch_counts = false;
     CqmomDiagnosticLevel diagnostic_level = CqmomDiagnosticLevel::none;
     VandermondeSolver vandermonde_solver = VandermondeSolver::automatic;
 };
@@ -109,14 +108,7 @@ TestCqmomPhaseSpaceEvolutionResult advance_cqmom_phase_space(const CqmomMomentDa
                                                              const TestCqmomPhaseSpaceEvolutionOptions& options)
 {
     const CqmomMomentLayout& layout = moments.layout;
-    CqmomCase cqmom_case{moments,
-                         options.conditional_options,
-                         options.qmom_options,
-                         options.adaptive_branch_counts,
-                         options.diagnostic_level,
-                         options.vandermonde_solver};
-    // CQMOM requires the QMOM adaptive option to agree with the branch-count flag.
-    cqmom_case.qmom_options.adaptive = cqmom_case.adaptive_branch_counts;
+    CqmomCase cqmom_case{moments, options.conditional_options, options.qmom_options, options.diagnostic_level, options.vandermonde_solver};
     CqmomState state = internal::CqmomConstructionAccess::create_state(cqmom_case);
     const CqmomPhaseSpaceEvolutionResult result =
         advance_cqmom_phase_space(state, t, time_step, velocity, source, static_cast<const CqmomPhaseSpaceEvolutionOptions&>(options));
@@ -383,7 +375,6 @@ qmomkit::TestCqmomPhaseSpaceEvolutionOptions cqmom_options(const qmomkit::CqmomC
     qmomkit::TestCqmomPhaseSpaceEvolutionOptions options;
     options.conditional_options = configured_cqmom_case.conditional_options;
     options.qmom_options = configured_cqmom_case.qmom_options;
-    options.adaptive_branch_counts = configured_cqmom_case.adaptive_branch_counts;
     options.diagnostic_level = configured_cqmom_case.diagnostic_level;
     options.vandermonde_solver = configured_cqmom_case.vandermonde_solver;
     options.node_options.scheme = qmomkit::NodeAdvectionScheme::rk23;
@@ -1548,7 +1539,6 @@ qmomkit::CqmomMomentSource make_cqmom_noncommuting_source(const double time_step
             const qmomkit::CqmomCase current_cqmom_case{qmomkit::CqmomMomentData{layout, context.values()},
                                                         {},
                                                         qmomkit::QmomOptions{false},
-                                                        false,
                                                         qmomkit::CqmomDiagnosticLevel::none,
                                                         qmomkit::VandermondeSolver::automatic};
             const qmomkit::CqmomResult current = qmomkit::compute_cqmom(current_cqmom_case);
@@ -2718,7 +2708,6 @@ void verify_helper_based_common_cqmom_phase_space_evolution(const qmomkit::Cqmom
 {
     qmomkit::CqmomCase policy_cqmom_case = configured_cqmom_case;
     policy_cqmom_case.qmom_options.adaptive = true;
-    policy_cqmom_case.adaptive_branch_counts = true;
     policy_cqmom_case.diagnostic_level = qmomkit::CqmomDiagnosticLevel::basic;
     policy_cqmom_case.vandermonde_solver = qmomkit::VandermondeSolver::dense;
     qmomkit::TestCqmomPhaseSpaceEvolutionOptions options = cqmom_options(policy_cqmom_case);
@@ -3205,9 +3194,9 @@ VerificationResult run_commuting_cqmom_state_adaptive_2d(const std::filesystem::
     }
 
     const qmomkit::CqmomPreparedCase& cqmom_prepared_case = configured.value();
-    if (!cqmom_prepared_case.adaptive_branch_counts() || !cqmom_prepared_case.qmom_options().adaptive)
+    if (!cqmom_prepared_case.qmom_options().adaptive)
     {
-        append_failure(verification, "adaptive CQMOM state verification requires adaptive_branch_counts and adaptive QMOM.");
+        append_failure(verification, "adaptive CQMOM state verification requires adaptive QMOM.");
         return verification;
     }
 
@@ -3330,7 +3319,7 @@ VerificationResult run_automatic_scaling_cqmom_state_adaptive_2d(const std::file
 
     const qmomkit::CqmomPreparedCase& cqmom_prepared_case = configured.value();
     if (!cqmom_prepared_case.qmom_options().automatic_scaling || !cqmom_prepared_case.qmom_options().adaptive ||
-        !cqmom_prepared_case.adaptive_branch_counts() || cqmom_prepared_case.hierarchy().conditioning_order() != std::vector<std::size_t>({1, 0}))
+        !cqmom_prepared_case.qmom_options().adaptive || cqmom_prepared_case.hierarchy().conditioning_order() != std::vector<std::size_t>({1, 0}))
     {
         append_failure(verification, "automatic-scaling evolution configuration did not retain its adaptive non-identity CQMOM policy.");
         return verification;

@@ -103,8 +103,7 @@ qmomkit::CqmomResult make_fixed_two_dimensional_cqmom()
         qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, raw_moments_from_terminals(extents, weights, abscissas)},
                                                           qmomkit::create_cqmom_moment_layout(hierarchy)),
                            {},
-                           qmomkit::QmomOptions{false},
-                           false});
+                           qmomkit::QmomOptions{false}});
 }
 
 qmomkit::CqmomResult make_adaptive_two_dimensional_cqmom()
@@ -117,8 +116,7 @@ qmomkit::CqmomResult make_adaptive_two_dimensional_cqmom()
         qmomkit::CqmomCase{qmomkit::extract_cqmom_moments({extents, raw_moments_from_terminals(extents, weights, abscissas)},
                                                           qmomkit::create_cqmom_moment_layout(hierarchy)),
                            {},
-                           {true, 1.0e-10, 1.0e-10, 1.0e-12},
-                           true});
+                           {true, 1.0e-10, 1.0e-10, 1.0e-12}});
 }
 
 void test_adaptive_quadrature_structure_is_preserved()

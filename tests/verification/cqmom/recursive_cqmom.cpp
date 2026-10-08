@@ -45,20 +45,21 @@ namespace
 
 // These tests construct a full tensor of raw moments; reconstruction takes only
 // the moments the hierarchy requires.
-qmomkit::internal::RecursiveQuadratureMomentDataRequest moment_data_request(
-    const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moment_tensor,
-    const qmomkit::ConditionalMomentOptions& conditional_options = {}, const qmomkit::WheelerOptions& wheeler_options = {},
-    const bool adaptive_branch_counts = false, const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
-    const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic, const qmomkit::CqmomAbscissaBounds& coordinate_support = {})
+qmomkit::internal::RecursiveQuadratureMomentDataRequest
+moment_data_request(const qmomkit::PhaseSpaceHierarchy& hierarchy, const qmomkit::RawMomentTensor& moment_tensor,
+                    const qmomkit::ConditionalMomentOptions& conditional_options = {}, const qmomkit::WheelerOptions& wheeler_options = {},
+                    const bool adaptive = false, const qmomkit::CqmomDiagnosticLevel diagnostic_level = qmomkit::CqmomDiagnosticLevel::none,
+                    const qmomkit::VandermondeSolver solver = qmomkit::VandermondeSolver::automatic,
+                    const qmomkit::CqmomAbscissaBounds& coordinate_support = {})
 {
-    // CQMOM requires Wheeler adaptivity to agree with the branch-count flag.
-    qmomkit::WheelerOptions agreeing_wheeler_options = wheeler_options;
-    agreeing_wheeler_options.adaptive = adaptive_branch_counts;
+    // The adaptive flag decides the whole reconstruction, branch node counts
+    // included.
+    qmomkit::WheelerOptions adaptive_wheeler_options = wheeler_options;
+    adaptive_wheeler_options.adaptive = adaptive;
     return {hierarchy,
             qmomkit::extract_cqmom_moments(moment_tensor, qmomkit::create_cqmom_moment_layout(hierarchy)),
             conditional_options,
-            agreeing_wheeler_options,
-            adaptive_branch_counts,
+            adaptive_wheeler_options,
             diagnostic_level,
             solver,
             {},

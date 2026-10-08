@@ -12,7 +12,6 @@ const char* base_configuration = R"(
 [phase_space]
 node_counts = 1, 1
 conditioning_order = 1, 0
-adaptive_branch_counts = true
 support_lower = none, 0.0
 support_upper = none, 1.0
 
@@ -37,7 +36,6 @@ const char* explicit_replacement_configuration = R"(
 [phase_space]
 node_counts = 1, 1
 conditioning_order = 1, 0
-adaptive_branch_counts = true
 support_lower = none, 0.0
 support_upper = none, 1.0
 
@@ -76,7 +74,7 @@ void assert_cases_match(const qmomkit::CqmomPreparedCase& actual_cqmom_prepared_
                         expected_cqmom_prepared_case.conditional_options().singular_tolerance, 0.0);
     QMOMKIT_VERIFY_NEAR(actual_cqmom_prepared_case.conditional_options().conditioning_warning_threshold,
                         expected_cqmom_prepared_case.conditional_options().conditioning_warning_threshold, 0.0);
-    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.adaptive_branch_counts() == expected_cqmom_prepared_case.adaptive_branch_counts());
+    QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.qmom_options().adaptive == expected_cqmom_prepared_case.qmom_options().adaptive);
     QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.diagnostic_level() == expected_cqmom_prepared_case.diagnostic_level());
     QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.vandermonde_solver() == expected_cqmom_prepared_case.vandermonde_solver());
     QMOMKIT_VERIFY_CHECK(actual_cqmom_prepared_case.abscissa_bounds().size() == expected_cqmom_prepared_case.abscissa_bounds().size());

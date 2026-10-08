@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 678 |
+| Unit logical tests | 680 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **914** |
+| **Runtime logical tests** | **916** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **915** |
+| **Total CTest registrations** | **917** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -449,6 +449,8 @@ renamed test rather than a deleted one.
 | `unit_output_factories_reject_empty_selections` | `tests/unit/output.cpp` | `factories_reject_empty_selections` | Checks that writer factories reject an empty column or moment selection instead of producing an empty table. | — |
 | `unit_output_moment_writer_rejects_nonfinite_values` | `tests/unit/output.cpp` | `moment_writer_rejects_nonfinite_values` | Checks that `MomentWriter` rejects non-finite values rather than writing them to a history file. | — |
 | `unit_output_rejected_rows_leave_the_file_unchanged` | `tests/unit/output.cpp` | `rejected_rows_leave_the_file_unchanged` | Checks that a rejected selected-moment row and rejected QMOM and CQMOM quadrature time blocks leave the output file byte-identical. | — |
+| `unit_output_writers_ignore_the_global_locale` | `tests/unit/output.cpp` | `writers_ignore_the_global_locale` | Checks that moment and quadrature files written under a global locale with a decimal comma and digit grouping are identical to those written under the classic locale, including a node index above 1000. | — |
+| `unit_output_rows_that_cannot_be_stored_are_reported` | `tests/unit/output.cpp` | `rows_that_cannot_be_stored_are_reported` | Checks, under a file-size limit, that every moment row and quadrature block whose write returned is in the file and that the first one that cannot be stored throws (POSIX). | — |
 | `unit_output_selected_moment_rows_ignore_unselected_values` | `tests/unit/output.cpp` | `selected_moment_rows_ignore_unselected_values` | Checks that a selected-moment writer accepts a row whose unselected values are not finite and writes only the selected ones. | — |
 | `unit_output_quadrature_indices_stay_exact_at_low_precision` | `tests/unit/output.cpp` | `quadrature_indices_stay_exact_at_low_precision` | Checks that quadrature node indices are written as exact integers at output precision zero. | — |
 | `unit_output_writer_rejects_generalized_moments_without_values` | `tests/unit/output.cpp` | `writer_rejects_generalized_moments_without_values` | Checks that a writer configured for generalized moment columns rejects a call that supplies no generalized values. | — |

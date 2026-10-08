@@ -13,10 +13,17 @@
 #include <functional>
 #include <iomanip>
 #include <limits>
+#include <locale>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
+
+#if defined(__unix__) || defined(__APPLE__)
+#include <csignal>
+#include <sys/resource.h>
+#endif
 
 namespace
 {
@@ -947,6 +954,125 @@ void test_cqmom_quadrature_writer_rejects_malformed_terminal_storage()
 // check runs before the first character of the row or block is written. Each
 // case writes the same valid content to a reference file, adds the rejected
 // write to the tested file, and requires both files to be identical.
+// A locale with a decimal comma and digit grouping, as some regional locales
+// use.
+struct DecimalCommaPunctuation : std::numpunct<char>
+{
+    [[nodiscard]] char do_decimal_point() const override
+    {
+        return ',';
+    }
+    [[nodiscard]] char do_thousands_sep() const override
+    {
+        return '.';
+    }
+    [[nodiscard]] std::string do_grouping() const override
+    {
+        return "\3";
+    }
+};
+
+void test_writers_ignore_the_global_locale()
+{
+    // The files are read back as numbers, so the global locale of the
+    // application must change neither the decimal point nor the node indices,
+    // which would otherwise be grouped from 1000 on.
+    const auto write_files = [](const std::string& stem)
+    {
+        const std::filesystem::path moments = temporary_output_path(stem + "_moments");
+        const std::filesystem::path quadrature = temporary_output_path(stem + "_quadrature");
+        {
+            qmomkit::MomentWriter moment_writer = qmomkit::MomentWriter::for_qmom(moments, 2);
+            moment_writer.write(0.5, qmomkit::MomentSet{1.5, 1234.5});
+            const std::vector<double> abscissas(1200, 0.25);
+            const std::vector<double> weights(1200, 1.0);
+            qmomkit::QuadratureWriter quadrature_writer = qmomkit::QuadratureWriter::for_qmom(quadrature, 1200);
+            quadrature_writer.write(0.5, qmomkit::Quadrature1D{abscissas, weights});
+        }
+        const std::pair<std::string, std::string> contents{read_text_file(moments), read_text_file(quadrature)};
+        std::filesystem::remove(moments);
+        std::filesystem::remove(quadrature);
+        return contents;
+    };
+
+    const auto classic = write_files("qmomkit_classic_locale");
+    const std::locale previous = std::locale::global(std::locale(std::locale::classic(), new DecimalCommaPunctuation));
+    const auto decimal_comma = write_files("qmomkit_decimal_comma_locale");
+    std::locale::global(previous);
+
+    assert(decimal_comma == classic);
+    assert(classic.first.find(',') == std::string::npos);
+    assert(classic.second.find(" 1199 ") != std::string::npos);
+}
+
+void test_rows_that_cannot_be_stored_are_reported()
+{
+#if defined(__unix__) || defined(__APPLE__)
+    // A limit on the file size makes the operating system refuse to extend the
+    // file, as a full disk would. Every write that returns must be in the file,
+    // and the first one that cannot be stored must throw rather than be lost in
+    // the stream buffer or in the destructor.
+    std::signal(SIGXFSZ, SIG_IGN);
+    rlimit previous{};
+    getrlimit(RLIMIT_FSIZE, &previous);
+    rlimit limit = previous;
+    limit.rlim_cur = 2048;
+    setrlimit(RLIMIT_FSIZE, &limit);
+
+    const auto complete_rows = [](const std::filesystem::path& path)
+    {
+        const std::string text = read_text_file(path);
+        return static_cast<std::size_t>(std::count(text.begin(), text.end(), '\n')) - 1;
+    };
+
+    const std::filesystem::path moments = temporary_output_path("qmomkit_limited_moments");
+    std::size_t accepted_rows = 0;
+    bool reported = false;
+    try
+    {
+        qmomkit::MomentWriter writer = qmomkit::MomentWriter::for_qmom(moments, 2);
+        for (; accepted_rows < 1000; ++accepted_rows)
+        {
+            writer.write(static_cast<double>(accepted_rows), qmomkit::MomentSet{1.0, 2.0});
+        }
+    }
+    catch (const std::runtime_error&)
+    {
+        reported = true;
+    }
+    assert(reported);
+    assert(accepted_rows > 0);
+    assert(complete_rows(moments) == accepted_rows);
+
+    // A quadrature write is one block of rows; the rows of every accepted block
+    // are in the file, and the refused block is reported.
+    const std::filesystem::path quadrature = temporary_output_path("qmomkit_limited_quadrature");
+    constexpr std::size_t nodes = 3;
+    std::size_t accepted_blocks = 0;
+    reported = false;
+    try
+    {
+        qmomkit::QuadratureWriter writer = qmomkit::QuadratureWriter::for_qmom(quadrature, nodes);
+        for (; accepted_blocks < 1000; ++accepted_blocks)
+        {
+            writer.write(static_cast<double>(accepted_blocks), qmomkit::Quadrature1D{{-1.0, 0.0, 1.0}, {0.25, 0.5, 0.25}});
+        }
+    }
+    catch (const std::runtime_error&)
+    {
+        reported = true;
+    }
+    assert(reported);
+    assert(accepted_blocks > 0);
+    assert(complete_rows(quadrature) >= nodes * accepted_blocks);
+    assert(complete_rows(quadrature) < nodes * (accepted_blocks + 1));
+
+    setrlimit(RLIMIT_FSIZE, &previous);
+    std::filesystem::remove(moments);
+    std::filesystem::remove(quadrature);
+#endif
+}
+
 void test_rejected_rows_leave_the_file_unchanged()
 {
     const auto assert_rejected_write_leaves_file_unchanged =
@@ -1108,6 +1234,8 @@ int main(const int argc, char** argv)
             {"writer_rejects_generalized_moments_without_values", test_writer_rejects_generalized_moments_without_values},
             {"moment_writer_rejects_nonfinite_values", test_moment_writer_rejects_nonfinite_values},
             {"rejected_rows_leave_the_file_unchanged", test_rejected_rows_leave_the_file_unchanged},
+            {"writers_ignore_the_global_locale", test_writers_ignore_the_global_locale},
+            {"rows_that_cannot_be_stored_are_reported", test_rows_that_cannot_be_stored_are_reported},
             {"selected_moment_rows_ignore_unselected_values", test_selected_moment_rows_ignore_unselected_values},
             {"quadrature_indices_stay_exact_at_low_precision", test_quadrature_indices_stay_exact_at_low_precision},
             {"column_padding_uses_centered_labels_and_widths", test_column_padding_uses_centered_labels_and_widths},

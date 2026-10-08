@@ -908,37 +908,39 @@ evidence](utilities.md)
 
 | Function or overload family | Definition lines |
 |---|---|
-| `qmom_label` | [19](../../../src/output.cpp#L19) |
-| `column_width_for` | [36](../../../src/output.cpp#L36) |
-| `write_column_header` | [41](../../../src/output.cpp#L41) |
-| `cqmom_label` | [55](../../../src/output.cpp#L55) |
-| `sequential_indices` | [108](../../../src/output.cpp#L108) |
-| `qmom_labels` | [124](../../../src/output.cpp#L124) |
-| `cqmom_labels` | [140](../../../src/output.cpp#L140) |
-| `flatten_selected_indices` | [156](../../../src/output.cpp#L156) |
-| `all_cqmom_labels` | [167](../../../src/output.cpp#L167) |
-| `cqmom_abscissa_label` | [172](../../../src/output.cpp#L172) |
-| `qmom_quadrature_labels` | [177](../../../src/output.cpp#L177) |
-| `cqmom_quadrature_labels` | [187](../../../src/output.cpp#L187) |
-| `MomentWriter::for_qmom` | [211](../../../src/output.cpp#L211), [217](../../../src/output.cpp#L217), [223](../../../src/output.cpp#L223), [233](../../../src/output.cpp#L233) |
-| `MomentWriter::for_cqmom` | [244](../../../src/output.cpp#L244), [251](../../../src/output.cpp#L251), [257](../../../src/output.cpp#L257), [268](../../../src/output.cpp#L268), [273](../../../src/output.cpp#L273), [282](../../../src/output.cpp#L282), [292](../../../src/output.cpp#L292) |
-| `MomentWriter::MomentWriter` | [297](../../../src/output.cpp#L297), [315](../../../src/output.cpp#L315), [332](../../../src/output.cpp#L332), [348](../../../src/output.cpp#L348) |
-| `MomentWriter::layout_mismatch_message` | [364](../../../src/output.cpp#L364) |
-| `MomentWriter::write_header` | [390](../../../src/output.cpp#L390) |
-| `MomentWriter::write_row` | [395](../../../src/output.cpp#L395) |
-| `MomentWriter::write_aligned_row` | [428](../../../src/output.cpp#L428) |
-| `MomentWriter::write` | [459](../../../src/output.cpp#L459), [478](../../../src/output.cpp#L478), [501](../../../src/output.cpp#L501), [520](../../../src/output.cpp#L520), [539](../../../src/output.cpp#L539), [562](../../../src/output.cpp#L562), [590](../../../src/output.cpp#L590), [609](../../../src/output.cpp#L609), [623](../../../src/output.cpp#L623), [642](../../../src/output.cpp#L642) |
-| `QuadratureWriter::for_qmom` | [656](../../../src/output.cpp#L656) |
-| `QuadratureWriter::for_cqmom` | [661](../../../src/output.cpp#L661) |
-| `QuadratureWriter::QuadratureWriter` | [666](../../../src/output.cpp#L666) |
-| `QuadratureWriter::write_header` | [682](../../../src/output.cpp#L682) |
-| `QuadratureWriter::write_row` | [687](../../../src/output.cpp#L687) |
-| `QuadratureWriter::write_qmom_row` | [714](../../../src/output.cpp#L714) |
-| `QuadratureWriter::write` | [752](../../../src/output.cpp#L752), [757](../../../src/output.cpp#L757), [762](../../../src/output.cpp#L762) |
-| `centered_column_label` | [24](../../../src/output.cpp#L24) |
-| `generalized_moment_label` | [71](../../../src/output.cpp#L71) |
-| `append_generalized_labels` | [87](../../../src/output.cpp#L87) |
-| `validate_generalized_moment_orders` | [96](../../../src/output.cpp#L96) |
+| `open_output_file` | [23](../../../src/output.cpp#L23) |
+| `flush_or_throw` | [34](../../../src/output.cpp#L34) |
+| `qmom_label` | [43](../../../src/output.cpp#L43) |
+| `column_width_for` | [60](../../../src/output.cpp#L60) |
+| `write_column_header` | [65](../../../src/output.cpp#L65) |
+| `cqmom_label` | [80](../../../src/output.cpp#L80) |
+| `sequential_indices` | [133](../../../src/output.cpp#L133) |
+| `qmom_labels` | [149](../../../src/output.cpp#L149) |
+| `cqmom_labels` | [165](../../../src/output.cpp#L165) |
+| `flatten_selected_indices` | [181](../../../src/output.cpp#L181) |
+| `all_cqmom_labels` | [192](../../../src/output.cpp#L192) |
+| `cqmom_abscissa_label` | [197](../../../src/output.cpp#L197) |
+| `qmom_quadrature_labels` | [202](../../../src/output.cpp#L202) |
+| `cqmom_quadrature_labels` | [212](../../../src/output.cpp#L212) |
+| `MomentWriter::for_qmom` | [236](../../../src/output.cpp#L236), [242](../../../src/output.cpp#L242), [248](../../../src/output.cpp#L248), [258](../../../src/output.cpp#L258) |
+| `MomentWriter::for_cqmom` | [269](../../../src/output.cpp#L269), [276](../../../src/output.cpp#L276), [282](../../../src/output.cpp#L282), [293](../../../src/output.cpp#L293), [298](../../../src/output.cpp#L298), [307](../../../src/output.cpp#L307), [317](../../../src/output.cpp#L317) |
+| `MomentWriter::MomentWriter` | [322](../../../src/output.cpp#L322), [340](../../../src/output.cpp#L340), [358](../../../src/output.cpp#L358), [375](../../../src/output.cpp#L375) |
+| `MomentWriter::layout_mismatch_message` | [391](../../../src/output.cpp#L391) |
+| `MomentWriter::write_header` | [417](../../../src/output.cpp#L417) |
+| `MomentWriter::write_row` | [422](../../../src/output.cpp#L422) |
+| `MomentWriter::write_aligned_row` | [452](../../../src/output.cpp#L452) |
+| `MomentWriter::write` | [480](../../../src/output.cpp#L480), [499](../../../src/output.cpp#L499), [522](../../../src/output.cpp#L522), [541](../../../src/output.cpp#L541), [560](../../../src/output.cpp#L560), [583](../../../src/output.cpp#L583), [611](../../../src/output.cpp#L611), [630](../../../src/output.cpp#L630), [644](../../../src/output.cpp#L644), [663](../../../src/output.cpp#L663) |
+| `QuadratureWriter::for_qmom` | [677](../../../src/output.cpp#L677) |
+| `QuadratureWriter::for_cqmom` | [682](../../../src/output.cpp#L682) |
+| `QuadratureWriter::QuadratureWriter` | [687](../../../src/output.cpp#L687) |
+| `QuadratureWriter::write_header` | [703](../../../src/output.cpp#L703) |
+| `QuadratureWriter::write_row` | [708](../../../src/output.cpp#L708) |
+| `QuadratureWriter::write_qmom_row` | [735](../../../src/output.cpp#L735) |
+| `QuadratureWriter::write` | [774](../../../src/output.cpp#L774), [779](../../../src/output.cpp#L779), [784](../../../src/output.cpp#L784) |
+| `centered_column_label` | [48](../../../src/output.cpp#L48) |
+| `generalized_moment_label` | [96](../../../src/output.cpp#L96) |
+| `append_generalized_labels` | [112](../../../src/output.cpp#L112) |
+| `validate_generalized_moment_orders` | [121](../../../src/output.cpp#L121) |
 
 ### `src/phase_space_evolution.cpp`
 

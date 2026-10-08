@@ -76,6 +76,17 @@ choose application-level filenames. Examples may use names such as
 `moments.txt` or `quadrature.txt`, but those names are driver choices rather
 than writer-owned conventions.
 
+The files are read back as numbers, so both writers format them in the classic
+locale, whatever global locale the application has installed: a decimal point
+and no digit grouping of node or path indices. Each `write(...)` call flushes
+its row, or its block of rows for a quadrature write, before it returns, and
+throws `std::runtime_error` if they cannot be stored, for example on a full
+disk. Every call that returns normally is therefore in the file. Left in the
+stream buffer, such a failure would surface only at a later call or in the
+destructor, where it cannot be reported, and the rows accepted since the last
+flush would be lost. The flush costs one write to the file per call, which is
+small at the cadence of an output schedule.
+
 Writers validate structural consistency before writing rows. Examples include
 finite time values, finite output values, matching moment counts, matching
 tensor extents, QMOM active node counts within the configured maximum, matching

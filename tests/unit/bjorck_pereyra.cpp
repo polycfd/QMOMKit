@@ -131,6 +131,30 @@ void test_clustered_distinct_nodes()
     assert_matrix_close(result.solution, expected, 2.0e-5, 1.0e-12);
 }
 
+void test_ill_conditioned_clustered_nodes_fail()
+{
+    // Four nodes within 1e-6 of one another give a condition number of about
+    // 2e19, so no solution is meaningful in double precision and the solve is
+    // refused although no two nodes coincide. Within 1e-2 the same layout has
+    // a condition number of about 2e7 and solves. Neither decision depends on
+    // the unit of the nodes.
+    const qmomkit::internal::DenseMatrix expected = make_solution({{1.0}, {-0.5}, {2.0}, {0.25}});
+    for (const double unit : {1.0e-20, 1.0, 1.0e20})
+    {
+        const std::vector<double> clustered{unit, unit * (1.0 + 1.0e-6), unit * (1.0 + 2.0e-6), unit * (1.0 + 3.0e-6)};
+        const qmomkit::internal::LinearSolveResult refused =
+            qmomkit::internal::solve_bjorck_pereyra(clustered, make_transposed_vandermonde_rhs(clustered, expected), singular_tolerance);
+        assert(!refused.success);
+        assert(refused.message == "Transposed Vandermonde system is singular.");
+
+        const std::vector<double> separated{unit, unit * 1.01, unit * 1.02, unit * 1.03};
+        const qmomkit::internal::LinearSolveResult solved =
+            qmomkit::internal::solve_bjorck_pereyra(separated, make_transposed_vandermonde_rhs(separated, expected), singular_tolerance);
+        assert(solved.success);
+        assert_matrix_close(solved.solution, expected, 1.0e-8, 1.0e-8);
+    }
+}
+
 void test_repeated_nodes_fail()
 {
     const qmomkit::internal::DenseMatrix rhs = make_solution({{1.0, 2.0}, {3.0, 4.0}});
@@ -210,8 +234,11 @@ void assert_bjorck_pereyra_transform_updates(const std::size_t n, const std::siz
 
 void test_transform_update_count_scaling()
 {
+    // Equally spaced nodes keep the system within double precision up to about
+    // sixteen nodes, where the condition number is about 2e13; at 32 it is
+    // about 6e27 and the solve is refused.
     constexpr std::size_t fixed_rhs_cols = 3;
-    for (const std::size_t n : {std::size_t{4}, std::size_t{8}, std::size_t{16}, std::size_t{32}})
+    for (const std::size_t n : {std::size_t{4}, std::size_t{8}, std::size_t{12}, std::size_t{16}})
     {
         assert_bjorck_pereyra_transform_updates(n, fixed_rhs_cols);
     }
@@ -231,6 +258,7 @@ int main(const int argc, char** argv)
                                                  {"zero_rhs_columns_success", test_zero_rhs_columns_success},
                                                  {"mixed_sign_nodes", test_mixed_sign_nodes},
                                                  {"clustered_distinct_nodes", test_clustered_distinct_nodes},
+                                                 {"ill_conditioned_clustered_nodes_fail", test_ill_conditioned_clustered_nodes_fail},
                                                  {"repeated_nodes_fail", test_repeated_nodes_fail},
                                                  {"invalid_inputs_fail", test_invalid_inputs_fail},
                                                  {"transform_update_count_scaling", test_transform_update_count_scaling},

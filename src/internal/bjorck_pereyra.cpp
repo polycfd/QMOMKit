@@ -33,16 +33,46 @@ namespace
     return LinearSolveResult{DenseMatrix(rows, cols), false, message};
 }
 
-// Two nodes count as coincident relative to their own magnitude, so the test
-// does not depend on the unit of the coordinate.
-[[nodiscard]] double node_scale(const double lhs, const double rhs)
+// The system counts as singular when its condition number reaches
+// 1 / singular_tolerance, the threshold of the dense pivot test and of the QR
+// and SVD rank tests. With the nodes divided by the power of two above the
+// largest |x|, every entry of V^T lies in [-1, 1], so ||V^T||_inf <= n, and
+// Gautschi's bound ||V^-T||_inf <= max_i prod_{j != i} (1 + |x_j|) / |x_i - x_j|
+// (Numer. Math. 4, 117-123, 1962, Theorem 1; an equality when the nodes share
+// a sign) gives the condition number up to the factor n. The estimate does not
+// depend on the unit of the coordinate, covers several nodes that are close
+// together as well as a single close pair, and is infinite for coincident
+// nodes.
+[[nodiscard]] bool is_singular(const std::vector<double>& nodes, const double singular_tolerance)
 {
-    return std::max(std::abs(lhs), std::abs(rhs));
-}
+    double largest_node = 0.0;
+    for (const double node : nodes)
+    {
+        largest_node = std::max(largest_node, std::abs(node));
+    }
+    int exponent = 0;
+    if (largest_node > 0.0)
+    {
+        static_cast<void>(std::frexp(largest_node, &exponent));
+    }
+    // (1 + |x_j| / s) / (|x_i - x_j| / s) = (s + |x_j|) / |x_i - x_j|.
+    const double scale = std::ldexp(1.0, exponent);
 
-[[nodiscard]] bool denominator_is_singular(const double denominator, const double lhs, const double rhs, const double singular_tolerance)
-{
-    return std::abs(denominator) <= singular_tolerance * node_scale(lhs, rhs);
+    const std::size_t n = nodes.size();
+    double inverse_bound = 0.0;
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        double product = 1.0;
+        for (std::size_t j = 0; j < n; ++j)
+        {
+            if (j != i)
+            {
+                product *= (scale + std::abs(nodes[j])) / std::abs(nodes[i] - nodes[j]);
+            }
+        }
+        inverse_bound = std::max(inverse_bound, product);
+    }
+    return !(static_cast<double>(n) * inverse_bound * singular_tolerance < 1.0);
 }
 
 } // namespace
@@ -67,6 +97,10 @@ LinearSolveResult solve_bjorck_pereyra(const std::vector<double>& nodes, DenseMa
     {
         return failure_result(n, rhs_cols, "Transposed Vandermonde inputs must be finite.");
     }
+    if (is_singular(nodes, singular_tolerance))
+    {
+        return failure_result(n, rhs_cols, "Transposed Vandermonde system is singular.");
+    }
 
     // Apply the transposed elementary operations of the Bjorck-Pereyra
     // Vandermonde solve. The result is Y in V^T Y = rhs.
@@ -90,10 +124,6 @@ LinearSolveResult solve_bjorck_pereyra(const std::vector<double>& nodes, DenseMa
         {
             const std::size_t denominator_node = i - k - 1;
             const double denominator = nodes[i] - nodes[denominator_node];
-            if (denominator_is_singular(denominator, nodes[i], nodes[denominator_node], singular_tolerance))
-            {
-                return failure_result(n, rhs_cols, "Transposed Vandermonde system is singular.");
-            }
             for (std::size_t col = 0; col < rhs_cols; ++col)
             {
                 const double value = rhs(i, col) / denominator;

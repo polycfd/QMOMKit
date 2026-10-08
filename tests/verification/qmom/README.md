@@ -142,9 +142,10 @@ The registered cases are:
   implementations of the same mathematical fact must agree on which side a
   sequence lies.
 - `fixed_count_does_not_reduce_on_the_boundary`: a fixed three-node request on
-  the boundary must report `not_realizable` rather than quietly returning the
-  two-node rule, while the same sequence is accepted once reduction is
-  permitted.
+  the boundary must report `not_realizable`, naming the two nodes the sequence
+  supports, in every unit and number density, rather than quietly returning the
+  two-node rule or a third node made of roundoff, while the same sequence is
+  accepted once reduction is permitted.
 
 These cases deliberately assert mathematical invariants and documented
 contracts, not the separation or weight at which behavior changes. That

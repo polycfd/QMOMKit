@@ -305,7 +305,7 @@ The adapter owns the conditional-system validation, weight and scale
 separation, solver selection, QR/SVD/Moore-Penrose residual acceptance, and
 diagnostics.
 The Björck-Pereyra kernel owns only the internal unweighted transposed
-Vandermonde solve and its node-separation checks. Numerical kernel details,
+Vandermonde solve and its singularity check. Numerical kernel details,
 tolerance definitions, and the complete solver-selection table are documented
 in [linear_algebra.md](linear_algebra.md).
 

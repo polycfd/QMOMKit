@@ -526,9 +526,8 @@ contracts, and evidence](conditional_systems.md)
 |---|---|
 | `matrix_all_finite` | [16](../../../src/internal/bjorck_pereyra.cpp#L16) |
 | `failure_result` | [31](../../../src/internal/bjorck_pereyra.cpp#L31) |
-| `node_scale` | [38](../../../src/internal/bjorck_pereyra.cpp#L38) |
-| `denominator_is_singular` | [43](../../../src/internal/bjorck_pereyra.cpp#L43) |
-| `solve_bjorck_pereyra` | [50](../../../src/internal/bjorck_pereyra.cpp#L50) |
+| `is_singular` | [46](../../../src/internal/bjorck_pereyra.cpp#L46) |
+| `solve_bjorck_pereyra` | [80](../../../src/internal/bjorck_pereyra.cpp#L80) |
 
 ### `src/internal/cqmom_case.hpp`
 
@@ -1251,15 +1250,15 @@ evidence](qmom_reconstruction.md)
 | `make_jacobi_matrix` | [93](../../../src/wheeler.cpp#L93) |
 | `recurrence_is_finite` | [114](../../../src/wheeler.cpp#L114) |
 | `has_negative_recurrence_b` | [119](../../../src/wheeler.cpp#L119) |
-| `adaptive_sigma_tolerances` | [133](../../../src/wheeler.cpp#L133) |
+| `sigma_tolerances` | [133](../../../src/wheeler.cpp#L133) |
 | `compute_weights` | [161](../../../src/wheeler.cpp#L161) |
 | `adaptive_accepts` | [173](../../../src/wheeler.cpp#L173) |
 | `required_moments_are_finite` | [226](../../../src/wheeler.cpp#L226) |
 | `attempt_quadrature_count` | [238](../../../src/wheeler.cpp#L238) |
-| `compute_quadrature_at_scale` | [330](../../../src/wheeler.cpp#L330) |
-| `compute_quadrature` | [403](../../../src/wheeler.cpp#L403) |
-| `compute_conditional_quadrature` | [411](../../../src/wheeler.cpp#L411) |
-| `select_bounded_quadrature` | [417](../../../src/wheeler.cpp#L417) |
+| `compute_quadrature_at_scale` | [350](../../../src/wheeler.cpp#L350) |
+| `compute_quadrature` | [423](../../../src/wheeler.cpp#L423) |
+| `compute_conditional_quadrature` | [431](../../../src/wheeler.cpp#L431) |
+| `select_bounded_quadrature` | [437](../../../src/wheeler.cpp#L437) |
 
 ## Declaration-only headers and aliases
 

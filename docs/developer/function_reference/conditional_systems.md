@@ -106,15 +106,18 @@ ascending row loop divides by `x[i]-x[i-k-1]`, subtracts the quotient from the
 previous row, and installs it in the current row. Changing these iteration
 directions would change which already transformed values are consumed.
 
-Each denominator must exceed
-`singular_tolerance*max(abs(lhs_node),abs(rhs_node))` in magnitude, a threshold
-relative to the nodes that does not depend on the unit. Repeated
-or insufficiently separated nodes fail immediately; there is no sorting or
-merging. A final finite-matrix check rejects arithmetic overflow. Success
+Before the loops, `is_singular` divides the nodes by the power of two above
+the largest `abs(x)` and evaluates Gautschi's bound
+`max_i prod_{j!=i} (1+abs(x_j))/abs(x_i-x_j)` on `||V^-T||inf`; the system
+fails as singular when `n` times the bound reaches `1/singular_tolerance`, the
+threshold of the dense pivot and QR/SVD rank tests. The decision does not
+depend on the unit, covers several close nodes as well as a single close pair,
+and is infinite for repeated nodes; there is no sorting or merging. A final finite-matrix check rejects arithmetic overflow. Success
 returns `Y` in the original node order. Tests in
 [`tests/unit/bjorck_pereyra.cpp`](../../../tests/unit/bjorck_pereyra.cpp)
 manufacture `R` from known solutions, cover multiple RHS, mixed-sign/clustered
-nodes, repetition, and the transform update count. Small denominator
+nodes, ill-conditioned clusters in several units, repetition, and the
+transform update count. Small denominator
 amplification and subtractive cancellation remain numerical sensitivities.
 
 ## A — `solve_dense`, residual and condition calculations
@@ -247,4 +250,4 @@ through their callers.
 | SVD rank, ordering and metadata guards | `numerical_rank_from_singular_values`, `singular_values_are_nonnegative_descending`, `full_rank_singular_values_are_safe`, `valid_svd_status`, `rank_metadata_is_consistent`, `factorization_metadata_is_consistent`, `diagnostic_rank_from_metadata` validate reusable solve inputs | SVD malformed metadata tests |
 | `qr_linear_solve_result`, `svd_linear_solve_result`, `vandermonde_result` | Convert kernel status/payload to adapter result; rank failure stays failure | Forced-policy tests |
 | `failure_result`, `qr_failure_result`, `factorization_failure_result`, `solve_failure_result`, `invalid_result`, `valid_options` | Construct status-specific empty/zero diagnostic payloads and validate relevant options | Relevant failure tests; no assertion of valid numerical payload on failure |
-| BP `node_scale`, `denominator_is_singular` | Node-difference threshold relative to the larger node magnitude | Repeated/clustered-node and unit-scaling tests |
+| BP `is_singular` | Gautschi condition estimate on the power-of-two-scaled nodes against `1/singular_tolerance` | Repeated, ill-conditioned clustered-node and unit-scaling tests; parity with dense in `tests/unit/vandermonde.cpp` |

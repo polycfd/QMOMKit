@@ -89,18 +89,25 @@ tolerance. Support: real_line.
 
 See [Realizability](realizability.md) for supports and tolerances.
 
-### `Wheeler recurrence produced non-finite values.`
+### `Moment sequence supports at most k nodes: ...`
 
 The moment sequence carries less information than the requested node count
 needs. The clearest case is a population concentrated at a single point: its
 moments are consistent, but they support only one node, and asking for three
-fails.
+fails. The message names the number of nodes the moments do support.
 
 **Use adaptive mode,** the default. It reconstructs with as many nodes as the
 moments actually support instead of failing, so this message only appears when
 the case asks for a fixed count with `[qmom] adaptive = false`. Removing that
 setting lets the same case that fails at three fixed nodes succeed with one, and
 lets individual CQMOM branches reduce independently.
+
+### `Wheeler recurrence produced non-finite values.`
+
+The recurrence overflowed: the moments, or the products the recurrence forms
+from them, exceed the range of a double. This happens only for moments within
+about a decade of the largest double, about $10^{308}$. Express the coordinate
+in units that keep its moments smaller.
 
 ### `phase_space.adaptive_branch_counts was removed; use [qmom] adaptive.`
 

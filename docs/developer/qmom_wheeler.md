@@ -146,6 +146,14 @@ one-node quadrature when that one-node rule is mathematically defined.
 Therefore, `success` means the returned rule was accepted; it does not
 guarantee that the originally requested node count was retained.
 
+A fixed-count inversion uses the same bound but does not reduce: if
+$\sigma_{k,k}$ is zero within its rounding for some $k \le N$, the moments
+support at most $k-1$ nodes, and the inversion returns `not_realizable`
+naming that count. Without this test, a sequence on the boundary would be
+accepted or rejected by the sign of the rounding in $\sigma_{k,k}$, which
+changes with the unit and the number density, and an accepted rule would carry
+nodes made of rounding.
+
 ## Optional abscissa-bound acceptance
 
 `AbscissaBounds` adds an optional acceptance condition around ordinary Wheeler

@@ -121,17 +121,17 @@ struct WheelerAttemptResult
     return *std::min_element(b.begin(), b.end()) < 0.0;
 }
 
-// The tolerance below which adaptive Wheeler treats sigma(k, k) as zero, for
-// each k: a running bound on its roundoff, the sigma recurrence summed in
-// absolute values. sigma(k, k) and the bound both scale as m0 times the
-// coordinate to the power 2(k - 1), so the test depends neither on the unit of
-// the coordinate nor on m0, and the bound grows with the cancellation of a
+// The tolerance below which Wheeler treats sigma(k, k) as zero, for each k: a
+// running bound on its roundoff, the sigma recurrence summed in absolute
+// values. sigma(k, k) and the bound both scale as m0 times the coordinate to
+// the power 2(k - 1), so the test depends neither on the unit of the
+// coordinate nor on m0, and the bound grows with the cancellation of a
 // distribution far from the origin. Conditional moments are not data: the
 // solve that produced them leaves rounding relative to the scale of their
 // coordinate, not to their own magnitudes, so a positive coordinate_scale s
 // adds the floor m0 s^(2(k - 1)).
-[[nodiscard]] std::vector<double> adaptive_sigma_tolerances(const MomentSet& moments, const RecurrenceCoefficients& coefficients, const std::size_t n,
-                                                            const double coordinate_scale)
+[[nodiscard]] std::vector<double> sigma_tolerances(const MomentSet& moments, const RecurrenceCoefficients& coefficients, const std::size_t n,
+                                                   const double coordinate_scale)
 {
     constexpr double roundoff_multiplier = 100.0;
     DenseMatrix magnitude(2 * n + 1, 2 * n + 1);
@@ -243,10 +243,10 @@ struct WheelerAttemptResult
 
     if (options.adaptive)
     {
-        const std::vector<double> sigma_tolerances = adaptive_sigma_tolerances(moments, coefficients, max_nodes, coordinate_scale);
+        const std::vector<double> tolerances = sigma_tolerances(moments, coefficients, max_nodes, coordinate_scale);
         for (std::size_t k = max_nodes; k > 1; --k)
         {
-            const double sigma_tolerance = sigma_tolerances[k];
+            const double sigma_tolerance = tolerances[k];
             if (coefficients.sigma(k, k) < -sigma_tolerance)
             {
                 std::ostringstream message;
@@ -278,9 +278,29 @@ struct WheelerAttemptResult
             return {one_node_result(moments, QuadratureStatus::not_realizable, "Reduced Wheeler recurrence produced non-finite values."), false};
         }
     }
-    else if (!recurrence_is_finite(coefficients))
+    else
     {
-        return {one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values."), false};
+        // A fixed count must be supported by the moments. A sigma(k, k) that is
+        // zero within its roundoff puts the sequence on the boundary at k - 1
+        // nodes, and any larger rule would carry nodes made of roundoff. The
+        // first such k is reached while the coefficients before it are finite;
+        // a recurrence that overflows instead is reported as non-finite below.
+        const std::vector<double> tolerances = sigma_tolerances(moments, coefficients, max_nodes, coordinate_scale);
+        for (std::size_t k = 2; k <= max_nodes; ++k)
+        {
+            if (std::isfinite(tolerances[k]) && std::abs(coefficients.sigma(k, k)) <= tolerances[k])
+            {
+                std::ostringstream message;
+                message << std::scientific << std::setprecision(17) << "Moment sequence supports at most " << k - 1 << (k == 2 ? " node" : " nodes")
+                        << ": sigma(" << k << ", " << k << ") = " << coefficients.sigma(k, k) << " is zero within the tolerance " << tolerances[k]
+                        << '.';
+                return {one_node_result(moments, QuadratureStatus::not_realizable, message.str()), false};
+            }
+        }
+        if (!recurrence_is_finite(coefficients))
+        {
+            return {one_node_result(moments, QuadratureStatus::not_realizable, "Wheeler recurrence produced non-finite values."), false};
+        }
     }
 
     if (has_negative_recurrence_b(coefficients.b))

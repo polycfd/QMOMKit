@@ -43,6 +43,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <string>
 #include <vector>
 
 namespace
@@ -218,13 +219,24 @@ void verify_fixed_count_does_not_reduce_on_the_boundary()
 {
     const std::vector<double> boundary = two_node_boundary_moments();
 
-    // The sequence is realizable, but only by two atoms. A fixed three-node
-    // request cannot be satisfied and must say so rather than quietly returning
-    // the two-node rule: fixed-count reconstruction does not silently reduce.
-    const qmomkit::QmomResult fixed = qmomkit::compute_qmom(qmomkit::MomentSet(boundary), 3, fixed_options);
-    QMOMKIT_VERIFY_CHECK(!fixed.ok());
-    QMOMKIT_VERIFY_CHECK(fixed.status == qmomkit::QmomStatus::not_realizable);
-    QMOMKIT_VERIFY_CHECK(!fixed.message.empty());
+    // The sequence is realizable, but only by two weighted points. A fixed
+    // three-node request cannot be satisfied and must say so rather than
+    // quietly returning the two-node rule or a third node made of roundoff:
+    // fixed-count reconstruction does not silently reduce. On the boundary the
+    // third recurrence entry is zero up to roundoff, so the refusal must not
+    // depend on the sign that roundoff takes in a particular unit or number
+    // density.
+    for (const double unit : {1.0e-3, 0.5, 1.0, 3.0, 1.0e3})
+    {
+        for (const double number_density : {1.0e-10, 1.0, 1.0e10})
+        {
+            const std::vector<double> scaled = raw_moments({0.4 * number_density, 0.6 * number_density}, {-0.75 * unit, 1.25 * unit}, 6);
+            const qmomkit::QmomResult fixed = qmomkit::compute_qmom(qmomkit::MomentSet(scaled), 3, fixed_options);
+            QMOMKIT_VERIFY_CHECK(!fixed.ok());
+            QMOMKIT_VERIFY_CHECK(fixed.status == qmomkit::QmomStatus::not_realizable);
+            QMOMKIT_VERIFY_CHECK(fixed.message.find("supports at most 2 nodes") != std::string::npos);
+        }
+    }
 
     // The same sequence is accepted once reduction is permitted, and the reduced
     // rule reproduces the four moments two nodes represent.
@@ -234,8 +246,9 @@ void verify_fixed_count_does_not_reduce_on_the_boundary()
     check_accepted_rule_invariants(adaptive, boundary, 3);
     QMOMKIT_VERIFY_CHECK(adaptive.weights.size() < 3);
 
-    // Two atoms cannot also carry the fifth and sixth moments of a sequence that
-    // sits on the boundary, so the accepted rule is not a three-node substitute.
+    // Two weighted points cannot also carry the fifth and sixth moments of a
+    // sequence that sits on the boundary, so the accepted rule is not a
+    // three-node substitute.
     const qmomkit::RealizabilityResult classification = qmomkit::check_realizability(qmomkit::MomentSet(boundary), qmomkit::MomentSupport::real_line);
     QMOMKIT_VERIFY_CHECK(classification.on_boundary());
     QMOMKIT_VERIFY_CHECK(classification.realizable());

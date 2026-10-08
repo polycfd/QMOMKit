@@ -885,6 +885,44 @@ void test_solvers_do_not_depend_on_number_density_or_unit()
     }
 }
 
+void test_bjorck_pereyra_refuses_what_dense_refuses()
+{
+    // Clustered parent nodes, all within delta of 1 or of 0: the condition
+    // number grows like delta^(1-n). Bjorck-Pereyra must refuse the systems the
+    // dense solver refuses rather than return a meaningless solution, and solve
+    // the ones it solves. The cases lie far from the threshold on either side.
+    const std::vector<double> parameters{1.0e-2, 1.0e-4, 1.0e-6, 1.0e-8};
+    for (const std::size_t n : {std::size_t{3}, std::size_t{4}, std::size_t{5}})
+    {
+        for (const double delta : parameters)
+        {
+            for (const bool near_zero : {false, true})
+            {
+                std::vector<double> nodes(n);
+                for (std::size_t node = 0; node < n; ++node)
+                {
+                    nodes[node] = near_zero ? (node + 1 == n ? 1.0 : delta * static_cast<double>(node)) : 1.0 + delta * static_cast<double>(node);
+                }
+                const std::vector<double> weights(n, 1.0 / static_cast<double>(n));
+                const qmomkit::internal::DenseMatrix rhs = make_rhs(nodes, weights, make_patterned_solution(n, 2));
+                const auto solve = [&](const qmomkit::VandermondeSolver solver)
+                {
+                    return qmomkit::internal::solve_conditional_vandermonde_system(
+                        nodes, weights, rhs, qmomkit::internal::VandermondeSolveOptions{solver, singular_tolerance, false, 1.0e-10},
+                        singular_message);
+                };
+                const qmomkit::internal::VandermondeSolveResult bp = solve(qmomkit::VandermondeSolver::bjorck_pereyra);
+                const qmomkit::internal::VandermondeSolveResult dense = solve(qmomkit::VandermondeSolver::dense);
+                assert(bp.success == dense.success);
+                if (!bp.success)
+                {
+                    assert(bp.message == singular_message);
+                }
+            }
+        }
+    }
+}
+
 void test_node_separation_is_relative_to_node_magnitude()
 {
     // Distinct nodes of magnitude 1e-20 form a regular system; nodes that agree
@@ -1020,6 +1058,7 @@ int main(const int argc, char** argv)
             {"dense_success_requires_finite_solution", test_dense_success_requires_finite_solution},
             {"solvers_do_not_depend_on_number_density_or_unit", test_solvers_do_not_depend_on_number_density_or_unit},
             {"node_separation_is_relative_to_node_magnitude", test_node_separation_is_relative_to_node_magnitude},
+            {"bjorck_pereyra_refuses_what_dense_refuses", test_bjorck_pereyra_refuses_what_dense_refuses},
             {"residual_acceptance_does_not_depend_on_number_density", test_residual_acceptance_does_not_depend_on_number_density},
             {"dense_elimination_does_not_depend_on_matrix_scale", test_dense_elimination_does_not_depend_on_matrix_scale},
         });

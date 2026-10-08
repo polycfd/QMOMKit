@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 674 |
+| Unit logical tests | 678 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **910** |
+| **Runtime logical tests** | **914** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **911** |
+| **Total CTest registrations** | **915** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -169,7 +169,7 @@ renamed test rather than a deleted one.
 | `verification_qmom_moment_space_boundary_adaptive_reduction_preserves_represented_moments` | `tests/verification/qmom/moment_space_boundary.cpp` | `adaptive_reduction_preserves_represented_moments` | Verifies that adaptive inversion accepts every point of the same node-coalescence sweep, including where fixed-count inversion rejects. | — |
 | `verification_qmom_moment_space_boundary_accepted_reduction_respects_weight_ratio` | `tests/verification/qmom/moment_space_boundary.cpp` | `accepted_reduction_respects_weight_ratio` | Verifies that every accepted multi-node rule satisfies the documented adaptive acceptance criterion min(w)/max(w) > rmin as a middle weight collapses. | — |
 | `verification_qmom_moment_space_boundary_boundary_crossing_matches_realizability` | `tests/verification/qmom/moment_space_boundary.cpp` | `boundary_crossing_matches_realizability` | Verifies that compute_qmom and check_realizability agree on which side of the realizability boundary a perturbed moment sequence lies. | — |
-| `verification_qmom_moment_space_boundary_fixed_count_does_not_reduce_on_the_boundary` | `tests/verification/qmom/moment_space_boundary.cpp` | `fixed_count_does_not_reduce_on_the_boundary` | Verifies that a fixed-count request on the boundary reports non-realizability rather than silently returning the reduced rule, which adaptive inversion accepts. | — |
+| `verification_qmom_moment_space_boundary_fixed_count_does_not_reduce_on_the_boundary` | `tests/verification/qmom/moment_space_boundary.cpp` | `fixed_count_does_not_reduce_on_the_boundary` | Verifies that a fixed-count request on the boundary reports non-realizability, naming the supported node count, in units from 1e-3 to 1e3 and number densities from 1e-10 to 1e10, rather than silently returning the reduced rule, which adaptive inversion accepts. | — |
 
 ### QMOM / Qmom compute failures
 
@@ -300,7 +300,7 @@ renamed test rather than a deleted one.
 | `verification_distributions_analytical_selected_orders_closed_form` | `tests/verification/distributions/distributions_analytical.cpp` | `selected_orders_closed_form` | Verifies selected-order chi, chi-squared, gamma and beta moments, requested out of order, against their closed forms. | — |
 | `verification_distributions_analytical_large_parameter_moments_against_exact_products` | `tests/verification/distributions/distributions_analytical.cpp` | `large_parameter_moments_against_exact_products` | Verifies gamma, chi-squared, beta and even chi moments for parameters up to 1e8 against products multiplied out in error-free double-double arithmetic. | — |
 | `verification_distributions_analytical_chi_odd_orders_against_high_precision_values` | `tests/verification/distributions/distributions_analytical.cpp` | `chi_odd_orders_against_high_precision_values` | Verifies odd chi moments, on both moment paths and for non-integer degrees of freedom, against E[X] computed with mpmath at 40 digits. | — |
-| `verification_distributions_analytical_narrow_gamma_moments_invert` | `tests/verification/distributions/distributions_analytical.cpp` | `narrow_gamma_moments_invert` | Verifies that the moments of gamma distributions with shapes up to 1e7 invert at two and three nodes, and at shape 1e4 at four nodes, and are reproduced by the result. | — |
+| `verification_distributions_analytical_narrow_gamma_moments_invert` | `tests/verification/distributions/distributions_analytical.cpp` | `narrow_gamma_moments_invert` | Verifies that the moments of gamma distributions invert at two nodes up to shape 1e7, at three up to 1e6, and at four at 1e4, and are reproduced by the result; and that fixed-count inversion refuses shape 1e7 at three nodes and 1e5 at four, where the moments no longer determine the rule. | — |
 | `verification_distributions_analytical_weibull` | `tests/verification/distributions/distributions_analytical.cpp` | `weibull` | Verifies analytical distribution moments and documented failure behavior for weibull. | — |
 | `verification_distributions_analytical_maximum_order_zero_and_invalid_parameters` | `tests/verification/distributions/distributions_analytical.cpp` | `maximum_order_zero_and_invalid_parameters` | Verifies analytical distribution moments and documented failure behavior for maximum order zero and invalid parameters. | — |
 | `verification_distributions_analytical_configuration_distribution_initialization` | `tests/verification/distributions/distributions_analytical.cpp` | `configuration_distribution_initialization` | Verifies analytical distribution moments and documented failure behavior for configuration distribution initialization. | — |
@@ -506,6 +506,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_wheeler_invalid_input_requires_two_moments_per_node` | `tests/unit/wheeler.cpp` | `invalid_input_requires_two_moments_per_node` | Checks that Wheeler reconstruction rejects a node request without the required two raw moments per requested node. | — |
 | `unit_wheeler_zero_requested_nodes_reports_invalid_input` | `tests/unit/wheeler.cpp` | `zero_requested_nodes_reports_invalid_input` | Checks that Wheeler reconstruction rejects a request for zero nodes without returning quadrature data. | — |
 | `unit_wheeler_nonfinite_moment_reports_invalid_input` | `tests/unit/wheeler.cpp` | `nonfinite_moment_reports_invalid_input` | Checks that Wheeler reconstruction rejects a moment sequence containing `NaN` with `invalid_input`. | — |
+| `unit_wheeler_fixed_count_refuses_sequences_supporting_fewer_nodes` | `tests/unit/wheeler.cpp` | `fixed_count_refuses_sequences_supporting_fewer_nodes` | Checks that fixed-count Wheeler refuses the moments of rules with fewer weighted points than requested as `not_realizable`, naming the supported count, in units from 1e-6 to 1e6 and number densities from 1e-12 to 1e12, and still recovers a rule of the requested size. | — |
 | `unit_wheeler_invalid_wheeler_options_fail_before_inversion` | `tests/unit/wheeler.cpp` | `invalid_wheeler_options_fail_before_inversion` | Checks that invalid Wheeler options are rejected before inversion and do not return quadrature data. | — |
 
 ### Runge-Kutta
@@ -632,6 +633,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_bjorck_pereyra_zero_rhs_columns_success` | `tests/unit/bjorck_pereyra.cpp` | `zero_rhs_columns_success` | Checks that Björck–Pereyra accepts an empty right-hand-side matrix with the node-row count. | — |
 | `unit_bjorck_pereyra_mixed_sign_nodes` | `tests/unit/bjorck_pereyra.cpp` | `mixed_sign_nodes` | Checks that Björck–Pereyra recovers the prescribed solution for mixed-sign nodes. | — |
 | `unit_bjorck_pereyra_clustered_distinct_nodes` | `tests/unit/bjorck_pereyra.cpp` | `clustered_distinct_nodes` | Checks that Björck–Pereyra recovers the tested solution for closely spaced distinct nodes. | — |
+| `unit_bjorck_pereyra_ill_conditioned_clustered_nodes_fail` | `tests/unit/bjorck_pereyra.cpp` | `ill_conditioned_clustered_nodes_fail` | Checks that Björck–Pereyra refuses four nodes within 1e-6 of one another as singular, solves the same layout within 1e-2, and decides alike in units 1e-20, 1 and 1e20. | — |
 | `unit_bjorck_pereyra_repeated_nodes_fail` | `tests/unit/bjorck_pereyra.cpp` | `repeated_nodes_fail` | Checks that the Björck-Pereyra transposed-Vandermonde solver rejects a singular system with repeated nodes. | — |
 | `unit_bjorck_pereyra_invalid_inputs_fail` | `tests/unit/bjorck_pereyra.cpp` | `invalid_inputs_fail` | Checks that the Björck-Pereyra transposed-Vandermonde solver rejects the specified invalid input before producing result data. | — |
 | `unit_bjorck_pereyra_transform_update_count_scaling` | `tests/unit/bjorck_pereyra.cpp` | `transform_update_count_scaling` | Checks that Björck–Pereyra reports `n(n-1)` transform updates per right-hand-side column when instrumented. | — |
@@ -725,6 +727,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_vandermonde_dense_success_requires_finite_solution` | `tests/unit/vandermonde.cpp` | `dense_success_requires_finite_solution` | Verifies dense success requires finite solution. | — |
 | `unit_vandermonde_solvers_do_not_depend_on_number_density_or_unit` | `tests/unit/vandermonde.cpp` | `solvers_do_not_depend_on_number_density_or_unit` | Checks that every solver policy, with residual acceptance enabled, solves one well-conditioned weighted system to its exact solution at coordinate scales 1e-8 to 1e8 and number densities 1e-16 to 1e8. | — |
 | `unit_vandermonde_node_separation_is_relative_to_node_magnitude` | `tests/unit/vandermonde.cpp` | `node_separation_is_relative_to_node_magnitude` | Checks that the dense, Björck–Pereyra, pivoted-QR and SVD solvers accept distinct nodes of magnitude 1e-20 and reject nodes that agree to fifteen digits, so node separation is judged relative to the nodes. | — |
+| `unit_vandermonde_bjorck_pereyra_refuses_what_dense_refuses` | `tests/unit/vandermonde.cpp` | `bjorck_pereyra_refuses_what_dense_refuses` | Checks that the Björck–Pereyra policy succeeds exactly where the dense policy succeeds for clustered parent nodes of three to five nodes and separations from 1e-2 to 1e-8. | — |
 | `unit_vandermonde_residual_acceptance_does_not_depend_on_number_density` | `tests/unit/vandermonde.cpp` | `residual_acceptance_does_not_depend_on_number_density` | Checks that the pivoted-QR, SVD and Moore-Penrose residual decision, accepting at tolerance 1e-10 and rejecting at 1e-25, is unchanged when the weights are scaled by 2^-70. | — |
 | `unit_vandermonde_dense_elimination_does_not_depend_on_matrix_scale` | `tests/unit/vandermonde.cpp` | `dense_elimination_does_not_depend_on_matrix_scale` | Checks that scaling a whole matrix by 1e-20 or 1e20 changes neither whether dense elimination finds it singular nor its condition estimate. | — |
 
@@ -763,6 +766,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_public_api_one_dimensional_cqmom_agrees_with_qmom` | `tests/unit/public_api.cpp` | `one_dimensional_cqmom_agrees_with_qmom` | Verifies one dimensional CQMOM agrees with QMOM. | — |
 | `unit_public_api_cqmom_public_api_two_dimensional_manufactured_case` | `tests/unit/public_api.cpp` | `cqmom_public_api_two_dimensional_manufactured_case` | Verifies CQMOM public API two dimensional manufactured case. | — |
 | `unit_public_api_cqmom_recovers_coordinates_of_disparate_magnitude` | `tests/unit/public_api.cpp` | `cqmom_recovers_coordinates_of_disparate_magnitude` | Checks that bounded CQMOM recovers a 2D rule with coordinates of order 1e50 and 1e-50 and that it matches the rule in unit coordinates. | — |
+| `unit_public_api_fixed_cqmom_refuses_point_mass_branch_in_every_unit` | `tests/unit/public_api.cpp` | `fixed_cqmom_refuses_point_mass_branch_in_every_unit` | Checks that fixed 2x2 CQMOM refuses a case whose second branch is a point mass in y, with the failure in dimension one, in units of y from 1e-6 to 1e6. | — |
 | `unit_public_api_cqmom_public_api_reports_conditional_moment_failure` | `tests/unit/public_api.cpp` | `cqmom_public_api_reports_conditional_moment_failure` | Checks that public API reports conditional moment failure in the public QMOMKit API. | — |
 | `unit_public_api_cqmom_public_api_exposes_adaptive_branch_counts` | `tests/unit/public_api.cpp` | `cqmom_public_api_exposes_adaptive_branch_counts` | Verifies CQMOM public API exposes adaptive branch counts. | — |
 | `unit_public_api_cqmom_adaptive_root_branch_uses_relative_rmin_only` | `tests/unit/public_api.cpp` | `cqmom_adaptive_root_branch_uses_relative_rmin_only` | Checks that adaptive root branch uses relative rmin only in the public QMOMKit API. | — |

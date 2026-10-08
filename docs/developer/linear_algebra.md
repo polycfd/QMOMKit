@@ -117,7 +117,7 @@ decomposition [[Press,
 
 | Solver | Mathematical system | Type | Supported shapes | Multiple RHS | Rank diagnostics | Current Vandermonde policy |
 |---|---|---|---|---|---|---|
-| Björck-Pereyra | $V^T Y=B$ | Structured, unweighted Vandermonde | Square Vandermonde | Yes | No; reports node-separation failure | `bjorck_pereyra`; backend for `automatic` |
+| Björck-Pereyra | $V^T Y=B$ | Structured, unweighted Vandermonde | Square Vandermonde | Yes | No; reports singularity from a condition estimate | `bjorck_pereyra`; backend for `automatic` |
 | Dense Gaussian elimination | $AX=B$ | Generic dense | Square | Yes | No; reports singular-pivot failure | `dense` |
 | Pivoted Householder QR | $AP=QR$, solve $AX\approx B$ | Generic dense | Square and tall, $m\ge n$ | Yes | Numerical rank | `pivoted_qr` |
 | One-sided Jacobi SVD | $A=U\Sigma V^T$, solve $AX\approx B$ | Generic dense | Square and tall, $m\ge n$ | Yes | Singular values and numerical rank | `svd` |
@@ -170,25 +170,32 @@ a generic rectangular solver.
 
 BP exploits exact Vandermonde structure and avoids the overhead of a generic
 dense factorization. Its behavior depends on the structured problem, the node
-values, and node ordering. It is sensitive to node separation and does not
-provide a general numerical-rank estimate.
+values, and node ordering. Its accuracy degrades with the conditioning of the
+node set; it estimates the condition number for its singularity decision but
+provides no numerical-rank estimate.
 
 ### Failure semantics
 
 The kernel rejects empty systems, inconsistent dimensions, invalid tolerances,
-non-finite inputs, non-finite outputs, and insufficiently separated nodes. A
-node-separation denominator is treated as singular when
+non-finite inputs, non-finite outputs, and node sets whose system is too
+ill-conditioned to solve. With the nodes divided by the power of two above the
+largest $|x_i|$, written $\xi_i$, every entry of $V^T$ lies in $[-1,1]$, so
+$\|V^T\|_\infty\le n$, and Gautschi's bound
+[[Gautschi, 1962](https://doi.org/10.1007/BF01386302), Theorem 1]
 
 $$
-|x_i-x_j|
+\|V^{-T}\|_\infty
 \le
-\tau_{\mathrm{sing}}\max(|x_i|,|x_j|).
+\max_i\prod_{j\ne i}\frac{1+|\xi_j|}{|\xi_i-\xi_j|}
 $$
 
-The threshold is relative to the nodes themselves, so the decision does not
-depend on the unit of the coordinate. The kernel reports this as a transposed
-Vandermonde singular failure. It does
-not perform weighted residual validation.
+holds with equality when the nodes share a sign. The system is treated as
+singular when $n$ times this bound reaches $1/\tau_{\mathrm{sing}}$, the
+threshold of the dense pivot test and of the QR and SVD rank tests. The
+estimate does not depend on the unit of the coordinate, covers several nodes
+that are close together as well as a single close pair, and is infinite for
+coincident nodes. The kernel reports this as a transposed Vandermonde singular
+failure. It does not perform weighted residual validation.
 
 ### Current QMOMKit role
 
@@ -463,7 +470,7 @@ $$
 V^T Y = M
 $$
 
-with the unweighted BP kernel, whose node-separation test is relative to the
+with the unweighted BP kernel, whose singularity test does not depend on the
 node magnitudes. For the dense, QR, SVD, and Moore-Penrose backends, it factors
 
 $$
@@ -538,7 +545,7 @@ Vandermonde solves. User-facing syntax and examples belong in
 
 ### Solver failures
 
-Dense failures are singular-pivot failures. BP failures are node-separation,
+Dense failures are singular-pivot failures. BP failures are condition-estimate,
 invalid-input, structured-solve, or non-finite-output failures. QR failures
 include invalid inputs and numerical rank deficiency. SVD failures include
 invalid inputs, numerical rank deficiency, and Jacobi nonconvergence. The
@@ -579,7 +586,7 @@ magnitude of the moments.
 
 | Tolerance | Default | Meaning | Configurable through `.qmom` |
 |---|---:|---|---|
-| Vandermonde singular tolerance | $10^{-14}$ | Dense pivots, BP node separation, and weight protection for every policy through their respective scaled criteria | No documented `.qmom` key; available through direct C++ conditional options |
+| Vandermonde singular tolerance | $10^{-14}$ | Dense pivots, the BP condition estimate, and weight protection for every policy through their respective scaled criteria | No documented `.qmom` key; available through direct C++ conditional options |
 | Residual tolerance | $10^{-10}$ | Conditional-system residual acceptance in the adapter | No |
 | QR relative-rank tolerance | $10^{-14}$ | Threshold relative to $|R_{00}|$ | No |
 | SVD relative-rank tolerance | $10^{-14}$ | Threshold relative to $\sigma_0$ | No |

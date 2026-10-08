@@ -234,10 +234,14 @@ $\zeta = 1000\,\varepsilon \lVert A \rVert + \delta$:
 
 | Class | Condition |
 |---|---|
-| negative | $\lambda < -\tau$ |
 | zero | $|\lambda| \le \zeta$ |
+| negative | otherwise, $\lambda < -\tau$ |
 | ambiguous | otherwise, $\lambda < \tau$ |
-| positive | $\lambda \ge \tau$ |
+| positive | otherwise |
+
+The conditions are tested in this order. An absolute $\tau_{\mathrm{user}}$
+can be smaller than the roundoff allowance, and an eigenvalue within the
+roundoff of the eigen solve has no sign, so the zero band comes first.
 
 A matrix with a negative eigenvalue is not positive semidefinite; otherwise
 one with an ambiguous eigenvalue is `numerically_indeterminate`; otherwise one

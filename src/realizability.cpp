@@ -118,18 +118,20 @@ enum class EigenvalueClass
 };
 
 // One partition serves the definiteness decision, the rank and the kernel:
-// an eigenvalue beyond minus the tolerance is negative, one within the zero
-// band is zero, one at or above the tolerance is positive, and any other is
-// ambiguous.
+// an eigenvalue within the zero band is zero, one beyond minus the tolerance
+// is negative, one at or above the tolerance is positive, and any other is
+// ambiguous. The zero band is tested first because an absolute tolerance can
+// be smaller than it, and an eigenvalue within the roundoff of the eigen solve
+// has no sign.
 [[nodiscard]] EigenvalueClass classify_eigenvalue(const MatrixAnalysis& analysis, const double eigenvalue)
 {
-    if (eigenvalue < -analysis.tolerance)
-    {
-        return EigenvalueClass::negative;
-    }
     if (std::abs(eigenvalue) <= analysis.zero_band)
     {
         return EigenvalueClass::zero;
+    }
+    if (eigenvalue < -analysis.tolerance)
+    {
+        return EigenvalueClass::negative;
     }
     if (eigenvalue < analysis.tolerance)
     {

@@ -144,6 +144,34 @@ void test_every_eigenvalue_is_classified()
     assert(qmomkit::check_realizability(moments, MomentSupport::real_line).status == RealizabilityStatus::boundary);
 }
 
+void test_eigen_solve_roundoff_has_no_sign()
+{
+    // Weights of 1e6 at -1 and -13/16 give exact moments, so H_2 is exactly
+    // singular and the sequence is on the boundary. The eigen solve returns
+    // its zero eigenvalue as about -5e-11, within its roundoff but beyond an
+    // absolute tolerance of 1e-12; that roundoff must not count as negative.
+    std::vector<double> values(5, 0.0);
+    for (const double point : {-1.0, -0.8125})
+    {
+        double power = 1.0e6;
+        for (double& value : values)
+        {
+            value += power;
+            power *= point;
+        }
+    }
+    RealizabilityOptions absolute;
+    absolute.relative_tolerance = false;
+    assert(qmomkit::check_realizability(MomentSet(values), MomentSupport::real_line, absolute).status == RealizabilityStatus::boundary);
+
+    // An eigenvalue beyond the roundoff still decides: lowering m_4 by one
+    // moves the kernel eigenvalue of H_2 to about -0.2.
+    values[4] -= 1.0;
+    const auto rejected = qmomkit::check_realizability(MomentSet(values), MomentSupport::real_line, absolute);
+    assert(rejected.status == RealizabilityStatus::not_realizable);
+    assert(rejected.failed_matrix == "H_2");
+}
+
 // Raw moments of the normal distribution with mean c and unit variance, from
 // m_k = c m_(k-1) + (k - 1) m_(k-2); exact for an integer mean while they
 // stay below 2^53.
@@ -248,6 +276,7 @@ int main(const int argc, char** argv)
             {"status_helpers", test_status_helpers},
             {"even_order_hamburger_singular_kernel_consistency", test_even_order_hamburger_singular_kernel_consistency},
             {"every_eigenvalue_is_classified", test_every_eigenvalue_is_classified},
+            {"eigen_solve_roundoff_has_no_sign", test_eigen_solve_roundoff_has_no_sign},
             {"flat_extension_within_precision_is_boundary", test_flat_extension_within_precision_is_boundary},
             {"flat_extension_within_data_uncertainty_is_indeterminate", test_flat_extension_within_data_uncertainty_is_indeterminate},
             {"lost_information_is_indeterminate", test_lost_information_is_indeterminate},

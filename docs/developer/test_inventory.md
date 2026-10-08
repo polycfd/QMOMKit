@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 684 |
+| Unit logical tests | 685 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **920** |
+| **Runtime logical tests** | **921** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **921** |
+| **Total CTest registrations** | **922** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -981,6 +981,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_realizability_status_helpers` | `tests/unit/realizability.cpp` | `status_helpers` | Checks that realizability status helpers distinguish successful and non-success classifications. | — |
 | `unit_realizability_even_order_hamburger_singular_kernel_consistency` | `tests/unit/realizability.cpp` | `even_order_hamburger_singular_kernel_consistency` | Checks that an even-order singular Hamburger sequence satisfies the required kernel-consistency condition. | — |
 | `unit_realizability_every_eigenvalue_is_classified` | `tests/unit/realizability.cpp` | `every_eigenvalue_is_classified` | Checks that an ambiguous eigenvalue other than the smallest makes the classification numerically indeterminate. | — |
+| `unit_realizability_eigen_solve_roundoff_has_no_sign` | `tests/unit/realizability.cpp` | `eigen_solve_roundoff_has_no_sign` | Checks that, under an absolute tolerance below the eigen-solve roundoff, an exactly singular two-point set at weights of 1e6 is `boundary` rather than rejected for its roundoff eigenvalue, while lowering m_4 by one is still `not_realizable` at H_2. | — |
 | `unit_realizability_flat_extension_within_precision_is_boundary` | `tests/unit/realizability.cpp` | `flat_extension_within_precision_is_boundary` | Checks that realizable even-order sequences whose H_n resolves its eigenvalues less finely than H_(n-1) are not rejected, in any unit of the coordinate. | — |
 | `unit_realizability_flat_extension_within_data_uncertainty_is_indeterminate` | `tests/unit/realizability.cpp` | `flat_extension_within_data_uncertainty_is_indeterminate` | Checks that a flat-extension rank mismatch is numerically indeterminate when the zero of H_(n-1) holds only within the data uncertainty. | — |
 | `unit_realizability_lost_information_is_indeterminate` | `tests/unit/realizability.cpp` | `lost_information_is_indeterminate` | Checks that a sequence whose standardized moments carry no reliable digit is numerically indeterminate. | — |

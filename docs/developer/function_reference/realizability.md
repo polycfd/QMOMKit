@@ -123,9 +123,10 @@ kernel](conditional_systems.md#shared-symmetric-eigenkernel) with its default
 options, which scales the matrix itself. An unconverged decomposition,
 non-finite eigenvalues or uncertainty, or an uncertainty that reaches the
 information scale of the sequence make the matrix indeterminate. Otherwise
-`classify_eigenvalue` assigns every eigenvalue to one class: negative below
-minus the tolerance, zero within the zero band, positive at or above the
-tolerance, ambiguous otherwise. Any negative eigenvalue makes the matrix not
+`classify_eigenvalue` assigns every eigenvalue to one class: zero within the
+zero band, which is tested first because an absolute tolerance can be smaller
+than the roundoff allowance; otherwise negative below minus the tolerance,
+positive at or above the tolerance, and ambiguous in between. Any negative eigenvalue makes the matrix not
 PSD; otherwise any ambiguous one makes it indeterminate; otherwise any zero one
 makes it a PSD boundary matrix; otherwise it is positive definite.
 
@@ -135,7 +136,9 @@ sign; the same message names the input precision, which covers the matrices
 whose uncertainty reaches the information scale. `numerical_rank` counts the positive class, and the range checks use the
 zero class as the kernel, so the definiteness decision, the rank and the kernel
 share one partition. `test_every_eigenvalue_is_classified` covers an
-ambiguous eigenvalue that is not the smallest;
+ambiguous eigenvalue that is not the smallest, and
+`test_eigen_solve_roundoff_has_no_sign` a roundoff eigenvalue beyond an
+absolute tolerance;
 `verify_near_boundary_and_scaling` checks both signs near zero, low-density
 non-diagonal matrices, and an overflowing raw row sum.
 

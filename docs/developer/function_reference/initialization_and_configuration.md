@@ -161,8 +161,9 @@ and loops over explicit moments to validate rank, bounds, and finiteness,
 counting the entries inside the extents. Since each index appears once, a count
 below the extent product means missing entries, which are errors, not zeros.
 The tensor is allocated only after this check, so extents far beyond the
-supplied entries are reported as an incomplete tensor instead of allocated. Explicit tensor moments contain all tensor entries; extraction
-later selects the canonical required subset.
+supplied entries are reported as an incomplete tensor instead of allocated.
+Explicit tensor moments contain all tensor entries; extraction later selects
+the canonical required subset.
 
 Evidence: [configuration tests](../../../tests/unit/configuration.cpp) exercise
 unknown keys/sections, duplicates, explicit-data precedence, incomplete
@@ -195,9 +196,10 @@ are node admissibility controls, separate from support-specific realizability
 policy. `parse_realizability_policy_from_parsed` maps support, tolerance,
 boundary acceptance, and check mode.
 `parse_coordinate_realizability_policies_from_parsed` constructs optional
-per-coordinate entries. When the text declares `phase_space.node_counts`, it
-rejects indices outside that rank before sizing the vector, as case-level rank
-validation does for case loaders. These policies still only check marginals.
+per-coordinate entries. When the text declares a valid
+`phase_space.node_counts`, it rejects indices outside that rank before sizing
+the vector, as case-level rank validation does for case loaders. These
+policies only check marginals.
 
 `parse_node_advection_options_from_parsed` maps scheme and embedded controls,
 requires positive configured controls, and checks minimum/maximum consistency

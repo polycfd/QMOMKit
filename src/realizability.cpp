@@ -109,6 +109,11 @@ struct ClassificationState
     return scale;
 }
 
+// The roundoff allowance of the eigen solve, relative to the scale of the
+// matrix, and of a kernel projection, relative to the scale of the column.
+// Nothing within it is resolved, whatever tolerance is requested.
+constexpr double roundoff_allowance = 1000.0 * std::numeric_limits<double>::epsilon();
+
 enum class EigenvalueClass
 {
     negative,
@@ -206,7 +211,7 @@ enum class EigenvalueClass
     }
 
     const double user_tolerance = options.relative_tolerance ? options.tolerance * normalization_scale * normalized_infinity_norm : options.tolerance;
-    const double diagonalization_roundoff = 1000.0 * std::numeric_limits<double>::epsilon() * normalization_scale * normalized_infinity_norm;
+    const double diagonalization_roundoff = roundoff_allowance * normalization_scale * normalized_infinity_norm;
     analysis.uncertainty = hankel_uncertainty(sequence, order);
     analysis.roundoff = diagonalization_roundoff;
     analysis.tolerance = user_tolerance + analysis.uncertainty;
@@ -373,16 +378,18 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return projection;
 }
 
-// The threshold for a kernel projection of the extension column. Beyond the
-// tolerance, it covers the data uncertainty: that of the column itself, and
+// The threshold for a kernel projection of the extension column. An absolute
+// tolerance is raised to the roundoff allowance of the column, as the zero
+// band is for the eigenvalues. Beyond the tolerance, it covers the data
+// uncertainty: that of the column itself, and
 // the rotation of the kernel vectors, which the data uncertainty can turn by
 // up to its size over the gap between the zero and the positive eigenvalues
 // (Davis-Kahan); zero eigenvalues lie within the zero band, so the smallest
 // positive eigenvalue minus the band bounds that gap from below.
 [[nodiscard]] double kernel_projection_tolerance(const MatrixAnalysis& analysis, const MomentSequence& column, const RealizabilityOptions& options)
 {
-    const double tolerance =
-        options.relative_tolerance ? std::max(analysis.tolerance, options.tolerance * vector_scale(column.values)) : options.tolerance;
+    const double tolerance = options.relative_tolerance ? std::max(analysis.tolerance, options.tolerance * vector_scale(column.values))
+                                                        : std::max(options.tolerance, roundoff_allowance * vector_scale(column.values));
     double smallest_positive = std::numeric_limits<double>::infinity();
     for (const double eigenvalue : analysis.eigensystem.eigenvalues)
     {

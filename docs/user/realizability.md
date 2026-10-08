@@ -127,7 +127,11 @@ coordinate measured from a nearby reference point avoids this loss.
 With `relative_tolerance = false`, the raw moment matrices are tested and
 `tolerance` is an absolute threshold for their eigenvalues. This mode does not
 standardize the coordinate, so its classification changes with the location,
-the unit and the number density.
+the unit and the number density. Its resolution is also limited by the size of
+the raw moments: an eigenvalue within $1000\,\varepsilon$ of the matrix norm,
+or a projection within $1000\,\varepsilon$ of the largest moment it involves,
+counts as zero whatever `tolerance` requests, so a slightly non-realizable
+sequence with large moments can be reported as `boundary`.
 
 ## Support constraints
 

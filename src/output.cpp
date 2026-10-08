@@ -77,9 +77,12 @@ void write_column_header(std::ofstream& output, const std::size_t column_width, 
     }
 }
 
+// Labels are part of the file, so they are formatted in its classic locale too:
+// a generalized order 0.5 written as "0,5" would read as two orders.
 [[nodiscard]] std::string cqmom_label(const MultiIndexView index)
 {
     std::ostringstream label;
+    label.imbue(std::locale::classic());
     label << "M[";
     for (std::size_t dimension = 0; dimension < index.size(); ++dimension)
     {
@@ -96,6 +99,7 @@ void write_column_header(std::ofstream& output, const std::size_t column_width, 
 [[nodiscard]] std::string generalized_moment_label(const std::vector<double>& orders)
 {
     std::ostringstream label;
+    label.imbue(std::locale::classic());
     label << "G[" << std::setprecision(17);
     for (std::size_t dimension = 0; dimension < orders.size(); ++dimension)
     {

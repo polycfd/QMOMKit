@@ -124,11 +124,12 @@ options, which scales the matrix itself. An unconverged decomposition,
 non-finite eigenvalues or uncertainty, or an uncertainty that reaches the
 information scale of the sequence make the matrix indeterminate. Otherwise
 `classify_eigenvalue` assigns every eigenvalue to one class: zero within the
-zero band, which is tested first because an absolute tolerance can be smaller
-than the roundoff allowance; otherwise negative below minus the tolerance,
-positive at or above the tolerance, and ambiguous in between. Any negative eigenvalue makes the matrix not
-PSD; otherwise any ambiguous one makes it indeterminate; otherwise any zero one
-makes it a PSD boundary matrix; otherwise it is positive definite.
+zero band, which is tested first because a user threshold can be smaller than
+the roundoff allowance; otherwise negative below minus the tolerance, positive
+at or above the tolerance, and ambiguous in between. Any negative eigenvalue
+makes the matrix not PSD; otherwise any ambiguous one makes it indeterminate;
+otherwise any zero one makes it a PSD boundary matrix; otherwise it is positive
+definite.
 
 The ambiguous class includes **small positive** eigenvalues, so its diagnostic
 says that an eigenvalue is within the numerical tolerance, without assigning a
@@ -138,7 +139,8 @@ zero class as the kernel, so the definiteness decision, the rank and the kernel
 share one partition. `test_every_eigenvalue_is_classified` covers an
 ambiguous eigenvalue that is not the smallest, and
 `test_eigen_solve_roundoff_has_no_sign` a roundoff eigenvalue beyond an
-absolute tolerance;
+absolute tolerance, and `test_kernel_projection_roundoff_is_consistent` a
+roundoff kernel projection beyond it;
 `verify_near_boundary_and_scaling` checks both signs near zero, low-density
 non-diagonal matrices, and an overflowing raw row sum.
 
@@ -148,10 +150,11 @@ For a matrix not classified positive definite, the extension column must have
 small projection onto every eigenvector of the zero class.
 `projection_on_eigenvector` sums a column dot product; the outer loop retains
 the maximum absolute projection. `kernel_projection_tolerance` sets the
-threshold: absolute tolerance, or the maximum of the matrix tolerance and
-`options.tolerance*vector_scale(extension)`, raised to ten times the data
-uncertainty of the projection, which is the column's own uncertainty plus its
-norm times the kernel rotation. The rotation is a Davis-Kahan bound, `delta`
+threshold. In absolute mode it is the tolerance, raised to
+`roundoff_allowance*vector_scale(extension)`; in relative mode it is the
+maximum of the matrix tolerance and `options.tolerance*vector_scale(extension)`.
+Either is raised to ten times the data uncertainty of the projection, which is
+the column's own uncertainty plus its norm times the kernel rotation. The rotation is a Davis-Kahan bound, `delta`
 over the gap between the zero and positive classes, with the gap estimated
 from below as the smallest positive eigenvalue minus the zero band.
 

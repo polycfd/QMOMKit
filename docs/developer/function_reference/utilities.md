@@ -18,7 +18,9 @@ columns. `MomentWriter::for_cqmom` selects tensor extents, selected indices, a
 required layout, a state with configured generalized columns, or a raw-moment
 request evaluated from quadrature. Labels retain selected order and duplicates.
 Constructors open/truncate the output stream in the classic locale
-(`open_output_file`), validate writer layout, and write the header. They do not reconstruct a configured case.
+(`open_output_file`), validate writer layout, and write the header, whose
+labels are also formatted in the classic locale. They do not reconstruct a
+configured case.
 
 `write_row` checks time and value shape/finiteness and emits
 whitespace-separated fields at the writer's precision, 17 by default.

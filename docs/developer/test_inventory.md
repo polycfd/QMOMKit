@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 686 |
+| Unit logical tests | 688 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **922** |
+| **Runtime logical tests** | **924** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **923** |
+| **Total CTest registrations** | **925** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -449,8 +449,8 @@ renamed test rather than a deleted one.
 | `unit_output_factories_reject_empty_selections` | `tests/unit/output.cpp` | `factories_reject_empty_selections` | Checks that writer factories reject an empty column or moment selection instead of producing an empty table. | — |
 | `unit_output_moment_writer_rejects_nonfinite_values` | `tests/unit/output.cpp` | `moment_writer_rejects_nonfinite_values` | Checks that `MomentWriter` rejects non-finite values rather than writing them to a history file. | — |
 | `unit_output_rejected_rows_leave_the_file_unchanged` | `tests/unit/output.cpp` | `rejected_rows_leave_the_file_unchanged` | Checks that a rejected selected-moment row and rejected QMOM and CQMOM quadrature time blocks leave the output file byte-identical. | — |
-| `unit_output_writers_ignore_the_global_locale` | `tests/unit/output.cpp` | `writers_ignore_the_global_locale` | Checks that moment and quadrature files written under a global locale with a decimal comma and digit grouping are identical to those written under the classic locale, including a node index above 1000. | — |
-| `unit_output_rows_that_cannot_be_stored_are_reported` | `tests/unit/output.cpp` | `rows_that_cannot_be_stored_are_reported` | Checks, under a file-size limit, that every moment row and quadrature block whose write returned is in the file and that the first one that cannot be stored throws (POSIX). | — |
+| `unit_output_writers_ignore_the_global_locale` | `tests/unit/output.cpp` | `writers_ignore_the_global_locale` | Checks that QMOM moment, CQMOM moment and quadrature files written under a global locale with a decimal comma and digit grouping are identical to those written under the classic locale, including the header labels `G[0.5]`, `M[1000,0]` and `G[0.5,1]` and a node index above 1000. | — |
+| `unit_output_rows_that_cannot_be_stored_are_reported` | `tests/unit/output.cpp` | `rows_that_cannot_be_stored_are_reported` | Checks, under a file-size limit, that every moment row (plain and with generalized columns) and every QMOM and CQMOM quadrature block whose write returned is in the file, that the first one that cannot be written throws, and that a header that cannot be written makes the factory throw (POSIX). | — |
 | `unit_output_selected_moment_rows_ignore_unselected_values` | `tests/unit/output.cpp` | `selected_moment_rows_ignore_unselected_values` | Checks that a selected-moment writer accepts a row whose unselected values are not finite and writes only the selected ones. | — |
 | `unit_output_quadrature_indices_stay_exact_at_low_precision` | `tests/unit/output.cpp` | `quadrature_indices_stay_exact_at_low_precision` | Checks that quadrature node indices are written as exact integers at output precision zero. | — |
 | `unit_output_writer_rejects_generalized_moments_without_values` | `tests/unit/output.cpp` | `writer_rejects_generalized_moments_without_values` | Checks that a writer configured for generalized moment columns rejects a call that supplies no generalized values. | — |
@@ -983,6 +983,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_realizability_even_order_hamburger_singular_kernel_consistency` | `tests/unit/realizability.cpp` | `even_order_hamburger_singular_kernel_consistency` | Checks that an even-order singular Hamburger sequence satisfies the required kernel-consistency condition. | — |
 | `unit_realizability_every_eigenvalue_is_classified` | `tests/unit/realizability.cpp` | `every_eigenvalue_is_classified` | Checks that an ambiguous eigenvalue other than the smallest makes the classification numerically indeterminate. | — |
 | `unit_realizability_eigen_solve_roundoff_has_no_sign` | `tests/unit/realizability.cpp` | `eigen_solve_roundoff_has_no_sign` | Checks that, under an absolute tolerance below the eigen-solve roundoff, an exactly singular two-point set at weights of 1e6 is `boundary` rather than rejected for its roundoff eigenvalue, while lowering m_4 by one is still `not_realizable` at H_2. | — |
+| `unit_realizability_kernel_projection_roundoff_is_consistent` | `tests/unit/realizability.cpp` | `kernel_projection_roundoff_is_consistent` | Checks that, under an absolute tolerance below the roundoff of the kernel projection, the exact two-point set at weights of 1e6 is `boundary` at order 5, while changing m_5 by one is still `not_realizable` at `H_2_next_column`. | — |
 | `unit_realizability_flat_extension_within_precision_is_boundary` | `tests/unit/realizability.cpp` | `flat_extension_within_precision_is_boundary` | Checks that realizable even-order sequences whose H_n resolves its eigenvalues less finely than H_(n-1) are not rejected, in any unit of the coordinate. | — |
 | `unit_realizability_flat_extension_within_data_uncertainty_is_indeterminate` | `tests/unit/realizability.cpp` | `flat_extension_within_data_uncertainty_is_indeterminate` | Checks that a flat-extension rank mismatch is numerically indeterminate when the zero of H_(n-1) holds only within the data uncertainty. | — |
 | `unit_realizability_lost_information_is_indeterminate` | `tests/unit/realizability.cpp` | `lost_information_is_indeterminate` | Checks that a sequence whose standardized moments carry no reliable digit is numerically indeterminate. | — |
@@ -1024,6 +1025,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_node_advection_throwing_velocity_reports_its_evaluations_without_an_adaptive_status` | `tests/unit/node_advection.cpp` | `throwing_velocity_reports_its_evaluations_without_an_adaptive_status` | Checks that a velocity callback that throws leaves the adaptive status empty and reports the evaluations made before the failure, for RK23, RK45, and SSP-RK3. | — |
 | `unit_node_advection_configured_adaptive_options_reach_node_advection` | `tests/unit/node_advection.cpp` | `configured_adaptive_options_reach_node_advection` | Verifies configured adaptive options reach node advection. | — |
 | `unit_node_advection_embedded_rk_advances_over_the_exact_step` | `tests/unit/node_advection.cpp` | `embedded_rk_advances_over_the_exact_step` | Checks that RK23 and RK45 node advection with `dt = 1e-10` at `t = 1e3` and `1e6` moves a node by `dt` itself, evaluates the velocity within `[t, t + dt]`, and reports `t + dt` as the final time. | — |
+| `unit_node_advection_embedded_rk_resolves_a_stiff_velocity_far_from_the_origin` | `tests/unit/node_advection.cpp` | `embedded_rk_resolves_a_stiff_velocity_far_from_the_origin` | Checks that RK23 and RK45 node advection of dx/dt = -1e10 x over `dt = 1e-9` at `t = 1e6`, a step below the spacing of the double at `t`, takes more than one step and ends within 1e-6 of exp(-10). | — |
 | `unit_node_advection_node_advection_options_formatting_reports_semantic_settings` | `tests/unit/node_advection.cpp` | `node_advection_options_formatting_reports_semantic_settings` | Checks that node advection options formatting reports semantic settings in node advection. | — |
 
 ### Moment source
@@ -1141,7 +1143,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_cqmom_macro_success_preserves_input_and_final_value_semantics` | `tests/unit/phase_space_evolution.cpp` | `cqmom_macro_success_preserves_input_and_final_value_semantics` | Checks that macro success preserves input and final value semantics in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution` | Checks that CQMOM boundary moment source stage matches phase-space evolution in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_cqmom_stage_irrelevant_options_are_ignored` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_stage_irrelevant_options_are_ignored` | Verifies public CQMOM stage irrelevant options are ignored. | — |
-| `unit_phase_space_evolution_minimum_steps_above_the_stage_step_allow_host_retries` | `tests/unit/phase_space_evolution.cpp` | `minimum_steps_above_the_stage_step_allow_host_retries` | Checks that a QMOM Strang step succeeds when its stages are shorter than an explicit node-advection `min_step` and source `min_time_step`, as a host retry with a smaller step produces. | — |
+| `unit_phase_space_evolution_minimum_steps_above_the_stage_step_allow_host_retries` | `tests/unit/phase_space_evolution.cpp` | `minimum_steps_above_the_stage_step_allow_host_retries` | Checks that QMOM and CQMOM Strang steps succeed when their stages are shorter than an explicit node-advection `min_step` and source `min_time_step`, as a host retry with a smaller step produces. | — |
 | `unit_phase_space_evolution_advection_only_matches_direct_operator_qmom` | `tests/unit/phase_space_evolution.cpp` | `advection_only_matches_direct_operator_qmom` | Checks that advection only matches direct operator QMOM in phase-space evolution. | — |
 | `unit_phase_space_evolution_source_only_matches_direct_operator_qmom` | `tests/unit/phase_space_evolution.cpp` | `source_only_matches_direct_operator_qmom` | Checks that source only matches direct operator QMOM in phase-space evolution. | — |
 | `unit_phase_space_evolution_source_plus_boundary_matches_direct_operator_qmom` | `tests/unit/phase_space_evolution.cpp` | `source_plus_boundary_matches_direct_operator_qmom` | Checks that source plus boundary matches direct operator QMOM in phase-space evolution. | — |

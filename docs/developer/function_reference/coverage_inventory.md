@@ -408,14 +408,14 @@ evidence](initialization_and_configuration.md)
 | `initialize_qmom_moments` | [2474](../../../src/configuration.cpp#L2474) |
 | `initialize_cqmom_moment_tensor` | [2518](../../../src/configuration.cpp#L2518) |
 | `initialize_cqmom_moments` | [2557](../../../src/configuration.cpp#L2557) |
-| `parse_qmom_initial_condition` | [2607](../../../src/configuration.cpp#L2607) |
-| `parse_cqmom_initial_condition` | [2613](../../../src/configuration.cpp#L2613) |
+| `parse_qmom_initial_condition` | [2604](../../../src/configuration.cpp#L2604) |
+| `parse_cqmom_initial_condition` | [2610](../../../src/configuration.cpp#L2610) |
 | `create_qmom_case` | [2616](../../../src/configuration.cpp#L2616) |
 | `create_cqmom_case` | [2643](../../../src/configuration.cpp#L2643) |
 | `with_initial_moments` | [2655](../../../src/configuration.cpp#L2655), [2684](../../../src/configuration.cpp#L2684), [2729](../../../src/configuration.cpp#L2729), [2726](../../../src/configuration.cpp#L2726) |
 | `with_prepared_metadata_of` | [2706](../../../src/configuration.cpp#L2706) |
 | `parse_qmom` | [2740](../../../src/configuration.cpp#L2740) |
-| `parse_cqmom` | [2793](../../../src/configuration.cpp#L2793) |
+| `parse_cqmom` | [2790](../../../src/configuration.cpp#L2790) |
 | `parse_cqmom_prepared` | [2815](../../../src/configuration.cpp#L2815) |
 | `parse_realizability_policy` | [2843](../../../src/configuration.cpp#L2843) |
 | `parse_coordinate_realizability_policies` | [2881](../../../src/configuration.cpp#L2881) |
@@ -424,7 +424,7 @@ evidence](initialization_and_configuration.md)
 | `parse_qmom_phase_space_evolution_options` | [2939](../../../src/configuration.cpp#L2939) |
 | `parse_cqmom_phase_space_evolution_options` | [2968](../../../src/configuration.cpp#L2968) |
 | `parse_output_options` | [2994](../../../src/configuration.cpp#L2994) |
-| `load_configuration` | [3042](../../../src/configuration.cpp#L3042) |
+| `load_configuration` | [3013](../../../src/configuration.cpp#L3013) |
 | `load_qmom` | [3025](../../../src/configuration.cpp#L3025) |
 | `load_cqmom` | [3030](../../../src/configuration.cpp#L3030) |
 | `load_cqmom_prepared` | [3035](../../../src/configuration.cpp#L3035) |
@@ -882,24 +882,24 @@ evidence](time_integration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
-| `all_finite` | [25](../../../src/node_advection.cpp#L25) |
-| `diagnostics_from_embedded_rk` | [30](../../../src/node_advection.cpp#L30) |
-| `pack_nodes` | [44](../../../src/node_advection.cpp#L44) |
-| `unpack_nodes` | [66](../../../src/node_advection.cpp#L66) |
-| `validate_weights` | [80](../../../src/node_advection.cpp#L80) |
-| `validate_abscissas` | [92](../../../src/node_advection.cpp#L92) |
-| `node_rhs_from_velocity` | [119](../../../src/node_advection.cpp#L119) |
-| `add_scaled` | [150](../../../src/node_advection.cpp#L150) |
-| `integrate_nodes_embedded_rk` | [164](../../../src/node_advection.cpp#L164) |
-| `integrate_nodes_ssp_rk3` | [213](../../../src/node_advection.cpp#L213) |
-| `integrate_nodes` | [284](../../../src/node_advection.cpp#L284) |
-| `scheme_name` | [315](../../../src/node_advection.cpp#L315) |
-| `PooledCoordinateBuffer::PooledCoordinateBuffer` | [345](../../../src/node_advection.cpp#L345) |
-| `PooledCoordinateBuffer::~PooledCoordinateBuffer` | [366](../../../src/node_advection.cpp#L366) |
-| `PooledCoordinateBuffer::free_list` | [378](../../../src/node_advection.cpp#L378) |
-| `make_phase_space_velocity` | [472](../../../src/node_advection.cpp#L472) |
-| `advance_nodes` | [389](../../../src/node_advection.cpp#L389), [417](../../../src/node_advection.cpp#L417), [428](../../../src/node_advection.cpp#L428) |
-| `format_node_advection_options` | [512](../../../src/node_advection.cpp#L512) |
+| `all_finite` | [24](../../../src/node_advection.cpp#L24) |
+| `diagnostics_from_embedded_rk` | [29](../../../src/node_advection.cpp#L29) |
+| `pack_nodes` | [43](../../../src/node_advection.cpp#L43) |
+| `unpack_nodes` | [65](../../../src/node_advection.cpp#L65) |
+| `validate_weights` | [79](../../../src/node_advection.cpp#L79) |
+| `validate_abscissas` | [91](../../../src/node_advection.cpp#L91) |
+| `node_rhs_from_velocity` | [118](../../../src/node_advection.cpp#L118) |
+| `add_scaled` | [149](../../../src/node_advection.cpp#L149) |
+| `integrate_nodes_embedded_rk` | [163](../../../src/node_advection.cpp#L163) |
+| `integrate_nodes_ssp_rk3` | [214](../../../src/node_advection.cpp#L214) |
+| `integrate_nodes` | [285](../../../src/node_advection.cpp#L285) |
+| `scheme_name` | [316](../../../src/node_advection.cpp#L316) |
+| `PooledCoordinateBuffer::PooledCoordinateBuffer` | [346](../../../src/node_advection.cpp#L346) |
+| `PooledCoordinateBuffer::~PooledCoordinateBuffer` | [367](../../../src/node_advection.cpp#L367) |
+| `PooledCoordinateBuffer::free_list` | [379](../../../src/node_advection.cpp#L379) |
+| `make_phase_space_velocity` | [473](../../../src/node_advection.cpp#L473) |
+| `advance_nodes` | [390](../../../src/node_advection.cpp#L390), [418](../../../src/node_advection.cpp#L418), [429](../../../src/node_advection.cpp#L429) |
+| `format_node_advection_options` | [513](../../../src/node_advection.cpp#L513) |
 
 ### `src/output.cpp`
 
@@ -913,34 +913,34 @@ evidence](utilities.md)
 | `qmom_label` | [43](../../../src/output.cpp#L43) |
 | `column_width_for` | [60](../../../src/output.cpp#L60) |
 | `write_column_header` | [65](../../../src/output.cpp#L65) |
-| `cqmom_label` | [80](../../../src/output.cpp#L80) |
-| `sequential_indices` | [133](../../../src/output.cpp#L133) |
-| `qmom_labels` | [149](../../../src/output.cpp#L149) |
-| `cqmom_labels` | [165](../../../src/output.cpp#L165) |
-| `flatten_selected_indices` | [181](../../../src/output.cpp#L181) |
-| `all_cqmom_labels` | [192](../../../src/output.cpp#L192) |
-| `cqmom_abscissa_label` | [197](../../../src/output.cpp#L197) |
-| `qmom_quadrature_labels` | [202](../../../src/output.cpp#L202) |
-| `cqmom_quadrature_labels` | [212](../../../src/output.cpp#L212) |
-| `MomentWriter::for_qmom` | [236](../../../src/output.cpp#L236), [242](../../../src/output.cpp#L242), [248](../../../src/output.cpp#L248), [258](../../../src/output.cpp#L258) |
-| `MomentWriter::for_cqmom` | [269](../../../src/output.cpp#L269), [276](../../../src/output.cpp#L276), [282](../../../src/output.cpp#L282), [293](../../../src/output.cpp#L293), [298](../../../src/output.cpp#L298), [307](../../../src/output.cpp#L307), [317](../../../src/output.cpp#L317) |
-| `MomentWriter::MomentWriter` | [322](../../../src/output.cpp#L322), [340](../../../src/output.cpp#L340), [358](../../../src/output.cpp#L358), [375](../../../src/output.cpp#L375) |
-| `MomentWriter::layout_mismatch_message` | [391](../../../src/output.cpp#L391) |
-| `MomentWriter::write_header` | [417](../../../src/output.cpp#L417) |
-| `MomentWriter::write_row` | [422](../../../src/output.cpp#L422) |
-| `MomentWriter::write_aligned_row` | [452](../../../src/output.cpp#L452) |
-| `MomentWriter::write` | [480](../../../src/output.cpp#L480), [499](../../../src/output.cpp#L499), [522](../../../src/output.cpp#L522), [541](../../../src/output.cpp#L541), [560](../../../src/output.cpp#L560), [583](../../../src/output.cpp#L583), [611](../../../src/output.cpp#L611), [630](../../../src/output.cpp#L630), [644](../../../src/output.cpp#L644), [663](../../../src/output.cpp#L663) |
-| `QuadratureWriter::for_qmom` | [677](../../../src/output.cpp#L677) |
-| `QuadratureWriter::for_cqmom` | [682](../../../src/output.cpp#L682) |
-| `QuadratureWriter::QuadratureWriter` | [687](../../../src/output.cpp#L687) |
-| `QuadratureWriter::write_header` | [703](../../../src/output.cpp#L703) |
-| `QuadratureWriter::write_row` | [708](../../../src/output.cpp#L708) |
-| `QuadratureWriter::write_qmom_row` | [735](../../../src/output.cpp#L735) |
-| `QuadratureWriter::write` | [774](../../../src/output.cpp#L774), [779](../../../src/output.cpp#L779), [784](../../../src/output.cpp#L784) |
+| `cqmom_label` | [82](../../../src/output.cpp#L82) |
+| `sequential_indices` | [137](../../../src/output.cpp#L137) |
+| `qmom_labels` | [153](../../../src/output.cpp#L153) |
+| `cqmom_labels` | [169](../../../src/output.cpp#L169) |
+| `flatten_selected_indices` | [185](../../../src/output.cpp#L185) |
+| `all_cqmom_labels` | [196](../../../src/output.cpp#L196) |
+| `cqmom_abscissa_label` | [201](../../../src/output.cpp#L201) |
+| `qmom_quadrature_labels` | [206](../../../src/output.cpp#L206) |
+| `cqmom_quadrature_labels` | [216](../../../src/output.cpp#L216) |
+| `MomentWriter::for_qmom` | [240](../../../src/output.cpp#L240), [246](../../../src/output.cpp#L246), [252](../../../src/output.cpp#L252), [262](../../../src/output.cpp#L262) |
+| `MomentWriter::for_cqmom` | [273](../../../src/output.cpp#L273), [280](../../../src/output.cpp#L280), [286](../../../src/output.cpp#L286), [297](../../../src/output.cpp#L297), [302](../../../src/output.cpp#L302), [311](../../../src/output.cpp#L311), [321](../../../src/output.cpp#L321) |
+| `MomentWriter::MomentWriter` | [326](../../../src/output.cpp#L326), [344](../../../src/output.cpp#L344), [362](../../../src/output.cpp#L362), [379](../../../src/output.cpp#L379) |
+| `MomentWriter::layout_mismatch_message` | [395](../../../src/output.cpp#L395) |
+| `MomentWriter::write_header` | [421](../../../src/output.cpp#L421) |
+| `MomentWriter::write_row` | [426](../../../src/output.cpp#L426) |
+| `MomentWriter::write_aligned_row` | [456](../../../src/output.cpp#L456) |
+| `MomentWriter::write` | [484](../../../src/output.cpp#L484), [503](../../../src/output.cpp#L503), [526](../../../src/output.cpp#L526), [545](../../../src/output.cpp#L545), [564](../../../src/output.cpp#L564), [587](../../../src/output.cpp#L587), [615](../../../src/output.cpp#L615), [634](../../../src/output.cpp#L634), [648](../../../src/output.cpp#L648), [667](../../../src/output.cpp#L667) |
+| `QuadratureWriter::for_qmom` | [681](../../../src/output.cpp#L681) |
+| `QuadratureWriter::for_cqmom` | [686](../../../src/output.cpp#L686) |
+| `QuadratureWriter::QuadratureWriter` | [691](../../../src/output.cpp#L691) |
+| `QuadratureWriter::write_header` | [707](../../../src/output.cpp#L707) |
+| `QuadratureWriter::write_row` | [712](../../../src/output.cpp#L712) |
+| `QuadratureWriter::write_qmom_row` | [739](../../../src/output.cpp#L739) |
+| `QuadratureWriter::write` | [778](../../../src/output.cpp#L778), [783](../../../src/output.cpp#L783), [788](../../../src/output.cpp#L788) |
 | `centered_column_label` | [48](../../../src/output.cpp#L48) |
-| `generalized_moment_label` | [96](../../../src/output.cpp#L96) |
-| `append_generalized_labels` | [112](../../../src/output.cpp#L112) |
-| `validate_generalized_moment_orders` | [121](../../../src/output.cpp#L121) |
+| `generalized_moment_label` | [99](../../../src/output.cpp#L99) |
+| `append_generalized_labels` | [116](../../../src/output.cpp#L116) |
+| `validate_generalized_moment_orders` | [125](../../../src/output.cpp#L125) |
 
 ### `src/phase_space_evolution.cpp`
 
@@ -1097,34 +1097,34 @@ evidence](realizability.md)
 | `support_name` | [82](../../../src/realizability.cpp#L82) |
 | `make_result` | [96](../../../src/realizability.cpp#L96) |
 | `vector_scale` | [102](../../../src/realizability.cpp#L102) |
-| `classify_eigenvalue` | [126](../../../src/realizability.cpp#L126) |
-| `hankel_matrix` | [143](../../../src/realizability.cpp#L143) |
-| `hankel_uncertainty` | [161](../../../src/realizability.cpp#L161) |
-| `analyze_matrix` | [174](../../../src/realizability.cpp#L174) |
-| `update_limiting_matrix` | [260](../../../src/realizability.cpp#L260) |
-| `incorporate_matrix` | [274](../../../src/realizability.cpp#L274) |
-| `lower_localizing_sequence` | [303](../../../src/realizability.cpp#L303) |
-| `upper_localizing_sequence` | [316](../../../src/realizability.cpp#L316) |
-| `interval_localizing_sequence` | [331](../../../src/realizability.cpp#L331) |
-| `extension_column` | [345](../../../src/realizability.cpp#L345) |
-| `euclidean_norm` | [356](../../../src/realizability.cpp#L356) |
-| `projection_on_eigenvector` | [366](../../../src/realizability.cpp#L366) |
-| `kernel_projection_tolerance` | [382](../../../src/realizability.cpp#L382) |
-| `check_range_consistency` | [401](../../../src/realizability.cpp#L401) |
-| `incorporate_range_consistency` | [427](../../../src/realizability.cpp#L427) |
-| `numerical_rank` | [452](../../../src/realizability.cpp#L452) |
-| `singular_as_given` | [462](../../../src/realizability.cpp#L462) |
-| `finish_classification` | [468](../../../src/realizability.cpp#L468) |
-| `validate_common_inputs` | [484](../../../src/realizability.cpp#L484) |
-| `check_hamburger` | [519](../../../src/realizability.cpp#L519) |
-| `check_stieltjes` | [573](../../../src/realizability.cpp#L573) |
-| `check_hausdorff` | [629](../../../src/realizability.cpp#L629) |
-| `TestedMoments::bound` | [700](../../../src/realizability.cpp#L700) |
-| `raw_moments` | [706](../../../src/realizability.cpp#L706) |
-| `standardized_moments` | [714](../../../src/realizability.cpp#L714) |
-| `tested_moments` | [789](../../../src/realizability.cpp#L789) |
-| `with_support_context` | [794](../../../src/realizability.cpp#L794) |
-| `check_realizability` | [805](../../../src/realizability.cpp#L805), [834](../../../src/realizability.cpp#L834) |
+| `classify_eigenvalue` | [131](../../../src/realizability.cpp#L131) |
+| `hankel_matrix` | [148](../../../src/realizability.cpp#L148) |
+| `hankel_uncertainty` | [166](../../../src/realizability.cpp#L166) |
+| `analyze_matrix` | [179](../../../src/realizability.cpp#L179) |
+| `update_limiting_matrix` | [265](../../../src/realizability.cpp#L265) |
+| `incorporate_matrix` | [279](../../../src/realizability.cpp#L279) |
+| `lower_localizing_sequence` | [308](../../../src/realizability.cpp#L308) |
+| `upper_localizing_sequence` | [321](../../../src/realizability.cpp#L321) |
+| `interval_localizing_sequence` | [336](../../../src/realizability.cpp#L336) |
+| `extension_column` | [350](../../../src/realizability.cpp#L350) |
+| `euclidean_norm` | [361](../../../src/realizability.cpp#L361) |
+| `projection_on_eigenvector` | [371](../../../src/realizability.cpp#L371) |
+| `kernel_projection_tolerance` | [389](../../../src/realizability.cpp#L389) |
+| `check_range_consistency` | [408](../../../src/realizability.cpp#L408) |
+| `incorporate_range_consistency` | [434](../../../src/realizability.cpp#L434) |
+| `numerical_rank` | [459](../../../src/realizability.cpp#L459) |
+| `singular_as_given` | [469](../../../src/realizability.cpp#L469) |
+| `finish_classification` | [475](../../../src/realizability.cpp#L475) |
+| `validate_common_inputs` | [491](../../../src/realizability.cpp#L491) |
+| `check_hamburger` | [526](../../../src/realizability.cpp#L526) |
+| `check_stieltjes` | [580](../../../src/realizability.cpp#L580) |
+| `check_hausdorff` | [636](../../../src/realizability.cpp#L636) |
+| `TestedMoments::bound` | [707](../../../src/realizability.cpp#L707) |
+| `raw_moments` | [713](../../../src/realizability.cpp#L713) |
+| `standardized_moments` | [721](../../../src/realizability.cpp#L721) |
+| `tested_moments` | [796](../../../src/realizability.cpp#L796) |
+| `with_support_context` | [801](../../../src/realizability.cpp#L801) |
+| `check_realizability` | [812](../../../src/realizability.cpp#L812), [841](../../../src/realizability.cpp#L841) |
 
 ### `src/recursive_quadrature.cpp`
 
@@ -1231,15 +1231,13 @@ evidence](time_integration.md)
 | `add_scaled` | [40](../../../src/runge_kutta.cpp#L40) |
 | `sign` | [51](../../../src/runge_kutta.cpp#L51) |
 | `validate_or_default_max_step` | [56](../../../src/runge_kutta.cpp#L56) |
-| `spacing` | [65](../../../src/runge_kutta.cpp#L65) |
-| `minimum_step` | [76](../../../src/runge_kutta.cpp#L76) |
-| `error_norm` | [87](../../../src/runge_kutta.cpp#L87) |
-| `invalid_embedded_rk_result` | [107](../../../src/runge_kutta.cpp#L107) |
-| `stage_accepted` | [112](../../../src/runge_kutta.cpp#L112) |
-| `try_ssp_rk3_step` | [117](../../../src/runge_kutta.cpp#L117) |
-| `ssp_rk3_step` | [179](../../../src/runge_kutta.cpp#L179) |
-| `integrate_embedded_rk` | [226](../../../src/runge_kutta.cpp#L226) |
-| `internal::integrate_embedded_rk_from` | [235](../../../src/runge_kutta.cpp#L235) |
+| `minimum_step` | [68](../../../src/runge_kutta.cpp#L68) |
+| `error_norm` | [80](../../../src/runge_kutta.cpp#L80) |
+| `invalid_embedded_rk_result` | [100](../../../src/runge_kutta.cpp#L100) |
+| `stage_accepted` | [105](../../../src/runge_kutta.cpp#L105) |
+| `try_ssp_rk3_step` | [110](../../../src/runge_kutta.cpp#L110) |
+| `ssp_rk3_step` | [172](../../../src/runge_kutta.cpp#L172) |
+| `integrate_embedded_rk` | [219](../../../src/runge_kutta.cpp#L219) |
 
 ### `src/wheeler.cpp`
 

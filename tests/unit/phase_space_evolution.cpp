@@ -2665,6 +2665,22 @@ void test_minimum_steps_above_the_stage_step_allow_host_retries()
             assert_near(result.state.quadrature().abscissas[node], state.quadrature().abscissas[node] + time_step, 1.0e-12);
         }
     }
+
+    // CQMOM validates its source controls separately and must take such stages
+    // as well.
+    const qmomkit::CqmomState cqmom_state = fixed_cqmom_prepared_case().initial_state();
+    const auto cqmom_zero_source = [](double, const qmomkit::CqmomSourceContext& context)
+    { return qmomkit::CqmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+    for (const double time_step : {4.0e-6, 1.5e-6, 1.0e-7})
+    {
+        qmomkit::CqmomPhaseSpaceEvolutionOptions options;
+        options.node_options.adaptive_options.min_step = 1.0e-6;
+        options.source_options.ssp_rk3_options.min_time_step = 1.0e-6;
+        const qmomkit::CqmomPhaseSpaceEvolutionResult result =
+            qmomkit::advance_cqmom_phase_space(cqmom_state, 0.0, time_step, unit_velocity, cqmom_zero_source, options);
+        assert(result.ok());
+        assert(result.final_time == time_step);
+    }
 }
 
 void test_public_cqmom_stage_irrelevant_options_are_ignored()

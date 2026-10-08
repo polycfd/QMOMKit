@@ -201,6 +201,35 @@ void test_eigen_solve_roundoff_has_no_sign()
     return MomentSet(std::move(moments));
 }
 
+void test_kernel_projection_roundoff_is_consistent()
+{
+    // The two exact points of the previous test at order 5: H_2 is singular and
+    // the extension column (m_3, m_4, m_5) lies in its range. Its computed
+    // projection on the kernel, about 1e-10, is roundoff of a column of size
+    // 1e6, beyond an absolute tolerance of 1e-12 but within the roundoff
+    // allowance, and must not count as an inconsistency.
+    std::vector<double> values(6, 0.0);
+    for (const double point : {-1.0, -0.8125})
+    {
+        double power = 1.0e6;
+        for (double& value : values)
+        {
+            value += power;
+            power *= point;
+        }
+    }
+    RealizabilityOptions absolute;
+    absolute.relative_tolerance = false;
+    assert(qmomkit::check_realizability(MomentSet(values), MomentSupport::real_line, absolute).status == RealizabilityStatus::boundary);
+
+    // A column outside the range still decides: changing m_5 by one gives a
+    // kernel projection of about 0.45.
+    values[5] += 1.0;
+    const auto rejected = qmomkit::check_realizability(MomentSet(values), MomentSupport::real_line, absolute);
+    assert(rejected.status == RealizabilityStatus::not_realizable);
+    assert(rejected.failed_matrix == "H_2_next_column");
+}
+
 void test_flat_extension_within_precision_is_boundary()
 {
     // Three points at 12, 12.75 and 13 have moments that are exact in double
@@ -277,6 +306,7 @@ int main(const int argc, char** argv)
             {"even_order_hamburger_singular_kernel_consistency", test_even_order_hamburger_singular_kernel_consistency},
             {"every_eigenvalue_is_classified", test_every_eigenvalue_is_classified},
             {"eigen_solve_roundoff_has_no_sign", test_eigen_solve_roundoff_has_no_sign},
+            {"kernel_projection_roundoff_is_consistent", test_kernel_projection_roundoff_is_consistent},
             {"flat_extension_within_precision_is_boundary", test_flat_extension_within_precision_is_boundary},
             {"flat_extension_within_data_uncertainty_is_indeterminate", test_flat_extension_within_data_uncertainty_is_indeterminate},
             {"lost_information_is_indeterminate", test_lost_information_is_indeterminate},

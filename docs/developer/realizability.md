@@ -239,8 +239,9 @@ $\zeta = 1000\,\varepsilon \lVert A \rVert + \delta$:
 | ambiguous | otherwise, $\lambda < \tau$ |
 | positive | otherwise |
 
-The conditions are tested in this order. An absolute $\tau_{\mathrm{user}}$
-can be smaller than the roundoff allowance, and an eigenvalue within the
+The conditions are tested in this order. A user threshold can be smaller than
+the roundoff allowance: an absolute one once the matrix entries exceed about
+one, a relative one below $1000\,\varepsilon$. An eigenvalue within the
 roundoff of the eigen solve has no sign, so the zero band comes first.
 
 A matrix with a negative eigenvalue is not positive semidefinite; otherwise
@@ -256,7 +257,9 @@ bounds in the standardized coordinate.
 
 The same partition defines the numerical rank and the kernel used by the
 singular-matrix tests. A kernel projection of the next column is compared
-against a threshold that includes the uncertainty of the column and the
+against a threshold that is, in absolute mode, at least the roundoff allowance
+$1000\,\varepsilon$ times the largest entry of the column, and that includes
+the uncertainty of the column and the
 rotation of the kernel vectors, which by the Davis-Kahan theorem is at most
 $\delta$ over the gap between the zero and the positive eigenvalues, bounded
 below by the smallest positive eigenvalue minus $\zeta$.

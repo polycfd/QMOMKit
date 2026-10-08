@@ -1993,8 +1993,9 @@ void test_huge_declared_extents_are_reported_as_incomplete()
         const auto prepared_case = qmomkit::config::parse_cqmom_prepared(text);
         assert(!open_case.ok());
         assert(!prepared_case.ok());
-        assert(has_message_fragment(open_case, "The full tensor of raw moments is incomplete; it is missing " + missing + " entries."));
-        assert(has_message_fragment(prepared_case, "is incomplete"));
+        const std::string message = "The full tensor of raw moments is incomplete; it is missing " + missing + " entries.";
+        assert(has_message_fragment(open_case, message));
+        assert(has_message_fragment(prepared_case, message));
     }
 }
 
@@ -2016,11 +2017,15 @@ void test_declared_rank_bounds_coordinate_realizability_indices()
         assert(has_message_fragment(policies, "coordinate index " + index + " is outside the configured phase-space rank 2"));
     }
 
-    const auto within_rank =
-        qmomkit::config::parse_cqmom_phase_space_evolution_options("[phase_space]\nnode_counts = 2, 2\n[time_integration.realizability.1" + policy);
+    const std::string within_rank_text = "[phase_space]\nnode_counts = 2, 2\n[time_integration.realizability.1" + policy;
+    const auto within_rank = qmomkit::config::parse_cqmom_phase_space_evolution_options(within_rank_text);
+    const auto within_rank_policies = qmomkit::config::parse_coordinate_realizability_policies(within_rank_text);
     assert(within_rank.ok());
+    assert(within_rank_policies.ok());
     assert(within_rank.value().source_options.coordinate_realizability_policies.size() == 2);
     assert(within_rank.value().source_options.coordinate_realizability_policies[1].has_value());
+    assert(within_rank_policies.value().size() == 2);
+    assert(within_rank_policies.value()[1].has_value());
 }
 
 void test_adaptive_cqmom_reduces_conditional_and_marginal_branches()

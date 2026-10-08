@@ -838,8 +838,8 @@ void test_rk23_rejects_min_step_exceeding_max_step()
 
         // An auto-derived max_step is the interval itself. An interval shorter
         // than an explicit min_step is not a contradiction but a short stage,
-        // as a host retrying with a smaller step produces: it is taken in one
-        // step at the minimum.
+        // as a host retrying with a smaller step produces: it is taken as one
+        // step.
         qmomkit::AdaptiveRkOptions auto_max_step_options;
         auto_max_step_options.min_step = 5.0;
         const qmomkit::AdaptiveRkResult auto_max_step_result =

@@ -764,6 +764,35 @@ void test_embedded_rk_advances_over_the_exact_step()
     }
 }
 
+void test_embedded_rk_resolves_a_stiff_velocity_far_from_the_origin()
+{
+    // A step far shorter than the spacing of the double at t still gets its
+    // error controlled: the step floor follows the local time, so the decay
+    // dx/dt = -k x over k dt = 10 is resolved rather than taken as one step.
+    constexpr double rate = 1.0e10;
+    constexpr double t = 1.0e6;
+    constexpr double dt = 1.0e-9;
+    const qmomkit::PhaseSpaceVelocity decay = [](const double, const std::vector<double>& abscissas, std::vector<double>& velocities, std::size_t)
+    {
+        for (std::size_t node = 0; node < abscissas.size(); ++node)
+        {
+            velocities[node] = -rate * abscissas[node];
+        }
+    };
+    for (const qmomkit::NodeAdvectionScheme scheme : {qmomkit::NodeAdvectionScheme::rk23, qmomkit::NodeAdvectionScheme::rk45})
+    {
+        qmomkit::NodeAdvectionOptions options;
+        options.scheme = scheme;
+        const qmomkit::QmomNodeAdvectionResult result = qmomkit::advance_nodes(qmomkit::Quadrature1D{{1.0}, {1.0}}, t, dt, decay, options);
+        assert(result.ok());
+        assert(result.diagnostics.step_count > 1);
+        // The default tolerances, 1e-6 relative to the initial abscissa 1, bound
+        // the global error far below this; one uncontrolled step is off by
+        // more than 100.
+        assert_near(result.quadrature.abscissas[0], std::exp(-rate * dt), 1.0e-6);
+    }
+}
+
 void test_configured_adaptive_options_reach_node_advection()
 {
     const auto configured = qmomkit::config::parse_node_advection_options(R"(
@@ -859,6 +888,7 @@ int main(const int argc, char** argv)
              test_throwing_velocity_reports_its_evaluations_without_an_adaptive_status},
             {"configured_adaptive_options_reach_node_advection", test_configured_adaptive_options_reach_node_advection},
             {"embedded_rk_advances_over_the_exact_step", test_embedded_rk_advances_over_the_exact_step},
+            {"embedded_rk_resolves_a_stiff_velocity_far_from_the_origin", test_embedded_rk_resolves_a_stiff_velocity_far_from_the_origin},
             {"node_advection_options_formatting_reports_semantic_settings", test_node_advection_options_formatting_reports_semantic_settings},
         });
 }

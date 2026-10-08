@@ -529,9 +529,10 @@ The embedded Runge-Kutta schemes advances generic vector states from `t0` to
 quadrature node coordinates, and the RHS is built from `PhaseSpaceVelocity`.
 Node advection integrates over the local time $\tau \in [0, \Delta t]$ and
 evaluates the velocity at $t + \tau$, so the nodes move over $\Delta t$
-itself rather than over the rounded interval $(t + \Delta t) - t$; the
-automatic minimum step still follows the spacing of the double at
-$t + \tau$.
+itself rather than over the rounded interval $(t + \Delta t) - t$. The
+automatic minimum step follows the spacing of the double at $\tau$, so the
+error control still resolves a stiff velocity in a step far shorter than the
+spacing at $t$.
 
 The public API selects the built-in pair explicitly:
 
@@ -592,8 +593,9 @@ shorter step can round to no step at all. An explicit `min_step` must not
 exceed an explicit `max_step`; otherwise the request is rejected as
 `AdaptiveRkStatus::invalid_input` before integration begins. An interval
 shorter than `min_step`, as a host retrying with a smaller outer step produces,
-is taken in one step at the minimum. `max_steps` limits accepted steps, not rejected trial steps, and
-remains an optional configuration override with an internal default. The actual
+is taken as one step, accepted whatever its error estimate. `max_steps` limits
+accepted steps, not rejected trial steps, and remains an optional configuration
+override with an internal default. The actual
 embedded-RK step is bounded by `min_step` and `max_step`, then clipped so
 integration lands exactly on `t_bound`; the final remainder may therefore be
 smaller than `min_step`. When the error controller would require a step below

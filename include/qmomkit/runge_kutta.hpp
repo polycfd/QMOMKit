@@ -142,7 +142,8 @@ inline constexpr double default_adaptive_initial_step = 1.0e-6;
  * current time; an explicit `min_step` below that is raised to it. An explicit
  * `min_step` must not exceed an explicit `max_step`, or the request is rejected
  * as invalid input. An interval shorter than `min_step`, as a host retrying
- * with a smaller outer step produces, is taken in one step at the minimum.
+ * with a smaller outer step produces, is taken as one step, accepted whatever
+ * its error estimate.
  *
  * When the error controller would require a step below the effective minimum,
  * a finite step at that minimum is accepted rather than failing. The step floor

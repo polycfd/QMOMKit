@@ -552,9 +552,9 @@ unless your driver wires these options into writers.
 
 `qmomkit::MomentWriter` and `qmomkit::QuadratureWriter` write text tables with
 a commented header line and whitespace-separated columns. Numbers use a decimal
-point whatever locale the application uses. Each `write(...)` call stores its
-rows before it returns and throws `std::runtime_error` if they cannot be
-stored, for example on a full disk. QMOMKit-native example output uses `.txt`
+point whatever locale the application uses. Each `write(...)` call hands its
+rows to the operating system before it returns and throws `std::runtime_error`
+if they cannot be written, for example on a full disk. QMOMKit-native example output uses `.txt`
 filenames. Use CSV only for custom application data
 that is not written through the QMOMKit output helpers.
 

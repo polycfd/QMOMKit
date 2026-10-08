@@ -942,9 +942,12 @@ Supported values are:
 | `moore_penrose` | Uses a truncated SVD Moore-Penrose pseudoinverse. |
 | `bjorck_pereyra` | Uses Björck-Pereyra. |
 
-If omitted, `automatic` is used. The `pivoted_qr`, `svd`, and `moore_penrose`
-policies solve the weighted conditional Vandermonde system directly and are
-selected only when requested explicitly:
+If omitted, `automatic` is used. Every policy separates the quadrature
+weights and the magnitude of the parent coordinate from the conditional
+Vandermonde system before solving it, so its singularity and rank decisions
+depend on neither the number density nor the unit of the coordinate. The
+`pivoted_qr`, `svd`, and `moore_penrose` policies are selected only when
+requested explicitly:
 
 ```ini
 [vandermonde]
@@ -953,8 +956,9 @@ solver = svd
 
 `vandermonde.rcond` controls the explicit `moore_penrose` policy. It defaults
 to `1.0e-14` and must be finite with `0 <= rcond < 1`, regardless of the
-selected solver. The pseudoinverse retains precisely the singular directions
-with `sigma > rcond * sigma_max`; discarded directions contribute zero. Its
+selected solver. The pseudoinverse of that separated system retains precisely
+the singular directions with `sigma > rcond * sigma_max`; discarded directions
+contribute zero. Its
 value is ignored by every other solver. For example:
 
 ```ini
@@ -965,7 +969,9 @@ rcond = 0.25
 
 Rank-deficient systems and SVD nonconvergence remain failures for the regular
 `svd` policy. `moore_penrose` accepts a converged rank-deficient SVD and returns
-the finite truncated minimum-norm solution. SVD rank and Jacobi tolerances are
+the finite truncated solution that has minimum norm in the separated system,
+before division by the weights. Zero or relatively negligible weights are
+rejected by every policy. SVD rank and Jacobi tolerances are
 internal defaults. Loaded CQMOM cases and states expose the configured policy
 through `vandermonde_solver()` and `rcond` through `conditional_options()`.
 

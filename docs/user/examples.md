@@ -178,9 +178,7 @@ Example README:
 
 ## Stage 6: CQMOM numerical controls
 
-Prerequisite: understand the hierarchy and evolution workflow in Stage 5. These
-examples demonstrate different numerical capabilities and are not
-interchangeable.
+Prerequisite: understand the hierarchy and evolution workflow in Stage 5.
 
 ### `cqmom_2d_adaptive_node_counts`
 
@@ -191,16 +189,6 @@ moment information.
 
 Example README:
 [`examples/cqmom_2d_adaptive_node_counts/README.md`](../../examples/cqmom_2d_adaptive_node_counts/README.md)
-
-### `cqmom_2d_borderline_conditioning`
-
-Use this static diagnostic study when reconstruction becomes nearly degenerate.
-It separates conditioning-order effects, solver/Vandermonde policy behavior,
-failed-stage interpretation, and successful lower-node adaptive reconstruction.
-It is not a phase-space physical application.
-
-Example README:
-[`examples/cqmom_2d_borderline_conditioning/README.md`](../../examples/cqmom_2d_borderline_conditioning/README.md)
 
 ## Stage 7: CQMOM sampled physical workflows
 

@@ -759,10 +759,11 @@ and evidence](conditional_systems.md)
 | `qr_linear_solve_result` | [68](../../../src/internal/vandermonde.cpp#L68) |
 | `svd_linear_solve_result` | [85](../../../src/internal/vandermonde.cpp#L85) |
 | `residual_is_accepted` | [102](../../../src/internal/vandermonde.cpp#L102) |
-| `weighted_vandermonde_input_failure` | [116](../../../src/internal/vandermonde.cpp#L116) |
-| `solve_scaled_dense_vandermonde` | [161](../../../src/internal/vandermonde.cpp#L161) |
-| `make_conditional_vandermonde_matrix` | [216](../../../src/internal/vandermonde.cpp#L216) |
-| `solve_conditional_vandermonde_system` | [230](../../../src/internal/vandermonde.cpp#L230) |
+| `weighted_vandermonde_input_failure` | [117](../../../src/internal/vandermonde.cpp#L117) |
+| `make_scaled_vandermonde_system` | [168](../../../src/internal/vandermonde.cpp#L168) |
+| `divide_by_weights` | [204](../../../src/internal/vandermonde.cpp#L204) |
+| `make_conditional_vandermonde_matrix` | [226](../../../src/internal/vandermonde.cpp#L226) |
+| `solve_conditional_vandermonde_system` | [240](../../../src/internal/vandermonde.cpp#L240) |
 
 ### `src/moment_reconstruction.cpp`
 

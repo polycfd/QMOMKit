@@ -1451,21 +1451,25 @@ void test_recursive_moore_penrose_rcond_changes_conditional_reconstruction()
     const qmomkit::internal::RecursiveQuadratureResult low = qmomkit::internal::compute_recursive_quadrature_from_moment_data(low_request);
     const qmomkit::internal::RecursiveQuadratureResult high = qmomkit::internal::compute_recursive_quadrature_from_moment_data(high_request);
 
-    // The root conditional system is [[1, 1], [0, 1]]. Its singular-value
-    // ratio is (3 - sqrt(5)) / 2, so rcond = 0.1 retains both directions and
-    // rcond = 0.5 retains only the larger direction.
-    const double square_root_five = std::sqrt(5.0);
-    const double golden_ratio = (1.0 + square_root_five) / 2.0;
-    const double retained_weight = (1.0 + golden_ratio) / (1.0 + golden_ratio * golden_ratio);
+    // The root conditional system is solved with the parent nodes divided by
+    // s = 2, so the truncated system is V = [[1, 1], [0, 1/2]] with
+    // right-hand side [[2, 2], [1/2, 1]]. Its singular-value ratio is
+    // (9 - sqrt(65)) / 4, so rcond = 0.1 retains both directions and
+    // rcond = 0.5 retains only the larger direction. That direction is (1, t)
+    // with t = (1 + sqrt(65)) / 8 and squared singular value 1 + t; projecting
+    // V^T times the right-hand side onto it gives the retained solution.
+    const double t = (1.0 + std::sqrt(65.0)) / 8.0;
+    const double retained_weight = (2.0 + 2.25 * t) / ((1.0 + t) * (1.0 + t * t));
+    const double retained_abscissa = (2.0 + 2.5 * t) / (2.0 + 2.25 * t);
 
     assert(low.ok());
     assert(high.ok());
     assert_near(low.quadrature.weight({0, 0}), 1.0, 1.0e-12);
     assert_near(low.quadrature.weight({1, 0}), 1.0, 1.0e-12);
     assert_near(high.quadrature.weight({0, 0}), retained_weight, 1.0e-12);
-    assert_near(high.quadrature.weight({1, 0}), golden_ratio * retained_weight, 1.0e-12);
-    assert_near(high.quadrature.abscissa(1, {0, 0}), square_root_five - 1.0, 1.0e-12);
-    assert_near(high.quadrature.abscissa(1, {1, 0}), square_root_five - 1.0, 1.0e-12);
+    assert_near(high.quadrature.weight({1, 0}), t * retained_weight, 1.0e-12);
+    assert_near(high.quadrature.abscissa(1, {0, 0}), retained_abscissa, 1.0e-12);
+    assert_near(high.quadrature.abscissa(1, {1, 0}), retained_abscissa, 1.0e-12);
 
     assert(!low.diagnostics.empty());
     assert(!high.diagnostics.empty());

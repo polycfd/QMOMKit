@@ -18,7 +18,8 @@ reconstruction is a separate entry point described below.
 declared in [`vandermonde.hpp`](../../../src/internal/vandermonde.hpp).
 Recursive `reconstruct_child_slices` calls the adapter. Matrix construction
 loops over parent powers and nodes to form `w*x^p`, with no coordinate
-normalization here.
+normalization here; the adapter's solver paths do not use this matrix, and
+detailed recursive diagnostics use it for residuals and condition estimates.
 
 `resolve_solver` retains explicit dense/QR/SVD/Moore-Penrose/BP requests.
 `select_automatic_solver` unconditionally returns BP; dimensions and RHS count
@@ -27,23 +28,28 @@ falls through to dense; the configuration parser rejects unknown textual
 values. Returned requested solver, selected solver, and algorithm identify
 different stages of that decision.
 
-- **Dense:** apply the same input and weight checks as BP below. Factor
-  `A = S*V*D` with `D = diag(w)`, `S = diag(s^p)` and `V` the unweighted
-  Vandermonde matrix of `x/s`, where `s` is the power of two above the largest
-  `abs(x)`; solve `V*Y = S^-1*R` with `solve_dense` and `singular_tolerance`,
-  then take `C = D^-1*Y`. Both scalings are exact, and the first row of `V` is
-  all ones, so the singularity decision depends on neither the number density
-  nor the unit. The adapter does not apply residual acceptance.
-- **Pivoted QR / SVD:** check dimensions, build `A`, solve using each kernel's
-  default rank controls. `singular_tolerance` is not passed as their rank
-  tolerance. Rank deficiency maps to failure, not a lower-rank conditional rule.
-  Optional `validate_residual` tests the computed result; recursive callers set
-  this false regardless of diagnostic level.
-- **Moore-Penrose:** check dimensions, build `A`, factor it with the Jacobi
-  SVD, then retain precisely `sigma > rcond * sigma_max`. A converged
-  rank-deficient factorization is accepted; discarded singular directions are
-  zeroed. Invalid `rcond` and SVD nonconvergence fail. Optional residual
-  validation applies as for QR and SVD.
+- **Dense, pivoted QR, SVD and Moore-Penrose** share
+  `weighted_vandermonde_input_failure` (the input and weight checks of BP
+  below) and `make_scaled_vandermonde_system`, which factors `A = S*V*D` with
+  `D = diag(w)`, `S = diag(s^p)` and `V` the unweighted Vandermonde matrix of
+  `x/s`, where `s` is the power of two above the largest `abs(x)`. The kernel
+  solves `V*Y = S^-1*R`, and `divide_by_weights` takes `C = D^-1*Y`, failing
+  if the division overflows. Both scalings are exact, and the first row of `V`
+  is all ones, so the singularity, rank and truncation decisions depend on
+  neither the number density nor the unit. Optional `validate_residual` tests
+  `Y` against the scaled system before the division; recursive callers set it
+  false regardless of diagnostic level.
+- **Dense:** `solve_dense` with `singular_tolerance`. The adapter does not
+  apply residual acceptance.
+- **Pivoted QR / SVD:** each kernel's default rank controls.
+  `singular_tolerance` is not passed as their rank tolerance. Rank deficiency
+  maps to failure, not a lower-rank conditional rule.
+- **Moore-Penrose:** factor the scaled system with the Jacobi SVD, then retain
+  precisely `sigma > rcond * sigma_max`. A converged rank-deficient
+  factorization is accepted; discarded singular directions are zeroed, so the
+  solution is minimum-norm in `Y`, not in `C`. Zero or relatively negligible
+  weights fail the shared weight check rather than being truncated. Invalid
+  `rcond` and SVD nonconvergence fail.
 - **BP:** reject empty/mismatched/non-finite inputs or nonpositive tolerance.
   Require every `abs(w)>singular_tolerance*max(abs(w))`. Solve the
   unweighted transposed system `V^T*Y=R`, then divide every solution row by its
@@ -58,7 +64,8 @@ selected solver. Success does not by itself establish favorable conditioning or
 a requested accuracy.
 
 `residual_is_accepted` requires finite Frobenius residual and compares it to
-`residual_tolerance*max(1,||A||inf*||C||inf,||R||inf)`. This is an implemented
+`residual_tolerance*max(||V||inf*||Y||inf,||S^-1*R||inf)` of the scaled system,
+with no absolute floor. This is an implemented
 mixed-norm acceptance measure, not a forward-error bound. The BP path does not
 apply this optional flag. Detailed recursive diagnostics separately compute
 residual and condition information without turning warnings into rejection.

@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -499,6 +500,12 @@ void test_wrapper_moore_penrose_solves_rank_deficient_system_with_minimum_norm_s
 
 void test_wrapper_moore_penrose_rcond_truncates_full_rank_system()
 {
+    // The solver works on the scaled unweighted system: s = 2 gives
+    // V = [[1, 1], [0, 0.5]], whose singular values are the square roots of the
+    // eigenvalues l of V^T V = [[1, 1], [1, 1.25]] and have the ratio 0.2344.
+    // rcond = 0.1 keeps both and reproduces the exact solution; rcond = 0.5
+    // keeps only the larger, and the right-hand side (1, 0) then gives
+    // Y = u / |u|^2 with u = (1, l_max - 1), which the unit weights leave as C.
     const std::vector<double> abscissas{0.0, 1.0};
     const std::vector<double> weights{1.0, 1.0};
     const qmomkit::internal::DenseMatrix rhs = make_solution({{1.0}, {0.0}});
@@ -512,7 +519,7 @@ void test_wrapper_moore_penrose_rcond_truncates_full_rank_system()
     assert(low.success);
     assert(high.success);
     assert_matrix_near(low.solution, make_solution({{1.0}, {0.0}}), 1.0e-12);
-    assert_matrix_near(high.solution, make_solution({{0.276393202250021}, {0.447213595499958}}), 1.0e-12);
+    assert_matrix_near(high.solution, make_solution({{0.4379826327053958}, {0.4961389383568338}}), 1.0e-12);
 }
 
 void test_wrapper_automatic_selects_plain_bp_for_small_wide_system()
@@ -578,6 +585,23 @@ void assert_singular_failure(const std::vector<double>& abscissas, const std::ve
         qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
     assert(!structured.success);
     assert(structured.message == expected_message);
+}
+
+// Every solver applies the same weight check before solving, so a negligible
+// weight fails even for Moore-Penrose, which would otherwise truncate it.
+void assert_weight_failure_for_every_solver(const std::vector<double>& abscissas, const std::vector<double>& weights)
+{
+    const qmomkit::internal::DenseMatrix rhs = make_solution({{1.0}, {2.0}});
+    for (const qmomkit::VandermondeSolver solver :
+         {qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::VandermondeSolver::pivoted_qr,
+          qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::moore_penrose})
+    {
+        const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance, false, 1.0e-10};
+        const qmomkit::internal::VandermondeSolveResult result =
+            qmomkit::internal::solve_conditional_vandermonde_system(abscissas, weights, rhs, options, singular_message);
+        assert(!result.success);
+        assert(result.message == singular_message);
+    }
 }
 
 struct InvalidPolicyExpectation
@@ -649,12 +673,12 @@ void test_nonuniform_weights()
 
 void test_small_weight_failure()
 {
-    assert_singular_failure({-1.0, 2.0}, {1.0, 1.0e-16}, make_solution({{1.0}, {2.0}}), singular_message);
+    assert_weight_failure_for_every_solver({-1.0, 2.0}, {1.0, 1.0e-16});
 }
 
 void test_zero_weight_failure()
 {
-    assert_singular_failure({-1.0, 2.0}, {1.0, 0.0}, make_solution({{1.0}, {2.0}}), singular_message);
+    assert_weight_failure_for_every_solver({-1.0, 2.0}, {1.0, 0.0});
 }
 
 void test_weight_singularity_is_relative_to_largest_weight()
@@ -671,7 +695,7 @@ void test_weight_singularity_is_relative_to_largest_weight()
     assert(result.success);
     assert_matrix_near(result.solution, expected_solution, 1.0e-14);
 
-    assert_singular_failure(abscissas, {1.0e-20, 1.0e-36}, make_solution({{1.0}, {2.0}}), singular_message);
+    assert_weight_failure_for_every_solver(abscissas, {1.0e-20, 1.0e-36});
 }
 
 void assert_pivoted_qr_failure(const std::vector<double>& abscissas, const std::vector<double>& weights, const qmomkit::internal::DenseMatrix& rhs,
@@ -795,16 +819,15 @@ void test_invalid_inputs_fail()
 
 void test_invalid_inputs_preserve_policy_diagnostics_and_counters()
 {
-    // The dense path applies the same input checks as Bjorck-Pereyra before
-    // any elimination.
+    // Every solver path applies the same input checks before any factorization.
     assert_invalid_policy_behavior({qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::dense,
                                     qmomkit::internal::VandermondeAlgorithm::dense, false, "Weighted Vandermonde inputs must be finite.", 1, 0, 0, 0,
                                     0, 0});
     assert_invalid_policy_behavior({qmomkit::VandermondeSolver::pivoted_qr, qmomkit::VandermondeSolver::pivoted_qr,
-                                    qmomkit::internal::VandermondeAlgorithm::pivoted_qr, false, "QR factorization matrix entries must be finite.", 1,
-                                    0, 1, 0, 0, 0});
+                                    qmomkit::internal::VandermondeAlgorithm::pivoted_qr, false, "Weighted Vandermonde inputs must be finite.", 1, 0,
+                                    1, 0, 0, 0});
     assert_invalid_policy_behavior({qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::svd, qmomkit::internal::VandermondeAlgorithm::svd,
-                                    false, "SVD factorization matrix entries must be finite.", 1, 0, 0, 1, 0, 0});
+                                    false, "Weighted Vandermonde inputs must be finite.", 1, 0, 0, 1, 0, 0});
     assert_invalid_policy_behavior({qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::VandermondeSolver::bjorck_pereyra,
                                     qmomkit::internal::VandermondeAlgorithm::bjorck_pereyra, false, "Weighted Vandermonde inputs must be finite.", 1,
                                     1, 0, 0, 0, 0});
@@ -824,11 +847,11 @@ void test_dense_success_requires_finite_solution()
     assert(!result.success || std::isfinite(result.solution(0, 0)));
 }
 
-void test_dense_and_bp_do_not_depend_on_number_density_or_unit()
+void test_solvers_do_not_depend_on_number_density_or_unit()
 {
     // One well-conditioned weighted system, rescaled: the nodes by a coordinate
     // scale and the weights by a number density. The exact solution does not
-    // change, so both solvers must solve every rescaled system and recover it.
+    // change, so every solver must solve every rescaled system and recover it.
     const std::vector<double> unit_nodes{0.2, 0.5, 0.9};
     const std::vector<double> unit_weights{0.3, 0.5, 0.2};
     const qmomkit::internal::DenseMatrix solution = make_solution({{1.0, 2.0}, {3.0, -1.0}, {0.5, 4.0}});
@@ -846,9 +869,13 @@ void test_dense_and_bp_do_not_depend_on_number_density_or_unit()
             {
                 weight *= number_density;
             }
-            for (const qmomkit::VandermondeSolver solver : {qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::bjorck_pereyra})
+            for (const qmomkit::VandermondeSolver solver :
+                 {qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::bjorck_pereyra, qmomkit::VandermondeSolver::pivoted_qr,
+                  qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::moore_penrose})
             {
-                const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance, false, 1.0e-10};
+                // Residual acceptance is enabled where a solver supports it, so
+                // the residual test is exercised under the same rescaling.
+                const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance, true, 1.0e-10};
                 const qmomkit::internal::VandermondeSolveResult result = qmomkit::internal::solve_conditional_vandermonde_system(
                     nodes, weights, make_rhs(nodes, weights, solution), options, singular_message);
                 assert(result.success);
@@ -862,9 +889,12 @@ void test_node_separation_is_relative_to_node_magnitude()
 {
     // Distinct nodes of magnitude 1e-20 form a regular system; nodes that agree
     // to fifteen digits do not. Neither decision may depend on the unit.
+    // Moore-Penrose is left out: it answers a rank-deficient system with the
+    // minimum-norm solution rather than a failure.
     const std::vector<double> weights{0.5, 0.5};
     const qmomkit::internal::DenseMatrix solution = make_solution({{1.0}, {2.0}});
-    for (const qmomkit::VandermondeSolver solver : {qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::bjorck_pereyra})
+    for (const qmomkit::VandermondeSolver solver : {qmomkit::VandermondeSolver::dense, qmomkit::VandermondeSolver::bjorck_pereyra,
+                                                    qmomkit::VandermondeSolver::pivoted_qr, qmomkit::VandermondeSolver::svd})
     {
         const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance, false, 1.0e-10};
         const std::vector<double> distinct{1.0e-20, 2.0e-20};
@@ -878,6 +908,40 @@ void test_node_separation_is_relative_to_node_magnitude()
             coincident, weights, make_rhs(coincident, weights, solution), options, singular_message);
         assert(!singular.success);
         assert(singular.message == singular_message);
+    }
+}
+
+void test_residual_acceptance_does_not_depend_on_number_density()
+{
+    // Scaling the weights by a power of two scales the solution, the residual
+    // and its bound exactly, so the residual decision must not change: a
+    // tolerance above roundoff accepts and one far below it rejects at every
+    // number density.
+    const std::vector<double> abscissas{-0.75, -0.1, 0.4, 0.9};
+    const std::vector<double> unit_weights{0.25, 0.5, -0.75, 1.25};
+    const qmomkit::internal::DenseMatrix solution = make_patterned_solution(4, 8);
+    for (const double number_density : {1.0, std::ldexp(1.0, -70)})
+    {
+        std::vector<double> weights = unit_weights;
+        for (double& weight : weights)
+        {
+            weight *= number_density;
+        }
+        for (const qmomkit::VandermondeSolver solver :
+             {qmomkit::VandermondeSolver::pivoted_qr, qmomkit::VandermondeSolver::svd, qmomkit::VandermondeSolver::moore_penrose})
+        {
+            for (const auto& [residual_tolerance, accepted] : {std::pair{1.0e-10, true}, std::pair{1.0e-25, false}})
+            {
+                const qmomkit::internal::VandermondeSolveOptions options{solver, singular_tolerance, true, residual_tolerance};
+                const qmomkit::internal::VandermondeSolveResult result = qmomkit::internal::solve_conditional_vandermonde_system(
+                    abscissas, weights, make_rhs(abscissas, weights, solution), options, singular_message);
+                assert(result.success == accepted);
+                if (!accepted)
+                {
+                    assert(result.message == singular_message);
+                }
+            }
+        }
     }
 }
 
@@ -954,8 +1018,9 @@ int main(const int argc, char** argv)
             {"invalid_inputs_fail", test_invalid_inputs_fail},
             {"invalid_inputs_preserve_policy_diagnostics_and_counters", test_invalid_inputs_preserve_policy_diagnostics_and_counters},
             {"dense_success_requires_finite_solution", test_dense_success_requires_finite_solution},
-            {"dense_and_bp_do_not_depend_on_number_density_or_unit", test_dense_and_bp_do_not_depend_on_number_density_or_unit},
+            {"solvers_do_not_depend_on_number_density_or_unit", test_solvers_do_not_depend_on_number_density_or_unit},
             {"node_separation_is_relative_to_node_magnitude", test_node_separation_is_relative_to_node_magnitude},
+            {"residual_acceptance_does_not_depend_on_number_density", test_residual_acceptance_does_not_depend_on_number_density},
             {"dense_elimination_does_not_depend_on_matrix_scale", test_dense_elimination_does_not_depend_on_matrix_scale},
         });
 }

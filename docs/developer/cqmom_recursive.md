@@ -287,18 +287,23 @@ $$V[i, p] = x_i^p$$
 then the conditional matrix is:
 $$A = V^T \mathrm{diag}(w)$$
 
-The dense, pivoted-QR, SVD, and Moore-Penrose pathways build `A` and solve
-`A*C = M`
-directly. The Björck-Pereyra pathway is split into two internal layers: a
-structure-specific kernel solves the unweighted transposed Vandermonde system
+No pathway solves `A*C = M` with the weighted matrix as given. The
+Björck-Pereyra pathway is split into two internal layers: a structure-specific
+kernel solves the unweighted transposed Vandermonde system
 $$V^T Y = M$$
 
 and the conditional Vandermonde adapter recovers the conditional moments by
 dividing each solution row by the corresponding parent weight:
 $$C[i, q] = Y[i, q] / w_i$$
 
-The adapter owns the conditional-system validation, weight transformation,
-solver selection, QR/SVD/Moore-Penrose residual acceptance, and diagnostics.
+The dense, pivoted-QR, SVD, and Moore-Penrose pathways do the same with the
+nodes divided by the power of two above the largest |node| and the moment rows
+scaled to match, so that their singularity, rank, and truncation decisions
+depend on neither the number density nor the unit of the parent coordinate.
+
+The adapter owns the conditional-system validation, weight and scale
+separation, solver selection, QR/SVD/Moore-Penrose residual acceptance, and
+diagnostics.
 The Björck-Pereyra kernel owns only the internal unweighted transposed
 Vandermonde solve and its node-separation checks. Numerical kernel details,
 tolerance definitions, and the complete solver-selection table are documented
@@ -307,11 +312,11 @@ in [linear_algebra.md](linear_algebra.md).
 QMOMKit calls the numerical policy that solves this conditional system the
 Vandermonde solver. The user-facing solver choices are:
 
-- Dense solver: a generic dense linear solve of the weighted system.
-- Pivoted-QR solver: an explicit direct solve of the weighted system.
-- SVD solver: an explicit direct solve of the weighted system.
+- Dense solver: a generic dense linear solve of the scaled system.
+- Pivoted-QR solver: an explicit direct solve of the scaled system.
+- SVD solver: an explicit direct solve of the scaled system.
 - Moore-Penrose solver: an explicitly requested truncated SVD minimum-norm
-  solve with `sigma > rcond * sigma_max` retained.
+  solve of the scaled system with `sigma > rcond * sigma_max` retained.
 - Björck-Pereyra Vandermonde solver: the unweighted BP transform plus
   adapter-owned weight recovery.
 - Automatic solver: the default; it resolves to Björck-Pereyra.
@@ -429,39 +434,6 @@ This policy is useful for deterministic or nearly degenerate conditional
 relations, near-boundary moment sequences, and high-dimensional cases where
 some branches are effectively lower order than the configured maximum
 hierarchy.
-
-### Borderline conditioning example
-
-The
-[`cqmom_2d_borderline_conditioning`](../../examples/cqmom_2d_borderline_conditioning/README.md)
-example demonstrates that changing conditioning order can relocate rather than
-remove a weak inversion. Its fixed-count rows expose whether the weak branch
-appears as a conditional-moment failure or later as a Wheeler/QMOM failure. Its
-adaptive reference rows demonstrate that adaptive Wheeler reduction occurs
-before the conditional Vandermonde solve and is separate from QR or SVD solver
-selection.
-
-The compact `output/report.md` makes the outcomes easy to compare:
-weak parent conditional systems, later Wheeler failures, and successful
-lower-node reconstructions. The complete
-`output/diagnostics.txt` file remains available when residuals,
-condition-estimate values, moment errors, or individual solver rows require
-closer inspection.
-
-The four direct solver columns show whether a failure depends on the linear
-solver. A common Dense/BP/QR/SVD failure means that the represented two-node
-system has lost numerical independence; changing solver backends cannot
-recover missing information.
-
-The report distinguishes the relative singular value (independence), the
-2-norm condition number (sensitivity), moment error (reconstruction accuracy),
-and residual (linear-system consistency). These metrics should not be
-interpreted as interchangeable.
-
-When interpreting the example, read the reported failure location together with
-requested and active node counts, solver details, residuals, and condition
-estimates. For the related linear-algebra workflow and limitations, see related
-[internal linear algebra](linear_algebra.md#borderline-conditioning-example).
 
 ## Numerical assumptions and failure handling
 

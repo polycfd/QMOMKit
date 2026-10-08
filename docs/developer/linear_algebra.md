@@ -74,11 +74,11 @@ make_conditional_vandermonde_matrix(...)
 solve_conditional_vandermonde_system(...)
 ```
 
-The adapter constructs the weighted matrix, resolves the selected
-`VandermondeSolver` policy, dispatches to the numerical kernels, performs
-Björck-Pereyra (BP) weight recovery, validates QR, SVD, and Moore-Penrose
-residuals when requested, records performance counters, and returns solver
-diagnostics.
+The adapter checks the inputs, resolves the selected `VandermondeSolver`
+policy, separates the weights and the node scale from the system, dispatches to
+the numerical kernels, recovers the conditional moments by dividing by the
+weights, validates QR, SVD, and Moore-Penrose residuals when requested, records
+performance counters, and returns solver diagnostics.
 
 ### CQMOM integration
 
@@ -258,13 +258,10 @@ returns the caller-provided singular message and no accepted solution.
 ### Current QMOMKit role
 
 The dense solver is used by the explicit `dense` Vandermonde policy and by the
-condition estimate of detailed CQMOM diagnostics. The `dense` policy does not
-solve the weighted matrix as given: like Björck–Pereyra, it checks the weights
-relative to the largest weight and solves the unweighted Vandermonde system of
-the nodes divided by a power of two above the largest |node|, then divides by
-the weights. Its singularity decision therefore depends on neither the number
-density nor the unit of the coordinate. The condition estimate inverts the
-weighted matrix itself.
+condition estimate of detailed CQMOM diagnostics. The `dense` policy solves the
+scaled system described in [Weight and scale separation](#weight-and-scale-separation),
+not the weighted matrix as given. The condition estimate inverts the weighted
+matrix itself.
 
 ### Limitations and non-goals
 
@@ -278,7 +275,7 @@ API.
 
 `factorize_qr(...)` and `solve_qr(...)` provide a generic square/tall dense
 solver with numerical-rank detection. In the conditional Vandermonde adapter,
-QR is an explicit direct backend for the complete weighted system.
+QR is an explicit direct backend for the scaled conditional system.
 
 ### Mathematical problem
 
@@ -330,7 +327,9 @@ configurable through `.qmom` files.
 ### Current QMOMKit role
 
 QR is available to CQMOM through the explicit `pivoted_qr` policy. It solves
-the complete weighted conditional matrix directly.
+the scaled system described in [Weight and scale separation](#weight-and-scale-separation),
+so its rank decision depends on neither the number density nor the unit of the
+coordinate.
 
 ### Limitations and non-goals
 
@@ -344,8 +343,8 @@ solutions.
 
 `factorize_svd(...)` and `solve_svd(...)` provide a generic square/tall dense
 solver with singular-value and numerical-rank diagnostics. In the conditional
-Vandermonde adapter, SVD is an explicit direct backend for the complete
-weighted system.
+Vandermonde adapter, SVD is an explicit direct backend for the scaled
+conditional system.
 
 ### Mathematical problem
 
@@ -418,9 +417,13 @@ controls are internal defaults and are not configurable through `.qmom` files.
 ### Current QMOMKit role
 
 SVD is available to CQMOM through the explicit `svd` policy. It solves the
-complete weighted conditional matrix directly. The separately explicit
-`moore_penrose` policy reuses the Jacobi factorization and applies the
-configured `vandermonde.rcond` cutoff.
+scaled system described in [Weight and scale separation](#weight-and-scale-separation),
+so its rank decision depends on neither the number density nor the unit of the
+coordinate. The separately explicit `moore_penrose` policy reuses the Jacobi
+factorization of the same scaled system and applies the configured
+`vandermonde.rcond` cutoff to its singular values. Its truncated solution is
+therefore the minimum-norm solution in the scaled unknowns `Y` described below,
+not in the conditional moments `C`.
 
 ### Limitations and non-goals
 
@@ -451,39 +454,58 @@ Rows of `A` and `M` are parent moment orders, columns of `A` are parent nodes,
 rows of `C` are parent nodes, and columns of `C` and `M` are target moment
 orders or flattened branch-local moment indices.
 
-### Backend responsibilities
+### Weight and scale separation
 
-The dense, QR, SVD, and Moore-Penrose backends build the complete weighted
-matrix `A` and solve `A C = M` directly. The BP backend uses the unweighted BP
-kernel and then lets the adapter recover conditional moments by dividing by
-weights.
-
-The adapter owns dimension and finite-input validation, policy resolution,
-weighted matrix construction, weight-singularity protection for BP, residual
-acceptance, diagnostics, and performance counters.
-
-### Björck-Pereyra weight recovery
-
-For BP, the adapter solves
+No backend solves `A C = M` with the weighted matrix as given. For BP, the
+adapter solves
 
 $$
 V^T Y = M
 $$
 
-with the unweighted BP kernel. It then recovers conditional moments with
+with the unweighted BP kernel, whose node-separation test is relative to the
+node magnitudes. For the dense, QR, SVD, and Moore-Penrose backends, it factors
 
 $$
-C_{i,q}=Y_{i,q}/w_i.
+A = S\,\tilde V^T D,
+\qquad
+S=\operatorname{diag}(s^p),
+\qquad
+D=\operatorname{diag}(w),
 $$
 
-Before this division, the adapter rejects weights satisfying
+where $\tilde V$ is the unweighted Vandermonde matrix of the scaled nodes
+$x_i/s$ and $s$ is the power of two above $\max_i |x_i|$. The backend solves
+
+$$
+\tilde V^T Y = S^{-1} M.
+$$
+
+Every entry of $\tilde V^T$ lies in $[-1,1]$ and its first row is all ones, and
+both scalings are exact powers of two. The singularity, rank, truncation, and
+residual decisions of these backends therefore depend on neither the number
+density nor the unit of the coordinate.
+
+Every policy then recovers the conditional moments with
+
+$$
+C_{i,q}=Y_{i,q}/w_i,
+$$
+
+and fails if the division overflows. Before solving, the adapter rejects
+weights satisfying
 
 $$
 |w_i| \le \tau_{\mathrm{sing}}\max_j |w_j|.
 $$
 
 The test is relative to the largest weight, so it does not depend on the
-number density that the weights carry.
+number density that the weights carry. It applies to every policy, including
+Moore-Penrose.
+
+The adapter owns dimension and finite-input validation, policy resolution,
+weight and scale separation, weight-singularity protection, residual
+acceptance, diagnostics, and performance counters.
 
 ### Diagnostics and performance counters
 
@@ -536,26 +558,28 @@ returns failure. Recursive diagnostics do not themselves request residual
 validation; they compute diagnostic residuals after successful branch-local
 solves when detailed diagnostics are enabled.
 
-The adapter computes the residual magnitude with `residual_norm(...)`, which is
-a square-root sum of squared residual entries, and scales it with infinity
-norms. The acceptance criterion is
+The adapter computes the residual magnitude of the scaled system with
+`residual_norm(...)`, which is a square-root sum of squared residual entries,
+and scales it with infinity norms. The acceptance criterion is
 
 $$
-\|AC-M\|_F
+\|\tilde V^T Y-S^{-1}M\|_F
 \le
 \tau_{\mathrm{res}}
 \max\left(
-1,
-\|A\|_\infty\|C\|_\infty,
-\|M\|_\infty
+\|\tilde V^T\|_\infty\|Y\|_\infty,
+\|S^{-1}M\|_\infty
 \right).
 $$
+
+The bound has no absolute floor, so the decision does not depend on the
+magnitude of the moments.
 
 ### Tolerance inventory
 
 | Tolerance | Default | Meaning | Configurable through `.qmom` |
 |---|---:|---|---|
-| Vandermonde singular tolerance | $10^{-14}$ | Dense pivots, BP node separation, and BP weight protection through their respective scaled criteria | No documented `.qmom` key; available through direct C++ conditional options |
+| Vandermonde singular tolerance | $10^{-14}$ | Dense pivots, BP node separation, and weight protection for every policy through their respective scaled criteria | No documented `.qmom` key; available through direct C++ conditional options |
 | Residual tolerance | $10^{-10}$ | Conditional-system residual acceptance in the adapter | No |
 | QR relative-rank tolerance | $10^{-14}$ | Threshold relative to $|R_{00}|$ | No |
 | SVD relative-rank tolerance | $10^{-14}$ | Threshold relative to $\sigma_0$ | No |
@@ -583,59 +607,3 @@ Linear-algebra coverage should remain layered with the implementation:
   behavior without making counters part of solver correctness;
 - benchmarks may compile and measure the solvers, but benchmark timings are not
   correctness evidence and are not summarized as documentation claims here.
-
-### Borderline-conditioning example
-
-[`examples/cqmom_2d_borderline_conditioning/`](../../examples/cqmom_2d_borderline_conditioning/)
-is a worked example for studying conditional Vandermonde conditioning, explicit
-solver policies, residuals, and fixed-count failure alongside lower-node
-Wheeler reconstructions. It uses a deterministic four-atom population and
-diagnostics reported by CQMOM; its local 2x2 matrix analysis is example-side
-diagnostic data, not production QR or SVD metadata.
-
-The example produces two complementary outputs. `output/report.md` is the
-human-readable comparison of solver outcomes, failed stages, and lower-node
-reconstructions. `output/diagnostics.txt` is the complete flat dataset for
-scripts, plotting, residual analysis, condition-estimate inspection, and
-detailed numerical comparison. Start with the report for interpretation and use
-the flat file when individual rows or diagnostic values are needed.
-
-The four direct solvers are compared to determine whether a failed
-reconstruction depends on the linear solver. Dense, Björck–Pereyra, pivoted QR,
-and SVD take different numerical routes through the same formulation.
-Disagreement can expose solver-specific sensitivity. If all four fail the same
-two-node reconstruction, the formulation has lost numerical independence and
-changing the solver cannot recover the missing information.
-
-The example keeps three metrics conceptually separate:
-
-- the relative singular value measures column independence;
-- the 2-norm condition number measures sensitivity; and
-- the reconstructed-moment error measures accuracy for the current data.
-
-A residual is a backward-error-style consistency check, not a robustness
-metric. The Markdown tables and flat diagnostics file retain every requested
-policy and reported field.
-
-Use the example as a workflow for evaluating another CQMOM formulation:
-
-1. Run the example unchanged and inspect the grouped metrics in
-   `output/report.md`.
-2. Compare `x_then_y` and `y_then_x` at the same separation.
-3. Compare explicit solver outcomes at the same separation.
-4. Inspect failures, then use `output/diagnostics.txt` for
-   residual, condition-estimate, and moment-error detail.
-5. Change one formulation parameter at a time and repeat the comparison.
-6. Enable adaptation separately to determine whether a lower-node quadrature
-   remains valid.
-
-The case can show sensitivity to conditioning order, weak parent systems,
-solver-policy outcomes, reported failure location, and successful lower-node
-reconstructions. It cannot directly show production QR diagonal
-values, production SVD singular values or sweep counts, or internal algorithm
-metadata beyond the selected policy reported by the example. It is a focused
-workflow, not a generic production diagnostic API, and its threshold values
-must not be copied blindly into other formulations.
-
-See the [example README](../../examples/cqmom_2d_borderline_conditioning/README.md)
-for the prescribed population, interpretation, and standalone build command.

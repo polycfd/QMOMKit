@@ -705,16 +705,16 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
     {
         throw std::logic_error("Fixed normal CQMOM reconstruction requires prepared metadata.");
     }
-    const bool record_active_branch_counts = accepted_active_branch_counts != nullptr && cqmom_case.qmom_options.adaptive;
     // The traversal already knows the node count it accepts for each branch,
     // so a state takes its active counts from the reconstruction.
-    const auto accepted = [&](RecursiveQuadratureResult& result, const std::vector<double>* const scales)
+    const bool record_active_branch_counts = accepted_active_branch_counts != nullptr;
+    const auto finish = [&](RecursiveQuadratureResult& result, const std::vector<double>* const scales)
     {
         CqmomResult converted = to_cqmom_result(result, hierarchy, scales);
-        if (accepted_active_branch_counts != nullptr && converted.ok())
+        if (record_active_branch_counts && converted.ok())
         {
             *accepted_active_branch_counts = std::move(result.active_branch_counts);
-            if (record_active_branch_counts)
+            if (cqmom_case.qmom_options.adaptive)
             {
                 performance::record_active_count_derivation();
             }
@@ -732,7 +732,7 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
                  scaling->coordinate_support, prepared_metadata, require_prepared_metadata, record_active_branch_counts});
             if (can_restore_cqmom_result(result, scaling->scales))
             {
-                return accepted(result, &scaling->scales);
+                return finish(result, &scaling->scales);
             }
         }
     }
@@ -741,7 +741,7 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
          cqmom_case.vandermonde_solver, std::move(active_branch_counts), allow_active_branch_count_growth, cqmom_case.abscissa_bounds,
          prepared_metadata, require_prepared_metadata, record_active_branch_counts});
 
-    return accepted(result, nullptr);
+    return finish(result, nullptr);
 }
 
 } // namespace internal

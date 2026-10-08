@@ -755,7 +755,7 @@ contracts, and evidence](cqmom_reconstruction.md)
 
 | Function or overload family | Definition lines |
 |---|---|
-| `RecursiveQuadratureResult::ok` | [235](../../../src/internal/recursive_quadrature.hpp#L235) |
+| `RecursiveQuadratureResult::ok` | [237](../../../src/internal/recursive_quadrature.hpp#L237) |
 
 ### `src/internal/vandermonde.cpp`
 
@@ -1178,66 +1178,66 @@ and evidence](cqmom_reconstruction.md)
 | `one_dimensional_moments` | [523](../../../src/recursive_quadrature.cpp#L523) |
 | `reconstruct_child_slices` | [528](../../../src/recursive_quadrature.cpp#L528) |
 | `create_recursive_result` | [620](../../../src/recursive_quadrature.cpp#L620) |
-| `record_failure` | [625](../../../src/recursive_quadrature.cpp#L625) |
-| `validate_recursive_request_preflight` | [634](../../../src/recursive_quadrature.cpp#L634) |
-| `operator<` | [657](../../../src/recursive_quadrature.cpp#L657) |
-| `path_has_prefix` | [682](../../../src/recursive_quadrature.cpp#L682) |
-| `branch_limit_invalidated` | [698](../../../src/recursive_quadrature.cpp#L698) |
-| `validate_active_branch_topology` | [710](../../../src/recursive_quadrature.cpp#L710) |
-| `recursive_branch_node_count_limit` | [782](../../../src/recursive_quadrature.cpp#L782) |
-| `compute_branch_quadrature` | [800](../../../src/recursive_quadrature.cpp#L800) |
-| `validate_coordinate_support` | [806](../../../src/recursive_quadrature.cpp#L806) |
-| `support_interval_for_dimension` | [833](../../../src/recursive_quadrature.cpp#L833) |
-| `record_bounded_candidate_diagnostics` | [843](../../../src/recursive_quadrature.cpp#L843) |
-| `branch_growth_trial_allowed` | [864](../../../src/recursive_quadrature.cpp#L864) |
-| `product_extents` | [874](../../../src/recursive_quadrature.cpp#L874) |
-| `flatten_multi_index` | [886](../../../src/recursive_quadrature.cpp#L886) |
-| `unflatten_multi_index` | [906](../../../src/recursive_quadrature.cpp#L906) |
-| `enumerate_multi_indices` | [1056](../../../src/recursive_quadrature.cpp#L1056) |
-| `PhaseSpaceHierarchy::PhaseSpaceHierarchy` | [1068](../../../src/recursive_quadrature.cpp#L1068), [1075](../../../src/recursive_quadrature.cpp#L1075) |
-| `PhaseSpaceHierarchy::node_count` | [1081](../../../src/recursive_quadrature.cpp#L1081) |
-| `PhaseSpaceHierarchy::moment_extents` | [1090](../../../src/recursive_quadrature.cpp#L1090) |
-| `PhaseSpaceHierarchy::flatten_node_index` | [1101](../../../src/recursive_quadrature.cpp#L1101) |
-| `PhaseSpaceHierarchy::unflatten_node_index` | [1110](../../../src/recursive_quadrature.cpp#L1110) |
-| `create_cqmom_moment_layout` | [1115](../../../src/recursive_quadrature.cpp#L1115) |
-| `CqmomMomentData::CqmomMomentData` | [1177](../../../src/recursive_quadrature.cpp#L1177) |
-| `CqmomMomentData::contains_required_index` | [1182](../../../src/recursive_quadrature.cpp#L1182) |
-| `CqmomMomentData::moment` | [1187](../../../src/recursive_quadrature.cpp#L1187) |
-| `extract_cqmom_moments` | [1203](../../../src/recursive_quadrature.cpp#L1203) |
-| `create_cqmom_moment_data` | [1230](../../../src/recursive_quadrature.cpp#L1230) |
-| `enumerate_quadrature_node_multi_indices` | [1252](../../../src/recursive_quadrature.cpp#L1252) |
-| `rectangular_terminal_paths` | [1267](../../../src/recursive_quadrature.cpp#L1267) |
-| `RecursiveQuadrature::RecursiveQuadrature` | [1302](../../../src/recursive_quadrature.cpp#L1302), [1320](../../../src/recursive_quadrature.cpp#L1320) |
-| `RecursiveQuadrature::hierarchy` | [1320](../../../src/recursive_quadrature.cpp#L1320) |
-| `RecursiveQuadrature::number_of_dimensions` | [1325](../../../src/recursive_quadrature.cpp#L1325) |
-| `RecursiveQuadrature::total_nodes` | [1330](../../../src/recursive_quadrature.cpp#L1330) |
-| `RecursiveQuadrature::weights` | [1335](../../../src/recursive_quadrature.cpp#L1335) |
-| `RecursiveQuadrature::abscissas` | [1340](../../../src/recursive_quadrature.cpp#L1340) |
-| `RecursiveQuadrature::adaptive_branch_counts_enabled` | [1345](../../../src/recursive_quadrature.cpp#L1345) |
-| `RecursiveQuadrature::has_rectangular_storage` | [1350](../../../src/recursive_quadrature.cpp#L1350) |
-| `RecursiveQuadrature::tree_nodes` | [1355](../../../src/recursive_quadrature.cpp#L1355) |
-| `RecursiveQuadrature::terminal_node_ids` | [1360](../../../src/recursive_quadrature.cpp#L1360) |
-| `RecursiveQuadrature::terminal_paths` | [1365](../../../src/recursive_quadrature.cpp#L1365) |
-| `RecursiveQuadrature::weight` | [1370](../../../src/recursive_quadrature.cpp#L1370) |
-| `RecursiveQuadrature::abscissa` | [1379](../../../src/recursive_quadrature.cpp#L1379) |
-| `RecursiveQuadrature::node` | [1392](../../../src/recursive_quadrature.cpp#L1392) |
-| `RecursiveQuadrature::set_weight` | [1402](../../../src/recursive_quadrature.cpp#L1402) |
-| `RecursiveQuadrature::set_abscissa` | [1411](../../../src/recursive_quadrature.cpp#L1411) |
-| `RecursiveQuadrature::set_adaptive_branch_counts_enabled` | [1424](../../../src/recursive_quadrature.cpp#L1424) |
-| `RecursiveQuadrature::add_tree_node` | [1437](../../../src/recursive_quadrature.cpp#L1437) |
-| `RecursiveQuadrature::set_terminal_quadrature` | [1449](../../../src/recursive_quadrature.cpp#L1449) |
-| `compute_recursive_quadrature_from_validated_moment_data` | [1482](../../../src/recursive_quadrature.cpp#L1482) |
+| `record_failure` | [626](../../../src/recursive_quadrature.cpp#L626) |
+| `validate_recursive_request_preflight` | [635](../../../src/recursive_quadrature.cpp#L635) |
+| `operator<` | [658](../../../src/recursive_quadrature.cpp#L658) |
+| `path_has_prefix` | [683](../../../src/recursive_quadrature.cpp#L683) |
+| `branch_limit_invalidated` | [699](../../../src/recursive_quadrature.cpp#L699) |
+| `validate_active_branch_topology` | [711](../../../src/recursive_quadrature.cpp#L711) |
+| `recursive_branch_node_count_limit` | [783](../../../src/recursive_quadrature.cpp#L783) |
+| `compute_branch_quadrature` | [801](../../../src/recursive_quadrature.cpp#L801) |
+| `validate_coordinate_support` | [807](../../../src/recursive_quadrature.cpp#L807) |
+| `support_interval_for_dimension` | [834](../../../src/recursive_quadrature.cpp#L834) |
+| `record_bounded_candidate_diagnostics` | [844](../../../src/recursive_quadrature.cpp#L844) |
+| `branch_growth_trial_allowed` | [865](../../../src/recursive_quadrature.cpp#L865) |
+| `product_extents` | [875](../../../src/recursive_quadrature.cpp#L875) |
+| `flatten_multi_index` | [887](../../../src/recursive_quadrature.cpp#L887) |
+| `unflatten_multi_index` | [907](../../../src/recursive_quadrature.cpp#L907) |
+| `enumerate_multi_indices` | [1057](../../../src/recursive_quadrature.cpp#L1057) |
+| `PhaseSpaceHierarchy::PhaseSpaceHierarchy` | [1069](../../../src/recursive_quadrature.cpp#L1069), [1076](../../../src/recursive_quadrature.cpp#L1076) |
+| `PhaseSpaceHierarchy::node_count` | [1082](../../../src/recursive_quadrature.cpp#L1082) |
+| `PhaseSpaceHierarchy::moment_extents` | [1091](../../../src/recursive_quadrature.cpp#L1091) |
+| `PhaseSpaceHierarchy::flatten_node_index` | [1102](../../../src/recursive_quadrature.cpp#L1102) |
+| `PhaseSpaceHierarchy::unflatten_node_index` | [1111](../../../src/recursive_quadrature.cpp#L1111) |
+| `create_cqmom_moment_layout` | [1116](../../../src/recursive_quadrature.cpp#L1116) |
+| `CqmomMomentData::CqmomMomentData` | [1178](../../../src/recursive_quadrature.cpp#L1178) |
+| `CqmomMomentData::contains_required_index` | [1183](../../../src/recursive_quadrature.cpp#L1183) |
+| `CqmomMomentData::moment` | [1188](../../../src/recursive_quadrature.cpp#L1188) |
+| `extract_cqmom_moments` | [1204](../../../src/recursive_quadrature.cpp#L1204) |
+| `create_cqmom_moment_data` | [1231](../../../src/recursive_quadrature.cpp#L1231) |
+| `enumerate_quadrature_node_multi_indices` | [1253](../../../src/recursive_quadrature.cpp#L1253) |
+| `rectangular_terminal_paths` | [1268](../../../src/recursive_quadrature.cpp#L1268) |
+| `RecursiveQuadrature::RecursiveQuadrature` | [1303](../../../src/recursive_quadrature.cpp#L1303), [1321](../../../src/recursive_quadrature.cpp#L1321) |
+| `RecursiveQuadrature::hierarchy` | [1321](../../../src/recursive_quadrature.cpp#L1321) |
+| `RecursiveQuadrature::number_of_dimensions` | [1326](../../../src/recursive_quadrature.cpp#L1326) |
+| `RecursiveQuadrature::total_nodes` | [1331](../../../src/recursive_quadrature.cpp#L1331) |
+| `RecursiveQuadrature::weights` | [1336](../../../src/recursive_quadrature.cpp#L1336) |
+| `RecursiveQuadrature::abscissas` | [1341](../../../src/recursive_quadrature.cpp#L1341) |
+| `RecursiveQuadrature::adaptive_branch_counts_enabled` | [1346](../../../src/recursive_quadrature.cpp#L1346) |
+| `RecursiveQuadrature::has_rectangular_storage` | [1351](../../../src/recursive_quadrature.cpp#L1351) |
+| `RecursiveQuadrature::tree_nodes` | [1356](../../../src/recursive_quadrature.cpp#L1356) |
+| `RecursiveQuadrature::terminal_node_ids` | [1361](../../../src/recursive_quadrature.cpp#L1361) |
+| `RecursiveQuadrature::terminal_paths` | [1366](../../../src/recursive_quadrature.cpp#L1366) |
+| `RecursiveQuadrature::weight` | [1371](../../../src/recursive_quadrature.cpp#L1371) |
+| `RecursiveQuadrature::abscissa` | [1380](../../../src/recursive_quadrature.cpp#L1380) |
+| `RecursiveQuadrature::node` | [1393](../../../src/recursive_quadrature.cpp#L1393) |
+| `RecursiveQuadrature::set_weight` | [1403](../../../src/recursive_quadrature.cpp#L1403) |
+| `RecursiveQuadrature::set_abscissa` | [1412](../../../src/recursive_quadrature.cpp#L1412) |
+| `RecursiveQuadrature::set_adaptive_branch_counts_enabled` | [1425](../../../src/recursive_quadrature.cpp#L1425) |
+| `RecursiveQuadrature::add_tree_node` | [1438](../../../src/recursive_quadrature.cpp#L1438) |
+| `RecursiveQuadrature::set_terminal_quadrature` | [1450](../../../src/recursive_quadrature.cpp#L1450) |
+| `compute_recursive_quadrature_from_validated_moment_data` | [1483](../../../src/recursive_quadrature.cpp#L1483) |
 | `compute_recursive_quadrature_from_moment_data` | [1825](../../../src/recursive_quadrature.cpp#L1825) |
 | `compute_recursive_quadrature_from_trusted_moment_data` | [1851](../../../src/recursive_quadrature.cpp#L1851) |
-| `operator==` | [925](../../../src/recursive_quadrature.cpp#L925), [935](../../../src/recursive_quadrature.cpp#L935), [940](../../../src/recursive_quadrature.cpp#L940), [1046](../../../src/recursive_quadrature.cpp#L1046) |
-| `operator!=` | [930](../../../src/recursive_quadrature.cpp#L930), [945](../../../src/recursive_quadrature.cpp#L945), [950](../../../src/recursive_quadrature.cpp#L950), [1051](../../../src/recursive_quadrature.cpp#L1051) |
-| `MultiIndexTable::MultiIndexTable` | [955](../../../src/recursive_quadrature.cpp#L955), [971](../../../src/recursive_quadrature.cpp#L971) |
-| `MultiIndexTable::at` | [1000](../../../src/recursive_quadrature.cpp#L1000) |
-| `MultiIndexTable::push_back` | [998](../../../src/recursive_quadrature.cpp#L998), [1003](../../../src/recursive_quadrature.cpp#L1003) |
-| `MultiIndexTable::pop_back` | [1016](../../../src/recursive_quadrature.cpp#L1016) |
-| `MultiIndexTable::reserve` | [1025](../../../src/recursive_quadrature.cpp#L1025) |
-| `MultiIndexTable::clear` | [1030](../../../src/recursive_quadrature.cpp#L1030) |
-| `MultiIndexTable::to_multi_indices` | [1035](../../../src/recursive_quadrature.cpp#L1035) |
+| `operator==` | [926](../../../src/recursive_quadrature.cpp#L926), [936](../../../src/recursive_quadrature.cpp#L936), [941](../../../src/recursive_quadrature.cpp#L941), [1047](../../../src/recursive_quadrature.cpp#L1047) |
+| `operator!=` | [931](../../../src/recursive_quadrature.cpp#L931), [946](../../../src/recursive_quadrature.cpp#L946), [951](../../../src/recursive_quadrature.cpp#L951), [1052](../../../src/recursive_quadrature.cpp#L1052) |
+| `MultiIndexTable::MultiIndexTable` | [956](../../../src/recursive_quadrature.cpp#L956), [972](../../../src/recursive_quadrature.cpp#L972) |
+| `MultiIndexTable::at` | [1001](../../../src/recursive_quadrature.cpp#L1001) |
+| `MultiIndexTable::push_back` | [999](../../../src/recursive_quadrature.cpp#L999), [1004](../../../src/recursive_quadrature.cpp#L1004) |
+| `MultiIndexTable::pop_back` | [1017](../../../src/recursive_quadrature.cpp#L1017) |
+| `MultiIndexTable::reserve` | [1026](../../../src/recursive_quadrature.cpp#L1026) |
+| `MultiIndexTable::clear` | [1031](../../../src/recursive_quadrature.cpp#L1031) |
+| `MultiIndexTable::to_multi_indices` | [1036](../../../src/recursive_quadrature.cpp#L1036) |
 
 ### `src/runge_kutta.cpp`
 

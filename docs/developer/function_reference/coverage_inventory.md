@@ -262,7 +262,7 @@ contracts, and evidence](time_integration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
-| `SspRk3Result::ok` | [87](../../../include/qmomkit/runge_kutta.hpp#L87) |
+| `SspRk3Result::ok` | [88](../../../include/qmomkit/runge_kutta.hpp#L88) |
 
 ### `src/conditioning_path.cpp`
 
@@ -836,44 +836,44 @@ evidence](moment_sources.md)
 | `accepts_coordinate_realizability_policies` | [228](../../../src/moment_source.cpp#L228) |
 | `boundary_callback_error` | [249](../../../src/moment_source.cpp#L249) |
 | `cqmom_boundary_callback_error` | [254](../../../src/moment_source.cpp#L254) |
-| `validate_request` | [259](../../../src/moment_source.cpp#L259), [290](../../../src/moment_source.cpp#L290) |
-| `validate_cqmom_source_update_controls` | [300](../../../src/moment_source.cpp#L300) |
-| `validate_moment_data_request` | [322](../../../src/moment_source.cpp#L322), [339](../../../src/moment_source.cpp#L339) |
-| `validate_trusted_moment_data_request` | [330](../../../src/moment_source.cpp#L330), [349](../../../src/moment_source.cpp#L349) |
-| `compose_source_and_boundary` | [359](../../../src/moment_source.cpp#L359) |
-| `advance_qmom_moments_with_source` | [405](../../../src/moment_source.cpp#L405), [872](../../../src/moment_source.cpp#L872), [892](../../../src/moment_source.cpp#L892) |
-| `compose_cqmom_source_and_boundary` | [458](../../../src/moment_source.cpp#L458) |
-| `advance_validated_cqmom_moments_with_source` | [485](../../../src/moment_source.cpp#L485) |
-| `QmomSourceContextAccess::create` | [549](../../../src/moment_source.cpp#L549) |
-| `CqmomSourceContextAccess::create` | [549](../../../src/moment_source.cpp#L549) |
-| `QmomSourceContext::QmomSourceContext` | [565](../../../src/moment_source.cpp#L565), [573](../../../src/moment_source.cpp#L573) |
-| `QmomSourceContext::time` | [586](../../../src/moment_source.cpp#L586) |
-| `QmomSourceContext::moment_count` | [591](../../../src/moment_source.cpp#L591) |
-| `QmomSourceContext::size` | [596](../../../src/moment_source.cpp#L596) |
-| `QmomSourceContext::values` | [601](../../../src/moment_source.cpp#L601) |
-| `QmomSourceContext::value` | [606](../../../src/moment_source.cpp#L606) |
-| `QmomSourceContext::moment` | [611](../../../src/moment_source.cpp#L611) |
-| `QmomSourceContext::generalized_moment` | [628](../../../src/moment_source.cpp#L628) |
-| `QmomSourceContext::for_each_node` | [634](../../../src/moment_source.cpp#L634) |
-| `CqmomSourceContext::CqmomSourceContext` | [666](../../../src/moment_source.cpp#L666), [677](../../../src/moment_source.cpp#L677) |
-| `CqmomSourceContext::time` | [691](../../../src/moment_source.cpp#L691) |
-| `CqmomSourceContext::moment_count` | [696](../../../src/moment_source.cpp#L696) |
-| `CqmomSourceContext::dimension_count` | [701](../../../src/moment_source.cpp#L701) |
-| `CqmomSourceContext::size` | [706](../../../src/moment_source.cpp#L706) |
-| `CqmomSourceContext::indices` | [711](../../../src/moment_source.cpp#L711) |
-| `CqmomSourceContext::values` | [716](../../../src/moment_source.cpp#L716) |
-| `CqmomSourceContext::index` | [721](../../../src/moment_source.cpp#L721) |
-| `CqmomSourceContext::value` | [726](../../../src/moment_source.cpp#L726), [781](../../../src/moment_source.cpp#L781) |
-| `CqmomSourceContext::position` | [768](../../../src/moment_source.cpp#L768) |
-| `CqmomSourceContext::moment` | [791](../../../src/moment_source.cpp#L791) |
-| `CqmomSourceContext::generalized_moment` | [807](../../../src/moment_source.cpp#L807) |
-| `CqmomSourceContext::for_each_terminal_node` | [820](../../../src/moment_source.cpp#L820) |
-| `CqmomSourceContext::reconstructed_stage_quadrature` | [841](../../../src/moment_source.cpp#L841) |
-| `CqmomSourceContext::hierarchy` | [867](../../../src/moment_source.cpp#L867) |
-| `advance_cqmom_moments_with_source` | [908](../../../src/moment_source.cpp#L908), [923](../../../src/moment_source.cpp#L923) |
-| `advance_trusted_qmom_moments_with_source` | [942](../../../src/moment_source.cpp#L942), [967](../../../src/moment_source.cpp#L967) |
-| `advance_trusted_cqmom_moments_with_source` | [994](../../../src/moment_source.cpp#L994), [1009](../../../src/moment_source.cpp#L1009), [1028](../../../src/moment_source.cpp#L1028), [1046](../../../src/moment_source.cpp#L1046) |
-| `assign_source_rates` | [400](../../../src/moment_source.cpp#L400) |
+| `validate_request` | [259](../../../src/moment_source.cpp#L259), [289](../../../src/moment_source.cpp#L289) |
+| `validate_cqmom_source_update_controls` | [299](../../../src/moment_source.cpp#L299) |
+| `validate_moment_data_request` | [320](../../../src/moment_source.cpp#L320), [337](../../../src/moment_source.cpp#L337) |
+| `validate_trusted_moment_data_request` | [328](../../../src/moment_source.cpp#L328), [347](../../../src/moment_source.cpp#L347) |
+| `compose_source_and_boundary` | [357](../../../src/moment_source.cpp#L357) |
+| `advance_qmom_moments_with_source` | [403](../../../src/moment_source.cpp#L403), [870](../../../src/moment_source.cpp#L870), [890](../../../src/moment_source.cpp#L890) |
+| `compose_cqmom_source_and_boundary` | [456](../../../src/moment_source.cpp#L456) |
+| `advance_validated_cqmom_moments_with_source` | [483](../../../src/moment_source.cpp#L483) |
+| `QmomSourceContextAccess::create` | [547](../../../src/moment_source.cpp#L547) |
+| `CqmomSourceContextAccess::create` | [547](../../../src/moment_source.cpp#L547) |
+| `QmomSourceContext::QmomSourceContext` | [563](../../../src/moment_source.cpp#L563), [571](../../../src/moment_source.cpp#L571) |
+| `QmomSourceContext::time` | [584](../../../src/moment_source.cpp#L584) |
+| `QmomSourceContext::moment_count` | [589](../../../src/moment_source.cpp#L589) |
+| `QmomSourceContext::size` | [594](../../../src/moment_source.cpp#L594) |
+| `QmomSourceContext::values` | [599](../../../src/moment_source.cpp#L599) |
+| `QmomSourceContext::value` | [604](../../../src/moment_source.cpp#L604) |
+| `QmomSourceContext::moment` | [609](../../../src/moment_source.cpp#L609) |
+| `QmomSourceContext::generalized_moment` | [626](../../../src/moment_source.cpp#L626) |
+| `QmomSourceContext::for_each_node` | [632](../../../src/moment_source.cpp#L632) |
+| `CqmomSourceContext::CqmomSourceContext` | [664](../../../src/moment_source.cpp#L664), [675](../../../src/moment_source.cpp#L675) |
+| `CqmomSourceContext::time` | [689](../../../src/moment_source.cpp#L689) |
+| `CqmomSourceContext::moment_count` | [694](../../../src/moment_source.cpp#L694) |
+| `CqmomSourceContext::dimension_count` | [699](../../../src/moment_source.cpp#L699) |
+| `CqmomSourceContext::size` | [704](../../../src/moment_source.cpp#L704) |
+| `CqmomSourceContext::indices` | [709](../../../src/moment_source.cpp#L709) |
+| `CqmomSourceContext::values` | [714](../../../src/moment_source.cpp#L714) |
+| `CqmomSourceContext::index` | [719](../../../src/moment_source.cpp#L719) |
+| `CqmomSourceContext::value` | [724](../../../src/moment_source.cpp#L724), [779](../../../src/moment_source.cpp#L779) |
+| `CqmomSourceContext::position` | [766](../../../src/moment_source.cpp#L766) |
+| `CqmomSourceContext::moment` | [789](../../../src/moment_source.cpp#L789) |
+| `CqmomSourceContext::generalized_moment` | [805](../../../src/moment_source.cpp#L805) |
+| `CqmomSourceContext::for_each_terminal_node` | [818](../../../src/moment_source.cpp#L818) |
+| `CqmomSourceContext::reconstructed_stage_quadrature` | [839](../../../src/moment_source.cpp#L839) |
+| `CqmomSourceContext::hierarchy` | [865](../../../src/moment_source.cpp#L865) |
+| `advance_cqmom_moments_with_source` | [906](../../../src/moment_source.cpp#L906), [921](../../../src/moment_source.cpp#L921) |
+| `advance_trusted_qmom_moments_with_source` | [940](../../../src/moment_source.cpp#L940), [965](../../../src/moment_source.cpp#L965) |
+| `advance_trusted_cqmom_moments_with_source` | [992](../../../src/moment_source.cpp#L992), [1007](../../../src/moment_source.cpp#L1007), [1026](../../../src/moment_source.cpp#L1026), [1044](../../../src/moment_source.cpp#L1044) |
+| `assign_source_rates` | [398](../../../src/moment_source.cpp#L398) |
 
 ### `src/node_advection.cpp`
 
@@ -882,24 +882,24 @@ evidence](time_integration.md)
 
 | Function or overload family | Definition lines |
 |---|---|
-| `all_finite` | [24](../../../src/node_advection.cpp#L24) |
-| `diagnostics_from_embedded_rk` | [29](../../../src/node_advection.cpp#L29) |
-| `pack_nodes` | [43](../../../src/node_advection.cpp#L43) |
-| `unpack_nodes` | [65](../../../src/node_advection.cpp#L65) |
-| `validate_weights` | [79](../../../src/node_advection.cpp#L79) |
-| `validate_abscissas` | [91](../../../src/node_advection.cpp#L91) |
-| `node_rhs_from_velocity` | [118](../../../src/node_advection.cpp#L118) |
-| `add_scaled` | [149](../../../src/node_advection.cpp#L149) |
-| `integrate_nodes_embedded_rk` | [163](../../../src/node_advection.cpp#L163) |
-| `integrate_nodes_ssp_rk3` | [208](../../../src/node_advection.cpp#L208) |
-| `integrate_nodes` | [279](../../../src/node_advection.cpp#L279) |
-| `scheme_name` | [310](../../../src/node_advection.cpp#L310) |
-| `PooledCoordinateBuffer::PooledCoordinateBuffer` | [340](../../../src/node_advection.cpp#L340) |
-| `PooledCoordinateBuffer::~PooledCoordinateBuffer` | [361](../../../src/node_advection.cpp#L361) |
-| `PooledCoordinateBuffer::free_list` | [373](../../../src/node_advection.cpp#L373) |
-| `make_phase_space_velocity` | [467](../../../src/node_advection.cpp#L467) |
-| `advance_nodes` | [384](../../../src/node_advection.cpp#L384), [412](../../../src/node_advection.cpp#L412), [423](../../../src/node_advection.cpp#L423) |
-| `format_node_advection_options` | [507](../../../src/node_advection.cpp#L507) |
+| `all_finite` | [25](../../../src/node_advection.cpp#L25) |
+| `diagnostics_from_embedded_rk` | [30](../../../src/node_advection.cpp#L30) |
+| `pack_nodes` | [44](../../../src/node_advection.cpp#L44) |
+| `unpack_nodes` | [66](../../../src/node_advection.cpp#L66) |
+| `validate_weights` | [80](../../../src/node_advection.cpp#L80) |
+| `validate_abscissas` | [92](../../../src/node_advection.cpp#L92) |
+| `node_rhs_from_velocity` | [119](../../../src/node_advection.cpp#L119) |
+| `add_scaled` | [150](../../../src/node_advection.cpp#L150) |
+| `integrate_nodes_embedded_rk` | [164](../../../src/node_advection.cpp#L164) |
+| `integrate_nodes_ssp_rk3` | [213](../../../src/node_advection.cpp#L213) |
+| `integrate_nodes` | [284](../../../src/node_advection.cpp#L284) |
+| `scheme_name` | [315](../../../src/node_advection.cpp#L315) |
+| `PooledCoordinateBuffer::PooledCoordinateBuffer` | [345](../../../src/node_advection.cpp#L345) |
+| `PooledCoordinateBuffer::~PooledCoordinateBuffer` | [366](../../../src/node_advection.cpp#L366) |
+| `PooledCoordinateBuffer::free_list` | [378](../../../src/node_advection.cpp#L378) |
+| `make_phase_space_velocity` | [472](../../../src/node_advection.cpp#L472) |
+| `advance_nodes` | [389](../../../src/node_advection.cpp#L389), [417](../../../src/node_advection.cpp#L417), [428](../../../src/node_advection.cpp#L428) |
+| `format_node_advection_options` | [512](../../../src/node_advection.cpp#L512) |
 
 ### `src/output.cpp`
 
@@ -1231,13 +1231,15 @@ evidence](time_integration.md)
 | `add_scaled` | [40](../../../src/runge_kutta.cpp#L40) |
 | `sign` | [51](../../../src/runge_kutta.cpp#L51) |
 | `validate_or_default_max_step` | [56](../../../src/runge_kutta.cpp#L56) |
-| `minimum_step` | [65](../../../src/runge_kutta.cpp#L65) |
-| `error_norm` | [81](../../../src/runge_kutta.cpp#L81) |
-| `invalid_embedded_rk_result` | [101](../../../src/runge_kutta.cpp#L101) |
-| `stage_accepted` | [106](../../../src/runge_kutta.cpp#L106) |
-| `try_ssp_rk3_step` | [111](../../../src/runge_kutta.cpp#L111) |
-| `ssp_rk3_step` | [173](../../../src/runge_kutta.cpp#L173) |
-| `integrate_embedded_rk` | [219](../../../src/runge_kutta.cpp#L219) |
+| `spacing` | [65](../../../src/runge_kutta.cpp#L65) |
+| `minimum_step` | [76](../../../src/runge_kutta.cpp#L76) |
+| `error_norm` | [87](../../../src/runge_kutta.cpp#L87) |
+| `invalid_embedded_rk_result` | [107](../../../src/runge_kutta.cpp#L107) |
+| `stage_accepted` | [112](../../../src/runge_kutta.cpp#L112) |
+| `try_ssp_rk3_step` | [117](../../../src/runge_kutta.cpp#L117) |
+| `ssp_rk3_step` | [179](../../../src/runge_kutta.cpp#L179) |
+| `integrate_embedded_rk` | [226](../../../src/runge_kutta.cpp#L226) |
+| `internal::integrate_embedded_rk_from` | [235](../../../src/runge_kutta.cpp#L235) |
 
 ### `src/wheeler.cpp`
 

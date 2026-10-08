@@ -506,9 +506,9 @@ If omitted, the tolerances retain the C++ `AdaptiveRkOptions` defaults:
 `max_steps = 1000000000`, and `initial_step = 1.0e-6 s`. There is no automatic
 initial-step estimator: QMOMKit does not derive `initial_step` from the state,
 derivatives, or tolerances. Explicit tolerances and step sizes must be positive finite
-numbers, and an explicit `min_step` must not exceed the effective `max_step` —
-whether `max_step` is explicitly configured or automatically derived from the
-integration interval. An explicit `min_step` smaller than the automatic minimum,
+numbers, and an explicit `min_step` must not exceed an explicit `max_step`. A
+stage shorter than `min_step`, as a retry with a smaller outer step produces,
+is taken in one step. An explicit `min_step` smaller than the automatic minimum,
 ten spacings of the double at the current time (about `2e-15` times the time),
 is raised to it. `min_step` takes precedence over the tolerances: when the
 error controller would ask for a smaller step, a finite step at the floor is

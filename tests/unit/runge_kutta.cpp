@@ -453,22 +453,22 @@ void test_ssp_rk3_failure_after_reaching_minimum_timestep()
     assert_vector_near(result.state, {1.0}, 1.0e-15);
 }
 
-void test_ssp_rk3_rejects_initial_step_below_minimum()
+void test_ssp_rk3_attempts_step_below_minimum_without_halving()
 {
+    // A step already shorter than min_time_step is taken, so that a caller
+    // retrying with a shorter step is not refused for it, but it is not halved.
     qmomkit::SspRk3Options options;
     options.min_time_step = 0.2;
+    const qmomkit::SspRk3Result taken = qmomkit::ssp_rk3_step({1.0}, 0.0, 0.1, exponential_decay_rhs(), options);
+    assert(taken.status == qmomkit::SspRk3Status::success);
+    assert(taken.time_step_used == 0.1);
 
-    bool threw = false;
-    try
-    {
-        (void)qmomkit::ssp_rk3_step({1.0}, 0.0, 0.1, exponential_decay_rhs(), options);
-    }
-    catch (const std::invalid_argument&)
-    {
-        threw = true;
-    }
-
-    assert(threw);
+    options.accept = [](const std::vector<double>&) { return false; };
+    options.max_retries = 3;
+    const qmomkit::SspRk3Result refused = qmomkit::ssp_rk3_step({1.0}, 0.0, 0.1, exponential_decay_rhs(), options);
+    assert(refused.status == qmomkit::SspRk3Status::minimum_timestep_reached);
+    assert(refused.retries == 0);
+    assert(refused.time_step_used == 0.1);
 }
 
 void test_ssp_rk3_rejects_retry_that_underflows_to_zero()
@@ -836,14 +836,17 @@ void test_rk23_rejects_min_step_exceeding_max_step()
             qmomkit::integrate_embedded_rk({1.0}, 0.0, 4.0, exponential_decay_rhs(), method, boundary_options);
         assert(boundary_result.status == qmomkit::AdaptiveRkStatus::success);
 
-        // An auto-derived max_step (options.max_step == 0.0, defaulting to the
-        // integration interval length) must also be checked against an explicit
-        // min_step, not just an explicitly configured max_step.
+        // An auto-derived max_step is the interval itself. An interval shorter
+        // than an explicit min_step is not a contradiction but a short stage,
+        // as a host retrying with a smaller step produces: it is taken in one
+        // step at the minimum.
         qmomkit::AdaptiveRkOptions auto_max_step_options;
         auto_max_step_options.min_step = 5.0;
         const qmomkit::AdaptiveRkResult auto_max_step_result =
             qmomkit::integrate_embedded_rk({1.0}, 0.0, 2.0, exponential_decay_rhs(), method, auto_max_step_options);
-        assert(auto_max_step_result.status == qmomkit::AdaptiveRkStatus::invalid_input);
+        assert(auto_max_step_result.status == qmomkit::AdaptiveRkStatus::success);
+        assert(auto_max_step_result.accepted_steps == 1);
+        assert(auto_max_step_result.final_time == 2.0);
     }
 }
 
@@ -1134,7 +1137,7 @@ int main(const int argc, char** argv)
             {"ssp_rk3_multiple_retries", test_ssp_rk3_multiple_retries},
             {"ssp_rk3_failure_after_max_retries", test_ssp_rk3_failure_after_max_retries},
             {"ssp_rk3_failure_after_reaching_minimum_timestep", test_ssp_rk3_failure_after_reaching_minimum_timestep},
-            {"ssp_rk3_rejects_initial_step_below_minimum", test_ssp_rk3_rejects_initial_step_below_minimum},
+            {"ssp_rk3_attempts_step_below_minimum_without_halving", test_ssp_rk3_attempts_step_below_minimum_without_halving},
             {"ssp_rk3_rejects_retry_that_underflows_to_zero", test_ssp_rk3_rejects_retry_that_underflows_to_zero},
             {"ssp_rk3_without_stage_callback_accepts_unchecked_candidate", test_ssp_rk3_without_stage_callback_accepts_unchecked_candidate},
             {"ssp_rk3_final_only_callback_invoked_once", test_ssp_rk3_final_only_callback_invoked_once},

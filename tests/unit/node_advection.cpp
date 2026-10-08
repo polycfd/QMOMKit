@@ -732,6 +732,38 @@ void test_throwing_velocity_reports_its_evaluations_without_an_adaptive_status()
     }
 }
 
+void test_embedded_rk_advances_over_the_exact_step()
+{
+    // With the step close to the spacing of the double at t, the interval
+    // (t + dt) - t differs from dt. The nodes must move over dt itself, as with
+    // SSP-RK3, and the velocity must be evaluated within [t, t + dt].
+    constexpr double dt = 1.0e-10;
+    for (const qmomkit::NodeAdvectionScheme scheme : {qmomkit::NodeAdvectionScheme::rk23, qmomkit::NodeAdvectionScheme::rk45})
+    {
+        for (const double t : {1.0e3, 1.0e6})
+        {
+            double earliest = std::numeric_limits<double>::infinity();
+            double latest = -std::numeric_limits<double>::infinity();
+            const qmomkit::PhaseSpaceVelocity unit_velocity =
+                [&earliest, &latest](const double time, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
+            {
+                earliest = std::min(earliest, time);
+                latest = std::max(latest, time);
+                std::fill(velocities.begin(), velocities.end(), 1.0);
+            };
+            qmomkit::NodeAdvectionOptions options;
+            options.scheme = scheme;
+            const qmomkit::QmomNodeAdvectionResult result =
+                qmomkit::advance_nodes(qmomkit::Quadrature1D{{0.0}, {1.0}}, t, dt, unit_velocity, options);
+            assert(result.ok());
+            assert_near(result.quadrature.abscissas[0], dt, 1.0e-15 * dt);
+            assert(result.diagnostics.final_time == t + dt);
+            assert(earliest >= t);
+            assert(latest <= t + dt);
+        }
+    }
+}
+
 void test_configured_adaptive_options_reach_node_advection()
 {
     const auto configured = qmomkit::config::parse_node_advection_options(R"(
@@ -826,6 +858,7 @@ int main(const int argc, char** argv)
             {"throwing_velocity_reports_its_evaluations_without_an_adaptive_status",
              test_throwing_velocity_reports_its_evaluations_without_an_adaptive_status},
             {"configured_adaptive_options_reach_node_advection", test_configured_adaptive_options_reach_node_advection},
+            {"embedded_rk_advances_over_the_exact_step", test_embedded_rk_advances_over_the_exact_step},
             {"node_advection_options_formatting_reports_semantic_settings", test_node_advection_options_formatting_reports_semantic_settings},
         });
 }

@@ -79,4 +79,17 @@ void take_embedded_rk_step(const EmbeddedRkTableau& tableau, const OdeRhs& rhs, 
 
 [[nodiscard]] double embedded_rk_controller_exponent(const EmbeddedRkTableau& tableau);
 
+/**
+ * `integrate_embedded_rk` over [t0, t_bound] for a right-hand side that sees
+ * the time `time_origin + t`. A caller that must integrate over exactly a step
+ * `dt` from an absolute time `t` passes `time_origin = t`, `t0 = 0` and
+ * `t_bound = dt`, and evaluates its right-hand side at `t + tau`; integrating
+ * from `t` to `t + dt` instead covers the rounded interval `(t + dt) - t`. The
+ * automatic minimum step covers the spacing of the double at both times, so it
+ * is the one the absolute integration would use. `final_time` is returned on
+ * the integrated axis.
+ */
+[[nodiscard]] AdaptiveRkResult integrate_embedded_rk_from(const std::vector<double>& initial_state, double time_origin, double t0, double t_bound,
+                                                          const OdeRhs& rhs, EmbeddedRkMethod method, const AdaptiveRkOptions& options);
+
 } // namespace qmomkit::internal

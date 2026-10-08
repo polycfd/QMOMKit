@@ -1,6 +1,7 @@
 #include "qmomkit/node_advection.hpp"
 
 #include "internal/cqmom_case.hpp"
+#include "internal/embedded_runge_kutta.hpp"
 #include "internal/numeric_utils.hpp"
 #include "internal/performance.hpp"
 #include "internal/phase_space_velocity_validation.hpp"
@@ -169,14 +170,18 @@ struct IntegratedNodes
     std::size_t rhs_evaluations = 0;
     try
     {
-        rk_result = integrate_embedded_rk(
-            initial_state, t, t + time_step,
-            [&velocity, dimensions, &rhs_evaluations](const double rhs_time, const std::vector<double>& state, std::vector<double>& derivative)
+        // Integrated over the local time tau in [0, time_step], with the velocity
+        // evaluated at t + tau, so the nodes move over the requested step rather
+        // than over the rounded interval (t + time_step) - t.
+        rk_result = internal::integrate_embedded_rk_from(
+            initial_state, t, 0.0, time_step,
+            [&velocity, dimensions, &rhs_evaluations, t](const double local_time, const std::vector<double>& state, std::vector<double>& derivative)
             {
                 ++rhs_evaluations;
-                node_rhs_from_velocity(velocity, dimensions, rhs_time, state, derivative);
+                node_rhs_from_velocity(velocity, dimensions, t + local_time, state, derivative);
             },
             method, options.adaptive_options);
+        rk_result.final_time = t + rk_result.final_time;
     }
     catch (const std::exception& error)
     {

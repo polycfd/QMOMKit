@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 680 |
+| Unit logical tests | 682 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **916** |
+| **Runtime logical tests** | **918** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **917** |
+| **Total CTest registrations** | **919** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -381,7 +381,7 @@ renamed test rather than a deleted one.
 | `unit_runge_kutta_embedded_rk_workspace_reuse_is_transparent` | `tests/unit/runge_kutta.cpp` | `embedded_rk_workspace_reuse_is_transparent` | Checks that a reused `EmbeddedRkWorkspace` takes the same step as a fresh one, and that its cached first derivative replaces exactly one evaluation. | — |
 | `unit_runge_kutta_rhs_that_leaves_a_component_unwritten_is_rejected_in_debug_builds` | `tests/unit/runge_kutta.cpp` | `rhs_that_leaves_a_component_unwritten_is_rejected_in_debug_builds` | Checks that an `OdeRhs` leaving a derivative component unwritten is reported in debug builds and is not detected in optimized builds. | — |
 | `unit_runge_kutta_rhs_that_resizes_the_derivative_buffer_is_rejected` | `tests/unit/runge_kutta.cpp` | `rhs_that_resizes_the_derivative_buffer_is_rejected` | Checks that both Runge-Kutta drivers reject an `OdeRhs` that resizes the supplied derivative buffer, with the wrong-size message rather than a downstream one. | — |
-| `unit_runge_kutta_rk23_rejects_min_step_exceeding_max_step` | `tests/unit/runge_kutta.cpp` | `rk23_rejects_min_step_exceeding_max_step` | Checks that adaptive RK23 rejects a configured minimum step larger than the effective maximum step. | — |
+| `unit_runge_kutta_rk23_rejects_min_step_exceeding_max_step` | `tests/unit/runge_kutta.cpp` | `rk23_rejects_min_step_exceeding_max_step` | Checks that RK23 and RK45 reject a configured minimum step larger than a configured maximum step, accept equal limits, and take an interval shorter than the minimum step in one accepted step. | — |
 
 ### Runge-Kutta / Runge Kutta convergence
 
@@ -528,7 +528,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_runge_kutta_ssp_rk3_multiple_retries` | `tests/unit/runge_kutta.cpp` | `ssp_rk3_multiple_retries` | Checks that SSP-RK3 repeatedly halves a rejected step until an accepted candidate is obtained. | — |
 | `unit_runge_kutta_ssp_rk3_failure_after_max_retries` | `tests/unit/runge_kutta.cpp` | `ssp_rk3_failure_after_max_retries` | Checks that SSP-RK3 reports rejection after exhausting its configured retry limit. | — |
 | `unit_runge_kutta_ssp_rk3_failure_after_reaching_minimum_timestep` | `tests/unit/runge_kutta.cpp` | `ssp_rk3_failure_after_reaching_minimum_timestep` | Checks that SSP-RK3 stops retrying when the next reduction would violate the minimum timestep. | — |
-| `unit_runge_kutta_ssp_rk3_rejects_initial_step_below_minimum` | `tests/unit/runge_kutta.cpp` | `ssp_rk3_rejects_initial_step_below_minimum` | Checks that SSP-RK3 rejects an initial step smaller than the configured minimum timestep. | — |
+| `unit_runge_kutta_ssp_rk3_attempts_step_below_minimum_without_halving` | `tests/unit/runge_kutta.cpp` | `ssp_rk3_attempts_step_below_minimum_without_halving` | Checks that SSP-RK3 takes a step shorter than `min_time_step` and, when the step is rejected, returns `minimum_timestep_reached` without halving it. | — |
 | `unit_runge_kutta_ssp_rk3_rejects_retry_that_underflows_to_zero` | `tests/unit/runge_kutta.cpp` | `ssp_rk3_rejects_retry_that_underflows_to_zero` | Checks that SSP-RK3 reports failure when retry reduction cannot produce a strictly positive timestep. | — |
 | `unit_runge_kutta_ssp_rk3_without_stage_callback_accepts_unchecked_candidate` | `tests/unit/runge_kutta.cpp` | `ssp_rk3_without_stage_callback_accepts_unchecked_candidate` | Checks that SSP-RK3 accepts a candidate without stage validation when no stage callback is configured. | — |
 | `unit_runge_kutta_ssp_rk3_final_only_callback_invoked_once` | `tests/unit/runge_kutta.cpp` | `ssp_rk3_final_only_callback_invoked_once` | Checks that final-only SSP-RK3 acceptance is evaluated once after a completed candidate step. | — |
@@ -1019,6 +1019,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_node_advection_rk23_failure_diagnostics_are_reported` | `tests/unit/node_advection.cpp` | `rk23_failure_diagnostics_are_reported` | Verifies RK23 failure diagnostics are reported. | — |
 | `unit_node_advection_throwing_velocity_reports_its_evaluations_without_an_adaptive_status` | `tests/unit/node_advection.cpp` | `throwing_velocity_reports_its_evaluations_without_an_adaptive_status` | Checks that a velocity callback that throws leaves the adaptive status empty and reports the evaluations made before the failure, for RK23, RK45, and SSP-RK3. | — |
 | `unit_node_advection_configured_adaptive_options_reach_node_advection` | `tests/unit/node_advection.cpp` | `configured_adaptive_options_reach_node_advection` | Verifies configured adaptive options reach node advection. | — |
+| `unit_node_advection_embedded_rk_advances_over_the_exact_step` | `tests/unit/node_advection.cpp` | `embedded_rk_advances_over_the_exact_step` | Checks that RK23 and RK45 node advection with `dt = 1e-10` at `t = 1e3` and `1e6` moves a node by `dt` itself, evaluates the velocity within `[t, t + dt]`, and reports `t + dt` as the final time. | — |
 | `unit_node_advection_node_advection_options_formatting_reports_semantic_settings` | `tests/unit/node_advection.cpp` | `node_advection_options_formatting_reports_semantic_settings` | Checks that node advection options formatting reports semantic settings in node advection. | — |
 
 ### Moment source
@@ -1136,6 +1137,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_phase_space_evolution_cqmom_macro_success_preserves_input_and_final_value_semantics` | `tests/unit/phase_space_evolution.cpp` | `cqmom_macro_success_preserves_input_and_final_value_semantics` | Checks that macro success preserves input and final value semantics in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution` | Checks that CQMOM boundary moment source stage matches phase-space evolution in phase-space evolution. | — |
 | `unit_phase_space_evolution_public_cqmom_stage_irrelevant_options_are_ignored` | `tests/unit/phase_space_evolution.cpp` | `public_cqmom_stage_irrelevant_options_are_ignored` | Verifies public CQMOM stage irrelevant options are ignored. | — |
+| `unit_phase_space_evolution_minimum_steps_above_the_stage_step_allow_host_retries` | `tests/unit/phase_space_evolution.cpp` | `minimum_steps_above_the_stage_step_allow_host_retries` | Checks that a QMOM Strang step succeeds when its stages are shorter than an explicit node-advection `min_step` and source `min_time_step`, as a host retry with a smaller step produces. | — |
 | `unit_phase_space_evolution_advection_only_matches_direct_operator_qmom` | `tests/unit/phase_space_evolution.cpp` | `advection_only_matches_direct_operator_qmom` | Checks that advection only matches direct operator QMOM in phase-space evolution. | — |
 | `unit_phase_space_evolution_source_only_matches_direct_operator_qmom` | `tests/unit/phase_space_evolution.cpp` | `source_only_matches_direct_operator_qmom` | Checks that source only matches direct operator QMOM in phase-space evolution. | — |
 | `unit_phase_space_evolution_source_plus_boundary_matches_direct_operator_qmom` | `tests/unit/phase_space_evolution.cpp` | `source_plus_boundary_matches_direct_operator_qmom` | Checks that source plus boundary matches direct operator QMOM in phase-space evolution. | — |

@@ -62,13 +62,20 @@ void require_same_size(const std::vector<double>& lhs, const std::vector<double>
     return std::abs(interval);
 }
 
-// The automatic minimum is ten spacings of the double at t. An explicit
-// min_step is never smaller: a shorter step can round to no step at all, or
-// back to the step just rejected, and the controller would never finish.
-[[nodiscard]] double minimum_step(const double t, const double direction, const AdaptiveRkOptions& options)
+[[nodiscard]] double spacing(const double t, const double direction)
 {
     const double toward_infinity = direction > 0.0 ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity();
-    return std::max(options.min_step, 10.0 * std::abs(std::nextafter(t, toward_infinity) - t));
+    return std::abs(std::nextafter(t, toward_infinity) - t);
+}
+
+// The automatic minimum is ten spacings of the double at the current time, both
+// as integrated and as seen by the right-hand side, time_origin + t. An
+// explicit min_step is never smaller: a shorter step can round to no step at
+// all, or back to the step just rejected, and the controller would never
+// finish.
+[[nodiscard]] double minimum_step(const double t, const double time_origin, const double direction, const AdaptiveRkOptions& options)
+{
+    return std::max({options.min_step, 10.0 * spacing(t, direction), 10.0 * spacing(time_origin + t, direction)});
 }
 
 struct SspRk3Attempt
@@ -179,8 +186,9 @@ SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, cons
     {
         throw std::invalid_argument("SSP-RK3 input contains non-finite values.");
     }
-    if (time_step <= 0.0 || !std::isfinite(options.min_time_step) || options.min_time_step < 0.0 ||
-        (options.min_time_step > 0.0 && time_step < options.min_time_step))
+    // A step already shorter than min_time_step is attempted, just not halved,
+    // so that a caller retrying with a shorter step is not refused for it.
+    if (time_step <= 0.0 || !std::isfinite(options.min_time_step) || options.min_time_step < 0.0)
     {
         throw std::invalid_argument("SSP-RK3 timestep controls must be positive.");
     }
@@ -218,6 +226,15 @@ SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, cons
 AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state, const double t0, const double t_bound, const OdeRhs& rhs,
                                        const EmbeddedRkMethod method, const AdaptiveRkOptions& options)
 {
+    return internal::integrate_embedded_rk_from(initial_state, 0.0, t0, t_bound, rhs, method, options);
+}
+
+namespace internal
+{
+
+AdaptiveRkResult integrate_embedded_rk_from(const std::vector<double>& initial_state, const double time_origin, const double t0, const double t_bound,
+                                            const OdeRhs& rhs, const EmbeddedRkMethod method, const AdaptiveRkOptions& options)
+{
     const internal::EmbeddedRkTableau* tableau = nullptr;
     try
     {
@@ -245,8 +262,10 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     {
         return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta step-size option.");
     }
-    // Only explicit values can be compared here; a default max_step is derived
-    // from the interval and is compared with min_step below.
+    // Only two explicit limits can contradict each other. A default max_step is
+    // the interval itself, and an interval shorter than min_step is taken in one
+    // step at the minimum, so that a caller retrying with a shorter interval is
+    // not refused for it.
     if (options.max_step > 0.0 && options.min_step > options.max_step)
     {
         return invalid_embedded_rk_result(initial_state, t0, "Embedded Runge-Kutta min_step must not exceed max_step.");
@@ -261,13 +280,6 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     if (max_step <= 0.0 || !std::isfinite(max_step))
     {
         return invalid_embedded_rk_result(initial_state, t0, "Invalid embedded Runge-Kutta maximum step.");
-    }
-    // An explicit min_step (options.min_step <= 0.0 instead requests an automatically
-    // derived, always-tiny minimum) must not exceed the effective maximum step, or the
-    // per-step clamp below could push the step size above max_step.
-    if (options.min_step > 0.0 && options.min_step > max_step)
-    {
-        return invalid_embedded_rk_result(initial_state, t0, "Embedded Runge-Kutta min_step must not exceed max_step.");
     }
 
     std::vector<double> y = initial_state;
@@ -303,7 +315,7 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
             return result;
         }
 
-        const double min_step = minimum_step(t, direction, options);
+        const double min_step = minimum_step(t, time_origin, direction, options);
         h_abs = std::min(std::max(h_abs, min_step), max_step);
 
         bool step_accepted = false;
@@ -409,5 +421,7 @@ AdaptiveRkResult integrate_embedded_rk(const std::vector<double>& initial_state,
     result.function_evaluations = function_evaluations;
     return result;
 }
+
+} // namespace internal
 
 } // namespace qmomkit

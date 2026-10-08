@@ -484,7 +484,9 @@ const SspRk3Result result = ssp_rk3_step(state, time, time_step, rhs, options);
 - `accept` checks the completed candidate state;
 - `stage_accept` checks stage-1, stage-2, and final candidate states;
 - `max_retries` limits retry attempts after predicate rejection;
-- `min_time_step` prevents retrying below a configured timestep floor.
+- `min_time_step` prevents retrying below a configured timestep floor; a step
+  already shorter than it is attempted but not halved, so a host retrying with
+  a smaller outer step is not refused for it.
 
 If error estimation is enabled, the solver compares the final third-order state
 with an embedded lower-order state. The result is a relative Euclidean norm
@@ -525,6 +527,11 @@ behavior; they do not silently change the mathematical source model.
 The embedded Runge-Kutta schemes advances generic vector states from `t0` to
 `t_bound`. Here the vector state is the packed collection of
 quadrature node coordinates, and the RHS is built from `PhaseSpaceVelocity`.
+Node advection integrates over the local time $\tau \in [0, \Delta t]$ and
+evaluates the velocity at $t + \tau$, so the nodes move over $\Delta t$
+itself rather than over the rounded interval $(t + \Delta t) - t$; the
+automatic minimum step still follows the spacing of the double at
+$t + \tau$.
 
 The public API selects the built-in pair explicitly:
 
@@ -582,10 +589,10 @@ is the maximum step size. `min_step == 0` means the solver uses a
 floating-point spacing based floor near the current time, ten spacings of the
 double there; an explicit `min_step` below that floor is raised to it, since a
 shorter step can round to no step at all. An explicit `min_step` must not
-exceed the effective `max_step` (whether explicitly
-configured or auto-derived from the integration interval); otherwise the
-request is rejected as `AdaptiveRkStatus::invalid_input` before integration
-begins. `max_steps` limits accepted steps, not rejected trial steps, and
+exceed an explicit `max_step`; otherwise the request is rejected as
+`AdaptiveRkStatus::invalid_input` before integration begins. An interval
+shorter than `min_step`, as a host retrying with a smaller outer step produces,
+is taken in one step at the minimum. `max_steps` limits accepted steps, not rejected trial steps, and
 remains an optional configuration override with an internal default. The actual
 embedded-RK step is bounded by `min_step` and `max_step`, then clipped so
 integration lands exactly on `t_bound`; the final remainder may therefore be

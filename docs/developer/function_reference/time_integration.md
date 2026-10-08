@@ -36,7 +36,8 @@ difference from `yn`, divided by `||yn||` unless that norm is zero. It is
 overflow at extreme scale; the estimate is not a certified error bound.
 
 Public `ssp_rk3_step` validates initial state/time/step and a finite
-nonnegative minimum step, then loops over attempts. Predicate rejection halves
+nonnegative minimum step, then loops over attempts. A step already shorter
+than the minimum is attempted, just not halved. Predicate rejection halves
 `h` and restarts at the **original** `t,y`; it does not continue a rejected
 intermediate state. `max_retries` or the configured minimum stops retry with
 original state and a rejection/minimum-step status. Arithmetic or callback
@@ -92,12 +93,17 @@ interpolation/dense-output contract is implemented by these helpers.
 ## Embedded controller — Level A
 
 `integrate_embedded_rk` advances an initial finite vector from `t0` to
-`t_bound`, including backward integration. It resolves the tableau, validates
+`t_bound`, including backward integration, through
+`internal::integrate_embedded_rk_from` with a time origin of zero. That entry
+point also serves node advection, which integrates over local time from zero
+to the step and passes the absolute start time as the origin. It resolves the tableau, validates
 dimensions, times, positive finite relative/absolute tolerances, and nonzero
 `max_steps`. Equal endpoints return success before checking nonessential
 step-size controls. For a nonzero interval, initial step must be positive; zero
 maximum step means interval length, and zero minimum means ten floating-point
-spacings at current time in the integration direction.
+spacings at current time in the integration direction, both on the integrated
+axis and at origin plus time. An explicit minimum is rejected only above an
+explicit maximum; an interval shorter than the minimum is taken in one step.
 
 The outer loop tracks accepted state/time until the endpoint or accepted-step
 limit. The inner loop retries one proposed step:
@@ -138,8 +144,11 @@ attributing any failure back to its node and phase-space dimension.
 `unpack_nodes` restores per-coordinate arrays. This preserves terminal list
 order and does not reconstruct a new CQMOM tree.
 
-`integrate_nodes_embedded_rk` integrates to `t+h`, translates controller
-failure into integration failure, and returns original coordinates on failure.
+`integrate_nodes_embedded_rk` integrates over local time `[0, h]` with the
+velocity evaluated at `t + tau`, so the nodes move over `h` itself rather than
+the rounded interval `(t+h)-t`, and reports `t` plus the local final time. It
+translates controller failure into integration failure and returns original
+coordinates on failure.
 Callback exceptions become velocity failure. `integrate_nodes_ssp_rk3` uses the
 same three-stage trajectory formula directly, with signed or zero step
 supported; it has no source predicates, source retry loop, or embedded
@@ -168,7 +177,7 @@ trajectory remain a separate question from bounded inversion acceptance.
 |---|---|---|
 | `require_same_size`, `rhs_checked`, `add_scaled` | Componentwise shape-checked arithmetic and derivative checks; callback exceptions propagate to the owning wrapper. | RHS error tests |
 | `euclidean_norm`, `error_norm` | Ordinary double norm reductions; different SSP diagnostic and embedded acceptance meanings. | RK formula/controller tests |
-| `sign`, `validate_or_default_max_step`, `minimum_step` | Direction, zero-as-default maximum, representable-time lower bound. | Backward/step-boundary tests |
+| `sign`, `validate_or_default_max_step`, `spacing`, `minimum_step` | Direction, zero-as-default maximum, representable-time lower bound on the integrated axis and at the right-hand side's time. | Backward/step-boundary tests; `embedded_rk_advances_over_the_exact_step` |
 | `stage_accepted`, `invalid_embedded_rk_result` | Missing predicate means acceptance; invalid controller input preserves initial state/time. | Invalid/predicate tests |
 | Node `all_finite`, `validate_weights`, `validate_abscissas` | Shape and finite input checks, independent of physical coordinate meaning. | Node invalid-input tests |
 | `diagnostics_from_embedded_rk`, `scheme_name`, `format_node_advection_options` | Transfer integration counts/time and serialize relevant scheme options at explicit precision; do not assess accuracy. | Formatting/diagnostic tests |

@@ -2642,6 +2642,31 @@ void test_public_cqmom_boundary_moment_source_stage_matches_phase_space_evolutio
     assert(stage.diagnostics.moment_source_status == high_level.diagnostics.moment_source_status);
 }
 
+void test_minimum_steps_above_the_stage_step_allow_host_retries()
+{
+    // A host recovers from a failed step by retrying with a smaller one. Stages
+    // shorter than an explicit node-advection min_step or source min_time_step
+    // must therefore be taken, not refused as invalid input.
+    const qmomkit::QmomState state = qmom_state_from_moments(raw_moments_1d({-0.5, 1.25}, {0.4, 0.6}, 4), 2);
+    const qmomkit::PhaseSpaceVelocity unit_velocity = [](double, const std::vector<double>&, std::vector<double>& velocities, std::size_t)
+    { std::fill(velocities.begin(), velocities.end(), 1.0); };
+    const qmomkit::QmomMomentSource zero_source = [](double, const qmomkit::QmomSourceContext& context)
+    { return qmomkit::QmomMomentRate{std::vector<double>(context.size(), 0.0)}; };
+    for (const double time_step : {4.0e-6, 1.5e-6, 1.0e-7})
+    {
+        qmomkit::QmomPhaseSpaceEvolutionOptions options;
+        options.node_options.adaptive_options.min_step = 1.0e-6;
+        options.source_options.ssp_rk3_options.min_time_step = 1.0e-6;
+        const qmomkit::QmomPhaseSpaceEvolutionResult result =
+            qmomkit::advance_qmom_phase_space(state, 0.0, time_step, unit_velocity, zero_source, options);
+        assert(result.ok());
+        for (std::size_t node = 0; node < state.quadrature().abscissas.size(); ++node)
+        {
+            assert_near(result.state.quadrature().abscissas[node], state.quadrature().abscissas[node] + time_step, 1.0e-12);
+        }
+    }
+}
+
 void test_public_cqmom_stage_irrelevant_options_are_ignored()
 {
     const qmomkit::CqmomState state = fixed_cqmom_prepared_case().initial_state();
@@ -4432,6 +4457,7 @@ int main(const int argc, char** argv)
             {"public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution",
              test_public_cqmom_boundary_moment_source_stage_matches_phase_space_evolution},
             {"public_cqmom_stage_irrelevant_options_are_ignored", test_public_cqmom_stage_irrelevant_options_are_ignored},
+            {"minimum_steps_above_the_stage_step_allow_host_retries", test_minimum_steps_above_the_stage_step_allow_host_retries},
             {"advection_only_matches_direct_operator_qmom", test_advection_only_matches_direct_operator_qmom},
             {"source_only_matches_direct_operator_qmom", test_source_only_matches_direct_operator_qmom},
             {"source_plus_boundary_matches_direct_operator_qmom", test_source_plus_boundary_matches_direct_operator_qmom},

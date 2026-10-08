@@ -69,6 +69,11 @@ that the producing reconstruction succeeded.
 
 ## Deriving active counts from paths — Level A
 
+States take their active branch counts from the reconstruction that accepted
+their quadrature (see [CQMOM reconstruction](cqmom_reconstruction.md)). The
+same counts can be derived independently from the terminal paths, which the
+tests and benchmarks use to check the recorded counts.
+
 Internal `active_branch_counts_from_quadrature`, defined in
 [cqmom_active_counts.hpp](../../../src/internal/cqmom_active_counts.hpp),
 returns an empty constraint vector for fixed quadratures. For adaptive
@@ -106,7 +111,7 @@ it. Public accessors read the hierarchy and policies from it; numerical
 algorithms use the held case directly. A `CqmomCase` is promoted through
 the public `CqmomPreparedCase` constructor. `CqmomCase::initial_state` and
 `CqmomPreparedCase::initial_state` both call `initial_cqmom_state`, which
-computes a successful quadrature, derives active branch counts, reconstructs
+computes a successful quadrature with its active branch counts, reconstructs
 the stored representation from that accepted quadrature, and stores the same
 quadrature in the state. They differ only in where the prepared metadata comes
 from: `CqmomCase::initial_state` builds it on every call, while

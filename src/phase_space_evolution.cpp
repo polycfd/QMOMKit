@@ -2,7 +2,6 @@
 
 #include "internal/bounded_quadrature.hpp"
 #include "internal/checked_size.hpp"
-#include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
 #include "internal/moment_reconstruction.hpp"
@@ -497,6 +496,13 @@ struct ActiveBranchKey
     return lhs.phase_space_dimension < rhs.phase_space_dimension;
 }
 
+[[nodiscard]] bool same_active_branch_count(const CqmomActiveBranchCount& lhs, const CqmomActiveBranchCount& rhs)
+{
+    return lhs.conditioning_level == rhs.conditioning_level && lhs.phase_space_dimension == rhs.phase_space_dimension &&
+           lhs.configured_node_count == rhs.configured_node_count && lhs.active_node_count == rhs.active_node_count &&
+           lhs.parent_path == rhs.parent_path;
+}
+
 [[nodiscard]] ActiveBranchKey active_branch_key(const CqmomActiveBranchCount& count)
 {
     return {count.conditioning_level, count.parent_path, count.phase_space_dimension};
@@ -543,6 +549,14 @@ void record_cqmom_node_count_transitions(PhaseSpaceEvolutionDiagnostics& diagnos
     if (!before_counts.empty() || !after_counts.empty())
     {
         internal::performance::record_active_count_transition_build();
+    }
+    // Equal lists mean that no branch was created, removed or resized, so there
+    // is nothing to record. Reconstructions list branches in one order, so this
+    // is the common case and needs no key maps; any other difference, order
+    // included, takes the full comparison below.
+    if (std::equal(before_counts.begin(), before_counts.end(), after_counts.begin(), after_counts.end(), same_active_branch_count))
+    {
+        return;
     }
 
     std::map<ActiveBranchKey, CqmomActiveBranchCount> before_by_key;
@@ -905,11 +919,10 @@ struct CqmomPhaseSpaceEvolutionWorkingState
 
     const std::vector<CqmomActiveBranchCount>& before_initial_active_branch_counts =
         internal::CqmomConstructionAccess::state_active_branch_counts(state);
-    working_state.reconstructed_active_branch_counts = before_initial_active_branch_counts;
     const internal::PreparedCqmomMetadata* prepared_metadata = internal::CqmomConstructionAccess::state_prepared_metadata(state).get();
     CqmomResult initial_quadrature =
-        internal::compute_cqmom_internal(internal::CqmomConstructionAccess::state_definition(state), working_state.reconstructed_active_branch_counts,
-                                         false, prepared_metadata, !state.qmom_options().adaptive);
+        internal::compute_cqmom_internal(internal::CqmomConstructionAccess::state_definition(state), before_initial_active_branch_counts, false,
+                                         prepared_metadata, !state.qmom_options().adaptive, &working_state.reconstructed_active_branch_counts);
     diagnostics.initial_cqmom_status = initial_quadrature.status;
     diagnostics.initial_cqmom_diagnostics = initial_quadrature.diagnostics;
     if (!initial_quadrature.ok())
@@ -921,7 +934,6 @@ struct CqmomPhaseSpaceEvolutionWorkingState
 
     working_state.reconstructed_quadrature = std::move(initial_quadrature.quadrature);
     working_state.accepted_quadrature = &*working_state.reconstructed_quadrature;
-    working_state.reconstructed_active_branch_counts = internal::active_branch_counts_from_quadrature(*working_state.accepted_quadrature);
     working_state.active_branch_counts = &working_state.reconstructed_active_branch_counts;
     record_cqmom_node_count_transitions(diagnostics, PhaseSpaceEvolutionStage::initial_inversion, before_initial_active_branch_counts,
                                         *working_state.active_branch_counts);
@@ -1019,9 +1031,10 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     const std::vector<CqmomActiveBranchCount>& before_source_active_branch_counts = *working_state.active_branch_counts;
     internal::performance::record_post_source_inversion();
     CqmomCase post_source_cqmom_case = internal::with_moments(cqmom_case, std::move(source_update.moments));
+    std::vector<CqmomActiveBranchCount> after_source_active_branch_counts;
     CqmomResult post_source_quadrature =
         internal::compute_cqmom_internal(post_source_cqmom_case, *working_state.active_branch_counts, cqmom_case.qmom_options.adaptive,
-                                         prepared_metadata.get(), !cqmom_case.qmom_options.adaptive);
+                                         prepared_metadata.get(), !cqmom_case.qmom_options.adaptive, &after_source_active_branch_counts);
     diagnostics.post_source_cqmom_status = post_source_quadrature.status;
     diagnostics.post_source_cqmom_diagnostics = post_source_quadrature.diagnostics;
     if (!post_source_quadrature.ok())
@@ -1034,8 +1047,6 @@ struct CqmomPhaseSpaceEvolutionWorkingState
     {
         internal::performance::record_moment_reconstruction_call();
         CqmomMomentData moments = internal::reconstruct_trusted_cqmom_moments(post_source_quadrature.quadrature, cqmom_case.moments.layout);
-        std::vector<CqmomActiveBranchCount> after_source_active_branch_counts =
-            internal::active_branch_counts_from_quadrature(post_source_quadrature.quadrature);
         record_cqmom_node_count_transitions(diagnostics, PhaseSpaceEvolutionStage::post_source_inversion, before_source_active_branch_counts,
                                             after_source_active_branch_counts);
         return cqmom_success(cqmom_state_from_accepted_quadrature(cqmom_case, std::move(moments), std::move(after_source_active_branch_counts),

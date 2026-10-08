@@ -187,6 +187,9 @@ struct RecursiveQuadratureMomentDataRequest
     // Explicit standalone reconstruction leaves this false and remains
     // dynamically prepared.
     bool require_prepared_metadata = false;
+    // An adaptive reconstruction that feeds a `CqmomState` asks for the active
+    // branch counts it accepted; other callers leave them unrecorded.
+    bool record_active_branch_counts = false;
 };
 
 struct RecursiveQuadratureBranchDiagnostics
@@ -224,6 +227,10 @@ struct RecursiveQuadratureResult
     std::vector<RecursiveQuadratureBranchDiagnostics> diagnostics;
     ConditioningPath failed_path;
     std::size_t failed_conditioning_level = 0;
+    // One entry per accepted branch when the request records active branch
+    // counts, ordered by parent path: the order in which the terminal paths
+    // visit the branches.
+    std::vector<CqmomActiveBranchCount> active_branch_counts;
 
     [[nodiscard]] bool ok() const noexcept
     {

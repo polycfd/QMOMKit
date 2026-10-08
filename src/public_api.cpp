@@ -1,5 +1,4 @@
 #include "internal/bounded_quadrature.hpp"
-#include "internal/cqmom_active_counts.hpp"
 #include "internal/cqmom_case.hpp"
 #include "internal/cqmom_validation.hpp"
 #include "internal/moment_reconstruction.hpp"
@@ -273,13 +272,13 @@ namespace
 CqmomState initial_cqmom_state(const CqmomCase& cqmom_case, const internal::PreparedCqmomMetadataPtr& prepared_metadata_handle)
 {
     const internal::PreparedCqmomMetadata* prepared_metadata = prepared_metadata_handle.get();
-    CqmomResult accepted = internal::compute_cqmom_internal(cqmom_case, {}, false, prepared_metadata, true);
+    std::vector<CqmomActiveBranchCount> active_counts;
+    CqmomResult accepted = internal::compute_cqmom_internal(cqmom_case, {}, false, prepared_metadata, true, &active_counts);
     if (!accepted.ok())
     {
         throw std::runtime_error("CQMOM initial state quadrature reconstruction failed: " + accepted.message);
     }
     CqmomQuadrature accepted_quadrature = std::move(accepted.quadrature);
-    std::vector<CqmomActiveBranchCount> active_counts = internal::active_branch_counts_from_quadrature(accepted_quadrature);
     CqmomCase canonical_cqmom_case =
         internal::with_moments(cqmom_case, internal::reconstruct_trusted_cqmom_moments(accepted_quadrature, cqmom_case.moments.layout));
     return internal::CqmomConstructionAccess::create_state(std::move(canonical_cqmom_case), std::move(active_counts), std::move(accepted_quadrature),
@@ -695,7 +694,7 @@ namespace internal
 
 CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<CqmomActiveBranchCount> active_branch_counts,
                                    const bool allow_active_branch_count_growth, const PreparedCqmomMetadata* const prepared_metadata,
-                                   const bool require_prepared_metadata)
+                                   const bool require_prepared_metadata, std::vector<CqmomActiveBranchCount>* const accepted_active_branch_counts)
 {
     const PhaseSpaceHierarchy& hierarchy = cqmom_case.moments.layout.hierarchy;
     if (!cqmom_required_moment_extents_representable(hierarchy))
@@ -706,27 +705,43 @@ CqmomResult compute_cqmom_internal(const CqmomCase& cqmom_case, std::vector<Cqmo
     {
         throw std::logic_error("Fixed normal CQMOM reconstruction requires prepared metadata.");
     }
+    const bool record_active_branch_counts = accepted_active_branch_counts != nullptr && cqmom_case.qmom_options.adaptive;
+    // The traversal already knows the node count it accepts for each branch,
+    // so a state takes its active counts from the reconstruction.
+    const auto accepted = [&](RecursiveQuadratureResult& result, const std::vector<double>* const scales)
+    {
+        CqmomResult converted = to_cqmom_result(result, hierarchy, scales);
+        if (accepted_active_branch_counts != nullptr && converted.ok())
+        {
+            *accepted_active_branch_counts = std::move(result.active_branch_counts);
+            if (record_active_branch_counts)
+            {
+                performance::record_active_count_derivation();
+            }
+        }
+        return converted;
+    };
     if (cqmom_case.qmom_options.automatic_scaling)
     {
         const std::optional<CqmomScalingContext> scaling = make_cqmom_scaling_context(cqmom_case.moments, cqmom_case.abscissa_bounds);
         if (scaling.has_value())
         {
-            const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
+            RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
                 {hierarchy, scaling->moments, cqmom_case.conditional_options, to_wheeler_options(cqmom_case.qmom_options),
                  cqmom_case.diagnostic_level, cqmom_case.vandermonde_solver, active_branch_counts, allow_active_branch_count_growth,
-                 scaling->coordinate_support, prepared_metadata, require_prepared_metadata});
+                 scaling->coordinate_support, prepared_metadata, require_prepared_metadata, record_active_branch_counts});
             if (can_restore_cqmom_result(result, scaling->scales))
             {
-                return to_cqmom_result(result, hierarchy, &scaling->scales);
+                return accepted(result, &scaling->scales);
             }
         }
     }
-    const RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
+    RecursiveQuadratureResult result = compute_recursive_quadrature_from_trusted_moment_data(
         {hierarchy, cqmom_case.moments, cqmom_case.conditional_options, to_wheeler_options(cqmom_case.qmom_options), cqmom_case.diagnostic_level,
          cqmom_case.vandermonde_solver, std::move(active_branch_counts), allow_active_branch_count_growth, cqmom_case.abscissa_bounds,
-         prepared_metadata, require_prepared_metadata});
+         prepared_metadata, require_prepared_metadata, record_active_branch_counts});
 
-    return to_cqmom_result(result, hierarchy);
+    return accepted(result, nullptr);
 }
 
 } // namespace internal

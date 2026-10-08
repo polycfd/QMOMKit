@@ -619,7 +619,8 @@ struct ConditionalSliceResult
 
 [[nodiscard]] internal::RecursiveQuadratureResult create_recursive_result(const PhaseSpaceHierarchy& hierarchy)
 {
-    return internal::RecursiveQuadratureResult{internal::RecursiveQuadrature(hierarchy), internal::RecursiveQuadratureStatus::success, "", {}, {}, 0};
+    return internal::RecursiveQuadratureResult{
+        internal::RecursiveQuadrature(hierarchy), internal::RecursiveQuadratureStatus::success, "", {}, {}, 0, {}};
 }
 
 void record_failure(internal::RecursiveQuadratureResult& result, const internal::RecursiveQuadratureStatus status, const ConditioningPath& path,
@@ -1713,6 +1714,10 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
                 branch_diagnostics.message = "Recursive branch level constructed.";
                 publish_branch_diagnostics(branch_diagnostics);
             }
+            if (wheeler_options.adaptive && request.record_active_branch_counts)
+            {
+                result.active_branch_counts.push_back({level, branch.path, phase_space_dimension, configured_node_count, quadrature.weights.size()});
+            }
 
             for (std::size_t node = 0; node < quadrature.weights.size(); ++node)
             {
@@ -1803,6 +1808,11 @@ RecursiveQuadratureResult compute_recursive_quadrature_from_validated_moment_dat
             record_failure(result, RecursiveQuadratureStatus::invalid_input, {}, dimensions == 0 ? 0 : dimensions - 1, ex.what());
             return result;
         }
+        // The traversal visits the branches level by level. Lexicographic
+        // parent-path order lists every branch before its descendants, as the
+        // terminal paths do.
+        std::sort(result.active_branch_counts.begin(), result.active_branch_counts.end(),
+                  [](const CqmomActiveBranchCount& lhs, const CqmomActiveBranchCount& rhs) { return lhs.parent_path < rhs.parent_path; });
     }
 
     result.status = RecursiveQuadratureStatus::success;

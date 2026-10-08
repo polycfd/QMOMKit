@@ -143,8 +143,9 @@ numerical backbone called by the validated and trusted moment-data entry points.
 Inputs are raw global moments, hierarchy, Wheeler and conditional-solve options,
 support intervals, diagnostic policy, and optional active topology/growth
 permission. Outputs include quadrature storage, the constructed tree, status,
-failure location, and selected branch diagnostics. Configured counts, the
-current trial's requested count, and returned active counts are separate values.
+failure location, selected branch diagnostics and, when the request asks for
+them in adaptive mode, the active branch counts. Configured counts, the current
+trial's requested count, and returned active counts are separate values.
 
 1. The entry points have already rejected invalid options. The driver
    validates coordinate support and active branch topology; invalid support,
@@ -163,6 +164,12 @@ current trial's requested count, and returned active counts are separate values.
    ragged terminal list. Fixed storage is indexed using the phase-space rectangular
    multi-index. Termination follows the finite hierarchy rank and each accepted
    finite node list; there is no convergence loop over CQMOM levels.
+6. When the request records active branch counts, each accepted adaptive branch
+   adds its level, parent path, dimension, configured count, and accepted node
+   count. The traversal visits branches level by level; on success the counts
+   are sorted by parent path, which lists each branch before its descendants,
+   the order in which the terminal paths visit them. A `CqmomState` takes its
+   counts from here instead of re-deriving them from the terminal paths.
 
 Failure leaves partial tree/storage as diagnostic data. Public result
 conversion maps status and failed dimension; consumers must check success

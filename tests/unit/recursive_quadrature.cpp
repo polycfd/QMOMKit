@@ -1654,6 +1654,54 @@ void test_recursive_adaptive_reduces_roundoff_branch_with_bounded_support()
     assert(found_branch);
 }
 
+void test_recursive_adaptive_records_active_counts_in_parent_path_order()
+{
+    // A 3D rule whose second branch holds a single y point. The traversal
+    // visits branches level by level, but the recorded counts list each branch
+    // before its descendants, the order in which the terminal paths visit them.
+    const qmomkit::PhaseSpaceHierarchy hierarchy({2, 2, 2});
+    const std::vector<std::size_t> extents{4, 4, 4};
+    const std::vector<double> weights{0.4 * 0.5 * 0.3, 0.4 * 0.5 * 0.7, 0.4 * 0.5 * 0.3, 0.4 * 0.5 * 0.7, 0.6 * 0.3, 0.6 * 0.7};
+    const std::vector<std::vector<double>> abscissas{
+        {-1.0, -1.0, -1.0, -1.0, 1.0, 1.0}, {-1.0, -1.0, 1.0, 1.0, 0.0, 0.0}, {-0.5, 0.5, -0.5, 0.5, -0.5, 0.5}};
+    const std::vector<double> moments = raw_moments_from_terminal_quadrature(abscissas, weights, extents);
+
+    qmomkit::internal::RecursiveQuadratureMomentDataRequest request =
+        moment_data_request(hierarchy, {extents, moments}, {}, qmomkit::WheelerOptions{true, 1.0e-10, 1.0e-10, 1.0e-12});
+    const qmomkit::internal::RecursiveQuadratureResult unrecorded = qmomkit::internal::compute_recursive_quadrature_from_moment_data(request);
+    assert(unrecorded.ok());
+    assert(unrecorded.active_branch_counts.empty());
+
+    request.record_active_branch_counts = true;
+    const qmomkit::internal::RecursiveQuadratureResult result = qmomkit::internal::compute_recursive_quadrature_from_moment_data(request);
+    assert(result.ok());
+    assert(result.quadrature.total_nodes() == weights.size());
+    const std::vector<qmomkit::CqmomActiveBranchCount> expected{
+        {0, qmomkit::ConditioningPath{}, 0, 2, 2},       {1, qmomkit::ConditioningPath({0}), 1, 2, 2},
+        {2, qmomkit::ConditioningPath({0, 0}), 2, 2, 2}, {2, qmomkit::ConditioningPath({0, 1}), 2, 2, 2},
+        {1, qmomkit::ConditioningPath({1}), 1, 2, 1},    {2, qmomkit::ConditioningPath({1, 0}), 2, 2, 2}};
+    assert(result.active_branch_counts.size() == expected.size());
+    for (std::size_t i = 0; i < expected.size(); ++i)
+    {
+        assert(result.active_branch_counts[i].conditioning_level == expected[i].conditioning_level);
+        assert(result.active_branch_counts[i].parent_path == expected[i].parent_path);
+        assert(result.active_branch_counts[i].phase_space_dimension == expected[i].phase_space_dimension);
+        assert(result.active_branch_counts[i].configured_node_count == expected[i].configured_node_count);
+        assert(result.active_branch_counts[i].active_node_count == expected[i].active_node_count);
+    }
+
+    // A fixed reconstruction has no active counts to record.
+    const std::vector<double> product_weights{0.06, 0.14, 0.06, 0.14, 0.09, 0.21, 0.09, 0.21};
+    const std::vector<std::vector<double>> product_abscissas{
+        {-1.0, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0}, {-1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0}, {-0.5, 0.5, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5}};
+    qmomkit::internal::RecursiveQuadratureMomentDataRequest fixed_request =
+        moment_data_request(hierarchy, {extents, raw_moments_from_terminal_quadrature(product_abscissas, product_weights, extents)});
+    fixed_request.record_active_branch_counts = true;
+    const qmomkit::internal::RecursiveQuadratureResult fixed = qmomkit::internal::compute_recursive_quadrature_from_moment_data(fixed_request);
+    assert(fixed.ok());
+    assert(fixed.active_branch_counts.empty());
+}
+
 void test_recursive_reconstruction_does_not_depend_on_number_density()
 {
     // The same four weighted points at unit number density and at 1e-16: the
@@ -1941,6 +1989,7 @@ int main(const int argc, char** argv)
             {"recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch",
              test_recursive_adaptive_reduces_roundoff_deterministic_mixed_affine_branch},
             {"recursive_adaptive_reduces_roundoff_branch_with_bounded_support", test_recursive_adaptive_reduces_roundoff_branch_with_bounded_support},
+            {"recursive_adaptive_records_active_counts_in_parent_path_order", test_recursive_adaptive_records_active_counts_in_parent_path_order},
             {"recursive_reconstruction_does_not_depend_on_number_density", test_recursive_reconstruction_does_not_depend_on_number_density},
             {"recursive_bp_failure_independent_of_diagnostic_level", test_recursive_bp_failure_independent_of_diagnostic_level},
             {"public_cqmom_bp_success_independent_of_diagnostic_level", test_public_cqmom_bp_success_independent_of_diagnostic_level},

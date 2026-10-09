@@ -37,8 +37,9 @@ Every check of a moment row, or of the complete time block of a quadrature
 write, runs before its first character is written, and values computed for a
 row are computed before it as well, so a write rejected for its data leaves the
 file unchanged. A write that the operating system refuses throws after the
-flush and closes the stream, so the refused bytes are not written later and
-every later write throws; the file may then end in a partial row.
+flush and closes the stream at once, so the refused bytes are not written later,
+except by the attempt that closing itself makes, and every later write throws;
+the file may then end in a partial row.
 
 `QuadratureWriter::for_qmom` stores maximum node capacity; output may contain
 fewer nodes. `for_cqmom` stores hierarchy. QMOM `write_qmom_row` validates

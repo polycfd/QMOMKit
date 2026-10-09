@@ -2027,11 +2027,14 @@ void test_declared_rank_bounds_coordinate_realizability_indices()
     assert(within_rank_policies.value()[1].has_value());
 
     // Every section is checked before the indices, as the case loaders do, so
-    // all parsers report the same first error.
-    const std::string misspelled = "[phase_space]\nnode_counts = 2, 2\n[time_integration.realizability.0]\ncheck_mode = final_only\n"
-                                   "support = nonnegativ\n[time_integration.realizability.2" +
-                                   policy;
-    const std::string support_message = "time_integration.realizability.0.support must be";
+    // a section outside the rank with an invalid field is reported for that
+    // field first by every parser.
+    const std::string misspelled = "[phase_space]\nnode_counts = 2, 2\n[initial]\ntype = independent_product\nnumber_density = 1.0\n"
+                                   "[initial.dimension.0]\nfamily = normal\nmean = 0.0\nstandard_deviation = 1.0\n"
+                                   "[initial.dimension.1]\nfamily = gamma\nshape = 2.0\nscale = 1.0\n"
+                                   "[time_integration.realizability.2]\ncheck_mode = final_only\nsupport = nonnegativ\n";
+    const std::string support_message = "time_integration.realizability.2.support must be";
+    assert(has_message_fragment(qmomkit::config::parse_cqmom(misspelled), support_message));
     assert(has_message_fragment(qmomkit::config::parse_cqmom_phase_space_evolution_options(misspelled), support_message));
     assert(has_message_fragment(qmomkit::config::parse_coordinate_realizability_policies(misspelled), support_message));
 }

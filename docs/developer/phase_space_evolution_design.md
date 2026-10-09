@@ -531,8 +531,9 @@ Node advection integrates over the local time $\tau \in [0, \Delta t]$ and
 evaluates the velocity at $t + \tau$, so the nodes move over $\Delta t$
 itself rather than over the rounded interval $(t + \Delta t) - t$. The
 automatic minimum step follows the spacing of the double at $\tau$, so the
-error control still resolves a stiff velocity in a step far shorter than the
-spacing at $t$.
+error control still resolves a velocity that is stiff in the node positions in
+a step far shorter than the spacing at $t$. Its variation in time within that
+spacing is not resolved, since $t + \tau$ rounds to it.
 
 The public API selects the built-in pair explicitly:
 

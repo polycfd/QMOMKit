@@ -31,9 +31,9 @@ namespace
 // full disk, is reported by the call that wrote it. Left in the buffer, it
 // would surface only at a later write or in the destructor, where it cannot be
 // reported, and the rows accepted since the last flush would be lost. A failed
-// stream is closed, so the bytes it refused are not written later, when the
-// writer is destroyed after space has become available; every later write
-// then throws.
+// stream is closed at once, so the bytes it refused are not written later, when
+// the writer is destroyed after space has become available; only the attempt
+// that closing itself makes can still write them. Every later write throws.
 void flush_or_throw(std::ofstream& output, const std::string& message)
 {
     output.flush();

@@ -173,8 +173,10 @@ struct IntegratedNodes
         // velocity evaluated at t + tau, so the nodes move over the requested
         // step rather than over the rounded interval (t + time_step) - t. The
         // step floor then follows the spacing of tau rather than of t, so the
-        // error control still resolves a stiff velocity within a step not much
-        // longer than the spacing of t.
+        // error control still resolves a velocity that is stiff in the node
+        // positions within a step not much longer than the spacing of t. Its
+        // variation in time within that spacing is not resolved, since t + tau
+        // rounds to it.
         rk_result = integrate_embedded_rk(
             initial_state, 0.0, time_step,
             [&velocity, dimensions, &rhs_evaluations, t](const double local_time, const std::vector<double>& state, std::vector<double>& derivative)

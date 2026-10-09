@@ -86,9 +86,10 @@ full disk. Every call that returns normally has therefore been handed to the
 file; the writers do not force it to the storage device. Left in the stream
 buffer, such a failure would surface only at a later call or in the
 destructor, where it cannot be reported, and the rows accepted since the last
-flush would be lost. After a refusal the stream is closed, so the refused
-bytes are not written later, when space is available again by the time the
-writer is destroyed, and every later write throws. The flush costs one write
+flush would be lost. After a refusal the stream is closed at once, so the
+refused bytes are not written later, when space is available again by the time
+the writer is destroyed; only the attempt that closing itself makes can still
+write them. Every later write throws. The flush costs one write
 to the file per call, which is small at the cadence of an output schedule.
 
 Writers validate structural consistency before writing rows. Examples include

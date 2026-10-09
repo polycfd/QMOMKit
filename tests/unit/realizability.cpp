@@ -229,6 +229,18 @@ void test_flat_extension_within_data_uncertainty_is_indeterminate()
     assert(result.failed_matrix == "H_3_flat_extension");
 }
 
+void test_data_uncertainty_widens_the_tolerance()
+{
+    // Two points at 4 and 6 with m_4 lowered by 2^-35: the standardized H_2 has
+    // an eigenvalue of about -9e-13, below minus the user threshold but within
+    // it once the propagated rounding of the input moments is added, so its
+    // sign is indeterminate rather than negative.
+    const auto result = qmomkit::check_realizability(MomentSet{1.0, 5.0, 26.0, 140.0, 776.0 - 0x1p-35}, MomentSupport::real_line);
+    assert(result.status == RealizabilityStatus::numerically_indeterminate);
+    assert(result.failed_matrix == "H_2");
+    assert(result.minimum_pivot < 0.0);
+}
+
 void test_lost_information_is_indeterminate()
 {
     // At a mean of 10^6 standard deviations the order-6 central moments carry
@@ -269,6 +281,7 @@ int main(const int argc, char** argv)
             {"tolerance_below_the_roundoff_resolves_no_finer", test_tolerance_below_the_roundoff_resolves_no_finer},
             {"flat_extension_within_precision_is_boundary", test_flat_extension_within_precision_is_boundary},
             {"flat_extension_within_data_uncertainty_is_indeterminate", test_flat_extension_within_data_uncertainty_is_indeterminate},
+            {"data_uncertainty_widens_the_tolerance", test_data_uncertainty_widens_the_tolerance},
             {"lost_information_is_indeterminate", test_lost_information_is_indeterminate},
             {"ssp_rk3_predicate_can_be_explicitly_wrapped", test_ssp_rk3_predicate_can_be_explicitly_wrapped},
         });

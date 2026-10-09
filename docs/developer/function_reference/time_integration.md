@@ -145,7 +145,9 @@ order and does not reconstruct a new CQMOM tree.
 velocity evaluated at `t + tau`, so the nodes move over `h` itself rather than
 the rounded interval `(t+h)-t`, and reports `t` plus the local final time. The
 step floor then follows the spacing of `tau`, so the error control still
-resolves a stiff velocity in a step far shorter than the spacing at `t`. It
+resolves a velocity that is stiff in the node positions in a step far shorter
+than the spacing at `t`; its variation in time within that spacing is not
+resolved, since `t + tau` rounds to it. It
 translates controller failure into integration failure and returns original
 coordinates on failure.
 Callback exceptions become velocity failure. `integrate_nodes_ssp_rk3` uses the

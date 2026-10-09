@@ -1101,6 +1101,18 @@ void test_rows_that_cannot_be_stored_are_reported()
         {
             assert(accepted > 0);
             limit_file_size(previous.rlim_cur);
+            // The writer is closed after a refusal, so a later write throws
+            // even with space available, and adds nothing to the file.
+            bool later_write_refused = false;
+            try
+            {
+                write(static_cast<double>(accepted + 1));
+            }
+            catch (const std::runtime_error&)
+            {
+                later_write_refused = true;
+            }
+            assert(later_write_refused);
             return accepted;
         }
         assert(false);

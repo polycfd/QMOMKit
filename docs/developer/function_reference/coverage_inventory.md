@@ -894,15 +894,15 @@ evidence](time_integration.md)
 | `node_rhs_from_velocity` | [118](../../../src/node_advection.cpp#L118) |
 | `add_scaled` | [149](../../../src/node_advection.cpp#L149) |
 | `integrate_nodes_embedded_rk` | [163](../../../src/node_advection.cpp#L163) |
-| `integrate_nodes_ssp_rk3` | [215](../../../src/node_advection.cpp#L215) |
-| `integrate_nodes` | [286](../../../src/node_advection.cpp#L286) |
-| `scheme_name` | [317](../../../src/node_advection.cpp#L317) |
-| `PooledCoordinateBuffer::PooledCoordinateBuffer` | [347](../../../src/node_advection.cpp#L347) |
-| `PooledCoordinateBuffer::~PooledCoordinateBuffer` | [368](../../../src/node_advection.cpp#L368) |
-| `PooledCoordinateBuffer::free_list` | [380](../../../src/node_advection.cpp#L380) |
-| `make_phase_space_velocity` | [474](../../../src/node_advection.cpp#L474) |
-| `advance_nodes` | [391](../../../src/node_advection.cpp#L391), [419](../../../src/node_advection.cpp#L419), [434](../../../src/node_advection.cpp#L434) |
-| `format_node_advection_options` | [514](../../../src/node_advection.cpp#L514) |
+| `integrate_nodes_ssp_rk3` | [217](../../../src/node_advection.cpp#L217) |
+| `integrate_nodes` | [288](../../../src/node_advection.cpp#L288) |
+| `scheme_name` | [319](../../../src/node_advection.cpp#L319) |
+| `PooledCoordinateBuffer::PooledCoordinateBuffer` | [349](../../../src/node_advection.cpp#L349) |
+| `PooledCoordinateBuffer::~PooledCoordinateBuffer` | [370](../../../src/node_advection.cpp#L370) |
+| `PooledCoordinateBuffer::free_list` | [382](../../../src/node_advection.cpp#L382) |
+| `make_phase_space_velocity` | [476](../../../src/node_advection.cpp#L476) |
+| `advance_nodes` | [393](../../../src/node_advection.cpp#L393), [421](../../../src/node_advection.cpp#L421), [436](../../../src/node_advection.cpp#L436) |
+| `format_node_advection_options` | [516](../../../src/node_advection.cpp#L516) |
 
 ### `src/output.cpp`
 

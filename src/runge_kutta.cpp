@@ -219,9 +219,13 @@ SspRk3Result ssp_rk3_step(const std::vector<double>& state, const double t, cons
 const char* internal::adaptive_rk_options_error(const AdaptiveRkOptions& options)
 {
     if (!std::isfinite(options.relative_tolerance) || !std::isfinite(options.absolute_tolerance) || options.relative_tolerance <= 0.0 ||
-        options.absolute_tolerance <= 0.0 || options.max_steps == 0)
+        options.absolute_tolerance <= 0.0)
     {
-        return "Invalid embedded Runge-Kutta input.";
+        return "Embedded Runge-Kutta tolerances must be finite and positive.";
+    }
+    if (options.max_steps == 0)
+    {
+        return "Embedded Runge-Kutta max_steps must be positive.";
     }
     if ((!std::isfinite(options.initial_step) || options.initial_step <= 0.0) || !std::isfinite(options.max_step) || options.max_step < 0.0 ||
         !std::isfinite(options.min_step) || options.min_step < 0.0)

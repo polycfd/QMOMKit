@@ -2737,7 +2737,9 @@ void test_public_qmom_invalid_stage_options_are_invalid_input()
     using Change = std::function<void(qmomkit::QmomPhaseSpaceEvolutionOptions&)>;
 
     const std::vector<std::pair<Change, std::string>> node_options{
-        {[](auto& options) { options.node_options.adaptive_options.relative_tolerance = -1.0; }, "Invalid embedded Runge-Kutta input."},
+        {[](auto& options) { options.node_options.adaptive_options.relative_tolerance = -1.0; },
+         "Embedded Runge-Kutta tolerances must be finite and positive."},
+        {[](auto& options) { options.node_options.adaptive_options.max_steps = 0; }, "Embedded Runge-Kutta max_steps must be positive."},
         {[](auto& options) { options.node_options.adaptive_options.initial_step = 0.0; }, "step-size option"},
         {[](auto& options)
          {
@@ -2828,7 +2830,8 @@ void test_public_cqmom_invalid_stage_options_are_invalid_input()
     using Change = std::function<void(qmomkit::CqmomPhaseSpaceEvolutionOptions&)>;
 
     const std::vector<std::pair<Change, std::string>> node_options{
-        {[](auto& options) { options.node_options.adaptive_options.absolute_tolerance = 0.0; }, "Invalid embedded Runge-Kutta input."},
+        {[](auto& options) { options.node_options.adaptive_options.absolute_tolerance = 0.0; },
+         "Embedded Runge-Kutta tolerances must be finite and positive."},
         {[](auto& options) { options.node_options.scheme = static_cast<qmomkit::NodeAdvectionScheme>(99); }, "Unsupported node-advection scheme."},
     };
     for (const auto& [change, message] : node_options)

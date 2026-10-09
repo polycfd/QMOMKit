@@ -1259,7 +1259,7 @@ evidence](time_integration.md)
 | `try_ssp_rk3_step` | [110](../../../src/runge_kutta.cpp#L110) |
 | `ssp_rk3_step` | [172](../../../src/runge_kutta.cpp#L172) |
 | `adaptive_rk_options_error` | [219](../../../src/runge_kutta.cpp#L219) |
-| `integrate_embedded_rk` | [242](../../../src/runge_kutta.cpp#L242) |
+| `integrate_embedded_rk` | [246](../../../src/runge_kutta.cpp#L246) |
 
 ### `src/wheeler.cpp`
 

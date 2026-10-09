@@ -763,6 +763,20 @@ void test_rk23_invalid_options_fail_before_loop()
     const qmomkit::AdaptiveRkResult zero_atol =
         qmomkit::integrate_embedded_rk({0.0}, 0.0, 1.0, exponential_decay_rhs(), qmomkit::EmbeddedRkMethod::rk23, options);
     assert(zero_atol.status == qmomkit::AdaptiveRkStatus::invalid_input);
+    assert(zero_atol.message == "Embedded Runge-Kutta tolerances must be finite and positive.");
+
+    qmomkit::AdaptiveRkOptions zero_max_steps;
+    zero_max_steps.max_steps = 0;
+    const qmomkit::AdaptiveRkResult no_steps =
+        qmomkit::integrate_embedded_rk({0.0}, 0.0, 1.0, exponential_decay_rhs(), qmomkit::EmbeddedRkMethod::rk23, zero_max_steps);
+    assert(no_steps.status == qmomkit::AdaptiveRkStatus::invalid_input);
+    assert(no_steps.message == "Embedded Runge-Kutta max_steps must be positive.");
+
+    // A non-finite state is invalid input whatever the options.
+    const qmomkit::AdaptiveRkResult non_finite = qmomkit::integrate_embedded_rk(
+        {std::numeric_limits<double>::quiet_NaN()}, 0.0, 1.0, exponential_decay_rhs(), qmomkit::EmbeddedRkMethod::rk23, zero_max_steps);
+    assert(non_finite.status == qmomkit::AdaptiveRkStatus::invalid_input);
+    assert(non_finite.message == "Invalid embedded Runge-Kutta input.");
 
     for (const double initial_step :
          {0.0, -1.0, std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()})

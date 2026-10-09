@@ -273,32 +273,32 @@ void verify_boundary_diagnostics()
     QMOMKIT_VERIFY_CHECK(zero.tolerance_used > 0.0);
     QMOMKIT_VERIFY_CHECK(contains_text(zero.message, "zero measure"));
 
-    // Tolerance-controlled near-boundary cases use m0=1, m1=0, and a tiny
-    // positive/negative variance. With a loose absolute tolerance, both tiny
-    // signs are classified as numerically indeterminate; larger perturbations
-    // move deterministically to strict or non-realizable classifications.
+    // Tolerance-controlled near-boundary cases. Two points at -1 and 1 put H_2
+    // exactly on the boundary at order 4; lowering m_4 by 1e-10 keeps its zero
+    // eigenvalue within a loose tolerance, so its sign is indeterminate. A
+    // variance of -1e-6 or 1e-6 is decided at its own scale. The tolerance used
+    // refers to the standardized matrices, against which the limiting
+    // eigenvalue is compared.
     RealizabilityOptions loose;
     loose.tolerance = 1.0e-8;
-    loose.relative_tolerance = false;
 
-    const auto tiny_negative = qmomkit::check_realizability(MomentSet{1.0, 0.0, -1.0e-10}, MomentSupport::real_line, loose);
+    const auto tiny_negative = qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0, 0.0, 1.0 - 1.0e-10}, MomentSupport::real_line, loose);
     QMOMKIT_VERIFY_CHECK(tiny_negative.status == RealizabilityStatus::numerically_indeterminate);
-    QMOMKIT_VERIFY_CHECK(tiny_negative.checked_order == 2);
-    QMOMKIT_VERIFY_CHECK(tiny_negative.failed_matrix == "H_1");
-    QMOMKIT_VERIFY_CHECK(tiny_negative.failed_matrix_order == 1);
-    QMOMKIT_VERIFY_NEAR(tiny_negative.tolerance_used, loose.tolerance, 0.0);
+    QMOMKIT_VERIFY_CHECK(tiny_negative.checked_order == 4);
+    QMOMKIT_VERIFY_CHECK(tiny_negative.failed_matrix == "H_2");
+    QMOMKIT_VERIFY_CHECK(tiny_negative.failed_matrix_order == 2);
+    QMOMKIT_VERIFY_CHECK(tiny_negative.minimum_pivot < 0.0);
+    QMOMKIT_VERIFY_CHECK(std::abs(tiny_negative.minimum_pivot) < tiny_negative.tolerance_used);
     QMOMKIT_VERIFY_CHECK(contains_text(tiny_negative.message, "indeterminate"));
 
     const auto clear_negative = qmomkit::check_realizability(MomentSet{1.0, 0.0, -1.0e-6}, MomentSupport::real_line, loose);
     verify_failure_diagnostics(clear_negative, 2, "H_1", 1, "negative eigenvalue");
-    QMOMKIT_VERIFY_NEAR(clear_negative.tolerance_used, loose.tolerance, 0.0);
 
     const auto clear_positive = qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0e-6}, MomentSupport::real_line, loose);
     QMOMKIT_VERIFY_CHECK(clear_positive.status == RealizabilityStatus::strictly_realizable);
     QMOMKIT_VERIFY_CHECK(clear_positive.checked_order == 2);
     QMOMKIT_VERIFY_CHECK(clear_positive.failed_matrix == "H_1");
     QMOMKIT_VERIFY_CHECK(clear_positive.minimum_pivot > clear_positive.tolerance_used);
-    QMOMKIT_VERIFY_NEAR(clear_positive.tolerance_used, loose.tolerance, 0.0);
 }
 
 void verify_hamburger()
@@ -667,16 +667,6 @@ void verify_near_boundary_and_scaling()
     QMOMKIT_VERIFY_CHECK(
         qmomkit::check_realizability(scaled_moments(norm_overflow_non_realizable, norm_overflow_scale), MomentSupport::real_line).status ==
         RealizabilityStatus::not_realizable);
-
-    // Absolute tolerance remains an absolute threshold and intentionally does
-    // not provide the relative mode's scaling invariance.
-    RealizabilityOptions absolute;
-    absolute.tolerance = 1.0e-8;
-    absolute.relative_tolerance = false;
-    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0, 0.0, 1.0}, MomentSupport::real_line, absolute).status ==
-                         RealizabilityStatus::strictly_realizable);
-    QMOMKIT_VERIFY_CHECK(qmomkit::check_realizability(MomentSet{1.0e-14, 0.0, 1.0e-14}, MomentSupport::real_line, absolute).status ==
-                         RealizabilityStatus::numerically_indeterminate);
 }
 
 } // namespace

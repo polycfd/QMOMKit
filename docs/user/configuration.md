@@ -609,7 +609,6 @@ check_mode = final_only
 support = nonnegative
 accept_boundary = true
 tolerance = 1e-12
-relative_tolerance = true
 ```
 
 Supported check modes are:

@@ -181,9 +181,8 @@ Realizability on a support is invariant under an affine change of coordinate
 $y = (x - c)/s$ with $s > 0$, which maps the support to
 $\left[(a - c)/s, (b - c)/s\right]$. The moment and localizing matrices of
 $y$ are congruent to those of $x$, so by Sylvester's law of inertia the signs
-of their eigenvalues, and hence the classification, are unchanged. With
-`relative_tolerance = true`, the check therefore tests the standardized
-moments
+of their eigenvalues, and hence the classification, are unchanged. The check
+therefore tests the standardized moments
 
 $$\nu_k = \frac{1}{2^{e_0}\, s^k} \sum_{j=0}^{k} \binom{k}{j} (-c)^{k-j} m_j,
 \qquad c = \frac{m_1}{m_0},$$
@@ -194,9 +193,7 @@ $\mu_k$ that is resolved, otherwise $|c|$, or one if $c = 0$, so that a point
 mass is not stretched. The powers of two make the scalings exact. The relative
 tolerance then applies to the standardized matrices, and the classification
 depends neither on the location of the distribution, nor on the unit of its
-coordinate, nor on $m_0$. With `relative_tolerance = false`,
-the raw moments are tested and `tolerance` is an absolute eigenvalue
-threshold; this mode is not invariant.
+coordinate, nor on $m_0$.
 
 ### Input precision
 
@@ -221,10 +218,7 @@ The Frobenius norm $\delta$ of the Hankel matrix of these uncertainties bounds
 how far they can move any eigenvalue of a tested matrix. Localizing sequences
 carry the uncertainties of the moments they combine. The rounding of building
 them, and of the transformed support bounds, is relative to the terms involved
-and lies within the roundoff allowance of the eigen solve in the standardized
-coordinate. For raw moments under an absolute tolerance, the terms of a
-bounded-interval sequence can be far larger than its entries, and the rounding
-can then exceed that allowance. For a distribution
+and lies within the roundoff allowance of the eigen solve. For a distribution
 far from the origin, $u_k$ grows like $\varepsilon (|c|/\sigma)^k$ relative to
 the standardized moments, which sets the resolution limit stated in the user
 documentation.
@@ -242,11 +236,10 @@ $\zeta = 1000\,\varepsilon \lVert A \rVert + \delta$:
 | ambiguous | otherwise, $\lambda < \tau$ |
 | positive | otherwise |
 
-The conditions are tested in this order. A user threshold can be smaller than
-the roundoff allowance: an absolute one once the matrix norm exceeds the
-tolerance over $1000\,\varepsilon$, about 4.5 for the default $10^{-12}$, and
-a relative one below $1000\,\varepsilon$. An eigenvalue within the roundoff of
-the eigen solve has no sign, so the zero band comes first.
+The conditions are tested in this order. The user threshold is smaller than
+the roundoff allowance for a tolerance below $1000\,\varepsilon$, and an
+eigenvalue within the roundoff of the eigen solve has no sign, so the zero band
+comes first.
 
 A matrix with a negative eigenvalue is not positive semidefinite; otherwise
 one with an ambiguous eigenvalue is `numerically_indeterminate`; otherwise one
@@ -261,9 +254,7 @@ bounds in the standardized coordinate.
 
 The same partition defines the numerical rank and the kernel used by the
 singular-matrix tests. A kernel projection of the next column is compared
-against a threshold that is, in absolute mode, at least the roundoff allowance
-$1000\,\varepsilon$ times the largest entry of the column, and that includes
-the uncertainty of the column and the
+against a threshold that includes the uncertainty of the column and the
 rotation of the kernel vectors, which by the Davis-Kahan theorem is at most
 $\delta$ over the gap between the zero and the positive eigenvalues, bounded
 below by the smallest positive eigenvalue minus $\zeta$.

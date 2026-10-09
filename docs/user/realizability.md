@@ -97,11 +97,12 @@ The most useful statuses for users are:
 
 ## Tolerance and input precision
 
-With `relative_tolerance = true`, the default, the check internally tests the
-moments of the standardized coordinate $(x - \mu)/\sigma$, where
-$\mu = m_1/m_0$ is the mean and $\sigma$ about the standard deviation, scaled
-by the total number density; the moments you pass are not changed. Realizability does not change under this change of coordinate, so the
-classification depends neither on where the distribution sits, nor on the unit
+The check internally tests the moments of the standardized coordinate
+$(x - \mu)/\sigma$, where $\mu = m_1/m_0$ is the mean and $\sigma$ about the
+standard deviation, scaled by the total number density; the moments you pass
+are not changed. Realizability does not change under this change of
+coordinate, so the classification depends neither on where the distribution
+sits, nor on the unit
 of its coordinate, nor on the total number density. `tolerance` is relative to
 the standardized moment matrices, and `minimum_pivot` and `tolerance_used`
 refer to them.
@@ -124,21 +125,9 @@ and 10 to 30 at order 8. Beyond that, expect `boundary` or
 `numerically_indeterminate`. If moments are needed far from the origin, a
 coordinate measured from a nearby reference point avoids this loss.
 
-In either mode, an eigenvalue within $1000\,\varepsilon$ times the norm of the
-tested matrix counts as zero, whatever `tolerance` requests, so a relative
-`tolerance` below $1000\,\varepsilon \approx 2.2 \times 10^{-13}$ resolves no
-finer than that.
-
-With `relative_tolerance = false`, the raw moment matrices are tested and
-`tolerance` is an absolute threshold for their eigenvalues. This mode does not
-standardize the coordinate, so its classification changes with the location,
-the unit and the number density. Its resolution is also limited by the size of
-the raw moments: an eigenvalue within $1000\,\varepsilon$ times the matrix
-norm counts as zero, and a kernel projection within $1000\,\varepsilon$ times
-the largest moment it involves is not taken as an inconsistency. Within this
-resolution the mode can err in both directions: a slightly non-realizable
-sequence with large moments can be reported as `boundary`, and a realizable
-one as `not_realizable`.
+An eigenvalue within $1000\,\varepsilon$ times the norm of the tested matrix
+counts as zero, whatever `tolerance` requests, so a `tolerance` below
+$1000\,\varepsilon \approx 2.2 \times 10^{-13}$ resolves no finer than that.
 
 ## Support constraints
 
@@ -226,7 +215,6 @@ check_mode = final_only
 support = nonnegative
 accept_boundary = true
 tolerance = 1e-12
-relative_tolerance = true
 ```
 
 Supported check modes are:

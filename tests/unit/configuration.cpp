@@ -225,7 +225,6 @@ void assert_realizability_policies_match(const qmomkit::RealizabilityPolicy& act
     assert(actual.support == expected.support);
     assert(actual.accept_boundary == expected.accept_boundary);
     assert_near(actual.options.tolerance, expected.options.tolerance);
-    assert(actual.options.relative_tolerance == expected.options.relative_tolerance);
     assert(actual.interval.has_value() == expected.interval.has_value());
     if (actual.interval.has_value())
     {
@@ -2266,14 +2265,12 @@ check_mode = final_only
 support = nonnegative
 accept_boundary = false
 tolerance = 1e-10
-relative_tolerance = false
 )");
     assert(final_only.ok());
     assert(final_only.value().check_mode == qmomkit::RealizabilityCheckMode::FinalOnly);
     assert(final_only.value().support == qmomkit::MomentSupport::nonnegative);
     assert(!final_only.value().accept_boundary);
     assert_near(final_only.value().options.tolerance, 1.0e-10);
-    assert(!final_only.value().options.relative_tolerance);
 }
 
 void test_realizability_policy_parses_support_and_bounded_interval()
@@ -2411,7 +2408,6 @@ support = bounded_interval
 lower = 0.0
 upper = 1.0
 tolerance = 1e-10
-relative_tolerance = false
 accept_boundary = false
 )";
     const std::string second = R"(
@@ -2433,7 +2429,6 @@ support = bounded_interval
 lower = 0.0
 upper = 1.0
 tolerance = 1e-10
-relative_tolerance = false
 accept_boundary = false
 )";
 
@@ -2596,6 +2591,15 @@ check_mode = final_only
 )");
     assert(!unknown_section.ok());
     assert(has_failure(unknown_section));
+
+    // The tolerance is always relative to the standardized matrices, so no key
+    // selects how it applies.
+    const auto mode_key = qmomkit::config::parse_realizability_policy(
+        "[time_integration.realizability]\ncheck_mode = final_only\nsupport = nonnegative\nrelative_tolerance = false\n");
+    assert(has_message_fragment(mode_key, "Unknown key 'time_integration.realizability.relative_tolerance'"));
+    const auto coordinate_mode_key = qmomkit::config::parse_coordinate_realizability_policies(
+        "[time_integration.realizability.0]\ncheck_mode = final_only\nsupport = nonnegative\nrelative_tolerance = false\n");
+    assert(has_message_fragment(coordinate_mode_key, "Unknown key 'time_integration.realizability.0.relative_tolerance'"));
 }
 
 void test_qmom_case_parsing_tolerates_realizability_policy_without_installing_it()
@@ -2651,7 +2655,6 @@ support = bounded_interval
 lower = -1.0
 upper = 1.0
 tolerance = 1.0e-12
-relative_tolerance = false
 accept_boundary = false
 )";
 

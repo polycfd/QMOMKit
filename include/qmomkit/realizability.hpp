@@ -42,28 +42,26 @@ enum class RealizabilityStatus
 /**
  * Numerical controls for support-aware realizability analysis.
  *
- * With relative_tolerance, the moment matrices are tested in the standardized
- * coordinate (x - m1/m0) / s, with s about the spread of the distribution, and
- * tolerance is relative to those matrices; the classification then depends
- * neither on the location of the distribution nor on the unit of its
- * coordinate. Eigenvalues are also compared against the rounding of the input
- * moments propagated into that coordinate. Without relative_tolerance, the raw
- * matrices are tested against tolerance as an absolute threshold. In either
- * mode, an eigenvalue within 1000 epsilon times the norm of the tested matrix
- * counts as zero, so a tolerance below that resolves no finer.
+ * The moment matrices are tested in the standardized coordinate
+ * (x - m1/m0) / s, with s about the spread of the distribution, and tolerance
+ * is relative to those matrices; the classification then depends neither on
+ * the location of the distribution, nor on the unit of its coordinate, nor on
+ * m0. Eigenvalues are also compared against the rounding of the input moments
+ * propagated into that coordinate. An eigenvalue within 1000 epsilon times the
+ * norm of the tested matrix counts as zero, so a tolerance below that resolves
+ * no finer.
  */
 struct RealizabilityOptions
 {
     double tolerance = 1.0e-12;
-    bool relative_tolerance = true;
 };
 
 /**
  * Diagnostic result for a support-aware one-dimensional realizability check.
  *
  * minimum_pivot is the limiting eigenvalue, or kernel projection, and
- * tolerance_used the threshold it was compared against; with
- * relative_tolerance both refer to the standardized matrices.
+ * tolerance_used the threshold it was compared against; both refer to the
+ * standardized matrices.
  */
 struct RealizabilityResult
 {

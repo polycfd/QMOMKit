@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 689 |
+| Unit logical tests | 688 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **925** |
+| **Runtime logical tests** | **924** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **926** |
+| **Total CTest registrations** | **925** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -841,7 +841,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_coordinate_realizability_policy_does_not_alter_quadrature_bounds` | `tests/unit/configuration.cpp` | `coordinate_realizability_policy_does_not_alter_quadrature_bounds` | Verifies coordinate realizability policy does not alter quadrature bounds. | — |
 | `unit_configuration_realizability_policy_rejects_invalid_values` | `tests/unit/configuration.cpp` | `realizability_policy_rejects_invalid_values` | Checks that realizability policy rejects invalid values in configuration loading. | — |
 | `unit_configuration_realizability_policy_rejects_invalid_bounded_interval` | `tests/unit/configuration.cpp` | `realizability_policy_rejects_invalid_bounded_interval` | Checks that realizability policy rejects invalid bounded interval in configuration loading. | — |
-| `unit_configuration_realizability_policy_rejects_unknown_entries` | `tests/unit/configuration.cpp` | `realizability_policy_rejects_unknown_entries` | Checks that realizability policy rejects unknown entries in configuration loading. | — |
+| `unit_configuration_realizability_policy_rejects_unknown_entries` | `tests/unit/configuration.cpp` | `realizability_policy_rejects_unknown_entries` | Checks that realizability policy rejects unknown entries in configuration loading, including `relative_tolerance` in the unnumbered and in a numbered section. | — |
 | `unit_configuration_qmom_case_parsing_tolerates_realizability_policy_without_installing_it` | `tests/unit/configuration.cpp` | `qmom_case_parsing_tolerates_realizability_policy_without_installing_it` | Verifies QMOM case parsing tolerates realizability policy without installing it. | — |
 | `unit_configuration_case_parsing_validates_realizability_policy_without_owning_it` | `tests/unit/configuration.cpp` | `case_parsing_validates_realizability_policy_without_owning_it` | Verifies case parsing validates realizability policy without owning it. | — |
 | `unit_configuration_case_parsing_rejects_invalid_realizability_policy` | `tests/unit/configuration.cpp` | `case_parsing_rejects_invalid_realizability_policy` | Checks that case parsing rejects invalid realizability policy in configuration loading. | — |
@@ -982,9 +982,8 @@ CTest check; it is not 23 runtime tests.
 | `unit_realizability_matrix_diagnostics` | `tests/unit/realizability.cpp` | `matrix_diagnostics` | Checks that realizability diagnostics expose the limiting matrix and pivot information for the tested sequence. | — |
 | `unit_realizability_status_helpers` | `tests/unit/realizability.cpp` | `status_helpers` | Checks that realizability status helpers distinguish successful and non-success classifications. | — |
 | `unit_realizability_even_order_hamburger_singular_kernel_consistency` | `tests/unit/realizability.cpp` | `even_order_hamburger_singular_kernel_consistency` | Checks that an even-order singular Hamburger sequence satisfies the required kernel-consistency condition. | — |
-| `unit_realizability_every_eigenvalue_is_classified` | `tests/unit/realizability.cpp` | `every_eigenvalue_is_classified` | Checks that an ambiguous eigenvalue other than the smallest makes the classification numerically indeterminate. | — |
-| `unit_realizability_eigen_solve_roundoff_has_no_sign` | `tests/unit/realizability.cpp` | `eigen_solve_roundoff_has_no_sign` | Checks that, under an absolute tolerance below the eigen-solve roundoff, an exactly singular two-point set at weights of 1e6 is `boundary` rather than rejected for its roundoff eigenvalue, while lowering m_4 by one is still `not_realizable` at H_2. | — |
-| `unit_realizability_kernel_projection_roundoff_is_consistent` | `tests/unit/realizability.cpp` | `kernel_projection_roundoff_is_consistent` | Checks that, under an absolute tolerance below the roundoff of the kernel projection, the exact two-point set at weights of 1e6 is `boundary` at order 5, while changing m_5 by one is still `not_realizable` at `H_2_next_column`. | — |
+| `unit_realizability_every_eigenvalue_is_classified` | `tests/unit/realizability.cpp` | `every_eigenvalue_is_classified` | Checks that, with a tolerance of 0.4, the ambiguous middle eigenvalue of the standardized H_2 of two points makes the classification numerically indeterminate although the smallest is zero, and that the default tolerance decides it as `boundary`. | — |
+| `unit_realizability_tolerance_below_the_roundoff_resolves_no_finer` | `tests/unit/realizability.cpp` | `tolerance_below_the_roundoff_resolves_no_finer` | Checks that lowering m_4 of two points by 2e-13 is `boundary` with tolerances of 1e-15 and 1e-12, since its eigenvalue lies within the roundoff of the eigen solve, while lowering it by 1e-10 is `not_realizable` at H_2. | — |
 | `unit_realizability_flat_extension_within_precision_is_boundary` | `tests/unit/realizability.cpp` | `flat_extension_within_precision_is_boundary` | Checks that realizable even-order sequences whose H_n resolves its eigenvalues less finely than H_(n-1) are not rejected, in any unit of the coordinate. | — |
 | `unit_realizability_flat_extension_within_data_uncertainty_is_indeterminate` | `tests/unit/realizability.cpp` | `flat_extension_within_data_uncertainty_is_indeterminate` | Checks that a flat-extension rank mismatch is numerically indeterminate when the zero of H_(n-1) holds only within the data uncertainty. | — |
 | `unit_realizability_lost_information_is_indeterminate` | `tests/unit/realizability.cpp` | `lost_information_is_indeterminate` | Checks that a sequence whose standardized moments carry no reliable digit is numerically indeterminate. | — |

@@ -60,11 +60,10 @@ struct MatrixAnalysis
 };
 
 // A moment-like sequence with a bound on the absolute uncertainty of each
-// entry. Raw moments under an absolute tolerance carry no uncertainty;
-// standardized moments carry the propagated rounding of the raw input moments.
-// Uncertainty that reaches the information scale leaves a matrix of the
-// sequence without a single reliable digit: for standardized moments, it is
-// their mass; for a localizing sequence, that mass times the size of the
+// entry: the standardized moments carry the propagated rounding of the raw
+// input moments. Uncertainty that reaches the information scale leaves a
+// matrix of the sequence without a single reliable digit: for the standardized
+// moments, it is their mass; for a localizing sequence, that mass times the size of the
 // coefficients of the localizing polynomial.
 struct MomentSequence
 {
@@ -110,8 +109,7 @@ struct ClassificationState
 }
 
 // The roundoff allowance of the eigen solve, relative to the scale of the
-// matrix, and of a kernel projection, relative to the scale of the column.
-// Nothing within it is resolved, whatever tolerance is requested.
+// matrix. Nothing within it is resolved, whatever tolerance is requested.
 constexpr double roundoff_allowance = 1000.0 * std::numeric_limits<double>::epsilon();
 
 enum class EigenvalueClass
@@ -210,7 +208,7 @@ enum class EigenvalueClass
         }
     }
 
-    const double user_tolerance = options.relative_tolerance ? options.tolerance * normalization_scale * normalized_infinity_norm : options.tolerance;
+    const double user_tolerance = options.tolerance * normalization_scale * normalized_infinity_norm;
     const double diagonalization_roundoff = roundoff_allowance * normalization_scale * normalized_infinity_norm;
     analysis.uncertainty = hankel_uncertainty(sequence, order);
     analysis.roundoff = diagonalization_roundoff;
@@ -378,18 +376,15 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return projection;
 }
 
-// The threshold for a kernel projection of the extension column. An absolute
-// tolerance is raised to the roundoff allowance of the column, as the zero
-// band is for the eigenvalues. Beyond the tolerance, it covers the data
-// uncertainty: that of the column itself, and
+// The threshold for a kernel projection of the extension column. Beyond the
+// tolerance, it covers the data uncertainty: that of the column itself, and
 // the rotation of the kernel vectors, which the data uncertainty can turn by
 // up to its size over the gap between the zero and the positive eigenvalues
 // (Davis-Kahan); zero eigenvalues lie within the zero band, so the smallest
 // positive eigenvalue minus the band bounds that gap from below.
 [[nodiscard]] double kernel_projection_tolerance(const MatrixAnalysis& analysis, const MomentSequence& column, const RealizabilityOptions& options)
 {
-    const double tolerance = options.relative_tolerance ? std::max(analysis.tolerance, options.tolerance * vector_scale(column.values))
-                                                        : std::max(options.tolerance, roundoff_allowance * vector_scale(column.values));
+    const double tolerance = std::max(analysis.tolerance, options.tolerance * vector_scale(column.values));
     double smallest_positive = std::numeric_limits<double>::infinity();
     for (const double eigenvalue : analysis.eigensystem.eigenvalues)
     {
@@ -687,7 +682,7 @@ void update_limiting_matrix(ClassificationState& state, const MatrixAnalysis& an
     return finish_classification(std::move(state), checked_order, MomentSupport::bounded_interval);
 }
 
-// The moments a relative-tolerance check tests: those of y = (x - c) / s,
+// The moments the check tests: those of y = (x - c) / s,
 // with c = m1 / m0 and s the power of two just above the spread, divided by
 // the power of two just above m0. Realizability is invariant under this
 // affine change of coordinate, and the moment matrices change by a
@@ -699,32 +694,21 @@ struct TestedMoments
     MomentSequence moments;
     double centre = 0.0;
     int scale_exponent = 0;
-    bool standardized = false;
 
     // A support bound in the tested coordinate. Its rounding, like that of
     // building the localizing sequences, is relative to the terms involved
-    // and, in the standardized coordinate, lies within the roundoff allowance
-    // of the eigen solve.
+    // and lies within the roundoff allowance of the eigen solve.
     [[nodiscard]] double bound(const double value) const
     {
-        return standardized ? std::ldexp(value - centre, -scale_exponent) : value;
+        return std::ldexp(value - centre, -scale_exponent);
     }
 };
-
-[[nodiscard]] TestedMoments raw_moments(const MomentSet& moments)
-{
-    TestedMoments tested;
-    tested.moments.values = moments.values();
-    tested.moments.uncertainties.assign(moments.size(), 0.0);
-    return tested;
-}
 
 [[nodiscard]] TestedMoments standardized_moments(const MomentSet& moments)
 {
     const std::size_t count = moments.size();
     const double mass = moments[0];
     TestedMoments tested;
-    tested.standardized = true;
     tested.centre = count > 1 ? moments[1] / mass : 0.0;
 
     // Dividing by the power of two of m0 first is exact and keeps the centring
@@ -794,11 +778,6 @@ struct TestedMoments
     return tested;
 }
 
-[[nodiscard]] TestedMoments tested_moments(const MomentSet& moments, const RealizabilityOptions& options)
-{
-    return options.relative_tolerance ? standardized_moments(moments) : raw_moments(moments);
-}
-
 [[nodiscard]] RealizabilityResult with_support_context(RealizabilityResult result, const MomentSupport support)
 {
     if (!result.message.empty() && result.message.find("support") == std::string::npos && result.message.find("Support") == std::string::npos)
@@ -822,12 +801,12 @@ RealizabilityResult check_realizability(const MomentSet& moments, const MomentSu
     {
     case MomentSupport::real_line:
     {
-        const TestedMoments tested = tested_moments(moments, options);
+        const TestedMoments tested = standardized_moments(moments);
         return with_support_context(check_hamburger(tested.moments, options), support);
     }
     case MomentSupport::nonnegative:
     {
-        const TestedMoments tested = tested_moments(moments, options);
+        const TestedMoments tested = standardized_moments(moments);
         return with_support_context(check_stieltjes(tested.moments, tested.bound(0.0), options), support);
     }
     case MomentSupport::bounded_interval:
@@ -852,7 +831,7 @@ RealizabilityResult check_realizability(const MomentSet& moments, const BoundedI
         return with_support_context(std::move(validation), MomentSupport::bounded_interval);
     }
 
-    const TestedMoments tested = tested_moments(moments, options);
+    const TestedMoments tested = standardized_moments(moments);
     return with_support_context(check_hausdorff(tested.moments, tested.bound(interval.lower), tested.bound(interval.upper), options),
                                 MomentSupport::bounded_interval);
 }

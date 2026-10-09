@@ -43,6 +43,8 @@ optional branches, and prerequisites in more detail.
 - `qmom_1d_explicit_strang_splitting/`: advanced application-owned Strang
   staging through the public advection and moment-source stage APIs; use after
   the library-managed workflow.
+- `qmom_state_candidate/`: hand moments the application changed itself to a
+  new `QmomState`, with a realizability check, and see each outcome.
 
 ## CQMOM evolution
 

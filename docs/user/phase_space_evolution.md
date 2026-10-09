@@ -1200,6 +1200,9 @@ maximum shows; then the higher moments are those of the remaining nodes. Take
 the moments of the state, `moment_values()`, back into the cells for the next
 transport step, so that the cells hold the population that was evolved.
 
+The [`qmom_state_candidate` example](../../examples/qmom_state_candidate/README.md)
+hands changed moments to a new state and shows the outcomes of a check.
+
 ## Practical guidance
 
 Coordinate order links each callback to the configured model. A

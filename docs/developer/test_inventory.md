@@ -15,12 +15,12 @@ Each runtime logical test is registered exactly once with CTest.
 
 | Registration class | Count |
 | --- | ---: |
-| Unit logical tests | 695 |
+| Unit logical tests | 697 |
 | Component/regression logical tests | 46 |
 | Verification logical tests | 190 |
-| **Runtime logical tests** | **931** |
+| **Runtime logical tests** | **933** |
 | Public-header CTest check | 1 |
-| **Total CTest registrations** | **932** |
+| **Total CTest registrations** | **934** |
 
 Multiple parameter values or configurations used to establish one claim remain
 internal to that logical test and therefore do not increase the CTest count.
@@ -798,6 +798,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_qmom_mixture_initialization_matches_direct_api` | `tests/unit/configuration.cpp` | `qmom_mixture_initialization_matches_direct_api` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
 | `unit_configuration_mixture_zero_density_component_is_skipped` | `tests/unit/configuration.cpp` | `mixture_zero_density_component_is_skipped` | Checks that mixture zero density component is skipped in configuration loading. | — |
 | `unit_configuration_mixture_level_distribution_keys_are_reported` | `tests/unit/configuration.cpp` | `mixture_level_distribution_keys_are_reported` | Checks that a top-level `initial.number_density` or `initial.mean` with `type = mixture` is reported by `parse_qmom` and `parse_qmom_initial_condition`, that a CQMOM mixture marginal reports its own `family`, and that both mixtures parse without those keys. | — |
+| `unit_configuration_distribution_parameters_of_another_family_are_reported` | `tests/unit/configuration.cpp` | `distribution_parameters_of_another_family_are_reported` | Checks, for every distribution family, that its own parameters load and that a parameter of another family is reported as having no effect, for a single distribution, a mixture component and a CQMOM marginal. | — |
 | `unit_configuration_cqmom_rejects_the_removed_moment_storage_key` | `tests/unit/configuration.cpp` | `cqmom_rejects_the_removed_moment_storage_key` | Checks that a configuration carrying the removed `cqmom.moment_storage` key is rejected by every CQMOM loader, and that the same configuration without it still loads. | — |
 | `unit_configuration_valid_cqmom_matches_programmatic_case` | `tests/unit/configuration.cpp` | `valid_cqmom_matches_programmatic_case` | Checks that valid CQMOM matches programmatic case in configuration loading. | — |
 | `unit_configuration_cqmom_independent_product_initialization_matches_direct_api` | `tests/unit/configuration.cpp` | `cqmom_independent_product_initialization_matches_direct_api` | Checks that configuration loading initializes the tested numerical state with the specified moments and options. | — |
@@ -842,6 +843,7 @@ CTest check; it is not 23 runtime tests.
 | `unit_configuration_realizability_policy_defaults_to_disabled` | `tests/unit/configuration.cpp` | `realizability_policy_defaults_to_disabled` | Verifies realizability policy defaults to disabled. | — |
 | `unit_configuration_realizability_policy_parses_check_modes` | `tests/unit/configuration.cpp` | `realizability_policy_parses_check_modes` | Checks that realizability policy parses check modes in configuration loading. | — |
 | `unit_configuration_realizability_policy_parses_support_and_bounded_interval` | `tests/unit/configuration.cpp` | `realizability_policy_parses_support_and_bounded_interval` | Checks that realizability policy parses support and bounded interval in configuration loading. | — |
+| `unit_configuration_realizability_bounds_without_a_bounded_interval_are_reported` | `tests/unit/configuration.cpp` | `realizability_bounds_without_a_bounded_interval_are_reported` | Checks that `lower` or `upper` under a support other than `bounded_interval`, including the default, is reported as having no effect, for the QMOM policy, a CQMOM coordinate policy and the QMOM evolution options. | — |
 | `unit_configuration_coordinate_realizability_policies_parse_sparse_numbered_sections` | `tests/unit/configuration.cpp` | `coordinate_realizability_policies_parse_sparse_numbered_sections` | Verifies coordinate realizability policies parse sparse numbered sections. | — |
 | `unit_configuration_quadrature_bounds_do_not_alter_coordinate_realizability_policy` | `tests/unit/configuration.cpp` | `quadrature_bounds_do_not_alter_coordinate_realizability_policy` | Verifies quadrature bounds do not alter coordinate realizability policy. | — |
 | `unit_configuration_coordinate_realizability_policy_does_not_alter_quadrature_bounds` | `tests/unit/configuration.cpp` | `coordinate_realizability_policy_does_not_alter_quadrature_bounds` | Verifies coordinate realizability policy does not alter quadrature bounds. | — |

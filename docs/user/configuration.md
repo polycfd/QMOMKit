@@ -297,6 +297,11 @@ These canonical family names are preferred. The parser also accepts
 `log-normal` and `log_normal` for `lognormal`, and `chi_squared` and
 `chisquared` for `chi-squared`.
 
+A family reads only its own parameters, so a parameter of another family, such
+as `shape` with `family = lognormal`, is reported as an error rather than
+ignored. This applies wherever a distribution is given: under `[initial]`, in a
+mixture component, and in an `[initial.dimension.N]` marginal.
+
 All supplied distribution parameters must be finite. The remaining family
 constraints are:
 
@@ -650,6 +655,10 @@ support = bounded_interval
 lower = 0.0
 upper = 1.0
 ```
+
+Only `support = bounded_interval` reads `lower` and `upper`; under any other
+support, including the default `real_line`, either bound is reported as an
+error rather than ignored.
 
 For CQMOM, use coordinate-specific realizability settings for the individual
 phase-space coordinates that require checks. A zero-based coordinate suffix
